@@ -1,9 +1,9 @@
 package sequencer
 
 import (
-	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/jmoiron/sqlx"
 	"time"
+
+	"github.com/hermeznetwork/hermez-core/pool"
 )
 
 type Sequencer struct {
@@ -14,22 +14,13 @@ type Sequencer struct {
 	SynchronizerClient SynchronizerClient
 }
 
-func NewSequencer(cfg Config) (Sequencer, error) {
-	db, err := sqlx.Connect("postgres", "")
-	if err != nil {
-		return Sequencer{}, err
-	}
-	pool := pool.NewPool()
-	state := state.NewState()
-	bp := state.NewBatchProcessor(cfg.StartingHash, cfg.WithProofCalulation)
-	ethClient := eth.NewClient()
-	synchronizer := NewSynchronizerClient()
+func NewSequencer(pool pool.Pool, state state.State, bp state.BatchProcessor, ethClient eth.Client, syncClient SynchronizerClient) (Sequencer, error) {
 	return Sequencer{
-		Pool:           pool,
-		State:          state,
-		EthClient:      ethClient,
-		BatchProcessor: bp,
-		Synchronizer:   synchronizer,
+		Pool:               pool,
+		State:              state,
+		EthClient:          ethClient,
+		BatchProcessor:     bp,
+		SynchronizerClient: syncClient,
 	}, nil
 }
 

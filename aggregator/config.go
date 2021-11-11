@@ -1,4 +1,3 @@
 package aggregator
 
-type Config struct {
-}
+type Config struct{}
