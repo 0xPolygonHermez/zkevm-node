@@ -104,13 +104,10 @@ func (s *HTTPServer) handleSingleRequest(w http.ResponseWriter, data []byte) {
 		return
 	}
 
-	response, err := s.handler.Handle(request)
-	if err != nil {
-		w.Write([]byte(err.Error()))
-		return
-	}
+	response := s.handler.Handle(request)
 
-	w.Write(response)
+	respBytes, _ := response.Bytes()
+	w.Write(respBytes)
 }
 
 func (s *HTTPServer) handleBatchRequest(w http.ResponseWriter, data []byte) {
@@ -122,16 +119,13 @@ func (s *HTTPServer) handleBatchRequest(w http.ResponseWriter, data []byte) {
 
 	responses := make([]Response, 0, len(requests))
 
-	for request := range requests {
-		response, err := s.handler.Handle(request)
-		if err != nil {
-			responses = append(responses, response)
-		}
-
+	for _, request := range requests {
+		response := s.handler.Handle(request)
 		responses = append(responses, response)
 	}
 
-	w.Write(responses)
+	respBytes, _ := json.Marshal(responses)
+	w.Write(respBytes)
 }
 
 func (s *HTTPServer) parseRequest(data []byte) (Request, error) {

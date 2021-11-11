@@ -8,9 +8,10 @@ import (
 
 // Request is a jsonrpc request
 type Request struct {
-	ID     interface{}     `json:"id"`
-	Method string          `json:"method"`
-	Params json.RawMessage `json:"params,omitempty"`
+	JSONRPC string          `json:"jsonrpc"`
+	ID      interface{}     `json:"id"`
+	Method  string          `json:"method"`
+	Params  json.RawMessage `json:"params,omitempty"`
 }
 
 // Response is a jsonrpc response interface
@@ -140,27 +141,38 @@ func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
 	return nil
 }
 
-// NewRpcErrorResponse is used to create a custom error response
-func NewRpcErrorResponse(id interface{}, errCode int, err string, jsonrpcver string) Response {
-	errObject := &ErrorObject{errCode, err, nil}
+type Index int64
 
+// UnmarshalJSON automatically decodes the user input for the block number, when a JSON RPC method is called
+func (i *Index) UnmarshalJSON(buffer []byte) error {
+	str := strings.Trim(string(buffer), "\"")
+	n, err := ParseUint64orHex(&str)
+	if err != nil {
+		return err
+	}
+	*i = Index(n)
+	return nil
+}
+
+// NewRpcErrorResponse is used to create a custom error response
+func NewRpcErrorResponse(req Request, err Error) Response {
 	response := &ErrorResponse{
-		JSONRPC: jsonrpcver,
-		ID:      id,
-		Error:   errObject,
+		JSONRPC: req.JSONRPC,
+		ID:      req.ID,
+		Error:   &ErrorObject{err.ErrorCode(), err.Error(), nil},
 	}
 	return response
 }
 
 // NewRpcResponse returns Success/Error response object
-func NewRpcResponse(id interface{}, jsonrpcver string, reply []byte, err Error) Response {
+func NewRpcResponse(req Request, reply []byte, err Error) Response {
 
 	var response Response
 	switch err.(type) {
 	case nil:
-		response = &SuccessResponse{JSONRPC: jsonrpcver, ID: id, Result: reply}
+		response = &SuccessResponse{JSONRPC: req.JSONRPC, ID: req.ID, Result: reply}
 	default:
-		response = NewRpcErrorResponse(id, err.ErrorCode(), err.Error(), jsonrpcver)
+		response = NewRpcErrorResponse(req, err)
 	}
 
 	return response

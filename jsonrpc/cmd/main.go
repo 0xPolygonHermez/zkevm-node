@@ -9,6 +9,6 @@ func main() {
 		Host: "",
 		Port: 8123,
 	}
-	server := jsonrpc.NewServer(cfg)
+	server := jsonrpc.NewHTTPServer(cfg)
 	server.Start()
 }

@@ -36,17 +36,18 @@ func newJSONRpcHandler(chainID uint64) *JSONRpcHandler {
 		serviceMap: map[string]*serviceData{},
 	}
 
-	d.registerService("eth", Eth{})
+	d.registerService("eth", &Eth{})
+	d.registerService("net", &Net{})
 
 	return d
 }
 
-func (d *JSONRpcHandler) Handle(req Request) (Response, error) {
+func (d *JSONRpcHandler) Handle(req Request) Response {
 	fmt.Println("request", "method", req.Method, "id", req.ID)
 
-	service, fd, ferr := d.getFnHandler(req)
-	if ferr != nil {
-		return nil, ferr
+	service, fd, err := d.getFnHandler(req)
+	if err != nil {
+		return NewRpcResponse(req, nil, err)
 	}
 
 	inArgs := make([]reflect.Value, fd.inNum)
@@ -61,28 +62,23 @@ func (d *JSONRpcHandler) Handle(req Request) (Response, error) {
 
 	if fd.numParams() > 0 {
 		if err := json.Unmarshal(req.Params, &inputs); err != nil {
-			return nil, NewInvalidParamsError("Invalid Params")
+			return NewRpcResponse(req, nil, NewInvalidParamsError("Invalid Params"))
 		}
 	}
 
 	output := fd.fv.Call(inArgs)
 	if err := getError(output[1]); err != nil {
-		d.logInternalError(req.Method, err)
-		return nil, NewInvalidRequestError(err.Error())
+		fmt.Println("failed to call", "method", req.Method, "err", err)
+		return NewRpcResponse(req, nil, NewInvalidRequestError(err.Error()))
 	}
 
 	var data []byte
-	var err error
 	res := output[0].Interface()
 	if res != nil {
-		data, err = json.Marshal(res)
-		if err != nil {
-			d.logInternalError(req.Method, err)
-			return nil, NewInternalError("Internal error")
-		}
+		data, _ = json.Marshal(res)
 	}
 
-	return data, nil
+	return NewRpcResponse(req, data, nil)
 }
 
 func (d *JSONRpcHandler) registerService(serviceName string, service interface{}) {
@@ -141,10 +137,6 @@ func (d *JSONRpcHandler) getFnHandler(req Request) (*serviceData, *funcData, Err
 		return nil, nil, NewMethodNotFoundError(req.Method)
 	}
 	return service, fd, nil
-}
-
-func (d *JSONRpcHandler) logInternalError(method string, err error) {
-	fmt.Println("failed to call", "method", method, "err", err)
 }
 
 func validateFunc(funcName string, fv reflect.Value, isMethod bool) (inNum int, reqt []reflect.Type, err error) {
