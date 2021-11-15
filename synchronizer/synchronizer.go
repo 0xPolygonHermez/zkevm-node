@@ -1,8 +1,9 @@
 package synchronizer
 
 import (
-	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/db"
 )
 
@@ -13,16 +14,21 @@ type Synchronizer struct {
 }
 func NewSynchronizer() (*Synchronizer, error) {
 	//TODO
+	//Read values from config file
+	var poeAddr common.Address
+	var ethNodeURL string
 	var db db.KeyValuer
 	st := state.NewState(db)
-	ethMan, err := etherman.NewEtherman()
+	ethMan, err := etherman.NewEtherman(ethNodeURL, poeAddr)
 	if err != nil {
 		return nil, err
 	}
 	return &Synchronizer{state: st, etherMan: ethMan}, nil
 }
 
-// This function will read the last state synced and will continue from that point
+// Sync function will read the last state synced and will continue from that point.
+// Sync() will read blockchain events to detect rollup updates. If it is already synced,
+// It will keep waiting for a new event
 func (s *Synchronizer) Sync() error {
 	//TODO
 	return nil
@@ -34,7 +40,7 @@ func (s *Synchronizer) resetState(ethBlockNum uint64) error {
 	return nil
 }
 
-// This function will check if there is a reorg and if so, fix the sync state
+// This function will check if there is a reorg
 func (s *Synchronizer) reorg() (uint64, error) {
 	//TODO
 	return 0, nil
