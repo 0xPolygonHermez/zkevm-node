@@ -1,10 +1,8 @@
 package synchronizer
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/db"
 )
 
 type Synchronizer struct {
@@ -12,17 +10,8 @@ type Synchronizer struct {
     state *state.State
     
 }
-func NewSynchronizer() (*Synchronizer, error) {
+func NewSynchronizer(ethMan *etherman.EtherMan, st *state.State) (*Synchronizer, error) {
 	//TODO
-	//Read values from config file
-	var poeAddr common.Address
-	var ethNodeURL string
-	var db db.KeyValuer
-	st := state.NewState(db)
-	ethMan, err := etherman.NewEtherman(ethNodeURL, poeAddr)
-	if err != nil {
-		return nil, err
-	}
 	return &Synchronizer{state: st, etherMan: ethMan}, nil
 }
 
