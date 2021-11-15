@@ -12,6 +12,7 @@ type EtherMan struct {
 }
 
 func NewEtherman() (*EtherMan, error) {
+	//TODO
 	var address common.Address
 	var backend bind.ContractBackend
 	poe, err := proofofefficiency.NewProofofefficiency(address, backend)
