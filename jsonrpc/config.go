@@ -1,7 +1,8 @@
 package jsonrpc
 
 type Config struct {
-	Host    string
-	Port    int
+	Host string
+	Port int
+
 	ChainID uint64
 }

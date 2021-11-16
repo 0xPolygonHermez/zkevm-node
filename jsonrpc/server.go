@@ -11,21 +11,26 @@ import (
 )
 
 // JSONRPC is an API backend
-type HTTPServer struct {
+type Server struct {
 	config  Config
-	handler *JSONRpcHandler
+	handler *JSONRPCHandler
 }
 
-// NewHTTPServer returns the JsonRPC http server
-func NewHTTPServer(config Config) *HTTPServer {
-	srv := &HTTPServer{
+// NewServer returns the JsonRPC server
+func NewServer(config Config) *Server {
+	ethEndpoints := &Eth{chainID: config.ChainID}
+	netEndpoints := &Net{chainID: config.ChainID}
+
+	handler := newJSONRpcHandler(ethEndpoints, netEndpoints)
+
+	srv := &Server{
 		config:  config,
-		handler: newJSONRpcHandler(config.ChainID),
+		handler: handler,
 	}
 	return srv
 }
 
-func (s *HTTPServer) Start() error {
+func (s *Server) Start() error {
 	address := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
 	log.Println("http server started", "addr", address)
 
@@ -36,7 +41,7 @@ func (s *HTTPServer) Start() error {
 	}
 
 	mux := http.DefaultServeMux
-	mux.HandleFunc("/", s.handleHTTPRpc)
+	mux.HandleFunc("/", s.handle)
 
 	srv := http.Server{
 		Handler: mux,
@@ -48,7 +53,7 @@ func (s *HTTPServer) Start() error {
 	return nil
 }
 
-func (s *HTTPServer) handleHTTPRpc(w http.ResponseWriter, req *http.Request) {
+func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
@@ -87,7 +92,7 @@ func (s *HTTPServer) handleHTTPRpc(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *HTTPServer) isSingleRequest(data []byte) (bool, error) {
+func (s *Server) isSingleRequest(data []byte) (bool, error) {
 	x := bytes.TrimLeft(data, " \t\r\n")
 
 	if len(x) == 0 {
@@ -97,7 +102,7 @@ func (s *HTTPServer) isSingleRequest(data []byte) (bool, error) {
 	return x[0] == '{', nil
 }
 
-func (s *HTTPServer) handleSingleRequest(w http.ResponseWriter, data []byte) {
+func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte) {
 	request, err := s.parseRequest(data)
 	if err != nil {
 		w.Write([]byte(err.Error()))
@@ -110,7 +115,7 @@ func (s *HTTPServer) handleSingleRequest(w http.ResponseWriter, data []byte) {
 	w.Write(respBytes)
 }
 
-func (s *HTTPServer) handleBatchRequest(w http.ResponseWriter, data []byte) {
+func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
 	requests, err := s.parseRequests(data)
 	if err != nil {
 		w.Write([]byte(err.Error()))
@@ -128,7 +133,7 @@ func (s *HTTPServer) handleBatchRequest(w http.ResponseWriter, data []byte) {
 	w.Write(respBytes)
 }
 
-func (s *HTTPServer) parseRequest(data []byte) (Request, error) {
+func (s *Server) parseRequest(data []byte) (Request, error) {
 	var req Request
 
 	if err := json.Unmarshal(data, &req); err != nil {
@@ -138,7 +143,7 @@ func (s *HTTPServer) parseRequest(data []byte) (Request, error) {
 	return req, nil
 }
 
-func (s *HTTPServer) parseRequests(data []byte) ([]Request, error) {
+func (s *Server) parseRequests(data []byte) ([]Request, error) {
 	var requests []Request
 
 	if err := json.Unmarshal(data, &requests); err != nil {

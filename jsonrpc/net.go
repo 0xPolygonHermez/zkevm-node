@@ -1,9 +1,13 @@
 package jsonrpc
 
-// Net is the net jsonrpc endpoint
-type Net struct{}
+import "github.com/hermeznetwork/hermez-core/jsonrpc/hex"
+
+// Net contains implementations for the "net" RPC endpoints
+type Net struct {
+	chainID uint64
+}
 
 // Version returns the current network id
 func (n *Net) Version() (interface{}, error) {
-	return "0x99999999", nil // 2576980377
+	return hex.EncodeUint64(n.chainID), nil
 }

@@ -24,36 +24,64 @@ func (s *State) NewBatchProcessor(startingHash common.Hash, withProofCalculation
 
 // GetStateRoot returns the root of the state tree
 func (s *State) GetStateRoot(virtual bool) (*big.Int, error) {
-	// return s.data.Root, nil
-	return nil, nil
+	panic("not implemented yet")
 }
 
 // GetBalance from a given address
-func (s *State) GetBalance(address common.Address) *big.Int {
-	return nil
+func (s *State) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
+	panic("not implemented yet")
 }
 
 // EstimateGas for a transaction
 func (s *State) EstimageGas(address common.Address) uint64 {
-	return 0
+	panic("not implemented yet")
 }
 
 // GetLastBlock gets the latest block
 func (s *State) GetLastBlock() (*types.Block, error) {
-	return nil, nil
+	panic("not implemented yet")
 }
 
 // GetLastBatch gets the latest batch
 func (s *State) GetLastBatch(isVirtual bool) (*Batch, error) {
-	return nil, nil
+	panic("not implemented yet")
+}
+
+// GetBatchByHash gets a batch by its hash
+func (s *State) GetBatchByHash(hash common.Hash, withTxDetails, isVirtual bool) (*Batch, error) {
+	panic("not implemented yet")
+}
+
+// GetBatchByNumber gets a batch by its number
+func (s *State) GetBatchByNumber(number uint64, withTxDetails, isVirtual bool) (*Batch, error) {
+	panic("not implemented yet")
+}
+
+// GetTransactionByBlockHashAndIndex gets a transactions by its index accordingly to the batch hash
+func (s *State) GetTransactionByBatchHashAndIndex(hash common.Hash, index uint64) (*types.Transaction, error) {
+	panic("not implemented yet")
+}
+
+// GetTransactionByBatchNumberAndIndex gets a transactions by its index accordingly to the batch number
+func (s *State) GetTransactionByBatchNumberAndIndex(number uint64, index uint64) (*types.Transaction, error) {
+	panic("not implemented yet")
+}
+
+// GetTransaction gets a transactions by its hash
+func (s *State) GetTransaction(hash common.Hash) (*types.Transaction, error) {
+	panic("not implemented yet")
+}
+
+func (s *State) GetNonce(address common.Address, batchNumber uint64) (uint64, error) {
+	panic("not implemented yet")
 }
 
 // GetLastBatch gets the latest batch
 func (s *State) Reset(batchnum uint64) error {
-	return nil
+	panic("not implemented yet")
 }
 
 // ConsolidateBatch changes the virtual status of a batch
 func (s *State) ConsolidateBatch(batch Batch) error {
-	return nil
+	panic("not implemented yet")
 }

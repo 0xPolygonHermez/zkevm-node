@@ -116,7 +116,7 @@ func stringToBlockNumber(str string) (BlockNumber, error) {
 		return EarliestBlockNumber, nil
 	}
 
-	n, err := ParseUint64orHex(&str)
+	n, err := DecodeUint64orHex(&str)
 	if err != nil {
 		return 0, err
 	}
@@ -146,7 +146,7 @@ type Index int64
 // UnmarshalJSON automatically decodes the user input for the block number, when a JSON RPC method is called
 func (i *Index) UnmarshalJSON(buffer []byte) error {
 	str := strings.Trim(string(buffer), "\"")
-	n, err := ParseUint64orHex(&str)
+	n, err := DecodeUint64orHex(&str)
 	if err != nil {
 		return err
 	}

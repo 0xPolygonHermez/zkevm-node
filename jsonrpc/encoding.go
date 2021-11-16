@@ -9,7 +9,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
 )
 
-func ParseUint64orHex(val *string) (uint64, error) {
+func DecodeUint64orHex(val *string) (uint64, error) {
 	if val == nil {
 		return 0, nil
 	}
@@ -23,7 +23,7 @@ func ParseUint64orHex(val *string) (uint64, error) {
 	return strconv.ParseUint(str, base, 64)
 }
 
-func ParseUint256orHex(val *string) (*big.Int, error) {
+func DecodeUint256orHex(val *string) (*big.Int, error) {
 	if val == nil {
 		return nil, nil
 	}
@@ -41,12 +41,12 @@ func ParseUint256orHex(val *string) (*big.Int, error) {
 	return b, nil
 }
 
-func ParseInt64orHex(val *string) (int64, error) {
-	i, err := ParseUint64orHex(val)
+func DecodeInt64orHex(val *string) (int64, error) {
+	i, err := DecodeUint64orHex(val)
 	return int64(i), err
 }
 
-func ParseBytes(val *string) ([]byte, error) {
+func DecodeBytes(val *string) ([]byte, error) {
 	if val == nil {
 		return []byte{}, nil
 	}

@@ -24,25 +24,23 @@ func (f *funcData) numParams() int {
 	return f.inNum - 1
 }
 
-// JSONRpcHandler handles jsonrpc requests
-type JSONRpcHandler struct {
+// JSONRPCHandler handles jsonrpc requests
+type JSONRPCHandler struct {
 	serviceMap map[string]*serviceData
-	chainID    uint64
 }
 
-func newJSONRpcHandler(chainID uint64) *JSONRpcHandler {
-	d := &JSONRpcHandler{
-		chainID:    chainID,
+func newJSONRpcHandler(e *Eth, n *Net) *JSONRPCHandler {
+	d := &JSONRPCHandler{
 		serviceMap: map[string]*serviceData{},
 	}
 
-	d.registerService("eth", &Eth{})
-	d.registerService("net", &Net{})
+	d.registerService("eth", e)
+	d.registerService("net", n)
 
 	return d
 }
 
-func (d *JSONRpcHandler) Handle(req Request) Response {
+func (d *JSONRPCHandler) Handle(req Request) Response {
 	fmt.Println("request", "method", req.Method, "id", req.ID)
 
 	service, fd, err := d.getFnHandler(req)
@@ -81,7 +79,7 @@ func (d *JSONRpcHandler) Handle(req Request) Response {
 	return NewRpcResponse(req, data, nil)
 }
 
-func (d *JSONRpcHandler) registerService(serviceName string, service interface{}) {
+func (d *JSONRPCHandler) registerService(serviceName string, service interface{}) {
 	st := reflect.TypeOf(service)
 	if st.Kind() == reflect.Struct {
 		panic(fmt.Sprintf("jsonrpc: service '%s' must be a pointer to struct", serviceName))
@@ -120,7 +118,7 @@ func (d *JSONRpcHandler) registerService(serviceName string, service interface{}
 	}
 }
 
-func (d *JSONRpcHandler) getFnHandler(req Request) (*serviceData, *funcData, Error) {
+func (d *JSONRPCHandler) getFnHandler(req Request) (*serviceData, *funcData, Error) {
 	callName := strings.SplitN(req.Method, "_", 2)
 	if len(callName) != 2 {
 		return nil, nil, NewMethodNotFoundError(req.Method)
