@@ -3,9 +3,10 @@ package aggregator
 import "math/big"
 
 type SyncEvent struct {
+	BatchNum uint64
 	LastStateRoot *big.Int
-	// ??? which type proof will be?
-	Proof *big.Int
+	// ??? which type ZKI will be?
+	ZKI *big.Int
 }
 
 type SynchronizerClient struct {

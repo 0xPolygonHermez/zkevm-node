@@ -57,3 +57,7 @@ func (s *State) Reset(batchnum uint64) error {
 func (s *State) ConsolidateBatch(batch Batch) error {
 	return nil
 }
+
+func (s *State) GetTxsByBatchNum(batchNum uint64) ([]types.Transaction, error) {
+	return nil, nil
+}
