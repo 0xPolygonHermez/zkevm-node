@@ -14,6 +14,6 @@ type Pool interface {
 	GetGasPrice() (uint64, error)
 }
 
-func NewPool() *Pool {
+func NewPool() Pool {
 	panic("not implemented")
 }

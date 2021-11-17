@@ -2,9 +2,11 @@ package jsonrpc
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -14,7 +16,7 @@ import (
 type Eth struct {
 	chainID uint64
 	pool    pool.Pool
-	state   *state.State
+	state   state.State
 }
 
 // BlockNumber returns current block number
@@ -151,15 +153,22 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 
 // GetTransactionReceipt returns a transaction receipt by his hash
 func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
-	panic("not implemented yet")
+	tx, err := e.state.GetTransactionReceipt(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
 }
 
 // SendRawTransaction sends a raw transaction
 func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
-	tx := hexToTx(input)
-
-	err := e.pool.AddTx(tx)
+	tx, err := hexToTx(input)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := e.pool.AddTx(*tx); err != nil {
 		return nil, err
 	}
 
@@ -190,9 +199,24 @@ func getNumericBlockNumber(e *Eth, number BlockNumber) (uint64, error) {
 }
 
 func batchToBlock(batch state.Batch) types.Block {
-	panic("not implemented yet")
+	header := &types.Header{
+		Number: big.NewInt(0).SetUint64(batch.Number),
+	}
+
+	return *types.NewBlock(header, batch.Transactions, []*types.Header{}, []*types.Receipt{}, trie.NewStackTrie(nil))
 }
 
-func hexToTx(str string) types.Transaction {
-	panic("not implemented yet")
+func hexToTx(str string) (*types.Transaction, error) {
+	tx := new(types.Transaction)
+
+	b, err := hex.DecodeHex(str)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+
+	return tx, nil
 }

@@ -6,29 +6,38 @@ import (
 )
 
 // BatchProcessor is used to process a batch of transactions
-type BatchProcessor struct{}
+type BatchProcessor interface {
+	ProcessBatch(batch Batch) error
+	ProcessTransaction(tx types.Transaction) error
+	CheckTransaction(tx types.Transaction) error
+	Commit() (*common.Hash, *Proof, error)
+	Rollback() error
+}
+
+// BatchProcessor is used to process a batch of transactions
+type BasicBatchProcessor struct{}
 
 // ProcessBatch processes all transactions inside a batch
-func (b *BatchProcessor) ProcessBatch(batch Batch) error {
+func (b *BasicBatchProcessor) ProcessBatch(batch Batch) error {
 	return nil
 }
 
 // ProcessTransaction processes a transaction inside a batch
-func (b *BatchProcessor) ProcessTransaction(tx types.Transaction) error {
+func (b *BasicBatchProcessor) ProcessTransaction(tx types.Transaction) error {
 	return nil
 }
 
 // CheckTransaction checks a transaction is valid inside a batch context
-func (b *BatchProcessor) CheckTransaction(tx types.Transaction) error {
+func (b *BasicBatchProcessor) CheckTransaction(tx types.Transaction) error {
 	return nil
 }
 
 // Commits the batch state into state
-func (b *BatchProcessor) Commit() (*common.Hash, *Proof, error) {
+func (b *BasicBatchProcessor) Commit() (*common.Hash, *Proof, error) {
 	return nil, nil, nil
 }
 
 // Rollback does not apply batch state into state
-func (b *BatchProcessor) Rollback() error {
+func (b *BasicBatchProcessor) Rollback() error {
 	return nil
 }

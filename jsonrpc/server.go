@@ -8,6 +8,9 @@ import (
 	"log"
 	"net"
 	"net/http"
+
+	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // JSONRPC is an API backend
@@ -17,8 +20,8 @@ type Server struct {
 }
 
 // NewServer returns the JsonRPC server
-func NewServer(config Config) *Server {
-	ethEndpoints := &Eth{chainID: config.ChainID}
+func NewServer(config Config, p pool.Pool, s state.State) *Server {
+	ethEndpoints := &Eth{chainID: config.ChainID, pool: p, state: s}
 	netEndpoints := &Net{chainID: config.ChainID}
 
 	handler := newJSONRpcHandler(ethEndpoints, netEndpoints)
