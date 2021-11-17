@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
 
@@ -16,28 +17,24 @@ import (
 type Sequencer struct {
 	Pool               pool.Pool
 	State              state.State
-	BatchProcessor     state.BatchProcessor
-	EthClient          eth.Client
+	BatchProcessor     *state.BatchProcessor
+	EthMan             etherman.EtherMan
 	SynchronizerClient SynchronizerClient
 
-	ctx          context.Context
-	cancel       context.CancelFunc
-	waitDuration time.Duration
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
-func NewSequencer(cfg Config, pool pool.Pool, state state.State, bp state.BatchProcessor, ethClient eth.Client, syncClient SynchronizerClient) (Sequencer, error) {
+func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan, syncClient SynchronizerClient) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	waitDuration := time.Duration(cfg.sendBatchFrequencyInSeconds) * time.Second
 	return Sequencer{
 		Pool:               pool,
 		State:              state,
-		EthClient:          ethClient,
-		BatchProcessor:     bp,
+		EthMan:             ethMan,
 		SynchronizerClient: syncClient,
 
-		ctx:          ctx,
-		cancel:       cancel,
-		waitDuration: waitDuration,
+		ctx:    ctx,
+		cancel: cancel,
 	}, nil
 }
 
@@ -54,7 +51,8 @@ func (s *Sequencer) Start() {
 			select {
 			case <-s.ctx.Done():
 				return
-			case <-time.After(s.waitDuration):
+			case event := <-s.SynchronizerClient.SyncEventChan:
+				s.BatchProcessor = s.State.NewBatchProcessor(event.StartingHash, false)
 				// get pending txs from the pool
 				txs, err := s.Pool.GetPendingTxs()
 				if err != nil {
@@ -72,8 +70,12 @@ func (s *Sequencer) Start() {
 				}
 				// check is it profitable to send selection
 				isProfitable := s.isSelectionProfitable(selectedTxs)
+				batch := state.Batch{Txs: selectedTxs}
 				if isProfitable {
-					s.EthClient.SendBatch(selectedTxs, len(selectedTxs))
+					_, err = s.EthMan.SendBatch(batch)
+					if err != nil {
+						continue
+					}
 				}
 			}
 		}
@@ -82,10 +84,6 @@ func (s *Sequencer) Start() {
 
 func (s *Sequencer) Stop() {
 	s.cancel()
-}
-
-type batch struct {
-	txs []pool.Transaction
 }
 
 // selectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime

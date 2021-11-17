@@ -5,13 +5,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
 type Aggregator struct {
 	State          state.State
 	BatchProcessor state.BatchProcessor
-	EthClient      eth.Client
+	EtherMan       etherman.EtherMan
 	Synchronizer   SynchronizerClient
 	Prover         ProverClient
 
@@ -23,7 +24,7 @@ func NewAggregator(
 	cfg Config,
 	state state.State,
 	bp state.BatchProcessor,
-	ethClient eth.Client,
+	ethClient etherman.EtherMan,
 	syncClient SynchronizerClient,
 	prover ProverClient,
 ) (Aggregator, error) {
@@ -31,7 +32,7 @@ func NewAggregator(
 	return Aggregator{
 		State:          state,
 		BatchProcessor: bp,
-		EthClient:      ethClient,
+		EtherMan:       ethClient,
 		Synchronizer:   syncClient,
 		Prover:         prover,
 
@@ -62,12 +63,13 @@ func (agr *Aggregator) Start() {
 					continue
 				}
 				// send txs and zki to the prover
-				proof, err := agr.Prover.SendTxsAndProof(txs, event.ZKI)
+				proof, err := agr.Prover.SendTxsAndZKI(txs, event.ZKI)
 				if err != nil {
 					continue
 				}
 				// send txs and proof to the eth contract
-				if err = agr.EthClient.ConsolidateBatch(txs, proof); err != nil {
+				batch := state.Batch{Txs: txs}
+				if _, err = agr.EtherMan.ConsolidateBatch(batch, *proof); err != nil {
 					continue
 				}
 			}
@@ -77,6 +79,7 @@ func (agr *Aggregator) Start() {
 
 func (agr *Aggregator) isProfitable(txs []types.Transaction) bool {
 	// get strategy from the config and check
+	return true
 }
 
 func (agr *Aggregator) Stop() {
