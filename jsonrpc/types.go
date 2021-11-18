@@ -75,10 +75,25 @@ type txnArgs struct {
 	Nonce    *argUint64
 }
 
-func (arg txnArgs) ToTransaction() *types.Transaction {
+func (arg *txnArgs) ToTransaction() *types.Transaction {
+	nonce := uint64(0)
+	if arg.Nonce != nil {
+		nonce = uint64(*arg.Nonce)
+	}
+
+	gas := uint64(0)
+	if arg.Gas != nil {
+		gas = uint64(*arg.Gas)
+	}
+
 	gasPrice := hex.DecodeHexToBig(string(*arg.GasPrice))
 
-	tx := types.NewTransaction(uint64(*arg.Nonce), *arg.To, big.NewInt(0), uint64(*arg.Gas), gasPrice, *arg.Data)
+	data := []byte{}
+	if arg.Data != nil {
+		data = *arg.Data
+	}
+
+	tx := types.NewTransaction(nonce, *arg.To, big.NewInt(0), gas, gasPrice, data)
 
 	return tx
 }
