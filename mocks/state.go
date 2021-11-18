@@ -26,7 +26,7 @@ func (s *StateMock) GetBalance(address common.Address, batchNumber uint64) (*big
 	return big.NewInt(balance), nil
 }
 
-func (s *StateMock) EstimageGas(transaction types.Transaction) uint64 {
+func (s *StateMock) EstimateGas(transaction types.Transaction) uint64 {
 	return estimatedGas
 }
 

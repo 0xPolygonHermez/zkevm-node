@@ -19,12 +19,12 @@ type Eth struct {
 
 // BlockNumber returns current block number
 func (e *Eth) BlockNumber() (interface{}, error) {
-	lastBatch, err := e.state.GetLastBatch(true)
+	lastBatchNumber, err := e.state.GetLastBatchNumber()
 	if err != nil {
 		return nil, err
 	}
 
-	return hex.EncodeUint64(lastBatch.Number), nil
+	return hex.EncodeUint64(lastBatchNumber), nil
 }
 
 // ChainId returns the chain id of the client
@@ -33,13 +33,8 @@ func (e *Eth) ChainId() (interface{}, error) {
 }
 
 func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error) {
-
 	tx := arg.ToTransaction()
-	gasEstimation, err := e.state.EstimateGas(*tx)
-	if err != nil {
-		return nil, err
-	}
-
+	gasEstimation := e.state.EstimateGas(*tx)
 	return hex.EncodeUint64(gasEstimation), nil
 }
 
@@ -174,12 +169,12 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 func getNumericBlockNumber(e *Eth, number BlockNumber) (uint64, error) {
 	switch number {
 	case LatestBlockNumber:
-		lastBatch, err := e.state.GetLastBatch(true)
+		lastBatchNumber, err := e.state.GetLastBatchNumber()
 		if err != nil {
 			return 0, err
 		}
 
-		return lastBatch.Number, nil
+		return lastBatchNumber, nil
 	case EarliestBlockNumber:
 		return 0, fmt.Errorf("fetching the earliest header is not supported")
 

@@ -6,8 +6,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state/db"
-	"github.com/hermeznetwork/hermez-core/state/merkletree"
-	"github.com/hermeznetwork/hermez-core/state/merkletree/leafs"
+	// "github.com/hermeznetwork/hermez-core/state/merkletree"
+	// "github.com/hermeznetwork/hermez-core/state/merkletree/leafs"
 )
 
 // State
@@ -15,7 +15,7 @@ type State interface {
 	NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) BatchProcessor
 	GetStateRoot(virtual bool) (*big.Int, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
-	EstimageGas(transaction types.Transaction) uint64
+	EstimateGas(transaction types.Transaction) uint64
 	GetLastBlock() (*types.Block, error)
 	GetPreviousBlock(offset uint64) (*types.Block, error)
 	GetBlockByHash(hash common.Hash) (*types.Block, error)
@@ -39,12 +39,13 @@ type State interface {
 
 // State
 type BasicState struct {
-	StateTree merkletree.Merkletree
+	// StateTree merkletree.Merkletree
 }
 
 // NewState creates a new State
 func NewState(db db.KeyValuer) State {
-	return &BasicState{StateTree: merkletree.NewMerkletree(db)}
+	// return &State{StateTree: merkletree.NewMerkletree(db)}
+	return &BasicState{}
 }
 
 // NewBatchProcessor creates a new batch processor
@@ -54,26 +55,29 @@ func (s *BasicState) NewBatchProcessor(startingHash common.Hash, withProofCalcul
 
 // GetStateRoot returns the root of the state tree
 func (s *BasicState) GetStateRoot(virtual bool) (*big.Int, error) {
-	return s.StateTree.Root, nil
+	// return s.StateTree.Root, nil
+	return nil, nil
 }
 
 // GetBalance from a given address
-func (s *BasicState) GetBalance(address common.Address) (*big.Int, error) {
-	key, err := leafs.NewBalanceKey(common.BytesToAddress(address.Bytes()))
-	if err != nil {
-		return nil, err
-	}
+func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
+	/*
+		key, err := leafs.NewBalanceKey(common.BytesToAddress(address.Bytes()))
+		if err != nil {
+			return nil, err
+		}
 
-	balanceBytes, err := s.StateTree.Get(s.StateTree.Root, key)
-	if err != nil {
-		return nil, err
-	}
+		balanceBytes, err := s.StateTree.Get(s.StateTree.Root, key)
+		if err != nil {
+			return nil, err
+		}
 
-	return leafs.BytesToBalance(balanceBytes), nil
+		return leafs.BytesToBalance(balanceBytes), nil*/
+	return nil, nil
 }
 
 // EstimateGas for a transaction
-func (s *BasicState) EstimageGas(transaction types.Transaction) uint64 {
+func (s *BasicState) EstimateGas(transaction types.Transaction) uint64 {
 	return 21000
 }
 
