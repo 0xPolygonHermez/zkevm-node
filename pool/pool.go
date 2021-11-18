@@ -10,7 +10,6 @@ type Pool interface {
 	GetPendingTxs() ([]Transaction, error)
 	UpdateTxState(hash common.Hash, newState TxState) error
 	CleanUpInvalidAndNonSelectedTxs() error
-	EstimateGas() (uint64, error)
 	GetGasPrice() (uint64, error)
 }
 

@@ -5,6 +5,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/state/db"
+	"github.com/hermeznetwork/hermez-core/state/merkletree"
+	"github.com/hermeznetwork/hermez-core/state/merkletree/leafs"
 )
 
 // State
@@ -12,26 +15,36 @@ type State interface {
 	NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) BatchProcessor
 	GetStateRoot(virtual bool) (*big.Int, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
-	EstimageGas(address common.Address) uint64
+	EstimageGas(transaction types.Transaction) uint64
 	GetLastBlock() (*types.Block, error)
+	GetPreviousBlock(offset uint64) (*types.Block, error)
+	GetBlockByHash(hash common.Hash) (*types.Block, error)
+	GetBlockByNumber(blockNumber uint64) (*types.Block, error)
+	GetLastBlockNumber() (uint64, error)
 	GetLastBatch(isVirtual bool) (*Batch, error)
-	GetBatchByHash(hash common.Hash, withTxDetails, isVirtual bool) (*Batch, error)
-	GetBatchByNumber(number uint64, withTxDetails, isVirtual bool) (*Batch, error)
-	GetTransactionByBatchHashAndIndex(hash common.Hash, index uint64) (*types.Transaction, error)
-	GetTransactionByBatchNumberAndIndex(number uint64, index uint64) (*types.Transaction, error)
 	GetTransaction(hash common.Hash) (*types.Transaction, error)
-	GetTransactionReceipt(hash common.Hash) (*types.Receipt, error)
 	GetNonce(address common.Address, batchNumber uint64) (uint64, error)
-	Reset(batchnum uint64) error
-	ConsolidateBatch(batch Batch) error
+	GetPreviousBatch(offset uint64) (*Batch, error)
+	GetBatchByHash(hash common.Hash) (*types.Block, error)
+	GetBatchByNumber(batchNumber uint64) (*types.Block, error)
+	GetLastBatchNumber() (uint64, error)
+	GetTransactionByBatchHashAndIndex(batchHash common.Hash, index uint64) (*types.Transaction, error)
+	GetTransactionByBatchNumberAndIndex(batchNumber uint64, index uint64) (*types.Transaction, error)
+	GetTransactionByHash(transactionHash common.Hash) (*types.Transaction, error)
+	GetTransactionCount(address common.Address) (uint64, error)
+	GetTransactionReceipt(transactionHash common.Hash) (*types.Receipt, error)
+	Reset(blockNumber uint64) error
+	ConsolidateBatch(batchNumber uint64) error
 }
 
+// State
 type BasicState struct {
+	StateTree merkletree.Merkletree
 }
 
 // NewState creates a new State
-func NewState() State {
-	return &BasicState{}
+func NewState(db db.KeyValuer) State {
+	return &BasicState{StateTree: merkletree.NewMerkletree(db)}
 }
 
 // NewBatchProcessor creates a new batch processor
@@ -41,17 +54,27 @@ func (s *BasicState) NewBatchProcessor(startingHash common.Hash, withProofCalcul
 
 // GetStateRoot returns the root of the state tree
 func (s *BasicState) GetStateRoot(virtual bool) (*big.Int, error) {
-	panic("not implemented yet")
+	return s.StateTree.Root, nil
 }
 
 // GetBalance from a given address
-func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
-	panic("not implemented yet")
+func (s *BasicState) GetBalance(address common.Address) (*big.Int, error) {
+	key, err := leafs.NewBalanceKey(common.BytesToAddress(address.Bytes()))
+	if err != nil {
+		return nil, err
+	}
+
+	balanceBytes, err := s.StateTree.Get(s.StateTree.Root, key)
+	if err != nil {
+		return nil, err
+	}
+
+	return leafs.BytesToBalance(balanceBytes), nil
 }
 
 // EstimateGas for a transaction
-func (s *BasicState) EstimageGas(address common.Address) uint64 {
-	panic("not implemented yet")
+func (s *BasicState) EstimageGas(transaction types.Transaction) uint64 {
+	return 21000
 }
 
 // GetLastBlock gets the latest block
@@ -59,28 +82,28 @@ func (s *BasicState) GetLastBlock() (*types.Block, error) {
 	panic("not implemented yet")
 }
 
+// GetPreviousBlock gets the offset previous block respect to latest
+func (s *BasicState) GetPreviousBlock(offset uint64) (*types.Block, error) {
+	return nil, nil
+}
+
+// GetBlockByHash gets the block with the required hash
+func (s *BasicState) GetBlockByHash(hash common.Hash) (*types.Block, error) {
+	return nil, nil
+}
+
+// GetBlockByNumber gets the block with the required number
+func (s *BasicState) GetBlockByNumber(blockNumber uint64) (*types.Block, error) {
+	return nil, nil
+}
+
+// GetLastBlockNumber gets the latest block number
+func (s *BasicState) GetLastBlockNumber() (uint64, error) {
+	return 0, nil
+}
+
 // GetLastBatch gets the latest batch
 func (s *BasicState) GetLastBatch(isVirtual bool) (*Batch, error) {
-	panic("not implemented yet")
-}
-
-// GetBatchByHash gets a batch by its hash
-func (s *BasicState) GetBatchByHash(hash common.Hash, withTxDetails, isVirtual bool) (*Batch, error) {
-	panic("not implemented yet")
-}
-
-// GetBatchByNumber gets a batch by its number
-func (s *BasicState) GetBatchByNumber(number uint64, withTxDetails, isVirtual bool) (*Batch, error) {
-	panic("not implemented yet")
-}
-
-// GetTransactionByBlockHashAndIndex gets a transactions by its index accordingly to the batch hash
-func (s *BasicState) GetTransactionByBatchHashAndIndex(hash common.Hash, index uint64) (*types.Transaction, error) {
-	panic("not implemented yet")
-}
-
-// GetTransactionByBatchNumberAndIndex gets a transactions by its index accordingly to the batch number
-func (s *BasicState) GetTransactionByBatchNumberAndIndex(number uint64, index uint64) (*types.Transaction, error) {
 	panic("not implemented yet")
 }
 
@@ -89,21 +112,61 @@ func (s *BasicState) GetTransaction(hash common.Hash) (*types.Transaction, error
 	panic("not implemented yet")
 }
 
-// GetTransaction gets a transactions receipt by its hash
-func (s *BasicState) GetTransactionReceipt(hash common.Hash) (*types.Receipt, error) {
-	panic("not implemented yet")
-}
-
 func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint64, error) {
 	panic("not implemented yet")
 }
 
-// GetLastBatch gets the latest batch
-func (s *BasicState) Reset(batchnum uint64) error {
-	panic("not implemented yet")
+// GetPreviousBatch gets the offset previous batch respect to latest
+func (s *BasicState) GetPreviousBatch(offset uint64) (*Batch, error) {
+	return nil, nil
+}
+
+// GetBatchByHash gets the batch with the required hash
+func (s *BasicState) GetBatchByHash(hash common.Hash) (*types.Block, error) {
+	return nil, nil
+}
+
+// GetBatchByNumber gets the batch with the required number
+func (s *BasicState) GetBatchByNumber(batchNumber uint64) (*types.Block, error) {
+	return nil, nil
+}
+
+// GetLastBatchNumber gets the latest batch number
+func (s *BasicState) GetLastBatchNumber() (uint64, error) {
+	return 0, nil
+}
+
+// GetTransactionByBatchHashAndIndex gets a transaction from a batch by index
+func (s *BasicState) GetTransactionByBatchHashAndIndex(batchHash common.Hash, index uint64) (*types.Transaction, error) {
+	return nil, nil
+}
+
+// GetTransactionByBatchNumberAndIndex gets a transaction from a batch by index
+func (s *BasicState) GetTransactionByBatchNumberAndIndex(batchNumber uint64, index uint64) (*types.Transaction, error) {
+	return nil, nil
+}
+
+// GetTransactionByHash gets a transaction by its hash
+func (s *BasicState) GetTransactionByHash(transactionHash common.Hash) (*types.Transaction, error) {
+	return nil, nil
+}
+
+// GetTransactionCount returns the number of transactions sent from an address
+func (s *BasicState) GetTransactionCount(address common.Address) (uint64, error) {
+	return 0, nil
+}
+
+// GetTransactionReceipt returns the receipt of a transaction by transaction hash
+func (s *BasicState) GetTransactionReceipt(transactionHash common.Hash) (*types.Receipt, error) {
+	return nil, nil
+}
+
+// Reset resets the state to a block
+func (s *BasicState) Reset(blockNumber uint64) error {
+	return nil
 }
 
 // ConsolidateBatch changes the virtual status of a batch
-func (s *BasicState) ConsolidateBatch(batch Batch) error {
-	panic("not implemented yet")
+func (s *BasicState) ConsolidateBatch(batchNumber uint64) error {
+	return nil
 }

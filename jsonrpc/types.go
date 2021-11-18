@@ -1,10 +1,12 @@
 package jsonrpc
 
 import (
+	"math/big"
 	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
 )
 
@@ -71,4 +73,12 @@ type txnArgs struct {
 	Input    *argBytes
 	Data     *argBytes
 	Nonce    *argUint64
+}
+
+func (arg txnArgs) ToTransaction() *types.Transaction {
+	gasPrice := hex.DecodeHexToBig(string(*arg.GasPrice))
+
+	tx := types.NewTransaction(uint64(*arg.Nonce), *arg.To, big.NewInt(0), uint64(*arg.Gas), gasPrice, *arg.Data)
+
+	return tx
 }

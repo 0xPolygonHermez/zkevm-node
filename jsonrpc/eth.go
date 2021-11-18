@@ -2,11 +2,9 @@ package jsonrpc
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -35,7 +33,9 @@ func (e *Eth) ChainId() (interface{}, error) {
 }
 
 func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error) {
-	gasEstimation, err := e.pool.EstimateGas()
+
+	tx := arg.ToTransaction()
+	gasEstimation, err := e.state.EstimateGas(*tx)
 	if err != nil {
 		return nil, err
 	}
@@ -70,14 +70,12 @@ func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface
 
 // GetBlockByHash returns information about a block by hash
 func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, error) {
-	batch, err := e.state.GetBatchByHash(hash, fullTx, true)
+	batch, err := e.state.GetBatchByHash(hash)
 	if err != nil {
 		return nil, err
 	}
 
-	block := batchToBlock(*batch)
-
-	return block, nil
+	return batch, nil
 }
 
 // GetBlockByNumber returns information about a block by block number
@@ -87,14 +85,12 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 		return nil, err
 	}
 
-	batch, err := e.state.GetBatchByNumber(batchNumber, fullTx, true)
+	batch, err := e.state.GetBatchByNumber(batchNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	block := batchToBlock(*batch)
-
-	return block, nil
+	return batch, nil
 }
 
 // GetCode returns account code at given block number
@@ -196,14 +192,6 @@ func getNumericBlockNumber(e *Eth, number BlockNumber) (uint64, error) {
 		}
 		return uint64(number), nil
 	}
-}
-
-func batchToBlock(batch state.Batch) types.Block {
-	header := &types.Header{
-		Number: big.NewInt(0).SetUint64(batch.Number),
-	}
-
-	return *types.NewBlock(header, batch.Transactions, []*types.Header{}, []*types.Receipt{}, trie.NewStackTrie(nil))
 }
 
 func hexToTx(str string) (*types.Transaction, error) {

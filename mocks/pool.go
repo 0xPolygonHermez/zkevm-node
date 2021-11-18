@@ -28,10 +28,6 @@ func (p *PoolMock) CleanUpInvalidAndNonSelectedTxs() error {
 	return nil
 }
 
-func (p *PoolMock) EstimateGas() (uint64, error) {
-	return estimatedGas, nil
-}
-
 func (p *PoolMock) GetGasPrice() (uint64, error) {
 	return gasPrice, nil
 }
