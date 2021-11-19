@@ -174,3 +174,7 @@ func (s *BasicState) Reset(blockNumber uint64) error {
 func (s *BasicState) ConsolidateBatch(batchNumber uint64) error {
 	return nil
 }
+
+func (s *State) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error) {
+	return nil, nil
+}
