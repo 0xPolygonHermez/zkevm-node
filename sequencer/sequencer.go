@@ -16,7 +16,7 @@ import (
 type Sequencer struct {
 	Pool               pool.Pool
 	State              state.State
-	BatchProcessor     *state.BatchProcessor
+	BatchProcessor     state.BatchProcessor
 	EthMan             etherman.EtherMan
 	SynchronizerClient SynchronizerClient
 
