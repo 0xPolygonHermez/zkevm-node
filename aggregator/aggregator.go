@@ -24,7 +24,7 @@ func NewAggregator(
 	cfg Config,
 	state state.State,
 	bp state.BatchProcessor,
-	ethClient etherman.EtherMan,
+	ethMan etherman.EtherMan,
 	syncClient SynchronizerClient,
 	prover ProverClient,
 ) (Aggregator, error) {
@@ -32,13 +32,18 @@ func NewAggregator(
 	return Aggregator{
 		State:          state,
 		BatchProcessor: bp,
-		EtherMan:       ethClient,
+		EtherMan:       ethMan,
 		Synchronizer:   syncClient,
 		Prover:         prover,
 
 		ctx:    ctx,
 		cancel: cancel,
 	}, nil
+}
+
+type txsWithProof struct {
+	txs   []types.Transaction
+	proof *state.Proof
 }
 
 func (agr *Aggregator) Start() {
@@ -48,11 +53,12 @@ func (agr *Aggregator) Start() {
 	// send zki + txs to the prover
 	// send proof + txs to the SC
 	go func() {
+		txsByBatchNum := make(map[uint64]txsWithProof)
 		for {
 			select {
 			case <-agr.ctx.Done():
 				return
-			case event := <-agr.Synchronizer.SyncEventChan:
+			case event := <-agr.Synchronizer.VirtualBatchEventChan:
 				// get txs to send
 				txs, err := agr.State.GetTxsByBatchNum(event.BatchNum)
 				if err != nil {
@@ -63,14 +69,21 @@ func (agr *Aggregator) Start() {
 					continue
 				}
 				// send txs and zki to the prover
-				proof, err := agr.Prover.SendTxsAndZKI(txs, event.ZKI)
+				proof, err := agr.Prover.SendTxs(txs)
 				if err != nil {
 					continue
 				}
+				txsByBatchNum[event.BatchNum] = txsWithProof{txs: txs, proof: proof}
+			case event := <-agr.Synchronizer.ConsolidatedBatchEventChan:
+				previousBatchNum := event.BatchNum - 1
 				// send txs and proof to the eth contract
-				batch := state.Batch{Txs: txs}
-				if _, err = agr.EtherMan.ConsolidateBatch(batch, *proof); err != nil {
-					continue
+				txsWithProof, ok := txsByBatchNum[previousBatchNum]
+				if ok {
+					batch := state.Batch{Txs: txsWithProof.txs}
+					if _, err := agr.EtherMan.ConsolidateBatch(batch, *txsWithProof.proof); err != nil {
+						continue
+					}
+					delete(txsByBatchNum, previousBatchNum)
 				}
 			}
 		}

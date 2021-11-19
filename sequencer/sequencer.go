@@ -11,7 +11,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/pkg/errors"
 )
 
 type Sequencer struct {
@@ -100,10 +99,12 @@ func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.
 		} else {
 			selectedTxs = append(selectedTxs, tx.Transaction)
 		}
-	}
-	elapsed := time.Since(start)
-	if elapsed > selectionTime {
-		return nil, errors.New("selection took too much time")
+
+		elapsed := time.Since(start)
+		if elapsed > selectionTime {
+			return selectedTxs, nil
+		}
+
 	}
 	return selectedTxs, nil
 }
