@@ -23,7 +23,7 @@ type NewBatchProposalHandler func()
 type NewConsolidatedStateHandler func()
 type StateResetHandler func()
 
-func NewSynchronizer(ethMan *etherman.EtherMan, st *state.State, ag chan int, sq chan int) (*Synchronizer, error) {
+func NewSynchronizer(ethMan *etherman.EtherMan, st *state.State) (*Synchronizer, error) {
 	//TODO
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Synchronizer{
