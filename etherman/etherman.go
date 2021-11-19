@@ -197,36 +197,11 @@ func checkSignature(tx ptypes.Transaction, chainId *big.Int) (bool, ptypes.Addre
 	}
 
 	//Get fromSender address
-	var signature []byte
-	signature = append(signature, tx.R[:]...)
-	signature = append(signature, tx.S[:]...)
-	signature = append(signature, vField)
-
 	txSigner := pcrypto.NewEIP155Signer(chainId.Uint64())
 	fromAddr, err :=txSigner.Sender(&tx)
 	if err != nil {
 		return false, ptypes.Address{}, fmt.Errorf("error recovering fromAddr. Error: %w", err)
 	}
-
-	/////////
-	// hash := txSigner.Hash(tx1)
-	// sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signature)
-    // if err != nil {
-    //     log.Fatal(err)
-	// 	return false, common.Address{}, fmt.Errorf("error: %v\n", err)
-    // }
-	// sigPublicKeyECDSA, err := crypto.SigToPub(hash.Bytes(), signature)
-    // if err != nil {
-    //     log.Fatal(err)
-	// 	return false, common.Address{}, fmt.Errorf("error: %v\n", err)
-    // }
-    //
-	// fromAddr2 := crypto.PubkeyToAddress(*sigPublicKeyECDSA)
-	// fmt.Println("from 2: ", fromAddr2)
-    //
-	// signatureNoRecoverID := signature[:len(signature)-1] // remove recovery id
-	// isValid := crypto.VerifySignature(sigPublicKey, hash.Bytes(), signatureNoRecoverID)
-	///////////
 
 	return true, fromAddr, nil
 }
