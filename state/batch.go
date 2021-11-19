@@ -74,6 +74,11 @@ type Batch struct {
 	ReceivedAt time.Time
 }
 
+// NewBatchWithHeader creates a batch with the given header data.
+func NewBatchWithHeader(header types.Header) *Batch {
+	return &Batch{header: &header}
+}
+
 // hasherPool holds LegacyKeccak256 hashers for rlpHash.
 var hasherPool = sync.Pool{
 	New: func() interface{} { return sha3.NewLegacyKeccak256() },

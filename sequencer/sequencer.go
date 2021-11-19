@@ -3,7 +3,9 @@ package sequencer
 import (
 	"time"
 
+	eth "github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/state"
 )
 
 type Sequencer struct {

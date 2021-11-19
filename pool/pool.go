@@ -10,8 +10,9 @@ type Pool interface {
 	GetPendingTxs() ([]Transaction, error)
 	UpdateTxState(hash common.Hash, newState TxState) error
 	CleanUpInvalidAndNonSelectedTxs() error
+	GetGasPrice() (uint64, error)
 }
 
-func NewPool() *Pool {
+func NewPool() Pool {
 	panic("not implemented")
 }

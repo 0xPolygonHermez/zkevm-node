@@ -1,6 +1,10 @@
 package aggregator
 
-import "github.com/ethereum/go-ethereum/core/types"
+import (
+	"github.com/ethereum/go-ethereum/core/types"
+	eth "github.com/ethereum/go-ethereum/ethclient"
+	"github.com/hermeznetwork/hermez-core/state"
+)
 
 type Aggregator struct {
 	State          state.State
@@ -28,6 +32,7 @@ func (agr *Aggregator) generateAndSendProofs() {
 
 func (agr *Aggregator) isProfitable(txs []types.Transaction) bool {
 	// get strategy from the config and check
+	panic("not implemented yet")
 }
 
 func (agr *Aggregator) Run() {
