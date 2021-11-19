@@ -2,7 +2,6 @@ package synchronizer
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/hermeznetwork/hermez-core/etherman"
@@ -43,8 +42,6 @@ func NewSynchronizer(ethMan *etherman.EtherMan, st *state.State, ag chan int, sq
 // Sync() will read blockchain events to detect rollup updates. If it is already synced,
 // It will keep waiting for a new event
 func (s *Synchronizer) Sync() error {
-	var wg sync.WaitGroup
-	wg.Add(1)
 	go func() {
 		var lastEthBlockSynced uint64
 		var err error
@@ -52,7 +49,6 @@ func (s *Synchronizer) Sync() error {
 		for {
 			select {
 			case <-s.ctx.Done():
-				wg.Done()
 				return
 			case <-time.After(waitDuration):
 				//TODO

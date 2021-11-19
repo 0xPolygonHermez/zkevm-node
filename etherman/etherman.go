@@ -7,10 +7,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
+
 type EtherMan struct {
 	EtherClient *ethclient.Client
 	PoE         *proofofefficiency.Proofofefficiency
@@ -34,8 +35,8 @@ func NewEtherman(url string, poeAddr common.Address) (*EtherMan, error) {
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
-func (etherMan *EtherMan) EthBlockByNumber(blockNum int64) (*types.Block, error) {
-	block, err := etherMan.EtherClient.BlockByNumber(context.Background(), big.NewInt(blockNum))
+func (etherMan *EtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error) {
+	block, err := etherMan.EtherClient.BlockByNumber(ctx, big.NewInt(blockNum))
 	if err != nil {
 		return &types.Block{}, nil
 	}
