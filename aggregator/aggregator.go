@@ -42,7 +42,7 @@ func NewAggregator(
 }
 
 type txsWithProof struct {
-	txs   []types.Transaction
+	txs   []*types.Transaction
 	proof *state.Proof
 }
 
@@ -79,7 +79,8 @@ func (agr *Aggregator) Start() {
 				// send txs and proof to the eth contract
 				txsWithProof, ok := txsByBatchNum[previousBatchNum]
 				if ok {
-					batch := state.Batch{Txs: txsWithProof.txs}
+
+					batch := state.Batch{Transactions: txsWithProof.txs}
 					if _, err := agr.EtherMan.ConsolidateBatch(batch, *txsWithProof.proof); err != nil {
 						continue
 					}
@@ -90,7 +91,7 @@ func (agr *Aggregator) Start() {
 	}()
 }
 
-func (agr *Aggregator) isProfitable(txs []types.Transaction) bool {
+func (agr *Aggregator) isProfitable(txs []*types.Transaction) bool {
 	// get strategy from the config and check
 	return true
 }

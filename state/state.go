@@ -139,6 +139,6 @@ func (s *State) ConsolidateBatch(batchNumber uint64) error {
 	return nil
 }
 
-func (s *State) GetTxsByBatchNum(batchNum uint64) ([]types.Transaction, error) {
+func (s *State) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error) {
 	return nil, nil
 }

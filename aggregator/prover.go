@@ -12,6 +12,6 @@ func NewProverClient() ProverClient {
 	return ProverClient{}
 }
 
-func (p *ProverClient) SendTxs(txs []types.Transaction) (*state.Proof, error) {
+func (p *ProverClient) SendTxs(txs []*types.Transaction) (*state.Proof, error) {
 	return nil, nil
 }

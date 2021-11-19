@@ -69,7 +69,7 @@ func (s *Sequencer) Start() {
 				}
 				// check is it profitable to send selection
 				isProfitable := s.isSelectionProfitable(selectedTxs)
-				batch := state.Batch{Txs: selectedTxs}
+				batch := state.Batch{Transactions: selectedTxs}
 				if isProfitable {
 					_, err = s.EthMan.SendBatch(batch)
 					if err != nil {
@@ -86,10 +86,10 @@ func (s *Sequencer) Stop() {
 }
 
 // selectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.Duration) ([]types.Transaction, error) {
+func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.Duration) ([]*types.Transaction, error) {
 	start := time.Now()
 	sortedTxs := s.sortTxs(pendingTxs)
-	var selectedTxs []types.Transaction
+	var selectedTxs []*types.Transaction
 	for _, tx := range sortedTxs {
 		// check if tx is valid
 		if err := s.BatchProcessor.CheckTransaction(tx.Transaction); err != nil {
@@ -97,7 +97,7 @@ func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.
 				return nil, err
 			}
 		} else {
-			selectedTxs = append(selectedTxs, tx.Transaction)
+			selectedTxs = append(selectedTxs, &tx.Transaction)
 		}
 
 		elapsed := time.Since(start)
@@ -124,6 +124,6 @@ func (s *Sequencer) estimateTime() (time.Duration, error) {
 	return time.Hour, nil
 }
 
-func (s *Sequencer) isSelectionProfitable(txs []types.Transaction) bool {
+func (s *Sequencer) isSelectionProfitable(txs []*types.Transaction) bool {
 	return true
 }
