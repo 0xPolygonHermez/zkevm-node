@@ -9,12 +9,10 @@ import (
 )
 
 type Synchronizer struct {
-	etherMan      *etherman.EtherMan
-	state         *state.State
-	AgregatorChan chan int
-	SequencerChan chan int
-	ctx           context.Context
-	cancelCtx     context.CancelFunc
+	etherMan  *etherman.EtherMan
+	state     *state.State
+	ctx       context.Context
+	cancelCtx context.CancelFunc
 
 	newBatchProposalHandlers     []NewBatchProposalHandler
 	newConsolidatedStateHandlers []NewConsolidatedStateHandler
@@ -29,12 +27,10 @@ func NewSynchronizer(ethMan *etherman.EtherMan, st *state.State, ag chan int, sq
 	//TODO
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Synchronizer{
-		state:         st,
-		etherMan:      ethMan,
-		AgregatorChan: ag,
-		SequencerChan: sq,
-		ctx:           ctx,
-		cancelCtx:     cancel,
+		state:     st,
+		etherMan:  ethMan,
+		ctx:       ctx,
+		cancelCtx: cancel,
 	}, nil
 }
 
@@ -111,16 +107,6 @@ func (s *Synchronizer) checkReorg() (uint64, error) {
 	//from the blockchain. Compare the values. If they don't match do this step again. If matches, we have found the good ethereum block.
 	// Now, return the ethereum block number
 	return 0, nil
-}
-
-// This sendAlert function will send signals to the sequencer and the agregator
-// to let them know be aware of some events such as new batch proposals
-// signal 1 => new batch proposal
-// signal 2 => state resetted
-// signal 3 => new batch consolidated
-func (s *Synchronizer) sendAlert(signal int) {
-	s.AgregatorChan <- signal
-	s.SequencerChan <- signal
 }
 
 // Stop function stops the synchronizer
