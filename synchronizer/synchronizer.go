@@ -87,6 +87,7 @@ func (s *Synchronizer) checkReorg() (uint64, error) {
 // to let them know be aware of some events such as new batch proposals
 // signal 1 => new batch proposal
 // signal 2 => state resetted
+// signal 3 => new batch consolidated
 func (s *Synchronizer) sendAlert(signal int) {
 	s.AgregatorChan <- signal
 	s.SequencerChan <- signal
