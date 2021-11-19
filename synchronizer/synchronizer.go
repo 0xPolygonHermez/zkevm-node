@@ -10,25 +10,33 @@ import (
 )
 
 type Synchronizer struct {
-    etherMan      *etherman.EtherMan
-    state         *state.State
+	etherMan      *etherman.EtherMan
+	state         *state.State
 	AgregatorChan chan int
 	SequencerChan chan int
 	ctx           context.Context
 	cancelCtx     context.CancelFunc
+
+	newBatchProposalHandlers     []NewBatchProposalHandler
+	newConsolidatedStateHandlers []NewConsolidatedStateHandler
+	stateResetHandlers           []StateResetHandler
 }
+
+type NewBatchProposalHandler func()
+type NewConsolidatedStateHandler func()
+type StateResetHandler func()
 
 func NewSynchronizer(ethMan *etherman.EtherMan, st *state.State, ag chan int, sq chan int) (*Synchronizer, error) {
 	//TODO
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Synchronizer{
-		state: st,
-		etherMan: ethMan,
+		state:         st,
+		etherMan:      ethMan,
 		AgregatorChan: ag,
 		SequencerChan: sq,
-		ctx: ctx,
-		cancelCtx: cancel,
-		}, nil
+		ctx:           ctx,
+		cancelCtx:     cancel,
+	}, nil
 }
 
 // Sync function will read the last state synced and will continue from that point.
@@ -59,18 +67,44 @@ func (s *Synchronizer) Sync() error {
 	return nil
 }
 
+func (s *Synchronizer) RegisterNewBatchProposalHandler(handler NewBatchProposalHandler) {
+	s.newBatchProposalHandlers = append(s.newBatchProposalHandlers, handler)
+}
+
+func (s *Synchronizer) RegisterNewConsolidatedStateHandler(handler NewConsolidatedStateHandler) {
+	s.newConsolidatedStateHandlers = append(s.newConsolidatedStateHandlers, handler)
+}
+
+func (s *Synchronizer) RegisterStateResetHandler(handler StateResetHandler) {
+	s.stateResetHandlers = append(s.stateResetHandlers, handler)
+}
+
 // This function syncs the node from a specific block to the latest
 func (s *Synchronizer) syncBlocks(lastEthBlockSynced uint64) (uint64, error) {
 	//TODO
 	//This function will read events fromBlockNum to latestEthBlock. First It has to retrieve the latestEthereumBlock and check reorg to be sure that everything is ok.
 	//if there is no lastEthereumBlock means that sync from the begining is necesary. If not, it continues from the retrieved ethereum block
 	// New info has to be included into the db using the state
+
+	// When a new batch propostal is synchronized, we notify it
+	// go s.notifyNewBathProposal()
+
+	// When a new consolidated state is synchronized, we notify it
+	// go s.notifyNewConsolidatedState()
+
 	return 0, nil
 }
 
 // This function allows reset the state until an specific ethereum block
 func (s *Synchronizer) resetState(ethBlockNum uint64) error {
-	return s.state.Reset(ethBlockNum)
+	err := s.state.Reset(ethBlockNum)
+	if err != nil {
+		return err
+	}
+
+	go s.notifyResetState()
+
+	return nil
 }
 
 // This function will check if there is a reorg
@@ -96,4 +130,48 @@ func (s *Synchronizer) sendAlert(signal int) {
 // Stop function stops the synchronizer
 func (s *Synchronizer) Stop() {
 	s.cancelCtx()
+}
+
+// notifyResetState notifies all registered reset state handlers that the state was reset
+func (s *Synchronizer) notifyResetState() {
+	for _, handler := range s.stateResetHandlers {
+		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					//log.Error(err)
+				}
+			}()
+			handler()
+		}()
+	}
+}
+
+// notifyNewBathProposal notifies all registered new batch proposal handlers
+// that a new batch proposal was synchronized
+func (s *Synchronizer) notifyNewBathProposal() {
+	for _, handler := range s.newBatchProposalHandlers {
+		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					//log.Error(err)
+				}
+			}()
+			handler()
+		}()
+	}
+}
+
+// notifyNewConsolidatedState notifies all registered new consolidated state handlers
+// that a new consolidated state was synchronized
+func (s *Synchronizer) notifyNewConsolidatedState() {
+	for _, handler := range s.newConsolidatedStateHandlers {
+		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+					//log.Error(err)
+				}
+			}()
+			handler()
+		}()
+	}
 }
