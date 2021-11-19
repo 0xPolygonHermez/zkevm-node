@@ -1,13 +1,14 @@
 package etherman
 
 import (
-	"log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
-	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
+	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/state"
 )
+
 type EtherMan struct {
 	EtherClient *ethclient.Client
 	PoE         *proofofefficiency.Proofofefficiency
@@ -18,7 +19,7 @@ func NewEtherman(url string, poeAddr common.Address) (*EtherMan, error) {
 	//Connect to ethereum node
 	ethClient, err := ethclient.Dial(url)
 	if err != nil {
-		log.Printf("error connecting to %s: %+v", url, err)
+		log.Errorf("error connecting to %s: %+v", url, err)
 		return nil, err
 	}
 	poe, err := proofofefficiency.NewProofofefficiency(poeAddr, ethClient)
