@@ -3,7 +3,6 @@ package etherman
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -18,7 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	pcrypto "github.com/0xPolygon/polygon-sdk/crypto"
+	ptypes "github.com/0xPolygon/polygon-sdk/types"
 )
 
 var newBatcheventSignatureHash = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
@@ -95,7 +95,7 @@ type batchEvent struct {
 	Batch struct {
 		BatchNum  uint64
 		Sequencer common.Address
-		Txs []types.LegacyTx
+		Txs []ptypes.Transaction
 	}
 }
 
@@ -136,10 +136,10 @@ func (etherMan *EtherMan) readEvents(fromBlock uint64, toBlock uint64, query eth
 	return batchEvent{}, nil
 }
 
-func decodeTxs(txsData []byte, chainId *big.Int) ([]types.LegacyTx, error) {
+func decodeTxs(txsData []byte, chainId *big.Int) ([]ptypes.Transaction, error) {
 	// First split txs
 	var pos int64
-	var txs []types.LegacyTx
+	var txs []ptypes.Transaction
 	for pos<int64(len(txsData)) {
 		lenght := txsData[pos+1:pos+2]
 		str := hex.EncodeToString(lenght)
@@ -152,7 +152,7 @@ func decodeTxs(txsData []byte, chainId *big.Int) ([]types.LegacyTx, error) {
 		pos = pos + num + 2
 
 		//Decode tx
-		var tx types.LegacyTx
+		var tx ptypes.Transaction
 		rlp.DecodeBytes(data, &tx)
 		isValid, fromAddr, err := checkSignature(tx, chainId)
 		if err != nil {
@@ -162,95 +162,74 @@ func decodeTxs(txsData []byte, chainId *big.Int) ([]types.LegacyTx, error) {
 			fmt.Println("Signature invalid: ",isValid, "FromAddr: ", fromAddr)
 			continue
 		}
-		
-		fmt.Println("Signature verified: ",isValid, "FromAddr: ", fromAddr)
-
+		tx.From = fromAddr
 		txs = append(txs, tx)
 	}
     return txs, nil
 }
 
-func checkSignature(tx types.LegacyTx, chainId *big.Int) (bool, common.Address, error) {
+func checkSignature(tx ptypes.Transaction, chainId *big.Int) (bool, ptypes.Address, error) {
 	decodedChainId := deriveChainId(tx.V)
 	if decodedChainId.Cmp(chainId) != 0 {
-		return false, common.Address{}, fmt.Errorf("error: incorrect chainId. Decoded chainId: %d and chainId retrieved from smc: %d",
+		return false, ptypes.Address{}, fmt.Errorf("error: incorrect chainId. Decoded chainId: %d and chainId retrieved from smc: %d",
 		decodedChainId, chainId)
 	}
-	// Formula: v = chainId * 2 + 36 or 35
-	x := tx.V.Int64()-(chainId.Int64()*2)
+	// Formula: v = chainId * 2 + 36 or 35; x = 35 or 36
+	v := new(big.Int).SetBytes(tx.V)
+	r := new(big.Int).SetBytes(tx.R)
+	s := new(big.Int).SetBytes(tx.S)
+	x := v.Int64()-(chainId.Int64()*2)
 	var vField byte
 	if x == 35 {
 		vField = byte(0)
 	} else if x == 36 {
 		vField = byte(1)
 	} else {
-		return false, common.Address{}, fmt.Errorf("Error invalid signature v value: %d", tx.V)
+		return false, ptypes.Address{}, fmt.Errorf("Error invalid signature v value: %d", tx.V)
 	}
-	if !crypto.ValidateSignatureValues(vField, tx.R, tx.S, false) {
+	if !crypto.ValidateSignatureValues(vField, r, s, false) {
 		fmt.Println("Invalid Signature values")
-		return false, common.Address{}, fmt.Errorf("Error invalid Signature values")
+		return false, ptypes.Address{}, fmt.Errorf("Error invalid Signature values")
 	}
 
 	//Get fromSender address
 	var signature []byte
-	signature = append(signature, tx.R.Bytes()[:]...)
-	signature = append(signature, tx.S.Bytes()[:]...)
+	signature = append(signature, tx.R[:]...)
+	signature = append(signature, tx.S[:]...)
 	signature = append(signature, vField)
-	fmt.Println("signature: ",hexutil.Encode(signature))
 
-	auxTx := struct {
-		Nonce    uint64
-		Gasprice *big.Int
-		Gas      uint64
-		To       *common.Address
-		Value    *big.Int
-		Data     []byte
-		ChainID  *big.Int
-		// aux      *big.Int
-		// aux1     *big.Int
-
-	}{
-		Nonce: tx.Nonce,
-		Gasprice: tx.GasPrice,
-		Gas: tx.Gas,
-		To: tx.To,
-		Value: tx.Value,
-		Data: tx.Data,
-		ChainID: chainId,
-	}
-	fmt.Println(auxTx)
-	auxTxB, err := json.Marshal(auxTx)
+	txSigner := pcrypto.NewEIP155Signer(chainId.Uint64())
+	fromAddr, err :=txSigner.Sender(&tx)
 	if err != nil {
-		fmt.Printf("error marshaling: %v\n", err)
-		return false, common.Address{}, fmt.Errorf("error marshaling: %v\n", err)
+		return false, ptypes.Address{}, fmt.Errorf("error recovering fromAddr. Error: %w", err)
 	}
 
-	hash := crypto.Keccak256Hash(auxTxB)
-	sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signature)
-    if err != nil {
-        log.Fatal(err)
-		return false, common.Address{}, fmt.Errorf("error: %v\n", err)
-    }
-	sigPublicKeyECDSA, err := crypto.SigToPub(hash.Bytes(), signature)
-    if err != nil {
-        log.Fatal(err)
-		return false, common.Address{}, fmt.Errorf("error: %v\n", err)
-    }
+	/////////
+	// hash := txSigner.Hash(tx1)
+	// sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signature)
+    // if err != nil {
+    //     log.Fatal(err)
+	// 	return false, common.Address{}, fmt.Errorf("error: %v\n", err)
+    // }
+	// sigPublicKeyECDSA, err := crypto.SigToPub(hash.Bytes(), signature)
+    // if err != nil {
+    //     log.Fatal(err)
+	// 	return false, common.Address{}, fmt.Errorf("error: %v\n", err)
+    // }
+    //
+	// fromAddr2 := crypto.PubkeyToAddress(*sigPublicKeyECDSA)
+	// fmt.Println("from 2: ", fromAddr2)
+    //
+	// signatureNoRecoverID := signature[:len(signature)-1] // remove recovery id
+	// isValid := crypto.VerifySignature(sigPublicKey, hash.Bytes(), signatureNoRecoverID)
+	///////////
 
-	fromAddr := crypto.PubkeyToAddress(*sigPublicKeyECDSA)
-
-	// sigPublicKeyBytes := crypto.FromECDSAPub(sigPublicKeyECDSA)
-
-	// fmt.Println("PubK1: ", sigPublicKey)
-	// fmt.Println("PubK2: ", sigPublicKeyBytes)
-	signatureNoRecoverID := signature[:len(signature)-1] // remove recovery id
-	isValid := crypto.VerifySignature(sigPublicKey, hash.Bytes(), signatureNoRecoverID)
-
-	return isValid, fromAddr, nil
+	return true, fromAddr, nil
 }
 
 // deriveChainId derives the chain id from the given v parameter
-func deriveChainId(v *big.Int) *big.Int {
+func deriveChainId(val []byte) *big.Int {
+	v := new(big.Int).SetBytes(val)
 	if v.BitLen() <= 64 {
 		v := v.Uint64()
 		if v == 27 || v == 28 {
