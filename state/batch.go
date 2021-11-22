@@ -69,7 +69,7 @@ type Batch struct {
 	isVirtual    bool
 	header       *types.Header
 	uncles       []*types.Header
-	transactions []*types.Transaction
+	Transactions []*types.Transaction
 
 	ReceivedAt time.Time
 }

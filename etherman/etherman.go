@@ -1,6 +1,10 @@
 package etherman
 
 import (
+	"context"
+	"log"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -22,6 +26,7 @@ func NewEtherman(url string, poeAddr common.Address) (*EtherMan, error) {
 		log.Errorf("error connecting to %s: %+v", url, err)
 		return nil, err
 	}
+	//Create smc clients
 	poe, err := proofofefficiency.NewProofofefficiency(poeAddr, ethClient)
 	if err != nil {
 		return nil, err
@@ -31,9 +36,12 @@ func NewEtherman(url string, poeAddr common.Address) (*EtherMan, error) {
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
-func (etherMan *EtherMan) EthBlockByNumber(blockNum int64) (types.Block, error) {
-	//TODO
-	return types.Block{}, nil
+func (etherMan *EtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error) {
+	block, err := etherMan.EtherClient.BlockByNumber(ctx, big.NewInt(blockNum))
+	if err != nil {
+		return &types.Block{}, nil
+	}
+	return block, nil //TODO Change types.Block. It only needs hash, hash parent and block number
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
