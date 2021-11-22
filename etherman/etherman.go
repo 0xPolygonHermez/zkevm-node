@@ -17,11 +17,12 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/state"
-	pcrypto "github.com/0xPolygon/polygon-sdk/crypto"
-	ptypes "github.com/0xPolygon/polygon-sdk/types"
 )
 
-var newBatcheventSignatureHash = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
+var (
+	newBatcheventSignatureHash = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
+	consolidateBatchSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,aggregator)"))
+)
 
 type EtherMan struct {
 	EtherClient *ethclient.Client
@@ -57,27 +58,34 @@ func (etherMan *EtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) 
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
-func (etherMan *EtherMan) GetBatchesByBlock(blockNum int64) ([]state.Batch, error) {
-	//TODO
-	return []state.Batch{}, nil
+func (etherMan *EtherMan) GetBatchesByBlock(blockNum uint64) ([]state.Block, error) {
+	//First filter query
+	query := ethereum.FilterQuery{
+		FromBlock: big.NewInt(int64(blockNum)),
+		ToBlock:   big.NewInt(int64(blockNum)),
+		Addresses: etherMan.SmcAddreses,
+	}
+	blocks, err := etherMan.readEvents(blockNum, blockNum, query)
+	if err != nil {
+		return nil, err
+	}
+	return blocks, nil
 }
 
 // GetBatchesFromBlockTo function retrieves the batches information that are included in all this ethereum blocks
 //from block x to block y
-func (etherMan *EtherMan) GetBatchesFromBlockTo(fromBlock uint64, toBlock uint64) ([]state.Batch, error) {
+func (etherMan *EtherMan) GetBatchesFromBlockTo(fromBlock uint64, toBlock uint64) ([]state.Block, error) {
 	//First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: big.NewInt(int64(fromBlock)),
 		ToBlock:   big.NewInt(int64(toBlock)),
 		Addresses: etherMan.SmcAddreses,
 	}
-	batchEvent, err := etherMan.readEvents(fromBlock, toBlock, query)
+	blocks, err := etherMan.readEvents(fromBlock, toBlock, query)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(batchEvent)
-	var batch []state.Batch 	//TODO Fix the type problem
-	return batch, nil
+	return blocks, nil
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
@@ -92,58 +100,69 @@ func (etherMan *EtherMan) ConsolidateBatch(batch state.Batch, proof state.Proof)
 	return common.Hash{}, nil
 }
 
-type batchEvent struct {
-	TxHash    common.Hash
-	BlockNum  uint64
-	BlockHash common.Hash
-	Batch struct {
-		BatchNum  uint64
-		Sequencer common.Address
-		Txs []ptypes.Transaction
-	}
-}
-
-func (etherMan *EtherMan) readEvents(fromBlock uint64, toBlock uint64, query ethereum.FilterQuery) (batchEvent, error) {
+func (etherMan *EtherMan) readEvents(fromBlock uint64, toBlock uint64, query ethereum.FilterQuery) ([]state.Block, error) {
 	logs, err := etherMan.EtherClient.FilterLogs(context.Background(), query)
 	if err != nil {
-		return batchEvent{}, err
+		return []state.Block{}, err
 	}
-	var newBatch batchEvent
+	var blocks []state.Block
 	for _, vLog := range logs {
-		switch vLog.Topics[0] {
-		case newBatcheventSignatureHash:
-			//Indexed parameters using topics
-			newBatch.Batch.BatchNum = new(big.Int).SetBytes(vLog.Topics[1][:]).Uint64()
-			newBatch.Batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
-			newBatch.TxHash = vLog.TxHash
-			newBatch.BlockNum = vLog.BlockNumber
-			newBatch.BlockHash = vLog.BlockHash
-			//Now, We have to read the tx for this batch.
-			tx, isPending, err := etherMan.EtherClient.TransactionByHash(context.Background(), newBatch.TxHash)
-			if err != nil || isPending {
-				return batchEvent{}, err
-			}
-			//Get sequencer chainId
-			seq, err := etherMan.PoE.Sequencers(&bind.CallOpts{Pending: false}, newBatch.Batch.Sequencer)
-			if err != nil {
-				return batchEvent{}, err
-			}
-			chainId := seq.ChainID
-			txData := tx.Data()
-			txs, err := decodeTxs(txData, chainId)
-			if err != nil {
-				return batchEvent{}, err
-			}
-			newBatch.Batch.Txs = txs
+		block, err := etherMan.processEvent(vLog)
+		if err != nil {
+			fmt.Println("error processing event: ", err, vLog)
+			continue
 		}
+		blocks = append(blocks, block)
 	}
-	return batchEvent{}, nil
+	return blocks, nil
 }
 
-func decodeTxs(txsData []byte, chainId *big.Int) ([]ptypes.Transaction, error) {
+func (etherMan *EtherMan) processEvent(vLog types.Log) (state.Block, error) {
+	switch vLog.Topics[0] {
+	case newBatcheventSignatureHash:
+		var block state.Block
+		//Indexed parameters using topics
+		var batch state.Batch
+		batch.BatchNumber = new(big.Int).SetBytes(vLog.Topics[1][:]).Uint64()
+		batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
+		batch.Header.TxHash = vLog.TxHash
+		block.BlockNum = vLog.BlockNumber
+		block.BlockHash = vLog.BlockHash
+		//Now, We have to read the tx for this batch.
+		tx, isPending, err := etherMan.EtherClient.TransactionByHash(context.Background(), batch.Header.TxHash)
+		if err != nil || isPending {
+			return state.Block{}, err
+		}
+		//Get sequencer chainId
+		seq, err := etherMan.PoE.Sequencers(&bind.CallOpts{Pending: false}, batch.Sequencer)
+		if err != nil {
+			return state.Block{}, err
+		}
+		txs, err := decodeTxs(tx.Data(), seq.ChainID)
+		if err != nil {
+			return state.Block{}, err
+		}
+		batch.Transactions = txs
+		block.Batches = append(block.Batches, batch)
+		return block, nil
+	case consolidateBatchSignatureHash:
+		var block state.Block
+		var batch state.Batch
+		batch.BatchNumber = new(big.Int).SetBytes(vLog.Topics[1][:]).Uint64()
+		batch.Aggregator = common.BytesToAddress(vLog.Topics[2].Bytes())
+		batch.ConsolidatedTxHash = vLog.TxHash
+		block.BlockNum = vLog.BlockNumber
+		block.BlockHash = vLog.BlockHash
+		block.Batches = append(block.Batches, batch)
+		return block, nil
+	}
+	return state.Block{}, nil
+}
+
+func decodeTxs(txsData []byte, chainId *big.Int) ([]*types.LegacyTx, error) {
 	// First split txs
 	var pos int64
-	var txs []ptypes.Transaction
+	var txs []*types.LegacyTx
 	for pos<int64(len(txsData)) {
 		lenght := txsData[pos+1:pos+2]
 		str := hex.EncodeToString(lenght)
@@ -156,32 +175,42 @@ func decodeTxs(txsData []byte, chainId *big.Int) ([]ptypes.Transaction, error) {
 		pos = pos + num + 2
 
 		//Decode tx
-		var tx ptypes.Transaction
+		var tx types.LegacyTx
 		rlp.DecodeBytes(data, &tx)
-		isValid, fromAddr, err := checkSignature(tx, chainId)
+		isValid, err := checkSignature(tx, chainId)
 		if err != nil {
 			fmt.Println("error: skipping tx. ", err)
 			continue
 		} else if !isValid {
-			fmt.Println("Signature invalid: ",isValid, "FromAddr: ", fromAddr)
+			fmt.Println("Signature invalid: ",isValid)
 			continue
 		}
-		tx.From = fromAddr
-		txs = append(txs, tx)
+		// tx.From = fromAddr
+		txs = append(txs, &types.LegacyTx {
+			Nonce: tx.Nonce,
+			GasPrice: tx.GasPrice,
+			Gas: tx.Gas,
+			To: (*common.Address)(tx.To),
+			Value: tx.Value,
+			Data: tx.Data,
+			V: tx.V,
+			R: tx.R,
+			S: tx.S,
+		})
 	}
     return txs, nil
 }
 
-func checkSignature(tx ptypes.Transaction, chainId *big.Int) (bool, ptypes.Address, error) {
+func checkSignature(tx types.LegacyTx, chainId *big.Int) (bool, error) {
 	decodedChainId := deriveChainId(tx.V)
 	if decodedChainId.Cmp(chainId) != 0 {
-		return false, ptypes.Address{}, fmt.Errorf("error: incorrect chainId. Decoded chainId: %d and chainId retrieved from smc: %d",
+		return false, fmt.Errorf("error: incorrect chainId. Decoded chainId: %d and chainId retrieved from smc: %d",
 		decodedChainId, chainId)
 	}
 	// Formula: v = chainId * 2 + 36 or 35; x = 35 or 36
-	v := new(big.Int).SetBytes(tx.V)
-	r := new(big.Int).SetBytes(tx.R)
-	s := new(big.Int).SetBytes(tx.S)
+	v := new(big.Int).SetBytes(tx.V.Bytes())
+	r := new(big.Int).SetBytes(tx.R.Bytes())
+	s := new(big.Int).SetBytes(tx.S.Bytes())
 	x := v.Int64()-(chainId.Int64()*2)
 	var vField byte
 	if x == 35 {
@@ -189,26 +218,25 @@ func checkSignature(tx ptypes.Transaction, chainId *big.Int) (bool, ptypes.Addre
 	} else if x == 36 {
 		vField = byte(1)
 	} else {
-		return false, ptypes.Address{}, fmt.Errorf("Error invalid signature v value: %d", tx.V)
+		return false, fmt.Errorf("Error invalid signature v value: %d", tx.V)
 	}
 	if !crypto.ValidateSignatureValues(vField, r, s, false) {
 		fmt.Println("Invalid Signature values")
-		return false, ptypes.Address{}, fmt.Errorf("Error invalid Signature values")
+		return false, fmt.Errorf("Error invalid Signature values")
 	}
 
-	//Get fromSender address
-	txSigner := pcrypto.NewEIP155Signer(chainId.Uint64())
-	fromAddr, err :=txSigner.Sender(&tx)
-	if err != nil {
-		return false, ptypes.Address{}, fmt.Errorf("error recovering fromAddr. Error: %w", err)
-	}
+	// //Get fromSender address
+	// txSigner := pcrypto.NewEIP155Signer(chainId.Uint64())
+	// fromAddr, err :=txSigner.Sender(&tx)
+	// if err != nil {
+	// 	return false, ptypes.Address{}, fmt.Errorf("error recovering fromAddr. Error: %w", err)
+	// }
 
-	return true, fromAddr, nil
+	return true, nil
 }
 
 // deriveChainId derives the chain id from the given v parameter
-func deriveChainId(val []byte) *big.Int {
-	v := new(big.Int).SetBytes(val)
+func deriveChainId(v *big.Int) *big.Int {
 	if v.BitLen() <= 64 {
 		v := v.Uint64()
 		if v == 27 || v == 28 {

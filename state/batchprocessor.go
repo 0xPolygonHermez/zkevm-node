@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // BatchProcessor is used to process a batch of transactions

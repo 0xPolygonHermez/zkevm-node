@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	ptypes "github.com/0xPolygon/polygon-sdk/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestDecodeOneTxData(t *testing.T) {
@@ -18,13 +18,10 @@ func TestDecodeOneTxData(t *testing.T) {
 	tx, err := decodeTxs(data, big.NewInt(1))
 	require.NoError(t, err)
 	// fmt.Println(tx)
-	var addr ptypes.Address
+	var addr common.Address
 	err = addr.UnmarshalText([]byte("0x1111111111111111111111111111111111111111"))
 	require.NoError(t, err)
 	assert.Equal(t, &addr, tx[0].To)
-	err = addr.UnmarshalText([]byte("0xD3E442496EB66a4748912ec4A3b7A111d0B855d6"))
-	require.NoError(t, err)
-	assert.Equal(t, addr, tx[0].From)
 
 	dHex = "f86b028504a817c8008252089412121212121212121212121212121212121212128506fc23ac0080820226a0a2402d3351e8ec9b0a221d7ff48aca682c646528b1558e74a0b558a943c0f2a3a05c7fff6db65e560833d7f85f07ed092fb63aaa2307b60cdf03b63a2effc6a340"
 	data, err = hex.DecodeString(dHex)
@@ -34,9 +31,6 @@ func TestDecodeOneTxData(t *testing.T) {
 	err = addr.UnmarshalText([]byte("0x1212121212121212121212121212121212121212"))
 	require.NoError(t, err)
 	assert.Equal(t, &addr, tx[0].To)
-	err = addr.UnmarshalText([]byte("0x178513579470dc158FA85c2AeA86e18a8c955402"))
-	require.NoError(t, err)
-	assert.Equal(t, addr, tx[0].From)
 
 	dHex = "f86e5a8502540be4008259d8941234123412341234123412341234123412341234880214e8348c4f000082123442a0c6ff1e0034458c8dbf64966f49031e44c6509f85545b49d4df2a953e9f4d1324a07403e62dda1922fb1e226632e21e7382c345377ff46e6a43b79f169570e5a725"
 	data, err = hex.DecodeString(dHex)
@@ -46,9 +40,6 @@ func TestDecodeOneTxData(t *testing.T) {
 	err = addr.UnmarshalText([]byte("0x1234123412341234123412341234123412341234"))
 	require.NoError(t, err)
 	assert.Equal(t, &addr, tx[0].To)
-	err = addr.UnmarshalText([]byte("0xfF06ad5d076fa274B49C297f3fE9e29B5bA9AaDC"))
-	require.NoError(t, err)
-	assert.Equal(t, addr, tx[0].From)
 
 	dHex = "f8701c8502540be400823a9894987698769876987698769876987698769876987688011c37937e0800008256788202e0a0ae3c16aaf6a780e085f5f919b0d1e5f07a1c014ed4d700c3ab189b4f98677f38a0316608701f846807f96f496b9994e7a821fc9322383e54f84bd235b93fb774b0"
 	data, err = hex.DecodeString(dHex)
@@ -58,9 +49,6 @@ func TestDecodeOneTxData(t *testing.T) {
 	err = addr.UnmarshalText([]byte("0x9876987698769876987698769876987698769876"))
 	require.NoError(t, err)
 	assert.Equal(t, &addr, tx[0].To)
-	err = addr.UnmarshalText([]byte("0x96E2793020bbbCDD0256B08244e1b3dF8B6EEB8c"))
-	require.NoError(t, err)
-	assert.Equal(t, addr, tx[0].From)
 
 	dHex = "f873528504a817c800824a389480808080808080808080808080808080808080808802c68af0bb140000851234567890820b13a06790f151dab1b65b577532b479938f45abf871d6978e98ee0db53331ad548709a021b5038ec4cf5f7edc3f2ebac9ec5fdaa602f48b53986111a9bddaf5ad5b771c"
 	data, err = hex.DecodeString(dHex)
@@ -70,9 +58,6 @@ func TestDecodeOneTxData(t *testing.T) {
 	err = addr.UnmarshalText([]byte("0x8080808080808080808080808080808080808080"))
 	require.NoError(t, err)
 	assert.Equal(t, &addr, tx[0].To)
-	err = addr.UnmarshalText([]byte("0x2e988A386a799F506693793c6A5AF6B54dfAaBfB"))
-	require.NoError(t, err)
-	assert.Equal(t, addr, tx[0].From)
 
 	dHex = "f8702f85055ae826008261a8941111111111222222222233333333334444444444880cc47f20295c0000841122334427a01a3cf5ea05180ac59514dc64d91a1d615857cad466dacfbde4dd06f1988a1074a05ed158fd5c7d54bd827e94683c7f74dbd64be9bb69cbb3e092d317cc4758a146"
 	data, err = hex.DecodeString(dHex)
@@ -82,9 +67,6 @@ func TestDecodeOneTxData(t *testing.T) {
 	err = addr.UnmarshalText([]byte("0x1111111111222222222233333333334444444444"))
 	require.NoError(t, err)
 	assert.Equal(t, &addr, tx[0].To)
-	err = addr.UnmarshalText([]byte("0x6A5575E1230543D19e368B13446a7082Be6E0B47"))
-	require.NoError(t, err)
-	assert.Equal(t, addr, tx[0].From)
 
 }
 
@@ -96,14 +78,10 @@ func TestDecodeMultipleTxData(t *testing.T) {
 	txs, err := decodeTxs(data, big.NewInt(1))
 	require.NoError(t, err)
 	res := []string{"0x3535353535353535353535353535353535353535", "0x1111111111111111111111111111111111111111", "0x1212121212121212121212121212121212121212"}
-	fromRes := []string{"0x9d8A62f656a8d1615C1294fd71e9CFb3E4855A4F","0x674b6Bb9B00Dd754094D3D6a129696D194F45FE7","0x674b6Bb9B00Dd754094D3D6a129696D194F45FE7"}
 	for k,tx := range txs {
-		var addr ptypes.Address
+		var addr common.Address
 		err = addr.UnmarshalText([]byte(res[k]))
 		require.NoError(t, err)
 		assert.Equal(t, &addr, tx.To)
-		err = addr.UnmarshalText([]byte(fromRes[k]))
-		require.NoError(t, err)
-		assert.Equal(t, addr, tx.From)
 	}
 }
