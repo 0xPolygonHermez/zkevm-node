@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"math/big"
 	"strconv"
 
@@ -114,7 +113,7 @@ func (etherMan *EtherMan) readEvents(query ethereum.FilterQuery) ([]state.Block,
 	for _, vLog := range logs {
 		block, err := etherMan.processEvent(vLog)
 		if err != nil {
-			fmt.Println("error processing event: ", err, vLog)
+			log.Warn("error processing event: ", err, vLog)
 			continue
 		}
 		blocks = append(blocks, block)
@@ -173,7 +172,7 @@ func decodeTxs(txsData []byte, chainId *big.Int) ([]*types.LegacyTx, error) {
 		str := hex.EncodeToString(lenght)
 		num, err := strconv.ParseInt(str, 16, 64)
 		if err != nil {
-			fmt.Println("error: skipping tx. Err: ", err)
+			log.Warn("error: skipping tx. Err: ", err)
 			continue
 		}
 		data := txsData[pos : pos+num+2]
@@ -184,10 +183,10 @@ func decodeTxs(txsData []byte, chainId *big.Int) ([]*types.LegacyTx, error) {
 		rlp.DecodeBytes(data, &tx)
 		isValid, err := checkSignature(tx, chainId)
 		if err != nil {
-			fmt.Println("error: skipping tx. ", err)
+			log.Warn("error: skipping tx. ", err)
 			continue
 		} else if !isValid {
-			fmt.Println("Signature invalid: ",isValid)
+			log.Debug("Signature invalid: ",isValid)
 			continue
 		}
 		txs = append(txs, &tx)
@@ -215,8 +214,8 @@ func checkSignature(tx types.LegacyTx, chainId *big.Int) (bool, error) {
 		return false, fmt.Errorf("Error invalid signature v value: %d", tx.V)
 	}
 	if !crypto.ValidateSignatureValues(vField, r, s, false) {
-		fmt.Println("Invalid Signature values")
-		return false, fmt.Errorf("Error invalid Signature values")
+		log.Warn("Invalid Signature values: ", tx)
+		return false, nil
 	}
 	return true, nil
 }
