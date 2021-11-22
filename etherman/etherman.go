@@ -31,7 +31,6 @@ type EtherMan struct {
 }
 
 func NewEtherman(url string, poeAddr common.Address) (*EtherMan, error) {
-	//TODO
 	//Connect to ethereum node
 	ethClient, err := ethclient.Dial(url)
 	if err != nil {
@@ -54,7 +53,7 @@ func (etherMan *EtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) 
 	if err != nil {
 		return &types.Block{}, nil
 	}
-	return block, nil //TODO Change types.Block. It only needs hash, hash parent and block number
+	return block, nil
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
@@ -185,18 +184,7 @@ func decodeTxs(txsData []byte, chainId *big.Int) ([]*types.LegacyTx, error) {
 			fmt.Println("Signature invalid: ",isValid)
 			continue
 		}
-		// tx.From = fromAddr
-		txs = append(txs, &types.LegacyTx {
-			Nonce: tx.Nonce,
-			GasPrice: tx.GasPrice,
-			Gas: tx.Gas,
-			To: (*common.Address)(tx.To),
-			Value: tx.Value,
-			Data: tx.Data,
-			V: tx.V,
-			R: tx.R,
-			S: tx.S,
-		})
+		txs = append(txs, &tx)
 	}
     return txs, nil
 }
@@ -224,14 +212,6 @@ func checkSignature(tx types.LegacyTx, chainId *big.Int) (bool, error) {
 		fmt.Println("Invalid Signature values")
 		return false, fmt.Errorf("Error invalid Signature values")
 	}
-
-	// //Get fromSender address
-	// txSigner := pcrypto.NewEIP155Signer(chainId.Uint64())
-	// fromAddr, err :=txSigner.Sender(&tx)
-	// if err != nil {
-	// 	return false, ptypes.Address{}, fmt.Errorf("error recovering fromAddr. Error: %w", err)
-	// }
-
 	return true, nil
 }
 
