@@ -2,14 +2,13 @@ package state
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // BatchProcessor is used to process a batch of transactions
 type BatchProcessor interface {
 	ProcessBatch(batch Batch) error
-	ProcessTransaction(tx types.Transaction) error
-	CheckTransaction(tx types.Transaction) error
+	ProcessTransaction(tx Transaction) error
+	CheckTransaction(tx Transaction) error
 	Commit() (*common.Hash, *Proof, error)
 	Rollback() error
 }
@@ -23,12 +22,12 @@ func (b *BasicBatchProcessor) ProcessBatch(batch Batch) error {
 }
 
 // ProcessTransaction processes a transaction inside a batch
-func (b *BasicBatchProcessor) ProcessTransaction(tx types.Transaction) error {
+func (b *BasicBatchProcessor) ProcessTransaction(tx Transaction) error {
 	return nil
 }
 
 // CheckTransaction checks a transaction is valid inside a batch context
-func (b *BasicBatchProcessor) CheckTransaction(tx types.Transaction) error {
+func (b *BasicBatchProcessor) CheckTransaction(tx Transaction) error {
 	return nil
 }
 
