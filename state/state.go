@@ -15,26 +15,27 @@ type State interface {
 	NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) BatchProcessor
 	GetStateRoot(virtual bool) (*big.Int, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
-	EstimateGas(transaction types.Transaction) uint64
+	EstimateGas(transaction Transaction) uint64
 	GetLastBlock() (*types.Block, error)
 	GetPreviousBlock(offset uint64) (*types.Block, error)
 	GetBlockByHash(hash common.Hash) (*types.Block, error)
 	GetBlockByNumber(blockNumber uint64) (*types.Block, error)
 	GetLastBlockNumber() (uint64, error)
 	GetLastBatch(isVirtual bool) (*Batch, error)
-	GetTransaction(hash common.Hash) (*types.Transaction, error)
+	GetTransaction(hash common.Hash) (*Transaction, error)
 	GetNonce(address common.Address, batchNumber uint64) (uint64, error)
 	GetPreviousBatch(offset uint64) (*Batch, error)
 	GetBatchByHash(hash common.Hash) (*types.Block, error)
 	GetBatchByNumber(batchNumber uint64) (*types.Block, error)
 	GetLastBatchNumber() (uint64, error)
-	GetTransactionByBatchHashAndIndex(batchHash common.Hash, index uint64) (*types.Transaction, error)
-	GetTransactionByBatchNumberAndIndex(batchNumber uint64, index uint64) (*types.Transaction, error)
-	GetTransactionByHash(transactionHash common.Hash) (*types.Transaction, error)
+	GetTransactionByBatchHashAndIndex(batchHash common.Hash, index uint64) (*Transaction, error)
+	GetTransactionByBatchNumberAndIndex(batchNumber uint64, index uint64) (*Transaction, error)
+	GetTransactionByHash(transactionHash common.Hash) (*Transaction, error)
 	GetTransactionCount(address common.Address) (uint64, error)
 	GetTransactionReceipt(transactionHash common.Hash) (*types.Receipt, error)
 	Reset(blockNumber uint64) error
 	ConsolidateBatch(batchNumber uint64) error
+	GetTxsByBatchNum(batchNum uint64) ([]*Transaction, error)
 }
 
 // State
@@ -77,7 +78,7 @@ func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*bi
 }
 
 // EstimateGas for a transaction
-func (s *BasicState) EstimateGas(transaction types.Transaction) uint64 {
+func (s *BasicState) EstimateGas(transaction Transaction) uint64 {
 	return 21000
 }
 
@@ -112,7 +113,7 @@ func (s *BasicState) GetLastBatch(isVirtual bool) (*Batch, error) {
 }
 
 // GetTransaction gets a transactions by its hash
-func (s *BasicState) GetTransaction(hash common.Hash) (*types.Transaction, error) {
+func (s *BasicState) GetTransaction(hash common.Hash) (*Transaction, error) {
 	panic("not implemented yet")
 }
 
@@ -141,17 +142,17 @@ func (s *BasicState) GetLastBatchNumber() (uint64, error) {
 }
 
 // GetTransactionByBatchHashAndIndex gets a transaction from a batch by index
-func (s *BasicState) GetTransactionByBatchHashAndIndex(batchHash common.Hash, index uint64) (*types.Transaction, error) {
+func (s *BasicState) GetTransactionByBatchHashAndIndex(batchHash common.Hash, index uint64) (*Transaction, error) {
 	return nil, nil
 }
 
 // GetTransactionByBatchNumberAndIndex gets a transaction from a batch by index
-func (s *BasicState) GetTransactionByBatchNumberAndIndex(batchNumber uint64, index uint64) (*types.Transaction, error) {
+func (s *BasicState) GetTransactionByBatchNumberAndIndex(batchNumber uint64, index uint64) (*Transaction, error) {
 	return nil, nil
 }
 
 // GetTransactionByHash gets a transaction by its hash
-func (s *BasicState) GetTransactionByHash(transactionHash common.Hash) (*types.Transaction, error) {
+func (s *BasicState) GetTransactionByHash(transactionHash common.Hash) (*Transaction, error) {
 	return nil, nil
 }
 
@@ -175,6 +176,6 @@ func (s *BasicState) ConsolidateBatch(batchNumber uint64) error {
 	return nil
 }
 
-func (s *State) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error) {
+func (s *BasicState) GetTxsByBatchNum(batchNum uint64) ([]*Transaction, error) {
 	return nil, nil
 }
