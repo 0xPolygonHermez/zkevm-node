@@ -57,14 +57,19 @@ func (etherMan *EtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) 
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
-func (etherMan *EtherMan) GetBatchesByBlock(blockNum uint64) ([]state.Block, error) {
+func (etherMan *EtherMan) GetBatchesByBlock(blockNum uint64, blockHash *common.Hash) ([]state.Block, error) {
 	//First filter query
+	var blockNumBigInt *big.Int
+	if blockHash == nil {
+		blockNumBigInt = big.NewInt(int64(blockNum))
+	}
 	query := ethereum.FilterQuery{
-		FromBlock: big.NewInt(int64(blockNum)),
-		ToBlock:   big.NewInt(int64(blockNum)),
+		BlockHash: blockHash,
+		FromBlock: blockNumBigInt,
+		ToBlock:   blockNumBigInt,
 		Addresses: etherMan.SmcAddreses,
 	}
-	blocks, err := etherMan.readEvents(blockNum, blockNum, query)
+	blocks, err := etherMan.readEvents(query)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +85,7 @@ func (etherMan *EtherMan) GetBatchesFromBlockTo(fromBlock uint64, toBlock uint64
 		ToBlock:   big.NewInt(int64(toBlock)),
 		Addresses: etherMan.SmcAddreses,
 	}
-	blocks, err := etherMan.readEvents(fromBlock, toBlock, query)
+	blocks, err := etherMan.readEvents(query)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +104,7 @@ func (etherMan *EtherMan) ConsolidateBatch(batch state.Batch, proof state.Proof)
 	return common.Hash{}, nil
 }
 
-func (etherMan *EtherMan) readEvents(fromBlock uint64, toBlock uint64, query ethereum.FilterQuery) ([]state.Block, error) {
+func (etherMan *EtherMan) readEvents(query ethereum.FilterQuery) ([]state.Block, error) {
 	logs, err := etherMan.EtherClient.FilterLogs(context.Background(), query)
 	if err != nil {
 		return []state.Block{}, err
