@@ -42,7 +42,7 @@ func NewAggregator(
 }
 
 type txsWithProof struct {
-	txs   []*types.Transaction
+	txs   []*types.LegacyTx
 	proof *state.Proof
 }
 
@@ -91,7 +91,7 @@ func (agr *Aggregator) Start() {
 	}()
 }
 
-func (agr *Aggregator) isProfitable(txs []*types.Transaction) bool {
+func (agr *Aggregator) isProfitable(txs []*types.LegacyTx) bool {
 	// get strategy from the config and check
 	return true
 }

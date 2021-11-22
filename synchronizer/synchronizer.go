@@ -10,7 +10,7 @@ import (
 
 type Synchronizer struct {
 	etherMan  *etherman.EtherMan
-	state     *state.State
+	state     state.State
 	ctx       context.Context
 	cancelCtx context.CancelFunc
 
@@ -23,7 +23,7 @@ type NewBatchProposalHandler func()
 type NewConsolidatedStateHandler func()
 type StateResetHandler func()
 
-func NewSynchronizer(ethMan *etherman.EtherMan, st *state.State) (*Synchronizer, error) {
+func NewSynchronizer(ethMan *etherman.EtherMan, st state.State) (*Synchronizer, error) {
 	//TODO
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Synchronizer{

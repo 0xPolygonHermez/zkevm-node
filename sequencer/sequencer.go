@@ -2,12 +2,14 @@ package sequencer
 
 import (
 	"context"
+	"math/big"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/rlp"
 	"github.com/hermeznetwork/hermez-core/state"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -86,18 +88,18 @@ func (s *Sequencer) Stop() {
 }
 
 // selectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.Duration) ([]*types.Transaction, error) {
+func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.Duration) ([]*types.LegacyTx, error) {
 	start := time.Now()
 	sortedTxs := s.sortTxs(pendingTxs)
-	var selectedTxs []*types.Transaction
+	var selectedTxs []*types.LegacyTx
 	for _, tx := range sortedTxs {
 		// check if tx is valid
-		if err := s.BatchProcessor.CheckTransaction(tx.Transaction); err != nil {
-			if err = s.Pool.UpdateTxState(tx.Hash(), pool.TxStateInvalid); err != nil {
+		if err := s.BatchProcessor.CheckTransaction(tx.LegacyTx); err != nil {
+			if err = s.Pool.UpdateTxState(rlp.Hash(tx), pool.TxStateInvalid); err != nil {
 				return nil, err
 			}
 		} else {
-			selectedTxs = append(selectedTxs, &tx.Transaction)
+			selectedTxs = append(selectedTxs, &tx.LegacyTx)
 		}
 
 		elapsed := time.Since(start)
@@ -111,12 +113,21 @@ func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.
 
 func (s *Sequencer) sortTxs(txs []pool.Transaction) []pool.Transaction {
 	sort.Slice(txs, func(i, j int) bool {
-		if txs[i].Cost() != txs[j].Cost() {
-			return txs[i].Cost().Cmp(txs[j].Cost()) >= 1
+		costI := cost(&txs[i].LegacyTx)
+		costJ := cost(&txs[j].LegacyTx)
+		if costI != costJ {
+			return costI.Cmp(costJ) >= 1
 		}
-		return txs[i].Nonce() < txs[j].Nonce()
+		return txs[i].Nonce < txs[j].Nonce
 	})
 	return txs
+}
+
+// cost returns gas * gasPrice + value.
+func cost(tx *types.LegacyTx) *big.Int {
+	total := new(big.Int).Mul(tx.GasPrice, new(big.Int).SetUint64(tx.Gas))
+	total.Add(total, tx.Value)
+	return total
 }
 
 // estimateTime Estimate available time to run selection
@@ -124,6 +135,6 @@ func (s *Sequencer) estimateTime() (time.Duration, error) {
 	return time.Hour, nil
 }
 
-func (s *Sequencer) isSelectionProfitable(txs []*types.Transaction) bool {
+func (s *Sequencer) isSelectionProfitable(txs []*types.LegacyTx) bool {
 	return true
 }

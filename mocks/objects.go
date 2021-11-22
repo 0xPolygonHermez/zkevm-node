@@ -23,6 +23,13 @@ var (
 	block       = types.NewBlockWithHeader(&types.Header{Number: big.NewInt(blockNumber)})
 	batch       = state.NewBatchWithHeader(types.Header{Number: big.NewInt(batchNumber)})
 	txToAddress = common.HexToAddress(address)
-	tx          = types.NewTransaction(txNonce, txToAddress, big.NewInt(txAmount), estimatedGas, big.NewInt(gasPrice), []byte{})
-	txReceipt   = types.NewReceipt([]byte{}, false, 1234)
+	tx          = &types.LegacyTx{
+		Nonce:    txNonce,
+		To:       &txToAddress,
+		Value:    big.NewInt(txAmount),
+		Gas:      estimatedGas,
+		GasPrice: big.NewInt(gasPrice),
+		Data:     []byte{},
+	}
+	txReceipt = types.NewReceipt([]byte{}, false, 1234)
 )

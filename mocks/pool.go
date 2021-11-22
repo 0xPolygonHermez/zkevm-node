@@ -17,7 +17,7 @@ func (p *PoolMock) AddTx(tx types.Transaction) error {
 }
 
 func (p *PoolMock) GetPendingTxs() ([]pool.Transaction, error) {
-	return []pool.Transaction{{Transaction: *tx}}, nil
+	return []pool.Transaction{{LegacyTx: *tx}}, nil
 }
 
 func (p *PoolMock) UpdateTxState(hash common.Hash, newState pool.TxState) error {
