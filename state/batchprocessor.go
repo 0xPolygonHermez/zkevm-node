@@ -7,14 +7,16 @@ import (
 // BatchProcessor is used to process a batch of transactions
 type BatchProcessor interface {
 	ProcessBatch(batch Batch) error
-	ProcessTransaction(tx Transaction) error
-	CheckTransaction(tx Transaction) error
+	ProcessTransaction(tx types.LegacyTx) error
+	CheckTransaction(tx types.LegacyTx) error
 	Commit() (*common.Hash, *Proof, error)
 	Rollback() error
 }
 
 // BatchProcessor is used to process a batch of transactions
-type BasicBatchProcessor struct{}
+type BasicBatchProcessor struct {
+	State *BasicState
+}
 
 // ProcessBatch processes all transactions inside a batch
 func (b *BasicBatchProcessor) ProcessBatch(batch Batch) error {
@@ -22,12 +24,14 @@ func (b *BasicBatchProcessor) ProcessBatch(batch Batch) error {
 }
 
 // ProcessTransaction processes a transaction inside a batch
-func (b *BasicBatchProcessor) ProcessTransaction(tx Transaction) error {
+func (b *BasicBatchProcessor) ProcessTransaction(tx types.LegacyTx) error {
 	return nil
 }
 
 // CheckTransaction checks a transaction is valid inside a batch context
-func (b *BasicBatchProcessor) CheckTransaction(tx Transaction) error {
+func (b *BasicBatchProcessor) CheckTransaction(tx types.LegacyTx) error {
+
+	// Check Nonce
 	return nil
 }
 

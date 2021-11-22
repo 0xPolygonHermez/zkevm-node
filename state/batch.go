@@ -72,7 +72,7 @@ type Batch struct {
 	Aggregator   common.Address
 	Header       *types.Header
 	Uncles       []*types.Header
-	Transactions []*Transaction
+	Transactions []*types.LegacyTx
 
 	ReceivedAt time.Time
 }
