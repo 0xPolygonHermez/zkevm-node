@@ -2,13 +2,13 @@ package etherman
 
 import (
 	"context"
-	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
@@ -22,7 +22,7 @@ func NewEtherman(url string, poeAddr common.Address) (*EtherMan, error) {
 	//Connect to ethereum node
 	ethClient, err := ethclient.Dial(url)
 	if err != nil {
-		log.Printf("error connecting to %s: %+v", url, err)
+		log.Errorf("error connecting to %s: %+v", url, err)
 		return nil, err
 	}
 	//Create smc clients

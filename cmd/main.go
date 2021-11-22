@@ -2,11 +2,17 @@ package main
 
 import (
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/mocks"
 )
 
 func main() {
+	setupLog()
 	runJSONRpcServer()
+}
+
+func setupLog() {
+	log.Init("debug", []string{"stdout"})
 }
 
 func runJSONRpcServer() {
