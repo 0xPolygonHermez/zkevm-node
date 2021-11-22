@@ -8,35 +8,43 @@ import (
 	"time"
 
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/rlp"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/synchronizer"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type Sequencer struct {
-	Pool               pool.Pool
-	State              state.State
-	BatchProcessor     state.BatchProcessor
-	EthMan             etherman.EtherMan
-	SynchronizerClient SynchronizerClient
+	Pool           pool.Pool
+	State          state.State
+	BatchProcessor state.BatchProcessor
+	EthMan         etherman.EtherMan
+	Synchronizer   synchronizer.Synchronizer
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan, syncClient SynchronizerClient) (Sequencer, error) {
+func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan, sy synchronizer.Synchronizer) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	return Sequencer{
-		Pool:               pool,
-		State:              state,
-		EthMan:             ethMan,
-		SynchronizerClient: syncClient,
+
+	s := Sequencer{
+		Pool:         pool,
+		State:        state,
+		EthMan:       ethMan,
+		Synchronizer: sy,
 
 		ctx:    ctx,
 		cancel: cancel,
-	}, nil
+	}
+
+	sy.RegisterNewConsolidatedStateHandler(s.onNewBatchPropostal)
+
+	return s, nil
 }
 
 func (s *Sequencer) Start() {
@@ -47,40 +55,36 @@ func (s *Sequencer) Start() {
 	// 4. Is selection profitable?
 	// YES: send selection to Ethereum
 	// NO: discard selection and wait for the new batch
-	go func() {
-		for {
-			select {
-			case <-s.ctx.Done():
-				return
-			case event := <-s.SynchronizerClient.SyncEventChan:
-				s.BatchProcessor = s.State.NewBatchProcessor(event.StartingHash, false)
-				// get pending txs from the pool
-				txs, err := s.Pool.GetPendingTxs()
-				if err != nil {
-					return
-				}
-				// estimate time for selecting txs
-				estimatedTime, err := s.estimateTime()
-				if err != nil {
-					return
-				}
-				// select txs
-				selectedTxs, err := s.selectTxs(txs, estimatedTime)
-				if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
-					return
-				}
-				// check is it profitable to send selection
-				isProfitable := s.isSelectionProfitable(selectedTxs)
-				batch := state.Batch{Transactions: selectedTxs}
-				if isProfitable {
-					_, err = s.EthMan.SendBatch(batch)
-					if err != nil {
-						continue
-					}
-				}
-			}
+	s.Synchronizer.Sync()
+}
+
+func (s *Sequencer) onNewBatchPropostal(batchNumber uint64, root common.Hash) {
+	s.BatchProcessor = s.State.NewBatchProcessor(root, false)
+	// get pending txs from the pool
+	txs, err := s.Pool.GetPendingTxs()
+	if err != nil {
+		return
+	}
+	// estimate time for selecting txs
+	estimatedTime, err := s.estimateTime()
+	if err != nil {
+		return
+	}
+	// select txs
+	selectedTxs, err := s.selectTxs(txs, estimatedTime)
+	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
+		return
+	}
+	// check is it profitable to send selection
+	isProfitable := s.isSelectionProfitable(selectedTxs)
+	batch := state.Batch{Transactions: selectedTxs}
+	if isProfitable {
+		_, err = s.EthMan.SendBatch(batch)
+		if err != nil {
+			log.Error(err)
+			return
 		}
-	}()
+	}
 }
 
 func (s *Sequencer) Stop() {

@@ -4,12 +4,22 @@ import (
 	"context"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
-type Synchronizer struct {
-	etherMan  *etherman.EtherMan
+type Synchronizer interface {
+	Sync() error
+	RegisterNewBatchProposalHandler(handler NewBatchProposalHandler)
+	RegisterNewConsolidatedStateHandler(handler NewConsolidatedStateHandler)
+	RegisterStateResetHandler(handler StateResetHandler)
+	Stop()
+}
+
+type BasicSynchronizer struct {
+	etherMan  etherman.EtherMan
 	state     state.State
 	ctx       context.Context
 	cancelCtx context.CancelFunc
@@ -19,14 +29,14 @@ type Synchronizer struct {
 	stateResetHandlers           []StateResetHandler
 }
 
-type NewBatchProposalHandler func()
-type NewConsolidatedStateHandler func()
+type NewBatchProposalHandler func(batchNumber uint64, root common.Hash)
+type NewConsolidatedStateHandler func(batchNumber uint64, root common.Hash)
 type StateResetHandler func()
 
-func NewSynchronizer(ethMan *etherman.EtherMan, st state.State) (*Synchronizer, error) {
+func NewSynchronizer(ethMan etherman.EtherMan, st state.State) (Synchronizer, error) {
 	//TODO
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Synchronizer{
+	return &BasicSynchronizer{
 		state:     st,
 		etherMan:  ethMan,
 		ctx:       ctx,
@@ -37,7 +47,7 @@ func NewSynchronizer(ethMan *etherman.EtherMan, st state.State) (*Synchronizer, 
 // Sync function will read the last state synced and will continue from that point.
 // Sync() will read blockchain events to detect rollup updates. If it is already synced,
 // It will keep waiting for a new event
-func (s *Synchronizer) Sync() error {
+func (s *BasicSynchronizer) Sync() error {
 	go func() {
 		var lastEthBlockSynced uint64
 		var err error
@@ -59,20 +69,20 @@ func (s *Synchronizer) Sync() error {
 	return nil
 }
 
-func (s *Synchronizer) RegisterNewBatchProposalHandler(handler NewBatchProposalHandler) {
+func (s *BasicSynchronizer) RegisterNewBatchProposalHandler(handler NewBatchProposalHandler) {
 	s.newBatchProposalHandlers = append(s.newBatchProposalHandlers, handler)
 }
 
-func (s *Synchronizer) RegisterNewConsolidatedStateHandler(handler NewConsolidatedStateHandler) {
+func (s *BasicSynchronizer) RegisterNewConsolidatedStateHandler(handler NewConsolidatedStateHandler) {
 	s.newConsolidatedStateHandlers = append(s.newConsolidatedStateHandlers, handler)
 }
 
-func (s *Synchronizer) RegisterStateResetHandler(handler StateResetHandler) {
+func (s *BasicSynchronizer) RegisterStateResetHandler(handler StateResetHandler) {
 	s.stateResetHandlers = append(s.stateResetHandlers, handler)
 }
 
 // This function syncs the node from a specific block to the latest
-func (s *Synchronizer) syncBlocks(lastEthBlockSynced uint64) (uint64, error) {
+func (s *BasicSynchronizer) syncBlocks(lastEthBlockSynced uint64) (uint64, error) {
 	//TODO
 	//This function will read events fromBlockNum to latestEthBlock. First It has to retrieve the latestEthereumBlock and check reorg to be sure that everything is ok.
 	//if there is no lastEthereumBlock means that sync from the begining is necesary. If not, it continues from the retrieved ethereum block
@@ -88,7 +98,7 @@ func (s *Synchronizer) syncBlocks(lastEthBlockSynced uint64) (uint64, error) {
 }
 
 // This function allows reset the state until an specific ethereum block
-func (s *Synchronizer) resetState(ethBlockNum uint64) error {
+func (s *BasicSynchronizer) resetState(ethBlockNum uint64) error {
 	err := s.state.Reset(ethBlockNum)
 	if err != nil {
 		return err
@@ -100,7 +110,7 @@ func (s *Synchronizer) resetState(ethBlockNum uint64) error {
 }
 
 // This function will check if there is a reorg
-func (s *Synchronizer) checkReorg() (uint64, error) {
+func (s *BasicSynchronizer) checkReorg() (uint64, error) {
 	//TODO this function only needs to worry about reorgs if some of the reorganized blocks contained rollup info.
 	//getLastEtherblockfromdb and check the hash and parent hash. Using the ethBlockNum, get this info from the blockchain and compare.
 	//if the values doesn't match get the previous ethereum block from db (last-1) and get the info for that ethereum block number
@@ -110,50 +120,50 @@ func (s *Synchronizer) checkReorg() (uint64, error) {
 }
 
 // Stop function stops the synchronizer
-func (s *Synchronizer) Stop() {
+func (s *BasicSynchronizer) Stop() {
 	s.cancelCtx()
 }
 
 // notifyResetState notifies all registered reset state handlers that the state was reset
-func (s *Synchronizer) notifyResetState() {
+func (s *BasicSynchronizer) notifyResetState() {
 	for _, handler := range s.stateResetHandlers {
-		go func() {
+		go func(h StateResetHandler) {
 			defer func() {
 				if err := recover(); err != nil {
-					//log.Error(err)
+					log.Error(err)
 				}
 			}()
-			handler()
-		}()
+			h()
+		}(handler)
 	}
 }
 
 // notifyNewBathProposal notifies all registered new batch proposal handlers
 // that a new batch proposal was synchronized
-func (s *Synchronizer) notifyNewBathProposal() {
+func (s *BasicSynchronizer) notifyNewBathProposal(batchNumber uint64, root common.Hash) {
 	for _, handler := range s.newBatchProposalHandlers {
-		go func() {
+		go func(h NewBatchProposalHandler, b uint64, r common.Hash) {
 			defer func() {
 				if err := recover(); err != nil {
-					//log.Error(err)
+					log.Error(err)
 				}
 			}()
-			handler()
-		}()
+			h(b, r)
+		}(handler, batchNumber, root)
 	}
 }
 
 // notifyNewConsolidatedState notifies all registered new consolidated state handlers
 // that a new consolidated state was synchronized
-func (s *Synchronizer) notifyNewConsolidatedState() {
+func (s *BasicSynchronizer) notifyNewConsolidatedState(batchNumber uint64, root common.Hash) {
 	for _, handler := range s.newConsolidatedStateHandlers {
-		go func() {
+		go func(h NewConsolidatedStateHandler, b uint64, r common.Hash) {
 			defer func() {
 				if err := recover(); err != nil {
-					//log.Error(err)
+					log.Error(err)
 				}
 			}()
-			handler()
-		}()
+			h(b, r)
+		}(handler, batchNumber, root)
 	}
 }

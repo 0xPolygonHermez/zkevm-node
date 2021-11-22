@@ -1,5 +1,9 @@
 package sequencer
 
+import "github.com/hermeznetwork/hermez-core/etherman"
+
 type Config struct {
-	sendBatchFrequencyInSeconds uint
+	PrivateKey                  string
+	SendBatchFrequencyInSeconds uint
+	Etherman                    etherman.Config
 }
