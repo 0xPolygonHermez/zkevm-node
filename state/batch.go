@@ -49,26 +49,29 @@ func (n *BatchNonce) UnmarshalText(input []byte) error {
 // Hash returns the batch hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (b *Batch) Hash() common.Hash {
-	return rlpHash(b.header)
+	return rlpHash(b.Header)
 }
 
 // EmptyBody returns true if there is no additional 'body' to complete the header
 // that is: no transactions and no uncles.
 func (b *Batch) EmptyBody() bool {
-	return b.header.TxHash == EmptyRootHash && b.header.UncleHash == EmptyUncleHash
+	return b.Header.TxHash == EmptyRootHash && b.Header.UncleHash == EmptyUncleHash
 }
 
 // EmptyReceipts returns true if there are no receipts for this batch.
 func (b *Batch) EmptyReceipts() bool {
-	return b.header.ReceiptHash == EmptyRootHash
+	return b.Header.ReceiptHash == EmptyRootHash
 }
 
 // Batch
 type Batch struct {
-	blockNumber  uint64
-	isVirtual    bool
-	header       *types.Header
-	uncles       []*types.Header
+	BatchNumber  uint64
+	BlockNumber  uint64
+	IsVirtual    bool
+	Sequencer    common.Address
+	Aggregator   common.Address
+	Header       *types.Header
+	Uncles       []*types.Header
 	Transactions []*Transaction
 
 	ReceivedAt time.Time
@@ -76,7 +79,7 @@ type Batch struct {
 
 // NewBatchWithHeader creates a batch with the given header data.
 func NewBatchWithHeader(header types.Header) *Batch {
-	return &Batch{header: &header}
+	return &Batch{Header: &header}
 }
 
 // hasherPool holds LegacyKeccak256 hashers for rlpHash.
