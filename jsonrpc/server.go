@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
 )
@@ -35,11 +35,11 @@ func NewServer(config Config, p pool.Pool, s state.State) *Server {
 
 func (s *Server) Start() error {
 	address := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
-	log.Println("http server started", "addr", address)
+	log.Infof("http server started: %s", address)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
-		fmt.Println("failed to create tcp listener", "err", err)
+		log.Errorf("failed to create tcp listener: %v", err)
 		return err
 	}
 
@@ -50,7 +50,7 @@ func (s *Server) Start() error {
 		Handler: mux,
 	}
 	if err := srv.Serve(lis); err != nil {
-		fmt.Println("closed http connection", "err", err)
+		log.Errorf("closed http connection: %v", err)
 		return err
 	}
 	return nil

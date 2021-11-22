@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"unicode"
+
+	"github.com/hermeznetwork/hermez-core/log"
 )
 
 type serviceData struct {
@@ -41,7 +43,7 @@ func newJSONRpcHandler(e *Eth, n *Net) *JSONRPCHandler {
 }
 
 func (d *JSONRPCHandler) Handle(req Request) Response {
-	fmt.Println("request", "method", req.Method, "id", req.ID)
+	log.Debugf("request method %s id %v", req.Method, req.ID)
 
 	service, fd, err := d.getFnHandler(req)
 	if err != nil {
@@ -66,7 +68,7 @@ func (d *JSONRPCHandler) Handle(req Request) Response {
 
 	output := fd.fv.Call(inArgs)
 	if err := getError(output[1]); err != nil {
-		fmt.Println("failed to call", "method", req.Method, "err", err)
+		log.Errorf("failed to call method %s: %v", req.Method, err)
 		return NewRpcResponse(req, nil, NewInvalidRequestError(err.Error()))
 	}
 

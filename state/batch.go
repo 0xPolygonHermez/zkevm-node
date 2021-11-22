@@ -72,7 +72,7 @@ type Batch struct {
 	ConsolidatedTxHash common.Hash
 	Header             *types.Header
 	Uncles             []*types.Header
-	Transactions []*types.LegacyTx
+	Transactions       []*types.LegacyTx
 
 	ReceivedAt time.Time
 }
