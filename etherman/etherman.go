@@ -132,6 +132,10 @@ func (etherMan *EtherMan) processEvent(vLog types.Log) (state.Block, error) {
 		batch.Header.TxHash = vLog.TxHash
 		block.BlockNum = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
+		fullBlock, err := etherMan.EtherClient.BlockByHash(context.Background(), vLog.BlockHash)
+		if err == nil {
+			block.ParentHash = fullBlock.ParentHash()
+		}
 		//Now, We have to read the tx for this batch.
 		tx, isPending, err := etherMan.EtherClient.TransactionByHash(context.Background(), batch.Header.TxHash)
 		if err != nil || isPending {
@@ -157,6 +161,10 @@ func (etherMan *EtherMan) processEvent(vLog types.Log) (state.Block, error) {
 		batch.ConsolidatedTxHash = vLog.TxHash
 		block.BlockNum = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
+		fullBlock, err := etherMan.EtherClient.BlockByHash(context.Background(), vLog.BlockHash)
+		if err == nil {
+			block.ParentHash = fullBlock.ParentHash()
+		}
 		block.Batches = append(block.Batches, batch)
 		return block, nil
 	}
