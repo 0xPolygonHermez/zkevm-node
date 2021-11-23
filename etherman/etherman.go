@@ -44,7 +44,7 @@ func NewEtherman(url string, poeAddr common.Address) (*EtherMan, error) {
 	}
 	var smcAddreses []common.Address
 	smcAddreses = append(smcAddreses, poeAddr)
-	return &EtherMan{EtherClient: ethClient, PoE: poe}, nil
+	return &EtherMan{EtherClient: ethClient, PoE: poe, SmcAddreses: smcAddreses}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
