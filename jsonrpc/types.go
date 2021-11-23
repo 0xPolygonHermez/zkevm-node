@@ -75,7 +75,7 @@ type txnArgs struct {
 	Nonce    *argUint64
 }
 
-func (arg *txnArgs) ToLegacyTx() *types.LegacyTx {
+func (arg *txnArgs) ToTransaction() *types.Transaction {
 	nonce := uint64(0)
 	if arg.Nonce != nil {
 		nonce = uint64(*arg.Nonce)
@@ -98,12 +98,7 @@ func (arg *txnArgs) ToLegacyTx() *types.LegacyTx {
 		data = *arg.Data
 	}
 
-	return &types.LegacyTx{
-		Nonce:    nonce,
-		To:       arg.To,
-		Value:    value,
-		Gas:      gas,
-		GasPrice: gasPrice,
-		Data:     data,
-	}
+	tx := types.NewTransaction(nonce, *arg.To, value, gas, gasPrice, data)
+
+	return tx
 }

@@ -33,7 +33,7 @@ func (e *Eth) ChainId() (interface{}, error) {
 }
 
 func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error) {
-	tx := arg.ToLegacyTx()
+	tx := arg.ToTransaction()
 	gasEstimation := e.state.EstimateGas(*tx)
 	return hex.EncodeUint64(gasEstimation), nil
 }

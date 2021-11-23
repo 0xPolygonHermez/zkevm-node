@@ -26,7 +26,7 @@ func (s *StateMock) GetBalance(address common.Address, batchNumber uint64) (*big
 	return big.NewInt(balance), nil
 }
 
-func (s *StateMock) EstimateGas(transaction types.LegacyTx) uint64 {
+func (s *StateMock) EstimateGas(transaction types.Transaction) uint64 {
 	return estimatedGas
 }
 
@@ -54,7 +54,7 @@ func (s *StateMock) GetLastBatch(isVirtual bool) (*state.Batch, error) {
 	return batch, nil
 }
 
-func (s *StateMock) GetTransaction(hash common.Hash) (*types.LegacyTx, error) {
+func (s *StateMock) GetTransaction(hash common.Hash) (*types.Transaction, error) {
 	return tx, nil
 }
 
@@ -78,15 +78,15 @@ func (s *StateMock) GetLastBatchNumber() (uint64, error) {
 	return batchNumber, nil
 }
 
-func (s *StateMock) GetTransactionByBatchHashAndIndex(batchHash common.Hash, index uint64) (*types.LegacyTx, error) {
+func (s *StateMock) GetTransactionByBatchHashAndIndex(batchHash common.Hash, index uint64) (*types.Transaction, error) {
 	return tx, nil
 }
 
-func (s *StateMock) GetTransactionByBatchNumberAndIndex(batchNumber uint64, index uint64) (*types.LegacyTx, error) {
+func (s *StateMock) GetTransactionByBatchNumberAndIndex(batchNumber uint64, index uint64) (*types.Transaction, error) {
 	return tx, nil
 }
 
-func (s *StateMock) GetTransactionByHash(transactionHash common.Hash) (*types.LegacyTx, error) {
+func (s *StateMock) GetTransactionByHash(transactionHash common.Hash) (*types.Transaction, error) {
 	return tx, nil
 }
 
@@ -106,8 +106,8 @@ func (s *StateMock) ConsolidateBatch(batchNumber uint64) error {
 	return nil
 }
 
-func (s *StateMock) GetTxsByBatchNum(batchNum uint64) ([]*types.LegacyTx, error) {
-	return []*types.LegacyTx{
+func (s *StateMock) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error) {
+	return []*types.Transaction{
 		tx,
 	}, nil
 }

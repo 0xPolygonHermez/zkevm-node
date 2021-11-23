@@ -13,6 +13,6 @@ const (
 )
 
 type Transaction struct {
-	types.LegacyTx
+	types.Transaction
 	state TxState
 }
