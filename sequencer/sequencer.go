@@ -11,7 +11,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/rlp"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 )
@@ -99,7 +98,7 @@ func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.
 	for _, tx := range sortedTxs {
 		// check if tx is valid
 		if err := s.BatchProcessor.CheckTransaction(tx.Transaction); err != nil {
-			if err = s.Pool.UpdateTxState(rlp.Hash(tx), pool.TxStateInvalid); err != nil {
+			if err = s.Pool.UpdateTxState(tx.Hash(), pool.TxStateInvalid); err != nil {
 				return nil, err
 			}
 		} else {

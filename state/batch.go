@@ -7,13 +7,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/rlp"
 )
 
 var (
 	// TODO: Calculate proper EmptyRootHash
 	EmptyRootHash  = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	EmptyUncleHash = rlp.Hash([]*types.Header(nil))
+	EmptyUncleHash = common.Hash{}
 )
 
 // A BatchNonce is a 64-bit hash which proves (combined with the
