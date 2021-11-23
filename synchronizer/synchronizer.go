@@ -9,6 +9,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
+// Synchronizer connects L1 and L2
 type Synchronizer interface {
 	Sync() error
 	RegisterNewBatchProposalHandler(handler NewBatchProposalHandler)
@@ -17,6 +18,7 @@ type Synchronizer interface {
 	Stop()
 }
 
+// BasicSynchronizer connects L1 and L2
 type BasicSynchronizer struct {
 	etherMan  etherman.EtherMan
 	state     state.State
@@ -28,10 +30,16 @@ type BasicSynchronizer struct {
 	stateResetHandlers           []StateResetHandler
 }
 
+// NewBatchProposalHandler can be registered to be executed when the new batch is proposed
 type NewBatchProposalHandler func(batchNumber uint64, root common.Hash)
+
+// NewConsolidatedStateHandler can be registered to be executed when the new state is consolidated
 type NewConsolidatedStateHandler func(batchNumber uint64, root common.Hash)
+
+// StateResetHandler can be registered to be executed when the state is reset
 type StateResetHandler func()
 
+// NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(ethMan etherman.EtherMan, st state.State) (Synchronizer, error) {
 	//TODO
 	ctx, cancel := context.WithCancel(context.Background())

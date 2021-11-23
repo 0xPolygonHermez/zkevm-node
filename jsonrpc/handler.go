@@ -30,13 +30,13 @@ func (f *funcData) numParams() int {
 	return f.inNum - 1
 }
 
-// JSONRPCHandler handles jsonrpc requests
-type JSONRPCHandler struct {
+// Handler handles jsonrpc requests
+type Handler struct {
 	serviceMap map[string]*serviceData
 }
 
-func newJSONRpcHandler(e *Eth, n *Net) *JSONRPCHandler {
-	d := &JSONRPCHandler{
+func newJSONRpcHandler(e *Eth, n *Net) *Handler {
+	d := &Handler{
 		serviceMap: map[string]*serviceData{},
 	}
 
@@ -46,12 +46,14 @@ func newJSONRpcHandler(e *Eth, n *Net) *JSONRPCHandler {
 	return d
 }
 
-func (d *JSONRPCHandler) Handle(req Request) Response {
+// Handle is the function that knows which and how a function should
+// be executed when a RPC call is received
+func (d *Handler) Handle(req Request) Response {
 	log.Debugf("request method %s id %v", req.Method, req.ID)
 
 	service, fd, err := d.getFnHandler(req)
 	if err != nil {
-		return NewRpcResponse(req, nil, err)
+		return NewRPCResponse(req, nil, err)
 	}
 
 	inArgs := make([]reflect.Value, fd.inNum)
@@ -66,14 +68,14 @@ func (d *JSONRPCHandler) Handle(req Request) Response {
 
 	if fd.numParams() > 0 {
 		if err := json.Unmarshal(req.Params, &inputs); err != nil {
-			return NewRpcResponse(req, nil, NewInvalidParamsError("Invalid Params"))
+			return NewRPCResponse(req, nil, newInvalidParamsError("Invalid Params"))
 		}
 	}
 
 	output := fd.fv.Call(inArgs)
 	if err := getError(output[1]); err != nil {
 		log.Errorf("failed to call method %s: %v", req.Method, err)
-		return NewRpcResponse(req, nil, NewInvalidRequestError(err.Error()))
+		return NewRPCResponse(req, nil, newInvalidRequestError(err.Error()))
 	}
 
 	var data []byte
@@ -82,10 +84,10 @@ func (d *JSONRPCHandler) Handle(req Request) Response {
 		data, _ = json.Marshal(res)
 	}
 
-	return NewRpcResponse(req, data, nil)
+	return NewRPCResponse(req, data, nil)
 }
 
-func (d *JSONRPCHandler) registerService(serviceName string, service interface{}) {
+func (d *Handler) registerService(serviceName string, service interface{}) {
 	st := reflect.TypeOf(service)
 	if st.Kind() == reflect.Struct {
 		panic(fmt.Sprintf("jsonrpc: service '%s' must be a pointer to struct", serviceName))
@@ -124,21 +126,21 @@ func (d *JSONRPCHandler) registerService(serviceName string, service interface{}
 	}
 }
 
-func (d *JSONRPCHandler) getFnHandler(req Request) (*serviceData, *funcData, Error) {
+func (d *Handler) getFnHandler(req Request) (*serviceData, *funcData, detailedError) {
 	callName := strings.SplitN(req.Method, "_", 2) //nolint:gomnd
 	if len(callName) != 2 {                        //nolint:gomnd
-		return nil, nil, NewMethodNotFoundError(req.Method)
+		return nil, nil, newMethodNotFoundError(req.Method)
 	}
 
 	serviceName, funcName := callName[0], callName[1]
 
 	service, ok := d.serviceMap[serviceName]
 	if !ok {
-		return nil, nil, NewMethodNotFoundError(req.Method)
+		return nil, nil, newMethodNotFoundError(req.Method)
 	}
 	fd, ok := service.funcMap[funcName]
 	if !ok {
-		return nil, nil, NewMethodNotFoundError(req.Method)
+		return nil, nil, newMethodNotFoundError(req.Method)
 	}
 	return service, fd, nil
 }
@@ -174,17 +176,17 @@ func validateFunc(funcName string, fv reflect.Value, isMethod bool) (inNum int, 
 	return
 }
 
-var errt = reflect.TypeOf((*error)(nil)).Elem()
+var errt = reflect.TypeOf((*detailedError)(nil)).Elem()
 
 func isErrorType(t reflect.Type) bool {
 	return t.Implements(errt)
 }
 
-func getError(v reflect.Value) error {
+func getError(v reflect.Value) detailedError {
 	if v.IsNil() {
 		return nil
 	}
-	return v.Interface().(error)
+	return v.Interface().(detailedError)
 }
 
 func lowerCaseFirst(str string) string {

@@ -18,7 +18,7 @@ const (
 type argUint64 uint64
 
 // MarshalText marshals into text
-func (b argUint64) MarshalText() ([]byte, error) {
+func (b argUint64) MarshalText() ([]byte, detailedError) {
 	buf := make([]byte, 2, 10) //nolint:gomnd
 	copy(buf, `0x`)
 	buf = strconv.AppendUint(buf, uint64(b), hexBase)
@@ -26,25 +26,25 @@ func (b argUint64) MarshalText() ([]byte, error) {
 }
 
 // UnmarshalText unmarshals from text
-func (u *argUint64) UnmarshalText(input []byte) error {
+func (b *argUint64) UnmarshalText(input []byte) error {
 	str := strings.TrimPrefix(string(input), "0x")
 	num, err := strconv.ParseUint(str, hexBase, bitSize64)
 	if err != nil {
 		return err
 	}
-	*u = argUint64(num)
+	*b = argUint64(num)
 	return nil
 }
 
 type argBytes []byte
 
 // MarshalText marshals into text
-func (b argBytes) MarshalText() ([]byte, error) {
+func (b argBytes) MarshalText() ([]byte, detailedError) {
 	return encodeToHex(b), nil
 }
 
 // UnmarshalText unmarshals from text
-func (b *argBytes) UnmarshalText(input []byte) error {
+func (b *argBytes) UnmarshalText(input []byte) detailedError {
 	hh, err := decodeToHex(input)
 	if err != nil {
 		return nil

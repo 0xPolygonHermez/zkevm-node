@@ -23,6 +23,7 @@ var (
 	ErrBig256Range   = &DecError{"hex number > 256 bits"}
 )
 
+// DecError represents an error when decoding a hex value
 type DecError struct{ msg string }
 
 func (err DecError) Error() string { return err.msg }

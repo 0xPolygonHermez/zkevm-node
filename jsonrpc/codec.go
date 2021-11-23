@@ -29,7 +29,7 @@ type ErrorResponse struct {
 }
 
 // Id returns error response id
-func (e *ErrorResponse) Id() interface{} {
+func (e *ErrorResponse) Id() interface{} { //nolint:golint
 	return e.ID
 }
 
@@ -56,7 +56,7 @@ type SuccessResponse struct {
 }
 
 // Id returns success response id
-func (s *SuccessResponse) Id() interface{} {
+func (s *SuccessResponse) Id() interface{} { //nolint:golint
 	return s.ID
 }
 
@@ -69,9 +69,8 @@ func (s *SuccessResponse) Data() json.RawMessage {
 }
 
 // Bytes return the serialized response
-func (e *SuccessResponse) Bytes() ([]byte, error) {
-
-	return json.Marshal(e)
+func (s *SuccessResponse) Bytes() ([]byte, error) {
+	return json.Marshal(s)
 }
 
 // ErrorObject is a jsonrpc error
@@ -91,11 +90,15 @@ func (e *ErrorObject) Error() string {
 }
 
 const (
-	PendingBlockNumber  = BlockNumber(-3)
-	LatestBlockNumber   = BlockNumber(-2)
+	// PendingBlockNumber represents the pending block number
+	PendingBlockNumber = BlockNumber(-3)
+	// LatestBlockNumber represents the latest block number
+	LatestBlockNumber = BlockNumber(-2)
+	// EarliestBlockNumber represents the earliest block number
 	EarliestBlockNumber = BlockNumber(-1)
 )
 
+// BlockNumber is the number of a ethereum block
 type BlockNumber int64
 
 func stringToBlockNumber(str string) (BlockNumber, error) {
@@ -130,6 +133,7 @@ func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
 	return nil
 }
 
+// Index of a item
 type Index int64
 
 // UnmarshalJSON automatically decodes the user input for the block number, when a JSON RPC method is called
@@ -143,25 +147,24 @@ func (i *Index) UnmarshalJSON(buffer []byte) error {
 	return nil
 }
 
-// NewRpcErrorResponse is used to create a custom error response
-func NewRpcErrorResponse(req Request, err Error) Response {
+// NewRPCErrorResponse is used to create a custom error response
+func NewRPCErrorResponse(req Request, err detailedError) Response {
 	response := &ErrorResponse{
 		JSONRPC: req.JSONRPC,
 		ID:      req.ID,
-		Error:   &ErrorObject{err.ErrorCode(), err.Error(), nil},
+		Error:   &ErrorObject{err.Code(), err.Error(), nil},
 	}
 	return response
 }
 
-// NewRpcResponse returns Success/Error response object
-func NewRpcResponse(req Request, reply []byte, err Error) Response {
-
+// NewRPCResponse returns Success/Error response object
+func NewRPCResponse(req Request, reply []byte, err detailedError) Response {
 	var response Response
 	switch err.(type) {
 	case nil:
 		response = &SuccessResponse{JSONRPC: req.JSONRPC, ID: req.ID, Result: reply}
 	default:
-		response = NewRpcErrorResponse(req, err)
+		response = NewRPCErrorResponse(req, err)
 	}
 
 	return response
