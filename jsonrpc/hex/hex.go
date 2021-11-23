@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	// Base is the base
 	Base = 16
 )
 
@@ -65,6 +66,7 @@ func EncodeUint64(i uint64) string {
 	return string(strconv.AppendUint(enc, i, Base))
 }
 
+// BadNibble is a nibble that is bad
 const BadNibble = ^uint64(0)
 
 // DecodeNibble decodes a byte into a uint64

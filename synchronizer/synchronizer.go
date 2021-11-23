@@ -68,14 +68,17 @@ func (s *BasicSynchronizer) Sync() error {
 	return nil
 }
 
+// RegisterNewBatchProposalHandler registers the new batch propposal handler
 func (s *BasicSynchronizer) RegisterNewBatchProposalHandler(handler NewBatchProposalHandler) {
 	s.newBatchProposalHandlers = append(s.newBatchProposalHandlers, handler)
 }
 
+// RegisterNewConsolidatedStateHandler registers the consolidate handler
 func (s *BasicSynchronizer) RegisterNewConsolidatedStateHandler(handler NewConsolidatedStateHandler) {
 	s.newConsolidatedStateHandlers = append(s.newConsolidatedStateHandlers, handler)
 }
 
+// RegisterStateResetHandler registers the reset handler
 func (s *BasicSynchronizer) RegisterStateResetHandler(handler StateResetHandler) {
 	s.stateResetHandlers = append(s.stateResetHandlers, handler)
 }

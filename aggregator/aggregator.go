@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"context"
+	"log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -10,6 +11,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 )
 
+// Aggregator represents an aggregator
 type Aggregator struct {
 	State          state.State
 	BatchProcessor state.BatchProcessor
@@ -22,6 +24,7 @@ type Aggregator struct {
 	txsByBatchNum map[uint64]txsWithProof
 }
 
+// NewAggregator creates a new aggregator
 func NewAggregator(
 	cfg Config,
 	state state.State,
@@ -55,13 +58,16 @@ type txsWithProof struct {
 	proof *state.Proof
 }
 
+// Start starts the aggregator
 func (a *Aggregator) Start() {
 	// reads from batchesChan
 	// get txs from state by batchNum
 	// check if it's profitable or not
 	// send zki + txs to the prover
 	// send proof + txs to the SC
-	a.Synchronizer.Sync()
+	if err := a.Synchronizer.Sync(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (a *Aggregator) onNewBatchPropostal(batchNumber uint64, root common.Hash) {
@@ -100,6 +106,7 @@ func (a *Aggregator) isProfitable(txs []*types.Transaction) bool {
 	return true
 }
 
+// Stop stops the aggregator
 func (a *Aggregator) Stop() {
 	a.cancel()
 }

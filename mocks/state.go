@@ -1,3 +1,4 @@
+//nolint
 package mocks
 
 import (
@@ -7,8 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state"
 )
-
-//nolint
 
 type StateMock struct{}
 

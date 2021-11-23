@@ -8,6 +8,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/sequencer"
 )
 
+// Config represents the configuration of the entire Hermez Node
 type Config struct {
 	Log        log.Config
 	RPC        jsonrpc.Config
@@ -15,6 +16,7 @@ type Config struct {
 	Aggregator aggregator.Config
 }
 
+// Load loads the configuration
 func Load() Config {
 	// TODO: load from config file
 	//nolint:gomnd

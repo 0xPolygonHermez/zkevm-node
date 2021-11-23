@@ -2,6 +2,7 @@ package evm
 
 import "github.com/holiman/uint256"
 
+// Memory represents the memory
 type Memory struct {
 	data []byte
 }
@@ -35,7 +36,7 @@ func (m *Memory) Set32(offset uint64, val *uint256.Int) {
 	val.WriteToSlice(m.data[offset:])
 }
 
-// Get returns size bytes from memory offset as a new slice
+// GetCopy returns size bytes from memory offset as a new slice
 func (m *Memory) GetCopy(offset, size int64) (cpy []byte) {
 	if size == 0 {
 		return nil

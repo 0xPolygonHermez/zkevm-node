@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// Pool represents a pool of transactions
 type Pool interface {
 	AddTx(tx types.Transaction) error
 	GetPendingTxs() ([]Transaction, error)
@@ -13,6 +14,7 @@ type Pool interface {
 	GetGasPrice() (uint64, error)
 }
 
+// NewPool creates a new pool
 func NewPool() Pool {
 	panic("not implemented")
 }

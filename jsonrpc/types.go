@@ -17,6 +17,7 @@ const (
 
 type argUint64 uint64
 
+// MarshalText marshals into text
 func (b argUint64) MarshalText() ([]byte, error) {
 	buf := make([]byte, 2, 10) //nolint:gomnd
 	copy(buf, `0x`)
@@ -24,6 +25,7 @@ func (b argUint64) MarshalText() ([]byte, error) {
 	return buf, nil
 }
 
+// UnmarshalText unmarshals from text
 func (u *argUint64) UnmarshalText(input []byte) error {
 	str := strings.TrimPrefix(string(input), "0x")
 	num, err := strconv.ParseUint(str, hexBase, bitSize64)
@@ -36,10 +38,12 @@ func (u *argUint64) UnmarshalText(input []byte) error {
 
 type argBytes []byte
 
+// MarshalText marshals into text
 func (b argBytes) MarshalText() ([]byte, error) {
 	return encodeToHex(b), nil
 }
 
+// UnmarshalText unmarshals from text
 func (b *argBytes) UnmarshalText(input []byte) error {
 	hh, err := decodeToHex(input)
 	if err != nil {
@@ -80,6 +84,7 @@ type txnArgs struct {
 	Nonce    *argUint64
 }
 
+// ToTransaction transforms txnArgs into a Transaction
 func (arg *txnArgs) ToTransaction() *types.Transaction {
 	nonce := uint64(0)
 	if arg.Nonce != nil {

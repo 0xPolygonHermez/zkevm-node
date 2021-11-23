@@ -15,6 +15,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 )
 
+// Sequencer represents a sequencer
 type Sequencer struct {
 	Pool           pool.Pool
 	State          state.State
@@ -26,6 +27,7 @@ type Sequencer struct {
 	cancel context.CancelFunc
 }
 
+// NewSequencer creates a new sequencer
 func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan, sy synchronizer.Synchronizer) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -44,6 +46,7 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 	return s, nil
 }
 
+// Start starts the sequencer
 func (s *Sequencer) Start() {
 	// Infinite for loop:
 	// 1. Wait for synchronizer to sync last batch
@@ -86,6 +89,7 @@ func (s *Sequencer) onNewBatchPropostal(batchNumber uint64, root common.Hash) {
 	}
 }
 
+// Stop stops the sequencer
 func (s *Sequencer) Stop() {
 	s.cancel()
 }

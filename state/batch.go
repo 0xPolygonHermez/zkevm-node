@@ -11,7 +11,10 @@ import (
 
 var (
 	// TODO: Calculate proper EmptyRootHash
-	EmptyRootHash  = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+
+	// EmptyRootHash hash of an emty root
+	EmptyRootHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	// EmptyUncleHash hash of an empty uncle
 	EmptyUncleHash = common.Hash{}
 )
 
@@ -59,7 +62,7 @@ func (b *Batch) EmptyReceipts() bool {
 	return b.Header.ReceiptHash == EmptyRootHash
 }
 
-// Batch
+// Batch represents a batch
 type Batch struct {
 	BatchNumber  uint64
 	BlockNumber  uint64
