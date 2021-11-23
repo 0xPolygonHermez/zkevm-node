@@ -16,6 +16,8 @@ type Config struct {
 }
 
 func Load() Config {
+	// TODO: load from config file
+	//nolint:gomnd
 	return Config{
 		Log: log.Config{
 			Level:   "debug",

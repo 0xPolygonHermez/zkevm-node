@@ -20,7 +20,7 @@ func DecodeUint64orHex(val *string) (uint64, error) {
 		str = str[2:]
 		base = 16
 	}
-	return strconv.ParseUint(str, base, 64)
+	return strconv.ParseUint(str, base, bitSize64)
 }
 
 func DecodeUint256orHex(val *string) (*big.Int, error) {
@@ -67,6 +67,6 @@ func EncodeBytes(b []byte) *string {
 }
 
 func EncodeBigInt(b *big.Int) *string {
-	res := "0x" + b.Text(16)
+	res := "0x" + b.Text(hexBase)
 	return &res
 }

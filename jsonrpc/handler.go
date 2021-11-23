@@ -10,6 +10,10 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 )
 
+const (
+	requiredReturnParamsPerFn = 2
+)
+
 type serviceData struct {
 	sv      reflect.Value
 	funcMap map[string]*funcData
@@ -121,8 +125,8 @@ func (d *JSONRPCHandler) registerService(serviceName string, service interface{}
 }
 
 func (d *JSONRPCHandler) getFnHandler(req Request) (*serviceData, *funcData, Error) {
-	callName := strings.SplitN(req.Method, "_", 2)
-	if len(callName) != 2 {
+	callName := strings.SplitN(req.Method, "_", 2) //nolint:gomnd
+	if len(callName) != 2 {                        //nolint:gomnd
 		return nil, nil, NewMethodNotFoundError(req.Method)
 	}
 
@@ -154,7 +158,7 @@ func validateFunc(funcName string, fv reflect.Value, isMethod bool) (inNum int, 
 	inNum = ft.NumIn()
 	outNum := ft.NumOut()
 
-	if outNum != 2 {
+	if outNum != requiredReturnParamsPerFn {
 		err = fmt.Errorf("unexpected number of output arguments in the function '%s': %d. Expected 2", funcName, outNum)
 		return
 	}

@@ -14,5 +14,5 @@ const (
 
 type Transaction struct {
 	types.Transaction
-	state TxState
+	State TxState
 }

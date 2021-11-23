@@ -35,7 +35,6 @@ func (e *ErrorResponse) Id() interface{} {
 
 // Data returns ErrorObject
 func (e *ErrorResponse) Data() json.RawMessage {
-
 	data, err := json.Marshal(e.Error)
 	if err != nil {
 		return json.RawMessage(err.Error())
@@ -45,7 +44,6 @@ func (e *ErrorResponse) Data() json.RawMessage {
 
 // Bytes return the serialized response
 func (e *ErrorResponse) Bytes() ([]byte, error) {
-
 	return json.Marshal(e)
 }
 
@@ -64,7 +62,6 @@ func (s *SuccessResponse) Id() interface{} {
 
 // Data returns the result
 func (s *SuccessResponse) Data() json.RawMessage {
-
 	if s.Result != nil {
 		return s.Result
 	}
@@ -121,14 +118,6 @@ func stringToBlockNumber(str string) (BlockNumber, error) {
 		return 0, err
 	}
 	return BlockNumber(n), nil
-}
-
-func createBlockNumberPointer(str string) (*BlockNumber, error) {
-	blockNumber, err := stringToBlockNumber(str)
-	if err != nil {
-		return nil, err
-	}
-	return &blockNumber, nil
 }
 
 // UnmarshalJSON automatically decodes the user input for the block number, when a JSON RPC method is called

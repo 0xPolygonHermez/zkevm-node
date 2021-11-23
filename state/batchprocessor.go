@@ -31,7 +31,6 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx types.Transaction) error {
 
 // CheckTransaction checks a transaction is valid inside a batch context
 func (b *BasicBatchProcessor) CheckTransaction(tx types.Transaction) error {
-
 	// Check Nonce
 	return nil
 }

@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+const (
+	Base = 16
+)
+
 // TODO Remove
 var (
 	ErrSyntax        = &DecError{"invalid hex string"}
@@ -56,9 +60,9 @@ func MustDecodeHex(str string) []byte {
 
 // EncodeUint64 encodes a number as a hex string with 0x prefix.
 func EncodeUint64(i uint64) string {
-	enc := make([]byte, 2, 10)
+	enc := make([]byte, 2, 10) //nolint:gomnd
 	copy(enc, "0x")
-	return string(strconv.AppendUint(enc, i, 16))
+	return string(strconv.AppendUint(enc, i, Base))
 }
 
 const BadNibble = ^uint64(0)
@@ -69,9 +73,9 @@ func DecodeNibble(in byte) uint64 {
 	case in >= '0' && in <= '9':
 		return uint64(in - '0')
 	case in >= 'A' && in <= 'F':
-		return uint64(in - 'A' + 10)
+		return uint64(in - 'A' + 10) //nolint:gomnd
 	case in >= 'a' && in <= 'f':
-		return uint64(in - 'a' + 10)
+		return uint64(in - 'a' + 10) //nolint:gomnd
 	default:
 		return BadNibble
 	}
@@ -91,7 +95,7 @@ func EncodeBig(bigint *big.Int) string {
 // DecodeHexToBig converts a hex number to a big.Int value
 func DecodeHexToBig(hexNum string) *big.Int {
 	createdNum := new(big.Int)
-	createdNum.SetString(hexNum, 16)
+	createdNum.SetString(hexNum, Base)
 
 	return createdNum
 }

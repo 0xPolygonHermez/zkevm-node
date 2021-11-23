@@ -3,6 +3,7 @@ package jsonrpc
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -67,24 +68,28 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == "GET" {
-		w.Write([]byte("Hermez JSON-RPC"))
+		_, err := w.Write([]byte("Hermez JSON-RPC"))
+		if err != nil {
+			log.Error(err)
+		}
 		return
 	}
 
 	if req.Method != "POST" {
-		w.Write([]byte("method " + req.Method + " not allowed"))
+		err := errors.New("method " + req.Method + " not allowed")
+		handleError(w, err)
 		return
 	}
 
 	data, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		handleError(w, err)
 		return
 	}
 
 	single, err := s.isSingleRequest(data)
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		handleError(w, err)
 		return
 	}
 
@@ -108,20 +113,23 @@ func (s *Server) isSingleRequest(data []byte) (bool, error) {
 func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte) {
 	request, err := s.parseRequest(data)
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		handleError(w, err)
 		return
 	}
 
 	response := s.handler.Handle(request)
 
 	respBytes, _ := response.Bytes()
-	w.Write(respBytes)
+	_, err = w.Write(respBytes)
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
 	requests, err := s.parseRequests(data)
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		handleError(w, err)
 		return
 	}
 
@@ -133,7 +141,10 @@ func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
 	}
 
 	respBytes, _ := json.Marshal(responses)
-	w.Write(respBytes)
+	_, err = w.Write(respBytes)
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 func (s *Server) parseRequest(data []byte) (Request, error) {
@@ -154,4 +165,12 @@ func (s *Server) parseRequests(data []byte) ([]Request, error) {
 	}
 
 	return requests, nil
+}
+
+func handleError(w http.ResponseWriter, err error) {
+	log.Error(err)
+	_, err = w.Write([]byte(err.Error()))
+	if err != nil {
+		log.Error(err)
+	}
 }

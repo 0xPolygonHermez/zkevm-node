@@ -31,7 +31,8 @@ func StartPostgreSQL(dbName string, dbUser, dbPassword, sqlFile string) error {
 		return err
 	}
 
-	time.Sleep(5 * time.Second)
+	const safeTimeDelay = 5
+	time.Sleep(safeTimeDelay * time.Second)
 
 	// Check if we have to run a SQL Script
 	if sqlFile != "" {

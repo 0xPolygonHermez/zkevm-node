@@ -6,8 +6,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state/db"
-	// "github.com/hermeznetwork/hermez-core/state/merkletree"
-	// "github.com/hermeznetwork/hermez-core/state/merkletree/leafs"
 )
 
 // State
@@ -79,7 +77,8 @@ func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*bi
 
 // EstimateGas for a transaction
 func (s *BasicState) EstimateGas(transaction types.Transaction) uint64 {
-	return 21000
+	// TODO: Calculate once we have txs that interact with SCs
+	return 21000 //nolint:gomnd
 }
 
 // GetLastBlock gets the latest block

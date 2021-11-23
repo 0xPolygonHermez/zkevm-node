@@ -6,15 +6,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/rlp"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type Sequencer struct {
@@ -54,7 +53,9 @@ func (s *Sequencer) Start() {
 	// 4. Is selection profitable?
 	// YES: send selection to Ethereum
 	// NO: discard selection and wait for the new batch
-	s.Synchronizer.Sync()
+	if err := s.Synchronizer.Sync(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (s *Sequencer) onNewBatchPropostal(batchNumber uint64, root common.Hash) {
@@ -109,7 +110,6 @@ func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.
 		if elapsed > selectionTime {
 			return selectedTxs, nil
 		}
-
 	}
 	return selectedTxs, nil
 }

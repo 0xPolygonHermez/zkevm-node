@@ -46,7 +46,7 @@ func (n *BatchNonce) UnmarshalText(input []byte) error {
 // Hash returns the batch hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (b *Batch) Hash() common.Hash {
-	return rlp.Hash(b.Header)
+	return b.Header.Hash()
 }
 
 // EmptyBody returns true if there is no additional 'body' to complete the header

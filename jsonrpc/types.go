@@ -10,18 +10,23 @@ import (
 	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
 )
 
+const (
+	hexBase   = 16
+	bitSize64 = 64
+)
+
 type argUint64 uint64
 
 func (b argUint64) MarshalText() ([]byte, error) {
-	buf := make([]byte, 2, 10)
+	buf := make([]byte, 2, 10) //nolint:gomnd
 	copy(buf, `0x`)
-	buf = strconv.AppendUint(buf, uint64(b), 16)
+	buf = strconv.AppendUint(buf, uint64(b), hexBase)
 	return buf, nil
 }
 
 func (u *argUint64) UnmarshalText(input []byte) error {
 	str := strings.TrimPrefix(string(input), "0x")
-	num, err := strconv.ParseUint(str, 16, 64)
+	num, err := strconv.ParseUint(str, hexBase, bitSize64)
 	if err != nil {
 		return err
 	}

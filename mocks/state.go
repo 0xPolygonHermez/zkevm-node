@@ -8,6 +8,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
+//nolint
+
 type StateMock struct{}
 
 func NewState() state.State {
