@@ -20,21 +20,21 @@ import (
 )
 
 var (
-	newBatcheventSignatureHash = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
+	newBatchEventSignatureHash = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
 	consolidateBatchSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,aggregator)"))
 )
 
 type EtherMan struct {
 	EtherClient *ethclient.Client
 	PoE         *proofofefficiency.Proofofefficiency
-	SmcAddreses []common.Address
+	SCAddreses []common.Address
 }
 
-func NewEtherman(url string, poeAddr common.Address) (*EtherMan, error) {
+func NewEtherman(ethClientURL string, poeAddr common.Address) (*EtherMan, error) {
 	//Connect to ethereum node
-	ethClient, err := ethclient.Dial(url)
+	ethClient, err := ethclient.Dial(ethClientURL)
 	if err != nil {
-		log.Errorf("error connecting to %s: %+v", url, err)
+		log.Errorf("error connecting to %s: %+v", ethClientURL, err)
 		return nil, err
 	}
 	//Create smc clients
@@ -42,9 +42,9 @@ func NewEtherman(url string, poeAddr common.Address) (*EtherMan, error) {
 	if err != nil {
 		return nil, err
 	}
-	var smcAddreses []common.Address
-	smcAddreses = append(smcAddreses, poeAddr)
-	return &EtherMan{EtherClient: ethClient, PoE: poe, SmcAddreses: smcAddreses}, nil
+	var scAddreses []common.Address
+	scAddreses = append(scAddreses, poeAddr)
+	return &EtherMan{EtherClient: ethClient, PoE: poe, SCAddreses: scAddreses}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
@@ -67,7 +67,7 @@ func (etherMan *EtherMan) GetBatchesByBlock(blockNum uint64, blockHash *common.H
 		BlockHash: blockHash,
 		FromBlock: blockNumBigInt,
 		ToBlock:   blockNumBigInt,
-		Addresses: etherMan.SmcAddreses,
+		Addresses: etherMan.SCAddreses,
 	}
 	blocks, err := etherMan.readEvents(query)
 	if err != nil {
@@ -83,7 +83,7 @@ func (etherMan *EtherMan) GetBatchesFromBlockTo(fromBlock uint64, toBlock uint64
 	query := ethereum.FilterQuery{
 		FromBlock: big.NewInt(int64(fromBlock)),
 		ToBlock:   big.NewInt(int64(toBlock)),
-		Addresses: etherMan.SmcAddreses,
+		Addresses: etherMan.SCAddreses,
 	}
 	blocks, err := etherMan.readEvents(query)
 	if err != nil {
@@ -123,7 +123,7 @@ func (etherMan *EtherMan) readEvents(query ethereum.FilterQuery) ([]state.Block,
 
 func (etherMan *EtherMan) processEvent(vLog types.Log) (state.Block, error) {
 	switch vLog.Topics[0] {
-	case newBatcheventSignatureHash:
+	case newBatchEventSignatureHash:
 		var block state.Block
 		//Indexed parameters using topics
 		var batch state.Batch
