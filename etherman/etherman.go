@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -23,6 +24,8 @@ type EtherMan interface {
 type BasicEtherMan struct {
 	EtherClient *ethclient.Client
 	PoE         *proofofefficiency.Proofofefficiency
+
+	key *keystore.Key
 }
 
 func NewEtherman(cfg Config) (EtherMan, error) {
@@ -39,7 +42,12 @@ func NewEtherman(cfg Config) (EtherMan, error) {
 		return nil, err
 	}
 
-	return &BasicEtherMan{EtherClient: ethClient, PoE: poe}, nil
+	key, err := decryptKeystore(cfg.PrivateKeyPath, cfg.PrivateKeyPassword)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicEtherMan{EtherClient: ethClient, PoE: poe, key: key}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
