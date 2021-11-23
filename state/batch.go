@@ -73,6 +73,7 @@ type Batch struct {
 	Header             *types.Header
 	Uncles             []*types.Header
 	Transactions       []*types.LegacyTx
+	RawTxsData         []byte
 
 	ReceivedAt time.Time
 }

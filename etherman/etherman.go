@@ -105,13 +105,14 @@ func (etherMan *EtherMan) ConsolidateBatch(batch state.Batch, proof state.Proof)
 }
 
 func (etherMan *EtherMan) readEvents(query ethereum.FilterQuery) ([]state.Block, error) {
-	logs, err := etherMan.EtherClient.FilterLogs(context.Background(), query)
+	ctx := context.Background()
+	logs, err := etherMan.EtherClient.FilterLogs(ctx, query)
 	if err != nil {
 		return []state.Block{}, err
 	}
 	var blocks []state.Block
 	for _, vLog := range logs {
-		block, err := etherMan.processEvent(vLog)
+		block, err := etherMan.processEvent(ctx, vLog)
 		if err != nil {
 			log.Warn("error processing event: ", err, vLog)
 			continue
@@ -121,7 +122,7 @@ func (etherMan *EtherMan) readEvents(query ethereum.FilterQuery) ([]state.Block,
 	return blocks, nil
 }
 
-func (etherMan *EtherMan) processEvent(vLog types.Log) (state.Block, error) {
+func (etherMan *EtherMan) processEvent(ctx context.Context, vLog types.Log) (state.Block, error) {
 	switch vLog.Topics[0] {
 	case newBatchEventSignatureHash:
 		var block state.Block
@@ -132,15 +133,16 @@ func (etherMan *EtherMan) processEvent(vLog types.Log) (state.Block, error) {
 		batch.Header.TxHash = vLog.TxHash
 		block.BlockNum = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
-		fullBlock, err := etherMan.EtherClient.BlockByHash(context.Background(), vLog.BlockHash)
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err == nil {
 			block.ParentHash = fullBlock.ParentHash()
 		}
 		//Now, We have to read the tx for this batch.
-		tx, isPending, err := etherMan.EtherClient.TransactionByHash(context.Background(), batch.Header.TxHash)
+		tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, batch.Header.TxHash)
 		if err != nil || isPending {
 			return state.Block{}, err
 		}
+		batch.RawTxsData = tx.Data()
 		//Get sequencer chainId
 		seq, err := etherMan.PoE.Sequencers(&bind.CallOpts{Pending: false}, batch.Sequencer)
 		if err != nil {
@@ -161,7 +163,7 @@ func (etherMan *EtherMan) processEvent(vLog types.Log) (state.Block, error) {
 		batch.ConsolidatedTxHash = vLog.TxHash
 		block.BlockNum = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
-		fullBlock, err := etherMan.EtherClient.BlockByHash(context.Background(), vLog.BlockHash)
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err == nil {
 			block.ParentHash = fullBlock.ParentHash()
 		}
