@@ -12,30 +12,38 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
-type EtherMan struct {
+type EtherMan interface {
+	EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error)
+	GetBatchesByBlock(blockNum int64) ([]state.Batch, error)
+	GetBatchesFromBlockTo(fromBlock uint, toBlock uint) ([]state.Batch, error)
+	SendBatch(batch state.Batch) (common.Hash, error)
+	ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error)
+}
+
+type BasicEtherMan struct {
 	EtherClient *ethclient.Client
 	PoE         *proofofefficiency.Proofofefficiency
 }
 
-func NewEtherman(url string, poeAddr common.Address) (*EtherMan, error) {
+func NewEtherman(cfg Config) (EtherMan, error) {
 	//TODO
 	//Connect to ethereum node
-	ethClient, err := ethclient.Dial(url)
+	ethClient, err := ethclient.Dial(cfg.Url)
 	if err != nil {
-		log.Errorf("error connecting to %s: %+v", url, err)
+		log.Errorf("error connecting to %s: %+v", cfg.Url, err)
 		return nil, err
 	}
 	//Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(poeAddr, ethClient)
+	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoeAddress, ethClient)
 	if err != nil {
 		return nil, err
 	}
 
-	return &EtherMan{EtherClient: ethClient, PoE: poe}, nil
+	return &BasicEtherMan{EtherClient: ethClient, PoE: poe}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
-func (etherMan *EtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error) {
+func (etherMan *BasicEtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error) {
 	block, err := etherMan.EtherClient.BlockByNumber(ctx, big.NewInt(blockNum))
 	if err != nil {
 		return &types.Block{}, nil
@@ -44,26 +52,26 @@ func (etherMan *EtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) 
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
-func (etherMan *EtherMan) GetBatchesByBlock(blockNum int64) ([]state.Batch, error) {
+func (etherMan *BasicEtherMan) GetBatchesByBlock(blockNum int64) ([]state.Batch, error) {
 	//TODO
 	return []state.Batch{}, nil
 }
 
 // GetBatchesFromBlockTo function retrieves the batches information that are included in all this ethereum blocks
 //from block x to block y
-func (etherMan *EtherMan) GetBatchesFromBlockTo(fromBlock uint, toBlock uint) ([]state.Batch, error) {
+func (etherMan *BasicEtherMan) GetBatchesFromBlockTo(fromBlock uint, toBlock uint) ([]state.Batch, error) {
 	//TODO
 	return []state.Batch{}, nil
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
-func (etherMan *EtherMan) SendBatch(batch state.Batch) (common.Hash, error) {
+func (etherMan *BasicEtherMan) SendBatch(batch state.Batch) (common.Hash, error) {
 	//TODO
 	return common.Hash{}, nil
 }
 
 // ConsolidateBatch function allows the agregator send the proof for a batch and consolidate it
-func (etherMan *EtherMan) ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error) {
+func (etherMan *BasicEtherMan) ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error) {
 	//TODO
 	return common.Hash{}, nil
 }

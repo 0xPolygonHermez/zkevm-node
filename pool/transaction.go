@@ -1,6 +1,8 @@
 package pool
 
-import "github.com/ethereum/go-ethereum/core/types"
+import (
+	"github.com/ethereum/go-ethereum/core/types"
+)
 
 type TxState string
 

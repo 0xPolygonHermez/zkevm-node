@@ -2,21 +2,18 @@ package state
 
 import (
 	"encoding/binary"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
-	"golang.org/x/crypto/sha3"
+	"github.com/hermeznetwork/hermez-core/rlp"
 )
 
 var (
 	// TODO: Calculate proper EmptyRootHash
 	EmptyRootHash  = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	EmptyUncleHash = rlpHash([]*types.Header(nil))
+	EmptyUncleHash = rlp.Hash([]*types.Header(nil))
 )
 
 // A BatchNonce is a 64-bit hash which proves (combined with the
@@ -49,7 +46,7 @@ func (n *BatchNonce) UnmarshalText(input []byte) error {
 // Hash returns the batch hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (b *Batch) Hash() common.Hash {
-	return rlpHash(b.Header)
+	return rlp.Hash(b.Header)
 }
 
 // EmptyBody returns true if there is no additional 'body' to complete the header
@@ -72,7 +69,7 @@ type Batch struct {
 	Aggregator   common.Address
 	Header       *types.Header
 	Uncles       []*types.Header
-	Transactions []*types.LegacyTx
+	Transactions []*types.Transaction
 
 	ReceivedAt time.Time
 }
@@ -80,19 +77,4 @@ type Batch struct {
 // NewBatchWithHeader creates a batch with the given header data.
 func NewBatchWithHeader(header types.Header) *Batch {
 	return &Batch{Header: &header}
-}
-
-// hasherPool holds LegacyKeccak256 hashers for rlpHash.
-var hasherPool = sync.Pool{
-	New: func() interface{} { return sha3.NewLegacyKeccak256() },
-}
-
-// rlpHash encodes x and hashes the encoded bytes.
-func rlpHash(x interface{}) (h common.Hash) {
-	sha := hasherPool.Get().(crypto.KeccakState)
-	defer hasherPool.Put(sha)
-	sha.Reset()
-	rlp.Encode(sha, x)
-	sha.Read(h[:])
-	return h
 }
