@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -18,7 +19,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 )
 
 var (
@@ -94,7 +94,7 @@ func NewTestEtherman(cfg Config, etherCLient *backends.SimulatedBackend, poe *pr
 			return nil, err
 		}
 	}
-	return &TestClientEtherMan{EtherClient: etherCLient, PoE: poe,SCAddresses: scAddresses, key: key}, nil
+	return &TestClientEtherMan{EtherClient: etherCLient, PoE: poe, SCAddresses: scAddresses, key: key}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
@@ -236,7 +236,7 @@ func decodeTxs(txsData []byte, chainID *big.Int) ([]*types.Transaction, error) {
 	// So, first we've to read the second byte to check the tx length. Then, copy from the current position to the last
 	// byte of the tx if exists (if not will be completed with zeros). Now, I try to decode the tx, If it is possible,
 	// everything is fine. If not, print error and try to get the next tx.
-	var pos int64 = 100;
+	var pos int64 = 100
 	var txs []*types.Transaction
 	for pos < int64(len(txsData)) {
 		length := txsData[pos+1 : pos+2]

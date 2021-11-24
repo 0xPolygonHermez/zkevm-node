@@ -13,11 +13,11 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/hermeznetwork/hermez-core/log"
-
 )
+
 func init() {
 	log.Init(log.Config{
 		Level:   "debug",
@@ -132,13 +132,12 @@ func newTestingEnv() (testingEnv, error) {
 
 	// Deploy contracts
 	EmptyAddr := common.HexToAddress("0x0000000000000000000000000000000000000000")
-	poeAddr, _, poe, err  := proofofefficiency.DeployProofofefficiency(auth, client, EmptyAddr, EmptyAddr, EmptyAddr)
+	poeAddr, _, poe, err := proofofefficiency.DeployProofofefficiency(auth, client, EmptyAddr, EmptyAddr, EmptyAddr)
 	if err != nil {
 		return testingEnv{}, err
 	}
 
 	client.Commit()
-	fmt.Println("POE ADDR: ",poeAddr)
 	return testingEnv{
 		transactOpts: auth,
 		blockchain:   client,
@@ -169,7 +168,7 @@ func TestSCEvents(t *testing.T) {
 	testEnv.client.Commit()
 
 	//Now read the event
-	conf := Config {
+	conf := Config{
 		PoeAddress: testEnv.poeAddr,
 	}
 	etherman, err := NewTestEtherman(conf, testEnv.client, testEnv.poe)
