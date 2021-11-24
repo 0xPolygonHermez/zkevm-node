@@ -63,7 +63,7 @@ func (s *Sequencer) Start() {
 func (s *Sequencer) onNewBatchPropostal(batchNumber uint64, root common.Hash) {
 	s.BatchProcessor = s.State.NewBatchProcessor(root, false)
 	// get pending txs from the pool
-	txs, err := s.Pool.GetPendingTxs()
+	txs, err := s.Pool.GetPendingTxs(context.Background())
 	if err != nil {
 		return
 	}
@@ -102,7 +102,7 @@ func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.
 	for _, tx := range sortedTxs {
 		// check if tx is valid
 		if err := s.BatchProcessor.CheckTransaction(tx.Transaction); err != nil {
-			if err = s.Pool.UpdateTxState(tx.Hash(), pool.TxStateInvalid); err != nil {
+			if err = s.Pool.UpdateTxState(context.Background(), tx.Hash(), pool.TxStateInvalid); err != nil {
 				return nil, err
 			}
 		} else {

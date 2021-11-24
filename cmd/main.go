@@ -11,6 +11,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/mocks"
+	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 )
@@ -29,7 +30,11 @@ func setupLog(c log.Config) {
 }
 
 func runJSONRpcServer(c jsonrpc.Config) {
-	p := mocks.NewPool()
+	p, err := pool.NewPool(c.Pool)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	s := mocks.NewState()
 
 	if err := jsonrpc.NewServer(c, p, s).Start(); err != nil {
