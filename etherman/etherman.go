@@ -25,6 +25,7 @@ var (
 	consolidateBatchSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,aggregator)"))
 )
 
+// EtherMan represents an Ethereum Manager
 type EtherMan interface {
 	EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error)
 	GetBatchesByBlock(blockNum int64) ([]state.Batch, error)
@@ -33,6 +34,7 @@ type EtherMan interface {
 	ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error)
 }
 
+// EtherManClient is a simple implementation of EtherMan
 type EtherManClient struct {
 	EtherClient *ethclient.Client
 	PoE         *proofofefficiency.Proofofefficiency
@@ -41,11 +43,12 @@ type EtherManClient struct {
 	key *keystore.Key
 }
 
+// NewEtherman creates a new etherman
 func NewEtherman(cfg Config) (*EtherManClient, error) {
 	//Connect to ethereum node
-	ethClient, err := ethclient.Dial(cfg.Url)
+	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
-		log.Errorf("error connecting to %s: %+v", cfg.Url, err)
+		log.Errorf("error connecting to %s: %+v", cfg.URL, err)
 		return nil, err
 	}
 	//Create smc clients

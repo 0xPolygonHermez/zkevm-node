@@ -4,15 +4,20 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// TxState represents the state of a tx
 type TxState string
 
 const (
-	TxStatePending  TxState = "pending"
-	TxStateInvalid  TxState = "invalid"
+	// TxStatePending represents a tx that has not been processed
+	TxStatePending TxState = "pending"
+	// TxStateInvalid represents an invalid tx
+	TxStateInvalid TxState = "invalid"
+	// TxStateSelected represents a tx that has not been selected
 	TxStateSelected TxState = "selected"
 )
 
+// Transaction represents a pool tx
 type Transaction struct {
 	types.Transaction
-	state TxState
+	State TxState
 }

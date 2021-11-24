@@ -10,32 +10,41 @@ import (
 	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
 )
 
+const (
+	hexBase   = 16
+	bitSize64 = 64
+)
+
 type argUint64 uint64
 
-func (b argUint64) MarshalText() ([]byte, error) {
-	buf := make([]byte, 2, 10)
+// MarshalText marshals into text
+func (b argUint64) MarshalText() ([]byte, detailedError) {
+	buf := make([]byte, 2, 10) //nolint:gomnd
 	copy(buf, `0x`)
-	buf = strconv.AppendUint(buf, uint64(b), 16)
+	buf = strconv.AppendUint(buf, uint64(b), hexBase)
 	return buf, nil
 }
 
-func (u *argUint64) UnmarshalText(input []byte) error {
+// UnmarshalText unmarshals from text
+func (b *argUint64) UnmarshalText(input []byte) error {
 	str := strings.TrimPrefix(string(input), "0x")
-	num, err := strconv.ParseUint(str, 16, 64)
+	num, err := strconv.ParseUint(str, hexBase, bitSize64)
 	if err != nil {
 		return err
 	}
-	*u = argUint64(num)
+	*b = argUint64(num)
 	return nil
 }
 
 type argBytes []byte
 
-func (b argBytes) MarshalText() ([]byte, error) {
+// MarshalText marshals into text
+func (b argBytes) MarshalText() ([]byte, detailedError) {
 	return encodeToHex(b), nil
 }
 
-func (b *argBytes) UnmarshalText(input []byte) error {
+// UnmarshalText unmarshals from text
+func (b *argBytes) UnmarshalText(input []byte) detailedError {
 	hh, err := decodeToHex(input)
 	if err != nil {
 		return nil
@@ -75,6 +84,7 @@ type txnArgs struct {
 	Nonce    *argUint64
 }
 
+// ToTransaction transforms txnArgs into a Transaction
 func (arg *txnArgs) ToTransaction() *types.Transaction {
 	nonce := uint64(0)
 	if arg.Nonce != nil {

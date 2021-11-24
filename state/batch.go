@@ -7,13 +7,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/rlp"
 )
 
 var (
 	// TODO: Calculate proper EmptyRootHash
-	EmptyRootHash  = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	EmptyUncleHash = rlp.Hash([]*types.Header(nil))
+
+	// EmptyRootHash hash of an emty root
+	EmptyRootHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	// EmptyUncleHash hash of an empty uncle
+	EmptyUncleHash = common.Hash{}
 )
 
 // A BatchNonce is a 64-bit hash which proves (combined with the
@@ -46,7 +48,7 @@ func (n *BatchNonce) UnmarshalText(input []byte) error {
 // Hash returns the batch hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (b *Batch) Hash() common.Hash {
-	return rlp.Hash(b.Header)
+	return b.Header.Hash()
 }
 
 // EmptyBody returns true if there is no additional 'body' to complete the header
@@ -60,7 +62,7 @@ func (b *Batch) EmptyReceipts() bool {
 	return b.Header.ReceiptHash == EmptyRootHash
 }
 
-// Batch
+// Batch represents a batch
 type Batch struct {
 	BatchNumber        uint64
 	BlockNumber        uint64
