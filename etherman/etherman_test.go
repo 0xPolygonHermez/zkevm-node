@@ -5,9 +5,9 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestDecodeOneTxData(t *testing.T) {
@@ -67,7 +67,6 @@ func TestDecodeOneTxData(t *testing.T) {
 	err = addr.UnmarshalText([]byte("0x1111111111222222222233333333334444444444"))
 	require.NoError(t, err)
 	assert.Equal(t, &addr, tx[0].To())
-
 }
 
 func TestDecodeMultipleTxData(t *testing.T) {
@@ -78,7 +77,7 @@ func TestDecodeMultipleTxData(t *testing.T) {
 	txs, err := decodeTxs(data, big.NewInt(1))
 	require.NoError(t, err)
 	res := []string{"0x3535353535353535353535353535353535353535", "0x1111111111111111111111111111111111111111", "0x1212121212121212121212121212121212121212"}
-	for k,tx := range txs {
+	for k, tx := range txs {
 		var addr common.Address
 		err = addr.UnmarshalText([]byte(res[k]))
 		require.NoError(t, err)

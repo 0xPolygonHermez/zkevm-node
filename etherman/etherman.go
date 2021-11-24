@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	newBatchEventSignatureHash = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
+	newBatchEventSignatureHash    = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
 	consolidateBatchSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,aggregator)"))
 )
 
@@ -34,8 +34,8 @@ type EtherMan interface {
 	ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error)
 }
 
-// EtherManClient is a simple implementation of EtherMan
-type EtherManClient struct {
+// ClientEtherMan is a simple implementation of EtherMan
+type ClientEtherMan struct {
 	EtherClient *ethclient.Client
 	PoE         *proofofefficiency.Proofofefficiency
 	SCAddresses []common.Address
@@ -63,11 +63,11 @@ func NewEtherman(cfg Config) (EtherMan, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &EtherManClient{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, key: key}, nil
+	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, key: key}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
-func (etherMan *EtherManClient) EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error) {
+func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error) {
 	block, err := etherMan.EtherClient.BlockByNumber(ctx, big.NewInt(blockNum))
 	if err != nil {
 		return &types.Block{}, nil
@@ -76,7 +76,7 @@ func (etherMan *EtherManClient) EthBlockByNumber(ctx context.Context, blockNum i
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
-func (etherMan *EtherManClient) GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error) {
+func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error) {
 	//First filter query
 	var blockNumBigInt *big.Int
 	if blockHash == nil {
@@ -97,7 +97,7 @@ func (etherMan *EtherManClient) GetBatchesByBlock(ctx context.Context, blockNum 
 
 // GetBatchesFromBlockTo function retrieves the batches information that are included in all this ethereum blocks
 //from block x to block y
-func (etherMan *EtherManClient) GetBatchesFromBlockTo(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error) {
+func (etherMan *ClientEtherMan) GetBatchesFromBlockTo(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error) {
 	//First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
@@ -112,18 +112,18 @@ func (etherMan *EtherManClient) GetBatchesFromBlockTo(ctx context.Context, fromB
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
-func (etherMan *EtherManClient) SendBatch(batch state.Batch) (common.Hash, error) {
+func (etherMan *ClientEtherMan) SendBatch(batch state.Batch) (common.Hash, error) {
 	//TODO
 	return common.Hash{}, nil
 }
 
 // ConsolidateBatch function allows the agregator send the proof for a batch and consolidate it
-func (etherMan *EtherManClient) ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error) {
+func (etherMan *ClientEtherMan) ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error) {
 	//TODO
 	return common.Hash{}, nil
 }
 
-func (etherMan *EtherManClient) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, error) {
+func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, error) {
 	logs, err := etherMan.EtherClient.FilterLogs(ctx, query)
 	if err != nil {
 		return []state.Block{}, err
@@ -140,7 +140,7 @@ func (etherMan *EtherManClient) readEvents(ctx context.Context, query ethereum.F
 	return blocks, nil
 }
 
-func (etherMan *EtherManClient) processEvent(ctx context.Context, vLog types.Log) (state.Block, error) {
+func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log) (state.Block, error) {
 	switch vLog.Topics[0] {
 	case newBatchEventSignatureHash:
 		var block state.Block
@@ -191,20 +191,32 @@ func (etherMan *EtherManClient) processEvent(ctx context.Context, vLog types.Log
 	return state.Block{}, nil
 }
 
-func decodeTxs(txsData []byte, chainId *big.Int) ([]*types.Transaction, error) {
+const (
+	formulaDiv       = 2
+	fomulaConst      = 35
+	fomulaConst2     = 36
+	maxVLength       = 64
+	headerByteLength = 2
+)
+
+func decodeTxs(txsData []byte, chainID *big.Int) ([]*types.Transaction, error) {
 	// First split txs
+	// The first two bytes are the header. The information related to the length of the tx is stored in the second byte.
+	// So, first we've to read the second byte to check the tx length. Then, copy from the current position to the last
+	// byte of the tx if exists (if not will be completed with zeros). Now, I try to decode the tx, If it is possible,
+	// everything is fine. If not, print error and try to get the next tx.
 	var pos int64
 	var txs []*types.Transaction
-	for pos<int64(len(txsData)) {
-		lenght := txsData[pos+1:pos+2]
-		str := hex.EncodeToString(lenght)
+	for pos < int64(len(txsData)) {
+		length := txsData[pos+1 : pos+2]
+		str := hex.EncodeToString(length)
 		num, err := strconv.ParseInt(str, 16, 64)
 		if err != nil {
 			log.Warn("error: skipping tx. Err: ", err)
 			continue
 		}
 		data := txsData[pos : pos+num+2]
-		pos = pos + num + 2
+		pos = pos + num + headerByteLength
 
 		//Decode tx
 		var tx types.LegacyTx
@@ -213,34 +225,34 @@ func decodeTxs(txsData []byte, chainId *big.Int) ([]*types.Transaction, error) {
 			log.Error("error decoding tx bytes: ", err, data)
 			continue
 		}
-		isValid, err := checkSignature(tx, chainId)
+		isValid, err := checkSignature(tx, chainID)
 		if err != nil {
 			log.Warn("error: skipping tx. ", err, tx)
 			continue
 		} else if !isValid {
-			log.Debug("Signature invalid for tx: ",tx)
+			log.Debug("Signature invalid for tx: ", tx)
 			continue
 		}
 		txs = append(txs, types.NewTransaction(tx.Nonce, *tx.To, tx.Value, tx.Gas, tx.GasPrice, tx.Data))
 	}
-    return txs, nil
+	return txs, nil
 }
 
-func checkSignature(tx types.LegacyTx, chainId *big.Int) (bool, error) {
-	decodedChainId := deriveChainId(tx.V)
-	if decodedChainId.Cmp(chainId) != 0 {
+func checkSignature(tx types.LegacyTx, chainID *big.Int) (bool, error) {
+	decodedChainID := deriveChainID(tx.V)
+	if decodedChainID.Cmp(chainID) != 0 {
 		return false, fmt.Errorf("error: incorrect chainId. Decoded chainId: %d and chainId retrieved from smc: %d",
-		decodedChainId, chainId)
+			decodedChainID, chainID)
 	}
 	// Formula: v = chainId * 2 + 36 or 35; x = 35 or 36
 	v := new(big.Int).SetBytes(tx.V.Bytes())
 	r := new(big.Int).SetBytes(tx.R.Bytes())
 	s := new(big.Int).SetBytes(tx.S.Bytes())
-	x := v.Int64()-(chainId.Int64()*2)
+	x := v.Int64() - (chainID.Int64() * 2)
 	var vField byte
-	if x == 35 {
+	if x == fomulaConst {
 		vField = byte(0)
-	} else if x == 36 {
+	} else if x == fomulaConst2 {
 		vField = byte(1)
 	} else {
 		return false, fmt.Errorf("Error invalid signature v value: %d", tx.V)
@@ -252,15 +264,15 @@ func checkSignature(tx types.LegacyTx, chainId *big.Int) (bool, error) {
 	return true, nil
 }
 
-// deriveChainId derives the chain id from the given v parameter
-func deriveChainId(v *big.Int) *big.Int {
-	if v.BitLen() <= 64 {
+// deriveChainID derives the chain id from the given v parameter
+func deriveChainID(v *big.Int) *big.Int {
+	if v.BitLen() <= maxVLength {
 		v := v.Uint64()
 		if v == 27 || v == 28 {
 			return new(big.Int)
 		}
-		return new(big.Int).SetUint64((v - 35) / 2)
+		return new(big.Int).SetUint64((v - fomulaConst) / formulaDiv)
 	}
-	v = new(big.Int).Sub(v, big.NewInt(35))
-	return v.Div(v, big.NewInt(2))
+	v = new(big.Int).Sub(v, big.NewInt(fomulaConst))
+	return v.Div(v, big.NewInt(formulaDiv))
 }
