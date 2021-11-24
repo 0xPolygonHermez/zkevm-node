@@ -28,8 +28,8 @@ var (
 // EtherMan represents an Ethereum Manager
 type EtherMan interface {
 	EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error)
-	GetBatchesByBlock(blockNum int64) ([]state.Batch, error)
-	GetBatchesFromBlockTo(fromBlock uint, toBlock uint) ([]state.Batch, error)
+	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
+	GetBatchesFromBlockTo(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error)
 	SendBatch(batch state.Batch) (common.Hash, error)
 	ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error)
 }
@@ -44,7 +44,7 @@ type EtherManClient struct {
 }
 
 // NewEtherman creates a new etherman
-func NewEtherman(cfg Config) (*EtherManClient, error) {
+func NewEtherman(cfg Config) (EtherMan, error) {
 	//Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
