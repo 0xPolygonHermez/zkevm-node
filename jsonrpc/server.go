@@ -3,6 +3,7 @@ package jsonrpc
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -13,10 +14,10 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
-// JSONRPC is an API backend
+// Server is an API backend to handle RPC requests
 type Server struct {
 	config  Config
-	handler *JSONRPCHandler
+	handler *Handler
 }
 
 // NewServer returns the JsonRPC server
@@ -33,6 +34,7 @@ func NewServer(config Config, p pool.Pool, s state.State) *Server {
 	return srv
 }
 
+// Start initializes the JSON RPC server to listen for request
 func (s *Server) Start() error {
 	address := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
 	log.Infof("http server started: %s", address)
@@ -67,24 +69,28 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == "GET" {
-		w.Write([]byte("Hermez JSON-RPC"))
+		_, err := w.Write([]byte("Hermez JSON-RPC"))
+		if err != nil {
+			log.Error(err)
+		}
 		return
 	}
 
 	if req.Method != "POST" {
-		w.Write([]byte("method " + req.Method + " not allowed"))
+		err := errors.New("method " + req.Method + " not allowed")
+		handleError(w, err)
 		return
 	}
 
 	data, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		handleError(w, err)
 		return
 	}
 
 	single, err := s.isSingleRequest(data)
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		handleError(w, err)
 		return
 	}
 
@@ -95,11 +101,11 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *Server) isSingleRequest(data []byte) (bool, error) {
+func (s *Server) isSingleRequest(data []byte) (bool, detailedError) {
 	x := bytes.TrimLeft(data, " \t\r\n")
 
 	if len(x) == 0 {
-		return false, NewInvalidRequestError("Invalid json request")
+		return false, newInvalidRequestError("Invalid json request")
 	}
 
 	return x[0] == '{', nil
@@ -108,20 +114,23 @@ func (s *Server) isSingleRequest(data []byte) (bool, error) {
 func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte) {
 	request, err := s.parseRequest(data)
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		handleError(w, err)
 		return
 	}
 
 	response := s.handler.Handle(request)
 
 	respBytes, _ := response.Bytes()
-	w.Write(respBytes)
+	_, err = w.Write(respBytes)
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
 	requests, err := s.parseRequests(data)
 	if err != nil {
-		w.Write([]byte(err.Error()))
+		handleError(w, err)
 		return
 	}
 
@@ -133,14 +142,17 @@ func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
 	}
 
 	respBytes, _ := json.Marshal(responses)
-	w.Write(respBytes)
+	_, err = w.Write(respBytes)
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 func (s *Server) parseRequest(data []byte) (Request, error) {
 	var req Request
 
 	if err := json.Unmarshal(data, &req); err != nil {
-		return Request{}, NewInvalidRequestError("Invalid json request")
+		return Request{}, newInvalidRequestError("Invalid json request")
 	}
 
 	return req, nil
@@ -150,8 +162,16 @@ func (s *Server) parseRequests(data []byte) ([]Request, error) {
 	var requests []Request
 
 	if err := json.Unmarshal(data, &requests); err != nil {
-		return nil, NewInvalidRequestError("Invalid json request")
+		return nil, newInvalidRequestError("Invalid json request")
 	}
 
 	return requests, nil
+}
+
+func handleError(w http.ResponseWriter, err error) {
+	log.Error(err)
+	_, err = w.Write([]byte(err.Error()))
+	if err != nil {
+		log.Error(err)
+	}
 }

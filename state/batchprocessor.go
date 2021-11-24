@@ -14,7 +14,7 @@ type BatchProcessor interface {
 	Rollback() error
 }
 
-// BatchProcessor is used to process a batch of transactions
+// BasicBatchProcessor is used to process a batch of transactions
 type BasicBatchProcessor struct {
 	State *BasicState
 }
@@ -31,12 +31,11 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx types.Transaction) error {
 
 // CheckTransaction checks a transaction is valid inside a batch context
 func (b *BasicBatchProcessor) CheckTransaction(tx types.Transaction) error {
-
 	// Check Nonce
 	return nil
 }
 
-// Commits the batch state into state
+// Commit the batch state into state
 func (b *BasicBatchProcessor) Commit() (*common.Hash, *Proof, error) {
 	return nil, nil, nil
 }
