@@ -7,7 +7,7 @@ import (
 )
 
 func decryptKeystore(path, pw string) (*keystore.Key, error) {
-	keystoreEncrypted, err := ioutil.ReadFile(path)
+	keystoreEncrypted, err := ioutil.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}
