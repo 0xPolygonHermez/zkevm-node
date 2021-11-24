@@ -10,6 +10,5 @@ require (
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.13.0
-	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871
 	golang.org/x/sys v0.0.0-20211109184856-51b60fd695b3 // indirect
 )
