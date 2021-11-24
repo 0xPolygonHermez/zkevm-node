@@ -3,21 +3,24 @@ package aggregator
 import (
 	"context"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/synchronizer"
 )
 
 type Aggregator struct {
 	State          state.State
 	BatchProcessor state.BatchProcessor
 	EtherMan       etherman.EtherMan
-	Synchronizer   SynchronizerClient
+	Synchronizer   synchronizer.Synchronizer
 	Prover         ProverClient
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx           context.Context
+	cancel        context.CancelFunc
+	txsByBatchNum map[uint64]txsWithProof
 }
 
 func NewAggregator(
@@ -25,20 +28,27 @@ func NewAggregator(
 	state state.State,
 	bp state.BatchProcessor,
 	ethMan etherman.EtherMan,
-	syncClient SynchronizerClient,
+	sy synchronizer.Synchronizer,
 	prover ProverClient,
 ) (Aggregator, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	return Aggregator{
+
+	a := Aggregator{
 		State:          state,
 		BatchProcessor: bp,
 		EtherMan:       ethMan,
-		Synchronizer:   syncClient,
+		Synchronizer:   sy,
 		Prover:         prover,
 
-		ctx:    ctx,
-		cancel: cancel,
-	}, nil
+		ctx:           ctx,
+		cancel:        cancel,
+		txsByBatchNum: make(map[uint64]txsWithProof),
+	}
+
+	sy.RegisterNewBatchProposalHandler(a.onNewBatchPropostal)
+	sy.RegisterNewConsolidatedStateHandler(a.onNewConsolidatedState)
+
+	return a, nil
 }
 
 type txsWithProof struct {
@@ -46,56 +56,51 @@ type txsWithProof struct {
 	proof *state.Proof
 }
 
-func (agr *Aggregator) Start() {
+func (a *Aggregator) Start() {
 	// reads from batchesChan
 	// get txs from state by batchNum
 	// check if it's profitable or not
 	// send zki + txs to the prover
 	// send proof + txs to the SC
-	go func() {
-		txsByBatchNum := make(map[uint64]txsWithProof)
-		for {
-			select {
-			case <-agr.ctx.Done():
-				return
-			case event := <-agr.Synchronizer.VirtualBatchEventChan:
-				// get txs to send
-				txs, err := agr.State.GetTxsByBatchNum(event.BatchNum)
-				if err != nil {
-					return
-				}
-				// check is it profitable to aggregate txs or not
-				if !agr.isProfitable(txs) {
-					continue
-				}
-				// send txs and zki to the prover
-				proof, err := agr.Prover.SendTxs(txs)
-				if err != nil {
-					continue
-				}
-				txsByBatchNum[event.BatchNum] = txsWithProof{txs: txs, proof: proof}
-			case event := <-agr.Synchronizer.ConsolidatedBatchEventChan:
-				previousBatchNum := event.BatchNum - 1
-				// send txs and proof to the eth contract
-				txsWithProof, ok := txsByBatchNum[previousBatchNum]
-				if ok {
-
-					batch := state.Batch{Transactions: txsWithProof.txs}
-					if _, err := agr.EtherMan.ConsolidateBatch(batch, *txsWithProof.proof); err != nil {
-						continue
-					}
-					delete(txsByBatchNum, previousBatchNum)
-				}
-			}
-		}
-	}()
+	a.Synchronizer.Sync()
 }
 
-func (agr *Aggregator) isProfitable(txs []*types.Transaction) bool {
+func (a *Aggregator) onNewBatchPropostal(batchNumber uint64, root common.Hash) {
+	// get txs to send
+	txs, err := a.State.GetTxsByBatchNum(batchNumber)
+	if err != nil {
+		return
+	}
+	// check is it profitable to aggregate txs or not
+	if !a.isProfitable(txs) {
+		return
+	}
+	// send txs and zki to the prover
+	proof, err := a.Prover.SendTxs(txs)
+	if err != nil {
+		return
+	}
+	a.txsByBatchNum[batchNumber] = txsWithProof{txs: txs, proof: proof}
+}
+
+func (a *Aggregator) onNewConsolidatedState(batchNumber uint64, root common.Hash) {
+	previousBatchNum := batchNumber - 1
+	// send txs and proof to the eth contract
+	txsWithProof, ok := a.txsByBatchNum[previousBatchNum]
+	if ok {
+		batch := state.Batch{Transactions: txsWithProof.txs}
+		if _, err := a.EtherMan.ConsolidateBatch(batch, *txsWithProof.proof); err != nil {
+			return
+		}
+		delete(a.txsByBatchNum, previousBatchNum)
+	}
+}
+
+func (a *Aggregator) isProfitable(txs []*types.Transaction) bool {
 	// get strategy from the config and check
 	return true
 }
 
-func (agr *Aggregator) Stop() {
-	agr.cancel()
+func (a *Aggregator) Stop() {
+	a.cancel()
 }

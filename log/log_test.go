@@ -5,7 +5,13 @@ import (
 )
 
 func TestLog(t *testing.T) {
-	Init("debug", []string{"stdout"}) //[]string{"stdout", "test.log"}
+
+	cfg := Config{
+		Level:   "debug",
+		Outputs: []string{"stdout"}, //[]string{"stdout", "test.log"}
+	}
+
+	Init(cfg)
 
 	Info("Test log.Info", " value is ", 10)
 	Infof("Test log.Infof %d", 10)

@@ -1,0 +1,12 @@
+*.md                    @arnaubennassar
+aggregator/             @Mikelle @ARR552
+cmd/                 
+db/                     @Mikelle @tclemos
+etherman/               @ARR552 @tclemos
+jsonrpc/                @tclemos @arnaubennassar
+mocks/                  @tclemos
+pool/                   @Mikelle @tclemos
+sequencer/              @Mikelle @arnaubennassar
+state/                  @ToniRamirezM @OBrezhniev
+synchronizer/           @ARR552 @tclemos
+test/                   @arnaubennassar @tclemos

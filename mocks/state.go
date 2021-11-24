@@ -105,3 +105,9 @@ func (s *StateMock) Reset(blockNumber uint64) error {
 func (s *StateMock) ConsolidateBatch(batchNumber uint64) error {
 	return nil
 }
+
+func (s *StateMock) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error) {
+	return []*types.Transaction{
+		tx,
+	}, nil
+}

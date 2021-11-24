@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -24,31 +25,46 @@ var (
 	consolidateBatchSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,aggregator)"))
 )
 
-type EtherMan struct {
-	EtherClient *ethclient.Client
-	PoE         *proofofefficiency.Proofofefficiency
-	SCAddreses []common.Address
+type EtherMan interface {
+	EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error)
+	GetBatchesByBlock(blockNum int64) ([]state.Batch, error)
+	GetBatchesFromBlockTo(fromBlock uint, toBlock uint) ([]state.Batch, error)
+	SendBatch(batch state.Batch) (common.Hash, error)
+	ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error)
 }
 
-func NewEtherman(ethClientURL string, poeAddr common.Address) (*EtherMan, error) {
+type EtherManClient struct {
+	EtherClient *ethclient.Client
+	PoE         *proofofefficiency.Proofofefficiency
+	SCAddresses []common.Address
+
+	key *keystore.Key
+}
+
+func NewEtherman(cfg Config) (*EtherManClient, error) {
 	//Connect to ethereum node
-	ethClient, err := ethclient.Dial(ethClientURL)
+	ethClient, err := ethclient.Dial(cfg.Url)
 	if err != nil {
-		log.Errorf("error connecting to %s: %+v", ethClientURL, err)
+		log.Errorf("error connecting to %s: %+v", cfg.Url, err)
 		return nil, err
 	}
 	//Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(poeAddr, ethClient)
+	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoeAddress, ethClient)
 	if err != nil {
 		return nil, err
 	}
-	var scAddreses []common.Address
-	scAddreses = append(scAddreses, poeAddr)
-	return &EtherMan{EtherClient: ethClient, PoE: poe, SCAddreses: scAddreses}, nil
+	var scAddresses []common.Address
+	scAddresses = append(scAddresses, cfg.PoeAddress)
+
+	key, err := decryptKeystore(cfg.PrivateKeyPath, cfg.PrivateKeyPassword)
+	if err != nil {
+		return nil, err
+	}
+	return &EtherManClient{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, key: key}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
-func (etherMan *EtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error) {
+func (etherMan *EtherManClient) EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error) {
 	block, err := etherMan.EtherClient.BlockByNumber(ctx, big.NewInt(blockNum))
 	if err != nil {
 		return &types.Block{}, nil
@@ -57,7 +73,7 @@ func (etherMan *EtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) 
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
-func (etherMan *EtherMan) GetBatchesByBlock(blockNum uint64, blockHash *common.Hash) ([]state.Block, error) {
+func (etherMan *EtherManClient) GetBatchesByBlock(blockNum uint64, blockHash *common.Hash) ([]state.Block, error) {
 	//First filter query
 	var blockNumBigInt *big.Int
 	if blockHash == nil {
@@ -67,7 +83,7 @@ func (etherMan *EtherMan) GetBatchesByBlock(blockNum uint64, blockHash *common.H
 		BlockHash: blockHash,
 		FromBlock: blockNumBigInt,
 		ToBlock:   blockNumBigInt,
-		Addresses: etherMan.SCAddreses,
+		Addresses: etherMan.SCAddresses,
 	}
 	blocks, err := etherMan.readEvents(query)
 	if err != nil {
@@ -78,12 +94,12 @@ func (etherMan *EtherMan) GetBatchesByBlock(blockNum uint64, blockHash *common.H
 
 // GetBatchesFromBlockTo function retrieves the batches information that are included in all this ethereum blocks
 //from block x to block y
-func (etherMan *EtherMan) GetBatchesFromBlockTo(fromBlock uint64, toBlock uint64) ([]state.Block, error) {
+func (etherMan *EtherManClient) GetBatchesFromBlockTo(fromBlock uint64, toBlock uint64) ([]state.Block, error) {
 	//First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: big.NewInt(int64(fromBlock)),
 		ToBlock:   big.NewInt(int64(toBlock)),
-		Addresses: etherMan.SCAddreses,
+		Addresses: etherMan.SCAddresses,
 	}
 	blocks, err := etherMan.readEvents(query)
 	if err != nil {
@@ -93,18 +109,18 @@ func (etherMan *EtherMan) GetBatchesFromBlockTo(fromBlock uint64, toBlock uint64
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
-func (etherMan *EtherMan) SendBatch(batch state.Batch) (common.Hash, error) {
+func (etherMan *EtherManClient) SendBatch(batch state.Batch) (common.Hash, error) {
 	//TODO
 	return common.Hash{}, nil
 }
 
 // ConsolidateBatch function allows the agregator send the proof for a batch and consolidate it
-func (etherMan *EtherMan) ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error) {
+func (etherMan *EtherManClient) ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error) {
 	//TODO
 	return common.Hash{}, nil
 }
 
-func (etherMan *EtherMan) readEvents(query ethereum.FilterQuery) ([]state.Block, error) {
+func (etherMan *EtherManClient) readEvents(query ethereum.FilterQuery) ([]state.Block, error) {
 	ctx := context.Background()
 	logs, err := etherMan.EtherClient.FilterLogs(ctx, query)
 	if err != nil {
@@ -122,7 +138,7 @@ func (etherMan *EtherMan) readEvents(query ethereum.FilterQuery) ([]state.Block,
 	return blocks, nil
 }
 
-func (etherMan *EtherMan) processEvent(ctx context.Context, vLog types.Log) (state.Block, error) {
+func (etherMan *EtherManClient) processEvent(ctx context.Context, vLog types.Log) (state.Block, error) {
 	switch vLog.Topics[0] {
 	case newBatchEventSignatureHash:
 		var block state.Block

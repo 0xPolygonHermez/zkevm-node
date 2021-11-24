@@ -88,12 +88,17 @@ func (arg *txnArgs) ToTransaction() *types.Transaction {
 
 	gasPrice := hex.DecodeHexToBig(string(*arg.GasPrice))
 
+	value := big.NewInt(0)
+	if arg.Value != nil {
+		value = hex.DecodeHexToBig(string(*arg.Value))
+	}
+
 	data := []byte{}
 	if arg.Data != nil {
 		data = *arg.Data
 	}
 
-	tx := types.NewTransaction(nonce, *arg.To, big.NewInt(0), gas, gasPrice, data)
+	tx := types.NewTransaction(nonce, *arg.To, value, gas, gasPrice, data)
 
 	return tx
 }

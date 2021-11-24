@@ -17,17 +17,17 @@ var log *zap.SugaredLogger
 // logs at the output of the process. To add a log file as output, the path
 // should be added at the outputs array. To avoid printing the logs but storing
 // them on a file, can use []string{"pathtofile.log"}
-func Init(levelStr string, outputs []string) {
+func Init(cfg Config) {
 	var level zap.AtomicLevel
-	err := level.UnmarshalText([]byte(levelStr))
+	err := level.UnmarshalText([]byte(cfg.Level))
 	if err != nil {
 		panic(fmt.Errorf("Error on setting log level: %s", err))
 	}
 
-	cfg := zap.Config{
+	zapCfg := zap.Config{
 		Level:            level,
 		Encoding:         "console",
-		OutputPaths:      outputs,
+		OutputPaths:      cfg.Outputs,
 		ErrorOutputPaths: []string{"stderr"},
 		EncoderConfig: zapcore.EncoderConfig{
 			MessageKey: "message",
@@ -50,7 +50,7 @@ func Init(levelStr string, outputs []string) {
 		},
 	}
 
-	logger, err := cfg.Build()
+	logger, err := zapCfg.Build()
 	if err != nil {
 		panic(err)
 	}
