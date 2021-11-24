@@ -6,11 +6,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state/db"
-	// "github.com/hermeznetwork/hermez-core/state/merkletree"
-	// "github.com/hermeznetwork/hermez-core/state/merkletree/leafs"
 )
 
-// State
+// State is the interface of the Hermez state
 type State interface {
 	NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) BatchProcessor
 	GetStateRoot(virtual bool) (*big.Int, error)
@@ -38,7 +36,7 @@ type State interface {
 	GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error)
 }
 
-// State
+// BasicState is a implementation of the state
 type BasicState struct {
 	// StateTree merkletree.Merkletree
 }
@@ -79,7 +77,8 @@ func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*bi
 
 // EstimateGas for a transaction
 func (s *BasicState) EstimateGas(transaction types.Transaction) uint64 {
-	return 21000
+	// TODO: Calculate once we have txs that interact with SCs
+	return 21000 //nolint:gomnd
 }
 
 // GetLastBlock gets the latest block
@@ -117,6 +116,7 @@ func (s *BasicState) GetTransaction(hash common.Hash) (*types.Transaction, error
 	panic("not implemented yet")
 }
 
+// GetNonce returns the nonce of the given account at the given batch number
 func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint64, error) {
 	panic("not implemented yet")
 }
@@ -176,6 +176,7 @@ func (s *BasicState) ConsolidateBatch(batchNumber uint64) error {
 	return nil
 }
 
+// GetTxsByBatchNum returns all the txs in a given batch
 func (s *BasicState) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error) {
 	return nil, nil
 }

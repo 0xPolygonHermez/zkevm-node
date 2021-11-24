@@ -6,17 +6,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/rlp"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// Sequencer represents a sequencer
 type Sequencer struct {
 	Pool           pool.Pool
 	State          state.State
@@ -28,6 +27,7 @@ type Sequencer struct {
 	cancel context.CancelFunc
 }
 
+// NewSequencer creates a new sequencer
 func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan, sy synchronizer.Synchronizer) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -46,6 +46,7 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 	return s, nil
 }
 
+// Start starts the sequencer
 func (s *Sequencer) Start() {
 	// Infinite for loop:
 	// 1. Wait for synchronizer to sync last batch
@@ -54,7 +55,9 @@ func (s *Sequencer) Start() {
 	// 4. Is selection profitable?
 	// YES: send selection to Ethereum
 	// NO: discard selection and wait for the new batch
-	s.Synchronizer.Sync()
+	if err := s.Synchronizer.Sync(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (s *Sequencer) onNewBatchPropostal(batchNumber uint64, root common.Hash) {
@@ -86,6 +89,7 @@ func (s *Sequencer) onNewBatchPropostal(batchNumber uint64, root common.Hash) {
 	}
 }
 
+// Stop stops the sequencer
 func (s *Sequencer) Stop() {
 	s.cancel()
 }
@@ -98,7 +102,7 @@ func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.
 	for _, tx := range sortedTxs {
 		// check if tx is valid
 		if err := s.BatchProcessor.CheckTransaction(tx.Transaction); err != nil {
-			if err = s.Pool.UpdateTxState(rlp.Hash(tx), pool.TxStateInvalid); err != nil {
+			if err = s.Pool.UpdateTxState(tx.Hash(), pool.TxStateInvalid); err != nil {
 				return nil, err
 			}
 		} else {
@@ -109,7 +113,6 @@ func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.
 		if elapsed > selectionTime {
 			return selectedTxs, nil
 		}
-
 	}
 	return selectedTxs, nil
 }

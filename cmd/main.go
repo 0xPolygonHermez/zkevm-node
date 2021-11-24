@@ -32,7 +32,9 @@ func runJSONRpcServer(c jsonrpc.Config) {
 	p := mocks.NewPool()
 	s := mocks.NewState()
 
-	jsonrpc.NewServer(c, p, s).Start()
+	if err := jsonrpc.NewServer(c, p, s).Start(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func runSequencer(c sequencer.Config) {
@@ -46,10 +48,15 @@ func runSequencer(c sequencer.Config) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sequencer.NewSequencer(c, p, s, e, sy)
+	seq, err := sequencer.NewSequencer(c, p, s, e, sy)
+	if err != nil {
+		log.Fatal(err)
+	}
+	seq.Start()
 }
 
 func runAggregator(c aggregator.Config) {
+	// TODO: have more readable variables
 	s := mocks.NewState()
 	bp := s.NewBatchProcessor(common.Hash{}, false)
 	e, err := etherman.NewEtherman(c.Etherman)
@@ -61,7 +68,11 @@ func runAggregator(c aggregator.Config) {
 		log.Fatal(err)
 	}
 	pc := aggregator.NewProverClient()
-	aggregator.NewAggregator(c, s, bp, e, sy, pc)
+	agg, err := aggregator.NewAggregator(c, s, bp, e, sy, pc)
+	if err != nil {
+		log.Fatal(err)
+	}
+	agg.Start()
 }
 
 func waitSignal() {

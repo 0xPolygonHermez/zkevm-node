@@ -5,7 +5,6 @@ import (
 )
 
 func TestLog(t *testing.T) {
-
 	cfg := Config{
 		Level:   "debug",
 		Outputs: []string{"stdout"}, //[]string{"stdout", "test.log"}

@@ -1,39 +1,22 @@
 package jsonrpc
 
 import (
-	"errors"
 	"fmt"
 )
 
-var (
-	ErrStateNotFound = errors.New("given root and slot not found in storage")
-)
-
-type Error interface {
+type detailedError interface {
 	Error() string
-	ErrorCode() int
+	Code() int
 }
 type invalidParamsError struct {
 	err string
-}
-
-type internalError struct {
-	err string
-}
-
-func (e *internalError) Error() string {
-	return e.err
-}
-
-func (e *internalError) ErrorCode() int {
-	return -32603
 }
 
 func (e *invalidParamsError) Error() string {
 	return e.err
 }
 
-func (e *invalidParamsError) ErrorCode() int {
+func (e *invalidParamsError) Code() int {
 	return -32602
 }
 
@@ -45,20 +28,8 @@ func (e *invalidRequestError) Error() string {
 	return e.err
 }
 
-func (e *invalidRequestError) ErrorCode() int {
+func (e *invalidRequestError) Code() int {
 	return -32600
-}
-
-type subscriptionNotFoundError struct {
-	err string
-}
-
-func (e *subscriptionNotFoundError) Error() string {
-	return e.err
-}
-
-func (e *subscriptionNotFoundError) ErrorCode() int {
-	return -32601
 }
 
 type methodNotFoundError struct {
@@ -69,31 +40,24 @@ func (e *methodNotFoundError) Error() string {
 	return e.err
 }
 
-func (e *methodNotFoundError) ErrorCode() int {
+func (e *methodNotFoundError) Code() int {
 	return -32601
 }
 
-func NewMethodNotFoundError(method string) *methodNotFoundError {
+// NewMethodNotFoundError used when the RPC method does not exist or is not available
+func newMethodNotFoundError(method string) *methodNotFoundError {
 	e := &methodNotFoundError{fmt.Sprintf("the method %s does not exist/is not available", method)}
 	return e
 }
 
-func NewInvalidRequestError(msg string) *invalidRequestError {
+// NewInvalidRequestError used when the request is invalid
+func newInvalidRequestError(msg string) *invalidRequestError {
 	e := &invalidRequestError{msg}
 	return e
 }
 
-func NewInvalidParamsError(msg string) *invalidParamsError {
+// NewInvalidParamsError is used when the request has invalid parameters
+func newInvalidParamsError(msg string) *invalidParamsError {
 	e := &invalidParamsError{msg}
-	return e
-}
-
-func NewInternalError(msg string) *internalError {
-	e := &internalError{msg}
-	return e
-}
-
-func NewSubscriptionNotFoundError(method string) *subscriptionNotFoundError {
-	e := &subscriptionNotFoundError{fmt.Sprintf("subscribe method %s not found", method)}
 	return e
 }

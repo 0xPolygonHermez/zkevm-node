@@ -28,10 +28,16 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 }
 
 // ChainId returns the chain id of the client
-func (e *Eth) ChainId() (interface{}, error) {
+func (e *Eth) ChainId() (interface{}, error) { //nolint:golint
 	return hex.EncodeUint64(e.chainID), nil
 }
 
+// EstimateGas generates and returns an estimate of how much gas is necessary to
+// allow the transaction to complete.
+// The transaction will not be added to the blockchain.
+// Note that the estimate may be significantly more than the amount of gas actually
+// used by the transaction, for a variety of reasons including EVM mechanics and
+// node performance.
 func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error) {
 	tx := arg.ToTransaction()
 	gasEstimation := e.state.EstimateGas(*tx)
@@ -94,6 +100,8 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 	return "0x", nil
 }
 
+// GetTransactionByBlockHashAndIndex returns information about a transaction by
+// block hash and transaction index position.
 func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (interface{}, error) {
 	tx, err := e.state.GetTransactionByBatchHashAndIndex(hash, uint64(index))
 	if err != nil {
@@ -103,6 +111,8 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 	return tx, nil
 }
 
+// GetTransactionByBlockNumberAndIndex returns information about a transaction by
+// block number and transaction index position.
 func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, error) {
 	batchNumber, err := getNumericBlockNumber(e, *number)
 	if err != nil {
