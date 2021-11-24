@@ -40,7 +40,7 @@ func NewEtherman(cfg Config) (EtherMan, error) {
 		return nil, err
 	}
 	//Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoeAddress, ethClient)
+	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddress, ethClient)
 	if err != nil {
 		return nil, err
 	}
