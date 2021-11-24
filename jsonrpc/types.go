@@ -7,12 +7,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
-)
-
-const (
-	hexBase   = 16
-	bitSize64 = 64
+	"github.com/hermeznetwork/hermez-core/constants"
+	"github.com/hermeznetwork/hermez-core/hex"
 )
 
 type argUint64 uint64
@@ -21,14 +17,14 @@ type argUint64 uint64
 func (b argUint64) MarshalText() ([]byte, detailedError) {
 	buf := make([]byte, 2, 10) //nolint:gomnd
 	copy(buf, `0x`)
-	buf = strconv.AppendUint(buf, uint64(b), hexBase)
+	buf = strconv.AppendUint(buf, uint64(b), constants.Base16)
 	return buf, nil
 }
 
 // UnmarshalText unmarshals from text
 func (b *argUint64) UnmarshalText(input []byte) error {
 	str := strings.TrimPrefix(string(input), "0x")
-	num, err := strconv.ParseUint(str, hexBase, bitSize64)
+	num, err := strconv.ParseUint(str, constants.Base16, constants.BitSize64)
 	if err != nil {
 		return err
 	}

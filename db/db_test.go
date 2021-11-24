@@ -1,34 +1,35 @@
-package database
+package db
 
 import (
-	"context"
 	"testing"
 
-	dbutils "github.com/hermeznetwork/hermez-core/test/db"
+	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	dbName     = "testing"
-	dbUser     = "hermez"
-	dbPassword = "password"
-)
+var cfg = Config{
+	Database: "testing",
+	User:     "hermez",
+	Password: "password",
+	Host:     "localhost",
+	Port:     "5432",
+}
 
 func TestDBService(t *testing.T) {
 	// Start DB Server
-	err := dbutils.StartPostgreSQL(dbName, dbUser, dbPassword, "./migrations/0001.sql")
+	err := dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "./migrations/0001.sql")
 	require.NoError(t, err)
 
-	db, err := NewSQLDB(dbName, dbUser, dbPassword, dbutils.DBHost, dbutils.DBPort)
+	db, err := NewSQLDB(cfg)
 	require.NoError(t, err)
 
 	var result uint
-	err = db.QueryRow(context.Background(), "select count(*) from block").Scan(&result)
+	err = db.QueryRow("select count(*) from block").Scan(&result)
 	require.NoError(t, err)
 	assert.Equal(t, result, uint(0))
 
-	db.Close()
+	db.Close() //nolint:gosec,errcheck
 
 	// Stop DB Server
 	err = dbutils.StopPostgreSQL()
