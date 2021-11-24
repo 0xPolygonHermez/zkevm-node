@@ -7,6 +7,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+// maxBigIntLen is 256 bits (32 bytes)
+const maxBigIntLen = 32
+
 // SplitAddress splits address into 3 bytes array of 64bits each
 func SplitAddress(address common.Address) ([][]byte, error) {
 	a0 := address[0:8]
@@ -18,10 +21,10 @@ func SplitAddress(address common.Address) ([][]byte, error) {
 // SplitValue splits value into 4 bytes array of 64bits each
 func SplitValue(value *big.Int) ([][]byte, error) {
 	val := value.Bytes()
-	if len(val) > 32 {
+	if len(val) > maxBigIntLen {
 		return nil, fmt.Errorf("value size of more than 256 bits is not supported")
 	}
-	val256 := make([]byte, 32)
+	val256 := make([]byte, maxBigIntLen)
 	copy(val256, val)
 	v0 := val256[0:8]
 	v1 := val256[8:16]
