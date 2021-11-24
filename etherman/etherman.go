@@ -76,11 +76,11 @@ func (etherMan *EtherManClient) EthBlockByNumber(ctx context.Context, blockNum i
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
-func (etherMan *EtherManClient) GetBatchesByBlock(blockNum uint64, blockHash *common.Hash) ([]state.Block, error) {
+func (etherMan *EtherManClient) GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error) {
 	//First filter query
 	var blockNumBigInt *big.Int
 	if blockHash == nil {
-		blockNumBigInt = big.NewInt(int64(blockNum))
+		blockNumBigInt = new(big.Int).SetUint64(blockNum)
 	}
 	query := ethereum.FilterQuery{
 		BlockHash: blockHash,
@@ -88,7 +88,7 @@ func (etherMan *EtherManClient) GetBatchesByBlock(blockNum uint64, blockHash *co
 		ToBlock:   blockNumBigInt,
 		Addresses: etherMan.SCAddresses,
 	}
-	blocks, err := etherMan.readEvents(query)
+	blocks, err := etherMan.readEvents(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -97,14 +97,14 @@ func (etherMan *EtherManClient) GetBatchesByBlock(blockNum uint64, blockHash *co
 
 // GetBatchesFromBlockTo function retrieves the batches information that are included in all this ethereum blocks
 //from block x to block y
-func (etherMan *EtherManClient) GetBatchesFromBlockTo(fromBlock uint64, toBlock uint64) ([]state.Block, error) {
+func (etherMan *EtherManClient) GetBatchesFromBlockTo(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error) {
 	//First filter query
 	query := ethereum.FilterQuery{
-		FromBlock: big.NewInt(int64(fromBlock)),
-		ToBlock:   big.NewInt(int64(toBlock)),
+		FromBlock: new(big.Int).SetUint64(fromBlock),
+		ToBlock:   new(big.Int).SetUint64(toBlock),
 		Addresses: etherMan.SCAddresses,
 	}
-	blocks, err := etherMan.readEvents(query)
+	blocks, err := etherMan.readEvents(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +123,7 @@ func (etherMan *EtherManClient) ConsolidateBatch(batch state.Batch, proof state.
 	return common.Hash{}, nil
 }
 
-func (etherMan *EtherManClient) readEvents(query ethereum.FilterQuery) ([]state.Block, error) {
-	ctx := context.Background()
+func (etherMan *EtherManClient) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, error) {
 	logs, err := etherMan.EtherClient.FilterLogs(ctx, query)
 	if err != nil {
 		return []state.Block{}, err
@@ -192,10 +191,10 @@ func (etherMan *EtherManClient) processEvent(ctx context.Context, vLog types.Log
 	return state.Block{}, nil
 }
 
-func decodeTxs(txsData []byte, chainId *big.Int) ([]*types.LegacyTx, error) {
+func decodeTxs(txsData []byte, chainId *big.Int) ([]*types.Transaction, error) {
 	// First split txs
 	var pos int64
-	var txs []*types.LegacyTx
+	var txs []*types.Transaction
 	for pos<int64(len(txsData)) {
 		lenght := txsData[pos+1:pos+2]
 		str := hex.EncodeToString(lenght)
@@ -209,16 +208,20 @@ func decodeTxs(txsData []byte, chainId *big.Int) ([]*types.LegacyTx, error) {
 
 		//Decode tx
 		var tx types.LegacyTx
-		rlp.DecodeBytes(data, &tx)
-		isValid, err := checkSignature(tx, chainId)
+		err = rlp.DecodeBytes(data, &tx)
 		if err != nil {
-			log.Warn("error: skipping tx. ", err)
-			continue
-		} else if !isValid {
-			log.Debug("Signature invalid: ",isValid)
+			log.Error("error decoding tx bytes: ", err, data)
 			continue
 		}
-		txs = append(txs, &tx)
+		isValid, err := checkSignature(tx, chainId)
+		if err != nil {
+			log.Warn("error: skipping tx. ", err, tx)
+			continue
+		} else if !isValid {
+			log.Debug("Signature invalid for tx: ",tx)
+			continue
+		}
+		txs = append(txs, types.NewTransaction(tx.Nonce, *tx.To, tx.Value, tx.Gas, tx.GasPrice, tx.Data))
 	}
     return txs, nil
 }

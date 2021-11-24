@@ -21,7 +21,7 @@ func TestDecodeOneTxData(t *testing.T) {
 	var addr common.Address
 	err = addr.UnmarshalText([]byte("0x1111111111111111111111111111111111111111"))
 	require.NoError(t, err)
-	assert.Equal(t, &addr, tx[0].To)
+	assert.Equal(t, &addr, tx[0].To())
 
 	dHex = "f86b028504a817c8008252089412121212121212121212121212121212121212128506fc23ac0080820226a0a2402d3351e8ec9b0a221d7ff48aca682c646528b1558e74a0b558a943c0f2a3a05c7fff6db65e560833d7f85f07ed092fb63aaa2307b60cdf03b63a2effc6a340"
 	data, err = hex.DecodeString(dHex)
@@ -30,7 +30,7 @@ func TestDecodeOneTxData(t *testing.T) {
 	require.NoError(t, err)
 	err = addr.UnmarshalText([]byte("0x1212121212121212121212121212121212121212"))
 	require.NoError(t, err)
-	assert.Equal(t, &addr, tx[0].To)
+	assert.Equal(t, &addr, tx[0].To())
 
 	dHex = "f86e5a8502540be4008259d8941234123412341234123412341234123412341234880214e8348c4f000082123442a0c6ff1e0034458c8dbf64966f49031e44c6509f85545b49d4df2a953e9f4d1324a07403e62dda1922fb1e226632e21e7382c345377ff46e6a43b79f169570e5a725"
 	data, err = hex.DecodeString(dHex)
@@ -39,7 +39,7 @@ func TestDecodeOneTxData(t *testing.T) {
 	require.NoError(t, err)
 	err = addr.UnmarshalText([]byte("0x1234123412341234123412341234123412341234"))
 	require.NoError(t, err)
-	assert.Equal(t, &addr, tx[0].To)
+	assert.Equal(t, &addr, tx[0].To())
 
 	dHex = "f8701c8502540be400823a9894987698769876987698769876987698769876987688011c37937e0800008256788202e0a0ae3c16aaf6a780e085f5f919b0d1e5f07a1c014ed4d700c3ab189b4f98677f38a0316608701f846807f96f496b9994e7a821fc9322383e54f84bd235b93fb774b0"
 	data, err = hex.DecodeString(dHex)
@@ -48,7 +48,7 @@ func TestDecodeOneTxData(t *testing.T) {
 	require.NoError(t, err)
 	err = addr.UnmarshalText([]byte("0x9876987698769876987698769876987698769876"))
 	require.NoError(t, err)
-	assert.Equal(t, &addr, tx[0].To)
+	assert.Equal(t, &addr, tx[0].To())
 
 	dHex = "f873528504a817c800824a389480808080808080808080808080808080808080808802c68af0bb140000851234567890820b13a06790f151dab1b65b577532b479938f45abf871d6978e98ee0db53331ad548709a021b5038ec4cf5f7edc3f2ebac9ec5fdaa602f48b53986111a9bddaf5ad5b771c"
 	data, err = hex.DecodeString(dHex)
@@ -57,7 +57,7 @@ func TestDecodeOneTxData(t *testing.T) {
 	require.NoError(t, err)
 	err = addr.UnmarshalText([]byte("0x8080808080808080808080808080808080808080"))
 	require.NoError(t, err)
-	assert.Equal(t, &addr, tx[0].To)
+	assert.Equal(t, &addr, tx[0].To())
 
 	dHex = "f8702f85055ae826008261a8941111111111222222222233333333334444444444880cc47f20295c0000841122334427a01a3cf5ea05180ac59514dc64d91a1d615857cad466dacfbde4dd06f1988a1074a05ed158fd5c7d54bd827e94683c7f74dbd64be9bb69cbb3e092d317cc4758a146"
 	data, err = hex.DecodeString(dHex)
@@ -66,7 +66,7 @@ func TestDecodeOneTxData(t *testing.T) {
 	require.NoError(t, err)
 	err = addr.UnmarshalText([]byte("0x1111111111222222222233333333334444444444"))
 	require.NoError(t, err)
-	assert.Equal(t, &addr, tx[0].To)
+	assert.Equal(t, &addr, tx[0].To())
 
 }
 
@@ -82,6 +82,6 @@ func TestDecodeMultipleTxData(t *testing.T) {
 		var addr common.Address
 		err = addr.UnmarshalText([]byte(res[k]))
 		require.NoError(t, err)
-		assert.Equal(t, &addr, tx.To)
+		assert.Equal(t, &addr, tx.To())
 	}
 }
