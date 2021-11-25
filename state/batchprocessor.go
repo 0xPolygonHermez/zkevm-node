@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	errInvalidSig     = errors.New("invalid transaction v, r, s values")
-	errInvalidNonce   = errors.New("invalid transaction nonce")
-	errInvalidBalance = errors.New("not enough balance")
-	errInvalidGas     = errors.New("not enough gas")
+	ErrInvalidSig     = errors.New("invalid transaction v, r, s values")
+	ErrInvalidNonce   = errors.New("invalid transaction nonce")
+	ErrInvalidBalance = errors.New("not enough balance")
+	ErrInvalidGas     = errors.New("not enough gas")
 )
 
 // BatchProcessor is used to process a batch of transactions
@@ -27,11 +27,18 @@ type BatchProcessor interface {
 
 // BasicBatchProcessor is used to process a batch of transactions
 type BasicBatchProcessor struct {
-	State *BasicState
+	State     *BasicState
+	stateRoot []byte
 }
 
 // ProcessBatch processes all transactions inside a batch
 func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
+	// TODO: Implement
+	root, err := b.State.Tree.GetRoot()
+	if err != nil {
+		return err
+	}
+	b.stateRoot = root
 	return nil
 }
 
@@ -53,10 +60,10 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) error {
 func (b *BasicBatchProcessor) CheckTransactionForRoot(tx *types.Transaction, root []byte) error {
 	// Check Signature
 	v, r, s := tx.RawSignatureValues()
-	plainV := byte(v.Uint64() - 35 - 2*uint64(tx.ChainId().Int64()))
+	plainV := byte(v.Uint64() - 35 - 2*(tx.ChainId().Uint64()))
 
 	if !crypto.ValidateSignatureValues(plainV, r, s, false) {
-		return errInvalidSig
+		return ErrInvalidSig
 	}
 
 	// Get Sender
@@ -73,7 +80,7 @@ func (b *BasicBatchProcessor) CheckTransactionForRoot(tx *types.Transaction, roo
 	}
 
 	if nonce.Uint64() != tx.Nonce() {
-		return errInvalidNonce
+		return ErrInvalidNonce
 	}
 
 	// Check balance
@@ -83,12 +90,12 @@ func (b *BasicBatchProcessor) CheckTransactionForRoot(tx *types.Transaction, roo
 	}
 
 	if balance.Cmp(tx.Cost()) < 0 {
-		return errInvalidBalance
+		return ErrInvalidBalance
 	}
 
 	// Check gas
 	if tx.Gas() < b.State.EstimateGas(tx) {
-		return errInvalidGas
+		return ErrInvalidGas
 	}
 
 	return nil
