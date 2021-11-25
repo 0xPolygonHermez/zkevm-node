@@ -185,4 +185,13 @@ func TestSCEvents(t *testing.T) {
 		assert.Equal(t, &addr, tx.To())
 	}
 	fmt.Printf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
+	block, err = etherman.GetBatchesByBlock(ctx, block[0].BlockNum, &block[0].BlockHash)
+	require.NoError(t, err)
+	for k, tx := range block[0].Batches[0].Transactions {
+		var addr common.Address
+		err = addr.UnmarshalText([]byte(res[k]))
+		require.NoError(t, err)
+		assert.Equal(t, &addr, tx.To())
+	}
+	fmt.Printf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
 }
