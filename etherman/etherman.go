@@ -23,7 +23,7 @@ import (
 
 var (
 	newBatchEventSignatureHash    = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
-	consolidateBatchSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,aggregator)"))
+	consolidateBatchSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,address)"))
 )
 
 // EtherMan represents an Ethereum Manager
@@ -180,7 +180,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		batch.BatchNumber = new(big.Int).SetBytes(vLog.Topics[1][:]).Uint64()
 		batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
 		batch.Header.TxHash = vLog.TxHash
-		block.BlockNum = vLog.BlockNumber
+		block.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err == nil {
@@ -210,7 +210,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		batch.BatchNumber = new(big.Int).SetBytes(vLog.Topics[1][:]).Uint64()
 		batch.Aggregator = common.BytesToAddress(vLog.Topics[2].Bytes())
 		batch.ConsolidatedTxHash = vLog.TxHash
-		block.BlockNum = vLog.BlockNumber
+		block.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err == nil {
@@ -399,7 +399,7 @@ func (etherMan *TestClientEtherMan) processEvent(ctx context.Context, vLog types
 		var head types.Header
 		head.TxHash = vLog.TxHash
 		batch.Header = &head
-		block.BlockNum = vLog.BlockNumber
+		block.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err == nil {
@@ -424,7 +424,7 @@ func (etherMan *TestClientEtherMan) processEvent(ctx context.Context, vLog types
 		batch.BatchNumber = new(big.Int).SetBytes(vLog.Topics[1][:]).Uint64()
 		batch.Aggregator = common.BytesToAddress(vLog.Topics[2].Bytes())
 		batch.ConsolidatedTxHash = vLog.TxHash
-		block.BlockNum = vLog.BlockNumber
+		block.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err == nil {

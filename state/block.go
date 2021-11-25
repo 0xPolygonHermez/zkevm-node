@@ -6,7 +6,7 @@ import (
 
 // Block struct
 type Block struct {
-	BlockNum   uint64
+	BlockNumber   uint64
 	BlockHash  common.Hash
 	ParentHash common.Hash
 	Batches    []Batch

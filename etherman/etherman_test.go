@@ -185,7 +185,8 @@ func TestSCEvents(t *testing.T) {
 		assert.Equal(t, &addr, tx.To())
 	}
 	fmt.Printf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
-	block, err = etherman.GetBatchesByBlock(ctx, block[0].BlockNum, &block[0].BlockHash)
+
+	block, err = etherman.GetBatchesByBlock(ctx, block[0].BlockNumber, &block[0].BlockHash)
 	require.NoError(t, err)
 	for k, tx := range block[0].Batches[0].Transactions {
 		var addr common.Address
@@ -194,4 +195,29 @@ func TestSCEvents(t *testing.T) {
 		assert.Equal(t, &addr, tx.To())
 	}
 	fmt.Printf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
+
+	//VerifyBatch event. Consolidate batch event
+	var (
+		newLocalExitRoot = [32]byte{byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1)}
+		newStateRoot = [32]byte{byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1)}
+		proofA = [2]*big.Int{big.NewInt(1),big.NewInt(1)}
+		proofC = [2]*big.Int{big.NewInt(1),big.NewInt(1)}
+		proofB = [2][2]*big.Int{proofC,proofC}
+	)
+	_, err = testEnv.poe.VerifyBatch(testEnv.transactOpts, newLocalExitRoot, newStateRoot, new(big.Int).SetUint64(block[0].Batches[0].BatchNumber), proofA, proofB, proofC)
+	require.NoError(t, err)
+
+	//mine the tx in a block
+	testEnv.client.Commit()
+
+	initBlock = finalBlock
+	finalBlock = testEnv.client.Blockchain().CurrentBlock()
+	block, err = etherman.GetBatchesFromBlockTo(ctx, initBlock.NumberU64(), finalBlock.NumberU64()+1)
+	require.NoError(t, err)
+	assert.NotEqual(t, common.Hash{}, block[1].Batches[0].ConsolidatedTxHash)
+	fmt.Println("Batch consolidated in txHash: ", block[1].Batches[0].ConsolidatedTxHash)
+
+	block, err = etherman.GetBatchesByBlock(ctx, finalBlock.NumberU64(), nil)
+	require.NoError(t, err)
+	assert.NotEqual(t, common.Hash{}, block[0].Batches[0].ConsolidatedTxHash)
 }
