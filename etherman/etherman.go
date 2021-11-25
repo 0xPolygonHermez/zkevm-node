@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,6 +19,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
 var (
@@ -192,12 +193,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 			return state.Block{}, err
 		}
 		batch.RawTxsData = tx.Data()
-		//Get sequencer chainId
-		seq, err := etherMan.PoE.Sequencers(&bind.CallOpts{Pending: false}, batch.Sequencer)
-		if err != nil {
-			return state.Block{}, err
-		}
-		txs, err := decodeTxs(tx.Data(), seq.ChainID)
+		txs, err := decodeTxs(tx.Data())
 		if err != nil {
 			return state.Block{}, err
 		}
@@ -230,13 +226,36 @@ const (
 	headerByteLength = 2
 )
 
-func decodeTxs(txsData []byte, chainID *big.Int) ([]*types.Transaction, error) {
+func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 	// First split txs
 	// The first two bytes are the header. The information related to the length of the tx is stored in the second byte.
 	// So, first we've to read the second byte to check the tx length. Then, copy from the current position to the last
 	// byte of the tx if exists (if not will be completed with zeros). Now, I try to decode the tx, If it is possible,
 	// everything is fine. If not, print error and try to get the next tx.
-	var pos int64 = 100
+
+	//Extract coded txs.
+	// load contract ABI
+	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// recover Method from signature and ABI
+	method, err := abi.MethodById(txsData[:4])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// unpack method inputs
+	data, err := method.Inputs.Unpack(txsData[4:])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	txsData = data[0].([]byte)
+
+	//Process coded txs
+	var pos int64
 	var txs []*types.Transaction
 	for pos < int64(len(txsData)) {
 		length := txsData[pos+1 : pos+2]
@@ -245,9 +264,6 @@ func decodeTxs(txsData []byte, chainID *big.Int) ([]*types.Transaction, error) {
 		if err != nil {
 			log.Warn("error: skipping tx. Err: ", err)
 			continue
-		}
-		if num == 0 {
-			break
 		}
 
 		data := txsData[pos : pos+num+2]
@@ -260,56 +276,9 @@ func decodeTxs(txsData []byte, chainID *big.Int) ([]*types.Transaction, error) {
 			log.Error("error decoding tx bytes: ", err, data)
 			continue
 		}
-		isValid, err := checkSignature(tx, chainID)
-		if err != nil {
-			log.Warn("error: skipping tx. ", err, tx)
-			continue
-		} else if !isValid {
-			log.Debug("Signature invalid for tx: ", tx)
-			continue
-		}
 		txs = append(txs, types.NewTransaction(tx.Nonce, *tx.To, tx.Value, tx.Gas, tx.GasPrice, tx.Data))
 	}
 	return txs, nil
-}
-
-func checkSignature(tx types.LegacyTx, chainID *big.Int) (bool, error) {
-	decodedChainID := deriveChainID(tx.V)
-	if decodedChainID.Cmp(chainID) != 0 {
-		return false, fmt.Errorf("error: incorrect chainId. Decoded chainId: %d and chainId retrieved from smc: %d",
-			decodedChainID, chainID)
-	}
-	// Formula: v = chainId * 2 + 36 or 35; x = 35 or 36
-	v := new(big.Int).SetBytes(tx.V.Bytes())
-	r := new(big.Int).SetBytes(tx.R.Bytes())
-	s := new(big.Int).SetBytes(tx.S.Bytes())
-	x := v.Int64() - (chainID.Int64() * 2)
-	var vField byte
-	if x == fomulaConst {
-		vField = byte(0)
-	} else if x == fomulaConst2 {
-		vField = byte(1)
-	} else {
-		return false, fmt.Errorf("Error invalid signature v value: %d", tx.V)
-	}
-	if !crypto.ValidateSignatureValues(vField, r, s, false) {
-		log.Warn("Invalid Signature values: ", tx)
-		return false, nil
-	}
-	return true, nil
-}
-
-// deriveChainID derives the chain id from the given v parameter
-func deriveChainID(v *big.Int) *big.Int {
-	if v.BitLen() <= maxVLength {
-		v := v.Uint64()
-		if v == 27 || v == 28 {
-			return new(big.Int)
-		}
-		return new(big.Int).SetUint64((v - fomulaConst) / formulaDiv)
-	}
-	v = new(big.Int).Sub(v, big.NewInt(fomulaConst))
-	return v.Div(v, big.NewInt(formulaDiv))
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
@@ -411,7 +380,7 @@ func (etherMan *TestClientEtherMan) processEvent(ctx context.Context, vLog types
 			return nil, err
 		}
 		batch.RawTxsData = tx.Data()
-		txs, err := decodeTxs(tx.Data(), big.NewInt(1))
+		txs, err := decodeTxs(tx.Data())
 		if err != nil {
 			return nil, err
 		}
