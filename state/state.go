@@ -34,6 +34,7 @@ type State interface {
 	Reset(blockNumber uint64) error
 	ConsolidateBatch(batchNumber uint64) error
 	GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error)
+	AddNewSequencer(seq Sequencer) error
 }
 
 // BasicState is a implementation of the state
