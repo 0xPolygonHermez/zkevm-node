@@ -53,12 +53,12 @@ func NewEtherman(cfg Config) (EtherMan, error) {
 		return nil, err
 	}
 	//Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoeAddress, ethClient)
+	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddress, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, cfg.PoeAddress)
+	scAddresses = append(scAddresses, cfg.PoEAddress)
 
 	var key *keystore.Key
 	if cfg.PrivateKeyPath != "" || cfg.PrivateKeyPassword != "" {
@@ -82,7 +82,7 @@ type TestClientEtherMan struct {
 // NewTestEtherman creates a new test etherman
 func NewTestEtherman(cfg Config, etherCLient *backends.SimulatedBackend, poe *proofofefficiency.Proofofefficiency) (EtherMan, error) {
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, cfg.PoeAddress)
+	scAddresses = append(scAddresses, cfg.PoEAddress)
 
 	var (
 		key *keystore.Key

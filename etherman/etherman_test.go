@@ -169,7 +169,7 @@ func TestSCEvents(t *testing.T) {
 
 	//Now read the event
 	conf := Config{
-		PoeAddress: testEnv.poeAddr,
+		PoEAddress: testEnv.poeAddr,
 	}
 	etherman, err := NewTestEtherman(conf, testEnv.client, testEnv.poe)
 	require.NoError(t, err)
