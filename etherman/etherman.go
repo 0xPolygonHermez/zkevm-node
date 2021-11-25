@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -19,7 +20,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
 var (
@@ -218,13 +218,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 	return state.Block{}, nil
 }
 
-const (
-	formulaDiv       = 2
-	fomulaConst      = 35
-	fomulaConst2     = 36
-	maxVLength       = 64
-	headerByteLength = 2
-)
+const headerByteLength = 2
 
 func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 	// First split txs

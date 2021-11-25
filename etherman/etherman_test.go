@@ -198,11 +198,11 @@ func TestSCEvents(t *testing.T) {
 
 	//VerifyBatch event. Consolidate batch event
 	var (
-		newLocalExitRoot = [32]byte{byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1)}
-		newStateRoot = [32]byte{byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1),byte(1)}
-		proofA = [2]*big.Int{big.NewInt(1),big.NewInt(1)}
-		proofC = [2]*big.Int{big.NewInt(1),big.NewInt(1)}
-		proofB = [2][2]*big.Int{proofC,proofC}
+		newLocalExitRoot = [32]byte{byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1)}
+		newStateRoot     = [32]byte{byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1)}
+		proofA           = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
+		proofC           = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
+		proofB           = [2][2]*big.Int{proofC, proofC}
 	)
 	_, err = testEnv.poe.VerifyBatch(testEnv.transactOpts, newLocalExitRoot, newStateRoot, new(big.Int).SetUint64(block[0].Batches[0].BatchNumber), proofA, proofB, proofC)
 	require.NoError(t, err)
