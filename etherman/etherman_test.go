@@ -3,7 +3,6 @@ package etherman
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -31,7 +30,6 @@ func TestDecodeOneTxData(t *testing.T) {
 
 	tx, err := decodeTxs(data)
 	require.NoError(t, err)
-	// fmt.Println(tx)
 	var addr common.Address
 	err = addr.UnmarshalText([]byte("0x1111111111111111111111111111111111111111"))
 	require.NoError(t, err)
@@ -164,6 +162,15 @@ func TestSCEvents(t *testing.T) {
 	_, err = testEnv.poe.SendBatch(testEnv.transactOpts, data, big.NewInt(2))
 	require.NoError(t, err)
 
+	//prepare txs
+	dHex = "f86c088504a817c8008252089411111111111111111111111111111111111111118802c68af0bb1400008026a0758b52ed7380ef07d97a26904f6f2340e9437d3f44d4a950db48de846d18d6e5a0562ead2f0619ae253d65196b22026728829dd785c6a489cd2a546c6066d32c2a"
+	data, err = hex.DecodeString(dHex)
+	require.NoError(t, err)
+
+	//send propose batch l1 tx
+	_, err = testEnv.poe.SendBatch(testEnv.transactOpts, data, big.NewInt(2))
+	require.NoError(t, err)
+
 	//mine the tx in a block
 	testEnv.client.Commit()
 
@@ -184,7 +191,7 @@ func TestSCEvents(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, &addr, tx.To())
 	}
-	fmt.Printf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
+	log.Debugf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
 
 	block, err = etherman.GetBatchesByBlock(ctx, block[0].BlockNumber, &block[0].BlockHash)
 	require.NoError(t, err)
@@ -194,7 +201,7 @@ func TestSCEvents(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, &addr, tx.To())
 	}
-	fmt.Printf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
+	log.Debugf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
 
 	//VerifyBatch event. Consolidate batch event
 	var (
@@ -215,7 +222,9 @@ func TestSCEvents(t *testing.T) {
 	block, err = etherman.GetBatchesFromBlockTo(ctx, initBlock.NumberU64(), finalBlock.NumberU64()+1)
 	require.NoError(t, err)
 	assert.NotEqual(t, common.Hash{}, block[1].Batches[0].ConsolidatedTxHash)
-	fmt.Println("Batch consolidated in txHash: ", block[1].Batches[0].ConsolidatedTxHash)
+	assert.Equal(t, 2, len(block[0].Batches))
+	assert.Equal(t, 1, len(block[1].Batches))
+	log.Debugf("Batch consolidated in txHash: %+v \n", block[1].Batches[0].ConsolidatedTxHash)
 
 	block, err = etherman.GetBatchesByBlock(ctx, finalBlock.NumberU64(), nil)
 	require.NoError(t, err)

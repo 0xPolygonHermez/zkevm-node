@@ -160,19 +160,28 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 	if err != nil {
 		return []state.Block{}, err
 	}
-	var blocks []state.Block
+	blocks := make(map[common.Hash]state.Block)
 	for _, vLog := range logs {
 		block, err := etherMan.processEvent(ctx, vLog)
 		if err != nil {
 			log.Warn("error processing event: ", err, vLog)
 			continue
 		}
-		blocks = append(blocks, block)
+		if b, exists := blocks[block.BlockHash]; exists {
+			b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
+			blocks[block.BlockHash] = b
+		} else {
+			blocks[block.BlockHash] = *block
+		}
 	}
-	return blocks, nil
+	var blockArr []state.Block
+	for _, b := range blocks {
+		blockArr = append(blockArr, b)
+	}
+	return blockArr, nil
 }
 
-func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log) (state.Block, error) {
+func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log) (*state.Block, error) {
 	switch vLog.Topics[0] {
 	case newBatchEventSignatureHash:
 		var block state.Block
@@ -182,6 +191,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
 		batch.Header.TxHash = vLog.TxHash
 		block.BlockNumber = vLog.BlockNumber
+		batch.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err == nil {
@@ -190,16 +200,16 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		//Now, We have to read the tx for this batch.
 		tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, batch.Header.TxHash)
 		if err != nil || isPending {
-			return state.Block{}, err
+			return nil, err
 		}
 		batch.RawTxsData = tx.Data()
 		txs, err := decodeTxs(tx.Data())
 		if err != nil {
-			return state.Block{}, err
+			return nil, err
 		}
 		batch.Transactions = txs
 		block.Batches = append(block.Batches, batch)
-		return block, nil
+		return &block, nil
 	case consolidateBatchSignatureHash:
 		var block state.Block
 		var batch state.Batch
@@ -213,9 +223,9 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 			block.ParentHash = fullBlock.ParentHash()
 		}
 		block.Batches = append(block.Batches, batch)
-		return block, nil
+		return &block, nil
 	}
-	return state.Block{}, nil
+	return nil, nil
 }
 
 const headerByteLength = 2
@@ -337,18 +347,25 @@ func (etherMan *TestClientEtherMan) readEvents(ctx context.Context, query ethere
 	if err != nil {
 		return []state.Block{}, err
 	}
-	var blocks []state.Block
+	blocks := make(map[common.Hash]state.Block)
 	for _, vLog := range logs {
 		block, err := etherMan.processEvent(ctx, vLog)
 		if err != nil {
-			log.Warnf("error processing event: %s %+v", err, vLog)
+			log.Warn("error processing event: ", err, vLog)
 			continue
 		}
-		if block != nil {
-			blocks = append(blocks, *block)
+		if b, exists := blocks[block.BlockHash]; exists {
+			b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
+			blocks[block.BlockHash] = b
+		} else {
+			blocks[block.BlockHash] = *block
 		}
 	}
-	return blocks, nil
+	var blockArr []state.Block
+	for _, b := range blocks {
+		blockArr = append(blockArr, b)
+	}
+	return blockArr, nil
 }
 
 func (etherMan *TestClientEtherMan) processEvent(ctx context.Context, vLog types.Log) (*state.Block, error) {
@@ -363,6 +380,7 @@ func (etherMan *TestClientEtherMan) processEvent(ctx context.Context, vLog types
 		head.TxHash = vLog.TxHash
 		batch.Header = &head
 		block.BlockNumber = vLog.BlockNumber
+		batch.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err == nil {
