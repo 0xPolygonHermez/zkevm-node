@@ -9,10 +9,14 @@ import (
 )
 
 var (
-	ErrInvalidSig     = errors.New("invalid transaction v, r, s values")
-	ErrInvalidNonce   = errors.New("invalid transaction nonce")
+	// ErrInvalidSig indicates the signature of the transaction is not valid
+	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
+	// ErrInvalidNonce indicates the nonce of the transaction is not valid
+	ErrInvalidNonce = errors.New("invalid transaction nonce")
+	// ErrInvalidBalance indicates the balance of the account is not enough to process the transaction
 	ErrInvalidBalance = errors.New("not enough balance")
-	ErrInvalidGas     = errors.New("not enough gas")
+	// ErrInvalidGas indicates the gaslimit is not enough to process the transaction
+	ErrInvalidGas = errors.New("not enough gas")
 )
 
 // BatchProcessor is used to process a batch of transactions
