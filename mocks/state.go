@@ -2,6 +2,7 @@
 package mocks
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -31,7 +32,7 @@ func (s *StateMock) EstimateGas(transaction types.Transaction) uint64 {
 	return estimatedGas
 }
 
-func (s *StateMock) GetLastBlock() (*types.Block, error) {
+func (s *StateMock) GetLastBlock(ctx context.Context) (*types.Block, error) {
 	return block, nil
 }
 
