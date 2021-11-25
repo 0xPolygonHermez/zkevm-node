@@ -53,7 +53,7 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) error {
 func (b *BasicBatchProcessor) CheckTransactionForRoot(tx *types.Transaction, root []byte) error {
 	// Check Signature
 	v, r, s := tx.RawSignatureValues()
-	plainV := byte(v.Uint64() - 35 - 2*uint64(tx.ChainId().Int64()))
+	plainV := byte(v.Uint64() - 35 - 2*(tx.ChainId().Uint64()))
 
 	if !crypto.ValidateSignatureValues(plainV, r, s, false) {
 		return errInvalidSig
