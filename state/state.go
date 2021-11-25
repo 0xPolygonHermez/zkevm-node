@@ -180,3 +180,8 @@ func (s *BasicState) ConsolidateBatch(batchNumber uint64) error {
 func (s *BasicState) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error) {
 	return nil, nil
 }
+
+// AddNewSequencer stores a new sequencer
+func (s *BasicState) AddNewSequencer(seq Sequencer) error {
+	return nil
+}
