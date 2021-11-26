@@ -6,8 +6,9 @@ import (
 
 // Block struct
 type Block struct {
-	BlockNumber uint64
-	BlockHash   common.Hash
-	ParentHash  common.Hash
-	Batches     []Batch
+	BlockNumber   uint64
+	BlockHash     common.Hash
+	ParentHash    common.Hash
+	Batches       []Batch
+	NewSequencers []Sequencer
 }

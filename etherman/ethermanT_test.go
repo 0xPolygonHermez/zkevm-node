@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -113,6 +114,7 @@ func (etherMan *TestClientEtherMan) readEvents(ctx context.Context, query ethere
 		}
 		if b, exists := blocks[block.BlockHash]; exists {
 			b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
+			b.NewSequencers = append(blocks[block.BlockHash].NewSequencers, block.NewSequencers...)
 			blocks[block.BlockHash] = b
 		} else {
 			blocks[block.BlockHash] = *block
@@ -171,6 +173,29 @@ func (etherMan *TestClientEtherMan) processEvent(ctx context.Context, vLog types
 			block.ParentHash = fullBlock.ParentHash()
 		}
 		block.Batches = append(block.Batches, batch)
+		return &block, nil
+	case newSequencerSignatureHash:
+		seq, err := etherMan.PoE.ParseSetSequencer(vLog)
+		if err != nil {
+			return nil, err
+		}
+		var block state.Block
+		var sequencer state.Sequencer
+		sequencer.Sequencer = seq.SequencerAddress
+		sequencer.URL = seq.SequencerURL
+		block.BlockHash = vLog.BlockHash
+		block.BlockNumber = vLog.BlockNumber
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err == nil {
+			block.ParentHash = fullBlock.ParentHash()
+		}
+		//Get sequencer chainId
+		se, err := etherMan.PoE.Sequencers(&bind.CallOpts{Pending: false}, seq.SequencerAddress)
+		if err != nil {
+			return nil, err
+		}
+		sequencer.ChainID = se.ChainID
+		block.NewSequencers = append(block.NewSequencers, sequencer)
 		return &block, nil
 	}
 	return nil, fmt.Errorf("Event not registered")

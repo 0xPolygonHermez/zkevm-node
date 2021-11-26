@@ -231,3 +231,36 @@ func TestSCEvents(t *testing.T) {
 	assert.NotEqual(t, common.Hash{}, block[0].Batches[0].ConsolidatedTxHash)
 	log.Debugf("Batch consolidated in txHash: %+v \n", block[0].Batches[0].ConsolidatedTxHash)
 }
+
+func TestSequencerEvent(t *testing.T) {
+	// Set up testing environment
+	testEnv, err := newTestingEnv()
+	require.NoError(t, err)
+
+	//read currentBlock
+	initBlock := testEnv.client.Blockchain().CurrentBlock()
+
+	//send propose batch l1 tx
+	_, err = testEnv.poe.RegisterSequencer(testEnv.transactOpts, "http://localhost")
+	require.NoError(t, err)
+
+	//mine the tx in a block
+	testEnv.client.Commit()
+
+	//Now read the event
+	conf := Config{
+		PoEAddress: testEnv.poeAddr,
+	}
+	etherman, err := NewTestEtherman(conf, testEnv.client, testEnv.poe)
+	require.NoError(t, err)
+
+	finalBlock := testEnv.client.Blockchain().CurrentBlock()
+
+	ctx := context.Background()
+	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), finalBlock.NumberU64())
+	require.NoError(t, err)
+	assert.Equal(t, testEnv.transactOpts.From, block[0].NewSequencers[0].Sequencer)
+	assert.Equal(t, "http://localhost", block[0].NewSequencers[0].URL)
+	assert.Equal(t, big.NewInt(1), block[0].NewSequencers[0].ChainID)
+	log.Debug("Sequencer synced: ",  block[0].NewSequencers[0].Sequencer, ", url: ",  block[0].NewSequencers[0].URL, ", and chainId: ",  block[0].NewSequencers[0].ChainID)
+}
