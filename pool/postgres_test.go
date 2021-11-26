@@ -1,8 +1,12 @@
 package pool
 
 import (
+	"math/big"
+	"math/rand"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
@@ -10,16 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var cfg = db.Config{
-	Database: "testing",
-	User:     "hermez",
-	Password: "password",
-	Host:     "localhost",
-	Port:     "5432",
-}
-
-func TestAddTx(t *testing.T) {
-	// Start DB Server
+func Test_AddTx(t *testing.T) {
 	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
 	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
 
@@ -74,4 +69,120 @@ func TestAddTx(t *testing.T) {
 	}
 
 	assert.Equal(t, 1, c, "invalid number of txs in the pool")
+}
+
+func Test_GetPendingTxs(t *testing.T) {
+	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
+	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
+
+	err := db.RunMigrations(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	sqlDB, err := db.NewSQLDB(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer sqlDB.Close() //nolint:gosec,errcheck
+
+	p, err := newPostgresPool(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	const txsCount = 10
+
+	// insert pending transactions
+	for i := 0; i < txsCount; i++ {
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+		err := p.AddTx(*tx)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	txs, err := p.GetPendingTxs()
+	if err != nil {
+		t.Error(err)
+	}
+
+	assert.Equal(t, txsCount, len(txs))
+
+	for i := 0; i < txsCount; i++ {
+		assert.Equal(t, TxStatePending, txs[0].State)
+	}
+}
+
+func Test_UpdateTxState(t *testing.T) {
+
+	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
+	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
+
+	err := db.RunMigrations(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p, err := newPostgresPool(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	err = p.AddTx(*tx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p.UpdateTxState(tx.Hash(), TxStateInvalid)
+
+	sqlDB, err := db.NewSQLDB(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer sqlDB.Close() //nolint:gosec,errcheck
+
+	rows, err := sqlDB.Query("SELECT state FROM pool.txs WHERE hash = $1", tx.Hash().Hex())
+	if err != nil {
+		t.Error(err)
+	}
+
+	rows.Next()
+
+	var state string
+	rows.Scan(&state)
+
+	assert.Equal(t, TxStateInvalid, TxState(state))
+}
+
+func Test_SetAndGetGasPrice(t *testing.T) {
+
+	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
+	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
+
+	err := db.RunMigrations(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p, err := newPostgresPool(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	rand.Seed(time.Now().Unix())
+	expectedGasPrice := rand.Uint64()
+
+	err = p.SetGasPrice(expectedGasPrice)
+	if err != nil {
+		t.Error(err)
+	}
+
+	gasPrice, err := p.GetGasPrice()
+	if err != nil {
+		t.Error(err)
+	}
+
+	assert.Equal(t, expectedGasPrice, gasPrice)
 }

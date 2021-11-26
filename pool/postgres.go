@@ -1,11 +1,10 @@
 package pool
 
 import (
-	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/constants"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 )
@@ -89,6 +88,8 @@ func (p *postgresPool) GetPendingTxs() ([]Transaction, error) {
 			return nil, err
 		}
 
+		tx.State = TxState(state)
+
 		txs = append(txs, *tx)
 	}
 
@@ -124,8 +125,8 @@ func (p *postgresPool) SetGasPrice(gasPrice uint64) error {
 	defer sqlDB.Close() //nolint:errcheck
 
 	// save
-	sql := "INSERT INTO pool.gas_price (price) VALUES ($1)"
-	if _, err := sqlDB.Exec(sql, big.NewInt(0).SetUint64(gasPrice).Text(constants.Base10)); err != nil {
+	sql := "INSERT INTO pool.gas_price (price, timestamp) VALUES ($1, $2)"
+	if _, err := sqlDB.Exec(sql, gasPrice, time.Now().UTC()); err != nil {
 		return err
 	}
 	return nil

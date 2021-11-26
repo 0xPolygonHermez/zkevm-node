@@ -1,17 +1,9 @@
-PGDATABASE ?= 
-PGUSER ?= 
-PGPASSWORD ?= 
-
 .PHONY: build
 build: lint test ## Build the binary
 	go build -o ./dist/hezcore ./cmd/main.go
 
 .PHONY: test
-test: ## runs short tests
-	go test ./... -short -p 1
-
-.PHONY: test-all
-test-all: ## runs all tests
+test: ## runs tests
 	go test ./... -p 1
 
 .PHONY: install-linter
@@ -24,7 +16,7 @@ lint: ## runs linter
 
 .PHONY: run-db
 run-db: ## runs all tests
-	docker run --rm -p 5432:5432 -e POSTGRES_DB=polygon-hermez -e POSTGRES_USER=hermez -e POSTGRES_PASSWORD="polygon" -d postgres
+	docker run --rm -p 5432:5432 -e POSTGRES_DB="polygon-hermez" -e POSTGRES_USER="hermez" -e POSTGRES_PASSWORD="polygon" -d postgres
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
