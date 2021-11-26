@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"context"
 	"crypto/rand"
 	"math"
 	"math/big"
@@ -23,7 +24,7 @@ func Test_AddTx(t *testing.T) {
 		t.Error(err)
 	}
 
-	p, err := newPostgresPool(cfg)
+	p, err := NewPostgresPool(cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -36,7 +37,9 @@ func Test_AddTx(t *testing.T) {
 	tx := new(types.Transaction)
 	tx.UnmarshalBinary(b) //nolint:gosec,errcheck
 
-	err = p.AddTx(*tx)
+	ctx := context.Background()
+
+	err = p.AddTx(ctx, *tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -47,10 +50,11 @@ func Test_AddTx(t *testing.T) {
 	}
 	defer sqlDB.Close() //nolint:gosec,errcheck
 
-	rows, err := sqlDB.Query("SELECT hash, encoded, decoded, state FROM pool.txs")
+	rows, err := sqlDB.Query(ctx, "SELECT hash, encoded, decoded, state FROM pool.txs")
 	if err != nil {
 		t.Error(err)
 	}
+	defer rows.Close()
 
 	c := 0
 	for rows.Next() {
@@ -86,23 +90,25 @@ func Test_GetPendingTxs(t *testing.T) {
 	}
 	defer sqlDB.Close() //nolint:gosec,errcheck
 
-	p, err := newPostgresPool(cfg)
+	p, err := NewPostgresPool(cfg)
 	if err != nil {
 		t.Error(err)
 	}
 
 	const txsCount = 10
 
+	ctx := context.Background()
+
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-		err := p.AddTx(*tx)
+		err := p.AddTx(ctx, *tx)
 		if err != nil {
 			t.Error(err)
 		}
 	}
 
-	txs, err := p.GetPendingTxs()
+	txs, err := p.GetPendingTxs(ctx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -123,18 +129,20 @@ func Test_UpdateTxState(t *testing.T) {
 		t.Error(err)
 	}
 
-	p, err := newPostgresPool(cfg)
+	ctx := context.Background()
+
+	p, err := NewPostgresPool(cfg)
 	if err != nil {
 		t.Error(err)
 	}
 
 	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	err = p.AddTx(*tx)
+	err = p.AddTx(ctx, *tx)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = p.UpdateTxState(tx.Hash(), TxStateInvalid)
+	err = p.UpdateTxState(ctx, tx.Hash(), TxStateInvalid)
 	if err != nil {
 		t.Error(err)
 	}
@@ -145,14 +153,14 @@ func Test_UpdateTxState(t *testing.T) {
 	}
 	defer sqlDB.Close() //nolint:gosec,errcheck
 
-	rows, err := sqlDB.Query("SELECT state FROM pool.txs WHERE hash = $1", tx.Hash().Hex())
+	rows, err := sqlDB.Query(ctx, "SELECT state FROM pool.txs WHERE hash = $1", tx.Hash().Hex())
 	if err != nil {
 		t.Error(err)
 	}
-
-	rows.Next()
+	defer rows.Close()
 
 	var state string
+	rows.Next()
 	err = rows.Scan(&state)
 	if err != nil {
 		t.Error(err)
@@ -170,7 +178,7 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 		t.Error(err)
 	}
 
-	p, err := newPostgresPool(cfg)
+	p, err := NewPostgresPool(cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -181,12 +189,14 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	}
 	expectedGasPrice := nBig.Uint64()
 
-	err = p.SetGasPrice(expectedGasPrice)
+	ctx := context.Background()
+
+	err = p.SetGasPrice(ctx, expectedGasPrice)
 	if err != nil {
 		t.Error(err)
 	}
 
-	gasPrice, err := p.GetGasPrice()
+	gasPrice, err := p.GetGasPrice(ctx)
 	if err != nil {
 		t.Error(err)
 	}

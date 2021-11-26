@@ -15,7 +15,7 @@ lint: ## runs linter
 	$$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E gosec -E gci -E misspell -E gomnd -E gofmt -E goimports -E golint --exclude-use-default=false --max-same-issues 0
 
 .PHONY: run-db
-run-db: ## runs all tests
+run-db: ## runs the db instance
 	docker run --rm -p 5432:5432 -e POSTGRES_DB="polygon-hermez" -e POSTGRES_USER="hermez" -e POSTGRES_PASSWORD="polygon" -d postgres
 
 ## Help display.

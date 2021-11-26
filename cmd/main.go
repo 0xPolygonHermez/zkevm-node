@@ -34,7 +34,7 @@ func runMigrations(c db.Config) {
 }
 
 func runJSONRpcServer(jc jsonrpc.Config, dc db.Config) {
-	p, err := pool.NewPool(dc)
+	p, err := pool.NewPostgresPool(dc)
 	if err != nil {
 		log.Fatal(err)
 	}

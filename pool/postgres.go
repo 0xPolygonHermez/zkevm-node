@@ -1,73 +1,66 @@
 package pool
 
 import (
+	"context"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-type postgresPool struct {
-	cfg db.Config
+// PostgresPool is an implementation of the Pool interface
+// that uses a postgres database to store the data
+type PostgresPool struct {
+	db *pgxpool.Pool
 }
 
-func newPostgresPool(cfg db.Config) (*postgresPool, error) {
-	return &postgresPool{
-		cfg: cfg,
+// NewPostgresPool creates and initializes an instance of PostgresPool
+func NewPostgresPool(cfg db.Config) (*PostgresPool, error) {
+	dbPool, err := db.NewSQLDB(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PostgresPool{
+		db: dbPool,
 	}, nil
 }
 
-func (p *postgresPool) AddTx(tx types.Transaction) error {
-	// hash
+// AddTx adds a transaction to the pool table with pending state
+func (p *PostgresPool) AddTx(ctx context.Context, tx types.Transaction) error {
 	hash := tx.Hash().Hex()
 
-	// encoded
 	b, err := tx.MarshalBinary()
 	if err != nil {
 		return err
 	}
 	encoded := hex.EncodeToHex(b)
 
-	// decoded
 	b, err = tx.MarshalJSON()
 	if err != nil {
 		return err
 	}
 	decoded := string(b)
 
-	// transaction state
-	state := TxStatePending
-
-	// get connection
-	sqlDB, err := db.NewSQLDB(p.cfg)
-	if err != nil {
-		return err
-	}
-	defer sqlDB.Close() //nolint:errcheck
-
-	// save
 	sql := "INSERT INTO pool.txs (hash, encoded, decoded, state) VALUES($1, $2, $3, $4)"
-	if _, err := sqlDB.Exec(sql, hash, encoded, decoded, state); err != nil {
+	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, TxStatePending); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *postgresPool) GetPendingTxs() ([]Transaction, error) {
-	// get connection
-	sqlDB, err := db.NewSQLDB(p.cfg)
-	if err != nil {
-		return nil, err
-	}
-	defer sqlDB.Close() //nolint:errcheck
-
+// GetPendingTxs returns an array of transactions with all
+// the transactions which have the state equals pending
+func (p *PostgresPool) GetPendingTxs(ctx context.Context) ([]Transaction, error) {
 	sql := "SELECT encoded, state FROM pool.txs WHERE state = $1"
-	rows, err := sqlDB.Query(sql, TxStatePending)
+	rows, err := p.db.Query(ctx, sql, TxStatePending)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	txs := []Transaction{}
 	for rows.Next() {
@@ -96,56 +89,39 @@ func (p *postgresPool) GetPendingTxs() ([]Transaction, error) {
 	return txs, nil
 }
 
-func (p *postgresPool) UpdateTxState(hash common.Hash, newState TxState) error {
-	// get connection
-	sqlDB, err := db.NewSQLDB(p.cfg)
-	if err != nil {
-		return err
-	}
-	defer sqlDB.Close() //nolint:errcheck
-
-	// save
+// UpdateTxState updates a transaction state accordingly to the
+// provided state and hash
+func (p *PostgresPool) UpdateTxState(ctx context.Context, hash common.Hash, newState TxState) error {
 	sql := "UPDATE pool.txs SET state = $1 WHERE hash = $2"
-	if _, err := sqlDB.Exec(sql, newState, hash.Hex()); err != nil {
+	if _, err := p.db.Exec(ctx, sql, newState, hash.Hex()); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *postgresPool) CleanUpInvalidAndNonSelectedTxs() error {
+// CleanUpInvalidAndNonSelectedTxs removes from the transaction pool table
+// the invalid and Non selected transactions
+func (p *PostgresPool) CleanUpInvalidAndNonSelectedTxs(ctx context.Context) error {
 	panic("not implemented yet")
 }
 
-func (p *postgresPool) SetGasPrice(gasPrice uint64) error {
-	// get connection
-	sqlDB, err := db.NewSQLDB(p.cfg)
-	if err != nil {
-		return err
-	}
-	defer sqlDB.Close() //nolint:errcheck
-
-	// save
+// SetGasPrice allows an external component to define the gas price
+func (p *PostgresPool) SetGasPrice(ctx context.Context, gasPrice uint64) error {
 	sql := "INSERT INTO pool.gas_price (price, timestamp) VALUES ($1, $2)"
-	if _, err := sqlDB.Exec(sql, gasPrice, time.Now().UTC()); err != nil {
+	if _, err := p.db.Exec(ctx, sql, gasPrice, time.Now().UTC()); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (p *postgresPool) GetGasPrice() (uint64, error) {
-	// get connection
-	sqlDB, err := db.NewSQLDB(p.cfg)
-	if err != nil {
-		return 0, err
-	}
-	defer sqlDB.Close() //nolint:errcheck
-
-	// save
+// GetGasPrice returns the current gas price
+func (p *PostgresPool) GetGasPrice(ctx context.Context) (uint64, error) {
 	sql := "SELECT price FROM pool.gas_price ORDER BY item_id DESC LIMIT 1"
-	rows, err := sqlDB.Query(sql)
+	rows, err := p.db.Query(ctx, sql)
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
 
 	gasPrice := uint64(0)
 

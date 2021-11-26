@@ -1,8 +1,10 @@
 package db
 
 import (
+	"context"
 	"testing"
 
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,15 +19,22 @@ var cfg = Config{
 }
 
 func TestDBService(t *testing.T) {
-	// Start DB Server
-	err := dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "./migrations/0001.sql")
+	log.Init(log.Config{
+		Level:   "debug",
+		Outputs: []string{"stdout"},
+	})
+
+	err := dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "")
+	require.NoError(t, err)
+
+	err = RunMigrations(cfg)
 	require.NoError(t, err)
 
 	db, err := NewSQLDB(cfg)
 	require.NoError(t, err)
 
 	var result uint
-	err = db.QueryRow("select count(*) from block").Scan(&result)
+	err = db.QueryRow(context.Background(), "select count(*) from block").Scan(&result)
 	require.NoError(t, err)
 	assert.Equal(t, result, uint(0))
 
