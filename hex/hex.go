@@ -6,8 +6,11 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+)
 
-	"github.com/hermeznetwork/hermez-core/constants"
+const (
+	// Base represents the hexadecimal base, which is 16
+	Base = 16
 )
 
 // TODO Remove
@@ -61,7 +64,7 @@ func MustDecodeHex(str string) []byte {
 func EncodeUint64(i uint64) string {
 	enc := make([]byte, 2, 10) //nolint:gomnd
 	copy(enc, "0x")
-	return string(strconv.AppendUint(enc, i, constants.Base16))
+	return string(strconv.AppendUint(enc, i, Base))
 }
 
 // BadNibble is a nibble that is bad
@@ -95,7 +98,7 @@ func EncodeBig(bigint *big.Int) string {
 // DecodeHexToBig converts a hex number to a big.Int value
 func DecodeHexToBig(hexNum string) *big.Int {
 	createdNum := new(big.Int)
-	createdNum.SetString(hexNum, constants.Base16)
+	createdNum.SetString(hexNum, Base)
 
 	return createdNum
 }

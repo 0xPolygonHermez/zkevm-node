@@ -6,8 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hermeznetwork/hermez-core/constants"
 	"github.com/hermeznetwork/hermez-core/hex"
+)
+
+const (
+	bitSize64 = 64
 )
 
 // DecodeUint64orHex decodes a string uint64 or hex string into a uint64
@@ -22,7 +25,7 @@ func DecodeUint64orHex(val *string) (uint64, error) {
 		str = str[2:]
 		base = 16
 	}
-	return strconv.ParseUint(str, base, constants.BitSize64)
+	return strconv.ParseUint(str, base, bitSize64)
 }
 
 // DecodeUint256orHex decodes a string uint256 or hex string into a bit.Int
@@ -75,6 +78,6 @@ func EncodeBytes(b []byte) *string {
 
 // EncodeBigInt encodes a big.Int into a hex string
 func EncodeBigInt(b *big.Int) *string {
-	res := "0x" + b.Text(constants.Base16)
+	res := "0x" + b.Text(hex.Base)
 	return &res
 }
