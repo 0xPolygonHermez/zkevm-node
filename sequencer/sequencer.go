@@ -104,7 +104,7 @@ func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.
 	ctx := context.Background()
 	for _, tx := range sortedTxs {
 		// check if tx is valid
-		if err := s.BatchProcessor.CheckTransaction(tx.Transaction); err != nil {
+		if err := s.BatchProcessor.CheckTransaction(&tx.Transaction); err != nil {
 			if err = s.Pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateInvalid); err != nil {
 				return nil, err
 			}
