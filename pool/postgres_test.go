@@ -1,10 +1,10 @@
 package pool
 
 import (
+	"crypto/rand"
+	"math"
 	"math/big"
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -115,7 +115,6 @@ func Test_GetPendingTxs(t *testing.T) {
 }
 
 func Test_UpdateTxState(t *testing.T) {
-
 	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
 	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
 
@@ -135,7 +134,10 @@ func Test_UpdateTxState(t *testing.T) {
 		t.Error(err)
 	}
 
-	p.UpdateTxState(tx.Hash(), TxStateInvalid)
+	err = p.UpdateTxState(tx.Hash(), TxStateInvalid)
+	if err != nil {
+		t.Error(err)
+	}
 
 	sqlDB, err := db.NewSQLDB(cfg)
 	if err != nil {
@@ -151,13 +153,15 @@ func Test_UpdateTxState(t *testing.T) {
 	rows.Next()
 
 	var state string
-	rows.Scan(&state)
+	err = rows.Scan(&state)
+	if err != nil {
+		t.Error(err)
+	}
 
 	assert.Equal(t, TxStateInvalid, TxState(state))
 }
 
 func Test_SetAndGetGasPrice(t *testing.T) {
-
 	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
 	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
 
@@ -171,8 +175,11 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 		t.Error(err)
 	}
 
-	rand.Seed(time.Now().Unix())
-	expectedGasPrice := rand.Uint64()
+	nBig, err := rand.Int(rand.Reader, big.NewInt(0).SetUint64(math.MaxUint64))
+	if err != nil {
+		t.Error(err)
+	}
+	expectedGasPrice := nBig.Uint64()
 
 	err = p.SetGasPrice(expectedGasPrice)
 	if err != nil {
