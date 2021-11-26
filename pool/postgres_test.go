@@ -54,7 +54,6 @@ func Test_AddTx(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	defer rows.Close()
 
 	c := 0
 	for rows.Next() {

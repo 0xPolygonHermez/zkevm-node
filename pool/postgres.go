@@ -60,9 +60,8 @@ func (p *PostgresPool) GetPendingTxs(ctx context.Context) ([]Transaction, error)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	txs := []Transaction{}
+	txs := make([]Transaction, 0, len(rows.RawValues()))
 	for rows.Next() {
 		var encoded, state string
 
@@ -121,7 +120,6 @@ func (p *PostgresPool) GetGasPrice(ctx context.Context) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
 
 	gasPrice := uint64(0)
 
