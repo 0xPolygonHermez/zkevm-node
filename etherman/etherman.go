@@ -31,7 +31,7 @@ var (
 type EtherMan interface {
 	EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error)
 	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
-	GetBatchesFromBlockTo(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error)
+	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error)
 	SendBatch(batch state.Batch) (common.Hash, error)
 	ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error)
 }
@@ -127,9 +127,9 @@ func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNum 
 	return blocks, nil
 }
 
-// GetBatchesFromBlockTo function retrieves the batches information that are included in all this ethereum blocks
+// GetBatchesByBlockRange function retrieves the batches information that are included in all this ethereum blocks
 //from block x to block y
-func (etherMan *ClientEtherMan) GetBatchesFromBlockTo(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error) {
+func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error) {
 	//First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
@@ -314,9 +314,9 @@ func (etherMan *TestClientEtherMan) GetBatchesByBlock(ctx context.Context, block
 	return blocks, nil
 }
 
-// GetBatchesFromBlockTo function retrieves the batches information that are included in all this ethereum blocks
+// GetBatchesByBlockRange function retrieves the batches information that are included in all this ethereum blocks
 //from block x to block y
-func (etherMan *TestClientEtherMan) GetBatchesFromBlockTo(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error) {
+func (etherMan *TestClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error) {
 	//First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),

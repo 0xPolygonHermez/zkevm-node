@@ -182,7 +182,7 @@ func TestSCEvents(t *testing.T) {
 	require.NoError(t, err)
 	finalBlock := testEnv.client.Blockchain().CurrentBlock()
 	ctx := context.Background()
-	block, err := etherman.GetBatchesFromBlockTo(ctx, initBlock.NumberU64(), finalBlock.NumberU64()+1)
+	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), finalBlock.NumberU64()+1)
 	require.NoError(t, err)
 	res := []string{"0x3535353535353535353535353535353535353535", "0x1111111111111111111111111111111111111111", "0x1212121212121212121212121212121212121212"}
 	for k, tx := range block[0].Batches[0].Transactions {
@@ -219,7 +219,7 @@ func TestSCEvents(t *testing.T) {
 
 	initBlock = finalBlock
 	finalBlock = testEnv.client.Blockchain().CurrentBlock()
-	block, err = etherman.GetBatchesFromBlockTo(ctx, initBlock.NumberU64(), finalBlock.NumberU64()+1)
+	block, err = etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), finalBlock.NumberU64()+1)
 	require.NoError(t, err)
 	assert.NotEqual(t, common.Hash{}, block[1].Batches[0].ConsolidatedTxHash)
 	assert.Equal(t, 2, len(block[0].Batches))
