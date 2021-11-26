@@ -101,7 +101,8 @@ func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.
 	var selectedTxs []*types.Transaction
 	for _, tx := range sortedTxs {
 		// check if tx is valid
-		if err := s.BatchProcessor.CheckTransaction(&tx.Transaction); err != nil {
+		_, _, _, err := s.BatchProcessor.CheckTransaction(&tx.Transaction)
+		if err != nil {
 			if err = s.Pool.UpdateTxState(tx.Hash(), pool.TxStateInvalid); err != nil {
 				return nil, err
 			}
