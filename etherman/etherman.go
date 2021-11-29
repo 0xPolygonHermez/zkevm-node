@@ -102,7 +102,7 @@ func NewTestEtherman(cfg Config, etherCLient *backends.SimulatedBackend, poe *pr
 func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error) {
 	block, err := etherMan.EtherClient.BlockByNumber(ctx, big.NewInt(blockNum))
 	if err != nil {
-		return &types.Block{}, nil
+		return &types.Block{}, err
 	}
 	return block, nil
 }
@@ -189,7 +189,9 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		var batch state.Batch
 		batch.BatchNumber = new(big.Int).SetBytes(vLog.Topics[1][:]).Uint64()
 		batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
-		batch.Header.TxHash = vLog.TxHash
+		var head types.Header
+		head.TxHash = vLog.TxHash
+		batch.Header = &head
 		block.BlockNumber = vLog.BlockNumber
 		batch.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
@@ -197,10 +199,12 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		if err == nil {
 			block.ParentHash = fullBlock.ParentHash()
 		}
-		//Now, We have to read the tx for this batch.
+		//Read the tx for this batch.
 		tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, batch.Header.TxHash)
-		if err != nil || isPending {
+		if err != nil {
 			return nil, err
+		} else if isPending {
+			return nil, fmt.Errorf("error: tx is still pending. TxHash: %s", tx.Hash().String())
 		}
 		batch.RawTxsData = tx.Data()
 		txs, err := decodeTxs(tx.Data())
@@ -225,7 +229,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		block.Batches = append(block.Batches, batch)
 		return &block, nil
 	}
-	return nil, nil
+	return nil, fmt.Errorf("Event not registered")
 }
 
 const headerByteLength = 2
@@ -233,7 +237,7 @@ const headerByteLength = 2
 func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 	// First split txs
 	// The first two bytes are the header. The information related to the length of the tx is stored in the second byte.
-	// So, first we've to read the second byte to check the tx length. Then, copy from the current position to the last
+	// So, first read the second byte to check the tx length. Then, copy from the current position to the last
 	// byte of the tx if exists (if not will be completed with zeros). Now, I try to decode the tx, If it is possible,
 	// everything is fine. If not, print error and try to get the next tx.
 
@@ -277,7 +281,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 		var tx types.LegacyTx
 		err = rlp.DecodeBytes(data, &tx)
 		if err != nil {
-			log.Error("error decoding tx bytes: ", err, data)
+			log.Info("error decoding tx bytes: ", err, data)
 			continue
 		}
 		txs = append(txs, types.NewTransaction(tx.Nonce, *tx.To, tx.Value, tx.Gas, tx.GasPrice, tx.Data))
@@ -386,10 +390,12 @@ func (etherMan *TestClientEtherMan) processEvent(ctx context.Context, vLog types
 		if err == nil {
 			block.ParentHash = fullBlock.ParentHash()
 		}
-		//Now, We have to read the tx for this batch.
+		//Read the tx for this batch.
 		tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, batch.Header.TxHash)
-		if err != nil || isPending {
+		if err != nil {
 			return nil, err
+		} else if isPending {
+			return nil, fmt.Errorf("error: tx is still pending. TxHash: %s", tx.Hash().String())
 		}
 		batch.RawTxsData = tx.Data()
 		txs, err := decodeTxs(tx.Data())
