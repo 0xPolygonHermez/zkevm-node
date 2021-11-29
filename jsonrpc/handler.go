@@ -176,17 +176,17 @@ func validateFunc(funcName string, fv reflect.Value, isMethod bool) (inNum int, 
 	return
 }
 
-var errt = reflect.TypeOf((*detailedError)(nil)).Elem()
+var errt = reflect.TypeOf((*error)(nil)).Elem()
 
 func isErrorType(t reflect.Type) bool {
 	return t.Implements(errt)
 }
 
-func getError(v reflect.Value) detailedError {
+func getError(v reflect.Value) error {
 	if v.IsNil() {
 		return nil
 	}
-	return v.Interface().(detailedError)
+	return v.Interface().(error)
 }
 
 func lowerCaseFirst(str string) string {
