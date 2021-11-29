@@ -116,3 +116,11 @@ func (s *StateMock) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, err
 func (s *StateMock) AddNewSequencer(seq state.Sequencer) error {
 	return nil
 }
+
+func (s *StateMock) SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error {
+	return nil
+}
+
+func (s *StateMock) GetLastBatchNumberSeenOnEthereum() (uint64, error) {
+	return 0, nil
+}

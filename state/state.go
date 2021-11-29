@@ -36,6 +36,8 @@ type State interface {
 	ConsolidateBatch(batchNumber uint64) error
 	GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error)
 	AddNewSequencer(seq Sequencer) error
+	SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error
+	GetLastBatchNumberSeenOnEthereum() (uint64, error)
 }
 
 // BasicState is a implementation of the state
@@ -184,4 +186,18 @@ func (s *BasicState) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, er
 // AddNewSequencer stores a new sequencer
 func (s *BasicState) AddNewSequencer(seq Sequencer) error {
 	return nil
+}
+
+// SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
+// the roll-up in order to allow the components to know if the state
+// is synchronized or not
+func (s *BasicState) SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error {
+	return nil
+}
+
+// GetLastBatchNumberSeenOnEthereum returns the last batch number stored
+// in the state that represents the last batch number that affected the
+// roll-up in the Ethereum network.
+func (s *BasicState) GetLastBatchNumberSeenOnEthereum() (uint64, error) {
+	return 0, nil
 }
