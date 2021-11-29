@@ -6,11 +6,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
-
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // State is the interface of the Hermez state
