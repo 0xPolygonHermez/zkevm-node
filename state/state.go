@@ -15,17 +15,17 @@ type State interface {
 	GetStateRoot(virtual bool) (*big.Int, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
 	EstimateGas(transaction *types.Transaction) uint64
-	GetLastBlock() (*types.Block, error)
-	GetPreviousBlock(offset uint64) (*types.Block, error)
-	GetBlockByHash(hash common.Hash) (*types.Block, error)
-	GetBlockByNumber(blockNumber uint64) (*types.Block, error)
+	GetLastBlock() (*Block, error)
+	GetPreviousBlock(offset uint64) (*Block, error)
+	GetBlockByHash(hash common.Hash) (*Block, error)
+	GetBlockByNumber(blockNumber uint64) (*Block, error)
 	GetLastBlockNumber() (uint64, error)
 	GetLastBatch(isVirtual bool) (*Batch, error)
 	GetTransaction(hash common.Hash) (*types.Transaction, error)
 	GetNonce(address common.Address, batchNumber uint64) (uint64, error)
 	GetPreviousBatch(offset uint64) (*Batch, error)
-	GetBatchByHash(hash common.Hash) (*types.Block, error)
-	GetBatchByNumber(batchNumber uint64) (*types.Block, error)
+	GetBatchByHash(hash common.Hash) (*Block, error)
+	GetBatchByNumber(batchNumber uint64) (*Block, error)
 	GetLastBatchNumber() (uint64, error)
 	GetTransactionByBatchHashAndIndex(batchHash common.Hash, index uint64) (*types.Transaction, error)
 	GetTransactionByBatchNumberAndIndex(batchNumber uint64, index uint64) (*types.Transaction, error)
@@ -82,22 +82,22 @@ func (s *BasicState) EstimateGas(transaction *types.Transaction) uint64 {
 }
 
 // GetLastBlock gets the latest block
-func (s *BasicState) GetLastBlock() (*types.Block, error) {
+func (s *BasicState) GetLastBlock() (*Block, error) {
 	panic("not implemented yet")
 }
 
 // GetPreviousBlock gets the offset previous block respect to latest
-func (s *BasicState) GetPreviousBlock(offset uint64) (*types.Block, error) {
+func (s *BasicState) GetPreviousBlock(offset uint64) (*Block, error) {
 	return nil, nil
 }
 
 // GetBlockByHash gets the block with the required hash
-func (s *BasicState) GetBlockByHash(hash common.Hash) (*types.Block, error) {
+func (s *BasicState) GetBlockByHash(hash common.Hash) (*Block, error) {
 	return nil, nil
 }
 
 // GetBlockByNumber gets the block with the required number
-func (s *BasicState) GetBlockByNumber(blockNumber uint64) (*types.Block, error) {
+func (s *BasicState) GetBlockByNumber(blockNumber uint64) (*Block, error) {
 	return nil, nil
 }
 
@@ -127,12 +127,12 @@ func (s *BasicState) GetPreviousBatch(offset uint64) (*Batch, error) {
 }
 
 // GetBatchByHash gets the batch with the required hash
-func (s *BasicState) GetBatchByHash(hash common.Hash) (*types.Block, error) {
+func (s *BasicState) GetBatchByHash(hash common.Hash) (*Block, error) {
 	return nil, nil
 }
 
 // GetBatchByNumber gets the batch with the required number
-func (s *BasicState) GetBatchByNumber(batchNumber uint64) (*types.Block, error) {
+func (s *BasicState) GetBatchByNumber(batchNumber uint64) (*Block, error) {
 	return nil, nil
 }
 

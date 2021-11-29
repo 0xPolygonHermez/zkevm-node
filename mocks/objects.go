@@ -21,7 +21,7 @@ const (
 )
 
 var (
-	block       = types.NewBlockWithHeader(&types.Header{Number: big.NewInt(blockNumber)})
+	block       = state.NewBlock(uint64(blockNumber))
 	batch       = state.NewBatchWithHeader(types.Header{Number: big.NewInt(batchNumber)})
 	txToAddress = common.HexToAddress(address)
 	tx          = types.NewTransaction(txNonce, txToAddress, big.NewInt(txAmount), estimatedGas, big.NewInt(gasPrice), []byte{})

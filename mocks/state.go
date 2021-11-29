@@ -31,19 +31,19 @@ func (s *StateMock) EstimateGas(transaction *types.Transaction) uint64 {
 	return estimatedGas
 }
 
-func (s *StateMock) GetLastBlock() (*types.Block, error) {
+func (s *StateMock) GetLastBlock() (*state.Block, error) {
 	return block, nil
 }
 
-func (s *StateMock) GetPreviousBlock(offset uint64) (*types.Block, error) {
+func (s *StateMock) GetPreviousBlock(offset uint64) (*state.Block, error) {
 	return block, nil
 }
 
-func (s *StateMock) GetBlockByHash(hash common.Hash) (*types.Block, error) {
+func (s *StateMock) GetBlockByHash(hash common.Hash) (*state.Block, error) {
 	return block, nil
 }
 
-func (s *StateMock) GetBlockByNumber(blockNumber uint64) (*types.Block, error) {
+func (s *StateMock) GetBlockByNumber(blockNumber uint64) (*state.Block, error) {
 	return block, nil
 }
 
@@ -67,11 +67,11 @@ func (s *StateMock) GetPreviousBatch(offset uint64) (*state.Batch, error) {
 	return batch, nil
 }
 
-func (s *StateMock) GetBatchByHash(hash common.Hash) (*types.Block, error) {
+func (s *StateMock) GetBatchByHash(hash common.Hash) (*state.Block, error) {
 	return block, nil
 }
 
-func (s *StateMock) GetBatchByNumber(batchNumber uint64) (*types.Block, error) {
+func (s *StateMock) GetBatchByNumber(batchNumber uint64) (*state.Block, error) {
 	return block, nil
 }
 
