@@ -64,14 +64,16 @@ func (b *Batch) EmptyReceipts() bool {
 
 // Batch represents a batch
 type Batch struct {
-	BatchNumber  uint64
-	BlockNumber  uint64
-	IsVirtual    bool
-	Sequencer    common.Address
-	Aggregator   common.Address
-	Header       *types.Header
-	Uncles       []*types.Header
-	Transactions []*types.Transaction
+	BatchNumber        uint64
+	BatchHash          common.Hash
+	BlockNumber        uint64
+	ConsolidatedTxHash common.Hash
+	Sequencer          common.Address
+	Aggregator         common.Address
+	Header             *types.Header
+	Uncles             []*types.Header
+	Transactions       []*types.Transaction
+	RawTxsData         []byte
 
 	ReceivedAt time.Time
 }

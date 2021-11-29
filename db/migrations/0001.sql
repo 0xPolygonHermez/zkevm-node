@@ -9,9 +9,26 @@
 -- History
 CREATE TABLE block
 (
-    eth_block_num BIGINT PRIMARY KEY,
-    received_at   TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    hash          BYTEA                       NOT NULL
+    block_num   BIGINT PRIMARY KEY,
+    block_hash  BYTEA                       NOT NULL,
+    parent_hash BYTEA,
+
+    received_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+);
+
+CREATE TABLE batch
+(
+    batch_num            BIGINT PRIMARY KEY,
+    batch_hash           BYTEA,
+    block_num            BIGINT                      NOT NULL REFERENCES block (block_num) ON DELETE CASCADE,
+    sequencer            BYTEA,
+    aggregator           BYTEA,
+    consolidated_tx_hash BYTEA,
+    header               jsonb,
+    uncles               jsonb,
+    raw_txs_data         BYTEA,
+
+    received_at          TIMESTAMP WITHOUT TIME ZONE NOT NULL
 );
 
 CREATE TABLE transaction
@@ -21,12 +38,3 @@ CREATE TABLE transaction
     decoded   jsonb,
     batch_num BIGINT NOT NULL REFERENCES batch (batch_num) ON DELETE CASCADE
 );
-
-CREATE TABLE batch
-(
-    batch_num     BIGINT PRIMARY KEY,
-    hash          varchar,
-    eth_block_num BIGINT         NOT NULL REFERENCES block (eth_block_num) ON DELETE CASCADE,
-    state_root    DECIMAL(78, 0) NOT NULL,
-    is_virtual    bool
-)

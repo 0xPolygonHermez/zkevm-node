@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,17 +16,16 @@ type State interface {
 	GetStateRoot(virtual bool) (*big.Int, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
 	EstimateGas(transaction types.Transaction) uint64
-	GetLastBlock(ctx context.Context) (*types.Block, error)
-	GetPreviousBlock(ctx context.Context, offset uint64) (*types.Block, error)
-	GetBlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
-	GetBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error)
+	GetLastBlock(ctx context.Context) (*Block, error)
+	GetPreviousBlock(ctx context.Context, offset uint64) (*Block, error)
+	GetBlockByHash(ctx context.Context, hash common.Hash) (*Block, error)
+	GetBlockByNumber(ctx context.Context, blockNumber uint64) (*Block, error)
 	GetLastBlockNumber(ctx context.Context) (uint64, error)
-	GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, error)
-	GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, error)
 	GetNonce(address common.Address, batchNumber uint64) (uint64, error)
-	GetPreviousBatch(ctx context.Context, offset uint64) (*Batch, error)
-	GetBatchByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
-	GetBatchByNumber(ctx context.Context, batchNumber uint64) (*types.Block, error)
+	GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, error)
+	GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*Batch, error)
+	GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error)
+	GetBatchByNumber(ctx context.Context, batchNumber uint64) (*Batch, error)
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
 	GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64) (*types.Transaction, error)
 	GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error)
@@ -33,25 +33,27 @@ type State interface {
 	GetTransactionCount(ctx context.Context, address common.Address) (uint64, error)
 	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*types.Receipt, error)
 	Reset(blockNumber uint64) error
-	ConsolidateBatch(batchNumber uint64) error
+	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
 }
 
 const (
-	getLastBlockSQL         = "SELECT * FROM block ORDER BY received_at DESC LIMIT 1"
-	getPreviousBlockSQL     = "SELECT * FROM block ORDER BY received_at DESC LIMIT 1 OFFSET $1"
-	getBlockByHashSQL       = "SELECT * FROM block WHERE hash = $1"
-	getBlockByNumberSQL     = "SELECT * FROM block WHERE eth_block_num = $1"
-	getLastBlockNumberSQL   = "SELECT eth_block_num FROM block ORDER BY received_at DESC LIMIT 1"
-	getLastBatchSQL         = "SELECT * FROM batch ORDER BY batch_num DESC LIMIT 1"
-	getPreviousBatchSQL     = "SELECT * FROM batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
-	getTransactionSQL       = "SELECT * FROM transaction WHERE hash = $1"
-	getBatchByHashSQL       = "SELECT * FROM batch WHERE hash = $1"
-	getBatchByNumberSQL     = "SELECT * FROM batch WHERE batch_num = $1"
-	getLastBatchNumberSQL   = "SELECT batch_num FROM batch ORDER BY batch_num DESC LIMIT 1"
-	getTransactionByHashSQL = "SELECT * FROM transaction WHERE hash = $1"
-	// todo: change to jsonb
-	getTransactionCountSQL = "SELECT COUNT(*) FROM transaction WHERE decoded.from = $1"
+	getLastBlockSQL                 = "SELECT * FROM block ORDER BY block_num DESC LIMIT 1"
+	getPreviousBlockSQL             = "SELECT * FROM block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
+	getBlockByHashSQL               = "SELECT * FROM block WHERE block_hash = $1"
+	getBlockByNumberSQL             = "SELECT * FROM block WHERE block_num = $1"
+	getLastBlockNumberSQL           = "SELECT block_num FROM block ORDER BY received_at DESC LIMIT 1"
+	getLastVirtualBatchSQL          = "SELECT * FROM batch WHERE consolidated_block_hash IS NULL ORDER BY batch_num DESC LIMIT 1"
+	getLastConsolidatedBatchSQL     = "SELECT * FROM batch WHERE consolidated_block_hash IS NOT NULL ORDER BY batch_num DESC LIMIT 1"
+	getPreviousVirtualBatchSQL      = "SELECT * FROM batch WHERE consolidated_block_hash IS NULL ORDER BY batch_num DESC LIMIT 1"
+	getPreviousConsolidatedBatchSQL = "SELECT * FROM batch WHERE consolidated_block_hash IS NOT NULL ORDER BY batch_num DESC LIMIT 1"
+	getBatchByHashSQL               = "SELECT * FROM batch WHERE batch_hash = $1"
+	getBatchByNumberSQL             = "SELECT * FROM batch WHERE batch_num = $1"
+	getLastBatchNumberSQL           = "SELECT batch_num FROM batch ORDER BY batch_num DESC LIMIT 1"
+	getTransactionByHashSQL         = "SELECT transaction.encoded FROM transaction WHERE hash = $1"
+	getTransactionCountSQL          = "SELECT COUNT(*) FROM transaction WHERE from = $1"
+	consolidateBatchSQL             = "UPDATE batch SET consolidated_tx_batch = $1 WHERE batch_number = $2"
+	getTxsByBatchNumSQL             = "SELECT transaction.encoded FROM transaction WHERE batch_num = $1"
 )
 
 // BasicState is a implementation of the state
@@ -101,43 +103,43 @@ func (s *BasicState) EstimateGas(transaction types.Transaction) uint64 {
 }
 
 // GetLastBlock gets the latest block
-func (s *BasicState) GetLastBlock(ctx context.Context) (*types.Block, error) {
-	var res *types.Block
-	err := s.db.QueryRow(ctx, getLastBlockSQL).Scan(&res)
+func (s *BasicState) GetLastBlock(ctx context.Context) (*Block, error) {
+	var block Block
+	err := s.db.QueryRow(ctx, getLastBlockSQL).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+	return &block, nil
 }
 
 // GetPreviousBlock gets the offset previous block respect to latest
-func (s *BasicState) GetPreviousBlock(ctx context.Context, offset uint64) (*types.Block, error) {
-	var res *types.Block
-	err := s.db.QueryRow(ctx, getPreviousBlockSQL, offset).Scan(&res)
+func (s *BasicState) GetPreviousBlock(ctx context.Context, offset uint64) (*Block, error) {
+	var block Block
+	err := s.db.QueryRow(ctx, getPreviousBlockSQL, offset).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+	return &block, nil
 }
 
 // GetBlockByHash gets the block with the required hash
-func (s *BasicState) GetBlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
-	var res *types.Block
-	err := s.db.QueryRow(ctx, getBlockByHashSQL, hash).Scan(&res)
+func (s *BasicState) GetBlockByHash(ctx context.Context, hash common.Hash) (*Block, error) {
+	var block Block
+	err := s.db.QueryRow(ctx, getBlockByHashSQL, hash).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+	return &block, nil
 }
 
 // GetBlockByNumber gets the block with the required number
-func (s *BasicState) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
-	var res *types.Block
-	err := s.db.QueryRow(ctx, getBlockByNumberSQL, blockNumber).Scan(&res)
+func (s *BasicState) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*Block, error) {
+	var block *Block
+	err := s.db.QueryRow(ctx, getBlockByNumberSQL, blockNumber).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+	return block, nil
 }
 
 // GetLastBlockNumber gets the latest block number
@@ -152,57 +154,64 @@ func (s *BasicState) GetLastBlockNumber(ctx context.Context) (uint64, error) {
 
 // GetLastBatch gets the latest batch
 func (s *BasicState) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, error) {
-	var batch *Batch
-	err := s.db.QueryRow(ctx, getLastBatchSQL).Scan(&batch)
+	request := getLastConsolidatedBatchSQL
+	if isVirtual {
+		request = getLastVirtualBatchSQL
+	}
+
+	var batch Batch
+	err := s.db.QueryRow(ctx, request).Scan(
+		&batch.BatchNumber, &batch.BlockNumber, &batch.Sequencer,
+		&batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
+		&batch.Uncles, &batch.RawTxsData, &batch.ReceivedAt)
+
 	if err != nil {
 		return nil, err
 	}
-	return batch, nil
-}
-
-// GetTransaction gets a transactions by its hash
-func (s *BasicState) GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, error) {
-	var tx *types.Transaction
-	err := s.db.QueryRow(ctx, getTransactionSQL, hash).Scan(&tx)
-	if err != nil {
-		return nil, err
-	}
-	return tx, nil
-}
-
-// GetNonce returns the nonce of the given account at the given batch number
-func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint64, error) {
-	panic("not implemented yet")
+	return &batch, nil
 }
 
 // GetPreviousBatch gets the offset previous batch respect to latest
-func (s *BasicState) GetPreviousBatch(ctx context.Context, offset uint64) (*Batch, error) {
-	var batch *Batch
-	err := s.db.QueryRow(ctx, getPreviousBatchSQL, offset).Scan(&batch)
+func (s *BasicState) GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*Batch, error) {
+	request := getPreviousConsolidatedBatchSQL
+	if isVirtual {
+		request = getPreviousVirtualBatchSQL
+	}
+	var batch Batch
+	err := s.db.QueryRow(ctx, request, offset).Scan(
+		&batch.BatchNumber, &batch.BlockNumber, &batch.Sequencer,
+		&batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
+		&batch.Uncles, &batch.RawTxsData, &batch.ReceivedAt)
+
 	if err != nil {
 		return nil, err
 	}
-	return batch, nil
+	return &batch, nil
 }
 
 // GetBatchByHash gets the batch with the required hash
 func (s *BasicState) GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error) {
-	var batch *Batch
-	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(&batch)
+	var batch Batch
+	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(
+		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.ReceivedAt)
+
 	if err != nil {
 		return nil, err
 	}
-	return batch, nil
+	return &batch, nil
 }
 
 // GetBatchByNumber gets the batch with the required number
 func (s *BasicState) GetBatchByNumber(ctx context.Context, batchNumber uint64) (*Batch, error) {
-	var batch *Batch
-	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch)
+	var batch Batch
+	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
+		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.ReceivedAt)
 	if err != nil {
 		return nil, err
 	}
-	return batch, nil
+	return &batch, nil
 }
 
 // GetLastBatchNumber gets the latest batch number
@@ -215,30 +224,43 @@ func (s *BasicState) GetLastBatchNumber(ctx context.Context) (uint64, error) {
 	return lastBatchNumber, nil
 }
 
+// GetNonce returns the nonce of the given account at the given batch number
+func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint64, error) {
+	panic("not implemented yet")
+}
+
 // GetTransactionByBatchHashAndIndex gets a transaction from a batch by index
-func (s *BasicState) GetTransactionByBatchHashAndIndex(batchHash common.Hash, index uint64) (*types.Transaction, error) {
+func (s *BasicState) GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64) (*types.Transaction, error) {
 	panic("not implemented")
 }
 
 // GetTransactionByBatchNumberAndIndex gets a transaction from a batch by index
-func (s *BasicState) GetTransactionByBatchNumberAndIndex(batchNumber uint64, index uint64) (*types.Transaction, error) {
+func (s *BasicState) GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error) {
 	panic("not implemented")
 }
 
 // GetTransactionByHash gets a transaction by its hash
 func (s *BasicState) GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error) {
-	var tx *types.Transaction
-	err := s.db.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&tx)
+	var encoded string
+	err := s.db.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&encoded)
+
+	b, err := hex.DecodeHex(encoded)
 	if err != nil {
 		return nil, err
 	}
+
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+
 	return tx, nil
 }
 
 // GetTransactionCount returns the number of transactions sent from an address
-func (s *BasicState) GetTransactionCount(ctx context.Context, address common.Address) (uint64, error) {
+func (s *BasicState) GetTransactionCount(ctx context.Context, fromAddress common.Address) (uint64, error) {
 	var count uint64
-	err := s.db.QueryRow(ctx, getTransactionCountSQL, address).Scan(&count)
+	err := s.db.QueryRow(ctx, getTransactionCountSQL, fromAddress).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
@@ -246,21 +268,52 @@ func (s *BasicState) GetTransactionCount(ctx context.Context, address common.Add
 }
 
 // GetTransactionReceipt returns the receipt of a transaction by transaction hash
-func (s *BasicState) GetTransactionReceipt(transactionHash common.Hash) (*types.Receipt, error) {
-	return nil, nil
+func (s *BasicState) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*types.Receipt, error) {
+	panic("not implemented")
 }
 
 // Reset resets the state to a block
 func (s *BasicState) Reset(blockNumber uint64) error {
-	return nil
+	panic("not implemented")
 }
 
 // ConsolidateBatch changes the virtual status of a batch
-func (s *BasicState) ConsolidateBatch(batchNumber uint64) error {
+func (s *BasicState) ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error {
+	if _, err := s.db.Exec(ctx, consolidateBatchSQL, batchNumber, consolidatedTxHash); err != nil {
+		return err
+	}
 	return nil
 }
 
 // GetTxsByBatchNum returns all the txs in a given batch
-func (s *BasicState) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error) {
-	return nil, nil
+func (s *BasicState) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error) {
+	rows, err := s.db.Query(ctx, getTxsByBatchNumSQL, batchNum)
+	if err != nil {
+		return nil, err
+	}
+	txs := make([]*types.Transaction, 0, len(rows.RawValues()))
+	var (
+		encoded string
+		tx      *types.Transaction
+		b       []byte
+	)
+	for rows.Next() {
+		if err = rows.Scan(&encoded); err != nil {
+			return nil, err
+		}
+
+		tx = new(types.Transaction)
+
+		b, err = hex.DecodeHex(encoded)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := tx.UnmarshalBinary(b); err != nil {
+			return nil, err
+		}
+		txs = append(txs, tx)
+	}
+
+	return txs, nil
 }

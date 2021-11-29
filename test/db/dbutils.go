@@ -1,7 +1,10 @@
 package db
 
 import (
+	database "github.com/hermeznetwork/hermez-core/db"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"io"
+	"os"
 	"os/exec"
 	"time"
 
@@ -72,9 +75,35 @@ func StartPostgreSQL(dbName string, dbUser, dbPassword, sqlFile string) error {
 func StopPostgreSQL() error {
 	cmd := exec.Command("/usr/bin/docker", "stop", dockerInstanceName)
 	err := cmd.Start()
+
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// ConnectToTestSQLDB connects to test sql db
+func ConnectToTestSQLDB() (*pgxpool.Pool, error) {
+	host := os.Getenv("PGHOST")
+	if host == "" {
+		host = "localhost"
+	}
+	port := os.Getenv("PGPORT")
+	if port == "" {
+		port = "5432"
+	}
+	user := os.Getenv("PGUSER")
+	if user == "" {
+		user = "postgres"
+	}
+	pass := os.Getenv("PGPASSWORD")
+	if pass == "" {
+		pass = "password"
+	}
+	dbname := os.Getenv("PGDATABASE")
+	if dbname == "" {
+		dbname = "postgres"
+	}
+	return database.NewSQLDB(dbname, user, pass, host, string(port))
 }
