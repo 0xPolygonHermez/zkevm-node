@@ -2,7 +2,6 @@ package state
 
 import (
 	"context"
-	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"math/big"
 	"os"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 )
