@@ -72,7 +72,6 @@ func StartPostgreSQL(dbName string, dbUser, dbPassword, sqlFile string) error {
 func StopPostgreSQL() error {
 	cmd := exec.Command("/usr/bin/docker", "stop", dockerInstanceName)
 	err := cmd.Start()
-
 	if err != nil {
 		return err
 	}
