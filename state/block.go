@@ -12,7 +12,7 @@ type Block struct {
 	Batches     []Batch
 }
 
-// NewBlock creates a batch with the given data.
+// NewBlock creates a block with the given data.
 func NewBlock(blockNumber uint64) *Block {
 	return &Block{BlockNumber: blockNumber}
 }

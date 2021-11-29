@@ -24,8 +24,8 @@ type State interface {
 	GetTransaction(hash common.Hash) (*types.Transaction, error)
 	GetNonce(address common.Address, batchNumber uint64) (uint64, error)
 	GetPreviousBatch(offset uint64) (*Batch, error)
-	GetBatchByHash(hash common.Hash) (*Block, error)
-	GetBatchByNumber(batchNumber uint64) (*Block, error)
+	GetBatchByHash(hash common.Hash) (*Batch, error)
+	GetBatchByNumber(batchNumber uint64) (*Batch, error)
 	GetLastBatchNumber() (uint64, error)
 	GetTransactionByBatchHashAndIndex(batchHash common.Hash, index uint64) (*types.Transaction, error)
 	GetTransactionByBatchNumberAndIndex(batchNumber uint64, index uint64) (*types.Transaction, error)
@@ -127,12 +127,12 @@ func (s *BasicState) GetPreviousBatch(offset uint64) (*Batch, error) {
 }
 
 // GetBatchByHash gets the batch with the required hash
-func (s *BasicState) GetBatchByHash(hash common.Hash) (*Block, error) {
+func (s *BasicState) GetBatchByHash(hash common.Hash) (*Batch, error) {
 	return nil, nil
 }
 
 // GetBatchByNumber gets the batch with the required number
-func (s *BasicState) GetBatchByNumber(batchNumber uint64) (*Block, error) {
+func (s *BasicState) GetBatchByNumber(batchNumber uint64) (*Batch, error) {
 	return nil, nil
 }
 

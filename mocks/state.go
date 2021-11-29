@@ -67,12 +67,12 @@ func (s *StateMock) GetPreviousBatch(offset uint64) (*state.Batch, error) {
 	return batch, nil
 }
 
-func (s *StateMock) GetBatchByHash(hash common.Hash) (*state.Block, error) {
-	return block, nil
+func (s *StateMock) GetBatchByHash(hash common.Hash) (*state.Batch, error) {
+	return batch, nil
 }
 
-func (s *StateMock) GetBatchByNumber(batchNumber uint64) (*state.Block, error) {
-	return block, nil
+func (s *StateMock) GetBatchByNumber(batchNumber uint64) (*state.Batch, error) {
+	return batch, nil
 }
 
 func (s *StateMock) GetLastBatchNumber() (uint64, error) {
