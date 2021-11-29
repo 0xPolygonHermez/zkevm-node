@@ -229,4 +229,5 @@ func TestSCEvents(t *testing.T) {
 	block, err = etherman.GetBatchesByBlock(ctx, finalBlock.NumberU64(), nil)
 	require.NoError(t, err)
 	assert.NotEqual(t, common.Hash{}, block[0].Batches[0].ConsolidatedTxHash)
+	log.Debugf("Batch consolidated in txHash: %+v \n", block[0].Batches[0].ConsolidatedTxHash)
 }
