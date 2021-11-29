@@ -16,6 +16,7 @@ func main() {
 	c := config.Load()
 	setupLog(c.Log)
 	runMigrations(c.Database)
+	// go runSynchronizer(c.Synchronizer)
 	go runJSONRpcServer(c.RPC, c.Database)
 	// go runSequencer(c.Sequencer)
 	// go runAggregator(c.Aggregator)
@@ -32,6 +33,20 @@ func runMigrations(c db.Config) {
 		log.Fatal(err)
 	}
 }
+
+// func runSynchronizer(c synchronizer.Config) {
+// 	e, err := etherman.NewEtherman(c.Etherman)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+
+// 	s := mocks.NewState()
+
+// 	sy, err := synchronizer.NewSynchronizer(e, s)
+// 	if err := sy.Sync(); err != nil {
+// 		log.Fatal(err)
+// 	}
+// }
 
 func runJSONRpcServer(jc jsonrpc.Config, dc db.Config) {
 	p, err := pool.NewPostgresPool(dc)
