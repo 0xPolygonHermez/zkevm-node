@@ -13,7 +13,7 @@ type Block struct {
 	ParentHash  common.Hash
 	Batches     []Batch
 
-	ReceivedAt  time.Time
+	ReceivedAt time.Time
 }
 
 // NewBlock creates a block with the given data.

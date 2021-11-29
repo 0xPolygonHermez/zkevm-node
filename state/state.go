@@ -4,13 +4,13 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/state/tree"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+
+	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/state/tree"
 )
 
 // State is the interface of the Hermez state
@@ -249,7 +249,9 @@ func (s *BasicState) GetTransactionByBatchNumberAndIndex(ctx context.Context, ba
 // GetTransactionByHash gets a transaction by its hash
 func (s *BasicState) GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error) {
 	var encoded string
-	err := s.db.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&encoded)
+	if err := s.db.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&encoded); err != nil {
+		return nil, err
+	}
 
 	b, err := hex.DecodeHex(encoded)
 	if err != nil {
