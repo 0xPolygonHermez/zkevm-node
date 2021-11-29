@@ -6,7 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
+	"github.com/hermeznetwork/hermez-core/hex"
+)
+
+const (
+	bitSize64 = 64
 )
 
 // DecodeUint64orHex decodes a string uint64 or hex string into a uint64
@@ -74,6 +78,6 @@ func EncodeBytes(b []byte) *string {
 
 // EncodeBigInt encodes a big.Int into a hex string
 func EncodeBigInt(b *big.Int) *string {
-	res := "0x" + b.Text(hexBase)
+	res := "0x" + b.Text(hex.Base)
 	return &res
 }

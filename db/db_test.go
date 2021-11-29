@@ -1,26 +1,36 @@
-package database
+package db
 
 import (
 	"context"
 	"testing"
 
-	dbutils "github.com/hermeznetwork/hermez-core/test/db"
+	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	dbName     = "testing"
-	dbUser     = "hermez"
-	dbPassword = "password"
-)
+var cfg = Config{
+	Database: "testing",
+	User:     "hermez",
+	Password: "password",
+	Host:     "localhost",
+	Port:     "5432",
+}
 
 func TestDBService(t *testing.T) {
-	// Start DB Server
-	err := dbutils.StartPostgreSQL(dbName, dbUser, dbPassword, "./migrations/0001.sql")
+	log.Init(log.Config{
+		Level:   "debug",
+		Outputs: []string{"stdout"},
+	})
+
+	err := dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "")
 	require.NoError(t, err)
 
-	db, err := NewSQLDB(dbName, dbUser, dbPassword, dbutils.DBHost, dbutils.DBPort)
+	err = RunMigrations(cfg)
+	require.NoError(t, err)
+
+	db, err := NewSQLDB(cfg)
 	require.NoError(t, err)
 
 	var result uint
@@ -28,7 +38,7 @@ func TestDBService(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, result, uint(0))
 
-	db.Close()
+	db.Close() //nolint:gosec,errcheck
 
 	// Stop DB Server
 	err = dbutils.StopPostgreSQL()
