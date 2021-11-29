@@ -2,4 +2,4 @@
 
 ## Hermez 1.3 - First demo plan
 
-<img src="./docs/first-demo.drawio.svg" width="800"> 
+<img src="./docs/first-demo.drawio.svg" />
