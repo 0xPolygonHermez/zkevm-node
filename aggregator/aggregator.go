@@ -68,26 +68,26 @@ func (a *Aggregator) Start() {
 
 		// 2. check if it's profitable or not
 		// check is it profitable to aggregate txs or not
-		if !a.isProfitable(batchToConsolidate.Transactions()) {
-			log.Info("Batch %d is not profitable", batchToConsolidate.Number().Uint64())
+		if !a.isProfitable(batchToConsolidate.Transactions) {
+			log.Info("Batch %d is not profitable", batchToConsolidate.BatchNumber)
 			continue
 		}
 
-		// // 3. send zki + txs to the prover
-		// proof, err := a.Prover.SendTxs(batchToConsolidate.Transactions())
-		// if err != nil {
-		// 	log.Error(err)
-		// 	continue
-		// }
+		// 3. send zki + txs to the prover
+		proof, err := a.Prover.SendTxs(batchToConsolidate.Transactions)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
 
-		// // 4. send proof + txs to the SC
-		// h, err := a.EtherMan.ConsolidateBatch(batchToConsolidate, *proof)
-		// if err != nil {
-		// 	log.Error(err)
-		// 	continue
-		// }
+		// 4. send proof + txs to the SC
+		h, err := a.EtherMan.ConsolidateBatch(*batchToConsolidate, *proof)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
 
-		// log.Infof("Batch %d consolidated: %s", batchToConsolidate.Number().Uint64(), h.Hex())
+		log.Infof("Batch %d consolidated: %s", batchToConsolidate.BatchNumber, h.Hex())
 	}
 }
 

@@ -66,6 +66,7 @@ func (s *Sequencer) Start() {
 		if err != nil {
 			return
 		}
+
 		log.Infof("Estimated time for selecting txs is %dms", estimatedTime.Milliseconds())
 
 		// 3. Run selection
