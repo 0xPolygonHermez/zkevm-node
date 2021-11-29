@@ -36,6 +36,7 @@ type State interface {
 	ConsolidateBatch(batchNumber uint64) error
 	GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error)
 	AddNewSequencer(seq Sequencer) error
+	SetGenesis(genesis Genesis) error
 }
 
 // BasicState is a implementation of the state
@@ -183,5 +184,18 @@ func (s *BasicState) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, er
 
 // AddNewSequencer stores a new sequencer
 func (s *BasicState) AddNewSequencer(seq Sequencer) error {
+	return nil
+}
+
+// SetGenesis populates state with genesis information
+func (s *BasicState) SetGenesis(genesis Genesis) error {
+	// Genesis Balances
+	for address, balance := range genesis.Balances {
+		_, _, err := s.Tree.SetBalance(address, balance)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

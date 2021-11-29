@@ -116,3 +116,7 @@ func (s *StateMock) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, err
 func (s *StateMock) AddNewSequencer(seq state.Sequencer) error {
 	return nil
 }
+
+func (s *StateMock) SetGenesis(genesis state.Genesis) error {
+	return nil
+}
