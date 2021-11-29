@@ -11,3 +11,8 @@ type Block struct {
 	ParentHash  common.Hash
 	Batches     []Batch
 }
+
+// NewBlock creates a block with the given data.
+func NewBlock(blockNumber uint64) *Block {
+	return &Block{BlockNumber: blockNumber}
+}

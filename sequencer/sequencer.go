@@ -66,6 +66,7 @@ func (s *Sequencer) Start() {
 		if err != nil {
 			return
 		}
+
 		log.Infof("Estimated time for selecting txs is %dms", estimatedTime.Milliseconds())
 
 		// 3. Run selection
@@ -104,7 +105,8 @@ func (s *Sequencer) selectTxs(pendingTxs []pool.Transaction, selectionTime time.
 	ctx := context.Background()
 	for _, tx := range sortedTxs {
 		// check if tx is valid
-		if err := s.BatchProcessor.CheckTransaction(&tx.Transaction); err != nil {
+		_, _, _, err := s.BatchProcessor.CheckTransaction(&tx.Transaction)
+		if err != nil {
 			if err = s.Pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateInvalid); err != nil {
 				return nil, err
 			}
