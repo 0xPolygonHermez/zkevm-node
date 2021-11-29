@@ -1,4 +1,4 @@
-package db
+package dbutils
 
 import (
 	database "github.com/hermeznetwork/hermez-core/db"

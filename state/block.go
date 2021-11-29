@@ -15,3 +15,8 @@ type Block struct {
 
 	ReceivedAt  time.Time
 }
+
+// NewBlock creates a block with the given data.
+func NewBlock(blockNumber uint64) *Block {
+	return &Block{BlockNumber: blockNumber}
+}

@@ -97,7 +97,7 @@ func (s *StateMock) GetBatchByHash(ctx context.Context, hash common.Hash) (*stat
 	return batch, nil
 }
 
-func (s *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64) (*state.Batch, error) {
+func (s *StateMock) GetBatchByNumber(batchNumber uint64) (*state.Batch, error) {
 	return batch, nil
 }
 

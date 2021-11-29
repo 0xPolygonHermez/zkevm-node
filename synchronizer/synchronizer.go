@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/state"
 )
@@ -12,9 +11,6 @@ import (
 // Synchronizer connects L1 and L2
 type Synchronizer interface {
 	Sync() error
-	RegisterNewBatchProposalHandler(handler NewBatchProposalHandler)
-	RegisterNewConsolidatedStateHandler(handler NewConsolidatedStateHandler)
-	RegisterStateResetHandler(handler StateResetHandler)
 	Stop()
 }
 
@@ -24,20 +20,7 @@ type BasicSynchronizer struct {
 	state     state.State
 	ctx       context.Context
 	cancelCtx context.CancelFunc
-
-	newBatchProposalHandlers     []NewBatchProposalHandler
-	newConsolidatedStateHandlers []NewConsolidatedStateHandler
-	stateResetHandlers           []StateResetHandler
 }
-
-// NewBatchProposalHandler can be registered to be executed when the new batch is proposed
-type NewBatchProposalHandler func(batchNumber uint64, root common.Hash)
-
-// NewConsolidatedStateHandler can be registered to be executed when the new state is consolidated
-type NewConsolidatedStateHandler func(batchNumber uint64, root common.Hash)
-
-// StateResetHandler can be registered to be executed when the state is reset
-type StateResetHandler func()
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(ethMan etherman.EtherMan, st state.State) (Synchronizer, error) {
@@ -76,33 +59,12 @@ func (s *BasicSynchronizer) Sync() error {
 	return nil
 }
 
-// RegisterNewBatchProposalHandler registers the new batch propposal handler
-func (s *BasicSynchronizer) RegisterNewBatchProposalHandler(handler NewBatchProposalHandler) {
-	s.newBatchProposalHandlers = append(s.newBatchProposalHandlers, handler)
-}
-
-// RegisterNewConsolidatedStateHandler registers the consolidate handler
-func (s *BasicSynchronizer) RegisterNewConsolidatedStateHandler(handler NewConsolidatedStateHandler) {
-	s.newConsolidatedStateHandlers = append(s.newConsolidatedStateHandlers, handler)
-}
-
-// RegisterStateResetHandler registers the reset handler
-func (s *BasicSynchronizer) RegisterStateResetHandler(handler StateResetHandler) {
-	s.stateResetHandlers = append(s.stateResetHandlers, handler)
-}
-
 // This function syncs the node from a specific block to the latest
 func (s *BasicSynchronizer) syncBlocks(lastEthBlockSynced uint64) (uint64, error) {
 	//TODO
 	//This function will read events fromBlockNum to latestEthBlock. First It has to retrieve the latestEthereumBlock and check reorg to be sure that everything is ok.
 	//if there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block
 	// New info has to be included into the db using the state
-
-	// When a new batch propostal is synchronized, we notify it
-	// go s.notifyNewBathProposal()
-
-	// When a new consolidated state is synchronized, we notify it
-	// go s.notifyNewConsolidatedState()
 
 	return 0, nil
 }
@@ -113,8 +75,6 @@ func (s *BasicSynchronizer) syncBlocks(lastEthBlockSynced uint64) (uint64, error
 // 	if err != nil {
 // 		return err
 // 	}
-
-// 	go s.notifyResetState()
 
 // 	return nil
 // }
@@ -133,47 +93,3 @@ func (s *BasicSynchronizer) syncBlocks(lastEthBlockSynced uint64) (uint64, error
 func (s *BasicSynchronizer) Stop() {
 	s.cancelCtx()
 }
-
-// // notifyResetState notifies all registered reset state handlers that the state was reset
-// func (s *BasicSynchronizer) notifyResetState() {
-// 	for _, handler := range s.stateResetHandlers {
-// 		go func(h StateResetHandler) {
-// 			defer func() {
-// 				if err := recover(); err != nil {
-// 					log.Error(err)
-// 				}
-// 			}()
-// 			h()
-// 		}(handler)
-// 	}
-// }
-
-// // notifyNewBathProposal notifies all registered new batch proposal handlers
-// // that a new batch proposal was synchronized
-// func (s *BasicSynchronizer) notifyNewBathProposal(batchNumber uint64, root common.Hash) {
-// 	for _, handler := range s.newBatchProposalHandlers {
-// 		go func(h NewBatchProposalHandler, b uint64, r common.Hash) {
-// 			defer func() {
-// 				if err := recover(); err != nil {
-// 					log.Error(err)
-// 				}
-// 			}()
-// 			h(b, r)
-// 		}(handler, batchNumber, root)
-// 	}
-// }
-
-// // notifyNewConsolidatedState notifies all registered new consolidated state handlers
-// // that a new consolidated state was synchronized
-// func (s *BasicSynchronizer) notifyNewConsolidatedState(batchNumber uint64, root common.Hash) {
-// 	for _, handler := range s.newConsolidatedStateHandlers {
-// 		go func(h NewConsolidatedStateHandler, b uint64, r common.Hash) {
-// 			defer func() {
-// 				if err := recover(); err != nil {
-// 					log.Error(err)
-// 				}
-// 			}()
-// 			h(b, r)
-// 		}(handler, batchNumber, root)
-// 	}
-// }

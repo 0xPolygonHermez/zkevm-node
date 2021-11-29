@@ -2,26 +2,25 @@ package aggregator
 
 import (
 	"context"
-	"log"
+	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/synchronizer"
 )
 
 // Aggregator represents an aggregator
 type Aggregator struct {
+	cfg Config
+
 	State          state.State
 	BatchProcessor state.BatchProcessor
 	EtherMan       etherman.EtherMan
-	Synchronizer   synchronizer.Synchronizer
 	Prover         ProverClient
 
-	ctx           context.Context
-	cancel        context.CancelFunc
-	txsByBatchNum map[uint64]txsWithProof
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewAggregator creates a new aggregator
@@ -30,74 +29,65 @@ func NewAggregator(
 	state state.State,
 	bp state.BatchProcessor,
 	ethMan etherman.EtherMan,
-	sy synchronizer.Synchronizer,
 	prover ProverClient,
 ) (Aggregator, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	a := Aggregator{
+		cfg: cfg,
+
 		State:          state,
 		BatchProcessor: bp,
 		EtherMan:       ethMan,
-		Synchronizer:   sy,
 		Prover:         prover,
 
-		ctx:           ctx,
-		cancel:        cancel,
-		txsByBatchNum: make(map[uint64]txsWithProof),
+		ctx:    ctx,
+		cancel: cancel,
 	}
-
-	sy.RegisterNewBatchProposalHandler(a.onNewBatchProposal)
-	sy.RegisterNewConsolidatedStateHandler(a.onNewConsolidatedState)
 
 	return a, nil
 }
 
-type txsWithProof struct {
-	txs   []*types.Transaction
-	proof *state.Proof
-}
-
 // Start starts the aggregator
 func (a *Aggregator) Start() {
-	// reads from batchesChan
-	// get txs from state by batchNum
-	// check if it's profitable or not
-	// send zki + txs to the prover
-	// send proof + txs to the SC
-	if err := a.Synchronizer.Sync(); err != nil {
-		log.Fatal(err)
-	}
-}
+	for {
+		time.Sleep(a.cfg.IntervalToConsolidateState)
 
-func (a *Aggregator) onNewBatchProposal(batchNumber uint64, root common.Hash) {
-	// get txs to send
-	txs, err := a.State.GetTxsByBatchNum(a.ctx, batchNumber)
-	if err != nil {
-		return
-	}
-	// check is it profitable to aggregate txs or not
-	if !a.isProfitable(txs) {
-		return
-	}
-	// send txs and zki to the prover
-	proof, err := a.Prover.SendTxs(txs)
-	if err != nil {
-		return
-	}
-	a.txsByBatchNum[batchNumber] = txsWithProof{txs: txs, proof: proof}
-}
-
-func (a *Aggregator) onNewConsolidatedState(batchNumber uint64, root common.Hash) {
-	previousBatchNum := batchNumber - 1
-	// send txs and proof to the eth contract
-	txsWithProof, ok := a.txsByBatchNum[previousBatchNum]
-	if ok {
-		batch := state.Batch{Transactions: txsWithProof.txs}
-		if _, err := a.EtherMan.ConsolidateBatch(batch, *txsWithProof.proof); err != nil {
-			return
+		// 1. find next batch to consolidate
+		lastConsolidatedBatch, err := a.State.GetLastBatch(false)
+		if err != nil {
+			log.Error(err)
+			continue
 		}
-		delete(a.txsByBatchNum, previousBatchNum)
+
+		batchToConsolidate, err := a.State.GetBatchByNumber(lastConsolidatedBatch.BatchNumber + 1)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		// 2. check if it's profitable or not
+		// check is it profitable to aggregate txs or not
+		if !a.isProfitable(batchToConsolidate.Transactions) {
+			log.Info("Batch %d is not profitable", batchToConsolidate.BatchNumber)
+			continue
+		}
+
+		// 3. send zki + txs to the prover
+		proof, err := a.Prover.SendTxs(batchToConsolidate.Transactions)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		// 4. send proof + txs to the SC
+		h, err := a.EtherMan.ConsolidateBatch(*batchToConsolidate, *proof)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		log.Infof("Batch %d consolidated: %s", batchToConsolidate.BatchNumber, h.Hex())
 	}
 }
 
