@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"math/big"
 	"os"
 	"testing"
@@ -41,8 +42,16 @@ var cfg = db.Config{
 }
 
 func TestMain(m *testing.M) {
+	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
+	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
+
 	// init db
 	var err error
+	err = db.RunMigrations(cfg)
+	if err != nil {
+		panic(err)
+	}
+
 	stateDb, err = db.NewSQLDB(cfg)
 	if err != nil {
 		panic(err)
