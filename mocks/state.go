@@ -29,7 +29,7 @@ func (s *StateMock) GetBalance(address common.Address, batchNumber uint64) (*big
 	return big.NewInt(balance), nil
 }
 
-func (s *StateMock) EstimateGas(transaction types.Transaction) uint64 {
+func (s *StateMock) EstimateGas(transaction *types.Transaction) uint64 {
 	return estimatedGas
 }
 
@@ -137,4 +137,8 @@ func (s *StateMock) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*t
 	return []*types.Transaction{
 		tx,
 	}, nil
+}
+
+func (s *StateMock) AddNewSequencer(seq state.Sequencer) error {
+	return nil
 }

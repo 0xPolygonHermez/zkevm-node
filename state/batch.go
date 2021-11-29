@@ -67,9 +67,9 @@ type Batch struct {
 	BatchNumber        uint64
 	BatchHash          common.Hash
 	BlockNumber        uint64
-	ConsolidatedTxHash common.Hash
 	Sequencer          common.Address
 	Aggregator         common.Address
+	ConsolidatedTxHash common.Hash
 	Header             *types.Header
 	Uncles             []*types.Header
 	Transactions       []*types.Transaction

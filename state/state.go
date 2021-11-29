@@ -2,11 +2,13 @@ package state
 
 import (
 	"context"
-	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
+	"github.com/hermeznetwork/hermez-core/state/db"
+	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -35,6 +37,7 @@ type State interface {
 	Reset(blockNumber uint64) error
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
+	AddNewSequencer(seq Sequencer) error
 }
 
 const (
@@ -59,13 +62,12 @@ const (
 // BasicState is a implementation of the state
 type BasicState struct {
 	db *pgxpool.Pool
-	// StateTree merkletree.Merkletree
+	Tree tree.ReadWriter
 }
 
 // NewState creates a new State
-func NewState(db *pgxpool.Pool) State {
-	// return &State{StateTree: merkletree.NewMerkletree(db)}
-	return &BasicState{db: db}
+func NewState(db *pgxpool.Pool, tree tree.ReadWriter) State {
+	return &BasicState{db: db, Tree: tree.NewMemTree()}
 }
 
 // NewBatchProcessor creates a new batch processor
@@ -75,29 +77,28 @@ func (s *BasicState) NewBatchProcessor(startingHash common.Hash, withProofCalcul
 
 // GetStateRoot returns the root of the state tree
 func (s *BasicState) GetStateRoot(virtual bool) (*big.Int, error) {
-	// return s.StateTree.Root, nil
-	return nil, nil
+	// TODO: GetBatchNumber taking into account virtual bool
+	// 		 and use GetRootForBatchNumber instead
+	root, err := s.Tree.GetRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	return big.NewInt(0).SetBytes(root), nil
 }
 
 // GetBalance from a given address
 func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
-	/*
-		key, err := leafs.NewBalanceKey(common.BytesToAddress(address.Bytes()))
-		if err != nil {
-			return nil, err
-		}
-
-		balanceBytes, err := s.StateTree.Get(s.StateTree.Root, key)
-		if err != nil {
-			return nil, err
-		}
-
-		return leafs.BytesToBalance(balanceBytes), nil*/
-	return nil, nil
+	// TODO: GetBatchNumber and use its root
+	root, err := s.Tree.GetRoot()
+	if err != nil {
+		return nil, err
+	}
+	return s.Tree.GetBalance(address, root)
 }
 
 // EstimateGas for a transaction
-func (s *BasicState) EstimateGas(transaction types.Transaction) uint64 {
+func (s *BasicState) EstimateGas(transaction *types.Transaction) uint64 {
 	// TODO: Calculate once we have txs that interact with SCs
 	return 21000 //nolint:gomnd
 }
@@ -316,4 +317,9 @@ func (s *BasicState) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*
 	}
 
 	return txs, nil
+}
+
+// AddNewSequencer stores a new sequencer
+func (s *BasicState) AddNewSequencer(seq Sequencer) error {
+	return nil
 }
