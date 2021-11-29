@@ -54,13 +54,13 @@ func (a *Aggregator) Start() {
 		time.Sleep(a.cfg.IntervalToConsolidateState)
 
 		// 1. find next batch to consolidate
-		lastConsolidatedBatch, err := a.State.GetLastBatch(false)
+		lastConsolidatedBatch, err := a.State.GetLastBatch(a.ctx, false)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
 
-		batchToConsolidate, err := a.State.GetBatchByNumber(lastConsolidatedBatch.BatchNumber + 1)
+		batchToConsolidate, err := a.State.GetBatchByNumber(a.ctx, lastConsolidatedBatch.BatchNumber+1)
 		if err != nil {
 			log.Error(err)
 			continue

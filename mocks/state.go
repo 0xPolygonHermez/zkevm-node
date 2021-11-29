@@ -3,12 +3,10 @@ package mocks
 
 import (
 	"context"
-	"math/big"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state"
+	"math/big"
 )
 
 type StateMock struct{}
@@ -34,43 +32,19 @@ func (s *StateMock) EstimateGas(transaction *types.Transaction) uint64 {
 }
 
 func (s *StateMock) GetLastBlock(ctx context.Context) (*state.Block, error) {
-	return &state.Block{
-		BlockNumber: block.Number().Uint64(),
-		BlockHash:   block.Hash(),
-		ParentHash:  block.Hash(),
-		ReceivedAt:  time.Now(),
-		Batches:     nil,
-	}, nil
+	return block, nil
 }
 
 func (s *StateMock) GetPreviousBlock(ctx context.Context, offset uint64) (*state.Block, error) {
-	return &state.Block{
-		BlockNumber: block.Number().Uint64(),
-		BlockHash:   block.Hash(),
-		ParentHash:  block.Hash(),
-		ReceivedAt:  time.Now(),
-		Batches:     nil,
-	}, nil
+	return block, nil
 }
 
 func (s *StateMock) GetBlockByHash(ctx context.Context, hash common.Hash) (*state.Block, error) {
-	return &state.Block{
-		BlockNumber: block.Number().Uint64(),
-		BlockHash:   block.Hash(),
-		ParentHash:  block.Hash(),
-		ReceivedAt:  time.Now(),
-		Batches:     nil,
-	}, nil
+	return block, nil
 }
 
 func (s *StateMock) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*state.Block, error) {
-	return &state.Block{
-		BlockNumber: block.Number().Uint64(),
-		BlockHash:   block.Hash(),
-		ParentHash:  block.Hash(),
-		ReceivedAt:  time.Now(),
-		Batches:     nil,
-	}, nil
+	return block, nil
 }
 
 func (s *StateMock) GetLastBlockNumber(ctx context.Context) (uint64, error) {
@@ -97,7 +71,7 @@ func (s *StateMock) GetBatchByHash(ctx context.Context, hash common.Hash) (*stat
 	return batch, nil
 }
 
-func (s *StateMock) GetBatchByNumber(batchNumber uint64) (*state.Batch, error) {
+func (s *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64) (*state.Batch, error) {
 	return batch, nil
 }
 

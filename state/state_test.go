@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
-	dbutils "github.com/hermeznetwork/hermez-core/test/db"
+	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/hex"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	db                                                     *pgxpool.Pool
+	stateDb                                                *pgxpool.Pool
 	state                                                  State
 	block1, block2                                         *Block
 	addr                                                   common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
@@ -32,10 +32,19 @@ var (
 	ctx                                                    = context.Background()
 )
 
+// TODO: understand, from where should we get config for tests. This is temporary
+var cfg = db.Config{
+	Database: "polygon-hermez",
+	User:     "hermez",
+	Password: "polygon",
+	Host:     "localhost",
+	Port:     "5432",
+}
+
 func TestMain(m *testing.M) {
 	// init db
 	var err error
-	db, err = dbutils.ConnectToTestSQLDB()
+	stateDb, err = db.NewSQLDB(cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -45,27 +54,27 @@ func TestMain(m *testing.M) {
 	setUpBlocks()
 	setUpBatches()
 	setUpTransactions()
-	state = NewState(db, nil)
+	state = NewState(stateDb, nil)
 
 	result := m.Run()
 
 	cleanUp()
 
-	db.Close()
+	stateDb.Close()
 	os.Exit(result)
 }
 
 func cleanUp() {
 	var err error
-	_, err = db.Exec(ctx, "DELETE FROM batch")
+	_, err = stateDb.Exec(ctx, "DELETE FROM batch")
 	if err != nil {
 		panic(err)
 	}
-	_, err = db.Exec(ctx, "DELETE FROM block")
+	_, err = stateDb.Exec(ctx, "DELETE FROM block")
 	if err != nil {
 		panic(err)
 	}
-	_, err = db.Exec(ctx, "DELETE FROM transaction")
+	_, err = stateDb.Exec(ctx, "DELETE FROM transaction")
 	if err != nil {
 		panic(err)
 	}
@@ -86,18 +95,18 @@ func setUpBlocks() {
 		ReceivedAt:  time.Now(),
 	}
 
-	_, err = db.Exec(ctx, "DELETE FROM block")
+	_, err = stateDb.Exec(ctx, "DELETE FROM block")
 	if err != nil {
 		panic(err)
 	}
 
-	_, err = db.Exec(ctx, "INSERT INTO block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)",
+	_, err = stateDb.Exec(ctx, "INSERT INTO block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)",
 		block1.BlockNumber, block1.BlockHash.Bytes(), block1.ParentHash.Bytes(), block1.ReceivedAt)
 	if err != nil {
 		panic(err)
 	}
 
-	_, err = db.Exec(ctx, "INSERT INTO block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)",
+	_, err = stateDb.Exec(ctx, "INSERT INTO block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)",
 		block2.BlockNumber, block2.BlockHash.Bytes(), block2.ParentHash.Bytes(), block2.ReceivedAt)
 	if err != nil {
 		panic(err)
@@ -158,7 +167,7 @@ func setUpBatches() {
 		ReceivedAt:         time.Now(),
 	}
 
-	_, err = db.Exec(ctx, "DELETE FROM batch")
+	_, err = stateDb.Exec(ctx, "DELETE FROM batch")
 	if err != nil {
 		panic(err)
 	}
@@ -166,7 +175,7 @@ func setUpBatches() {
 	batches := []*Batch{batch1, batch2, batch3, batch4}
 
 	for _, b := range batches {
-		_, err = db.Exec(ctx, "INSERT INTO batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		_, err = stateDb.Exec(ctx, "INSERT INTO batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 			b.BatchNumber, b.BatchHash, b.BlockNumber, b.Sequencer, b.Aggregator, b.ConsolidatedTxHash, b.ReceivedAt)
 		if err != nil {
 			panic(err)
@@ -189,7 +198,7 @@ func setUpTransactions() {
 	}
 	decoded := string(b)
 	sql := "INSERT INTO transaction (hash, from_address, encoded, decoded, batch_num) VALUES($1, $2, $3, $4, $5)"
-	if _, err := db.Exec(ctx, sql, txHash, addr, encoded, decoded, batchNumber1); err != nil {
+	if _, err := stateDb.Exec(ctx, sql, txHash, addr, encoded, decoded, batchNumber1); err != nil {
 		panic(err)
 	}
 }
@@ -277,7 +286,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		ReceivedAt:         time.Now(),
 	}
 
-	_, err := db.Exec(ctx, "INSERT INTO batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+	_, err := stateDb.Exec(ctx, "INSERT INTO batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
 		batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator, batch.ConsolidatedTxHash, batch.ReceivedAt)
 	assert.NoError(t, err)
 
@@ -292,7 +301,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, consolidatedTxHash, insertedBatch.ConsolidatedTxHash)
 
-	_, err = db.Exec(ctx, "DELETE FROM batch WHERE batch_num = $1", batchNumber)
+	_, err = stateDb.Exec(ctx, "DELETE FROM batch WHERE batch_num = $1", batchNumber)
 	assert.NoError(t, err)
 }
 
