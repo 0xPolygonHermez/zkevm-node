@@ -33,8 +33,9 @@ CREATE TABLE batch
 
 CREATE TABLE transaction
 (
-    hash      VARCHAR PRIMARY KEY,
-    encoded   VARCHAR,
-    decoded   jsonb,
-    batch_num BIGINT NOT NULL REFERENCES batch (batch_num) ON DELETE CASCADE
+    hash         BYTEA PRIMARY KEY,
+    from_address BYTEA,
+    encoded      VARCHAR,
+    decoded      jsonb,
+    batch_num    BIGINT NOT NULL REFERENCES batch (batch_num) ON DELETE CASCADE
 );

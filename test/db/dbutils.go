@@ -105,5 +105,5 @@ func ConnectToTestSQLDB() (*pgxpool.Pool, error) {
 	if dbname == "" {
 		dbname = "postgres"
 	}
-	return database.NewSQLDB(dbname, user, pass, host, string(port))
+	return database.NewSQLDB(dbname, user, pass, host, port)
 }

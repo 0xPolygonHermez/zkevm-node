@@ -41,7 +41,7 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 		cancel: cancel,
 	}
 
-	sy.RegisterNewConsolidatedStateHandler(s.onNewBatchPropostal)
+	sy.RegisterNewConsolidatedStateHandler(s.onNewBatchProposal)
 
 	return s, nil
 }
@@ -60,7 +60,7 @@ func (s *Sequencer) Start() {
 	}
 }
 
-func (s *Sequencer) onNewBatchPropostal(batchNumber uint64, root common.Hash) {
+func (s *Sequencer) onNewBatchProposal(batchNumber uint64, root common.Hash) {
 	s.BatchProcessor = s.State.NewBatchProcessor(root, false)
 	// get pending txs from the pool
 	txs, err := s.Pool.GetPendingTxs()

@@ -2,12 +2,12 @@ package state
 
 import (
 	"context"
+	"github.com/jackc/pgx/v4"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
-	"github.com/hermeznetwork/hermez-core/state/db"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -17,7 +17,7 @@ type State interface {
 	NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) BatchProcessor
 	GetStateRoot(virtual bool) (*big.Int, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
-	EstimateGas(transaction types.Transaction) uint64
+	EstimateGas(transaction *types.Transaction) uint64
 	GetLastBlock(ctx context.Context) (*Block, error)
 	GetPreviousBlock(ctx context.Context, offset uint64) (*Block, error)
 	GetBlockByHash(ctx context.Context, hash common.Hash) (*Block, error)
@@ -46,28 +46,28 @@ const (
 	getBlockByHashSQL               = "SELECT * FROM block WHERE block_hash = $1"
 	getBlockByNumberSQL             = "SELECT * FROM block WHERE block_num = $1"
 	getLastBlockNumberSQL           = "SELECT block_num FROM block ORDER BY received_at DESC LIMIT 1"
-	getLastVirtualBatchSQL          = "SELECT * FROM batch WHERE consolidated_block_hash IS NULL ORDER BY batch_num DESC LIMIT 1"
-	getLastConsolidatedBatchSQL     = "SELECT * FROM batch WHERE consolidated_block_hash IS NOT NULL ORDER BY batch_num DESC LIMIT 1"
-	getPreviousVirtualBatchSQL      = "SELECT * FROM batch WHERE consolidated_block_hash IS NULL ORDER BY batch_num DESC LIMIT 1"
-	getPreviousConsolidatedBatchSQL = "SELECT * FROM batch WHERE consolidated_block_hash IS NOT NULL ORDER BY batch_num DESC LIMIT 1"
+	getLastVirtualBatchSQL          = "SELECT * FROM batch ORDER BY batch_num DESC LIMIT 1"
+	getLastConsolidatedBatchSQL     = "SELECT * FROM batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
+	getPreviousVirtualBatchSQL      = "SELECT * FROM batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
+	getPreviousConsolidatedBatchSQL = "SELECT * FROM batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
 	getBatchByHashSQL               = "SELECT * FROM batch WHERE batch_hash = $1"
 	getBatchByNumberSQL             = "SELECT * FROM batch WHERE batch_num = $1"
 	getLastBatchNumberSQL           = "SELECT batch_num FROM batch ORDER BY batch_num DESC LIMIT 1"
 	getTransactionByHashSQL         = "SELECT transaction.encoded FROM transaction WHERE hash = $1"
-	getTransactionCountSQL          = "SELECT COUNT(*) FROM transaction WHERE from = $1"
-	consolidateBatchSQL             = "UPDATE batch SET consolidated_tx_batch = $1 WHERE batch_number = $2"
+	getTransactionCountSQL          = "SELECT COUNT(*) FROM transaction WHERE from_address = $1"
+	consolidateBatchSQL             = "UPDATE batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"
 	getTxsByBatchNumSQL             = "SELECT transaction.encoded FROM transaction WHERE batch_num = $1"
 )
 
 // BasicState is a implementation of the state
 type BasicState struct {
-	db *pgxpool.Pool
+	db   *pgxpool.Pool
 	Tree tree.ReadWriter
 }
 
 // NewState creates a new State
 func NewState(db *pgxpool.Pool, tree tree.ReadWriter) State {
-	return &BasicState{db: db, Tree: tree.NewMemTree()}
+	return &BasicState{db: db, Tree: tree}
 }
 
 // NewBatchProcessor creates a new batch processor
@@ -135,12 +135,12 @@ func (s *BasicState) GetBlockByHash(ctx context.Context, hash common.Hash) (*Blo
 
 // GetBlockByNumber gets the block with the required number
 func (s *BasicState) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*Block, error) {
-	var block *Block
+	var block Block
 	err := s.db.QueryRow(ctx, getBlockByNumberSQL, blockNumber).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 	if err != nil {
 		return nil, err
 	}
-	return block, nil
+	return &block, nil
 }
 
 // GetLastBlockNumber gets the latest block number
@@ -155,16 +155,19 @@ func (s *BasicState) GetLastBlockNumber(ctx context.Context) (uint64, error) {
 
 // GetLastBatch gets the latest batch
 func (s *BasicState) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, error) {
-	request := getLastConsolidatedBatchSQL
+	var row pgx.Row
+
 	if isVirtual {
-		request = getLastVirtualBatchSQL
+		row = s.db.QueryRow(ctx, getLastVirtualBatchSQL)
+	} else {
+		row = s.db.QueryRow(ctx, getLastConsolidatedBatchSQL, common.Hash{})
 	}
 
 	var batch Batch
-	err := s.db.QueryRow(ctx, request).Scan(
-		&batch.BatchNumber, &batch.BlockNumber, &batch.Sequencer,
-		&batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
-		&batch.Uncles, &batch.RawTxsData, &batch.ReceivedAt)
+	err := row.Scan(
+		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
+		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
+		&batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.ReceivedAt)
 
 	if err != nil {
 		return nil, err
@@ -174,14 +177,16 @@ func (s *BasicState) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, 
 
 // GetPreviousBatch gets the offset previous batch respect to latest
 func (s *BasicState) GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*Batch, error) {
-	request := getPreviousConsolidatedBatchSQL
+	var row pgx.Row
 	if isVirtual {
-		request = getPreviousVirtualBatchSQL
+		row = s.db.QueryRow(ctx, getPreviousVirtualBatchSQL, offset)
+	} else {
+		row = s.db.QueryRow(ctx, getPreviousConsolidatedBatchSQL, common.Hash{}, offset)
 	}
 	var batch Batch
-	err := s.db.QueryRow(ctx, request, offset).Scan(
-		&batch.BatchNumber, &batch.BlockNumber, &batch.Sequencer,
-		&batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
+	err := row.Scan(
+		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
+		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
 		&batch.Uncles, &batch.RawTxsData, &batch.ReceivedAt)
 
 	if err != nil {
@@ -280,7 +285,7 @@ func (s *BasicState) Reset(blockNumber uint64) error {
 
 // ConsolidateBatch changes the virtual status of a batch
 func (s *BasicState) ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error {
-	if _, err := s.db.Exec(ctx, consolidateBatchSQL, batchNumber, consolidatedTxHash); err != nil {
+	if _, err := s.db.Exec(ctx, consolidateBatchSQL, consolidatedTxHash, batchNumber); err != nil {
 		return err
 	}
 	return nil

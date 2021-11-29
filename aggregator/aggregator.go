@@ -47,7 +47,7 @@ func NewAggregator(
 		txsByBatchNum: make(map[uint64]txsWithProof),
 	}
 
-	sy.RegisterNewBatchProposalHandler(a.onNewBatchPropostal)
+	sy.RegisterNewBatchProposalHandler(a.onNewBatchProposal)
 	sy.RegisterNewConsolidatedStateHandler(a.onNewConsolidatedState)
 
 	return a, nil
@@ -70,9 +70,9 @@ func (a *Aggregator) Start() {
 	}
 }
 
-func (a *Aggregator) onNewBatchPropostal(batchNumber uint64, root common.Hash) {
+func (a *Aggregator) onNewBatchProposal(batchNumber uint64, root common.Hash) {
 	// get txs to send
-	txs, err := a.State.GetTxsByBatchNum(batchNumber)
+	txs, err := a.State.GetTxsByBatchNum(a.ctx, batchNumber)
 	if err != nil {
 		return
 	}
