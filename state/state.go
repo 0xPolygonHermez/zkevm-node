@@ -35,6 +35,7 @@ type State interface {
 	Reset(blockNumber uint64) error
 	ConsolidateBatch(batchNumber uint64) error
 	GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error)
+	AddNewSequencer(seq Sequencer) error
 }
 
 // BasicState is a implementation of the state
@@ -178,4 +179,9 @@ func (s *BasicState) ConsolidateBatch(batchNumber uint64) error {
 // GetTxsByBatchNum returns all the txs in a given batch
 func (s *BasicState) GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error) {
 	return nil, nil
+}
+
+// AddNewSequencer stores a new sequencer
+func (s *BasicState) AddNewSequencer(seq Sequencer) error {
+	return nil
 }
