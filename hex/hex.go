@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	// Base is the base
+	// Base represents the hexadecimal base, which is 16
 	Base = 16
 )
 

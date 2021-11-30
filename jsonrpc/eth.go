@@ -1,11 +1,12 @@
 package jsonrpc
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/jsonrpc/hex"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
 )
@@ -46,7 +47,7 @@ func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error
 
 // GasPrice returns the average gas price based on the last x blocks
 func (e *Eth) GasPrice() (interface{}, error) {
-	gasPrice, err := e.pool.GetGasPrice()
+	gasPrice, err := e.pool.GetGasPrice(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +170,7 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 		return nil, err
 	}
 
-	if err := e.pool.AddTx(*tx); err != nil {
+	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
 		return nil, err
 	}
 

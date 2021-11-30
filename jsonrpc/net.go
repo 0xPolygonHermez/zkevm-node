@@ -1,6 +1,6 @@
 package jsonrpc
 
-import "github.com/hermeznetwork/hermez-core/jsonrpc/hex"
+import "github.com/hermeznetwork/hermez-core/hex"
 
 // Net contains implementations for the "net" RPC endpoints
 type Net struct {
