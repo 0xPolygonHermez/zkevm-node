@@ -2,8 +2,6 @@ package state
 
 import (
 	"encoding/binary"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -74,8 +72,6 @@ type Batch struct {
 	Uncles             []*types.Header
 	Transactions       []*types.Transaction
 	RawTxsData         []byte
-
-	ReceivedAt time.Time
 }
 
 // NewBatchWithHeader creates a batch with the given header data.

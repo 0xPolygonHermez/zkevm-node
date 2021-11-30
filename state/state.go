@@ -45,14 +45,14 @@ const (
 	getPreviousBlockSQL             = "SELECT * FROM block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
 	getBlockByHashSQL               = "SELECT * FROM block WHERE block_hash = $1"
 	getBlockByNumberSQL             = "SELECT * FROM block WHERE block_num = $1"
-	getLastBlockNumberSQL           = "SELECT block_num FROM block ORDER BY received_at DESC LIMIT 1"
+	getLastBlockNumberSQL           = "SELECT MAX(block_num) FROM block"
 	getLastVirtualBatchSQL          = "SELECT * FROM batch ORDER BY batch_num DESC LIMIT 1"
 	getLastConsolidatedBatchSQL     = "SELECT * FROM batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
 	getPreviousVirtualBatchSQL      = "SELECT * FROM batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
 	getPreviousConsolidatedBatchSQL = "SELECT * FROM batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
 	getBatchByHashSQL               = "SELECT * FROM batch WHERE batch_hash = $1"
 	getBatchByNumberSQL             = "SELECT * FROM batch WHERE batch_num = $1"
-	getLastBatchNumberSQL           = "SELECT batch_num FROM batch ORDER BY batch_num DESC LIMIT 1"
+	getLastBatchNumberSQL           = "SELECT MAX(batch_num) FROM batch"
 	getTransactionByHashSQL         = "SELECT transaction.encoded FROM transaction WHERE hash = $1"
 	getTransactionCountSQL          = "SELECT COUNT(*) FROM transaction WHERE from_address = $1"
 	consolidateBatchSQL             = "UPDATE batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"
@@ -167,7 +167,7 @@ func (s *BasicState) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, 
 	err := row.Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
 		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
-		&batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.ReceivedAt)
+		&batch.Header, &batch.Uncles, &batch.RawTxsData)
 
 	if err != nil {
 		return nil, err
@@ -187,7 +187,7 @@ func (s *BasicState) GetPreviousBatch(ctx context.Context, isVirtual bool, offse
 	err := row.Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
 		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
-		&batch.Uncles, &batch.RawTxsData, &batch.ReceivedAt)
+		&batch.Uncles, &batch.RawTxsData)
 
 	if err != nil {
 		return nil, err
@@ -200,7 +200,7 @@ func (s *BasicState) GetBatchByHash(ctx context.Context, hash common.Hash) (*Bat
 	var batch Batch
 	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
-		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.ReceivedAt)
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData)
 
 	if err != nil {
 		return nil, err
@@ -213,7 +213,7 @@ func (s *BasicState) GetBatchByNumber(ctx context.Context, batchNumber uint64) (
 	var batch Batch
 	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
-		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.ReceivedAt)
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData)
 	if err != nil {
 		return nil, err
 	}

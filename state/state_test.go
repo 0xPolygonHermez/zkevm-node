@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"math/big"
 	"os"
 	"testing"
@@ -11,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 )
@@ -42,6 +43,11 @@ var cfg = db.Config{
 }
 
 func TestMain(m *testing.M) {
+	log.Init(log.Config{
+		Level:   "debug",
+		Outputs: []string{"stdout"},
+	})
+
 	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
 	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
 
@@ -134,7 +140,6 @@ func setUpBatches() {
 		Header:             nil,
 		Uncles:             nil,
 		RawTxsData:         nil,
-		ReceivedAt:         time.Now(),
 	}
 	batch2 = &Batch{
 		BatchNumber:        batchNumber2,
@@ -146,7 +151,6 @@ func setUpBatches() {
 		Header:             nil,
 		Uncles:             nil,
 		RawTxsData:         nil,
-		ReceivedAt:         time.Now(),
 	}
 	batch3 = &Batch{
 		BatchNumber:        batchNumber3,
@@ -159,7 +163,6 @@ func setUpBatches() {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
-		ReceivedAt:         time.Now(),
 	}
 	batch4 = &Batch{
 		BatchNumber:        batchNumber4,
@@ -172,7 +175,6 @@ func setUpBatches() {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
-		ReceivedAt:         time.Now(),
 	}
 
 	_, err = stateDb.Exec(ctx, "DELETE FROM batch")
@@ -183,8 +185,8 @@ func setUpBatches() {
 	batches := []*Batch{batch1, batch2, batch3, batch4}
 
 	for _, b := range batches {
-		_, err = stateDb.Exec(ctx, "INSERT INTO batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-			b.BatchNumber, b.BatchHash, b.BlockNumber, b.Sequencer, b.Aggregator, b.ConsolidatedTxHash, b.ReceivedAt)
+		_, err = stateDb.Exec(ctx, "INSERT INTO batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash) VALUES ($1, $2, $3, $4, $5, $6)",
+			b.BatchNumber, b.BatchHash, b.BlockNumber, b.Sequencer, b.Aggregator, b.ConsolidatedTxHash)
 		if err != nil {
 			panic(err)
 		}
@@ -291,11 +293,10 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
-		ReceivedAt:         time.Now(),
 	}
 
-	_, err := stateDb.Exec(ctx, "INSERT INTO batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-		batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator, batch.ConsolidatedTxHash, batch.ReceivedAt)
+	_, err := stateDb.Exec(ctx, "INSERT INTO batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash) VALUES ($1, $2, $3, $4, $5, $6)",
+		batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator, batch.ConsolidatedTxHash)
 	assert.NoError(t, err)
 
 	insertedBatch, err := state.GetBatchByNumber(ctx, batchNumber)

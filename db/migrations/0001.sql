@@ -26,9 +26,7 @@ CREATE TABLE batch
     consolidated_tx_hash BYTEA,
     header               jsonb,
     uncles               jsonb,
-    raw_txs_data         BYTEA,
-
-    received_at          TIMESTAMP WITHOUT TIME ZONE NOT NULL
+    raw_txs_data         BYTEA
 );
 
 CREATE TABLE transaction
