@@ -145,6 +145,9 @@ func (etherMan *TestClientEtherMan) processEvent(ctx context.Context, vLog types
 		if err == nil {
 			block.ParentHash = fullBlock.ParentHash()
 		}
+		if err != nil {
+			log.Warn("error getting hashParent. BlockNumber: ", block.BlockNumber, " error: ", err)
+		}
 		//Read the tx for this batch.
 		tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, batch.Header.TxHash)
 		if err != nil {
@@ -172,6 +175,9 @@ func (etherMan *TestClientEtherMan) processEvent(ctx context.Context, vLog types
 		if err == nil {
 			block.ParentHash = fullBlock.ParentHash()
 		}
+		if err != nil {
+			log.Warn("error getting hashParent. BlockNumber: ", block.BlockNumber, " error: ", err)
+		}
 		block.Batches = append(block.Batches, batch)
 		return &block, nil
 	case newSequencerSignatureHash:
@@ -188,6 +194,9 @@ func (etherMan *TestClientEtherMan) processEvent(ctx context.Context, vLog types
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err == nil {
 			block.ParentHash = fullBlock.ParentHash()
+		}
+		if err != nil {
+			log.Warn("error getting hashParent. BlockNumber: ", block.BlockNumber, " error: ", err)
 		}
 		//Get sequencer chainId
 		se, err := etherMan.PoE.Sequencers(&bind.CallOpts{Pending: false}, seq.SequencerAddress)
