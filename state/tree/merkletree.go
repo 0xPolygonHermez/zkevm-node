@@ -24,25 +24,15 @@ type MerkleTree struct {
 }
 
 type UpdateProof struct {
-	OldRoot  *big.Int
-	NewRoot  *big.Int
-	Key      *big.Int
-	Siblings [][]*big.Int
-	InsKey   *big.Int
-	InsValue *big.Int
-	IsOld0   bool
-	OldValue *big.Int
-	NewValue *big.Int
-}
-
-type Proof struct {
-	Root     *big.Int
-	Key      *big.Int
-	Value    *big.Int
-	Siblings [][]*big.Int
-	IsOld0   bool
-	InsKey   *big.Int
-	InsValue *big.Int
+	oldRoot  *big.Int
+	newRoot  *big.Int
+	key      *big.Int
+	siblings [][]*big.Int
+	insKey   *big.Int
+	insValue *big.Int
+	isOld0   bool
+	oldValue *big.Int
+	newValue *big.Int
 }
 
 func NewMerkleTree(db db.KeyValuer, arity uint8, hash interface{}, F interface{}) *MerkleTree {
@@ -67,7 +57,7 @@ func (mt *MerkleTree) Set(oldRoot, key, value *big.Int) (*UpdateProof, error) {
 	one := big.NewInt(1)
 
 	accKey := big.NewInt(0)
-	lastAccKey := big.NewInt(0)
+	var lastAccKey *big.Int
 	var foundKey *big.Int
 	var siblings [][]*big.Int
 
@@ -300,84 +290,15 @@ func (mt *MerkleTree) Set(oldRoot, key, value *big.Int) (*UpdateProof, error) {
 	fmt.Println("mode: ", mode)
 
 	return &UpdateProof{
-		OldRoot:  oldRoot,
-		NewRoot:  newRoot,
-		Key:      key,
-		Siblings: siblings,
-		InsKey:   insKey,
-		InsValue: insValue,
-		IsOld0:   isOld0,
-		OldValue: oldValue,
-		NewValue: value,
-	}, nil
-}
-
-func (mt *MerkleTree) Get(root, key *big.Int) (*Proof, error) {
-	r := root
-
-	keys := mt.splitKey(key)
-	level := 0
-
-	zero := big.NewInt(0)
-	one := big.NewInt(1)
-
-	accKey := big.NewInt(0)
-	lastAccKey := big.NewInt(0)
-	var foundKey *big.Int
-	var siblings [][]*big.Int
-
-	insKey := big.NewInt(0)
-	insValue := big.NewInt(0)
-	value := big.NewInt(0)
-
-	isOld0 := true
-
-	for (r.Cmp(zero) != cmpEq) && (foundKey != nil) {
-		node, err := mt.getNode(r)
-		if err != nil {
-			return nil, err
-		}
-		siblings[level] = node
-
-		if siblings[level][0].Cmp(one) == cmpEq {
-			foundKey = new(big.Int).Add(
-				accKey,
-				new(big.Int).Mul(
-					siblings[level][1],
-					new(big.Int).Lsh(one, uint(level*int(mt.arity))),
-				),
-			)
-		} else {
-			r = siblings[level][keys[level]]
-			lastAccKey = accKey
-			accKey = new(big.Int).Add(accKey, new(big.Int).Lsh(big.NewInt(int64(keys[level])), uint(level*int(mt.arity))))
-			level++
-		}
-	}
-
-	level--
-	accKey = lastAccKey
-
-	if foundKey != nil {
-		if key.Cmp(foundKey) == cmpEq {
-			value = fea2scalar(siblings[level+1][2:6])
-		} else {
-			insKey = foundKey
-			insValue = fea2scalar(siblings[level+1][2:6])
-			isOld0 = false
-		}
-	}
-
-	siblings = siblings[0 : level+1]
-
-	return &Proof{
-		Root:     root,
-		Key:      key,
-		Value:    value,
-		Siblings: siblings,
-		IsOld0:   isOld0,
-		InsKey:   insKey,
-		InsValue: insValue,
+		oldRoot:  oldRoot,
+		newRoot:  newRoot,
+		key:      key,
+		siblings: siblings,
+		insKey:   insKey,
+		insValue: insValue,
+		isOld0:   isOld0,
+		oldValue: oldValue,
+		newValue: value,
 	}, nil
 }
 
