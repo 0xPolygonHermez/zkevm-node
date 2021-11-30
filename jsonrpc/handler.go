@@ -47,7 +47,7 @@ func newJSONRpcHandler(e *Eth, n *Net) *Handler {
 }
 
 // Handle is the function that knows which and how a function should
-// be executed when a RPC call is received
+// be executed when a JSON RPC request is received
 func (d *Handler) Handle(req Request) Response {
 	log.Debugf("request method %s id %v", req.Method, req.ID)
 
