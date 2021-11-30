@@ -2,7 +2,6 @@ package state
 
 import (
 	"encoding/binary"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -65,6 +64,7 @@ func (b *Batch) EmptyReceipts() bool {
 // Batch represents a batch
 type Batch struct {
 	BatchNumber        uint64
+	BatchHash          common.Hash
 	BlockNumber        uint64
 	Sequencer          common.Address
 	Aggregator         common.Address
@@ -73,8 +73,6 @@ type Batch struct {
 	Uncles             []*types.Header
 	Transactions       []*types.Transaction
 	RawTxsData         []byte
-
-	ReceivedAt time.Time
 }
 
 // NewBatchWithHeader creates a batch with the given header data.
