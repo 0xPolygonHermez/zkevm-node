@@ -38,6 +38,10 @@ type State interface {
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
 	AddNewSequencer(seq Sequencer) error
+	SetGenesis(genesis Genesis) error
+	AddBlock(*Block) error
+	SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error
+	GetLastBatchNumberSeenOnEthereum() (uint64, error)
 }
 
 const (
@@ -329,4 +333,37 @@ func (s *BasicState) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*
 // AddNewSequencer stores a new sequencer
 func (s *BasicState) AddNewSequencer(seq Sequencer) error {
 	return nil
+}
+
+// SetGenesis populates state with genesis information
+func (s *BasicState) SetGenesis(genesis Genesis) error {
+	// Genesis Balances
+	for address, balance := range genesis.Balances {
+		_, _, err := s.Tree.SetBalance(address, balance)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AddBlock adds a new block to the State DB
+func (s *BasicState) AddBlock(*Block) error {
+	// TODO: Implement
+	return nil
+}
+
+// SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
+// the roll-up in order to allow the components to know if the state
+// is synchronized or not
+func (s *BasicState) SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error {
+	return nil
+}
+
+// GetLastBatchNumberSeenOnEthereum returns the last batch number stored
+// in the state that represents the last batch number that affected the
+// roll-up in the Ethereum network.
+func (s *BasicState) GetLastBatchNumberSeenOnEthereum() (uint64, error) {
+	return 0, nil
 }
