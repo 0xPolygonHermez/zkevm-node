@@ -1,6 +1,7 @@
 package etherman
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
 var (
@@ -30,8 +32,8 @@ var (
 type EtherMan interface {
 	EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error)
 	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
-	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error)
-	SendBatch(batch state.Batch) (common.Hash, error)
+	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
+	SendBatch(ctx context.Context, batch state.Batch) (*types.Transaction, error)
 	ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error)
 }
 
@@ -101,12 +103,14 @@ func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNum 
 
 // GetBatchesByBlockRange function retrieves the batches information that are included in all this ethereum blocks
 //from block x to block y
-func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error) {
+func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error) {
 	//First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
-		ToBlock:   new(big.Int).SetUint64(toBlock),
 		Addresses: etherMan.SCAddresses,
+	}
+	if toBlock != nil {
+		query.ToBlock = new(big.Int).SetUint64(*toBlock)
 	}
 	blocks, err := etherMan.readEvents(ctx, query)
 	if err != nil {
@@ -116,9 +120,42 @@ func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, from
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
-func (etherMan *ClientEtherMan) SendBatch(batch state.Batch) (common.Hash, error) {
-	//TODO
-	return common.Hash{}, nil
+func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, batch state.Batch) (*types.Transaction, error) {
+	var data []byte
+	for _, tx := range batch.Transactions {
+		a := new(bytes.Buffer)
+		v, r, s := tx.RawSignatureValues()
+		rlp.Encode(a, []interface{}{
+			tx.Nonce(),
+			tx.GasPrice(),
+			tx.Gas(),
+			tx.To(),
+			tx.Value(),
+			tx.Data(),
+			v,
+			r,
+			s,
+		});
+		log.Debug("Coded tx: ",hex.EncodeToString(a.Bytes()))
+		data = append(data, a.Bytes()...)
+	}
+	log.Debug("Coded txs: ",hex.EncodeToString(data))
+
+	chainID, err := etherMan.EtherClient.ChainID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	transactOpts, err := bind.NewKeyedTransactorWithChainID(etherMan.key.PrivateKey, chainID)
+	if err != nil {
+		log .Error("error getting transactOpts: ", err)
+		return nil, err
+	}
+
+	tx, err := etherMan.PoE.SendBatch(transactOpts, data, big.NewInt(2))
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
 }
 
 // ConsolidateBatch function allows the agregator send the proof for a batch and consolidate it
@@ -256,7 +293,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 			log.Info("error decoding tx bytes: ", err, data)
 			continue
 		}
-		txs = append(txs, types.NewTransaction(tx.Nonce, *tx.To, tx.Value, tx.Gas, tx.GasPrice, tx.Data))
+		txs = append(txs, types.NewTx(&tx))
 	}
 	return txs, nil
 }

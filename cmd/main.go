@@ -19,8 +19,8 @@ func main() {
 	c := config.Load()
 	setupLog(c.Log)
 	go runJSONRpcServer(c.RPC)
-	go runSequencer(c.Sequencer)
-	go runAggregator(c.Aggregator)
+	go runSequencer(c.Sequencer, c.Synchronizer)
+	go runAggregator(c.Aggregator, c.Synchronizer)
 	waitSignal()
 }
 
@@ -37,14 +37,14 @@ func runJSONRpcServer(c jsonrpc.Config) {
 	}
 }
 
-func runSequencer(c sequencer.Config) {
+func runSequencer(c sequencer.Config, syncConf synchronizer.Config) {
 	p := mocks.NewPool()
 	s := mocks.NewState()
 	e, err := etherman.NewEtherman(c.Etherman)
 	if err != nil {
 		log.Fatal(err)
 	}
-	sy, err := synchronizer.NewSynchronizer(e, s)
+	sy, err := synchronizer.NewSynchronizer(e, s, syncConf)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func runSequencer(c sequencer.Config) {
 	seq.Start()
 }
 
-func runAggregator(c aggregator.Config) {
+func runAggregator(c aggregator.Config, syncConf synchronizer.Config) {
 	// TODO: have more readable variables
 	s := mocks.NewState()
 	bp := s.NewBatchProcessor(common.Hash{}, false)
@@ -63,7 +63,7 @@ func runAggregator(c aggregator.Config) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	sy, err := synchronizer.NewSynchronizer(e, s)
+	sy, err := synchronizer.NewSynchronizer(e, s, syncConf)
 	if err != nil {
 		log.Fatal(err)
 	}

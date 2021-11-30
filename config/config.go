@@ -6,14 +6,16 @@ import (
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/sequencer"
+	"github.com/hermeznetwork/hermez-core/synchronizer"
 )
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	Log        log.Config
-	RPC        jsonrpc.Config
-	Sequencer  sequencer.Config
-	Aggregator aggregator.Config
+	Log          log.Config
+	RPC          jsonrpc.Config
+	Sequencer    sequencer.Config
+	Aggregator   aggregator.Config
+	Synchronizer synchronizer.Config
 }
 
 // Load loads the configuration

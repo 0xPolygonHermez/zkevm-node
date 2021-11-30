@@ -1,7 +1,9 @@
 package etherman
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -73,12 +76,14 @@ func (etherMan *TestClientEtherMan) GetBatchesByBlock(ctx context.Context, block
 
 // GetBatchesByBlockRange function retrieves the batches information that are included in all this ethereum blocks
 //from block x to block y
-func (etherMan *TestClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock uint64) ([]state.Block, error) {
+func (etherMan *TestClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error) {
 	//First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
-		ToBlock:   new(big.Int).SetUint64(toBlock),
 		Addresses: etherMan.SCAddresses,
+	}
+	if toBlock != nil {
+		query.ToBlock = new(big.Int).SetUint64(*toBlock)
 	}
 	blocks, err := etherMan.readEvents(ctx, query)
 	if err != nil {
@@ -88,9 +93,32 @@ func (etherMan *TestClientEtherMan) GetBatchesByBlockRange(ctx context.Context, 
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
-func (etherMan *TestClientEtherMan) SendBatch(batch state.Batch) (common.Hash, error) {
-	//TODO
-	return common.Hash{}, nil
+func (etherMan *TestClientEtherMan) SendBatch(ctx context.Context, batch state.Batch) (*types.Transaction, error) {
+	var data []byte
+	for _, tx := range batch.Transactions {
+		a := new(bytes.Buffer)
+		v, r, s := tx.RawSignatureValues()
+		rlp.Encode(a, []interface{}{
+			tx.Nonce(),
+			tx.GasPrice(),
+			tx.Gas(),
+			tx.To(),
+			tx.Value(),
+			tx.Data(),
+			v,
+			r,
+			s,
+		});
+		log.Debug("Coded tx: ",hex.EncodeToString(a.Bytes()))
+		data = append(data, a.Bytes()...)
+	}
+	log.Debug("Coded txs: ",hex.EncodeToString(data))
+
+	tx, err := etherMan.PoE.SendBatch(Auth, data, big.NewInt(2))
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
 }
 
 // ConsolidateBatch function allows the agregator send the proof for a batch and consolidate it
