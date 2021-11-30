@@ -3,10 +3,11 @@ package mocks
 
 import (
 	"context"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state"
-	"math/big"
 )
 
 type StateMock struct{}
@@ -113,15 +114,19 @@ func (s *StateMock) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*t
 	}, nil
 }
 
-func (s *StateMock) AddNewSequencer(seq state.Sequencer) error {
+func (s *StateMock) AddSequencer(ctx context.Context, seq *state.Sequencer) error {
 	return nil
+}
+
+func (s *StateMock) GetSequencerByChainID(ctx context.Context, chainID *big.Int) (*state.Sequencer, error) {
+	return nil, nil
 }
 
 func (s *StateMock) SetGenesis(genesis state.Genesis) error {
 	return nil
 }
 
-func (s *StateMock) AddBlock(*state.Block) error {
+func (s *StateMock) AddBlock(ctx context.Context, block *state.Block) error {
 	return nil
 }
 

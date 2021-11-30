@@ -216,7 +216,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		}
 		var block state.Block
 		var sequencer state.Sequencer
-		sequencer.Sequencer = seq.SequencerAddress
+		sequencer.Address = seq.SequencerAddress
 		sequencer.URL = seq.SequencerURL
 		block.BlockHash = vLog.BlockHash
 		block.BlockNumber = vLog.BlockNumber

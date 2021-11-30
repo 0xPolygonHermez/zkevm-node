@@ -259,8 +259,8 @@ func TestSequencerEvent(t *testing.T) {
 	ctx := context.Background()
 	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), finalBlock.NumberU64())
 	require.NoError(t, err)
-	assert.Equal(t, testEnv.transactOpts.From, block[0].NewSequencers[0].Sequencer)
+	assert.Equal(t, testEnv.transactOpts.From, block[0].NewSequencers[0].Address)
 	assert.Equal(t, "http://localhost", block[0].NewSequencers[0].URL)
 	assert.Equal(t, big.NewInt(1), block[0].NewSequencers[0].ChainID)
-	log.Debug("Sequencer synced: ", block[0].NewSequencers[0].Sequencer, ", url: ", block[0].NewSequencers[0].URL, ", and chainId: ", block[0].NewSequencers[0].ChainID)
+	log.Debug("Sequencer synced: ", block[0].NewSequencers[0].Address, ", url: ", block[0].NewSequencers[0].URL, ", and chainId: ", block[0].NewSequencers[0].ChainID)
 }
