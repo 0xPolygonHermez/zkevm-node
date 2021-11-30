@@ -39,15 +39,14 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, cfg Config) (Sync
 }
 
 // Sync function will read the last state synced and will continue from that point.
-// Sync() will read blockchain events to detect rollup updates. If it is already synced,
-// It will keep waiting for a new event
+// Sync() will read blockchain events to detect rollup updates
 func (s *ClientSynchronizer) Sync() error {
 	go func() {
 		//If there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block
 		//Get the latest synced block. If there is no block on db, use genesis block
-		lastEthBlockSynced, err := s.state.GetLastBlock()
+		lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx)
 		if err != nil || lastEthBlockSynced.BlockNumber == 0 {
-			lastEthBlockSynced = state.Block{
+			lastEthBlockSynced = &state.Block{
 				BlockNumber: s.config.GenesisBlock,
 			}
 		}
@@ -57,7 +56,6 @@ func (s *ClientSynchronizer) Sync() error {
 			case <-s.ctx.Done():
 				return
 			case <-time.After(waitDuration):
-				//TODO
 				if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
 					if s.ctx.Err() != nil {
 						continue
@@ -70,34 +68,58 @@ func (s *ClientSynchronizer) Sync() error {
 }
 
 // This function syncs the node from a specific block to the latest
-func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced state.Block) (state.Block, error) {
-	//TODO
+func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	//This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
-	block, err := s.checkReorg(lastEthBlockSynced)
+	block, err := s.checkReorg(*lastEthBlockSynced)
 	if err != nil {
 		log.Error("error checking reorgs")
-		return state.Block{}, fmt.Errorf("error checking reorgs")
+		return nil, fmt.Errorf("error checking reorgs")
 	} else if block != nil {
 		err = s.resetState(block.BlockNumber)
 		if err != nil {
 			log.Error("error resetting the state to a previous block")
-			return state.Block{}, fmt.Errorf("error resetting the state to a previous block")
+			return nil, fmt.Errorf("error resetting the state to a previous block")
 		}
-		return *block, nil
+		return block, nil
 	}
 
 	//Call the blockchain to retrieve data
-	blocks, err := s.etherMan.GetBatchesByBlockRange(s.ctx, lastEthBlockSynced.BlockNumber, nil)
+	blocks, err := s.etherMan.GetBatchesByBlockRange(s.ctx, lastEthBlockSynced.BlockNumber + 1, nil)
 	if err != nil {
-		return state.Block{}, err
+		return nil, err
 	}
 
 	// New info has to be included into the db using the state
-	//meto la info. ( puedo separarla en bloques (y meter todos de golpe), en batches (y meter todos de golpe), en sequenciadores( y meter todos de golpe))
-	//O puedo pasar la estructura completa y que lo haga toni.
-	//O puedo hacerlo paso a paso. Cojo un bloque y lo guardo, cojo sus batches y los guardo (de golpe o uno a uno), cojo los sequenciadores y los guardo(uno a uno o de golpe)
+	for _, block := range blocks {
+		//get lastest synced batch
+		latestBatch, err := s.state.GetLastBatch(s.ctx, false)
 
-	return state.Block{}, nil
+		batchProcessor := s.state.NewBatchProcessor(latestBatch.BatchNumber, false)
+
+		//Add block information
+		err = s.state.AddBlock(&block)
+		if err != nil {
+			log.Fatal("error storing block. BlockNumber: ", block.BlockNumber)
+		}
+		for _, seq := range block.NewSequencers {
+			//Add new sequencers
+			err := s.state.AddNewSequencer(seq)
+			if err != nil {
+				log.Fatal("error storing new sequencer in Block: ", block.BlockNumber, " Sequencer: ", seq)
+			}
+		}
+		for _, batch := range block.Batches {
+			//Add batches
+			err := batchProcessor.ProcessBatch(&batch)
+			if err != nil {
+				log.Fatal("error processing batch. BatchNumber: ", batch.BatchNumber, ". Error: ", err)
+			}
+		}
+	}
+	if len(blocks) != 0 {
+		return &blocks[len(blocks)-1], nil
+	}
+	return lastEthBlockSynced, nil
 }
 
 // This function allows reset the state until an specific ethereum block
@@ -117,7 +139,7 @@ func (s *ClientSynchronizer) checkReorg(currentBlock state.Block) (*state.Block,
 	//if the values doesn't match get the previous ethereum block from db (last-1) and get the info for that ethereum block number
 	//from the blockchain. Compare the values. If they don't match do this step again. If matches, we have found the good ethereum block.
 	// Now, return the ethereum block number
-	return &state.Block{}, nil
+	return nil, nil
 }
 
 // Stop function stops the synchronizer

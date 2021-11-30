@@ -15,7 +15,7 @@ func NewState() state.State {
 	return &StateMock{}
 }
 
-func (s *StateMock) NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) state.BatchProcessor {
+func (s *StateMock) NewBatchProcessor(lastBachNumber uint64, withProofCalculation bool) state.BatchProcessor {
 	return &state.BasicBatchProcessor{}
 }
 

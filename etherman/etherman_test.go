@@ -262,7 +262,8 @@ func TestSequencerEvent(t *testing.T) {
 	finalBlock := testEnv.client.Blockchain().CurrentBlock()
 
 	ctx := context.Background()
-	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), finalBlock.NumberU64())
+	finalBlockNumber := finalBlock.NumberU64()
+	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	assert.Equal(t, testEnv.transactOpts.From, block[0].NewSequencers[0].Sequencer)
 	assert.Equal(t, "http://localhost", block[0].NewSequencers[0].URL)

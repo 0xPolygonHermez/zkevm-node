@@ -21,7 +21,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
 var (
