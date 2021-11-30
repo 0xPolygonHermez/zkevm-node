@@ -7,8 +7,33 @@
 -- PostgreSQL DECIMAL guaranteeing that we will never lose precision.
 
 -- History
-CREATE TABLE block (
-    eth_block_num BIGINT PRIMARY KEY,
-    timestamp TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    hash BYTEA NOT NULL
+CREATE TABLE block
+(
+    block_num   BIGINT PRIMARY KEY,
+    block_hash  BYTEA                       NOT NULL,
+    parent_hash BYTEA,
+
+    received_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+);
+
+CREATE TABLE batch
+(
+    batch_num            BIGINT PRIMARY KEY,
+    batch_hash           BYTEA,
+    block_num            BIGINT                      NOT NULL REFERENCES block (block_num) ON DELETE CASCADE,
+    sequencer            BYTEA,
+    aggregator           BYTEA,
+    consolidated_tx_hash BYTEA,
+    header               jsonb,
+    uncles               jsonb,
+    raw_txs_data         BYTEA
+);
+
+CREATE TABLE transaction
+(
+    hash         BYTEA PRIMARY KEY,
+    from_address BYTEA,
+    encoded      VARCHAR,
+    decoded      jsonb,
+    batch_num    BIGINT NOT NULL REFERENCES batch (batch_num) ON DELETE CASCADE
 );

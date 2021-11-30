@@ -1,15 +1,20 @@
 package state
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 )
 
 // Block struct
 type Block struct {
-	BlockNumber uint64
-	BlockHash   common.Hash
-	ParentHash  common.Hash
-	Batches     []Batch
+	BlockNumber   uint64
+	BlockHash     common.Hash
+	ParentHash    common.Hash
+	Batches       []Batch
+	NewSequencers []Sequencer
+
+	ReceivedAt time.Time
 }
 
 // NewBlock creates a block with the given data.

@@ -237,6 +237,39 @@ func TestSCEvents(t *testing.T) {
 	log.Debugf("Batch consolidated in txHash: %+v \n", block[0].Batches[0].ConsolidatedTxHash)
 }
 
+func TestSequencerEvent(t *testing.T) {
+	// Set up testing environment
+	testEnv, err := newTestingEnv()
+	require.NoError(t, err)
+
+	//read currentBlock
+	initBlock := testEnv.client.Blockchain().CurrentBlock()
+
+	//send propose batch l1 tx
+	_, err = testEnv.poe.RegisterSequencer(testEnv.transactOpts, "http://localhost")
+	require.NoError(t, err)
+
+	//mine the tx in a block
+	testEnv.client.Commit()
+
+	//Now read the event
+	conf := Config{
+		PoEAddress: testEnv.poeAddr,
+	}
+	etherman, err := NewTestEtherman(conf, testEnv.client, testEnv.poe)
+	require.NoError(t, err)
+
+	finalBlock := testEnv.client.Blockchain().CurrentBlock()
+
+	ctx := context.Background()
+	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), finalBlock.NumberU64())
+	require.NoError(t, err)
+	assert.Equal(t, testEnv.transactOpts.From, block[0].NewSequencers[0].Sequencer)
+	assert.Equal(t, "http://localhost", block[0].NewSequencers[0].URL)
+	assert.Equal(t, big.NewInt(1), block[0].NewSequencers[0].ChainID)
+	log.Debug("Sequencer synced: ", block[0].NewSequencers[0].Sequencer, ", url: ", block[0].NewSequencers[0].URL, ", and chainId: ", block[0].NewSequencers[0].ChainID)
+}
+
 func TestSCSendBatch(t *testing.T) {
 	dHex := "06d6490f000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000147f86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a028ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276a067cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83f86c088504a817c8008252089411111111111111111111111111111111111111118802c68af0bb1400008026a08975cf0fe106a0396649d37c5292274f66193346ce5b07bcbaa8dc248f7f5496a0684963f42a662640b6d27e3552151e3f42744c9b4d72dd70b262ca94b9473c94f869028504a817c8008252089412121212121212121212121212121212121212128506fc23ac008025a0528b1dd150ccae6e83fcc44bff11928ca635f0fc6819836a14d526af1ecf0519a02a96710022671e44c81a6f19b88f605567d32dd97508aa84c830ec9d4a4aa0d200000000000000000000000000000000000000000000000000"
 	data, err := hex.DecodeString(dHex)
