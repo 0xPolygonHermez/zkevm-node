@@ -6,7 +6,7 @@ import (
 )
 
 // Transaction represents a state tx
-type Transaction struct {
+type transaction struct {
 	Hash     common.Hash
 	BatchNum uint64
 	From     common.Address
