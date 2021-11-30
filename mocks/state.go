@@ -117,6 +117,14 @@ func (s *StateMock) AddNewSequencer(seq state.Sequencer) error {
 	return nil
 }
 
+func (s *StateMock) SetGenesis(genesis state.Genesis) error {
+	return nil
+}
+
+func (s *StateMock) AddBlock(*state.Block) error {
+	return nil
+}
+
 func (s *StateMock) SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error {
 	return nil
 }
