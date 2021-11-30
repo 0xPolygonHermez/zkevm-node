@@ -6,42 +6,39 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/synchronizer"
 )
 
 // Sequencer represents a sequencer
 type Sequencer struct {
+	cfg Config
+
 	Pool           pool.Pool
 	State          state.State
 	BatchProcessor state.BatchProcessor
 	EthMan         etherman.EtherMan
-	Synchronizer   synchronizer.Synchronizer
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 // NewSequencer creates a new sequencer
-func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan, sy synchronizer.Synchronizer) (Sequencer, error) {
+func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	s := Sequencer{
-		Pool:         pool,
-		State:        state,
-		EthMan:       ethMan,
-		Synchronizer: sy,
+		cfg:    cfg,
+		Pool:   pool,
+		State:  state,
+		EthMan: ethMan,
 
 		ctx:    ctx,
 		cancel: cancel,
 	}
-
-	sy.RegisterNewConsolidatedStateHandler(s.onNewBatchPropostal)
 
 	return s, nil
 }
@@ -49,45 +46,49 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 // Start starts the sequencer
 func (s *Sequencer) Start() {
 	// Infinite for loop:
-	// 1. Wait for synchronizer to sync last batch
-	// 2. Estimate available time to run selection
-	// 3. Run selection
-	// 4. Is selection profitable?
-	// YES: send selection to Ethereum
-	// NO: discard selection and wait for the new batch
-	if err := s.Synchronizer.Sync(); err != nil {
-		log.Fatal(err)
-	}
-}
+	for {
+		time.Sleep(s.cfg.IntervalToProposeBatch)
 
-func (s *Sequencer) onNewBatchPropostal(batchNumber uint64, root common.Hash) {
-	ctx := context.Background()
+		ctx := context.Background()
 
-	s.BatchProcessor = s.State.NewBatchProcessor(root, false)
-	// get pending txs from the pool
-	txs, err := s.Pool.GetPendingTxs(ctx)
-	if err != nil {
-		return
-	}
-	// estimate time for selecting txs
-	estimatedTime, err := s.estimateTime()
-	if err != nil {
-		return
-	}
-	// select txs
-	selectedTxs, err := s.selectTxs(txs, estimatedTime)
-	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
-		return
-	}
-	// check is it profitable to send selection
-	isProfitable := s.isSelectionProfitable(selectedTxs)
-	batch := state.Batch{Transactions: selectedTxs}
-	if isProfitable {
-		_, err = s.EthMan.SendBatch(batch)
+		// 1. Wait for synchronizer to sync last batch
+		// TODO: state will provide methods to check if it is synchronized
+
+		// 2. Estimate available time to run selection
+		// get pending txs from the pool
+		txs, err := s.Pool.GetPendingTxs(ctx)
 		if err != nil {
-			log.Error(err)
 			return
 		}
+
+		// estimate time for selecting txs
+		estimatedTime, err := s.estimateTime(txs)
+		if err != nil {
+			return
+		}
+
+		log.Infof("Estimated time for selecting txs is %dms", estimatedTime.Milliseconds())
+
+		// 3. Run selection
+		// select txs
+		selectedTxs, err := s.selectTxs(txs, estimatedTime)
+		if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
+			return
+		}
+
+		// 4. Is selection profitable?
+		// check is it profitable to send selection
+		isProfitable := s.isSelectionProfitable(selectedTxs)
+		batch := state.Batch{Transactions: selectedTxs}
+		if isProfitable {
+			// YES: send selection to Ethereum
+			_, err = s.EthMan.SendBatch(batch)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+		}
+		// NO: discard selection and wait for the new batch
 	}
 }
 
@@ -134,7 +135,7 @@ func (s *Sequencer) sortTxs(txs []pool.Transaction) []pool.Transaction {
 }
 
 // estimateTime Estimate available time to run selection
-func (s *Sequencer) estimateTime() (time.Duration, error) {
+func (s *Sequencer) estimateTime(txs []pool.Transaction) (time.Duration, error) {
 	return time.Hour, nil
 }
 

@@ -37,6 +37,7 @@ type State interface {
 	GetTxsByBatchNum(batchNum uint64) ([]*types.Transaction, error)
 	AddNewSequencer(seq Sequencer) error
 	SetGenesis(genesis Genesis) error
+	AddBlock(*Block) error
 }
 
 // BasicState is a implementation of the state
@@ -197,5 +198,11 @@ func (s *BasicState) SetGenesis(genesis Genesis) error {
 		}
 	}
 
+	return nil
+}
+
+// AddBlock adds a new block to the State DB
+func (s *BasicState) AddBlock(*Block) error {
+	// TODO: Implement
 	return nil
 }
