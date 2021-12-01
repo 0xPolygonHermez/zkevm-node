@@ -1,4 +1,4 @@
-package vectors
+package e2e
 
 import (
 	"github.com/ethereum/go-ethereum/common"
@@ -15,14 +15,14 @@ type StateTest struct {
 	ChanIDSequencer  uint64                  `json:"chainIdSequencer"`
 	SequencerAddress common.MixedcaseAddress `json:"sequencerAddress"`
 
-	Genesis          []Genesis               `json:"genesis"`
+	GenesisAccounts  []GenesisAccount        `json:"genesis"`
 	ExpectedOldRoot  []byte                  `json:"expectedOldRoot"`
 	Txs              []Tx                    `json:"txs"`
 	ExpectedNewRoot  []byte                  `json:"expectedNewRoot"`
 	ExpectedNewLeafs map[common.Address]Leaf `json:"expectedNewLeafs"`
 }
 
-type Genesis struct {
+type GenesisAccount struct {
 	Address common.MixedcaseAddress `json:"address"`
 	PvtKey  string                  `json:"pvtKey"`
 	Balance argBigInt               `json:"balance"`
@@ -35,7 +35,7 @@ type Tx struct {
 	Nonce    uint64                  `json:"nonce"`
 	Value    argBigInt               `json:"value"`
 	GasLimit uint64                  `json:"gasLimit"`
-	GasPrice uint64                  `json:"gasPrice"`
+	GasPrice argBigInt               `json:"gasPrice"`
 	ChainID  uint64                  `json:"chainId"`
 	RawTx    string                  `json:"rawTx"`
 }

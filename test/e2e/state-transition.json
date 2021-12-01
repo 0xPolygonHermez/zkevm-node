@@ -1,6 +1,5 @@
 {
-        "tests":
-    [
+    "tests": [
         {
             "id": 0,
             "description": "2 accounts and 1 valid transaction.",

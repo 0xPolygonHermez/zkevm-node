@@ -43,18 +43,14 @@ var cfg = db.Config{
 }
 
 func TestMain(m *testing.M) {
+	var err error
+
 	log.Init(log.Config{
 		Level:   "debug",
 		Outputs: []string{"stdout"},
 	})
 
-	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
-	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
-
-	// init db
-	var err error
-	err = db.RunMigrations(cfg)
-	if err != nil {
+	if err := dbutils.InitOrReset(cfg); err != nil {
 		panic(err)
 	}
 
@@ -62,6 +58,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+	defer stateDb.Close()
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
 
@@ -72,26 +69,7 @@ func TestMain(m *testing.M) {
 
 	result := m.Run()
 
-	cleanUp()
-
-	stateDb.Close()
 	os.Exit(result)
-}
-
-func cleanUp() {
-	var err error
-	_, err = stateDb.Exec(ctx, "DELETE FROM batch")
-	if err != nil {
-		panic(err)
-	}
-	_, err = stateDb.Exec(ctx, "DELETE FROM block")
-	if err != nil {
-		panic(err)
-	}
-	_, err = stateDb.Exec(ctx, "DELETE FROM transaction")
-	if err != nil {
-		panic(err)
-	}
 }
 
 func setUpBlocks() {
@@ -109,18 +87,18 @@ func setUpBlocks() {
 		ReceivedAt:  time.Now(),
 	}
 
-	_, err = stateDb.Exec(ctx, "DELETE FROM block")
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.block")
 	if err != nil {
 		panic(err)
 	}
 
-	_, err = stateDb.Exec(ctx, "INSERT INTO block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)",
+	_, err = stateDb.Exec(ctx, "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)",
 		block1.BlockNumber, block1.BlockHash.Bytes(), block1.ParentHash.Bytes(), block1.ReceivedAt)
 	if err != nil {
 		panic(err)
 	}
 
-	_, err = stateDb.Exec(ctx, "INSERT INTO block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)",
+	_, err = stateDb.Exec(ctx, "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)",
 		block2.BlockNumber, block2.BlockHash.Bytes(), block2.ParentHash.Bytes(), block2.ReceivedAt)
 	if err != nil {
 		panic(err)
@@ -177,7 +155,7 @@ func setUpBatches() {
 		RawTxsData:         nil,
 	}
 
-	_, err = stateDb.Exec(ctx, "DELETE FROM batch")
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.batch")
 	if err != nil {
 		panic(err)
 	}
@@ -185,7 +163,7 @@ func setUpBatches() {
 	batches := []*Batch{batch1, batch2, batch3, batch4}
 
 	for _, b := range batches {
-		_, err = stateDb.Exec(ctx, "INSERT INTO batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash) VALUES ($1, $2, $3, $4, $5, $6)",
+		_, err = stateDb.Exec(ctx, "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash) VALUES ($1, $2, $3, $4, $5, $6)",
 			b.BatchNumber, b.BatchHash, b.BlockNumber, b.Sequencer, b.Aggregator, b.ConsolidatedTxHash)
 		if err != nil {
 			panic(err)
@@ -207,7 +185,7 @@ func setUpTransactions() {
 		panic(err)
 	}
 	decoded := string(b)
-	sql := "INSERT INTO transaction (hash, from_address, encoded, decoded, batch_num) VALUES($1, $2, $3, $4, $5)"
+	sql := "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num) VALUES($1, $2, $3, $4, $5)"
 	if _, err := stateDb.Exec(ctx, sql, txHash, addr, encoded, decoded, batchNumber1); err != nil {
 		panic(err)
 	}
@@ -295,7 +273,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		RawTxsData:         nil,
 	}
 
-	_, err := stateDb.Exec(ctx, "INSERT INTO batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash) VALUES ($1, $2, $3, $4, $5, $6)",
+	_, err := stateDb.Exec(ctx, "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash) VALUES ($1, $2, $3, $4, $5, $6)",
 		batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator, batch.ConsolidatedTxHash)
 	assert.NoError(t, err)
 
@@ -310,7 +288,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, consolidatedTxHash, insertedBatch.ConsolidatedTxHash)
 
-	_, err = stateDb.Exec(ctx, "DELETE FROM batch WHERE batch_num = $1", batchNumber)
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.batch WHERE batch_num = $1", batchNumber)
 	assert.NoError(t, err)
 }
 
@@ -330,4 +308,77 @@ func TestBasicState_GetTransactionByHash(t *testing.T) {
 	tx, err := state.GetTransactionByHash(ctx, txHash)
 	assert.NoError(t, err)
 	assert.Equal(t, txHash, tx.Hash())
+}
+
+func TestBasicState_AddBlock(t *testing.T) {
+	lastBN, err := state.GetLastBlockNumber(ctx)
+	assert.NoError(t, err)
+
+	block1 := &Block{
+		BlockNumber: lastBN + 1,
+		BlockHash:   hash1,
+		ParentHash:  hash1,
+		ReceivedAt:  time.Now(),
+	}
+	block2 := &Block{
+		BlockNumber: lastBN + 2,
+		BlockHash:   hash2,
+		ParentHash:  hash1,
+		ReceivedAt:  time.Now(),
+	}
+	err = state.AddBlock(ctx, block1)
+	assert.NoError(t, err)
+	err = state.AddBlock(ctx, block2)
+	assert.NoError(t, err)
+
+	block3, err := state.GetBlockByNumber(ctx, block1.BlockNumber)
+	assert.NoError(t, err)
+	assert.Equal(t, block1.BlockHash, block3.BlockHash)
+	assert.Equal(t, block1.ParentHash, block3.ParentHash)
+
+	block4, err := state.GetBlockByNumber(ctx, block2.BlockNumber)
+	assert.NoError(t, err)
+	assert.Equal(t, block2.BlockHash, block4.BlockHash)
+	assert.Equal(t, block2.ParentHash, block4.ParentHash)
+
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.block WHERE block_num = $1", block1.BlockNumber)
+	assert.NoError(t, err)
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.block WHERE block_num = $1", block2.BlockNumber)
+	assert.NoError(t, err)
+}
+
+func TestBasicState_AddSequencer(t *testing.T) {
+	lastBN, err := state.GetLastBlockNumber(ctx)
+	assert.NoError(t, err)
+	sequencer1 := Sequencer{
+		Address:     common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9b"),
+		URL:         "http://www.adrresss1.com",
+		ChainID:     big.NewInt(1234),
+		BlockNumber: lastBN,
+	}
+	sequencer2 := Sequencer{
+		Address:     common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9c"),
+		URL:         "http://www.adrresss2.com",
+		ChainID:     big.NewInt(5678),
+		BlockNumber: lastBN,
+	}
+
+	err = state.AddSequencer(ctx, sequencer1)
+	assert.NoError(t, err)
+
+	sequencer3, err := state.GetSequencerByChainID(ctx, sequencer1.ChainID)
+	assert.NoError(t, err)
+	assert.Equal(t, sequencer1.ChainID, sequencer3.ChainID)
+
+	err = state.AddSequencer(ctx, sequencer2)
+	assert.NoError(t, err)
+
+	sequencer4, err := state.GetSequencerByChainID(ctx, sequencer2.ChainID)
+	assert.NoError(t, err)
+	assert.Equal(t, sequencer2, *sequencer4)
+
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.sequencer WHERE chain_id = $1", sequencer1.ChainID.Uint64())
+	assert.NoError(t, err)
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.sequencer WHERE chain_id = $1", sequencer2.ChainID.Uint64())
+	assert.NoError(t, err)
 }

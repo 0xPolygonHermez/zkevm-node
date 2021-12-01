@@ -19,7 +19,9 @@ type Eth struct {
 }
 
 // BlockNumber returns current block number
-func (e *Eth) BlockNumber(ctx context.Context) (interface{}, error) {
+func (e *Eth) BlockNumber() (interface{}, error) {
+	ctx := context.Background()
+
 	lastBatchNumber, err := e.state.GetLastBatchNumber(ctx)
 	if err != nil {
 		return nil, err
@@ -56,8 +58,8 @@ func (e *Eth) GasPrice() (interface{}, error) {
 }
 
 // GetBalance returns the account's balance at the referenced block
-func (e *Eth) GetBalance(ctx context.Context, address common.Address, number *BlockNumber) (interface{}, error) {
-	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
+func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface{}, error) {
+	batchNumber, err := getNumericBlockNumber(e, *number)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +73,9 @@ func (e *Eth) GetBalance(ctx context.Context, address common.Address, number *Bl
 }
 
 // GetBlockByHash returns information about a block by hash
-func (e *Eth) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (interface{}, error) {
+func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, error) {
+	ctx := context.Background()
+
 	batch, err := e.state.GetBatchByHash(ctx, hash)
 	if err != nil {
 		return nil, err
@@ -81,8 +85,10 @@ func (e *Eth) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool)
 }
 
 // GetBlockByNumber returns information about a block by block number
-func (e *Eth) GetBlockByNumber(ctx context.Context, number BlockNumber, fullTx bool) (interface{}, error) {
-	batchNumber, err := getNumericBlockNumber(ctx, e, number)
+func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, error) {
+	ctx := context.Background()
+
+	batchNumber, err := getNumericBlockNumber(e, number)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +109,9 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 
 // GetTransactionByBlockHashAndIndex returns information about a transaction by
 // block hash and transaction index position.
-func (e *Eth) GetTransactionByBlockHashAndIndex(ctx context.Context, hash common.Hash, index Index) (interface{}, error) {
+func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (interface{}, error) {
+	ctx := context.Background()
+
 	tx, err := e.state.GetTransactionByBatchHashAndIndex(ctx, hash, uint64(index))
 	if err != nil {
 		return nil, err
@@ -114,8 +122,10 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(ctx context.Context, hash common
 
 // GetTransactionByBlockNumberAndIndex returns information about a transaction by
 // block number and transaction index position.
-func (e *Eth) GetTransactionByBlockNumberAndIndex(ctx context.Context, number *BlockNumber, index Index) (interface{}, error) {
-	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
+func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, error) {
+	ctx := context.Background()
+
+	batchNumber, err := getNumericBlockNumber(e, *number)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +139,9 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(ctx context.Context, number *B
 }
 
 // GetTransactionByHash returns a transaction by his hash
-func (e *Eth) GetTransactionByHash(ctx context.Context, hash common.Hash) (interface{}, error) {
+func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
+	ctx := context.Background()
+
 	tx, err := e.state.GetTransactionByHash(ctx, hash)
 	if err != nil {
 		return nil, err
@@ -139,8 +151,8 @@ func (e *Eth) GetTransactionByHash(ctx context.Context, hash common.Hash) (inter
 }
 
 // GetTransactionCount returns account nonce
-func (e *Eth) GetTransactionCount(ctx context.Context, address common.Address, number *BlockNumber) (interface{}, error) {
-	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
+func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, error) {
+	batchNumber, err := getNumericBlockNumber(e, *number)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +166,9 @@ func (e *Eth) GetTransactionCount(ctx context.Context, address common.Address, n
 }
 
 // GetTransactionReceipt returns a transaction receipt by his hash
-func (e *Eth) GetTransactionReceipt(ctx context.Context, hash common.Hash) (interface{}, error) {
+func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
+	ctx := context.Background()
+
 	tx, err := e.state.GetTransactionReceipt(ctx, hash)
 	if err != nil {
 		return nil, err
@@ -170,6 +184,10 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 		return nil, err
 	}
 
+	if err := state.CheckSignature(tx); err != nil {
+		return nil, err
+	}
+
 	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
 		return nil, err
 	}
@@ -177,7 +195,9 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 	return tx.Hash().Hex(), nil
 }
 
-func getNumericBlockNumber(ctx context.Context, e *Eth, number BlockNumber) (uint64, error) {
+func getNumericBlockNumber(e *Eth, number BlockNumber) (uint64, error) {
+	ctx := context.Background()
+
 	switch number {
 	case LatestBlockNumber:
 		lastBatchNumber, err := e.state.GetLastBatchNumber(ctx)

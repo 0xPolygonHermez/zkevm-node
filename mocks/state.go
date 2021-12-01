@@ -3,10 +3,11 @@ package mocks
 
 import (
 	"context"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state"
-	"math/big"
 )
 
 type StateMock struct{}
@@ -15,11 +16,11 @@ func NewState() state.State {
 	return &StateMock{}
 }
 
-func (s *StateMock) NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) state.BatchProcessor {
+func (s *StateMock) NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) state.BatchProcessor {
 	return &state.BasicBatchProcessor{}
 }
 
-func (s *StateMock) GetStateRoot(virtual bool) (*big.Int, error) {
+func (s *StateMock) GetStateRoot(ctx context.Context, virtual bool) (*big.Int, error) {
 	return big.NewInt(0), nil
 }
 
@@ -113,15 +114,19 @@ func (s *StateMock) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*t
 	}, nil
 }
 
-func (s *StateMock) AddNewSequencer(seq state.Sequencer) error {
+func (s *StateMock) AddSequencer(ctx context.Context, seq state.Sequencer) error {
 	return nil
+}
+
+func (s *StateMock) GetSequencerByChainID(ctx context.Context, chainID *big.Int) (*state.Sequencer, error) {
+	return nil, nil
 }
 
 func (s *StateMock) SetGenesis(genesis state.Genesis) error {
 	return nil
 }
 
-func (s *StateMock) AddBlock(*state.Block) error {
+func (s *StateMock) AddBlock(ctx context.Context, block *state.Block) error {
 	return nil
 }
 
@@ -129,6 +134,6 @@ func (s *StateMock) SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error {
 	return nil
 }
 
-func (s *StateMock) GetLastBatchNumberSeenOnEthereum() (uint64, error) {
+func (s *StateMock) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
 	return 0, nil
 }

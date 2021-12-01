@@ -1,4 +1,4 @@
-package vectors
+package e2e
 
 import (
 	"math/big"
