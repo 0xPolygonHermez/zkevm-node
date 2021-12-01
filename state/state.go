@@ -15,7 +15,7 @@ import (
 // State is the interface of the Hermez state
 type State interface {
 	NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) BatchProcessor
-	GetStateRoot(virtual bool) (*big.Int, error)
+	GetStateRoot(ctx context.Context, virtual bool) (*big.Int, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
 	EstimateGas(transaction *types.Transaction) uint64
 	GetLastBlock(ctx context.Context) (*Block, error)
@@ -80,8 +80,7 @@ func (s *BasicState) NewBatchProcessor(startingHash common.Hash, withProofCalcul
 }
 
 // GetStateRoot returns the root of the state tree
-func (s *BasicState) GetStateRoot(virtual bool) (*big.Int, error) {
-	ctx := context.Background()
+func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) (*big.Int, error) {
 	batch, err := s.GetLastBatch(ctx, virtual)
 	if err != nil {
 		return nil, err

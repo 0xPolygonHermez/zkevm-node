@@ -3,10 +3,11 @@ package mocks
 
 import (
 	"context"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state"
-	"math/big"
 )
 
 type StateMock struct{}
@@ -19,7 +20,7 @@ func (s *StateMock) NewBatchProcessor(startingHash common.Hash, withProofCalcula
 	return &state.BasicBatchProcessor{}
 }
 
-func (s *StateMock) GetStateRoot(virtual bool) (*big.Int, error) {
+func (s *StateMock) GetStateRoot(ctx context.Context, virtual bool) (*big.Int, error) {
 	return big.NewInt(0), nil
 }
 
