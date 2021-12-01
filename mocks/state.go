@@ -20,7 +20,7 @@ func (s *StateMock) NewBatchProcessor(lastBatchNumber uint64, withProofCalculati
 	return &state.BasicBatchProcessor{}
 }
 
-func (s *StateMock) GetStateRoot(virtual bool) (*big.Int, error) {
+func (s *StateMock) GetStateRoot(ctx context.Context, virtual bool) (*big.Int, error) {
 	return big.NewInt(0), nil
 }
 
