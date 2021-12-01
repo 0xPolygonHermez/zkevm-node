@@ -81,9 +81,13 @@ func (s *BasicState) NewBatchProcessor(startingHash common.Hash, withProofCalcul
 
 // GetStateRoot returns the root of the state tree
 func (s *BasicState) GetStateRoot(virtual bool) (*big.Int, error) {
-	// TODO: GetBatchNumber taking into account virtual bool
-	// 		 and use GetRootForBatchNumber instead
-	root, err := s.Tree.GetRoot()
+	ctx := context.Background()
+	batch, err := s.GetLastBatch(ctx, virtual)
+	if err != nil {
+		return nil, err
+	}
+
+	root, err := s.Tree.GetRootForBatchNumber(batch.BatchNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -93,11 +97,11 @@ func (s *BasicState) GetStateRoot(virtual bool) (*big.Int, error) {
 
 // GetBalance from a given address
 func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
-	// TODO: GetBatchNumber and use its root
-	root, err := s.Tree.GetRoot()
+	root, err := s.Tree.GetRootForBatchNumber(batchNumber)
 	if err != nil {
 		return nil, err
 	}
+
 	return s.Tree.GetBalance(address, root)
 }
 
