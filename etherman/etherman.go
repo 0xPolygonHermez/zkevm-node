@@ -49,28 +49,29 @@ type ClientEtherMan struct {
 
 // NewEtherman creates a new etherman
 func NewEtherman(cfg *Config) (EtherMan, error) {
-	//Connect to ethereum node
-	ethClient, err := ethclient.Dial(cfg.URL)
-	if err != nil {
-		log.Errorf("error connecting to %s: %+v", cfg.URL, err)
-		return nil, err
-	}
-	//Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddress, ethClient)
-	if err != nil {
-		return nil, err
-	}
-	var scAddresses []common.Address
-	scAddresses = append(scAddresses, cfg.PoEAddress)
+	return nil, nil
+	// //Connect to ethereum node
+	// ethClient, err := ethclient.Dial(cfg.URL)
+	// if err != nil {
+	// 	log.Errorf("error connecting to %s: %+v", cfg.URL, err)
+	// 	return nil, err
+	// }
+	// //Create smc clients
+	// poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddress, ethClient)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// var scAddresses []common.Address
+	// scAddresses = append(scAddresses, cfg.PoEAddress)
 
-	var key *keystore.Key
-	if cfg.PrivateKeyPath != "" || cfg.PrivateKeyPassword != "" {
-		key, err = decryptKeystore(cfg.PrivateKeyPath, cfg.PrivateKeyPassword)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, key: key}, nil
+	// var key *keystore.Key
+	// if cfg.PrivateKeyPath != "" || cfg.PrivateKeyPassword != "" {
+	// 	key, err = decryptKeystore(cfg.PrivateKeyPath, cfg.PrivateKeyPassword)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
+	// return &ClientEtherMan{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, key: key}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
