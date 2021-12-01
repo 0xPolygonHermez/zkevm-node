@@ -8,7 +8,8 @@ import (
 
 // Sequencer struct
 type Sequencer struct {
-	Sequencer common.Address
-	URL       string
-	ChainID   *big.Int
+	Address     common.Address
+	URL         string
+	ChainID     *big.Int
+	BlockNumber uint64
 }

@@ -309,3 +309,76 @@ func TestBasicState_GetTransactionByHash(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, txHash, tx.Hash())
 }
+
+func TestBasicState_AddBlock(t *testing.T) {
+	lastBN, err := state.GetLastBlockNumber(ctx)
+	assert.NoError(t, err)
+
+	block1 := &Block{
+		BlockNumber: lastBN + 1,
+		BlockHash:   hash1,
+		ParentHash:  hash1,
+		ReceivedAt:  time.Now(),
+	}
+	block2 := &Block{
+		BlockNumber: lastBN + 2,
+		BlockHash:   hash2,
+		ParentHash:  hash1,
+		ReceivedAt:  time.Now(),
+	}
+	err = state.AddBlock(ctx, block1)
+	assert.NoError(t, err)
+	err = state.AddBlock(ctx, block2)
+	assert.NoError(t, err)
+
+	block3, err := state.GetBlockByNumber(ctx, block1.BlockNumber)
+	assert.NoError(t, err)
+	assert.Equal(t, block1.BlockHash, block3.BlockHash)
+	assert.Equal(t, block1.ParentHash, block3.ParentHash)
+
+	block4, err := state.GetBlockByNumber(ctx, block2.BlockNumber)
+	assert.NoError(t, err)
+	assert.Equal(t, block2.BlockHash, block4.BlockHash)
+	assert.Equal(t, block2.ParentHash, block4.ParentHash)
+
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.block WHERE block_num = $1", block1.BlockNumber)
+	assert.NoError(t, err)
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.block WHERE block_num = $1", block2.BlockNumber)
+	assert.NoError(t, err)
+}
+
+func TestBasicState_AddSequencer(t *testing.T) {
+	lastBN, err := state.GetLastBlockNumber(ctx)
+	assert.NoError(t, err)
+	sequencer1 := Sequencer{
+		Address:     common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9b"),
+		URL:         "http://www.adrresss1.com",
+		ChainID:     big.NewInt(1234),
+		BlockNumber: lastBN,
+	}
+	sequencer2 := Sequencer{
+		Address:     common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9c"),
+		URL:         "http://www.adrresss2.com",
+		ChainID:     big.NewInt(5678),
+		BlockNumber: lastBN,
+	}
+
+	err = state.AddSequencer(ctx, sequencer1)
+	assert.NoError(t, err)
+
+	sequencer3, err := state.GetSequencerByChainID(ctx, sequencer1.ChainID)
+	assert.NoError(t, err)
+	assert.Equal(t, sequencer1.ChainID, sequencer3.ChainID)
+
+	err = state.AddSequencer(ctx, sequencer2)
+	assert.NoError(t, err)
+
+	sequencer4, err := state.GetSequencerByChainID(ctx, sequencer2.ChainID)
+	assert.NoError(t, err)
+	assert.Equal(t, sequencer2, *sequencer4)
+
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.sequencer WHERE chain_id = $1", sequencer1.ChainID.Uint64())
+	assert.NoError(t, err)
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.sequencer WHERE chain_id = $1", sequencer2.ChainID.Uint64())
+	assert.NoError(t, err)
+}

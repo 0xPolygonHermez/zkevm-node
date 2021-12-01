@@ -39,3 +39,11 @@ CREATE TABLE state.transaction
     decoded      jsonb,
     batch_num    BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE
 );
+    
+CREATE TABLE state.sequencer
+(
+    address     BYTEA NOT NULL,
+    url         VARCHAR NOT NULL,
+    chain_id    BIGINT PRIMARY KEY,
+    block_num   BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE
+);
