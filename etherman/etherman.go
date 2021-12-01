@@ -48,7 +48,7 @@ type ClientEtherMan struct {
 }
 
 // NewEtherman creates a new etherman
-func NewEtherman(cfg *Config) (EtherMan, error) {
+func NewEtherman(cfg Config) (EtherMan, error) {
 	return nil, nil
 	// //Connect to ethereum node
 	// ethClient, err := ethclient.Dial(cfg.URL)
