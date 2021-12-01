@@ -10,10 +10,17 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func Test_GHARebase(t *testing.T) {
+	_, err := etherman.NewEtherman(etherman.Config{})
+	require.NoError(t, err)
+}
 
 func Test_AddTx(t *testing.T) {
 	if err := dbutils.InitOrReset(cfg); err != nil {
