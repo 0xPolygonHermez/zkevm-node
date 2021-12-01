@@ -14,7 +14,7 @@ import (
 
 // State is the interface of the Hermez state
 type State interface {
-	NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) BatchProcessor
+	NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) BatchProcessor
 	GetStateRoot(virtual bool) (*big.Int, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
 	EstimateGas(transaction *types.Transaction) uint64
@@ -75,7 +75,7 @@ func NewState(db *pgxpool.Pool, tree tree.ReadWriter) State {
 }
 
 // NewBatchProcessor creates a new batch processor
-func (s *BasicState) NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) BatchProcessor {
+func (s *BasicState) NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) BatchProcessor {
 	return &BasicBatchProcessor{State: s}
 }
 

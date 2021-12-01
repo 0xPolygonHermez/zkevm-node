@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"math/big"
 	"sort"
 	"strings"
 	"time"
@@ -89,7 +90,7 @@ func (s *Sequencer) Start() {
 				log.Warnf("failed to get last batch from the state, err: %v", err)
 				continue
 			}
-			bp := s.State.NewBatchProcessor(lastBatch.BatchHash, false)
+			bp := s.State.NewBatchProcessor(lastBatch.BatchNumber, false)
 			// select txs
 			selectedTxs, err := s.selectTxs(bp, txs, estimatedTime)
 			if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
@@ -100,10 +101,10 @@ func (s *Sequencer) Start() {
 			// 4. Is selection profitable?
 			// check is it profitable to send selection
 			isProfitable := s.isSelectionProfitable(selectedTxs)
-			batch := state.Batch{Transactions: selectedTxs}
+			var maticAmount *big.Int //TODO calculate the amount depending on the profitability
 			if isProfitable {
 				// YES: send selection to Ethereum
-				_, err = s.EthMan.SendBatch(batch)
+				_, err = s.EthMan.SendBatch(s.ctx, selectedTxs, maticAmount)
 				if err != nil {
 					log.Warnf("failed to send batch to ethereum, err: %v", err)
 					continue

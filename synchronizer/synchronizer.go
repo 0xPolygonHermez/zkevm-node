@@ -2,9 +2,11 @@ package synchronizer
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
@@ -14,40 +16,51 @@ type Synchronizer interface {
 	Stop()
 }
 
-// BasicSynchronizer connects L1 and L2
-type BasicSynchronizer struct {
+// ClientSynchronizer connects L1 and L2
+type ClientSynchronizer struct {
 	etherMan  etherman.EtherMan
 	state     state.State
 	ctx       context.Context
 	cancelCtx context.CancelFunc
+	config    Config
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
-func NewSynchronizer(ethMan etherman.EtherMan, st state.State) (Synchronizer, error) {
+func NewSynchronizer(ethMan etherman.EtherMan, st state.State, cfg Config) (Synchronizer, error) {
 	//TODO
 	ctx, cancel := context.WithCancel(context.Background())
-	return &BasicSynchronizer{
+	return &ClientSynchronizer{
 		state:     st,
 		etherMan:  ethMan,
 		ctx:       ctx,
 		cancelCtx: cancel,
+		config:    cfg,
 	}, nil
 }
 
 // Sync function will read the last state synced and will continue from that point.
-// Sync() will read blockchain events to detect rollup updates. If it is already synced,
-// It will keep waiting for a new event
-func (s *BasicSynchronizer) Sync() error {
+// Sync() will read blockchain events to detect rollup updates
+func (s *ClientSynchronizer) Sync() error {
 	go func() {
-		var lastEthBlockSynced uint64
-		var err error
+		//If there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block
+		//Get the latest synced block. If there is no block on db, use genesis block
+		lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx)
+		if err != nil {
+			log.Warn("error getting the latest ethereum block. Setting genesis block. Error: ", err)
+			lastEthBlockSynced = &state.Block{
+				BlockNumber: s.config.GenesisBlock,
+			}
+		} else if lastEthBlockSynced.BlockNumber == 0 {
+			lastEthBlockSynced = &state.Block{
+				BlockNumber: s.config.GenesisBlock,
+			}
+		}
 		waitDuration := time.Duration(0)
 		for {
 			select {
 			case <-s.ctx.Done():
 				return
 			case <-time.After(waitDuration):
-				//TODO
 				if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
 					if s.ctx.Err() != nil {
 						continue
@@ -60,36 +73,84 @@ func (s *BasicSynchronizer) Sync() error {
 }
 
 // This function syncs the node from a specific block to the latest
-func (s *BasicSynchronizer) syncBlocks(lastEthBlockSynced uint64) (uint64, error) {
-	//TODO
-	//This function will read events fromBlockNum to latestEthBlock. First It has to retrieve the latestEthereumBlock and check reorg to be sure that everything is ok.
-	//if there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block
-	// New info has to be included into the db using the state
+func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
+	//This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
+	block, err := s.checkReorg(*lastEthBlockSynced)
+	if err != nil {
+		log.Error("error checking reorgs")
+		return nil, fmt.Errorf("error checking reorgs")
+	} else if block != nil {
+		err = s.resetState(block.BlockNumber)
+		if err != nil {
+			log.Error("error resetting the state to a previous block")
+			return nil, fmt.Errorf("error resetting the state to a previous block")
+		}
+		return block, nil
+	}
 
-	return 0, nil
+	//Call the blockchain to retrieve data
+	blocks, err := s.etherMan.GetBatchesByBlockRange(s.ctx, lastEthBlockSynced.BlockNumber+1, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// New info has to be included into the db using the state
+	for i := range blocks {
+		//get lastest synced batch number
+		latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
+		if err != nil {
+			log.Error("error getting latest batch. Error: ", err)
+		}
+
+		batchProcessor := s.state.NewBatchProcessor(latestBatchNumber, false)
+
+		//Add block information
+		err = s.state.AddBlock(&blocks[i])
+		if err != nil {
+			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
+		}
+		for _, seq := range blocks[i].NewSequencers {
+			//Add new sequencers
+			err := s.state.AddNewSequencer(seq)
+			if err != nil {
+				log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", seq)
+			}
+		}
+		for j := range blocks[i].Batches {
+			//Add batches
+			err := batchProcessor.ProcessBatch(&blocks[i].Batches[j])
+			if err != nil {
+				log.Fatal("error processing batch. BatchNumber: ", blocks[i].Batches[j].BatchNumber, ". Error: ", err)
+			}
+		}
+	}
+	if len(blocks) != 0 {
+		return &blocks[len(blocks)-1], nil
+	}
+	return lastEthBlockSynced, nil
 }
 
-// // This function allows reset the state until an specific ethereum block
-// func (s *BasicSynchronizer) resetState(ethBlockNum uint64) error {
-// 	err := s.state.Reset(ethBlockNum)
-// 	if err != nil {
-// 		return err
-// 	}
+// This function allows reset the state until an specific ethereum block
+func (s *ClientSynchronizer) resetState(ethBlockNum uint64) error {
+	err := s.state.Reset(ethBlockNum)
+	if err != nil {
+		return err
+	}
 
-// 	return nil
-// }
+	return nil
+}
 
-// // This function will check if there is a reorg
-// func (s *BasicSynchronizer) checkReorg() (uint64, error) {
-// 	//TODO this function only needs to worry about reorgs if some of the reorganized blocks contained rollup info.
-// 	//getLastEtherblockfromdb and check the hash and parent hash. Using the ethBlockNum, get this info from the blockchain and compare.
-// 	//if the values doesn't match get the previous ethereum block from db (last-1) and get the info for that ethereum block number
-// 	//from the blockchain. Compare the values. If they don't match do this step again. If matches, we have found the good ethereum block.
-// 	// Now, return the ethereum block number
-// 	return 0, nil
-// }
+// This function will check if there is a reorg
+func (s *ClientSynchronizer) checkReorg(currentBlock state.Block) (*state.Block, error) {
+	//TODO this function only needs to worry about reorgs if some of the reorganized blocks contained rollup info.
+	//getLastEtherblockfromdb and check the hash and parent hash. Using the ethBlockNum, get this info from the blockchain and compare.
+	//if the values doesn't match get the previous ethereum block from db (last-1) and get the info for that ethereum block number
+	//from the blockchain. Compare the values. If they don't match do this step again. If matches, we have found the good ethereum block.
+	// Now, return the ethereum block number
+	return nil, nil
+}
 
 // Stop function stops the synchronizer
-func (s *BasicSynchronizer) Stop() {
+func (s *ClientSynchronizer) Stop() {
 	s.cancelCtx()
 }
