@@ -34,7 +34,7 @@ type EtherMan interface {
 	EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error)
 	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
 	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
-	SendBatch(ctx context.Context, batch state.Batch, maticAmount *big.Int) (*types.Transaction, error)
+	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
 	ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error)
 }
 
@@ -121,22 +121,11 @@ func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, from
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
-func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, batch state.Batch, maticAmount *big.Int) (*types.Transaction, error) {
+func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	var data []byte
-	for _, tx := range batch.Transactions {
+	for _, tx := range txs {
 		a := new(bytes.Buffer)
-		v, r, s := tx.RawSignatureValues()
-		err := rlp.Encode(a, []interface{}{
-			tx.Nonce(),
-			tx.GasPrice(),
-			tx.Gas(),
-			tx.To(),
-			tx.Value(),
-			tx.Data(),
-			v,
-			r,
-			s,
-		})
+		err := tx.EncodeRLP(a)
 		if err != nil {
 			return nil, err
 		}

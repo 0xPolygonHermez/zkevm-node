@@ -80,11 +80,10 @@ func (s *Sequencer) Start() {
 		// 4. Is selection profitable?
 		// check is it profitable to send selection
 		isProfitable := s.isSelectionProfitable(selectedTxs)
-		batch := state.Batch{Transactions: selectedTxs}
 		var maticAmount *big.Int //TODO calculate the amount depending on the profitability
 		if isProfitable {
 			// YES: send selection to Ethereum
-			_, err = s.EthMan.SendBatch(ctx, batch, maticAmount)
+			_, err = s.EthMan.SendBatch(ctx, selectedTxs, maticAmount)
 			if err != nil {
 				log.Error(err)
 				return

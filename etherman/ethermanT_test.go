@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -94,22 +93,11 @@ func (etherMan *TestClientEtherMan) GetBatchesByBlockRange(ctx context.Context, 
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
-func (etherMan *TestClientEtherMan) SendBatch(ctx context.Context, batch state.Batch, maticAmount *big.Int) (*types.Transaction, error) {
+func (etherMan *TestClientEtherMan) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	var data []byte
-	for _, tx := range batch.Transactions {
+	for _, tx := range txs {
 		a := new(bytes.Buffer)
-		v, r, s := tx.RawSignatureValues()
-		err := rlp.Encode(a, []interface{}{
-			tx.Nonce(),
-			tx.GasPrice(),
-			tx.Gas(),
-			tx.To(),
-			tx.Value(),
-			tx.Data(),
-			v,
-			r,
-			s,
-		})
+		err := tx.EncodeRLP(a)
 		if err != nil {
 			return nil, err
 		}

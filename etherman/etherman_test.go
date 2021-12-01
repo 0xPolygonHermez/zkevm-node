@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -279,12 +278,6 @@ func TestSCSendBatch(t *testing.T) {
 	txs, err := decodeTxs(data)
 	require.NoError(t, err)
 
-	var batch = state.Batch{
-		BatchNumber:  1,
-		BlockNumber:  1,
-		Transactions: txs,
-	}
-
 	// Set up testing environment
 	testEnv, err := newTestingEnv()
 	require.NoError(t, err)
@@ -295,7 +288,7 @@ func TestSCSendBatch(t *testing.T) {
 	etherman, err := NewTestEtherman(conf, testEnv.client, testEnv.poe)
 	require.NoError(t, err)
 
-	tx, err := etherman.SendBatch(context.Background(), batch, big.NewInt(2))
+	tx, err := etherman.SendBatch(context.Background(), txs, big.NewInt(2))
 	require.NoError(t, err)
 	log.Debug("TX: ", tx.Hash())
 
