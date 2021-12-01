@@ -1,4 +1,4 @@
-package jsonrpc
+package encoding
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	bitSize64 = 64
+	BitSize64 = 64
 )
 
 // DecodeUint64orHex decodes a string uint64 or hex string into a uint64
@@ -25,7 +25,7 @@ func DecodeUint64orHex(val *string) (uint64, error) {
 		str = str[2:]
 		base = 16
 	}
-	return strconv.ParseUint(str, base, bitSize64)
+	return strconv.ParseUint(str, base, BitSize64)
 }
 
 // DecodeUint256orHex decodes a string uint256 or hex string into a bit.Int

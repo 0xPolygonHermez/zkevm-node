@@ -1,29 +1,33 @@
 package vectors
 
 import (
-	"fmt"
 	"math/big"
 	"strings"
+
+	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/hermeznetwork/hermez-core/hex"
 )
 
-type BigInt struct {
+type argBigInt struct {
 	big.Int
 }
 
-func (b BigInt) MarshalJSON() ([]byte, error) {
-	return []byte(b.String()), nil
+func (a argBigInt) MarshalJSON() ([]byte, error) {
+	return []byte(a.Text(hex.Base)), nil
 }
 
-func (b *BigInt) UnmarshalJSON(p []byte) error {
-	if string(p) == "null" {
+func (a *argBigInt) UnmarshalJSON(input []byte) error {
+	str := strings.Trim(string(input), "\"")
+	if strings.ToLower(strings.TrimSpace(str)) == "null" {
 		return nil
 	}
-	var z big.Int
-	s := strings.ReplaceAll(string(p), "\"", "")
-	_, ok := z.SetString(s, 10)
-	if !ok {
-		return fmt.Errorf("not a valid big integer: %s", p)
+
+	bi, err := encoding.DecodeUint256orHex(&str)
+	if err != nil {
+		return err
 	}
-	b.Int = z
+
+	a.Int = *bi
+
 	return nil
 }

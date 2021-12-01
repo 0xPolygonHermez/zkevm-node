@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 )
 
@@ -23,7 +24,7 @@ func (b argUint64) MarshalText() ([]byte, detailedError) {
 // UnmarshalText unmarshals from text
 func (b *argUint64) UnmarshalText(input []byte) error {
 	str := strings.TrimPrefix(string(input), "0x")
-	num, err := strconv.ParseUint(str, hex.Base, bitSize64)
+	num, err := strconv.ParseUint(str, hex.Base, encoding.BitSize64)
 	if err != nil {
 		return err
 	}

@@ -25,7 +25,7 @@ type StateTest struct {
 type Genesis struct {
 	Address common.MixedcaseAddress `json:"address"`
 	PvtKey  string                  `json:"pvtKey"`
-	Balance BigInt                  `json:"balance"`
+	Balance argBigInt               `json:"balance"`
 	Nonce   uint64                  `json:"nonce"`
 }
 
@@ -33,7 +33,7 @@ type Tx struct {
 	From     common.MixedcaseAddress `json:"from"`
 	To       common.MixedcaseAddress `json:"to"`
 	Nonce    uint64                  `json:"nonce"`
-	Value    BigInt                  `json:"value"`
+	Value    argBigInt               `json:"value"`
 	GasLimit uint64                  `json:"gasLimit"`
 	GasPrice uint64                  `json:"gasPrice"`
 	ChainID  uint64                  `json:"chainId"`
@@ -41,6 +41,6 @@ type Tx struct {
 }
 
 type Leaf struct {
-	Balance BigInt `json:"balance"`
-	Nonce   uint64 `json:"nonce"`
+	Balance argBigInt `json:"balance"`
+	Nonce   uint64    `json:"nonce"`
 }
