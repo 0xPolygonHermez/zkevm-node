@@ -41,7 +41,7 @@ type State interface {
 	SetGenesis(genesis Genesis) error
 	AddBlock(*Block) error
 	SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error
-	GetLastBatchNumberSeenOnEthereum() (uint64, error)
+	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
 }
 
 const (
@@ -364,6 +364,6 @@ func (s *BasicState) SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error 
 // GetLastBatchNumberSeenOnEthereum returns the last batch number stored
 // in the state that represents the last batch number that affected the
 // roll-up in the Ethereum network.
-func (s *BasicState) GetLastBatchNumberSeenOnEthereum() (uint64, error) {
+func (s *BasicState) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
 	return 0, nil
 }

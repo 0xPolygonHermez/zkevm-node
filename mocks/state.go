@@ -129,6 +129,6 @@ func (s *StateMock) SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error {
 	return nil
 }
 
-func (s *StateMock) GetLastBatchNumberSeenOnEthereum() (uint64, error) {
+func (s *StateMock) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
 	return 0, nil
 }
