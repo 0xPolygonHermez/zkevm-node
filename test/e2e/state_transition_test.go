@@ -106,7 +106,11 @@ func TestStateTransition(t *testing.T) {
 			for _, gacc := range testCase.GenesisAccounts {
 				genesis.Balances[gacc.Address.Address()] = &gacc.Balance.Int
 			}
-			st.SetGenesis(genesis)
+			err = st.SetGenesis(genesis)
+			if err != nil {
+				t.Error(err)
+				return
+			}
 
 			// check root
 			root, err := st.GetStateRoot(ctx, true)
@@ -140,11 +144,21 @@ func TestStateTransition(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			go sy.Sync()
+			go func(t *testing.T, s synchronizer.Synchronizer) {
+				if err := sy.Sync(); err != nil {
+					t.Error(err)
+					return
+				}
+			}(t, sy)
 
 			// start rpc server
 			rpcServer := jsonrpc.NewServer(cfg.RPC, pl, st)
-			go rpcServer.Start()
+			go func(t *testing.T, s *jsonrpc.Server) {
+				if err := s.Start(); err != nil {
+					t.Error(err)
+					return
+				}
+			}(t, rpcServer)
 
 			// apply transactions
 			for _, tx := range testCase.Txs {
@@ -174,7 +188,7 @@ func loadVector() (StateTransitionVector, error) {
 	if err != nil {
 		return vector, err
 	}
-	defer jsonFile.Close()
+	defer func() { _ = jsonFile.Close() }()
 
 	bytes, err := ioutil.ReadAll(jsonFile)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	// BitSize64 64 bits
 	BitSize64 = 64
 )
 
