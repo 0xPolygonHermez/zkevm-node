@@ -37,7 +37,7 @@ type State interface {
 	Reset(blockNumber uint64) error
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
-	AddSequencer(ctx context.Context, seq *Sequencer) error
+	AddSequencer(ctx context.Context, seq Sequencer) error
 	GetSequencerByChainID(ctx context.Context, chainID *big.Int) (*Sequencer, error)
 	SetGenesis(genesis Genesis) error
 	AddBlock(ctx context.Context, block *Block) error
@@ -46,25 +46,25 @@ type State interface {
 }
 
 const (
-	getLastBlockSQL                 = "SELECT * FROM block ORDER BY block_num DESC LIMIT 1"
-	getPreviousBlockSQL             = "SELECT * FROM block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
-	getBlockByHashSQL               = "SELECT * FROM block WHERE block_hash = $1"
-	getBlockByNumberSQL             = "SELECT * FROM block WHERE block_num = $1"
-	getLastBlockNumberSQL           = "SELECT MAX(block_num) FROM block"
-	getLastVirtualBatchSQL          = "SELECT * FROM batch ORDER BY batch_num DESC LIMIT 1"
-	getLastConsolidatedBatchSQL     = "SELECT * FROM batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
-	getPreviousVirtualBatchSQL      = "SELECT * FROM batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
-	getPreviousConsolidatedBatchSQL = "SELECT * FROM batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
-	getBatchByHashSQL               = "SELECT * FROM batch WHERE batch_hash = $1"
-	getBatchByNumberSQL             = "SELECT * FROM batch WHERE batch_num = $1"
-	getLastBatchNumberSQL           = "SELECT MAX(batch_num) FROM batch"
-	getTransactionByHashSQL         = "SELECT transaction.encoded FROM transaction WHERE hash = $1"
-	getTransactionCountSQL          = "SELECT COUNT(*) FROM transaction WHERE from_address = $1"
-	consolidateBatchSQL             = "UPDATE batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"
-	getTxsByBatchNumSQL             = "SELECT transaction.encoded FROM transaction WHERE batch_num = $1"
-	addBlockSQL                     = "INSERT INTO block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
-	addSequencerSQL                 = "INSERT INTO sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4)"
-	getSequencerSQL                 = "SELECT * FROM sequencer WHERE chain_id = $1"
+	getLastBlockSQL                 = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1"
+	getPreviousBlockSQL             = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
+	getBlockByHashSQL               = "SELECT * FROM state.block WHERE block_hash = $1"
+	getBlockByNumberSQL             = "SELECT * FROM state.block WHERE block_num = $1"
+	getLastBlockNumberSQL           = "SELECT MAX(block_num) FROM state.block"
+	getLastVirtualBatchSQL          = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1"
+	getLastConsolidatedBatchSQL     = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
+	getPreviousVirtualBatchSQL      = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
+	getPreviousConsolidatedBatchSQL = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
+	getBatchByHashSQL               = "SELECT * FROM state.batch WHERE batch_hash = $1"
+	getBatchByNumberSQL             = "SELECT * FROM state.batch WHERE batch_num = $1"
+	getLastBatchNumberSQL           = "SELECT MAX(batch_num) FROM state.batch"
+	getTransactionByHashSQL         = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
+	getTransactionCountSQL          = "SELECT COUNT(*) FROM state.transaction WHERE from_address = $1"
+	consolidateBatchSQL             = "UPDATE state.batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"
+	getTxsByBatchNumSQL             = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
+	addBlockSQL                     = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
+	addSequencerSQL                 = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4)"
+	getSequencerSQL                 = "SELECT * FROM state.sequencer WHERE chain_id = $1"
 )
 
 // BasicState is a implementation of the state
@@ -338,7 +338,7 @@ func (s *BasicState) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*
 }
 
 // AddSequencer stores a new sequencer
-func (s *BasicState) AddSequencer(ctx context.Context, seq *Sequencer) error {
+func (s *BasicState) AddSequencer(ctx context.Context, seq Sequencer) error {
 	_, err := s.db.Exec(ctx, addSequencerSQL, seq.Address, seq.URL, seq.ChainID.Uint64(), seq.BlockNumber)
 	return err
 }

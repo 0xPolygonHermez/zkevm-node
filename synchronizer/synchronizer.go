@@ -105,13 +105,13 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		batchProcessor := s.state.NewBatchProcessor(latestBatchNumber, false)
 
 		//Add block information
-		err = s.state.AddBlock(&blocks[i])
+		err = s.state.AddBlock(context.Background(), &blocks[i])
 		if err != nil {
 			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
 		}
 		for _, seq := range blocks[i].NewSequencers {
 			//Add new sequencers
-			err := s.state.AddNewSequencer(seq)
+			err := s.state.AddSequencer(context.Background(), seq)
 			if err != nil {
 				log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", seq)
 			}

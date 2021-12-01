@@ -16,12 +16,8 @@ import (
 )
 
 func Test_AddTx(t *testing.T) {
-	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
-	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
-
-	err := db.RunMigrations(cfg)
-	if err != nil {
-		t.Error(err)
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
 	}
 
 	p, err := NewPostgresPool(cfg)
@@ -75,12 +71,8 @@ func Test_AddTx(t *testing.T) {
 }
 
 func Test_GetPendingTxs(t *testing.T) {
-	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
-	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
-
-	err := db.RunMigrations(cfg)
-	if err != nil {
-		t.Error(err)
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
 	}
 
 	sqlDB, err := db.NewSQLDB(cfg)
@@ -120,12 +112,8 @@ func Test_GetPendingTxs(t *testing.T) {
 }
 
 func Test_UpdateTxState(t *testing.T) {
-	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
-	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
-
-	err := db.RunMigrations(cfg)
-	if err != nil {
-		t.Error(err)
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
 	}
 
 	ctx := context.Background()
@@ -169,12 +157,8 @@ func Test_UpdateTxState(t *testing.T) {
 }
 
 func Test_SetAndGetGasPrice(t *testing.T) {
-	dbutils.StartPostgreSQL(cfg.Database, cfg.User, cfg.Password, "") //nolint:gosec,errcheck
-	defer dbutils.StopPostgreSQL()                                    //nolint:gosec,errcheck
-
-	err := db.RunMigrations(cfg)
-	if err != nil {
-		t.Error(err)
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
 	}
 
 	p, err := NewPostgresPool(cfg)

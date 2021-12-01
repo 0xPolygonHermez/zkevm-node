@@ -114,7 +114,7 @@ func (s *StateMock) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*t
 	}, nil
 }
 
-func (s *StateMock) AddSequencer(ctx context.Context, seq *state.Sequencer) error {
+func (s *StateMock) AddSequencer(ctx context.Context, seq state.Sequencer) error {
 	return nil
 }
 
