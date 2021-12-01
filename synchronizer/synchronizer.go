@@ -100,7 +100,6 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
 		if err != nil {
 			log.Error("error getting latest batch. Error: ", err)
-			latestBatchNumber = 0
 		}
 
 		batchProcessor := s.state.NewBatchProcessor(latestBatchNumber, false)
