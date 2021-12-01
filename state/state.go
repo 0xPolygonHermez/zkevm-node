@@ -14,7 +14,7 @@ import (
 
 // State is the interface of the Hermez state
 type State interface {
-	NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) BatchProcessor
+	NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) BatchProcessor
 	GetStateRoot(ctx context.Context, virtual bool) (*big.Int, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
 	EstimateGas(transaction *types.Transaction) uint64
@@ -41,7 +41,7 @@ type State interface {
 	SetGenesis(genesis Genesis) error
 	AddBlock(*Block) error
 	SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error
-	GetLastBatchNumberSeenOnEthereum() (uint64, error)
+	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
 }
 
 const (
@@ -75,7 +75,7 @@ func NewState(db *pgxpool.Pool, tree tree.ReadWriter) State {
 }
 
 // NewBatchProcessor creates a new batch processor
-func (s *BasicState) NewBatchProcessor(startingHash common.Hash, withProofCalculation bool) BatchProcessor {
+func (s *BasicState) NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) BatchProcessor {
 	return &BasicBatchProcessor{State: s}
 }
 
@@ -367,6 +367,6 @@ func (s *BasicState) SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error 
 // GetLastBatchNumberSeenOnEthereum returns the last batch number stored
 // in the state that represents the last batch number that affected the
 // roll-up in the Ethereum network.
-func (s *BasicState) GetLastBatchNumberSeenOnEthereum() (uint64, error) {
+func (s *BasicState) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
 	return 0, nil
 }

@@ -6,7 +6,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hermeznetwork/hermez-core/log"
 )
 
@@ -134,11 +133,8 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	}
 
 	// Check Signature
-	v, r, s := tx.RawSignatureValues()
-	plainV := byte(v.Uint64() - 35 - 2*(tx.ChainId().Uint64()))
-
-	if !crypto.ValidateSignatureValues(plainV, r, s, false) {
-		return sender, nonce, balance, ErrInvalidSig
+	if err := CheckSignature(tx); err != nil {
+		return sender, nonce, balance, err
 	}
 
 	// Get Sender
