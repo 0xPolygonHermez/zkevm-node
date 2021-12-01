@@ -45,7 +45,12 @@ func (s *ClientSynchronizer) Sync() error {
 		//If there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block
 		//Get the latest synced block. If there is no block on db, use genesis block
 		lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx)
-		if err != nil || lastEthBlockSynced.BlockNumber == 0 {
+		if err != nil {
+			log.Warn("error getting the latest ethereum block. Setting genesis block. Error: ", err)
+			lastEthBlockSynced = &state.Block{
+				BlockNumber: s.config.GenesisBlock,
+			}
+		} else if lastEthBlockSynced.BlockNumber == 0 {
 			lastEthBlockSynced = &state.Block{
 				BlockNumber: s.config.GenesisBlock,
 			}
