@@ -94,12 +94,12 @@ func (etherMan *TestClientEtherMan) GetBatchesByBlockRange(ctx context.Context, 
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
-func (etherMan *TestClientEtherMan) SendBatch(ctx context.Context, batch state.Batch) (*types.Transaction, error) {
+func (etherMan *TestClientEtherMan) SendBatch(ctx context.Context, batch state.Batch, maticAmount *big.Int) (*types.Transaction, error) {
 	var data []byte
 	for _, tx := range batch.Transactions {
 		a := new(bytes.Buffer)
 		v, r, s := tx.RawSignatureValues()
-		rlp.Encode(a, []interface{}{
+		err := rlp.Encode(a, []interface{}{
 			tx.Nonce(),
 			tx.GasPrice(),
 			tx.Gas(),
@@ -109,13 +109,16 @@ func (etherMan *TestClientEtherMan) SendBatch(ctx context.Context, batch state.B
 			v,
 			r,
 			s,
-		});
-		log.Debug("Coded tx: ",hex.EncodeToString(a.Bytes()))
+		})
+		if err != nil {
+			return nil, err
+		}
+		log.Debug("Coded tx: ", hex.EncodeToString(a.Bytes()))
 		data = append(data, a.Bytes()...)
 	}
-	log.Debug("Coded txs: ",hex.EncodeToString(data))
+	log.Debug("Coded txs: ", hex.EncodeToString(data))
 
-	tx, err := etherMan.PoE.SendBatch(Auth, data, big.NewInt(2))
+	tx, err := etherMan.PoE.SendBatch(Auth, data, maticAmount)
 	if err != nil {
 		return nil, err
 	}

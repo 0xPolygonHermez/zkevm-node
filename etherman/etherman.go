@@ -34,7 +34,7 @@ type EtherMan interface {
 	EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error)
 	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
 	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
-	SendBatch(ctx context.Context, batch state.Batch) (*types.Transaction, error)
+	SendBatch(ctx context.Context, batch state.Batch, maticAmount *big.Int) (*types.Transaction, error)
 	ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error)
 }
 
@@ -121,12 +121,12 @@ func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, from
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
-func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, batch state.Batch) (*types.Transaction, error) {
+func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, batch state.Batch, maticAmount *big.Int) (*types.Transaction, error) {
 	var data []byte
 	for _, tx := range batch.Transactions {
 		a := new(bytes.Buffer)
 		v, r, s := tx.RawSignatureValues()
-		rlp.Encode(a, []interface{}{
+		err := rlp.Encode(a, []interface{}{
 			tx.Nonce(),
 			tx.GasPrice(),
 			tx.Gas(),
@@ -136,11 +136,14 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, batch state.Batch
 			v,
 			r,
 			s,
-		});
-		log.Debug("Coded tx: ",hex.EncodeToString(a.Bytes()))
+		})
+		if err != nil {
+			return nil, err
+		}
+		log.Debug("Coded tx: ", hex.EncodeToString(a.Bytes()))
 		data = append(data, a.Bytes()...)
 	}
-	log.Debug("Coded txs: ",hex.EncodeToString(data))
+	log.Debug("Coded txs: ", hex.EncodeToString(data))
 
 	chainID, err := etherMan.EtherClient.ChainID(ctx)
 	if err != nil {
@@ -148,11 +151,11 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, batch state.Batch
 	}
 	transactOpts, err := bind.NewKeyedTransactorWithChainID(etherMan.key.PrivateKey, chainID)
 	if err != nil {
-		log .Error("error getting transactOpts: ", err)
+		log.Error("error getting transactOpts: ", err)
 		return nil, err
 	}
 
-	tx, err := etherMan.PoE.SendBatch(transactOpts, data, big.NewInt(2))
+	tx, err := etherMan.PoE.SendBatch(transactOpts, data, maticAmount)
 	if err != nil {
 		return nil, err
 	}

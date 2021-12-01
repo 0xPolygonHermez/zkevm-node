@@ -84,35 +84,45 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	}
 
 	//Call the blockchain to retrieve data
-	blocks, err := s.etherMan.GetBatchesByBlockRange(s.ctx, lastEthBlockSynced.BlockNumber + 1, nil)
+	blocks, err := s.etherMan.GetBatchesByBlockRange(s.ctx, lastEthBlockSynced.BlockNumber+1, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	// New info has to be included into the db using the state
-	for _, block := range blocks {
+	for i := range blocks {
 		//get lastest synced batch
 		latestBatch, err := s.state.GetLastBatch(s.ctx, false)
+		if err != nil {
+			log.Error("error getting latest batch. Error: ", err)
+			latestBatch = &state.Batch{
+				BatchNumber: 0,
+			}
+		} else if latestBatch == nil {
+			latestBatch = &state.Batch{
+				BatchNumber: 0,
+			}
+		}
 
 		batchProcessor := s.state.NewBatchProcessor(latestBatch.BatchNumber, false)
 
 		//Add block information
-		err = s.state.AddBlock(&block)
+		err = s.state.AddBlock(&blocks[i])
 		if err != nil {
-			log.Fatal("error storing block. BlockNumber: ", block.BlockNumber)
+			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
 		}
-		for _, seq := range block.NewSequencers {
+		for _, seq := range blocks[i].NewSequencers {
 			//Add new sequencers
 			err := s.state.AddNewSequencer(seq)
 			if err != nil {
-				log.Fatal("error storing new sequencer in Block: ", block.BlockNumber, " Sequencer: ", seq)
+				log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", seq)
 			}
 		}
-		for _, batch := range block.Batches {
+		for j := range blocks[i].Batches {
 			//Add batches
-			err := batchProcessor.ProcessBatch(&batch)
+			err := batchProcessor.ProcessBatch(&blocks[i].Batches[j])
 			if err != nil {
-				log.Fatal("error processing batch. BatchNumber: ", batch.BatchNumber, ". Error: ", err)
+				log.Fatal("error processing batch. BatchNumber: ", blocks[i].Batches[j].BatchNumber, ". Error: ", err)
 			}
 		}
 	}
