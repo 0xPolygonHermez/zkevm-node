@@ -37,3 +37,11 @@ CREATE TABLE transaction
     decoded      jsonb,
     batch_num    BIGINT NOT NULL REFERENCES batch (batch_num) ON DELETE CASCADE
 );
+
+CREATE TABLE sequencer
+(
+    address     BYTEA NOT NULL,
+    url         VARCHAR NOT NULL,
+    chain_id    BIGINT PRIMARY KEY,
+    block_num   BIGINT NOT NULL REFERENCES block (block_num) ON DELETE CASCADE
+);

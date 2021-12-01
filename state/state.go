@@ -37,9 +37,10 @@ type State interface {
 	Reset(blockNumber uint64) error
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
-	AddNewSequencer(seq Sequencer) error
+	AddSequencer(ctx context.Context, seq *Sequencer) error
+	GetSequencerByChainID(ctx context.Context, chainID *big.Int) (*Sequencer, error)
 	SetGenesis(genesis Genesis) error
-	AddBlock(*Block) error
+	AddBlock(ctx context.Context, block *Block) error
 	SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
 }
@@ -61,6 +62,9 @@ const (
 	getTransactionCountSQL          = "SELECT COUNT(*) FROM transaction WHERE from_address = $1"
 	consolidateBatchSQL             = "UPDATE batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"
 	getTxsByBatchNumSQL             = "SELECT transaction.encoded FROM transaction WHERE batch_num = $1"
+	addBlockSQL                     = "INSERT INTO block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
+	addSequencerSQL                 = "INSERT INTO sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4)"
+	getSequencerSQL                 = "SELECT * FROM sequencer WHERE chain_id = $1"
 )
 
 // BasicState is a implementation of the state
@@ -330,9 +334,24 @@ func (s *BasicState) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*
 	return txs, nil
 }
 
-// AddNewSequencer stores a new sequencer
-func (s *BasicState) AddNewSequencer(seq Sequencer) error {
-	return nil
+// AddSequencer stores a new sequencer
+func (s *BasicState) AddSequencer(ctx context.Context, seq *Sequencer) error {
+	_, err := s.db.Exec(ctx, addSequencerSQL, seq.Address, seq.URL, seq.ChainID.Uint64(), seq.BlockNumber)
+	return err
+}
+
+// GetSequencerByChainID gets a sequencer by its ChainID
+func (s *BasicState) GetSequencerByChainID(ctx context.Context, chainID *big.Int) (*Sequencer, error) {
+	var seq Sequencer
+	var cID uint64
+	err := s.db.QueryRow(ctx, getSequencerSQL, chainID.Uint64()).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	seq.ChainID = big.NewInt(0).SetUint64(cID)
+
+	return &seq, nil
 }
 
 // SetGenesis populates state with genesis information
@@ -349,9 +368,9 @@ func (s *BasicState) SetGenesis(genesis Genesis) error {
 }
 
 // AddBlock adds a new block to the State DB
-func (s *BasicState) AddBlock(*Block) error {
-	// TODO: Implement
-	return nil
+func (s *BasicState) AddBlock(ctx context.Context, block *Block) error {
+	_, err := s.db.Exec(ctx, addBlockSQL, block.BlockNumber, block.BlockHash.Bytes(), block.ParentHash.Bytes(), block.ReceivedAt)
+	return err
 }
 
 // SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
