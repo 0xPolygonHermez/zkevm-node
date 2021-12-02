@@ -1,8 +1,6 @@
 package tree
 
 import (
-	"bytes"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -14,45 +12,51 @@ const splitBigIntLen = 8
 
 // SplitAddress splits address into 3 bytes array of 64bits each
 func SplitAddress(address common.Address) ([][]byte, error) {
-	a0 := address[0:8]
-	a1 := address[8:16]
-	a2 := address[16:20]
-	return [][]byte{a0, a1, a2}, nil
+	addr, err := scalar2fea(new(big.Int).SetBytes(address[:]))
+	if err != nil {
+		return nil, err
+	}
+	return [][]byte{addr[0].Bytes(), addr[1].Bytes(), addr[2].Bytes()}, nil
 }
 
 // SplitValue splits value into 4 bytes array of 64bits each
 func SplitValue(value *big.Int) ([][]byte, error) {
-	val := value.Bytes()
-	if len(val) > maxBigIntLen {
-		return nil, fmt.Errorf("value size of more than 256 bits is not supported")
+	val, err := scalar2fea(value)
+	if err != nil {
+		return nil, err
 	}
-	val256 := make([]byte, maxBigIntLen)
-	copy(val256, val)
-	v0 := val256[0:8]
-	v1 := val256[8:16]
-	v2 := val256[16:24]
-	v3 := val256[24:32]
-	return [][]byte{v0, v1, v2, v3}, nil
+	return [][]byte{val[0].Bytes(), val[1].Bytes(), val[2].Bytes(), val[3].Bytes()}, nil
 }
 
 func fea2scalar(v []*big.Int) *big.Int {
-	var buf bytes.Buffer
-	for i := 0; i < len(v); i++ {
-		var b [splitBigIntLen]byte
-		copy(b[:], v[i].Bytes())
-		buf.Write(b[:])
-	}
-	return new(big.Int).SetBytes(buf.Bytes())
+	res := v[0]
+	res.Add(res, new(big.Int).Lsh(v[1], 64))
+	res.Add(res, new(big.Int).Lsh(v[2], 128))
+	res.Add(res, new(big.Int).Lsh(v[3], 192))
+	return res
+	//var buf bytes.Buffer
+	//for i := 0; i < len(v); i++ {
+	//	var b [splitBigIntLen]byte
+	//	copy(b[:], v[i].Bytes())
+	//	buf.Write(b[:])
+	//}
+	//return new(big.Int).SetBytes(buf.Bytes())
 }
 
 func scalar2fea(value *big.Int) ([]*big.Int, error) {
 	val := make([]*big.Int, 4)
-	v, err := SplitValue(value)
-	if err != nil {
-		return nil, err
-	}
-	for i := 0; i < 4; i++ {
-		val[i] = new(big.Int).SetBytes(v[i])
-	}
-	return val, nil
+	mask, _ := new(big.Int).SetString("FFFFFFFFFFFFFFFF", 16)
+	val[0] = new(big.Int).And(value, mask)
+	val[1] = new(big.Int).And(new(big.Int).Rsh(value, 64), mask)
+	val[2] = new(big.Int).And(new(big.Int).Rsh(value, 128), mask)
+	val[3] = new(big.Int).And(new(big.Int).Rsh(value, 192), mask)
+	return val[:], nil
+	//v, err := SplitValue(value)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//for i := 0; i < 4; i++ {
+	//	val[i] = new(big.Int).SetBytes(v[i])
+	//}
+	//return val, nil
 }
