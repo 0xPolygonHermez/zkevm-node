@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 type Server struct {
 	config  Config
 	handler *Handler
+	srv     *http.Server
 }
 
 // NewServer returns the JsonRPC server
@@ -36,6 +38,10 @@ func NewServer(config Config, p pool.Pool, s state.State) *Server {
 
 // Start initializes the JSON RPC server to listen for request
 func (s *Server) Start() error {
+	if s.srv != nil {
+		return fmt.Errorf("server already started")
+	}
+
 	address := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
 	log.Infof("http server started: %s", address)
 
@@ -45,16 +51,39 @@ func (s *Server) Start() error {
 		return err
 	}
 
-	mux := http.DefaultServeMux
+	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handle)
 
-	srv := http.Server{
+	s.srv = &http.Server{
 		Handler: mux,
 	}
-	if err := srv.Serve(lis); err != nil {
+	if err := s.srv.Serve(lis); err != nil {
+		if err == http.ErrServerClosed {
+			log.Infof("http server stopped")
+			return nil
+		}
 		log.Errorf("closed http connection: %v", err)
 		return err
 	}
+	return nil
+}
+
+// Stop shutdown the rpc server
+func (s *Server) Stop() error {
+	if s.srv == nil {
+		return nil
+	}
+
+	if err := s.srv.Shutdown(context.Background()); err != nil {
+		return err
+	}
+
+	if err := s.srv.Close(); err != nil {
+		return err
+	}
+
+	s.srv = nil
+
 	return nil
 }
 
