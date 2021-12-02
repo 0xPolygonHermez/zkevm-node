@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"math/big"
@@ -49,7 +50,7 @@ func TestMerkleTreeRaw(t *testing.T) {
 	err = json.Unmarshal(data, &testVectors)
 	require.NoError(t, err)
 
-	dbCfg := db.NewConfigFromEnv()
+	dbCfg := dbutils.NewConfigFromEnv()
 
 	err = db.RunMigrations(dbCfg)
 	require.NoError(t, err)

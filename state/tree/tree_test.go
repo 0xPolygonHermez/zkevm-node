@@ -2,6 +2,7 @@ package tree
 
 import (
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"math/big"
 	"testing"
 
@@ -12,7 +13,7 @@ import (
 
 func TestBasicTree(t *testing.T) {
 
-	dbCfg := db.NewConfigFromEnv()
+	dbCfg := dbutils.NewConfigFromEnv()
 
 	err := db.RunMigrations(dbCfg)
 	require.NoError(t, err)
