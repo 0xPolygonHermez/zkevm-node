@@ -74,6 +74,11 @@ func (s *Sequencer) Start() {
 				continue
 			}
 
+			if len(txs) == 0 {
+				log.Infof("transactions pool is empty, waiting for the new txs...")
+				continue
+			}
+
 			// estimate time for selecting txs
 			estimatedTime, err := s.estimateTime(txs)
 			if err != nil {
@@ -101,8 +106,9 @@ func (s *Sequencer) Start() {
 			// 4. Is selection profitable?
 			// check is it profitable to send selection
 			isProfitable := s.isSelectionProfitable(selectedTxs)
-			var maticAmount *big.Int //TODO calculate the amount depending on the profitability
-			if isProfitable {
+			if isProfitable && len(selectedTxs) > 0 {
+				// assume, that fee for 1 tx is 1 matic
+				maticAmount := big.NewInt(int64(len(selectedTxs)))
 				// YES: send selection to Ethereum
 				_, err = s.EthMan.SendBatch(s.ctx, selectedTxs, maticAmount)
 				if err != nil {
