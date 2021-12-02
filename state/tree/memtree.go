@@ -135,5 +135,6 @@ func (tree *MemTree) SetStorageAt(address common.Address, position common.Hash, 
 
 // SetRootForBatchNumber sets root for specified batchNumber
 func (tree *MemTree) SetRootForBatchNumber(batchNumber uint64, root []byte) error {
-	return fmt.Errorf("not implemented")
+	// return fmt.Errorf("not implemented")
+	return nil
 }
