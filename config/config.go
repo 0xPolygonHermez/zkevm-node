@@ -45,7 +45,9 @@ func Load() Config {
 			ChainID: 2576980377, // 0x99999999,
 		},
 		Synchronizer: synchronizer.Config{
-			Etherman: etherman.Config{},
+			Etherman: etherman.Config{
+				PrivateKeyPath:     "../test/test.keystore",
+				PrivateKeyPassword: "testonly"},
 		},
 		Sequencer: sequencer.Config{
 			IntervalToProposeBatch: 15 * time.Second,

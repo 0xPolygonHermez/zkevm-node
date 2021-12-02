@@ -3,7 +3,7 @@ package etherman
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -12,13 +12,14 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 )
@@ -38,17 +39,23 @@ type EtherMan interface {
 	ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error)
 }
 
+type ethClienter interface {
+	ethereum.ChainReader
+	ethereum.LogFilterer
+	ethereum.TransactionReader
+}
+
 // ClientEtherMan is a simple implementation of EtherMan
 type ClientEtherMan struct {
-	EtherClient *ethclient.Client
+	EtherClient ethClienter
 	PoE         *proofofefficiency.Proofofefficiency
 	SCAddresses []common.Address
 
-	key *keystore.Key
+	auth *bind.TransactOpts
 }
 
 // NewEtherman creates a new etherman
-func NewEtherman(cfg Config) (EtherMan, error) {
+func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
 	//Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -63,14 +70,7 @@ func NewEtherman(cfg Config) (EtherMan, error) {
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, cfg.PoEAddress)
 
-	var key *keystore.Key
-	if cfg.PrivateKeyPath != "" || cfg.PrivateKeyPassword != "" {
-		key, err = decryptKeystore(cfg.PrivateKeyPath, cfg.PrivateKeyPassword)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, key: key}, nil
+	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, auth: auth}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
@@ -122,6 +122,9 @@ func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, from
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
 func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
+	if len(txs) == 0 {
+		return nil, errors.New("Invalid txs: is empty slice")
+	}
 	var data []byte
 	for _, tx := range txs {
 		a := new(bytes.Buffer)
@@ -134,17 +137,7 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 	}
 	log.Debug("Coded txs: ", hex.EncodeToString(data))
 
-	chainID, err := etherMan.EtherClient.ChainID(ctx)
-	if err != nil {
-		return nil, err
-	}
-	transactOpts, err := bind.NewKeyedTransactorWithChainID(etherMan.key.PrivateKey, chainID)
-	if err != nil {
-		log.Error("error getting transactOpts: ", err)
-		return nil, err
-	}
-
-	tx, err := etherMan.PoE.SendBatch(transactOpts, data, maticAmount)
+	tx, err := etherMan.PoE.SendBatch(etherMan.auth, data, maticAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +296,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 	for pos < int64(len(txsData)) {
 		length := txsData[pos+1 : pos+2]
 		str := hex.EncodeToString(length)
-		num, err := strconv.ParseInt(str, 16, 64)
+		num, err := strconv.ParseInt(str, hex.Base, encoding.BitSize64)
 		if err != nil {
 			log.Warn("error: skipping tx. Err: ", err)
 			continue
