@@ -7,11 +7,8 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -97,63 +94,33 @@ func TestDecodeMultipleTxData(t *testing.T) {
 	}
 }
 
-type testingEnv struct {
-	transactOpts *bind.TransactOpts
-	blockchain   *backends.SimulatedBackend
-	poeAddr      common.Address
-	poe          *proofofefficiency.Proofofefficiency
-	client       *backends.SimulatedBackend
-}
-
-var Auth *bind.TransactOpts
-
 //This function prepare the blockchain, the wallet with funds and deploy the smc
-func newTestingEnv() (testingEnv, error) {
-	balance := big.NewInt(0)
-	balance.SetString("10000000000000000000000000", 10) // 10 ETH in wei
+func newTestingEnv() (ethman *ClientEtherMan, commit func()) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
-		return testingEnv{}, err
+		log.Fatal(err)
 	}
-	Auth, err = bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
 	if err != nil {
-		return testingEnv{}, err
+		log.Fatal(err)
 	}
-
-	Auth.GasLimit = 99999999999
-	address := Auth.From
-	genesisAlloc := map[common.Address]core.GenesisAccount{
-		address: {
-			Balance: balance,
-		},
-	}
-	blockGasLimit := uint64(999999999999999999)
-	client := backends.NewSimulatedBackend(genesisAlloc, blockGasLimit)
-
-	// Deploy contracts
-	EmptyAddr := common.HexToAddress("0x0000000000000000000000000000000000000000")
-	poeAddr, _, poe, err := proofofefficiency.DeployProofofefficiency(Auth, client, EmptyAddr, EmptyAddr, EmptyAddr)
+	auth.GasLimit = 99999999999
+	ethman, commit, err = NewSimulatedEtherman(Config{}, auth)
 	if err != nil {
-		return testingEnv{}, err
+		log.Fatal(err)
 	}
 
-	client.Commit()
-	return testingEnv{
-		transactOpts: Auth,
-		blockchain:   client,
-		poeAddr:      poeAddr,
-		poe:          poe,
-		client:       client,
-	}, nil
+	return ethman, commit
 }
 
 func TestSCEvents(t *testing.T) {
 	// Set up testing environment
-	testEnv, err := newTestingEnv()
-	require.NoError(t, err)
+	etherman, commit := newTestingEnv()
 
 	//read currentBlock
-	initBlock := testEnv.client.Blockchain().CurrentBlock()
+	ctx := context.Background()
+	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
 
 	//prepare txs
 	dHex := "f86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a028ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276a067cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83f86c088504a817c8008252089411111111111111111111111111111111111111118802c68af0bb1400008026a08975cf0fe106a0396649d37c5292274f66193346ce5b07bcbaa8dc248f7f5496a0684963f42a662640b6d27e3552151e3f42744c9b4d72dd70b262ca94b9473c94f869028504a817c8008252089412121212121212121212121212121212121212128506fc23ac008025a0528b1dd150ccae6e83fcc44bff11928ca635f0fc6819836a14d526af1ecf0519a02a96710022671e44c81a6f19b88f605567d32dd97508aa84c830ec9d4a4aa0d2"
@@ -161,7 +128,7 @@ func TestSCEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	//send propose batch l1 tx
-	_, err = testEnv.poe.SendBatch(testEnv.transactOpts, data, big.NewInt(2))
+	_, err = etherman.PoE.SendBatch(etherman.auth, data, big.NewInt(2))
 	require.NoError(t, err)
 
 	//prepare txs
@@ -170,20 +137,15 @@ func TestSCEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	//send propose batch l1 tx
-	_, err = testEnv.poe.SendBatch(testEnv.transactOpts, data, big.NewInt(2))
+	_, err = etherman.PoE.SendBatch(etherman.auth, data, big.NewInt(2))
 	require.NoError(t, err)
 
 	//mine the tx in a block
-	testEnv.client.Commit()
+	commit()
 
 	//Now read the event
-	conf := Config{
-		PoEAddress: testEnv.poeAddr,
-	}
-	etherman, err := NewTestEtherman(conf, testEnv.client, testEnv.poe)
+	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
-	finalBlock := testEnv.client.Blockchain().CurrentBlock()
-	ctx := context.Background()
 	finalBlockNumber := finalBlock.NumberU64()
 	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
@@ -214,14 +176,15 @@ func TestSCEvents(t *testing.T) {
 		proofC           = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
 		proofB           = [2][2]*big.Int{proofC, proofC}
 	)
-	_, err = testEnv.poe.VerifyBatch(testEnv.transactOpts, newLocalExitRoot, newStateRoot, new(big.Int).SetUint64(block[0].Batches[0].BatchNumber), proofA, proofB, proofC)
+	_, err = etherman.PoE.VerifyBatch(etherman.auth, newLocalExitRoot, newStateRoot, new(big.Int).SetUint64(block[0].Batches[0].BatchNumber), proofA, proofB, proofC)
 	require.NoError(t, err)
 
 	//mine the tx in a block
-	testEnv.client.Commit()
+	commit()
 
 	initBlock = finalBlock
-	finalBlock = testEnv.client.Blockchain().CurrentBlock()
+	finalBlock, err = etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
 	finalBlockNumber = finalBlock.NumberU64()
 	block, err = etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
@@ -238,33 +201,28 @@ func TestSCEvents(t *testing.T) {
 
 func TestSequencerEvent(t *testing.T) {
 	// Set up testing environment
-	testEnv, err := newTestingEnv()
-	require.NoError(t, err)
+	etherman, commit := newTestingEnv()
+	ctx := context.Background()
 
 	//read currentBlock
-	initBlock := testEnv.client.Blockchain().CurrentBlock()
+	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
 
 	//send propose batch l1 tx
-	_, err = testEnv.poe.RegisterSequencer(testEnv.transactOpts, "http://localhost")
+	_, err = etherman.PoE.RegisterSequencer(etherman.auth, "http://localhost")
 	require.NoError(t, err)
 
 	//mine the tx in a block
-	testEnv.client.Commit()
+	commit()
 
 	//Now read the event
-	conf := Config{
-		PoEAddress: testEnv.poeAddr,
-	}
-	etherman, err := NewTestEtherman(conf, testEnv.client, testEnv.poe)
+	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
-	finalBlock := testEnv.client.Blockchain().CurrentBlock()
-
-	ctx := context.Background()
 	finalBlockNumber := finalBlock.NumberU64()
 	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	assert.Equal(t, testEnv.transactOpts.From, block[0].NewSequencers[0].Address)
+	assert.Equal(t, etherman.auth.From, block[0].NewSequencers[0].Address)
 	assert.Equal(t, "http://localhost", block[0].NewSequencers[0].URL)
 	assert.Equal(t, big.NewInt(1), block[0].NewSequencers[0].ChainID)
 	log.Debug("Sequencer synced: ", block[0].NewSequencers[0].Address, ", url: ", block[0].NewSequencers[0].URL, ", and chainId: ", block[0].NewSequencers[0].ChainID)
@@ -279,24 +237,17 @@ func TestSCSendBatch(t *testing.T) {
 	require.NoError(t, err)
 
 	// Set up testing environment
-	testEnv, err := newTestingEnv()
-	require.NoError(t, err)
-
-	conf := Config{
-		PoEAddress: testEnv.poeAddr,
-	}
-	etherman, err := NewTestEtherman(conf, testEnv.client, testEnv.poe)
-	require.NoError(t, err)
-
-	tx, err := etherman.SendBatch(context.Background(), txs, big.NewInt(2))
+	etherman, commit := newTestingEnv()
+	ctx := context.Background()
+	tx, err := etherman.SendBatch(ctx, txs, big.NewInt(2))
 	require.NoError(t, err)
 	log.Debug("TX: ", tx.Hash())
 
 	//mine the tx in a block
-	testEnv.client.Commit()
+	commit()
 
-	finalBlock := testEnv.client.Blockchain().CurrentBlock()
-	ctx := context.Background()
+	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
 	block, err := etherman.GetBatchesByBlockRange(ctx, finalBlockNumber, nil)
 	require.NoError(t, err)
