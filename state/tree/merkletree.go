@@ -3,8 +3,6 @@ package tree
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"math/big"
@@ -92,7 +90,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 	accKey := big.NewInt(0)
 	lastAccKey := big.NewInt(0)
 	var foundKey *big.Int
-	var siblings [][]*big.Int
+	siblings := make([][]*big.Int, len(keys))
 
 	var insKey *big.Int
 	var insValue *big.Int
@@ -106,7 +104,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 		if err != nil {
 			return nil, err
 		}
-		siblings = append(siblings, node)
+		siblings[level] = node
 
 		if node[0].Cmp(one) == cmpEq {
 			foundKey = new(big.Int).Add(
@@ -167,7 +165,6 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 
 				oldLeaf := mt.newNodeData()
 				oldLeaf[0] = one
-				//oldLeaf[1] = F.e(Scalar.shr(Scalar.e(F.toObject(foundKey)), (level2+1)*mt.arity))
 				oldLeaf[1] = new(big.Int).Rsh(foundKey, uint((level2+1)*int(mt.arity)))
 				oldLeaf[2] = siblings[level+1][2]
 				oldLeaf[3] = siblings[level+1][3]
@@ -320,7 +317,9 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 		}
 	}
 
-	fmt.Println("mode: ", mode)
+	// mode is needed just for debug, and to stop compiler saying it's unused we do this trick
+	mode = mode + ""
+	//fmt.Println("mode: ", mode)
 
 	return &UpdateProof{
 		OldRoot:  oldRoot,
@@ -357,7 +356,7 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key *big.Int) (*Proof, erro
 	accKey := big.NewInt(0)
 	lastAccKey := big.NewInt(0)
 	var foundKey *big.Int
-	var siblings [][]*big.Int
+	siblings := make([][]*big.Int, len(keys))
 
 	insKey := big.NewInt(0)
 	insValue := big.NewInt(0)
@@ -370,7 +369,7 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key *big.Int) (*Proof, erro
 		if err != nil {
 			return nil, err
 		}
-		siblings = append(siblings, node)
+		siblings[level] = node
 
 		if node[0].Cmp(one) == cmpEq {
 			foundKey = new(big.Int).Add(
@@ -400,7 +399,7 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key *big.Int) (*Proof, erro
 		}
 	}
 
-	//siblings = siblings[0:level]
+	siblings = siblings[0:level]
 
 	return &Proof{
 		Root:     root,
@@ -440,29 +439,17 @@ func (mt *MerkleTree) splitKey(key *big.Int) []uint {
 }
 
 func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []*big.Int) (*big.Int, error) {
-	var data []*big.Int
-	//for i := range nodeData {
-	//	data = append(data, new(big.Int).SetBytes(utils.SwapEndianness(nodeData[i].Bytes())))
-	//}
-
-	data = nodeData
-
-	hash, err := poseidon.Hash(data)
+	hash, err := poseidon.Hash(nodeData)
 	if err != nil {
 		return nil, err
 	}
 
-	//hash.SetBytes(utils.SwapEndianness(hash.Bytes()))
+	//fmt.Printf("set node Key: %+v Data: %+v\n", hex.EncodeToString(hash.Bytes()), data)
 
-	fmt.Printf("set node Key: %+v Data: %+v\n", hex.EncodeToString(hash.Bytes()), data)
-
-	//err = mt.setNodeData(ctx, hash, nodeData)
-	err = mt.setNodeData(ctx, hash, data)
+	err = mt.setNodeData(ctx, hash, nodeData)
 	if err != nil {
 		return nil, err
 	}
-
-	//hash.SetBytes(utils.SwapEndianness(hash.Bytes()))
 
 	return hash, nil
 }
@@ -476,11 +463,11 @@ func (mt *MerkleTree) newNodeData() []*big.Int {
 }
 
 func (mt *MerkleTree) getNodeData(ctx context.Context, key *big.Int) ([]*big.Int, error) {
-	fmt.Printf("Get node Key: %+v\n", hex.EncodeToHex(key.Bytes()))
+	//fmt.Printf("Get node Key: %+v\n", hex.EncodeToHex(key.Bytes()))
 	var node NodeItem
 	err := mt.db.QueryRow(ctx, getNodeByKeySQL, key.Bytes()).Scan(&node.Key, &node.Data)
 	if err != nil {
-		fmt.Println("Error: ", err)
+		//fmt.Println("Error: ", err)
 		return nil, err
 	}
 	// parse bytes into []*big.Int
@@ -488,7 +475,7 @@ func (mt *MerkleTree) getNodeData(ctx context.Context, key *big.Int) ([]*big.Int
 	for i := 0; i < len(node.Data)/maxBigIntLen; i++ {
 		nodeData[i] = new(big.Int).SetBytes(node.Data[i*maxBigIntLen : (i+1)*maxBigIntLen])
 	}
-	fmt.Printf("Got nodeData: %+v\n", nodeData)
+	//fmt.Printf("Got nodeData: %+v\n", nodeData)
 	return nodeData, nil
 }
 
@@ -496,14 +483,14 @@ func (mt *MerkleTree) setNodeData(ctx context.Context, key *big.Int, data []*big
 	var exists int
 	err := mt.db.QueryRow(ctx, checkNodeExistsSQL, key.Bytes()).Scan(&exists)
 	if exists != 0 {
-		fmt.Println("Item already exists, key: ", hex.EncodeToHex(key.Bytes()))
+		//fmt.Println("Item already exists, key: ", hex.EncodeToHex(key.Bytes()))
 		// item already exists, no need to do anything
 		//return nil
 		_, err = mt.db.Exec(ctx, deleteNodeByKeySQL, key.Bytes())
 		if err != nil {
 			return err
 		}
-		fmt.Println("Item deleted, key: ", hex.EncodeToHex(key.Bytes()))
+		//fmt.Println("Item deleted, key: ", hex.EncodeToHex(key.Bytes()))
 	}
 
 	var buf bytes.Buffer
@@ -511,20 +498,13 @@ func (mt *MerkleTree) setNodeData(ctx context.Context, key *big.Int, data []*big
 		var b [maxBigIntLen]byte
 		d := data[i].FillBytes(b[:])
 		buf.Write(d)
-		//fmt.Println(hex.EncodeToHex(b[:]))
 	}
-	fmt.Printf("Set node Key: %+v Data: %+v\n", hex.EncodeToHex(key.Bytes()), hex.EncodeToHex(buf.Bytes()))
+	//fmt.Printf("Set node Key: %+v Data: %+v\n", hex.EncodeToHex(key.Bytes()), hex.EncodeToHex(buf.Bytes()))
 	// insert node into the database
 	_, err = mt.db.Exec(ctx, setNodeByKeySQL, key.Bytes(), buf.Bytes())
 	if err != nil {
 		return err
 	}
-
-	//_, err = mt.getNodeData(ctx, key)
-	//if err != nil {
-	//	return err
-	//}
-	//fmt.Printf("check got data form db: ")
 
 	return nil
 }

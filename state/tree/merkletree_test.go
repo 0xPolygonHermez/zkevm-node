@@ -70,23 +70,18 @@ func TestMerkleTreeRaw(t *testing.T) {
 				// convert strings to big.Int
 				k, success := new(big.Int).SetString(testVector.Keys[i], 10)
 				require.True(t, success)
-				//k.SetBytes(utils.SwapEndianness(k.Bytes()))
 
 				v, success := new(big.Int).SetString(testVector.Values[i], 10)
 				require.True(t, success)
-				//v.SetBytes(utils.SwapEndianness(v.Bytes()))
 
 				updateProof, err := mt.Set(ctx, root, k, v)
 				require.NoError(t, err)
 				root = updateProof.NewRoot
 			}
 			expected, _ := new(big.Int).SetString(testVector.ExpectedRoot, 10)
-			//expected.SetBytes()
 
-			//r := utils.SwapEndianness(root.Bytes())
 			r := root.Bytes()
 
-			//assert.Equal(t, hex.EncodeToString(utils.SwapEndianness(expected.Bytes())), hex.EncodeToString(r))
 			assert.Equal(t, hex.EncodeToString(expected.Bytes()), hex.EncodeToString(r))
 		})
 	}
