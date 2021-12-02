@@ -26,7 +26,7 @@ func main() {
 	c := config.Load()
 	setupLog(c.Log)
 	runMigrations(c.Database)
-	etherman, err := newSimulatedEtherman(c.Synchronizer.Etherman)
+	etherman, err := newSimulatedEtherman(c.Etherman)
 	if err != nil {
 		log.Fatal(err)
 	}

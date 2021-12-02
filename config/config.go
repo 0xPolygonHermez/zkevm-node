@@ -16,6 +16,7 @@ import (
 type Config struct {
 	Log          log.Config
 	Database     db.Config
+	Etherman     etherman.Config
 	Synchronizer synchronizer.Config
 	RPC          jsonrpc.Config
 	Sequencer    sequencer.Config
@@ -38,23 +39,18 @@ func Load() Config {
 			Host:     "localhost",
 			Port:     "5432",
 		},
+		Etherman: etherman.Config{
+			PrivateKeyPath:     "../test/test.keystore",
+			PrivateKeyPassword: "testonly"},
 		RPC: jsonrpc.Config{
-			Host: "",
-			Port: 8123,
-
+			Host:    "",
+			Port:    8123,
 			ChainID: 2576980377, // 0x99999999,
 		},
-		Synchronizer: synchronizer.Config{
-			Etherman: etherman.Config{
-				PrivateKeyPath:     "../test/test.keystore",
-				PrivateKeyPassword: "testonly"},
-		},
+		Synchronizer: synchronizer.Config{},
 		Sequencer: sequencer.Config{
 			IntervalToProposeBatch: 15 * time.Second,
-			Etherman:               etherman.Config{},
 		},
-		Aggregator: aggregator.Config{
-			Etherman: etherman.Config{},
-		},
+		Aggregator: aggregator.Config{},
 	}
 }
