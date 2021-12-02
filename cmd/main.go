@@ -145,7 +145,7 @@ func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
 		return nil, err
 	}
 	log.Info("addr: ", key.Address.Hex())
-	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, big.NewInt(1337)) //nolint:gomnd
 	if err != nil {
 		log.Fatal(err)
 	}
