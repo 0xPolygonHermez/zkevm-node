@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -71,7 +72,7 @@ func TestStateTransition(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Description, func(t *testing.T) {
-			// ctx := context.Background()
+			ctx := context.Background()
 
 			// init database instance
 			err = dbutils.InitOrReset(cfg.Database)
@@ -110,7 +111,7 @@ func TestStateTransition(t *testing.T) {
 			for _, gacc := range testCase.GenesisAccounts {
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &gacc.Balance.Int
 			}
-			err = st.SetGenesis(genesis)
+			err = st.SetGenesis(ctx, genesis)
 			if err != nil {
 				t.Error(err)
 				return
