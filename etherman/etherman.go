@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -120,6 +121,9 @@ func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, from
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
 func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
+	if len(txs) == 0 {
+		return nil, errors.New("Invalid txs: is empty slice")
+	}
 	var data []byte
 	for _, tx := range txs {
 		a := new(bytes.Buffer)
