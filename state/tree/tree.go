@@ -216,6 +216,9 @@ func (tree *BasicTree) SetStorageAt(address common.Address, position common.Hash
 	if err != nil {
 		return nil, nil, err
 	}
+
+	tree.currentRoot = updateProof.NewRoot
+
 	return updateProof.NewRoot.Bytes(), updateProof, nil
 }
 

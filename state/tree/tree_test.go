@@ -98,4 +98,9 @@ func TestBasicTree(t *testing.T) {
 	storage, err = tree.GetStorageAt(address, position, nil)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(4), storage)
+
+	bal, err = tree.GetBalance(address, nil)
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(1), bal)
+
 }

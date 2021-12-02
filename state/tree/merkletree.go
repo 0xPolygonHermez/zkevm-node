@@ -101,23 +101,23 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 	newRoot := oldRoot
 	isOld0 := true
 
-	for (r.Cmp(zero) != cmpEq) && (foundKey != nil) {
+	for (r.Cmp(zero) != cmpEq) && (foundKey == nil) {
 		node, err := mt.getNodeData(ctx, r)
 		if err != nil {
 			return nil, err
 		}
-		siblings[level] = node
+		siblings = append(siblings, node)
 
-		if siblings[level][0].Cmp(one) == cmpEq {
+		if node[0].Cmp(one) == cmpEq {
 			foundKey = new(big.Int).Add(
 				accKey,
 				new(big.Int).Mul(
-					siblings[level][1],
+					node[1],
 					new(big.Int).Lsh(one, uint(level*int(mt.arity))),
 				),
 			)
 		} else {
-			r = siblings[level][keys[level]]
+			r = node[keys[level]]
 			lastAccKey = accKey
 			accKey = new(big.Int).Add(accKey, new(big.Int).Lsh(big.NewInt(int64(keys[level])), uint(level*int(mt.arity))))
 			level++
@@ -348,7 +348,7 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key *big.Int) (*Proof, erro
 	r := big.NewInt(0)
 
 	if root != nil {
-		r = zero
+		r = root
 	}
 
 	keys := mt.splitKey(key)
@@ -365,43 +365,42 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key *big.Int) (*Proof, erro
 
 	isOld0 := true
 
-	for (r.Cmp(zero) != cmpEq) && (foundKey != nil) {
+	for (r.Cmp(zero) != cmpEq) && (foundKey == nil) {
 		node, err := mt.getNodeData(ctx, r)
 		if err != nil {
 			return nil, err
 		}
-		siblings[level] = node
+		siblings = append(siblings, node)
 
-		if siblings[level][0].Cmp(one) == cmpEq {
+		if node[0].Cmp(one) == cmpEq {
 			foundKey = new(big.Int).Add(
 				accKey,
 				new(big.Int).Mul(
-					siblings[level][1],
+					node[1],
 					new(big.Int).Lsh(one, uint(level*int(mt.arity))),
 				),
 			)
 		} else {
-			r = siblings[level][keys[level]]
+			r = node[keys[level]]
 			lastAccKey = accKey
 			accKey = new(big.Int).Add(accKey, new(big.Int).Lsh(big.NewInt(int64(keys[level])), uint(level*int(mt.arity))))
 			level++
 		}
 	}
 
-	level--
 	accKey = lastAccKey
 
 	if foundKey != nil {
 		if key.Cmp(foundKey) == cmpEq {
-			value = fea2scalar(siblings[level+1][2:6])
+			value = fea2scalar(siblings[level][2:6])
 		} else {
 			insKey = foundKey
-			insValue = fea2scalar(siblings[level+1][2:6])
+			insValue = fea2scalar(siblings[level][2:6])
 			isOld0 = false
 		}
 	}
 
-	siblings = siblings[0 : level+1]
+	//siblings = siblings[0:level]
 
 	return &Proof{
 		Root:     root,
@@ -521,10 +520,10 @@ func (mt *MerkleTree) setNodeData(ctx context.Context, key *big.Int, data []*big
 		return err
 	}
 
-	_, err = mt.getNodeData(ctx, key)
-	if err != nil {
-		return err
-	}
+	//_, err = mt.getNodeData(ctx, key)
+	//if err != nil {
+	//	return err
+	//}
 	//fmt.Printf("check got data form db: ")
 
 	return nil
