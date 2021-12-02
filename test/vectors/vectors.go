@@ -4,13 +4,8 @@ import (
 	"math/big"
 )
 
-// StateTransitionVector contains test cases for state transitions
-type StateTransitionVector struct {
-	StateTests []StateTest `json:"tests"`
-}
-
-// StateTest holds the metadata needed to run a state transition test
-type StateTest struct {
+// StateTransitionTestCase holds the metadata needed to run a state transition test
+type StateTransitionTestCase struct {
 	ID               uint   `json:"id"`
 	Description      string `json:"description"`
 	Arity            uint   `json:"arity"`

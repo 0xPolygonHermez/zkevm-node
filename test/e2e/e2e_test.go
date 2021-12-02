@@ -60,8 +60,7 @@ var cfg = config.Config{
 
 // TestStateTransition tests state transitions using the vector
 func TestStateTransition(t *testing.T) {
-	// load vector
-	vector, err := vectors.LoadStateTransition()
+	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/state-transition.json")
 	if err != nil {
 		t.Error(err)
 		return
@@ -70,7 +69,7 @@ func TestStateTransition(t *testing.T) {
 	// init log
 	log.Init(cfg.Log)
 
-	for _, testCase := range vector.StateTests {
+	for _, testCase := range testCases {
 		t.Run(testCase.Description, func(t *testing.T) {
 			// ctx := context.Background()
 
