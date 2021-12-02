@@ -11,7 +11,6 @@ import (
 )
 
 var log *zap.SugaredLogger
-var logLevel *zap.AtomicLevel
 
 func getDefaultLoggerOrPanic() *zap.SugaredLogger {
 	var err error
@@ -19,7 +18,7 @@ func getDefaultLoggerOrPanic() *zap.SugaredLogger {
 		return log
 	}
 	// default level: debug
-	log, logLevel, err = NewLogger(Config{"debug", []string{"stdout"}})
+	log, _, err = NewLogger(Config{"debug", []string{"stdout"}})
 	if err != nil {
 		panic(err)
 	}
@@ -33,7 +32,7 @@ func getDefaultLoggerOrPanic() *zap.SugaredLogger {
 // them on a file, can use []string{"pathtofile.log"}
 func Init(cfg Config) {
 	var err error
-	log, logLevel, err = NewLogger(cfg)
+	log, _, err = NewLogger(cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -81,7 +80,7 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	defer logger.Sync()
+	defer logger.Sync() //nolint:gosec,errcheck
 	withOptions := logger.WithOptions(zap.AddCallerSkip(1))
 	return withOptions.Sugar(), &level, nil
 }
