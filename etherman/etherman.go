@@ -291,7 +291,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 	for pos < int64(len(txsData)) {
 		length := txsData[pos+1 : pos+2]
 		str := hex.EncodeToString(length)
-		num, err := strconv.ParseInt(str, 16, 64)
+		num, err := strconv.ParseInt(str, 16, 64) //nolint:gomnd
 		if err != nil {
 			log.Warn("error: skipping tx. Err: ", err)
 			continue
