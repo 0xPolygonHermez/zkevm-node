@@ -12,6 +12,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -62,10 +63,11 @@ func TestMain(m *testing.M) {
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
 
+	state = NewState(stateDb, tree.NewMemTree())
+
 	setUpBlocks()
 	setUpBatches()
 	setUpTransactions()
-	state = NewState(stateDb, nil)
 
 	result := m.Run()
 
@@ -162,9 +164,10 @@ func setUpBatches() {
 
 	batches := []*Batch{batch1, batch2, batch3, batch4}
 
+	bp := state.NewBatchProcessor(0, false)
+
 	for _, b := range batches {
-		_, err = stateDb.Exec(ctx, "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash) VALUES ($1, $2, $3, $4, $5, $6)",
-			b.BatchNumber, b.BatchHash, b.BlockNumber, b.Sequencer, b.Aggregator, b.ConsolidatedTxHash)
+		err := bp.ProcessBatch(b)
 		if err != nil {
 			panic(err)
 		}
@@ -273,8 +276,9 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		RawTxsData:         nil,
 	}
 
-	_, err := stateDb.Exec(ctx, "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash) VALUES ($1, $2, $3, $4, $5, $6)",
-		batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator, batch.ConsolidatedTxHash)
+	bp := state.NewBatchProcessor(0, false)
+
+	err := bp.ProcessBatch(batch)
 	assert.NoError(t, err)
 
 	insertedBatch, err := state.GetBatchByNumber(ctx, batchNumber)
