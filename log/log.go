@@ -12,16 +12,42 @@ import (
 
 var log *zap.SugaredLogger
 
+func getDefaultLog() *zap.SugaredLogger {
+	var err error
+	if log != nil {
+		return log
+	}
+	// default level: debug
+	log, _, err = NewLogger(Config{"debug", []string{"stdout"}})
+	if err != nil {
+		panic(err)
+	}
+	return log
+}
+
 // Init the logger with defined level. outputs defines the outputs where the
 // logs will be sent. By default outputs contains "stdout", which prints the
 // logs at the output of the process. To add a log file as output, the path
 // should be added at the outputs array. To avoid printing the logs but storing
 // them on a file, can use []string{"pathtofile.log"}
 func Init(cfg Config) {
+	var err error
+	log, _, err = NewLogger(cfg)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// NewLogger creates the logger with defined level. outputs defines the outputs where the
+// logs will be sent. By default, outputs contains "stdout", which prints the
+// logs at the output of the process. To add a log file as output, the path
+// should be added at the outputs array. To avoid printing the logs but storing
+// them on a file, can use []string{"pathtofile.log"}
+func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 	var level zap.AtomicLevel
 	err := level.UnmarshalText([]byte(cfg.Level))
 	if err != nil {
-		panic(fmt.Errorf("Error on setting log level: %s", err))
+		return nil, nil, fmt.Errorf("error on setting log level: %s", err)
 	}
 
 	zapCfg := zap.Config{
@@ -52,12 +78,11 @@ func Init(cfg Config) {
 
 	logger, err := zapCfg.Build()
 	if err != nil {
-		panic(err)
+		return nil, nil, err
 	}
-	//nolint:errcheck
-	defer logger.Sync()
+	defer logger.Sync() //nolint:gosec,errcheck
 	withOptions := logger.WithOptions(zap.AddCallerSkip(1))
-	log = withOptions.Sugar()
+	return withOptions.Sugar(), &level, nil
 }
 
 func sprintStackTrace(st []tracerr.Frame) string {
@@ -88,55 +113,55 @@ func appendStackTraceMaybeArgs(args []interface{}) []interface{} {
 
 // Debug calls log.Debug
 func Debug(args ...interface{}) {
-	log.Debug(args...)
+	getDefaultLog().Debug(args...)
 }
 
 // Info calls log.Info
 func Info(args ...interface{}) {
-	log.Info(args...)
+	getDefaultLog().Info(args...)
 }
 
 // Warn calls log.Warn
 func Warn(args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	log.Warn(args...)
+	getDefaultLog().Warn(args...)
 }
 
 // Error calls log.Error
 func Error(args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	log.Error(args...)
+	getDefaultLog().Error(args...)
 }
 
 // Fatal calls log.Fatal
 func Fatal(args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	log.Fatal(args...)
+	getDefaultLog().Fatal(args...)
 }
 
 // Debugf calls log.Debugf
 func Debugf(template string, args ...interface{}) {
-	log.Debugf(template, args...)
+	getDefaultLog().Debugf(template, args...)
 }
 
 // Infof calls log.Infof
 func Infof(template string, args ...interface{}) {
-	log.Infof(template, args...)
+	getDefaultLog().Infof(template, args...)
 }
 
 // Warnf calls log.Warnf
 func Warnf(template string, args ...interface{}) {
-	log.Warnf(template, args...)
+	getDefaultLog().Warnf(template, args...)
 }
 
 // Fatalf calls log.Warnf
 func Fatalf(template string, args ...interface{}) {
-	log.Fatalf(template, args...)
+	getDefaultLog().Fatalf(template, args...)
 }
 
 // Errorf calls log.Errorf and stores the error message into the ErrorFile
 func Errorf(template string, args ...interface{}) {
-	log.Errorf(template, args...)
+	getDefaultLog().Errorf(template, args...)
 }
 
 // appendStackTraceMaybeKV will append the stacktrace to the KV if one of them
@@ -156,28 +181,28 @@ func appendStackTraceMaybeKV(msg string, kv []interface{}) string {
 
 // Debugw calls log.Debugw
 func Debugw(template string, kv ...interface{}) {
-	log.Debugw(template, kv...)
+	getDefaultLog().Debugw(template, kv...)
 }
 
 // Infow calls log.Infow
 func Infow(template string, kv ...interface{}) {
-	log.Infow(template, kv...)
+	getDefaultLog().Infow(template, kv...)
 }
 
 // Warnw calls log.Warnw
 func Warnw(template string, kv ...interface{}) {
 	template = appendStackTraceMaybeKV(template, kv)
-	log.Warnw(template, kv...)
+	getDefaultLog().Warnw(template, kv...)
 }
 
 // Errorw calls log.Errorw
 func Errorw(template string, kv ...interface{}) {
 	template = appendStackTraceMaybeKV(template, kv)
-	log.Errorw(template, kv...)
+	getDefaultLog().Errorw(template, kv...)
 }
 
 // Fatalw calls log.Fatalw
 func Fatalw(template string, kv ...interface{}) {
 	template = appendStackTraceMaybeKV(template, kv)
-	log.Fatalw(template, kv...)
+	getDefaultLog().Fatalw(template, kv...)
 }
