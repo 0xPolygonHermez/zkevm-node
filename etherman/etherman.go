@@ -3,7 +3,6 @@ package etherman
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -18,7 +17,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 )
@@ -295,7 +296,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 	for pos < int64(len(txsData)) {
 		length := txsData[pos+1 : pos+2]
 		str := hex.EncodeToString(length)
-		num, err := strconv.ParseInt(str, 16, 64) //nolint:gomnd
+		num, err := strconv.ParseInt(str, hex.Base, encoding.BitSize64)
 		if err != nil {
 			log.Warn("error: skipping tx. Err: ", err)
 			continue
