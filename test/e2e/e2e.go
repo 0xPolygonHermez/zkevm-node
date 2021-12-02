@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
@@ -25,8 +24,10 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/hermeznetwork/hermez-core/test/vectors"
 )
 
+//nolint:gomnd
 var cfg = config.Config{
 	Log: log.Config{
 		Level:   "debug",
@@ -57,9 +58,10 @@ var cfg = config.Config{
 	},
 }
 
+// TestStateTransition tests state transitions using the vector
 func TestStateTransition(t *testing.T) {
 	// load vector
-	vector, err := loadVector()
+	vector, err := vectors.LoadStateTransition()
 	if err != nil {
 		t.Error(err)
 		return
@@ -192,29 +194,7 @@ func TestStateTransition(t *testing.T) {
 	}
 }
 
-func loadVector() (StateTransitionVector, error) {
-	var vector StateTransitionVector
-
-	jsonFile, err := os.Open("state-transition.json")
-	if err != nil {
-		return vector, err
-	}
-	defer func() { _ = jsonFile.Close() }()
-
-	bytes, err := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		return vector, err
-	}
-
-	err = json.Unmarshal(bytes, &vector)
-	if err != nil {
-		return vector, err
-	}
-
-	return vector, nil
-}
-
-func sendRawTransaction(tx Tx) error {
+func sendRawTransaction(tx vectors.Tx) error {
 	endpoint := fmt.Sprintf("http://localhost:%d", cfg.RPC.Port)
 	contentType := "application/json"
 
