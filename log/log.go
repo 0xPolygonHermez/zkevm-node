@@ -12,7 +12,7 @@ import (
 
 var log *zap.SugaredLogger
 
-func getDefaultLoggerOrPanic() *zap.SugaredLogger {
+func getDefaultLog() *zap.SugaredLogger {
 	var err error
 	if log != nil {
 		return log
@@ -113,55 +113,55 @@ func appendStackTraceMaybeArgs(args []interface{}) []interface{} {
 
 // Debug calls log.Debug
 func Debug(args ...interface{}) {
-	getDefaultLoggerOrPanic().Debug(args...)
+	getDefaultLog().Debug(args...)
 }
 
 // Info calls log.Info
 func Info(args ...interface{}) {
-	getDefaultLoggerOrPanic().Info(args...)
+	getDefaultLog().Info(args...)
 }
 
 // Warn calls log.Warn
 func Warn(args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	getDefaultLoggerOrPanic().Warn(args...)
+	getDefaultLog().Warn(args...)
 }
 
 // Error calls log.Error
 func Error(args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	getDefaultLoggerOrPanic().Error(args...)
+	getDefaultLog().Error(args...)
 }
 
 // Fatal calls log.Fatal
 func Fatal(args ...interface{}) {
 	args = appendStackTraceMaybeArgs(args)
-	getDefaultLoggerOrPanic().Fatal(args...)
+	getDefaultLog().Fatal(args...)
 }
 
 // Debugf calls log.Debugf
 func Debugf(template string, args ...interface{}) {
-	getDefaultLoggerOrPanic().Debugf(template, args...)
+	getDefaultLog().Debugf(template, args...)
 }
 
 // Infof calls log.Infof
 func Infof(template string, args ...interface{}) {
-	getDefaultLoggerOrPanic().Infof(template, args...)
+	getDefaultLog().Infof(template, args...)
 }
 
 // Warnf calls log.Warnf
 func Warnf(template string, args ...interface{}) {
-	getDefaultLoggerOrPanic().Warnf(template, args...)
+	getDefaultLog().Warnf(template, args...)
 }
 
 // Fatalf calls log.Warnf
 func Fatalf(template string, args ...interface{}) {
-	getDefaultLoggerOrPanic().Fatalf(template, args...)
+	getDefaultLog().Fatalf(template, args...)
 }
 
 // Errorf calls log.Errorf and stores the error message into the ErrorFile
 func Errorf(template string, args ...interface{}) {
-	getDefaultLoggerOrPanic().Errorf(template, args...)
+	getDefaultLog().Errorf(template, args...)
 }
 
 // appendStackTraceMaybeKV will append the stacktrace to the KV if one of them
@@ -181,28 +181,28 @@ func appendStackTraceMaybeKV(msg string, kv []interface{}) string {
 
 // Debugw calls log.Debugw
 func Debugw(template string, kv ...interface{}) {
-	getDefaultLoggerOrPanic().Debugw(template, kv...)
+	getDefaultLog().Debugw(template, kv...)
 }
 
 // Infow calls log.Infow
 func Infow(template string, kv ...interface{}) {
-	getDefaultLoggerOrPanic().Infow(template, kv...)
+	getDefaultLog().Infow(template, kv...)
 }
 
 // Warnw calls log.Warnw
 func Warnw(template string, kv ...interface{}) {
 	template = appendStackTraceMaybeKV(template, kv)
-	getDefaultLoggerOrPanic().Warnw(template, kv...)
+	getDefaultLog().Warnw(template, kv...)
 }
 
 // Errorw calls log.Errorw
 func Errorw(template string, kv ...interface{}) {
 	template = appendStackTraceMaybeKV(template, kv)
-	getDefaultLoggerOrPanic().Errorw(template, kv...)
+	getDefaultLog().Errorw(template, kv...)
 }
 
 // Fatalw calls log.Fatalw
 func Fatalw(template string, kv ...interface{}) {
 	template = appendStackTraceMaybeKV(template, kv)
-	getDefaultLoggerOrPanic().Fatalw(template, kv...)
+	getDefaultLog().Fatalw(template, kv...)
 }
