@@ -84,18 +84,29 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 		receiverBalance.Add(receiverBalance, tx.Value())
 
 		// Pay gas to the sequencer
-		sequencerBalance, err := b.State.Tree.GetBalance(sequencerAddress, b.stateRoot)
-		if err != nil {
-			return err
+		usedGas := new(big.Int).SetUint64(b.State.EstimateGas(tx))
+
+		if sequencerAddress == sender {
+			senderBalance.Add(senderBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
+		} else if sequencerAddress == *tx.To() {
+			receiverBalance.Add(receiverBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
+		} else {
+			sequencerBalance, err := b.State.Tree.GetBalance(sequencerAddress, b.stateRoot)
+			if err != nil {
+				return err
+			}
+
+			sequencerBalance.Add(sequencerBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
+			root, _, err = b.State.Tree.SetBalance(sequencerAddress, sequencerBalance)
+			if err != nil {
+				return err
+			}
+			b.stateRoot = root
 		}
 
-		usedGas := big.NewInt(0).SetUint64(b.State.EstimateGas(tx))
-
-		sequencerBalance.Add(sequencerBalance, usedGas.Mul(usedGas, tx.GasPrice()))
-
 		// Refund unused gas
-		remainingGas := big.NewInt(0).SetUint64((tx.Gas() - usedGas.Uint64()))
-		receiverBalance.Add(receiverBalance, remainingGas.Mul(remainingGas, tx.GasPrice()))
+		remainingGas := new(big.Int).SetUint64((tx.Gas() - usedGas.Uint64()))
+		senderBalance.Add(senderBalance, new(big.Int).Mul(remainingGas, tx.GasPrice()))
 
 		// Store new balances
 		root, _, err = b.State.Tree.SetBalance(sender, senderBalance)
@@ -105,12 +116,6 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 		b.stateRoot = root
 
 		root, _, err = b.State.Tree.SetBalance(*tx.To(), receiverBalance)
-		if err != nil {
-			return err
-		}
-		b.stateRoot = root
-
-		root, _, err = b.State.Tree.SetBalance(sequencerAddress, sequencerBalance)
 		if err != nil {
 			return err
 		}

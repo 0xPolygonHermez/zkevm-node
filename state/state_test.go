@@ -19,6 +19,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -391,6 +392,10 @@ func TestBasicState_AddSequencer(t *testing.T) {
 }
 
 func TestStateTransition(t *testing.T) {
+	// TODO: Improve when roots are validable
+	// Also: check if those TX meant to fail do fail
+	// Optional: check that decoded TX matches the ones in the header of the test case
+
 	// load vector
 	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition.json")
 	if err != nil {
@@ -425,8 +430,10 @@ func TestStateTransition(t *testing.T) {
 				Balances: make(map[common.Address]*big.Int),
 			}
 			for _, gacc := range testCase.GenesisAccounts {
-				genesis.Balances[common.HexToAddress(gacc.Address)] = &gacc.Balance.Int
+				balance := gacc.Balance.Int
+				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
 			}
+
 			err = st.SetGenesis(ctx, genesis)
 			if err != nil {
 				t.Error(err)
@@ -451,7 +458,7 @@ func TestStateTransition(t *testing.T) {
 			batch := &Batch{
 				BatchNumber:        uint64(testCase.ID + 1),
 				BatchHash:          common.Hash{},
-				BlockNumber:        uint64(testCase.ID),
+				BlockNumber:        uint64(0),
 				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
 				Aggregator:         addr,
 				ConsolidatedTxHash: common.Hash{},
@@ -465,20 +472,19 @@ func TestStateTransition(t *testing.T) {
 			bp := st.NewBatchProcessor(0, false)
 
 			err = bp.ProcessBatch(batch)
-			// require.NoError(t, err)
+			require.NoError(t, err)
 			// There may be errors processing Tx, so just check Balances
-			/*
-				for key, vectorLeaf := range testCase.ExpectedNewLeafs {
-					newBalance, err := tree.GetBalance(common.HexToAddress(key), nil)
-					assert.NoError(t, err)
-					assert.Equal(t, 0, vectorLeaf.Balance.Cmp(newBalance))
 
-					newNonce, err := tree.GetNonce(common.HexToAddress(key), nil)
-					assert.NoError(t, err)
-					leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
-					assert.Equal(t, leafNonce, newNonce)
-				}
-			*/
+			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
+				newBalance, err := tree.GetBalance(common.HexToAddress(key), nil)
+				assert.NoError(t, err)
+				assert.Equal(t, 0, vectorLeaf.Balance.Cmp(newBalance))
+
+				newNonce, err := tree.GetNonce(common.HexToAddress(key), nil)
+				assert.NoError(t, err)
+				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
+				assert.Equal(t, leafNonce, newNonce)
+			}
 		})
 	}
 }
