@@ -43,7 +43,7 @@ func init() {
 }
 
 func TestMerkleTreeRaw(t *testing.T) {
-	data, err := os.ReadFile("state/tree/test-vector-data/smt-raw.json")
+	data, err := os.ReadFile("test/vectors/smt/smt-raw.json")
 	require.NoError(t, err)
 
 	var testVectors []testVectorRaw

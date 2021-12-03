@@ -17,7 +17,7 @@ const (
 )
 
 const (
-	getNodeByKeySQL    = "SELECT hash, data FROM state.merkletree WHERE hash = $1"
+	getNodeByKeySQL    = "SELECT data FROM state.merkletree WHERE hash = $1"
 	setNodeByKeySQL    = "INSERT INTO state.merkletree (hash, data) VALUES ($1, $2)"
 	deleteNodeByKeySQL = "DELETE FROM state.merkletree WHERE hash = $1"
 	checkNodeExistsSQL = "SELECT COUNT(*) as exists FROM state.merkletree WHERE hash = $1"
@@ -61,12 +61,6 @@ type Proof struct {
 	IsOld0   bool
 	InsKey   *big.Int
 	InsValue *big.Int
-}
-
-// NodeItem is a model of node stored in the database
-type NodeItem struct {
-	Key  []byte
-	Data []byte
 }
 
 func NewMerkleTree(db *pgxpool.Pool, arity uint8, hash interface{}) *MerkleTree {
@@ -480,15 +474,15 @@ func (mt *MerkleTree) newNodeData() []*big.Int {
 
 func (mt *MerkleTree) getNodeData(ctx context.Context, hash *big.Int) ([]*big.Int, error) {
 	log.Debugw("Get node", "hash", hex.EncodeToString(hash.Bytes()))
-	var node NodeItem
-	err := mt.db.QueryRow(ctx, getNodeByKeySQL, hash.Bytes()).Scan(&node.Key, &node.Data)
+	var data []byte
+	err := mt.db.QueryRow(ctx, getNodeByKeySQL, hash.Bytes()).Scan(&data)
 	if err != nil {
 		return nil, err
 	}
 	// parse bytes into []*big.Int
 	nodeData := mt.newNodeData()
-	for i := 0; i < len(node.Data)/maxBigIntLen; i++ {
-		nodeData[i] = new(big.Int).SetBytes(node.Data[i*maxBigIntLen : (i+1)*maxBigIntLen])
+	for i := 0; i < len(data)/maxBigIntLen; i++ {
+		nodeData[i] = new(big.Int).SetBytes(data[i*maxBigIntLen : (i+1)*maxBigIntLen])
 	}
 	log.Debugw("Got node", "hash", hex.EncodeToString(hash.Bytes()), "data", nodeData)
 	return nodeData, nil
