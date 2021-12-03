@@ -3,7 +3,6 @@ package state
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -155,8 +154,6 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	if err != nil {
 		return sender, nonce, balance, err
 	}
-
-	fmt.Printf("Sender: %v", sender)
 
 	// Check nonce
 	nonce, err = b.State.Tree.GetNonce(sender, b.stateRoot)
