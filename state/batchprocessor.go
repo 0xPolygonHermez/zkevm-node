@@ -1,6 +1,7 @@
 package state
 
 import (
+	"context"
 	"errors"
 	"math/big"
 
@@ -25,9 +26,11 @@ type BatchProcessor interface {
 	ProcessBatch(batch *Batch) error
 	ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error
 	CheckTransaction(tx *types.Transaction) (common.Address, *big.Int, *big.Int, error)
-	Commit() (*common.Hash, *Proof, error)
-	Rollback() error
 }
+
+const (
+	addBatchSQL = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+)
 
 // BasicBatchProcessor is used to process a batch of transactions
 type BasicBatchProcessor struct {
@@ -44,13 +47,15 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			log.Infof("Error processing transaction %s: %v", tx.Hash().String(), err)
 		}
 
-		receipt := types.NewReceipt(b.stateRoot, err != nil, 0)
+		// receipt := types.NewReceipt(b.stateRoot, err != nil, 0)
 
 		// TODO: Store receipt, log it to avoid unused linter error
-		log.Debugf("%v", receipt)
+		// log.Debugf("%v", receipt)
 	}
 
-	return b.State.Tree.SetRootForBatchNumber(batch.BatchNumber, b.stateRoot)
+	_, _, err := b.commit(batch)
+
+	return err
 }
 
 // ProcessTransaction processes a transaction inside a batch
@@ -123,15 +128,16 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	var balance = big.NewInt(0)
 
 	// Set stateRoot if needed
-	if len(b.stateRoot) == 0 {
-		root, err := b.State.Tree.GetRoot()
-		if err != nil {
-			return sender, nonce, balance, err
+	/*
+		if len(b.stateRoot) == 0 {
+			root, err := b.State.Tree.GetRoot()
+			if err != nil {
+				return sender, nonce, balance, err
+			}
+
+			b.stateRoot = root
 		}
-
-		b.stateRoot = root
-	}
-
+	*/
 	// Check Signature
 	if err := CheckSignature(tx); err != nil {
 		return sender, nonce, balance, err
@@ -173,13 +179,33 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 }
 
 // Commit the batch state into state
-func (b *BasicBatchProcessor) Commit() (*common.Hash, *Proof, error) {
-	// TODO: Implement
+func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, *Proof, error) {
+	// Store batch into db
+	ctx := context.Background()
+	err := b.State.addBatch(ctx, batch)
+	if err != nil {
+		return nil, nil, err
+	}
+	/*
+		err = b.State.Tree.SetRootForBatchNumber(batch.BatchNumber, b.stateRoot)
+		if err != nil {
+			return nil, nil, err
+		}
+	*/
 	return nil, nil, nil
 }
 
 // Rollback does not apply batch state into state
-func (b *BasicBatchProcessor) Rollback() error {
+// TODO: implement
+/*
+func (b *BasicBatchProcessor) rollback() error {
 	// TODO: Implement
 	return nil
+}
+*/
+
+func (s *BasicState) addBatch(ctx context.Context, batch *Batch) error {
+	_, err := s.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator,
+		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData)
+	return err
 }
