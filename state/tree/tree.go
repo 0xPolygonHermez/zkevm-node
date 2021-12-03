@@ -3,10 +3,9 @@ package tree
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"math/big"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 const mtArity = 4

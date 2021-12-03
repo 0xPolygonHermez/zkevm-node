@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/stretchr/testify/assert"
@@ -16,13 +15,6 @@ import (
 	"runtime"
 	"testing"
 )
-
-type testVectorKey struct {
-	LeafType    LeafType         `json:"leafType"`
-	EthAddr     []common.Address `json:"ethAddr"`
-	Arity       uint8            `json:"arity"`
-	ExpectedKey string           `json:"expectedKey"`
-}
 
 type testVectorRaw struct {
 	Arity        uint8    `json:"arity"`

@@ -11,9 +11,8 @@ import (
 )
 
 const (
-	cmpLt = -1
-	cmpEq = 0
-	cmpGt = 1
+	cmpEq      = 0
+	addrLength = 160
 )
 
 const (
@@ -33,6 +32,7 @@ const (
 	modeZeroToZero     = "zeroToZero"
 )
 
+// MerkleTree implements merkle tree
 type MerkleTree struct {
 	db           *pgxpool.Pool
 	hashFunction interface{}
@@ -41,6 +41,7 @@ type MerkleTree struct {
 	mask         *big.Int
 }
 
+// UpdateProof is a proof generated on Set operation
 type UpdateProof struct {
 	OldRoot  *big.Int
 	NewRoot  *big.Int
@@ -53,6 +54,7 @@ type UpdateProof struct {
 	NewValue *big.Int
 }
 
+// Proof is a proof generated on Get operation
 type Proof struct {
 	Root     *big.Int
 	Key      *big.Int
@@ -63,16 +65,18 @@ type Proof struct {
 	InsValue *big.Int
 }
 
+// NewMerkleTree creates new MerkleTree instance
 func NewMerkleTree(db *pgxpool.Pool, arity uint8, hash interface{}) *MerkleTree {
 	return &MerkleTree{
 		db:           db,
 		arity:        arity,
 		hashFunction: hash,
 		mask:         big.NewInt(1<<arity - 1),
-		maxLevels:    uint16(160 / arity),
+		maxLevels:    uint16(addrLength / arity),
 	}
 }
 
+// Set method sets value of a leaf at a given location (key) in the tree
 func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, value *big.Int) (*UpdateProof, error) {
 	var err error
 
@@ -229,7 +233,6 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 				} else {
 					newRoot = r2
 				}
-
 			}
 		} else { // insert without foundKey
 			mode = modeInsertNotFound
@@ -252,7 +255,6 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 		}
 	} else {
 		if (foundKey != nil) && (key.Cmp(foundKey) == cmpEq) { // Delete
-
 			oldValue = fea2scalar(siblings[level+1][2:6])
 			if level >= 0 {
 				siblings[level][keys[level]] = zero
@@ -344,6 +346,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 	return &proof, nil
 }
 
+// Get method gets value at a given location in the tree
 func (mt *MerkleTree) Get(ctx context.Context, root, key *big.Int) (*Proof, error) {
 	// exit early if context is cancelled
 	err := ctx.Err()
@@ -364,7 +367,6 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key *big.Int) (*Proof, erro
 	level := 0
 
 	accKey := big.NewInt(0)
-	lastAccKey := big.NewInt(0)
 	var foundKey *big.Int
 	siblings := make([][]*big.Int, len(keys))
 
@@ -391,13 +393,10 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key *big.Int) (*Proof, erro
 			)
 		} else {
 			r = node[keys[level]]
-			lastAccKey = accKey
 			accKey = new(big.Int).Add(accKey, new(big.Int).Lsh(big.NewInt(int64(keys[level])), uint(level*int(mt.arity))))
 			level++
 		}
 	}
-
-	accKey = lastAccKey
 
 	if foundKey != nil {
 		if key.Cmp(foundKey) == cmpEq {
@@ -491,6 +490,9 @@ func (mt *MerkleTree) getNodeData(ctx context.Context, hash *big.Int) ([]*big.In
 func (mt *MerkleTree) setNodeData(ctx context.Context, key *big.Int, data []*big.Int) error {
 	var exists int
 	err := mt.db.QueryRow(ctx, checkNodeExistsSQL, key.Bytes()).Scan(&exists)
+	if err != nil {
+		return err
+	}
 	if exists != 0 {
 		//fmt.Println("Item already exists, key: ", hex.EncodeToHex(key.Bytes()))
 		// item already exists, no need to do anything

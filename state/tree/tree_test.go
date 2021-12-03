@@ -1,18 +1,16 @@
 package tree
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
-	"math/big"
-	"testing"
-
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"math/big"
+	"testing"
 )
 
 func TestBasicTree(t *testing.T) {
-
 	dbCfg := dbutils.NewConfigFromEnv()
 
 	err := dbutils.InitOrReset(dbCfg)
@@ -102,5 +100,4 @@ func TestBasicTree(t *testing.T) {
 	bal, err = tree.GetBalance(address, nil)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(1), bal)
-
 }
