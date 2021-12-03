@@ -92,7 +92,6 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 		} else if sequencerAddress == *tx.To() {
 			receiverBalance.Add(receiverBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
 		} else {
-			// Pay gas to the sequencer
 			sequencerBalance, err := b.State.Tree.GetBalance(sequencerAddress, b.stateRoot)
 			if err != nil {
 				return err
