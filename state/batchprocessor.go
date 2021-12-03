@@ -47,10 +47,10 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			log.Infof("Error processing transaction %s: %v", tx.Hash().String(), err)
 		}
 
-		receipt := types.NewReceipt(b.stateRoot, err != nil, 0)
+		// receipt := types.NewReceipt(b.stateRoot, err != nil, 0)
 
 		// TODO: Store receipt, log it to avoid unused linter error
-		log.Debugf("%v", receipt)
+		// log.Debugf("%v", receipt)
 	}
 
 	_, _, err := b.commit(batch)
@@ -128,15 +128,16 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	var balance = big.NewInt(0)
 
 	// Set stateRoot if needed
-	if len(b.stateRoot) == 0 {
-		root, err := b.State.Tree.GetRoot()
-		if err != nil {
-			return sender, nonce, balance, err
+	/*
+		if len(b.stateRoot) == 0 {
+			root, err := b.State.Tree.GetRoot()
+			if err != nil {
+				return sender, nonce, balance, err
+			}
+
+			b.stateRoot = root
 		}
-
-		b.stateRoot = root
-	}
-
+	*/
 	// Check Signature
 	if err := CheckSignature(tx); err != nil {
 		return sender, nonce, balance, err
@@ -185,12 +186,12 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, *Proof, error)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	err = b.State.Tree.SetRootForBatchNumber(batch.BatchNumber, b.stateRoot)
-	if err != nil {
-		return nil, nil, err
-	}
-
+	/*
+		err = b.State.Tree.SetRootForBatchNumber(batch.BatchNumber, b.stateRoot)
+		if err != nil {
+			return nil, nil, err
+		}
+	*/
 	return nil, nil, nil
 }
 

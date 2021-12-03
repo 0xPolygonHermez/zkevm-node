@@ -4,16 +4,19 @@ import (
 	"context"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 )
@@ -385,4 +388,97 @@ func TestBasicState_AddSequencer(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.sequencer WHERE chain_id = $1", sequencer2.ChainID.Uint64())
 	assert.NoError(t, err)
+}
+
+func TestStateTransition(t *testing.T) {
+	// load vector
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition.json")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	for _, testCase := range stateTransitionTestCases {
+		t.Run(testCase.Description, func(t *testing.T) {
+			ctx := context.Background()
+			// Init database instance
+			err = dbutils.InitOrReset(cfg)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			// Create State db
+			stateDb, err = db.NewSQLDB(cfg)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			// Create State tree
+			tree := tree.NewMemTree()
+
+			// Create state
+			st := NewState(stateDb, tree)
+
+			genesis := Genesis{
+				Balances: make(map[common.Address]*big.Int),
+			}
+			for _, gacc := range testCase.GenesisAccounts {
+				genesis.Balances[common.HexToAddress(gacc.Address)] = &gacc.Balance.Int
+			}
+			err = st.SetGenesis(ctx, genesis)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			var txs []*types.Transaction
+
+			// Create Transaction
+			for _, vectorTx := range testCase.Txs {
+				var tx types.LegacyTx
+				bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
+
+				err = rlp.DecodeBytes(bytes, &tx)
+				if err == nil {
+					txs = append(txs, types.NewTx(&tx))
+				}
+				// require.NoError(t, err)
+			}
+
+			// Create Batch
+			batch := &Batch{
+				BatchNumber:        uint64(testCase.ID + 1),
+				BatchHash:          common.Hash{},
+				BlockNumber:        uint64(testCase.ID),
+				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
+				Aggregator:         addr,
+				ConsolidatedTxHash: common.Hash{},
+				Header:             nil,
+				Uncles:             nil,
+				Transactions:       txs,
+				RawTxsData:         nil,
+			}
+
+			// Create Batch Processor
+			bp := st.NewBatchProcessor(0, false)
+
+			err = bp.ProcessBatch(batch)
+			// require.NoError(t, err)
+			// There may be errors processing Tx, so just check Balances
+			/*
+				for key, vectorLeaf := range testCase.ExpectedNewLeafs {
+					newBalance, err := tree.GetBalance(common.HexToAddress(key), nil)
+					assert.NoError(t, err)
+					assert.Equal(t, 0, vectorLeaf.Balance.Cmp(newBalance))
+
+					newNonce, err := tree.GetNonce(common.HexToAddress(key), nil)
+					assert.NoError(t, err)
+					leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
+					assert.Equal(t, leafNonce, newNonce)
+				}
+			*/
+		})
+	}
 }
