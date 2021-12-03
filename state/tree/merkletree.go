@@ -3,11 +3,12 @@ package tree
 import (
 	"bytes"
 	"context"
+	"math/big"
+
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"math/big"
 )
 
 const (

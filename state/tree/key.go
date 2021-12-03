@@ -1,9 +1,10 @@
 package tree
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/poseidon"
-	"math/big"
 )
 
 // PoseidonInputsNum specifies number of inputs used for Poseidon hash

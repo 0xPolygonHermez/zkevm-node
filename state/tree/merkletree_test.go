@@ -5,15 +5,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/hermeznetwork/hermez-core/db"
-	"github.com/hermeznetwork/hermez-core/test/dbutils"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"math/big"
 	"os"
 	"path"
 	"runtime"
 	"testing"
+
+	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testVectorRaw struct {

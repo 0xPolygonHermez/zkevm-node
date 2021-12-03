@@ -1,8 +1,9 @@
 package tree
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // maxBigIntLen is 256 bits (32 bytes)

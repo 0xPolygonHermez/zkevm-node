@@ -1,13 +1,14 @@
 package tree
 
 import (
+	"math/big"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"math/big"
-	"testing"
 )
 
 func TestBasicTree(t *testing.T) {
