@@ -1,7 +1,6 @@
 package config
 
 import (
-	"github.com/hermeznetwork/hermez-core/prover"
 	"time"
 
 	"github.com/hermeznetwork/hermez-core/aggregator"
@@ -9,6 +8,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/prover"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 )
