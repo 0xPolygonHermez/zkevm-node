@@ -8,7 +8,6 @@ import (
 
 // maxBigIntLen is 256 bits (32 bytes)
 const maxBigIntLen = 32
-const splitBigIntLen = 8
 
 // SplitAddress splits address into 3 bytes array of 64bits each
 func SplitAddress(address common.Address) ([][]byte, error) {
@@ -34,13 +33,6 @@ func fea2scalar(v []*big.Int) *big.Int {
 	res.Add(res, new(big.Int).Lsh(v[2], 128))
 	res.Add(res, new(big.Int).Lsh(v[3], 192))
 	return res
-	//var buf bytes.Buffer
-	//for i := 0; i < len(v); i++ {
-	//	var b [splitBigIntLen]byte
-	//	copy(b[:], v[i].Bytes())
-	//	buf.Write(b[:])
-	//}
-	//return new(big.Int).SetBytes(buf.Bytes())
 }
 
 func scalar2fea(value *big.Int) ([]*big.Int, error) {
@@ -51,12 +43,4 @@ func scalar2fea(value *big.Int) ([]*big.Int, error) {
 	val[2] = new(big.Int).And(new(big.Int).Rsh(value, 128), mask)
 	val[3] = new(big.Int).And(new(big.Int).Rsh(value, 192), mask)
 	return val[:], nil
-	//v, err := SplitValue(value)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//for i := 0; i < 4; i++ {
-	//	val[i] = new(big.Int).SetBytes(v[i])
-	//}
-	//return val, nil
 }

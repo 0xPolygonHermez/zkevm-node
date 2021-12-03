@@ -3,6 +3,8 @@ package tree
 import (
 	"bytes"
 	"context"
+	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"math/big"
@@ -15,10 +17,20 @@ const (
 )
 
 const (
-	getNodeByKeySQL    = "SELECT key, data FROM merkletree WHERE key = $1"
-	setNodeByKeySQL    = "INSERT INTO merkletree (key, data) VALUES ($1, $2)"
-	deleteNodeByKeySQL = "DELETE FROM merkletree WHERE key = $1"
-	checkNodeExistsSQL = "SELECT COUNT(*) as exists FROM merkletree WHERE key = $1"
+	getNodeByKeySQL    = "SELECT hash, data FROM merkletree WHERE hash = $1"
+	setNodeByKeySQL    = "INSERT INTO merkletree (hash, data) VALUES ($1, $2)"
+	deleteNodeByKeySQL = "DELETE FROM merkletree WHERE hash = $1"
+	checkNodeExistsSQL = "SELECT COUNT(*) as exists FROM merkletree WHERE hash = $1"
+)
+
+const (
+	modeInsertFound    = "insertFound"
+	modeInsertNotFound = "insertNotFound"
+	modeUpdate         = "update"
+	modeDeleteFound    = "deleteFound"
+	modeDeleteNotFound = "deleteNotFound"
+	modeDeleteLast     = "deleteLast"
+	modeZeroToZero     = "zeroToZero"
 )
 
 type MerkleTree struct {
@@ -70,6 +82,8 @@ func NewMerkleTree(db *pgxpool.Pool, arity uint8, hash interface{}) *MerkleTree 
 func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, value *big.Int) (*UpdateProof, error) {
 	var err error
 
+	log.Debugw("Set kv", "key", hex.EncodeToString(key.Bytes()), "value", value)
+
 	// exit early if context is cancelled
 	err = ctx.Err()
 	if err != nil {
@@ -95,9 +109,9 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 	var insKey *big.Int
 	var insValue *big.Int
 	oldValue := big.NewInt(0)
-	mode := ""
 	newRoot := oldRoot
 	isOld0 := true
+	var mode string
 
 	for (r.Cmp(zero) != cmpEq) && (foundKey == nil) {
 		node, err := mt.getNodeData(ctx, r)
@@ -133,7 +147,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 
 		if foundKey != nil {
 			if key.Cmp(foundKey) == cmpEq { // Update
-				mode = "update"
+				mode = modeUpdate
 				newLeaf := mt.newNodeData()
 
 				newLeaf[0] = one
@@ -155,7 +169,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 					newRoot = newLeafHash
 				}
 			} else { // insert with foundKey
-				mode = "insertFound"
+				mode = modeInsertFound
 				node := mt.newNodeData()
 				level2 := level + 1
 				foundKeys := mt.splitKey(foundKey)
@@ -222,7 +236,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 
 			}
 		} else { // insert without foundKey
-			mode = "insertNotFound"
+			mode = modeInsertNotFound
 			newLeaf := mt.newNodeData()
 			newLeaf[0] = one
 			newLeaf[1] = new(big.Int).Rsh(key, uint((level+1)*int(mt.arity)))
@@ -250,7 +264,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 				uKey := mt.getUniqueSibling(siblings[level])
 
 				if uKey >= 0 {
-					mode = "deleteFound"
+					mode = modeDeleteFound
 					node, err := mt.getNodeData(ctx, siblings[level][uKey])
 					if err != nil {
 						return nil, err
@@ -293,14 +307,14 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 						newRoot = oldLeafHash
 					}
 				} else {
-					mode = "deleteNotFound"
+					mode = modeDeleteNotFound
 				}
 			} else {
-				mode = "deleteLast"
+				mode = modeDeleteLast
 				newRoot = zero
 			}
 		} else {
-			mode = "zeroToZero"
+			mode = modeZeroToZero
 		}
 	}
 
@@ -317,11 +331,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 		}
 	}
 
-	// mode is needed just for debug, and to stop compiler saying it's unused we do this trick
-	mode = mode + ""
-	//fmt.Println("mode: ", mode)
-
-	return &UpdateProof{
+	proof := UpdateProof{
 		OldRoot:  oldRoot,
 		NewRoot:  newRoot,
 		Key:      key,
@@ -331,7 +341,11 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 		IsOld0:   isOld0,
 		OldValue: oldValue,
 		NewValue: value,
-	}, nil
+	}
+
+	log.Debugw("Set proof", "key", hex.EncodeToString(key.Bytes()), "mode", mode, "proof", proof)
+
+	return &proof, nil
 }
 
 func (mt *MerkleTree) Get(ctx context.Context, root, key *big.Int) (*Proof, error) {
@@ -444,7 +458,7 @@ func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []*big.Int) (*big.I
 		return nil, err
 	}
 
-	//fmt.Printf("set node Key: %+v Data: %+v\n", hex.EncodeToString(hash.Bytes()), data)
+	log.Debugw("Set node", "hash", hex.EncodeToString(hash.Bytes()), "data", nodeData)
 
 	err = mt.setNodeData(ctx, hash, nodeData)
 	if err != nil {
@@ -462,12 +476,11 @@ func (mt *MerkleTree) newNodeData() []*big.Int {
 	return node
 }
 
-func (mt *MerkleTree) getNodeData(ctx context.Context, key *big.Int) ([]*big.Int, error) {
-	//fmt.Printf("Get node Key: %+v\n", hex.EncodeToHex(key.Bytes()))
+func (mt *MerkleTree) getNodeData(ctx context.Context, hash *big.Int) ([]*big.Int, error) {
+	log.Debugw("Get node", "hash", hex.EncodeToString(hash.Bytes()))
 	var node NodeItem
-	err := mt.db.QueryRow(ctx, getNodeByKeySQL, key.Bytes()).Scan(&node.Key, &node.Data)
+	err := mt.db.QueryRow(ctx, getNodeByKeySQL, hash.Bytes()).Scan(&node.Key, &node.Data)
 	if err != nil {
-		//fmt.Println("Error: ", err)
 		return nil, err
 	}
 	// parse bytes into []*big.Int
@@ -475,7 +488,7 @@ func (mt *MerkleTree) getNodeData(ctx context.Context, key *big.Int) ([]*big.Int
 	for i := 0; i < len(node.Data)/maxBigIntLen; i++ {
 		nodeData[i] = new(big.Int).SetBytes(node.Data[i*maxBigIntLen : (i+1)*maxBigIntLen])
 	}
-	//fmt.Printf("Got nodeData: %+v\n", nodeData)
+	log.Debugw("Got node", "hash", hex.EncodeToString(hash.Bytes()), "data", nodeData)
 	return nodeData, nil
 }
 

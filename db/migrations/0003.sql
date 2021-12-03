@@ -3,6 +3,9 @@
 -- Table that stores all MerkleTree nodes
 CREATE TABLE merkletree
 (
-    key  BYTEA PRIMARY KEY,
+    hash BYTEA PRIMARY KEY,
     data BYTEA NOT NULL
 );
+
+-- +migrate Down
+DROP TABLE IF EXISTS merkletree;
