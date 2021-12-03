@@ -133,7 +133,6 @@ func waitSignal() {
 
 func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
 	if path == "" && password == "" {
-		log.Info("lol")
 		return nil, nil
 	}
 	keystoreEncrypted, err := ioutil.ReadFile(filepath.Clean(path))

@@ -25,9 +25,10 @@ import (
 )
 
 var (
-	newBatchEventSignatureHash    = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
-	consolidateBatchSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,address)"))
-	newSequencerSignatureHash     = crypto.Keccak256Hash([]byte("SetSequencer(address,string)"))
+	newBatchEventSignatureHash        = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
+	consolidateBatchSignatureHash     = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,address)"))
+	newSequencerSignatureHash         = crypto.Keccak256Hash([]byte("SetSequencer(address,string)"))
+	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 )
 
 // EtherMan represents an Ethereum Manager
@@ -162,6 +163,9 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 			log.Warn("error processing event: ", err, vLog)
 			continue
 		}
+		if block == nil {
+			continue
+		}
 		if b, exists := blocks[block.BlockHash]; exists {
 			b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
 			b.NewSequencers = append(blocks[block.BlockHash].NewSequencers, block.NewSequencers...)
@@ -256,6 +260,9 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		sequencer.ChainID = se.ChainID
 		block.NewSequencers = append(block.NewSequencers, sequencer)
 		return &block, nil
+	case ownershipTransferredSignatureHash:
+		log.Debug("Unhandled event: OwnershipTransferred: ", vLog)
+		return nil, nil
 	}
 	return nil, fmt.Errorf("Event not registered")
 }

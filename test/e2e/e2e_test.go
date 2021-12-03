@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,6 +29,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 //nolint:gomnd
@@ -217,6 +220,20 @@ func TestStateTransition(t *testing.T) {
 			// 	return
 			// }
 			// assert.Equal(t, expectedNewRoot.Cmp(root), 0, "Invalid new root")
+
+			// check leafs
+			ctx := context.Background()
+			batchNumber, err := st.GetLastBatchNumber(ctx)
+			require.NoError(t, err)
+			for addrStr, leaf := range testCase.ExpectedNewLeafs {
+				addr := common.HexToAddress(addrStr)
+				actualBalance, err := st.GetBalance(addr, batchNumber)
+				require.NoError(t, err)
+				assert.Equal(t, leaf.Balance, actualBalance)
+				actualNonce, err := st.GetNonce(addr, batchNumber)
+				require.NoError(t, err)
+				assert.Equal(t, leaf.Nonce, actualNonce)
+			}
 		})
 	}
 }
