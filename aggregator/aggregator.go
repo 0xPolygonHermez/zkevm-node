@@ -128,6 +128,7 @@ func (a *Aggregator) Start() {
 
 			// TODO: change this, once we have exit root
 			fakeLastGlobalExitRoot, _ := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
+			chainID := uint64(1337)
 			batch := &prover.Batch{
 				Message:            "calculate",
 				CurrentStateRoot:   stateRootConsolidated.Bytes(),
@@ -136,7 +137,7 @@ func (a *Aggregator) Start() {
 				LastGlobalExitRoot: fakeLastGlobalExitRoot.Bytes(),
 				SequencerAddress:   batchToConsolidate.Sequencer.String(),
 				// TODO: consider to put chain id to batch, so there is no need to request block
-				ChainId: 1337,
+				ChainId: chainID,
 			}
 
 			err = getProofClient.Send(batch)

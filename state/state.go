@@ -99,6 +99,7 @@ func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) (*big.Int, 
 	return big.NewInt(0).SetBytes(root), nil
 }
 
+// GetStateRootByBatchNumber returns state root by batch number from the MT
 func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) (*big.Int, error) {
 	root, err := s.Tree.GetRootForBatchNumber(batchNumber)
 	if err != nil {
