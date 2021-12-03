@@ -392,7 +392,7 @@ func TestBasicState_AddSequencer(t *testing.T) {
 }
 
 func TestStateTransition(t *testing.T) {
-	// T0ODO: Improve when roots are validable
+	// TODO: Improve when roots are validable
 	// Also: check if those TX meant to fail do fail
 	// Optional: check that decoded TX matches the ones in the header of the test case
 
