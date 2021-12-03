@@ -43,6 +43,7 @@ type State interface {
 	AddBlock(ctx context.Context, block *Block) error
 	SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
+	GetStateRootByBatchNumber(batchNumber uint64) (*big.Int, error)
 }
 
 const (
@@ -91,6 +92,15 @@ func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) (*big.Int, 
 	}
 
 	root, err := s.Tree.GetRootForBatchNumber(batch.BatchNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	return big.NewInt(0).SetBytes(root), nil
+}
+
+func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) (*big.Int, error) {
+	root, err := s.Tree.GetRootForBatchNumber(batchNumber)
 	if err != nil {
 		return nil, err
 	}

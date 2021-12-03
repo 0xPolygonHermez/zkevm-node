@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/hermeznetwork/hermez-core/prover"
 	"time"
 
 	"github.com/hermeznetwork/hermez-core/aggregator"
@@ -20,6 +21,7 @@ type Config struct {
 	RPC          jsonrpc.Config
 	Sequencer    sequencer.Config
 	Aggregator   aggregator.Config
+	Prover       prover.Config
 }
 
 // Load loads the configuration
@@ -46,7 +48,7 @@ func Load() Config {
 		},
 		Synchronizer: synchronizer.Config{
 			Etherman: etherman.Config{
-				PrivateKeyPath:     "../test/test.keystore",
+				PrivateKeyPath:     "/Users/mw/work/hermez-core/test/test.keystore",
 				PrivateKeyPassword: "testonly"},
 		},
 		Sequencer: sequencer.Config{
@@ -54,7 +56,11 @@ func Load() Config {
 			Etherman:               etherman.Config{},
 		},
 		Aggregator: aggregator.Config{
-			Etherman: etherman.Config{},
+			IntervalToConsolidateState: 3 * time.Second,
+			Etherman:                   etherman.Config{},
+		},
+		Prover: prover.Config{
+			ProverURI: "0.0.0.0:50051",
 		},
 	}
 }

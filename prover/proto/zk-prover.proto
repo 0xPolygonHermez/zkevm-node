@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package zkprover;
+
+option go_package = "prover";
+
+service ZKProver {
+  rpc GetStatus(NoParams) returns (State) {}
+  rpc GenProof(stream Batch) returns (stream Proof) {}
+  rpc Cancel(NoParams) returns (State) {}
+  rpc GetProof(NoParams) returns (Proof) {}
+}
+
+message NoParams {}
+
+message State {
+  enum Status {
+    IDLE = 0;
+    ERROR = 1;
+    PENDING = 2;
+    FINISHED = 3;
+  }
+  Status status = 1;
+  Proof proof = 2;
+}
+
+message ProofX {
+  repeated string proof = 1;
+}
+
+message PublicInputs {
+  bytes currentStateRoot = 1;
+  bytes currentLocalExitRoot = 2;
+  bytes newStateRoot = 3;
+  bytes newLocalExitRoot = 4;
+  string sequencerAddress = 5;
+  bytes l2TxsDataLastGlobalExitRoot = 6;
+  uint64 chainId = 7;
+}
+
+message Proof {
+  repeated string proofA = 1;
+  repeated ProofX proofB = 2;
+  repeated string  proofC = 3;
+  PublicInputs publicInputs = 4;
+}
+
+message Batch {
+  string message = 1;
+  bytes currentStateRoot = 2;
+  bytes newStateRoot = 3;
+  bytes l2Txs = 4;
+  bytes lastGlobalExitRoot = 5;
+  string sequencerAddress = 6;
+  uint64 chainId = 7;
+}
