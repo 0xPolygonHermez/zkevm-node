@@ -128,7 +128,7 @@ func (a *Aggregator) Start() {
 
 			// TODO: change this, once we have exit root
 			fakeLastGlobalExitRoot, _ := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
-			chainID := uint64(1337)
+			chainID := uint64(1337) //nolint:gomnd
 			batch := &prover.Batch{
 				Message:            "calculate",
 				CurrentStateRoot:   stateRootConsolidated.Bytes(),
