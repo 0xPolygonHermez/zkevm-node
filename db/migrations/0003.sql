@@ -1,11 +1,11 @@
 -- +migrate Up
 
 -- Table that stores all MerkleTree nodes
-CREATE TABLE merkletree
+CREATE TABLE state.merkletree
 (
     hash BYTEA PRIMARY KEY,
     data BYTEA NOT NULL
 );
 
 -- +migrate Down
-DROP TABLE IF EXISTS merkletree;
+DROP TABLE IF EXISTS state.merkletree;

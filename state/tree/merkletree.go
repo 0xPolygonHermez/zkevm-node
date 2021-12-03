@@ -17,10 +17,10 @@ const (
 )
 
 const (
-	getNodeByKeySQL    = "SELECT hash, data FROM merkletree WHERE hash = $1"
-	setNodeByKeySQL    = "INSERT INTO merkletree (hash, data) VALUES ($1, $2)"
-	deleteNodeByKeySQL = "DELETE FROM merkletree WHERE hash = $1"
-	checkNodeExistsSQL = "SELECT COUNT(*) as exists FROM merkletree WHERE hash = $1"
+	getNodeByKeySQL    = "SELECT hash, data FROM state.merkletree WHERE hash = $1"
+	setNodeByKeySQL    = "INSERT INTO state.merkletree (hash, data) VALUES ($1, $2)"
+	deleteNodeByKeySQL = "DELETE FROM state.merkletree WHERE hash = $1"
+	checkNodeExistsSQL = "SELECT COUNT(*) as exists FROM state.merkletree WHERE hash = $1"
 )
 
 const (
@@ -95,8 +95,11 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 
 	r := big.NewInt(0)
 
+	newRoot := big.NewInt(0)
+
 	if oldRoot != nil {
 		r = oldRoot
+		newRoot = oldRoot
 	}
 	keys := mt.splitKey(key)
 	level := 0
@@ -109,7 +112,6 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 	var insKey *big.Int
 	var insValue *big.Int
 	oldValue := big.NewInt(0)
-	newRoot := oldRoot
 	isOld0 := true
 	var mode string
 

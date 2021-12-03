@@ -15,7 +15,7 @@ func TestBasicTree(t *testing.T) {
 
 	dbCfg := dbutils.NewConfigFromEnv()
 
-	err := db.RunMigrations(dbCfg)
+	err := dbutils.InitOrReset(dbCfg)
 	require.NoError(t, err)
 
 	mtDb, err := db.NewSQLDB(dbCfg)
