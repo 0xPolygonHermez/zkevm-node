@@ -2,8 +2,9 @@ package etherman
 
 import (
 	"fmt"
-	"github.com/hermeznetwork/hermez-core/proverclient"
 	"math/big"
+
+	"github.com/hermeznetwork/hermez-core/proverclient"
 )
 
 func byteSliceToFixedByteArray(byteSlc []byte) ([32]byte, error) {

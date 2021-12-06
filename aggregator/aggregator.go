@@ -151,7 +151,7 @@ func (a *Aggregator) Start() {
 				continue
 			}
 			// 4. send proof + txs to the SC
-			batchNum := big.NewInt(0).SetUint64(batchToConsolidate.BatchNumber)
+			batchNum := new(big.Int).SetUint64(batchToConsolidate.BatchNumber)
 			h, err := a.EtherMan.ConsolidateBatch(batchNum, proof)
 			if err != nil {
 				log.Warnf("failed to send request to consolidate batch to ethereum, batch number: %d, err: %v",
