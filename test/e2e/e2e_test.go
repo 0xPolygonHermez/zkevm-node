@@ -53,12 +53,11 @@ var cfg = config.Config{
 	RPC: jsonrpc.Config{
 		Host: "",
 		Port: 8123,
-
-		ChainID: 2576980377, // 0x99999999,
 	},
 	Synchronizer: synchronizer.Config{},
 	Sequencer: sequencer.Config{
 		IntervalToProposeBatch: 1 * time.Second,
+		URL:                    "https://localhost",
 	},
 	Aggregator: aggregator.Config{},
 }
@@ -92,13 +91,6 @@ func TestStateTransition(t *testing.T) {
 				return
 			}
 
-			// prepare merkle tree
-			tr, err := tree.NewReadWriter(sqlDB)
-			if err != nil {
-				t.Error(err)
-				return
-			}
-
 			// create pool
 			pl, err := pool.NewPostgresPool(cfg.Database)
 			if err != nil {
@@ -119,12 +111,18 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// create state
+			tr, err := tree.NewReadWriter(sqlDB)
+			if err != nil {
+				t.Error(err)
+				return
+			}
 			st := state.NewState(sqlDB, tr)
 			genesis := state.Genesis{
 				Balances: make(map[common.Address]*big.Int),
 			}
 			for _, gacc := range testCase.GenesisAccounts {
-				genesis.Balances[common.HexToAddress(gacc.Address)] = &gacc.Balance.Int
+				b := gacc.Balance.Int
+				genesis.Balances[common.HexToAddress(gacc.Address)] = &b
 			}
 			err = st.SetGenesis(ctx, genesis)
 			if err != nil {
@@ -145,14 +143,6 @@ func TestStateTransition(t *testing.T) {
 			// }
 			// assert.Equal(t, expectedOldRoot.Cmp(root), 0, "Invalid old root")
 
-			// start sequencer
-			seq, err := sequencer.NewSequencer(cfg.Sequencer, pl, st, etherman)
-			if err != nil {
-				t.Error(err)
-				return
-			}
-			go seq.Start()
-
 			// start synchronizer
 			sy, err := synchronizer.NewSynchronizer(etherman, st, cfg.Synchronizer)
 			if err != nil {
@@ -166,8 +156,32 @@ func TestStateTransition(t *testing.T) {
 				}
 			}(t, sy)
 
+			// start sequencer
+			_, err = etherman.PoE.RegisterSequencer(auth, cfg.Sequencer.URL)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			// mine next block with sequencer registration
+			commit()
+
+			// wait sequencer registration to be synchronized
+			time.Sleep(3 * time.Second)
+
+			seq, err := sequencer.NewSequencer(cfg.Sequencer, pl, st, etherman)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			go seq.Start()
+
 			// start rpc server
-			rpcServer := jsonrpc.NewServer(cfg.RPC, pl, st)
+			stSeq, err := st.GetSequencer(ctx, cfg.Sequencer.URL)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			rpcServer := jsonrpc.NewServer(cfg.RPC, stSeq.ChainID.Uint64(), pl, st)
 			go func(t *testing.T, s *jsonrpc.Server) {
 				if err := s.Start(); err != nil {
 					t.Error(err)
@@ -187,10 +201,10 @@ func TestStateTransition(t *testing.T) {
 				}
 			}
 
-			// wait for sequencer to get txs from pool and propose batch
+			// wait for sequencer to select txs from pool and propose a new batch
 			time.Sleep(3 * time.Second)
 
-			// mine batch propostal
+			// mine next block with batch propostal
 			commit()
 
 			// wait for the synchronizer to update state
@@ -222,7 +236,6 @@ func TestStateTransition(t *testing.T) {
 			// assert.Equal(t, expectedNewRoot.Cmp(root), 0, "Invalid new root")
 
 			// check leafs
-			ctx := context.Background()
 			batchNumber, err := st.GetLastBatchNumber(ctx)
 			require.NoError(t, err)
 			for addrStr, leaf := range testCase.ExpectedNewLeafs {

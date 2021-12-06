@@ -43,9 +43,8 @@ func Load() Config {
 			PrivateKeyPath:     "../test/test.keystore",
 			PrivateKeyPassword: "testonly"},
 		RPC: jsonrpc.Config{
-			Host:    "",
-			Port:    8123,
-			ChainID: 2576980377, // 0x99999999,
+			Host: "",
+			Port: 8123,
 		},
 		Synchronizer: synchronizer.Config{},
 		Sequencer: sequencer.Config{

@@ -374,14 +374,14 @@ func TestBasicState_AddSequencer(t *testing.T) {
 	err = state.AddSequencer(ctx, sequencer1)
 	assert.NoError(t, err)
 
-	sequencer3, err := state.GetSequencerByChainID(ctx, sequencer1.ChainID)
+	sequencer3, err := state.GetSequencer(ctx, sequencer1.URL)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer1.ChainID, sequencer3.ChainID)
 
 	err = state.AddSequencer(ctx, sequencer2)
 	assert.NoError(t, err)
 
-	sequencer4, err := state.GetSequencerByChainID(ctx, sequencer2.ChainID)
+	sequencer4, err := state.GetSequencer(ctx, sequencer2.URL)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer2, *sequencer4)
 

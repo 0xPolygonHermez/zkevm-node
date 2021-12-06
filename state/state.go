@@ -38,7 +38,7 @@ type State interface {
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
 	AddSequencer(ctx context.Context, seq Sequencer) error
-	GetSequencerByChainID(ctx context.Context, chainID *big.Int) (*Sequencer, error)
+	GetSequencer(ctx context.Context, url string) (*Sequencer, error)
 	SetGenesis(ctx context.Context, genesis Genesis) error
 	AddBlock(ctx context.Context, block *Block) error
 	SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error
@@ -64,7 +64,7 @@ const (
 	getTxsByBatchNumSQL             = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
 	addBlockSQL                     = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	addSequencerSQL                 = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4)"
-	getSequencerSQL                 = "SELECT * FROM state.sequencer WHERE chain_id = $1"
+	getSequencerSQL                 = "SELECT * FROM state.sequencer WHERE url = $1"
 )
 
 // BasicState is a implementation of the state
@@ -343,11 +343,11 @@ func (s *BasicState) AddSequencer(ctx context.Context, seq Sequencer) error {
 	return err
 }
 
-// GetSequencerByChainID gets a sequencer by its ChainID
-func (s *BasicState) GetSequencerByChainID(ctx context.Context, chainID *big.Int) (*Sequencer, error) {
+// GetSequencer gets a sequencer
+func (s *BasicState) GetSequencer(ctx context.Context, url string) (*Sequencer, error) {
 	var seq Sequencer
 	var cID uint64
-	err := s.db.QueryRow(ctx, getSequencerSQL, chainID.Uint64()).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
+	err := s.db.QueryRow(ctx, getSequencerSQL, url).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
 	if err != nil {
 		return nil, err
 	}

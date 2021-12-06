@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -39,7 +40,7 @@ func main() {
 		log.Fatal(err)
 	}
 	go runSynchronizer(c.Synchronizer, etherman, state)
-	go runJSONRpcServer(c.RPC, pool, state)
+	go runJSONRpcServer(c.RPC, c.Sequencer, pool, state)
 	go runSequencer(c.Sequencer, etherman, pool, state)
 	// go runAggregator(c.Aggregator, c.Synchronizer)
 	waitSignal()
@@ -84,8 +85,13 @@ func runSynchronizer(c synchronizer.Config, etherman *etherman.ClientEtherMan, s
 	}
 }
 
-func runJSONRpcServer(jc jsonrpc.Config, pool pool.Pool, state state.State) {
-	if err := jsonrpc.NewServer(jc, pool, state).Start(); err != nil {
+func runJSONRpcServer(jc jsonrpc.Config, sc sequencer.Config, pool pool.Pool, state state.State) {
+	seq, err := state.GetSequencer(context.Background(), sc.URL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := jsonrpc.NewServer(jc, seq.ChainID.Uint64(), pool, state).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
