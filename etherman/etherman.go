@@ -37,7 +37,7 @@ type EtherMan interface {
 	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
 	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
-	ConsolidateBatch(batch state.Batch, proof *proverclient.Proof) (common.Hash, error)
+	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (common.Hash, error)
 }
 
 type ethClienter interface {
@@ -145,10 +145,45 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 	return tx, nil
 }
 
-// ConsolidateBatch function allows the agregator send the proof for a batch and consolidate it
-func (etherMan *ClientEtherMan) ConsolidateBatch(batch state.Batch, proof *proverclient.Proof) (common.Hash, error) {
-	//TODO
-	return common.Hash{}, nil
+// ConsolidateBatch function allows the aggregator send the proof for a batch and consolidate it
+func (etherMan *ClientEtherMan) ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error) {
+	newLocalExitRoot, err := byteSliceToFixedByteArray(proof.PublicInputs.NewLocalExitRoot)
+	if err != nil {
+		return nil, err
+	}
+	newStateRoot, err := byteSliceToFixedByteArray(proof.PublicInputs.NewStateRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	proofA, err := strSliceToBigIntArray(proof.ProofA)
+	if err != nil {
+		return nil, err
+	}
+
+	proofB, err := proofSlcToIntArray(proof.ProofB)
+	if err != nil {
+		return nil, err
+	}
+	proofC, err := strSliceToBigIntArray(proof.ProofC)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := etherMan.PoE.VerifyBatch(
+		etherMan.auth,
+		newLocalExitRoot,
+		newStateRoot,
+		batchNum,
+		proofA,
+		proofB,
+		proofC,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
 }
 
 func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, error) {
