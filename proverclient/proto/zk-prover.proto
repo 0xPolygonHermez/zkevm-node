@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package zkprover;
 
-option go_package = "prover";
+option go_package = "proverclient";
 
 service ZKProver {
   rpc GetStatus(NoParams) returns (State) {}

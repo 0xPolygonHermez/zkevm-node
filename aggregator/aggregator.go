@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/prover"
+	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/grpc"
@@ -21,7 +21,7 @@ type Aggregator struct {
 	State          state.State
 	BatchProcessor state.BatchProcessor
 	EtherMan       etherman.EtherMan
-	ZkProverClient prover.ZKProverClient
+	ZkProverClient proverclient.ZKProverClient
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -32,7 +32,7 @@ func NewAggregator(
 	cfg Config,
 	state state.State,
 	ethMan etherman.EtherMan,
-	zkProverClient prover.ZKProverClient,
+	zkProverClient proverclient.ZKProverClient,
 ) (Aggregator, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	a := Aggregator{
@@ -129,7 +129,7 @@ func (a *Aggregator) Start() {
 			// TODO: change this, once we have exit root
 			fakeLastGlobalExitRoot, _ := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
 			chainID := uint64(1337) //nolint:gomnd
-			batch := &prover.Batch{
+			batch := &proverclient.Batch{
 				Message:            "calculate",
 				CurrentStateRoot:   stateRootConsolidated.Bytes(),
 				NewStateRoot:       stateRootToConsolidate.Bytes(),
