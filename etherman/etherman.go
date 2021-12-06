@@ -21,7 +21,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/prover"
+	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
@@ -37,7 +37,7 @@ type EtherMan interface {
 	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
 	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
-	ConsolidateBatch(batch state.Batch, proof *prover.Proof) (common.Hash, error)
+	ConsolidateBatch(batch state.Batch, proof *proverclient.Proof) (common.Hash, error)
 }
 
 type ethClienter interface {
@@ -146,7 +146,7 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 }
 
 // ConsolidateBatch function allows the agregator send the proof for a batch and consolidate it
-func (etherMan *ClientEtherMan) ConsolidateBatch(batch state.Batch, proof *prover.Proof) (common.Hash, error) {
+func (etherMan *ClientEtherMan) ConsolidateBatch(batch state.Batch, proof *proverclient.Proof) (common.Hash, error) {
 	//TODO
 	return common.Hash{}, nil
 }

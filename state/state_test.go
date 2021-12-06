@@ -4,17 +4,22 @@ import (
 	"context"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -62,10 +67,11 @@ func TestMain(m *testing.M) {
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
 
+	state = NewState(stateDb, tree.NewMemTree())
+
 	setUpBlocks()
 	setUpBatches()
 	setUpTransactions()
-	state = NewState(stateDb, nil)
 
 	result := m.Run()
 
@@ -162,9 +168,10 @@ func setUpBatches() {
 
 	batches := []*Batch{batch1, batch2, batch3, batch4}
 
+	bp := state.NewBatchProcessor(0, false)
+
 	for _, b := range batches {
-		_, err = stateDb.Exec(ctx, "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash) VALUES ($1, $2, $3, $4, $5, $6)",
-			b.BatchNumber, b.BatchHash, b.BlockNumber, b.Sequencer, b.Aggregator, b.ConsolidatedTxHash)
+		err := bp.ProcessBatch(b)
 		if err != nil {
 			panic(err)
 		}
@@ -273,8 +280,9 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		RawTxsData:         nil,
 	}
 
-	_, err := stateDb.Exec(ctx, "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash) VALUES ($1, $2, $3, $4, $5, $6)",
-		batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator, batch.ConsolidatedTxHash)
+	bp := state.NewBatchProcessor(0, false)
+
+	err := bp.ProcessBatch(batch)
 	assert.NoError(t, err)
 
 	insertedBatch, err := state.GetBatchByNumber(ctx, batchNumber)
@@ -381,4 +389,102 @@ func TestBasicState_AddSequencer(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.sequencer WHERE chain_id = $1", sequencer2.ChainID.Uint64())
 	assert.NoError(t, err)
+}
+
+func TestStateTransition(t *testing.T) {
+	// TODO: Improve when roots are validable
+	// Also: check if those TX meant to fail do fail
+	// Optional: check that decoded TX matches the ones in the header of the test case
+
+	// load vector
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition.json")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	for _, testCase := range stateTransitionTestCases {
+		t.Run(testCase.Description, func(t *testing.T) {
+			ctx := context.Background()
+			// Init database instance
+			err = dbutils.InitOrReset(cfg)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			// Create State db
+			stateDb, err = db.NewSQLDB(cfg)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			// Create State tree
+			tree := tree.NewMemTree()
+
+			// Create state
+			st := NewState(stateDb, tree)
+
+			genesis := Genesis{
+				Balances: make(map[common.Address]*big.Int),
+			}
+			for _, gacc := range testCase.GenesisAccounts {
+				balance := gacc.Balance.Int
+				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
+			}
+
+			err = st.SetGenesis(ctx, genesis)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			var txs []*types.Transaction
+
+			// Create Transaction
+			for _, vectorTx := range testCase.Txs {
+				var tx types.LegacyTx
+				bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
+
+				err = rlp.DecodeBytes(bytes, &tx)
+				if err == nil {
+					txs = append(txs, types.NewTx(&tx))
+				}
+				// require.NoError(t, err)
+			}
+
+			// Create Batch
+			batch := &Batch{
+				BatchNumber:        uint64(testCase.ID + 1),
+				BatchHash:          common.Hash{},
+				BlockNumber:        uint64(0),
+				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
+				Aggregator:         addr,
+				ConsolidatedTxHash: common.Hash{},
+				Header:             nil,
+				Uncles:             nil,
+				Transactions:       txs,
+				RawTxsData:         nil,
+			}
+
+			// Create Batch Processor
+			bp := st.NewBatchProcessor(0, false)
+
+			err = bp.ProcessBatch(batch)
+			require.NoError(t, err)
+			// There may be errors processing Tx, so just check Balances
+
+			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
+				newBalance, err := tree.GetBalance(common.HexToAddress(key), nil)
+				assert.NoError(t, err)
+				assert.Equal(t, 0, vectorLeaf.Balance.Cmp(newBalance))
+
+				newNonce, err := tree.GetNonce(common.HexToAddress(key), nil)
+				assert.NoError(t, err)
+				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
+				assert.Equal(t, leafNonce, newNonce)
+			}
+		})
+	}
 }
