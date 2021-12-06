@@ -78,5 +78,4 @@ func TestMerkleTreeRaw(t *testing.T) {
 			assert.Equal(t, hex.EncodeToString(expected.Bytes()), hex.EncodeToString(r))
 		})
 	}
-
 }
