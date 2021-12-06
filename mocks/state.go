@@ -122,7 +122,7 @@ func (s *StateMock) GetSequencerByChainID(ctx context.Context, chainID *big.Int)
 	return nil, nil
 }
 
-func (s *StateMock) SetGenesis(genesis state.Genesis) error {
+func (s *StateMock) SetGenesis(ctx context.Context, genesis state.Genesis) error {
 	return nil
 }
 

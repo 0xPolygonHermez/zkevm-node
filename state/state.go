@@ -39,7 +39,7 @@ type State interface {
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
 	AddSequencer(ctx context.Context, seq Sequencer) error
 	GetSequencerByChainID(ctx context.Context, chainID *big.Int) (*Sequencer, error)
-	SetGenesis(genesis Genesis) error
+	SetGenesis(ctx context.Context, genesis Genesis) error
 	AddBlock(ctx context.Context, block *Block) error
 	SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
@@ -358,7 +358,32 @@ func (s *BasicState) GetSequencerByChainID(ctx context.Context, chainID *big.Int
 }
 
 // SetGenesis populates state with genesis information
-func (s *BasicState) SetGenesis(genesis Genesis) error {
+func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
+	// Generate Genesis Block
+	block := &Block{
+		BlockNumber: 0,
+		BlockHash:   common.HexToHash("0x0000000000000"),
+		ParentHash:  common.HexToHash("0x0000000000000"),
+	}
+
+	// Add Block
+	err := s.AddBlock(ctx, block)
+	if err != nil {
+		return err
+	}
+
+	// Generate Genesis Batch
+	batch := &Batch{
+		BatchNumber: 0,
+		BlockNumber: 0,
+	}
+
+	bp := s.NewBatchProcessor(0, false)
+	err = bp.ProcessBatch(batch)
+	if err != nil {
+		return err
+	}
+
 	// Genesis Balances
 	for address, balance := range genesis.Balances {
 		_, _, err := s.Tree.SetBalance(address, balance)
