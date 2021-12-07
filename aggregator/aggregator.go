@@ -160,7 +160,7 @@ func (a *Aggregator) Start() {
 			}
 			batchesSent[batchToConsolidate.BatchNumber] = true
 
-			log.Infof("Batch %d consolidated: %s", batchToConsolidate.BatchNumber, h.Hex())
+			log.Infof("Batch %d consolidated: %s", batchToConsolidate.BatchNumber, h.Hash())
 
 		case <-a.ctx.Done():
 			return
