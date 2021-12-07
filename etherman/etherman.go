@@ -37,7 +37,7 @@ type EtherMan interface {
 	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
 	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
-	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (common.Hash, error)
+	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
 }
 
 type ethClienter interface {
