@@ -191,12 +191,17 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, *Proof, error)
 	if err != nil {
 		return nil, nil, err
 	}
-	/*
-		err = b.State.Tree.SetRootForBatchNumber(batch.BatchNumber, b.stateRoot)
-		if err != nil {
-			return nil, nil, err
-		}
-	*/
+
+	root := big.NewInt(0).Bytes()
+	if b.stateRoot != nil {
+		root = b.stateRoot
+	}
+
+	err = b.State.Tree.SetRootForBatchNumber(batch.BatchNumber, root)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	return nil, nil, nil
 }
 

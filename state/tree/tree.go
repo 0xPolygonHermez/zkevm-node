@@ -11,6 +11,11 @@ import (
 
 const mtArity = 4
 
+const (
+	getRootByBatchNumSQL = "SELECT hash FROM state.merkletree_roots WHERE batch_num = $1"
+	setRootByBatchNumSQL = "INSERT INTO state.merkletree_roots (batch_num, hash) VALUES ($1, $2)"
+)
+
 // Reader interface
 type Reader interface {
 	GetBalance(address common.Address, root []byte) (*big.Int, error)
@@ -38,18 +43,17 @@ type ReadWriter interface {
 
 // NewReader returns object of Reader interface
 func NewReader(db *pgxpool.Pool) (Reader, error) {
-	// TODO: switch to state tree backed by db
 	return NewBasicTree(db), nil
 }
 
 // NewReadWriter returns object of ReadWriter interface
 func NewReadWriter(db *pgxpool.Pool) (ReadWriter, error) {
-	// TODO: switch to state tree backed by db
 	return NewBasicTree(db), nil
 }
 
 // BasicTree is a basic in-memory implementation of StateTree
 type BasicTree struct {
+	db          *pgxpool.Pool
 	mt          *MerkleTree
 	currentRoot *big.Int
 }
@@ -57,7 +61,7 @@ type BasicTree struct {
 // NewBasicTree creates new BasicTree
 func NewBasicTree(db *pgxpool.Pool) *BasicTree {
 	mt := NewMerkleTree(db, mtArity, nil)
-	return &BasicTree{mt: mt}
+	return &BasicTree{db: db, mt: mt}
 }
 
 // GetBalance returns balance
@@ -152,16 +156,25 @@ func (tree *BasicTree) GetStorageAt(address common.Address, position common.Hash
 // GetRoot returns current MerkleTree root hash
 func (tree *BasicTree) GetRoot() ([]byte, error) {
 	return tree.currentRoot.Bytes(), nil
-	//return nil, fmt.Errorf("not implemented")
 }
 
 // GetRootForBatchNumber returns MerkleTree root for specified batchNumber
 func (tree *BasicTree) GetRootForBatchNumber(batchNumber uint64) ([]byte, error) {
-	return nil, fmt.Errorf("not implemented")
+	var root []byte
+	ctx := context.Background()
+	err := tree.db.QueryRow(ctx, getRootByBatchNumSQL, batchNumber).Scan(&root)
+	if err != nil {
+		return nil, err
+	}
+	return root, nil
 }
 
 // SetBalance sets balance
 func (tree *BasicTree) SetBalance(address common.Address, balance *big.Int) (newRoot []byte, proof interface{}, err error) {
+	if balance.Cmp(big.NewInt(0)) == -1 {
+		return nil, nil, fmt.Errorf("invalid balance")
+	}
+
 	r := tree.currentRoot
 	key, err := GetKey(LeafTypeBalance, address, nil)
 	if err != nil {
@@ -181,6 +194,10 @@ func (tree *BasicTree) SetBalance(address common.Address, balance *big.Int) (new
 
 // SetNonce sets nonce
 func (tree *BasicTree) SetNonce(address common.Address, nonce *big.Int) (newRoot []byte, proof interface{}, err error) {
+	if nonce.Cmp(big.NewInt(0)) == -1 {
+		return nil, nil, fmt.Errorf("invalid nonce")
+	}
+
 	r := tree.currentRoot
 	key, err := GetKey(LeafTypeNonce, address, nil)
 	if err != nil {
@@ -224,5 +241,10 @@ func (tree *BasicTree) SetStorageAt(address common.Address, position common.Hash
 
 // SetRootForBatchNumber sets root for specified batchNumber
 func (tree *BasicTree) SetRootForBatchNumber(batchNumber uint64, root []byte) error {
-	return fmt.Errorf("not implemented")
+	ctx := context.Background()
+	_, err := tree.db.Exec(ctx, setRootByBatchNumSQL, batchNumber, root)
+	if err != nil {
+		return err
+	}
+	return nil
 }

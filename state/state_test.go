@@ -475,15 +475,18 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 			// There may be errors processing Tx, so just check Balances
 
-			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
-				newBalance, err := tree.GetBalance(common.HexToAddress(key), nil)
-				assert.NoError(t, err)
-				assert.Equal(t, 0, vectorLeaf.Balance.Cmp(newBalance))
+			root, err := st.GetStateRootByBatchNumber(batch.BatchNumber)
+			require.NoError(t, err)
 
-				newNonce, err := tree.GetNonce(common.HexToAddress(key), nil)
+			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
+				newBalance, err := tree.GetBalance(common.HexToAddress(key), root.Bytes())
+				assert.NoError(t, err)
+				assert.Equal(t, vectorLeaf.Balance.String(), newBalance.String())
+
+				newNonce, err := tree.GetNonce(common.HexToAddress(key), root.Bytes())
 				assert.NoError(t, err)
 				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
-				assert.Equal(t, leafNonce, newNonce)
+				assert.Equal(t, leafNonce.String(), newNonce.String())
 			}
 		})
 	}

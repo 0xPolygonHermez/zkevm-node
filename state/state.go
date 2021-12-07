@@ -389,18 +389,26 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		BlockNumber: 0,
 	}
 
-	bp := s.NewBatchProcessor(0, false)
-	err = bp.ProcessBatch(batch)
+	// Store batch into db
+	err = s.addBatch(ctx, batch)
 	if err != nil {
 		return err
 	}
 
+	root := big.NewInt(0).Bytes()
+
 	// Genesis Balances
 	for address, balance := range genesis.Balances {
-		_, _, err := s.Tree.SetBalance(address, balance)
+		newRoot, _, err := s.Tree.SetBalance(address, balance)
 		if err != nil {
 			return err
 		}
+		root = newRoot
+	}
+
+	err = s.Tree.SetRootForBatchNumber(0, root)
+	if err != nil {
+		return err
 	}
 
 	return nil
