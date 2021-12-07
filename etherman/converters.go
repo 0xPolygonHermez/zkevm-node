@@ -7,8 +7,13 @@ import (
 	"github.com/hermeznetwork/hermez-core/proverclient"
 )
 
+const (
+	rootLen  = 32
+	proofLen = 2
+)
+
 func byteSliceToFixedByteArray(byteSlc []byte) ([32]byte, error) {
-	if len(byteSlc) != 32 {
+	if len(byteSlc) != rootLen {
 		return [32]byte{}, fmt.Errorf("wrong slice length, current %d, expected 32", len(byteSlc))
 	}
 	var res [32]byte
@@ -17,7 +22,7 @@ func byteSliceToFixedByteArray(byteSlc []byte) ([32]byte, error) {
 }
 
 func strSliceToBigIntArray(strSlc []string) ([2]*big.Int, error) {
-	if len(strSlc) != 2 {
+	if len(strSlc) != proofLen {
 		return [2]*big.Int{}, fmt.Errorf("wrong slice length, current %d, expected 2", len(strSlc))
 	}
 	var res [2]*big.Int
@@ -32,7 +37,7 @@ func strSliceToBigIntArray(strSlc []string) ([2]*big.Int, error) {
 }
 
 func proofSlcToIntArray(proofs []*proverclient.ProofX) ([2][2]*big.Int, error) {
-	if len(proofs) != 2 {
+	if len(proofs) != proofLen {
 		return [2][2]*big.Int{}, fmt.Errorf("wrong proof slice length, current %d, expected 2", len(proofs))
 	}
 
