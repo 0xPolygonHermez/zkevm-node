@@ -240,9 +240,11 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 			for addrStr, leaf := range testCase.ExpectedNewLeafs {
 				addr := common.HexToAddress(addrStr)
+
 				actualBalance, err := st.GetBalance(addr, batchNumber)
 				require.NoError(t, err)
-				assert.Equal(t, leaf.Balance, actualBalance)
+				assert.Equal(t, 0, leaf.Balance.Cmp(actualBalance))
+
 				actualNonce, err := st.GetNonce(addr, batchNumber)
 				require.NoError(t, err)
 				assert.Equal(t, leaf.Nonce, actualNonce)
