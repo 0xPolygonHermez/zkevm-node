@@ -16,8 +16,8 @@ func NewState() state.State {
 	return &StateMock{}
 }
 
-func (s *StateMock) NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) state.BatchProcessor {
-	return &state.BasicBatchProcessor{}
+func (s *StateMock) NewBatchProcessor(lastBatchNumber int64, withProofCalculation bool) (state.BatchProcessor, error) {
+	return &state.BasicBatchProcessor{}, nil
 }
 
 func (s *StateMock) GetStateRoot(ctx context.Context, virtual bool) (*big.Int, error) {
@@ -138,6 +138,6 @@ func (s *StateMock) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint6
 	return 0, nil
 }
 
-func (s *StateMock) GetStateRootByBatchNumber(batchNumber uint64) (*big.Int, error) {
-	return big.NewInt(0), nil
+func (s *StateMock) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error) {
+	return big.NewInt(0).Bytes(), nil
 }

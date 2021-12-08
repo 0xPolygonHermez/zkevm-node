@@ -67,7 +67,7 @@ func TestMain(m *testing.M) {
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
 
-	state = NewState(stateDb, tree.NewBasicTree(stateDb))
+	state = NewState(stateDb, tree.NewStateTree(stateDb, nil))
 
 	setUpBlocks()
 	setUpBatches()
@@ -168,7 +168,10 @@ func setUpBatches() {
 
 	batches := []*Batch{batch1, batch2, batch3, batch4}
 
-	bp := state.NewBatchProcessor(0, false)
+	bp, err := state.NewBatchProcessor(noPreviousBatch, false)
+	if err != nil {
+		panic(err)
+	}
 
 	for _, b := range batches {
 		err := bp.ProcessBatch(b)
@@ -280,9 +283,10 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		RawTxsData:         nil,
 	}
 
-	bp := state.NewBatchProcessor(0, false)
+	bp, err := state.NewBatchProcessor(noPreviousBatch, false)
+	assert.NoError(t, err)
 
-	err := bp.ProcessBatch(batch)
+	err = bp.ProcessBatch(batch)
 	assert.NoError(t, err)
 
 	insertedBatch, err := state.GetBatchByNumber(ctx, batchNumber)
@@ -421,10 +425,10 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// Create State tree
-			tree := tree.NewBasicTree(stateDb)
+			stateTree := tree.NewStateTree(stateDb, nil)
 
 			// Create state
-			st := NewState(stateDb, tree)
+			st := NewState(stateDb, stateTree)
 
 			genesis := Genesis{
 				Balances: make(map[common.Address]*big.Int),
@@ -451,12 +455,12 @@ func TestStateTransition(t *testing.T) {
 				if err == nil {
 					txs = append(txs, types.NewTx(&tx))
 				}
-				// require.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			// Create Batch
 			batch := &Batch{
-				BatchNumber:        uint64(testCase.ID + 1),
+				BatchNumber:        1,
 				BatchHash:          common.Hash{},
 				BlockNumber:        uint64(0),
 				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
@@ -469,7 +473,8 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp := st.NewBatchProcessor(0, false)
+			bp, err := st.NewBatchProcessor(0, false)
+			require.NoError(t, err)
 
 			err = bp.ProcessBatch(batch)
 			require.NoError(t, err)
@@ -479,11 +484,11 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
-				newBalance, err := tree.GetBalance(common.HexToAddress(key), root.Bytes())
+				newBalance, err := stateTree.GetBalance(common.HexToAddress(key), root)
 				assert.NoError(t, err)
 				assert.Equal(t, vectorLeaf.Balance.String(), newBalance.String())
 
-				newNonce, err := tree.GetNonce(common.HexToAddress(key), root.Bytes())
+				newNonce, err := stateTree.GetNonce(common.HexToAddress(key), root)
 				assert.NoError(t, err)
 				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
 				assert.Equal(t, leafNonce.String(), newNonce.String())

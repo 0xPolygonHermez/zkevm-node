@@ -131,8 +131,8 @@ func (a *Aggregator) Start() {
 			chainID := uint64(1337) //nolint:gomnd
 			batch := &proverclient.Batch{
 				Message:            "calculate",
-				CurrentStateRoot:   stateRootConsolidated.Bytes(),
-				NewStateRoot:       stateRootToConsolidate.Bytes(),
+				CurrentStateRoot:   stateRootConsolidated,
+				NewStateRoot:       stateRootToConsolidate,
 				L2Txs:              batchToConsolidate.RawTxsData,
 				LastGlobalExitRoot: fakeLastGlobalExitRoot.Bytes(),
 				SequencerAddress:   batchToConsolidate.Sequencer.String(),

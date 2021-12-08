@@ -22,8 +22,7 @@ type Reader interface {
 	GetNonce(address common.Address, root []byte) (*big.Int, error)
 	GetCode(address common.Address, root []byte) ([]byte, error)
 	GetStorageAt(address common.Address, position common.Hash, root []byte) (*big.Int, error)
-	GetRoot() ([]byte, error)
-	GetRootForBatchNumber(batchNumber uint64) ([]byte, error)
+	GetCurrentRoot() ([]byte, error)
 }
 
 // Writer interface
@@ -32,7 +31,7 @@ type Writer interface {
 	SetNonce(address common.Address, nonce *big.Int) (newRoot []byte, proof interface{}, err error)
 	SetCode(address common.Address, code []byte) (newRoot []byte, proof interface{}, err error)
 	SetStorageAt(address common.Address, key common.Hash, value *big.Int) (newRoot []byte, proof interface{}, err error)
-	SetRootForBatchNumber(batchNumber uint64, root []byte) error
+	SetCurrentRoot([]byte) error
 }
 
 // ReadWriter interface
@@ -41,31 +40,25 @@ type ReadWriter interface {
 	Writer
 }
 
-// NewReader returns object of Reader interface
-func NewReader(db *pgxpool.Pool) (Reader, error) {
-	return NewBasicTree(db), nil
-}
-
-// NewReadWriter returns object of ReadWriter interface
-func NewReadWriter(db *pgxpool.Pool) (ReadWriter, error) {
-	return NewBasicTree(db), nil
-}
-
-// BasicTree is a basic in-memory implementation of StateTree
-type BasicTree struct {
+// StateTree provides methods to access and modify state in merkletree
+type StateTree struct {
 	db          *pgxpool.Pool
 	mt          *MerkleTree
 	currentRoot *big.Int
 }
 
-// NewBasicTree creates new BasicTree
-func NewBasicTree(db *pgxpool.Pool) *BasicTree {
+// NewStateTree creates new StateTree
+func NewStateTree(db *pgxpool.Pool, root []byte) ReadWriter {
 	mt := NewMerkleTree(db, mtArity, nil)
-	return &BasicTree{db: db, mt: mt}
+	return &StateTree{
+		db:          db,
+		mt:          mt,
+		currentRoot: new(big.Int).SetBytes(root),
+	}
 }
 
 // GetBalance returns balance
-func (tree *BasicTree) GetBalance(address common.Address, root []byte) (*big.Int, error) {
+func (tree *StateTree) GetBalance(address common.Address, root []byte) (*big.Int, error) {
 	r := tree.currentRoot
 	if root != nil {
 		r = new(big.Int).SetBytes(root)
@@ -87,7 +80,7 @@ func (tree *BasicTree) GetBalance(address common.Address, root []byte) (*big.Int
 }
 
 // GetNonce returns nonce
-func (tree *BasicTree) GetNonce(address common.Address, root []byte) (*big.Int, error) {
+func (tree *StateTree) GetNonce(address common.Address, root []byte) (*big.Int, error) {
 	r := tree.currentRoot
 	if root != nil {
 		r = new(big.Int).SetBytes(root)
@@ -109,7 +102,7 @@ func (tree *BasicTree) GetNonce(address common.Address, root []byte) (*big.Int, 
 }
 
 // GetCode returns code
-func (tree *BasicTree) GetCode(address common.Address, root []byte) ([]byte, error) {
+func (tree *StateTree) GetCode(address common.Address, root []byte) ([]byte, error) {
 	r := tree.currentRoot
 	if root != nil {
 		r = new(big.Int).SetBytes(root)
@@ -132,7 +125,7 @@ func (tree *BasicTree) GetCode(address common.Address, root []byte) ([]byte, err
 }
 
 // GetStorageAt returns Storage Value at specified position
-func (tree *BasicTree) GetStorageAt(address common.Address, position common.Hash, root []byte) (*big.Int, error) {
+func (tree *StateTree) GetStorageAt(address common.Address, position common.Hash, root []byte) (*big.Int, error) {
 	r := tree.currentRoot
 	if root != nil {
 		r = new(big.Int).SetBytes(root)
@@ -153,24 +146,13 @@ func (tree *BasicTree) GetStorageAt(address common.Address, position common.Hash
 	return proof.Value, nil
 }
 
-// GetRoot returns current MerkleTree root hash
-func (tree *BasicTree) GetRoot() ([]byte, error) {
+// GetCurrentRoot returns current MerkleTree root hash
+func (tree *StateTree) GetCurrentRoot() ([]byte, error) {
 	return tree.currentRoot.Bytes(), nil
 }
 
-// GetRootForBatchNumber returns MerkleTree root for specified batchNumber
-func (tree *BasicTree) GetRootForBatchNumber(batchNumber uint64) ([]byte, error) {
-	var root []byte
-	ctx := context.Background()
-	err := tree.db.QueryRow(ctx, getRootByBatchNumSQL, batchNumber).Scan(&root)
-	if err != nil {
-		return nil, err
-	}
-	return root, nil
-}
-
 // SetBalance sets balance
-func (tree *BasicTree) SetBalance(address common.Address, balance *big.Int) (newRoot []byte, proof interface{}, err error) {
+func (tree *StateTree) SetBalance(address common.Address, balance *big.Int) (newRoot []byte, proof interface{}, err error) {
 	if balance.Cmp(big.NewInt(0)) == -1 {
 		return nil, nil, fmt.Errorf("invalid balance")
 	}
@@ -193,7 +175,7 @@ func (tree *BasicTree) SetBalance(address common.Address, balance *big.Int) (new
 }
 
 // SetNonce sets nonce
-func (tree *BasicTree) SetNonce(address common.Address, nonce *big.Int) (newRoot []byte, proof interface{}, err error) {
+func (tree *StateTree) SetNonce(address common.Address, nonce *big.Int) (newRoot []byte, proof interface{}, err error) {
 	if nonce.Cmp(big.NewInt(0)) == -1 {
 		return nil, nil, fmt.Errorf("invalid nonce")
 	}
@@ -216,12 +198,12 @@ func (tree *BasicTree) SetNonce(address common.Address, nonce *big.Int) (newRoot
 }
 
 // SetCode sets code
-func (tree *BasicTree) SetCode(address common.Address, code []byte) (newRoot []byte, proof interface{}, err error) {
+func (tree *StateTree) SetCode(address common.Address, code []byte) (newRoot []byte, proof interface{}, err error) {
 	return nil, nil, fmt.Errorf("not implemented")
 }
 
 // SetStorageAt sets storage value at specified position
-func (tree *BasicTree) SetStorageAt(address common.Address, position common.Hash, value *big.Int) (newRoot []byte, proof interface{}, err error) {
+func (tree *StateTree) SetStorageAt(address common.Address, position common.Hash, value *big.Int) (newRoot []byte, proof interface{}, err error) {
 	r := tree.currentRoot
 	key, err := GetKey(LeafTypeStorage, address, position[:])
 	if err != nil {
@@ -239,12 +221,10 @@ func (tree *BasicTree) SetStorageAt(address common.Address, position common.Hash
 	return updateProof.NewRoot.Bytes(), updateProof, nil
 }
 
-// SetRootForBatchNumber sets root for specified batchNumber
-func (tree *BasicTree) SetRootForBatchNumber(batchNumber uint64, root []byte) error {
-	ctx := context.Background()
-	_, err := tree.db.Exec(ctx, setRootByBatchNumSQL, batchNumber, root)
-	if err != nil {
-		return err
-	}
+func (tree *StateTree) SetCurrentRoot(root []byte) error {
+	//if root == nil {
+	//	return fmt.Errorf("current root can't be set to nil")
+	//}
+	tree.currentRoot = new(big.Int).SetBytes(root)
 	return nil
 }

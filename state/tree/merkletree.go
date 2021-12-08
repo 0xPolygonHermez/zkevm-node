@@ -454,7 +454,7 @@ func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []*big.Int) (*big.I
 		return nil, err
 	}
 
-	log.Debugw("Set node", "hash", hex.EncodeToString(hash.Bytes()), "data", nodeData)
+	//log.Debugw("Set node", "hash", hex.EncodeToString(hash.Bytes()), "data", nodeData)
 
 	err = mt.setNodeData(ctx, hash, nodeData)
 	if err != nil {
@@ -473,7 +473,7 @@ func (mt *MerkleTree) newNodeData() []*big.Int {
 }
 
 func (mt *MerkleTree) getNodeData(ctx context.Context, hash *big.Int) ([]*big.Int, error) {
-	log.Debugw("Get node", "hash", hex.EncodeToString(hash.Bytes()))
+	//log.Debugw("Get node", "hash", hex.EncodeToString(hash.Bytes()))
 	var data []byte
 	err := mt.db.QueryRow(ctx, getNodeByKeySQL, hash.Bytes()).Scan(&data)
 	if err != nil {
@@ -484,7 +484,7 @@ func (mt *MerkleTree) getNodeData(ctx context.Context, hash *big.Int) ([]*big.In
 	for i := 0; i < len(data)/maxBigIntLen; i++ {
 		nodeData[i] = new(big.Int).SetBytes(data[i*maxBigIntLen : (i+1)*maxBigIntLen])
 	}
-	log.Debugw("Got node", "hash", hex.EncodeToString(hash.Bytes()), "data", nodeData)
+	//log.Debugw("Got node", "hash", hex.EncodeToString(hash.Bytes()), "data", nodeData)
 	return nodeData, nil
 }
 

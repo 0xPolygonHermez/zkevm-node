@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -14,7 +15,7 @@ import (
 
 // State is the interface of the Hermez state
 type State interface {
-	NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) BatchProcessor
+	NewBatchProcessor(lastBatchNumber int64, withProofCalculation bool) (BatchProcessor, error)
 	GetStateRoot(ctx context.Context, virtual bool) (*big.Int, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
 	EstimateGas(transaction *types.Transaction) uint64
@@ -43,7 +44,7 @@ type State interface {
 	AddBlock(ctx context.Context, block *Block) error
 	SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
-	GetStateRootByBatchNumber(batchNumber uint64) (*big.Int, error)
+	GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error)
 }
 
 const (
@@ -68,6 +69,15 @@ const (
 	getSequencerSQL                 = "SELECT * FROM state.sequencer WHERE chain_id = $1"
 )
 
+const (
+	noPreviousBatch = -1
+)
+
+var (
+	// ErrInvalidBatchHeader indicates the batch header is invalid
+	ErrInvalidBatchHeader = errors.New("invalid batch header")
+)
+
 // BasicState is a implementation of the state
 type BasicState struct {
 	db   *pgxpool.Pool
@@ -80,8 +90,23 @@ func NewState(db *pgxpool.Pool, tree tree.ReadWriter) State {
 }
 
 // NewBatchProcessor creates a new batch processor
-func (s *BasicState) NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) BatchProcessor {
-	return &BasicBatchProcessor{State: s}
+func (s *BasicState) NewBatchProcessor(lastBatchNumber int64, withProofCalculation bool) (BatchProcessor, error) {
+	var stateRoot []byte
+	// init correct state root from previous batch
+	if lastBatchNumber >= 0 {
+		root, err := s.GetStateRootByBatchNumber(uint64(lastBatchNumber))
+		if err != nil {
+			return nil, err
+		}
+		stateRoot = root
+	}
+
+	err := s.Tree.SetCurrentRoot(stateRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicBatchProcessor{State: s, stateRoot: stateRoot}, nil
 }
 
 // GetStateRoot returns the root of the state tree
@@ -91,27 +116,29 @@ func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) (*big.Int, 
 		return nil, err
 	}
 
-	root, err := s.Tree.GetRootForBatchNumber(batch.BatchNumber)
-	if err != nil {
-		return nil, err
-	}
+	root := batch.Header.Root
 
-	return big.NewInt(0).SetBytes(root), nil
+	return big.NewInt(0).SetBytes(root[:]), nil
 }
 
 // GetStateRootByBatchNumber returns state root by batch number from the MT
-func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) (*big.Int, error) {
-	root, err := s.Tree.GetRootForBatchNumber(batchNumber)
+func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error) {
+	ctx := context.Background()
+	batch, err := s.GetBatchByNumber(ctx, batchNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	return big.NewInt(0).SetBytes(root), nil
+	if batch.Header == nil {
+		return nil, ErrInvalidBatchHeader
+	}
+
+	return batch.Header.Root[:], nil
 }
 
 // GetBalance from a given address
 func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
-	root, err := s.Tree.GetRootForBatchNumber(batchNumber)
+	root, err := s.GetStateRootByBatchNumber(batchNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -383,19 +410,7 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		return err
 	}
 
-	// Generate Genesis Batch
-	batch := &Batch{
-		BatchNumber: 0,
-		BlockNumber: 0,
-	}
-
-	// Store batch into db
-	err = s.addBatch(ctx, batch)
-	if err != nil {
-		return err
-	}
-
-	root := big.NewInt(0).Bytes()
+	var root common.Hash
 
 	// Genesis Balances
 	for address, balance := range genesis.Balances {
@@ -403,10 +418,26 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		if err != nil {
 			return err
 		}
-		root = newRoot
+		root.SetBytes(newRoot)
 	}
 
-	err = s.Tree.SetRootForBatchNumber(0, root)
+	// Generate Genesis Batch
+	batch := &Batch{
+		BatchNumber: 0,
+		BlockNumber: 0,
+		Header: &types.Header{
+			Root:       root,
+			Difficulty: big.NewInt(0),
+			Number:     big.NewInt(0),
+		},
+	}
+
+	// Store batch into db
+	bp, err := s.NewBatchProcessor(noPreviousBatch, false)
+	if err != nil {
+		return err
+	}
+	err = bp.ProcessBatch(batch)
 	if err != nil {
 		return err
 	}

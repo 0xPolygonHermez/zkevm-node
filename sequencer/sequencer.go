@@ -95,7 +95,11 @@ func (s *Sequencer) Start() {
 				log.Warnf("failed to get last batch from the state, err: %v", err)
 				continue
 			}
-			bp := s.State.NewBatchProcessor(lastBatch.BatchNumber, false)
+			bp, err := s.State.NewBatchProcessor(int64(lastBatch.BatchNumber), false)
+			if err != nil {
+				log.Warnf("failed to create new batch processor, err: %v", err)
+				continue
+			}
 			// select txs
 			selectedTxs, err := s.selectTxs(bp, txs, estimatedTime)
 			if err != nil && !strings.Contains(err.Error(), "selection took too much time") {

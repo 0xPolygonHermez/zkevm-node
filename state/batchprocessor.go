@@ -135,7 +135,7 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	// Set stateRoot if needed
 	/*
 		if len(b.stateRoot) == 0 {
-			root, err := b.State.Tree.GetRoot()
+			root, err := b.State.Tree.GetCurrentRoot()
 			if err != nil {
 				return sender, nonce, balance, err
 			}
@@ -187,17 +187,24 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, *Proof, error) {
 	// Store batch into db
 	ctx := context.Background()
-	err := b.State.addBatch(ctx, batch)
-	if err != nil {
-		return nil, nil, err
+
+	var root common.Hash
+
+	if batch.Header == nil {
+		batch.Header = &types.Header{
+			Root:       root,
+			Difficulty: big.NewInt(0),
+			Number:     new(big.Int).SetUint64(batch.BatchNumber),
+		}
 	}
 
-	root := big.NewInt(0).Bytes()
+	// set merkletree root
 	if b.stateRoot != nil {
-		root = b.stateRoot
+		root.SetBytes(b.stateRoot)
+		batch.Header.Root = root
 	}
 
-	err = b.State.Tree.SetRootForBatchNumber(batch.BatchNumber, root)
+	err := b.State.addBatch(ctx, batch)
 	if err != nil {
 		return nil, nil, err
 	}
