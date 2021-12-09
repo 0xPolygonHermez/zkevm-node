@@ -412,17 +412,11 @@ func TestStateTransition(t *testing.T) {
 			ctx := context.Background()
 			// Init database instance
 			err = dbutils.InitOrReset(cfg)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
 
 			// Create State db
 			stateDb, err = db.NewSQLDB(cfg)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
 
 			// Create State tree
 			stateTree := tree.NewStateTree(stateDb, nil)
@@ -438,10 +432,17 @@ func TestStateTransition(t *testing.T) {
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
 			}
 
+			log.Debugw("Genesis", "balances", genesis.Balances)
+
 			err = st.SetGenesis(ctx, genesis)
-			if err != nil {
-				t.Error(err)
-				return
+			require.NoError(t, err)
+
+			root, err := st.GetStateRootByBatchNumber(0)
+
+			for gaddr, gbalance := range genesis.Balances {
+				balance, err := stateTree.GetBalance(gaddr, root)
+				require.NoError(t, err)
+				assert.Equal(t, gbalance, balance)
 			}
 
 			var txs []*types.Transaction
@@ -472,6 +473,8 @@ func TestStateTransition(t *testing.T) {
 				RawTxsData:         nil,
 			}
 
+			log.Debugw("Batch", "txs", batch.Transactions)
+
 			// Create Batch Processor
 			bp, err := st.NewBatchProcessor(0, false)
 			require.NoError(t, err)
@@ -480,16 +483,18 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 			// There may be errors processing Tx, so just check Balances
 
-			root, err := st.GetStateRootByBatchNumber(batch.BatchNumber)
+			log.Debugw("Batch processed", "root", batch.Header.Root)
+
+			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
 			require.NoError(t, err)
 
 			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
 				newBalance, err := stateTree.GetBalance(common.HexToAddress(key), root)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, vectorLeaf.Balance.String(), newBalance.String())
 
 				newNonce, err := stateTree.GetNonce(common.HexToAddress(key), root)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
 				assert.Equal(t, leafNonce.String(), newNonce.String())
 			}

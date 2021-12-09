@@ -44,7 +44,9 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	for _, tx := range batch.Transactions {
 		err := b.ProcessTransaction(tx, batch.Sequencer)
 		if err != nil {
-			log.Infof("Error processing transaction %s: %v", tx.Hash().String(), err)
+			log.Errorf("Error processing transaction %s: %v", tx.Hash().String(), err)
+		} else {
+			log.Infof("Successfully processed transaction %s", tx.Hash().String())
 		}
 
 		// receipt := types.NewReceipt(b.stateRoot, err != nil, 0)
@@ -60,69 +62,75 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 
 // ProcessTransaction processes a transaction inside a batch
 func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error {
+	// save stateRoot and modify it only if transaction processing finishes successfully
+	root := b.stateRoot
+
+	// reset MT currentRoot in case it was modified by failed transaction
+	b.State.Tree.SetCurrentRoot(root)
+
 	sender, nonce, senderBalance, err := b.CheckTransaction(tx)
 
-	if err == nil {
-		// Get receiver Balance
-		receiverBalance, err := b.State.Tree.GetBalance(*tx.To(), b.stateRoot)
-		if err != nil {
-			return err
-		}
-
-		// Increase Nonce
-		nonce.Add(nonce, big.NewInt(1))
-
-		// Store new nonce
-		root, _, err := b.State.Tree.SetNonce(sender, nonce)
-		if err != nil {
-			return err
-		}
-		b.stateRoot = root
-
-		// Calculate new balances
-		senderBalance.Sub(senderBalance, tx.Cost())
-		receiverBalance.Add(receiverBalance, tx.Value())
-
-		// Pay gas to the sequencer
-		usedGas := new(big.Int).SetUint64(b.State.EstimateGas(tx))
-
-		if sequencerAddress == sender {
-			senderBalance.Add(senderBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
-		} else if sequencerAddress == *tx.To() {
-			receiverBalance.Add(receiverBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
-		} else {
-			sequencerBalance, err := b.State.Tree.GetBalance(sequencerAddress, b.stateRoot)
-			if err != nil {
-				return err
-			}
-
-			sequencerBalance.Add(sequencerBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
-			root, _, err = b.State.Tree.SetBalance(sequencerAddress, sequencerBalance)
-			if err != nil {
-				return err
-			}
-			b.stateRoot = root
-		}
-
-		// Refund unused gas
-		remainingGas := new(big.Int).SetUint64((tx.Gas() - usedGas.Uint64()))
-		senderBalance.Add(senderBalance, new(big.Int).Mul(remainingGas, tx.GasPrice()))
-
-		// Store new balances
-		root, _, err = b.State.Tree.SetBalance(sender, senderBalance)
-		if err != nil {
-			return err
-		}
-		b.stateRoot = root
-
-		root, _, err = b.State.Tree.SetBalance(*tx.To(), receiverBalance)
-		if err != nil {
-			return err
-		}
-		b.stateRoot = root
+	if err != nil {
+		return err
 	}
 
-	return err
+	// Get receiver Balance
+	receiverBalance, err := b.State.Tree.GetBalance(*tx.To(), root)
+	if err != nil {
+		return err
+	}
+
+	// Increase Nonce
+	nonce.Add(nonce, big.NewInt(1))
+
+	// Store new nonce
+	root, _, err = b.State.Tree.SetNonce(sender, nonce)
+	if err != nil {
+		return err
+	}
+
+	// Calculate new balances
+	senderBalance.Sub(senderBalance, tx.Cost())
+	receiverBalance.Add(receiverBalance, tx.Value())
+
+	// Pay gas to the sequencer
+	usedGas := new(big.Int).SetUint64(b.State.EstimateGas(tx))
+
+	if sequencerAddress == sender {
+		senderBalance.Add(senderBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
+	} else if sequencerAddress == *tx.To() {
+		receiverBalance.Add(receiverBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
+	} else {
+		sequencerBalance, err := b.State.Tree.GetBalance(sequencerAddress, root)
+		if err != nil {
+			return err
+		}
+
+		sequencerBalance.Add(sequencerBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
+		root, _, err = b.State.Tree.SetBalance(sequencerAddress, sequencerBalance)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Refund unused gas
+	remainingGas := new(big.Int).SetUint64((tx.Gas() - usedGas.Uint64()))
+	senderBalance.Add(senderBalance, new(big.Int).Mul(remainingGas, tx.GasPrice()))
+
+	// Store new balances
+	root, _, err = b.State.Tree.SetBalance(sender, senderBalance)
+	if err != nil {
+		return err
+	}
+
+	root, _, err = b.State.Tree.SetBalance(*tx.To(), receiverBalance)
+	if err != nil {
+		return err
+	}
+
+	b.stateRoot = root
+
+	return nil
 }
 
 // CheckTransaction checks if a transaction is valid
@@ -131,6 +139,9 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	var sender = common.Address{}
 	var nonce = big.NewInt(0)
 	var balance = big.NewInt(0)
+
+	// reset MT currentRoot in case it was modified by failed transaction
+	b.State.Tree.SetCurrentRoot(b.stateRoot)
 
 	// Set stateRoot if needed
 	/*

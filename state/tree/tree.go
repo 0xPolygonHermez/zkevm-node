@@ -11,11 +11,6 @@ import (
 
 const mtArity = 4
 
-const (
-	getRootByBatchNumSQL = "SELECT hash FROM state.merkletree_roots WHERE batch_num = $1"
-	setRootByBatchNumSQL = "INSERT INTO state.merkletree_roots (batch_num, hash) VALUES ($1, $2)"
-)
-
 // Reader interface
 type Reader interface {
 	GetBalance(address common.Address, root []byte) (*big.Int, error)
@@ -221,6 +216,7 @@ func (tree *StateTree) SetStorageAt(address common.Address, position common.Hash
 	return updateProof.NewRoot.Bytes(), updateProof, nil
 }
 
+// SetCurrentRoot sets current root of the state tree
 func (tree *StateTree) SetCurrentRoot(root []byte) error {
 	//if root == nil {
 	//	return fmt.Errorf("current root can't be set to nil")
