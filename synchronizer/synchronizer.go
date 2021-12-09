@@ -152,9 +152,9 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 		}
 		if block.NumberU64() != latestBlock.BlockNumber {
 			log.Error("Wrong ethereum block retrieved from blockchain. Block numbers don't match. BlockNumber stored: ",
-			latestBlock.BlockNumber, ". BlockNumber retrieved: ", block.NumberU64())
+				latestBlock.BlockNumber, ". BlockNumber retrieved: ", block.NumberU64())
 			return nil, fmt.Errorf("Wrong ethereum block retrieved from blockchain. Block numbers don't match. BlockNumber stored: %d. BlockNumber retrieved: %d",
-			latestBlock.BlockNumber, block.NumberU64())
+				latestBlock.BlockNumber, block.NumberU64())
 		}
 		//Compare hashes
 		if block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash {
