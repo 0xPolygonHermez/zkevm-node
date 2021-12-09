@@ -33,7 +33,7 @@ var (
 
 // EtherMan represents an Ethereum Manager
 type EtherMan interface {
-	EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error)
+	EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error)
 	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
 	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
@@ -75,8 +75,8 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
-func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error) {
-	block, err := etherMan.EtherClient.BlockByNumber(ctx, big.NewInt(blockNum))
+func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error) {
+	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNum))
 	if err != nil {
 		return &types.Block{}, err
 	}

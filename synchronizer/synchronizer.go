@@ -75,7 +75,7 @@ func (s *ClientSynchronizer) Sync() error {
 // This function syncs the node from a specific block to the latest
 func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	//This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
-	block, err := s.checkReorg(*lastEthBlockSynced)
+	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {
 		log.Error("error checking reorgs")
 		return nil, fmt.Errorf("error checking reorgs")
@@ -132,6 +132,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 
 // This function allows reset the state until an specific ethereum block
 func (s *ClientSynchronizer) resetState(ethBlockNum uint64) error {
+	log.Debug("Reverting synchronization to block: ", ethBlockNum)
 	err := s.state.Reset(ethBlockNum)
 	if err != nil {
 		return err
@@ -141,12 +142,35 @@ func (s *ClientSynchronizer) resetState(ethBlockNum uint64) error {
 }
 
 // This function will check if there is a reorg
-func (s *ClientSynchronizer) checkReorg(currentBlock state.Block) (*state.Block, error) {
-	//TODO this function only needs to worry about reorgs if some of the reorganized blocks contained rollup info.
-	//getLastEtherblockfromdb and check the hash and parent hash. Using the ethBlockNum, get this info from the blockchain and compare.
-	//if the values doesn't match get the previous ethereum block from db (last-1) and get the info for that ethereum block number
-	//from the blockchain. Compare the values. If they don't match do this step again. If matches, we have found the good ethereum block.
-	// Now, return the ethereum block number
+func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block, error) {
+	//This function only needs to worry about reorgs if some of the reorganized blocks contained rollup info.
+	latestEthBlockSynced := *latestBlock
+	for {
+		block, err := s.etherMan.EthBlockByNumber(s.ctx, latestBlock.BlockNumber)
+		if err != nil {
+			return nil, err
+		}
+		if block.NumberU64() != latestBlock.BlockNumber {
+			log.Error("Wrong ethereum block retrieved from blockchain. Block numbers don't match. BlockNumber stored: ",
+			latestBlock.BlockNumber, ". BlockNumber retrieved: ", block.NumberU64())
+			return nil, fmt.Errorf("Wrong ethereum block retrieved from blockchain. Block numbers don't match. BlockNumber stored: %d. BlockNumber retrieved: %d",
+			latestBlock.BlockNumber, block.NumberU64())
+		}
+		//Compare hashes
+		if block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash {
+			//Reorg detected. Getting previous block
+			latestBlock, err = s.state.GetBlockByNumber(s.ctx, latestBlock.BlockNumber-1)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			break
+		}
+	}
+	if latestEthBlockSynced.BlockHash != latestBlock.BlockHash {
+		log.Debug("Reorg detected in block: ", latestEthBlockSynced.BlockNumber)
+		return latestBlock, nil
+	}
 	return nil, nil
 }
 
