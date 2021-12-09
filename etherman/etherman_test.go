@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -228,7 +229,7 @@ func TestSequencerEvent(t *testing.T) {
 	log.Debug("Sequencer synced: ", block[0].NewSequencers[0].Address, ", url: ", block[0].NewSequencers[0].URL, ", and chainId: ", block[0].NewSequencers[0].ChainID)
 }
 
-func TestSCSendBatch(t *testing.T) {
+func TestSCSendBatchAndVerify(t *testing.T) {
 	dHex := "06d6490f000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000147f86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a028ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276a067cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83f86c088504a817c8008252089411111111111111111111111111111111111111118802c68af0bb1400008026a08975cf0fe106a0396649d37c5292274f66193346ce5b07bcbaa8dc248f7f5496a0684963f42a662640b6d27e3552151e3f42744c9b4d72dd70b262ca94b9473c94f869028504a817c8008252089412121212121212121212121212121212121212128506fc23ac008025a0528b1dd150ccae6e83fcc44bff11928ca635f0fc6819836a14d526af1ecf0519a02a96710022671e44c81a6f19b88f605567d32dd97508aa84c830ec9d4a4aa0d200000000000000000000000000000000000000000000000000"
 	data, err := hex.DecodeString(dHex)
 	require.NoError(t, err)
@@ -254,4 +255,36 @@ func TestSCSendBatch(t *testing.T) {
 	assert.Equal(t, 1, len(block[0].Batches))
 	assert.Equal(t, 3, len(block[0].Batches[0].Transactions))
 	assert.Equal(t, data, block[0].Batches[0].RawTxsData)
+
+	proofSlc := []string{"0", "0"}
+	proofBelem := proverclient.ProofX{Proof: proofSlc}
+	var proofB []*proverclient.ProofX
+	proofB = append(proofB, &proofBelem, &proofBelem)
+	newStateRoot, ok := new(big.Int).SetString("1212121212121212121212121212121212121212121212121212121212121212", 16)
+	assert.True(t, ok)
+	newLocalExitRoot, ok := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
+	assert.True(t, ok)
+	proof := proverclient.Proof{
+		ProofA: proofSlc,
+		ProofB: proofB,
+		ProofC: proofSlc,
+		PublicInputs: &proverclient.PublicInputs{
+			NewStateRoot:     newStateRoot.Bytes(),
+			NewLocalExitRoot: newLocalExitRoot.Bytes(),
+		},
+	}
+
+	tx, err = etherman.ConsolidateBatch(big.NewInt(2), &proof)
+	require.NoError(t, err)
+	log.Debug("TX: ", tx.Hash())
+
+	commit()
+
+	finalBlock, err = etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+	finalBlockNumber = finalBlock.NumberU64()
+	block, err = etherman.GetBatchesByBlockRange(ctx, finalBlockNumber, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, len(block[0].Batches))
 }
