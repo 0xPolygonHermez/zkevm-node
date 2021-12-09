@@ -75,8 +75,8 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
-func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error) {
-	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNum))
+func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
+	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 	if err != nil {
 		return &types.Block{}, err
 	}
@@ -84,11 +84,11 @@ func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNum u
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
-func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error) {
+func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, error) {
 	//First filter query
 	var blockNumBigInt *big.Int
 	if blockHash == nil {
-		blockNumBigInt = new(big.Int).SetUint64(blockNum)
+		blockNumBigInt = new(big.Int).SetUint64(blockNumber)
 	}
 	query := ethereum.FilterQuery{
 		BlockHash: blockHash,
