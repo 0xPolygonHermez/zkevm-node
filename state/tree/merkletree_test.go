@@ -130,5 +130,4 @@ func TestMerkleTree(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, v1, v1ProofNew.Value)
-
 }

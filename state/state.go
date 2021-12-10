@@ -15,7 +15,7 @@ import (
 
 // State is the interface of the Hermez state
 type State interface {
-	NewBatchProcessor(lastBatchNumber int64, withProofCalculation bool) (BatchProcessor, error)
+	NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) (BatchProcessor, error)
 	NewGenesisBatchProcessor(genesisStateRoot []byte, withProofCalculation bool) (BatchProcessor, error)
 	GetStateRoot(ctx context.Context, virtual bool) ([]byte, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
@@ -70,10 +70,6 @@ const (
 	getSequencerSQL                 = "SELECT * FROM state.sequencer WHERE chain_id = $1"
 )
 
-const (
-	noPreviousBatch = -1
-)
-
 var (
 	// ErrInvalidBatchHeader indicates the batch header is invalid
 	ErrInvalidBatchHeader = errors.New("invalid batch header")
@@ -91,7 +87,7 @@ func NewState(db *pgxpool.Pool, tree tree.ReadWriter) State {
 }
 
 // NewBatchProcessor creates a new batch processor
-func (s *BasicState) NewBatchProcessor(lastBatchNumber int64, withProofCalculation bool) (BatchProcessor, error) {
+func (s *BasicState) NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) (BatchProcessor, error) {
 	var stateRoot []byte
 	// init correct state root from previous batch
 	if lastBatchNumber >= 0 {

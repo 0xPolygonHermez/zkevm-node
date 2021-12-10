@@ -444,8 +444,7 @@ func TestStateTransition(t *testing.T) {
 			root, err := st.GetStateRootByBatchNumber(0)
 			require.NoError(t, err)
 
-			for gaddr, _ := range genesis.Balances {
-				gbalance := genesis.Balances[gaddr]
+			for gaddr, gbalance := range genesis.Balances {
 				balance, err := stateTree.GetBalance(gaddr, root)
 				require.NoError(t, err)
 				assert.Equal(t, gbalance, balance)

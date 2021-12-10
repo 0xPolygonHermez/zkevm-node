@@ -113,5 +113,4 @@ func TestBasicTree(t *testing.T) {
 	bal, err = tree.GetBalance(address, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(1), bal)
-
 }

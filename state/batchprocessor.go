@@ -84,7 +84,7 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	nonce.Add(nonce, big.NewInt(1))
 
 	// Store new nonce
-	root, _, err = b.State.Tree.SetNonce(sender, nonce)
+	_, _, err = b.State.Tree.SetNonce(sender, nonce)
 	if err != nil {
 		return err
 	}
@@ -107,18 +107,18 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 		}
 
 		sequencerBalance.Add(sequencerBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
-		root, _, err = b.State.Tree.SetBalance(sequencerAddress, sequencerBalance)
+		_, _, err = b.State.Tree.SetBalance(sequencerAddress, sequencerBalance)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Refund unused gas
-	remainingGas := new(big.Int).SetUint64((tx.Gas() - usedGas.Uint64()))
+	remainingGas := new(big.Int).SetUint64(tx.Gas() - usedGas.Uint64())
 	senderBalance.Add(senderBalance, new(big.Int).Mul(remainingGas, tx.GasPrice()))
 
 	// Store new balances
-	root, _, err = b.State.Tree.SetBalance(sender, senderBalance)
+	_, _, err = b.State.Tree.SetBalance(sender, senderBalance)
 	if err != nil {
 		return err
 	}
