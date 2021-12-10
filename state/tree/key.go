@@ -14,10 +14,10 @@ const PoseidonInputsNum = 16
 type Key [32]byte
 
 // GetKey calculates Key for the provided leaf type, address, and in case of LeafTypeStorage also position
-func GetKey(leafType LeafType, address common.Address, position []byte) (Key, error) {
+func GetKey(leafType LeafType, address common.Address, position []byte) ([]byte, error) {
 	addr, err := SplitAddress(address)
 	if err != nil {
-		return Key{}, err
+		return nil, err
 	}
 	inputs := make([]*big.Int, PoseidonInputsNum)
 
@@ -35,7 +35,7 @@ func GetKey(leafType LeafType, address common.Address, position []byte) (Key, er
 		posBigInt := big.NewInt(0).SetBytes(position)
 		pos, err := SplitValue(posBigInt)
 		if err != nil {
-			return Key{}, err
+			return nil, err
 		}
 		inputs[4].SetBytes(pos[0])
 		inputs[5].SetBytes(pos[1])
@@ -45,10 +45,10 @@ func GetKey(leafType LeafType, address common.Address, position []byte) (Key, er
 
 	hash, err := poseidon.Hash(inputs)
 	if err != nil {
-		return Key{}, err
+		return nil, err
 	}
 	hashBytes := hash.Bytes()
-	var key Key
-	copy(key[:], hashBytes)
-	return key, nil
+	//var key Key
+	//copy(key[:], hashBytes)
+	return hashBytes, nil
 }

@@ -5,12 +5,24 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMemTree(t *testing.T) {
-	tree := NewMemTree()
+func TestBasicTree(t *testing.T) {
+	dbCfg := dbutils.NewConfigFromEnv()
+
+	err := dbutils.InitOrReset(dbCfg)
+	require.NoError(t, err)
+
+	mtDb, err := db.NewSQLDB(dbCfg)
+	require.NoError(t, err)
+
+	defer mtDb.Close()
+
+	tree := NewStateTree(mtDb, nil)
 
 	address := common.Address{
 		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
@@ -75,7 +87,7 @@ func TestMemTree(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(0), storage2)
 
-	_, _, err = tree.SetStorageAt(address, position2, big.NewInt(5))
+	root, _, err := tree.SetStorageAt(address, position2, big.NewInt(5))
 	require.NoError(t, err)
 
 	storage2, err = tree.GetStorageAt(address, position2, nil)
@@ -85,4 +97,20 @@ func TestMemTree(t *testing.T) {
 	storage, err = tree.GetStorageAt(address, position, nil)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(4), storage)
+
+	bal, err = tree.GetBalance(address, nil)
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(1), bal)
+
+	balX, _ := new(big.Int).SetString("200000000000000000000", 10)
+	newRoot, _, err := tree.SetBalance(address, balX)
+	require.NoError(t, err)
+
+	bal, err = tree.GetBalance(address, newRoot)
+	require.NoError(t, err)
+	assert.Equal(t, balX, bal)
+
+	bal, err = tree.GetBalance(address, root)
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(1), bal)
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
@@ -33,11 +34,11 @@ var (
 
 // EtherMan represents an Ethereum Manager
 type EtherMan interface {
-	EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error)
+	EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error)
 	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
 	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
-	ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error)
+	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
 }
 
 type ethClienter interface {
@@ -75,8 +76,8 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
-func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNum int64) (*types.Block, error) {
-	block, err := etherMan.EtherClient.BlockByNumber(ctx, big.NewInt(blockNum))
+func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
+	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 	if err != nil {
 		return &types.Block{}, err
 	}
@@ -84,11 +85,11 @@ func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNum i
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
-func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error) {
+func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, error) {
 	//First filter query
 	var blockNumBigInt *big.Int
 	if blockHash == nil {
-		blockNumBigInt = new(big.Int).SetUint64(blockNum)
+		blockNumBigInt = new(big.Int).SetUint64(blockNumber)
 	}
 	query := ethereum.FilterQuery{
 		BlockHash: blockHash,
@@ -145,10 +146,45 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 	return tx, nil
 }
 
-// ConsolidateBatch function allows the agregator send the proof for a batch and consolidate it
-func (etherMan *ClientEtherMan) ConsolidateBatch(batch state.Batch, proof state.Proof) (common.Hash, error) {
-	//TODO
-	return common.Hash{}, nil
+// ConsolidateBatch function allows the aggregator send the proof for a batch and consolidate it
+func (etherMan *ClientEtherMan) ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error) {
+	newLocalExitRoot, err := byteSliceToFixedByteArray(proof.PublicInputs.NewLocalExitRoot)
+	if err != nil {
+		return nil, err
+	}
+	newStateRoot, err := byteSliceToFixedByteArray(proof.PublicInputs.NewStateRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	proofA, err := strSliceToBigIntArray(proof.ProofA)
+	if err != nil {
+		return nil, err
+	}
+
+	proofB, err := proofSlcToIntArray(proof.ProofB)
+	if err != nil {
+		return nil, err
+	}
+	proofC, err := strSliceToBigIntArray(proof.ProofC)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := etherMan.PoE.VerifyBatch(
+		etherMan.auth,
+		newLocalExitRoot,
+		newStateRoot,
+		batchNum,
+		proofA,
+		proofB,
+		proofC,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
 }
 
 func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, error) {

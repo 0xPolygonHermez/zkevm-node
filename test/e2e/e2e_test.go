@@ -111,11 +111,7 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// create state
-			tr, err := tree.NewReadWriter(sqlDB)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			tr := tree.NewStateTree(sqlDB, []byte{})
 			st := state.NewState(sqlDB, tr)
 			genesis := state.Genesis{
 				Balances: make(map[common.Address]*big.Int),

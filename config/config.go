@@ -8,6 +8,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 )
@@ -21,6 +22,7 @@ type Config struct {
 	RPC          jsonrpc.Config
 	Sequencer    sequencer.Config
 	Aggregator   aggregator.Config
+	Prover       proverclient.Config
 }
 
 // Load loads the configuration
@@ -50,6 +52,11 @@ func Load() Config {
 		Sequencer: sequencer.Config{
 			IntervalToProposeBatch: 15 * time.Second,
 		},
-		Aggregator: aggregator.Config{},
+		Aggregator: aggregator.Config{
+			IntervalToConsolidateState: 3 * time.Second,
+		},
+		Prover: proverclient.Config{
+			ProverURI: "0.0.0.0:50051",
+		},
 	}
 }

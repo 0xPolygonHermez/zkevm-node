@@ -18,4 +18,6 @@ require (
 	go.uber.org/zap v1.17.0
 	golang.org/x/sys v0.0.0-20211109184856-51b60fd695b3 // indirect
 	gotest.tools v2.2.0+incompatible
+	google.golang.org/grpc v1.38.0
+	google.golang.org/protobuf v1.26.0
 )
