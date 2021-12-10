@@ -16,7 +16,8 @@ import (
 // State is the interface of the Hermez state
 type State interface {
 	NewBatchProcessor(lastBatchNumber int64, withProofCalculation bool) (BatchProcessor, error)
-	GetStateRoot(ctx context.Context, virtual bool) (*big.Int, error)
+	NewGenesisBatchProcessor(genesisStateRoot []byte, withProofCalculation bool) (BatchProcessor, error)
+	GetStateRoot(ctx context.Context, virtual bool) ([]byte, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
 	EstimateGas(transaction *types.Transaction) uint64
 	GetLastBlock(ctx context.Context) (*Block, error)
@@ -101,24 +102,30 @@ func (s *BasicState) NewBatchProcessor(lastBatchNumber int64, withProofCalculati
 		stateRoot = root
 	}
 
-	err := s.Tree.SetCurrentRoot(stateRoot)
-	if err != nil {
-		return nil, err
-	}
+	s.Tree.SetCurrentRoot(stateRoot)
 
 	return &BasicBatchProcessor{State: s, stateRoot: stateRoot}, nil
 }
 
+// NewGenesisBatchProcessor creates a new batch processor
+func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte, withProofCalculation bool) (BatchProcessor, error) {
+	s.Tree.SetCurrentRoot(genesisStateRoot)
+
+	return &BasicBatchProcessor{State: s, stateRoot: genesisStateRoot}, nil
+}
+
 // GetStateRoot returns the root of the state tree
-func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) (*big.Int, error) {
+func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, error) {
 	batch, err := s.GetLastBatch(ctx, virtual)
 	if err != nil {
 		return nil, err
 	}
 
-	root := batch.Header.Root
+	if batch.Header == nil {
+		return nil, ErrInvalidBatchHeader
+	}
 
-	return big.NewInt(0).SetBytes(root[:]), nil
+	return batch.Header.Root[:], nil
 }
 
 // GetStateRootByBatchNumber returns state root by batch number from the MT
@@ -410,6 +417,9 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		return err
 	}
 
+	// reset tree current root
+	s.Tree.SetCurrentRoot(nil)
+
 	var root common.Hash
 
 	// Genesis Balances
@@ -425,15 +435,10 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 	batch := &Batch{
 		BatchNumber: 0,
 		BlockNumber: 0,
-		Header: &types.Header{
-			Root:       root,
-			Difficulty: big.NewInt(0),
-			Number:     big.NewInt(0),
-		},
 	}
 
 	// Store batch into db
-	bp, err := s.NewBatchProcessor(noPreviousBatch, false)
+	bp, err := s.NewGenesisBatchProcessor(root[:], false)
 	if err != nil {
 		return err
 	}

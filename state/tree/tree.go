@@ -26,7 +26,7 @@ type Writer interface {
 	SetNonce(address common.Address, nonce *big.Int) (newRoot []byte, proof interface{}, err error)
 	SetCode(address common.Address, code []byte) (newRoot []byte, proof interface{}, err error)
 	SetStorageAt(address common.Address, key common.Hash, value *big.Int) (newRoot []byte, proof interface{}, err error)
-	SetCurrentRoot([]byte) error
+	SetCurrentRoot([]byte)
 }
 
 // ReadWriter interface
@@ -217,10 +217,6 @@ func (tree *StateTree) SetStorageAt(address common.Address, position common.Hash
 }
 
 // SetCurrentRoot sets current root of the state tree
-func (tree *StateTree) SetCurrentRoot(root []byte) error {
-	//if root == nil {
-	//	return fmt.Errorf("current root can't be set to nil")
-	//}
+func (tree *StateTree) SetCurrentRoot(root []byte) {
 	tree.currentRoot = new(big.Int).SetBytes(root)
-	return nil
 }

@@ -20,8 +20,12 @@ func (s *StateMock) NewBatchProcessor(lastBatchNumber int64, withProofCalculatio
 	return &state.BasicBatchProcessor{}, nil
 }
 
-func (s *StateMock) GetStateRoot(ctx context.Context, virtual bool) (*big.Int, error) {
-	return big.NewInt(0), nil
+func (s *StateMock) NewGenesisBatchProcessor(genesisStateRoot []byte, withProofCalculation bool) (state.BatchProcessor, error) {
+	return &state.BasicBatchProcessor{}, nil
+}
+
+func (s *StateMock) GetStateRoot(ctx context.Context, virtual bool) ([]byte, error) {
+	return big.NewInt(0).Bytes(), nil
 }
 
 func (s *StateMock) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {

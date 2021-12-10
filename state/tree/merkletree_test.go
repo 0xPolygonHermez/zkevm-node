@@ -79,3 +79,56 @@ func TestMerkleTreeRaw(t *testing.T) {
 		})
 	}
 }
+
+func TestMerkleTree(t *testing.T) {
+	dbCfg := dbutils.NewConfigFromEnv()
+
+	err := dbutils.InitOrReset(dbCfg)
+	require.NoError(t, err)
+
+	mtDb, err := db.NewSQLDB(dbCfg)
+	require.NoError(t, err)
+
+	defer mtDb.Close()
+
+	ctx := context.Background()
+
+	root := big.NewInt(0)
+	mt := NewMerkleTree(mtDb, 4, nil)
+
+	k1, success := new(big.Int).SetString("03ae74d1bbdff41d14f155ec79bb389db716160c1766a49ee9c9707407f80a11", 16)
+	require.True(t, success)
+
+	v1, success := new(big.Int).SetString("200000000000000000000", 10)
+	require.True(t, success)
+
+	updateProof, err := mt.Set(ctx, root, k1, v1)
+	require.NoError(t, err)
+	root = updateProof.NewRoot
+
+	v1Proof, err := mt.Get(ctx, root, k1)
+	require.NoError(t, err)
+
+	assert.Equal(t, v1, v1Proof.Value)
+
+	k2, success := new(big.Int).SetString("0540ae2a259cb9179561cffe6a0a3852a2c1806ad894ed396a2ef16e1f10e9c7", 16)
+	require.True(t, success)
+
+	v2, success := new(big.Int).SetString("100000000000000000000", 10)
+	require.True(t, success)
+
+	updateProof, err = mt.Set(ctx, root, k2, v2)
+	require.NoError(t, err)
+	root = updateProof.NewRoot
+
+	v2Proof, err := mt.Get(ctx, root, k2)
+	require.NoError(t, err)
+
+	assert.Equal(t, v2, v2Proof.Value)
+
+	v1ProofNew, err := mt.Get(ctx, root, k1)
+	require.NoError(t, err)
+
+	assert.Equal(t, v1, v1ProofNew.Value)
+
+}

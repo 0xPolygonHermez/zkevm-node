@@ -168,7 +168,7 @@ func setUpBatches() {
 
 	batches := []*Batch{batch1, batch2, batch3, batch4}
 
-	bp, err := state.NewBatchProcessor(noPreviousBatch, false)
+	bp, err := state.NewGenesisBatchProcessor(nil, false)
 	if err != nil {
 		panic(err)
 	}
@@ -283,7 +283,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		RawTxsData:         nil,
 	}
 
-	bp, err := state.NewBatchProcessor(noPreviousBatch, false)
+	bp, err := state.NewGenesisBatchProcessor(nil, false)
 	assert.NoError(t, err)
 
 	err = bp.ProcessBatch(batch)
@@ -432,14 +432,20 @@ func TestStateTransition(t *testing.T) {
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
 			}
 
-			log.Debugw("Genesis", "balances", genesis.Balances)
+			for gaddr, _ := range genesis.Balances {
+				balance, err := stateTree.GetBalance(gaddr, nil)
+				require.NoError(t, err)
+				assert.Equal(t, big.NewInt(0), balance)
+			}
 
 			err = st.SetGenesis(ctx, genesis)
 			require.NoError(t, err)
 
 			root, err := st.GetStateRootByBatchNumber(0)
+			require.NoError(t, err)
 
-			for gaddr, gbalance := range genesis.Balances {
+			for gaddr, _ := range genesis.Balances {
+				gbalance := genesis.Balances[gaddr]
 				balance, err := stateTree.GetBalance(gaddr, root)
 				require.NoError(t, err)
 				assert.Equal(t, gbalance, balance)
@@ -473,8 +479,6 @@ func TestStateTransition(t *testing.T) {
 				RawTxsData:         nil,
 			}
 
-			log.Debugw("Batch", "txs", batch.Transactions)
-
 			// Create Batch Processor
 			bp, err := st.NewBatchProcessor(0, false)
 			require.NoError(t, err)
@@ -482,8 +486,6 @@ func TestStateTransition(t *testing.T) {
 			err = bp.ProcessBatch(batch)
 			require.NoError(t, err)
 			// There may be errors processing Tx, so just check Balances
-
-			log.Debugw("Batch processed", "root", batch.Header.Root)
 
 			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
 			require.NoError(t, err)

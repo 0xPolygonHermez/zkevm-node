@@ -44,7 +44,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	for _, tx := range batch.Transactions {
 		err := b.ProcessTransaction(tx, batch.Sequencer)
 		if err != nil {
-			log.Errorf("Error processing transaction %s: %v", tx.Hash().String(), err)
+			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
 		} else {
 			log.Infof("Successfully processed transaction %s", tx.Hash().String())
 		}

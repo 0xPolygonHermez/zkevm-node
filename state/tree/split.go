@@ -28,7 +28,7 @@ func SplitValue(value *big.Int) ([][]byte, error) {
 }
 
 func fea2scalar(v []*big.Int) *big.Int {
-	res := v[0]
+	res := new(big.Int).Set(v[0])
 	res.Add(res, new(big.Int).Lsh(v[1], 64))
 	res.Add(res, new(big.Int).Lsh(v[2], 128))
 	res.Add(res, new(big.Int).Lsh(v[3], 192))

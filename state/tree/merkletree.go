@@ -81,7 +81,7 @@ func NewMerkleTree(db *pgxpool.Pool, arity uint8, hash interface{}) *MerkleTree 
 func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, value *big.Int) (*UpdateProof, error) {
 	var err error
 
-	log.Debugw("Set kv", "key", hex.EncodeToString(key.Bytes()), "value", value)
+	//log.Debugw("Set kv", "key", hex.EncodeToString(key.Bytes()), "value", value)
 
 	// exit early if context is cancelled
 	err = ctx.Err()
@@ -342,7 +342,8 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, v
 		NewValue: value,
 	}
 
-	log.Debugw("Set proof", "key", hex.EncodeToString(key.Bytes()), "mode", mode, "proof", proof)
+	log.Debugw("Set", "key", hex.EncodeToString(key.Bytes()), "value", value, "mode", mode)
+	//log.Debugw("Set", "key", hex.EncodeToString(key.Bytes()), "value", value, "mode", mode, "proof", proof)
 
 	return &proof, nil
 }
