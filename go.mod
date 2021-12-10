@@ -14,10 +14,8 @@ require (
 	github.com/rubenv/sql-migrate v0.0.0-20211023115951-9f02b1e13857
 	github.com/stretchr/testify v1.7.0
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
-	github.com/urfave/cli v1.22.5
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/ziutek/mymysql v1.5.4 // indirect
-	github.com/ztrue/tracerr v0.3.0
 	go.uber.org/zap v1.17.0
 	golang.org/x/sys v0.0.0-20211109184856-51b60fd695b3 // indirect
 	google.golang.org/grpc v1.38.0
