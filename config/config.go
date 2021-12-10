@@ -48,7 +48,7 @@ func Load() Config {
 		},
 		Synchronizer: synchronizer.Config{
 			Etherman: etherman.Config{
-				PrivateKeyPath:     "../test/test.keystore",
+				PrivateKeyPath:     "./test/test.keystore",
 				PrivateKeyPassword: "testonly"},
 		},
 		Sequencer: sequencer.Config{
