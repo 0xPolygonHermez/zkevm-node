@@ -1,12 +1,11 @@
 package config
 
 import (
-	"fmt"
+	"bytes"
 	"log"
+	"path/filepath"
 	"strings"
 
-	"github.com/go-playground/validator/v10"
-	configLibrary "github.com/hermeznetwork/go-hermez-config"
 	"github.com/hermeznetwork/hermez-core/aggregator"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
@@ -14,6 +13,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
+	"github.com/spf13/viper"
+	"github.com/mitchellh/mapstructure"
 )
 
 // Config represents the configuration of the entire Hermez Node
@@ -30,17 +31,32 @@ type Config struct {
 // Load loads the configuration
 func Load(configFilePath string) (*Config, error) {
 	var cfg Config
-	err := configLibrary.LoadConfig(configFilePath, DefaultValues, &cfg)
+	viper.SetConfigType("toml")
+
+	viper.ReadConfig(bytes.NewBuffer([]byte(DefaultValues)))
+	err := viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
 	if err != nil {
-		//Split errors depending on if there is a file error, a env error or a default error
-		if strings.Contains(err.Error(), "default") {
-			return nil, err
-		}
-		log.Println(err.Error())
+		return nil, err
 	}
-	validate := validator.New()
-	if err := validate.Struct(cfg); err != nil {
-		return nil, fmt.Errorf("error validating configuration file: %w", err)
+	path, fullFile := filepath.Split(configFilePath)
+
+	file := strings.Split(fullFile, ".")
+
+	viper.AddConfigPath(path)
+	viper.SetConfigName(file[0])
+	viper.SetConfigType(file[1])
+	viper.AutomaticEnv()
+	replacer := strings.NewReplacer(".", "_")
+	viper.SetEnvKeyReplacer(replacer)
+	viper.SetEnvPrefix("HERMEZCORE")
+	err = viper.ReadInConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
+	if err != nil {
+		return nil, err
 	}
 	log.Printf("Configuration loaded: %+v", cfg)
 	return &cfg, nil

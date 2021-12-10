@@ -2,8 +2,8 @@ package jsonrpc
 
 // Config represents the configuration of the json rpc
 type Config struct {
-	Host string `env:"HERMEZCORE_RPC_HOST"`
-	Port int    `env:"HERMEZCORE_RPC_PORT"`
+	Host string `mapstructure:"Host"`
+	Port int    `mapstructure:"Port"`
 
-	ChainID uint64 `env:"HERMEZCORE_RPC_CHAINID"`
+	ChainID uint64 `mapstructure:"ChainID"`
 }

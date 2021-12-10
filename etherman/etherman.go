@@ -64,12 +64,12 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
 		return nil, err
 	}
 	//Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddress, ethClient)
+	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddress.Address, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, cfg.PoEAddress)
+	scAddresses = append(scAddresses, cfg.PoEAddress.Address)
 
 	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, auth: auth}, nil
 }

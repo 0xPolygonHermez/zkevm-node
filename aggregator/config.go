@@ -25,7 +25,7 @@ func (d *Duration) UnmarshalText(data []byte) error {
 type Config struct {
 	// IntervalToConsolidateState is the time the aggregator waits until
 	// trying to consolidate a new state
-	IntervalToConsolidateState Duration `env:"HERMEZCORE_AGGREGATOR_INTERVALTOCONSOLIDATESTATE"`
+	IntervalToConsolidateState Duration `mapstructure:"IntervalToConsolidateState"`
 
 	// Etherman is the configuration required by etherman to interact with L1
 	Etherman etherman.Config

@@ -25,11 +25,11 @@ func (d *Duration) UnmarshalText(data []byte) error {
 type Config struct {
 	// IntervalToProposeBatch is the time the sequencer waits until
 	// trying to propose a batch
-	IntervalToProposeBatch Duration `env:"HERMEZCORE_SEQUENCER_INTERVALTOPROPOSEBATCH"`
+	IntervalToProposeBatch Duration `mapstructure:"IntervalToProposeBatch"`
 
 	// SyncedBlockDif is the difference, how many block left to sync. So if sequencer see, that
 	// X amount of blocks are left to sync, it will start to select txs
-	SyncedBlockDif uint64 `env:"HERMEZCORE_SEQUENCER_SYNCEDBLOCKDIF"`
+	SyncedBlockDif uint64 `mapstructure:"SyncedBlockDif"`
 
 	// Etherman is the configuration required by etherman to interact with L1
 	Etherman etherman.Config
