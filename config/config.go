@@ -5,6 +5,8 @@ import (
 	"log"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
+	configLibrary "github.com/hermeznetwork/go-hermez-config"
 	"github.com/hermeznetwork/hermez-core/aggregator"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
@@ -12,8 +14,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
-	configLibrary "github.com/hermeznetwork/go-hermez-config"
-	"github.com/go-playground/validator/v10"
 )
 
 // Config represents the configuration of the entire Hermez Node

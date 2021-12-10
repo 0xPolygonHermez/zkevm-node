@@ -35,7 +35,7 @@ var cfg = config.Config{
 		Outputs: []string{"stdout"},
 	},
 	Database: db.Config{
-		Name: "polygon-hermez",
+		Name:     "polygon-hermez",
 		User:     "hermez",
 		Password: "polygon",
 		Host:     "localhost",

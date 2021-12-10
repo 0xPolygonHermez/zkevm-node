@@ -21,7 +21,6 @@ func (d *Duration) UnmarshalText(data []byte) error {
 	return nil
 }
 
-
 // Config represents the configuration of the aggregator
 type Config struct {
 	// IntervalToConsolidateState is the time the aggregator waits until

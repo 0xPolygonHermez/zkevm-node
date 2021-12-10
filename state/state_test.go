@@ -40,7 +40,7 @@ var (
 
 // TODO: understand, from where should we get config for tests. This is temporary
 var cfg = db.Config{
-	Name: "polygon-hermez",
+	Name:     "polygon-hermez",
 	User:     "hermez",
 	Password: "polygon",
 	Host:     "localhost",

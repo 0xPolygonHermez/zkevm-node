@@ -215,7 +215,6 @@ func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
 	return auth, nil
 }
 
-
 func versionCmd(*cli.Context) error {
 	fmt.Printf("Version = \"%v\"\n", version)
 	fmt.Printf("Build = \"%v\"\n", commit)
