@@ -88,14 +88,10 @@ func NewState(db *pgxpool.Pool, tree tree.ReadWriter) State {
 
 // NewBatchProcessor creates a new batch processor
 func (s *BasicState) NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) (BatchProcessor, error) {
-	var stateRoot []byte
 	// init correct state root from previous batch
-	if lastBatchNumber >= 0 {
-		root, err := s.GetStateRootByBatchNumber(uint64(lastBatchNumber))
-		if err != nil {
-			return nil, err
-		}
-		stateRoot = root
+	stateRoot, err := s.GetStateRootByBatchNumber(lastBatchNumber)
+	if err != nil {
+		return nil, err
 	}
 
 	s.Tree.SetCurrentRoot(stateRoot)

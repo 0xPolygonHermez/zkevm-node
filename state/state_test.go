@@ -432,7 +432,7 @@ func TestStateTransition(t *testing.T) {
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
 			}
 
-			for gaddr, _ := range genesis.Balances {
+			for gaddr := range genesis.Balances {
 				balance, err := stateTree.GetBalance(gaddr, nil)
 				require.NoError(t, err)
 				assert.Equal(t, big.NewInt(0), balance)
