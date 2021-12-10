@@ -64,7 +64,7 @@ func (a *Aggregator) Start() {
 
 	for {
 		select {
-		case <-time.After(a.cfg.IntervalToConsolidateState):
+		case <-time.After(a.cfg.IntervalToConsolidateState.Duration):
 			// 1. check, if state is synced
 			lastSyncedBatchNum, err := a.State.GetLastBatchNumber(a.ctx)
 			if err != nil {

@@ -1,21 +1,24 @@
 package config
 
 import (
-	"time"
+	"fmt"
+	"log"
+	"strings"
 
 	"github.com/hermeznetwork/hermez-core/aggregator"
 	"github.com/hermeznetwork/hermez-core/db"
-	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
-	"github.com/hermeznetwork/hermez-core/log"
+	logger "github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
+	configLibrary "github.com/hermeznetwork/go-hermez-config"
+	"github.com/go-playground/validator/v10"
 )
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	Log          log.Config
+	Log          logger.Config
 	Database     db.Config
 	Synchronizer synchronizer.Config
 	RPC          jsonrpc.Config
@@ -25,42 +28,20 @@ type Config struct {
 }
 
 // Load loads the configuration
-func Load() Config {
-	// TODO: load from config file
-	//nolint:gomnd
-	return Config{
-		Log: log.Config{
-			Level:   "debug",
-			Outputs: []string{"stdout"},
-		},
-		Database: db.Config{
-			Database: "polygon-hermez",
-			User:     "hermez",
-			Password: "polygon",
-			Host:     "localhost",
-			Port:     "5432",
-		},
-		RPC: jsonrpc.Config{
-			Host: "",
-			Port: 8123,
-
-			ChainID: 2576980377, // 0x99999999,
-		},
-		Synchronizer: synchronizer.Config{
-			Etherman: etherman.Config{
-				PrivateKeyPath:     "../test/test.keystore",
-				PrivateKeyPassword: "testonly"},
-		},
-		Sequencer: sequencer.Config{
-			IntervalToProposeBatch: 15 * time.Second,
-			Etherman:               etherman.Config{},
-		},
-		Aggregator: aggregator.Config{
-			IntervalToConsolidateState: 3 * time.Second,
-			Etherman:                   etherman.Config{},
-		},
-		Prover: proverclient.Config{
-			ProverURI: "0.0.0.0:50051",
-		},
+func Load(configFilePath string) (*Config, error) {
+	var cfg Config
+	err := configLibrary.LoadConfig(configFilePath, DefaultValues, &cfg)
+	if err != nil {
+		//Split errors depending on if there is a file error, a env error or a default error
+		if strings.Contains(err.Error(), "default") {
+			return nil, err
+		}
+		log.Println(err.Error())
 	}
+	validate := validator.New()
+	if err := validate.Struct(cfg); err != nil {
+		return nil, fmt.Errorf("error validating configuration file: %w", err)
+	}
+	log.Printf("Configuration loaded: %+v", cfg)
+	return &cfg, nil
 }
