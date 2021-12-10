@@ -32,6 +32,11 @@ var (
 	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 )
 
+var (
+	// ErrNotFound is used when the object is not found
+	ErrNotFound = errors.New("Not found")
+)
+
 // EtherMan represents an Ethereum Manager
 type EtherMan interface {
 	EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error)
@@ -79,7 +84,10 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
 func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
 	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 	if err != nil {
-		return &types.Block{}, err
+		if errors.Is(err, ethereum.NotFound) || err.Error() == "block does not exist in blockchain" {
+			return nil, ErrNotFound
+		}
+		return nil, err
 	}
 	return block, nil
 }
@@ -227,6 +235,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
 		var head types.Header
 		head.TxHash = vLog.TxHash
+		head.Difficulty = big.NewInt(0)
+		head.Number = big.NewInt(0).SetUint64(batch.BatchNumber)
 		batch.Header = &head
 		block.BlockNumber = vLog.BlockNumber
 		batch.BlockNumber = vLog.BlockNumber

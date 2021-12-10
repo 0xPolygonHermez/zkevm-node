@@ -280,7 +280,17 @@ func (s *BasicState) GetLastBatchNumber(ctx context.Context) (uint64, error) {
 
 // GetNonce returns the nonce of the given account at the given batch number
 func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint64, error) {
-	panic("not implemented yet")
+	root, err := s.GetStateRootByBatchNumber(batchNumber)
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := s.Tree.GetNonce(address, root)
+	if err != nil {
+		return 0, err
+	}
+
+	return n.Uint64(), nil
 }
 
 // GetTransactionByBatchHashAndIndex gets a transaction from a batch by index
@@ -425,8 +435,9 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 
 	// Generate Genesis Batch
 	batch := &Batch{
-		BatchNumber: 0,
-		BlockNumber: 0,
+		BatchNumber:        0,
+		BlockNumber:        0,
+		ConsolidatedTxHash: common.HexToHash("0x1"),
 	}
 
 	// Store batch into db

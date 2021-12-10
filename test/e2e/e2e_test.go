@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -79,36 +80,22 @@ func TestStateTransition(t *testing.T) {
 
 			// init database instance
 			err = dbutils.InitOrReset(cfg.Database)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
 
 			//connect to db
 			sqlDB, err := db.NewSQLDB(cfg.Database)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
 
 			// create pool
 			pl, err := pool.NewPostgresPool(cfg.Database)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
 
 			// create etherman
 			auth, err := newAuthFromKeystore(cfg.Etherman.PrivateKeyPath, cfg.Etherman.PrivateKeyPassword)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
+
 			etherman, commit, err := etherman.NewSimulatedEtherman(cfg.Etherman, auth)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
 
 			// create state
 			tr := tree.NewStateTree(sqlDB, []byte{})
@@ -121,10 +108,7 @@ func TestStateTransition(t *testing.T) {
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &b
 			}
 			err = st.SetGenesis(ctx, genesis)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
 
 			// check root
 			// root, err := st.GetStateRoot(ctx, true)
@@ -141,48 +125,35 @@ func TestStateTransition(t *testing.T) {
 
 			// start synchronizer
 			sy, err := synchronizer.NewSynchronizer(etherman, st, cfg.Synchronizer)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
 			go func(t *testing.T, s synchronizer.Synchronizer) {
-				if err := sy.Sync(); err != nil {
-					t.Error(err)
-					return
-				}
+				err := sy.Sync()
+				require.NoError(t, err)
 			}(t, sy)
 
 			// start sequencer
 			_, err = etherman.PoE.RegisterSequencer(auth, cfg.Sequencer.URL)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
+
 			// mine next block with sequencer registration
 			commit()
 
 			// wait sequencer registration to be synchronized
 			time.Sleep(3 * time.Second)
 
+			// create sequencer
 			seq, err := sequencer.NewSequencer(cfg.Sequencer, pl, st, etherman)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
 			go seq.Start()
 
 			// start rpc server
 			stSeq, err := st.GetSequencer(ctx, cfg.Sequencer.URL)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
+
 			rpcServer := jsonrpc.NewServer(cfg.RPC, stSeq.ChainID.Uint64(), pl, st)
 			go func(t *testing.T, s *jsonrpc.Server) {
-				if err := s.Start(); err != nil {
-					t.Error(err)
-					return
-				}
+				err := s.Start()
+				require.NoError(t, err)
 			}(t, rpcServer)
 
 			// wait RPC server to be ready
@@ -191,10 +162,7 @@ func TestStateTransition(t *testing.T) {
 			// apply transactions
 			for _, tx := range testCase.Txs {
 				err := sendRawTransaction(tx)
-				if err != nil {
-					t.Error(err)
-					return
-				}
+				require.NoError(t, err)
 			}
 
 			// wait for sequencer to select txs from pool and propose a new batch
@@ -207,10 +175,8 @@ func TestStateTransition(t *testing.T) {
 			time.Sleep(3 * time.Second)
 
 			// shutdown rpc server
-			if err := rpcServer.Stop(); err != nil {
-				t.Error(err)
-				return
-			}
+			err = rpcServer.Stop()
+			require.NoError(t, err)
 
 			// stop synchronizer
 			sy.Stop()
@@ -220,10 +186,7 @@ func TestStateTransition(t *testing.T) {
 
 			// check state against the expected state
 			// root, err = st.GetStateRoot(ctx, true)
-			// if err != nil {
-			// 	t.Error(err)
-			// 	return
-			// }
+			// require.NoError(t, err)
 			// expectedNewRoot, ok := big.NewInt(0).SetString(testCase.ExpectedNewRoot, 10)
 			// if !ok {
 			// 	t.Error(fmt.Errorf("Failed to read ExpectedNewRoot"))
@@ -239,11 +202,11 @@ func TestStateTransition(t *testing.T) {
 
 				actualBalance, err := st.GetBalance(addr, batchNumber)
 				require.NoError(t, err)
-				assert.Equal(t, 0, leaf.Balance.Cmp(actualBalance))
+				assert.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("leaf.Balance: %s actualBalance: %s", leaf.Balance.Text(10), actualBalance.Text(10)))
 
 				actualNonce, err := st.GetNonce(addr, batchNumber)
 				require.NoError(t, err)
-				assert.Equal(t, leaf.Nonce, actualNonce)
+				assert.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, 10), fmt.Sprintf("leaf.Nonce: %s actualNonce: %d", leaf.Nonce, actualNonce))
 			}
 		})
 	}

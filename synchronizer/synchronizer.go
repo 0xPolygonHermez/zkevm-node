@@ -2,6 +2,7 @@ package synchronizer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -89,7 +90,11 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	}
 
 	//Call the blockchain to retrieve data
-	blocks, err := s.etherMan.GetBatchesByBlockRange(s.ctx, lastEthBlockSynced.BlockNumber+1, nil)
+	var fromBlock uint64 = 0
+	if lastEthBlockSynced.BlockNumber > 0 {
+		fromBlock = lastEthBlockSynced.BlockNumber + 1
+	}
+	blocks, err := s.etherMan.GetBatchesByBlockRange(s.ctx, fromBlock, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +156,9 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 	for {
 		block, err := s.etherMan.EthBlockByNumber(s.ctx, latestBlock.BlockNumber)
 		if err != nil {
+			if errors.Is(err, etherman.ErrNotFound) {
+				return nil, nil
+			}
 			return nil, err
 		}
 		if block.NumberU64() != latestBlock.BlockNumber {
@@ -160,7 +168,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 				latestBlock.BlockNumber, block.NumberU64())
 		}
 		//Compare hashes
-		if block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash {
+		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > 0 {
 			//Reorg detected. Getting previous block
 			latestBlock, err = s.state.GetBlockByNumber(s.ctx, latestBlock.BlockNumber-1)
 			if err != nil {

@@ -17,7 +17,7 @@ func NewState() state.State {
 }
 
 func (s *StateMock) NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) (state.BatchProcessor, error) {
-	return &state.BasicBatchProcessor{}, nil
+	return &BatchProcessorMock{}, nil
 }
 
 func (s *StateMock) NewGenesisBatchProcessor(genesisStateRoot []byte, withProofCalculation bool) (state.BatchProcessor, error) {
@@ -123,7 +123,7 @@ func (s *StateMock) AddSequencer(ctx context.Context, seq state.Sequencer) error
 }
 
 func (s *StateMock) GetSequencer(ctx context.Context, url string) (*state.Sequencer, error) {
-	return nil, nil
+	return &state.Sequencer{ChainID: big.NewInt(9999999)}, nil
 }
 
 func (s *StateMock) SetGenesis(ctx context.Context, genesis state.Genesis) error {

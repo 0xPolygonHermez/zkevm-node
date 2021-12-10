@@ -101,13 +101,21 @@ func runSynchronizer(c synchronizer.Config, etherman *etherman.ClientEtherMan, s
 	}
 }
 
-func runJSONRpcServer(jc jsonrpc.Config, sc sequencer.Config, pool pool.Pool, state state.State) {
-	seq, err := state.GetSequencer(context.Background(), sc.URL)
-	if err != nil {
-		log.Fatal(err)
+func runJSONRpcServer(jc jsonrpc.Config, sc sequencer.Config, pool pool.Pool, st state.State) {
+	var err error
+	var seq *state.Sequencer
+
+	for {
+		seq, err = st.GetSequencer(context.Background(), sc.URL)
+		if err != nil {
+			log.Infof("Sequencer %s not registered, err: %v", sc.URL, err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		break
 	}
 
-	if err := jsonrpc.NewServer(jc, seq.ChainID.Uint64(), pool, state).Start(); err != nil {
+	if err := jsonrpc.NewServer(jc, seq.ChainID.Uint64(), pool, st).Start(); err != nil {
 		log.Fatal(err)
 	}
 }

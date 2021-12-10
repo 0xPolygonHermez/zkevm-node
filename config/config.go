@@ -51,6 +51,7 @@ func Load() Config {
 		Synchronizer: synchronizer.Config{},
 		Sequencer: sequencer.Config{
 			IntervalToProposeBatch: 15 * time.Second,
+			URL:                    "http://localhost",
 		},
 		Aggregator: aggregator.Config{
 			IntervalToConsolidateState: 3 * time.Second,
