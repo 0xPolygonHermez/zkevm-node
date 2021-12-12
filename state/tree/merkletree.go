@@ -36,7 +36,7 @@ const (
 // MerkleTree implements merkle tree
 type MerkleTree struct {
 	db           *pgxpool.Pool
-	hashFunction interface{}
+	hashFunction HashFunction
 	arity        uint8
 	maxLevels    uint16
 	mask         *big.Int
@@ -66,12 +66,17 @@ type Proof struct {
 	InsValue *big.Int
 }
 
+type HashFunction func(inputs []*big.Int) (*big.Int, error)
+
 // NewMerkleTree creates new MerkleTree instance
-func NewMerkleTree(db *pgxpool.Pool, arity uint8, hash interface{}) *MerkleTree {
+func NewMerkleTree(db *pgxpool.Pool, arity uint8, hashFunction HashFunction) *MerkleTree {
+	if hashFunction == nil {
+		hashFunction = poseidon.Hash
+	}
 	return &MerkleTree{
 		db:           db,
 		arity:        arity,
-		hashFunction: hash,
+		hashFunction: hashFunction,
 		mask:         big.NewInt(1<<arity - 1),
 		maxLevels:    uint16(addrLength / arity),
 	}
@@ -450,7 +455,7 @@ func (mt *MerkleTree) splitKey(key *big.Int) []uint {
 }
 
 func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []*big.Int) (*big.Int, error) {
-	hash, err := poseidon.Hash(nodeData)
+	hash, err := mt.hashFunction(nodeData)
 	if err != nil {
 		return nil, err
 	}
