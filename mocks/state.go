@@ -122,7 +122,7 @@ func (s *StateMock) AddSequencer(ctx context.Context, seq state.Sequencer) error
 	return nil
 }
 
-func (s *StateMock) GetSequencer(ctx context.Context, url string) (*state.Sequencer, error) {
+func (s *StateMock) GetSequencer(ctx context.Context, address common.Address) (*state.Sequencer, error) {
 	return &state.Sequencer{ChainID: big.NewInt(9999999)}, nil
 }
 

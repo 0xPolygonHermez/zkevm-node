@@ -34,6 +34,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	sequencerURL = "http://localhost"
+)
+
 //nolint:gomnd
 var cfg = config.Config{
 	Log: log.Config{
@@ -58,7 +62,6 @@ var cfg = config.Config{
 	Synchronizer: synchronizer.Config{},
 	Sequencer: sequencer.Config{
 		IntervalToProposeBatch: 1 * time.Second,
-		URL:                    "https://localhost",
 	},
 	Aggregator: aggregator.Config{},
 }
@@ -66,10 +69,7 @@ var cfg = config.Config{
 // TestStateTransition tests state transitions using the vector
 func TestStateTransition(t *testing.T) {
 	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/state-transition.json")
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err)
 
 	// init log
 	log.Init(cfg.Log)
@@ -110,18 +110,12 @@ func TestStateTransition(t *testing.T) {
 			err = st.SetGenesis(ctx, genesis)
 			require.NoError(t, err)
 
-			// check root
-			// root, err := st.GetStateRoot(ctx, true)
-			// if err != nil {
-			// 	t.Error(err)
-			// 	return
-			// }
-			// expectedOldRoot, ok := big.NewInt(0).SetString(testCase.ExpectedOldRoot, 10)
-			// if !ok {
-			// 	t.Error(fmt.Errorf("Failed to read ExpectedOldRoot"))
-			// 	return
-			// }
-			// assert.Equal(t, expectedOldRoot.Cmp(root), 0, "Invalid old root")
+			// check initial root
+			root, err := st.GetStateRoot(ctx, true)
+			require.NoError(t, err)
+
+			strRoot := new(big.Int).SetBytes(root).String()
+			assert.Equal(t, testCase.ExpectedOldRoot, strRoot, "Invalid old root")
 
 			// start synchronizer
 			sy, err := synchronizer.NewSynchronizer(etherman, st, cfg.Synchronizer)
@@ -132,14 +126,14 @@ func TestStateTransition(t *testing.T) {
 			}(t, sy)
 
 			// start sequencer
-			_, err = etherman.PoE.RegisterSequencer(auth, cfg.Sequencer.URL)
+			_, err = etherman.PoE.RegisterSequencer(auth, sequencerURL)
 			require.NoError(t, err)
 
 			// mine next block with sequencer registration
 			commit()
 
 			// wait sequencer registration to be synchronized
-			time.Sleep(3 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			// create sequencer
 			seq, err := sequencer.NewSequencer(cfg.Sequencer, pl, st, etherman)
@@ -147,7 +141,9 @@ func TestStateTransition(t *testing.T) {
 			go seq.Start()
 
 			// start rpc server
-			stSeq, err := st.GetSequencer(ctx, cfg.Sequencer.URL)
+			key, err := newKeyFromKeystore(cfg.Etherman.PrivateKeyPath, cfg.Etherman.PrivateKeyPassword)
+			require.NoError(t, err)
+			stSeq, err := st.GetSequencer(ctx, key.Address)
 			require.NoError(t, err)
 
 			rpcServer := jsonrpc.NewServer(cfg.RPC, stSeq.ChainID.Uint64(), pl, st)
@@ -157,7 +153,7 @@ func TestStateTransition(t *testing.T) {
 			}(t, rpcServer)
 
 			// wait RPC server to be ready
-			time.Sleep(1 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			// apply transactions
 			for _, tx := range testCase.Txs {
@@ -166,13 +162,13 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// wait for sequencer to select txs from pool and propose a new batch
-			time.Sleep(3 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			// mine next block with batch propostal
 			commit()
 
 			// wait for the synchronizer to update state
-			time.Sleep(3 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			// shutdown rpc server
 			err = rpcServer.Stop()
@@ -185,14 +181,10 @@ func TestStateTransition(t *testing.T) {
 			seq.Stop()
 
 			// check state against the expected state
-			// root, err = st.GetStateRoot(ctx, true)
-			// require.NoError(t, err)
-			// expectedNewRoot, ok := big.NewInt(0).SetString(testCase.ExpectedNewRoot, 10)
-			// if !ok {
-			// 	t.Error(fmt.Errorf("Failed to read ExpectedNewRoot"))
-			// 	return
-			// }
-			// assert.Equal(t, expectedNewRoot.Cmp(root), 0, "Invalid new root")
+			root, err = st.GetStateRoot(ctx, true)
+			require.NoError(t, err)
+			strRoot = new(big.Int).SetBytes(root).String()
+			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
 
 			// check leafs
 			batchNumber, err := st.GetLastBatchNumber(ctx)
@@ -247,9 +239,8 @@ func sendRawTransaction(tx vectors.Tx) error {
 	return nil
 }
 
-func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
+func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 	if path == "" && password == "" {
-		log.Info("lol")
 		return nil, nil
 	}
 	keystoreEncrypted, err := ioutil.ReadFile(filepath.Clean(path))
@@ -259,6 +250,14 @@ func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
 	key, err := keystore.DecryptKey(keystoreEncrypted, password)
 	if err != nil {
 		return nil, err
+	}
+	return key, nil
+}
+
+func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
+	key, err := newKeyFromKeystore(path, password)
+	if err != nil {
+		log.Fatal(err)
 	}
 	log.Info("addr: ", key.Address.Hex())
 	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, big.NewInt(1337)) //nolint:gomnd

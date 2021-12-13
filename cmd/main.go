@@ -16,33 +16,40 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/mocks"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 )
 
 func main() {
 	c := config.Load()
 	setupLog(c.Log)
+
 	runMigrations(c.Database)
+
 	etherman, err := newSimulatedEtherman(c.Etherman)
 	if err != nil {
 		log.Fatal(err)
 	}
-	state := mocks.NewState()
+
+	sqlDB, err := db.NewSQLDB(c.Database)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tr := tree.NewStateTree(sqlDB, []byte{})
+	st := state.NewState(sqlDB, tr)
+
 	pool, err := pool.NewPostgresPool(c.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err != nil {
-		log.Fatal(err)
-	}
+
 	//proverClient, conn := newProverClient(c.Prover)
-	go runSynchronizer(c.Synchronizer, etherman, state)
-	go runJSONRpcServer(c.RPC, c.Sequencer, pool, state)
-	go runSequencer(c.Sequencer, etherman, pool, state)
+	go runSynchronizer(c.Synchronizer, etherman, st)
+	go runJSONRpcServer(c.RPC, c.Etherman, pool, st)
+	go runSequencer(c.Sequencer, etherman, pool, st)
 	//go runAggregator(c.Aggregator, etherman, proverClient, state)
 	//waitSignal(conn)
 	waitSignal()
@@ -101,14 +108,21 @@ func runSynchronizer(c synchronizer.Config, etherman *etherman.ClientEtherMan, s
 	}
 }
 
-func runJSONRpcServer(jc jsonrpc.Config, sc sequencer.Config, pool pool.Pool, st state.State) {
+func runJSONRpcServer(jc jsonrpc.Config, ec etherman.Config, pool pool.Pool, st state.State) {
 	var err error
 	var seq *state.Sequencer
 
+	key, err := newKeyFromKeystore(ec.PrivateKeyPath, ec.PrivateKeyPassword)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	seqAddress := key.Address
+
 	for {
-		seq, err = st.GetSequencer(context.Background(), sc.URL)
+		seq, err = st.GetSequencer(context.Background(), seqAddress)
 		if err != nil {
-			log.Infof("Sequencer %s not registered, err: %v", sc.URL, err)
+			log.Infof("No sequencer registered for address %s, err: %v", seqAddress.Hex(), err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -151,7 +165,7 @@ func waitSignal() {
 	}
 }
 
-func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
+func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 	if path == "" && password == "" {
 		return nil, nil
 	}
@@ -162,6 +176,14 @@ func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
 	key, err := keystore.DecryptKey(keystoreEncrypted, password)
 	if err != nil {
 		return nil, err
+	}
+	return key, nil
+}
+
+func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
+	key, err := newKeyFromKeystore(path, password)
+	if err != nil {
+		log.Fatal(err)
 	}
 	log.Info("addr: ", key.Address.Hex())
 	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, big.NewInt(1337)) //nolint:gomnd
