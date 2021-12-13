@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -21,10 +22,61 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
+	"github.com/urfave/cli/v2"
+)
+
+const flagCfg = "cfg"
+
+var (
+	// version represents the program based on the git tag
+	version = "v0.1.0"
+	// commit represents the program based on the git commit
+	commit = "dev"
+	// date represents the date of application was built
+	date = ""
 )
 
 func main() {
-	c := config.Load()
+	app := cli.NewApp()
+	app.Name = "hermez-node"
+	app.Version = version
+	flags := []cli.Flag{
+		&cli.StringFlag{
+			Name:     flagCfg,
+			Usage:    "Configuration `FILE`",
+			Required: false,
+		},
+	}
+	app.Commands = []*cli.Command{
+		{
+			Name:    "version",
+			Aliases: []string{},
+			Usage:   "Application version and build",
+			Action:  versionCmd,
+		},
+		{
+			Name:    "run",
+			Aliases: []string{},
+			Usage:   "Run the hermez core",
+			Action:  start,
+			Flags:   flags,
+		},
+	}
+
+	err := app.Run(os.Args)
+	if err != nil {
+		fmt.Printf("\nError: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func start(ctx *cli.Context) error {
+	configFilePath := ctx.String(flagCfg)
+	c, err := config.Load(configFilePath)
+	if err != nil {
+		return err
+	}
+	// c := config.Load()
 	setupLog(c.Log)
 
 	runMigrations(c.Database)
@@ -32,11 +84,13 @@ func main() {
 	etherman, err := newSimulatedEtherman(c.Etherman)
 	if err != nil {
 		log.Fatal(err)
+		return err
 	}
 
 	sqlDB, err := db.NewSQLDB(c.Database)
 	if err != nil {
 		log.Fatal(err)
+		return err
 	}
 	tr := tree.NewStateTree(sqlDB, []byte{})
 	st := state.NewState(sqlDB, tr)
@@ -44,6 +98,7 @@ func main() {
 	pool, err := pool.NewPostgresPool(c.Database)
 	if err != nil {
 		log.Fatal(err)
+		return err
 	}
 
 	//proverClient, conn := newProverClient(c.Prover)
@@ -53,6 +108,7 @@ func main() {
 	//go runAggregator(c.Aggregator, etherman, proverClient, state)
 	//waitSignal(conn)
 	waitSignal()
+	return nil
 }
 
 func setupLog(c log.Config) {
@@ -192,4 +248,11 @@ func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
 	}
 	auth.GasLimit = 99999999999
 	return auth, nil
+}
+
+func versionCmd(*cli.Context) error {
+	fmt.Printf("Version = \"%v\"\n", version)
+	fmt.Printf("Build = \"%v\"\n", commit)
+	fmt.Printf("Date = \"%v\"\n", date)
+	return nil
 }

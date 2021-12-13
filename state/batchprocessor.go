@@ -215,7 +215,7 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, *Proof, error)
 		batch.Header.Root = root
 	}
 
-	err := b.State.addBatch(ctx, batch)
+	err := b.addBatch(ctx, batch)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -232,8 +232,8 @@ func (b *BasicBatchProcessor) rollback() error {
 }
 */
 
-func (s *BasicState) addBatch(ctx context.Context, batch *Batch) error {
-	_, err := s.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator,
+func (b *BasicBatchProcessor) addBatch(ctx context.Context, batch *Batch) error {
+	_, err := b.State.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator,
 		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData)
 	return err
 }

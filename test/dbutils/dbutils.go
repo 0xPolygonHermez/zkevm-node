@@ -39,7 +39,7 @@ func InitOrReset(cfg db.Config) error {
 // see https://www.postgresql.org/docs/11/libpq-envars.html for details
 func NewConfigFromEnv() db.Config {
 	return db.Config{
-		Database: getEnv("PGDATABASE", "polygon-hermez"),
+		Name:     getEnv("PGDATABASE", "polygon-hermez"),
 		User:     getEnv("PGUSER", "hermez"),
 		Password: getEnv("PGPASSWORD", "polygon"),
 		Host:     getEnv("PGHOST", "localhost"),

@@ -48,7 +48,7 @@ func (s *Sequencer) Start() {
 	// Infinite for loop:
 	for {
 		select {
-		case <-time.After(s.cfg.IntervalToProposeBatch):
+		case <-time.After(s.cfg.IntervalToProposeBatch.Duration):
 
 			// 1. Wait for synchronizer to sync last batch
 			lastSyncedBatchNum, err := s.State.GetLastBatchNumber(s.ctx)

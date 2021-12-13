@@ -45,7 +45,7 @@ var cfg = config.Config{
 		Outputs: []string{"stdout"},
 	},
 	Database: db.Config{
-		Database: "polygon-hermez",
+		Name:     "polygon-hermez",
 		User:     "hermez",
 		Password: "polygon",
 		Host:     "localhost",
@@ -61,13 +61,18 @@ var cfg = config.Config{
 	},
 	Synchronizer: synchronizer.Config{},
 	Sequencer: sequencer.Config{
-		IntervalToProposeBatch: 1 * time.Second,
+		IntervalToProposeBatch: sequencer.Duration{Duration: 1 * time.Second},
 	},
 	Aggregator: aggregator.Config{},
 }
 
 // TestStateTransition tests state transitions using the vector
 func TestStateTransition(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip()
+	}
+
 	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/state-transition.json")
 	require.NoError(t, err)
 
