@@ -396,11 +396,7 @@ func TestBasicState_AddSequencer(t *testing.T) {
 }
 
 func TestStateTransition(t *testing.T) {
-	// TODO: Improve when roots are validable
-	// Also: check if those TX meant to fail do fail
-	// Optional: check that decoded TX matches the ones in the header of the test case
-
-	// load vector
+	// Load test vector
 	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition.json")
 	if err != nil {
 		t.Error(err)
@@ -452,6 +448,9 @@ func TestStateTransition(t *testing.T) {
 
 			var txs []*types.Transaction
 
+			// Check Old roots
+			assert.Equal(t, testCase.ExpectedOldRoot, new(big.Int).SetBytes(root).String())
+
 			// Create Transaction
 			for _, vectorTx := range testCase.Txs {
 				var tx types.LegacyTx
@@ -488,6 +487,9 @@ func TestStateTransition(t *testing.T) {
 
 			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
 			require.NoError(t, err)
+
+			// Check new roots
+			assert.Equal(t, testCase.ExpectedNewRoot, new(big.Int).SetBytes(root).String())
 
 			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
 				newBalance, err := stateTree.GetBalance(common.HexToAddress(key), root)
