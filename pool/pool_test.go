@@ -9,7 +9,7 @@ import (
 )
 
 var cfg = db.Config{
-	Database: "polygon-hermez",
+	Name:     "polygon-hermez",
 	User:     "hermez",
 	Password: "polygon",
 	Host:     "localhost",

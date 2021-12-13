@@ -35,7 +35,7 @@ var cfg = config.Config{
 		Outputs: []string{"stdout"},
 	},
 	Database: db.Config{
-		Database: "polygon-hermez",
+		Name:     "polygon-hermez",
 		User:     "hermez",
 		Password: "polygon",
 		Host:     "localhost",
@@ -50,10 +50,7 @@ var cfg = config.Config{
 	Synchronizer: synchronizer.Config{
 		Etherman: etherman.Config{},
 	},
-	Sequencer: sequencer.Config{
-		IntervalToProposeBatch: 15 * time.Second,
-		Etherman:               etherman.Config{},
-	},
+	Sequencer: sequencer.Config{},
 	Aggregator: aggregator.Config{
 		Etherman: etherman.Config{},
 	},

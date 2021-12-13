@@ -3,7 +3,7 @@ package log
 // Config for log
 type Config struct {
 	// Level of log, e.g. INFO, WARN, ...
-	Level string
+	Level string `mapstructure:"Level"`
 	// Outputs
-	Outputs []string
+	Outputs []string `mapstructure:"Outputs"`
 }

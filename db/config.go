@@ -3,17 +3,17 @@ package db
 // Config provide fields to configure the pool
 type Config struct {
 	// Database name
-	Database string
+	Name string `mapstructure:"Name"`
 
 	// User name
-	User string
+	User string `mapstructure:"User"`
 
 	// Password of the user
-	Password string
+	Password string `mapstructure:"Password"`
 
 	// Host address
-	Host string
+	Host string `mapstructure:"Host"`
 
 	// Port Number
-	Port string
+	Port string `mapstructure:"Port"`
 }
