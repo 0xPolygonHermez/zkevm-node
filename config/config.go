@@ -38,21 +38,28 @@ func Load(configFilePath string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	path, fullFile := filepath.Split(configFilePath)
+	if configFilePath != "" {
+		path, fullFile := filepath.Split(configFilePath)
 
-	file := strings.Split(fullFile, ".")
+		file := strings.Split(fullFile, ".")
 
-	viper.AddConfigPath(path)
-	viper.SetConfigName(file[0])
-	viper.SetConfigType(file[1])
+		viper.AddConfigPath(path)
+		viper.SetConfigName(file[0])
+		viper.SetConfigType(file[1])
+	}
 	viper.AutomaticEnv()
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
 	viper.SetEnvPrefix("HERMEZCORE")
 	err = viper.ReadInConfig()
 	if err != nil {
-		return nil, err
-	}
+        if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+            log.Println("config file not found")
+        } else {
+			log.Println("error reading config file: ", err)
+			return nil, err
+		}
+    }
 
 	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
 	if err != nil {
