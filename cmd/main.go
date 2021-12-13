@@ -54,7 +54,7 @@ func main() {
 			Action:  versionCmd,
 		},
 		{
-			Name:    "start",
+			Name:    "run",
 			Aliases: []string{},
 			Usage:   "Run the hermez core",
 			Action:  start,
