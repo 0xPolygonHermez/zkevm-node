@@ -13,8 +13,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
-	"github.com/spf13/viper"
 	"github.com/mitchellh/mapstructure"
+	"github.com/spf13/viper"
 )
 
 // Config represents the configuration of the entire Hermez Node
@@ -33,8 +33,11 @@ func Load(configFilePath string) (*Config, error) {
 	var cfg Config
 	viper.SetConfigType("toml")
 
-	viper.ReadConfig(bytes.NewBuffer([]byte(DefaultValues)))
-	err := viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
+	err := viper.ReadConfig(bytes.NewBuffer([]byte(DefaultValues)))
+	if err != nil {
+		return nil, err
+	}
+	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
 	if err != nil {
 		return nil, err
 	}
@@ -53,13 +56,14 @@ func Load(configFilePath string) (*Config, error) {
 	viper.SetEnvPrefix("HERMEZCORE")
 	err = viper.ReadInConfig()
 	if err != nil {
-        if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-            log.Println("config file not found")
-        } else {
+		_, ok := err.(viper.ConfigFileNotFoundError)
+		if ok {
+			log.Println("config file not found")
+		} else {
 			log.Println("error reading config file: ", err)
 			return nil, err
 		}
-    }
+	}
 
 	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
 	if err != nil {

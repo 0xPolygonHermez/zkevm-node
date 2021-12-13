@@ -2,8 +2,6 @@ package etherman
 
 import "github.com/ethereum/go-ethereum/common"
 
-
-
 // Address is a wrapper type that parses time duration from text.
 type Address struct {
 	common.Address `validate:"required"`
