@@ -66,6 +66,7 @@ type Proof struct {
 	InsValue *big.Int
 }
 
+// HashFunction is a function interface type to specify hash function that MT should use
 type HashFunction func(inputs []*big.Int) (*big.Int, error)
 
 // NewMerkleTree creates new MerkleTree instance

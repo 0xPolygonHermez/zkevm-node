@@ -178,7 +178,7 @@ func TestMerkleTreeGenesis(t *testing.T) {
 				nonce, success := new(big.Int).SetString(addrState.Nonce, 10)
 				require.True(t, success)
 
-				newRoot, _, err = tree.SetBalance(addr, balance)
+				_, _, err = tree.SetBalance(addr, balance)
 				require.NoError(t, err)
 
 				newRoot, _, err = tree.SetNonce(addr, nonce)
