@@ -483,7 +483,17 @@ func TestStateTransition(t *testing.T) {
 
 			err = bp.ProcessBatch(batch)
 			require.NoError(t, err)
-			// There may be errors processing Tx, so just check Balances
+
+			// Check Transaction and Receipts
+			transactions, err := state.GetTxsByBatchNum(ctx, batch.BatchNumber)
+			require.NoError(t, err)
+
+			for _, transaction := range transactions {
+				receipt, err := state.GetTransactionReceipt(ctx, transaction.Hash())
+				require.NoError(t, err)
+				assert.Equal(t, transaction.Hash(), receipt.TxHash)
+				assert.Equal(t, state.EstimateGas(transaction), receipt.GasUsed)
+			}
 
 			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
 			require.NoError(t, err)

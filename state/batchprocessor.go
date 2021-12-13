@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 )
 
@@ -29,7 +30,11 @@ type BatchProcessor interface {
 }
 
 const (
-	addBatchSQL = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	addBatchSQL       = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	addTransactionSQL = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num) VALUES($1, $2, $3, $4, $5)"
+	addReceiptSQL     = `INSERT INTO state.receipt 
+						(type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_hash, tx_index)
+						VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 )
 
 // BasicBatchProcessor is used to process a batch of transactions
@@ -40,8 +45,9 @@ type BasicBatchProcessor struct {
 
 // ProcessBatch processes all transactions inside a batch
 func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
+	var receipts []*types.Receipt
 	// TODO: Check if batch is virtual and process accordingly
-	for _, tx := range batch.Transactions {
+	for x, tx := range batch.Transactions {
 		err := b.ProcessTransaction(tx, batch.Sequencer)
 		if err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
@@ -49,12 +55,17 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			log.Infof("Successfully processed transaction %s", tx.Hash().String())
 		}
 
-		// receipt := types.NewReceipt(b.stateRoot, err != nil, 0)
-
-		// TODO: Store receipt, log it to avoid unused linter error
-		// log.Debugf("%v", receipt)
+		// Set TX Receipt
+		receipt := types.NewReceipt(b.stateRoot, err != nil, 0)
+		receipt.Type = tx.Type()
+		receipt.BlockNumber = new(big.Int).SetUint64(batch.BlockNumber)
+		receipt.GasUsed = b.State.EstimateGas(tx)
+		receipt.TxHash = tx.Hash()
+		receipt.TransactionIndex = uint(x)
+		receipts = append(receipts, receipt)
 	}
 
+	batch.Receipts = receipts
 	_, _, err := b.commit(batch)
 
 	return err
@@ -143,17 +154,6 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	// reset MT currentRoot in case it was modified by failed transaction
 	b.State.Tree.SetCurrentRoot(b.stateRoot)
 
-	// Set stateRoot if needed
-	/*
-		if len(b.stateRoot) == 0 {
-			root, err := b.State.Tree.GetCurrentRoot()
-			if err != nil {
-				return sender, nonce, balance, err
-			}
-
-			b.stateRoot = root
-		}
-	*/
 	// Check Signature
 	if err := CheckSignature(tx); err != nil {
 		return sender, nonce, balance, err
@@ -220,6 +220,22 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, *Proof, error)
 		return nil, nil, err
 	}
 
+	// store transactions
+	for _, tx := range batch.Transactions {
+		err := b.addTransaction(ctx, tx, batch.BatchNumber)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// store receipts
+	for _, receipt := range batch.Receipts {
+		err := b.addReceipt(ctx, receipt)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	return nil, nil, nil
 }
 
@@ -235,5 +251,27 @@ func (b *BasicBatchProcessor) rollback() error {
 func (b *BasicBatchProcessor) addBatch(ctx context.Context, batch *Batch) error {
 	_, err := b.State.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator,
 		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData)
+	return err
+}
+
+func (b *BasicBatchProcessor) addTransaction(ctx context.Context, tx *types.Transaction, batchNumber uint64) error {
+	binary, err := tx.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	encoded := hex.EncodeToHex(binary)
+
+	binary, err = tx.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	decoded := string(binary)
+
+	_, err = b.State.db.Exec(ctx, addTransactionSQL, tx.Hash().Bytes(), "", encoded, decoded, batchNumber)
+	return err
+}
+
+func (b *BasicBatchProcessor) addReceipt(ctx context.Context, receipt *types.Receipt) error {
+	_, err := b.State.db.Exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.TxHash.Bytes(), receipt.TransactionIndex)
 	return err
 }
