@@ -9,14 +9,14 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
-	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hermeznetwork/hermez-core/aggregator"
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/db"
@@ -30,6 +30,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
+	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -68,7 +69,6 @@ var cfg = config.Config{
 
 // TestStateTransition tests state transitions using the vector
 func TestStateTransition(t *testing.T) {
-
 	if testing.Short() {
 		t.Skip()
 	}
@@ -95,10 +95,19 @@ func TestStateTransition(t *testing.T) {
 			pl, err := pool.NewPostgresPool(cfg.Database)
 			require.NoError(t, err)
 
-			// create etherman
-			auth, err := newAuthFromKeystore(cfg.Etherman.PrivateKeyPath, cfg.Etherman.PrivateKeyPassword)
-			require.NoError(t, err)
+			// create auth
+			pkHex := strings.TrimPrefix(testCase.SequencerPrivateKey, "0x")
+			privateKey, err := crypto.HexToECDSA(pkHex)
+			if err != nil {
+				log.Fatal(err)
+			}
+			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+			if err != nil {
+				log.Fatal(err)
+			}
+			auth.GasLimit = 99999999999
 
+			// create etherman
 			etherman, commit, err := etherman.NewSimulatedEtherman(cfg.Etherman, auth)
 			require.NoError(t, err)
 
@@ -138,7 +147,19 @@ func TestStateTransition(t *testing.T) {
 			commit()
 
 			// wait sequencer registration to be synchronized
-			time.Sleep(10 * time.Second)
+			require.NoError(t, err)
+			for i := 0; i < 10; i++ {
+				_, err := st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
+				if err == nil {
+					break
+				}
+				if err == pgx.ErrNoRows {
+					time.Sleep(1 * time.Second)
+					continue
+				}
+				require.NoError(t, err, "Sequencer not registered")
+				return
+			}
 
 			// create sequencer
 			seq, err := sequencer.NewSequencer(cfg.Sequencer, pl, st, etherman)
@@ -146,9 +167,7 @@ func TestStateTransition(t *testing.T) {
 			go seq.Start()
 
 			// start rpc server
-			key, err := newKeyFromKeystore(cfg.Etherman.PrivateKeyPath, cfg.Etherman.PrivateKeyPassword)
-			require.NoError(t, err)
-			stSeq, err := st.GetSequencer(ctx, key.Address)
+			stSeq, err := st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
 			require.NoError(t, err)
 
 			rpcServer := jsonrpc.NewServer(cfg.RPC, stSeq.ChainID.Uint64(), pl, st)
@@ -158,22 +177,23 @@ func TestStateTransition(t *testing.T) {
 			}(t, rpcServer)
 
 			// wait RPC server to be ready
-			time.Sleep(10 * time.Second)
+			time.Sleep(3 * time.Second)
 
 			// apply transactions
 			for _, tx := range testCase.Txs {
-				err := sendRawTransaction(tx)
+				rawTx := tx.RawTx
+				err := sendRawTransaction(rawTx)
 				require.NoError(t, err)
 			}
 
 			// wait for sequencer to select txs from pool and propose a new batch
-			time.Sleep(10 * time.Second)
+			time.Sleep(5 * time.Second)
 
 			// mine next block with batch propostal
 			commit()
 
 			// wait for the synchronizer to update state
-			time.Sleep(10 * time.Second)
+			time.Sleep(3 * time.Second)
 
 			// shutdown rpc server
 			err = rpcServer.Stop()
@@ -199,17 +219,17 @@ func TestStateTransition(t *testing.T) {
 
 				actualBalance, err := st.GetBalance(addr, batchNumber)
 				require.NoError(t, err)
-				assert.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("leaf.Balance: %s actualBalance: %s", leaf.Balance.Text(10), actualBalance.Text(10)))
+				assert.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("addr: %s expected: %s found: %s", addr.Hex(), leaf.Balance.Text(10), actualBalance.Text(10)))
 
 				actualNonce, err := st.GetNonce(addr, batchNumber)
 				require.NoError(t, err)
-				assert.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, 10), fmt.Sprintf("leaf.Nonce: %s actualNonce: %d", leaf.Nonce, actualNonce))
+				assert.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, 10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}
 		})
 	}
 }
 
-func sendRawTransaction(tx vectors.Tx) error {
+func sendRawTransaction(rawTx string) error {
 	endpoint := fmt.Sprintf("http://localhost:%d", cfg.RPC.Port)
 	contentType := "application/json"
 
@@ -217,7 +237,7 @@ func sendRawTransaction(tx vectors.Tx) error {
 		"jsonrpc": "2.0",
 		"id":      1,
 		"method":  "eth_sendRawTransaction",
-		"params":  []string{tx.RawTx},
+		"params":  []string{rawTx},
 	}
 
 	jsonStr, _ := json.Marshal(payload)
@@ -242,33 +262,4 @@ func sendRawTransaction(tx vectors.Tx) error {
 	fmt.Println("response Body:", string(body))
 
 	return nil
-}
-
-func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
-	if path == "" && password == "" {
-		return nil, nil
-	}
-	keystoreEncrypted, err := ioutil.ReadFile(filepath.Clean(path))
-	if err != nil {
-		return nil, err
-	}
-	key, err := keystore.DecryptKey(keystoreEncrypted, password)
-	if err != nil {
-		return nil, err
-	}
-	return key, nil
-}
-
-func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
-	key, err := newKeyFromKeystore(path, password)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Info("addr: ", key.Address.Hex())
-	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, big.NewInt(1337)) //nolint:gomnd
-	if err != nil {
-		log.Fatal(err)
-	}
-	auth.GasLimit = 99999999999
-	return auth, nil
 }

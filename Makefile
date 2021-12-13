@@ -27,7 +27,7 @@ test: ## runs only short tests without checking race conditions
 test-full: ## runs all tests checking race conditions
 	$(STOPDB) || true
 	$(STARTDB)
-	go test -race -p 1 ./...
+	go test -race -p 1 -timeout 180s ./...
 	$(STOPDB)
 
 .PHONY: install-linter
