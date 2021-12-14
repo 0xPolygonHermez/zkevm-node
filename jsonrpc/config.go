@@ -4,6 +4,4 @@ package jsonrpc
 type Config struct {
 	Host string `mapstructure:"Host"`
 	Port int    `mapstructure:"Port"`
-
-	ChainID uint64 `mapstructure:"ChainID"`
 }

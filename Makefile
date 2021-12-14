@@ -17,10 +17,17 @@ build: ## Build the binary
 	$(GOENVVARS) go build $(LDFLAGS) -o $(GOBIN)/$(GOBINARY) $(GOCMD)
 
 .PHONY: test
-test: ## runs tests
+test: ## runs only short tests without checking race conditions
 	$(STOPDB) || true
 	$(STARTDB)
-	go test -race -p 1 ./...
+	go test -short -p 1 ./...
+	$(STOPDB)
+
+.PHONY: test-full
+test-full: ## runs all tests checking race conditions
+	$(STOPDB) || true
+	$(STARTDB)
+	go test -race -p 1 -timeout 180s ./...
 	$(STOPDB)
 
 .PHONY: install-linter
@@ -32,7 +39,7 @@ lint: ## runs linter
 	$$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E gosec -E gci -E misspell -E gomnd -E gofmt -E goimports -E golint --exclude-use-default=false --max-same-issues 0
 
 .PHONY: deploy
-deploy: lint test build ## Validate and create the binary to be deployed
+deploy: lint test-full build ## Validate and create the binary to be deployed
 
 .PHONY: run
 run: ## Runs the application

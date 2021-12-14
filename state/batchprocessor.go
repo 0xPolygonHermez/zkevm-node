@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 )
@@ -73,26 +74,40 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 
 // ProcessTransaction processes a transaction inside a batch
 func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error {
+	log.Debugf("processing transaction [%s]: start", tx.Hash().Hex())
+
+	txb, err := tx.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	encoded := hex.EncodeToHex(txb)
+	log.Debugf("processing transaction [%s]: raw: %v", tx.Hash().Hex(), encoded)
+
 	// save stateRoot and modify it only if transaction processing finishes successfully
 	root := b.stateRoot
 
 	// reset MT currentRoot in case it was modified by failed transaction
 	b.State.Tree.SetCurrentRoot(root)
+	log.Debugf("processing transaction [%s]: root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
 	sender, nonce, senderBalance, err := b.CheckTransaction(tx)
-
 	if err != nil {
 		return err
 	}
+	log.Debugf("processing transaction [%s]: sender: %v", tx.Hash().Hex(), sender.Hex())
+	log.Debugf("processing transaction [%s]: nonce: %v", tx.Hash().Hex(), nonce.Text(encoding.Base10))
+	log.Debugf("processing transaction [%s]: sender balance: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
 
 	// Get receiver Balance
 	receiverBalance, err := b.State.Tree.GetBalance(*tx.To(), root)
 	if err != nil {
 		return err
 	}
+	log.Debugf("processing transaction [%s]: receiver balance: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
 
 	// Increase Nonce
 	nonce.Add(nonce, big.NewInt(1))
+	log.Debugf("processing transaction [%s]: new nonce: %v", tx.Hash().Hex(), nonce.Text(encoding.Base10))
 
 	// Store new nonce
 	_, _, err = b.State.Tree.SetNonce(sender, nonce)
@@ -101,11 +116,18 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	}
 
 	// Calculate new balances
-	senderBalance.Sub(senderBalance, tx.Cost())
-	receiverBalance.Add(receiverBalance, tx.Value())
+	cost := tx.Cost()
+	log.Debugf("processing transaction [%s]: cost: %v", tx.Hash().Hex(), cost.Text(encoding.Base10))
+	value := tx.Value()
+	log.Debugf("processing transaction [%s]: value: %v", tx.Hash().Hex(), value.Text(encoding.Base10))
+	senderBalance.Sub(senderBalance, cost)
+	log.Debugf("processing transaction [%s]: sender balance after cost charged: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
+	receiverBalance.Add(receiverBalance, value)
+	log.Debugf("processing transaction [%s]: receiver balance after value added: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
 
 	// Pay gas to the sequencer
 	usedGas := new(big.Int).SetUint64(b.State.EstimateGas(tx))
+	log.Debugf("processing transaction [%s]: used gas: %v", tx.Hash().Hex(), usedGas.Text(encoding.Base10))
 
 	if sequencerAddress == sender {
 		senderBalance.Add(senderBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
@@ -126,7 +148,9 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 
 	// Refund unused gas
 	remainingGas := new(big.Int).SetUint64(tx.Gas() - usedGas.Uint64())
+	log.Debugf("processing transaction [%s]: remaining gas: %v", tx.Hash().Hex(), remainingGas.Text(encoding.Base10))
 	senderBalance.Add(senderBalance, new(big.Int).Mul(remainingGas, tx.GasPrice()))
+	log.Debugf("processing transaction [%s]: sender balance after refund: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
 
 	// Store new balances
 	_, _, err = b.State.Tree.SetBalance(sender, senderBalance)
@@ -140,6 +164,7 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	}
 
 	b.stateRoot = root
+	log.Debugf("processing transaction [%s]: new root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
 	return nil
 }
