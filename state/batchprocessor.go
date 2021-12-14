@@ -61,7 +61,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 		receipt.BlockNumber = new(big.Int).SetUint64(batch.BlockNumber)
 		receipt.GasUsed = b.State.EstimateGas(tx)
 		receipt.TxHash = tx.Hash()
-		receipt.TransactionIndex = uint(x)
+		receipt.TransactionIndex = uint(i)
 		receipts = append(receipts, receipt)
 	}
 
