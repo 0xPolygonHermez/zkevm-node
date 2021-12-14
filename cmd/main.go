@@ -22,6 +22,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/urfave/cli/v2"
 )
 
@@ -92,7 +93,8 @@ func start(ctx *cli.Context) error {
 		log.Fatal(err)
 		return err
 	}
-	tr := tree.NewStateTree(sqlDB, []byte{})
+	mt := tree.NewMerkleTree(sqlDB, c.State.Arity, poseidon.Hash)
+	tr := tree.NewStateTree(mt, []byte{})
 	st := state.NewState(sqlDB, tr)
 
 	pool, err := pool.NewPostgresPool(c.Database)

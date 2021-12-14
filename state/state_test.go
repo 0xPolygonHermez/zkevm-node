@@ -67,7 +67,8 @@ func TestMain(m *testing.M) {
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
 
-	state = NewState(stateDb, tree.NewStateTree(stateDb, nil))
+	mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
+	state = NewState(stateDb, tree.NewStateTree(mt, nil))
 
 	setUpBlocks()
 	setUpBatches()
@@ -415,7 +416,8 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create State tree
-			stateTree := tree.NewStateTree(stateDb, nil)
+			mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
+			stateTree := tree.NewStateTree(mt, nil)
 
 			// Create state
 			st := NewState(stateDb, stateTree)
@@ -483,7 +485,17 @@ func TestStateTransition(t *testing.T) {
 
 			err = bp.ProcessBatch(batch)
 			require.NoError(t, err)
-			// There may be errors processing Tx, so just check Balances
+
+			// Check Transaction and Receipts
+			transactions, err := state.GetTxsByBatchNum(ctx, batch.BatchNumber)
+			require.NoError(t, err)
+
+			for _, transaction := range transactions {
+				receipt, err := state.GetTransactionReceipt(ctx, transaction.Hash())
+				require.NoError(t, err)
+				assert.Equal(t, transaction.Hash(), receipt.TxHash)
+				assert.Equal(t, state.EstimateGas(transaction), receipt.GasUsed)
+			}
 
 			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
 			require.NoError(t, err)

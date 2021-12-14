@@ -35,4 +35,7 @@ IntervalToConsolidateState = "3s"
 
 [Prover]
 ProverURI = "0.0.0.0:50051"
+
+[State]
+Arity = 16
 `

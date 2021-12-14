@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum"
@@ -17,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -135,7 +133,7 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 	if len(txs) == 0 {
 		return nil, errors.New("Invalid txs: is empty slice")
 	}
-	var data []byte
+	var data [][]byte
 	for _, tx := range txs {
 		a := new(bytes.Buffer)
 		err := tx.EncodeRLP(a)
@@ -143,11 +141,15 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 			return nil, err
 		}
 		log.Debug("Coded tx: ", hex.EncodeToString(a.Bytes()))
-		data = append(data, a.Bytes()...)
+		data = append(data, a.Bytes())
 	}
-	log.Debug("Coded txs: ", hex.EncodeToString(data))
+	b := new(bytes.Buffer)
+	err := rlp.Encode(b, data)
+	if err != nil {
+		return nil, err
+	}
 
-	tx, err := etherMan.PoE.SendBatch(etherMan.auth, data, maticAmount)
+	tx, err := etherMan.PoE.SendBatch(etherMan.auth, b.Bytes(), maticAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +260,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		batch.RawTxsData = tx.Data()
 		txs, err := decodeTxs(tx.Data())
 		if err != nil {
-			return nil, err
+			log.Warn("No txs decoded in batch: ", batch.BatchNumber, ". This batch is inside block: ", batch.BlockNumber,
+				". Error: ", err)
 		}
 		batch.Transactions = txs
 		block.Batches = append(block.Batches, batch)
@@ -313,8 +316,6 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 	return nil, fmt.Errorf("Event not registered")
 }
 
-const headerByteLength = 2
-
 func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 	// First split txs
 	// The first two bytes are the header. The information related to the length of the tx is stored in the second byte.
@@ -343,26 +344,22 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 
 	txsData = data[0].([]byte)
 
+	//Decode array of txs
+	var codedTxs [][]byte
+	err = rlp.DecodeBytes(txsData, &codedTxs)
+	if err != nil {
+		log.Debug("error decoding tx bytes: ", err, ". Data: ", hex.EncodeToString(txsData))
+		return nil, err
+	}
+
 	//Process coded txs
-	var pos int64
 	var txs []*types.Transaction
-	for pos < int64(len(txsData)) {
-		length := txsData[pos+1 : pos+2]
-		str := hex.EncodeToString(length)
-		num, err := strconv.ParseInt(str, hex.Base, encoding.BitSize64)
-		if err != nil {
-			log.Warn("error: skipping tx. Err: ", err)
-			continue
-		}
-
-		data := txsData[pos : pos+num+2]
-		pos = pos + num + headerByteLength
-
+	for _, codedTx := range codedTxs {
 		//Decode tx
 		var tx types.LegacyTx
-		err = rlp.DecodeBytes(data, &tx)
+		err = rlp.DecodeBytes(codedTx, &tx)
 		if err != nil {
-			log.Info("error decoding tx bytes: ", err, data)
+			log.Debug("error decoding tx bytes: ", err, data)
 			continue
 		}
 		txs = append(txs, types.NewTx(&tx))

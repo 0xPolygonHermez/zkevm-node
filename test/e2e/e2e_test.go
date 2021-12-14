@@ -30,6 +30,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -112,7 +113,8 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// create state
-			tr := tree.NewStateTree(sqlDB, []byte{})
+			mt := tree.NewMerkleTree(sqlDB, testCase.Arity, poseidon.Hash)
+			tr := tree.NewStateTree(mt, []byte{})
 			st := state.NewState(sqlDB, tr)
 			genesis := state.Genesis{
 				Balances: make(map[common.Address]*big.Int),

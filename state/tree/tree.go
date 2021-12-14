@@ -6,10 +6,10 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-const mtArity = 4
+// DefaultMerkleTreeArity specifies Merkle Tree arity used by default
+const DefaultMerkleTreeArity = 4
 
 // Reader interface
 type Reader interface {
@@ -37,16 +37,13 @@ type ReadWriter interface {
 
 // StateTree provides methods to access and modify state in merkletree
 type StateTree struct {
-	db          *pgxpool.Pool
 	mt          *MerkleTree
 	currentRoot *big.Int
 }
 
 // NewStateTree creates new StateTree
-func NewStateTree(db *pgxpool.Pool, root []byte) ReadWriter {
-	mt := NewMerkleTree(db, mtArity, nil)
+func NewStateTree(mt *MerkleTree, root []byte) ReadWriter {
 	return &StateTree{
-		db:          db,
 		mt:          mt,
 		currentRoot: new(big.Int).SetBytes(root),
 	}
@@ -58,7 +55,7 @@ func (tree *StateTree) GetBalance(address common.Address, root []byte) (*big.Int
 	if root != nil {
 		r = new(big.Int).SetBytes(root)
 	}
-	key, err := GetKey(LeafTypeBalance, address, nil)
+	key, err := GetKey(LeafTypeBalance, address, nil, tree.mt.arity, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +77,7 @@ func (tree *StateTree) GetNonce(address common.Address, root []byte) (*big.Int, 
 	if root != nil {
 		r = new(big.Int).SetBytes(root)
 	}
-	key, err := GetKey(LeafTypeNonce, address, nil)
+	key, err := GetKey(LeafTypeNonce, address, nil, tree.mt.arity, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +99,7 @@ func (tree *StateTree) GetCode(address common.Address, root []byte) ([]byte, err
 	if root != nil {
 		r = new(big.Int).SetBytes(root)
 	}
-	key, err := GetKey(LeafTypeCode, address, nil)
+	key, err := GetKey(LeafTypeCode, address, nil, tree.mt.arity, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +122,7 @@ func (tree *StateTree) GetStorageAt(address common.Address, position common.Hash
 	if root != nil {
 		r = new(big.Int).SetBytes(root)
 	}
-	key, err := GetKey(LeafTypeStorage, address, position[:])
+	key, err := GetKey(LeafTypeStorage, address, position[:], tree.mt.arity, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +150,7 @@ func (tree *StateTree) SetBalance(address common.Address, balance *big.Int) (new
 	}
 
 	r := tree.currentRoot
-	key, err := GetKey(LeafTypeBalance, address, nil)
+	key, err := GetKey(LeafTypeBalance, address, nil, tree.mt.arity, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -176,7 +173,7 @@ func (tree *StateTree) SetNonce(address common.Address, nonce *big.Int) (newRoot
 	}
 
 	r := tree.currentRoot
-	key, err := GetKey(LeafTypeNonce, address, nil)
+	key, err := GetKey(LeafTypeNonce, address, nil, tree.mt.arity, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -200,7 +197,7 @@ func (tree *StateTree) SetCode(address common.Address, code []byte) (newRoot []b
 // SetStorageAt sets storage value at specified position
 func (tree *StateTree) SetStorageAt(address common.Address, position common.Hash, value *big.Int) (newRoot []byte, proof interface{}, err error) {
 	r := tree.currentRoot
-	key, err := GetKey(LeafTypeStorage, address, position[:])
+	key, err := GetKey(LeafTypeStorage, address, position[:], tree.mt.arity, nil)
 	if err != nil {
 		return nil, nil, err
 	}

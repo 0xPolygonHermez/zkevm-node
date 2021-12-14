@@ -68,6 +68,7 @@ const (
 	addBlockSQL                     = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	addSequencerSQL                 = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4)"
 	getSequencerSQL                 = "SELECT * FROM state.sequencer WHERE address = $1"
+	getReceiptSQL                   = "SELECT * FROM state.receipt WHERE tx_hash = $1"
 )
 
 var (
@@ -335,7 +336,16 @@ func (s *BasicState) GetTransactionCount(ctx context.Context, fromAddress common
 
 // GetTransactionReceipt returns the receipt of a transaction by transaction hash
 func (s *BasicState) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*types.Receipt, error) {
-	panic("not implemented")
+	var receipt types.Receipt
+	var blockNumber uint64
+	err := s.db.QueryRow(ctx, getReceiptSQL, transactionHash).Scan(&receipt.Type, &receipt.PostState, &receipt.Status,
+		&receipt.CumulativeGasUsed, &receipt.GasUsed, &blockNumber, &receipt.TxHash, &receipt.TransactionIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	receipt.BlockNumber = new(big.Int).SetUint64(blockNumber)
+	return &receipt, nil
 }
 
 // Reset resets the state to a block
