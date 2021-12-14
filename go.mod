@@ -5,14 +5,12 @@ go 1.16
 require (
 	github.com/btcsuite/btcd v0.21.0-beta // indirect
 	github.com/ethereum/go-ethereum v1.10.12
-	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/hermeznetwork/tracerr v0.3.2
 	github.com/holiman/uint256 v1.2.0
 	github.com/iden3/go-iden3-crypto v0.0.11
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
-	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/rubenv/sql-migrate v0.0.0-20211023115951-9f02b1e13857
 	github.com/spf13/viper v1.9.0
@@ -26,5 +24,4 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
-	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 )
