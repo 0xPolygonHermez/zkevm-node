@@ -47,7 +47,7 @@ type BasicBatchProcessor struct {
 func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	var receipts []*types.Receipt
 	// TODO: Check if batch is virtual and process accordingly
-	for x, tx := range batch.Transactions {
+	for i, tx := range batch.Transactions {
 		err := b.ProcessTransaction(tx, batch.Sequencer)
 		if err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
