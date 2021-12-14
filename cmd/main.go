@@ -175,11 +175,13 @@ func runJSONRpcServer(jc jsonrpc.Config, ec etherman.Config, pool pool.Pool, st 
 
 	seqAddress := key.Address
 
+	const intervalToCheckSequencerRegistrationInSeconds = 10
+
 	for {
 		seq, err = st.GetSequencer(context.Background(), seqAddress)
 		if err != nil {
-			log.Infof("No sequencer registered for address %s, err: %v", seqAddress.Hex(), err)
-			time.Sleep(1 * time.Second)
+			log.Warnf("Make sure the address %s has been registered in the smart contract as a sequencer, err: %v", seqAddress.Hex(), err)
+			time.Sleep(intervalToCheckSequencerRegistrationInSeconds * time.Second)
 			continue
 		}
 		break
