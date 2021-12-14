@@ -36,10 +36,8 @@ const (
 // MerkleTree implements merkle tree
 type MerkleTree struct {
 	db           *pgxpool.Pool
-	hashFunction interface{}
+	hashFunction HashFunction
 	arity        uint8
-	maxLevels    uint16
-	mask         *big.Int
 }
 
 // UpdateProof is a proof generated on Set operation
@@ -66,14 +64,18 @@ type Proof struct {
 	InsValue *big.Int
 }
 
+// HashFunction is a function interface type to specify hash function that MT should use
+type HashFunction func(inputs []*big.Int) (*big.Int, error)
+
 // NewMerkleTree creates new MerkleTree instance
-func NewMerkleTree(db *pgxpool.Pool, arity uint8, hash interface{}) *MerkleTree {
+func NewMerkleTree(db *pgxpool.Pool, arity uint8, hashFunction HashFunction) *MerkleTree {
+	if hashFunction == nil {
+		hashFunction = poseidon.Hash
+	}
 	return &MerkleTree{
 		db:           db,
 		arity:        arity,
-		hashFunction: hash,
-		mask:         big.NewInt(1<<arity - 1),
-		maxLevels:    uint16(addrLength / arity),
+		hashFunction: hashFunction,
 	}
 }
 
@@ -442,15 +444,15 @@ func (mt *MerkleTree) getUniqueSibling(a []*big.Int) int64 {
 func (mt *MerkleTree) splitKey(key *big.Int) []uint {
 	var res []uint
 	auxk := key
-	for i := 0; i < int(mt.maxLevels); i++ {
-		res = append(res, uint(new(big.Int).And(auxk, mt.mask).Uint64()))
+	for i := 0; i < int(addrLength/mt.arity); i++ {
+		res = append(res, uint(new(big.Int).And(auxk, big.NewInt(1<<mt.arity-1)).Uint64()))
 		auxk = new(big.Int).Rsh(auxk, uint(mt.arity))
 	}
 	return res
 }
 
 func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []*big.Int) (*big.Int, error) {
-	hash, err := poseidon.Hash(nodeData)
+	hash, err := mt.hashFunction(nodeData)
 	if err != nil {
 		return nil, err
 	}

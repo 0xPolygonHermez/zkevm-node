@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum"
@@ -17,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -26,9 +24,15 @@ import (
 )
 
 var (
-	newBatchEventSignatureHash    = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
-	consolidateBatchSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,address)"))
-	newSequencerSignatureHash     = crypto.Keccak256Hash([]byte("SetSequencer(address,string)"))
+	newBatchEventSignatureHash        = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
+	consolidateBatchSignatureHash     = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,address)"))
+	newSequencerSignatureHash         = crypto.Keccak256Hash([]byte("SetSequencer(address,string)"))
+	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+)
+
+var (
+	// ErrNotFound is used when the object is not found
+	ErrNotFound = errors.New("Not found")
 )
 
 // EtherMan represents an Ethereum Manager
@@ -78,7 +82,10 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
 func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
 	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 	if err != nil {
-		return &types.Block{}, err
+		if errors.Is(err, ethereum.NotFound) || err.Error() == "block does not exist in blockchain" {
+			return nil, ErrNotFound
+		}
+		return nil, err
 	}
 	return block, nil
 }
@@ -126,7 +133,7 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 	if len(txs) == 0 {
 		return nil, errors.New("Invalid txs: is empty slice")
 	}
-	var data []byte
+	var data [][]byte
 	for _, tx := range txs {
 		a := new(bytes.Buffer)
 		err := tx.EncodeRLP(a)
@@ -134,11 +141,15 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 			return nil, err
 		}
 		log.Debug("Coded tx: ", hex.EncodeToString(a.Bytes()))
-		data = append(data, a.Bytes()...)
+		data = append(data, a.Bytes())
 	}
-	log.Debug("Coded txs: ", hex.EncodeToString(data))
+	b := new(bytes.Buffer)
+	err := rlp.Encode(b, data)
+	if err != nil {
+		return nil, err
+	}
 
-	tx, err := etherMan.PoE.SendBatch(etherMan.auth, data, maticAmount)
+	tx, err := etherMan.PoE.SendBatch(etherMan.auth, b.Bytes(), maticAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +209,9 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 			log.Warn("error processing event: ", err, vLog)
 			continue
 		}
+		if block == nil {
+			continue
+		}
 		if b, exists := blocks[block.BlockHash]; exists {
 			b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
 			b.NewSequencers = append(blocks[block.BlockHash].NewSequencers, block.NewSequencers...)
@@ -223,6 +237,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
 		var head types.Header
 		head.TxHash = vLog.TxHash
+		head.Difficulty = big.NewInt(0)
+		head.Number = big.NewInt(0).SetUint64(batch.BatchNumber)
 		batch.Header = &head
 		block.BlockNumber = vLog.BlockNumber
 		batch.BlockNumber = vLog.BlockNumber
@@ -244,7 +260,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		batch.RawTxsData = tx.Data()
 		txs, err := decodeTxs(tx.Data())
 		if err != nil {
-			return nil, err
+			log.Warn("No txs decoded in batch: ", batch.BatchNumber, ". This batch is inside block: ", batch.BlockNumber,
+				". Error: ", err)
 		}
 		batch.Transactions = txs
 		block.Batches = append(block.Batches, batch)
@@ -292,11 +309,12 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		sequencer.ChainID = se.ChainID
 		block.NewSequencers = append(block.NewSequencers, sequencer)
 		return &block, nil
+	case ownershipTransferredSignatureHash:
+		log.Debug("Unhandled event: OwnershipTransferred: ", vLog)
+		return nil, nil
 	}
 	return nil, fmt.Errorf("Event not registered")
 }
-
-const headerByteLength = 2
 
 func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 	// First split txs
@@ -326,26 +344,22 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 
 	txsData = data[0].([]byte)
 
+	//Decode array of txs
+	var codedTxs [][]byte
+	err = rlp.DecodeBytes(txsData, &codedTxs)
+	if err != nil {
+		log.Debug("error decoding tx bytes: ", err, ". Data: ", hex.EncodeToString(txsData))
+		return nil, err
+	}
+
 	//Process coded txs
-	var pos int64
 	var txs []*types.Transaction
-	for pos < int64(len(txsData)) {
-		length := txsData[pos+1 : pos+2]
-		str := hex.EncodeToString(length)
-		num, err := strconv.ParseInt(str, hex.Base, encoding.BitSize64)
-		if err != nil {
-			log.Warn("error: skipping tx. Err: ", err)
-			continue
-		}
-
-		data := txsData[pos : pos+num+2]
-		pos = pos + num + headerByteLength
-
+	for _, codedTx := range codedTxs {
 		//Decode tx
 		var tx types.LegacyTx
-		err = rlp.DecodeBytes(data, &tx)
+		err = rlp.DecodeBytes(codedTx, &tx)
 		if err != nil {
-			log.Info("error decoding tx bytes: ", err, data)
+			log.Debug("error decoding tx bytes: ", err, data)
 			continue
 		}
 		txs = append(txs, types.NewTx(&tx))

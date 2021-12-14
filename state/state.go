@@ -40,7 +40,7 @@ type State interface {
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
 	AddSequencer(ctx context.Context, seq Sequencer) error
-	GetSequencerByChainID(ctx context.Context, chainID *big.Int) (*Sequencer, error)
+	GetSequencer(ctx context.Context, address common.Address) (*Sequencer, error)
 	SetGenesis(ctx context.Context, genesis Genesis) error
 	AddBlock(ctx context.Context, block *Block) error
 	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error
@@ -60,16 +60,17 @@ const (
 	getPreviousConsolidatedBatchSQL = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
 	getBatchByHashSQL               = "SELECT * FROM state.batch WHERE batch_hash = $1"
 	getBatchByNumberSQL             = "SELECT * FROM state.batch WHERE batch_num = $1"
-	getLastBatchNumberSQL           = "SELECT MAX(batch_num) FROM state.batch"
+	getLastBatchNumberSQL           = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch"
 	getTransactionByHashSQL         = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
 	getTransactionCountSQL          = "SELECT COUNT(*) FROM state.transaction WHERE from_address = $1"
 	consolidateBatchSQL             = "UPDATE state.batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"
 	getTxsByBatchNumSQL             = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
 	addBlockSQL                     = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	addSequencerSQL                 = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4)"
-	getSequencerSQL                 = "SELECT * FROM state.sequencer WHERE chain_id = $1"
 	updateLastBatchSeenSQL          = "UPDATE state.misc SET last_batch_num_seen = $1"
 	getLastBatchSeenSQL             = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
+	getSequencerSQL                 = "SELECT * FROM state.sequencer WHERE address = $1"
+	getReceiptSQL                   = "SELECT * FROM state.receipt WHERE tx_hash = $1"
 )
 
 var (
@@ -282,7 +283,17 @@ func (s *BasicState) GetLastBatchNumber(ctx context.Context) (uint64, error) {
 
 // GetNonce returns the nonce of the given account at the given batch number
 func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint64, error) {
-	panic("not implemented yet")
+	root, err := s.GetStateRootByBatchNumber(batchNumber)
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := s.Tree.GetNonce(address, root)
+	if err != nil {
+		return 0, err
+	}
+
+	return n.Uint64(), nil
 }
 
 // GetTransactionByBatchHashAndIndex gets a transaction from a batch by index
@@ -327,7 +338,16 @@ func (s *BasicState) GetTransactionCount(ctx context.Context, fromAddress common
 
 // GetTransactionReceipt returns the receipt of a transaction by transaction hash
 func (s *BasicState) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*types.Receipt, error) {
-	panic("not implemented")
+	var receipt types.Receipt
+	var blockNumber uint64
+	err := s.db.QueryRow(ctx, getReceiptSQL, transactionHash).Scan(&receipt.Type, &receipt.PostState, &receipt.Status,
+		&receipt.CumulativeGasUsed, &receipt.GasUsed, &blockNumber, &receipt.TxHash, &receipt.TransactionIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	receipt.BlockNumber = new(big.Int).SetUint64(blockNumber)
+	return &receipt, nil
 }
 
 // Reset resets the state to a block
@@ -382,11 +402,11 @@ func (s *BasicState) AddSequencer(ctx context.Context, seq Sequencer) error {
 	return err
 }
 
-// GetSequencerByChainID gets a sequencer by its ChainID
-func (s *BasicState) GetSequencerByChainID(ctx context.Context, chainID *big.Int) (*Sequencer, error) {
+// GetSequencer gets a sequencer
+func (s *BasicState) GetSequencer(ctx context.Context, address common.Address) (*Sequencer, error) {
 	var seq Sequencer
 	var cID uint64
-	err := s.db.QueryRow(ctx, getSequencerSQL, chainID.Uint64()).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
+	err := s.db.QueryRow(ctx, getSequencerSQL, address).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -427,8 +447,9 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 
 	// Generate Genesis Batch
 	batch := &Batch{
-		BatchNumber: 0,
-		BlockNumber: 0,
+		BatchNumber:        0,
+		BlockNumber:        0,
+		ConsolidatedTxHash: common.HexToHash("0x1"),
 	}
 
 	// Store batch into db

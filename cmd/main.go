@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -16,11 +17,12 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/mocks"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/urfave/cli/v2"
 )
 
@@ -75,28 +77,36 @@ func start(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	// c := config.Load()
+
 	setupLog(c.Log)
+
 	runMigrations(c.Database)
-	etherman, err := newSimulatedEtherman(c.Synchronizer.Etherman)
+
+	etherman, err := newSimulatedEtherman(c.Etherman)
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
-	state := mocks.NewState()
+
+	sqlDB, err := db.NewSQLDB(c.Database)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	mt := tree.NewMerkleTree(sqlDB, c.State.Arity, poseidon.Hash)
+	tr := tree.NewStateTree(mt, []byte{})
+	st := state.NewState(sqlDB, tr)
+
 	pool, err := pool.NewPostgresPool(c.Database)
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
+
 	//proverClient, conn := newProverClient(c.Prover)
-	go runSynchronizer(c.Synchronizer, etherman, state)
-	go runJSONRpcServer(c.RPC, pool, state)
-	go runSequencer(c.Sequencer, etherman, pool, state)
+	go runSynchronizer(c.Synchronizer, etherman, st)
+	go runJSONRpcServer(c.RPC, c.Etherman, pool, st)
+	go runSequencer(c.Sequencer, etherman, pool, st)
 	//go runAggregator(c.Aggregator, etherman, proverClient, state)
 	//waitSignal(conn)
 	waitSignal()
@@ -156,8 +166,30 @@ func runSynchronizer(c synchronizer.Config, etherman *etherman.ClientEtherMan, s
 	}
 }
 
-func runJSONRpcServer(jc jsonrpc.Config, pool pool.Pool, state state.State) {
-	if err := jsonrpc.NewServer(jc, pool, state).Start(); err != nil {
+func runJSONRpcServer(jc jsonrpc.Config, ec etherman.Config, pool pool.Pool, st state.State) {
+	var err error
+	var seq *state.Sequencer
+
+	key, err := newKeyFromKeystore(ec.PrivateKeyPath, ec.PrivateKeyPassword)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	seqAddress := key.Address
+
+	const intervalToCheckSequencerRegistrationInSeconds = 10
+
+	for {
+		seq, err = st.GetSequencer(context.Background(), seqAddress)
+		if err != nil {
+			log.Warnf("Make sure the address %s has been registered in the smart contract as a sequencer, err: %v", seqAddress.Hex(), err)
+			time.Sleep(intervalToCheckSequencerRegistrationInSeconds * time.Second)
+			continue
+		}
+		break
+	}
+
+	if err := jsonrpc.NewServer(jc, seq.ChainID.Uint64(), pool, st).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -193,9 +225,8 @@ func waitSignal() {
 	}
 }
 
-func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
+func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 	if path == "" && password == "" {
-		log.Info("lol")
 		return nil, nil
 	}
 	keystoreEncrypted, err := ioutil.ReadFile(filepath.Clean(path))
@@ -205,6 +236,14 @@ func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
 	key, err := keystore.DecryptKey(keystoreEncrypted, password)
 	if err != nil {
 		return nil, err
+	}
+	return key, nil
+}
+
+func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
+	key, err := newKeyFromKeystore(path, password)
+	if err != nil {
+		log.Fatal(err)
 	}
 	log.Info("addr: ", key.Address.Hex())
 	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, big.NewInt(1337)) //nolint:gomnd

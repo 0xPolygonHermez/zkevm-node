@@ -7,22 +7,22 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
-// PoseidonInputsNum specifies number of inputs used for Poseidon hash
-const PoseidonInputsNum = 16
-
 // Key stores key of the leaf
 type Key [32]byte
 
-// GetKey calculates Key for the provided leaf type, address, and in case of LeafTypeStorage also position
-func GetKey(leafType LeafType, address common.Address, position []byte) ([]byte, error) {
-	addr, err := SplitAddress(address)
+// GetKey calculates Key for the provided leaf type, address, and in case of LeafTypeStorage also storagePosition.
+// For other leaf types leave storagePosition = nil
+func GetKey(leafType LeafType, address common.Address, storagePosition []byte, arity uint8, hashFunction HashFunction) ([]byte, error) {
+	poseidonInputsNum := 1 << arity
+
+	addr, err := splitAddress(address)
 	if err != nil {
 		return nil, err
 	}
-	inputs := make([]*big.Int, PoseidonInputsNum)
+	inputs := make([]*big.Int, poseidonInputsNum)
 
 	// initialize with zeroes
-	for i := 0; i < PoseidonInputsNum; i++ {
+	for i := 0; i < poseidonInputsNum; i++ {
 		inputs[i] = big.NewInt(0)
 	}
 
@@ -32,8 +32,8 @@ func GetKey(leafType LeafType, address common.Address, position []byte) ([]byte,
 	inputs[3].SetUint64(uint64(leafType))
 
 	if leafType == LeafTypeStorage {
-		posBigInt := big.NewInt(0).SetBytes(position)
-		pos, err := SplitValue(posBigInt)
+		posBigInt := big.NewInt(0).SetBytes(storagePosition)
+		pos, err := splitValue(posBigInt)
 		if err != nil {
 			return nil, err
 		}
@@ -43,12 +43,14 @@ func GetKey(leafType LeafType, address common.Address, position []byte) ([]byte,
 		inputs[7].SetBytes(pos[3])
 	}
 
-	hash, err := poseidon.Hash(inputs)
+	if hashFunction == nil {
+		hashFunction = poseidon.Hash
+	}
+
+	hash, err := hashFunction(inputs)
 	if err != nil {
 		return nil, err
 	}
 	hashBytes := hash.Bytes()
-	//var key Key
-	//copy(key[:], hashBytes)
 	return hashBytes, nil
 }

@@ -1,7 +1,12 @@
 package tree
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/big"
+	"os"
+	"path"
+	"runtime"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -10,6 +15,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	// Change dir to project root
+	// This is important because we have relative paths to files containing test vectors
+	_, filename, _, _ := runtime.Caller(0)
+	dir := path.Join(path.Dir(filename), "../../")
+	err := os.Chdir(dir)
+	if err != nil {
+		panic(err)
+	}
+}
 
 func TestBasicTree(t *testing.T) {
 	dbCfg := dbutils.NewConfigFromEnv()
@@ -22,7 +38,8 @@ func TestBasicTree(t *testing.T) {
 
 	defer mtDb.Close()
 
-	tree := NewStateTree(mtDb, nil)
+	mt := NewMerkleTree(mtDb, DefaultMerkleTreeArity, nil)
+	tree := NewStateTree(mt, nil)
 
 	address := common.Address{
 		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
@@ -113,4 +130,62 @@ func TestBasicTree(t *testing.T) {
 	bal, err = tree.GetBalance(address, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(1), bal)
+}
+
+type testAddState struct {
+	Address string `json:"address"`
+	Balance string `json:"balance"`
+	Nonce   string `json:"nonce"`
+}
+
+type testVectorGenesis struct {
+	Arity        uint8          `json:"arity"`
+	Addresses    []testAddState `json:"addresses"`
+	ExpectedRoot string         `json:"expectedRoot"`
+}
+
+func TestMerkleTreeGenesis(t *testing.T) {
+	data, err := os.ReadFile("test/vectors/smt/smt-genesis.json")
+	require.NoError(t, err)
+
+	var testVectors []testVectorGenesis
+	err = json.Unmarshal(data, &testVectors)
+	require.NoError(t, err)
+
+	dbCfg := dbutils.NewConfigFromEnv()
+
+	err = dbutils.InitOrReset(dbCfg)
+	require.NoError(t, err)
+
+	mtDb, err := db.NewSQLDB(dbCfg)
+	require.NoError(t, err)
+
+	defer mtDb.Close()
+
+	for ti, testVector := range testVectors {
+		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
+			var root []byte
+			var newRoot []byte
+			mt := NewMerkleTree(mtDb, testVector.Arity, nil)
+			tree := NewStateTree(mt, root)
+			for _, addrState := range testVector.Addresses {
+				// convert strings to big.Int
+				addr := common.HexToAddress(addrState.Address)
+
+				balance, success := new(big.Int).SetString(addrState.Balance, 10)
+				require.True(t, success)
+
+				nonce, success := new(big.Int).SetString(addrState.Nonce, 10)
+				require.True(t, success)
+
+				_, _, err = tree.SetBalance(addr, balance)
+				require.NoError(t, err)
+
+				newRoot, _, err = tree.SetNonce(addr, nonce)
+				require.NoError(t, err)
+			}
+
+			assert.Equal(t, testVector.ExpectedRoot, new(big.Int).SetBytes(newRoot).String())
+		})
+	}
 }
