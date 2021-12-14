@@ -72,7 +72,8 @@ func TestDecodeMultipleTxData(t *testing.T) {
 
 	txs, err = decodeTxs(data)
 	require.NoError(t, err)
-	res = []string{"0x4d5Cf5032B2a844602278b01199ED191A86c93ff", "0x4d5Cf5032B2a844602278b01199ED191A86c93ff", "0x4d5Cf5032B2a844602278b01199ED191A86c93ff", "0x4d5Cf5032B2a844602278b01199ED191A86c93ff"}
+	assert.Equal(t, 2, len(txs))
+	res = []string{"0x4d5Cf5032B2a844602278b01199ED191A86c93ff", "0x4d5Cf5032B2a844602278b01199ED191A86c93ff"}
 	for k, tx := range txs {
 		var addr common.Address
 		err = addr.UnmarshalText([]byte(res[k]))
