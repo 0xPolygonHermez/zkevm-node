@@ -36,6 +36,7 @@ type EtherMan interface {
 	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
 	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
+	RegisterSequencer(url string) (*types.Transaction, error)
 }
 
 type ethClienter interface {
@@ -182,6 +183,15 @@ func (etherMan *ClientEtherMan) ConsolidateBatch(batchNum *big.Int, proof *prove
 		proofC,
 	)
 
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
+}
+
+// RegisterSequencer function allows to register a new sequencer in the rollup
+func (etherMan *ClientEtherMan) RegisterSequencer(url string) (*types.Transaction, error) {
+	tx, err := etherMan.PoE.RegisterSequencer(etherMan.auth, url)
 	if err != nil {
 		return nil, err
 	}
