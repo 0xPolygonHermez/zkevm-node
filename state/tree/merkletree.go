@@ -38,8 +38,6 @@ type MerkleTree struct {
 	db           *pgxpool.Pool
 	hashFunction HashFunction
 	arity        uint8
-	maxLevels    uint16
-	mask         *big.Int
 }
 
 // UpdateProof is a proof generated on Set operation
@@ -78,8 +76,6 @@ func NewMerkleTree(db *pgxpool.Pool, arity uint8, hashFunction HashFunction) *Me
 		db:           db,
 		arity:        arity,
 		hashFunction: hashFunction,
-		mask:         big.NewInt(1<<arity - 1),
-		maxLevels:    uint16(addrLength / arity),
 	}
 }
 
@@ -448,8 +444,8 @@ func (mt *MerkleTree) getUniqueSibling(a []*big.Int) int64 {
 func (mt *MerkleTree) splitKey(key *big.Int) []uint {
 	var res []uint
 	auxk := key
-	for i := 0; i < int(mt.maxLevels); i++ {
-		res = append(res, uint(new(big.Int).And(auxk, mt.mask).Uint64()))
+	for i := 0; i < int(addrLength/mt.arity); i++ {
+		res = append(res, uint(new(big.Int).And(auxk, big.NewInt(1<<mt.arity-1)).Uint64()))
 		auxk = new(big.Int).Rsh(auxk, uint(mt.arity))
 	}
 	return res
