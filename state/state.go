@@ -60,7 +60,7 @@ const (
 	getPreviousConsolidatedBatchSQL = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
 	getBatchByHashSQL               = "SELECT * FROM state.batch WHERE batch_hash = $1"
 	getBatchByNumberSQL             = "SELECT * FROM state.batch WHERE batch_num = $1"
-	getLastBatchNumberSQL           = "SELECT MAX(batch_num) FROM state.batch"
+	getLastBatchNumberSQL           = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch"
 	getTransactionByHashSQL         = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
 	getTransactionCountSQL          = "SELECT COUNT(*) FROM state.transaction WHERE from_address = $1"
 	consolidateBatchSQL             = "UPDATE state.batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"

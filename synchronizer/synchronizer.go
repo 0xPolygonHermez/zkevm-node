@@ -43,8 +43,8 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, cfg Config) (Sync
 // Sync() will read blockchain events to detect rollup updates
 func (s *ClientSynchronizer) Sync() error {
 	go func() {
-		//If there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block
-		//Get the latest synced block. If there is no block on db, use genesis block
+		// If there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block
+		// Get the latest synced block. If there is no block on db, use genesis block
 		lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx)
 		if err != nil {
 			log.Warn("error getting the latest ethereum block. Setting genesis block. Error: ", err)
