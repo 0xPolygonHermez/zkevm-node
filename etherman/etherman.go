@@ -194,6 +194,7 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 		return []state.Block{}, err
 	}
 	blocks := make(map[common.Hash]state.Block)
+	var blockKeys []common.Hash
 	for _, vLog := range logs {
 		block, err := etherMan.processEvent(ctx, vLog)
 		if err != nil {
@@ -206,11 +207,12 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 			blocks[block.BlockHash] = b
 		} else {
 			blocks[block.BlockHash] = *block
+			blockKeys = append(blockKeys, block.BlockHash)
 		}
 	}
 	var blockArr []state.Block
-	for _, b := range blocks {
-		blockArr = append(blockArr, b)
+	for _, hash := range blockKeys {
+		blockArr = append(blockArr, blocks[hash])
 	}
 	return blockArr, nil
 }
