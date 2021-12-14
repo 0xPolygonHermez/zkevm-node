@@ -134,7 +134,7 @@ func (s *StateMock) AddBlock(ctx context.Context, block *state.Block) error {
 	return nil
 }
 
-func (s *StateMock) SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error {
+func (s *StateMock) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error {
 	return nil
 }
 

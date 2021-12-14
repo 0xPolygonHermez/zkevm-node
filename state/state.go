@@ -43,7 +43,7 @@ type State interface {
 	GetSequencerByChainID(ctx context.Context, chainID *big.Int) (*Sequencer, error)
 	SetGenesis(ctx context.Context, genesis Genesis) error
 	AddBlock(ctx context.Context, block *Block) error
-	SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error
+	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
 	GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error)
 }
@@ -68,7 +68,7 @@ const (
 	addBlockSQL                     = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	addSequencerSQL                 = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4)"
 	getSequencerSQL                 = "SELECT * FROM state.sequencer WHERE chain_id = $1"
-	updateLastBatchSeenSQL          = "UPDATE state.mich SET last_batch_num_seen = $1"
+	updateLastBatchSeenSQL          = "UPDATE state.misc SET last_batch_num_seen = $1"
 	getLastBatchSeenSQL             = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
 )
 
@@ -462,5 +462,11 @@ func (s *BasicState) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batch
 // in the state that represents the last batch number that affected the
 // roll-up in the Ethereum network.
 func (s *BasicState) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
-	return 0, nil
+	var batchNumber uint64
+	err := s.db.QueryRow(ctx, getLastBatchSeenSQL).Scan(&batchNumber)
+	if err != nil {
+		return 0, err
+	}
+
+	return batchNumber, nil
 }
