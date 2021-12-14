@@ -76,7 +76,7 @@ func start(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	// c := config.Load()
+
 	setupLog(c.Log)
 
 	runMigrations(c.Database)
