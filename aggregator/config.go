@@ -2,8 +2,6 @@ package aggregator
 
 import (
 	"time"
-
-	"github.com/hermeznetwork/hermez-core/etherman"
 )
 
 // Duration is a wrapper type that parses time duration from text.
@@ -26,7 +24,4 @@ type Config struct {
 	// IntervalToConsolidateState is the time the aggregator waits until
 	// trying to consolidate a new state
 	IntervalToConsolidateState Duration `mapstructure:"IntervalToConsolidateState"`
-
-	// Etherman is the configuration required by etherman to interact with L1
-	Etherman etherman.Config
 }

@@ -73,6 +73,7 @@ type Batch struct {
 	Uncles             []*types.Header
 	Transactions       []*types.Transaction
 	RawTxsData         []byte
+	Receipts           []*types.Receipt
 }
 
 // NewBatchWithHeader creates a batch with the given header data.

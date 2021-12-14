@@ -379,14 +379,14 @@ func TestBasicState_AddSequencer(t *testing.T) {
 	err = state.AddSequencer(ctx, sequencer1)
 	assert.NoError(t, err)
 
-	sequencer3, err := state.GetSequencerByChainID(ctx, sequencer1.ChainID)
+	sequencer3, err := state.GetSequencer(ctx, sequencer1.Address)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer1.ChainID, sequencer3.ChainID)
 
 	err = state.AddSequencer(ctx, sequencer2)
 	assert.NoError(t, err)
 
-	sequencer4, err := state.GetSequencerByChainID(ctx, sequencer2.ChainID)
+	sequencer4, err := state.GetSequencer(ctx, sequencer2.Address)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer2, *sequencer4)
 
@@ -485,7 +485,17 @@ func TestStateTransition(t *testing.T) {
 
 			err = bp.ProcessBatch(batch)
 			require.NoError(t, err)
-			// There may be errors processing Tx, so just check Balances
+
+			// Check Transaction and Receipts
+			transactions, err := state.GetTxsByBatchNum(ctx, batch.BatchNumber)
+			require.NoError(t, err)
+
+			for _, transaction := range transactions {
+				receipt, err := state.GetTransactionReceipt(ctx, transaction.Hash())
+				require.NoError(t, err)
+				assert.Equal(t, transaction.Hash(), receipt.TxHash)
+				assert.Equal(t, state.EstimateGas(transaction), receipt.GasUsed)
+			}
 
 			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
 			require.NoError(t, err)

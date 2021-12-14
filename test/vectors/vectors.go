@@ -6,11 +6,12 @@ import (
 
 // StateTransitionTestCase holds the metadata needed to run a state transition test
 type StateTransitionTestCase struct {
-	ID               uint   `json:"id"`
-	Description      string `json:"description"`
-	Arity            uint   `json:"arity"`
-	ChanIDSequencer  uint64 `json:"chainIdSequencer"`
-	SequencerAddress string `json:"sequencerAddress"`
+	ID                  uint   `json:"id"`
+	Description         string `json:"description"`
+	Arity               uint8  `json:"arity"`
+	ChanIDSequencer     uint64 `json:"chainIdSequencer"`
+	SequencerAddress    string `json:"sequencerAddress"`
+	SequencerPrivateKey string `json:"sequencerPvtKey"`
 
 	GenesisAccounts  []GenesisAccount `json:"genesis"`
 	ExpectedOldRoot  string           `json:"expectedOldRoot"`

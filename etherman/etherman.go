@@ -24,9 +24,15 @@ import (
 )
 
 var (
-	newBatchEventSignatureHash    = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
-	consolidateBatchSignatureHash = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,address)"))
-	newSequencerSignatureHash     = crypto.Keccak256Hash([]byte("SetSequencer(address,string)"))
+	newBatchEventSignatureHash        = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
+	consolidateBatchSignatureHash     = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,address)"))
+	newSequencerSignatureHash         = crypto.Keccak256Hash([]byte("SetSequencer(address,string)"))
+	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+)
+
+var (
+	// ErrNotFound is used when the object is not found
+	ErrNotFound = errors.New("Not found")
 )
 
 // EtherMan represents an Ethereum Manager
@@ -77,7 +83,10 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
 func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
 	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 	if err != nil {
-		return &types.Block{}, err
+		if errors.Is(err, ethereum.NotFound) || err.Error() == "block does not exist in blockchain" {
+			return nil, ErrNotFound
+		}
+		return nil, err
 	}
 	return block, nil
 }
@@ -210,6 +219,9 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 			log.Warn("error processing event: ", err, vLog)
 			continue
 		}
+		if block == nil {
+			continue
+		}
 		if b, exists := blocks[block.BlockHash]; exists {
 			b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
 			b.NewSequencers = append(blocks[block.BlockHash].NewSequencers, block.NewSequencers...)
@@ -235,6 +247,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
 		var head types.Header
 		head.TxHash = vLog.TxHash
+		head.Difficulty = big.NewInt(0)
+		head.Number = big.NewInt(0).SetUint64(batch.BatchNumber)
 		batch.Header = &head
 		block.BlockNumber = vLog.BlockNumber
 		batch.BlockNumber = vLog.BlockNumber
@@ -305,6 +319,9 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		sequencer.ChainID = se.ChainID
 		block.NewSequencers = append(block.NewSequencers, sequencer)
 		return &block, nil
+	case ownershipTransferredSignatureHash:
+		log.Debug("Unhandled event: OwnershipTransferred: ", vLog)
+		return nil, nil
 	}
 	return nil, fmt.Errorf("Event not registered")
 }

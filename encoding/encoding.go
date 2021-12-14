@@ -10,6 +10,8 @@ import (
 )
 
 const (
+	// Base10 decimal base
+	Base10 = 10
 	// BitSize64 64 bits
 	BitSize64 = 64
 	// TenToThePowerOf9 is 10 ^ 9 which represents a gWei
