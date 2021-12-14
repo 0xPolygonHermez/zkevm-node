@@ -9,7 +9,7 @@ import (
 // maxBigIntLen is 256 bits (32 bytes)
 const maxBigIntLen = 32
 
-// splitAddress splits address into 3 byte array of 64bits each
+// splitAddress splits address into 3 byte arrays of 64bits each
 func splitAddress(address common.Address) ([][]byte, error) {
 	addr, err := scalar2fea(new(big.Int).SetBytes(address[:]))
 	if err != nil {
