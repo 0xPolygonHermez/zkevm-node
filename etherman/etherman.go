@@ -139,7 +139,7 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 	if err != nil {
 		return nil, err
 	}
-	
+
 	tx, err := etherMan.PoE.SendBatch(etherMan.auth, b.Bytes(), maticAmount)
 	if err != nil {
 		return nil, err
@@ -247,7 +247,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		txs, err := decodeTxs(tx.Data())
 		if err != nil {
 			log.Warn("No txs decoded in batch: ", batch.BatchNumber, ". This batch is inside block: ", batch.BlockNumber,
-			". Error: ", err)
+				". Error: ", err)
 		}
 		batch.Transactions = txs
 		block.Batches = append(block.Batches, batch)
@@ -298,8 +298,6 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 	}
 	return nil, fmt.Errorf("Event not registered")
 }
-
-const headerByteLength = 2
 
 func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 	// First split txs
