@@ -68,6 +68,8 @@ const (
 	addBlockSQL                     = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	addSequencerSQL                 = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4)"
 	getSequencerSQL                 = "SELECT * FROM state.sequencer WHERE chain_id = $1"
+	updateLastBatchSeenSQL          = "UPDATE state.mich SET last_batch_num_seen = $1"
+	getLastBatchSeenSQL             = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
 )
 
 var (
@@ -451,8 +453,9 @@ func (s *BasicState) AddBlock(ctx context.Context, block *Block) error {
 // SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
 // the roll-up in order to allow the components to know if the state
 // is synchronized or not
-func (s *BasicState) SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error {
-	return nil
+func (s *BasicState) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error {
+	_, err := s.db.Exec(ctx, updateLastBatchSeenSQL, batchNumber)
+	return err
 }
 
 // GetLastBatchNumberSeenOnEthereum returns the last batch number stored

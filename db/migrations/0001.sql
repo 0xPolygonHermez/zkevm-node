@@ -47,3 +47,8 @@ CREATE TABLE state.sequencer
     chain_id    BIGINT PRIMARY KEY,
     block_num   BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE
 );
+
+CREATE TABLE state.misc
+(
+    last_batch_num_seen BIGINT
+);
