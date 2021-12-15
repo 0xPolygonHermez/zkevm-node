@@ -52,7 +52,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:     flagNetwork,
-			Usage:    "Network: mainnet, testnet, internaltestnet",
+			Usage:    "Network: mainnet, testnet, internaltestnet, local. By default it uses mainnet",
 			Required: false,
 		},
 	}
