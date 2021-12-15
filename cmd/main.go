@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	flagCfg 	= "cfg"
+	flagCfg     = "cfg"
 	flagNetwork = "network"
 )
 
