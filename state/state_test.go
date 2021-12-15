@@ -17,6 +17,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -169,7 +170,7 @@ func setUpBatches() {
 
 	batches := []*Batch{batch1, batch2, batch3, batch4}
 
-	bp, err := state.NewGenesisBatchProcessor(nil, false)
+	bp, err := state.NewGenesisBatchProcessor(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -284,7 +285,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		RawTxsData:         nil,
 	}
 
-	bp, err := state.NewGenesisBatchProcessor(nil, false)
+	bp, err := state.NewGenesisBatchProcessor(nil)
 	assert.NoError(t, err)
 
 	err = bp.ProcessBatch(batch)
@@ -453,6 +454,20 @@ func TestStateTransition(t *testing.T) {
 			// Check Old roots
 			assert.Equal(t, testCase.ExpectedOldRoot, new(big.Int).SetBytes(root).String())
 
+			// Check if sequencer is in the DB
+			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
+			if err == pgx.ErrNoRows {
+				sq := Sequencer{
+					Address:     common.HexToAddress(testCase.SequencerAddress),
+					URL:         "",
+					ChainID:     new(big.Int).SetUint64(testCase.ChanIDSequencer),
+					BlockNumber: 0,
+				}
+
+				err = st.AddSequencer(ctx, sq)
+				require.NoError(t, err)
+			}
+
 			// Create Transaction
 			for _, vectorTx := range testCase.Txs {
 				var tx types.LegacyTx
@@ -463,6 +478,7 @@ func TestStateTransition(t *testing.T) {
 					txs = append(txs, types.NewTx(&tx))
 				}
 				require.NoError(t, err)
+
 			}
 
 			// Create Batch
@@ -480,7 +496,7 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(0, false)
+			bp, err := st.NewBatchProcessor(common.HexToAddress(testCase.SequencerAddress), 0)
 			require.NoError(t, err)
 
 			err = bp.ProcessBatch(batch)

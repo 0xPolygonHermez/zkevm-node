@@ -15,8 +15,8 @@ import (
 
 // State is the interface of the Hermez state
 type State interface {
-	NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) (BatchProcessor, error)
-	NewGenesisBatchProcessor(genesisStateRoot []byte, withProofCalculation bool) (BatchProcessor, error)
+	NewBatchProcessor(sequencerAddress common.Address, lastBatchNumber uint64) (BatchProcessor, error)
+	NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchProcessor, error)
 	GetStateRoot(ctx context.Context, virtual bool) ([]byte, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
 	EstimateGas(transaction *types.Transaction) uint64
@@ -88,7 +88,7 @@ func NewState(db *pgxpool.Pool, tree tree.ReadWriter) State {
 }
 
 // NewBatchProcessor creates a new batch processor
-func (s *BasicState) NewBatchProcessor(lastBatchNumber uint64, withProofCalculation bool) (BatchProcessor, error) {
+func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatchNumber uint64) (BatchProcessor, error) {
 	// init correct state root from previous batch
 	stateRoot, err := s.GetStateRootByBatchNumber(lastBatchNumber)
 	if err != nil {
@@ -97,11 +97,21 @@ func (s *BasicState) NewBatchProcessor(lastBatchNumber uint64, withProofCalculat
 
 	s.Tree.SetCurrentRoot(stateRoot)
 
-	return &BasicBatchProcessor{State: s, stateRoot: stateRoot}, nil
+	var chainID = uint64(0)
+
+	// Get Sequencer's Chain ID
+	sq, err := s.GetSequencer(context.Background(), sequencerAddress)
+	if err == nil {
+		chainID = sq.ChainID.Uint64()
+	} /* else if err != nil {
+		return nil, err
+	}*/
+
+	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID}, nil
 }
 
 // NewGenesisBatchProcessor creates a new batch processor
-func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte, withProofCalculation bool) (BatchProcessor, error) {
+func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchProcessor, error) {
 	s.Tree.SetCurrentRoot(genesisStateRoot)
 
 	return &BasicBatchProcessor{State: s, stateRoot: genesisStateRoot}, nil
@@ -451,7 +461,7 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 	}
 
 	// Store batch into db
-	bp, err := s.NewGenesisBatchProcessor(root[:], false)
+	bp, err := s.NewGenesisBatchProcessor(root[:])
 	if err != nil {
 		return err
 	}
