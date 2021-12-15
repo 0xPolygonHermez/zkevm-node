@@ -27,44 +27,44 @@ const (
 //nolint:gomnd
 var (
 	mainnetConfig = NetworkConfig{
-		Arity:          16,
-		GenBlockNumber: 13808430,
-		PoEAddr:        common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
-		L1ChainID:      1, //Mainnet
-		L2DefaultChainID:      10000,
+		Arity:            16,
+		GenBlockNumber:   13808430,
+		PoEAddr:          common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
+		L1ChainID:        1, //Mainnet
+		L2DefaultChainID: 10000,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 		},
 	}
 	testnetConfig = NetworkConfig{
-		Arity:          16,
-		GenBlockNumber: 9817974,
-		PoEAddr:        common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
-		L1ChainID:      4, //Rinkeby
-		L2DefaultChainID:      40000,
+		Arity:            16,
+		GenBlockNumber:   9817974,
+		PoEAddr:          common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
+		L1ChainID:        4, //Rinkeby
+		L2DefaultChainID: 40000,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 		},
 	}
 	internalTestnetConfig = NetworkConfig{
-		Arity:          16,
-		GenBlockNumber: 6025263,
-		PoEAddr:        common.HexToAddress("0x31D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
-		L1ChainID:      5, //Goerli
-		L2DefaultChainID:      50000,
+		Arity:            16,
+		GenBlockNumber:   6025263,
+		PoEAddr:          common.HexToAddress("0x31D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
+		L1ChainID:        5, //Goerli
+		L2DefaultChainID: 50000,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 		},
 	}
 	localConfig = NetworkConfig{
-		Arity:          4,
-		GenBlockNumber: 1,
-		PoEAddr:        common.HexToAddress("0x41D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
-		L1ChainID:      1337,
-		L2DefaultChainID:      50000,
+		Arity:            4,
+		GenBlockNumber:   1,
+		PoEAddr:          common.HexToAddress("0x41D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
+		L1ChainID:        1337,
+		L2DefaultChainID: 50000,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
