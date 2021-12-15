@@ -16,6 +16,10 @@ GOCMD := $(GOBASE)/cmd
 build: ## Build the binary
 	$(GOENVVARS) go build $(LDFLAGS) -o $(GOBIN)/$(GOBINARY) $(GOCMD)
 
+.PHONY: build-docker
+build-docker: ## Build the binary
+	docker build . -t hezcore
+
 .PHONY: test
 test: ## runs only short tests without checking race conditions
 	$(STOPDB) || true

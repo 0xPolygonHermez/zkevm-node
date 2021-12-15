@@ -1,0 +1,40 @@
+version: '3'
+services:
+    hezcore:
+        container_name: hezcore
+        restart: always
+        image: hezcore
+        ports:
+            - 8123:8123
+        environment:
+          - HERMEZCORE_DATABASE_USER=test_user
+          - HERMEZCORE_DATABASE_PASSWORD=test_password
+          - HERMEZCORE_DATABASE_NAME=test_db
+          - HERMEZCORE_DATABASE_HOST=postgres
+          - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/test.keystore
+        volumes:
+          - ./test/test.keystore:/pk/test.keystore
+    postgres:
+        container_name: postgres
+        restart: always
+        image: postgres
+        ports:
+            - 5432:5432
+        environment:
+            # In order to update this values, you may need to run: docker rm -f -v postgres
+            - POSTGRES_USER=test_user
+            - POSTGRES_PASSWORD=test_password
+            - POSTGRES_DB=test_db
+    explorer:
+        container_name: explorer
+        restart: always
+        image: ulamlabs/blockscout:latest
+        ports:
+          - 8080:4000
+        environment:
+          - COIN=ETH
+          - ETHEREUM_JSONRPC_VARIANT=geth
+          - ETHEREUM_JSONRPC_HTTP_URL=http://hezcore:8123
+          - ETHEREUM_JSONRPC_WS_URL=ws://hezcore:8123
+          - DATABASE_URL=postgres://test_user:test_password@postgres:5432/test_db
+          - ECTO_USE_SSL=false
