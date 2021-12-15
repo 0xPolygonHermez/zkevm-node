@@ -10,6 +10,7 @@ type StateTransitionTestCase struct {
 	Description         string `json:"description"`
 	Arity               uint8  `json:"arity"`
 	ChanIDSequencer     uint64 `json:"chainIdSequencer"`
+	DefaultChainID      uint64 `json:"defaultChainId"`
 	SequencerAddress    string `json:"sequencerAddress"`
 	SequencerPrivateKey string `json:"sequencerPvtKey"`
 

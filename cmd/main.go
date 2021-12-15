@@ -114,7 +114,7 @@ func start(ctx *cli.Context) error {
 
 	//proverClient, conn := newProverClient(c.Prover)
 	go runSynchronizer(c.NetworkConfig.GenBlockNumber, etherman, st)
-	go runJSONRpcServer(c.RPC, c.Etherman, pool, st)
+	go runJSONRpcServer(c.RPC, c.Etherman, c.NetworkConfig, pool, st)
 	go runSequencer(c.Sequencer, etherman, pool, st)
 	//go runAggregator(c.Aggregator, etherman, proverClient, state)
 	//waitSignal(conn)
@@ -175,7 +175,7 @@ func runSynchronizer(genBlockNumber uint64, etherman *etherman.ClientEtherMan, s
 	}
 }
 
-func runJSONRpcServer(jc jsonrpc.Config, ec etherman.Config, pool pool.Pool, st state.State) {
+func runJSONRpcServer(jc jsonrpc.Config, ec etherman.Config, nc config.NetworkConfig, pool pool.Pool, st state.State) {
 	var err error
 	var seq *state.Sequencer
 
@@ -198,7 +198,7 @@ func runJSONRpcServer(jc jsonrpc.Config, ec etherman.Config, pool pool.Pool, st 
 		break
 	}
 
-	if err := jsonrpc.NewServer(jc, seq.ChainID.Uint64(), pool, st).Start(); err != nil {
+	if err := jsonrpc.NewServer(jc, nc.L2DefaultChainID, seq.ChainID.Uint64(), pool, st).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
