@@ -26,7 +26,10 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const flagCfg = "cfg"
+const (
+	flagCfg     = "cfg"
+	flagNetwork = "network"
+)
 
 var (
 	// version represents the program based on the git tag
@@ -45,6 +48,11 @@ func main() {
 		&cli.StringFlag{
 			Name:     flagCfg,
 			Usage:    "Configuration `FILE`",
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:     flagNetwork,
+			Usage:    "Network: mainnet, testnet, internaltestnet, local. By default it uses mainnet",
 			Required: false,
 		},
 	}
@@ -73,7 +81,8 @@ func main() {
 
 func start(ctx *cli.Context) error {
 	configFilePath := ctx.String(flagCfg)
-	c, err := config.Load(configFilePath)
+	network := ctx.String(flagNetwork)
+	c, err := config.Load(configFilePath, network)
 	if err != nil {
 		return err
 	}
@@ -93,7 +102,7 @@ func start(ctx *cli.Context) error {
 		log.Fatal(err)
 		return err
 	}
-	mt := tree.NewMerkleTree(sqlDB, c.State.Arity, poseidon.Hash)
+	mt := tree.NewMerkleTree(sqlDB, c.NetworkConfig.Arity, poseidon.Hash)
 	tr := tree.NewStateTree(mt, []byte{})
 	st := state.NewState(sqlDB, tr)
 
@@ -104,7 +113,7 @@ func start(ctx *cli.Context) error {
 	}
 
 	//proverClient, conn := newProverClient(c.Prover)
-	go runSynchronizer(c.Synchronizer, etherman, st)
+	go runSynchronizer(c.NetworkConfig.GenBlockNumber, etherman, st)
 	go runJSONRpcServer(c.RPC, c.Etherman, pool, st)
 	go runSequencer(c.Sequencer, etherman, pool, st)
 	//go runAggregator(c.Aggregator, etherman, proverClient, state)
@@ -156,8 +165,8 @@ func newSimulatedEtherman(c etherman.Config) (*etherman.ClientEtherMan, error) {
 //	return proverClient, conn
 //}
 
-func runSynchronizer(c synchronizer.Config, etherman *etherman.ClientEtherMan, state state.State) {
-	sy, err := synchronizer.NewSynchronizer(etherman, state, c)
+func runSynchronizer(genBlockNumber uint64, etherman *etherman.ClientEtherMan, state state.State) {
+	sy, err := synchronizer.NewSynchronizer(etherman, state, genBlockNumber)
 	if err != nil {
 		log.Fatal(err)
 	}
