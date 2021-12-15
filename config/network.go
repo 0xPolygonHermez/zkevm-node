@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -26,7 +27,7 @@ const (
 
 //nolint:gomnd
 var (
-	mainnetGen = NetworkConfig{
+	mainnetConfig = NetworkConfig{
 		Arity:          16,
 		GenBlockNumber: 13808430,
 		PoEAddr:        common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
@@ -37,7 +38,7 @@ var (
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 		},
 	}
-	testnetGen = NetworkConfig{
+	testnetConfig = NetworkConfig{
 		Arity:          16,
 		GenBlockNumber: 9817974,
 		PoEAddr:        common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
@@ -48,7 +49,7 @@ var (
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 		},
 	}
-	internalTestnetGen = NetworkConfig{
+	internalTestnetConfig = NetworkConfig{
 		Arity:          16,
 		GenBlockNumber: 6025263,
 		PoEAddr:        common.HexToAddress("0x31D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
@@ -59,7 +60,7 @@ var (
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 		},
 	}
-	localGen = NetworkConfig{
+	localConfig = NetworkConfig{
 		Arity:          4,
 		GenBlockNumber: 0,
 		PoEAddr:        common.HexToAddress("0x41D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
@@ -72,21 +73,23 @@ var (
 	}
 )
 
-func (cfg *Config) loadNetworkConfig(network string) {
+func (cfg *Config) loadNetworkConfig(network string) error {
 	switch network {
 	case mainnet:
 		log.Debug("Mainnet network selected")
-		cfg.NetworkConfig = mainnetGen
+		cfg.NetworkConfig = mainnetConfig
 	case testnet:
 		log.Debug("Testnet network selected")
-		cfg.NetworkConfig = testnetGen
+		cfg.NetworkConfig = testnetConfig
 	case internalTestnet:
 		log.Debug("InternalTestnet network selected")
-		cfg.NetworkConfig = internalTestnetGen
+		cfg.NetworkConfig = internalTestnetConfig
 	case local:
 		log.Debug("Local network selected")
-		cfg.NetworkConfig = localGen
+		cfg.NetworkConfig = localConfig
 	default:
 		log.Warn("Unknown network selected")
+		return fmt.Errorf("Unknown network selected")
 	}
+	return nil
 }

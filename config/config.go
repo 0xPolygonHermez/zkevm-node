@@ -71,7 +71,10 @@ func Load(configFilePath string, network string) (*Config, error) {
 		return nil, err
 	}
 	// Load genesis parameters
-	cfg.loadNetworkConfig(network)
+	err = cfg.loadNetworkConfig(network)
+	if err != nil {
+		return nil, err
+	}
 
 	log.Printf("Configuration loaded: %+v", cfg)
 	return &cfg, nil
