@@ -12,8 +12,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -22,6 +24,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
+	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/urfave/cli/v2"
 )
@@ -105,6 +108,14 @@ func start(ctx *cli.Context) error {
 	mt := tree.NewMerkleTree(sqlDB, c.NetworkConfig.Arity, poseidon.Hash)
 	tr := tree.NewStateTree(mt, []byte{})
 	st := state.NewState(sqlDB, tr)
+
+	// *************************************************************** //
+	// this needs to be removed after we define how to set the genesis //
+	// *************************************************************** //
+	initializeNetwork(st, etherman, c.Etherman, c.Database)
+	// *************************************************************** //
+	// this needs to be removed after we define how to set the genesis //
+	// *************************************************************** //
 
 	pool, err := pool.NewPostgresPool(c.Database)
 	if err != nil {
@@ -268,4 +279,27 @@ func versionCmd(*cli.Context) error {
 	fmt.Printf("Build = \"%v\"\n", commit)
 	fmt.Printf("Date = \"%v\"\n", date)
 	return nil
+}
+
+// *************************************************************** //
+// this needs to be removed after we define how to set the genesis //
+// *************************************************************** //
+func initializeNetwork(st state.State, e etherman.EtherMan, ec etherman.Config, dc db.Config) {
+	err := dbutils.InitOrReset(dc)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	balances := map[common.Address]*big.Int{}
+	balance, _ := big.NewInt(0).SetString("100000000000000000000", encoding.Base10)
+	balances[common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")] = balance
+
+	genesis := state.Genesis{Balances: balances}
+	if err := st.SetGenesis(context.Background(), genesis); err != nil {
+		log.Fatal(err)
+	}
+
+	if _, err := e.RegisterSequencer("http://localhost"); err != nil {
+		log.Fatal(err)
+	}
 }

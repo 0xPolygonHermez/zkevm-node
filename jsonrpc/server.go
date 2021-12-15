@@ -26,7 +26,7 @@ type Server struct {
 func NewServer(config Config, defaultChainID uint64, chainID uint64, p pool.Pool, s state.State) *Server {
 	ethEndpoints := &Eth{chainID: chainID, pool: p, state: s}
 	netEndpoints := &Net{chainID: chainID}
-	hezEndpoints := &Hez{defaultChainID: defaultChainID}
+	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
 
 	handler := newJSONRpcHandler(ethEndpoints, netEndpoints, hezEndpoints)
 

@@ -13,8 +13,8 @@ type Hez struct {
 	state          state.State
 }
 
-// DefaultChainID returns the default chain id that is allowed to be used by all the sequencers
-func (h *Hez) DefaultChainID() (interface{}, error) {
+// DefaultChainId returns the default chain id that is allowed to be used by all the sequencers
+func (h *Hez) DefaultChainId() (interface{}, error) { //nolint:golint
 	return hex.EncodeUint64(h.defaultChainID), nil
 }
 
