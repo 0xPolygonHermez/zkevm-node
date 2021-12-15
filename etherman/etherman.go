@@ -60,7 +60,7 @@ type ClientEtherMan struct {
 }
 
 // NewEtherman creates a new etherman
-func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
+func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address) (*ClientEtherMan, error) {
 	//Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -68,12 +68,12 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
 		return nil, err
 	}
 	//Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddress.Address, ethClient)
+	poe, err := proofofefficiency.NewProofofefficiency(PoEAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, cfg.PoEAddress.Address)
+	scAddresses = append(scAddresses, PoEAddr)
 
 	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, auth: auth}, nil
 }
