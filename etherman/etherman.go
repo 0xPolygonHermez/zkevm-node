@@ -42,6 +42,7 @@ type EtherMan interface {
 	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
 	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
+	RegisterSequencer(url string) (*types.Transaction, error)
 }
 
 type ethClienter interface {
@@ -60,7 +61,7 @@ type ClientEtherMan struct {
 }
 
 // NewEtherman creates a new etherman
-func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
+func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address) (*ClientEtherMan, error) {
 	//Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -68,12 +69,12 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts) (*ClientEtherMan, error) {
 		return nil, err
 	}
 	//Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddress.Address, ethClient)
+	poe, err := proofofefficiency.NewProofofefficiency(PoEAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, cfg.PoEAddress.Address)
+	scAddresses = append(scAddresses, PoEAddr)
 
 	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, auth: auth}, nil
 }
@@ -197,12 +198,22 @@ func (etherMan *ClientEtherMan) ConsolidateBatch(batchNum *big.Int, proof *prove
 	return tx, nil
 }
 
+// RegisterSequencer function allows to register a new sequencer in the rollup
+func (etherMan *ClientEtherMan) RegisterSequencer(url string) (*types.Transaction, error) {
+	tx, err := etherMan.PoE.RegisterSequencer(etherMan.auth, url)
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
+}
+
 func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, error) {
 	logs, err := etherMan.EtherClient.FilterLogs(ctx, query)
 	if err != nil {
 		return []state.Block{}, err
 	}
 	blocks := make(map[common.Hash]state.Block)
+	var blockKeys []common.Hash
 	for _, vLog := range logs {
 		block, err := etherMan.processEvent(ctx, vLog)
 		if err != nil {
@@ -218,11 +229,12 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 			blocks[block.BlockHash] = b
 		} else {
 			blocks[block.BlockHash] = *block
+			blockKeys = append(blockKeys, block.BlockHash)
 		}
 	}
 	var blockArr []state.Block
-	for _, b := range blocks {
-		blockArr = append(blockArr, b)
+	for _, hash := range blockKeys {
+		blockArr = append(blockArr, blocks[hash])
 	}
 	return blockArr, nil
 }
