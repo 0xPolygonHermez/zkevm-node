@@ -12,9 +12,13 @@ GOENVVARS := GOBIN=$(GOBIN)
 GOBINARY := hezcore
 GOCMD := $(GOBASE)/cmd
 
+LINT := $$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E gosec -E gci -E misspell -E gomnd -E gofmt -E goimports -E golint --exclude-use-default=false --max-same-issues 0
+BUILD := $(GOENVVARS) go build $(LDFLAGS) -o $(GOBIN)/$(GOBINARY) $(GOCMD)
+RUN := $(GOBIN)/$(GOBINARY) run --network local --cfg ./cmd/config.toml
+
 .PHONY: build
 build: ## Build the binary
-	$(GOENVVARS) go build $(LDFLAGS) -o $(GOBIN)/$(GOBINARY) $(GOCMD)
+	$(BUILD)
 
 .PHONY: test
 test: ## runs only short tests without checking race conditions
@@ -36,14 +40,14 @@ install-linter: ## install linter
 
 .PHONY: lint
 lint: ## runs linter
-	$$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E gosec -E gci -E misspell -E gomnd -E gofmt -E goimports -E golint --exclude-use-default=false --max-same-issues 0
+	$(LINT)
 
 .PHONY: deploy
 deploy: lint test-full build ## Validate and create the binary to be deployed
 
 .PHONY: run
 run: ## Runs the application
-	$(GOBIN)/$(GOBINARY) run
+	$(RUN)
 
 .PHONY: start-db
 start-db: ## starts a docker container to run the db instance
@@ -52,6 +56,15 @@ start-db: ## starts a docker container to run the db instance
 .PHONY: stop-db
 stop-db: ## stops the docker container running the db instance
 	$(STOPDB)
+
+.PHONY: demo
+demo: ## demo environment for version 1.3
+	$(STOPDB) || true
+	$(STARTDB)
+	$(BUILD)
+	$(RUN)
+	$(STOPDB)
+	
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
