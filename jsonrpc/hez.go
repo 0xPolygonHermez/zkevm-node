@@ -22,15 +22,10 @@ func (h *Hez) DefaultChainID() (interface{}, error) {
 func (h *Hez) ConsolidatedBlockNumber() (interface{}, error) {
 	ctx := context.Background()
 
-	lastConsolidatedBatch, err := h.state.GetLastBatch(ctx, false)
+	lastBatchNumber, err := h.state.GetLastBatchNumber(ctx, false)
 	if err != nil {
 		return nil, err
 	}
 
-	lastConsolidatedBatchNumber := uint64(0)
-	if lastConsolidatedBatch != nil {
-		lastConsolidatedBatchNumber = lastConsolidatedBatch.BatchNumber
-	}
-
-	return hex.EncodeUint64(lastConsolidatedBatchNumber), nil
+	return hex.EncodeUint64(lastBatchNumber), nil
 }

@@ -264,7 +264,7 @@ func TestBasicState_GetBatchByNumber(t *testing.T) {
 }
 
 func TestBasicState_GetLastBatchNumber(t *testing.T) {
-	batchNumber, err := state.GetLastBatchNumber(ctx)
+	batchNumber, err := state.GetLastBatchNumber(ctx, true)
 	assert.NoError(t, err)
 	assert.Equal(t, batch4.BatchNumber, batchNumber)
 }

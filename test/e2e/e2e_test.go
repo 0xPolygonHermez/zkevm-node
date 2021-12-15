@@ -215,7 +215,7 @@ func TestStateTransition(t *testing.T) {
 			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
 
 			// check leafs
-			batchNumber, err := st.GetLastBatchNumber(ctx)
+			batchNumber, err := st.GetLastBatchNumber(ctx, true)
 			require.NoError(t, err)
 			for addrStr, leaf := range testCase.ExpectedNewLeafs {
 				addr := common.HexToAddress(addrStr)
