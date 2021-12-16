@@ -97,7 +97,6 @@ func start(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	setupLog(c.Log)
 
 	runMigrations(c.Database)
