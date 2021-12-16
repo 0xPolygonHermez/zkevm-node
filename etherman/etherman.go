@@ -43,6 +43,7 @@ type EtherMan interface {
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
 	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
 	RegisterSequencer(url string) (*types.Transaction, error)
+	GetAddress() common.Address
 }
 
 type ethClienter interface {
@@ -377,4 +378,9 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 		txs = append(txs, types.NewTx(&tx))
 	}
 	return txs, nil
+}
+
+// GetAddress function allows to retrieve the wallet address
+func (etherMan *ClientEtherMan) GetAddress() common.Address {
+	return etherMan.auth.From
 }
