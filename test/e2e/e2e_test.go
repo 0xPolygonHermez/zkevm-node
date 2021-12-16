@@ -162,7 +162,7 @@ func TestStateTransition(t *testing.T) {
 				return
 			}
 
-			// Update Sequencer ChainID to the one in the test vector
+			// update Sequencer ChainID to the one in the test vector
 			_, err = sqlDB.Exec(ctx, "UPDATE state.sequencer SET chain_id = $1 WHERE address = $2", testCase.ChainIDSequencer, common.HexToAddress(testCase.SequencerAddress).Bytes())
 			require.NoError(t, err)
 
