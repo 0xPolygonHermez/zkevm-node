@@ -286,7 +286,7 @@ func registerSequencer(ctx *cli.Context) error {
 	network := ctx.String(flagNetwork)
 	url := ctx.Args().First()
 	fmt.Print("*WARNING* Are you sure you want to register " +
-			"the sequencer in the rollup using the domain <" + url + ">? [y/N]: ")
+		"the sequencer in the rollup using the domain <" + url + ">? [y/N]: ")
 	var input string
 	if _, err := fmt.Scanln(&input); err != nil {
 		return err
@@ -332,7 +332,7 @@ func registerSequencer(ctx *cli.Context) error {
 	}
 	// If Sequencer exists in the db
 	fmt.Print("*WARNING* Sequencer is already registered. Do you want to update " +
-			"the sequencer url in the rollup usign the domain <" + url + ">? [y/N]: ")
+		"the sequencer url in the rollup usign the domain <" + url + ">? [y/N]: ")
 	if _, err := fmt.Scanln(&input); err != nil {
 		return err
 	}
