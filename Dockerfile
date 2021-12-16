@@ -2,7 +2,6 @@
 FROM golang:1.16 AS build
 
 ENV CGO_ENABLED=1
-ENV GO111MODULE=on
 
 # INSTALL DEPENDENCIES
 RUN go get -u github.com/gobuffalo/packr/v2/packr2

@@ -10,12 +10,12 @@ services:
           - HERMEZCORE_DATABASE_USER=test_user
           - HERMEZCORE_DATABASE_PASSWORD=test_password
           - HERMEZCORE_DATABASE_NAME=test_db
-          - HERMEZCORE_DATABASE_HOST=postgres
+          - HERMEZCORE_DATABASE_HOST=hez-postgres
           - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/test.keystore
         volumes:
           - ./test/test.keystore:/pk/test.keystore
-    postgres:
-        container_name: postgres
+    hez-postgres:
+        container_name: hez-postgres
         restart: always
         image: postgres
         ports:
@@ -25,8 +25,8 @@ services:
             - POSTGRES_USER=test_user
             - POSTGRES_PASSWORD=test_password
             - POSTGRES_DB=test_db
-    explorer:
-        container_name: explorer
+    hez-explorer:
+        container_name: hez-explorer
         restart: always
         image: ulamlabs/blockscout:latest
         ports:
@@ -36,5 +36,5 @@ services:
           - ETHEREUM_JSONRPC_VARIANT=geth
           - ETHEREUM_JSONRPC_HTTP_URL=http://hezcore:8123
           - ETHEREUM_JSONRPC_WS_URL=ws://hezcore:8123
-          - DATABASE_URL=postgres://test_user:test_password@postgres:5432/test_db
+          - DATABASE_URL=postgres://test_user:test_password@hez-postgres:5432/test_db
           - ECTO_USE_SSL=false
