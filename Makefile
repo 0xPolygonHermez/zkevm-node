@@ -57,15 +57,6 @@ start-db: ## starts a docker container to run the db instance
 stop-db: ## stops the docker container running the db instance
 	$(STOPDB)
 
-.PHONY: demo
-demo: ## demo environment for version 1.3
-	$(STOPDB) || true
-	$(STARTDB)
-	$(BUILD)
-	$(RUN)
-	$(STOPDB)
-	
-
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
 ## display with the commands and their usage information.
