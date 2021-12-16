@@ -187,7 +187,7 @@ func TestSCEvents(t *testing.T) {
 	log.Debugf("Batch consolidated in txHash: %+v \n", block[0].Batches[0].ConsolidatedTxHash)
 }
 
-func TestSequencerEvent(t *testing.T) {
+func TestRegisterSequencerAndEvent(t *testing.T) {
 	// Set up testing environment
 	etherman, commit := newTestingEnv()
 	ctx := context.Background()
@@ -197,7 +197,7 @@ func TestSequencerEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	//send propose batch l1 tx
-	_, err = etherman.PoE.RegisterSequencer(etherman.auth, "http://localhost")
+	_, err = etherman.RegisterSequencer("http://localhost")
 	require.NoError(t, err)
 
 	//mine the tx in a block
