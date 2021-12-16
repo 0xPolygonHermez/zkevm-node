@@ -14,10 +14,6 @@ const (
 	Base10 = 10
 	// BitSize64 64 bits
 	BitSize64 = 64
-	// TenToThePowerOf9 is 10 ^ 9 which represents a gWei
-	TenToThePowerOf9 = 10 ^ 9
-	// TenToThePowerOf18 is 10 ^ 18 which represents an Ether
-	TenToThePowerOf18 = 10 ^ 18
 )
 
 // DecodeUint64orHex decodes a string uint64 or hex string into a uint64

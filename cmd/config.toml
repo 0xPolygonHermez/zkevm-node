@@ -11,7 +11,7 @@ Port = "5432"
 
 [Etherman]
 URL = "http://localhost"
-PrivateKeyPath = "../test/test.keystore"
+PrivateKeyPath = "./test/test.keystore"
 PrivateKeyPassword = "testonly"
 
 [RPC]

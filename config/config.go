@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"log"
 	"path/filepath"
 	"strings"
 
@@ -10,7 +9,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
-	logger "github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/mitchellh/mapstructure"
@@ -19,7 +18,7 @@ import (
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	Log           logger.Config
+	Log           log.Config
 	Database      db.Config
 	Etherman      etherman.Config
 	RPC           jsonrpc.Config
@@ -59,9 +58,9 @@ func Load(configFilePath string, network string) (*Config, error) {
 	if err != nil {
 		_, ok := err.(viper.ConfigFileNotFoundError)
 		if ok {
-			log.Println("config file not found")
+			log.Infof("config file not found")
 		} else {
-			log.Println("error reading config file: ", err)
+			log.Infof("error reading config file: ", err)
 			return nil, err
 		}
 	}
@@ -73,6 +72,6 @@ func Load(configFilePath string, network string) (*Config, error) {
 	// Load genesis parameters
 	cfg.loadNetworkConfig(network)
 
-	log.Printf("Configuration loaded: %+v", cfg)
+	log.Infof("Configuration loaded: %+v", cfg)
 	return &cfg, nil
 }
