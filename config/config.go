@@ -13,27 +13,24 @@ import (
 	logger "github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
-	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 )
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	Log          logger.Config
-	Database     db.Config
-	Etherman     etherman.Config
-	Synchronizer synchronizer.Config
-	RPC          jsonrpc.Config
-	Sequencer    sequencer.Config
-	Aggregator   aggregator.Config
-	Prover       proverclient.Config
-	State        state.Config
+	Log           logger.Config
+	Database      db.Config
+	Etherman      etherman.Config
+	RPC           jsonrpc.Config
+	Sequencer     sequencer.Config
+	Aggregator    aggregator.Config
+	Prover        proverclient.Config
+	NetworkConfig NetworkConfig
 }
 
 // Load loads the configuration
-func Load(configFilePath string) (*Config, error) {
+func Load(configFilePath string, network string) (*Config, error) {
 	var cfg Config
 	viper.SetConfigType("toml")
 
@@ -73,6 +70,9 @@ func Load(configFilePath string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Load genesis parameters
+	cfg.loadNetworkConfig(network)
+
 	log.Printf("Configuration loaded: %+v", cfg)
 	return &cfg, nil
 }

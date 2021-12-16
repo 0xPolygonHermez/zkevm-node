@@ -61,7 +61,6 @@ var cfg = config.Config{
 		Host: "",
 		Port: 8123,
 	},
-	Synchronizer: synchronizer.Config{},
 	Sequencer: sequencer.Config{
 		IntervalToProposeBatch: sequencer.Duration{Duration: 1 * time.Second},
 	},
@@ -134,7 +133,7 @@ func TestStateTransition(t *testing.T) {
 			assert.Equal(t, testCase.ExpectedOldRoot, strRoot, "Invalid old root")
 
 			// start synchronizer
-			sy, err := synchronizer.NewSynchronizer(etherman, st, cfg.Synchronizer)
+			sy, err := synchronizer.NewSynchronizer(etherman, st, cfg.NetworkConfig.GenBlockNumber)
 			require.NoError(t, err)
 			go func(t *testing.T, s synchronizer.Synchronizer) {
 				err := sy.Sync()

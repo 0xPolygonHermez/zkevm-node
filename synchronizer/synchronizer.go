@@ -9,6 +9,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/jackc/pgx/v4"
 )
 
 // Synchronizer connects L1 and L2
@@ -19,23 +20,23 @@ type Synchronizer interface {
 
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
-	etherMan  etherman.EtherMan
-	state     state.State
-	ctx       context.Context
-	cancelCtx context.CancelFunc
-	config    Config
+	etherMan       etherman.EtherMan
+	state          state.State
+	ctx            context.Context
+	cancelCtx      context.CancelFunc
+	genBlockNumber uint64
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
-func NewSynchronizer(ethMan etherman.EtherMan, st state.State, cfg Config) (Synchronizer, error) {
+func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64) (Synchronizer, error) {
 	//TODO
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
-		state:     st,
-		etherMan:  ethMan,
-		ctx:       ctx,
-		cancelCtx: cancel,
-		config:    cfg,
+		state:          st,
+		etherMan:       ethMan,
+		ctx:            ctx,
+		cancelCtx:      cancel,
+		genBlockNumber: genBlockNumber,
 	}, nil
 }
 
@@ -49,11 +50,11 @@ func (s *ClientSynchronizer) Sync() error {
 		if err != nil {
 			log.Warn("error getting the latest ethereum block. Setting genesis block. Error: ", err)
 			lastEthBlockSynced = &state.Block{
-				BlockNumber: s.config.GenesisBlock,
+				BlockNumber: s.genBlockNumber,
 			}
 		} else if lastEthBlockSynced.BlockNumber == 0 {
 			lastEthBlockSynced = &state.Block{
-				BlockNumber: s.config.GenesisBlock,
+				BlockNumber: s.genBlockNumber,
 			}
 		}
 		waitDuration := time.Duration(0)
@@ -90,7 +91,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	}
 
 	//Call the blockchain to retrieve data
-	var fromBlock uint64 = 0
+	var fromBlock uint64
 	if lastEthBlockSynced.BlockNumber > 0 {
 		fromBlock = lastEthBlockSynced.BlockNumber + 1
 	}
@@ -173,6 +174,9 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 			//Reorg detected. Getting previous block
 			latestBlock, err = s.state.GetBlockByNumber(s.ctx, latestBlock.BlockNumber-1)
 			if err != nil {
+				if err.Error() == pgx.ErrNoRows.Error() {
+					return nil, nil
+				}
 				return nil, err
 			}
 		} else {
