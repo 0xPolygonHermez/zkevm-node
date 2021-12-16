@@ -142,7 +142,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 // This function allows reset the state until an specific ethereum block
 func (s *ClientSynchronizer) resetState(ethBlockNum uint64) error {
 	log.Debug("Reverting synchronization to block: ", ethBlockNum)
-	err := s.state.Reset(ethBlockNum)
+	err := s.state.Reset(s.ctx, ethBlockNum)
 	if err != nil {
 		return err
 	}

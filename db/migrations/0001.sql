@@ -30,7 +30,8 @@ CREATE TABLE state.transaction
     from_address BYTEA,
     encoded      VARCHAR,
     decoded      jsonb,
-    batch_num    BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE
+    batch_num    BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
+    tx_index     integer
 );
     
 CREATE TABLE state.sequencer

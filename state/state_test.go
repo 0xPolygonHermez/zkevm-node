@@ -491,6 +491,16 @@ func TestStateTransition(t *testing.T) {
 			transactions, err := state.GetTxsByBatchNum(ctx, batch.BatchNumber)
 			require.NoError(t, err)
 
+			// Check get transaction by batch number and index
+			transaction, err := state.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
+			require.NoError(t, err)
+			assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+
+			// Check get transaction by hash and index
+			transaction, err = state.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
+			require.NoError(t, err)
+			assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+
 			for _, transaction := range transactions {
 				receipt, err := state.GetTransactionReceipt(ctx, transaction.Hash())
 				require.NoError(t, err)
