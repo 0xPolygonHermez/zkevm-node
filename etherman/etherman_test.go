@@ -275,3 +275,15 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 
 	assert.Equal(t, 1, len(block[0].Batches))
 }
+
+func TestDefaultChainID(t *testing.T) {
+	// Set up testing environment
+	etherman, _ := newTestingEnv()
+
+	//get chainID
+	defaultChainID, err := etherman.GetDefaultChainID()
+	require.NoError(t, err)
+
+	//Check value
+	assert.Equal(t, big.NewInt(10000), defaultChainID)
+}

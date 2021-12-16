@@ -44,6 +44,7 @@ type EtherMan interface {
 	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
 	RegisterSequencer(url string) (*types.Transaction, error)
 	GetAddress() common.Address
+	GetDefaultChainID() (*big.Int, error)
 }
 
 type ethClienter interface {
@@ -378,4 +379,10 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 // GetAddress function allows to retrieve the wallet address
 func (etherMan *ClientEtherMan) GetAddress() common.Address {
 	return etherMan.auth.From
+}
+
+// GetDefaultChainID function allows to retrieve the default chainID from the smc
+func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
+	defaulChainID, err := etherMan.PoE.DEFAULTCHAINID(&bind.CallOpts{Pending: false})
+	return new(big.Int).SetUint64(uint64(defaulChainID)), err
 }
