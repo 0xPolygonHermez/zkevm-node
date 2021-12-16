@@ -22,7 +22,7 @@ type Eth struct {
 func (e *Eth) BlockNumber() (interface{}, error) {
 	ctx := context.Background()
 
-	lastBatchNumber, err := e.state.GetLastBatchNumber(ctx, true)
+	lastBatchNumber, err := e.state.GetLastBatchNumber(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func getNumericBlockNumber(e *Eth, number BlockNumber) (uint64, error) {
 
 	switch number {
 	case LatestBlockNumber:
-		lastBatchNumber, err := e.state.GetLastBatchNumber(ctx, true)
+		lastBatchNumber, err := e.state.GetLastBatchNumber(ctx)
 		if err != nil {
 			return 0, err
 		}

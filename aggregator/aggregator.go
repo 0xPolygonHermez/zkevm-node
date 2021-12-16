@@ -66,7 +66,7 @@ func (a *Aggregator) Start() {
 		select {
 		case <-time.After(a.cfg.IntervalToConsolidateState.Duration):
 			// 1. check, if state is synced
-			lastSyncedBatchNum, err := a.State.GetLastBatchNumber(a.ctx, true)
+			lastSyncedBatchNum, err := a.State.GetLastBatchNumber(a.ctx)
 			if err != nil {
 				log.Warnf("failed to get last synced batch, err: %v", err)
 				continue

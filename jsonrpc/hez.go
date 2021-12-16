@@ -22,7 +22,7 @@ func (h *Hez) DefaultChainId() (interface{}, error) { //nolint:golint
 func (h *Hez) ConsolidatedBlockNumber() (interface{}, error) {
 	ctx := context.Background()
 
-	lastBatchNumber, err := h.state.GetLastBatchNumber(ctx, false)
+	lastBatchNumber, err := h.state.GetLastConsolidatedBatchNumber(ctx)
 	if err != nil {
 		return nil, err
 	}

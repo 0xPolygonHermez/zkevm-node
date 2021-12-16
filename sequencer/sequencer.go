@@ -63,7 +63,7 @@ func (s *Sequencer) Stop() {
 
 func (s *Sequencer) tryProposeBatch() {
 	// 1. Wait for synchronizer to sync last batch
-	lastSyncedBatchNum, err := s.State.GetLastBatchNumber(s.ctx, true)
+	lastSyncedBatchNum, err := s.State.GetLastBatchNumber(s.ctx)
 	if err != nil {
 		log.Errorf("failed to get last synced batch, err: %v", err)
 		return

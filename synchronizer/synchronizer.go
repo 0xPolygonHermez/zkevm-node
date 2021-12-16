@@ -103,7 +103,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	// New info has to be included into the db using the state
 	for i := range blocks {
 		//get lastest synced batch number
-		latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx, true)
+		latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
 		if err != nil {
 			log.Error("error getting latest batch. Error: ", err)
 		}

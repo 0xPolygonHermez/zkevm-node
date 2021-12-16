@@ -30,7 +30,8 @@ type State interface {
 	GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*Batch, error)
 	GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64) (*Batch, error)
-	GetLastBatchNumber(ctx context.Context, isVirtual bool) (uint64, error)
+	GetLastBatchNumber(ctx context.Context) (uint64, error)
+	GetLastConsolidatedBatchNumber(ctx context.Context) (uint64, error)
 	GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64) (*types.Transaction, error)
 	GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error)
@@ -271,17 +272,19 @@ func (s *BasicState) GetBatchByNumber(ctx context.Context, batchNumber uint64) (
 }
 
 // GetLastBatchNumber gets the latest batch number
-func (s *BasicState) GetLastBatchNumber(ctx context.Context, isVirtual bool) (uint64, error) {
+func (s *BasicState) GetLastBatchNumber(ctx context.Context) (uint64, error) {
 	var lastBatchNumber uint64
-	var row pgx.Row
-
-	if isVirtual {
-		row = s.db.QueryRow(ctx, getLastVirtualBatchNumberSQL)
-	} else {
-		row = s.db.QueryRow(ctx, getLastConsolidatedBatchNumberSQL, common.Hash{})
+	err := s.db.QueryRow(ctx, getLastVirtualBatchNumberSQL).Scan(&lastBatchNumber)
+	if err != nil {
+		return 0, err
 	}
+	return lastBatchNumber, nil
+}
 
-	err := row.Scan(&lastBatchNumber)
+// GetLastConsolidatedBatchNumber gets the latest consolidated batch number
+func (s *BasicState) GetLastConsolidatedBatchNumber(ctx context.Context) (uint64, error) {
+	var lastBatchNumber uint64
+	err := s.db.QueryRow(ctx, getLastConsolidatedBatchNumberSQL, common.Hash{}).Scan(&lastBatchNumber)
 	if err != nil {
 		return 0, err
 	}
