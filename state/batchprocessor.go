@@ -3,7 +3,6 @@ package state
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -22,8 +21,12 @@ var (
 	ErrInvalidBalance = errors.New("not enough balance")
 	// ErrInvalidGas indicates the gaslimit is not enough to process the transaction
 	ErrInvalidGas = errors.New("not enough gas")
-	// ErrInvalidChainId indicates a mismatch between sequencer address and ChainID
+	// ErrInvalidChainID indicates a mismatch between sequencer address and ChainID
 	ErrInvalidChainID = errors.New("invalid chain id for sequencer")
+)
+
+const (
+	defaultChainID uint64 = 1000
 )
 
 // BatchProcessor is used to process a batch of transactions
@@ -190,11 +193,9 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 
 	// Check ChainID
 	// TODO: Don't hardcode default ChainID
-
-	defaultChainID := uint64(0)
 	if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != defaultChainID {
-		fmt.Printf("b: %v", b.SequencerChainID)
-		fmt.Printf("t: %v", tx.ChainId().Uint64())
+		log.Debugf("Batch ChainID: %v", b.SequencerChainID)
+		log.Debugf("Transaction ChainID: %v", tx.ChainId().Uint64())
 		return sender, nonce, balance, ErrInvalidChainID
 	}
 

@@ -101,11 +101,11 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 
 	// Get Sequencer's Chain ID
 	sq, err := s.GetSequencer(context.Background(), sequencerAddress)
-	if err == nil {
-		chainID = sq.ChainID.Uint64()
-	} /* else if err != nil {
+	if err != nil {
 		return nil, err
-	}*/
+	}
+
+	chainID = sq.ChainID.Uint64()
 
 	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID}, nil
 }
@@ -414,7 +414,7 @@ func (s *BasicState) AddSequencer(ctx context.Context, seq Sequencer) error {
 func (s *BasicState) GetSequencer(ctx context.Context, address common.Address) (*Sequencer, error) {
 	var seq Sequencer
 	var cID uint64
-	err := s.db.QueryRow(ctx, getSequencerSQL, address).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
+	err := s.db.QueryRow(ctx, getSequencerSQL, address.Bytes()).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
 	if err != nil {
 		return nil, err
 	}

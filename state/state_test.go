@@ -460,7 +460,7 @@ func TestStateTransition(t *testing.T) {
 				sq := Sequencer{
 					Address:     common.HexToAddress(testCase.SequencerAddress),
 					URL:         "",
-					ChainID:     new(big.Int).SetUint64(testCase.ChanIDSequencer),
+					ChainID:     new(big.Int).SetUint64(testCase.ChainIDSequencer),
 					BlockNumber: 0,
 				}
 
@@ -470,15 +470,16 @@ func TestStateTransition(t *testing.T) {
 
 			// Create Transaction
 			for _, vectorTx := range testCase.Txs {
-				var tx types.LegacyTx
-				bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
+				if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" {
+					var tx types.LegacyTx
+					bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
 
-				err = rlp.DecodeBytes(bytes, &tx)
-				if err == nil {
-					txs = append(txs, types.NewTx(&tx))
+					err = rlp.DecodeBytes(bytes, &tx)
+					if err == nil {
+						txs = append(txs, types.NewTx(&tx))
+					}
+					require.NoError(t, err)
 				}
-				require.NoError(t, err)
-
 			}
 
 			// Create Batch
