@@ -107,7 +107,7 @@ func (s *Sequencer) tryProposeBatch() {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return
 	}
-	bp, err := s.State.NewBatchProcessor(lastBatch.BatchNumber, false)
+	bp, err := s.State.NewBatchProcessor(lastBatch.Sequencer, lastBatch.BatchNumber)
 	if err != nil {
 		log.Errorf("failed to create new batch processor, err: %v", err)
 		return
