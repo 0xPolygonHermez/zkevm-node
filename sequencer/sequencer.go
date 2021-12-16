@@ -32,16 +32,12 @@ type Sequencer struct {
 func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// TODO: Get Address from ethman
-	// address := ethMan.getAddress()
-	address := common.Address{}
-
 	s := Sequencer{
 		cfg:     cfg,
 		Pool:    pool,
 		State:   state,
 		EthMan:  ethMan,
-		Address: address,
+		Address: ethMan.GetAddress(),
 
 		ctx:    ctx,
 		cancel: cancel,
