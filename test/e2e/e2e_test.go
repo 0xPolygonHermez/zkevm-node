@@ -66,7 +66,10 @@ var cfg = config.Config{
 	Sequencer: sequencer.Config{
 		IntervalToProposeBatch: sequencer.Duration{Duration: 1 * time.Second},
 		Strategy: strategy.Strategy{
-			Type: strategy.AcceptAll,
+			Type:                       strategy.Base,
+			TxSorterType:               strategy.ByCostAndNonce,
+			TxProfitabilityCheckerType: strategy.ProfitabilityAcceptAll,
+			MinReward:                  0,
 		},
 	},
 	Aggregator: aggregator.Config{

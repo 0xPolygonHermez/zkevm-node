@@ -126,14 +126,14 @@ func (s *Sequencer) tryProposeBatch() {
 	// select txs
 	selectedTxs, invalidTxs, err := s.TxSelector.SelectTxs(bp, txs, estimatedTime)
 	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
-		log.Errorf("failed to get last batch from the state, err: %v", err)
+		log.Errorf("failed to select txs, err: %v", err)
 		return
 	}
 
 	for _, tx := range invalidTxs {
 		err = s.Pool.UpdateTxState(s.ctx, tx.Hash(), pool.TxStateInvalid)
 		if err != nil {
-			log.Errorf("failed to update tx state to selected, tx: %v, err: %v", tx.Hash(), err)
+			log.Errorf("failed to update tx state to invalid, tx: %v, err: %v", tx.Hash(), err)
 			return
 		}
 	}

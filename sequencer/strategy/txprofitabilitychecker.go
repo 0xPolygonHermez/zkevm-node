@@ -10,8 +10,10 @@ import (
 type TxProfitabilityCheckerType string
 
 const (
-	// BaseProfitability type that checks sum of costs of txs against min reward
-	BaseProfitability = "base"
+	// ProfitabilityBase type that checks sum of costs of txs against min reward
+	ProfitabilityBase = "base"
+	// ProfitabilityAcceptAll validate batch anyway and don't check anything
+	ProfitabilityAcceptAll = "acceptall"
 )
 
 // TxProfitabilityChecker interface for different profitability checkers
@@ -35,4 +37,12 @@ func (pc *TxProfitabilityCheckerBase) IsProfitable(txs []*types.Transaction) boo
 	}
 
 	return false
+}
+
+// TxProfitabilityCheckerAcceptAll always returns true
+type TxProfitabilityCheckerAcceptAll struct{}
+
+// IsProfitable always returns true
+func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(txs []*types.Transaction) bool {
+	return true
 }

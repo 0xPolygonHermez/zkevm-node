@@ -62,8 +62,10 @@ func NewTxSelectorBase(strategy Strategy) TxSelector {
 	}
 
 	switch strategy.TxProfitabilityCheckerType {
-	case BaseProfitability:
+	case ProfitabilityBase:
 		profitabilityChecker = &TxProfitabilityCheckerBase{MinReward: new(big.Int).SetUint64(strategy.MinReward)}
+	case ProfitabilityAcceptAll:
+		profitabilityChecker = &TxProfitabilityCheckerAcceptAll{}
 	}
 	return &TxSelectorBase{
 		Strategy:               strategy,
@@ -85,7 +87,8 @@ func (t *TxSelectorBase) SelectTxs(batchProcessor state.BatchProcessor, pendingT
 		if err != nil {
 			invalidTxs = append(invalidTxs, tx)
 		} else {
-			selectedTxs = append(selectedTxs, &tx.Transaction)
+			t := tx.Transaction
+			selectedTxs = append(selectedTxs, &t)
 		}
 	}
 
