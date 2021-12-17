@@ -59,16 +59,5 @@ CREATE TABLE state.misc
     last_batch_num_seen BIGINT
 );
 
-CREATE OR REPLACE FUNCTION populate_misc() RETURNS TRIGGER 
-AS 'BEGIN INSERT INTO state.misc (last_batch_num_seen) VALUES(0); RETURN NULL; END;'
-LANGUAGE plpgsql;
-
--- This trigger ensures a register is always present in the table and Updates will always work
--- This situation should never happen, just by human mistakes, as there is no code
--- to delete on this table. It does not affect performance as is "after delete"
-
-CREATE TRIGGER delete_misc
-    AFTER DELETE ON state.misc
-    EXECUTE PROCEDURE populate_misc();
-
-DELETE FROM state.misc;
+-- Insert default value into misc table
+INSERT INTO state.misc (last_batch_num_seen) VALUES(0);
