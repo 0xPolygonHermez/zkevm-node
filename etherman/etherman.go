@@ -24,9 +24,9 @@ import (
 )
 
 var (
-	newBatchEventSignatureHash        = crypto.Keccak256Hash([]byte("SendBatch(uint256,address)"))
-	consolidateBatchSignatureHash     = crypto.Keccak256Hash([]byte("VerifyBatch(uint256,address)"))
-	newSequencerSignatureHash         = crypto.Keccak256Hash([]byte("SetSequencer(address,string)"))
+	newBatchEventSignatureHash        = crypto.Keccak256Hash([]byte("SendBatch(uint32,address)"))
+	consolidateBatchSignatureHash     = crypto.Keccak256Hash([]byte("VerifyBatch(uint32,address)"))
+	newSequencerSignatureHash         = crypto.Keccak256Hash([]byte("RegisterSequencer(address,string,uint32)"))
 	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 )
 
@@ -44,6 +44,7 @@ type EtherMan interface {
 	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
 	RegisterSequencer(url string) (*types.Transaction, error)
 	GetAddress() common.Address
+	GetDefaultChainID() (*big.Int, error)
 }
 
 type ethClienter interface {
@@ -159,7 +160,7 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 }
 
 // ConsolidateBatch function allows the aggregator send the proof for a batch and consolidate it
-func (etherMan *ClientEtherMan) ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error) {
+func (etherMan *ClientEtherMan) ConsolidateBatch(batchNumber *big.Int, proof *proverclient.Proof) (*types.Transaction, error) {
 	newLocalExitRoot, err := byteSliceToFixedByteArray(proof.PublicInputs.NewLocalExitRoot)
 	if err != nil {
 		return nil, err
@@ -187,7 +188,7 @@ func (etherMan *ClientEtherMan) ConsolidateBatch(batchNum *big.Int, proof *prove
 		etherMan.auth,
 		newLocalExitRoot,
 		newStateRoot,
-		batchNum,
+		uint32(batchNumber.Uint64()),
 		proofA,
 		proofB,
 		proofC,
@@ -251,7 +252,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		var head types.Header
 		head.TxHash = vLog.TxHash
 		head.Difficulty = big.NewInt(0)
-		head.Number = big.NewInt(0).SetUint64(batch.BatchNumber)
+		head.Number = new(big.Int).SetUint64(batch.BatchNumber)
 		batch.Header = &head
 		block.BlockNumber = vLog.BlockNumber
 		batch.BlockNumber = vLog.BlockNumber
@@ -297,7 +298,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		block.Batches = append(block.Batches, batch)
 		return &block, nil
 	case newSequencerSignatureHash:
-		seq, err := etherMan.PoE.ParseSetSequencer(vLog)
+		seq, err := etherMan.PoE.ParseRegisterSequencer(vLog)
 		if err != nil {
 			return nil, err
 		}
@@ -314,12 +315,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		if err != nil {
 			log.Warn("error getting hashParent. BlockNumber: ", block.BlockNumber, " error: ", err)
 		}
-		//Get sequencer chainId
-		se, err := etherMan.PoE.Sequencers(&bind.CallOpts{Pending: false}, seq.SequencerAddress)
-		if err != nil {
-			return nil, err
-		}
-		sequencer.ChainID = se.ChainID
+		sequencer.ChainID = new(big.Int).SetUint64(uint64(seq.ChainID))
 		block.NewSequencers = append(block.NewSequencers, sequencer)
 		return &block, nil
 	case ownershipTransferredSignatureHash:
@@ -383,4 +379,10 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 // GetAddress function allows to retrieve the wallet address
 func (etherMan *ClientEtherMan) GetAddress() common.Address {
 	return etherMan.auth.From
+}
+
+// GetDefaultChainID function allows to retrieve the default chainID from the smc
+func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
+	defaulChainID, err := etherMan.PoE.DEFAULTCHAINID(&bind.CallOpts{Pending: false})
+	return new(big.Int).SetUint64(uint64(defaulChainID)), err
 }

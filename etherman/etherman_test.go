@@ -164,7 +164,7 @@ func TestSCEvents(t *testing.T) {
 		proofC           = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
 		proofB           = [2][2]*big.Int{proofC, proofC}
 	)
-	_, err = etherman.PoE.VerifyBatch(etherman.auth, newLocalExitRoot, newStateRoot, new(big.Int).SetUint64(block[0].Batches[0].BatchNumber), proofA, proofB, proofC)
+	_, err = etherman.PoE.VerifyBatch(etherman.auth, newLocalExitRoot, newStateRoot, uint32(block[0].Batches[0].BatchNumber), proofA, proofB, proofC)
 	require.NoError(t, err)
 
 	//mine the tx in a block
@@ -212,7 +212,7 @@ func TestRegisterSequencerAndEvent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, etherman.auth.From, block[0].NewSequencers[0].Address)
 	assert.Equal(t, "http://localhost", block[0].NewSequencers[0].URL)
-	assert.Equal(t, big.NewInt(1), block[0].NewSequencers[0].ChainID)
+	assert.Equal(t, big.NewInt(10001), block[0].NewSequencers[0].ChainID)
 	log.Debug("Sequencer synced: ", block[0].NewSequencers[0].Address, ", url: ", block[0].NewSequencers[0].URL, ", and chainId: ", block[0].NewSequencers[0].ChainID)
 }
 
@@ -261,7 +261,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 		},
 	}
 
-	tx, err = etherman.ConsolidateBatch(big.NewInt(2), &proof)
+	tx, err = etherman.ConsolidateBatch(big.NewInt(1), &proof)
 	require.NoError(t, err)
 	log.Debug("TX: ", tx.Hash())
 
@@ -274,4 +274,16 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, len(block[0].Batches))
+}
+
+func TestDefaultChainID(t *testing.T) {
+	// Set up testing environment
+	etherman, _ := newTestingEnv()
+
+	//get chainID
+	defaultChainID, err := etherman.GetDefaultChainID()
+	require.NoError(t, err)
+
+	//Check value
+	assert.Equal(t, big.NewInt(10000), defaultChainID)
 }

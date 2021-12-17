@@ -43,10 +43,35 @@
 		"anonymous": false,
 		"inputs": [
 			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "sequencerAddress",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "sequencerURL",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint32",
+				"name": "chainID",
+				"type": "uint32"
+			}
+		],
+		"name": "RegisterSequencer",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
 				"indexed": true,
-				"internalType": "uint256",
+				"internalType": "uint32",
 				"name": "batchNum",
-				"type": "uint256"
+				"type": "uint32"
 			},
 			{
 				"indexed": true,
@@ -62,29 +87,10 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "sequencerAddress",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "sequencerURL",
-				"type": "string"
-			}
-		],
-		"name": "SetSequencer",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
 				"indexed": true,
-				"internalType": "uint256",
+				"internalType": "uint32",
 				"name": "batchNum",
-				"type": "uint256"
+				"type": "uint32"
 			},
 			{
 				"indexed": true,
@@ -95,6 +101,19 @@
 		],
 		"name": "VerifyBatch",
 		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "DEFAULT_CHAIN_ID",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "",
+				"type": "uint32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
 	},
 	{
 		"inputs": [],
@@ -153,22 +172,9 @@
 		"name": "lastBatchSent",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "uint32",
 				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "lastGlobalExitRoot",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
+				"type": "uint32"
 			}
 		],
 		"stateMutability": "view",
@@ -179,9 +185,9 @@
 		"name": "lastVerifiedBatch",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "uint32",
 				"name": "",
-				"type": "uint256"
+				"type": "uint32"
 			}
 		],
 		"stateMutability": "view",
@@ -205,9 +211,9 @@
 		"name": "numSequencers",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "uint32",
 				"name": "",
-				"type": "uint256"
+				"type": "uint32"
 			}
 		],
 		"stateMutability": "view",
@@ -280,9 +286,9 @@
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "uint32",
 				"name": "",
-				"type": "uint256"
+				"type": "uint32"
 			}
 		],
 		"name": "sentBatches",
@@ -322,9 +328,9 @@
 				"type": "string"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "uint32",
 				"name": "chainID",
-				"type": "uint256"
+				"type": "uint32"
 			}
 		],
 		"stateMutability": "view",
@@ -356,9 +362,9 @@
 				"type": "bytes32"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "uint32",
 				"name": "batchNum",
-				"type": "uint256"
+				"type": "uint32"
 			},
 			{
 				"internalType": "uint256[2]",
