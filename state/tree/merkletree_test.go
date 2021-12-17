@@ -213,7 +213,7 @@ func sha256Hash(inputs []*big.Int) (*big.Int, error) {
 	var byte32 [32]byte
 	hash := sha256.New()
 	for _, input := range inputs {
-		hash.Write(input.FillBytes(byte32[:]))
+		hash.Write(input.FillBytes(byte32[:])) //nolint:gosec,errcheck
 	}
 	return new(big.Int).SetBytes(hash.Sum(nil)), nil
 }
