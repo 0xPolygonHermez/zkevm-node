@@ -161,7 +161,6 @@ func (s *Sequencer) tryProposeBatch() {
 			}
 		}
 		log.Infof("Finished updating selected transactions state in the pool")
-
 	}
 	// NO: discard selection and wait for the new batch
 }

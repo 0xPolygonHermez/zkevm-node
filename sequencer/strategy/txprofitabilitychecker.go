@@ -10,7 +10,7 @@ import (
 type TxProfitabilityCheckerType string
 
 const (
-	// 	BaseProfitability type that checks sum of costs of txs against min reward
+	// BaseProfitability type that checks sum of costs of txs against min reward
 	BaseProfitability = "base"
 )
 

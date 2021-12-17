@@ -21,8 +21,10 @@ func (d *Duration) UnmarshalText(data []byte) error {
 type Type string
 
 const (
+	// AcceptAll strategy accepts all txs
 	AcceptAll Type = "acceptall"
-	Base           = "base"
+	// Base strategy that have basic selection algorithm and can accept different sorting algorithms and profitability checkers
+	Base = "base"
 )
 
 // Strategy holds config params

@@ -4,6 +4,7 @@ import (
 	"math/big"
 )
 
+// TxProfitabilityCheckerType checks profitability of batch validation
 type TxProfitabilityCheckerType string
 
 const (
@@ -31,7 +32,7 @@ func (pc *TxProfitabilityCheckerBase) IsProfitable(maticCollateral *big.Int) boo
 // TxProfitabilityCheckerAcceptAll validate batch anyway and don't check anything
 type TxProfitabilityCheckerAcceptAll struct{}
 
-// TxProfitabilityCheckerAcceptAll validate batch anyway and don't check anything
+// IsProfitable validate batch anyway and don't check anything
 func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(maticCollateral *big.Int) bool {
 	return true
 }
