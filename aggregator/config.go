@@ -14,4 +14,8 @@ type Config struct {
 
 	// Etherman is the configuration required by etherman to interact with L1
 	Etherman etherman.Config
+
+	TxProfitabilityCheckerType TxProfitabilityCheckerType
+
+	MinReward uint64
 }

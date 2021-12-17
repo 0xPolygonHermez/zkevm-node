@@ -1,6 +1,8 @@
 package pool
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -12,12 +14,13 @@ const (
 	TxStatePending TxState = "pending"
 	// TxStateInvalid represents an invalid tx
 	TxStateInvalid TxState = "invalid"
-	// TxStateSelected represents a tx that has not been selected
+	// TxStateSelected represents a tx that has been selected
 	TxStateSelected TxState = "selected"
 )
 
 // Transaction represents a pool tx
 type Transaction struct {
 	types.Transaction
-	State TxState
+	State      TxState
+	ReceivedAt time.Time
 }

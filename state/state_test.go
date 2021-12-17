@@ -124,6 +124,7 @@ func setUpBatches() {
 		Header:             nil,
 		Uncles:             nil,
 		RawTxsData:         nil,
+		MaticCollateral:    nil,
 	}
 	batch2 = &Batch{
 		BatchNumber:        batchNumber2,
@@ -135,6 +136,7 @@ func setUpBatches() {
 		Header:             nil,
 		Uncles:             nil,
 		RawTxsData:         nil,
+		MaticCollateral:    nil,
 	}
 	batch3 = &Batch{
 		BatchNumber:        batchNumber3,
@@ -147,6 +149,7 @@ func setUpBatches() {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
+		MaticCollateral:    nil,
 	}
 	batch4 = &Batch{
 		BatchNumber:        batchNumber4,
@@ -159,6 +162,7 @@ func setUpBatches() {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
+		MaticCollateral:    nil,
 	}
 
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.batch")
@@ -278,6 +282,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
+		MaticCollateral:    nil,
 	}
 
 	bp := state.NewBatchProcessor(0, false)
@@ -466,6 +471,7 @@ func TestStateTransition(t *testing.T) {
 				Uncles:             nil,
 				Transactions:       txs,
 				RawTxsData:         nil,
+				MaticCollateral:    nil,
 			}
 
 			// Create Batch Processor

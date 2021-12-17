@@ -29,7 +29,7 @@ type BatchProcessor interface {
 }
 
 const (
-	addBatchSQL = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	addBatchSQL = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
 )
 
 // BasicBatchProcessor is used to process a batch of transactions
@@ -211,6 +211,6 @@ func (b *BasicBatchProcessor) rollback() error {
 
 func (s *BasicState) addBatch(ctx context.Context, batch *Batch) error {
 	_, err := s.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator,
-		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData)
+		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData, batch.MaticCollateral)
 	return err
 }

@@ -28,7 +28,8 @@ CREATE TABLE state.batch
     consolidated_tx_hash BYTEA,
     header               jsonb,
     uncles               jsonb,
-    raw_txs_data         BYTEA
+    raw_txs_data         BYTEA,
+    matic_collateral     BIGINT
 );
 
 CREATE TABLE state.transaction
@@ -39,7 +40,7 @@ CREATE TABLE state.transaction
     decoded      jsonb,
     batch_num    BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE
 );
-    
+
 CREATE TABLE state.sequencer
 (
     address     BYTEA NOT NULL,

@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
@@ -18,10 +17,11 @@ import (
 type Aggregator struct {
 	cfg Config
 
-	State          state.State
-	BatchProcessor state.BatchProcessor
-	EtherMan       etherman.EtherMan
-	ZkProverClient proverclient.ZKProverClient
+	State                state.State
+	BatchProcessor       state.BatchProcessor
+	EtherMan             etherman.EtherMan
+	ZkProverClient       proverclient.ZKProverClient
+	ProfitabilityChecker TxProfitabilityChecker
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -35,12 +35,19 @@ func NewAggregator(
 	zkProverClient proverclient.ZKProverClient,
 ) (Aggregator, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	var profitabilityChecker TxProfitabilityChecker
+	switch cfg.TxProfitabilityCheckerType {
+	case BaseProfitability:
+		profitabilityChecker = &BaseTxProfitabilityChecker{MinReward: new(big.Int).SetUint64(cfg.MinReward)}
+	}
 	a := Aggregator{
 		cfg: cfg,
 
-		State:          state,
-		EtherMan:       ethMan,
-		ZkProverClient: zkProverClient,
+		State:                state,
+		EtherMan:             ethMan,
+		ZkProverClient:       zkProverClient,
+		ProfitabilityChecker: profitabilityChecker,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -108,8 +115,8 @@ func (a *Aggregator) Start() {
 
 			// 3. check if it's profitable or not
 			// check is it profitable to aggregate txs or not
-			if !a.isProfitable(batchToConsolidate.Transactions) {
-				log.Info("Batch %d is not profitable", batchToConsolidate.BatchNumber)
+			if !a.ProfitabilityChecker.IsProfitable(batchToConsolidate.MaticCollateral) {
+				log.Info("Batch %d is not profitable, matic collateral %v", batchToConsolidate.BatchNumber, batchToConsolidate.MaticCollateral)
 				continue
 			}
 
@@ -166,11 +173,6 @@ func (a *Aggregator) Start() {
 			return
 		}
 	}
-}
-
-func (a *Aggregator) isProfitable(txs []*types.Transaction) bool {
-	// get strategy from the config and check
-	return true
 }
 
 // Stop stops the aggregator

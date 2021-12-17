@@ -45,8 +45,9 @@ func (p *PostgresPool) AddTx(ctx context.Context, tx types.Transaction) error {
 	}
 	decoded := string(b)
 
-	sql := "INSERT INTO pool.txs (hash, encoded, decoded, state) VALUES($1, $2, $3, $4)"
-	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, TxStatePending); err != nil {
+	receivedAt := time.Now()
+	sql := "INSERT INTO pool.txs (hash, encoded, decoded, state, received_at) VALUES($1, $2, $3, $4, $5)"
+	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, TxStatePending, receivedAt); err != nil {
 		return err
 	}
 	return nil
@@ -55,7 +56,7 @@ func (p *PostgresPool) AddTx(ctx context.Context, tx types.Transaction) error {
 // GetPendingTxs returns an array of transactions with all
 // the transactions which have the state equals pending
 func (p *PostgresPool) GetPendingTxs(ctx context.Context) ([]Transaction, error) {
-	sql := "SELECT encoded, state FROM pool.txs WHERE state = $1"
+	sql := "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1"
 	rows, err := p.db.Query(ctx, sql, TxStatePending)
 	if err != nil {
 		return nil, err
@@ -63,9 +64,12 @@ func (p *PostgresPool) GetPendingTxs(ctx context.Context) ([]Transaction, error)
 
 	txs := make([]Transaction, 0, len(rows.RawValues()))
 	for rows.Next() {
-		var encoded, state string
+		var (
+			encoded, state string
+			receivedAt     time.Time
+		)
 
-		if err := rows.Scan(&encoded, &state); err != nil {
+		if err := rows.Scan(&encoded, &state, &receivedAt); err != nil {
 			return nil, err
 		}
 
@@ -81,7 +85,7 @@ func (p *PostgresPool) GetPendingTxs(ctx context.Context) ([]Transaction, error)
 		}
 
 		tx.State = TxState(state)
-
+		tx.ReceivedAt = receivedAt
 		txs = append(txs, *tx)
 	}
 

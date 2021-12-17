@@ -22,6 +22,8 @@ type Sequencer struct {
 	State  state.State
 	EthMan etherman.EtherMan
 
+	TxSelector
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -30,11 +32,18 @@ type Sequencer struct {
 func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var txSelector TxSelector
+	switch cfg.Strategy.StrategyType {
+	case AcceptAll:
+		txSelector = NewTxSelectorAcceptAll(cfg.Strategy)
+	}
 	s := Sequencer{
 		cfg:    cfg,
 		Pool:   pool,
 		State:  state,
 		EthMan: ethMan,
+
+		TxSelector: txSelector,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -97,15 +106,26 @@ func (s *Sequencer) Start() {
 			}
 			bp := s.State.NewBatchProcessor(lastBatch.BatchNumber, false)
 			// select txs
-			selectedTxs, err := s.selectTxs(bp, txs, estimatedTime)
+			selectedTxs, invalidTxs, err := s.TxSelector.SelectTxs(bp, txs, estimatedTime)
+			//selectedTxs, err := s.selectTxs(bp, txs, estimatedTime)
 			if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
 				log.Warnf("failed to get last batch from the state, err: %v", err)
 				continue
 			}
 
+			for _, tx := range invalidTxs {
+				err = s.Pool.UpdateTxState(s.ctx, tx.Hash(), pool.TxStateInvalid)
+				if err != nil {
+					log.Warnf("failed to update tx state to selected, tx: %v, err: %v", tx.Hash(), err)
+					continue
+				}
+			}
+
 			// 4. Is selection profitable?
 			// check is it profitable to send selection
-			isProfitable := s.isSelectionProfitable(selectedTxs)
+
+			//isProfitable := s.isSelectionProfitable(selectedTxs)
+			isProfitable := s.TxSelector.IsProfitable(selectedTxs)
 			if isProfitable && len(selectedTxs) > 0 {
 				// assume, that fee for 1 tx is 1 matic
 				maticAmount := big.NewInt(int64(len(selectedTxs)))
@@ -115,9 +135,16 @@ func (s *Sequencer) Start() {
 					log.Warnf("failed to send batch to ethereum, err: %v", err)
 					continue
 				}
+				// todo: change to updates in batch, not one by one
+				for _, tx := range selectedTxs {
+					err = s.Pool.UpdateTxState(s.ctx, tx.Hash(), pool.TxStateSelected)
+					if err != nil {
+						log.Warnf("failed to update tx state to selected, tx: %v, err: %v", tx.Hash(), err)
+						continue
+					}
+				}
 			}
 			// NO: discard selection and wait for the new batch
-
 		case <-s.ctx.Done():
 			return
 		}

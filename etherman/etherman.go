@@ -213,6 +213,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		}
 		batch.Transactions = txs
 		block.Batches = append(block.Batches, batch)
+		// TODO: we need to get MaticCollateral to decide if it profitable for aggregator to mine or not
+		// it can be done by setting this info to event or by requesting batch info. Which way is better?
 		return &block, nil
 	case consolidateBatchSignatureHash:
 		var block state.Block
