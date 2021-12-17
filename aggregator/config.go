@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"time"
+)
 
 // Duration is a wrapper type that parses time duration from text.
 type Duration struct {
@@ -24,7 +25,10 @@ type Config struct {
 	// trying to consolidate a new state
 	IntervalToConsolidateState Duration `mapstructure:"IntervalToConsolidateState"`
 
-	TxProfitabilityCheckerType TxProfitabilityCheckerType
+	// TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
+	TxProfitabilityCheckerType TxProfitabilityCheckerType `mapstructure:"TxProfitabilityCheckerType"`
 
-	MinReward uint64
+	// TODO: understand, in which format matic collateral will be saved (10^18 or not)
+	// TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
+	TxProfitabilityMinReward uint64 `mapstructure:"TxProfitabilityMinReward`
 }
