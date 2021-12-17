@@ -10,8 +10,10 @@ import (
 type TxSorterType string
 
 const (
-	ByCostAndTime  TxSorterType = "bycostandtime"
-	ByCostAndNonce              = "bycostandnonce"
+	// ByCostAndTime sorting txs by cost and time
+	ByCostAndTime TxSorterType = "bycostandtime"
+	// ByCostAndNonce sorting txs by cost and nonce
+	ByCostAndNonce = "bycostandnonce"
 )
 
 // TxSorter interface for for different txs sorters

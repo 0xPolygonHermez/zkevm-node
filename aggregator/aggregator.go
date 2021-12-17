@@ -41,7 +41,7 @@ func NewAggregator(
 	case ProfitabilityBase:
 		profitabilityChecker = &TxProfitabilityCheckerBase{MinReward: new(big.Int).SetUint64(cfg.TxProfitabilityMinReward)}
 	case ProfitabilityAcceptAll:
-		profitabilityChecker = &TxProfitablityCheckerAcceptAll{}
+		profitabilityChecker = &TxProfitabilityCheckerAcceptAll{}
 	}
 	a := Aggregator{
 		cfg: cfg,

@@ -224,7 +224,7 @@ func (s *BasicState) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, 
 	err := row.Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
 		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
-		&batch.Header, &batch.Uncles, &batch.RawTxsData)
+		&batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.MaticCollateral)
 
 	if err != nil {
 		return nil, err
@@ -244,7 +244,7 @@ func (s *BasicState) GetPreviousBatch(ctx context.Context, isVirtual bool, offse
 	err := row.Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
 		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
-		&batch.Uncles, &batch.RawTxsData)
+		&batch.Uncles, &batch.RawTxsData, &batch.MaticCollateral)
 
 	if err != nil {
 		return nil, err
@@ -257,7 +257,7 @@ func (s *BasicState) GetBatchByHash(ctx context.Context, hash common.Hash) (*Bat
 	var batch Batch
 	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
-		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData)
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.MaticCollateral)
 
 	if err != nil {
 		return nil, err
@@ -270,7 +270,7 @@ func (s *BasicState) GetBatchByNumber(ctx context.Context, batchNumber uint64) (
 	var batch Batch
 	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
-		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData)
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.MaticCollateral)
 	if err != nil {
 		return nil, err
 	}

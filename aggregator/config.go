@@ -30,5 +30,5 @@ type Config struct {
 
 	// TODO: understand, in which format matic collateral will be saved (10^18 or not)
 	// TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
-	TxProfitabilityMinReward uint64 `mapstructure:"TxProfitabilityMinReward`
+	TxProfitabilityMinReward uint64 `mapstructure:"TxProfitabilityMinReward"`
 }
