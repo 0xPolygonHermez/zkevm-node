@@ -8,19 +8,11 @@ import (
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/iden3/go-iden3-crypto/poseidon"
-	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 const (
 	cmpEq      = 0
 	addrLength = 160
-)
-
-const (
-	getNodeByKeySQL    = "SELECT data FROM state.merkletree WHERE hash = $1"
-	setNodeByKeySQL    = "INSERT INTO state.merkletree (hash, data) VALUES ($1, $2)"
-	deleteNodeByKeySQL = "DELETE FROM state.merkletree WHERE hash = $1"
-	checkNodeExistsSQL = "SELECT COUNT(*) as exists FROM state.merkletree WHERE hash = $1"
 )
 
 const (
@@ -35,7 +27,7 @@ const (
 
 // MerkleTree implements merkle tree
 type MerkleTree struct {
-	db           *pgxpool.Pool
+	store        Store
 	hashFunction HashFunction
 	arity        uint8
 }
@@ -68,12 +60,12 @@ type Proof struct {
 type HashFunction func(inputs []*big.Int) (*big.Int, error)
 
 // NewMerkleTree creates new MerkleTree instance
-func NewMerkleTree(db *pgxpool.Pool, arity uint8, hashFunction HashFunction) *MerkleTree {
+func NewMerkleTree(store Store, arity uint8, hashFunction HashFunction) *MerkleTree {
 	if hashFunction == nil {
 		hashFunction = poseidon.Hash
 	}
 	return &MerkleTree{
-		db:           db,
+		store:        store,
 		arity:        arity,
 		hashFunction: hashFunction,
 	}
@@ -477,8 +469,7 @@ func (mt *MerkleTree) newNodeData() []*big.Int {
 
 func (mt *MerkleTree) getNodeData(ctx context.Context, hash *big.Int) ([]*big.Int, error) {
 	//log.Debugw("Get node", "hash", hex.EncodeToString(hash.Bytes()))
-	var data []byte
-	err := mt.db.QueryRow(ctx, getNodeByKeySQL, hash.Bytes()).Scan(&data)
+	data, err := mt.store.Get(ctx, hash.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -492,22 +483,6 @@ func (mt *MerkleTree) getNodeData(ctx context.Context, hash *big.Int) ([]*big.In
 }
 
 func (mt *MerkleTree) setNodeData(ctx context.Context, key *big.Int, data []*big.Int) error {
-	var exists int
-	err := mt.db.QueryRow(ctx, checkNodeExistsSQL, key.Bytes()).Scan(&exists)
-	if err != nil {
-		return err
-	}
-	if exists != 0 {
-		//fmt.Println("Item already exists, key: ", hex.EncodeToHex(key.Bytes()))
-		// item already exists, no need to do anything
-		//return nil
-		_, err = mt.db.Exec(ctx, deleteNodeByKeySQL, key.Bytes())
-		if err != nil {
-			return err
-		}
-		//fmt.Println("Item deleted, key: ", hex.EncodeToHex(key.Bytes()))
-	}
-
 	var buf bytes.Buffer
 	for i := 0; i < len(data); i++ {
 		var b [maxBigIntLen]byte
@@ -516,7 +491,7 @@ func (mt *MerkleTree) setNodeData(ctx context.Context, key *big.Int, data []*big
 	}
 	//fmt.Printf("Set node Key: %+v Data: %+v\n", hex.EncodeToHex(key.Bytes()), hex.EncodeToHex(buf.Bytes()))
 	// insert node into the database
-	_, err = mt.db.Exec(ctx, setNodeByKeySQL, key.Bytes(), buf.Bytes())
+	err := mt.store.Set(ctx, key.Bytes(), buf.Bytes())
 	if err != nil {
 		return err
 	}

@@ -38,7 +38,8 @@ func TestBasicTree(t *testing.T) {
 
 	defer mtDb.Close()
 
-	mt := NewMerkleTree(mtDb, DefaultMerkleTreeArity, nil)
+	store := NewPostgresStore(mtDb)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
 	tree := NewStateTree(mt, nil)
 
 	address := common.Address{
@@ -161,12 +162,13 @@ func TestMerkleTreeGenesis(t *testing.T) {
 	require.NoError(t, err)
 
 	defer mtDb.Close()
+	store := NewPostgresStore(mtDb)
 
 	for ti, testVector := range testVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
 			var root []byte
 			var newRoot []byte
-			mt := NewMerkleTree(mtDb, testVector.Arity, nil)
+			mt := NewMerkleTree(store, testVector.Arity, nil)
 			tree := NewStateTree(mt, root)
 			for _, addrState := range testVector.Addresses {
 				// convert strings to big.Int
