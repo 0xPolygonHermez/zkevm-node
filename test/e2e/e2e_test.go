@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
 	"io"
 	"io/ioutil"
 	"math/big"
@@ -64,8 +65,13 @@ var cfg = config.Config{
 	},
 	Sequencer: sequencer.Config{
 		IntervalToProposeBatch: sequencer.Duration{Duration: 1 * time.Second},
+		Strategy: strategy.Strategy{
+			Type: strategy.AcceptAll,
+		},
 	},
-	Aggregator: aggregator.Config{},
+	Aggregator: aggregator.Config{
+		TxProfitabilityCheckerType: aggregator.ProfitabilityAcceptAll,
+	},
 }
 
 // TestStateTransition tests state transitions using the vector

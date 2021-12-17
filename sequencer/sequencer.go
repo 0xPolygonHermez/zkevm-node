@@ -125,7 +125,6 @@ func (s *Sequencer) tryProposeBatch() {
 
 	// select txs
 	selectedTxs, invalidTxs, err := s.TxSelector.SelectTxs(bp, txs, estimatedTime)
-	//selectedTxs, err := s.selectTxs(bp, txs, estimatedTime)
 	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return
