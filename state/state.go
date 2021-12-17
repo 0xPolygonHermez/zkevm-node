@@ -70,12 +70,13 @@ const (
 	consolidateBatchSQL                    = "UPDATE state.batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"
 	getTxsByBatchNumSQL                    = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
 	addBlockSQL                            = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
-	addSequencerSQL                        = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4)"
-	updateLastBatchSeenSQL                 = "UPDATE state.misc SET last_batch_num_seen = $1"
-	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
-	getSequencerSQL                        = "SELECT * FROM state.sequencer WHERE address = $1"
-	getReceiptSQL                          = "SELECT * FROM state.receipt WHERE tx_hash = $1"
-	resetSQL                               = "DELETE FROM state.block WHERE block_num > $1"
+	addSequencerSQL                        = `INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4) 
+											  ON CONFLICT (chain_id) DO UPDATE SET address = EXCLUDED.address, url = EXCLUDED.url, block_num = EXCLUDED.block_num`
+	updateLastBatchSeenSQL = "UPDATE state.misc SET last_batch_num_seen = $1"
+	getLastBatchSeenSQL    = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
+	getSequencerSQL        = "SELECT * FROM state.sequencer WHERE address = $1"
+	getReceiptSQL          = "SELECT * FROM state.receipt WHERE tx_hash = $1"
+	resetSQL               = "DELETE FROM state.block WHERE block_num > $1"
 )
 
 var (

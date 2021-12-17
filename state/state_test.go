@@ -377,6 +377,13 @@ func TestBasicState_AddSequencer(t *testing.T) {
 		BlockNumber: lastBN,
 	}
 
+	sequencer5 := Sequencer{
+		Address:     common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9c"),
+		URL:         "http://www.adrresss3.com",
+		ChainID:     big.NewInt(5678),
+		BlockNumber: lastBN,
+	}
+
 	err = state.AddSequencer(ctx, sequencer1)
 	assert.NoError(t, err)
 
@@ -390,6 +397,15 @@ func TestBasicState_AddSequencer(t *testing.T) {
 	sequencer4, err := state.GetSequencer(ctx, sequencer2.Address)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer2, *sequencer4)
+
+	// Update Sequencer
+	err = state.AddSequencer(ctx, sequencer5)
+	assert.NoError(t, err)
+
+	sequencer6, err := state.GetSequencer(ctx, sequencer5.Address)
+	assert.NoError(t, err)
+	assert.Equal(t, sequencer5, *sequencer6)
+	assert.Equal(t, sequencer5.URL, sequencer6.URL)
 
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.sequencer WHERE chain_id = $1", sequencer1.ChainID.Uint64())
 	assert.NoError(t, err)
