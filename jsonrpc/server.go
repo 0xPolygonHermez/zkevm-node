@@ -23,11 +23,12 @@ type Server struct {
 }
 
 // NewServer returns the JsonRPC server
-func NewServer(config Config, p pool.Pool, s state.State) *Server {
-	ethEndpoints := &Eth{chainID: config.ChainID, pool: p, state: s}
-	netEndpoints := &Net{chainID: config.ChainID}
+func NewServer(config Config, defaultChainID uint64, chainID uint64, p pool.Pool, s state.State) *Server {
+	ethEndpoints := &Eth{chainID: chainID, pool: p, state: s}
+	netEndpoints := &Net{chainID: chainID}
+	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
 
-	handler := newJSONRpcHandler(ethEndpoints, netEndpoints)
+	handler := newJSONRpcHandler(ethEndpoints, netEndpoints, hezEndpoints)
 
 	srv := &Server{
 		config:  config,

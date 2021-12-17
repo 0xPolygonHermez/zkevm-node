@@ -13,13 +13,13 @@ import (
 
 // NewSQLDB creates a new SQL DB
 func NewSQLDB(cfg Config) (*pgxpool.Pool, error) {
-	return pgxpool.Connect(context.Background(), "postgres://"+cfg.User+":"+cfg.Password+"@"+cfg.Host+":"+cfg.Port+"/"+cfg.Database)
+	return pgxpool.Connect(context.Background(), "postgres://"+cfg.User+":"+cfg.Password+"@"+cfg.Host+":"+cfg.Port+"/"+cfg.Name)
 }
 
 // RunMigrations will execute pending migrations if needed to keep
 // the database updated with the latest changes
 func RunMigrations(cfg Config) error {
-	c, err := pgx.ParseConfig("postgres://" + cfg.User + ":" + cfg.Password + "@" + cfg.Host + ":" + cfg.Port + "/" + cfg.Database)
+	c, err := pgx.ParseConfig("postgres://" + cfg.User + ":" + cfg.Password + "@" + cfg.Host + ":" + cfg.Port + "/" + cfg.Name)
 	if err != nil {
 		return err
 	}

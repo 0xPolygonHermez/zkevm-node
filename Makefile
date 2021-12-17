@@ -1,15 +1,41 @@
 STARTDB = docker run --rm --name hermez-polygon-db -p 5432:5432 -e POSTGRES_DB="polygon-hermez" -e POSTGRES_USER="hermez" -e POSTGRES_PASSWORD="polygon" -d postgres
 STOPDB = docker stop hermez-polygon-db
 
+VERSION := $(shell git describe --tags --always)
+COMMIT := $(shell git rev-parse --short HEAD)
+DATE := $(shell date +%Y-%m-%dT%H:%M:%S%z)
+LDFLAGS=-ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
+
+GOBASE := $(shell pwd)
+GOBIN := $(GOBASE)/dist
+GOENVVARS := GOBIN=$(GOBIN)
+GOBINARY := hezcore
+GOCMD := $(GOBASE)/cmd
+
+LINT := $$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E gosec -E gci -E misspell -E gomnd -E gofmt -E goimports -E golint --exclude-use-default=false --max-same-issues 0
+BUILD := $(GOENVVARS) go build $(LDFLAGS) -o $(GOBIN)/$(GOBINARY) $(GOCMD)
+RUN := $(GOBIN)/$(GOBINARY) run --network local --cfg ./cmd/config.toml
+
 .PHONY: build
-build: lint test ## Build the binary
-	go build -o ./dist/hezcore ./cmd/main.go
+build: ## Build the binary
+	$(BUILD)
+
+.PHONY: build-docker
+build-docker: ## Build the binary
+	docker build . -t hezcore
 
 .PHONY: test
-test: ## runs tests
+test: ## runs only short tests without checking race conditions
 	$(STOPDB) || true
 	$(STARTDB)
-	go test -race -p 1 ./...
+	go test -short -p 1 ./...
+	$(STOPDB)
+
+.PHONY: test-full
+test-full: ## runs all tests checking race conditions
+	$(STOPDB) || true
+	$(STARTDB)
+	go test -race -p 1 -timeout 180s ./...
 	$(STOPDB)
 
 .PHONY: install-linter
@@ -18,7 +44,14 @@ install-linter: ## install linter
 
 .PHONY: lint
 lint: ## runs linter
-	$$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E gosec -E gci -E misspell -E gomnd -E gofmt -E goimports -E golint --exclude-use-default=false --max-same-issues 0
+	$(LINT)
+
+.PHONY: deploy
+deploy: lint test-full build ## Validate and create the binary to be deployed
+
+.PHONY: run
+run: ## Runs the application
+	$(RUN)
 
 .PHONY: start-db
 start-db: ## starts a docker container to run the db instance

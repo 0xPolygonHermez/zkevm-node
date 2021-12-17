@@ -1,12 +1,9 @@
 package etherman
 
-import "github.com/ethereum/go-ethereum/common"
-
 // Config represents the configuration of the etherman
 type Config struct {
-	URL        string
-	PoEAddress common.Address
+	URL string `mapstructure:"URL"`
 
-	PrivateKeyPath     string
-	PrivateKeyPassword string
+	PrivateKeyPath     string `mapstructure:"PrivateKeyPath"`
+	PrivateKeyPassword string `mapstructure:"PrivateKeyPassword"`
 }

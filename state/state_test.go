@@ -35,12 +35,13 @@ var (
 	batch1, batch2, batch3, batch4                         *Batch
 	consolidatedTxHash                                     common.Hash = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")
 	txHash                                                 common.Hash
-	ctx                                                    = context.Background()
+	ctx                                                           = context.Background()
+	lastBatchNumberSeen                                    uint64 = 1
 )
 
 // TODO: understand, from where should we get config for tests. This is temporary
 var cfg = db.Config{
-	Database: "polygon-hermez",
+	Name:     "polygon-hermez",
 	User:     "hermez",
 	Password: "polygon",
 	Host:     "localhost",
@@ -67,7 +68,8 @@ func TestMain(m *testing.M) {
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
 
-	state = NewState(stateDb, tree.NewMemTree())
+	mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
+	state = NewState(stateDb, tree.NewStateTree(mt, nil))
 
 	setUpBlocks()
 	setUpBatches()
@@ -172,7 +174,10 @@ func setUpBatches() {
 
 	batches := []*Batch{batch1, batch2, batch3, batch4}
 
-	bp := state.NewBatchProcessor(0, false)
+	bp, err := state.NewGenesisBatchProcessor(nil, false)
+	if err != nil {
+		panic(err)
+	}
 
 	for _, b := range batches {
 		err := bp.ProcessBatch(b)
@@ -285,9 +290,10 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		MaticCollateral:    nil,
 	}
 
-	bp := state.NewBatchProcessor(0, false)
+	bp, err := state.NewGenesisBatchProcessor(nil, false)
+	assert.NoError(t, err)
 
-	err := bp.ProcessBatch(batch)
+	err = bp.ProcessBatch(batch)
 	assert.NoError(t, err)
 
 	insertedBatch, err := state.GetBatchByNumber(ctx, batchNumber)
@@ -376,19 +382,35 @@ func TestBasicState_AddSequencer(t *testing.T) {
 		BlockNumber: lastBN,
 	}
 
+	sequencer5 := Sequencer{
+		Address:     common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9c"),
+		URL:         "http://www.adrresss3.com",
+		ChainID:     big.NewInt(5678),
+		BlockNumber: lastBN,
+	}
+
 	err = state.AddSequencer(ctx, sequencer1)
 	assert.NoError(t, err)
 
-	sequencer3, err := state.GetSequencerByChainID(ctx, sequencer1.ChainID)
+	sequencer3, err := state.GetSequencer(ctx, sequencer1.Address)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer1.ChainID, sequencer3.ChainID)
 
 	err = state.AddSequencer(ctx, sequencer2)
 	assert.NoError(t, err)
 
-	sequencer4, err := state.GetSequencerByChainID(ctx, sequencer2.ChainID)
+	sequencer4, err := state.GetSequencer(ctx, sequencer2.Address)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer2, *sequencer4)
+
+	// Update Sequencer
+	err = state.AddSequencer(ctx, sequencer5)
+	assert.NoError(t, err)
+
+	sequencer6, err := state.GetSequencer(ctx, sequencer5.Address)
+	assert.NoError(t, err)
+	assert.Equal(t, sequencer5, *sequencer6)
+	assert.Equal(t, sequencer5.URL, sequencer6.URL)
 
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.sequencer WHERE chain_id = $1", sequencer1.ChainID.Uint64())
 	assert.NoError(t, err)
@@ -397,11 +419,7 @@ func TestBasicState_AddSequencer(t *testing.T) {
 }
 
 func TestStateTransition(t *testing.T) {
-	// TODO: Improve when roots are validable
-	// Also: check if those TX meant to fail do fail
-	// Optional: check that decoded TX matches the ones in the header of the test case
-
-	// load vector
+	// Load test vector
 	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition.json")
 	if err != nil {
 		t.Error(err)
@@ -413,23 +431,18 @@ func TestStateTransition(t *testing.T) {
 			ctx := context.Background()
 			// Init database instance
 			err = dbutils.InitOrReset(cfg)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
 
 			// Create State db
 			stateDb, err = db.NewSQLDB(cfg)
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			require.NoError(t, err)
 
 			// Create State tree
-			tree := tree.NewMemTree()
+			mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
+			stateTree := tree.NewStateTree(mt, nil)
 
 			// Create state
-			st := NewState(stateDb, tree)
+			st := NewState(stateDb, stateTree)
 
 			genesis := Genesis{
 				Balances: make(map[common.Address]*big.Int),
@@ -439,13 +452,28 @@ func TestStateTransition(t *testing.T) {
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
 			}
 
+			for gaddr := range genesis.Balances {
+				balance, err := stateTree.GetBalance(gaddr, nil)
+				require.NoError(t, err)
+				assert.Equal(t, big.NewInt(0), balance)
+			}
+
 			err = st.SetGenesis(ctx, genesis)
-			if err != nil {
-				t.Error(err)
-				return
+			require.NoError(t, err)
+
+			root, err := st.GetStateRootByBatchNumber(0)
+			require.NoError(t, err)
+
+			for gaddr, gbalance := range genesis.Balances {
+				balance, err := stateTree.GetBalance(gaddr, root)
+				require.NoError(t, err)
+				assert.Equal(t, gbalance, balance)
 			}
 
 			var txs []*types.Transaction
+
+			// Check Old roots
+			assert.Equal(t, testCase.ExpectedOldRoot, new(big.Int).SetBytes(root).String())
 
 			// Create Transaction
 			for _, vectorTx := range testCase.Txs {
@@ -456,12 +484,12 @@ func TestStateTransition(t *testing.T) {
 				if err == nil {
 					txs = append(txs, types.NewTx(&tx))
 				}
-				// require.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			// Create Batch
 			batch := &Batch{
-				BatchNumber:        uint64(testCase.ID + 1),
+				BatchNumber:        1,
 				BatchHash:          common.Hash{},
 				BlockNumber:        uint64(0),
 				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
@@ -475,22 +503,80 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp := st.NewBatchProcessor(0, false)
+			bp, err := st.NewBatchProcessor(0, false)
+			require.NoError(t, err)
 
 			err = bp.ProcessBatch(batch)
 			require.NoError(t, err)
-			// There may be errors processing Tx, so just check Balances
+
+			// Check Transaction and Receipts
+			transactions, err := state.GetTxsByBatchNum(ctx, batch.BatchNumber)
+			require.NoError(t, err)
+
+			// Check get transaction by batch number and index
+			transaction, err := state.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
+			require.NoError(t, err)
+			assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+
+			// Check get transaction by hash and index
+			transaction, err = state.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
+			require.NoError(t, err)
+			assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+
+			for _, transaction := range transactions {
+				receipt, err := state.GetTransactionReceipt(ctx, transaction.Hash())
+				require.NoError(t, err)
+				assert.Equal(t, transaction.Hash(), receipt.TxHash)
+				assert.Equal(t, state.EstimateGas(transaction), receipt.GasUsed)
+			}
+
+			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
+			require.NoError(t, err)
+
+			// Check new roots
+			assert.Equal(t, testCase.ExpectedNewRoot, new(big.Int).SetBytes(root).String())
 
 			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
-				newBalance, err := tree.GetBalance(common.HexToAddress(key), nil)
-				assert.NoError(t, err)
-				assert.Equal(t, 0, vectorLeaf.Balance.Cmp(newBalance))
+				newBalance, err := stateTree.GetBalance(common.HexToAddress(key), root)
+				require.NoError(t, err)
+				assert.Equal(t, vectorLeaf.Balance.String(), newBalance.String())
 
-				newNonce, err := tree.GetNonce(common.HexToAddress(key), nil)
-				assert.NoError(t, err)
+				newNonce, err := stateTree.GetNonce(common.HexToAddress(key), root)
+				require.NoError(t, err)
 				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
-				assert.Equal(t, leafNonce, newNonce)
+				assert.Equal(t, leafNonce.String(), newNonce.String())
 			}
 		})
 	}
+}
+
+func TestLastSeenBatch(t *testing.T) {
+	// Create State db
+	stateDb, err := db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
+
+	// Create state
+	st := NewState(stateDb, tree.NewStateTree(mt, nil))
+	ctx := context.Background()
+
+	// Clean Up to reset Genesis
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.block")
+	if err != nil {
+		panic(err)
+	}
+
+	err = st.SetLastBatchNumberSeenOnEthereum(ctx, lastBatchNumberSeen)
+	require.NoError(t, err)
+	bn, err := st.GetLastBatchNumberSeenOnEthereum(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, lastBatchNumberSeen, bn)
+
+	err = st.SetLastBatchNumberSeenOnEthereum(ctx, lastBatchNumberSeen+1)
+	require.NoError(t, err)
+	bn, err = st.GetLastBatchNumberSeenOnEthereum(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, lastBatchNumberSeen+1, bn)
 }

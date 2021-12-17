@@ -71,7 +71,7 @@ func (a *Aggregator) Start() {
 
 	for {
 		select {
-		case <-time.After(a.cfg.IntervalToConsolidateState):
+		case <-time.After(a.cfg.IntervalToConsolidateState.Duration):
 			// 1. check, if state is synced
 			lastSyncedBatchNum, err := a.State.GetLastBatchNumber(a.ctx)
 			if err != nil {
@@ -138,8 +138,8 @@ func (a *Aggregator) Start() {
 			chainID := uint64(1337) //nolint:gomnd
 			batch := &proverclient.Batch{
 				Message:            "calculate",
-				CurrentStateRoot:   stateRootConsolidated.Bytes(),
-				NewStateRoot:       stateRootToConsolidate.Bytes(),
+				CurrentStateRoot:   stateRootConsolidated,
+				NewStateRoot:       stateRootToConsolidate,
 				L2Txs:              batchToConsolidate.RawTxsData,
 				LastGlobalExitRoot: fakeLastGlobalExitRoot.Bytes(),
 				SequencerAddress:   batchToConsolidate.Sequencer.String(),
@@ -157,9 +157,9 @@ func (a *Aggregator) Start() {
 				log.Warnf("failed to get proof from the prover, batchNumber: %v, err: %v", batchToConsolidate.BatchNumber, err)
 				continue
 			}
-
 			// 4. send proof + txs to the SC
-			h, err := a.EtherMan.ConsolidateBatch(*batchToConsolidate, proof)
+			batchNum := new(big.Int).SetUint64(batchToConsolidate.BatchNumber)
+			h, err := a.EtherMan.ConsolidateBatch(batchNum, proof)
 			if err != nil {
 				log.Warnf("failed to send request to consolidate batch to ethereum, batch number: %d, err: %v",
 					batchToConsolidate.BatchNumber, err)
@@ -167,7 +167,7 @@ func (a *Aggregator) Start() {
 			}
 			batchesSent[batchToConsolidate.BatchNumber] = true
 
-			log.Infof("Batch %d consolidated: %s", batchToConsolidate.BatchNumber, h.Hex())
+			log.Infof("Batch %d consolidated: %s", batchToConsolidate.BatchNumber, h.Hash())
 
 		case <-a.ctx.Done():
 			return

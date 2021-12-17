@@ -74,6 +74,7 @@ type Batch struct {
 	Uncles             []*types.Header
 	Transactions       []*types.Transaction
 	RawTxsData         []byte
+	Receipts           []*types.Receipt
 	MaticCollateral    *big.Int
 }
 
