@@ -220,7 +220,8 @@ func getChainID(st state.State, privKeyPath, privKeyPass string) uint64 {
 				if lastEthBatchNum == 0 {
 					log.Warnf("last eth batch num is 0, waiting to sync...")
 				} else {
-					percentage := lastSyncedBatchNum * 100 / lastEthBatchNum
+					const oneHundred = 100
+					percentage := lastSyncedBatchNum * oneHundred / lastEthBatchNum
 					log.Warnf("node is still syncing, synced %d%%", percentage)
 				}
 				time.Sleep(intervalToCheckSequencerRegistrationInSeconds * time.Second)
