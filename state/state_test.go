@@ -35,7 +35,8 @@ var (
 	batch1, batch2, batch3, batch4                         *Batch
 	consolidatedTxHash                                     common.Hash = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")
 	txHash                                                 common.Hash
-	ctx                                                    = context.Background()
+	ctx                                                           = context.Background()
+	lastBatchNumberSeen                                    uint64 = 1
 )
 
 // TODO: understand, from where should we get config for tests. This is temporary
@@ -506,6 +507,16 @@ func TestStateTransition(t *testing.T) {
 			transactions, err := state.GetTxsByBatchNum(ctx, batch.BatchNumber)
 			require.NoError(t, err)
 
+			// Check get transaction by batch number and index
+			transaction, err := state.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
+			require.NoError(t, err)
+			assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+
+			// Check get transaction by hash and index
+			transaction, err = state.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
+			require.NoError(t, err)
+			assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+
 			for _, transaction := range transactions {
 				receipt, err := state.GetTransactionReceipt(ctx, transaction.Hash())
 				require.NoError(t, err)
@@ -531,4 +542,35 @@ func TestStateTransition(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLastSeenBatch(t *testing.T) {
+	// Create State db
+	stateDb, err := db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
+
+	// Create state
+	st := NewState(stateDb, tree.NewStateTree(mt, nil))
+	ctx := context.Background()
+
+	// Clean Up to reset Genesis
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.block")
+	if err != nil {
+		panic(err)
+	}
+
+	err = st.SetLastBatchNumberSeenOnEthereum(ctx, lastBatchNumberSeen)
+	require.NoError(t, err)
+	bn, err := st.GetLastBatchNumberSeenOnEthereum(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, lastBatchNumberSeen, bn)
+
+	err = st.SetLastBatchNumberSeenOnEthereum(ctx, lastBatchNumberSeen+1)
+	require.NoError(t, err)
+	bn, err = st.GetLastBatchNumberSeenOnEthereum(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, lastBatchNumberSeen+1, bn)
 }

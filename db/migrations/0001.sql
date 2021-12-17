@@ -1,11 +1,4 @@
 -- +migrate Up
-
--- NOTE: We use "DECIMAL(78,0)" to encode go *big.Int types.  All the *big.Int
--- that we deal with represent a value in the SNARK field, which is an integer
--- of 256 bits.  `log(2**256, 10) = 77.06`: that is, a 256 bit number can have
--- at most 78 digits, so we use this value to specify the precision in the
--- PostgreSQL DECIMAL guaranteeing that we will never lose precision.
-
 CREATE SCHEMA state
 
 -- History
@@ -37,7 +30,8 @@ CREATE TABLE state.transaction
     from_address BYTEA,
     encoded      VARCHAR,
     decoded      jsonb,
-    batch_num    BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE
+    batch_num    BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
+    tx_index     integer
 );
     
 CREATE TABLE state.sequencer
@@ -59,3 +53,11 @@ CREATE TABLE state.receipt
     tx_hash BYTEA NOT NULL REFERENCES state.transaction (hash) ON DELETE CASCADE,
     tx_index integer
 );
+
+CREATE TABLE state.misc
+(
+    last_batch_num_seen BIGINT
+);
+
+-- Insert default value into misc table
+INSERT INTO state.misc (last_batch_num_seen) VALUES(0);
