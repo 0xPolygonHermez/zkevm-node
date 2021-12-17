@@ -163,15 +163,15 @@ func TestStateTransition(t *testing.T) {
 				return
 			}
 
+			stSeq, err := st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
+			require.NoError(t, err)
+
 			// create sequencer
-			seq, err := sequencer.NewSequencer(cfg.Sequencer, pl, st, etherman)
+			seq, err := sequencer.NewSequencer(cfg.Sequencer, pl, st, etherman, stSeq.ChainID.Uint64())
 			require.NoError(t, err)
 			go seq.Start()
 
 			// start rpc server
-			stSeq, err := st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
-			require.NoError(t, err)
-
 			rpcServer := jsonrpc.NewServer(cfg.RPC, testCase.DefaultChainID, stSeq.ChainID.Uint64(), pl, st)
 			go func(t *testing.T, s *jsonrpc.Server) {
 				err := s.Start()

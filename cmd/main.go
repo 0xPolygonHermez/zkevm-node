@@ -124,8 +124,8 @@ func start(ctx *cli.Context) error {
 
 	//proverClient, conn := newProverClient(c.Prover)
 	go runSynchronizer(c.NetworkConfig.GenBlockNumber, etherman, st)
-	go runJSONRpcServer(c.RPC, c.Etherman, c.NetworkConfig, pool, st)
-	go runSequencer(c.Sequencer, etherman, pool, st)
+	go runJSONRpcServer(c.RPC, c.NetworkConfig, pool, st, c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
+	go runSequencer(c.Sequencer, etherman, pool, st, c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
 	//go runAggregator(c.Aggregator, etherman, proverClient, state)
 	//waitSignal(conn)
 	waitSignal()
@@ -185,36 +185,57 @@ func runSynchronizer(genBlockNumber uint64, etherman *etherman.ClientEtherMan, s
 	}
 }
 
-func runJSONRpcServer(jc jsonrpc.Config, ec etherman.Config, nc config.NetworkConfig, pool pool.Pool, st state.State) {
-	var err error
-	var seq *state.Sequencer
+func runJSONRpcServer(jc jsonrpc.Config, nc config.NetworkConfig, pool pool.Pool, st state.State, privKeyPath, privKeyPass string) {
+	chainID := getChainID(st, privKeyPath, privKeyPass)
 
-	key, err := newKeyFromKeystore(ec.PrivateKeyPath, ec.PrivateKeyPassword)
+	if err := jsonrpc.NewServer(jc, nc.L2DefaultChainID, chainID, pool, st).Start(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func getChainID(st state.State, privKeyPath, privKeyPass string) uint64 {
+	key, err := newKeyFromKeystore(privKeyPath, privKeyPass)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	seqAddress := key.Address
-
-	const intervalToCheckSequencerRegistrationInSeconds = 10
-
+	const intervalToCheckSequencerRegistrationInSeconds = 20
+	ctx := context.Background()
+	var seq *state.Sequencer
 	for {
-		seq, err = st.GetSequencer(context.Background(), seqAddress)
+		seq, err = st.GetSequencer(ctx, seqAddress)
 		if err != nil {
-			log.Warnf("Make sure the address %s has been registered in the smart contract as a sequencer, err: %v", seqAddress.Hex(), err)
-			time.Sleep(intervalToCheckSequencerRegistrationInSeconds * time.Second)
-			continue
+			if err == pgx.ErrNoRows {
+				log.Warnf("make sure the address %s has been registered in the smart contract as a sequencer, err: %v", seqAddress.Hex(), err)
+				lastSyncedBatchNum, err := st.GetLastBatchNumber(ctx)
+				if err != nil {
+					log.Errorf("failed to get last synced batch, err: %v", err)
+				}
+				lastEthBatchNum, err := st.GetLastBatchNumberSeenOnEthereum(ctx)
+				if err != nil {
+					log.Errorf("failed to get last eth batch, err: %v", err)
+				}
+
+				if lastEthBatchNum == 0 {
+					log.Warnf("last eth batch num is 0, waiting to sync...")
+				} else {
+					percentage := lastSyncedBatchNum * 100 / lastEthBatchNum
+					log.Warnf("node is still syncing, synced %d%%", percentage)
+				}
+				time.Sleep(intervalToCheckSequencerRegistrationInSeconds * time.Second)
+				continue
+			}
 		}
 		break
 	}
-
-	if err := jsonrpc.NewServer(jc, nc.L2DefaultChainID, seq.ChainID.Uint64(), pool, st).Start(); err != nil {
-		log.Fatal(err)
-	}
+	return seq.ChainID.Uint64()
 }
 
-func runSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool pool.Pool, state state.State) {
-	seq, err := sequencer.NewSequencer(c, pool, state, etherman)
+func runSequencer(c sequencer.Config, ec *etherman.ClientEtherMan, pool pool.Pool, state state.State, privKeyPath, privKeyPass string) {
+	chainID := getChainID(state, privKeyPath, privKeyPass)
+
+	seq, err := sequencer.NewSequencer(c, pool, state, ec, chainID)
 	if err != nil {
 		log.Fatal(err)
 	}

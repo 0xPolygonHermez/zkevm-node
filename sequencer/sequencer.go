@@ -22,12 +22,14 @@ type Sequencer struct {
 	State  state.State
 	EthMan etherman.EtherMan
 
+	ChainID uint64
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 // NewSequencer creates a new sequencer
-func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan) (Sequencer, error) {
+func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan, chainID uint64) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	s := Sequencer{
@@ -35,6 +37,8 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 		Pool:   pool,
 		State:  state,
 		EthMan: ethMan,
+
+		ChainID: chainID,
 
 		ctx:    ctx,
 		cancel: cancel,
