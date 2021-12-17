@@ -133,8 +133,8 @@ func (s *Sequencer) tryProposeBatch() {
 	for _, tx := range invalidTxs {
 		err = s.Pool.UpdateTxState(s.ctx, tx.Hash(), pool.TxStateInvalid)
 		if err != nil {
-			log.Warnf("failed to update tx state to selected, tx: %v, err: %v", tx.Hash(), err)
-			continue
+			log.Errorf("failed to update tx state to selected, tx: %v, err: %v", tx.Hash(), err)
+			return
 		}
 	}
 
