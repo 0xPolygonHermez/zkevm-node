@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -24,21 +25,18 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
-	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/iden3/go-iden3-crypto/poseidon"
-	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	sequencerURL = "http://localhost"
+	sequencerURL = "http://localhost:8123"
 )
 
 //nolint:gomnd
@@ -48,13 +46,14 @@ var cfg = config.Config{
 		Outputs: []string{"stdout"},
 	},
 	Database: db.Config{
-		Name:     "polygon-hermez",
-		User:     "hermez",
-		Password: "polygon",
+		User:     "test_user",
+		Password: "test_password",
+		Name:     "test_db",
 		Host:     "localhost",
 		Port:     "5432",
 	},
 	Etherman: etherman.Config{
+		URL:                "http://localhost:8545",
 		PrivateKeyPath:     "../test.keystore",
 		PrivateKeyPassword: "testonly",
 	},
@@ -66,6 +65,17 @@ var cfg = config.Config{
 		IntervalToProposeBatch: sequencer.Duration{Duration: 1 * time.Second},
 	},
 	Aggregator: aggregator.Config{},
+	NetworkConfig: config.NetworkConfig{
+		Arity:            4,
+		GenBlockNumber:   1,
+		PoEAddr:          common.HexToAddress("0x41D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
+		L1ChainID:        1337,
+		L2DefaultChainID: 50000,
+		Balances: map[common.Address]*big.Int{
+			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
+			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
+		},
+	},
 }
 
 // TestStateTransition tests state transitions using the vector
@@ -92,27 +102,7 @@ func TestStateTransition(t *testing.T) {
 			sqlDB, err := db.NewSQLDB(cfg.Database)
 			require.NoError(t, err)
 
-			// create pool
-			pl, err := pool.NewPostgresPool(cfg.Database)
-			require.NoError(t, err)
-
-			// create auth
-			pkHex := strings.TrimPrefix(testCase.SequencerPrivateKey, "0x")
-			privateKey, err := crypto.HexToECDSA(pkHex)
-			if err != nil {
-				log.Fatal(err)
-			}
-			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
-			if err != nil {
-				log.Fatal(err)
-			}
-			auth.GasLimit = 99999999999
-
-			// create etherman
-			etherman, commit, err := etherman.NewSimulatedEtherman(cfg.Etherman, auth)
-			require.NoError(t, err)
-
-			// create state
+			// set genesis
 			mt := tree.NewMerkleTree(sqlDB, testCase.Arity, poseidon.Hash)
 			tr := tree.NewStateTree(mt, []byte{})
 			st := state.NewState(sqlDB, tr)
@@ -133,52 +123,36 @@ func TestStateTransition(t *testing.T) {
 			strRoot := new(big.Int).SetBytes(root).String()
 			assert.Equal(t, testCase.ExpectedOldRoot, strRoot, "Invalid old root")
 
-			// start synchronizer
-			sy, err := synchronizer.NewSynchronizer(etherman, st, cfg.NetworkConfig.GenBlockNumber)
+			// Run network container
+			err = startNetworkContainer()
 			require.NoError(t, err)
-			go func(t *testing.T, s synchronizer.Synchronizer) {
-				err := sy.Sync()
-				require.NoError(t, err)
-			}(t, sy)
 
-			// start sequencer
+			// wait network to be ready
+			time.Sleep(5 * time.Second)
+
+			// create auth
+			pkHex := strings.TrimPrefix(testCase.SequencerPrivateKey, "0x")
+			privateKey, err := crypto.HexToECDSA(pkHex)
+			if err != nil {
+				log.Fatal(err)
+			}
+			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+			if err != nil {
+				log.Fatal(err)
+			}
+			auth.GasLimit = 100000000
+
+			// register the sequencer
+			etherman, err := etherman.NewEtherman(cfg.Etherman, auth, cfg.NetworkConfig.PoEAddr)
+			require.NoError(t, err)
 			_, err = etherman.PoE.RegisterSequencer(auth, sequencerURL)
 			require.NoError(t, err)
 
-			// mine next block with sequencer registration
-			commit()
-
-			// wait sequencer registration to be synchronized
-			require.NoError(t, err)
-			for i := 0; i < 10; i++ {
-				_, err := st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
-				if err == nil {
-					break
-				}
-				if err == pgx.ErrNoRows {
-					time.Sleep(1 * time.Second)
-					continue
-				}
-				require.NoError(t, err, "Sequencer not registered")
-				return
-			}
-
-			// create sequencer
-			seq, err := sequencer.NewSequencer(cfg.Sequencer, pl, st, etherman)
-			require.NoError(t, err)
-			go seq.Start()
-
-			// start rpc server
-			stSeq, err := st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
+			// Run node container
+			err = startNodeContainer()
 			require.NoError(t, err)
 
-			rpcServer := jsonrpc.NewServer(cfg.RPC, testCase.DefaultChainID, stSeq.ChainID.Uint64(), pl, st)
-			go func(t *testing.T, s *jsonrpc.Server) {
-				err := s.Start()
-				require.NoError(t, err)
-			}(t, rpcServer)
-
-			// wait RPC server to be ready
+			// wait node to be ready
 			time.Sleep(3 * time.Second)
 
 			// apply transactions
@@ -189,23 +163,16 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// wait for sequencer to select txs from pool and propose a new batch
-			time.Sleep(5 * time.Second)
-
-			// mine next block with batch propostal
-			commit()
-
 			// wait for the synchronizer to update state
-			time.Sleep(3 * time.Second)
+			time.Sleep(10 * time.Second)
 
-			// shutdown rpc server
-			err = rpcServer.Stop()
+			// stop node
+			err = stopNodeContainer()
 			require.NoError(t, err)
 
-			// stop synchronizer
-			sy.Stop()
-
-			// stop sequencer
-			seq.Stop()
+			// stop network
+			err = stopNetworkContainer()
+			require.NoError(t, err)
 
 			// check state against the expected state
 			root, err = st.GetStateRoot(ctx, true)
@@ -229,6 +196,41 @@ func TestStateTransition(t *testing.T) {
 			}
 		})
 	}
+}
+
+const (
+	makeCmd = "make"
+	cmdDir  = "../.."
+)
+
+func startNetworkContainer() error {
+	if err := stopNetworkContainer(); err != nil {
+		return err
+	}
+	cmd := exec.Command(makeCmd, "run-network")
+	cmd.Dir = cmdDir
+	return cmd.Run()
+}
+
+func stopNetworkContainer() error {
+	cmd := exec.Command(makeCmd, "stop-network")
+	cmd.Dir = cmdDir
+	return cmd.Run()
+}
+
+func startNodeContainer() error {
+	if err := stopNodeContainer(); err != nil {
+		return err
+	}
+	cmd := exec.Command(makeCmd, "run-core")
+	cmd.Dir = cmdDir
+	return cmd.Run()
+}
+
+func stopNodeContainer() error {
+	cmd := exec.Command(makeCmd, "stop-core")
+	cmd.Dir = cmdDir
+	return cmd.Run()
 }
 
 func sendRawTransaction(rawTx string) error {

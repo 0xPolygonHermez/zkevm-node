@@ -9,9 +9,9 @@ import (
 )
 
 var cfg = db.Config{
-	Name:     "polygon-hermez",
-	User:     "hermez",
-	Password: "polygon",
+	User:     "test_user",
+	Password: "test_password",
+	Name:     "test_db",
 	Host:     "localhost",
 	Port:     "5432",
 }
