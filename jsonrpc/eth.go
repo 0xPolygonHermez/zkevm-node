@@ -69,7 +69,7 @@ func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface
 		return nil, err
 	}
 
-	return hex.EncodeUint64(balance.Uint64()), nil
+	return hex.EncodeBig(balance), nil
 }
 
 // GetBlockByHash returns information about a block by hash

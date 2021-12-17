@@ -20,6 +20,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/aggregator"
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -175,7 +176,7 @@ func TestStateTransition(t *testing.T) {
 			stSeq, err := st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
 			require.NoError(t, err)
 
-			rpcServer := jsonrpc.NewServer(cfg.RPC, stSeq.ChainID.Uint64(), pl, st)
+			rpcServer := jsonrpc.NewServer(cfg.RPC, testCase.DefaultChainID, stSeq.ChainID.Uint64(), pl, st)
 			go func(t *testing.T, s *jsonrpc.Server) {
 				err := s.Start()
 				require.NoError(t, err)
@@ -226,11 +227,11 @@ func TestStateTransition(t *testing.T) {
 
 				actualBalance, err := st.GetBalance(addr, batchNumber)
 				require.NoError(t, err)
-				assert.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("addr: %s expected: %s found: %s", addr.Hex(), leaf.Balance.Text(10), actualBalance.Text(10)))
+				assert.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("addr: %s expected: %s found: %s", addr.Hex(), leaf.Balance.Text(encoding.Base10), actualBalance.Text(encoding.Base10)))
 
 				actualNonce, err := st.GetNonce(addr, batchNumber)
 				require.NoError(t, err)
-				assert.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, 10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
+				assert.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, encoding.Base10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}
 		})
 	}
