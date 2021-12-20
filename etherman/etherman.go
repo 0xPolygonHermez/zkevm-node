@@ -335,19 +335,19 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 	// Load contract ABI
 	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("error reading smart contract abi: ", err)
 	}
 
 	// Recover Method from signature and ABI
 	method, err := abi.MethodById(txsData[:4])
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("error getting abi method: ", err)
 	}
 
 	// Unpack method inputs
 	data, err := method.Inputs.Unpack(txsData[4:])
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("error reading call data: ", err)
 	}
 
 	txsData = data[0].([]byte)

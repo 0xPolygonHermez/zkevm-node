@@ -78,13 +78,13 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
 	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {
-		log.Error("error checking reorgs")
-		return nil, fmt.Errorf("error checking reorgs")
+		log.Error("error checking reorgs. Retrying...")
+		return lastEthBlockSynced, fmt.Errorf("error checking reorgs")
 	} else if block != nil {
 		err = s.resetState(block.BlockNumber)
 		if err != nil {
-			log.Error("error resetting the state to a previous block")
-			return nil, fmt.Errorf("error resetting the state to a previous block")
+			log.Error("error resetting the state to a previous block. Retrying...")
+			return lastEthBlockSynced, fmt.Errorf("error resetting the state to a previous block")
 		}
 		return block, nil
 	}
@@ -104,7 +104,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		// Get lastest synced batch number
 		latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
 		if err != nil {
-			log.Error("error getting latest batch. Error: ", err)
+			log.Warn("error getting latest batch. Error: ", err)
 		}
 
 		// Add block information
@@ -112,6 +112,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		if err != nil {
 			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
 		}
+		lastEthBlockSynced = &blocks[i]
 		for _, seq := range blocks[i].NewSequencers {
 			// Add new sequencers
 			err := s.state.AddSequencer(context.Background(), seq)
