@@ -38,7 +38,7 @@ type BatchProcessor interface {
 
 const (
 	addBatchSQL       = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
-	addTransactionSQL = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num) VALUES($1, $2, $3, $4, $5)"
+	addTransactionSQL = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
 	addReceiptSQL     = `INSERT INTO state.receipt 
 						(type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_hash, tx_index)
 						VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
@@ -261,8 +261,8 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, *Proof, error)
 	}
 
 	// store transactions
-	for _, tx := range batch.Transactions {
-		err := b.addTransaction(ctx, tx, batch.BatchNumber)
+	for i, tx := range batch.Transactions {
+		err := b.addTransaction(ctx, tx, batch.BatchNumber, uint(i))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -279,22 +279,13 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, *Proof, error)
 	return nil, nil, nil
 }
 
-// Rollback does not apply batch state into state
-// TODO: implement
-/*
-func (b *BasicBatchProcessor) rollback() error {
-	// TODO: Implement
-	return nil
-}
-*/
-
 func (b *BasicBatchProcessor) addBatch(ctx context.Context, batch *Batch) error {
 	_, err := b.State.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator,
 		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData)
 	return err
 }
 
-func (b *BasicBatchProcessor) addTransaction(ctx context.Context, tx *types.Transaction, batchNumber uint64) error {
+func (b *BasicBatchProcessor) addTransaction(ctx context.Context, tx *types.Transaction, batchNumber uint64, index uint) error {
 	binary, err := tx.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -307,7 +298,7 @@ func (b *BasicBatchProcessor) addTransaction(ctx context.Context, tx *types.Tran
 	}
 	decoded := string(binary)
 
-	_, err = b.State.db.Exec(ctx, addTransactionSQL, tx.Hash().Bytes(), "", encoded, decoded, batchNumber)
+	_, err = b.State.db.Exec(ctx, addTransactionSQL, tx.Hash().Bytes(), "", encoded, decoded, batchNumber, index)
 	return err
 }
 

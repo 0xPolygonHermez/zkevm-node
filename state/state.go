@@ -37,40 +37,46 @@ type State interface {
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error)
 	GetTransactionCount(ctx context.Context, address common.Address) (uint64, error)
 	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*types.Receipt, error)
-	Reset(blockNumber uint64) error
+	Reset(ctx context.Context, blockNumber uint64) error
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
 	AddSequencer(ctx context.Context, seq Sequencer) error
 	GetSequencer(ctx context.Context, address common.Address) (*Sequencer, error)
 	SetGenesis(ctx context.Context, genesis Genesis) error
 	AddBlock(ctx context.Context, block *Block) error
-	SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error
+	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
 	GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error)
 }
 
 const (
-	getLastBlockSQL                   = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1"
-	getPreviousBlockSQL               = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
-	getBlockByHashSQL                 = "SELECT * FROM state.block WHERE block_hash = $1"
-	getBlockByNumberSQL               = "SELECT * FROM state.block WHERE block_num = $1"
-	getLastBlockNumberSQL             = "SELECT MAX(block_num) FROM state.block"
-	getLastVirtualBatchSQL            = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1"
-	getLastConsolidatedBatchSQL       = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
-	getPreviousVirtualBatchSQL        = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
-	getPreviousConsolidatedBatchSQL   = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
-	getBatchByHashSQL                 = "SELECT * FROM state.batch WHERE batch_hash = $1"
-	getBatchByNumberSQL               = "SELECT * FROM state.batch WHERE batch_num = $1"
-	getLastVirtualBatchNumberSQL      = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch"
-	getLastConsolidatedBatchNumberSQL = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch WHERE consolidated_tx_hash != $1"
-	getTransactionByHashSQL           = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
-	getTransactionCountSQL            = "SELECT COUNT(*) FROM state.transaction WHERE from_address = $1"
-	consolidateBatchSQL               = "UPDATE state.batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"
-	getTxsByBatchNumSQL               = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
-	addBlockSQL                       = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
-	addSequencerSQL                   = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4)"
-	getSequencerSQL                   = "SELECT * FROM state.sequencer WHERE address = $1"
-	getReceiptSQL                     = "SELECT * FROM state.receipt WHERE tx_hash = $1"
+	getLastBlockSQL                        = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1"
+	getPreviousBlockSQL                    = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
+	getBlockByHashSQL                      = "SELECT * FROM state.block WHERE block_hash = $1"
+	getBlockByNumberSQL                    = "SELECT * FROM state.block WHERE block_num = $1"
+	getLastBlockNumberSQL                  = "SELECT MAX(block_num) FROM state.block"
+	getLastVirtualBatchSQL                 = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1"
+	getLastConsolidatedBatchSQL            = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
+	getPreviousVirtualBatchSQL             = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
+	getPreviousConsolidatedBatchSQL        = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
+	getBatchByHashSQL                      = "SELECT * FROM state.batch WHERE batch_hash = $1"
+	getBatchByNumberSQL                    = "SELECT * FROM state.batch WHERE batch_num = $1"
+	getLastVirtualBatchNumberSQL           = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch"
+	getLastConsolidatedBatchNumberSQL      = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch WHERE consolidated_tx_hash != $1"
+	getTransactionByHashSQL                = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
+	getTransactionByBatchHashAndIndexSQL   = "SELECT transaction.encoded FROM state.transaction inner join state.batch on (state.transaction.batch_num = state.batch.batch_num) WHERE state.batch.batch_hash = $1 and state.transaction.tx_index = $2"
+	getTransactionByBatchNumberAndIndexSQL = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1 AND tx_index = $2"
+	getTransactionCountSQL                 = "SELECT COUNT(*) FROM state.transaction WHERE from_address = $1"
+	consolidateBatchSQL                    = "UPDATE state.batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"
+	getTxsByBatchNumSQL                    = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
+	addBlockSQL                            = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
+	addSequencerSQL                        = `INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4) 
+											  ON CONFLICT (chain_id) DO UPDATE SET address = EXCLUDED.address, url = EXCLUDED.url, block_num = EXCLUDED.block_num`
+	updateLastBatchSeenSQL = "UPDATE state.misc SET last_batch_num_seen = $1"
+	getLastBatchSeenSQL    = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
+	getSequencerSQL        = "SELECT * FROM state.sequencer WHERE address = $1"
+	getReceiptSQL          = "SELECT * FROM state.receipt WHERE tx_hash = $1"
+	resetSQL               = "DELETE FROM state.block WHERE block_num > $1"
 )
 
 var (
@@ -314,12 +320,42 @@ func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint6
 
 // GetTransactionByBatchHashAndIndex gets a transaction from a batch by index
 func (s *BasicState) GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64) (*types.Transaction, error) {
-	panic("not implemented")
+	var encoded string
+	if err := s.db.QueryRow(ctx, getTransactionByBatchHashAndIndexSQL, batchHash.Bytes(), index).Scan(&encoded); err != nil {
+		return nil, err
+	}
+
+	b, err := hex.DecodeHex(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+
+	return tx, nil
 }
 
 // GetTransactionByBatchNumberAndIndex gets a transaction from a batch by index
 func (s *BasicState) GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error) {
-	panic("not implemented")
+	var encoded string
+	if err := s.db.QueryRow(ctx, getTransactionByBatchNumberAndIndexSQL, batchNumber, index).Scan(&encoded); err != nil {
+		return nil, err
+	}
+
+	b, err := hex.DecodeHex(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+
+	return tx, nil
 }
 
 // GetTransactionByHash gets a transaction by its hash
@@ -367,8 +403,11 @@ func (s *BasicState) GetTransactionReceipt(ctx context.Context, transactionHash 
 }
 
 // Reset resets the state to a block
-func (s *BasicState) Reset(blockNumber uint64) error {
-	panic("not implemented")
+func (s *BasicState) Reset(ctx context.Context, blockNumber uint64) error {
+	if _, err := s.db.Exec(ctx, resetSQL, blockNumber); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ConsolidateBatch changes the virtual status of a batch
@@ -490,13 +529,20 @@ func (s *BasicState) AddBlock(ctx context.Context, block *Block) error {
 // SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
 // the roll-up in order to allow the components to know if the state
 // is synchronized or not
-func (s *BasicState) SetLastBatchNumberSeenOnEthereum(batchNumber uint64) error {
-	return nil
+func (s *BasicState) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error {
+	_, err := s.db.Exec(ctx, updateLastBatchSeenSQL, batchNumber)
+	return err
 }
 
 // GetLastBatchNumberSeenOnEthereum returns the last batch number stored
 // in the state that represents the last batch number that affected the
 // roll-up in the Ethereum network.
 func (s *BasicState) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
-	return 0, nil
+	var batchNumber uint64
+	err := s.db.QueryRow(ctx, getLastBatchSeenSQL).Scan(&batchNumber)
+	if err != nil {
+		return 0, err
+	}
+
+	return batchNumber, nil
 }
