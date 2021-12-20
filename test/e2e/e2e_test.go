@@ -115,7 +115,13 @@ func TestStateTransition(t *testing.T) {
 			// create state
 			mt := tree.NewMerkleTree(sqlDB, testCase.Arity, poseidon.Hash)
 			tr := tree.NewStateTree(mt, []byte{})
-			st := state.NewState(sqlDB, tr)
+
+			stateCfg := state.Config{
+				Arity:          tree.DefaultMerkleTreeArity,
+				DefaultChainID: 1000,
+			}
+
+			st := state.NewState(stateCfg, sqlDB, tr)
 			genesis := state.Genesis{
 				Balances: make(map[common.Address]*big.Int),
 			}

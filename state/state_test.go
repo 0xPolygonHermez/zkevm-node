@@ -49,6 +49,11 @@ var cfg = db.Config{
 	Port:     "5432",
 }
 
+var stateCfg = Config{
+	Arity:          tree.DefaultMerkleTreeArity,
+	DefaultChainID: 1000,
+}
+
 func TestMain(m *testing.M) {
 	var err error
 
@@ -69,8 +74,8 @@ func TestMain(m *testing.M) {
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
 
-	mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
-	state = NewState(stateDb, tree.NewStateTree(mt, nil))
+	mt := tree.NewMerkleTree(stateDb, stateCfg.Arity, nil)
+	state = NewState(stateCfg, stateDb, tree.NewStateTree(mt, nil))
 
 	setUpBlocks()
 	setUpBatches()
@@ -438,7 +443,7 @@ func TestStateTransition(t *testing.T) {
 			stateTree := tree.NewStateTree(mt, nil)
 
 			// Create state
-			st := NewState(stateDb, stateTree)
+			st := NewState(stateCfg, stateDb, stateTree)
 
 			genesis := Genesis{
 				Balances: make(map[common.Address]*big.Int),
@@ -572,7 +577,7 @@ func TestLastSeenBatch(t *testing.T) {
 	mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
 
 	// Create state
-	st := NewState(stateDb, tree.NewStateTree(mt, nil))
+	st := NewState(stateCfg, stateDb, tree.NewStateTree(mt, nil))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis

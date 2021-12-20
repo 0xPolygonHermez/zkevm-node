@@ -86,13 +86,14 @@ var (
 
 // BasicState is a implementation of the state
 type BasicState struct {
+	cfg  Config
 	db   *pgxpool.Pool
 	Tree tree.ReadWriter
 }
 
 // NewState creates a new State
-func NewState(db *pgxpool.Pool, tree tree.ReadWriter) State {
-	return &BasicState{db: db, Tree: tree}
+func NewState(cfg Config, db *pgxpool.Pool, tree tree.ReadWriter) State {
+	return &BasicState{cfg: cfg, db: db, Tree: tree}
 }
 
 // NewBatchProcessor creates a new batch processor

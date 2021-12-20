@@ -25,10 +25,6 @@ var (
 	ErrInvalidChainID = errors.New("invalid chain id for sequencer")
 )
 
-const (
-	defaultChainID uint64 = 1000
-)
-
 // BatchProcessor is used to process a batch of transactions
 type BatchProcessor interface {
 	ProcessBatch(batch *Batch) error
@@ -192,8 +188,7 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	}
 
 	// Check ChainID
-	// TODO: Don't hardcode default ChainID
-	if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != defaultChainID {
+	if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
 		log.Debugf("Batch ChainID: %v", b.SequencerChainID)
 		log.Debugf("Transaction ChainID: %v", tx.ChainId().Uint64())
 		return sender, nonce, balance, ErrInvalidChainID

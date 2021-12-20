@@ -114,7 +114,13 @@ func start(ctx *cli.Context) error {
 	}
 	mt := tree.NewMerkleTree(sqlDB, c.NetworkConfig.Arity, poseidon.Hash)
 	tr := tree.NewStateTree(mt, []byte{})
-	st := state.NewState(sqlDB, tr)
+
+	stateCfg := state.Config{
+		Arity:          c.NetworkConfig.Arity,
+		DefaultChainID: c.NetworkConfig.L2DefaultChainID,
+	}
+
+	st := state.NewState(stateCfg, sqlDB, tr)
 
 	pool, err := pool.NewPostgresPool(c.Database)
 	if err != nil {
@@ -317,7 +323,13 @@ func registerSequencer(ctx *cli.Context) error {
 	}
 	mt := tree.NewMerkleTree(sqlDB, c.NetworkConfig.Arity, poseidon.Hash)
 	tr := tree.NewStateTree(mt, []byte{})
-	st := state.NewState(sqlDB, tr)
+
+	stateCfg := state.Config{
+		Arity:          c.NetworkConfig.Arity,
+		DefaultChainID: c.NetworkConfig.L2DefaultChainID,
+	}
+
+	st := state.NewState(stateCfg, sqlDB, tr)
 	_, err = st.GetSequencer(ctx.Context, etherman.GetAddress())
 	if err == pgx.ErrNoRows { //If It doesn't exist, register the sequencer
 		tx, err := etherman.RegisterSequencer(url)
