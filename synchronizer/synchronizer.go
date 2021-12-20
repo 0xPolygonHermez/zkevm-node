@@ -29,7 +29,6 @@ type ClientSynchronizer struct {
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64) (Synchronizer, error) {
-	//TODO
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:          st,
@@ -76,7 +75,7 @@ func (s *ClientSynchronizer) Sync() error {
 
 // This function syncs the node from a specific block to the latest
 func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
-	//This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
+	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
 	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {
 		log.Error("error checking reorgs")
@@ -90,7 +89,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		return block, nil
 	}
 
-	//Call the blockchain to retrieve data
+	// Call the blockchain to retrieve data
 	var fromBlock uint64
 	if lastEthBlockSynced.BlockNumber > 0 {
 		fromBlock = lastEthBlockSynced.BlockNumber + 1
@@ -102,19 +101,19 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 
 	// New info has to be included into the db using the state
 	for i := range blocks {
-		//get lastest synced batch number
+		// Get lastest synced batch number
 		latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
 		if err != nil {
 			log.Error("error getting latest batch. Error: ", err)
 		}
 
-		//Add block information
+		// Add block information
 		err = s.state.AddBlock(context.Background(), &blocks[i])
 		if err != nil {
 			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
 		}
 		for _, seq := range blocks[i].NewSequencers {
-			//Add new sequencers
+			// Add new sequencers
 			err := s.state.AddSequencer(context.Background(), seq)
 			if err != nil {
 				log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", seq)
@@ -127,7 +126,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 				log.Error("error creating new batch processor. Error: ", err)
 			}
 
-			//Add batches
+			// Add batches
 			err = batchProcessor.ProcessBatch(&blocks[i].Batches[j])
 			if err != nil {
 				log.Fatal("error processing batch. BatchNumber: ", blocks[i].Batches[j].BatchNumber, ". Error: ", err)
@@ -151,9 +150,16 @@ func (s *ClientSynchronizer) resetState(ethBlockNum uint64) error {
 	return nil
 }
 
-// This function will check if there is a reorg
+/*
+This function will check if there is a reorg.
+As input param needs the last ethereum block synced. Retrieve the block info from the blockchain
+to compare it with the stored info. If hash and hash parent matches, then no reorg is detected and return a nil.
+If hash or hash parent don't match, reorg detected and the function will return the block until the sync process
+must be reverted. Then, check the previous ethereum block synced, get block info from the blockchain and check
+hash and has parent. This operation has to be done until a match is found.
+*/
 func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block, error) {
-	//This function only needs to worry about reorgs if some of the reorganized blocks contained rollup info.
+	// This function only needs to worry about reorgs if some of the reorganized blocks contained rollup info.
 	latestEthBlockSynced := *latestBlock
 	for {
 		block, err := s.etherMan.EthBlockByNumber(s.ctx, latestBlock.BlockNumber)
@@ -169,9 +175,9 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 			return nil, fmt.Errorf("Wrong ethereum block retrieved from blockchain. Block numbers don't match. BlockNumber stored: %d. BlockNumber retrieved: %d",
 				latestBlock.BlockNumber, block.NumberU64())
 		}
-		//Compare hashes
-		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > 0 {
-			//Reorg detected. Getting previous block
+		// Compare hashes
+		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > s.genBlockNumber {
+			// Reorg detected. Getting previous block
 			latestBlock, err = s.state.GetBlockByNumber(s.ctx, latestBlock.BlockNumber-1)
 			if err != nil {
 				if err.Error() == pgx.ErrNoRows.Error() {

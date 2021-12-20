@@ -64,13 +64,13 @@ type ClientEtherMan struct {
 
 // NewEtherman creates a new etherman
 func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address) (*ClientEtherMan, error) {
-	//Connect to ethereum node
+	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
 		log.Errorf("error connecting to %s: %+v", cfg.URL, err)
 		return nil, err
 	}
-	//Create smc clients
+	// Create smc clients
 	poe, err := proofofefficiency.NewProofofefficiency(PoEAddr, ethClient)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumbe
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
 func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, error) {
-	//First filter query
+	// First filter query
 	var blockNumBigInt *big.Int
 	if blockHash == nil {
 		blockNumBigInt = new(big.Int).SetUint64(blockNumber)
@@ -114,9 +114,9 @@ func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumb
 }
 
 // GetBatchesByBlockRange function retrieves the batches information that are included in all this ethereum blocks
-//from block x to block y
+// from block x to block y
 func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error) {
-	//First filter query
+	// First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
 		Addresses: etherMan.SCAddresses,
@@ -245,7 +245,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 	switch vLog.Topics[0] {
 	case newBatchEventSignatureHash:
 		var block state.Block
-		//Indexed parameters using topics
+		// Indexed parameters using topics
 		var batch state.Batch
 		batch.BatchNumber = new(big.Int).SetBytes(vLog.Topics[1][:]).Uint64()
 		batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
@@ -264,7 +264,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		if err != nil {
 			log.Warn("error getting hashParent. BlockNumber: ", block.BlockNumber, " error: ", err)
 		}
-		//Read the tx for this batch.
+		// Read the tx for this batch.
 		tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, batch.Header.TxHash)
 		if err != nil {
 			return nil, err
@@ -326,26 +326,25 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 }
 
 func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
-	// First split txs
-	// The first two bytes are the header. The information related to the length of the tx is stored in the second byte.
-	// So, first read the second byte to check the tx length. Then, copy from the current position to the last
-	// byte of the tx if exists (if not will be completed with zeros). Now, I try to decode the tx, If it is possible,
-	// everything is fine. If not, print error and try to get the next tx.
+	// The first 4 bytes are the function hash bytes. These bytes has to be ripped.
+	// After that, the unpack method is used to read the call data.
+	// The txs data is encoded using rlp and contains encoded txs. So, decoding the txs data,
+	// it is obteined an array of encoded txs. Each of these txs must to be decoded using rlp.
 
-	//Extract coded txs.
-	// load contract ABI
+	// Extract coded txs.
+	// Load contract ABI
 	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// recover Method from signature and ABI
+	// Recover Method from signature and ABI
 	method, err := abi.MethodById(txsData[:4])
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// unpack method inputs
+	// Unpack method inputs
 	data, err := method.Inputs.Unpack(txsData[4:])
 	if err != nil {
 		log.Fatal(err)
@@ -353,7 +352,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 
 	txsData = data[0].([]byte)
 
-	//Decode array of txs
+	// Decode array of txs
 	var codedTxs [][]byte
 	err = rlp.DecodeBytes(txsData, &codedTxs)
 	if err != nil {
@@ -361,10 +360,10 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 		return nil, err
 	}
 
-	//Process coded txs
+	// Process coded txs
 	var txs []*types.Transaction
 	for _, codedTx := range codedTxs {
-		//Decode tx
+		// Decode tx
 		var tx types.LegacyTx
 		err = rlp.DecodeBytes(codedTx, &tx)
 		if err != nil {
