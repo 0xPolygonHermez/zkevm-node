@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 
@@ -72,6 +73,7 @@ func Load(configFilePath string, network string) (*Config, error) {
 	// Load genesis parameters
 	cfg.loadNetworkConfig(network)
 
-	log.Infof("Configuration loaded: %+v", cfg)
+	cfgJson, _ := json.MarshalIndent(cfg, "", "  ")
+	log.Infof("Configuration loaded: \n%s\n", string(cfgJson))
 	return &cfg, nil
 }

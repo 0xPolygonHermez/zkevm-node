@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -9,7 +8,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -101,7 +99,7 @@ func start(ctx *cli.Context) error {
 
 	runMigrations(c.Database)
 
-	etherman, err := newSimulatedEtherman(c.Etherman)
+	etherman, err := newEtherman(*c)
 	if err != nil {
 		log.Fatal(err)
 		return err
@@ -143,21 +141,15 @@ func runMigrations(c db.Config) {
 	}
 }
 
-func newSimulatedEtherman(c etherman.Config) (*etherman.ClientEtherMan, error) {
-	auth, err := newAuthFromKeystore(c.PrivateKeyPath, c.PrivateKeyPassword)
+func newEtherman(c config.Config) (*etherman.ClientEtherMan, error) {
+	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
 	if err != nil {
 		return nil, err
 	}
-	etherman, commit, err := etherman.NewSimulatedEtherman(c, auth)
+	etherman, err := etherman.NewEtherman(c.Etherman, auth, c.NetworkConfig.PoEAddr)
 	if err != nil {
 		return nil, err
 	}
-	go func() {
-		for {
-			time.Sleep(time.Second)
-			commit()
-		}
-	}()
 	return etherman, nil
 }
 
@@ -187,8 +179,6 @@ func runSynchronizer(genBlockNumber uint64, etherman *etherman.ClientEtherMan, s
 
 func runJSONRpcServer(jc jsonrpc.Config, ec etherman.Config, nc config.NetworkConfig, pool pool.Pool, st state.State) {
 	var err error
-	var seq *state.Sequencer
-
 	key, err := newKeyFromKeystore(ec.PrivateKeyPath, ec.PrivateKeyPassword)
 	if err != nil {
 		log.Fatal(err)
@@ -196,19 +186,7 @@ func runJSONRpcServer(jc jsonrpc.Config, ec etherman.Config, nc config.NetworkCo
 
 	seqAddress := key.Address
 
-	const intervalToCheckSequencerRegistrationInSeconds = 10
-
-	for {
-		seq, err = st.GetSequencer(context.Background(), seqAddress)
-		if err != nil {
-			log.Warnf("Make sure the address %s has been registered in the smart contract as a sequencer, err: %v", seqAddress.Hex(), err)
-			time.Sleep(intervalToCheckSequencerRegistrationInSeconds * time.Second)
-			continue
-		}
-		break
-	}
-
-	if err := jsonrpc.NewServer(jc, nc.L2DefaultChainID, seq.ChainID.Uint64(), pool, st).Start(); err != nil {
+	if err := jsonrpc.NewServer(jc, nc.L2DefaultChainID, seqAddress, pool, st).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -305,7 +283,7 @@ func registerSequencer(ctx *cli.Context) error {
 	runMigrations(c.Database)
 
 	//Check if it is already registered
-	etherman, err := newSimulatedEtherman(c.Etherman)
+	etherman, err := newEtherman(*c)
 	if err != nil {
 		log.Fatal(err)
 		return err

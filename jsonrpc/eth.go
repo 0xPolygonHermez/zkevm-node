@@ -13,9 +13,9 @@ import (
 
 // Eth contains implementations for the "eth" RPC endpoints
 type Eth struct {
-	chainID uint64
-	pool    pool.Pool
-	state   state.State
+	chainIDSelector *chainIDSelector
+	pool            pool.Pool
+	state           state.State
 }
 
 // BlockNumber returns current block number
@@ -32,7 +32,12 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 
 // ChainId returns the chain id of the client
 func (e *Eth) ChainId() (interface{}, error) { //nolint:golint
-	return hex.EncodeUint64(e.chainID), nil
+	chainID, err := e.chainIDSelector.getChainID()
+	if err != nil {
+		return nil, err
+	}
+
+	return hex.EncodeUint64(chainID), nil
 }
 
 // EstimateGas generates and returns an estimate of how much gas is necessary to

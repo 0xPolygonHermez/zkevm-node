@@ -46,7 +46,7 @@ test: ## runs only short tests without checking race conditions
 test-full: ## runs all tests checking race conditions
 	$(STOPDB) || true
 	$(RUNDB)
-	go test -race -p 1 -timeout 180s ./...
+	go test -race -p 1 -timeout 600s ./...
 	$(STOPDB)
 
 .PHONY: install-linter
@@ -91,6 +91,9 @@ run: ## Runs all the services available in the docker-compose file
 .PHONY: stop
 stop: ## Stops all services available in the docker-compose file
 	$(STOP)
+
+.PHONY: restart
+restart: stop run ## Executes `make stop` and `make run` commands
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted

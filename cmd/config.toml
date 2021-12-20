@@ -10,7 +10,7 @@ Host = "localhost"
 Port = "5432"
 
 [Etherman]
-URL = "http://localhost"
+URL = "http://hez-network:8545"
 PrivateKeyPath = "./test/test.keystore"
 PrivateKeyPassword = "testonly"
 

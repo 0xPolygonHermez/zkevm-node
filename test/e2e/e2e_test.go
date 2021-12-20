@@ -17,15 +17,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/hermeznetwork/hermez-core/aggregator"
-	"github.com/hermeznetwork/hermez-core/config"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/etherman"
-	"github.com/hermeznetwork/hermez-core/jsonrpc"
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
@@ -36,47 +32,24 @@ import (
 )
 
 const (
-	sequencerURL = "http://localhost:8123"
+	l1NetworkURL = "http://localhost:8545"
+	l2NetworkURL = "http://localhost:8123"
+
+	poeAddress = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+
+	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 )
 
-//nolint:gomnd
-var cfg = config.Config{
-	Log: log.Config{
-		Level:   "debug",
-		Outputs: []string{"stdout"},
-	},
-	Database: db.Config{
+var (
+	dbConfig = db.Config{
 		User:     "test_user",
 		Password: "test_password",
 		Name:     "test_db",
 		Host:     "localhost",
 		Port:     "5432",
-	},
-	Etherman: etherman.Config{
-		URL:                "http://localhost:8545",
-		PrivateKeyPath:     "../test.keystore",
-		PrivateKeyPassword: "testonly",
-	},
-	RPC: jsonrpc.Config{
-		Host: "",
-		Port: 8123,
-	},
-	Sequencer: sequencer.Config{
-		IntervalToProposeBatch: sequencer.Duration{Duration: 1 * time.Second},
-	},
-	Aggregator: aggregator.Config{},
-	NetworkConfig: config.NetworkConfig{
-		Arity:            4,
-		GenBlockNumber:   1,
-		PoEAddr:          common.HexToAddress("0x41D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
-		L1ChainID:        1337,
-		L2DefaultChainID: 50000,
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
-			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
-		},
-	},
-}
+	}
+)
 
 // TestStateTransition tests state transitions using the vector
 func TestStateTransition(t *testing.T) {
@@ -87,19 +60,21 @@ func TestStateTransition(t *testing.T) {
 	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/state-transition.json")
 	require.NoError(t, err)
 
-	// init log
-	log.Init(cfg.Log)
+	buildCore()
+
+	defer stopNodeContainer()
+	defer stopNetworkContainer()
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Description, func(t *testing.T) {
 			ctx := context.Background()
 
 			// init database instance
-			err = dbutils.InitOrReset(cfg.Database)
+			err = dbutils.InitOrReset(dbConfig)
 			require.NoError(t, err)
 
 			//connect to db
-			sqlDB, err := db.NewSQLDB(cfg.Database)
+			sqlDB, err := db.NewSQLDB(dbConfig)
 			require.NoError(t, err)
 
 			// set genesis
@@ -130,23 +105,56 @@ func TestStateTransition(t *testing.T) {
 			// wait network to be ready
 			time.Sleep(5 * time.Second)
 
-			// create auth
-			pkHex := strings.TrimPrefix(testCase.SequencerPrivateKey, "0x")
-			privateKey, err := crypto.HexToECDSA(pkHex)
-			if err != nil {
-				log.Fatal(err)
-			}
-			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
-			if err != nil {
-				log.Fatal(err)
-			}
-			auth.GasLimit = 100000000
+			// eth client
+			client, err := ethclient.Dial(l1NetworkURL)
+			require.NoError(t, err)
+
+			// get network chain id
+			chainID, err := client.NetworkID(context.Background())
+			require.NoError(t, err)
+
+			// send some Ether from l1Acc to sequencer acc
+			privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(l1AccHexPrivateKey, "0x"))
+			require.NoError(t, err)
+			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+			require.NoError(t, err)
+			auth.GasLimit = 999999999
+			fromAddress := common.HexToAddress(l1AccHexAddress)
+			nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+			require.NoError(t, err)
+			gasLimit := uint64(21000)
+			gasPrice, err := client.SuggestGasPrice(context.Background())
+			require.NoError(t, err)
+			toAddress := common.HexToAddress(testCase.SequencerAddress)
+			tx := types.NewTransaction(nonce, toAddress, big.NewInt(1000000000000000000), gasLimit, gasPrice, nil)
+			signedTx, err := auth.Signer(auth.From, tx)
+			require.NoError(t, err)
+			err = client.SendTransaction(context.Background(), signedTx)
+			require.NoError(t, err)
+
+			// wait transfer to be mined
+			time.Sleep(3 * time.Second)
+
+			// create sequencer auth
+			privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(testCase.SequencerPrivateKey, "0x"))
+			require.NoError(t, err)
+
+			auth, err = bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+			require.NoError(t, err)
+			auth.GasLimit = 999999999
+			auth.GasPrice = gasPrice
 
 			// register the sequencer
-			etherman, err := etherman.NewEtherman(cfg.Etherman, auth, cfg.NetworkConfig.PoEAddr)
-			require.NoError(t, err)
-			_, err = etherman.PoE.RegisterSequencer(auth, sequencerURL)
-			require.NoError(t, err)
+			// ethermanConfig := etherman.Config{
+			// 	URL: l1NetworkURL,
+			// }
+			// etherman, err := etherman.NewEtherman(ethermanConfig, auth, common.HexToAddress(poeAddress))
+			// require.NoError(t, err)
+			// _, err = etherman.RegisterSequencer(l2NetworkURL)
+			// require.NoError(t, err)
+
+			// wait sequencer to be registered
+			time.Sleep(3 * time.Second)
 
 			// Run node container
 			err = startNodeContainer()
@@ -203,6 +211,12 @@ const (
 	cmdDir  = "../.."
 )
 
+func buildCore() error {
+	cmd := exec.Command(makeCmd, "build-docker")
+	cmd.Dir = cmdDir
+	return cmd.Run()
+}
+
 func startNetworkContainer() error {
 	if err := stopNetworkContainer(); err != nil {
 		return err
@@ -223,6 +237,7 @@ func startNodeContainer() error {
 		return err
 	}
 	cmd := exec.Command(makeCmd, "run-core")
+	cmd.Env = []string{"HERMEZCORE_NETWORK=e2e-test"}
 	cmd.Dir = cmdDir
 	return cmd.Run()
 }
@@ -234,7 +249,6 @@ func stopNodeContainer() error {
 }
 
 func sendRawTransaction(rawTx string) error {
-	endpoint := fmt.Sprintf("http://localhost:%d", cfg.RPC.Port)
 	contentType := "application/json"
 
 	payload := map[string]interface{}{
@@ -245,7 +259,7 @@ func sendRawTransaction(rawTx string) error {
 	}
 
 	jsonStr, _ := json.Marshal(payload)
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("POST", l2NetworkURL, bytes.NewBuffer(jsonStr))
 	if err != nil {
 		return err
 	}
