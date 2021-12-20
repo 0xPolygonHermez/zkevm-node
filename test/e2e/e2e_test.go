@@ -163,6 +163,10 @@ func TestStateTransition(t *testing.T) {
 				return
 			}
 
+			// update Sequencer ChainID to the one in the test vector
+			_, err = sqlDB.Exec(ctx, "UPDATE state.sequencer SET chain_id = $1 WHERE address = $2", testCase.ChainIDSequencer, common.HexToAddress(testCase.SequencerAddress).Bytes())
+			require.NoError(t, err)
+
 			// create sequencer
 			seq, err := sequencer.NewSequencer(cfg.Sequencer, pl, st, etherman)
 			require.NoError(t, err)
@@ -183,9 +187,11 @@ func TestStateTransition(t *testing.T) {
 
 			// apply transactions
 			for _, tx := range testCase.Txs {
-				rawTx := tx.RawTx
-				err := sendRawTransaction(rawTx)
-				require.NoError(t, err)
+				if string(tx.RawTx) != "" && tx.Overwrite.S == "" {
+					rawTx := tx.RawTx
+					err := sendRawTransaction(rawTx)
+					require.NoError(t, err)
+				}
 			}
 
 			// wait for sequencer to select txs from pool and propose a new batch

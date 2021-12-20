@@ -108,11 +108,6 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 			log.Error("error getting latest batch. Error: ", err)
 		}
 
-		batchProcessor, err := s.state.NewBatchProcessor(latestBatchNumber, false)
-		if err != nil {
-			log.Error("error creating new batch processor. Error: ", err)
-		}
-
 		//Add block information
 		err = s.state.AddBlock(context.Background(), &blocks[i])
 		if err != nil {
@@ -126,8 +121,14 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 			}
 		}
 		for j := range blocks[i].Batches {
+			sequencerAddress := &blocks[i].Batches[j].Sequencer
+			batchProcessor, err := s.state.NewBatchProcessor(*sequencerAddress, latestBatchNumber)
+			if err != nil {
+				log.Error("error creating new batch processor. Error: ", err)
+			}
+
 			//Add batches
-			err := batchProcessor.ProcessBatch(&blocks[i].Batches[j])
+			err = batchProcessor.ProcessBatch(&blocks[i].Batches[j])
 			if err != nil {
 				log.Fatal("error processing batch. BatchNumber: ", blocks[i].Batches[j].BatchNumber, ". Error: ", err)
 			}

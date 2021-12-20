@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -18,9 +19,10 @@ import (
 type Sequencer struct {
 	cfg Config
 
-	Pool   pool.Pool
-	State  state.State
-	EthMan etherman.EtherMan
+	Pool    pool.Pool
+	State   state.State
+	EthMan  etherman.EtherMan
+	Address common.Address
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -31,10 +33,11 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 	ctx, cancel := context.WithCancel(context.Background())
 
 	s := Sequencer{
-		cfg:    cfg,
-		Pool:   pool,
-		State:  state,
-		EthMan: ethMan,
+		cfg:     cfg,
+		Pool:    pool,
+		State:   state,
+		EthMan:  ethMan,
+		Address: ethMan.GetAddress(),
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -107,7 +110,7 @@ func (s *Sequencer) tryProposeBatch() {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return
 	}
-	bp, err := s.State.NewBatchProcessor(lastBatch.BatchNumber, false)
+	bp, err := s.State.NewBatchProcessor(s.Address, lastBatch.BatchNumber)
 	if err != nil {
 		log.Errorf("failed to create new batch processor, err: %v", err)
 		return

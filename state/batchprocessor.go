@@ -21,6 +21,12 @@ var (
 	ErrInvalidBalance = errors.New("not enough balance")
 	// ErrInvalidGas indicates the gaslimit is not enough to process the transaction
 	ErrInvalidGas = errors.New("not enough gas")
+	// ErrInvalidChainID indicates a mismatch between sequencer address and ChainID
+	ErrInvalidChainID = errors.New("invalid chain id for sequencer")
+)
+
+const (
+	defaultChainID uint64 = 1000
 )
 
 // BatchProcessor is used to process a batch of transactions
@@ -40,8 +46,10 @@ const (
 
 // BasicBatchProcessor is used to process a batch of transactions
 type BasicBatchProcessor struct {
-	State     *BasicState
-	stateRoot []byte
+	State            *BasicState
+	stateRoot        []byte
+	SequencerAddress common.Address
+	SequencerChainID uint64
 }
 
 // ProcessBatch processes all transactions inside a batch
@@ -171,7 +179,6 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 
 // CheckTransaction checks if a transaction is valid
 func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Address, *big.Int, *big.Int, error) {
-	// TODO: Check ChainID when possible
 	var sender = common.Address{}
 	var nonce = big.NewInt(0)
 	var balance = big.NewInt(0)
@@ -182,6 +189,14 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	// Check Signature
 	if err := CheckSignature(tx); err != nil {
 		return sender, nonce, balance, err
+	}
+
+	// Check ChainID
+	// TODO: Don't hardcode default ChainID
+	if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != defaultChainID {
+		log.Debugf("Batch ChainID: %v", b.SequencerChainID)
+		log.Debugf("Transaction ChainID: %v", tx.ChainId().Uint64())
+		return sender, nonce, balance, ErrInvalidChainID
 	}
 
 	// Get Sender
