@@ -525,7 +525,6 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			if len(transactions) > 0 {
-
 				// Check get transaction by batch number and index
 				transaction, err := state.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
 				require.NoError(t, err)
@@ -535,7 +534,6 @@ func TestStateTransition(t *testing.T) {
 				transaction, err = state.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
-
 			}
 
 			for _, transaction := range transactions {
