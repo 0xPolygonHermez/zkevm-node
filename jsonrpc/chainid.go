@@ -9,14 +9,14 @@ import (
 )
 
 type chainIDSelector struct {
-	defaultChainId   uint64
+	defaultChainID   uint64
 	sequencerAddress common.Address
 	s                state.State
 }
 
-func newChainIDSelector(defaultChainId uint64, sequencerAddress common.Address, s state.State) *chainIDSelector {
+func newChainIDSelector(defaultChainID uint64, sequencerAddress common.Address, s state.State) *chainIDSelector {
 	return &chainIDSelector{
-		defaultChainId:   defaultChainId,
+		defaultChainID:   defaultChainID,
 		sequencerAddress: sequencerAddress,
 		s:                s,
 	}
@@ -29,7 +29,7 @@ func (s *chainIDSelector) getChainID() (uint64, error) {
 	}
 
 	if err == pgx.ErrNoRows {
-		return s.defaultChainId, nil
+		return s.defaultChainID, nil
 	}
 
 	return 0, err

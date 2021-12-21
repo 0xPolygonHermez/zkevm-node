@@ -18,7 +18,6 @@ type NetworkConfig struct {
 }
 
 const (
-	mainnet         = "mainnet"
 	testnet         = "testnet"
 	internalTestnet = "internaltestnet"
 	local           = "local"

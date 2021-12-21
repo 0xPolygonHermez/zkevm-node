@@ -14,6 +14,8 @@ const (
 	Base10 = 10
 	// BitSize64 64 bits
 	BitSize64 = 64
+	// TenToThePowerOf18 represents 1000000000000000000
+	TenToThePowerOf18 = 1000000000000000000
 )
 
 // DecodeUint64orHex decodes a string uint64 or hex string into a uint64

@@ -4,41 +4,51 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math/big"
 	"net/http"
+	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/iden3/go-iden3-crypto/poseidon"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gotest.tools/assert"
 )
 
 const (
 	l1NetworkURL = "http://localhost:8545"
 	l2NetworkURL = "http://localhost:8123"
 
-	poeAddress = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+	poeAddress        = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
 
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+
+	keyStorePassword = "testonly"
 )
 
 var (
@@ -60,10 +70,16 @@ func TestStateTransition(t *testing.T) {
 	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/state-transition.json")
 	require.NoError(t, err)
 
-	buildCore()
+	err = buildCore()
+	require.NoError(t, err)
 
-	defer stopNodeContainer()
-	defer stopNetworkContainer()
+	defer func() {
+		_ = stopNodeContainer()
+	}()
+
+	defer func() {
+		_ = stopNetworkContainer()
+	}()
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Description, func(t *testing.T) {
@@ -113,18 +129,21 @@ func TestStateTransition(t *testing.T) {
 			chainID, err := client.NetworkID(context.Background())
 			require.NoError(t, err)
 
-			// send some Ether from l1Acc to sequencer acc
+			// preparing l1 acc info
 			privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(l1AccHexPrivateKey, "0x"))
 			require.NoError(t, err)
 			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 			require.NoError(t, err)
-			auth.GasLimit = 999999999
+
+			// getting l1 info
+			gasPrice, err := client.SuggestGasPrice(context.Background())
+			require.NoError(t, err)
+
+			// send some Ether from l1Acc to sequencer acc
 			fromAddress := common.HexToAddress(l1AccHexAddress)
 			nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
 			require.NoError(t, err)
 			gasLimit := uint64(21000)
-			gasPrice, err := client.SuggestGasPrice(context.Background())
-			require.NoError(t, err)
 			toAddress := common.HexToAddress(testCase.SequencerAddress)
 			tx := types.NewTransaction(nonce, toAddress, big.NewInt(1000000000000000000), gasLimit, gasPrice, nil)
 			signedTx, err := auth.Signer(auth.From, tx)
@@ -132,36 +151,61 @@ func TestStateTransition(t *testing.T) {
 			err = client.SendTransaction(context.Background(), signedTx)
 			require.NoError(t, err)
 
-			// wait transfer to be mined
-			time.Sleep(3 * time.Second)
+			// wait eth transfer to be mined
+			err = waitTxToBeMined(client, signedTx.Hash(), 5*time.Second)
+			require.NoError(t, err)
+
+			// create matic maticTokenSC sc instance
+			maticTokenSC, err := NewToken(common.HexToAddress(maticTokenAddress), client)
+			require.NoError(t, err)
+
+			// Send matic to sequencer
+			maticAmount, ok := big.NewInt(0).SetString("100000000000000000000000", encoding.Base10)
+			require.True(t, ok)
+			tx, err = maticTokenSC.Transfer(auth, toAddress, maticAmount)
+			require.NoError(t, err)
+
+			// wait matic transfer to be mined
+			err = waitTxToBeMined(client, tx.Hash(), 5*time.Second)
+			require.NoError(t, err)
+
+			// check matic balance
+			require.NoError(t, err)
+			b, err := maticTokenSC.BalanceOf(&bind.CallOpts{}, toAddress)
+			require.NoError(t, err)
+			assert.Equal(t, b.Cmp(maticAmount), 0, fmt.Sprintf("expected: %v found %v", maticAmount.Text(encoding.Base10), b.Text(encoding.Base10)))
 
 			// create sequencer auth
 			privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(testCase.SequencerPrivateKey, "0x"))
 			require.NoError(t, err)
-
 			auth, err = bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 			require.NoError(t, err)
-			auth.GasLimit = 999999999
-			auth.GasPrice = gasPrice
+
+			// approve tokens to be used by PoE SC on behalf of the sequencer
+			tx, err = maticTokenSC.Approve(auth, common.HexToAddress(poeAddress), maticAmount)
+			require.NoError(t, err)
+			err = waitTxToBeMined(client, tx.Hash(), 5*time.Second)
+			require.NoError(t, err)
 
 			// register the sequencer
-			// ethermanConfig := etherman.Config{
-			// 	URL: l1NetworkURL,
-			// }
-			// etherman, err := etherman.NewEtherman(ethermanConfig, auth, common.HexToAddress(poeAddress))
-			// require.NoError(t, err)
-			// _, err = etherman.RegisterSequencer(l2NetworkURL)
-			// require.NoError(t, err)
+			ethermanConfig := etherman.Config{
+				URL: l1NetworkURL,
+			}
+			etherman, err := etherman.NewEtherman(ethermanConfig, auth, common.HexToAddress(poeAddress))
+			require.NoError(t, err)
+			tx, err = etherman.RegisterSequencer(l2NetworkURL)
+			require.NoError(t, err)
 
 			// wait sequencer to be registered
-			time.Sleep(3 * time.Second)
+			err = waitTxToBeMined(client, tx.Hash(), 5*time.Second)
+			require.NoError(t, err)
 
 			// Run node container
-			err = startNodeContainer()
+			err = startCoreContainer(testCase.SequencerPrivateKey)
 			require.NoError(t, err)
 
 			// wait node to be ready
-			time.Sleep(3 * time.Second)
+			time.Sleep(5 * time.Second)
 
 			// apply transactions
 			for _, tx := range testCase.Txs {
@@ -173,14 +217,6 @@ func TestStateTransition(t *testing.T) {
 			// wait for sequencer to select txs from pool and propose a new batch
 			// wait for the synchronizer to update state
 			time.Sleep(10 * time.Second)
-
-			// stop node
-			err = stopNodeContainer()
-			require.NoError(t, err)
-
-			// stop network
-			err = stopNetworkContainer()
-			require.NoError(t, err)
 
 			// check state against the expected state
 			root, err = st.GetStateRoot(ctx, true)
@@ -214,6 +250,8 @@ const (
 func buildCore() error {
 	cmd := exec.Command(makeCmd, "build-docker")
 	cmd.Dir = cmdDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
@@ -223,28 +261,63 @@ func startNetworkContainer() error {
 	}
 	cmd := exec.Command(makeCmd, "run-network")
 	cmd.Dir = cmdDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
 func stopNetworkContainer() error {
 	cmd := exec.Command(makeCmd, "stop-network")
 	cmd.Dir = cmdDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func startNodeContainer() error {
+func startCoreContainer(sequencerPrivateKey string) error {
 	if err := stopNodeContainer(); err != nil {
 		return err
 	}
 	cmd := exec.Command(makeCmd, "run-core")
-	cmd.Env = []string{"HERMEZCORE_NETWORK=e2e-test"}
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPrivateKey, "0x"))
+	if err != nil {
+		return err
+	}
+	keyStoreDir := path.Join(os.TempDir(), "hez-keystore")
+	if err := os.RemoveAll(keyStoreDir); err != nil {
+		return err
+	}
+	ks := keystore.NewKeyStore(keyStoreDir, keystore.LightScryptN, keystore.LightScryptP)
+	if _, err := ks.ImportECDSA(privateKey, keyStorePassword); err != nil {
+		return err
+	}
+	keyStoreFiles, err := ioutil.ReadDir(keyStoreDir)
+	if err != nil {
+		return err
+	}
+	keyStoreFile := keyStoreFiles[0]
+	keyStoreRelativeFilePath := filepath.Join(keyStoreDir, keyStoreFile.Name())
+	keyStoreFilePath, err := filepath.Abs(keyStoreRelativeFilePath)
+	if err != nil {
+		return err
+	}
+
+	cmd.Env = []string{
+		"HERMEZCORE_NETWORK=e2e-test",
+		fmt.Sprintf("HERMEZCORE_KEYSTORE_FILEPATH=%s", keyStoreFilePath),
+	}
 	cmd.Dir = cmdDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
 func stopNodeContainer() error {
 	cmd := exec.Command(makeCmd, "stop-core")
 	cmd.Dir = cmdDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
@@ -280,4 +353,37 @@ func sendRawTransaction(rawTx string) error {
 	fmt.Println("response Body:", string(body))
 
 	return nil
+}
+
+func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) error {
+	start := time.Now()
+	for {
+		if time.Since(start) > timeout {
+			return errors.New("timeout exceed")
+		}
+
+		time.Sleep(1 * time.Second)
+
+		_, isPending, err := client.TransactionByHash(context.Background(), hash)
+		if err == ethereum.NotFound {
+			continue
+		}
+
+		if err != nil {
+			return err
+		}
+
+		if !isPending {
+			r, err := client.TransactionReceipt(context.Background(), hash)
+			if err != nil {
+				return err
+			}
+
+			if r.Status == types.ReceiptStatusFailed {
+				return fmt.Errorf("transaction has failed: %s", string(r.PostState))
+			}
+
+			return nil
+		}
+	}
 }

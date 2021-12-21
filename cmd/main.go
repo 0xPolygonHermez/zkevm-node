@@ -96,7 +96,6 @@ func start(ctx *cli.Context) error {
 		return err
 	}
 	setupLog(c.Log)
-
 	runMigrations(c.Database)
 
 	etherman, err := newEtherman(*c)
@@ -247,7 +246,6 @@ func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	auth.GasLimit = 99999999999
 	return auth, nil
 }
 
