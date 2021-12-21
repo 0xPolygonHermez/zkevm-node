@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -13,6 +14,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/hermeznetwork/hermez-core/test/vectors"
 )
 
 func init() {
@@ -22,63 +24,25 @@ func init() {
 	})
 }
 func TestDecodeOneTxData(t *testing.T) {
-	dHex := "06d6490f000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000074f872b870f86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a000080820344a0a9683074bcc81dba07fad2ac4015cf2eba4807c1aa1a8d291e77317a45fc2023a03d9ad247102178817ab2714984b4deb48bedd6ec06da0471745a81c60d1ab0b5"
-	data, err := hex.DecodeString(dHex)
-	require.NoError(t, err)
-
-	tx, err := decodeTxs(data)
-	require.NoError(t, err)
-	var addr common.Address
-	err = addr.UnmarshalText([]byte("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"))
-	require.NoError(t, err)
-	assert.Equal(t, &addr, tx[0].To())
-
-	dHex = "06d6490f000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000076f874b872f87080843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff8a021e19e0c9bab240000080820344a001b48d462a4d85e850d36a297d79cd78235b6aa98d0e76318a8e2c4dcd39d881a0277093ef3e6d2f2970e6386eefaac403f7575a5a7855ab0b4ccad6bc2dab081d"
-	data, err = hex.DecodeString(dHex)
-	require.NoError(t, err)
-	tx, err = decodeTxs(data)
-	require.NoError(t, err)
-	err = addr.UnmarshalText([]byte("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"))
-	require.NoError(t, err)
-	assert.Equal(t, &addr, tx[0].To())
-
-	dHex = "06d6490f000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000071f86fb86df86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a000080820344a0a9683074bcc81dba07fad2ac4015cf2eba4807c1aa1a8d291e77317a45fc2023a03d9ad247102178817ab2714984b4deb48bedd6ec06da0471745a81c60d"
-	data, err = hex.DecodeString(dHex)
-	require.NoError(t, err)
-	tx, err = decodeTxs(data)
-	require.NoError(t, err)
-	assert.Equal(t, 0, len(tx))
-}
-
-func TestDecodeMultipleTxData(t *testing.T) {
-	dHex := "06d6490f00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000023Af90237b870f86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a000080820344a0a9683074bcc81dba07fad2ac4015cf2eba4807c1aa1a8d291e77317a45fc2023a03d9ad247102178817ab2714984b4deb48bedd6ec06da0471745a81c60d1ab0b5b871f86f80843b9aca00830186a094187bd40226a7073b49163b1f6c2b73d8f2aa8478893635c9adc5dea0000080820343a0d0f11c506e8606f49759222a30e767212c6f6f671c6c4073664b49cc1ff3dde2a02dd180dea53b190e6053fe9c467672c5fdb299b3b2fd5e9cf7497b52d1bcd80fb86ef86c80843b9aca00830186a094187bd40226a7073b49163b1f6c2b73d8f2aa8478880de0b6b3a76400008025a0803fc443307ddda6c4a8e922f0a02c3a00df8de7701ab99d78954c3dc4aa7009a05407070d5186dd0a95a232f4276949e43d54f4ed120732f98776dd42ceb7cadab870f86e80843b9aca00830186a094abcced19d7f290b84608fec510bee872cc8f5112880de0b6b3a764000080820343a0b3672951e7ad1c60799a7c5ea89eee4165b2bedce92517ca410b5efcf5471f2ba012c3894e1d00ef3ad457495e46ce38fdbbc901802ca61db9832a9a024f491e51b86ef86c80843b9aca00830186a094abcced19d7f290b84608fec510bee872cc8f5112880de0b6b3a7640000801ba02c92035bc11227e9e94ba066a6d77a65c43d29dfb4a855c9464e1b60fabd6334a07171c6dc84816ffcf025040cd6193ecef3928a0c4e4964ddba320826b76c725d000000000000"
-	data, err := hex.DecodeString(dHex)
-	require.NoError(t, err)
-
-	txs, err := decodeTxs(data)
-	require.NoError(t, err)
-	res := []string{"0x4d5Cf5032B2a844602278b01199ED191A86c93ff", "0x187Bd40226A7073b49163b1f6c2b73d8F2aa8478", "0x187Bd40226A7073b49163b1f6c2b73d8F2aa8478", "0xabCcEd19d7f290B84608feC510bEe872CC8F5112", "0xabCcEd19d7f290B84608feC510bEe872CC8F5112"}
-	for k, tx := range txs {
-		var addr common.Address
-		err = addr.UnmarshalText([]byte(res[k]))
+	callDataTestCases := readTests()
+	for i:=0; i<len(callDataTestCases); i++ {
+		dHex := strings.Replace(callDataTestCases[i].FullCallData, "0x", "", -1) 
+		data, err := hex.DecodeString(dHex)
 		require.NoError(t, err)
-		assert.Equal(t, &addr, tx.To())
-	}
-
-	//id 3
-	dHex = "06d6490f0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000e7f8e5b870f86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a000080820346a06e209c61ca92c2b980d6197e7ac9ccc3f547bf13be6455dfe682aa5dda9655efa016819a7edcc3fefec81ca97c7a6f3d10ec774440e409adbba693ce8b698d41f1b871f86f80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff89056bc75e2d6310000080820344a04d33f299985c01a539ca9f7c04c700c49cd93ab8af32d61df807b7c66bec2af7a01fec7d7cd8ac1587fdfff9da57fca66117dc86cf264cd13bf9d7660d7f7b0ef4"
-	data, err = hex.DecodeString(dHex)
-	require.NoError(t, err)
-
-	txs, err = decodeTxs(data)
-	require.NoError(t, err)
-	assert.Equal(t, 2, len(txs))
-	res = []string{"0x4d5Cf5032B2a844602278b01199ED191A86c93ff", "0x4d5Cf5032B2a844602278b01199ED191A86c93ff"}
-	for k, tx := range txs {
-		var addr common.Address
-		err = addr.UnmarshalText([]byte(res[k]))
+		var auxTxs []vectors.Tx
+		for _, tx := range callDataTestCases[i].Txs {
+			if tx.RawTx != "" {
+				auxTxs = append(auxTxs, tx)
+			}
+		}
+		txs, err := decodeTxs(data)
 		require.NoError(t, err)
-		assert.Equal(t, &addr, tx.To())
+		for j:=0; j<len(txs); j++ {
+			var addr common.Address
+			err = addr.UnmarshalText([]byte(auxTxs[j].To))
+			require.NoError(t, err)
+			assert.Equal(t, &addr, txs[j].To())
+		}
 	}
 }
 
@@ -110,22 +74,33 @@ func TestSCEvents(t *testing.T) {
 	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
+	callDataTestCases := readTests()
+
 	//prepare txs
-	dHex := "f90237b870f86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a000080820344a0a9683074bcc81dba07fad2ac4015cf2eba4807c1aa1a8d291e77317a45fc2023a03d9ad247102178817ab2714984b4deb48bedd6ec06da0471745a81c60d1ab0b5b871f86f80843b9aca00830186a094187bd40226a7073b49163b1f6c2b73d8f2aa8478893635c9adc5dea0000080820343a0d0f11c506e8606f49759222a30e767212c6f6f671c6c4073664b49cc1ff3dde2a02dd180dea53b190e6053fe9c467672c5fdb299b3b2fd5e9cf7497b52d1bcd80fb86ef86c80843b9aca00830186a094187bd40226a7073b49163b1f6c2b73d8f2aa8478880de0b6b3a76400008025a0803fc443307ddda6c4a8e922f0a02c3a00df8de7701ab99d78954c3dc4aa7009a05407070d5186dd0a95a232f4276949e43d54f4ed120732f98776dd42ceb7cadab870f86e80843b9aca00830186a094abcced19d7f290b84608fec510bee872cc8f5112880de0b6b3a764000080820343a0b3672951e7ad1c60799a7c5ea89eee4165b2bedce92517ca410b5efcf5471f2ba012c3894e1d00ef3ad457495e46ce38fdbbc901802ca61db9832a9a024f491e51b86ef86c80843b9aca00830186a094abcced19d7f290b84608fec510bee872cc8f5112880de0b6b3a7640000801ba02c92035bc11227e9e94ba066a6d77a65c43d29dfb4a855c9464e1b60fabd6334a07171c6dc84816ffcf025040cd6193ecef3928a0c4e4964ddba320826b76c725d"
+	dHex := strings.Replace(callDataTestCases[1].BatchL2Data, "0x", "", -1) 
 	data, err := hex.DecodeString(dHex)
 	require.NoError(t, err)
 
 	//send propose batch l1 tx
-	_, err = etherman.PoE.SendBatch(etherman.auth, data, big.NewInt(2))
+	matic := new(big.Int)
+    matic, ok := matic.SetString(callDataTestCases[1].MaticAmount, 10)
+    if !ok {
+        log.Fatal("error decoding maticAmount")
+    }
+	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
 	require.NoError(t, err)
 
 	//prepare txs
-	dHex = "f874b872f87080843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff8a021e19e0c9bab240000080820344a001b48d462a4d85e850d36a297d79cd78235b6aa98d0e76318a8e2c4dcd39d881a0277093ef3e6d2f2970e6386eefaac403f7575a5a7855ab0b4ccad6bc2dab081d"
+	dHex = strings.Replace(callDataTestCases[0].BatchL2Data, "0x", "", -1) 
 	data, err = hex.DecodeString(dHex)
 	require.NoError(t, err)
 
 	//send propose batch l1 tx
-	_, err = etherman.PoE.SendBatch(etherman.auth, data, big.NewInt(2))
+	matic, ok = matic.SetString(callDataTestCases[1].MaticAmount, 10)
+    if !ok {
+        log.Fatal("error decoding maticAmount")
+    }
+	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
 	require.NoError(t, err)
 
 	//mine the tx in a block
@@ -137,10 +112,9 @@ func TestSCEvents(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	res := []string{"0x4d5Cf5032B2a844602278b01199ED191A86c93ff", "0x187Bd40226A7073b49163b1f6c2b73d8F2aa8478", "0x187Bd40226A7073b49163b1f6c2b73d8F2aa8478", "0xabCcEd19d7f290B84608feC510bEe872CC8F5112", "0xabCcEd19d7f290B84608feC510bEe872CC8F5112"}
 	for k, tx := range block[0].Batches[0].Transactions {
 		var addr common.Address
-		err = addr.UnmarshalText([]byte(res[k]))
+		err = addr.UnmarshalText([]byte(callDataTestCases[1].Txs[k].To))
 		require.NoError(t, err)
 		assert.Equal(t, &addr, tx.To())
 	}
@@ -150,7 +124,7 @@ func TestSCEvents(t *testing.T) {
 	require.NoError(t, err)
 	for k, tx := range block[0].Batches[0].Transactions {
 		var addr common.Address
-		err = addr.UnmarshalText([]byte(res[k]))
+		err = addr.UnmarshalText([]byte(callDataTestCases[1].Txs[k].To))
 		require.NoError(t, err)
 		assert.Equal(t, &addr, tx.To())
 	}
@@ -217,7 +191,8 @@ func TestRegisterSequencerAndEvent(t *testing.T) {
 }
 
 func TestSCSendBatchAndVerify(t *testing.T) {
-	dHex := "06d6490f00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000023Af90237b870f86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a000080820344a0a9683074bcc81dba07fad2ac4015cf2eba4807c1aa1a8d291e77317a45fc2023a03d9ad247102178817ab2714984b4deb48bedd6ec06da0471745a81c60d1ab0b5b871f86f80843b9aca00830186a094187bd40226a7073b49163b1f6c2b73d8f2aa8478893635c9adc5dea0000080820343a0d0f11c506e8606f49759222a30e767212c6f6f671c6c4073664b49cc1ff3dde2a02dd180dea53b190e6053fe9c467672c5fdb299b3b2fd5e9cf7497b52d1bcd80fb86ef86c80843b9aca00830186a094187bd40226a7073b49163b1f6c2b73d8f2aa8478880de0b6b3a76400008025a0803fc443307ddda6c4a8e922f0a02c3a00df8de7701ab99d78954c3dc4aa7009a05407070d5186dd0a95a232f4276949e43d54f4ed120732f98776dd42ceb7cadab870f86e80843b9aca00830186a094abcced19d7f290b84608fec510bee872cc8f5112880de0b6b3a764000080820343a0b3672951e7ad1c60799a7c5ea89eee4165b2bedce92517ca410b5efcf5471f2ba012c3894e1d00ef3ad457495e46ce38fdbbc901802ca61db9832a9a024f491e51b86ef86c80843b9aca00830186a094abcced19d7f290b84608fec510bee872cc8f5112880de0b6b3a7640000801ba02c92035bc11227e9e94ba066a6d77a65c43d29dfb4a855c9464e1b60fabd6334a07171c6dc84816ffcf025040cd6193ecef3928a0c4e4964ddba320826b76c725d000000000000"
+	callDataTestCases := readTests()
+	dHex := strings.Replace(callDataTestCases[1].FullCallData, "0x", "", -1) 
 	data, err := hex.DecodeString(dHex)
 	require.NoError(t, err)
 
@@ -227,7 +202,12 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	// Set up testing environment
 	etherman, commit := newTestingEnv()
 	ctx := context.Background()
-	tx, err := etherman.SendBatch(ctx, txs, big.NewInt(2))
+	matic := new(big.Int)
+	matic, ok := matic.SetString(callDataTestCases[1].MaticAmount, 10)
+    if !ok {
+        log.Fatal("error decoding maticAmount")
+    }
+	tx, err := etherman.SendBatch(ctx, txs, matic)
 	require.NoError(t, err)
 	log.Debug("TX: ", tx.Hash())
 
@@ -286,4 +266,13 @@ func TestDefaultChainID(t *testing.T) {
 
 	//Check value
 	assert.Equal(t, big.NewInt(10000), defaultChainID)
+}
+
+func readTests() []vectors.CallDataTestCase {
+	// Load test vectors
+	callDataTestCases, err := vectors.LoadCallDataTestCases("../test/vectors/calldata-test-vector.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return callDataTestCases
 }
