@@ -94,7 +94,8 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// set genesis
-			mt := tree.NewMerkleTree(sqlDB, testCase.Arity, poseidon.Hash)
+			store := tree.NewPostgresStore(sqlDB)
+			mt := tree.NewMerkleTree(store, testCase.Arity, poseidon.Hash)
 			tr := tree.NewStateTree(mt, []byte{})
 			st := state.NewState(sqlDB, tr)
 			genesis := state.Genesis{
@@ -207,11 +208,17 @@ func TestStateTransition(t *testing.T) {
 			// wait node to be ready
 			time.Sleep(5 * time.Second)
 
+			// update Sequencer ChainID to the one in the test vector
+			_, err = sqlDB.Exec(ctx, "UPDATE state.sequencer SET chain_id = $1 WHERE address = $2", testCase.ChainIDSequencer, common.HexToAddress(testCase.SequencerAddress).Bytes())
+			require.NoError(t, err)
+
 			// apply transactions
 			for _, tx := range testCase.Txs {
-				rawTx := tx.RawTx
-				err := sendRawTransaction(rawTx)
-				require.NoError(t, err)
+				if string(tx.RawTx) != "" && tx.Overwrite.S == "" {
+					rawTx := tx.RawTx
+					err := sendRawTransaction(rawTx)
+					require.NoError(t, err)
+				}
 			}
 
 			// wait for sequencer to select txs from pool and propose a new batch
