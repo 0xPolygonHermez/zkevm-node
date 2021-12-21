@@ -12,9 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
+	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/hermeznetwork/hermez-core/test/vectors"
 )
 
 func init() {
@@ -25,8 +25,8 @@ func init() {
 }
 func TestDecodeOneTxData(t *testing.T) {
 	callDataTestCases := readTests()
-	for i:=0; i<len(callDataTestCases); i++ {
-		dHex := strings.Replace(callDataTestCases[i].FullCallData, "0x", "", -1) 
+	for i := 0; i < len(callDataTestCases); i++ {
+		dHex := strings.Replace(callDataTestCases[i].FullCallData, "0x", "", -1)
 		data, err := hex.DecodeString(dHex)
 		require.NoError(t, err)
 		var auxTxs []vectors.Tx
@@ -37,7 +37,7 @@ func TestDecodeOneTxData(t *testing.T) {
 		}
 		txs, err := decodeTxs(data)
 		require.NoError(t, err)
-		for j:=0; j<len(txs); j++ {
+		for j := 0; j < len(txs); j++ {
 			var addr common.Address
 			err = addr.UnmarshalText([]byte(auxTxs[j].To))
 			require.NoError(t, err)
@@ -77,29 +77,29 @@ func TestSCEvents(t *testing.T) {
 	callDataTestCases := readTests()
 
 	//prepare txs
-	dHex := strings.Replace(callDataTestCases[1].BatchL2Data, "0x", "", -1) 
+	dHex := strings.Replace(callDataTestCases[1].BatchL2Data, "0x", "", -1)
 	data, err := hex.DecodeString(dHex)
 	require.NoError(t, err)
 
 	//send propose batch l1 tx
 	matic := new(big.Int)
-    matic, ok := matic.SetString(callDataTestCases[1].MaticAmount, 10)
-    if !ok {
-        log.Fatal("error decoding maticAmount")
-    }
+	matic, ok := matic.SetString(callDataTestCases[1].MaticAmount, 10)
+	if !ok {
+		log.Fatal("error decoding maticAmount")
+	}
 	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
 	require.NoError(t, err)
 
 	//prepare txs
-	dHex = strings.Replace(callDataTestCases[0].BatchL2Data, "0x", "", -1) 
+	dHex = strings.Replace(callDataTestCases[0].BatchL2Data, "0x", "", -1)
 	data, err = hex.DecodeString(dHex)
 	require.NoError(t, err)
 
 	//send propose batch l1 tx
 	matic, ok = matic.SetString(callDataTestCases[1].MaticAmount, 10)
-    if !ok {
-        log.Fatal("error decoding maticAmount")
-    }
+	if !ok {
+		log.Fatal("error decoding maticAmount")
+	}
 	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
 	require.NoError(t, err)
 
@@ -192,7 +192,7 @@ func TestRegisterSequencerAndEvent(t *testing.T) {
 
 func TestSCSendBatchAndVerify(t *testing.T) {
 	callDataTestCases := readTests()
-	dHex := strings.Replace(callDataTestCases[1].FullCallData, "0x", "", -1) 
+	dHex := strings.Replace(callDataTestCases[1].FullCallData, "0x", "", -1)
 	data, err := hex.DecodeString(dHex)
 	require.NoError(t, err)
 
@@ -204,9 +204,9 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	ctx := context.Background()
 	matic := new(big.Int)
 	matic, ok := matic.SetString(callDataTestCases[1].MaticAmount, 10)
-    if !ok {
-        log.Fatal("error decoding maticAmount")
-    }
+	if !ok {
+		log.Fatal("error decoding maticAmount")
+	}
 	tx, err := etherman.SendBatch(ctx, txs, matic)
 	require.NoError(t, err)
 	log.Debug("TX: ", tx.Hash())
