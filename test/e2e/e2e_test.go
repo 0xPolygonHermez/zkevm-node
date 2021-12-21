@@ -113,7 +113,8 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// create state
-			mt := tree.NewMerkleTree(sqlDB, testCase.Arity, poseidon.Hash)
+			store := tree.NewPostgresStore(sqlDB)
+			mt := tree.NewMerkleTree(store, testCase.Arity, poseidon.Hash)
 			tr := tree.NewStateTree(mt, []byte{})
 			st := state.NewState(sqlDB, tr)
 			genesis := state.Genesis{

@@ -520,7 +520,7 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 	return nil
 }
 
-// AddBlock adds a new block to the State DB
+// AddBlock adds a new block to the State Store
 func (s *BasicState) AddBlock(ctx context.Context, block *Block) error {
 	_, err := s.db.Exec(ctx, addBlockSQL, block.BlockNumber, block.BlockHash.Bytes(), block.ParentHash.Bytes(), block.ReceivedAt)
 	return err
