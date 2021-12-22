@@ -112,7 +112,8 @@ func start(ctx *cli.Context) error {
 		log.Fatal(err)
 		return err
 	}
-	mt := tree.NewMerkleTree(sqlDB, c.NetworkConfig.Arity, poseidon.Hash)
+	store := tree.NewPostgresStore(sqlDB)
+	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity, poseidon.Hash)
 	tr := tree.NewStateTree(mt, []byte{})
 
 	stateCfg := state.Config{
@@ -321,7 +322,8 @@ func registerSequencer(ctx *cli.Context) error {
 		log.Fatal(err)
 		return err
 	}
-	mt := tree.NewMerkleTree(sqlDB, c.NetworkConfig.Arity, poseidon.Hash)
+	store := tree.NewPostgresStore(sqlDB)
+	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity, poseidon.Hash)
 	tr := tree.NewStateTree(mt, []byte{})
 
 	stateCfg := state.Config{

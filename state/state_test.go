@@ -74,7 +74,8 @@ func TestMain(m *testing.M) {
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
 
-	mt := tree.NewMerkleTree(stateDb, stateCfg.Arity, nil)
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	state = NewState(stateCfg, stateDb, tree.NewStateTree(mt, nil))
 
 	setUpBlocks()
@@ -439,7 +440,8 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create State tree
-			mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
+			store := tree.NewPostgresStore(stateDb)
+			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			stateTree := tree.NewStateTree(mt, nil)
 
 			// Create state
@@ -570,11 +572,13 @@ func TestStateTransition(t *testing.T) {
 
 func TestLastSeenBatch(t *testing.T) {
 	// Create State db
-	stateDb, err := db.NewSQLDB(cfg)
+	mtDb, err := db.NewSQLDB(cfg)
 	require.NoError(t, err)
 
+	store := tree.NewPostgresStore(mtDb)
+
 	// Create State tree
-	mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 
 	// Create state
 	st := NewState(stateCfg, stateDb, tree.NewStateTree(mt, nil))
