@@ -567,11 +567,13 @@ func TestStateTransition(t *testing.T) {
 
 func TestLastSeenBatch(t *testing.T) {
 	// Create State db
-	stateDb, err := db.NewSQLDB(cfg)
+	mtDb, err := db.NewSQLDB(cfg)
 	require.NoError(t, err)
 
+	store := tree.NewPostgresStore(mtDb)
+
 	// Create State tree
-	mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 
 	// Create state
 	st := NewState(stateDb, tree.NewStateTree(mt, nil))
