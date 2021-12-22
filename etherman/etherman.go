@@ -219,8 +219,8 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 	for _, vLog := range logs {
 		block, err := etherMan.processEvent(ctx, vLog)
 		if err != nil {
-			log.Warn("error processing event: ", err, vLog)
-			continue
+			log.Warnf("error processing event. Retrying... Error: %w. vLog: %+v", err, vLog)
+			break
 		}
 		if block == nil {
 			continue
@@ -258,12 +258,10 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		batch.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
-		if err == nil {
-			block.ParentHash = fullBlock.ParentHash()
-		}
 		if err != nil {
-			log.Warn("error getting hashParent. BlockNumber: ", block.BlockNumber, " error: ", err)
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
 		}
+		block.ParentHash = fullBlock.ParentHash()
 		// Read the tx for this batch.
 		tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, batch.Header.TxHash)
 		if err != nil {
@@ -289,12 +287,10 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		block.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
-		if err == nil {
-			block.ParentHash = fullBlock.ParentHash()
-		}
 		if err != nil {
-			log.Warn("error getting hashParent. BlockNumber: ", block.BlockNumber, " error: ", err)
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
 		}
+		block.ParentHash = fullBlock.ParentHash()
 		block.Batches = append(block.Batches, batch)
 		return &block, nil
 	case newSequencerSignatureHash:
@@ -309,12 +305,10 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		block.BlockHash = vLog.BlockHash
 		block.BlockNumber = vLog.BlockNumber
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
-		if err == nil {
-			block.ParentHash = fullBlock.ParentHash()
-		}
 		if err != nil {
-			log.Warn("error getting hashParent. BlockNumber: ", block.BlockNumber, " error: ", err)
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
 		}
+		block.ParentHash = fullBlock.ParentHash()
 		sequencer.ChainID = new(big.Int).SetUint64(uint64(seq.ChainID))
 		block.NewSequencers = append(block.NewSequencers, sequencer)
 		return &block, nil
@@ -322,7 +316,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		log.Debug("Unhandled event: OwnershipTransferred: ", vLog)
 		return nil, nil
 	}
-	return nil, fmt.Errorf("Event not registered")
+	log.Debug("Event not registered")
+	return nil, nil
 }
 
 func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
