@@ -117,7 +117,6 @@ func start(ctx *cli.Context) error {
 	tr := tree.NewStateTree(mt, []byte{})
 
 	stateCfg := state.Config{
-		Arity:          c.NetworkConfig.Arity,
 		DefaultChainID: c.NetworkConfig.L2DefaultChainID,
 	}
 
@@ -327,7 +326,6 @@ func registerSequencer(ctx *cli.Context) error {
 	tr := tree.NewStateTree(mt, []byte{})
 
 	stateCfg := state.Config{
-		Arity:          c.NetworkConfig.Arity,
 		DefaultChainID: c.NetworkConfig.L2DefaultChainID,
 	}
 

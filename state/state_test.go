@@ -50,7 +50,6 @@ var cfg = db.Config{
 }
 
 var stateCfg = Config{
-	Arity:          tree.DefaultMerkleTreeArity,
 	DefaultChainID: 1000,
 }
 

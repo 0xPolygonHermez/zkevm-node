@@ -118,7 +118,6 @@ func TestStateTransition(t *testing.T) {
 			tr := tree.NewStateTree(mt, []byte{})
 
 			stateCfg := state.Config{
-				Arity:          tree.DefaultMerkleTreeArity,
 				DefaultChainID: 1000,
 			}
 
