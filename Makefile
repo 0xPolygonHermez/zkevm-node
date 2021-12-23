@@ -58,7 +58,7 @@ lint: ## runs linter
 	$(LINT)
 
 .PHONY: validate
-validate: lint test-full build ## Validate the whole integrity of the code
+validate: lint build build-docker test-full ## Validate the whole integrity of the code
 
 .PHONY: run-db
 run-db: ## starts a docker container to run the db instance

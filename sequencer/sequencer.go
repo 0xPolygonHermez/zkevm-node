@@ -162,6 +162,7 @@ func (s *Sequencer) selectTxs(batchProcessor state.BatchProcessor, pendingTxs []
 		// check if tx is valid
 		_, _, _, err := batchProcessor.CheckTransaction(&tx.Transaction)
 		if err != nil {
+			log.Warnf("Invalid transaction in the pool[%v]: %v", tx.Hash().Hex(), err)
 			if err = s.Pool.UpdateTxState(s.ctx, tx.Hash(), pool.TxStateInvalid); err != nil {
 				return nil, err
 			}

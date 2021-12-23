@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
 )
@@ -186,16 +187,23 @@ func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 	tx, err := hexToTx(input)
 	if err != nil {
+		log.Warnf("Invalid tx: %v", err)
 		return nil, err
 	}
 
+	log.Debugf("checking TX signature: %v", tx.Hash().Hex())
 	if err := state.CheckSignature(tx); err != nil {
+		log.Warnf("Invalid signature[%v]: %v", tx.Hash().Hex(), err)
 		return nil, err
 	}
+	log.Debugf("TX signature OK: %v", tx.Hash().Hex())
 
+	log.Debugf("adding TX to the pool: %v", tx.Hash().Hex())
 	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
+		log.Warnf("Failed to add TX to the pool[%v]: %v", tx.Hash().Hex(), err)
 		return nil, err
 	}
+	log.Debugf("TX added to the pool: %v", tx.Hash().Hex())
 
 	return tx.Hash().Hex(), nil
 }

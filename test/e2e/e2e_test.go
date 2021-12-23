@@ -62,9 +62,6 @@ func TestStateTransition(t *testing.T) {
 	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/state-transition.json")
 	require.NoError(t, err)
 
-	err = buildCore()
-	require.NoError(t, err)
-
 	defer func() {
 		_ = stopNodeContainer()
 	}()
@@ -108,7 +105,6 @@ func TestStateTransition(t *testing.T) {
 			// check initial root
 			root, err := st.GetStateRoot(ctx, true)
 			require.NoError(t, err)
-
 			strRoot := new(big.Int).SetBytes(root).String()
 			assert.Equal(t, testCase.ExpectedOldRoot, strRoot, "Invalid old root")
 
@@ -222,12 +218,6 @@ func TestStateTransition(t *testing.T) {
 			// wait for the synchronizer to update state
 			time.Sleep(10 * time.Second)
 
-			// check state against the expected state
-			root, err = st.GetStateRoot(ctx, true)
-			require.NoError(t, err)
-			strRoot = new(big.Int).SetBytes(root).String()
-			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
-
 			// check leafs
 			batchNumber, err := st.GetLastBatchNumber(ctx)
 			require.NoError(t, err)
@@ -242,6 +232,12 @@ func TestStateTransition(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, encoding.Base10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}
+
+			// check state against the expected state
+			root, err = st.GetStateRoot(ctx, true)
+			require.NoError(t, err)
+			strRoot = new(big.Int).SetBytes(root).String()
+			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
 		})
 	}
 }
@@ -250,14 +246,6 @@ const (
 	makeCmd = "make"
 	cmdDir  = "../.."
 )
-
-func buildCore() error {
-	cmd := exec.Command(makeCmd, "build-docker")
-	cmd.Dir = cmdDir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
 
 func startNetworkContainer() error {
 	if err := stopNetworkContainer(); err != nil {

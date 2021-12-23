@@ -29,5 +29,7 @@ jobs:
       uses: actions/checkout@v2
     - name: Pull hermez-node-zkevm latest docker image
       run: docker image pull hermeznetwork/hermez-node-zkevm:latest
+    - name: Build hermez node docker image
+      run: make build-docker
     - name: Test
       run: make test-full

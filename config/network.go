@@ -75,7 +75,7 @@ var (
 		GenBlockNumber:   1,
 		PoEAddr:          common.HexToAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
 		L1ChainID:        1337,
-		L2DefaultChainID: 50000,
+		L2DefaultChainID: 1000,
 		Balances:         map[common.Address]*big.Int{},
 	}
 )
