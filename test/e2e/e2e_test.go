@@ -51,15 +51,7 @@ const (
 	keyStorePassword = "testonly"
 )
 
-var (
-	dbConfig = db.Config{
-		User:     "test_user",
-		Password: "test_password",
-		Name:     "test_db",
-		Host:     "localhost",
-		Port:     "5432",
-	}
-)
+var dbConfig = dbutils.NewConfigFromEnv()
 
 // TestStateTransition tests state transitions using the vector
 func TestStateTransition(t *testing.T) {

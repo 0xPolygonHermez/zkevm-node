@@ -4,17 +4,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/test/dbutils"
 )
 
-var cfg = db.Config{
-	User:     "test_user",
-	Password: "test_password",
-	Name:     "test_db",
-	Host:     "localhost",
-	Port:     "5432",
-}
+var cfg = dbutils.NewConfigFromEnv()
 
 func TestMain(m *testing.M) {
 	log.Init(log.Config{
