@@ -42,6 +42,10 @@ var (
 
 var cfg = dbutils.NewConfigFromEnv()
 
+var stateCfg = Config{
+	DefaultChainID: 1000,
+}
+
 func TestMain(m *testing.M) {
 	var err error
 
@@ -64,7 +68,7 @@ func TestMain(m *testing.M) {
 
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
-	state = NewState(stateDb, tree.NewStateTree(mt, nil))
+	state = NewState(stateCfg, stateDb, tree.NewStateTree(mt, nil))
 
 	setUpBlocks()
 	setUpBatches()
@@ -433,7 +437,7 @@ func TestStateTransition(t *testing.T) {
 			stateTree := tree.NewStateTree(mt, nil)
 
 			// Create state
-			st := NewState(stateDb, stateTree)
+			st := NewState(stateCfg, stateDb, stateTree)
 
 			genesis := Genesis{
 				Balances: make(map[common.Address]*big.Int),
@@ -560,15 +564,16 @@ func TestStateTransition(t *testing.T) {
 
 func TestLastSeenBatch(t *testing.T) {
 	// Create State db
-	stateDb, err := db.NewSQLDB(cfg)
+	mtDb, err := db.NewSQLDB(cfg)
 	require.NoError(t, err)
 
+	store := tree.NewPostgresStore(mtDb)
+
 	// Create State tree
-	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 
 	// Create state
-	st := NewState(stateDb, tree.NewStateTree(mt, nil))
+	st := NewState(stateCfg, stateDb, tree.NewStateTree(mt, nil))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
