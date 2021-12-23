@@ -388,6 +388,7 @@ func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
 	return new(big.Int).SetUint64(uint64(defaulChainID)), err
 }
 
+// EstimateGasForSendBatch function estimate gas cost for sending batch to ethereum sc
 func (etherMan *ClientEtherMan) EstimateGasForSendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error) {
 	noSendOpts := etherMan.auth
 	noSendOpts.NoSend = true
