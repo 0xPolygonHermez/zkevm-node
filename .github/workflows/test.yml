@@ -14,6 +14,7 @@ jobs:
         goarch: [ "amd64" ]
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v2
     - name: Install Go
       uses: actions/setup-go@v1
       with:
@@ -25,8 +26,6 @@ jobs:
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
-    - name: Checkout code
-      uses: actions/checkout@v2
     - name: Pull hermez-node-zkevm latest docker image
       run: docker image pull hermeznetwork/hermez-node-zkevm:latest
     - name: Build hermez node docker image
