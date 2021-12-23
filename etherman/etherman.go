@@ -134,33 +134,7 @@ func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, from
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
 func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
-	if len(txs) == 0 {
-		return nil, errors.New("Invalid txs: is empty slice")
-	}
-	var data [][]byte
-	for _, tx := range txs {
-		a := new(bytes.Buffer)
-		err := tx.EncodeRLP(a)
-		if err != nil {
-			return nil, err
-		}
-		log.Debug("Coded tx: ", hex.EncodeToString(a.Bytes()))
-		data = append(data, a.Bytes())
-	}
-	b := new(bytes.Buffer)
-	err := rlp.Encode(b, data)
-	if err != nil {
-		return nil, err
-	}
-
-	sl := etherMan.auth
-	sl.NoSend = true
-	tx, err := etherMan.PoE.SendBatch(etherMan.auth, b.Bytes(), maticAmount)
-	if err != nil {
-		return nil, err
-	}
 	return etherMan.sendBatch(ctx, etherMan.auth, txs, maticAmount)
-	return tx, nil
 }
 
 func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.TransactOpts, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
