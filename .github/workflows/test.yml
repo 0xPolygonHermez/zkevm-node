@@ -30,5 +30,9 @@ jobs:
       run: docker image pull hermeznetwork/hermez-node-zkevm:latest
     - name: Build hermez node docker image
       run: make build-docker
+    - name: run core via docker-compose
+      run: docker-compose -f docker-compose.explorer.yml up -d hez-core
+    - name: Run core via make
+      run: make run-core
     - name: Test
       run: make test-full
