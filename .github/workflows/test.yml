@@ -26,7 +26,7 @@ jobs:
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
-    - name: Pull hermez-node-zkevm latest docker image
+    - name: Pull L1 network docker image
       run: docker image pull hermeznetwork/hermez-node-zkevm:latest
     - name: Build hermez node docker image
       run: make build-docker
@@ -35,4 +35,6 @@ jobs:
     - name: Run core via make
       run: make run-core
     - name: Test
-      run: make test-full
+      run: |
+        make build-docker 
+        make test-full
