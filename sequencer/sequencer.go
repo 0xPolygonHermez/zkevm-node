@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -17,9 +18,10 @@ import (
 type Sequencer struct {
 	cfg Config
 
-	Pool   pool.Pool
-	State  state.State
-	EthMan etherman.EtherMan
+	Pool    pool.Pool
+	State   state.State
+	EthMan  etherman.EtherMan
+	Address common.Address
 
 	strategy.TxSelector
 	strategy.TxProfitabilityChecker
@@ -48,10 +50,11 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerBase(ethMan, cfg.Strategy.MinReward.Int)
 	}
 	s := Sequencer{
-		cfg:    cfg,
-		Pool:   pool,
-		State:  state,
-		EthMan: ethMan,
+		cfg:     cfg,
+		Pool:    pool,
+		State:   state,
+		EthMan:  ethMan,
+		Address: ethMan.GetAddress(),
 
 		TxSelector:             txSelector,
 		TxProfitabilityChecker: txProfitabilityChecker,
@@ -127,7 +130,7 @@ func (s *Sequencer) tryProposeBatch() {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return
 	}
-	bp, err := s.State.NewBatchProcessor(lastBatch.BatchNumber, false)
+	bp, err := s.State.NewBatchProcessor(s.Address, lastBatch.BatchNumber)
 	if err != nil {
 		log.Errorf("failed to create new batch processor, err: %v", err)
 		return

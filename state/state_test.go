@@ -17,6 +17,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,6 +49,10 @@ var cfg = db.Config{
 	Port:     "5432",
 }
 
+var stateCfg = Config{
+	DefaultChainID: 1000,
+}
+
 func TestMain(m *testing.M) {
 	var err error
 
@@ -68,8 +73,9 @@ func TestMain(m *testing.M) {
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
 
-	mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
-	state = NewState(stateDb, tree.NewStateTree(mt, nil))
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	state = NewState(stateCfg, stateDb, tree.NewStateTree(mt, nil))
 
 	setUpBlocks()
 	setUpBatches()
@@ -174,7 +180,7 @@ func setUpBatches() {
 
 	batches := []*Batch{batch1, batch2, batch3, batch4}
 
-	bp, err := state.NewGenesisBatchProcessor(nil, false)
+	bp, err := state.NewGenesisBatchProcessor(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -290,7 +296,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		MaticCollateral:    nil,
 	}
 
-	bp, err := state.NewGenesisBatchProcessor(nil, false)
+	bp, err := state.NewGenesisBatchProcessor(nil)
 	assert.NoError(t, err)
 
 	err = bp.ProcessBatch(batch)
@@ -438,11 +444,12 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create State tree
-			mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
+			store := tree.NewPostgresStore(stateDb)
+			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			stateTree := tree.NewStateTree(mt, nil)
 
 			// Create state
-			st := NewState(stateDb, stateTree)
+			st := NewState(stateCfg, stateDb, stateTree)
 
 			genesis := Genesis{
 				Balances: make(map[common.Address]*big.Int),
@@ -475,16 +482,32 @@ func TestStateTransition(t *testing.T) {
 			// Check Old roots
 			assert.Equal(t, testCase.ExpectedOldRoot, new(big.Int).SetBytes(root).String())
 
+			// Check if sequencer is in the DB
+			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
+			if err == pgx.ErrNoRows {
+				sq := Sequencer{
+					Address:     common.HexToAddress(testCase.SequencerAddress),
+					URL:         "",
+					ChainID:     new(big.Int).SetUint64(testCase.ChainIDSequencer),
+					BlockNumber: 0,
+				}
+
+				err = st.AddSequencer(ctx, sq)
+				require.NoError(t, err)
+			}
+
 			// Create Transaction
 			for _, vectorTx := range testCase.Txs {
-				var tx types.LegacyTx
-				bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
+				if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" {
+					var tx types.LegacyTx
+					bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
 
-				err = rlp.DecodeBytes(bytes, &tx)
-				if err == nil {
-					txs = append(txs, types.NewTx(&tx))
+					err = rlp.DecodeBytes(bytes, &tx)
+					if err == nil {
+						txs = append(txs, types.NewTx(&tx))
+					}
+					require.NoError(t, err)
 				}
-				require.NoError(t, err)
 			}
 
 			// Create Batch
@@ -503,7 +526,7 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(0, false)
+			bp, err := st.NewBatchProcessor(common.HexToAddress(testCase.SequencerAddress), 0)
 			require.NoError(t, err)
 
 			err = bp.ProcessBatch(batch)
@@ -513,15 +536,17 @@ func TestStateTransition(t *testing.T) {
 			transactions, err := state.GetTxsByBatchNum(ctx, batch.BatchNumber)
 			require.NoError(t, err)
 
-			// Check get transaction by batch number and index
-			transaction, err := state.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
-			require.NoError(t, err)
-			assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+			if len(transactions) > 0 {
+				// Check get transaction by batch number and index
+				transaction, err := state.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
+				require.NoError(t, err)
+				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 
-			// Check get transaction by hash and index
-			transaction, err = state.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
-			require.NoError(t, err)
-			assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+				// Check get transaction by hash and index
+				transaction, err = state.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
+				require.NoError(t, err)
+				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+			}
 
 			for _, transaction := range transactions {
 				receipt, err := state.GetTransactionReceipt(ctx, transaction.Hash())
@@ -552,14 +577,16 @@ func TestStateTransition(t *testing.T) {
 
 func TestLastSeenBatch(t *testing.T) {
 	// Create State db
-	stateDb, err := db.NewSQLDB(cfg)
+	mtDb, err := db.NewSQLDB(cfg)
 	require.NoError(t, err)
 
+	store := tree.NewPostgresStore(mtDb)
+
 	// Create State tree
-	mt := tree.NewMerkleTree(stateDb, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 
 	// Create state
-	st := NewState(stateDb, tree.NewStateTree(mt, nil))
+	st := NewState(stateCfg, stateDb, tree.NewStateTree(mt, nil))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
