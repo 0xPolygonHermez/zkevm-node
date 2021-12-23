@@ -152,7 +152,6 @@ func Test_UpdateTxsState(t *testing.T) {
 		t.Error(err)
 	}
 	assert.Equal(t, 2, count)
-
 }
 
 func Test_UpdateTxState(t *testing.T) {

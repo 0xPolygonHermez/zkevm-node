@@ -1,8 +1,11 @@
 package aggregator
 
 import (
+	"fmt"
 	"math/big"
 	"time"
+
+	"github.com/hermeznetwork/hermez-core/encoding"
 )
 
 // Duration is a wrapper type that parses time duration from text.
@@ -20,17 +23,19 @@ func (d *Duration) UnmarshalText(data []byte) error {
 	return nil
 }
 
+// TokenAmountWithDecimals is a wrapper type that parses token amount with decimals to big int
 type TokenAmountWithDecimals struct {
 	*big.Int `validate:"required"`
 }
 
+// UnmarshalText unmarshal token amount from float string to big int
 func (t *TokenAmountWithDecimals) UnmarshalText(data []byte) error {
-	amount, _ := new(big.Float).SetString(string(data))
-
-	coin := new(big.Float)
-	coin.SetInt(big.NewInt(1000000000000000000))
-	bigval := new(big.Float)
-	bigval.Mul(amount, coin)
+	amount, ok := new(big.Float).SetString(string(data))
+	if !ok {
+		return fmt.Errorf("failed to unmarshal string to float")
+	}
+	coin := new(big.Float).SetInt(big.NewInt(encoding.TenToThePowerOf18))
+	bigval := new(big.Float).Mul(amount, coin)
 	result := new(big.Int)
 	bigval.Int(result)
 	t.Int = result

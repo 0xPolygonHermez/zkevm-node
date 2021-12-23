@@ -31,6 +31,7 @@ type TxProfitabilityCheckerBase struct {
 	MinReward *big.Int
 }
 
+// NewTxProfitabilityCheckerBase inits base tx profitability checker with min reward from config and ethMan
 func NewTxProfitabilityCheckerBase(ethMan etherman.EtherMan, minReward *big.Int) TxProfitabilityChecker {
 	return &TxProfitabilityCheckerBase{
 		EthMan:    ethMan,

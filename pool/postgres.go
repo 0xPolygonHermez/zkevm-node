@@ -102,6 +102,7 @@ func (p *PostgresPool) UpdateTxState(ctx context.Context, hash common.Hash, newS
 	return nil
 }
 
+// UpdateTxsState updates transactions state accordingly to the provided state and hashes
 func (p *PostgresPool) UpdateTxsState(ctx context.Context, hashes []string, newState TxState) error {
 	sql := "UPDATE pool.txs SET state = $1 WHERE hash = ANY ($2)"
 	if _, err := p.db.Exec(ctx, sql, newState, hashes); err != nil {
