@@ -13,7 +13,7 @@ services:
           - HERMEZCORE_DATABASE_HOST=hez-postgres
           - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
         volumes:
-          - ${HERMEZCORE_KEYSTORE_FILEPATH:-./test/test.keystore}:/pk/keystore
+          - ./test/test.keystore:/pk/keystore
           - ./cmd/config.toml:/app/config.toml
         command: ["./hezcore", "run", "--network", "${HERMEZCORE_NETWORK:-local}", "--cfg", "/app/config.toml"]
 
