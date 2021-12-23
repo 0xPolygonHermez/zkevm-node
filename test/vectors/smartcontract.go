@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 )
 
-// LoadCallDataTestCases loads the calldata-test-vector.json
-func LoadCallDataTestCases(path string) ([]CallDataTestCase, error) {
-	var testCases []CallDataTestCase
+// LoadTxEventsSendBatchTestCases loads the calldata-test-vector.json
+func LoadTxEventsSendBatchTestCases(path string) ([]TxEventsSendBatchTestCase, error) {
+	var testCases []TxEventsSendBatchTestCase
 
 	jsonFile, err := os.Open(filepath.Clean(path))
 	if err != nil {

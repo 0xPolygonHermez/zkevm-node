@@ -59,8 +59,8 @@ type Overwrite struct {
 	S string `json:"s"`
 }
 
-// CallDataTestCase holds the metadata needed to run a etherman test
-type CallDataTestCase struct {
+// TxEventsSendBatchTestCase holds the metadata needed to run a etherman test
+type TxEventsSendBatchTestCase struct {
 	ID  uint `json:"id"`
 	Txs []Tx `json:"txs"`
 

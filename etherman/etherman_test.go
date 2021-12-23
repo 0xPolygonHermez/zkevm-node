@@ -268,11 +268,11 @@ func TestDefaultChainID(t *testing.T) {
 	assert.Equal(t, big.NewInt(10000), defaultChainID)
 }
 
-func readTests() []vectors.CallDataTestCase {
+func readTests() []vectors.TxEventsSendBatchTestCase {
 	// Load test vectors
-	callDataTestCases, err := vectors.LoadCallDataTestCases("../test/vectors/calldata-test-vector.json")
+	txEventsSendBatchTestCases, err := vectors.LoadTxEventsSendBatchTestCases("../test/vectors/smc-txevents-sendbatch-test-vector.json")
 	if err != nil {
 		log.Fatal(err)
 	}
-	return callDataTestCases
+	return txEventsSendBatchTestCases
 }
