@@ -48,7 +48,6 @@ type Config struct {
 	// possible values: base and acceptall
 	TxProfitabilityCheckerType TxProfitabilityCheckerType `mapstructure:"TxProfitabilityCheckerType"`
 
-	// TODO: understand, in which format matic collateral will be saved (10^18 or not)
 	// TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
 	// this parameter is used for the base tx profitability checker
 	TxProfitabilityMinReward TokenAmountWithDecimals `mapstructure:"TxProfitabilityMinReward"`
