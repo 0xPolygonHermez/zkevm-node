@@ -27,7 +27,7 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Checkout code
       uses: actions/checkout@v2
+    - name: Pull hermez-node-zkevm latest docker image
+      run: docker image pull hermeznetwork/hermez-node-zkevm:latest
     - name: Test
-      run: |
-        docker image pull hermeznetwork/hermez-node-zkevm:latest
-        make test-full
+      run: make test-full
