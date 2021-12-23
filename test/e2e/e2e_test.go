@@ -1,40 +1,26 @@
 package e2e
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"testing"
-	"time"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	l1NetworkURL = "http://localhost:8545"
-	l2NetworkURL = "http://localhost:8123"
+// l1NetworkURL = "http://localhost:8545"
+// l2NetworkURL = "http://localhost:8123"
 
-	poeAddress        = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
-	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
+// poeAddress        = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+// maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
 
-	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+// l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+// l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 )
 
-var dbConfig = dbutils.NewConfigFromEnv()
+// var dbConfig = dbutils.NewConfigFromEnv()
 
 // TestStateTransition tests state transitions using the vector
 func TestStateTransition(t *testing.T) {
@@ -48,8 +34,8 @@ func TestStateTransition(t *testing.T) {
 	err = stopCoreContainer()
 	require.NoError(t, err)
 
-	err = stopNetworkContainer()
-	require.NoError(t, err)
+	// err = stopNetworkContainer()
+	// require.NoError(t, err)
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Description, func(t *testing.T) {
@@ -234,15 +220,15 @@ const (
 	cmdDir  = "../.."
 )
 
-func startNetworkContainer() error {
-	cmd := exec.Command(makeCmd, "run-network")
-	return runCmd(cmd)
-}
+// func startNetworkContainer() error {
+// 	cmd := exec.Command(makeCmd, "run-network")
+// 	return runCmd(cmd)
+// }
 
-func stopNetworkContainer() error {
-	cmd := exec.Command(makeCmd, "stop-network")
-	return runCmd(cmd)
-}
+// func stopNetworkContainer() error {
+// 	cmd := exec.Command(makeCmd, "stop-network")
+// 	return runCmd(cmd)
+// }
 
 func startCoreContainer(sequencerPrivateKey string) error {
 	cmd := exec.Command(makeCmd, "run-core")
@@ -265,69 +251,69 @@ func runCmd(c *exec.Cmd) error {
 	return c.Run()
 }
 
-func sendRawTransaction(rawTx string) error {
-	contentType := "application/json"
+// func sendRawTransaction(rawTx string) error {
+// 	contentType := "application/json"
 
-	payload := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "eth_sendRawTransaction",
-		"params":  []string{rawTx},
-	}
+// 	payload := map[string]interface{}{
+// 		"jsonrpc": "2.0",
+// 		"id":      1,
+// 		"method":  "eth_sendRawTransaction",
+// 		"params":  []string{rawTx},
+// 	}
 
-	jsonStr, _ := json.Marshal(payload)
-	req, err := http.NewRequest("POST", l2NetworkURL, bytes.NewBuffer(jsonStr))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", contentType)
+// 	jsonStr, _ := json.Marshal(payload)
+// 	req, err := http.NewRequest("POST", l2NetworkURL, bytes.NewBuffer(jsonStr))
+// 	if err != nil {
+// 		return err
+// 	}
+// 	req.Header.Set("Content-Type", contentType)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func(b io.ReadCloser) {
-		_ = b.Close()
-	}(resp.Body)
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer func(b io.ReadCloser) {
+// 		_ = b.Close()
+// 	}(resp.Body)
 
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
-	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("response Body:", string(body))
+// 	fmt.Println("response Status:", resp.Status)
+// 	fmt.Println("response Headers:", resp.Header)
+// 	body, _ := ioutil.ReadAll(resp.Body)
+// 	fmt.Println("response Body:", string(body))
 
-	return nil
-}
+// 	return nil
+// }
 
-func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) error {
-	start := time.Now()
-	for {
-		if time.Since(start) > timeout {
-			return errors.New("timeout exceed")
-		}
+// func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) error {
+// 	start := time.Now()
+// 	for {
+// 		if time.Since(start) > timeout {
+// 			return errors.New("timeout exceed")
+// 		}
 
-		time.Sleep(1 * time.Second)
+// 		time.Sleep(1 * time.Second)
 
-		_, isPending, err := client.TransactionByHash(context.Background(), hash)
-		if err == ethereum.NotFound {
-			continue
-		}
+// 		_, isPending, err := client.TransactionByHash(context.Background(), hash)
+// 		if err == ethereum.NotFound {
+// 			continue
+// 		}
 
-		if err != nil {
-			return err
-		}
+// 		if err != nil {
+// 			return err
+// 		}
 
-		if !isPending {
-			r, err := client.TransactionReceipt(context.Background(), hash)
-			if err != nil {
-				return err
-			}
+// 		if !isPending {
+// 			r, err := client.TransactionReceipt(context.Background(), hash)
+// 			if err != nil {
+// 				return err
+// 			}
 
-			if r.Status == types.ReceiptStatusFailed {
-				return fmt.Errorf("transaction has failed: %s", string(r.PostState))
-			}
+// 			if r.Status == types.ReceiptStatusFailed {
+// 				return fmt.Errorf("transaction has failed: %s", string(r.PostState))
+// 			}
 
-			return nil
-		}
-	}
-}
+// 			return nil
+// 		}
+// 	}
+// }
