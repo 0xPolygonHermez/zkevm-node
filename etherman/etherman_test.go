@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"math/big"
-	"strings"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -27,7 +27,7 @@ func init() {
 func TestDecodeOneTxData(t *testing.T) {
 	callDataTestCases := readTests()
 	for _, callDataTestCase := range callDataTestCases {
-		t.Run("Test id " + strconv.FormatUint(uint64(callDataTestCase.ID), 10), func(t *testing.T) {
+		t.Run("Test id "+strconv.FormatUint(uint64(callDataTestCase.ID), 10), func(t *testing.T) {
 			dHex := strings.Replace(callDataTestCase.FullCallData, "0x", "", -1)
 			data, err := hex.DecodeString(dHex)
 			require.NoError(t, err)
