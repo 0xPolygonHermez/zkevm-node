@@ -12,8 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -21,7 +19,6 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -271,33 +268,9 @@ func startCoreContainer(sequencerPrivateKey string) error {
 		return err
 	}
 	cmd := exec.Command(makeCmd, "run-core")
-
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPrivateKey, "0x"))
-	if err != nil {
-		return err
-	}
-	keyStoreDir := path.Join(os.TempDir(), "hez-keystore")
-	if err := os.RemoveAll(keyStoreDir); err != nil {
-		return err
-	}
-	ks := keystore.NewKeyStore(keyStoreDir, keystore.LightScryptN, keystore.LightScryptP)
-	if _, err := ks.ImportECDSA(privateKey, keyStorePassword); err != nil {
-		return err
-	}
-	keyStoreFiles, err := ioutil.ReadDir(keyStoreDir)
-	if err != nil {
-		return err
-	}
-	keyStoreFile := keyStoreFiles[0]
-	keyStoreRelativeFilePath := filepath.Join(keyStoreDir, keyStoreFile.Name())
-	keyStoreFilePath, err := filepath.Abs(keyStoreRelativeFilePath)
-	if err != nil {
-		return err
-	}
-
 	cmd.Env = []string{
 		"HERMEZCORE_NETWORK=e2e-test",
-		fmt.Sprintf("HERMEZCORE_KEYSTORE_FILEPATH=%s", keyStoreFilePath),
+		"HERMEZCORE_KEYSTORE_FILEPATH=./test/e2e/e2e.keystore",
 	}
 	cmd.Dir = cmdDir
 	cmd.Stdout = os.Stdout
