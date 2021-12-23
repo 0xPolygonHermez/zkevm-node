@@ -28,6 +28,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Test
-    - run: |
+      run: |
         docker image pull hermeznetwork/hermez-node-zkevm:latest
         make test-full
