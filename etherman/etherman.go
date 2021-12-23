@@ -45,6 +45,7 @@ type EtherMan interface {
 	RegisterSequencer(url string) (*types.Transaction, error)
 	GetAddress() common.Address
 	GetDefaultChainID() (*big.Int, error)
+	GetLatestProposedBatchNumber() (uint64, error)
 }
 
 type ethClienter interface {
@@ -379,4 +380,10 @@ func (etherMan *ClientEtherMan) GetAddress() common.Address {
 func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
 	defaulChainID, err := etherMan.PoE.DEFAULTCHAINID(&bind.CallOpts{Pending: false})
 	return new(big.Int).SetUint64(uint64(defaulChainID)), err
+}
+
+// GetLatestProposedBatchNumber function allows to retrieve the latest proposed batch in the smc
+func (etherMan *ClientEtherMan) GetLatestProposedBatchNumber() (uint64, error) {
+	latestBatch, err := etherMan.PoE.LastBatchSent(&bind.CallOpts{Pending: false})
+	return uint64(latestBatch), err
 }

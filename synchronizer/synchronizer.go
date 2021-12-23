@@ -67,6 +67,24 @@ func (s *ClientSynchronizer) Sync() error {
 						continue
 					}
 				}
+				if waitDuration != time.Duration(15) {
+					// Check latest Proposed Batch number in the smc
+					latestProposedBatchNumber, err := s.etherMan.GetLatestProposedBatchNumber()
+					if err != nil {
+						continue
+					}
+					// Check latest Synced Batch
+					latestSyncedBatch, err := s.state.GetLastBatchNumber(s.ctx)
+					if err != nil {
+						continue
+					}
+					if latestSyncedBatch == latestProposedBatchNumber {
+						waitDuration = time.Duration(15)
+					}
+					if latestSyncedBatch > latestProposedBatchNumber {
+						log.Fatal("error: latest Synced BatchNumber is higher than the latest Proposed BatchNumber in the rollup")
+					}
+				}
 			}
 		}
 	}()

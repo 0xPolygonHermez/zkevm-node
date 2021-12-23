@@ -131,6 +131,11 @@ func TestSCEvents(t *testing.T) {
 	//mine the tx in a block
 	commit()
 
+	//Read latestProposedBatch in the smc
+	batchNumber, err := etherman.GetLatestProposedBatchNumber()
+	require.NoError(t, err)
+	assert.Equal(t, uint64(2), batchNumber)
+
 	//Now read the event
 	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
