@@ -45,6 +45,7 @@ type EtherMan interface {
 	RegisterSequencer(url string) (*types.Transaction, error)
 	GetAddress() common.Address
 	GetDefaultChainID() (*big.Int, error)
+	GetSequencerCollateral() (*big.Int, error)
 }
 
 type ethClienter interface {
@@ -379,4 +380,10 @@ func (etherMan *ClientEtherMan) GetAddress() common.Address {
 func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
 	defaulChainID, err := etherMan.PoE.DEFAULTCHAINID(&bind.CallOpts{Pending: false})
 	return new(big.Int).SetUint64(uint64(defaulChainID)), err
+}
+
+// GetSequencerCollateral function allows to retrieve the sequencer collateral from the smc
+func (etherMan *ClientEtherMan) GetSequencerCollateral() (*big.Int, error) {
+	collateral, err := etherMan.PoE.CalculateSequencerCollateral(&bind.CallOpts{Pending: false})
+	return collateral, err
 }
