@@ -45,7 +45,7 @@ type Config struct {
 	IntervalToConsolidateState Duration `mapstructure:"IntervalToConsolidateState"`
 
 	// TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
-	// possible values: base and acceptall
+	// possible values: base/acceptall
 	TxProfitabilityCheckerType TxProfitabilityCheckerType `mapstructure:"TxProfitabilityCheckerType"`
 
 	// TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
