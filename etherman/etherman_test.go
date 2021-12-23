@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"math/big"
 	"strings"
+	"strconv"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -25,24 +26,26 @@ func init() {
 }
 func TestDecodeOneTxData(t *testing.T) {
 	callDataTestCases := readTests()
-	for i := 0; i < len(callDataTestCases); i++ {
-		dHex := strings.Replace(callDataTestCases[i].FullCallData, "0x", "", -1)
-		data, err := hex.DecodeString(dHex)
-		require.NoError(t, err)
-		var auxTxs []vectors.Tx
-		for _, tx := range callDataTestCases[i].Txs {
-			if tx.RawTx != "" {
-				auxTxs = append(auxTxs, tx)
-			}
-		}
-		txs, err := decodeTxs(data)
-		require.NoError(t, err)
-		for j := 0; j < len(txs); j++ {
-			var addr common.Address
-			err = addr.UnmarshalText([]byte(auxTxs[j].To))
+	for _, callDataTestCase := range callDataTestCases {
+		t.Run("Test id " + strconv.FormatUint(uint64(callDataTestCase.ID), 10), func(t *testing.T) {
+			dHex := strings.Replace(callDataTestCase.FullCallData, "0x", "", -1)
+			data, err := hex.DecodeString(dHex)
 			require.NoError(t, err)
-			assert.Equal(t, &addr, txs[j].To())
-		}
+			var auxTxs []vectors.Tx
+			for _, tx := range callDataTestCase.Txs {
+				if tx.RawTx != "" {
+					auxTxs = append(auxTxs, tx)
+				}
+			}
+			txs, err := decodeTxs(data)
+			require.NoError(t, err)
+			for j := 0; j < len(txs); j++ {
+				var addr common.Address
+				err = addr.UnmarshalText([]byte(auxTxs[j].To))
+				require.NoError(t, err)
+				assert.Equal(t, &addr, txs[j].To())
+			}
+		})
 	}
 }
 
@@ -56,7 +59,6 @@ func newTestingEnv() (ethman *ClientEtherMan, commit func()) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	auth.GasLimit = 99999999999
 	ethman, commit, err = NewSimulatedEtherman(Config{}, auth)
 	if err != nil {
 		log.Fatal(err)
