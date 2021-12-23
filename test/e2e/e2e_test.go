@@ -1,15 +1,10 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"math/big"
-	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -26,6 +21,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
@@ -193,10 +189,20 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// apply transactions
+			l2Client, err := ethclient.Dial(l2NetworkURL)
+			require.NoError(t, err)
+
 			for _, tx := range testCase.Txs {
 				if string(tx.RawTx) != "" && tx.Overwrite.S == "" {
-					rawTx := tx.RawTx
-					err := sendRawTransaction(rawTx)
+					l2tx := new(types.Transaction)
+
+					b, err := hex.DecodeHex(tx.RawTx)
+					require.NoError(t, err)
+
+					err = l2tx.UnmarshalBinary(b)
+					require.NoError(t, err)
+
+					err = l2Client.SendTransaction(context.Background(), l2tx)
 					require.NoError(t, err)
 				}
 			}
@@ -277,40 +283,6 @@ func runCmd(c *exec.Cmd) error {
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c.Run()
-}
-
-func sendRawTransaction(rawTx string) error {
-	contentType := "application/json"
-
-	payload := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "eth_sendRawTransaction",
-		"params":  []string{rawTx},
-	}
-
-	jsonStr, _ := json.Marshal(payload)
-	req, err := http.NewRequest("POST", l2NetworkURL, bytes.NewBuffer(jsonStr))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", contentType)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func(b io.ReadCloser) {
-		_ = b.Close()
-	}(resp.Body)
-
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
-	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("response Body:", string(body))
-
-	return nil
 }
 
 func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) error {
