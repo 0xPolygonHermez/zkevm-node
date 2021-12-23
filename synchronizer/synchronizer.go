@@ -39,6 +39,8 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber ui
 	}, nil
 }
 
+const timeBetweenEthBlocks = 15
+
 // Sync function will read the last state synced and will continue from that point.
 // Sync() will read blockchain events to detect rollup updates
 func (s *ClientSynchronizer) Sync() error {
@@ -67,7 +69,7 @@ func (s *ClientSynchronizer) Sync() error {
 						continue
 					}
 				}
-				if waitDuration != time.Duration(15) {
+				if waitDuration != time.Duration(timeBetweenEthBlocks) {
 					// Check latest Proposed Batch number in the smc
 					latestProposedBatchNumber, err := s.etherMan.GetLatestProposedBatchNumber()
 					if err != nil {
@@ -79,7 +81,7 @@ func (s *ClientSynchronizer) Sync() error {
 						continue
 					}
 					if latestSyncedBatch == latestProposedBatchNumber {
-						waitDuration = time.Duration(15)
+						waitDuration = time.Duration(timeBetweenEthBlocks)
 					}
 					if latestSyncedBatch > latestProposedBatchNumber {
 						log.Fatal("error: latest Synced BatchNumber is higher than the latest Proposed BatchNumber in the rollup")
