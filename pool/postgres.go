@@ -102,6 +102,14 @@ func (p *PostgresPool) UpdateTxState(ctx context.Context, hash common.Hash, newS
 	return nil
 }
 
+func (p *PostgresPool) UpdateTxsState(ctx context.Context, hashes []string, newState TxState) error {
+	sql := "UPDATE pool.txs SET state = $1 WHERE hash = ANY ($2)"
+	if _, err := p.db.Exec(ctx, sql, newState, hashes); err != nil {
+		return err
+	}
+	return nil
+}
+
 // CleanUpInvalidAndNonSelectedTxs removes from the transaction pool table
 // the invalid and Non selected transactions
 func (p *PostgresPool) CleanUpInvalidAndNonSelectedTxs(ctx context.Context) error {

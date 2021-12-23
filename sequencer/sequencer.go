@@ -22,6 +22,7 @@ type Sequencer struct {
 	EthMan etherman.EtherMan
 
 	strategy.TxSelector
+	strategy.TxProfitabilityChecker
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -38,13 +39,22 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 	case strategy.Base:
 		txSelector = strategy.NewTxSelectorBase(cfg.Strategy)
 	}
+
+	var txProfitabilityChecker strategy.TxProfitabilityChecker
+	switch cfg.Strategy.TxProfitabilityCheckerType {
+	case strategy.ProfitabilityAcceptAll:
+		txProfitabilityChecker = &strategy.TxProfitabilityCheckerAcceptAll{}
+	case strategy.ProfitabilityBase:
+		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerBase(ethMan, cfg.Strategy.MinReward.Int)
+	}
 	s := Sequencer{
 		cfg:    cfg,
 		Pool:   pool,
 		State:  state,
 		EthMan: ethMan,
 
-		TxSelector: txSelector,
+		TxSelector:             txSelector,
+		TxProfitabilityChecker: txProfitabilityChecker,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -124,23 +134,24 @@ func (s *Sequencer) tryProposeBatch() {
 	}
 
 	// select txs
-	selectedTxs, invalidTxs, err := s.TxSelector.SelectTxs(bp, txs, estimatedTime)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs, estimatedTime)
 	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
 		log.Errorf("failed to select txs, err: %v", err)
 		return
 	}
 
-	for _, tx := range invalidTxs {
-		err = s.Pool.UpdateTxState(s.ctx, tx.Hash(), pool.TxStateInvalid)
-		if err != nil {
-			log.Errorf("failed to update tx state to invalid, tx: %v, err: %v", tx.Hash(), err)
-			return
-		}
+	if err = s.Pool.UpdateTxsState(s.ctx, invalidTxsHashes, pool.TxStateInvalid); err != nil {
+		log.Errorf("failed to update txs state to invalid, err: %v", err)
+		return
 	}
 
 	// 4. Is selection profitable?
 	// check is it profitable to send selection
-	isProfitable := s.TxSelector.IsProfitable(selectedTxs)
+	isProfitable, err := s.TxProfitabilityChecker.IsProfitable(s.ctx, selectedTxs)
+	if err != nil {
+		log.Errorf("failed to check that txs are profitable or not, err: %v", err)
+		return
+	}
 	if isProfitable && len(selectedTxs) > 0 {
 		// assume, that fee for 1 tx is 1 matic
 		maticAmount := big.NewInt(int64(len(selectedTxs)))
@@ -153,11 +164,9 @@ func (s *Sequencer) tryProposeBatch() {
 		log.Infof("Batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
 
 		// update txs in the pool as selected
-		for _, tx := range selectedTxs {
-			err := s.Pool.UpdateTxState(s.ctx, tx.Hash(), pool.TxStateSelected)
-			if err != nil {
-				log.Warnf("failed to update tx(%s) state to selected, err: %v", tx.Hash().Hex(), err)
-			}
+		err = s.Pool.UpdateTxsState(s.ctx, selectedTxsHashes, pool.TxStateSelected)
+		if err != nil {
+			log.Warnf("failed to update txs state to selected, err: %v", err)
 		}
 		log.Infof("Finished updating selected transactions state in the pool")
 	}

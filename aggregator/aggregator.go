@@ -17,10 +17,11 @@ import (
 type Aggregator struct {
 	cfg Config
 
-	State                state.State
-	BatchProcessor       state.BatchProcessor
-	EtherMan             etherman.EtherMan
-	ZkProverClient       proverclient.ZKProverClient
+	State          state.State
+	BatchProcessor state.BatchProcessor
+	EtherMan       etherman.EtherMan
+	ZkProverClient proverclient.ZKProverClient
+
 	ProfitabilityChecker TxProfitabilityChecker
 
 	ctx    context.Context
@@ -39,7 +40,7 @@ func NewAggregator(
 	var profitabilityChecker TxProfitabilityChecker
 	switch cfg.TxProfitabilityCheckerType {
 	case ProfitabilityBase:
-		profitabilityChecker = &TxProfitabilityCheckerBase{MinReward: new(big.Int).SetUint64(cfg.TxProfitabilityMinReward)}
+		profitabilityChecker = &TxProfitabilityCheckerBase{MinReward: cfg.TxProfitabilityMinReward.Int}
 	case ProfitabilityAcceptAll:
 		profitabilityChecker = &TxProfitabilityCheckerAcceptAll{}
 	}

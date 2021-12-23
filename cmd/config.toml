@@ -25,13 +25,13 @@ SyncedBlockDif = 1
     Type = "acceptall"
     TxSorterType = "bycostandnonce"
     TxProfitabilityCheckerType = "base"
-    MinReward = 0
+    MinReward = "1.1"
     PossibleTimeToSendTx = "60s"
 
 [Aggregator]
 IntervalToConsolidateState = "3s"
 TxProfitabilityCheckerType = "acceptall"
-TxProfitabilityMinReward = 0
+TxProfitabilityMinReward = "1.1"
 
 [Prover]
 ProverURI = "0.0.0.0:50051"

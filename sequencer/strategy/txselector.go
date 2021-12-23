@@ -2,7 +2,6 @@ package strategy
 
 import (
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -12,8 +11,8 @@ import (
 
 // TxSelector interface for different types of selection
 type TxSelector interface {
-	SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, selectionTime time.Duration) ([]*types.Transaction, []pool.Transaction, error)
-	IsProfitable([]*types.Transaction) bool
+	// SelectTxs selecting txs and returning selected txs, hashes of the selected txs (to not build array multiple times) and hashes of invalid txs
+	SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, selectionTime time.Duration) ([]*types.Transaction, []string, []string, error)
 }
 
 // TxSelectorAcceptAll that accept all transactions
@@ -27,12 +26,14 @@ func NewTxSelectorAcceptAll(strategy Strategy) TxSelector {
 }
 
 // SelectTxs selects all transactions and don't check anything
-func (s *TxSelectorAcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, selectionTime time.Duration) ([]*types.Transaction, []pool.Transaction, error) {
+func (s *TxSelectorAcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, selectionTime time.Duration) ([]*types.Transaction, []string, []string, error) {
 	selectedTxs := make([]*types.Transaction, 0, len(pendingTxs))
+	selectedTxsHashes := make([]string, 0, len(pendingTxs))
 	for _, tx := range pendingTxs {
 		selectedTxs = append(selectedTxs, &tx.Transaction)
+		selectedTxsHashes = append(selectedTxsHashes, tx.Hash().Hex())
 	}
-	return selectedTxs, nil, nil
+	return selectedTxs, selectedTxsHashes, nil, nil
 }
 
 // IsProfitable always returns true
@@ -63,7 +64,7 @@ func NewTxSelectorBase(strategy Strategy) TxSelector {
 
 	switch strategy.TxProfitabilityCheckerType {
 	case ProfitabilityBase:
-		profitabilityChecker = &TxProfitabilityCheckerBase{MinReward: new(big.Int).SetUint64(strategy.MinReward)}
+		profitabilityChecker = &TxProfitabilityCheckerBase{MinReward: strategy.MinReward.Int}
 	case ProfitabilityAcceptAll:
 		profitabilityChecker = &TxProfitabilityCheckerAcceptAll{}
 	}
@@ -75,32 +76,28 @@ func NewTxSelectorBase(strategy Strategy) TxSelector {
 }
 
 // SelectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (t *TxSelectorBase) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, selectionTime time.Duration) ([]*types.Transaction, []pool.Transaction, error) {
+func (t *TxSelectorBase) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, selectionTime time.Duration) ([]*types.Transaction, []string, []string, error) {
 	start := time.Now()
 	sortedTxs := t.TxSorter.SortTxs(pendingTxs)
 	var (
-		selectedTxs []*types.Transaction
-		invalidTxs  []pool.Transaction
+		selectedTxs                         []*types.Transaction
+		selectedTxsHashes, invalidTxsHashes []string
 	)
 	for _, tx := range sortedTxs {
 		_, _, _, err := batchProcessor.CheckTransaction(&tx.Transaction)
 		if err != nil {
-			invalidTxs = append(invalidTxs, tx)
+			invalidTxsHashes = append(invalidTxsHashes, tx.Hash().Hex())
 		} else {
 			t := tx.Transaction
 			selectedTxs = append(selectedTxs, &t)
+			selectedTxsHashes = append(selectedTxsHashes, t.Hash().Hex())
 		}
 	}
 
 	elapsed := time.Since(start)
 	if elapsed.Milliseconds()+t.Strategy.PossibleTimeToSendTx.Milliseconds() > selectionTime.Milliseconds() {
-		return nil, nil, fmt.Errorf("selection took too much time, expected %d, possible time to send %d, actual %d", selectionTime, t.Strategy.PossibleTimeToSendTx, elapsed)
+		return nil, nil, nil, fmt.Errorf("selection took too much time, expected %d, possible time to send %d, actual %d", selectionTime, t.Strategy.PossibleTimeToSendTx, elapsed)
 	}
 
-	return selectedTxs, invalidTxs, nil
-}
-
-// IsProfitable checks profitability for base tx selector
-func (t *TxSelectorBase) IsProfitable(transactions []*types.Transaction) bool {
-	return t.TxProfitabilityChecker.IsProfitable(transactions)
+	return selectedTxs, selectedTxsHashes, invalidTxsHashes, nil
 }

@@ -45,6 +45,7 @@ type EtherMan interface {
 	RegisterSequencer(url string) (*types.Transaction, error)
 	GetAddress() common.Address
 	GetDefaultChainID() (*big.Int, error)
+	EstimateGasForSendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error)
 }
 
 type ethClienter interface {
@@ -133,6 +134,36 @@ func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, from
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
 func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
+	if len(txs) == 0 {
+		return nil, errors.New("Invalid txs: is empty slice")
+	}
+	var data [][]byte
+	for _, tx := range txs {
+		a := new(bytes.Buffer)
+		err := tx.EncodeRLP(a)
+		if err != nil {
+			return nil, err
+		}
+		log.Debug("Coded tx: ", hex.EncodeToString(a.Bytes()))
+		data = append(data, a.Bytes())
+	}
+	b := new(bytes.Buffer)
+	err := rlp.Encode(b, data)
+	if err != nil {
+		return nil, err
+	}
+
+	sl := etherMan.auth
+	sl.NoSend = true
+	tx, err := etherMan.PoE.SendBatch(etherMan.auth, b.Bytes(), maticAmount)
+	if err != nil {
+		return nil, err
+	}
+	return etherMan.sendBatch(ctx, etherMan.auth, txs, maticAmount)
+	return tx, nil
+}
+
+func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.TransactOpts, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	if len(txs) == 0 {
 		return nil, errors.New("Invalid txs: is empty slice")
 	}
@@ -387,4 +418,14 @@ func (etherMan *ClientEtherMan) GetAddress() common.Address {
 func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
 	defaulChainID, err := etherMan.PoE.DEFAULTCHAINID(&bind.CallOpts{Pending: false})
 	return new(big.Int).SetUint64(uint64(defaulChainID)), err
+}
+
+func (etherMan *ClientEtherMan) EstimateGasForSendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error) {
+	noSendOpts := etherMan.auth
+	noSendOpts.NoSend = true
+	tx, err := etherMan.sendBatch(ctx, noSendOpts, txs, maticAmount)
+	if err != nil {
+		return nil, err
+	}
+	return tx.Cost(), nil
 }

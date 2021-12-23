@@ -111,6 +111,50 @@ func Test_GetPendingTxs(t *testing.T) {
 	}
 }
 
+func Test_UpdateTxsState(t *testing.T) {
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+
+	ctx := context.Background()
+
+	p, err := NewPostgresPool(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	err = p.AddTx(ctx, *tx1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	err = p.AddTx(ctx, *tx2)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = p.UpdateTxsState(ctx, []string{tx1.Hash().Hex(), tx2.Hash().Hex()}, TxStateInvalid)
+	if err != nil {
+		t.Error(err)
+	}
+
+	sqlDB, err := db.NewSQLDB(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer sqlDB.Close()
+
+	var count int
+	err = sqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs WHERE state = $1", TxStateInvalid).Scan(&count)
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, 2, count)
+
+}
+
 func Test_UpdateTxState(t *testing.T) {
 	if err := dbutils.InitOrReset(cfg); err != nil {
 		panic(err)

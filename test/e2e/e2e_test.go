@@ -69,7 +69,6 @@ var cfg = config.Config{
 			Type:                       strategy.Base,
 			TxSorterType:               strategy.ByCostAndNonce,
 			TxProfitabilityCheckerType: strategy.ProfitabilityAcceptAll,
-			MinReward:                  0,
 		},
 	},
 	Aggregator: aggregator.Config{
