@@ -57,13 +57,11 @@ func TestStateTransition(t *testing.T) {
 	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/state-transition.json")
 	require.NoError(t, err)
 
-	defer func() {
-		_ = stopNodeContainer()
-	}()
+	err = stopCoreContainer()
+	require.NoError(t, err)
 
-	defer func() {
-		_ = stopNetworkContainer()
-	}()
+	err = stopNetworkContainer()
+	require.NoError(t, err)
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Description, func(t *testing.T) {
@@ -189,11 +187,11 @@ func TestStateTransition(t *testing.T) {
 			err = waitTxToBeMined(client, tx.Hash(), 5*time.Second)
 			require.NoError(t, err)
 
-			// Run node container
+			// Run core container
 			err = startCoreContainer(testCase.SequencerPrivateKey)
 			require.NoError(t, err)
 
-			// wait node to be ready
+			// wait core to be ready
 			time.Sleep(5 * time.Second)
 
 			// update Sequencer ChainID to the one in the test vector
@@ -233,6 +231,12 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 			strRoot = new(big.Int).SetBytes(root).String()
 			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
+
+			err = stopCoreContainer()
+			require.NoError(t, err)
+
+			err = stopNetworkContainer()
+			require.NoError(t, err)
 		})
 	}
 }
@@ -243,45 +247,34 @@ const (
 )
 
 func startNetworkContainer() error {
-	if err := stopNetworkContainer(); err != nil {
-		return err
-	}
 	cmd := exec.Command(makeCmd, "run-network")
-	cmd.Dir = cmdDir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return runCmd(cmd)
 }
 
 func stopNetworkContainer() error {
 	cmd := exec.Command(makeCmd, "stop-network")
-	cmd.Dir = cmdDir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return runCmd(cmd)
 }
 
 func startCoreContainer(sequencerPrivateKey string) error {
-	if err := stopNodeContainer(); err != nil {
-		return err
-	}
 	cmd := exec.Command(makeCmd, "run-core")
 	cmd.Env = []string{
 		"HERMEZCORE_NETWORK=e2e-test",
 		"HERMEZCORE_KEYSTORE_FILEPATH=./test/e2e/e2e.keystore",
 	}
-	cmd.Dir = cmdDir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return runCmd(cmd)
 }
 
-func stopNodeContainer() error {
+func stopCoreContainer() error {
 	cmd := exec.Command(makeCmd, "stop-core")
-	cmd.Dir = cmdDir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return runCmd(cmd)
+}
+
+func runCmd(c *exec.Cmd) error {
+	c.Dir = cmdDir
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+	return c.Run()
 }
 
 func sendRawTransaction(rawTx string) error {
