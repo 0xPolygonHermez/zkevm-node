@@ -231,10 +231,10 @@ const (
 
 func startCoreContainer() error {
 	cmd := exec.Command(makeCmd, "run-core")
-	cmd.Env = []string{
-		//"HERMEZCORE_NETWORK=e2e-test",
-		"HERMEZCORE_KEYSTORE_FILEPATH=./test/e2e/e2e.keystore",
-	}
+	// cmd.Env = []string{
+	// 	//"HERMEZCORE_NETWORK=e2e-test",
+	// 	"HERMEZCORE_KEYSTORE_FILEPATH=./test/e2e/e2e.keystore",
+	// }
 	return runCmd(cmd)
 }
 
