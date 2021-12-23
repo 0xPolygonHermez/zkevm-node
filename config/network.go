@@ -21,7 +21,6 @@ const (
 	testnet         = "testnet"
 	internalTestnet = "internaltestnet"
 	local           = "local"
-	e2eTest         = "e2e-test"
 )
 
 //nolint:gomnd
@@ -62,17 +61,6 @@ var (
 	localConfig = NetworkConfig{
 		Arity:            4,
 		GenBlockNumber:   1,
-		PoEAddr:          common.HexToAddress("0x41D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
-		L1ChainID:        1337,
-		L2DefaultChainID: 50000,
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
-			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
-		},
-	}
-	e2eTestConfig = NetworkConfig{
-		Arity:            4,
-		GenBlockNumber:   1,
 		PoEAddr:          common.HexToAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
 		L1ChainID:        1337,
 		L2DefaultChainID: 1000,
@@ -91,9 +79,6 @@ func (cfg *Config) loadNetworkConfig(network string) {
 	case local:
 		log.Debug("Local network selected")
 		cfg.NetworkConfig = localConfig
-	case e2eTest:
-		log.Debug("E2E network selected")
-		cfg.NetworkConfig = e2eTestConfig
 	default:
 		log.Debug("Mainnet network selected")
 		cfg.NetworkConfig = mainnetConfig

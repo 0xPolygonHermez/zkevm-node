@@ -28,20 +28,7 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Pull L1 network docker image
       run: docker image pull hermeznetwork/hermez-node-zkevm:latest
-    
     - name: Build hermez node docker image
       run: make build-docker
-    
-    - name: run core via docker-compose
-      run: docker-compose -f docker-compose.explorer.yml up -d hez-core
-
-    - name: run core via docker-compose with env vars
-      run: HERMEZCORE_NETWORK=e2e-test HERMEZCORE_KEYSTORE_FILEPATH=./test/e2e/e2e.keystore docker-compose -f docker-compose.explorer.yml up -d hez-core
-    
-    - name: Run core via make
-      run: make run-core
-    
     - name: Test
-      run: |
-        make build-docker 
-        make test-full
+      run: make test-full

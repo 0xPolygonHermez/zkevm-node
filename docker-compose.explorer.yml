@@ -4,18 +4,18 @@ services:
         container_name: hez-core
         # restart: always
         image: hezcore
-        # ports:
-        #     - 8123:8123
-        # environment:
-        #   - HERMEZCORE_DATABASE_USER=test_user
-        #   - HERMEZCORE_DATABASE_PASSWORD=test_password
-        #   - HERMEZCORE_DATABASE_NAME=test_db
-        #   - HERMEZCORE_DATABASE_HOST=hez-postgres
-        #   - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
-        # volumes:
-        #   - ./test/test.keystore:/pk/keystore
-        #   - ./cmd/config.toml:/app/config.toml
-        # command: ["./hezcore", "run", "--network", "${HERMEZCORE_NETWORK:-local}", "--cfg", "/app/config.toml"]
+        ports:
+            - 8123:8123
+        environment:
+          - HERMEZCORE_DATABASE_USER=test_user
+          - HERMEZCORE_DATABASE_PASSWORD=test_password
+          - HERMEZCORE_DATABASE_NAME=test_db
+          - HERMEZCORE_DATABASE_HOST=hez-postgres
+          - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+        volumes:
+          - ./test/test.keystore:/pk/keystore
+          - ./cmd/config.toml:/app/config.toml
+        command: ["./hezcore", "run", "--network", "local", "--cfg", "/app/config.toml"]
 
     hez-postgres:
         container_name: hez-postgres
