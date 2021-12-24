@@ -45,6 +45,7 @@ type EtherMan interface {
 	RegisterSequencer(url string) (*types.Transaction, error)
 	GetAddress() common.Address
 	GetDefaultChainID() (*big.Int, error)
+	EstimateSendBatchCost(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error)
 	GetSequencerCollateral() (*big.Int, error)
 }
 
@@ -134,6 +135,10 @@ func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, from
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
 func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
+	return etherMan.sendBatch(ctx, etherMan.auth, txs, maticAmount)
+}
+
+func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.TransactOpts, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	if len(txs) == 0 {
 		return nil, errors.New("Invalid txs: is empty slice")
 	}
@@ -283,6 +288,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		}
 		batch.Transactions = txs
 		block.Batches = append(block.Batches, batch)
+		// TODO: we need to get MaticCollateral to decide if it profitable for aggregator to mine or not
+		// it can be done by setting this info to event or by requesting batch info. Which way is better?
 		return &block, nil
 	case consolidateBatchSignatureHash:
 		var block state.Block
@@ -385,6 +392,17 @@ func (etherMan *ClientEtherMan) GetAddress() common.Address {
 func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
 	defaulChainID, err := etherMan.PoE.DEFAULTCHAINID(&bind.CallOpts{Pending: false})
 	return new(big.Int).SetUint64(uint64(defaulChainID)), err
+}
+
+// EstimateSendBatchCost function estimate gas cost for sending batch to ethereum sc
+func (etherMan *ClientEtherMan) EstimateSendBatchCost(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error) {
+	noSendOpts := etherMan.auth
+	noSendOpts.NoSend = true
+	tx, err := etherMan.sendBatch(ctx, noSendOpts, txs, maticAmount)
+	if err != nil {
+		return nil, err
+	}
+	return tx.Cost(), nil
 }
 
 // GetSequencerCollateral function allows to retrieve the sequencer collateral from the smc

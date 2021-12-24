@@ -26,6 +26,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencer"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
@@ -64,8 +65,15 @@ var cfg = config.Config{
 	},
 	Sequencer: sequencer.Config{
 		IntervalToProposeBatch: sequencer.Duration{Duration: 1 * time.Second},
+		Strategy: strategy.Strategy{
+			Type:                       strategy.Base,
+			TxSorterType:               strategy.ByCostAndNonce,
+			TxProfitabilityCheckerType: strategy.ProfitabilityAcceptAll,
+		},
 	},
-	Aggregator: aggregator.Config{},
+	Aggregator: aggregator.Config{
+		TxProfitabilityCheckerType: aggregator.ProfitabilityAcceptAll,
+	},
 }
 
 // TestStateTransition tests state transitions using the vector

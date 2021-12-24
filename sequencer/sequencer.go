@@ -3,15 +3,14 @@ package sequencer
 import (
 	"context"
 	"math/big"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
@@ -24,6 +23,9 @@ type Sequencer struct {
 	EthMan  etherman.EtherMan
 	Address common.Address
 
+	strategy.TxSelector
+	strategy.TxProfitabilityChecker
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -32,12 +34,30 @@ type Sequencer struct {
 func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	var txSelector strategy.TxSelector
+	switch cfg.Strategy.Type {
+	case strategy.AcceptAll:
+		txSelector = strategy.NewTxSelectorAcceptAll(cfg.Strategy)
+	case strategy.Base:
+		txSelector = strategy.NewTxSelectorBase(cfg.Strategy)
+	}
+
+	var txProfitabilityChecker strategy.TxProfitabilityChecker
+	switch cfg.Strategy.TxProfitabilityCheckerType {
+	case strategy.ProfitabilityAcceptAll:
+		txProfitabilityChecker = &strategy.TxProfitabilityCheckerAcceptAll{}
+	case strategy.ProfitabilityBase:
+		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerBase(ethMan, cfg.Strategy.MinReward.Int)
+	}
 	s := Sequencer{
 		cfg:     cfg,
 		Pool:    pool,
 		State:   state,
 		EthMan:  ethMan,
 		Address: ethMan.GetAddress(),
+
+		TxSelector:             txSelector,
+		TxProfitabilityChecker: txProfitabilityChecker,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -117,20 +137,27 @@ func (s *Sequencer) tryProposeBatch() {
 	}
 
 	// select txs
-	selectedTxs, err := s.selectTxs(bp, txs, estimatedTime)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs, estimatedTime)
 	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
-		log.Errorf("failed to get last batch from the state, err: %v", err)
+		log.Errorf("failed to select txs, err: %v", err)
+		return
+	}
+
+	if err = s.Pool.UpdateTxsState(s.ctx, invalidTxsHashes, pool.TxStateInvalid); err != nil {
+		log.Errorf("failed to update txs state to invalid, err: %v", err)
 		return
 	}
 
 	// 4. Is selection profitable?
 	// check is it profitable to send selection
-	isProfitable := s.isSelectionProfitable(selectedTxs)
-	log.Infof("Transaction selection is profitable: %v", isProfitable)
+	isProfitable, err := s.TxProfitabilityChecker.IsProfitable(s.ctx, selectedTxs)
+	if err != nil {
+		log.Errorf("failed to check that txs are profitable or not, err: %v", err)
+		return
+	}
 	if isProfitable && len(selectedTxs) > 0 {
 		// assume, that fee for 1 tx is 1 matic
 		maticAmount := big.NewInt(int64(len(selectedTxs)))
-
 		// YES: send selection to Ethereum
 		sendBatchTx, err := s.EthMan.SendBatch(s.ctx, selectedTxs, maticAmount)
 		if err != nil {
@@ -140,59 +167,16 @@ func (s *Sequencer) tryProposeBatch() {
 		log.Infof("Batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
 
 		// update txs in the pool as selected
-		for _, tx := range selectedTxs {
-			err := s.Pool.UpdateTxState(s.ctx, tx.Hash(), pool.TxStateSelected)
-			if err != nil {
-				log.Warnf("failed to update tx(%s) state to selected, err: %v", tx.Hash().Hex(), err)
-			}
+		err = s.Pool.UpdateTxsState(s.ctx, selectedTxsHashes, pool.TxStateSelected)
+		if err != nil {
+			log.Warnf("failed to update txs state to selected, err: %v", err)
 		}
 		log.Infof("Finished updating selected transactions state in the pool")
 	}
 	// NO: discard selection and wait for the new batch
 }
 
-// selectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (s *Sequencer) selectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, selectionTime time.Duration) ([]*types.Transaction, error) {
-	start := time.Now()
-	sortedTxs := s.sortTxs(pendingTxs)
-	var selectedTxs []*types.Transaction
-	for _, tx := range sortedTxs {
-		// check if tx is valid
-		_, _, _, err := batchProcessor.CheckTransaction(&tx.Transaction)
-		if err != nil {
-			if err = s.Pool.UpdateTxState(s.ctx, tx.Hash(), pool.TxStateInvalid); err != nil {
-				return nil, err
-			}
-		} else {
-			t := tx.Transaction
-			selectedTxs = append(selectedTxs, &t)
-		}
-
-		elapsed := time.Since(start)
-		if elapsed > selectionTime {
-			return selectedTxs, nil
-		}
-	}
-	return selectedTxs, nil
-}
-
-func (s *Sequencer) sortTxs(txs []pool.Transaction) []pool.Transaction {
-	sort.Slice(txs, func(i, j int) bool {
-		costI := txs[i].Cost()
-		costJ := txs[j].Cost()
-		if costI != costJ {
-			return costI.Cmp(costJ) >= 1
-		}
-		return txs[i].Nonce() < txs[j].Nonce()
-	})
-	return txs
-}
-
 // estimateTime Estimate available time to run selection
 func (s *Sequencer) estimateTime(txs []pool.Transaction) (time.Duration, error) {
 	return time.Hour, nil
-}
-
-func (s *Sequencer) isSelectionProfitable(txs []*types.Transaction) bool {
-	return true
 }

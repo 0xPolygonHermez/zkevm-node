@@ -67,7 +67,6 @@ type Batch struct {
 	BatchNumber        uint64
 	BatchHash          common.Hash
 	BlockNumber        uint64
-	Collateral         *big.Int
 	Sequencer          common.Address
 	Aggregator         common.Address
 	ConsolidatedTxHash common.Hash
@@ -76,6 +75,7 @@ type Batch struct {
 	Transactions       []*types.Transaction
 	RawTxsData         []byte
 	Receipts           []*types.Receipt
+	MaticCollateral    *big.Int
 }
 
 // NewBatchWithHeader creates a batch with the given header data.
