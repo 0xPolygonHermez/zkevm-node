@@ -38,7 +38,6 @@ var (
 	txHash                                                 common.Hash
 	ctx                                                           = context.Background()
 	lastBatchNumberSeen                                    uint64 = 1
-	collateral1, collateral2, collateral3, collateral4     *big.Int = big.NewInt(10000), big.NewInt(20000), big.NewInt(30000), big.NewInt(40000)
 )
 
 // TODO: understand, from where should we get config for tests. This is temporary
@@ -127,7 +126,6 @@ func setUpBatches() {
 		BatchNumber:        batchNumber1,
 		BatchHash:          hash1,
 		BlockNumber:        blockNumber1,
-		Collateral:         collateral1,
 		Sequencer:          addr,
 		Aggregator:         addr,
 		ConsolidatedTxHash: consolidatedTxHash,
@@ -139,7 +137,6 @@ func setUpBatches() {
 		BatchNumber:        batchNumber2,
 		BatchHash:          hash2,
 		BlockNumber:        blockNumber1,
-		Collateral:         collateral2,
 		Sequencer:          addr,
 		Aggregator:         addr,
 		ConsolidatedTxHash: consolidatedTxHash,
@@ -151,7 +148,6 @@ func setUpBatches() {
 		BatchNumber:        batchNumber3,
 		BatchHash:          hash3,
 		BlockNumber:        blockNumber2,
-		Collateral:         collateral3,
 		Sequencer:          addr,
 		Aggregator:         addr,
 		ConsolidatedTxHash: common.Hash{},
@@ -164,7 +160,6 @@ func setUpBatches() {
 		BatchNumber:        batchNumber4,
 		BatchHash:          hash4,
 		BlockNumber:        blockNumber2,
-		Collateral:         collateral4,
 		Sequencer:          addr,
 		Aggregator:         addr,
 		ConsolidatedTxHash: common.Hash{},

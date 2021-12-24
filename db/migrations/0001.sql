@@ -16,7 +16,6 @@ CREATE TABLE state.batch
     batch_num            BIGINT PRIMARY KEY,
     batch_hash           BYTEA,
     block_num            BIGINT                      NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE,
-    collateral           VARCHAR,
     sequencer            BYTEA,
     aggregator           BYTEA,
     consolidated_tx_hash BYTEA,

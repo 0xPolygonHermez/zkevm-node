@@ -3,7 +3,6 @@ package state
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -229,19 +228,14 @@ func (s *BasicState) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, 
 	}
 
 	var batch Batch
-	var collateralAux string
 	err := row.Scan(
-		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &collateralAux,
+		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
 		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 		&batch.Header, &batch.Uncles, &batch.RawTxsData)
+
 	if err != nil {
 		return nil, err
 	}
-	coll, ok := new(big.Int).SetString(collateralAux, 10)
-	if !ok {
-		return nil, fmt.Errorf("error converting collateral string to big.Int")
-	}
-	batch.Collateral = coll
 	return &batch, nil
 }
 
@@ -254,57 +248,39 @@ func (s *BasicState) GetPreviousBatch(ctx context.Context, isVirtual bool, offse
 		row = s.db.QueryRow(ctx, getPreviousConsolidatedBatchSQL, common.Hash{}, offset)
 	}
 	var batch Batch
-	var collateralAux string
 	err := row.Scan(
-		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &collateralAux,
+		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
 		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
 		&batch.Uncles, &batch.RawTxsData)
 
 	if err != nil {
 		return nil, err
 	}
-	coll, ok := new(big.Int).SetString(collateralAux, 10)
-	if !ok {
-		return nil, fmt.Errorf("error converting collateral string to big.Int")
-	}
-	batch.Collateral = coll
 	return &batch, nil
 }
 
 // GetBatchByHash gets the batch with the required hash
 func (s *BasicState) GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error) {
 	var batch Batch
-	var collateralAux string
 	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(
-		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &collateralAux, &batch.Sequencer,
-		&batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData)
+		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData)
 
 	if err != nil {
 		return nil, err
 	}
-	coll, ok := new(big.Int).SetString(collateralAux, 10)
-	if !ok {
-		return nil, fmt.Errorf("error converting collateral string to big.Int")
-	}
-	batch.Collateral = coll
 	return &batch, nil
 }
 
 // GetBatchByNumber gets the batch with the required number
 func (s *BasicState) GetBatchByNumber(ctx context.Context, batchNumber uint64) (*Batch, error) {
 	var batch Batch
-	var collateralAux string
 	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
-		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &collateralAux, &batch.Sequencer,
-		&batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData)
+		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData)
 	if err != nil {
 		return nil, err
 	}
-	coll, ok := new(big.Int).SetString(collateralAux, 10)
-	if !ok {
-		return nil, fmt.Errorf("error converting collateral string to big.Int")
-	}
-	batch.Collateral = coll
 	return &batch, nil
 }
 
