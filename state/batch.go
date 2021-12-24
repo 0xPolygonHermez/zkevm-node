@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -66,6 +67,7 @@ type Batch struct {
 	BatchNumber        uint64
 	BatchHash          common.Hash
 	BlockNumber        uint64
+	Collateral         *big.Int
 	Sequencer          common.Address
 	Aggregator         common.Address
 	ConsolidatedTxHash common.Hash

@@ -131,6 +131,14 @@ func TestSCEvents(t *testing.T) {
 	// Mine the tx in a block
 	commit()
 
+
+	// Get sequencer collateral
+	collateral, err := etherman.GetSequencerCollateral(2)
+	require.NoError(t, err)
+
+	// Check collateral value
+	assert.NotEqual(t, big.NewInt(0), collateral)
+
 	// Now read the event
 	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
@@ -276,7 +284,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	assert.Equal(t, 1, len(block[0].Batches))
 }
 
-func TestDefaultChainIDAndCollateral(t *testing.T) {
+func TestDefaultChainID(t *testing.T) {
 	// Set up testing environment
 	etherman, _ := newTestingEnv()
 
@@ -286,11 +294,4 @@ func TestDefaultChainIDAndCollateral(t *testing.T) {
 
 	// Check value
 	assert.Equal(t, big.NewInt(10000), defaultChainID)
-
-	// Get sequencer collateral
-	collateral, err := etherman.GetSequencerCollateral()
-	require.NoError(t, err)
-
-	// Check collateral value
-	assert.NotEqual(t, big.NewInt(0), collateral)
 }

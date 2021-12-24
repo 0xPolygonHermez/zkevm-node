@@ -257,6 +257,11 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		batch.Header = &head
 		block.BlockNumber = vLog.BlockNumber
 		batch.BlockNumber = vLog.BlockNumber
+		batchInfo, err := etherMan.PoE.SentBatches(&bind.CallOpts{Pending: false}, uint32(batch.BatchNumber))
+		if err != nil {
+			return nil, fmt.Errorf("error getting matic collateral for batch: %d. BlockNumber: %d. Error: %w", batch.BatchNumber, block.BlockNumber, err)
+		}
+		batch.Collateral = batchInfo.MaticCollateral
 		block.BlockHash = vLog.BlockHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err != nil {
@@ -383,7 +388,7 @@ func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
 }
 
 // GetSequencerCollateral function allows to retrieve the sequencer collateral from the smc
-func (etherMan *ClientEtherMan) GetSequencerCollateral() (*big.Int, error) {
-	collateral, err := etherMan.PoE.CalculateSequencerCollateral(&bind.CallOpts{Pending: false})
-	return collateral, err
+func (etherMan *ClientEtherMan) GetSequencerCollateral(batchNumber uint64) (*big.Int, error) {
+	batchInfo, err := etherMan.PoE.SentBatches(&bind.CallOpts{Pending: false}, uint32(batchNumber))
+	return batchInfo.MaticCollateral, err
 }
