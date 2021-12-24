@@ -2,6 +2,8 @@ package sequencer
 
 import (
 	"time"
+
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
 )
 
 // Duration is a wrapper type that parses time duration from text.
@@ -28,4 +30,7 @@ type Config struct {
 	// SyncedBlockDif is the difference, how many block left to sync. So if sequencer see, that
 	// X amount of blocks are left to sync, it will start to select txs
 	SyncedBlockDif uint64 `mapstructure:"SyncedBlockDif"`
+
+	// Strategy is the configuration for the strategy
+	Strategy strategy.Strategy `mapstructure:"Strategy"`
 }

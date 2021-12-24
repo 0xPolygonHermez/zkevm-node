@@ -12,6 +12,7 @@ type Pool interface {
 	AddTx(ctx context.Context, tx types.Transaction) error
 	GetPendingTxs(ctx context.Context) ([]Transaction, error)
 	UpdateTxState(ctx context.Context, hash common.Hash, newState TxState) error
+	UpdateTxsState(ctx context.Context, hashes []string, newState TxState) error
 	CleanUpInvalidAndNonSelectedTxs(ctx context.Context) error
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	GetGasPrice(ctx context.Context) (uint64, error)
