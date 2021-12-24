@@ -108,7 +108,6 @@ func TestSCEvents(t *testing.T) {
 	// Mine the tx in a block
 	commit()
 
-
 	// Get sequencer collateral
 	collateral, err := etherman.GetSequencerCollateral(2)
 	require.NoError(t, err)
