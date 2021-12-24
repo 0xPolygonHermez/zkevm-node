@@ -139,7 +139,7 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 
 func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.TransactOpts, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	if len(txs) == 0 {
-		return nil, errors.New("Invalid txs: is empty slice")
+		return nil, errors.New("invalid txs: is empty slice")
 	}
 	var data [][]byte
 	for _, tx := range txs {

@@ -8,7 +8,6 @@ RUN go get -u github.com/gobuffalo/packr/v2/packr2
 COPY go.mod go.sum /src/
 RUN cd /src && go mod download
 
-
 # BUILD BINARY
 COPY . /src
 RUN cd /src/db && packr2

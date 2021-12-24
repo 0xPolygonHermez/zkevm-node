@@ -30,7 +30,8 @@ func (s *TxSelectorAcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pen
 	selectedTxs := make([]*types.Transaction, 0, len(pendingTxs))
 	selectedTxsHashes := make([]string, 0, len(pendingTxs))
 	for _, tx := range pendingTxs {
-		selectedTxs = append(selectedTxs, &tx.Transaction)
+		t := tx.Transaction
+		selectedTxs = append(selectedTxs, &t)
 		selectedTxsHashes = append(selectedTxsHashes, tx.Hash().Hex())
 	}
 	return selectedTxs, selectedTxsHashes, nil, nil
@@ -84,11 +85,11 @@ func (t *TxSelectorBase) SelectTxs(batchProcessor state.BatchProcessor, pendingT
 		selectedTxsHashes, invalidTxsHashes []string
 	)
 	for _, tx := range sortedTxs {
-		_, _, _, err := batchProcessor.CheckTransaction(&tx.Transaction)
+		t := tx.Transaction
+		_, _, _, err := batchProcessor.CheckTransaction(&t)
 		if err != nil {
 			invalidTxsHashes = append(invalidTxsHashes, tx.Hash().Hex())
 		} else {
-			t := tx.Transaction
 			selectedTxs = append(selectedTxs, &t)
 			selectedTxsHashes = append(selectedTxsHashes, t.Hash().Hex())
 		}

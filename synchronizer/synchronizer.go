@@ -78,7 +78,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
 	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {
-		log.Error("error checking reorgs. Retrying...")
+		log.Errorf("error checking reorgs. Retrying... Err: %v", err)
 		return lastEthBlockSynced, fmt.Errorf("error checking reorgs")
 	} else if block != nil {
 		err = s.resetState(block.BlockNumber)
