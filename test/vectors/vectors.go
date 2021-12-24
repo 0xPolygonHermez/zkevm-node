@@ -2,6 +2,8 @@ package vectors
 
 import (
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // StateTransitionTestCase holds the metadata needed to run a state transition test
@@ -32,15 +34,18 @@ type GenesisAccount struct {
 
 // Tx represents a transactions that will be applied during the test
 type Tx struct {
-	From      string     `json:"from"`
-	To        string     `json:"to"`
-	Nonce     uint64     `json:"nonce"`
-	Value     *big.Float `json:"value"`
-	GasLimit  uint64     `json:"gasLimit"`
-	GasPrice  *big.Float `json:"gasPrice"`
-	ChainID   uint64     `json:"chainId"`
-	RawTx     string     `json:"rawTx"`
-	Overwrite Overwrite  `json:"overwrite"`
+	ID                uint       `json:"id"`
+	From              string     `json:"from"`
+	To                string     `json:"to"`
+	Nonce             uint64     `json:"nonce"`
+	Value             *big.Float `json:"value"`
+	GasLimit          uint64     `json:"gasLimit"`
+	GasPrice          *big.Float `json:"gasPrice"`
+	ChainID           uint64     `json:"chainId"`
+	RawTx             string     `json:"rawTx"`
+	Overwrite         Overwrite  `json:"overwrite"`
+	EncodeInvalidData bool       `json:"encodeInvalidData"`
+	Reason            string     `json:"reason"`
 }
 
 // Leaf represents the state of a leaf in the merkle tree
@@ -52,4 +57,15 @@ type Leaf struct {
 // Overwrite is used by Protocol team for testing
 type Overwrite struct {
 	S string `json:"s"`
+}
+
+// TxEventsSendBatchTestCase holds the metadata needed to run a etherman test
+type TxEventsSendBatchTestCase struct {
+	ID  uint `json:"id"`
+	Txs []Tx `json:"txs"`
+
+	BatchL2Data   string      `json:"batchL2Data"`
+	BatchHashData common.Hash `json:"batchHashData"`
+	MaticAmount   string      `json:"maticAmount"`
+	FullCallData  string      `json:"fullCallData"`
 }
