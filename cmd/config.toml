@@ -3,14 +3,14 @@ Level = "debug"
 Outputs = ["stdout"]
 
 [Database]
-Name = "polygon-hermez"
-User = "hermez"
-Password = "polygon"
+User = "test_user"
+Password = "test_password"
+Name = "test_db"
 Host = "localhost"
 Port = "5432"
 
 [Etherman]
-URL = "http://localhost"
+URL = "http://hez-network:8545"
 PrivateKeyPath = "./test/test.keystore"
 PrivateKeyPassword = "testonly"
 
@@ -19,12 +19,12 @@ Host = "0.0.0.0"
 Port = 8123
 
 [Sequencer]
-IntervalToProposeBatch = "15s"
+IntervalToProposeBatch = "3s"
 SyncedBlockDif = 1
     [Sequencer.Strategy]
     Type = "acceptall"
     TxSorterType = "bycostandnonce"
-    TxProfitabilityCheckerType = "base"
+    TxProfitabilityCheckerType = "acceptall"
     MinReward = "1.1"
     PossibleTimeToSendTx = "60s"
 

@@ -18,7 +18,6 @@ type NetworkConfig struct {
 }
 
 const (
-	mainnet         = "mainnet"
 	testnet         = "testnet"
 	internalTestnet = "internaltestnet"
 	local           = "local"
@@ -62,21 +61,15 @@ var (
 	localConfig = NetworkConfig{
 		Arity:            4,
 		GenBlockNumber:   1,
-		PoEAddr:          common.HexToAddress("0x41D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
+		PoEAddr:          common.HexToAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
 		L1ChainID:        1337,
-		L2DefaultChainID: 50000,
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
-			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
-		},
+		L2DefaultChainID: 1000,
+		Balances:         map[common.Address]*big.Int{},
 	}
 )
 
 func (cfg *Config) loadNetworkConfig(network string) {
 	switch network {
-	case mainnet:
-		log.Debug("Mainnet network selected")
-		cfg.NetworkConfig = mainnetConfig
 	case testnet:
 		log.Debug("Testnet network selected")
 		cfg.NetworkConfig = testnetConfig

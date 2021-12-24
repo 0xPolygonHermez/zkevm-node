@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -158,6 +159,8 @@ func (s *Sequencer) tryProposeBatch() {
 	if isProfitable && len(selectedTxs) > 0 {
 		// assume, that fee for 1 tx is 1 matic
 		maticAmount := big.NewInt(int64(len(selectedTxs)))
+		maticAmount = big.NewInt(0).Mul(maticAmount, big.NewInt(encoding.TenToThePowerOf18))
+
 		// YES: send selection to Ethereum
 		sendBatchTx, err := s.EthMan.SendBatch(s.ctx, selectedTxs, maticAmount)
 		if err != nil {

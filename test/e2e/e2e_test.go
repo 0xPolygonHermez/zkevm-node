@@ -1,80 +1,48 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"math/big"
-	"net/http"
+	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/hermeznetwork/hermez-core/aggregator"
-	"github.com/hermeznetwork/hermez-core/config"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
-	"github.com/hermeznetwork/hermez-core/jsonrpc"
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/sequencer"
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
-	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/iden3/go-iden3-crypto/poseidon"
-	"github.com/jackc/pgx/v4"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gotest.tools/assert"
 )
 
 const (
-	sequencerURL = "http://localhost"
+	l1NetworkURL = "http://localhost:8545"
+	l2NetworkURL = "http://localhost:8123"
+
+	poeAddress        = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
+
+	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 )
 
-//nolint:gomnd
-var cfg = config.Config{
-	Log: log.Config{
-		Level:   "debug",
-		Outputs: []string{"stdout"},
-	},
-	Database: db.Config{
-		Name:     "polygon-hermez",
-		User:     "hermez",
-		Password: "polygon",
-		Host:     "localhost",
-		Port:     "5432",
-	},
-	Etherman: etherman.Config{
-		PrivateKeyPath:     "../test.keystore",
-		PrivateKeyPassword: "testonly",
-	},
-	RPC: jsonrpc.Config{
-		Host: "",
-		Port: 8123,
-	},
-	Sequencer: sequencer.Config{
-		IntervalToProposeBatch: sequencer.Duration{Duration: 1 * time.Second},
-		Strategy: strategy.Strategy{
-			Type:                       strategy.Base,
-			TxSorterType:               strategy.ByCostAndNonce,
-			TxProfitabilityCheckerType: strategy.ProfitabilityAcceptAll,
-		},
-	},
-	Aggregator: aggregator.Config{
-		TxProfitabilityCheckerType: aggregator.ProfitabilityAcceptAll,
-	},
-}
+var dbConfig = dbutils.NewConfigFromEnv()
 
 // TestStateTransition tests state transitions using the vector
 func TestStateTransition(t *testing.T) {
@@ -85,42 +53,19 @@ func TestStateTransition(t *testing.T) {
 	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/state-transition.json")
 	require.NoError(t, err)
 
-	// init log
-	log.Init(cfg.Log)
-
 	for _, testCase := range testCases {
 		t.Run(testCase.Description, func(t *testing.T) {
 			ctx := context.Background()
 
 			// init database instance
-			err = dbutils.InitOrReset(cfg.Database)
+			err = dbutils.InitOrReset(dbConfig)
 			require.NoError(t, err)
 
 			//connect to db
-			sqlDB, err := db.NewSQLDB(cfg.Database)
+			sqlDB, err := db.NewSQLDB(dbConfig)
 			require.NoError(t, err)
 
-			// create pool
-			pl, err := pool.NewPostgresPool(cfg.Database)
-			require.NoError(t, err)
-
-			// create auth
-			pkHex := strings.TrimPrefix(testCase.SequencerPrivateKey, "0x")
-			privateKey, err := crypto.HexToECDSA(pkHex)
-			if err != nil {
-				log.Fatal(err)
-			}
-			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
-			if err != nil {
-				log.Fatal(err)
-			}
-			auth.GasLimit = 99999999999
-
-			// create etherman
-			etherman, commit, err := etherman.NewSimulatedEtherman(cfg.Etherman, auth)
-			require.NoError(t, err)
-
-			// create state
+			// set genesis
 			store := tree.NewPostgresStore(sqlDB)
 			mt := tree.NewMerkleTree(store, testCase.Arity, poseidon.Hash)
 			tr := tree.NewStateTree(mt, []byte{})
@@ -143,95 +88,129 @@ func TestStateTransition(t *testing.T) {
 			// check initial root
 			root, err := st.GetStateRoot(ctx, true)
 			require.NoError(t, err)
-
 			strRoot := new(big.Int).SetBytes(root).String()
 			assert.Equal(t, testCase.ExpectedOldRoot, strRoot, "Invalid old root")
 
-			// start synchronizer
-			sy, err := synchronizer.NewSynchronizer(etherman, st, cfg.NetworkConfig.GenBlockNumber)
-			require.NoError(t, err)
-			go func(t *testing.T, s synchronizer.Synchronizer) {
-				err := sy.Sync()
-				require.NoError(t, err)
-			}(t, sy)
-
-			// start sequencer
-			_, err = etherman.PoE.RegisterSequencer(auth, sequencerURL)
+			// Run network container
+			err = startNetworkContainer()
 			require.NoError(t, err)
 
-			// mine next block with sequencer registration
-			commit()
+			// wait network to be ready
+			time.Sleep(5 * time.Second)
 
-			// wait sequencer registration to be synchronized
+			// eth client
+			client, err := ethclient.Dial(l1NetworkURL)
 			require.NoError(t, err)
-			for i := 0; i < 10; i++ {
-				_, err := st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
-				if err == nil {
-					break
-				}
-				if err == pgx.ErrNoRows {
-					time.Sleep(1 * time.Second)
-					continue
-				}
-				require.NoError(t, err, "Sequencer not registered")
-				return
+
+			// get network chain id
+			chainID, err := client.NetworkID(context.Background())
+			require.NoError(t, err)
+
+			// preparing l1 acc info
+			privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(l1AccHexPrivateKey, "0x"))
+			require.NoError(t, err)
+			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+			require.NoError(t, err)
+
+			// getting l1 info
+			gasPrice, err := client.SuggestGasPrice(context.Background())
+			require.NoError(t, err)
+
+			// send some Ether from l1Acc to sequencer acc
+			fromAddress := common.HexToAddress(l1AccHexAddress)
+			nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+			require.NoError(t, err)
+			gasLimit := uint64(21000)
+			toAddress := common.HexToAddress(testCase.SequencerAddress)
+			tx := types.NewTransaction(nonce, toAddress, big.NewInt(1000000000000000000), gasLimit, gasPrice, nil)
+			signedTx, err := auth.Signer(auth.From, tx)
+			require.NoError(t, err)
+			err = client.SendTransaction(context.Background(), signedTx)
+			require.NoError(t, err)
+
+			// wait eth transfer to be mined
+			err = waitTxToBeMined(client, signedTx.Hash(), 5*time.Second)
+			require.NoError(t, err)
+
+			// create matic maticTokenSC sc instance
+			maticTokenSC, err := NewToken(common.HexToAddress(maticTokenAddress), client)
+			require.NoError(t, err)
+
+			// Send matic to sequencer
+			maticAmount, ok := big.NewInt(0).SetString("100000000000000000000000", encoding.Base10)
+			require.True(t, ok)
+			tx, err = maticTokenSC.Transfer(auth, toAddress, maticAmount)
+			require.NoError(t, err)
+
+			// wait matic transfer to be mined
+			err = waitTxToBeMined(client, tx.Hash(), 5*time.Second)
+			require.NoError(t, err)
+
+			// check matic balance
+			require.NoError(t, err)
+			b, err := maticTokenSC.BalanceOf(&bind.CallOpts{}, toAddress)
+			require.NoError(t, err)
+			assert.Equal(t, b.Cmp(maticAmount), 0, fmt.Sprintf("expected: %v found %v", maticAmount.Text(encoding.Base10), b.Text(encoding.Base10)))
+
+			// create sequencer auth
+			privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(testCase.SequencerPrivateKey, "0x"))
+			require.NoError(t, err)
+			auth, err = bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+			require.NoError(t, err)
+
+			// approve tokens to be used by PoE SC on behalf of the sequencer
+			tx, err = maticTokenSC.Approve(auth, common.HexToAddress(poeAddress), maticAmount)
+			require.NoError(t, err)
+			err = waitTxToBeMined(client, tx.Hash(), 5*time.Second)
+			require.NoError(t, err)
+
+			// register the sequencer
+			ethermanConfig := etherman.Config{
+				URL: l1NetworkURL,
 			}
+			etherman, err := etherman.NewEtherman(ethermanConfig, auth, common.HexToAddress(poeAddress))
+			require.NoError(t, err)
+			tx, err = etherman.RegisterSequencer(l2NetworkURL)
+			require.NoError(t, err)
+
+			// wait sequencer to be registered
+			err = waitTxToBeMined(client, tx.Hash(), 5*time.Second)
+			require.NoError(t, err)
+
+			// Run core container
+			err = startCoreContainer()
+			require.NoError(t, err)
+
+			// wait core to be ready
+			time.Sleep(5 * time.Second)
 
 			// update Sequencer ChainID to the one in the test vector
 			_, err = sqlDB.Exec(ctx, "UPDATE state.sequencer SET chain_id = $1 WHERE address = $2", testCase.ChainIDSequencer, common.HexToAddress(testCase.SequencerAddress).Bytes())
 			require.NoError(t, err)
 
-			// create sequencer
-			seq, err := sequencer.NewSequencer(cfg.Sequencer, pl, st, etherman)
-			require.NoError(t, err)
-			go seq.Start()
-
-			// start rpc server
-			stSeq, err := st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
-			require.NoError(t, err)
-
-			rpcServer := jsonrpc.NewServer(cfg.RPC, testCase.DefaultChainID, stSeq.ChainID.Uint64(), pl, st)
-			go func(t *testing.T, s *jsonrpc.Server) {
-				err := s.Start()
-				require.NoError(t, err)
-			}(t, rpcServer)
-
-			// wait RPC server to be ready
-			time.Sleep(3 * time.Second)
-
 			// apply transactions
+			l2Client, err := ethclient.Dial(l2NetworkURL)
+			require.NoError(t, err)
+
 			for _, tx := range testCase.Txs {
 				if string(tx.RawTx) != "" && tx.Overwrite.S == "" {
-					rawTx := tx.RawTx
-					err := sendRawTransaction(rawTx)
+					l2tx := new(types.Transaction)
+
+					b, err := hex.DecodeHex(tx.RawTx)
+					require.NoError(t, err)
+
+					err = l2tx.UnmarshalBinary(b)
+					require.NoError(t, err)
+
+					t.Logf("sending tx: %v - %v", tx.ID, l2tx.Hash())
+					err = l2Client.SendTransaction(context.Background(), l2tx)
 					require.NoError(t, err)
 				}
 			}
 
 			// wait for sequencer to select txs from pool and propose a new batch
-			time.Sleep(5 * time.Second)
-
-			// mine next block with batch propostal
-			commit()
-
 			// wait for the synchronizer to update state
-			time.Sleep(3 * time.Second)
-
-			// shutdown rpc server
-			err = rpcServer.Stop()
-			require.NoError(t, err)
-
-			// stop synchronizer
-			sy.Stop()
-
-			// stop sequencer
-			seq.Stop()
-
-			// check state against the expected state
-			root, err = st.GetStateRoot(ctx, true)
-			require.NoError(t, err)
-			strRoot = new(big.Int).SetBytes(root).String()
-			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
+			time.Sleep(10 * time.Second)
 
 			// check leafs
 			batchNumber, err := st.GetLastBatchNumber(ctx)
@@ -247,41 +226,95 @@ func TestStateTransition(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, encoding.Base10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}
+
+			// check state against the expected state
+			root, err = st.GetStateRoot(ctx, true)
+			require.NoError(t, err)
+			strRoot = new(big.Int).SetBytes(root).String()
+			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
+
+			err = stopCoreContainer()
+			require.NoError(t, err)
+
+			err = stopNetworkContainer()
+			require.NoError(t, err)
 		})
 	}
+
+	err = stopCoreContainer()
+	require.NoError(t, err)
+
+	err = stopNetworkContainer()
+	require.NoError(t, err)
 }
 
-func sendRawTransaction(rawTx string) error {
-	endpoint := fmt.Sprintf("http://localhost:%d", cfg.RPC.Port)
-	contentType := "application/json"
+const (
+	makeCmd = "make"
+	cmdDir  = "../.."
+)
 
-	payload := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "eth_sendRawTransaction",
-		"params":  []string{rawTx},
-	}
-
-	jsonStr, _ := json.Marshal(payload)
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonStr))
-	if err != nil {
+func startNetworkContainer() error {
+	if err := stopNetworkContainer(); err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", contentType)
+	cmd := exec.Command(makeCmd, "run-network")
+	return runCmd(cmd)
+}
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
+func stopNetworkContainer() error {
+	cmd := exec.Command(makeCmd, "stop-network")
+	return runCmd(cmd)
+}
+
+func startCoreContainer() error {
+	if err := stopCoreContainer(); err != nil {
 		return err
 	}
-	defer func(b io.ReadCloser) {
-		_ = b.Close()
-	}(resp.Body)
+	cmd := exec.Command(makeCmd, "run-core")
+	return runCmd(cmd)
+}
 
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
-	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("response Body:", string(body))
+func stopCoreContainer() error {
+	cmd := exec.Command(makeCmd, "stop-core")
+	return runCmd(cmd)
+}
 
-	return nil
+func runCmd(c *exec.Cmd) error {
+	c.Dir = cmdDir
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+	return c.Run()
+}
+
+func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) error {
+	start := time.Now()
+	for {
+		if time.Since(start) > timeout {
+			return errors.New("timeout exceed")
+		}
+
+		time.Sleep(1 * time.Second)
+
+		_, isPending, err := client.TransactionByHash(context.Background(), hash)
+		if err == ethereum.NotFound {
+			continue
+		}
+
+		if err != nil {
+			return err
+		}
+
+		if !isPending {
+			r, err := client.TransactionReceipt(context.Background(), hash)
+			if err != nil {
+				return err
+			}
+
+			if r.Status == types.ReceiptStatusFailed {
+				return fmt.Errorf("transaction has failed: %s", string(r.PostState))
+			}
+
+			return nil
+		}
+	}
 }
