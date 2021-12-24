@@ -6,7 +6,8 @@ CREATE TABLE pool.txs (
     hash      VARCHAR PRIMARY KEY,
     encoded   VARCHAR,
     decoded   jsonb,
-    state     varchar(15)
+    state     varchar(15),
+    received_at timestamp
 );
 
 -- create json indexes to query ordered by nonce and by tx state

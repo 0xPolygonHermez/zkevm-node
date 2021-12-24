@@ -1,4 +1,4 @@
-package aggregator
+package strategy
 
 import (
 	"fmt"
@@ -43,17 +43,21 @@ func (t *TokenAmountWithDecimals) UnmarshalText(data []byte) error {
 	return nil
 }
 
-// Config represents the configuration of the aggregator
-type Config struct {
-	// IntervalToConsolidateState is the time the aggregator waits until
-	// trying to consolidate a new state
-	IntervalToConsolidateState Duration `mapstructure:"IntervalToConsolidateState"`
+// Type different types of strategy logic
+type Type string
 
-	// TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
-	// possible values: base/acceptall
+const (
+	// AcceptAll strategy accepts all txs
+	AcceptAll Type = "acceptall"
+	// Base strategy that have basic selection algorithm and can accept different sorting algorithms and profitability checkers
+	Base = "base"
+)
+
+// Strategy holds config params
+type Strategy struct {
+	Type                       Type                       `mapstructure:"Type"`
+	TxSorterType               TxSorterType               `mapstructure:"TxSorterType"`
 	TxProfitabilityCheckerType TxProfitabilityCheckerType `mapstructure:"TxProfitabilityCheckerType"`
-
-	// TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
-	// this parameter is used for the base tx profitability checker
-	TxProfitabilityMinReward TokenAmountWithDecimals `mapstructure:"TxProfitabilityMinReward"`
+	MinReward                  TokenAmountWithDecimals    `mapstructure:"MinReward"`
+	PossibleTimeToSendTx       Duration                   `mapstructure:"PossibleTimeToSendTx"`
 }

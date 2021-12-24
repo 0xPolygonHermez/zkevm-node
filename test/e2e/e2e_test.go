@@ -202,6 +202,7 @@ func TestStateTransition(t *testing.T) {
 					err = l2tx.UnmarshalBinary(b)
 					require.NoError(t, err)
 
+					t.Logf("sending tx: %v - %v", tx.ID, l2tx.Hash())
 					err = l2Client.SendTransaction(context.Background(), l2tx)
 					require.NoError(t, err)
 				}
