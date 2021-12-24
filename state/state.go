@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -227,12 +228,16 @@ func (s *BasicState) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, 
 		row = s.db.QueryRow(ctx, getLastConsolidatedBatchSQL, common.Hash{})
 	}
 
-	var batch Batch
+	var (
+		batch           Batch
+		maticCollateral pgtype.Numeric
+	)
 	err := row.Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
 		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
-		&batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.MaticCollateral)
+		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral)
 
+	batch.MaticCollateral = maticCollateral.Int
 	if err != nil {
 		return nil, err
 	}
@@ -247,40 +252,51 @@ func (s *BasicState) GetPreviousBatch(ctx context.Context, isVirtual bool, offse
 	} else {
 		row = s.db.QueryRow(ctx, getPreviousConsolidatedBatchSQL, common.Hash{}, offset)
 	}
-	var batch Batch
+	var (
+		batch           Batch
+		maticCollateral pgtype.Numeric
+	)
 	err := row.Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
 		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
-		&batch.Uncles, &batch.RawTxsData, &batch.MaticCollateral)
-
+		&batch.Uncles, &batch.RawTxsData, &maticCollateral)
 	if err != nil {
 		return nil, err
 	}
+	batch.MaticCollateral = maticCollateral.Int
 	return &batch, nil
 }
 
 // GetBatchByHash gets the batch with the required hash
 func (s *BasicState) GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error) {
-	var batch Batch
+	var (
+		batch           Batch
+		maticCollateral pgtype.Numeric
+	)
 	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
-		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.MaticCollateral)
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral)
 
 	if err != nil {
 		return nil, err
 	}
+	batch.MaticCollateral = maticCollateral.Int
 	return &batch, nil
 }
 
 // GetBatchByNumber gets the batch with the required number
 func (s *BasicState) GetBatchByNumber(ctx context.Context, batchNumber uint64) (*Batch, error) {
-	var batch Batch
+	var (
+		batch           Batch
+		maticCollateral pgtype.Numeric
+	)
 	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
-		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &batch.MaticCollateral)
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral)
 	if err != nil {
 		return nil, err
 	}
+	batch.MaticCollateral = maticCollateral.Int
 	return &batch, nil
 }
 
@@ -506,6 +522,7 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		BatchNumber:        0,
 		BlockNumber:        0,
 		ConsolidatedTxHash: common.HexToHash("0x1"),
+		MaticCollateral:    big.NewInt(0),
 	}
 
 	// Store batch into db

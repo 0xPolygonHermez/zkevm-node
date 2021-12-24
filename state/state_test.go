@@ -38,6 +38,7 @@ var (
 	txHash                                                 common.Hash
 	ctx                                                           = context.Background()
 	lastBatchNumberSeen                                    uint64 = 1
+	maticCollateral                                               = big.NewInt(1000000000000000000)
 )
 
 // TODO: understand, from where should we get config for tests. This is temporary
@@ -132,7 +133,7 @@ func setUpBatches() {
 		Header:             nil,
 		Uncles:             nil,
 		RawTxsData:         nil,
-		MaticCollateral:    nil,
+		MaticCollateral:    maticCollateral,
 	}
 	batch2 = &Batch{
 		BatchNumber:        batchNumber2,
@@ -144,7 +145,7 @@ func setUpBatches() {
 		Header:             nil,
 		Uncles:             nil,
 		RawTxsData:         nil,
-		MaticCollateral:    nil,
+		MaticCollateral:    maticCollateral,
 	}
 	batch3 = &Batch{
 		BatchNumber:        batchNumber3,
@@ -157,7 +158,7 @@ func setUpBatches() {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
-		MaticCollateral:    nil,
+		MaticCollateral:    maticCollateral,
 	}
 	batch4 = &Batch{
 		BatchNumber:        batchNumber4,
@@ -170,7 +171,7 @@ func setUpBatches() {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
-		MaticCollateral:    nil,
+		MaticCollateral:    maticCollateral,
 	}
 
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.batch")
@@ -293,7 +294,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
-		MaticCollateral:    nil,
+		MaticCollateral:    maticCollateral,
 	}
 
 	bp, err := state.NewGenesisBatchProcessor(nil)
@@ -522,7 +523,7 @@ func TestStateTransition(t *testing.T) {
 				Uncles:             nil,
 				Transactions:       txs,
 				RawTxsData:         nil,
-				MaticCollateral:    nil,
+				MaticCollateral:    big.NewInt(1),
 			}
 
 			// Create Batch Processor
