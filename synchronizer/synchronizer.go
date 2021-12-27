@@ -25,10 +25,11 @@ type ClientSynchronizer struct {
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
+	cfg            Config
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
-func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64) (Synchronizer, error) {
+func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:          st,
@@ -36,10 +37,9 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber ui
 		ctx:            ctx,
 		cancelCtx:      cancel,
 		genBlockNumber: genBlockNumber,
+		cfg:            cfg,
 	}, nil
 }
-
-const timeBetweenEthBlocks = 15
 
 // Sync function will read the last state synced and will continue from that point.
 // Sync() will read blockchain events to detect rollup updates
@@ -69,7 +69,7 @@ func (s *ClientSynchronizer) Sync() error {
 						continue
 					}
 				}
-				if waitDuration != time.Duration(timeBetweenEthBlocks) {
+				if waitDuration != s.cfg.SyncInterval.Duration {
 					// Check latest Proposed Batch number in the smc
 					latestProposedBatchNumber, err := s.etherMan.GetLatestProposedBatchNumber()
 					if err != nil {
@@ -81,7 +81,7 @@ func (s *ClientSynchronizer) Sync() error {
 						continue
 					}
 					if latestSyncedBatch == latestProposedBatchNumber {
-						waitDuration = time.Duration(timeBetweenEthBlocks)
+						waitDuration = s.cfg.SyncInterval.Duration
 					}
 					if latestSyncedBatch > latestProposedBatchNumber {
 						log.Fatal("error: latest Synced BatchNumber is higher than the latest Proposed BatchNumber in the rollup")

@@ -129,7 +129,7 @@ func start(ctx *cli.Context) error {
 	}
 
 	//proverClient, conn := newProverClient(c.Prover)
-	go runSynchronizer(c.NetworkConfig.GenBlockNumber, etherman, st)
+	go runSynchronizer(c.NetworkConfig.GenBlockNumber, etherman, st, c.Synchronizer)
 	go runJSONRpcServer(c.RPC, c.Etherman, c.NetworkConfig, pool, st)
 	go runSequencer(c.Sequencer, etherman, pool, st)
 	//go runAggregator(c.Aggregator, etherman, proverClient, state)
@@ -181,8 +181,8 @@ func newSimulatedEtherman(c etherman.Config) (*etherman.ClientEtherMan, error) {
 //	return proverClient, conn
 //}
 
-func runSynchronizer(genBlockNumber uint64, etherman *etherman.ClientEtherMan, state state.State) {
-	sy, err := synchronizer.NewSynchronizer(etherman, state, genBlockNumber)
+func runSynchronizer(genBlockNumber uint64, etherman *etherman.ClientEtherMan, state state.State, cfg synchronizer.Config) {
+	sy, err := synchronizer.NewSynchronizer(etherman, state, genBlockNumber, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
