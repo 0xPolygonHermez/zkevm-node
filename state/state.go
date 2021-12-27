@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"errors"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -81,7 +82,7 @@ const (
 )
 
 var (
-	ten = big.NewInt(10)
+	ten = big.NewInt(encoding.Base10)
 )
 
 var (
