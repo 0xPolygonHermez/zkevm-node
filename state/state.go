@@ -237,7 +237,7 @@ func (s *BasicState) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, 
 		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral)
 
-	batch.MaticCollateral = maticCollateral.Int
+	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(big.NewInt(10), big.NewInt(int64(maticCollateral.Exp)), nil))
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,7 @@ func (s *BasicState) GetPreviousBatch(ctx context.Context, isVirtual bool, offse
 	if err != nil {
 		return nil, err
 	}
-	batch.MaticCollateral = maticCollateral.Int
+	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(big.NewInt(10), big.NewInt(int64(maticCollateral.Exp)), nil))
 	return &batch, nil
 }
 
@@ -280,7 +280,7 @@ func (s *BasicState) GetBatchByHash(ctx context.Context, hash common.Hash) (*Bat
 	if err != nil {
 		return nil, err
 	}
-	batch.MaticCollateral = maticCollateral.Int
+	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(big.NewInt(10), big.NewInt(int64(maticCollateral.Exp)), nil))
 	return &batch, nil
 }
 
@@ -296,7 +296,7 @@ func (s *BasicState) GetBatchByNumber(ctx context.Context, batchNumber uint64) (
 	if err != nil {
 		return nil, err
 	}
-	batch.MaticCollateral = maticCollateral.Int
+	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(big.NewInt(10), big.NewInt(int64(maticCollateral.Exp)), nil))
 	return &batch, nil
 }
 

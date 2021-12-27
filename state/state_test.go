@@ -245,6 +245,7 @@ func TestBasicState_GetLastBatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, batch2.BatchHash, lastBatch.BatchHash)
 	assert.Equal(t, batch2.BatchNumber, lastBatch.BatchNumber)
+	assert.Equal(t, maticCollateral, lastBatch.MaticCollateral)
 }
 
 func TestBasicState_GetPreviousBatch(t *testing.T) {
@@ -252,6 +253,7 @@ func TestBasicState_GetPreviousBatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchHash, previousBatch.BatchHash)
 	assert.Equal(t, batch1.BatchNumber, previousBatch.BatchNumber)
+	assert.Equal(t, maticCollateral, previousBatch.MaticCollateral)
 }
 
 func TestBasicState_GetBatchByHash(t *testing.T) {
@@ -259,6 +261,7 @@ func TestBasicState_GetBatchByHash(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchHash, batch.BatchHash)
 	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
+	assert.Equal(t, maticCollateral, batch1.MaticCollateral)
 }
 
 func TestBasicState_GetBatchByNumber(t *testing.T) {
