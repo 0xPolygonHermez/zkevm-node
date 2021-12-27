@@ -3,11 +3,11 @@ package state
 import (
 	"context"
 	"errors"
-	"github.com/hermeznetwork/hermez-core/encoding"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/jackc/pgtype"
