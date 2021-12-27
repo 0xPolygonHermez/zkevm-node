@@ -40,14 +40,7 @@ var (
 	lastBatchNumberSeen                                    uint64 = 1
 )
 
-// TODO: understand, from where should we get config for tests. This is temporary
-var cfg = db.Config{
-	Name:     "polygon-hermez",
-	User:     "hermez",
-	Password: "polygon",
-	Host:     "localhost",
-	Port:     "5432",
-}
+var cfg = dbutils.NewConfigFromEnv()
 
 var stateCfg = Config{
 	DefaultChainID: 1000,

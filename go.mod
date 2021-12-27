@@ -9,8 +9,6 @@ require (
 	github.com/hermeznetwork/tracerr v0.3.2
 	github.com/holiman/uint256 v1.2.0
 	github.com/iden3/go-iden3-crypto v0.0.11
-	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
-	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/mitchellh/mapstructure v1.4.3
@@ -26,4 +24,5 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
+	gotest.tools v2.2.0+incompatible
 )
