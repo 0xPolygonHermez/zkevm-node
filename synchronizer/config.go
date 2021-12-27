@@ -1,6 +1,6 @@
 package synchronizer
 
-import 	"time"
+import "time"
 
 // Duration is a wrapper type that parses time duration from text.
 type Duration struct {
