@@ -38,6 +38,7 @@ var (
 	txHash                                                 common.Hash
 	ctx                                                           = context.Background()
 	lastBatchNumberSeen                                    uint64 = 1
+	maticCollateral                                               = big.NewInt(1000000000000000000)
 )
 
 var cfg = dbutils.NewConfigFromEnv()
@@ -125,7 +126,7 @@ func setUpBatches() {
 		Header:             nil,
 		Uncles:             nil,
 		RawTxsData:         nil,
-		MaticCollateral:    nil,
+		MaticCollateral:    maticCollateral,
 	}
 	batch2 = &Batch{
 		BatchNumber:        batchNumber2,
@@ -137,7 +138,7 @@ func setUpBatches() {
 		Header:             nil,
 		Uncles:             nil,
 		RawTxsData:         nil,
-		MaticCollateral:    nil,
+		MaticCollateral:    maticCollateral,
 	}
 	batch3 = &Batch{
 		BatchNumber:        batchNumber3,
@@ -150,7 +151,7 @@ func setUpBatches() {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
-		MaticCollateral:    nil,
+		MaticCollateral:    maticCollateral,
 	}
 	batch4 = &Batch{
 		BatchNumber:        batchNumber4,
@@ -163,7 +164,7 @@ func setUpBatches() {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
-		MaticCollateral:    nil,
+		MaticCollateral:    maticCollateral,
 	}
 
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.batch")
@@ -244,6 +245,7 @@ func TestBasicState_GetLastBatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, batch2.BatchHash, lastBatch.BatchHash)
 	assert.Equal(t, batch2.BatchNumber, lastBatch.BatchNumber)
+	assert.Equal(t, maticCollateral, lastBatch.MaticCollateral)
 }
 
 func TestBasicState_GetPreviousBatch(t *testing.T) {
@@ -251,6 +253,7 @@ func TestBasicState_GetPreviousBatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchHash, previousBatch.BatchHash)
 	assert.Equal(t, batch1.BatchNumber, previousBatch.BatchNumber)
+	assert.Equal(t, maticCollateral, previousBatch.MaticCollateral)
 }
 
 func TestBasicState_GetBatchByHash(t *testing.T) {
@@ -258,6 +261,7 @@ func TestBasicState_GetBatchByHash(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchHash, batch.BatchHash)
 	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
+	assert.Equal(t, maticCollateral, batch1.MaticCollateral)
 }
 
 func TestBasicState_GetBatchByNumber(t *testing.T) {
@@ -286,7 +290,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
-		MaticCollateral:    nil,
+		MaticCollateral:    maticCollateral,
 	}
 
 	bp, err := state.NewGenesisBatchProcessor(nil)
@@ -515,7 +519,7 @@ func TestStateTransition(t *testing.T) {
 				Uncles:             nil,
 				Transactions:       txs,
 				RawTxsData:         nil,
-				MaticCollateral:    nil,
+				MaticCollateral:    big.NewInt(1),
 			}
 
 			// Create Batch Processor

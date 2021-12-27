@@ -276,7 +276,7 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, error) {
 
 func (b *BasicBatchProcessor) addBatch(ctx context.Context, batch *Batch) error {
 	_, err := b.State.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator,
-		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData, batch.MaticCollateral)
+		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData, batch.MaticCollateral.String())
 	return err
 }
 
