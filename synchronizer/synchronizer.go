@@ -69,15 +69,22 @@ func (s *ClientSynchronizer) Sync() error {
 						continue
 					}
 				}
+				// Check latest Proposed Batch number in the smc
+				latestProposedBatchNumber, err := s.etherMan.GetLatestProposedBatchNumber()
+				if err != nil {
+					log.Warn("error getting latest proposed batch in the rollup. Error: ", err)
+					continue
+				}
+				err = s.state.SetLastBatchNumberSeenOnEthereum(s.ctx, latestProposedBatchNumber)
+				if err != nil {
+					log.Warn("error settign latest proposed batch into db. Error: ", err)
+					continue
+				}
 				if waitDuration != s.cfg.SyncInterval.Duration {
-					// Check latest Proposed Batch number in the smc
-					latestProposedBatchNumber, err := s.etherMan.GetLatestProposedBatchNumber()
-					if err != nil {
-						continue
-					}
 					// Check latest Synced Batch
 					latestSyncedBatch, err := s.state.GetLastBatchNumber(s.ctx)
 					if err != nil {
+						log.Warn("error getting latest batch synced. Error: ", err)
 						continue
 					}
 					if latestSyncedBatch == latestProposedBatchNumber {
