@@ -71,7 +71,7 @@ func TestSCEvents(t *testing.T) {
 	// Set up testing environment
 	etherman, commit := newTestingEnv()
 
-	//read currentBlock
+	// Read currentBlock
 	ctx := context.Background()
 	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
@@ -105,7 +105,7 @@ func TestSCEvents(t *testing.T) {
 	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
 	require.NoError(t, err)
 
-	//mine the tx in a block
+	// Mine the tx in a block
 	commit()
 
 	//Read latestProposedBatch in the smc
@@ -113,7 +113,14 @@ func TestSCEvents(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint64(2), batchNumber)
 
-	//Now read the event
+	// Get sequencer collateral
+	collateral, err := etherman.GetSequencerCollateral(2)
+	require.NoError(t, err)
+
+	// Check collateral value
+	assert.NotEqual(t, big.NewInt(0), collateral)
+
+	// Now read the event
 	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
@@ -137,7 +144,7 @@ func TestSCEvents(t *testing.T) {
 	}
 	log.Debugf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
 
-	//VerifyBatch event. Consolidate batch event
+	// VerifyBatch event. Consolidate batch event
 	var (
 		newLocalExitRoot = [32]byte{byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1)}
 		newStateRoot     = [32]byte{byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1), byte(1)}
@@ -148,7 +155,7 @@ func TestSCEvents(t *testing.T) {
 	_, err = etherman.PoE.VerifyBatch(etherman.auth, newLocalExitRoot, newStateRoot, uint32(block[0].Batches[0].BatchNumber), proofA, proofB, proofC)
 	require.NoError(t, err)
 
-	//mine the tx in a block
+	// Mine the tx in a block
 	commit()
 
 	initBlock = finalBlock
@@ -173,18 +180,18 @@ func TestRegisterSequencerAndEvent(t *testing.T) {
 	etherman, commit := newTestingEnv()
 	ctx := context.Background()
 
-	//read currentBlock
+	// Read currentBlock
 	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
-	//send propose batch l1 tx
+	// Send propose batch l1 tx
 	_, err = etherman.RegisterSequencer("http://localhost")
 	require.NoError(t, err)
 
-	//mine the tx in a block
+	// Mine the tx in a block
 	commit()
 
-	//Now read the event
+	// Now read the event
 	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
@@ -218,7 +225,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	require.NoError(t, err)
 	log.Debug("TX: ", tx.Hash())
 
-	//mine the tx in a block
+	// Mine the tx in a block
 	commit()
 
 	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
@@ -267,11 +274,11 @@ func TestDefaultChainID(t *testing.T) {
 	// Set up testing environment
 	etherman, _ := newTestingEnv()
 
-	//get chainID
+	// Get chainID
 	defaultChainID, err := etherman.GetDefaultChainID()
 	require.NoError(t, err)
 
-	//Check value
+	// Check value
 	assert.Equal(t, big.NewInt(10000), defaultChainID)
 }
 
