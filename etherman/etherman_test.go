@@ -108,6 +108,11 @@ func TestSCEvents(t *testing.T) {
 	// Mine the tx in a block
 	commit()
 
+	//Read latestProposedBatch in the smc
+	batchNumber, err := etherman.GetLatestProposedBatchNumber()
+	require.NoError(t, err)
+	assert.Equal(t, uint64(2), batchNumber)
+
 	// Get sequencer collateral
 	collateral, err := etherman.GetSequencerCollateral(2)
 	require.NoError(t, err)

@@ -13,6 +13,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
+	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 )
@@ -23,6 +24,7 @@ type Config struct {
 	Database      db.Config
 	Etherman      etherman.Config
 	RPC           jsonrpc.Config
+	Synchronizer  synchronizer.Config
 	Sequencer     sequencer.Config
 	Aggregator    aggregator.Config
 	Prover        proverclient.Config

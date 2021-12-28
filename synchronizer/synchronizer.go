@@ -25,10 +25,11 @@ type ClientSynchronizer struct {
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
+	cfg            Config
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
-func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64) (Synchronizer, error) {
+func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:          st,
@@ -36,6 +37,7 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber ui
 		ctx:            ctx,
 		cancelCtx:      cancel,
 		genBlockNumber: genBlockNumber,
+		cfg:            cfg,
 	}, nil
 }
 
@@ -65,6 +67,31 @@ func (s *ClientSynchronizer) Sync() error {
 				if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
 					if s.ctx.Err() != nil {
 						continue
+					}
+				}
+				// Check latest Proposed Batch number in the smc
+				latestProposedBatchNumber, err := s.etherMan.GetLatestProposedBatchNumber()
+				if err != nil {
+					log.Warn("error getting latest proposed batch in the rollup. Error: ", err)
+					continue
+				}
+				err = s.state.SetLastBatchNumberSeenOnEthereum(s.ctx, latestProposedBatchNumber)
+				if err != nil {
+					log.Warn("error settign latest proposed batch into db. Error: ", err)
+					continue
+				}
+				if waitDuration != s.cfg.SyncInterval.Duration {
+					// Check latest Synced Batch
+					latestSyncedBatch, err := s.state.GetLastBatchNumber(s.ctx)
+					if err != nil {
+						log.Warn("error getting latest batch synced. Error: ", err)
+						continue
+					}
+					if latestSyncedBatch == latestProposedBatchNumber {
+						waitDuration = s.cfg.SyncInterval.Duration
+					}
+					if latestSyncedBatch > latestProposedBatchNumber {
+						log.Fatal("error: latest Synced BatchNumber is higher than the latest Proposed BatchNumber in the rollup")
 					}
 				}
 			}
