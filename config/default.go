@@ -23,7 +23,7 @@ Host = "0.0.0.0"
 Port = 8123
 
 [Synchronizer]
-SyncInterval = "15s"
+SyncInterval = "0s"
 
 [Sequencer]
 IntervalToProposeBatch = "15s"
