@@ -1,6 +1,6 @@
-[Log]
-Level = "debug"
-Outputs = ["stdout"]
+#[Log]
+#Level = "debug"
+#Outputs = ["stdout"]
 
 [Database]
 User = "test_user"
@@ -17,6 +17,9 @@ PrivateKeyPassword = "testonly"
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
+
+#[Synchronizer]
+#SyncInterval = "0s"
 
 [Sequencer]
 IntervalToProposeBatch = "3s"
