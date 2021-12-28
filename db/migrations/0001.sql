@@ -22,7 +22,7 @@ CREATE TABLE state.batch
     header               jsonb,
     uncles               jsonb,
     raw_txs_data         BYTEA,
-    matic_collateral     BIGINT
+    matic_collateral     NUMERIC(78,0)
 );
 
 CREATE TABLE state.transaction

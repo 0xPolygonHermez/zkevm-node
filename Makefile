@@ -46,7 +46,7 @@ test: ## runs only short tests without checking race conditions
 test-full: ## runs all tests checking race conditions
 	$(STOPDB) || true
 	$(RUNDB)
-	go test -race -p 1 -timeout 600s ./...
+	MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
 	$(STOPDB)
 
 .PHONY: install-linter
