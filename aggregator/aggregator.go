@@ -136,33 +136,44 @@ func (a *Aggregator) Start() {
 				continue
 			}
 
+			txsHashes := make([]string, 0, len(batchToConsolidate.Transactions))
+			for _, tx := range batchToConsolidate.Transactions {
+				txsHashes = append(txsHashes, tx.Hash().String())
+			}
 			// TODO: change this, once we have exit root
 			fakeLastGlobalExitRoot, _ := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
-			chainID := uint64(1337) //nolint:gomnd
-			batch := &proverclient.Batch{
-				Message:            "calculate",
-				CurrentStateRoot:   stateRootConsolidated,
-				NewStateRoot:       stateRootToConsolidate,
-				L2Txs:              batchToConsolidate.RawTxsData,
-				LastGlobalExitRoot: fakeLastGlobalExitRoot.Bytes(),
-				SequencerAddress:   batchToConsolidate.Sequencer.String(),
-				// TODO: consider to put chain id to batch, so there is no need to request block
-				ChainId: chainID,
+			chainID := uint32(1337) //nolint:gomnd
+			inputProver := &proverclient.InputProver{
+				Message: "calculate",
+				PublicInputs: &proverclient.PublicInputs{
+					OldStateRoot:     string(stateRootConsolidated),
+					OldLocalExitRoot: fakeLastGlobalExitRoot.String(),
+					NewStateRoot:     string(stateRootToConsolidate),
+					NewLocalExitRoot: fakeLastGlobalExitRoot.String(),
+					SequencerAddr:    batchToConsolidate.Sequencer.String(),
+					BatchHashData:    batchToConsolidate.BatchHash.String(),
+					// TODO: consider to put chain id to batch, so there is no need to request block
+					ChainId:  chainID,
+					BatchNum: uint32(batchToConsolidate.BatchNumber),
+				},
+				GlobalExitRoot: fakeLastGlobalExitRoot.String(),
+				Txs:            txsHashes,
+				Keys:           nil,
 			}
 
-			err = getProofClient.Send(batch)
+			err = getProofClient.Send(inputProver)
 			if err != nil {
 				log.Warnf("failed to send batch to the prover, batchNumber: %v, err: %v", batchToConsolidate.BatchNumber, err)
 				continue
 			}
-			proof, err := getProofClient.Recv()
+			proofState, err := getProofClient.Recv()
 			if err != nil {
 				log.Warnf("failed to get proof from the prover, batchNumber: %v, err: %v", batchToConsolidate.BatchNumber, err)
 				continue
 			}
 			// 4. send proof + txs to the SC
 			batchNum := new(big.Int).SetUint64(batchToConsolidate.BatchNumber)
-			h, err := a.EtherMan.ConsolidateBatch(batchNum, proof)
+			h, err := a.EtherMan.ConsolidateBatch(batchNum, proofState.Proof)
 			if err != nil {
 				log.Warnf("failed to send request to consolidate batch to ethereum, batch number: %d, err: %v",
 					batchToConsolidate.BatchNumber, err)

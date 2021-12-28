@@ -240,13 +240,16 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	assert.True(t, ok)
 	newLocalExitRoot, ok := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
 	assert.True(t, ok)
+	publicInputs := &proverclient.PublicInputs{
+		NewStateRoot:     newStateRoot.String(),
+		NewLocalExitRoot: newLocalExitRoot.String(),
+	}
 	proof := proverclient.Proof{
 		ProofA: proofSlc,
 		ProofB: proofB,
 		ProofC: proofSlc,
-		PublicInputs: &proverclient.PublicInputs{
-			NewStateRoot:     newStateRoot.Bytes(),
-			NewLocalExitRoot: newLocalExitRoot.Bytes(),
+		PublicInputsExtended: &proverclient.PublicInputsExtended{
+			PublicInputs: publicInputs,
 		},
 	}
 

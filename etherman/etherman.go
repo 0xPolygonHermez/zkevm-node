@@ -167,11 +167,12 @@ func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.Transa
 
 // ConsolidateBatch function allows the aggregator send the proof for a batch and consolidate it
 func (etherMan *ClientEtherMan) ConsolidateBatch(batchNumber *big.Int, proof *proverclient.Proof) (*types.Transaction, error) {
-	newLocalExitRoot, err := byteSliceToFixedByteArray(proof.PublicInputs.NewLocalExitRoot)
+	publicInputs := proof.PublicInputsExtended.PublicInputs
+	newLocalExitRoot, err := stringToFixedByteArray(publicInputs.NewLocalExitRoot)
 	if err != nil {
 		return nil, err
 	}
-	newStateRoot, err := byteSliceToFixedByteArray(proof.PublicInputs.NewStateRoot)
+	newStateRoot, err := stringToFixedByteArray(publicInputs.NewStateRoot)
 	if err != nil {
 		return nil, err
 	}
