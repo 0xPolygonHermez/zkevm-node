@@ -182,7 +182,7 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// wait core to be ready
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			// update Sequencer ChainID to the one in the test vector
 			_, err = sqlDB.Exec(ctx, "UPDATE state.sequencer SET chain_id = $1 WHERE address = $2", testCase.ChainIDSequencer, common.HexToAddress(testCase.SequencerAddress).Bytes())
@@ -202,7 +202,7 @@ func TestStateTransition(t *testing.T) {
 					err = l2tx.UnmarshalBinary(b)
 					require.NoError(t, err)
 
-					t.Logf("sending tx: %v - %v", tx.ID, l2tx.Hash())
+					t.Logf("sending tx: %v - %v, %s", tx.ID, l2tx.Hash(), tx.From)
 					err = l2Client.SendTransaction(context.Background(), l2tx)
 					require.NoError(t, err)
 				}
