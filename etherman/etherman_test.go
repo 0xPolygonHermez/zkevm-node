@@ -200,7 +200,7 @@ func TestRegisterSequencerAndEvent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, etherman.auth.From, block[0].NewSequencers[0].Address)
 	assert.Equal(t, "http://localhost", block[0].NewSequencers[0].URL)
-	assert.Equal(t, big.NewInt(10001), block[0].NewSequencers[0].ChainID)
+	assert.Equal(t, big.NewInt(1001), block[0].NewSequencers[0].ChainID)
 	log.Debug("Sequencer synced: ", block[0].NewSequencers[0].Address, ", url: ", block[0].NewSequencers[0].URL, ", and chainId: ", block[0].NewSequencers[0].ChainID)
 }
 
@@ -279,7 +279,7 @@ func TestDefaultChainID(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check value
-	assert.Equal(t, big.NewInt(10000), defaultChainID)
+	assert.Equal(t, big.NewInt(1000), defaultChainID)
 }
 
 func readTests() []vectors.TxEventsSendBatchTestCase {

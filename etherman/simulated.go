@@ -26,7 +26,8 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 
 	// Deploy contracts
 	emptyAddr := common.Address{}
-	poeAddr, _, poe, err := proofofefficiency.DeployProofofefficiency(auth, client, emptyAddr, emptyAddr, emptyAddr)
+	var genesis [32]byte
+	poeAddr, _, poe, err := proofofefficiency.DeployProofofefficiency(auth, client, emptyAddr, emptyAddr, emptyAddr, genesis)
 	if err != nil {
 		return nil, nil, err
 	}
