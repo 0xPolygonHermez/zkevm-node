@@ -121,7 +121,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	if lastEthBlockSynced.BlockNumber > 0 {
 		fromBlock = lastEthBlockSynced.BlockNumber + 1
 	}
-	blocks, err := s.etherMan.GetBatchesByBlockRange(s.ctx, fromBlock, nil)
+	blocks, order, err := s.etherMan.GetBatchesByBlockRange(s.ctx, fromBlock, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
 		}
 		lastEthBlockSynced = &blocks[i]
-		for _, element := range blocks[i].Order {
+		for _, element := range order[blocks[i].BlockHash] {
 			if element.Name == "Batches" {
 				sequencerAddress := &blocks[i].Batches[element.Pos].Sequencer
 				batchProcessor, err := s.state.NewBatchProcessor(*sequencerAddress, latestBatchNumber)

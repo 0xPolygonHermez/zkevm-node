@@ -38,8 +38,8 @@ var (
 // EtherMan represents an Ethereum Manager
 type EtherMan interface {
 	EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error)
-	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
-	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
+	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]order, error)
+	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]order, error)
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
 	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
 	RegisterSequencer(url string) (*types.Transaction, error)
@@ -97,7 +97,7 @@ func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumbe
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
-func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, error) {
+func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]order, error) {
 	// First filter query
 	var blockNumBigInt *big.Int
 	if blockHash == nil {
@@ -109,16 +109,16 @@ func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumb
 		ToBlock:   blockNumBigInt,
 		Addresses: etherMan.SCAddresses,
 	}
-	blocks, err := etherMan.readEvents(ctx, query)
+	blocks, order, err := etherMan.readEvents(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return blocks, nil
+	return blocks, order, nil
 }
 
 // GetBatchesByBlockRange function retrieves the batches information that are included in all this ethereum blocks
 // from block x to block y
-func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error) {
+func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]order, error) {
 	// First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
@@ -127,11 +127,11 @@ func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, from
 	if toBlock != nil {
 		query.ToBlock = new(big.Int).SetUint64(*toBlock)
 	}
-	blocks, err := etherMan.readEvents(ctx, query)
+	blocks, order, err := etherMan.readEvents(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return blocks, nil
+	return blocks, order, nil
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
@@ -221,11 +221,12 @@ type order struct{
 	Pos  int
 }
 
-func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, error) {
+func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, map[common.Hash][]order, error) {
 	logs, err := etherMan.EtherClient.FilterLogs(ctx, query)
 	if err != nil {
-		return []state.Block{}, err
+		return []state.Block{}, nil, err
 	}
+	blockOrder := make(map[common.Hash][]order)
 	blocks := make(map[common.Hash]state.Block)
 	var blockKeys []common.Hash
 	for _, vLog := range logs {
@@ -244,7 +245,7 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 					Name: "Batches",
 					Pos: len(b.Batches) - 1,
 				}
-				b.Order = append(b.Order, or)
+				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
 			}
 			if len(block.NewSequencers) != 0 {
 				b.NewSequencers = append(blocks[block.BlockHash].NewSequencers, block.NewSequencers...)
@@ -252,7 +253,7 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 					Name: "NewSequencers",
 					Pos: len(b.NewSequencers) - 1,
 				}
-				b.Order = append(b.Order, or)
+				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
 			}
 			blocks[block.BlockHash] = b
 		} else {
@@ -261,14 +262,14 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 					Name: "Batches",
 					Pos: len(block.Batches) - 1,
 				}
-				block.Order = append(block.Order, or)
+				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
 			}
 			if len(block.NewSequencers) != 0 {
 				or := order {
 					Name: "NewSequencers",
 					Pos: len(block.NewSequencers) - 1,
 				}
-				block.Order = append(block.Order, or)
+				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
 			}
 			blocks[block.BlockHash] = *block
 			blockKeys = append(blockKeys, block.BlockHash)
@@ -278,7 +279,7 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 	for _, hash := range blockKeys {
 		blockArr = append(blockArr, blocks[hash])
 	}
-	return blockArr, nil
+	return blockArr, blockOrder, nil
 }
 
 func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log) (*state.Block, error) {
