@@ -15,12 +15,15 @@ Port = "5432"
 
 [Etherman]
 URL = "http://localhost"
-PrivateKeyPath = "../test/test.keystore"
+PrivateKeyPath = "./test/test.keystore"
 PrivateKeyPassword = "testonly"
 
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
+
+[Synchronizer]
+SyncInterval = "0s"
 
 [Sequencer]
 IntervalToProposeBatch = "15s"

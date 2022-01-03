@@ -15,6 +15,11 @@
 				"internalType": "contract VerifierRollupInterface",
 				"name": "_rollupVerifier",
 				"type": "address"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "genesisRoot",
+				"type": "bytes32"
 			}
 		],
 		"stateMutability": "nonpayable",
@@ -299,8 +304,13 @@
 				"type": "address"
 			},
 			{
+				"internalType": "uint32",
+				"name": "chainID",
+				"type": "uint32"
+			},
+			{
 				"internalType": "bytes32",
-				"name": "batchL2HashData",
+				"name": "batchHashData",
 				"type": "bytes32"
 			},
 			{
