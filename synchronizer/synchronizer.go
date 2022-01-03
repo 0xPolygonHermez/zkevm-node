@@ -140,24 +140,26 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
 		}
 		lastEthBlockSynced = &blocks[i]
-		for _, seq := range blocks[i].NewSequencers {
-			// Add new sequencers
-			err := s.state.AddSequencer(context.Background(), seq)
-			if err != nil {
-				log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", seq)
-			}
-		}
-		for j := range blocks[i].Batches {
-			sequencerAddress := &blocks[i].Batches[j].Sequencer
-			batchProcessor, err := s.state.NewBatchProcessor(*sequencerAddress, latestBatchNumber)
-			if err != nil {
-				log.Error("error creating new batch processor. Error: ", err)
-			}
-
-			// Add batches
-			err = batchProcessor.ProcessBatch(&blocks[i].Batches[j])
-			if err != nil {
-				log.Fatal("error processing batch. BatchNumber: ", blocks[i].Batches[j].BatchNumber, ". Error: ", err)
+		for _, element := range blocks[i].Order {
+			if element.Name == "Batches" {
+				sequencerAddress := &blocks[i].Batches[element.Pos].Sequencer
+				batchProcessor, err := s.state.NewBatchProcessor(*sequencerAddress, latestBatchNumber)
+				if err != nil {
+					log.Error("error creating new batch processor. Error: ", err)
+				}
+				// Add batches
+				err = batchProcessor.ProcessBatch(&blocks[i].Batches[element.Pos])
+				if err != nil {
+					log.Fatal("error processing batch. BatchNumber: ", blocks[i].Batches[element.Pos].BatchNumber, ". Error: ", err)
+				}
+			} else if element.Name == "NewSequencers" {
+				// Add new sequencers
+				err := s.state.AddSequencer(context.Background(), blocks[i].NewSequencers[element.Pos])
+				if err != nil {
+					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos])
+				}
+			} else {
+				log.Fatal("error: invalid order element")
 			}
 		}
 	}

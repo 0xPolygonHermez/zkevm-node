@@ -290,3 +290,72 @@ func readTests() []vectors.TxEventsSendBatchTestCase {
 	}
 	return txEventsSendBatchTestCases
 }
+
+func TestOrderReadEvent(t *testing.T) {
+	log.Debug("Testing sync order...")
+	
+	// Set up testing environment
+	etherman, commit := newTestingEnv()
+
+	// Read currentBlock
+	ctx := context.Background()
+	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+
+	callDataTestCases := readTests()
+
+	// Send propose batch l1 tx
+	_, err = etherman.RegisterSequencer("http://localhost")
+	require.NoError(t, err)
+	
+	// Send propose batch l1 tx
+	_, err = etherman.RegisterSequencer("http://localhost0")
+	require.NoError(t, err)
+
+	//prepare txs
+	dHex := strings.Replace(callDataTestCases[1].BatchL2Data, "0x", "", -1)
+	data, err := hex.DecodeString(dHex)
+	require.NoError(t, err)
+
+	//send propose batch l1 tx
+	matic := new(big.Int)
+	matic, ok := matic.SetString(callDataTestCases[1].MaticAmount, 10)
+	if !ok {
+		log.Fatal("error decoding maticAmount")
+	}
+	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
+	require.NoError(t, err)
+
+	// Send propose batch l1 tx
+	_, err = etherman.RegisterSequencer("http://localhost1")
+	require.NoError(t, err)
+
+	//prepare txs
+	dHex = strings.Replace(callDataTestCases[0].BatchL2Data, "0x", "", -1)
+	data, err = hex.DecodeString(dHex)
+	require.NoError(t, err)
+
+	//send propose batch l1 tx
+	matic, ok = matic.SetString(callDataTestCases[1].MaticAmount, 10)
+	if !ok {
+		log.Fatal("error decoding maticAmount")
+	}
+	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
+	require.NoError(t, err)
+
+	// Send propose batch l1 tx
+	_, err = etherman.RegisterSequencer("http://localhost2")
+	require.NoError(t, err)
+
+	// Mine the tx in a block
+	commit()
+
+	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), nil)
+	require.NoError(t, err)
+	assert.Equal(t, "NewSequencers", block[0].Order[0].Name)
+	assert.Equal(t, "NewSequencers", block[0].Order[1].Name)
+	assert.Equal(t, "Batches", block[0].Order[2].Name)
+	assert.Equal(t, "NewSequencers", block[0].Order[3].Name)
+	assert.Equal(t, "Batches", block[0].Order[4].Name)
+	assert.Equal(t, "NewSequencers", block[0].Order[5].Name)
+}

@@ -13,6 +13,10 @@ type Block struct {
 	ParentHash    common.Hash
 	Batches       []Batch
 	NewSequencers []Sequencer
+	Order         []struct{
+		Name string
+		Pos  int
+	}
 
 	ReceivedAt time.Time
 }

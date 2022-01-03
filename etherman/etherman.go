@@ -216,6 +216,11 @@ func (etherMan *ClientEtherMan) RegisterSequencer(url string) (*types.Transactio
 	return tx, nil
 }
 
+type order struct{
+	Name string
+	Pos  int
+}
+
 func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, error) {
 	logs, err := etherMan.EtherClient.FilterLogs(ctx, query)
 	if err != nil {
@@ -233,10 +238,38 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 			continue
 		}
 		if b, exists := blocks[block.BlockHash]; exists {
-			b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
-			b.NewSequencers = append(blocks[block.BlockHash].NewSequencers, block.NewSequencers...)
+			if len(block.Batches) != 0 {
+				b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
+				or := order {
+					Name: "Batches",
+					Pos: len(b.Batches) - 1,
+				}
+				b.Order = append(b.Order, or)
+			}
+			if len(block.NewSequencers) != 0 {
+				b.NewSequencers = append(blocks[block.BlockHash].NewSequencers, block.NewSequencers...)
+				or := order {
+					Name: "NewSequencers",
+					Pos: len(b.NewSequencers) - 1,
+				}
+				b.Order = append(b.Order, or)
+			}
 			blocks[block.BlockHash] = b
 		} else {
+			if len(block.Batches) != 0 {
+				or := order {
+					Name: "Batches",
+					Pos: len(block.Batches) - 1,
+				}
+				block.Order = append(block.Order, or)
+			}
+			if len(block.NewSequencers) != 0 {
+				or := order {
+					Name: "NewSequencers",
+					Pos: len(block.NewSequencers) - 1,
+				}
+				block.Order = append(block.Order, or)
+			}
 			blocks[block.BlockHash] = *block
 			blockKeys = append(blockKeys, block.BlockHash)
 		}
