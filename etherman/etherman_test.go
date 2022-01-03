@@ -293,7 +293,7 @@ func readTests() []vectors.TxEventsSendBatchTestCase {
 
 func TestOrderReadEvent(t *testing.T) {
 	log.Debug("Testing sync order...")
-	
+
 	// Set up testing environment
 	etherman, commit := newTestingEnv()
 
@@ -307,7 +307,7 @@ func TestOrderReadEvent(t *testing.T) {
 	// Send propose batch l1 tx
 	_, err = etherman.RegisterSequencer("http://localhost")
 	require.NoError(t, err)
-	
+
 	// Send propose batch l1 tx
 	_, err = etherman.RegisterSequencer("http://localhost0")
 	require.NoError(t, err)

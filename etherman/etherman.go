@@ -38,8 +38,8 @@ var (
 // EtherMan represents an Ethereum Manager
 type EtherMan interface {
 	EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error)
-	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]order, error)
-	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]order, error)
+	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]Order, error)
+	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]Order, error)
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
 	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
 	RegisterSequencer(url string) (*types.Transaction, error)
@@ -97,7 +97,7 @@ func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumbe
 }
 
 // GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
-func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]order, error) {
+func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]Order, error) {
 	// First filter query
 	var blockNumBigInt *big.Int
 	if blockHash == nil {
@@ -118,7 +118,7 @@ func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumb
 
 // GetBatchesByBlockRange function retrieves the batches information that are included in all this ethereum blocks
 // from block x to block y
-func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]order, error) {
+func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]Order, error) {
 	// First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
@@ -216,17 +216,18 @@ func (etherMan *ClientEtherMan) RegisterSequencer(url string) (*types.Transactio
 	return tx, nil
 }
 
-type order struct{
+// Order contains the event order to let the synchronizer store the information following this order
+type Order struct {
 	Name string
 	Pos  int
 }
 
-func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, map[common.Hash][]order, error) {
+func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, map[common.Hash][]Order, error) {
 	logs, err := etherMan.EtherClient.FilterLogs(ctx, query)
 	if err != nil {
 		return []state.Block{}, nil, err
 	}
-	blockOrder := make(map[common.Hash][]order)
+	blockOrder := make(map[common.Hash][]Order)
 	blocks := make(map[common.Hash]state.Block)
 	var blockKeys []common.Hash
 	for _, vLog := range logs {
@@ -241,33 +242,33 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 		if b, exists := blocks[block.BlockHash]; exists {
 			if len(block.Batches) != 0 {
 				b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
-				or := order {
+				or := Order{
 					Name: "Batches",
-					Pos: len(b.Batches) - 1,
+					Pos:  len(b.Batches) - 1,
 				}
 				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
 			}
 			if len(block.NewSequencers) != 0 {
 				b.NewSequencers = append(blocks[block.BlockHash].NewSequencers, block.NewSequencers...)
-				or := order {
+				or := Order{
 					Name: "NewSequencers",
-					Pos: len(b.NewSequencers) - 1,
+					Pos:  len(b.NewSequencers) - 1,
 				}
 				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
 			}
 			blocks[block.BlockHash] = b
 		} else {
 			if len(block.Batches) != 0 {
-				or := order {
+				or := Order{
 					Name: "Batches",
-					Pos: len(block.Batches) - 1,
+					Pos:  len(block.Batches) - 1,
 				}
 				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
 			}
 			if len(block.NewSequencers) != 0 {
-				or := order {
+				or := Order{
 					Name: "NewSequencers",
-					Pos: len(block.NewSequencers) - 1,
+					Pos:  len(block.NewSequencers) - 1,
 				}
 				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
 			}
