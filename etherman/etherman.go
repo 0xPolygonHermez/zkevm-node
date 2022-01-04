@@ -35,6 +35,16 @@ var (
 	ErrNotFound = errors.New("Not found")
 )
 
+// EventOrder is the the type used to identify the events order
+type EventOrder string
+
+const (
+	// BatchesOrder identifies a batch event
+	BatchesOrder EventOrder = "Batches"
+	//NewSequencersOrder identifies a newSequencer event
+	NewSequencersOrder EventOrder = "NewSequencers"
+)
+
 // EtherMan represents an Ethereum Manager
 type EtherMan interface {
 	EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error)
@@ -218,7 +228,7 @@ func (etherMan *ClientEtherMan) RegisterSequencer(url string) (*types.Transactio
 
 // Order contains the event order to let the synchronizer store the information following this order
 type Order struct {
-	Name string
+	Name EventOrder
 	Pos  int
 }
 
@@ -243,7 +253,7 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 			if len(block.Batches) != 0 {
 				b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
 				or := Order{
-					Name: "Batches",
+					Name: BatchesOrder,
 					Pos:  len(b.Batches) - 1,
 				}
 				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
@@ -251,7 +261,7 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 			if len(block.NewSequencers) != 0 {
 				b.NewSequencers = append(blocks[block.BlockHash].NewSequencers, block.NewSequencers...)
 				or := Order{
-					Name: "NewSequencers",
+					Name: NewSequencersOrder,
 					Pos:  len(b.NewSequencers) - 1,
 				}
 				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
@@ -260,14 +270,14 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 		} else {
 			if len(block.Batches) != 0 {
 				or := Order{
-					Name: "Batches",
+					Name: BatchesOrder,
 					Pos:  len(block.Batches) - 1,
 				}
 				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
 			}
 			if len(block.NewSequencers) != 0 {
 				or := Order{
-					Name: "NewSequencers",
+					Name: NewSequencersOrder,
 					Pos:  len(block.NewSequencers) - 1,
 				}
 				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)

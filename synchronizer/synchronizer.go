@@ -147,7 +147,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		}
 		lastEthBlockSynced = &blocks[i]
 		for _, element := range order[blocks[i].BlockHash] {
-			if element.Name == "Batches" {
+			if element.Name == etherman.BatchesOrder {
 				sequencerAddress := &blocks[i].Batches[element.Pos].Sequencer
 				batchProcessor, err := s.state.NewBatchProcessor(*sequencerAddress, latestBatchNumber)
 				if err != nil {
@@ -158,7 +158,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 				if err != nil {
 					log.Fatal("error processing batch. BatchNumber: ", blocks[i].Batches[element.Pos].BatchNumber, ". Error: ", err)
 				}
-			} else if element.Name == "NewSequencers" {
+			} else if element.Name == etherman.NewSequencersOrder {
 				// Add new sequencers
 				err := s.state.AddSequencer(context.Background(), blocks[i].NewSequencers[element.Pos])
 				if err != nil {

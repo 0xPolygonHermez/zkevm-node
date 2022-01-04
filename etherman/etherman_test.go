@@ -352,10 +352,10 @@ func TestOrderReadEvent(t *testing.T) {
 
 	block, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, "NewSequencers", order[block[0].BlockHash][0].Name)
-	assert.Equal(t, "NewSequencers", order[block[0].BlockHash][1].Name)
-	assert.Equal(t, "Batches", order[block[0].BlockHash][2].Name)
-	assert.Equal(t, "NewSequencers", order[block[0].BlockHash][3].Name)
-	assert.Equal(t, "Batches", order[block[0].BlockHash][4].Name)
-	assert.Equal(t, "NewSequencers", order[block[0].BlockHash][5].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][1].Name)
+	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][2].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][3].Name)
+	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][4].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][5].Name)
 }
