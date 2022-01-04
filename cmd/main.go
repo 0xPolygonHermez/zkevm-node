@@ -11,12 +11,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/hermeznetwork/hermez-core/aggregator"
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
@@ -24,6 +26,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/jackc/pgx/v4"
 	"github.com/urfave/cli/v2"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -125,13 +128,13 @@ func start(ctx *cli.Context) error {
 		return err
 	}
 
-	//proverClient, conn := newProverClient(c.Prover)
+	proverClient, conn := newProverClient(c.Prover)
 	go runSynchronizer(c.NetworkConfig.GenBlockNumber, etherman, st, c.Synchronizer)
 	go runJSONRpcServer(c.RPC, c.Etherman, c.NetworkConfig, pool, st)
 	go runSequencer(c.Sequencer, etherman, pool, st)
-	//go runAggregator(c.Aggregator, etherman, proverClient, state)
-	//waitSignal(conn)
-	waitSignal()
+	go runAggregator(c.Aggregator, etherman, proverClient, st)
+	waitSignal(conn)
+	//waitSignal()
 	return nil
 }
 
@@ -158,19 +161,19 @@ func newEtherman(c config.Config) (*etherman.ClientEtherMan, error) {
 	return etherman, nil
 }
 
-//func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.ClientConn) {
-//	opts := []grpc.DialOption{
-//		// TODO: once we have user and password for prover server, change this
-//		grpc.WithInsecure(),
-//	}
-//	conn, err := grpc.Dial(c.ProverURI, opts...)
-//	if err != nil {
-//		log.Fatalf("fail to dial: %v", err)
-//	}
-//
-//	proverClient := proverclient.NewZKProverClient(conn)
-//	return proverClient, conn
-//}
+func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.ClientConn) {
+	opts := []grpc.DialOption{
+		// TODO: once we have user and password for prover server, change this
+		grpc.WithInsecure(),
+	}
+	conn, err := grpc.Dial(c.ProverURI, opts...)
+	if err != nil {
+		log.Fatalf("fail to dial: %v", err)
+	}
+
+	proverClient := proverclient.NewZKProverClient(conn)
+	return proverClient, conn
+}
 
 func runSynchronizer(genBlockNumber uint64, etherman *etherman.ClientEtherMan, state state.State, cfg synchronizer.Config) {
 	sy, err := synchronizer.NewSynchronizer(etherman, state, genBlockNumber, cfg)
@@ -204,16 +207,16 @@ func runSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool po
 	seq.Start()
 }
 
-//func runAggregator(c aggregator.Config, etherman *etherman.ClientEtherMan, proverclient proverclient.ZKProverClient, state state.State) {
-//	agg, err := aggregator.NewAggregator(c, state, etherman, proverclient)
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	agg.Start()
-//}
+func runAggregator(c aggregator.Config, etherman *etherman.ClientEtherMan, proverclient proverclient.ZKProverClient, state state.State) {
+	agg, err := aggregator.NewAggregator(c, state, etherman, proverclient)
+	if err != nil {
+		log.Fatal(err)
+	}
+	agg.Start()
+}
 
-//func waitSignal(conn *grpc.ClientConn) {
-func waitSignal() {
+func waitSignal(conn *grpc.ClientConn) {
+	//func waitSignal() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 

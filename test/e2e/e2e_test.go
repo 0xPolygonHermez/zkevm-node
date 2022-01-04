@@ -98,6 +98,13 @@ func TestStateTransition(t *testing.T) {
 			// wait network to be ready
 			time.Sleep(5 * time.Second)
 
+			// Start prover container
+			err = startProverContainer()
+			require.NoError(t, err)
+
+			// wait prover to be ready
+			time.Sleep(5 * time.Second)
+
 			// eth client
 			client, err := ethclient.Dial(l1NetworkURL)
 			require.NoError(t, err)
@@ -192,6 +199,9 @@ func TestStateTransition(t *testing.T) {
 			l2Client, err := ethclient.Dial(l2NetworkURL)
 			require.NoError(t, err)
 
+			rt, err := st.GetStateRoot(ctx, false)
+			require.NoError(t, err)
+			fmt.Println("RT1: " + new(big.Int).SetBytes(rt).String())
 			for _, tx := range testCase.Txs {
 				if string(tx.RawTx) != "" && tx.Overwrite.S == "" {
 					l2tx := new(types.Transaction)
@@ -210,7 +220,7 @@ func TestStateTransition(t *testing.T) {
 
 			// wait for sequencer to select txs from pool and propose a new batch
 			// wait for the synchronizer to update state
-			time.Sleep(10 * time.Second)
+			time.Sleep(30 * time.Second)
 
 			// check leafs
 			batchNumber, err := st.GetLastBatchNumber(ctx)
@@ -233,6 +243,9 @@ func TestStateTransition(t *testing.T) {
 			strRoot = new(big.Int).SetBytes(root).String()
 			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
 
+			rt, err = st.GetStateRoot(ctx, false)
+			require.NoError(t, err)
+			fmt.Println("RT2: " + new(big.Int).SetBytes(rt).String())
 			err = stopCoreContainer()
 			require.NoError(t, err)
 
@@ -276,6 +289,19 @@ func startCoreContainer() error {
 
 func stopCoreContainer() error {
 	cmd := exec.Command(makeCmd, "stop-core")
+	return runCmd(cmd)
+}
+
+func startProverContainer() error {
+	if err := stopProverContainer(); err != nil {
+		return err
+	}
+	cmd := exec.Command(makeCmd, "run-prover")
+	return runCmd(cmd)
+}
+
+func stopProverContainer() error {
+	cmd := exec.Command(makeCmd, "stop-prover")
 	return runCmd(cmd)
 }
 

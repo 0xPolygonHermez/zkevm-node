@@ -179,6 +179,13 @@ func (a *Aggregator) Start() {
 					batchToConsolidate.BatchNumber, err)
 				continue
 			}
+			// 5. consolidate batch locally
+			err = a.State.ConsolidateBatch(a.ctx, batchToConsolidate.BatchNumber, h.Hash())
+			if err != nil {
+				log.Warnf("failed to consolidate batch locally, batch number: %d, err: %v",
+					batchToConsolidate.BatchNumber, err)
+				continue
+			}
 			batchesSent[batchToConsolidate.BatchNumber] = true
 
 			log.Infof("Batch %d consolidated: %s", batchToConsolidate.BatchNumber, h.Hash())
