@@ -35,11 +35,21 @@ var (
 	ErrNotFound = errors.New("Not found")
 )
 
+// EventOrder is the the type used to identify the events order
+type EventOrder string
+
+const (
+	// BatchesOrder identifies a batch event
+	BatchesOrder EventOrder = "Batches"
+	//NewSequencersOrder identifies a newSequencer event
+	NewSequencersOrder EventOrder = "NewSequencers"
+)
+
 // EtherMan represents an Ethereum Manager
 type EtherMan interface {
 	EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error)
-	GetBatchesByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, error)
-	GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error)
+	GetRollupInfoByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]Order, error)
+	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]Order, error)
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
 	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
 	RegisterSequencer(url string) (*types.Transaction, error)
@@ -96,8 +106,8 @@ func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumbe
 	return block, nil
 }
 
-// GetBatchesByBlock function retrieves the batches information that are included in a specific ethereum block
-func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, error) {
+// GetRollupInfoByBlock function retrieves the Rollup information that are included in a specific ethereum block
+func (etherMan *ClientEtherMan) GetRollupInfoByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]Order, error) {
 	// First filter query
 	var blockNumBigInt *big.Int
 	if blockHash == nil {
@@ -109,16 +119,16 @@ func (etherMan *ClientEtherMan) GetBatchesByBlock(ctx context.Context, blockNumb
 		ToBlock:   blockNumBigInt,
 		Addresses: etherMan.SCAddresses,
 	}
-	blocks, err := etherMan.readEvents(ctx, query)
+	blocks, order, err := etherMan.readEvents(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return blocks, nil
+	return blocks, order, nil
 }
 
-// GetBatchesByBlockRange function retrieves the batches information that are included in all this ethereum blocks
+// GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
 // from block x to block y
-func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error) {
+func (etherMan *ClientEtherMan) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]Order, error) {
 	// First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
@@ -127,11 +137,11 @@ func (etherMan *ClientEtherMan) GetBatchesByBlockRange(ctx context.Context, from
 	if toBlock != nil {
 		query.ToBlock = new(big.Int).SetUint64(*toBlock)
 	}
-	blocks, err := etherMan.readEvents(ctx, query)
+	blocks, order, err := etherMan.readEvents(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return blocks, nil
+	return blocks, order, nil
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
@@ -216,11 +226,18 @@ func (etherMan *ClientEtherMan) RegisterSequencer(url string) (*types.Transactio
 	return tx, nil
 }
 
-func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, error) {
+// Order contains the event order to let the synchronizer store the information following this order
+type Order struct {
+	Name EventOrder
+	Pos  int
+}
+
+func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, map[common.Hash][]Order, error) {
 	logs, err := etherMan.EtherClient.FilterLogs(ctx, query)
 	if err != nil {
-		return []state.Block{}, err
+		return []state.Block{}, nil, err
 	}
+	blockOrder := make(map[common.Hash][]Order)
 	blocks := make(map[common.Hash]state.Block)
 	var blockKeys []common.Hash
 	for _, vLog := range logs {
@@ -233,10 +250,38 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 			continue
 		}
 		if b, exists := blocks[block.BlockHash]; exists {
-			b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
-			b.NewSequencers = append(blocks[block.BlockHash].NewSequencers, block.NewSequencers...)
+			if len(block.Batches) != 0 {
+				b.Batches = append(blocks[block.BlockHash].Batches, block.Batches...)
+				or := Order{
+					Name: BatchesOrder,
+					Pos:  len(b.Batches) - 1,
+				}
+				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
+			}
+			if len(block.NewSequencers) != 0 {
+				b.NewSequencers = append(blocks[block.BlockHash].NewSequencers, block.NewSequencers...)
+				or := Order{
+					Name: NewSequencersOrder,
+					Pos:  len(b.NewSequencers) - 1,
+				}
+				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
+			}
 			blocks[block.BlockHash] = b
 		} else {
+			if len(block.Batches) != 0 {
+				or := Order{
+					Name: BatchesOrder,
+					Pos:  len(block.Batches) - 1,
+				}
+				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
+			}
+			if len(block.NewSequencers) != 0 {
+				or := Order{
+					Name: NewSequencersOrder,
+					Pos:  len(block.NewSequencers) - 1,
+				}
+				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
+			}
 			blocks[block.BlockHash] = *block
 			blockKeys = append(blockKeys, block.BlockHash)
 		}
@@ -245,7 +290,7 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 	for _, hash := range blockKeys {
 		blockArr = append(blockArr, blocks[hash])
 	}
-	return blockArr, nil
+	return blockArr, blockOrder, nil
 }
 
 func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log) (*state.Block, error) {
