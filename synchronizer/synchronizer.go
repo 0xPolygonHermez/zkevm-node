@@ -121,7 +121,13 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	if lastEthBlockSynced.BlockNumber > 0 {
 		fromBlock = lastEthBlockSynced.BlockNumber + 1
 	}
-	blocks, err := s.etherMan.GetBatchesByBlockRange(s.ctx, fromBlock, nil)
+
+	// This function returns the rollup information contained in the ethereum blocks and an extra param called order.
+	// Order param is a map that contains the event order to allow the synchronizer store the info in the same order that is readed.
+	// Name can be defferent in the order struct. For instance: Batches or Name:NewSequencers. This name is an identifier to check
+	// if the next info that must be stored in the db is a new sequencer or a batch. The value pos (position) tells what is the
+	// array index where this value is.
+	blocks, order, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, fromBlock, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -140,24 +146,26 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
 		}
 		lastEthBlockSynced = &blocks[i]
-		for _, seq := range blocks[i].NewSequencers {
-			// Add new sequencers
-			err := s.state.AddSequencer(context.Background(), seq)
-			if err != nil {
-				log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", seq)
-			}
-		}
-		for j := range blocks[i].Batches {
-			sequencerAddress := &blocks[i].Batches[j].Sequencer
-			batchProcessor, err := s.state.NewBatchProcessor(*sequencerAddress, latestBatchNumber)
-			if err != nil {
-				log.Error("error creating new batch processor. Error: ", err)
-			}
-
-			// Add batches
-			err = batchProcessor.ProcessBatch(&blocks[i].Batches[j])
-			if err != nil {
-				log.Fatal("error processing batch. BatchNumber: ", blocks[i].Batches[j].BatchNumber, ". Error: ", err)
+		for _, element := range order[blocks[i].BlockHash] {
+			if element.Name == etherman.BatchesOrder {
+				sequencerAddress := &blocks[i].Batches[element.Pos].Sequencer
+				batchProcessor, err := s.state.NewBatchProcessor(*sequencerAddress, latestBatchNumber)
+				if err != nil {
+					log.Error("error creating new batch processor. Error: ", err)
+				}
+				// Add batches
+				err = batchProcessor.ProcessBatch(&blocks[i].Batches[element.Pos])
+				if err != nil {
+					log.Fatal("error processing batch. BatchNumber: ", blocks[i].Batches[element.Pos].BatchNumber, ". Error: ", err)
+				}
+			} else if element.Name == etherman.NewSequencersOrder {
+				// Add new sequencers
+				err := s.state.AddSequencer(context.Background(), blocks[i].NewSequencers[element.Pos])
+				if err != nil {
+					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos])
+				}
+			} else {
+				log.Fatal("error: invalid order element")
 			}
 		}
 	}

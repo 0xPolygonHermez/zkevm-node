@@ -124,7 +124,7 @@ func TestSCEvents(t *testing.T) {
 	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
-	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
+	block, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	for k, tx := range block[0].Batches[0].Transactions {
 		var addr common.Address
@@ -134,7 +134,7 @@ func TestSCEvents(t *testing.T) {
 	}
 	log.Debugf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
 
-	block, err = etherman.GetBatchesByBlock(ctx, block[0].BlockNumber, &block[0].BlockHash)
+	block, _, err = etherman.GetRollupInfoByBlock(ctx, block[0].BlockNumber, &block[0].BlockHash)
 	require.NoError(t, err)
 	for k, tx := range block[0].Batches[0].Transactions {
 		var addr common.Address
@@ -162,14 +162,14 @@ func TestSCEvents(t *testing.T) {
 	finalBlock, err = etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber = finalBlock.NumberU64()
-	block, err = etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
+	block, _, err = etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	assert.NotEqual(t, common.Hash{}, block[1].Batches[0].ConsolidatedTxHash)
 	assert.Equal(t, 2, len(block[0].Batches))
 	assert.Equal(t, 1, len(block[1].Batches))
 	log.Debugf("Batch consolidated in txHash: %+v \n", block[1].Batches[0].ConsolidatedTxHash)
 
-	block, err = etherman.GetBatchesByBlock(ctx, finalBlock.NumberU64(), nil)
+	block, _, err = etherman.GetRollupInfoByBlock(ctx, finalBlock.NumberU64(), nil)
 	require.NoError(t, err)
 	assert.NotEqual(t, common.Hash{}, block[0].Batches[0].ConsolidatedTxHash)
 	log.Debugf("Batch consolidated in txHash: %+v \n", block[0].Batches[0].ConsolidatedTxHash)
@@ -196,7 +196,7 @@ func TestRegisterSequencerAndEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	finalBlockNumber := finalBlock.NumberU64()
-	block, err := etherman.GetBatchesByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
+	block, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	assert.Equal(t, etherman.auth.From, block[0].NewSequencers[0].Address)
 	assert.Equal(t, "http://localhost", block[0].NewSequencers[0].URL)
@@ -231,7 +231,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
-	block, err := etherman.GetBatchesByBlockRange(ctx, finalBlockNumber, nil)
+	block, _, err := etherman.GetRollupInfoByBlockRange(ctx, finalBlockNumber, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(block[0].Batches))
 	assert.Equal(t, 5, len(block[0].Batches[0].Transactions))
@@ -267,7 +267,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	finalBlock, err = etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber = finalBlock.NumberU64()
-	block, err = etherman.GetBatchesByBlockRange(ctx, finalBlockNumber, nil)
+	block, _, err = etherman.GetRollupInfoByBlockRange(ctx, finalBlockNumber, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, len(block[0].Batches))
@@ -292,4 +292,73 @@ func readTests() []vectors.TxEventsSendBatchTestCase {
 		log.Fatal(err)
 	}
 	return txEventsSendBatchTestCases
+}
+
+func TestOrderReadEvent(t *testing.T) {
+	log.Debug("Testing sync order...")
+
+	// Set up testing environment
+	etherman, commit := newTestingEnv()
+
+	// Read currentBlock
+	ctx := context.Background()
+	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+
+	callDataTestCases := readTests()
+
+	// Send propose batch l1 tx
+	_, err = etherman.RegisterSequencer("http://localhost")
+	require.NoError(t, err)
+
+	// Send propose batch l1 tx
+	_, err = etherman.RegisterSequencer("http://localhost0")
+	require.NoError(t, err)
+
+	//prepare txs
+	dHex := strings.Replace(callDataTestCases[1].BatchL2Data, "0x", "", -1)
+	data, err := hex.DecodeString(dHex)
+	require.NoError(t, err)
+
+	//send propose batch l1 tx
+	matic := new(big.Int)
+	matic, ok := matic.SetString(callDataTestCases[1].MaticAmount, 10)
+	if !ok {
+		log.Fatal("error decoding maticAmount")
+	}
+	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
+	require.NoError(t, err)
+
+	// Send propose batch l1 tx
+	_, err = etherman.RegisterSequencer("http://localhost1")
+	require.NoError(t, err)
+
+	//prepare txs
+	dHex = strings.Replace(callDataTestCases[0].BatchL2Data, "0x", "", -1)
+	data, err = hex.DecodeString(dHex)
+	require.NoError(t, err)
+
+	//send propose batch l1 tx
+	matic, ok = matic.SetString(callDataTestCases[1].MaticAmount, 10)
+	if !ok {
+		log.Fatal("error decoding maticAmount")
+	}
+	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
+	require.NoError(t, err)
+
+	// Send propose batch l1 tx
+	_, err = etherman.RegisterSequencer("http://localhost2")
+	require.NoError(t, err)
+
+	// Mine the tx in a block
+	commit()
+
+	block, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
+	require.NoError(t, err)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][1].Name)
+	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][2].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][3].Name)
+	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][4].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][5].Name)
 }

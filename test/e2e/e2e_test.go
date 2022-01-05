@@ -96,7 +96,7 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// wait network to be ready
-			time.Sleep(5 * time.Second)
+			time.Sleep(15 * time.Second)
 
 			// Start prover container
 			err = startProverContainer()
