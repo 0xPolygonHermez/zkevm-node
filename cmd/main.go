@@ -134,7 +134,6 @@ func start(ctx *cli.Context) error {
 	go runSequencer(c.Sequencer, etherman, pool, st)
 	go runAggregator(c.Aggregator, etherman, proverClient, st)
 	waitSignal(conn)
-	//waitSignal()
 	return nil
 }
 

@@ -8,7 +8,6 @@ import (
 )
 
 const (
-	rootLen  = 32
 	proofLen = 2
 )
 
