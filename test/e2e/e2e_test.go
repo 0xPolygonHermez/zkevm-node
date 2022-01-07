@@ -199,9 +199,6 @@ func TestStateTransition(t *testing.T) {
 			l2Client, err := ethclient.Dial(l2NetworkURL)
 			require.NoError(t, err)
 
-			rt, err := st.GetStateRoot(ctx, false)
-			require.NoError(t, err)
-			fmt.Println("RT1: " + new(big.Int).SetBytes(rt).String())
 			for _, tx := range testCase.Txs {
 				if string(tx.RawTx) != "" && tx.Overwrite.S == "" {
 					l2tx := new(types.Transaction)
@@ -220,7 +217,7 @@ func TestStateTransition(t *testing.T) {
 
 			// wait for sequencer to select txs from pool and propose a new batch
 			// wait for the synchronizer to update state
-			time.Sleep(30 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			// check leafs
 			batchNumber, err := st.GetLastBatchNumber(ctx)
@@ -243,10 +240,23 @@ func TestStateTransition(t *testing.T) {
 			strRoot = new(big.Int).SetBytes(root).String()
 			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
 
-			rt, err = st.GetStateRoot(ctx, false)
+			// check consolidated state against the expected state
+			consolidatedRoot, err := st.GetStateRoot(ctx, true)
 			require.NoError(t, err)
-			fmt.Println("RT2: " + new(big.Int).SetBytes(rt).String())
+			strRoot = new(big.Int).SetBytes(consolidatedRoot).String()
+			assert.Equal(t, testCase.ExpectedNewRoot, strRoot)
+
+			// check that last virtual and consolidated batch are the same
+			lastConsolidatedBatchNumber, err := st.GetLastConsolidatedBatchNumber(ctx)
+			require.NoError(t, err)
+			lastVirtualBatchNumber, err := st.GetLastBatchNumber(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, lastConsolidatedBatchNumber, lastVirtualBatchNumber)
+
 			err = stopCoreContainer()
+			require.NoError(t, err)
+
+			err = stopProverContainer()
 			require.NoError(t, err)
 
 			err = stopNetworkContainer()
@@ -255,6 +265,9 @@ func TestStateTransition(t *testing.T) {
 	}
 
 	err = stopCoreContainer()
+	require.NoError(t, err)
+
+	err = stopProverContainer()
 	require.NoError(t, err)
 
 	err = stopNetworkContainer()

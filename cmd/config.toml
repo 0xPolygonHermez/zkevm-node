@@ -37,4 +37,4 @@ TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 
 [Prover]
-ProverURI = "0.0.0.0:50051"
+ProverURI = "hez-prover:50051"

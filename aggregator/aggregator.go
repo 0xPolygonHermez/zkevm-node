@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
@@ -140,27 +141,39 @@ func (a *Aggregator) Start() {
 			for _, tx := range batchToConsolidate.Transactions {
 				txsHashes = append(txsHashes, tx.Hash().String())
 			}
+
+			// TODO: consider putting chain id to the batch, so we will get rid of additional request to db
+			seq, err := a.State.GetSequencer(a.ctx, batchToConsolidate.Sequencer)
+			if err != nil {
+				log.Warnf("failed to get sequencer from the state, addr: %s, err: %v", seq.Address, err)
+				continue
+			}
+			chainID := uint32(seq.ChainID.Uint64())
+
 			// TODO: change this, once we have exit root
 			fakeLastGlobalExitRoot, _ := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
-			chainID := uint32(1337) //nolint:gomnd
+			fakeKeys := map[string]string{
+				"0540ae2a259cb9179561cffe6a0a3852a2c1806ad894ed396a2ef16e1f10e9c7": "0000000000000000000000000000000000000000000000056bc75e2d63100000",
+				"061927dd2a72763869c1d5d9336a42d12a9a2f22809c9cf1feeb2a6d1643d950": "0000000000000000000000000000000000000000000000000000000000000000",
+				"03ae74d1bbdff41d14f155ec79bb389db716160c1766a49ee9c9707407f80a11": "00000000000000000000000000000000000000000000000ad78ebc5ac6200000",
+				"18d749d7bcc2bc831229c19256f9e933c08b6acdaff4915be158e34cbbc8a8e1": "0000000000000000000000000000000000000000000000000000000000000000",
+			}
 			inputProver := &proverclient.InputProver{
 				Message: "calculate",
 				PublicInputs: &proverclient.PublicInputs{
-					OldStateRoot:     string(stateRootConsolidated),
+					OldStateRoot:     common.BytesToHash(stateRootConsolidated).String(),
 					OldLocalExitRoot: fakeLastGlobalExitRoot.String(),
-					NewStateRoot:     string(stateRootToConsolidate),
+					NewStateRoot:     common.BytesToHash(stateRootToConsolidate).String(),
 					NewLocalExitRoot: fakeLastGlobalExitRoot.String(),
 					SequencerAddr:    batchToConsolidate.Sequencer.String(),
 					BatchHashData:    batchToConsolidate.BatchHash.String(),
-					// TODO: consider to put chain id to batch, so there is no need to request block
-					ChainId:  chainID,
-					BatchNum: uint32(batchToConsolidate.BatchNumber),
+					ChainId:          chainID,
+					BatchNum:         uint32(batchToConsolidate.BatchNumber),
 				},
 				GlobalExitRoot: fakeLastGlobalExitRoot.String(),
 				Txs:            txsHashes,
-				Keys:           nil,
+				Keys:           fakeKeys,
 			}
-
 			err = getProofClient.Send(inputProver)
 			if err != nil {
 				log.Warnf("failed to send batch to the prover, batchNumber: %v, err: %v", batchToConsolidate.BatchNumber, err)
@@ -179,17 +192,9 @@ func (a *Aggregator) Start() {
 					batchToConsolidate.BatchNumber, err)
 				continue
 			}
-			// 5. consolidate batch locally
-			err = a.State.ConsolidateBatch(a.ctx, batchToConsolidate.BatchNumber, h.Hash())
-			if err != nil {
-				log.Warnf("failed to consolidate batch locally, batch number: %d, err: %v",
-					batchToConsolidate.BatchNumber, err)
-				continue
-			}
 			batchesSent[batchToConsolidate.BatchNumber] = true
 
 			log.Infof("Batch %d consolidated: %s", batchToConsolidate.BatchNumber, h.Hash())
-
 		case <-a.ctx.Done():
 			return
 		}
