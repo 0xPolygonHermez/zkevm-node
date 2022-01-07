@@ -149,7 +149,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		lastEthBlockSynced = &blocks[i]
 		for _, element := range order[blocks[i].BlockHash] {
 			if element.Name == etherman.BatchesOrder {
-				batch := &blocks[i].Batches[element.Pos] //.Sequencer
+				batch := &blocks[i].Batches[element.Pos]
 				emptyHash := common.Hash{}
 				if batch.ConsolidatedTxHash.String() != emptyHash.String() {
 					// consolidate batch locally
@@ -166,9 +166,9 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 						log.Error("error creating new batch processor. Error: ", err)
 					}
 					// Add batches
-					err = batchProcessor.ProcessBatch(&blocks[i].Batches[element.Pos])
+					err = batchProcessor.ProcessBatch(batch)
 					if err != nil {
-						log.Fatal("error processing batch. BatchNumber: ", blocks[i].Batches[element.Pos].BatchNumber, ". Error: ", err)
+						log.Fatal("error processing batch. BatchNumber: ", batch.BatchNumber, ". Error: ", err)
 					}
 				}
 			} else if element.Name == etherman.NewSequencersOrder {
