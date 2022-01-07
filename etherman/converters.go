@@ -12,15 +12,6 @@ const (
 	proofLen = 2
 )
 
-func byteSliceToFixedByteArray(byteSlc []byte) ([32]byte, error) {
-	if len(byteSlc) != rootLen {
-		return [32]byte{}, fmt.Errorf("wrong slice length, current %d, expected 32", len(byteSlc))
-	}
-	var res [32]byte
-	copy(res[:], byteSlc)
-	return res, nil
-}
-
 func stringToFixedByteArray(str string) ([32]byte, error) {
 	var res [32]byte
 	copy(res[:], str)
