@@ -190,7 +190,7 @@ func (s *Sequencer) estimateTime(txs []pool.Transaction) (time.Duration, error) 
 }
 
 func getChainID(ctx context.Context, st state.State, seqAddress common.Address) uint64 {
-	const intervalToCheckSequencerRegistrationInSeconds = 20
+	const intervalToCheckSequencerRegistrationInSeconds = 3
 	var (
 		seq *state.Sequencer
 		err error
