@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -148,15 +149,27 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		lastEthBlockSynced = &blocks[i]
 		for _, element := range order[blocks[i].BlockHash] {
 			if element.Name == etherman.BatchesOrder {
-				sequencerAddress := &blocks[i].Batches[element.Pos].Sequencer
-				batchProcessor, err := s.state.NewBatchProcessor(*sequencerAddress, latestBatchNumber)
-				if err != nil {
-					log.Error("error creating new batch processor. Error: ", err)
-				}
-				// Add batches
-				err = batchProcessor.ProcessBatch(&blocks[i].Batches[element.Pos])
-				if err != nil {
-					log.Fatal("error processing batch. BatchNumber: ", blocks[i].Batches[element.Pos].BatchNumber, ". Error: ", err)
+				batch := &blocks[i].Batches[element.Pos]
+				emptyHash := common.Hash{}
+				if batch.ConsolidatedTxHash.String() != emptyHash.String() {
+					// consolidate batch locally
+					err = s.state.ConsolidateBatch(s.ctx, batch.BatchNumber, batch.ConsolidatedTxHash)
+					if err != nil {
+						log.Warnf("failed to consolidate batch locally, batch number: %d, err: %v",
+							batch.BatchNumber, err)
+						continue
+					}
+				} else {
+					sequencerAddress := batch.Sequencer
+					batchProcessor, err := s.state.NewBatchProcessor(sequencerAddress, latestBatchNumber)
+					if err != nil {
+						log.Error("error creating new batch processor. Error: ", err)
+					}
+					// Add batches
+					err = batchProcessor.ProcessBatch(batch)
+					if err != nil {
+						log.Fatal("error processing batch. BatchNumber: ", batch.BatchNumber, ". Error: ", err)
+					}
 				}
 			} else if element.Name == etherman.NewSequencersOrder {
 				// Add new sequencers

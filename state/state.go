@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -107,7 +108,7 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 	// init correct state root from previous batch
 	stateRoot, err := s.GetStateRootByBatchNumber(lastBatchNumber)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get state root for batch number %d, err: %v", lastBatchNumber, err)
 	}
 
 	s.Tree.SetCurrentRoot(stateRoot)
@@ -115,7 +116,7 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 	// Get Sequencer's Chain ID
 	sq, err := s.GetSequencer(context.Background(), sequencerAddress)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get sequencer %s, err: %v", sequencerAddress, err)
 	}
 
 	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: sq.ChainID.Uint64()}, nil

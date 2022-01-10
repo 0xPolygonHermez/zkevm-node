@@ -6,7 +6,7 @@ option go_package = "proverclient";
 
 service ZKProver {
   rpc GetStatus(NoParams) returns (State) {}
-  rpc GenProof(stream Batch) returns (stream Proof) {}
+  rpc GenProof(stream InputProver) returns (stream State) {}
   rpc Cancel(NoParams) returns (State) {}
   rpc GetProof(NoParams) returns (Proof) {}
 }
@@ -29,28 +29,32 @@ message ProofX {
 }
 
 message PublicInputs {
-  bytes currentStateRoot = 1;
-  bytes currentLocalExitRoot = 2;
-  bytes newStateRoot = 3;
-  bytes newLocalExitRoot = 4;
-  string sequencerAddress = 5;
-  bytes l2TxsDataLastGlobalExitRoot = 6;
-  uint64 chainId = 7;
+  string oldStateRoot = 1;
+  string oldLocalExitRoot = 2;
+  string newStateRoot = 3;
+  string newLocalExitRoot = 4;
+  string sequencerAddr = 5;
+  string batchHashData = 6;
+  uint32 chainId = 7;
+  uint32 batchNum = 8;
 }
 
 message Proof {
   repeated string proofA = 1;
   repeated ProofX proofB = 2;
   repeated string  proofC = 3;
-  PublicInputs publicInputs = 4;
+  PublicInputsExtended publicInputsExtended = 4;
 }
 
-message Batch {
+message InputProver {
   string message = 1;
-  bytes currentStateRoot = 2;
-  bytes newStateRoot = 3;
-  bytes l2Txs = 4;
-  bytes lastGlobalExitRoot = 5;
-  string sequencerAddress = 6;
-  uint64 chainId = 7;
+  PublicInputs publicInputs = 2;
+  string globalExitRoot = 3;
+  repeated string txs = 4;
+  map<string, string> keys = 5;
+}
+
+message PublicInputsExtended {
+  PublicInputs publicInputs = 2;
+  string inputHash = 5;
 }

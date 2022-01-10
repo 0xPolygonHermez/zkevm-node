@@ -98,6 +98,13 @@ func TestStateTransition(t *testing.T) {
 			// wait network to be ready
 			time.Sleep(15 * time.Second)
 
+			// Start prover container
+			err = startProverContainer()
+			require.NoError(t, err)
+
+			// wait prover to be ready
+			time.Sleep(5 * time.Second)
+
 			// eth client
 			client, err := ethclient.Dial(l1NetworkURL)
 			require.NoError(t, err)
@@ -233,7 +240,23 @@ func TestStateTransition(t *testing.T) {
 			strRoot = new(big.Int).SetBytes(root).String()
 			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
 
+			// check consolidated state against the expected state
+			consolidatedRoot, err := st.GetStateRoot(ctx, true)
+			require.NoError(t, err)
+			strRoot = new(big.Int).SetBytes(consolidatedRoot).String()
+			assert.Equal(t, testCase.ExpectedNewRoot, strRoot)
+
+			// check that last virtual and consolidated batch are the same
+			lastConsolidatedBatchNumber, err := st.GetLastConsolidatedBatchNumber(ctx)
+			require.NoError(t, err)
+			lastVirtualBatchNumber, err := st.GetLastBatchNumber(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, lastConsolidatedBatchNumber, lastVirtualBatchNumber)
+
 			err = stopCoreContainer()
+			require.NoError(t, err)
+
+			err = stopProverContainer()
 			require.NoError(t, err)
 
 			err = stopNetworkContainer()
@@ -242,6 +265,9 @@ func TestStateTransition(t *testing.T) {
 	}
 
 	err = stopCoreContainer()
+	require.NoError(t, err)
+
+	err = stopProverContainer()
 	require.NoError(t, err)
 
 	err = stopNetworkContainer()
@@ -276,6 +302,19 @@ func startCoreContainer() error {
 
 func stopCoreContainer() error {
 	cmd := exec.Command(makeCmd, "stop-core")
+	return runCmd(cmd)
+}
+
+func startProverContainer() error {
+	if err := stopProverContainer(); err != nil {
+		return err
+	}
+	cmd := exec.Command(makeCmd, "run-prover")
+	return runCmd(cmd)
+}
+
+func stopProverContainer() error {
+	cmd := exec.Command(makeCmd, "stop-prover")
 	return runCmd(cmd)
 }
 
