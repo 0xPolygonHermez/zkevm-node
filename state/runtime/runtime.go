@@ -39,3 +39,15 @@ type ExecutionResult struct {
 	GasUsed     uint64 // Total gas used as result of execution
 	Err         error  // Any error encountered during the execution, listed below
 }
+
+func (r *ExecutionResult) Succeeded() bool {
+	return r.Err == nil
+}
+
+func (r *ExecutionResult) Failed() bool {
+	return r.Err != nil
+}
+
+func (r *ExecutionResult) Reverted() bool {
+	return r.Err == ErrExecutionReverted
+}

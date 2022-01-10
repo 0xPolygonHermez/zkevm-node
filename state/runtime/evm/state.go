@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/0xPolygon/polygon-sdk/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
@@ -46,8 +46,8 @@ type state struct {
 	tmp  []byte
 
 	// host   runtime.Host
-	msg *runtime.Contract // change with msg
-	// config *runtime.ForksInTime
+	msg    *runtime.Contract // change with msg
+	config *runtime.ForksInTime
 
 	// memory
 	memory      []byte
@@ -139,17 +139,17 @@ func (c *state) stackAtLeast(n int) bool {
 	return c.sp >= n
 }
 
-func (c *state) popHash() types.Hash {
-	return types.BytesToHash(c.pop().Bytes())
+func (c *state) popHash() common.Hash {
+	return common.BytesToHash(c.pop().Bytes())
 }
 
-func (c *state) popAddr() (types.Address, bool) {
+func (c *state) popAddr() (common.Address, bool) {
 	b := c.pop()
 	if b == nil {
-		return types.Address{}, false
+		return common.Address{}, false
 	}
 
-	return types.BytesToAddress(b.Bytes()), true
+	return common.BytesToAddress(b.Bytes()), true
 }
 
 func (c *state) stackSize() int {
