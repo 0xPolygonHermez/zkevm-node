@@ -13,6 +13,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/jackc/pgx/v4"
 )
 
 // Sequencer represents a sequencer
@@ -23,7 +24,7 @@ type Sequencer struct {
 	State   state.State
 	EthMan  etherman.EtherMan
 	Address common.Address
-
+	ChainID uint64
 	strategy.TxSelector
 	strategy.TxProfitabilityChecker
 
@@ -50,12 +51,16 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 	case strategy.ProfitabilityBase:
 		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerBase(ethMan, cfg.Strategy.MinReward.Int)
 	}
+
+	seqAddress := ethMan.GetAddress()
+	chainID := getChainID(ctx, state, seqAddress)
 	s := Sequencer{
 		cfg:     cfg,
 		Pool:    pool,
 		State:   state,
 		EthMan:  ethMan,
-		Address: ethMan.GetAddress(),
+		Address: seqAddress,
+		ChainID: chainID,
 
 		TxSelector:             txSelector,
 		TxProfitabilityChecker: txProfitabilityChecker,
@@ -182,4 +187,39 @@ func (s *Sequencer) tryProposeBatch() {
 // estimateTime Estimate available time to run selection
 func (s *Sequencer) estimateTime(txs []pool.Transaction) (time.Duration, error) {
 	return time.Hour, nil
+}
+
+func getChainID(ctx context.Context, st state.State, seqAddress common.Address) uint64 {
+	const intervalToCheckSequencerRegistrationInSeconds = 20
+	var (
+		seq *state.Sequencer
+		err error
+	)
+	for {
+		seq, err = st.GetSequencer(ctx, seqAddress)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				log.Warnf("make sure the address %s has been registered in the smart contract as a sequencer, err: %v", seqAddress.Hex(), err)
+				lastSyncedBatchNum, err := st.GetLastBatchNumber(ctx)
+				if err != nil {
+					log.Errorf("failed to get last synced batch, err: %v", err)
+				}
+				lastEthBatchNum, err := st.GetLastBatchNumberSeenOnEthereum(ctx)
+				if err != nil {
+					log.Errorf("failed to get last eth batch, err: %v", err)
+				}
+
+				if lastEthBatchNum == 0 {
+					log.Warnf("last eth batch num is 0, waiting to sync...")
+				} else {
+					const oneHundred = 100
+					percentage := lastSyncedBatchNum * oneHundred / lastEthBatchNum
+					log.Warnf("node is still syncing, synced %d%%", percentage)
+				}
+				time.Sleep(intervalToCheckSequencerRegistrationInSeconds * time.Second)
+				continue
+			}
+		}
+		return seq.ChainID.Uint64()
+	}
 }
