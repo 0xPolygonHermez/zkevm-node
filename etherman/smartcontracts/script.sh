@@ -9,3 +9,4 @@ gen() {
 }
 
 gen proofofefficiency
+gen bridge
