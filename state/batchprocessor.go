@@ -242,14 +242,14 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, error) {
 		batch.Header.Root = root
 	}
 
-	err := b.State.db.AddBatch(ctx, batch)
+	err := b.State.AddBatch(ctx, batch)
 	if err != nil {
 		return nil, err
 	}
 
 	// store transactions
 	for i, tx := range batch.Transactions {
-		err := b.State.db.AddTransaction(ctx, tx, batch.BatchNumber, uint(i))
+		err := b.State.AddTransaction(ctx, tx, batch.BatchNumber, uint(i))
 		if err != nil {
 			return nil, err
 		}
@@ -257,7 +257,7 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, error) {
 
 	// store receipts
 	for _, receipt := range batch.Receipts {
-		err := b.State.db.AddReceipt(ctx, receipt)
+		err := b.State.AddReceipt(ctx, receipt)
 		if err != nil {
 			return nil, err
 		}

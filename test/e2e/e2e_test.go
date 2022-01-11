@@ -57,15 +57,15 @@ func TestStateTransition(t *testing.T) {
 		t.Run(testCase.Description, func(t *testing.T) {
 			ctx := context.Background()
 
-			// init database instance
+			// Init database instance
 			err = dbutils.InitOrReset(dbConfig)
 			require.NoError(t, err)
 
-			//connect to db
+			// Connect to db
 			sqlDB, err := db.NewSQLDB(dbConfig)
 			require.NoError(t, err)
 
-			// set genesis
+			// Set genesis
 			store := tree.NewPostgresStore(sqlDB)
 			mt := tree.NewMerkleTree(store, testCase.Arity, poseidon.Hash)
 			tr := tree.NewStateTree(mt, []byte{})
@@ -74,7 +74,8 @@ func TestStateTransition(t *testing.T) {
 				DefaultChainID: 1000,
 			}
 
-			st := state.NewState(stateCfg, sqlDB, tr)
+			stateDB := state.NewStateDB(sqlDB)
+			st := state.NewState(stateCfg, stateDB, tr)
 			genesis := state.Genesis{
 				Balances: make(map[common.Address]*big.Int),
 			}
@@ -85,7 +86,7 @@ func TestStateTransition(t *testing.T) {
 			err = st.SetGenesis(ctx, genesis)
 			require.NoError(t, err)
 
-			// check initial root
+			// Check initial root
 			root, err := st.GetStateRoot(ctx, true)
 			require.NoError(t, err)
 			strRoot := new(big.Int).SetBytes(root).String()
@@ -95,35 +96,35 @@ func TestStateTransition(t *testing.T) {
 			err = startNetworkContainer()
 			require.NoError(t, err)
 
-			// wait network to be ready
+			// Wait network to be ready
 			time.Sleep(15 * time.Second)
 
 			// Start prover container
 			err = startProverContainer()
 			require.NoError(t, err)
 
-			// wait prover to be ready
+			// Wait prover to be ready
 			time.Sleep(5 * time.Second)
 
-			// eth client
+			// Eth client
 			client, err := ethclient.Dial(l1NetworkURL)
 			require.NoError(t, err)
 
-			// get network chain id
+			// Get network chain id
 			chainID, err := client.NetworkID(context.Background())
 			require.NoError(t, err)
 
-			// preparing l1 acc info
+			// Preparing l1 acc info
 			privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(l1AccHexPrivateKey, "0x"))
 			require.NoError(t, err)
 			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 			require.NoError(t, err)
 
-			// getting l1 info
+			// Getting l1 info
 			gasPrice, err := client.SuggestGasPrice(context.Background())
 			require.NoError(t, err)
 
-			// send some Ether from l1Acc to sequencer acc
+			// Send some Ether from l1Acc to sequencer acc
 			fromAddress := common.HexToAddress(l1AccHexAddress)
 			nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
 			require.NoError(t, err)
@@ -135,11 +136,11 @@ func TestStateTransition(t *testing.T) {
 			err = client.SendTransaction(context.Background(), signedTx)
 			require.NoError(t, err)
 
-			// wait eth transfer to be mined
+			// Wait eth transfer to be mined
 			err = waitTxToBeMined(client, signedTx.Hash(), 5*time.Second)
 			require.NoError(t, err)
 
-			// create matic maticTokenSC sc instance
+			// Create matic maticTokenSC sc instance
 			maticTokenSC, err := NewToken(common.HexToAddress(maticTokenAddress), client)
 			require.NoError(t, err)
 
@@ -153,13 +154,13 @@ func TestStateTransition(t *testing.T) {
 			err = waitTxToBeMined(client, tx.Hash(), 5*time.Second)
 			require.NoError(t, err)
 
-			// check matic balance
+			// Check matic balance
 			require.NoError(t, err)
 			b, err := maticTokenSC.BalanceOf(&bind.CallOpts{}, toAddress)
 			require.NoError(t, err)
 			assert.Equal(t, b.Cmp(maticAmount), 0, fmt.Sprintf("expected: %v found %v", maticAmount.Text(encoding.Base10), b.Text(encoding.Base10)))
 
-			// create sequencer auth
+			// Create sequencer auth
 			privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(testCase.SequencerPrivateKey, "0x"))
 			require.NoError(t, err)
 			auth, err = bind.NewKeyedTransactorWithChainID(privateKey, chainID)
@@ -171,7 +172,7 @@ func TestStateTransition(t *testing.T) {
 			err = waitTxToBeMined(client, tx.Hash(), 5*time.Second)
 			require.NoError(t, err)
 
-			// register the sequencer
+			// Register the sequencer
 			ethermanConfig := etherman.Config{
 				URL: l1NetworkURL,
 			}
@@ -180,7 +181,7 @@ func TestStateTransition(t *testing.T) {
 			tx, err = etherman.RegisterSequencer(l2NetworkURL)
 			require.NoError(t, err)
 
-			// wait sequencer to be registered
+			// Wait sequencer to be registered
 			err = waitTxToBeMined(client, tx.Hash(), 5*time.Second)
 			require.NoError(t, err)
 
@@ -188,14 +189,14 @@ func TestStateTransition(t *testing.T) {
 			err = startCoreContainer()
 			require.NoError(t, err)
 
-			// wait core to be ready
+			// Wait core to be ready
 			time.Sleep(10 * time.Second)
 
-			// update Sequencer ChainID to the one in the test vector
+			// Update Sequencer ChainID to the one in the test vector
 			_, err = sqlDB.Exec(ctx, "UPDATE state.sequencer SET chain_id = $1 WHERE address = $2", testCase.ChainIDSequencer, common.HexToAddress(testCase.SequencerAddress).Bytes())
 			require.NoError(t, err)
 
-			// apply transactions
+			// Apply transactions
 			l2Client, err := ethclient.Dial(l2NetworkURL)
 			require.NoError(t, err)
 
@@ -215,11 +216,11 @@ func TestStateTransition(t *testing.T) {
 				}
 			}
 
-			// wait for sequencer to select txs from pool and propose a new batch
-			// wait for the synchronizer to update state
+			// Wait for sequencer to select txs from pool and propose a new batch
+			// Wait for the synchronizer to update state
 			time.Sleep(10 * time.Second)
 
-			// check leafs
+			// Check leafs
 			batchNumber, err := st.GetLastBatchNumber(ctx)
 			require.NoError(t, err)
 			for addrStr, leaf := range testCase.ExpectedNewLeafs {
@@ -234,19 +235,19 @@ func TestStateTransition(t *testing.T) {
 				assert.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, encoding.Base10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}
 
-			// check state against the expected state
+			// Check state against the expected state
 			root, err = st.GetStateRoot(ctx, true)
 			require.NoError(t, err)
 			strRoot = new(big.Int).SetBytes(root).String()
 			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
 
-			// check consolidated state against the expected state
+			// Check consolidated state against the expected state
 			consolidatedRoot, err := st.GetStateRoot(ctx, true)
 			require.NoError(t, err)
 			strRoot = new(big.Int).SetBytes(consolidatedRoot).String()
 			assert.Equal(t, testCase.ExpectedNewRoot, strRoot)
 
-			// check that last virtual and consolidated batch are the same
+			// Check that last virtual and consolidated batch are the same
 			lastConsolidatedBatchNumber, err := st.GetLastConsolidatedBatchNumber(ctx)
 			require.NoError(t, err)
 			lastVirtualBatchNumber, err := st.GetLastBatchNumber(ctx)

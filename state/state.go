@@ -8,9 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/db/statedb"
 	"github.com/hermeznetwork/hermez-core/state/tree"
-	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // State is the interface of the Hermez state
@@ -20,12 +18,19 @@ type State interface {
 	GetStateRoot(ctx context.Context, virtual bool) ([]byte, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
 	EstimateGas(transaction *types.Transaction) uint64
+	GetNonce(address common.Address, batchNumber uint64) (uint64, error)
+	SetGenesis(ctx context.Context, genesis Genesis) error
+	GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error)
+	Storage
+}
+
+// Storage is the interface of the Hermez state methods that access database
+type Storage interface {
 	GetLastBlock(ctx context.Context) (*Block, error)
 	GetPreviousBlock(ctx context.Context, offset uint64) (*Block, error)
 	GetBlockByHash(ctx context.Context, hash common.Hash) (*Block, error)
 	GetBlockByNumber(ctx context.Context, blockNumber uint64) (*Block, error)
 	GetLastBlockNumber(ctx context.Context) (uint64, error)
-	GetNonce(address common.Address, batchNumber uint64) (uint64, error)
 	GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, error)
 	GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*Batch, error)
 	GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error)
@@ -42,11 +47,12 @@ type State interface {
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
 	AddSequencer(ctx context.Context, seq Sequencer) error
 	GetSequencer(ctx context.Context, address common.Address) (*Sequencer, error)
-	SetGenesis(ctx context.Context, genesis Genesis) error
 	AddBlock(ctx context.Context, block *Block) error
 	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
-	GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error)
+	AddBatch(ctx context.Context, batch *Batch) error
+	AddTransaction(ctx context.Context, tx *types.Transaction, batchNumber uint64, index uint) error
+	AddReceipt(ctx context.Context, receipt *types.Receipt) error
 }
 
 var (
@@ -57,13 +63,13 @@ var (
 // BasicState is a implementation of the state
 type BasicState struct {
 	cfg  Config
-	db   statedb.StateDB
 	tree tree.ReadWriter
+	Storage
 }
 
 // NewState creates a new State
-func NewState(cfg Config, db *pgxpool.Pool, tree tree.ReadWriter) State {
-	return &BasicState{cfg: cfg, db: statedb.newStateDB(db), tree: tree}
+func NewState(cfg Config, storage Storage, tree tree.ReadWriter) State {
+	return &BasicState{cfg: cfg, tree: tree, Storage: storage}
 }
 
 // NewBatchProcessor creates a new batch processor
@@ -77,7 +83,7 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 	s.tree.SetCurrentRoot(stateRoot)
 
 	// Get Sequencer's Chain ID
-	sq, err := s.db.GetSequencer(context.Background(), sequencerAddress)
+	sq, err := s.GetSequencer(context.Background(), sequencerAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sequencer %s, err: %v", sequencerAddress, err)
 	}
@@ -94,7 +100,7 @@ func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchPro
 
 // GetStateRoot returns the root of the state tree
 func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, error) {
-	batch, err := s.db.GetLastBatch(ctx, virtual)
+	batch, err := s.GetLastBatch(ctx, virtual)
 	if err != nil {
 		return nil, err
 	}
@@ -137,130 +143,6 @@ func (s *BasicState) EstimateGas(transaction *types.Transaction) uint64 {
 	return 21000 //nolint:gomnd
 }
 
-// GetLastBlock gets the latest block
-func (s *BasicState) GetLastBlock(ctx context.Context) (*Block, error) {
-	return s.db.stateDB.GetLastBlock(ctx)
-}
-
-// GetPreviousBlock gets the offset previous block respect to latest
-func (s *BasicState) GetPreviousBlock(ctx context.Context, offset uint64) (*Block, error) {
-	return s.db.stateDB.GetPreviousBlock(ctx, offset)
-}
-
-// GetBlockByHash gets the block with the required hash
-func (s *BasicState) GetBlockByHash(ctx context.Context, hash common.Hash) (*Block, error) {
-	return s.db.stateDB.GetBlockByHash(ctx, hash)
-}
-
-// GetBlockByNumber gets the block with the required number
-func (s *BasicState) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*Block, error) {
-	return s.db.stateDB.GetBlockByNumber(ctx, blockNumber)
-}
-
-// GetLastBlockNumber gets the latest block number
-func (s *BasicState) GetLastBlockNumber(ctx context.Context) (uint64, error) {
-	return s.db.stateDB.GetLastBlockNumber(ctx)
-}
-
-// GetLastBatch gets the latest batch
-func (s *BasicState) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, error) {
-	return s.db.stateDB.GetLastBatch(ctx, isVirtual)
-}
-
-// GetPreviousBatch gets the offset previous batch respect to latest
-func (s *BasicState) GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*Batch, error) {
-	return s.db.stateDB.GetPreviousBatch(ctx, isVirtual, offset)
-}
-
-// GetBatchByHash gets the batch with the required hash
-func (s *BasicState) GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error) {
-	return s.db.stateDB.GetBatchByHash(ctx, hash)
-}
-
-// GetBatchByNumber gets the batch with the required number
-func (s *BasicState) GetBatchByNumber(ctx context.Context, batchNumber uint64) (*Batch, error) {
-	return s.db.stateDB.getBatchByNumber(ctx, batchNumber)
-}
-
-// GetLastBatchNumber gets the latest batch number
-func (s *BasicState) GetLastBatchNumber(ctx context.Context) (uint64, error) {
-	return s.db.stateDB.GetLastBatchNumber(ctx)
-}
-
-// GetLastConsolidatedBatchNumber gets the latest consolidated batch number
-func (s *BasicState) GetLastConsolidatedBatchNumber(ctx context.Context) (uint64, error) {
-	return s.db.stateDB.GetLastConsolidatedBatchNumber(ctx)
-}
-
-// GetTransactionByBatchHashAndIndex gets a transaction from a batch by index
-func (s *BasicState) GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64) (*types.Transaction, error) {
-	return s.db.stateDB.GetTransactionByBatchHashAndIndex(ctx, batchHash, index)
-}
-
-// GetTransactionByBatchNumberAndIndex gets a transaction from a batch by index
-func (s *BasicState) GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error) {
-	return s.db.stateDB.GetTransactionByBatchNumberAndIndex(ctx, batchNumber, index)
-}
-
-// GetTransactionByHash gets a transaction by its hash
-func (s *BasicState) GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error) {
-	return s.db.stateDB.GetTransactionByHash(ctx, transactionHash)
-}
-
-// GetTransactionCount returns the number of transactions sent from an address
-func (s *BasicState) GetTransactionCount(ctx context.Context, fromAddress common.Address) (uint64, error) {
-	return s.db.stateDB.GetTransactionCount(ctx, fromAddress)
-}
-
-// GetTransactionReceipt returns the receipt of a transaction by transaction hash
-func (s *BasicState) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*types.Receipt, error) {
-	return s.db.stateDB.GetTransactionReceipt(ctx, transactionHash)
-}
-
-// Reset resets the state to a block
-func (s *BasicState) Reset(ctx context.Context, blockNumber uint64) error {
-	return s.db.stateDB.Reset(ctx, blockNumber)
-}
-
-// ConsolidateBatch changes the virtual status of a batch
-func (s *BasicState) ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error {
-	return s.db.stateDB.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash)
-}
-
-// GetTxsByBatchNum returns all the txs in a given batch
-func (s *BasicState) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error) {
-	return s.db.stateDB.GetTxsByBatchNum(ctx, batchNum)
-}
-
-// AddSequencer stores a new sequencer
-func (s *BasicState) AddSequencer(ctx context.Context, seq Sequencer) error {
-	return s.db.stateDB.AddSequencer(ctx, seq)
-}
-
-// GetSequencer gets a sequencer
-func (s *BasicState) GetSequencer(ctx context.Context, address common.Address) (*Sequencer, error) {
-	return s.db.stateDB.GetSequencer(ctx, address)
-}
-
-// AddBlock adds a new block to the State Store
-func (s *BasicState) AddBlock(ctx context.Context, block *Block) error {
-	return s.db.stateDB.AddBlock(ctx, block)
-}
-
-// SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
-// the roll-up in order to allow the components to know if the state
-// is synchronized or not
-func (s *BasicState) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error {
-	return s.db.stateDB.SetLastBatchNumberSeenOnEthereum(ctx, batchNumber)
-}
-
-// GetLastBatchNumberSeenOnEthereum returns the last batch number stored
-// in the state that represents the last batch number that affected the
-// roll-up in the Ethereum network.
-func (s *BasicState) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
-	return s.db.stateDB.GetLastBatchNumberSeenOnEthereum(ctx)
-}
-
 // SetGenesis populates state with genesis information
 func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 	// Generate Genesis Block
@@ -271,7 +153,7 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 	}
 
 	// Add Block
-	err := s.db.AddBlock(ctx, block)
+	err := s.AddBlock(ctx, block)
 	if err != nil {
 		return err
 	}

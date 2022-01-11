@@ -120,7 +120,9 @@ func start(ctx *cli.Context) error {
 		DefaultChainID: c.NetworkConfig.L2DefaultChainID,
 	}
 
-	st := state.NewState(stateCfg, sqlDB, tr)
+	stateDb := state.NewStateDB(sqlDB)
+
+	st := state.NewState(stateCfg, stateDb, tr)
 
 	pool, err := pool.NewPostgresPool(c.Database)
 	if err != nil {
@@ -307,7 +309,9 @@ func registerSequencer(ctx *cli.Context) error {
 		DefaultChainID: c.NetworkConfig.L2DefaultChainID,
 	}
 
-	st := state.NewState(stateCfg, sqlDB, tr)
+	stateDb := state.NewStateDB(sqlDB)
+	st := state.NewState(stateCfg, stateDb, tr)
+
 	_, err = st.GetSequencer(ctx.Context, etherman.GetAddress())
 	if err == pgx.ErrNoRows { //If It doesn't exist, register the sequencer
 		tx, err := etherman.RegisterSequencer(url)
