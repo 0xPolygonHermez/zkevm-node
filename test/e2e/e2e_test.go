@@ -241,7 +241,7 @@ func TestStateTransition(t *testing.T) {
 			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
 
 			// check consolidated state against the expected state
-			consolidatedRoot, err := st.GetStateRoot(ctx, true)
+			consolidatedRoot, err := st.GetStateRoot(ctx, false)
 			require.NoError(t, err)
 			strRoot = new(big.Int).SetBytes(consolidatedRoot).String()
 			assert.Equal(t, testCase.ExpectedNewRoot, strRoot)
