@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	sqldb, err := db.NewSQLDB(cfg)
+	stateDb, err = db.NewSQLDB(cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -69,8 +69,7 @@ func TestMain(m *testing.M) {
 
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
-	stdb := NewStateDB(sqldb)
-	state = NewState(stateCfg, stdb, tree.NewStateTree(mt, nil))
+	state = NewState(stateCfg, NewStateDB(stateDb), tree.NewStateTree(mt, nil))
 
 	setUpBlocks()
 	setUpBatches()
@@ -438,7 +437,7 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create State db
-			sqldb, err := db.NewSQLDB(cfg)
+			stateDb, err = db.NewSQLDB(cfg)
 			require.NoError(t, err)
 
 			// Create State tree
@@ -446,10 +445,8 @@ func TestStateTransition(t *testing.T) {
 			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			stateTree := tree.NewStateTree(mt, nil)
 
-			stdb := NewStateDB(sqldb)
-
 			// Create state
-			st := NewState(stateCfg, stdb, stateTree)
+			st := NewState(stateCfg, NewStateDB(stateDb), stateTree)
 
 			genesis := Genesis{
 				Balances: make(map[common.Address]*big.Int),
@@ -586,8 +583,7 @@ func TestLastSeenBatch(t *testing.T) {
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 
 	// Create state
-	stdb := NewStateDB(mtDb)
-	st := NewState(stateCfg, stdb, tree.NewStateTree(mt, nil))
+	st := NewState(stateCfg, NewStateDB(stateDb), tree.NewStateTree(mt, nil))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
