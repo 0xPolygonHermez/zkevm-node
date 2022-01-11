@@ -50,7 +50,7 @@ func TestDecodeOneTxData(t *testing.T) {
 }
 
 //This function prepare the blockchain, the wallet with funds and deploy the smc
-func newTestingEnv() (ethman *ClientEtherMan, commit func()) {
+func newTestingEnv() (ethman *ClientEtherMan, commit func(), maticAddr common.Address) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
@@ -59,17 +59,17 @@ func newTestingEnv() (ethman *ClientEtherMan, commit func()) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ethman, commit, err = NewSimulatedEtherman(Config{}, auth)
+	ethman, commit, maticAddr, err = NewSimulatedEtherman(Config{}, auth)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return ethman, commit
+	return ethman, commit, maticAddr
 }
 
 func TestSCEvents(t *testing.T) {
 	// Set up testing environment
-	etherman, commit := newTestingEnv()
+	etherman, commit, _ := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
@@ -177,7 +177,7 @@ func TestSCEvents(t *testing.T) {
 
 func TestRegisterSequencerAndEvent(t *testing.T) {
 	// Set up testing environment
-	etherman, commit := newTestingEnv()
+	etherman, commit, _ := newTestingEnv()
 	ctx := context.Background()
 
 	// Read currentBlock
@@ -214,7 +214,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	require.NoError(t, err)
 
 	// Set up testing environment
-	etherman, commit := newTestingEnv()
+	etherman, commit, _ := newTestingEnv()
 	ctx := context.Background()
 	matic := new(big.Int)
 	matic, ok := matic.SetString(callDataTestCases[1].MaticAmount, 10)
@@ -275,7 +275,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 
 func TestDefaultChainID(t *testing.T) {
 	// Set up testing environment
-	etherman, _ := newTestingEnv()
+	etherman, _, _ := newTestingEnv()
 
 	// Get chainID
 	defaultChainID, err := etherman.GetDefaultChainID()
@@ -298,7 +298,7 @@ func TestOrderReadEvent(t *testing.T) {
 	log.Debug("Testing sync order...")
 
 	// Set up testing environment
-	etherman, commit := newTestingEnv()
+	etherman, commit, _ := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
@@ -307,11 +307,11 @@ func TestOrderReadEvent(t *testing.T) {
 
 	callDataTestCases := readTests()
 
-	// Send propose batch l1 tx
+	// Register sequencer
 	_, err = etherman.RegisterSequencer("http://localhost")
 	require.NoError(t, err)
 
-	// Send propose batch l1 tx
+	// Register sequencer
 	_, err = etherman.RegisterSequencer("http://localhost0")
 	require.NoError(t, err)
 
@@ -329,7 +329,7 @@ func TestOrderReadEvent(t *testing.T) {
 	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
 	require.NoError(t, err)
 
-	// Send propose batch l1 tx
+	// Register sequencer
 	_, err = etherman.RegisterSequencer("http://localhost1")
 	require.NoError(t, err)
 
@@ -346,7 +346,7 @@ func TestOrderReadEvent(t *testing.T) {
 	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
 	require.NoError(t, err)
 
-	// Send propose batch l1 tx
+	// Register sequencer
 	_, err = etherman.RegisterSequencer("http://localhost2")
 	require.NoError(t, err)
 
@@ -361,4 +361,27 @@ func TestOrderReadEvent(t *testing.T) {
 	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][3].Name)
 	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][4].Name)
 	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][5].Name)
+}
+
+func TestDepositEvent(t *testing.T) {
+	// Set up testing environment
+	etherman, commit, maticAddr := newTestingEnv()
+
+	// Read currentBlock
+	ctx := context.Background()
+	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+
+	// Deposit funds
+	amount := big.NewInt(9000000000000000000)
+	var destNetwork uint32 = 1 // 0 is reserved to mainnet. This variable is set in the smc
+	_, err = etherman.Bridge.Bridge(etherman.auth, maticAddr, amount, destNetwork, common.HexToAddress("0x61A1d716a74fb45d29f148C6C20A2eccabaFD753"))
+	require.NoError(t, err)
+
+	// Mine the tx in a block
+	commit()
+
+	block, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
+	require.NoError(t, err)
+	log.Debug(block, order)
 }

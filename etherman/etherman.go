@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/bridge"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -24,13 +25,13 @@ import (
 )
 
 var (
-	newBatchEventSignatureHash        = crypto.Keccak256Hash([]byte("SendBatch(uint32,address)"))
-	consolidateBatchSignatureHash     = crypto.Keccak256Hash([]byte("VerifyBatch(uint32,address)"))
-	newSequencerSignatureHash         = crypto.Keccak256Hash([]byte("RegisterSequencer(address,string,uint32)"))
-	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
-)
+	newBatchEventSignatureHash             = crypto.Keccak256Hash([]byte("SendBatch(uint32,address)"))
+	consolidateBatchSignatureHash          = crypto.Keccak256Hash([]byte("VerifyBatch(uint32,address)"))
+	newSequencerSignatureHash              = crypto.Keccak256Hash([]byte("RegisterSequencer(address,string,uint32)"))
+	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+	depositEventSignatureHash              = crypto.Keccak256Hash([]byte("DepositEvent(address,uint256,uint32,address,uint32)"))
+    updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
 
-var (
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
 )
@@ -70,13 +71,15 @@ type ethClienter interface {
 type ClientEtherMan struct {
 	EtherClient ethClienter
 	PoE         *proofofefficiency.Proofofefficiency
+	Bridge      *bridge.Bridge
 	SCAddresses []common.Address
 
 	auth *bind.TransactOpts
 }
 
 // NewEtherman creates a new etherman
-func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address) (*ClientEtherMan, error) {
+func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address) (*ClientEtherMan, error) {
+	// TODO: PoEAddr can be got from bridge smc. Son only bridge smc is required
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -88,10 +91,11 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address) (*
 	if err != nil {
 		return nil, err
 	}
+	bridge, err := bridge.NewBridge(bridgeAddr, ethClient)
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, PoEAddr)
+	scAddresses = append(scAddresses, PoEAddr, bridgeAddr)
 
-	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, auth: auth}, nil
+	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, Bridge: bridge, SCAddresses: scAddresses, auth: auth}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
@@ -373,8 +377,16 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 	case ownershipTransferredSignatureHash:
 		log.Debug("Unhandled event: OwnershipTransferred: ", vLog)
 		return nil, nil
+	case depositEventSignatureHash:
+		log.Warn("New Deposit")
+		// TODO
+		return nil, nil
+	case updateGlobalExitRootEventSignatureHash:
+		log.Warn("updateGlobalExitRoot")
+		// TODO
+		return nil, nil
 	}
-	log.Debug("Event not registered")
+	log.Debug("Event not registered: ", vLog)
 	return nil, nil
 }
 
