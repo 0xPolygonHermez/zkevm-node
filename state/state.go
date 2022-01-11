@@ -8,11 +8,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/db/statedb"
 	"github.com/hermeznetwork/hermez-core/state/tree"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -52,40 +49,6 @@ type State interface {
 	GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error)
 }
 
-const (
-	getLastBlockSQL                        = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1"
-	getPreviousBlockSQL                    = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
-	getBlockByHashSQL                      = "SELECT * FROM state.block WHERE block_hash = $1"
-	getBlockByNumberSQL                    = "SELECT * FROM state.block WHERE block_num = $1"
-	getLastBlockNumberSQL                  = "SELECT MAX(block_num) FROM state.block"
-	getLastVirtualBatchSQL                 = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1"
-	getLastConsolidatedBatchSQL            = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
-	getPreviousVirtualBatchSQL             = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
-	getPreviousConsolidatedBatchSQL        = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
-	getBatchByHashSQL                      = "SELECT * FROM state.batch WHERE batch_hash = $1"
-	getBatchByNumberSQL                    = "SELECT * FROM state.batch WHERE batch_num = $1"
-	getLastVirtualBatchNumberSQL           = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch"
-	getLastConsolidatedBatchNumberSQL      = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch WHERE consolidated_tx_hash != $1"
-	getTransactionByHashSQL                = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
-	getTransactionByBatchHashAndIndexSQL   = "SELECT transaction.encoded FROM state.transaction inner join state.batch on (state.transaction.batch_num = state.batch.batch_num) WHERE state.batch.batch_hash = $1 and state.transaction.tx_index = $2"
-	getTransactionByBatchNumberAndIndexSQL = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1 AND tx_index = $2"
-	getTransactionCountSQL                 = "SELECT COUNT(*) FROM state.transaction WHERE from_address = $1"
-	consolidateBatchSQL                    = "UPDATE state.batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"
-	getTxsByBatchNumSQL                    = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
-	addBlockSQL                            = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
-	addSequencerSQL                        = `INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4) 
-											  ON CONFLICT (chain_id) DO UPDATE SET address = EXCLUDED.address, url = EXCLUDED.url, block_num = EXCLUDED.block_num`
-	updateLastBatchSeenSQL = "UPDATE state.misc SET last_batch_num_seen = $1"
-	getLastBatchSeenSQL    = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
-	getSequencerSQL        = "SELECT * FROM state.sequencer WHERE address = $1"
-	getReceiptSQL          = "SELECT * FROM state.receipt WHERE tx_hash = $1"
-	resetSQL               = "DELETE FROM state.block WHERE block_num > $1"
-)
-
-var (
-	ten = big.NewInt(encoding.Base10)
-)
-
 var (
 	// ErrInvalidBatchHeader indicates the batch header is invalid
 	ErrInvalidBatchHeader = errors.New("invalid batch header")
@@ -94,13 +57,13 @@ var (
 // BasicState is a implementation of the state
 type BasicState struct {
 	cfg  Config
-	db   *pgxpool.Pool
-	Tree tree.ReadWriter
+	db   statedb.StateDB
+	tree tree.ReadWriter
 }
 
 // NewState creates a new State
 func NewState(cfg Config, db *pgxpool.Pool, tree tree.ReadWriter) State {
-	return &BasicState{cfg: cfg, db: db, Tree: tree}
+	return &BasicState{cfg: cfg, db: statedb.newStateDB(db), tree: tree}
 }
 
 // NewBatchProcessor creates a new batch processor
@@ -111,10 +74,10 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		return nil, fmt.Errorf("failed to get state root for batch number %d, err: %v", lastBatchNumber, err)
 	}
 
-	s.Tree.SetCurrentRoot(stateRoot)
+	s.tree.SetCurrentRoot(stateRoot)
 
 	// Get Sequencer's Chain ID
-	sq, err := s.GetSequencer(context.Background(), sequencerAddress)
+	sq, err := s.db.GetSequencer(context.Background(), sequencerAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sequencer %s, err: %v", sequencerAddress, err)
 	}
@@ -124,14 +87,14 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 
 // NewGenesisBatchProcessor creates a new batch processor
 func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchProcessor, error) {
-	s.Tree.SetCurrentRoot(genesisStateRoot)
+	s.tree.SetCurrentRoot(genesisStateRoot)
 
 	return &BasicBatchProcessor{State: s, stateRoot: genesisStateRoot}, nil
 }
 
 // GetStateRoot returns the root of the state tree
 func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, error) {
-	batch, err := s.GetLastBatch(ctx, virtual)
+	batch, err := s.db.GetLastBatch(ctx, virtual)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +128,7 @@ func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*bi
 		return nil, err
 	}
 
-	return s.Tree.GetBalance(address, root)
+	return s.tree.GetBalance(address, root)
 }
 
 // EstimateGas for a transaction
@@ -176,322 +139,126 @@ func (s *BasicState) EstimateGas(transaction *types.Transaction) uint64 {
 
 // GetLastBlock gets the latest block
 func (s *BasicState) GetLastBlock(ctx context.Context) (*Block, error) {
-	var block Block
-	err := s.db.QueryRow(ctx, getLastBlockSQL).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &block, nil
+	return s.db.stateDB.GetLastBlock(ctx)
 }
 
 // GetPreviousBlock gets the offset previous block respect to latest
 func (s *BasicState) GetPreviousBlock(ctx context.Context, offset uint64) (*Block, error) {
-	var block Block
-	err := s.db.QueryRow(ctx, getPreviousBlockSQL, offset).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &block, nil
+	return s.db.stateDB.GetPreviousBlock(ctx, offset)
 }
 
 // GetBlockByHash gets the block with the required hash
 func (s *BasicState) GetBlockByHash(ctx context.Context, hash common.Hash) (*Block, error) {
-	var block Block
-	err := s.db.QueryRow(ctx, getBlockByHashSQL, hash).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &block, nil
+	return s.db.stateDB.GetBlockByHash(ctx, hash)
 }
 
 // GetBlockByNumber gets the block with the required number
 func (s *BasicState) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*Block, error) {
-	var block Block
-	err := s.db.QueryRow(ctx, getBlockByNumberSQL, blockNumber).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &block, nil
+	return s.db.stateDB.GetBlockByNumber(ctx, blockNumber)
 }
 
 // GetLastBlockNumber gets the latest block number
 func (s *BasicState) GetLastBlockNumber(ctx context.Context) (uint64, error) {
-	var lastBlockNum uint64
-	err := s.db.QueryRow(ctx, getLastBlockNumberSQL).Scan(&lastBlockNum)
-	if err != nil {
-		return 0, err
-	}
-	return lastBlockNum, nil
+	return s.db.stateDB.GetLastBlockNumber(ctx)
 }
 
 // GetLastBatch gets the latest batch
 func (s *BasicState) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, error) {
-	var row pgx.Row
-
-	if isVirtual {
-		row = s.db.QueryRow(ctx, getLastVirtualBatchSQL)
-	} else {
-		row = s.db.QueryRow(ctx, getLastConsolidatedBatchSQL, common.Hash{})
-	}
-
-	var (
-		batch           Batch
-		maticCollateral pgtype.Numeric
-	)
-	err := row.Scan(
-		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
-		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
-		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral)
-
-	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
-	if err != nil {
-		return nil, err
-	}
-	return &batch, nil
+	return s.db.stateDB.GetLastBatch(ctx, isVirtual)
 }
 
 // GetPreviousBatch gets the offset previous batch respect to latest
 func (s *BasicState) GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*Batch, error) {
-	var row pgx.Row
-	if isVirtual {
-		row = s.db.QueryRow(ctx, getPreviousVirtualBatchSQL, offset)
-	} else {
-		row = s.db.QueryRow(ctx, getPreviousConsolidatedBatchSQL, common.Hash{}, offset)
-	}
-	var (
-		batch           Batch
-		maticCollateral pgtype.Numeric
-	)
-	err := row.Scan(
-		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
-		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
-		&batch.Uncles, &batch.RawTxsData, &maticCollateral)
-	if err != nil {
-		return nil, err
-	}
-	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
-	return &batch, nil
+	return s.db.stateDB.GetPreviousBatch(ctx, isVirtual, offset)
 }
 
 // GetBatchByHash gets the batch with the required hash
 func (s *BasicState) GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error) {
-	var (
-		batch           Batch
-		maticCollateral pgtype.Numeric
-	)
-	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(
-		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
-		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral)
-
-	if err != nil {
-		return nil, err
-	}
-	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
-	return &batch, nil
+	return s.db.stateDB.GetBatchByHash(ctx, hash)
 }
 
 // GetBatchByNumber gets the batch with the required number
 func (s *BasicState) GetBatchByNumber(ctx context.Context, batchNumber uint64) (*Batch, error) {
-	var (
-		batch           Batch
-		maticCollateral pgtype.Numeric
-	)
-	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
-		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
-		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral)
-	if err != nil {
-		return nil, err
-	}
-	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
-	return &batch, nil
+	return s.db.stateDB.getBatchByNumber(ctx, batchNumber)
 }
 
 // GetLastBatchNumber gets the latest batch number
 func (s *BasicState) GetLastBatchNumber(ctx context.Context) (uint64, error) {
-	var lastBatchNumber uint64
-	err := s.db.QueryRow(ctx, getLastVirtualBatchNumberSQL).Scan(&lastBatchNumber)
-	if err != nil {
-		return 0, err
-	}
-	return lastBatchNumber, nil
+	return s.db.stateDB.GetLastBatchNumber(ctx)
 }
 
 // GetLastConsolidatedBatchNumber gets the latest consolidated batch number
 func (s *BasicState) GetLastConsolidatedBatchNumber(ctx context.Context) (uint64, error) {
-	var lastBatchNumber uint64
-	err := s.db.QueryRow(ctx, getLastConsolidatedBatchNumberSQL, common.Hash{}).Scan(&lastBatchNumber)
-	if err != nil {
-		return 0, err
-	}
-	return lastBatchNumber, nil
-}
-
-// GetNonce returns the nonce of the given account at the given batch number
-func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint64, error) {
-	root, err := s.GetStateRootByBatchNumber(batchNumber)
-	if err != nil {
-		return 0, err
-	}
-
-	n, err := s.Tree.GetNonce(address, root)
-	if err != nil {
-		return 0, err
-	}
-
-	return n.Uint64(), nil
+	return s.db.stateDB.GetLastConsolidatedBatchNumber(ctx)
 }
 
 // GetTransactionByBatchHashAndIndex gets a transaction from a batch by index
 func (s *BasicState) GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64) (*types.Transaction, error) {
-	var encoded string
-	if err := s.db.QueryRow(ctx, getTransactionByBatchHashAndIndexSQL, batchHash.Bytes(), index).Scan(&encoded); err != nil {
-		return nil, err
-	}
-
-	b, err := hex.DecodeHex(encoded)
-	if err != nil {
-		return nil, err
-	}
-
-	tx := new(types.Transaction)
-	if err := tx.UnmarshalBinary(b); err != nil {
-		return nil, err
-	}
-
-	return tx, nil
+	return s.db.stateDB.GetTransactionByBatchHashAndIndex(ctx, batchHash, index)
 }
 
 // GetTransactionByBatchNumberAndIndex gets a transaction from a batch by index
 func (s *BasicState) GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error) {
-	var encoded string
-	if err := s.db.QueryRow(ctx, getTransactionByBatchNumberAndIndexSQL, batchNumber, index).Scan(&encoded); err != nil {
-		return nil, err
-	}
-
-	b, err := hex.DecodeHex(encoded)
-	if err != nil {
-		return nil, err
-	}
-
-	tx := new(types.Transaction)
-	if err := tx.UnmarshalBinary(b); err != nil {
-		return nil, err
-	}
-
-	return tx, nil
+	return s.db.stateDB.GetTransactionByBatchNumberAndIndex(ctx, batchNumber, index)
 }
 
 // GetTransactionByHash gets a transaction by its hash
 func (s *BasicState) GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error) {
-	var encoded string
-	if err := s.db.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&encoded); err != nil {
-		return nil, err
-	}
-
-	b, err := hex.DecodeHex(encoded)
-	if err != nil {
-		return nil, err
-	}
-
-	tx := new(types.Transaction)
-	if err := tx.UnmarshalBinary(b); err != nil {
-		return nil, err
-	}
-
-	return tx, nil
+	return s.db.stateDB.GetTransactionByHash(ctx, transactionHash)
 }
 
 // GetTransactionCount returns the number of transactions sent from an address
 func (s *BasicState) GetTransactionCount(ctx context.Context, fromAddress common.Address) (uint64, error) {
-	var count uint64
-	err := s.db.QueryRow(ctx, getTransactionCountSQL, fromAddress).Scan(&count)
-	if err != nil {
-		return 0, err
-	}
-	return count, nil
+	return s.db.stateDB.GetTransactionCount(ctx, fromAddress)
 }
 
 // GetTransactionReceipt returns the receipt of a transaction by transaction hash
 func (s *BasicState) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*types.Receipt, error) {
-	var receipt types.Receipt
-	var blockNumber uint64
-	err := s.db.QueryRow(ctx, getReceiptSQL, transactionHash).Scan(&receipt.Type, &receipt.PostState, &receipt.Status,
-		&receipt.CumulativeGasUsed, &receipt.GasUsed, &blockNumber, &receipt.TxHash, &receipt.TransactionIndex)
-	if err != nil {
-		return nil, err
-	}
-
-	receipt.BlockNumber = new(big.Int).SetUint64(blockNumber)
-	return &receipt, nil
+	return s.db.stateDB.GetTransactionReceipt(ctx, transactionHash)
 }
 
 // Reset resets the state to a block
 func (s *BasicState) Reset(ctx context.Context, blockNumber uint64) error {
-	if _, err := s.db.Exec(ctx, resetSQL, blockNumber); err != nil {
-		return err
-	}
-	return nil
+	return s.db.stateDB.Reset(ctx, blockNumber)
 }
 
 // ConsolidateBatch changes the virtual status of a batch
 func (s *BasicState) ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error {
-	if _, err := s.db.Exec(ctx, consolidateBatchSQL, consolidatedTxHash, batchNumber); err != nil {
-		return err
-	}
-	return nil
+	return s.db.stateDB.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash)
 }
 
 // GetTxsByBatchNum returns all the txs in a given batch
 func (s *BasicState) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error) {
-	rows, err := s.db.Query(ctx, getTxsByBatchNumSQL, batchNum)
-	if err != nil {
-		return nil, err
-	}
-	txs := make([]*types.Transaction, 0, len(rows.RawValues()))
-	var (
-		encoded string
-		tx      *types.Transaction
-		b       []byte
-	)
-	for rows.Next() {
-		if err = rows.Scan(&encoded); err != nil {
-			return nil, err
-		}
-
-		tx = new(types.Transaction)
-
-		b, err = hex.DecodeHex(encoded)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := tx.UnmarshalBinary(b); err != nil {
-			return nil, err
-		}
-		txs = append(txs, tx)
-	}
-
-	return txs, nil
+	return s.db.stateDB.GetTxsByBatchNum(ctx, batchNum)
 }
 
 // AddSequencer stores a new sequencer
 func (s *BasicState) AddSequencer(ctx context.Context, seq Sequencer) error {
-	_, err := s.db.Exec(ctx, addSequencerSQL, seq.Address, seq.URL, seq.ChainID.Uint64(), seq.BlockNumber)
-	return err
+	return s.db.stateDB.AddSequencer(ctx, seq)
 }
 
 // GetSequencer gets a sequencer
 func (s *BasicState) GetSequencer(ctx context.Context, address common.Address) (*Sequencer, error) {
-	var seq Sequencer
-	var cID uint64
-	err := s.db.QueryRow(ctx, getSequencerSQL, address.Bytes()).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
-	if err != nil {
-		return nil, err
-	}
+	return s.db.stateDB.GetSequencer(ctx, address)
+}
 
-	seq.ChainID = big.NewInt(0).SetUint64(cID)
+// AddBlock adds a new block to the State Store
+func (s *BasicState) AddBlock(ctx context.Context, block *Block) error {
+	return s.db.stateDB.AddBlock(ctx, block)
+}
 
-	return &seq, nil
+// SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
+// the roll-up in order to allow the components to know if the state
+// is synchronized or not
+func (s *BasicState) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error {
+	return s.db.stateDB.SetLastBatchNumberSeenOnEthereum(ctx, batchNumber)
+}
+
+// GetLastBatchNumberSeenOnEthereum returns the last batch number stored
+// in the state that represents the last batch number that affected the
+// roll-up in the Ethereum network.
+func (s *BasicState) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
+	return s.db.stateDB.GetLastBatchNumberSeenOnEthereum(ctx)
 }
 
 // SetGenesis populates state with genesis information
@@ -504,19 +271,19 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 	}
 
 	// Add Block
-	err := s.AddBlock(ctx, block)
+	err := s.db.AddBlock(ctx, block)
 	if err != nil {
 		return err
 	}
 
 	// reset tree current root
-	s.Tree.SetCurrentRoot(nil)
+	s.tree.SetCurrentRoot(nil)
 
 	var root common.Hash
 
 	// Genesis Balances
 	for address, balance := range genesis.Balances {
-		newRoot, _, err := s.Tree.SetBalance(address, balance)
+		newRoot, _, err := s.tree.SetBalance(address, balance)
 		if err != nil {
 			return err
 		}
@@ -544,29 +311,17 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 	return nil
 }
 
-// AddBlock adds a new block to the State Store
-func (s *BasicState) AddBlock(ctx context.Context, block *Block) error {
-	_, err := s.db.Exec(ctx, addBlockSQL, block.BlockNumber, block.BlockHash.Bytes(), block.ParentHash.Bytes(), block.ReceivedAt)
-	return err
-}
-
-// SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
-// the roll-up in order to allow the components to know if the state
-// is synchronized or not
-func (s *BasicState) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error {
-	_, err := s.db.Exec(ctx, updateLastBatchSeenSQL, batchNumber)
-	return err
-}
-
-// GetLastBatchNumberSeenOnEthereum returns the last batch number stored
-// in the state that represents the last batch number that affected the
-// roll-up in the Ethereum network.
-func (s *BasicState) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
-	var batchNumber uint64
-	err := s.db.QueryRow(ctx, getLastBatchSeenSQL).Scan(&batchNumber)
+// GetNonce returns the nonce of the given account at the given batch number
+func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint64, error) {
+	root, err := s.GetStateRootByBatchNumber(batchNumber)
 	if err != nil {
 		return 0, err
 	}
 
-	return batchNumber, nil
+	n, err := s.tree.GetNonce(address, root)
+	if err != nil {
+		return 0, err
+	}
+
+	return n.Uint64(), nil
 }
