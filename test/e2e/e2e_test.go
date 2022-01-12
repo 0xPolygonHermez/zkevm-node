@@ -23,6 +23,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
@@ -74,7 +75,7 @@ func TestStateTransition(t *testing.T) {
 				DefaultChainID: 1000,
 			}
 
-			stateDB := state.NewPostgresStorage(sqlDB)
+			stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
 			st := state.NewState(stateCfg, stateDB, tr)
 			genesis := state.Genesis{
 				Balances: make(map[common.Address]*big.Int),

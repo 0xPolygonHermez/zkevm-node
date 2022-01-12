@@ -1,4 +1,4 @@
-package state
+package pgstatestorage
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -59,8 +60,8 @@ func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 }
 
 // GetLastBlock gets the latest block
-func (s *PostgresStorage) GetLastBlock(ctx context.Context) (*Block, error) {
-	var block Block
+func (s *PostgresStorage) GetLastBlock(ctx context.Context) (*state.Block, error) {
+	var block state.Block
 	err := s.db.QueryRow(ctx, getLastBlockSQL).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 	if err != nil {
 		return nil, err
@@ -69,8 +70,8 @@ func (s *PostgresStorage) GetLastBlock(ctx context.Context) (*Block, error) {
 }
 
 // GetPreviousBlock gets the offset previous block respect to latest
-func (s *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64) (*Block, error) {
-	var block Block
+func (s *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64) (*state.Block, error) {
+	var block state.Block
 	err := s.db.QueryRow(ctx, getPreviousBlockSQL, offset).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 	if err != nil {
 		return nil, err
@@ -79,8 +80,8 @@ func (s *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64) (
 }
 
 // GetBlockByHash gets the block with the required hash
-func (s *PostgresStorage) GetBlockByHash(ctx context.Context, hash common.Hash) (*Block, error) {
-	var block Block
+func (s *PostgresStorage) GetBlockByHash(ctx context.Context, hash common.Hash) (*state.Block, error) {
+	var block state.Block
 	err := s.db.QueryRow(ctx, getBlockByHashSQL, hash).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 	if err != nil {
 		return nil, err
@@ -89,8 +90,8 @@ func (s *PostgresStorage) GetBlockByHash(ctx context.Context, hash common.Hash) 
 }
 
 // GetBlockByNumber gets the block with the required number
-func (s *PostgresStorage) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*Block, error) {
-	var block Block
+func (s *PostgresStorage) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*state.Block, error) {
+	var block state.Block
 	err := s.db.QueryRow(ctx, getBlockByNumberSQL, blockNumber).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 	if err != nil {
 		return nil, err
@@ -109,9 +110,9 @@ func (s *PostgresStorage) GetLastBlockNumber(ctx context.Context) (uint64, error
 }
 
 // GetLastBatch gets the latest batch
-func (s *PostgresStorage) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, error) {
+func (s *PostgresStorage) GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error) {
 	var (
-		batch           Batch
+		batch           state.Batch
 		maticCollateral pgtype.Numeric
 	)
 	var err error
@@ -136,9 +137,9 @@ func (s *PostgresStorage) GetLastBatch(ctx context.Context, isVirtual bool) (*Ba
 }
 
 // GetPreviousBatch gets the offset previous batch respect to latest
-func (s *PostgresStorage) GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*Batch, error) {
+func (s *PostgresStorage) GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*state.Batch, error) {
 	var (
-		batch           Batch
+		batch           state.Batch
 		maticCollateral pgtype.Numeric
 	)
 	var err error
@@ -164,9 +165,9 @@ func (s *PostgresStorage) GetPreviousBatch(ctx context.Context, isVirtual bool, 
 }
 
 // GetBatchByHash gets the batch with the required hash
-func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error) {
+func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash) (*state.Batch, error) {
 	var (
-		batch           Batch
+		batch           state.Batch
 		maticCollateral pgtype.Numeric
 	)
 	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(
@@ -181,9 +182,9 @@ func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash) 
 }
 
 // GetBatchByNumber gets the batch with the required number
-func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64) (*Batch, error) {
+func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64) (*state.Batch, error) {
 	var (
-		batch           Batch
+		batch           state.Batch
 		maticCollateral pgtype.Numeric
 	)
 	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
@@ -350,14 +351,14 @@ func (s *PostgresStorage) GetTxsByBatchNum(ctx context.Context, batchNum uint64)
 }
 
 // AddSequencer stores a new sequencer
-func (s *PostgresStorage) AddSequencer(ctx context.Context, seq Sequencer) error {
+func (s *PostgresStorage) AddSequencer(ctx context.Context, seq state.Sequencer) error {
 	_, err := s.db.Exec(ctx, addSequencerSQL, seq.Address, seq.URL, seq.ChainID.Uint64(), seq.BlockNumber)
 	return err
 }
 
 // GetSequencer gets a sequencer
-func (s *PostgresStorage) GetSequencer(ctx context.Context, address common.Address) (*Sequencer, error) {
-	var seq Sequencer
+func (s *PostgresStorage) GetSequencer(ctx context.Context, address common.Address) (*state.Sequencer, error) {
+	var seq state.Sequencer
 	var cID uint64
 	err := s.db.QueryRow(ctx, getSequencerSQL, address.Bytes()).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
 	if err != nil {
@@ -370,7 +371,7 @@ func (s *PostgresStorage) GetSequencer(ctx context.Context, address common.Addre
 }
 
 // AddBlock adds a new block to the State Store
-func (s *PostgresStorage) AddBlock(ctx context.Context, block *Block) error {
+func (s *PostgresStorage) AddBlock(ctx context.Context, block *state.Block) error {
 	_, err := s.db.Exec(ctx, addBlockSQL, block.BlockNumber, block.BlockHash.Bytes(), block.ParentHash.Bytes(), block.ReceivedAt)
 	return err
 }
@@ -397,7 +398,7 @@ func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context) 
 }
 
 // AddBatch adds a new batch to the State Store
-func (s *PostgresStorage) AddBatch(ctx context.Context, batch *Batch) error {
+func (s *PostgresStorage) AddBatch(ctx context.Context, batch *state.Batch) error {
 	_, err := s.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator,
 		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData, batch.MaticCollateral.String())
 	return err

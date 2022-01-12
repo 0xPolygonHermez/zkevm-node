@@ -1,4 +1,4 @@
-package state
+package state_test
 
 import (
 	"context"
@@ -14,6 +14,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
@@ -25,15 +27,15 @@ import (
 
 var (
 	stateDb                                                *pgxpool.Pool
-	state                                                  State
-	block1, block2                                         *Block
+	myState                                                state.State
+	block1, block2                                         *state.Block
 	addr                                                   common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
 	hash1, hash2                                           common.Hash
 	hash3                                                  common.Hash = common.HexToHash("0x56ab2c03b9ffc32ed927c3665d6c21c431527e676c345d18f2841747a3a9af34")
 	hash4                                                  common.Hash = common.HexToHash("0x8b86252fd1b94139154aee46b61f7610100d4075da3886d95ef3694aa016b4ab")
 	blockNumber1, blockNumber2                             uint64      = 1, 2
 	batchNumber1, batchNumber2, batchNumber3, batchNumber4 uint64      = 1, 2, 3, 4
-	batch1, batch2, batch3, batch4                         *Batch
+	batch1, batch2, batch3, batch4                         *state.Batch
 	consolidatedTxHash                                     common.Hash = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")
 	txHash                                                 common.Hash
 	ctx                                                           = context.Background()
@@ -43,7 +45,7 @@ var (
 
 var cfg = dbutils.NewConfigFromEnv()
 
-var stateCfg = Config{
+var stateCfg = state.Config{
 	DefaultChainID: 1000,
 }
 
@@ -69,7 +71,7 @@ func TestMain(m *testing.M) {
 
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
-	state = NewState(stateCfg, NewPostgresStorage(stateDb), tree.NewStateTree(mt, nil))
+	myState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, nil))
 
 	setUpBlocks()
 	setUpBatches()
@@ -82,13 +84,13 @@ func TestMain(m *testing.M) {
 
 func setUpBlocks() {
 	var err error
-	block1 = &Block{
+	block1 = &state.Block{
 		BlockNumber: blockNumber1,
 		BlockHash:   hash1,
 		ParentHash:  hash1,
 		ReceivedAt:  time.Now(),
 	}
-	block2 = &Block{
+	block2 = &state.Block{
 		BlockNumber: blockNumber2,
 		BlockHash:   hash2,
 		ParentHash:  hash1,
@@ -116,7 +118,7 @@ func setUpBlocks() {
 func setUpBatches() {
 	var err error
 
-	batch1 = &Batch{
+	batch1 = &state.Batch{
 		BatchNumber:        batchNumber1,
 		BatchHash:          hash1,
 		BlockNumber:        blockNumber1,
@@ -128,7 +130,7 @@ func setUpBatches() {
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
 	}
-	batch2 = &Batch{
+	batch2 = &state.Batch{
 		BatchNumber:        batchNumber2,
 		BatchHash:          hash2,
 		BlockNumber:        blockNumber1,
@@ -140,7 +142,7 @@ func setUpBatches() {
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
 	}
-	batch3 = &Batch{
+	batch3 = &state.Batch{
 		BatchNumber:        batchNumber3,
 		BatchHash:          hash3,
 		BlockNumber:        blockNumber2,
@@ -153,7 +155,7 @@ func setUpBatches() {
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
 	}
-	batch4 = &Batch{
+	batch4 = &state.Batch{
 		BatchNumber:        batchNumber4,
 		BatchHash:          hash4,
 		BlockNumber:        blockNumber2,
@@ -172,9 +174,9 @@ func setUpBatches() {
 		panic(err)
 	}
 
-	batches := []*Batch{batch1, batch2, batch3, batch4}
+	batches := []*state.Batch{batch1, batch2, batch3, batch4}
 
-	bp, err := state.NewGenesisBatchProcessor(nil)
+	bp, err := myState.NewGenesisBatchProcessor(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -208,40 +210,40 @@ func setUpTransactions() {
 }
 
 func TestBasicState_GetLastBlock(t *testing.T) {
-	lastBlock, err := state.GetLastBlock(ctx)
+	lastBlock, err := myState.GetLastBlock(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, block2.BlockNumber, lastBlock.BlockNumber)
 }
 
 func TestBasicState_GetPreviousBlock(t *testing.T) {
-	previousBlock, err := state.GetPreviousBlock(ctx, 1)
+	previousBlock, err := myState.GetPreviousBlock(ctx, 1)
 	assert.NoError(t, err)
 	assert.Equal(t, block1.BlockNumber, previousBlock.BlockNumber)
 }
 
 func TestBasicState_GetBlockByHash(t *testing.T) {
-	block, err := state.GetBlockByHash(ctx, hash1)
+	block, err := myState.GetBlockByHash(ctx, hash1)
 	assert.NoError(t, err)
 	assert.Equal(t, block1.BlockHash, block.BlockHash)
 	assert.Equal(t, block1.BlockNumber, block.BlockNumber)
 }
 
 func TestBasicState_GetBlockByNumber(t *testing.T) {
-	block, err := state.GetBlockByNumber(ctx, blockNumber2)
+	block, err := myState.GetBlockByNumber(ctx, blockNumber2)
 	assert.NoError(t, err)
 	assert.Equal(t, block2.BlockNumber, block.BlockNumber)
 	assert.Equal(t, block2.BlockHash, block.BlockHash)
 }
 
 func TestBasicState_GetLastVirtualBatch(t *testing.T) {
-	lastBatch, err := state.GetLastBatch(ctx, true)
+	lastBatch, err := myState.GetLastBatch(ctx, true)
 	assert.NoError(t, err)
 	assert.Equal(t, batch4.BatchHash, lastBatch.BatchHash)
 	assert.Equal(t, batch4.BatchNumber, lastBatch.BatchNumber)
 }
 
 func TestBasicState_GetLastBatch(t *testing.T) {
-	lastBatch, err := state.GetLastBatch(ctx, false)
+	lastBatch, err := myState.GetLastBatch(ctx, false)
 	assert.NoError(t, err)
 	assert.Equal(t, batch2.BatchHash, lastBatch.BatchHash)
 	assert.Equal(t, batch2.BatchNumber, lastBatch.BatchNumber)
@@ -249,7 +251,7 @@ func TestBasicState_GetLastBatch(t *testing.T) {
 }
 
 func TestBasicState_GetPreviousBatch(t *testing.T) {
-	previousBatch, err := state.GetPreviousBatch(ctx, false, 1)
+	previousBatch, err := myState.GetPreviousBatch(ctx, false, 1)
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchHash, previousBatch.BatchHash)
 	assert.Equal(t, batch1.BatchNumber, previousBatch.BatchNumber)
@@ -257,7 +259,7 @@ func TestBasicState_GetPreviousBatch(t *testing.T) {
 }
 
 func TestBasicState_GetBatchByHash(t *testing.T) {
-	batch, err := state.GetBatchByHash(ctx, batch1.BatchHash)
+	batch, err := myState.GetBatchByHash(ctx, batch1.BatchHash)
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchHash, batch.BatchHash)
 	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
@@ -265,21 +267,21 @@ func TestBasicState_GetBatchByHash(t *testing.T) {
 }
 
 func TestBasicState_GetBatchByNumber(t *testing.T) {
-	batch, err := state.GetBatchByNumber(ctx, batch1.BatchNumber)
+	batch, err := myState.GetBatchByNumber(ctx, batch1.BatchNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
 	assert.Equal(t, batch1.BatchHash, batch.BatchHash)
 }
 
 func TestBasicState_GetLastBatchNumber(t *testing.T) {
-	batchNumber, err := state.GetLastBatchNumber(ctx)
+	batchNumber, err := myState.GetLastBatchNumber(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, batch4.BatchNumber, batchNumber)
 }
 
 func TestBasicState_ConsolidateBatch(t *testing.T) {
 	batchNumber := uint64(5)
-	batch := &Batch{
+	batch := &state.Batch{
 		BatchNumber:        batchNumber,
 		BatchHash:          common.HexToHash("0xaca7af32007b3d33d9d2342221093cd2fdae39ac29c170923c0519f0ca9b35bd"),
 		BlockNumber:        blockNumber2,
@@ -293,20 +295,20 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		MaticCollateral:    maticCollateral,
 	}
 
-	bp, err := state.NewGenesisBatchProcessor(nil)
+	bp, err := myState.NewGenesisBatchProcessor(nil)
 	assert.NoError(t, err)
 
 	err = bp.ProcessBatch(batch)
 	assert.NoError(t, err)
 
-	insertedBatch, err := state.GetBatchByNumber(ctx, batchNumber)
+	insertedBatch, err := myState.GetBatchByNumber(ctx, batchNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, common.Hash{}, insertedBatch.ConsolidatedTxHash)
 
-	err = state.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash)
+	err = myState.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash)
 	assert.NoError(t, err)
 
-	insertedBatch, err = state.GetBatchByNumber(ctx, batchNumber)
+	insertedBatch, err = myState.GetBatchByNumber(ctx, batchNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, consolidatedTxHash, insertedBatch.ConsolidatedTxHash)
 
@@ -315,50 +317,50 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 }
 
 func TestBasicState_GetTransactionCount(t *testing.T) {
-	count, err := state.GetTransactionCount(ctx, addr)
+	count, err := myState.GetTransactionCount(ctx, addr)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), count)
 }
 
 func TestBasicState_GetTxsByBatchNum(t *testing.T) {
-	txs, err := state.GetTxsByBatchNum(ctx, batchNumber1)
+	txs, err := myState.GetTxsByBatchNum(ctx, batchNumber1)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(txs))
 }
 
 func TestBasicState_GetTransactionByHash(t *testing.T) {
-	tx, err := state.GetTransactionByHash(ctx, txHash)
+	tx, err := myState.GetTransactionByHash(ctx, txHash)
 	assert.NoError(t, err)
 	assert.Equal(t, txHash, tx.Hash())
 }
 
 func TestBasicState_AddBlock(t *testing.T) {
-	lastBN, err := state.GetLastBlockNumber(ctx)
+	lastBN, err := myState.GetLastBlockNumber(ctx)
 	assert.NoError(t, err)
 
-	block1 := &Block{
+	block1 := &state.Block{
 		BlockNumber: lastBN + 1,
 		BlockHash:   hash1,
 		ParentHash:  hash1,
 		ReceivedAt:  time.Now(),
 	}
-	block2 := &Block{
+	block2 := &state.Block{
 		BlockNumber: lastBN + 2,
 		BlockHash:   hash2,
 		ParentHash:  hash1,
 		ReceivedAt:  time.Now(),
 	}
-	err = state.AddBlock(ctx, block1)
+	err = myState.AddBlock(ctx, block1)
 	assert.NoError(t, err)
-	err = state.AddBlock(ctx, block2)
+	err = myState.AddBlock(ctx, block2)
 	assert.NoError(t, err)
 
-	block3, err := state.GetBlockByNumber(ctx, block1.BlockNumber)
+	block3, err := myState.GetBlockByNumber(ctx, block1.BlockNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, block1.BlockHash, block3.BlockHash)
 	assert.Equal(t, block1.ParentHash, block3.ParentHash)
 
-	block4, err := state.GetBlockByNumber(ctx, block2.BlockNumber)
+	block4, err := myState.GetBlockByNumber(ctx, block2.BlockNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, block2.BlockHash, block4.BlockHash)
 	assert.Equal(t, block2.ParentHash, block4.ParentHash)
@@ -370,47 +372,47 @@ func TestBasicState_AddBlock(t *testing.T) {
 }
 
 func TestBasicState_AddSequencer(t *testing.T) {
-	lastBN, err := state.GetLastBlockNumber(ctx)
+	lastBN, err := myState.GetLastBlockNumber(ctx)
 	assert.NoError(t, err)
-	sequencer1 := Sequencer{
+	sequencer1 := state.Sequencer{
 		Address:     common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9b"),
 		URL:         "http://www.adrresss1.com",
 		ChainID:     big.NewInt(1234),
 		BlockNumber: lastBN,
 	}
-	sequencer2 := Sequencer{
+	sequencer2 := state.Sequencer{
 		Address:     common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9c"),
 		URL:         "http://www.adrresss2.com",
 		ChainID:     big.NewInt(5678),
 		BlockNumber: lastBN,
 	}
 
-	sequencer5 := Sequencer{
+	sequencer5 := state.Sequencer{
 		Address:     common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9c"),
 		URL:         "http://www.adrresss3.com",
 		ChainID:     big.NewInt(5678),
 		BlockNumber: lastBN,
 	}
 
-	err = state.AddSequencer(ctx, sequencer1)
+	err = myState.AddSequencer(ctx, sequencer1)
 	assert.NoError(t, err)
 
-	sequencer3, err := state.GetSequencer(ctx, sequencer1.Address)
+	sequencer3, err := myState.GetSequencer(ctx, sequencer1.Address)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer1.ChainID, sequencer3.ChainID)
 
-	err = state.AddSequencer(ctx, sequencer2)
+	err = myState.AddSequencer(ctx, sequencer2)
 	assert.NoError(t, err)
 
-	sequencer4, err := state.GetSequencer(ctx, sequencer2.Address)
+	sequencer4, err := myState.GetSequencer(ctx, sequencer2.Address)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer2, *sequencer4)
 
 	// Update Sequencer
-	err = state.AddSequencer(ctx, sequencer5)
+	err = myState.AddSequencer(ctx, sequencer5)
 	assert.NoError(t, err)
 
-	sequencer6, err := state.GetSequencer(ctx, sequencer5.Address)
+	sequencer6, err := myState.GetSequencer(ctx, sequencer5.Address)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer5, *sequencer6)
 	assert.Equal(t, sequencer5.URL, sequencer6.URL)
@@ -446,9 +448,9 @@ func TestStateTransition(t *testing.T) {
 			stateTree := tree.NewStateTree(mt, nil)
 
 			// Create state
-			st := NewState(stateCfg, NewPostgresStorage(stateDb), stateTree)
+			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
 
-			genesis := Genesis{
+			genesis := state.Genesis{
 				Balances: make(map[common.Address]*big.Int),
 			}
 			for _, gacc := range testCase.GenesisAccounts {
@@ -482,7 +484,7 @@ func TestStateTransition(t *testing.T) {
 			// Check if sequencer is in the DB
 			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
 			if err == pgx.ErrNoRows {
-				sq := Sequencer{
+				sq := state.Sequencer{
 					Address:     common.HexToAddress(testCase.SequencerAddress),
 					URL:         "",
 					ChainID:     new(big.Int).SetUint64(testCase.ChainIDSequencer),
@@ -508,7 +510,7 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// Create Batch
-			batch := &Batch{
+			batch := &state.Batch{
 				BatchNumber:        1,
 				BatchHash:          common.Hash{},
 				BlockNumber:        uint64(0),
@@ -530,26 +532,26 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check Transaction and Receipts
-			transactions, err := state.GetTxsByBatchNum(ctx, batch.BatchNumber)
+			transactions, err := myState.GetTxsByBatchNum(ctx, batch.BatchNumber)
 			require.NoError(t, err)
 
 			if len(transactions) > 0 {
 				// Check get transaction by batch number and index
-				transaction, err := state.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
+				transaction, err := myState.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 
 				// Check get transaction by hash and index
-				transaction, err = state.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
+				transaction, err = myState.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
 			for _, transaction := range transactions {
-				receipt, err := state.GetTransactionReceipt(ctx, transaction.Hash())
+				receipt, err := myState.GetTransactionReceipt(ctx, transaction.Hash())
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), receipt.TxHash)
-				assert.Equal(t, state.EstimateGas(transaction), receipt.GasUsed)
+				assert.Equal(t, myState.EstimateGas(transaction), receipt.GasUsed)
 			}
 
 			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
@@ -583,7 +585,7 @@ func TestLastSeenBatch(t *testing.T) {
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 
 	// Create state
-	st := NewState(stateCfg, NewPostgresStorage(stateDb), tree.NewStateTree(mt, nil))
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, nil))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
