@@ -74,7 +74,7 @@ func TestStateTransition(t *testing.T) {
 				DefaultChainID: 1000,
 			}
 
-			stateDB := state.NewStateDB(sqlDB)
+			stateDB := state.NewPostgresStorage(sqlDB)
 			st := state.NewState(stateCfg, stateDB, tr)
 			genesis := state.Genesis{
 				Balances: make(map[common.Address]*big.Int),

@@ -120,7 +120,7 @@ func start(ctx *cli.Context) error {
 		DefaultChainID: c.NetworkConfig.L2DefaultChainID,
 	}
 
-	stateDb := state.NewStateDB(sqlDB)
+	stateDb := state.NewPostgresStorage(sqlDB)
 
 	st := state.NewState(stateCfg, stateDb, tr)
 
@@ -309,7 +309,7 @@ func registerSequencer(ctx *cli.Context) error {
 		DefaultChainID: c.NetworkConfig.L2DefaultChainID,
 	}
 
-	stateDb := state.NewStateDB(sqlDB)
+	stateDb := state.NewPostgresStorage(sqlDB)
 	st := state.NewState(stateCfg, stateDb, tr)
 
 	_, err = st.GetSequencer(ctx.Context, etherman.GetAddress())
