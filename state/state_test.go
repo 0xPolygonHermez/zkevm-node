@@ -27,7 +27,7 @@ import (
 
 var (
 	stateDb                                                *pgxpool.Pool
-	myState                                                state.State
+	testState                                              state.State
 	block1, block2                                         *state.Block
 	addr                                                   common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
 	hash1, hash2                                           common.Hash
@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
-	myState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, nil))
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, nil))
 
 	setUpBlocks()
 	setUpBatches()
@@ -176,7 +176,7 @@ func setUpBatches() {
 
 	batches := []*state.Batch{batch1, batch2, batch3, batch4}
 
-	bp, err := myState.NewGenesisBatchProcessor(nil)
+	bp, err := testState.NewGenesisBatchProcessor(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -210,40 +210,40 @@ func setUpTransactions() {
 }
 
 func TestBasicState_GetLastBlock(t *testing.T) {
-	lastBlock, err := myState.GetLastBlock(ctx)
+	lastBlock, err := testState.GetLastBlock(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, block2.BlockNumber, lastBlock.BlockNumber)
 }
 
 func TestBasicState_GetPreviousBlock(t *testing.T) {
-	previousBlock, err := myState.GetPreviousBlock(ctx, 1)
+	previousBlock, err := testState.GetPreviousBlock(ctx, 1)
 	assert.NoError(t, err)
 	assert.Equal(t, block1.BlockNumber, previousBlock.BlockNumber)
 }
 
 func TestBasicState_GetBlockByHash(t *testing.T) {
-	block, err := myState.GetBlockByHash(ctx, hash1)
+	block, err := testState.GetBlockByHash(ctx, hash1)
 	assert.NoError(t, err)
 	assert.Equal(t, block1.BlockHash, block.BlockHash)
 	assert.Equal(t, block1.BlockNumber, block.BlockNumber)
 }
 
 func TestBasicState_GetBlockByNumber(t *testing.T) {
-	block, err := myState.GetBlockByNumber(ctx, blockNumber2)
+	block, err := testState.GetBlockByNumber(ctx, blockNumber2)
 	assert.NoError(t, err)
 	assert.Equal(t, block2.BlockNumber, block.BlockNumber)
 	assert.Equal(t, block2.BlockHash, block.BlockHash)
 }
 
 func TestBasicState_GetLastVirtualBatch(t *testing.T) {
-	lastBatch, err := myState.GetLastBatch(ctx, true)
+	lastBatch, err := testState.GetLastBatch(ctx, true)
 	assert.NoError(t, err)
 	assert.Equal(t, batch4.BatchHash, lastBatch.BatchHash)
 	assert.Equal(t, batch4.BatchNumber, lastBatch.BatchNumber)
 }
 
 func TestBasicState_GetLastBatch(t *testing.T) {
-	lastBatch, err := myState.GetLastBatch(ctx, false)
+	lastBatch, err := testState.GetLastBatch(ctx, false)
 	assert.NoError(t, err)
 	assert.Equal(t, batch2.BatchHash, lastBatch.BatchHash)
 	assert.Equal(t, batch2.BatchNumber, lastBatch.BatchNumber)
@@ -251,7 +251,7 @@ func TestBasicState_GetLastBatch(t *testing.T) {
 }
 
 func TestBasicState_GetPreviousBatch(t *testing.T) {
-	previousBatch, err := myState.GetPreviousBatch(ctx, false, 1)
+	previousBatch, err := testState.GetPreviousBatch(ctx, false, 1)
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchHash, previousBatch.BatchHash)
 	assert.Equal(t, batch1.BatchNumber, previousBatch.BatchNumber)
@@ -259,7 +259,7 @@ func TestBasicState_GetPreviousBatch(t *testing.T) {
 }
 
 func TestBasicState_GetBatchByHash(t *testing.T) {
-	batch, err := myState.GetBatchByHash(ctx, batch1.BatchHash)
+	batch, err := testState.GetBatchByHash(ctx, batch1.BatchHash)
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchHash, batch.BatchHash)
 	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
@@ -267,14 +267,14 @@ func TestBasicState_GetBatchByHash(t *testing.T) {
 }
 
 func TestBasicState_GetBatchByNumber(t *testing.T) {
-	batch, err := myState.GetBatchByNumber(ctx, batch1.BatchNumber)
+	batch, err := testState.GetBatchByNumber(ctx, batch1.BatchNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
 	assert.Equal(t, batch1.BatchHash, batch.BatchHash)
 }
 
 func TestBasicState_GetLastBatchNumber(t *testing.T) {
-	batchNumber, err := myState.GetLastBatchNumber(ctx)
+	batchNumber, err := testState.GetLastBatchNumber(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, batch4.BatchNumber, batchNumber)
 }
@@ -295,20 +295,20 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		MaticCollateral:    maticCollateral,
 	}
 
-	bp, err := myState.NewGenesisBatchProcessor(nil)
+	bp, err := testState.NewGenesisBatchProcessor(nil)
 	assert.NoError(t, err)
 
 	err = bp.ProcessBatch(batch)
 	assert.NoError(t, err)
 
-	insertedBatch, err := myState.GetBatchByNumber(ctx, batchNumber)
+	insertedBatch, err := testState.GetBatchByNumber(ctx, batchNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, common.Hash{}, insertedBatch.ConsolidatedTxHash)
 
-	err = myState.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash)
+	err = testState.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash)
 	assert.NoError(t, err)
 
-	insertedBatch, err = myState.GetBatchByNumber(ctx, batchNumber)
+	insertedBatch, err = testState.GetBatchByNumber(ctx, batchNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, consolidatedTxHash, insertedBatch.ConsolidatedTxHash)
 
@@ -317,25 +317,25 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 }
 
 func TestBasicState_GetTransactionCount(t *testing.T) {
-	count, err := myState.GetTransactionCount(ctx, addr)
+	count, err := testState.GetTransactionCount(ctx, addr)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), count)
 }
 
 func TestBasicState_GetTxsByBatchNum(t *testing.T) {
-	txs, err := myState.GetTxsByBatchNum(ctx, batchNumber1)
+	txs, err := testState.GetTxsByBatchNum(ctx, batchNumber1)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(txs))
 }
 
 func TestBasicState_GetTransactionByHash(t *testing.T) {
-	tx, err := myState.GetTransactionByHash(ctx, txHash)
+	tx, err := testState.GetTransactionByHash(ctx, txHash)
 	assert.NoError(t, err)
 	assert.Equal(t, txHash, tx.Hash())
 }
 
 func TestBasicState_AddBlock(t *testing.T) {
-	lastBN, err := myState.GetLastBlockNumber(ctx)
+	lastBN, err := testState.GetLastBlockNumber(ctx)
 	assert.NoError(t, err)
 
 	block1 := &state.Block{
@@ -350,17 +350,17 @@ func TestBasicState_AddBlock(t *testing.T) {
 		ParentHash:  hash1,
 		ReceivedAt:  time.Now(),
 	}
-	err = myState.AddBlock(ctx, block1)
+	err = testState.AddBlock(ctx, block1)
 	assert.NoError(t, err)
-	err = myState.AddBlock(ctx, block2)
+	err = testState.AddBlock(ctx, block2)
 	assert.NoError(t, err)
 
-	block3, err := myState.GetBlockByNumber(ctx, block1.BlockNumber)
+	block3, err := testState.GetBlockByNumber(ctx, block1.BlockNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, block1.BlockHash, block3.BlockHash)
 	assert.Equal(t, block1.ParentHash, block3.ParentHash)
 
-	block4, err := myState.GetBlockByNumber(ctx, block2.BlockNumber)
+	block4, err := testState.GetBlockByNumber(ctx, block2.BlockNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, block2.BlockHash, block4.BlockHash)
 	assert.Equal(t, block2.ParentHash, block4.ParentHash)
@@ -372,7 +372,7 @@ func TestBasicState_AddBlock(t *testing.T) {
 }
 
 func TestBasicState_AddSequencer(t *testing.T) {
-	lastBN, err := myState.GetLastBlockNumber(ctx)
+	lastBN, err := testState.GetLastBlockNumber(ctx)
 	assert.NoError(t, err)
 	sequencer1 := state.Sequencer{
 		Address:     common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9b"),
@@ -394,25 +394,25 @@ func TestBasicState_AddSequencer(t *testing.T) {
 		BlockNumber: lastBN,
 	}
 
-	err = myState.AddSequencer(ctx, sequencer1)
+	err = testState.AddSequencer(ctx, sequencer1)
 	assert.NoError(t, err)
 
-	sequencer3, err := myState.GetSequencer(ctx, sequencer1.Address)
+	sequencer3, err := testState.GetSequencer(ctx, sequencer1.Address)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer1.ChainID, sequencer3.ChainID)
 
-	err = myState.AddSequencer(ctx, sequencer2)
+	err = testState.AddSequencer(ctx, sequencer2)
 	assert.NoError(t, err)
 
-	sequencer4, err := myState.GetSequencer(ctx, sequencer2.Address)
+	sequencer4, err := testState.GetSequencer(ctx, sequencer2.Address)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer2, *sequencer4)
 
 	// Update Sequencer
-	err = myState.AddSequencer(ctx, sequencer5)
+	err = testState.AddSequencer(ctx, sequencer5)
 	assert.NoError(t, err)
 
-	sequencer6, err := myState.GetSequencer(ctx, sequencer5.Address)
+	sequencer6, err := testState.GetSequencer(ctx, sequencer5.Address)
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer5, *sequencer6)
 	assert.Equal(t, sequencer5.URL, sequencer6.URL)
@@ -532,26 +532,26 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check Transaction and Receipts
-			transactions, err := myState.GetTxsByBatchNum(ctx, batch.BatchNumber)
+			transactions, err := testState.GetTxsByBatchNum(ctx, batch.BatchNumber)
 			require.NoError(t, err)
 
 			if len(transactions) > 0 {
 				// Check get transaction by batch number and index
-				transaction, err := myState.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
+				transaction, err := testState.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 
 				// Check get transaction by hash and index
-				transaction, err = myState.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
+				transaction, err = testState.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
 			for _, transaction := range transactions {
-				receipt, err := myState.GetTransactionReceipt(ctx, transaction.Hash())
+				receipt, err := testState.GetTransactionReceipt(ctx, transaction.Hash())
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), receipt.TxHash)
-				assert.Equal(t, myState.EstimateGas(transaction), receipt.GasUsed)
+				assert.Equal(t, testState.EstimateGas(transaction), receipt.GasUsed)
 			}
 
 			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
