@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // TxProfitabilityCheckerType for different profitability checkers types
@@ -27,20 +29,34 @@ type TxProfitabilityChecker interface {
 // TxProfitabilityCheckerBase struct
 type TxProfitabilityCheckerBase struct {
 	EthMan etherman.EtherMan
+	State  state.State
 
-	MinReward *big.Int
+	IntervalAfterWhichBatchSentAnyway time.Duration
+	MinReward                         *big.Int
 }
 
 // NewTxProfitabilityCheckerBase inits base tx profitability checker with min reward from config and ethMan
-func NewTxProfitabilityCheckerBase(ethMan etherman.EtherMan, minReward *big.Int) TxProfitabilityChecker {
+func NewTxProfitabilityCheckerBase(ethMan etherman.EtherMan, state state.State, minReward *big.Int, intervalAfterWhichBatchSentAnyway time.Duration) TxProfitabilityChecker {
 	return &TxProfitabilityCheckerBase{
-		EthMan:    ethMan,
-		MinReward: minReward,
+		EthMan: ethMan,
+		State:  state,
+
+		MinReward:                         minReward,
+		IntervalAfterWhichBatchSentAnyway: intervalAfterWhichBatchSentAnyway,
 	}
 }
 
 // IsProfitable checks for txs cost against the main reward
 func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, error) {
+	if pc.IntervalAfterWhichBatchSentAnyway != 0 {
+		ok, err := isNewBatchNotAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
+		if err != nil {
+			return false, err
+		}
+		if ok {
+			return true, nil
+		}
+	}
 	txsGasCost := big.NewInt(0)
 	for _, tx := range txs {
 		txsGasCost.Add(txsGasCost, tx.Cost())
@@ -68,9 +84,44 @@ func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, txs []*t
 }
 
 // TxProfitabilityCheckerAcceptAll always returns true
-type TxProfitabilityCheckerAcceptAll struct{}
+type TxProfitabilityCheckerAcceptAll struct {
+	State                             state.State
+	IntervalAfterWhichBatchSentAnyway time.Duration
+}
+
+// NewTxProfitabilityCheckerAcceptAll inits tx profitability checker which accept all
+func NewTxProfitabilityCheckerAcceptAll(state state.State, intervalAfterWhichBatchSentAnyway time.Duration) TxProfitabilityChecker {
+	return &TxProfitabilityCheckerAcceptAll{
+		State:                             state,
+		IntervalAfterWhichBatchSentAnyway: intervalAfterWhichBatchSentAnyway,
+	}
+}
 
 // IsProfitable always returns true
 func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, error) {
+	if pc.IntervalAfterWhichBatchSentAnyway != 0 {
+		ok, err := isNewBatchNotAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
+		if err != nil {
+			return false, err
+		}
+		if ok {
+			return true, nil
+		}
+	}
+
 	return true, nil
+}
+
+func isNewBatchNotAppeared(ctx context.Context, state state.State, intervalAfterWhichBatchSentAnyway time.Duration) (bool, error) {
+	batch, err := state.GetLastBatch(ctx, true)
+	if err != nil {
+		return false, fmt.Errorf("failed to get last batch, err: %v", err)
+	}
+	interval := intervalAfterWhichBatchSentAnyway * time.Minute
+
+	if batch.ReceivedAt.Before(time.Now().Add(-interval)) {
+		return true, nil
+	}
+
+	return false, nil
 }

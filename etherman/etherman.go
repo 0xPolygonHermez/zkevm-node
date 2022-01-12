@@ -334,6 +334,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 				". Error: ", err)
 		}
 		batch.Transactions = txs
+		batch.ReceivedAt = block.ReceivedAt
 		block.Batches = append(block.Batches, batch)
 		return &block, nil
 	case consolidateBatchSignatureHash:
@@ -348,6 +349,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		if err != nil {
 			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
 		}
+		batch.ConsolidatedAt = &block.ReceivedAt
 		block.ParentHash = fullBlock.ParentHash()
 		block.Batches = append(block.Batches, batch)
 		return &block, nil
