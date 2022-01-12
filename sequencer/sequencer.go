@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -53,7 +54,11 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 	}
 
 	seqAddress := ethMan.GetAddress()
-	chainID := getChainID(ctx, state, seqAddress)
+	chainID, err := getChainID(ctx, state, seqAddress)
+	if err != nil {
+		cancel()
+		return Sequencer{}, fmt.Errorf("failed to get chain id for the sequencer, err: %v", err)
+	}
 	s := Sequencer{
 		cfg:     cfg,
 		Pool:    pool,
@@ -189,7 +194,7 @@ func (s *Sequencer) estimateTime(txs []pool.Transaction) (time.Duration, error) 
 	return time.Hour, nil
 }
 
-func getChainID(ctx context.Context, st state.State, seqAddress common.Address) uint64 {
+func getChainID(ctx context.Context, st state.State, seqAddress common.Address) (uint64, error) {
 	const intervalToCheckSequencerRegistrationInSeconds = 3
 	var (
 		seq *state.Sequencer
@@ -203,10 +208,12 @@ func getChainID(ctx context.Context, st state.State, seqAddress common.Address) 
 				lastSyncedBatchNum, err := st.GetLastBatchNumber(ctx)
 				if err != nil {
 					log.Errorf("failed to get last synced batch, err: %v", err)
+					return 0, err
 				}
 				lastEthBatchNum, err := st.GetLastBatchNumberSeenOnEthereum(ctx)
 				if err != nil {
 					log.Errorf("failed to get last eth batch, err: %v", err)
+					return 0, err
 				}
 
 				if lastEthBatchNum == 0 {
@@ -218,8 +225,10 @@ func getChainID(ctx context.Context, st state.State, seqAddress common.Address) 
 				}
 				time.Sleep(intervalToCheckSequencerRegistrationInSeconds * time.Second)
 				continue
+			} else {
+				return 0, err
 			}
 		}
-		return seq.ChainID.Uint64()
+		return seq.ChainID.Uint64(), nil
 	}
 }
