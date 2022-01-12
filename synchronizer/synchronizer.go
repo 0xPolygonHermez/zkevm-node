@@ -181,6 +181,10 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 				//TODO Store info into db
 				log.Warn("Deposit functionality is not implemented in synchronizer yet")
 				
+			} else if element.Name == etherman.GlobalExitRootsOrder {
+				//TODO Store info into db
+				log.Warn("Consolidate globalExitRoot functionality is not implemented in synchronizer yet")
+				
 			} else {
 				log.Fatal("error: invalid order element")
 			}

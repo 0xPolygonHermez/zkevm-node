@@ -46,6 +46,8 @@ const (
 	NewSequencersOrder EventOrder = "NewSequencers"
 	//DepositsOrder identifies a deposit event
 	DepositsOrder EventOrder = "Deposits"
+	//GlobalExitRootsOrder identifies a gloalExitRoot event
+	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
 )
 
 // EtherMan represents an Ethereum Manager
@@ -281,6 +283,14 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 				}
 				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
 			}
+			if len(block.GlobalExitRoots) != 0 {
+				b.GlobalExitRoots = append(blocks[block.BlockHash].GlobalExitRoots, block.GlobalExitRoots...)
+				or := Order{
+					Name: GlobalExitRootsOrder,
+					Pos:  len(b.GlobalExitRoots) - 1,
+				}
+				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
+			}
 			blocks[block.BlockHash] = b
 		} else {
 			if len(block.Batches) != 0 {
@@ -301,6 +311,13 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 				or := Order{
 					Name: DepositsOrder,
 					Pos:  len(block.Deposits) - 1,
+				}
+				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
+			}
+			if len(block.GlobalExitRoots) != 0 {
+				or := Order{
+					Name: GlobalExitRootsOrder,
+					Pos:  len(block.GlobalExitRoots) - 1,
 				}
 				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
 			}
@@ -418,9 +435,25 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		block.Deposits = append(block.Deposits, depositAux)
 		return &block, nil
 	case updateGlobalExitRootEventSignatureHash:
-		log.Warn("updateGlobalExitRoot")
-		// TODO
-		return nil, nil
+		globalExitRoot, err := etherMan.Bridge.ParseUpdateGlobalExitRoot(vLog)
+		if err != nil {
+			return nil, err
+		}
+		var (
+			block      state.Block
+			gExitRoot state.GlobalExitRoot
+		)
+		gExitRoot.MainnetExitRoot = globalExitRoot.MainnetExitRoot
+		gExitRoot.RollupExitRoot = globalExitRoot.RollupExitRoot
+		block.BlockHash = vLog.BlockHash
+		block.BlockNumber = vLog.BlockNumber
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
+		}
+		block.ParentHash = fullBlock.ParentHash()
+		block.GlobalExitRoots = append(block.GlobalExitRoots, gExitRoot)
+		return &block, nil
 	}
 	log.Debug("Event not registered: ", vLog)
 	return nil, nil

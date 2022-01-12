@@ -126,15 +126,15 @@ func TestSCEvents(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	block, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	for k, tx := range block[0].Batches[0].Transactions {
+	for k, tx := range block[1].Batches[0].Transactions {
 		var addr common.Address
 		err = addr.UnmarshalText([]byte(callDataTestCases[1].Txs[k].To))
 		require.NoError(t, err)
 		assert.Equal(t, &addr, tx.To())
 	}
-	log.Debugf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
+	log.Debugf("Block Received with %d txs\n", len(block[1].Batches[0].Transactions))
 
-	block, _, err = etherman.GetRollupInfoByBlock(ctx, block[0].BlockNumber, &block[0].BlockHash)
+	block, _, err = etherman.GetRollupInfoByBlock(ctx, block[1].BlockNumber, &block[1].BlockHash)
 	require.NoError(t, err)
 	for k, tx := range block[0].Batches[0].Transactions {
 		var addr common.Address
@@ -198,10 +198,10 @@ func TestRegisterSequencerAndEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	block, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	assert.Equal(t, etherman.auth.From, block[0].NewSequencers[0].Address)
-	assert.Equal(t, "http://localhost", block[0].NewSequencers[0].URL)
-	assert.Equal(t, big.NewInt(1001), block[0].NewSequencers[0].ChainID)
-	log.Debug("Sequencer synced: ", block[0].NewSequencers[0].Address, ", url: ", block[0].NewSequencers[0].URL, ", and chainId: ", block[0].NewSequencers[0].ChainID)
+	assert.Equal(t, etherman.auth.From, block[1].NewSequencers[0].Address)
+	assert.Equal(t, "http://localhost", block[1].NewSequencers[0].URL)
+	assert.Equal(t, big.NewInt(1001), block[1].NewSequencers[0].ChainID)
+	log.Debug("Sequencer synced: ", block[1].NewSequencers[0].Address, ", url: ", block[1].NewSequencers[0].URL, ", and chainId: ", block[1].NewSequencers[0].ChainID)
 }
 
 func TestSCSendBatchAndVerify(t *testing.T) {
@@ -355,15 +355,15 @@ func TestOrderReadEvent(t *testing.T) {
 
 	block, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][0].Name)
-	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][1].Name)
-	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][2].Name)
-	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][3].Name)
-	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][4].Name)
-	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][5].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][0].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][1].Name)
+	assert.Equal(t, BatchesOrder, order[block[1].BlockHash][2].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][3].Name)
+	assert.Equal(t, BatchesOrder, order[block[1].BlockHash][4].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][5].Name)
 }
 
-func TestDepositEvent(t *testing.T) {
+func TestDepositAndGlobalExitRootEvent(t *testing.T) {
 	// Set up testing environment
 	etherman, commit, maticAddr := newTestingEnv()
 
@@ -384,9 +384,13 @@ func TestDepositEvent(t *testing.T) {
 
 	block, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, DepositsOrder, order[block[0].BlockHash][0].Name)
-	assert.Equal(t, uint64(2), block[0].BlockNumber)
-	assert.Equal(t, big.NewInt(9000000000000000000), block[0].Deposits[0].Amount)
-	assert.Equal(t, uint(1), block[0].Deposits[0].DestinationNetwork)
-	assert.Equal(t, destinationAddr, block[0].Deposits[0].DestinationAddress)
+	assert.Equal(t, DepositsOrder, order[block[1].BlockHash][0].Name)
+	assert.Equal(t, GlobalExitRootsOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, GlobalExitRootsOrder, order[block[1].BlockHash][1].Name)
+	assert.Equal(t, uint64(2), block[1].BlockNumber)
+	assert.Equal(t, big.NewInt(9000000000000000000), block[1].Deposits[0].Amount)
+	assert.Equal(t, uint(1), block[1].Deposits[0].DestinationNetwork)
+	assert.Equal(t, destinationAddr, block[1].Deposits[0].DestinationAddress)
+	assert.Equal(t, 1, len(block[0].GlobalExitRoots))
+	assert.Equal(t, 1, len(block[1].GlobalExitRoots))
 }
