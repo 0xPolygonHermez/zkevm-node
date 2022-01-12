@@ -13,6 +13,7 @@ type Block struct {
 	ParentHash    common.Hash
 	Batches       []Batch
 	NewSequencers []Sequencer
+	Deposits      []Deposit
 
 	ReceivedAt time.Time
 }

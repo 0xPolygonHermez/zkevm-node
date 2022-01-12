@@ -375,7 +375,8 @@ func TestDepositEvent(t *testing.T) {
 	// Deposit funds
 	amount := big.NewInt(9000000000000000000)
 	var destNetwork uint32 = 1 // 0 is reserved to mainnet. This variable is set in the smc
-	_, err = etherman.Bridge.Bridge(etherman.auth, maticAddr, amount, destNetwork, common.HexToAddress("0x61A1d716a74fb45d29f148C6C20A2eccabaFD753"))
+	destinationAddr := common.HexToAddress("0x61A1d716a74fb45d29f148C6C20A2eccabaFD753")
+	_, err = etherman.Bridge.Bridge(etherman.auth, maticAddr, amount, destNetwork, destinationAddr)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -383,5 +384,9 @@ func TestDepositEvent(t *testing.T) {
 
 	block, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
 	require.NoError(t, err)
-	log.Debug(block, order)
+	assert.Equal(t, DepositsOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, uint64(2), block[0].BlockNumber)
+	assert.Equal(t, big.NewInt(9000000000000000000), block[0].Deposits[0].Amount)
+	assert.Equal(t, uint(1), block[0].Deposits[0].DestinationNetwork)
+	assert.Equal(t, destinationAddr, block[0].Deposits[0].DestinationAddress)
 }
