@@ -177,6 +177,12 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 				if err != nil {
 					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos])
 				}
+			} else if element.Name == etherman.DepositsOrder {
+				//TODO Store info into db
+				log.Warn("Deposit functionality is not implemented in synchronizer yet")
+			} else if element.Name == etherman.GlobalExitRootsOrder {
+				//TODO Store info into db
+				log.Warn("Consolidate globalExitRoot functionality is not implemented in synchronizer yet")
 			} else {
 				log.Fatal("error: invalid order element")
 			}

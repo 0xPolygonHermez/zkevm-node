@@ -8,11 +8,13 @@ import (
 
 // Block struct
 type Block struct {
-	BlockNumber   uint64
-	BlockHash     common.Hash
-	ParentHash    common.Hash
-	Batches       []Batch
-	NewSequencers []Sequencer
+	BlockNumber     uint64
+	BlockHash       common.Hash
+	ParentHash      common.Hash
+	Batches         []Batch
+	NewSequencers   []Sequencer
+	Deposits        []Deposit
+	GlobalExitRoots []GlobalExitRoot
 
 	ReceivedAt time.Time
 }
