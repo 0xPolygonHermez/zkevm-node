@@ -40,7 +40,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		return nil, nil, common.Address{}, err
 	}
-	calculatedMaticAddr := crypto.CreateAddress(auth.From, nonce + 1)
+	calculatedMaticAddr := crypto.CreateAddress(auth.From, nonce+1)
 	var genesis [32]byte
 	poeAddr, _, poe, err := proofofefficiency.DeployProofofefficiency(auth, client, calculatedMaticAddr, maticAddr, rollupVerifierAddr, genesis)
 	if err != nil {
@@ -52,7 +52,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	}
 	if calculatedMaticAddr != bridgeAddr {
 		return nil, nil, common.Address{}, fmt.Errorf("bridgeAddr (" + bridgeAddr.String() +
-		") is different from the expected contract address (" + calculatedMaticAddr.String() + ")")
+			") is different from the expected contract address (" + calculatedMaticAddr.String() + ")")
 	}
 
 	// Approve the bridge and poe to spend 10000 matic tokens

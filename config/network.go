@@ -12,7 +12,7 @@ type NetworkConfig struct {
 	Arity            uint8
 	GenBlockNumber   uint64
 	PoEAddr          common.Address
-	BridgeAddr          common.Address
+	BridgeAddr       common.Address
 	L1ChainID        uint64
 	L2DefaultChainID uint64
 	Balances         map[common.Address]*big.Int

@@ -30,7 +30,7 @@ var (
 	newSequencerSignatureHash              = crypto.Keccak256Hash([]byte("RegisterSequencer(address,string,uint32)"))
 	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 	depositEventSignatureHash              = crypto.Keccak256Hash([]byte("DepositEvent(address,uint256,uint32,address,uint32)"))
-    updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
+	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
@@ -96,6 +96,9 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, br
 		return nil, err
 	}
 	bridge, err := bridge.NewBridge(bridgeAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, PoEAddr, bridgeAddr)
 
@@ -440,7 +443,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 			return nil, err
 		}
 		var (
-			block      state.Block
+			block     state.Block
 			gExitRoot state.GlobalExitRoot
 		)
 		gExitRoot.MainnetExitRoot = globalExitRoot.MainnetExitRoot
