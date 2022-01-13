@@ -430,7 +430,16 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		block.NewSequencers = append(block.NewSequencers, sequencer)
 		return &block, nil
 	case ownershipTransferredSignatureHash:
-		log.Debug("Unhandled event: OwnershipTransferred: ", vLog)
+		ownership, err := etherMan.PoE.ParseOwnershipTransferred(vLog)
+		if err != nil {
+			return nil, err
+		}
+		emptyAddr := common.Address{}
+		if ownership.PreviousOwner == emptyAddr {
+			log.Debug("New rollup smc deployment detected. Deployment account: ", ownership.NewOwner)
+		} else {
+			log.Debug("Rollup smc OwnershipTransferred from account ", ownership.PreviousOwner, " to ", ownership.NewOwner)
+		}
 		return nil, nil
 	case depositEventSignatureHash:
 		deposit, err := etherMan.Bridge.ParseDepositEvent(vLog)
