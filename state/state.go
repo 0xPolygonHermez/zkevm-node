@@ -580,7 +580,7 @@ func (s *BasicState) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint
 	return batchNumber, nil
 }
 
-// SetLastBatchNumberSeenOnEthereum sets the last batch number that was consolidated on ethereum
+// SetLastBatchNumberConsolidatedOnEthereum sets the last batch number that was consolidated on ethereum
 func (s *BasicState) SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error {
 	_, err := s.db.Exec(ctx, updateLastBatchConsolidatedSQL, batchNumber)
 	return err
