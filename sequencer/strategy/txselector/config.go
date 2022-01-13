@@ -1,17 +1,17 @@
 package txselector
 
-// TxSelectorType different types of tx selection logic
-type TxSelectorType string
+// Type different types of tx selection logic
+type Type string
 
 const (
-	// AcceptAll strategy accepts all txs
-	AcceptAll TxSelectorType = "acceptall"
-	// Base strategy that have basic selection algorithm and can accept different sorting algorithms and profitability checkers
-	Base = "base"
+	// AcceptAllType strategy accepts all txs
+	AcceptAllType Type = "acceptall"
+	// BaseType strategy that have basic selection algorithm and can accept different sorting algorithms and profitability checkers
+	BaseType = "base"
 )
 
 // Config for the tx selector configuration
 type Config struct {
-	TxSelectorType TxSelectorType `mapstructure:"TxSelectorType"`
-	TxSorterType   TxSorterType   `mapstructure:"TxSorterType"`
+	Type         Type         `mapstructure:"Type"`
+	TxSorterType TxSorterType `mapstructure:"TxSorterType"`
 }

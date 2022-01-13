@@ -16,8 +16,8 @@ type TxProfitabilityChecker interface {
 	IsProfitable(context.Context, []*types.Transaction) (bool, error)
 }
 
-// TxProfitabilityCheckerBase struct
-type TxProfitabilityCheckerBase struct {
+// Base struct
+type Base struct {
 	EthMan etherman.EtherMan
 	State  state.State
 
@@ -27,7 +27,7 @@ type TxProfitabilityCheckerBase struct {
 
 // NewTxProfitabilityCheckerBase inits base tx profitability checker with min reward from config and ethMan
 func NewTxProfitabilityCheckerBase(ethMan etherman.EtherMan, state state.State, minReward *big.Int, intervalAfterWhichBatchSentAnyway time.Duration) TxProfitabilityChecker {
-	return &TxProfitabilityCheckerBase{
+	return &Base{
 		EthMan: ethMan,
 		State:  state,
 
@@ -37,7 +37,7 @@ func NewTxProfitabilityCheckerBase(ethMan etherman.EtherMan, state state.State, 
 }
 
 // IsProfitable checks for txs cost against the main reward
-func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, error) {
+func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, error) {
 	if pc.IntervalAfterWhichBatchSentAnyway != 0 {
 		ok, err := isNewBatchNotAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
 		if err != nil {
@@ -73,22 +73,22 @@ func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, txs []*t
 	return false, nil
 }
 
-// TxProfitabilityCheckerAcceptAll always returns true
-type TxProfitabilityCheckerAcceptAll struct {
+// AcceptAll always returns true
+type AcceptAll struct {
 	State                             state.State
 	IntervalAfterWhichBatchSentAnyway time.Duration
 }
 
 // NewTxProfitabilityCheckerAcceptAll inits tx profitability checker which accept all
 func NewTxProfitabilityCheckerAcceptAll(state state.State, intervalAfterWhichBatchSentAnyway time.Duration) TxProfitabilityChecker {
-	return &TxProfitabilityCheckerAcceptAll{
+	return &AcceptAll{
 		State:                             state,
 		IntervalAfterWhichBatchSentAnyway: intervalAfterWhichBatchSentAnyway,
 	}
 }
 
 // IsProfitable always returns true
-func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, error) {
+func (pc *AcceptAll) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, error) {
 	if pc.IntervalAfterWhichBatchSentAnyway != 0 {
 		ok, err := isNewBatchNotAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
 		if err != nil {

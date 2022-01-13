@@ -26,15 +26,15 @@ IntervalToProposeBatch = "3s"
 SyncedBlockDif = 1
     [Sequencer.Strategy]
         [Sequencer.Strategy.TxSelector]
-            TxSelectorType = "acceptall"
+            Type = "acceptall"
             TxSorterType = "bycostandnonce"
         [Sequencer.Strategy.TxProfitabilityChecker]
-            TxProfitabilityCheckerType = "acceptall"
+            Type = "acceptall"
             MinReward = "1.1"
 
 [Aggregator]
 IntervalToConsolidateState = "3s"
-TxProfitabilityCheckerType = "acceptall"
+Type = "acceptall"
 TxProfitabilityMinReward = "1.1"
 
 [Prover]

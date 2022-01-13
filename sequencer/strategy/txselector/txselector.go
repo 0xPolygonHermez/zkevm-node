@@ -12,16 +12,16 @@ type TxSelector interface {
 	SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error)
 }
 
-// TxSelectorAcceptAll that accept all transactions
-type TxSelectorAcceptAll struct{}
+// AcceptAllType that accept all transactions
+type AcceptAll struct{}
 
 // NewTxSelectorAcceptAll init function
 func NewTxSelectorAcceptAll() TxSelector {
-	return &TxSelectorAcceptAll{}
+	return &AcceptAll{}
 }
 
 // SelectTxs selects all transactions and don't check anything
-func (s *TxSelectorAcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error) {
+func (s *AcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error) {
 	selectedTxs := make([]*types.Transaction, 0, len(pendingTxs))
 	selectedTxsHashes := make([]string, 0, len(pendingTxs))
 	for _, tx := range pendingTxs {
@@ -32,8 +32,8 @@ func (s *TxSelectorAcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pen
 	return selectedTxs, selectedTxsHashes, nil, nil
 }
 
-// TxSelectorBase tx selector with basic selection algorithm. Accepts different tx sorting and tx profitability checking structs
-type TxSelectorBase struct {
+// Base tx selector with basic selection algorithm. Accepts different tx sorting and tx profitability checking structs
+type Base struct {
 	TxSorter TxSorter
 }
 
@@ -48,13 +48,13 @@ func NewTxSelectorBase(cfg Config) TxSelector {
 		sorter = &TxSorterByCostAndNonce{}
 	}
 
-	return &TxSelectorBase{
+	return &Base{
 		TxSorter: sorter,
 	}
 }
 
 // SelectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (t *TxSelectorBase) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error) {
+func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error) {
 	sortedTxs := t.TxSorter.SortTxs(pendingTxs)
 	var (
 		selectedTxs                         []*types.Transaction

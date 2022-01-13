@@ -7,14 +7,14 @@ import (
 	"github.com/hermeznetwork/hermez-core/encoding"
 )
 
-// TxProfitabilityCheckerType for different profitability checkers types
-type TxProfitabilityCheckerType string
+// Type for different profitability checkers types
+type Type string
 
 const (
-	// ProfitabilityBase type that checks sum of costs of txs against min reward
-	ProfitabilityBase = "base"
+	// BaseType type that checks sum of costs of txs against min reward
+	BaseType = "base"
 	// ProfitabilityAcceptAll validate batch anyway and don't check anything
-	ProfitabilityAcceptAll = "acceptall"
+	AcceptAllType = "acceptall"
 )
 
 // TokenAmountWithDecimals is a wrapper type that parses token amount with decimals to big int
@@ -39,6 +39,6 @@ func (t *TokenAmountWithDecimals) UnmarshalText(data []byte) error {
 
 // Config for the tx profitability checker configuration
 type Config struct {
-	TxProfitabilityCheckerType TxProfitabilityCheckerType `mapstructure:"TxProfitabilityCheckerType"`
-	MinReward                  TokenAmountWithDecimals    `mapstructure:"MinReward"`
+	Type      Type                    `mapstructure:"Type"`
+	MinReward TokenAmountWithDecimals `mapstructure:"MinReward"`
 }

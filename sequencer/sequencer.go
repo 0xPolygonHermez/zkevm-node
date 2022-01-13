@@ -27,6 +27,7 @@ type Sequencer struct {
 	EthMan  etherman.EtherMan
 	Address common.Address
 	ChainID uint64
+
 	txselector.TxSelector
 	txprofitabilitychecker.TxProfitabilityChecker
 
@@ -39,18 +40,18 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var txSelector txselector.TxSelector
-	switch cfg.Strategy.TxSelector.TxSelectorType {
-	case txselector.AcceptAll:
+	switch cfg.Strategy.TxSelector.Type {
+	case txselector.AcceptAllType:
 		txSelector = txselector.NewTxSelectorAcceptAll()
-	case txselector.Base:
+	case txselector.BaseType:
 		txSelector = txselector.NewTxSelectorBase(cfg.Strategy.TxSelector)
 	}
 
 	var txProfitabilityChecker txprofitabilitychecker.TxProfitabilityChecker
-	switch cfg.Strategy.TxProfitabilityChecker.TxProfitabilityCheckerType {
-	case txprofitabilitychecker.ProfitabilityAcceptAll:
+	switch cfg.Strategy.TxProfitabilityChecker.Type {
+	case txprofitabilitychecker.AcceptAllType:
 		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
-	case txprofitabilitychecker.ProfitabilityBase:
+	case txprofitabilitychecker.BaseType:
 		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, state, cfg.Strategy.TxProfitabilityChecker.MinReward.Int, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
 	}
 
