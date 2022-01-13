@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -41,7 +42,7 @@ type State interface {
 	GetTransactionCount(ctx context.Context, address common.Address) (uint64, error)
 	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*types.Receipt, error)
 	Reset(ctx context.Context, blockNumber uint64) error
-	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error
+	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
 	AddSequencer(ctx context.Context, seq Sequencer) error
 	GetSequencer(ctx context.Context, address common.Address) (*Sequencer, error)
@@ -70,7 +71,7 @@ const (
 	getTransactionByBatchHashAndIndexSQL   = "SELECT transaction.encoded FROM state.transaction inner join state.batch on (state.transaction.batch_num = state.batch.batch_num) WHERE state.batch.batch_hash = $1 and state.transaction.tx_index = $2"
 	getTransactionByBatchNumberAndIndexSQL = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1 AND tx_index = $2"
 	getTransactionCountSQL                 = "SELECT COUNT(*) FROM state.transaction WHERE from_address = $1"
-	consolidateBatchSQL                    = "UPDATE state.batch SET consolidated_tx_hash = $1 WHERE batch_num = $2"
+	consolidateBatchSQL                    = "UPDATE state.batch SET consolidated_tx_hash = $1, consolidated_at = $3 WHERE batch_num = $2"
 	getTxsByBatchNumSQL                    = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
 	addBlockSQL                            = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	addSequencerSQL                        = `INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4) 
@@ -241,7 +242,8 @@ func (s *BasicState) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, 
 	err := row.Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
 		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
-		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral)
+		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
+		&batch.ReceivedAt, &batch.ConsolidatedAt)
 
 	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
 	if err != nil {
@@ -265,7 +267,8 @@ func (s *BasicState) GetPreviousBatch(ctx context.Context, isVirtual bool, offse
 	err := row.Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
 		&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
-		&batch.Uncles, &batch.RawTxsData, &maticCollateral)
+		&batch.Uncles, &batch.RawTxsData, &maticCollateral,
+		&batch.ReceivedAt, &batch.ConsolidatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +284,8 @@ func (s *BasicState) GetBatchByHash(ctx context.Context, hash common.Hash) (*Bat
 	)
 	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
-		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral)
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
+		&batch.ReceivedAt, &batch.ConsolidatedAt)
 
 	if err != nil {
 		return nil, err
@@ -298,7 +302,8 @@ func (s *BasicState) GetBatchByNumber(ctx context.Context, batchNumber uint64) (
 	)
 	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
 		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
-		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral)
+		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
+		&batch.ReceivedAt, &batch.ConsolidatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -434,8 +439,8 @@ func (s *BasicState) Reset(ctx context.Context, blockNumber uint64) error {
 }
 
 // ConsolidateBatch changes the virtual status of a batch
-func (s *BasicState) ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error {
-	if _, err := s.db.Exec(ctx, consolidateBatchSQL, consolidatedTxHash, batchNumber); err != nil {
+func (s *BasicState) ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time) error {
+	if _, err := s.db.Exec(ctx, consolidateBatchSQL, consolidatedTxHash, batchNumber, consolidatedAt); err != nil {
 		return err
 	}
 	return nil

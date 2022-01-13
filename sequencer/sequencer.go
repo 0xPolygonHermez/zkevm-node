@@ -46,9 +46,9 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 	var txProfitabilityChecker strategy.TxProfitabilityChecker
 	switch cfg.Strategy.TxProfitabilityCheckerType {
 	case strategy.ProfitabilityAcceptAll:
-		txProfitabilityChecker = &strategy.TxProfitabilityCheckerAcceptAll{}
+		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
 	case strategy.ProfitabilityBase:
-		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerBase(ethMan, cfg.Strategy.MinReward.Int)
+		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerBase(ethMan, state, cfg.Strategy.MinReward.Int, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
 	}
 	s := Sequencer{
 		cfg:     cfg,

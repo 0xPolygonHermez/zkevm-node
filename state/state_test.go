@@ -127,6 +127,7 @@ func setUpBatches() {
 		Uncles:             nil,
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
+		ReceivedAt:         time.Now(),
 	}
 	batch2 = &Batch{
 		BatchNumber:        batchNumber2,
@@ -139,6 +140,7 @@ func setUpBatches() {
 		Uncles:             nil,
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
+		ReceivedAt:         time.Now(),
 	}
 	batch3 = &Batch{
 		BatchNumber:        batchNumber3,
@@ -152,6 +154,7 @@ func setUpBatches() {
 		Transactions:       nil,
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
+		ReceivedAt:         time.Now(),
 	}
 	batch4 = &Batch{
 		BatchNumber:        batchNumber4,
@@ -165,6 +168,7 @@ func setUpBatches() {
 		Transactions:       nil,
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
+		ReceivedAt:         time.Now(),
 	}
 
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.batch")
@@ -291,6 +295,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		Transactions:       nil,
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
+		ReceivedAt:         time.Now(),
 	}
 
 	bp, err := state.NewGenesisBatchProcessor(nil)
@@ -303,7 +308,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, common.Hash{}, insertedBatch.ConsolidatedTxHash)
 
-	err = state.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash)
+	err = state.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash, time.Now())
 	assert.NoError(t, err)
 
 	insertedBatch, err = state.GetBatchByNumber(ctx, batchNumber)

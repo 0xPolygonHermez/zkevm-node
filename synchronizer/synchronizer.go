@@ -153,7 +153,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 				emptyHash := common.Hash{}
 				if batch.ConsolidatedTxHash.String() != emptyHash.String() {
 					// consolidate batch locally
-					err = s.state.ConsolidateBatch(s.ctx, batch.BatchNumber, batch.ConsolidatedTxHash)
+					err = s.state.ConsolidateBatch(s.ctx, batch.BatchNumber, batch.ConsolidatedTxHash, *batch.ConsolidatedAt)
 					if err != nil {
 						log.Warnf("failed to consolidate batch locally, batch number: %d, err: %v",
 							batch.BatchNumber, err)

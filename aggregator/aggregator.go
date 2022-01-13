@@ -41,9 +41,9 @@ func NewAggregator(
 	var profitabilityChecker TxProfitabilityChecker
 	switch cfg.TxProfitabilityCheckerType {
 	case ProfitabilityBase:
-		profitabilityChecker = &TxProfitabilityCheckerBase{MinReward: cfg.TxProfitabilityMinReward.Int}
+		profitabilityChecker = NewTxProfitabilityCheckerBase(state, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration, cfg.TxProfitabilityMinReward.Int)
 	case ProfitabilityAcceptAll:
-		profitabilityChecker = &TxProfitabilityCheckerAcceptAll{}
+		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration)
 	}
 	a := Aggregator{
 		cfg: cfg,
@@ -119,7 +119,13 @@ func (a *Aggregator) Start() {
 
 			// 3. check if it's profitable or not
 			// check is it profitable to aggregate txs or not
-			if !a.ProfitabilityChecker.IsProfitable(batchToConsolidate.MaticCollateral) {
+			isProfitable, err := a.ProfitabilityChecker.IsProfitable(a.ctx, batchToConsolidate.MaticCollateral)
+			if err != nil {
+				log.Warnf("failed to check aggregator profitability, err: %v", err)
+				continue
+			}
+
+			if !isProfitable {
 				log.Info("Batch %d is not profitable, matic collateral %v", batchToConsolidate.BatchNumber, batchToConsolidate.MaticCollateral)
 				continue
 			}

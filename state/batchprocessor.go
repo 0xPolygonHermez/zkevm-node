@@ -33,7 +33,7 @@ type BatchProcessor interface {
 }
 
 const (
-	addBatchSQL       = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
+	addBatchSQL       = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 	addTransactionSQL = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
 	addReceiptSQL     = `INSERT INTO state.receipt 
 						(type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_hash, tx_index)
@@ -276,7 +276,7 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, error) {
 
 func (b *BasicBatchProcessor) addBatch(ctx context.Context, batch *Batch) error {
 	_, err := b.State.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator,
-		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData, batch.MaticCollateral.String())
+		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData, batch.MaticCollateral.String(), batch.ReceivedAt)
 	return err
 }
 
