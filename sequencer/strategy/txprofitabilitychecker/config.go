@@ -13,7 +13,7 @@ type Type string
 const (
 	// BaseType type that checks sum of costs of txs against min reward
 	BaseType = "base"
-	// ProfitabilityAcceptAll validate batch anyway and don't check anything
+	// AcceptAllType validate batch anyway and don't check anything
 	AcceptAllType = "acceptall"
 )
 

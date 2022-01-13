@@ -114,7 +114,7 @@ func (s *Sequencer) tryProposeBatch() {
 		return
 	}
 
-	// 2. Пet pending txs from the pool
+	// 2. get pending txs from the pool
 	txs, err := s.Pool.GetPendingTxs(s.ctx)
 	if err != nil {
 		log.Errorf("failed to get pending txs, err: %v", err)

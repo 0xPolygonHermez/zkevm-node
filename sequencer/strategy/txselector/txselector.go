@@ -12,7 +12,7 @@ type TxSelector interface {
 	SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error)
 }
 
-// AcceptAllType that accept all transactions
+// AcceptAll that accept all transactions
 type AcceptAll struct{}
 
 // NewTxSelectorAcceptAll init function
