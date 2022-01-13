@@ -15,6 +15,7 @@ type Block struct {
 	NewSequencers   []Sequencer
 	Deposits        []Deposit
 	GlobalExitRoots []GlobalExitRoot
+	Claims          []Claim
 
 	ReceivedAt time.Time
 }

@@ -393,4 +393,34 @@ func TestDepositAndGlobalExitRootEvent(t *testing.T) {
 	assert.Equal(t, destinationAddr, block[1].Deposits[0].DestinationAddress)
 	assert.Equal(t, 1, len(block[0].GlobalExitRoots))
 	assert.Equal(t, 1, len(block[1].GlobalExitRoots))
+
+	//Claim funds
+	var (
+		network  uint32
+	    smtProof [][32]byte
+	    index    uint64
+	)
+	mainnetExitRoot := block[1].GlobalExitRoots[0].MainnetExitRoot
+	rollupExitRoot := block[1].GlobalExitRoots[0].RollupExitRoot
+
+	_, err = etherman.Bridge.Claim(etherman.auth, maticAddr, big.NewInt(1000000000000000000), network,
+		network, etherman.auth.From, smtProof, index, big.NewInt(2), mainnetExitRoot, rollupExitRoot)
+	require.NoError(t, err)
+
+	// Mine the tx in a block
+	commit()
+
+	//Read claim event
+	initBlock, err = etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+	block, order, err = etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
+	require.NoError(t, err)
+	assert.Equal(t, ClaimsOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, big.NewInt(1000000000000000000), block[0].Claims[0].Amount)
+	assert.Equal(t, uint64(3), block[0].BlockNumber)
+	assert.NotEqual(t, common.Address{}, block[0].Claims[0].Token)
+	assert.Equal(t, etherman.auth.From, block[0].Claims[0].DestinationAddress)
+	assert.Equal(t, uint64(0), block[0].Claims[0].Index)
+	assert.Equal(t, uint(0), block[0].Claims[0].OriginalNetwork)
+	assert.Equal(t, uint64(3), block[0].Claims[0].BlockNumber)
 }
