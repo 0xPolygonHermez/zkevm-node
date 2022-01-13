@@ -3,8 +3,6 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"math/big"
 	"strings"
 	"time"
@@ -14,6 +12,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/jackc/pgx/v4"
 )
