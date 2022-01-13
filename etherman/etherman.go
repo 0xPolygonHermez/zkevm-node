@@ -490,8 +490,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 			return nil, err
 		}
 		var (
-			block     state.Block
-			claimAux  state.Claim
+			block    state.Block
+			claimAux state.Claim
 		)
 		claimAux.Amount = claim.Amount
 		claimAux.DestinationAddress = claim.DestinationAddress

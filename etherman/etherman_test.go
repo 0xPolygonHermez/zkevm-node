@@ -397,8 +397,8 @@ func TestDepositAndGlobalExitRootEvent(t *testing.T) {
 	//Claim funds
 	var (
 		network  uint32
-	    smtProof [][32]byte
-	    index    uint64
+		smtProof [][32]byte
+		index    uint64
 	)
 	mainnetExitRoot := block[1].GlobalExitRoots[0].MainnetExitRoot
 	rollupExitRoot := block[1].GlobalExitRoots[0].RollupExitRoot
