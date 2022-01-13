@@ -632,13 +632,13 @@ func TestLastConsolidatedBatch(t *testing.T) {
 
 	err = st.SetLastBatchNumberConsolidatedOnEthereum(ctx, lastBatchNumberSeen)
 	require.NoError(t, err)
-	bn, err := st.GetLastConsolidatedBatchNumber(ctx)
+	bn, err := st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, lastBatchNumberSeen, bn)
 
 	err = st.SetLastBatchNumberConsolidatedOnEthereum(ctx, lastBatchNumberSeen+1)
 	require.NoError(t, err)
-	bn, err = st.GetLastConsolidatedBatchNumber(ctx)
+	bn, err = st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, lastBatchNumberSeen+1, bn)
 }

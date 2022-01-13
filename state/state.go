@@ -329,6 +329,7 @@ func (s *BasicState) GetLastBatchNumber(ctx context.Context) (uint64, error) {
 func (s *BasicState) GetLastConsolidatedBatchNumber(ctx context.Context) (uint64, error) {
 	var lastBatchNumber uint64
 	err := s.db.QueryRow(ctx, getLastConsolidatedBatchNumberSQL, common.Hash{}).Scan(&lastBatchNumber)
+	fmt.Println(err)
 	if err != nil {
 		return 0, err
 	}

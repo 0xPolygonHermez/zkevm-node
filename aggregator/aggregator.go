@@ -82,7 +82,7 @@ func (a *Aggregator) Start() {
 				log.Warnf("failed to get last consolidated batch, err: %v", err)
 				continue
 			}
-			lastConsolidatedEthBatchNum, err := a.State.GetLastBatchNumberSeenOnEthereum(a.ctx)
+			lastConsolidatedEthBatchNum, err := a.State.GetLastBatchNumberConsolidatedOnEthereum(a.ctx)
 			if err != nil {
 				log.Warnf("failed to get last eth batch, err: %v", err)
 				continue

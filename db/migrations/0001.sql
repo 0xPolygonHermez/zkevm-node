@@ -65,5 +65,4 @@ CREATE TABLE state.misc
 );
 
 -- Insert default values into misc table
-INSERT INTO state.misc (last_batch_num_seen) VALUES(0);
-INSERT INTO state.misc (last_batch_num_consolidated) VALUES(0);
+INSERT INTO state.misc (last_batch_num_seen, last_batch_num_consolidated) VALUES(0, 0);
