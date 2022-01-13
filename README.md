@@ -18,7 +18,9 @@ The protocol defines three phases of development, the repo currently implements:
 
 *It's important to note that currently this implementation is a monolith monorepo, but this is very likely to change in the near future.*
 
-![png](./docs/architecture.drawio.png)
+<p align="center">
+  <img src="./docs/architecture.drawio.png"/>
+</p>
 
 The diagram represents the main components of the software and how they interact between them:
 
