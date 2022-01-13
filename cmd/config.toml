@@ -34,7 +34,7 @@ SyncedBlockDif = 1
 
 [Aggregator]
 IntervalToConsolidateState = "3s"
-Type = "acceptall"
+TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 
 [Prover]
