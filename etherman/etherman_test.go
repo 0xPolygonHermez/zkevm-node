@@ -50,7 +50,7 @@ func TestDecodeOneTxData(t *testing.T) {
 }
 
 //This function prepare the blockchain, the wallet with funds and deploy the smc
-func newTestingEnv() (ethman *ClientEtherMan, commit func()) {
+func newTestingEnv() (ethman *ClientEtherMan, commit func(), maticAddr common.Address) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
@@ -59,17 +59,17 @@ func newTestingEnv() (ethman *ClientEtherMan, commit func()) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ethman, commit, err = NewSimulatedEtherman(Config{}, auth)
+	ethman, commit, maticAddr, err = NewSimulatedEtherman(Config{}, auth)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return ethman, commit
+	return ethman, commit, maticAddr
 }
 
 func TestSCEvents(t *testing.T) {
 	// Set up testing environment
-	etherman, commit := newTestingEnv()
+	etherman, commit, _ := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
@@ -126,15 +126,15 @@ func TestSCEvents(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	block, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	for k, tx := range block[0].Batches[0].Transactions {
+	for k, tx := range block[1].Batches[0].Transactions {
 		var addr common.Address
 		err = addr.UnmarshalText([]byte(callDataTestCases[1].Txs[k].To))
 		require.NoError(t, err)
 		assert.Equal(t, &addr, tx.To())
 	}
-	log.Debugf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
+	log.Debugf("Block Received with %d txs\n", len(block[1].Batches[0].Transactions))
 
-	block, _, err = etherman.GetRollupInfoByBlock(ctx, block[0].BlockNumber, &block[0].BlockHash)
+	block, _, err = etherman.GetRollupInfoByBlock(ctx, block[1].BlockNumber, &block[1].BlockHash)
 	require.NoError(t, err)
 	for k, tx := range block[0].Batches[0].Transactions {
 		var addr common.Address
@@ -177,7 +177,7 @@ func TestSCEvents(t *testing.T) {
 
 func TestRegisterSequencerAndEvent(t *testing.T) {
 	// Set up testing environment
-	etherman, commit := newTestingEnv()
+	etherman, commit, _ := newTestingEnv()
 	ctx := context.Background()
 
 	// Read currentBlock
@@ -198,10 +198,10 @@ func TestRegisterSequencerAndEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	block, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	assert.Equal(t, etherman.auth.From, block[0].NewSequencers[0].Address)
-	assert.Equal(t, "http://localhost", block[0].NewSequencers[0].URL)
-	assert.Equal(t, big.NewInt(1001), block[0].NewSequencers[0].ChainID)
-	log.Debug("Sequencer synced: ", block[0].NewSequencers[0].Address, ", url: ", block[0].NewSequencers[0].URL, ", and chainId: ", block[0].NewSequencers[0].ChainID)
+	assert.Equal(t, etherman.auth.From, block[1].NewSequencers[0].Address)
+	assert.Equal(t, "http://localhost", block[1].NewSequencers[0].URL)
+	assert.Equal(t, big.NewInt(1001), block[1].NewSequencers[0].ChainID)
+	log.Debug("Sequencer synced: ", block[1].NewSequencers[0].Address, ", url: ", block[1].NewSequencers[0].URL, ", and chainId: ", block[1].NewSequencers[0].ChainID)
 }
 
 func TestSCSendBatchAndVerify(t *testing.T) {
@@ -214,7 +214,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	require.NoError(t, err)
 
 	// Set up testing environment
-	etherman, commit := newTestingEnv()
+	etherman, commit, _ := newTestingEnv()
 	ctx := context.Background()
 	matic := new(big.Int)
 	matic, ok := matic.SetString(callDataTestCases[1].MaticAmount, 10)
@@ -275,7 +275,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 
 func TestDefaultChainID(t *testing.T) {
 	// Set up testing environment
-	etherman, _ := newTestingEnv()
+	etherman, _, _ := newTestingEnv()
 
 	// Get chainID
 	defaultChainID, err := etherman.GetDefaultChainID()
@@ -298,7 +298,7 @@ func TestOrderReadEvent(t *testing.T) {
 	log.Debug("Testing sync order...")
 
 	// Set up testing environment
-	etherman, commit := newTestingEnv()
+	etherman, commit, _ := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
@@ -307,11 +307,11 @@ func TestOrderReadEvent(t *testing.T) {
 
 	callDataTestCases := readTests()
 
-	// Send propose batch l1 tx
+	// Register sequencer
 	_, err = etherman.RegisterSequencer("http://localhost")
 	require.NoError(t, err)
 
-	// Send propose batch l1 tx
+	// Register sequencer
 	_, err = etherman.RegisterSequencer("http://localhost0")
 	require.NoError(t, err)
 
@@ -329,7 +329,7 @@ func TestOrderReadEvent(t *testing.T) {
 	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
 	require.NoError(t, err)
 
-	// Send propose batch l1 tx
+	// Register sequencer
 	_, err = etherman.RegisterSequencer("http://localhost1")
 	require.NoError(t, err)
 
@@ -346,7 +346,7 @@ func TestOrderReadEvent(t *testing.T) {
 	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
 	require.NoError(t, err)
 
-	// Send propose batch l1 tx
+	// Register sequencer
 	_, err = etherman.RegisterSequencer("http://localhost2")
 	require.NoError(t, err)
 
@@ -355,10 +355,42 @@ func TestOrderReadEvent(t *testing.T) {
 
 	block, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][0].Name)
-	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][1].Name)
-	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][2].Name)
-	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][3].Name)
-	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][4].Name)
-	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][5].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][0].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][1].Name)
+	assert.Equal(t, BatchesOrder, order[block[1].BlockHash][2].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][3].Name)
+	assert.Equal(t, BatchesOrder, order[block[1].BlockHash][4].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][5].Name)
+}
+
+func TestDepositAndGlobalExitRootEvent(t *testing.T) {
+	// Set up testing environment
+	etherman, commit, maticAddr := newTestingEnv()
+
+	// Read currentBlock
+	ctx := context.Background()
+	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+
+	// Deposit funds
+	amount := big.NewInt(9000000000000000000)
+	var destNetwork uint32 = 1 // 0 is reserved to mainnet. This variable is set in the smc
+	destinationAddr := common.HexToAddress("0x61A1d716a74fb45d29f148C6C20A2eccabaFD753")
+	_, err = etherman.Bridge.Bridge(etherman.auth, maticAddr, amount, destNetwork, destinationAddr)
+	require.NoError(t, err)
+
+	// Mine the tx in a block
+	commit()
+
+	block, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
+	require.NoError(t, err)
+	assert.Equal(t, DepositsOrder, order[block[1].BlockHash][0].Name)
+	assert.Equal(t, GlobalExitRootsOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, GlobalExitRootsOrder, order[block[1].BlockHash][1].Name)
+	assert.Equal(t, uint64(2), block[1].BlockNumber)
+	assert.Equal(t, big.NewInt(9000000000000000000), block[1].Deposits[0].Amount)
+	assert.Equal(t, uint(1), block[1].Deposits[0].DestinationNetwork)
+	assert.Equal(t, destinationAddr, block[1].Deposits[0].DestinationAddress)
+	assert.Equal(t, 1, len(block[0].GlobalExitRoots))
+	assert.Equal(t, 1, len(block[1].GlobalExitRoots))
 }

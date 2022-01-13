@@ -56,4 +56,7 @@ type Config struct {
 	// TxProfitabilityMinReward min reward for base tx profitability checker when aggregator will validate batch
 	// this parameter is used for the base tx profitability checker
 	TxProfitabilityMinReward TokenAmountWithDecimals `mapstructure:"TxProfitabilityMinReward"`
+
+	// IntervalAfterWhichBatchConsolidateAnyway this is interval for the main sequencer, that will check if there is no transactions
+	IntervalAfterWhichBatchConsolidateAnyway Duration `mapstructure:"IntervalAfterWhichBatchConsolidateAnyway"`
 }

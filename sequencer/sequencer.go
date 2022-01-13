@@ -48,9 +48,9 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 	var txProfitabilityChecker strategy.TxProfitabilityChecker
 	switch cfg.Strategy.TxProfitabilityCheckerType {
 	case strategy.ProfitabilityAcceptAll:
-		txProfitabilityChecker = &strategy.TxProfitabilityCheckerAcceptAll{}
+		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
 	case strategy.ProfitabilityBase:
-		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerBase(ethMan, cfg.Strategy.MinReward.Int)
+		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerBase(ethMan, state, cfg.Strategy.MinReward.Int, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
 	}
 
 	seqAddress := ethMan.GetAddress()
@@ -125,15 +125,6 @@ func (s *Sequencer) tryProposeBatch() {
 		return
 	}
 
-	// estimate time for selecting txs
-	estimatedTime, err := s.estimateTime(txs)
-	if err != nil {
-		log.Errorf("failed to estimate time for selecting txs, err: %v", err)
-		return
-	}
-
-	log.Infof("Estimated time for selecting txs is %dms", estimatedTime.Milliseconds())
-
 	// 3. Run selection
 	// init batch processor
 	lastBatch, err := s.State.GetLastBatch(s.ctx, false)
@@ -148,7 +139,7 @@ func (s *Sequencer) tryProposeBatch() {
 	}
 
 	// select txs
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs, estimatedTime)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs)
 	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
 		log.Errorf("failed to select txs, err: %v", err)
 		return
@@ -187,11 +178,6 @@ func (s *Sequencer) tryProposeBatch() {
 		log.Infof("Finished updating selected transactions state in the pool")
 	}
 	// NO: discard selection and wait for the new batch
-}
-
-// estimateTime Estimate available time to run selection
-func (s *Sequencer) estimateTime(txs []pool.Transaction) (time.Duration, error) {
-	return time.Hour, nil
 }
 
 func getChainID(ctx context.Context, st state.State, seqAddress common.Address) (uint64, error) {
