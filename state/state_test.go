@@ -609,3 +609,36 @@ func TestLastSeenBatch(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, lastBatchNumberSeen+1, bn)
 }
+
+func TestLastConsolidatedBatch(t *testing.T) {
+	// Create State db
+	mtDb, err := db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	store := tree.NewPostgresStore(mtDb)
+
+	// Create State tree
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+
+	// Create state
+	st := NewState(stateCfg, stateDb, tree.NewStateTree(mt, nil))
+	ctx := context.Background()
+
+	// Clean Up to reset Genesis
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.block")
+	if err != nil {
+		panic(err)
+	}
+
+	err = st.SetLastBatchNumberConsolidatedOnEthereum(ctx, lastBatchNumberSeen)
+	require.NoError(t, err)
+	bn, err := st.GetLastConsolidatedBatchNumber(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, lastBatchNumberSeen, bn)
+
+	err = st.SetLastBatchNumberConsolidatedOnEthereum(ctx, lastBatchNumberSeen+1)
+	require.NoError(t, err)
+	bn, err = st.GetLastConsolidatedBatchNumber(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, lastBatchNumberSeen+1, bn)
+}
