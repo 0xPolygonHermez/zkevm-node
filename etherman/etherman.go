@@ -543,6 +543,7 @@ func (etherMan *ClientEtherMan) GetLatestProposedBatchNumber() (uint64, error) {
 	return uint64(latestBatch), err
 }
 
+// GetLatestConsolidatedBatchNumber function allows to retrieve the latest consolidated batch in the smc
 func (etherMan *ClientEtherMan) GetLatestConsolidatedBatchNumber() (uint64, error) {
 	latestBatch, err := etherMan.PoE.LastVerifiedBatch(&bind.CallOpts{Pending: false})
 	return uint64(latestBatch), err
