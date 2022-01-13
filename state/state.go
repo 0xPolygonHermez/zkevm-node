@@ -41,7 +41,7 @@ type Storage interface {
 	GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error)
 	GetTransactionCount(ctx context.Context, address common.Address) (uint64, error)
-	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*types.Receipt, error)
+	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*Receipt, error)
 	Reset(ctx context.Context, blockNumber uint64) error
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
@@ -52,7 +52,7 @@ type Storage interface {
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
 	AddBatch(ctx context.Context, batch *Batch) error
 	AddTransaction(ctx context.Context, tx *types.Transaction, batchNumber uint64, index uint) error
-	AddReceipt(ctx context.Context, receipt *types.Receipt) error
+	AddReceipt(ctx context.Context, receipt *Receipt) error
 }
 
 var (

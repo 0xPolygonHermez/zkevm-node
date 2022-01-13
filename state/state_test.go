@@ -551,7 +551,6 @@ func TestStateTransition(t *testing.T) {
 				receipt, err := testState.GetTransactionReceipt(ctx, transaction.Hash())
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), receipt.TxHash)
-				assert.Equal(t, testState.EstimateGas(transaction), receipt.GasUsed)
 			}
 
 			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
@@ -605,4 +604,168 @@ func TestLastSeenBatch(t *testing.T) {
 	bn, err = st.GetLastBatchNumberSeenOnEthereum(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, lastBatchNumberSeen+1, bn)
+}
+
+func TestReceipts(t *testing.T) {
+	// Load test vector
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/receipt-vector.json")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	for _, testCase := range stateTransitionTestCases {
+		t.Run(testCase.Description, func(t *testing.T) {
+			ctx := context.Background()
+			// Init database instance
+			err = dbutils.InitOrReset(cfg)
+			require.NoError(t, err)
+
+			// Create State db
+			stateDb, err = db.NewSQLDB(cfg)
+			require.NoError(t, err)
+
+			// Create State tree
+			store := tree.NewPostgresStore(stateDb)
+			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+			stateTree := tree.NewStateTree(mt, nil)
+
+			// Create state
+			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+
+			genesis := state.Genesis{
+				Balances: make(map[common.Address]*big.Int),
+			}
+			for _, gacc := range testCase.GenesisAccounts {
+				balance := gacc.Balance.Int
+				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
+			}
+
+			for gaddr := range genesis.Balances {
+				balance, err := stateTree.GetBalance(gaddr, nil)
+				require.NoError(t, err)
+				assert.Equal(t, big.NewInt(0), balance)
+			}
+
+			err = st.SetGenesis(ctx, genesis)
+			require.NoError(t, err)
+
+			root, err := st.GetStateRootByBatchNumber(0)
+			require.NoError(t, err)
+
+			for gaddr, gbalance := range genesis.Balances {
+				balance, err := stateTree.GetBalance(gaddr, root)
+				require.NoError(t, err)
+				assert.Equal(t, gbalance, balance)
+			}
+
+			var txs []*types.Transaction
+
+			// Check Old roots
+			assert.Equal(t, testCase.ExpectedOldRoot, new(big.Int).SetBytes(root).String())
+
+			// Check if sequencer is in the DB
+			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
+			if err == pgx.ErrNoRows {
+				sq := state.Sequencer{
+					Address:     common.HexToAddress(testCase.SequencerAddress),
+					URL:         "",
+					ChainID:     new(big.Int).SetUint64(testCase.ChainIDSequencer),
+					BlockNumber: 0,
+				}
+
+				err = st.AddSequencer(ctx, sq)
+				require.NoError(t, err)
+			}
+
+			// Create Transaction
+			for _, vectorTx := range testCase.Txs {
+				if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" {
+					var tx types.LegacyTx
+					bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
+
+					err = rlp.DecodeBytes(bytes, &tx)
+					if err == nil {
+						txs = append(txs, types.NewTx(&tx))
+					}
+					require.NoError(t, err)
+				}
+			}
+
+			// Create Batch
+			batch := &state.Batch{
+				BatchNumber:        1,
+				BatchHash:          common.Hash{},
+				BlockNumber:        uint64(0),
+				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
+				Aggregator:         addr,
+				ConsolidatedTxHash: common.Hash{},
+				Header:             nil,
+				Uncles:             nil,
+				Transactions:       txs,
+				RawTxsData:         nil,
+				MaticCollateral:    big.NewInt(1),
+			}
+
+			// Create Batch Processor
+			bp, err := st.NewBatchProcessor(common.HexToAddress(testCase.SequencerAddress), 0)
+			require.NoError(t, err)
+
+			err = bp.ProcessBatch(batch)
+			require.NoError(t, err)
+
+			// Check Transaction and Receipts
+			transactions, err := testState.GetTxsByBatchNum(ctx, batch.BatchNumber)
+			require.NoError(t, err)
+
+			if len(transactions) > 0 {
+				// Check get transaction by batch number and index
+				transaction, err := testState.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
+				require.NoError(t, err)
+				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+
+				// Check get transaction by hash and index
+				transaction, err = testState.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
+				require.NoError(t, err)
+				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+			}
+
+			// Get Receipts from vector
+			for _, testReceipt := range testCase.Receipts {
+				receipt, err := testState.GetTransactionReceipt(ctx, common.HexToHash(testReceipt.Receipt.TransactionHash))
+				require.NoError(t, err)
+				assert.Equal(t, common.HexToHash(testReceipt.Receipt.TransactionHash), receipt.TxHash)
+
+				// Compare against test receipt
+				assert.Equal(t, testReceipt.Receipt.TransactionHash, receipt.TxHash.String())
+				assert.Equal(t, testReceipt.Receipt.TransactionIndex, receipt.TransactionIndex)
+				assert.Equal(t, testReceipt.Receipt.BlockNumber, receipt.BlockNumber.Uint64())
+				assert.Equal(t, testReceipt.Receipt.From, receipt.From.String())
+				assert.Equal(t, testReceipt.Receipt.To, receipt.To.String())
+				assert.Equal(t, testReceipt.Receipt.CumulativeGastUsed, receipt.CumulativeGasUsed)
+				assert.Equal(t, testReceipt.Receipt.GasUsedForTx, receipt.GasUsed)
+				assert.Equal(t, testReceipt.Receipt.Status, receipt.Status)
+				// BLOCKHASH
+				// assert.Equal(t, testReceipt.Receipt.BlockHash, receipt.BlockHash)
+
+			}
+
+			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
+			require.NoError(t, err)
+
+			// Check new roots
+			assert.Equal(t, testCase.ExpectedNewRoot, new(big.Int).SetBytes(root).String())
+
+			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
+				newBalance, err := stateTree.GetBalance(common.HexToAddress(key), root)
+				require.NoError(t, err)
+				assert.Equal(t, vectorLeaf.Balance.String(), newBalance.String())
+
+				newNonce, err := stateTree.GetNonce(common.HexToAddress(key), root)
+				require.NoError(t, err)
+				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
+				assert.Equal(t, leafNonce.String(), newNonce.String())
+			}
+		})
+	}
 }
