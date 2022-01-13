@@ -3,6 +3,8 @@ package sequencer
 import (
 	"context"
 	"fmt"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"math/big"
 	"strings"
 	"time"
@@ -12,7 +14,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/jackc/pgx/v4"
 )
@@ -26,8 +27,8 @@ type Sequencer struct {
 	EthMan  etherman.EtherMan
 	Address common.Address
 	ChainID uint64
-	strategy.TxSelector
-	strategy.TxProfitabilityChecker
+	txselector.TxSelector
+	txprofitabilitychecker.TxProfitabilityChecker
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -37,20 +38,20 @@ type Sequencer struct {
 func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	var txSelector strategy.TxSelector
-	switch cfg.Strategy.Type {
-	case strategy.AcceptAll:
-		txSelector = strategy.NewTxSelectorAcceptAll(cfg.Strategy)
-	case strategy.Base:
-		txSelector = strategy.NewTxSelectorBase(cfg.Strategy)
+	var txSelector txselector.TxSelector
+	switch cfg.Strategy.TxSelector.TxSelectorType {
+	case txselector.AcceptAll:
+		txSelector = txselector.NewTxSelectorAcceptAll()
+	case txselector.Base:
+		txSelector = txselector.NewTxSelectorBase(cfg.Strategy.TxSelector)
 	}
 
-	var txProfitabilityChecker strategy.TxProfitabilityChecker
-	switch cfg.Strategy.TxProfitabilityCheckerType {
-	case strategy.ProfitabilityAcceptAll:
-		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
-	case strategy.ProfitabilityBase:
-		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerBase(ethMan, state, cfg.Strategy.MinReward.Int, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
+	var txProfitabilityChecker txprofitabilitychecker.TxProfitabilityChecker
+	switch cfg.Strategy.TxProfitabilityChecker.TxProfitabilityCheckerType {
+	case txprofitabilitychecker.ProfitabilityAcceptAll:
+		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
+	case txprofitabilitychecker.ProfitabilityBase:
+		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, state, cfg.Strategy.TxProfitabilityChecker.MinReward.Int, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
 	}
 
 	seqAddress := ethMan.GetAddress()
@@ -112,8 +113,7 @@ func (s *Sequencer) tryProposeBatch() {
 		return
 	}
 
-	// 2. Estimate available time to run selection
-	// get pending txs from the pool
+	// 2. Пet pending txs from the pool
 	txs, err := s.Pool.GetPendingTxs(s.ctx)
 	if err != nil {
 		log.Errorf("failed to get pending txs, err: %v", err)

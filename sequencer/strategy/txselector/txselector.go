@@ -1,4 +1,4 @@
-package strategy
+package txselector
 
 import (
 	"github.com/ethereum/go-ethereum/core/types"
@@ -13,13 +13,11 @@ type TxSelector interface {
 }
 
 // TxSelectorAcceptAll that accept all transactions
-type TxSelectorAcceptAll struct {
-	Strategy Strategy
-}
+type TxSelectorAcceptAll struct{}
 
 // NewTxSelectorAcceptAll init function
-func NewTxSelectorAcceptAll(strategy Strategy) TxSelector {
-	return &TxSelectorAcceptAll{Strategy: strategy}
+func NewTxSelectorAcceptAll() TxSelector {
+	return &TxSelectorAcceptAll{}
 }
 
 // SelectTxs selects all transactions and don't check anything
@@ -34,42 +32,24 @@ func (s *TxSelectorAcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pen
 	return selectedTxs, selectedTxsHashes, nil, nil
 }
 
-// IsProfitable always returns true
-func (s *TxSelectorAcceptAll) IsProfitable([]*types.Transaction) bool {
-	return true
-}
-
 // TxSelectorBase tx selector with basic selection algorithm. Accepts different tx sorting and tx profitability checking structs
 type TxSelectorBase struct {
-	Strategy               Strategy
-	TxSorter               TxSorter
-	TxProfitabilityChecker TxProfitabilityChecker
+	TxSorter TxSorter
 }
 
 // NewTxSelectorBase init function
-func NewTxSelectorBase(strategy Strategy) TxSelector {
-	var (
-		sorter               TxSorter
-		profitabilityChecker TxProfitabilityChecker
-	)
+func NewTxSelectorBase(cfg Config) TxSelector {
+	var sorter TxSorter
 
-	switch strategy.TxSorterType {
+	switch cfg.TxSorterType {
 	case ByCostAndTime:
 		sorter = &TxSorterByCostAndTime{}
 	case ByCostAndNonce:
 		sorter = &TxSorterByCostAndNonce{}
 	}
 
-	switch strategy.TxProfitabilityCheckerType {
-	case ProfitabilityBase:
-		profitabilityChecker = &TxProfitabilityCheckerBase{MinReward: strategy.MinReward.Int}
-	case ProfitabilityAcceptAll:
-		profitabilityChecker = &TxProfitabilityCheckerAcceptAll{}
-	}
 	return &TxSelectorBase{
-		Strategy:               strategy,
-		TxSorter:               sorter,
-		TxProfitabilityChecker: profitabilityChecker,
+		TxSorter: sorter,
 	}
 }
 

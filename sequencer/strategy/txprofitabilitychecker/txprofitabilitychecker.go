@@ -1,4 +1,4 @@
-package strategy
+package txprofitabilitychecker
 
 import (
 	"context"
@@ -9,16 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/state"
-)
-
-// TxProfitabilityCheckerType for different profitability checkers types
-type TxProfitabilityCheckerType string
-
-const (
-	// ProfitabilityBase type that checks sum of costs of txs against min reward
-	ProfitabilityBase = "base"
-	// ProfitabilityAcceptAll validate batch anyway and don't check anything
-	ProfitabilityAcceptAll = "acceptall"
 )
 
 // TxProfitabilityChecker interface for different profitability checkers
