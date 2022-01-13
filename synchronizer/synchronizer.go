@@ -26,11 +26,12 @@ type ClientSynchronizer struct {
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
+	genBalances    state.Genesis
 	cfg            Config
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
-func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, cfg Config) (Synchronizer, error) {
+func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, genBalances state.Genesis, cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:          st,
@@ -38,6 +39,7 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber ui
 		ctx:            ctx,
 		cancelCtx:      cancel,
 		genBlockNumber: genBlockNumber,
+		genBalances:    genBalances,
 		cfg:            cfg,
 	}, nil
 }
@@ -50,9 +52,18 @@ func (s *ClientSynchronizer) Sync() error {
 		// Get the latest synced block. If there is no block on db, use genesis block
 		lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx)
 		if err != nil {
-			log.Warn("error getting the latest ethereum block. Setting genesis block. Error: ", err)
-			lastEthBlockSynced = &state.Block{
-				BlockNumber: s.genBlockNumber,
+			if err.Error() == pgx.ErrNoRows.Error() {
+				log.Warn("error getting the latest ethereum block. No data stored. Setting genesis block. Error: ", err)
+				lastEthBlockSynced = &state.Block{
+					BlockNumber: s.genBlockNumber,
+				}
+				// Set genesis
+				err := s.state.SetGenesis(s.ctx, s.genBalances)
+				if err != nil {
+					log.Fatal("error setting genesis: ", err)
+				}
+			} else {
+				log.Fatal("unexpected error getting the latest ethereum block. Setting genesis block. Error: %w", err)
 			}
 		} else if lastEthBlockSynced.BlockNumber == 0 {
 			lastEthBlockSynced = &state.Block{
