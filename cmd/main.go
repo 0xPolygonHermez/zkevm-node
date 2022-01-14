@@ -82,6 +82,13 @@ func main() {
 			Action:  registerSequencer,
 			Flags:   flags,
 		},
+		{
+			Name:    "encryptKey",
+			Aliases: []string{},
+			Usage:   "Encrypts the privatekey with a password and create a keystore file",
+			Action:  encryptKey,
+			Flags:   encryptKeyFlags,
+		},
 	}
 
 	err := app.Run(os.Args)
