@@ -88,7 +88,7 @@ func (a *Aggregator) Start() {
 				continue
 			}
 			if lastSyncedBatchNum < lastEthBatchNum {
-				log.Infow("waiting for the state to be synced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
+				log.Infof("waiting for the state to be synced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
 				continue
 			}
 
@@ -104,7 +104,7 @@ func (a *Aggregator) Start() {
 
 			if err != nil {
 				if err == pgx.ErrNoRows {
-					log.Infof("there is no batches to consolidate")
+					log.Infof("there are no batches to consolidate")
 					continue
 				}
 				log.Warnf("failed to get batch to consolidate, err: %v", err)

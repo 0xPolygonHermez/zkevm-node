@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
 )
 
@@ -27,9 +28,8 @@ const (
 
 //nolint:gomnd
 var (
-	balance, _    = new(big.Int).SetString("1000000000000000000000", 10)
 	mainnetConfig = NetworkConfig{
-		Arity:            16,
+		Arity:            4,
 		GenBlockNumber:   13808430,
 		PoEAddr:          common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
 		BridgeAddr:       common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
@@ -42,7 +42,7 @@ var (
 		},
 	}
 	testnetConfig = NetworkConfig{
-		Arity:            16,
+		Arity:            4,
 		GenBlockNumber:   9817974,
 		PoEAddr:          common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
 		BridgeAddr:       common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
@@ -63,21 +63,21 @@ var (
 		L1ChainID:        5, //Goerli
 		L2DefaultChainID: 1000,
 		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
-			common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"): balance,
-			common.HexToAddress("0xA67CD3f603E42dcBF674ffBa511872Bd397EB895"): balance,
-			common.HexToAddress("0xbAe5deBDDf9381686ec18a8A2B99E09ADa982adf"): balance,
-			common.HexToAddress("0xfcFC415D6D21660b90c0545CA0e91E68172B8650"): balance,
-			common.HexToAddress("0x999b52bE90FA59fCaEf59d7243FD874aF3E43E04"): balance,
-			common.HexToAddress("0x2536C2745Ac4A584656A830f7bdCd329c94e8F30"): balance,
-			common.HexToAddress("0x380ed8Bd696c78395Fb1961BDa42739D2f5242a1"): balance,
-			common.HexToAddress("0xd873F6DC68e3057e4B7da74c6b304d0eF0B484C7"): balance,
-			common.HexToAddress("0x1EA2EBB132aBD1157831feE038F31A39674b9992"): balance,
-			common.HexToAddress("0xb48cA794d49EeC406A5dD2c547717e37b5952a83"): balance,
-			common.HexToAddress("0xCF7A13951c6F804E334C39F2eD81D79317e65093"): balance,
-			common.HexToAddress("0x56b2118d90cCA76E4683EfECEEC35662372d64Cd"): balance,
-			common.HexToAddress("0xd66d09242faa9b3beae711f89d8fff0946974a21"): balance,
-			common.HexToAddress("0x615031554479128d65f30Ffa721791D6441d9727"): balance,
+			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): bigIntFromBase10String("100000000000000000000"),
+			common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"): bigIntFromBase10String("200000000000000000000"),
+			common.HexToAddress("0xA67CD3f603E42dcBF674ffBa511872Bd397EB895"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0xbAe5deBDDf9381686ec18a8A2B99E09ADa982adf"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0xfcFC415D6D21660b90c0545CA0e91E68172B8650"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x999b52bE90FA59fCaEf59d7243FD874aF3E43E04"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x2536C2745Ac4A584656A830f7bdCd329c94e8F30"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x380ed8Bd696c78395Fb1961BDa42739D2f5242a1"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0xd873F6DC68e3057e4B7da74c6b304d0eF0B484C7"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x1EA2EBB132aBD1157831feE038F31A39674b9992"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0xb48cA794d49EeC406A5dD2c547717e37b5952a83"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0xCF7A13951c6F804E334C39F2eD81D79317e65093"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x56b2118d90cCA76E4683EfECEEC35662372d64Cd"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0xd66d09242faa9b3beae711f89d8fff0946974a21"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x615031554479128d65f30Ffa721791D6441d9727"): bigIntFromBase10String("1000000000000000000000"),
 		},
 	}
 	localConfig = NetworkConfig{
@@ -107,4 +107,12 @@ func (cfg *Config) loadNetworkConfig(network string) {
 		log.Debug("Mainnet network selected")
 		cfg.NetworkConfig = mainnetConfig
 	}
+}
+
+func bigIntFromBase10String(s string) *big.Int {
+	i, ok := big.NewInt(0).SetString(s, encoding.Base10)
+	if !ok {
+		return big.NewInt(0)
+	}
+	return i
 }
