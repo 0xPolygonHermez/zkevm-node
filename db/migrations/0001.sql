@@ -22,7 +22,10 @@ CREATE TABLE state.batch
     header               jsonb,
     uncles               jsonb,
     raw_txs_data         BYTEA,
-    matic_collateral     NUMERIC(78,0)
+    matic_collateral     NUMERIC(78,0),
+
+    received_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    consolidated_at TIMESTAMP WITHOUT TIME ZONE
 );
 
 CREATE TABLE state.transaction

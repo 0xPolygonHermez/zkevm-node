@@ -12,6 +12,7 @@ type NetworkConfig struct {
 	Arity            uint8
 	GenBlockNumber   uint64
 	PoEAddr          common.Address
+	BridgeAddr       common.Address
 	L1ChainID        uint64
 	L2DefaultChainID uint64
 	Balances         map[common.Address]*big.Int
@@ -29,6 +30,7 @@ var (
 		Arity:            16,
 		GenBlockNumber:   13808430,
 		PoEAddr:          common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
+		BridgeAddr:       common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
 		L1ChainID:        1, //Mainnet
 		L2DefaultChainID: 10000,
 		Balances: map[common.Address]*big.Int{
@@ -40,6 +42,7 @@ var (
 		Arity:            16,
 		GenBlockNumber:   9817974,
 		PoEAddr:          common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
+		BridgeAddr:       common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
 		L1ChainID:        4, //Rinkeby
 		L2DefaultChainID: 40000,
 		Balances: map[common.Address]*big.Int{
@@ -51,6 +54,7 @@ var (
 		Arity:            16,
 		GenBlockNumber:   6025263,
 		PoEAddr:          common.HexToAddress("0x31D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
+		BridgeAddr:       common.HexToAddress("0x31D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
 		L1ChainID:        5, //Goerli
 		L2DefaultChainID: 50000,
 		Balances: map[common.Address]*big.Int{
@@ -62,6 +66,7 @@ var (
 		Arity:            4,
 		GenBlockNumber:   1,
 		PoEAddr:          common.HexToAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
+		BridgeAddr:       common.HexToAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
 		L1ChainID:        1337,
 		L2DefaultChainID: 1000,
 		Balances:         map[common.Address]*big.Int{},

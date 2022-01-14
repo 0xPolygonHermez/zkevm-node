@@ -71,8 +71,9 @@ type TxEventsSendBatchTestCase struct {
 	FullCallData  string      `json:"fullCallData"`
 }
 
+// TestReceipt holds the metadata needed to run the receipt tests
 type TestReceipt struct {
-	TxId    uint    `json:"txId"`
+	TxID    uint    `json:"txId"`
 	Receipt Receipt `json:"receipt"`
 }
 
