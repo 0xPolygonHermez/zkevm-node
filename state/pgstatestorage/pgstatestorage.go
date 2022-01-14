@@ -43,7 +43,7 @@ const (
 	resetSQL                               = "DELETE FROM state.block WHERE block_num > $1"
 	addBatchSQL                            = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 	addTransactionSQL                      = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
-	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_hash, tx_index)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, block_num, block_hash, tx_hash, tx_index, tx_from, tx_to)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 )
 
 var (
@@ -301,7 +301,7 @@ func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 	var receipt state.Receipt
 	var blockNumber uint64
 	err := s.db.QueryRow(ctx, getReceiptSQL, transactionHash).Scan(&receipt.Type, &receipt.PostState, &receipt.Status,
-		&receipt.CumulativeGasUsed, &receipt.GasUsed, &blockNumber, &receipt.TxHash, &receipt.TransactionIndex, &receipt.From, &receipt.To)
+		&receipt.CumulativeGasUsed, &receipt.GasUsed, &blockNumber, &receipt.BlockHash, &receipt.TxHash, &receipt.TransactionIndex, &receipt.From, &receipt.To)
 	if err != nil {
 		return nil, err
 	}
@@ -433,6 +433,6 @@ func (s *PostgresStorage) AddTransaction(ctx context.Context, tx *types.Transact
 
 // AddReceipt adds a new receipt to the State Store
 func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt) error {
-	_, err := s.db.Exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.TxHash.Bytes(), receipt.TransactionIndex, receipt.From.Bytes(), receipt.To.Bytes())
+	_, err := s.db.Exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.BlockHash.Bytes(), receipt.TxHash.Bytes(), receipt.TransactionIndex, receipt.From.Bytes(), receipt.To.Bytes())
 	return err
 }

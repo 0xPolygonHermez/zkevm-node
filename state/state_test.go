@@ -552,12 +552,6 @@ func TestStateTransition(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
-			for _, transaction := range transactions {
-				receipt, err := testState.GetTransactionReceipt(ctx, transaction.Hash())
-				require.NoError(t, err)
-				assert.Equal(t, transaction.Hash(), receipt.TxHash)
-			}
-
 			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
 			require.NoError(t, err)
 
@@ -685,7 +679,7 @@ func TestReceipts(t *testing.T) {
 
 			// Create Transaction
 			for _, vectorTx := range testCase.Txs {
-				if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" {
+				if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" && vectorTx.Reason == "" {
 					var tx types.LegacyTx
 					bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
 
@@ -735,25 +729,6 @@ func TestReceipts(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
-			// Get Receipts from vector
-			for _, testReceipt := range testCase.Receipts {
-				receipt, err := testState.GetTransactionReceipt(ctx, common.HexToHash(testReceipt.Receipt.TransactionHash))
-				require.NoError(t, err)
-				assert.Equal(t, common.HexToHash(testReceipt.Receipt.TransactionHash), receipt.TxHash)
-
-				// Compare against test receipt
-				assert.Equal(t, testReceipt.Receipt.TransactionHash, receipt.TxHash.String())
-				assert.Equal(t, testReceipt.Receipt.TransactionIndex, receipt.TransactionIndex)
-				assert.Equal(t, testReceipt.Receipt.BlockNumber, receipt.BlockNumber.Uint64())
-				assert.Equal(t, testReceipt.Receipt.From, receipt.From.String())
-				assert.Equal(t, testReceipt.Receipt.To, receipt.To.String())
-				assert.Equal(t, testReceipt.Receipt.CumulativeGastUsed, receipt.CumulativeGasUsed)
-				assert.Equal(t, testReceipt.Receipt.GasUsedForTx, receipt.GasUsed)
-				assert.Equal(t, testReceipt.Receipt.Status, receipt.Status)
-				// BLOCKHASH
-				// assert.Equal(t, testReceipt.Receipt.BlockHash, receipt.BlockHash)
-			}
-
 			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
 			require.NoError(t, err)
 
@@ -769,6 +744,25 @@ func TestReceipts(t *testing.T) {
 				require.NoError(t, err)
 				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
 				assert.Equal(t, leafNonce.String(), newNonce.String())
+			}
+
+			// Get Receipts from vector
+			for _, testReceipt := range testCase.Receipts {
+				receipt, err := testState.GetTransactionReceipt(ctx, common.HexToHash(testReceipt.Receipt.TransactionHash))
+				require.NoError(t, err)
+				assert.Equal(t, common.HexToHash(testReceipt.Receipt.TransactionHash), receipt.TxHash)
+
+				// Compare against test receipt
+				assert.Equal(t, testReceipt.Receipt.TransactionHash, receipt.TxHash.String())
+				assert.Equal(t, testReceipt.Receipt.TransactionIndex, receipt.TransactionIndex)
+				assert.Equal(t, testReceipt.Receipt.BlockNumber, receipt.BlockNumber.Uint64())
+				assert.Equal(t, testReceipt.Receipt.From, receipt.From.String())
+				assert.Equal(t, testReceipt.Receipt.To, receipt.To.String())
+				assert.Equal(t, testReceipt.Receipt.CumulativeGastUsed, receipt.CumulativeGasUsed)
+				assert.Equal(t, testReceipt.Receipt.GasUsedForTx, receipt.GasUsed)
+				assert.Equal(t, testReceipt.Receipt.Status, receipt.Status)
+				// BLOCKHASH -> BatchHash
+				assert.Equal(t, common.HexToHash(testReceipt.Receipt.BlockHash), receipt.BlockHash)
 			}
 		})
 	}
