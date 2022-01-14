@@ -623,7 +623,7 @@ func TestLastConsolidatedBatch(t *testing.T) {
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 
 	// Create state
-	st := NewState(stateCfg, stateDb, tree.NewStateTree(mt, nil))
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, nil))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis

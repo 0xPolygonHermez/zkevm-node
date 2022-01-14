@@ -210,20 +210,3 @@ func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint6
 
 	return n.Uint64(), nil
 }
-
-// SetLastBatchNumberConsolidatedOnEthereum sets the last batch number that was consolidated on ethereum
-func (s *BasicState) SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error {
-	_, err := s.db.Exec(ctx, updateLastBatchConsolidatedSQL, batchNumber)
-	return err
-}
-
-// GetLastBatchNumberConsolidatedOnEthereum sets the last batch number that was consolidated on ethereum
-func (s *BasicState) GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error) {
-	var batchNumber uint64
-	err := s.db.QueryRow(ctx, getLastBatchConsolidatedSQL).Scan(&batchNumber)
-	if err != nil {
-		return 0, err
-	}
-
-	return batchNumber, nil
-}

@@ -38,6 +38,8 @@ const (
 	addSequencerSQL                        = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4) ON CONFLICT (chain_id) DO UPDATE SET address = EXCLUDED.address, url = EXCLUDED.url, block_num = EXCLUDED.block_num"
 	updateLastBatchSeenSQL                 = "UPDATE state.misc SET last_batch_num_seen = $1"
 	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
+	updateLastBatchConsolidatedSQL         = "UPDATE state.misc SET last_batch_num_consolidated = $1"
+	getLastBatchConsolidatedSQL            = "SELECT last_batch_num_consolidated FROM state.misc LIMIT 1"
 	getSequencerSQL                        = "SELECT * FROM state.sequencer WHERE address = $1"
 	getReceiptSQL                          = "SELECT * FROM state.receipt WHERE tx_hash = $1"
 	resetSQL                               = "DELETE FROM state.block WHERE block_num > $1"
@@ -399,6 +401,23 @@ func (s *PostgresStorage) SetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
 	var batchNumber uint64
 	err := s.db.QueryRow(ctx, getLastBatchSeenSQL).Scan(&batchNumber)
+	if err != nil {
+		return 0, err
+	}
+
+	return batchNumber, nil
+}
+
+// SetLastBatchNumberConsolidatedOnEthereum sets the last batch number that was consolidated on ethereum
+func (s *PostgresStorage) SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error {
+	_, err := s.db.Exec(ctx, updateLastBatchConsolidatedSQL, batchNumber)
+	return err
+}
+
+// GetLastBatchNumberConsolidatedOnEthereum sets the last batch number that was consolidated on ethereum
+func (s *PostgresStorage) GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error) {
+	var batchNumber uint64
+	err := s.db.QueryRow(ctx, getLastBatchConsolidatedSQL).Scan(&batchNumber)
 	if err != nil {
 		return 0, err
 	}
