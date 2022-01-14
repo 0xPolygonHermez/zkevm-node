@@ -65,6 +65,7 @@ type EtherMan interface {
 	GetDefaultChainID() (*big.Int, error)
 	EstimateSendBatchCost(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error)
 	GetLatestProposedBatchNumber() (uint64, error)
+	GetLatestConsolidatedBatchNumber() (uint64, error)
 	GetSequencerCollateral(batchNumber uint64) (*big.Int, error)
 }
 
@@ -590,6 +591,12 @@ func (etherMan *ClientEtherMan) EstimateSendBatchCost(ctx context.Context, txs [
 // GetLatestProposedBatchNumber function allows to retrieve the latest proposed batch in the smc
 func (etherMan *ClientEtherMan) GetLatestProposedBatchNumber() (uint64, error) {
 	latestBatch, err := etherMan.PoE.LastBatchSent(&bind.CallOpts{Pending: false})
+	return uint64(latestBatch), err
+}
+
+// GetLatestConsolidatedBatchNumber function allows to retrieve the latest consolidated batch in the smc
+func (etherMan *ClientEtherMan) GetLatestConsolidatedBatchNumber() (uint64, error) {
+	latestBatch, err := etherMan.PoE.LastVerifiedBatch(&bind.CallOpts{Pending: false})
 	return uint64(latestBatch), err
 }
 

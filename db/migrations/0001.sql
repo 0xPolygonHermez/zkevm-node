@@ -63,8 +63,9 @@ CREATE TABLE state.receipt
 
 CREATE TABLE state.misc
 (
-    last_batch_num_seen BIGINT
+    last_batch_num_seen BIGINT,
+    last_batch_num_consolidated BIGINT
 );
 
--- Insert default value into misc table
-INSERT INTO state.misc (last_batch_num_seen) VALUES(0);
+-- Insert default values into misc table
+INSERT INTO state.misc (last_batch_num_seen, last_batch_num_consolidated) VALUES(0, 0);

@@ -29,11 +29,12 @@ SyncInterval = "0s"
 IntervalToProposeBatch = "15s"
 SyncedBlockDif = 1
     [Sequencer.Strategy]
-    Type = "acceptall"
-    TxSorterType = "bycostandnonce"
-    TxProfitabilityCheckerType = "base"
-    MinReward = "1.1"
-    PossibleTimeToSendTx = "60s"
+        [Sequencer.Strategy.TxSelector]
+            TxSelectorType = "acceptall"
+            TxSorterType = "bycostandnonce"
+        [Sequencer.Strategy.TxProfitabilityChecker]
+            TxProfitabilityCheckerType = "acceptall"
+            MinReward = "1.1"
 
 [Aggregator]
 IntervalToConsolidateState = "3s"
