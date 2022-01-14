@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/bridge"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -24,13 +25,13 @@ import (
 )
 
 var (
-	newBatchEventSignatureHash        = crypto.Keccak256Hash([]byte("SendBatch(uint32,address)"))
-	consolidateBatchSignatureHash     = crypto.Keccak256Hash([]byte("VerifyBatch(uint32,address)"))
-	newSequencerSignatureHash         = crypto.Keccak256Hash([]byte("RegisterSequencer(address,string,uint32)"))
-	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
-)
+	newBatchEventSignatureHash             = crypto.Keccak256Hash([]byte("SendBatch(uint32,address)"))
+	consolidateBatchSignatureHash          = crypto.Keccak256Hash([]byte("VerifyBatch(uint32,address)"))
+	newSequencerSignatureHash              = crypto.Keccak256Hash([]byte("RegisterSequencer(address,string,uint32)"))
+	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+	depositEventSignatureHash              = crypto.Keccak256Hash([]byte("DepositEvent(address,uint256,uint32,address,uint32)"))
+	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
 
-var (
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
 )
@@ -43,6 +44,10 @@ const (
 	BatchesOrder EventOrder = "Batches"
 	//NewSequencersOrder identifies a newSequencer event
 	NewSequencersOrder EventOrder = "NewSequencers"
+	//DepositsOrder identifies a deposit event
+	DepositsOrder EventOrder = "Deposits"
+	//GlobalExitRootsOrder identifies a gloalExitRoot event
+	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
 )
 
 // EtherMan represents an Ethereum Manager
@@ -70,13 +75,15 @@ type ethClienter interface {
 type ClientEtherMan struct {
 	EtherClient ethClienter
 	PoE         *proofofefficiency.Proofofefficiency
+	Bridge      *bridge.Bridge
 	SCAddresses []common.Address
 
 	auth *bind.TransactOpts
 }
 
 // NewEtherman creates a new etherman
-func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address) (*ClientEtherMan, error) {
+func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address) (*ClientEtherMan, error) {
+	// TODO: PoEAddr can be got from bridge smc. Son only bridge smc is required
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -88,10 +95,14 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address) (*
 	if err != nil {
 		return nil, err
 	}
+	bridge, err := bridge.NewBridge(bridgeAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, PoEAddr)
+	scAddresses = append(scAddresses, PoEAddr, bridgeAddr)
 
-	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, SCAddresses: scAddresses, auth: auth}, nil
+	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, Bridge: bridge, SCAddresses: scAddresses, auth: auth}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
@@ -267,6 +278,22 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 				}
 				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
 			}
+			if len(block.Deposits) != 0 {
+				b.Deposits = append(blocks[block.BlockHash].Deposits, block.Deposits...)
+				or := Order{
+					Name: DepositsOrder,
+					Pos:  len(b.Deposits) - 1,
+				}
+				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
+			}
+			if len(block.GlobalExitRoots) != 0 {
+				b.GlobalExitRoots = append(blocks[block.BlockHash].GlobalExitRoots, block.GlobalExitRoots...)
+				or := Order{
+					Name: GlobalExitRootsOrder,
+					Pos:  len(b.GlobalExitRoots) - 1,
+				}
+				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
+			}
 			blocks[block.BlockHash] = b
 		} else {
 			if len(block.Batches) != 0 {
@@ -280,6 +307,20 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 				or := Order{
 					Name: NewSequencersOrder,
 					Pos:  len(block.NewSequencers) - 1,
+				}
+				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
+			}
+			if len(block.Deposits) != 0 {
+				or := Order{
+					Name: DepositsOrder,
+					Pos:  len(block.Deposits) - 1,
+				}
+				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
+			}
+			if len(block.GlobalExitRoots) != 0 {
+				or := Order{
+					Name: GlobalExitRootsOrder,
+					Pos:  len(block.GlobalExitRoots) - 1,
 				}
 				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
 			}
@@ -334,6 +375,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 				". Error: ", err)
 		}
 		batch.Transactions = txs
+		batch.ReceivedAt = block.ReceivedAt
 		block.Batches = append(block.Batches, batch)
 		return &block, nil
 	case consolidateBatchSignatureHash:
@@ -348,6 +390,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		if err != nil {
 			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
 		}
+		batch.ConsolidatedAt = &block.ReceivedAt
 		block.ParentHash = fullBlock.ParentHash()
 		block.Batches = append(block.Batches, batch)
 		return &block, nil
@@ -373,8 +416,51 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 	case ownershipTransferredSignatureHash:
 		log.Debug("Unhandled event: OwnershipTransferred: ", vLog)
 		return nil, nil
+	case depositEventSignatureHash:
+		deposit, err := etherMan.Bridge.ParseDepositEvent(vLog)
+		if err != nil {
+			return nil, err
+		}
+		var (
+			block      state.Block
+			depositAux state.Deposit
+		)
+		depositAux.Amount = deposit.Amount
+		depositAux.BlockNumber = vLog.BlockNumber
+		depositAux.DestinationAddress = deposit.DestinationAddress
+		depositAux.DestinationNetwork = uint(deposit.DestinationNetwork)
+		depositAux.TokenAddres = deposit.TokenAddres
+		block.BlockHash = vLog.BlockHash
+		block.BlockNumber = vLog.BlockNumber
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
+		}
+		block.ParentHash = fullBlock.ParentHash()
+		block.Deposits = append(block.Deposits, depositAux)
+		return &block, nil
+	case updateGlobalExitRootEventSignatureHash:
+		globalExitRoot, err := etherMan.Bridge.ParseUpdateGlobalExitRoot(vLog)
+		if err != nil {
+			return nil, err
+		}
+		var (
+			block     state.Block
+			gExitRoot state.GlobalExitRoot
+		)
+		gExitRoot.MainnetExitRoot = globalExitRoot.MainnetExitRoot
+		gExitRoot.RollupExitRoot = globalExitRoot.RollupExitRoot
+		block.BlockHash = vLog.BlockHash
+		block.BlockNumber = vLog.BlockNumber
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
+		}
+		block.ParentHash = fullBlock.ParentHash()
+		block.GlobalExitRoots = append(block.GlobalExitRoots, gExitRoot)
+		return &block, nil
 	}
-	log.Debug("Event not registered")
+	log.Debug("Event not registered: ", vLog)
 	return nil, nil
 }
 

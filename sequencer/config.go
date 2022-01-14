@@ -31,6 +31,9 @@ type Config struct {
 	// X amount of blocks are left to sync, it will start to select txs
 	SyncedBlockDif uint64 `mapstructure:"SyncedBlockDif"`
 
+	// IntervalAfterWhichBatchSentAnyway this is interval for the main sequencer, that will check if there is no transactions
+	IntervalAfterWhichBatchSentAnyway Duration `mapstructure:"IntervalAfterWhichBatchSentAnyway"`
+
 	// Strategy is the configuration for the strategy
 	Strategy strategy.Strategy `mapstructure:"Strategy"`
 }

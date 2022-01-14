@@ -9,3 +9,5 @@ gen() {
 }
 
 gen proofofefficiency
+gen bridge
+gen matic
