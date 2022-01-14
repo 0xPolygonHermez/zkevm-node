@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/bridge"
+	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -79,13 +80,14 @@ type ClientEtherMan struct {
 	EtherClient ethClienter
 	PoE         *proofofefficiency.Proofofefficiency
 	Bridge      *bridge.Bridge
+	Matic       *matic.Matic
 	SCAddresses []common.Address
 
 	auth *bind.TransactOpts
 }
 
 // NewEtherman creates a new etherman
-func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address) (*ClientEtherMan, error) {
+func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address, maticAddr common.Address) (*ClientEtherMan, error) {
 	// TODO: PoEAddr can be got from bridge smc. Son only bridge smc is required
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
@@ -102,10 +104,14 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, br
 	if err != nil {
 		return nil, err
 	}
+	matic, err := matic.NewMatic(maticAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, PoEAddr, bridgeAddr)
 
-	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, Bridge: bridge, SCAddresses: scAddresses, auth: auth}, nil
+	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, Bridge: bridge, Matic: matic, SCAddresses: scAddresses, auth: auth}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
@@ -597,4 +603,15 @@ func (etherMan *ClientEtherMan) GetLatestProposedBatchNumber() (uint64, error) {
 func (etherMan *ClientEtherMan) GetSequencerCollateral(batchNumber uint64) (*big.Int, error) {
 	batchInfo, err := etherMan.PoE.SentBatches(&bind.CallOpts{Pending: false}, uint32(batchNumber))
 	return batchInfo.MaticCollateral, err
+}
+
+// ApproveMatic function allow to approve tokens in matic smc
+func (etherMan *ClientEtherMan) ApproveMatic(maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
+	log.Warn(maticAmount, etherMan.SCAddresses[0], etherMan.auth)
+	log.Warn()
+	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
+	if err != nil {
+		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
+	}
+	return tx, nil
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/aggregator"
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/db"
@@ -33,6 +34,8 @@ import (
 const (
 	flagCfg     = "cfg"
 	flagNetwork = "network"
+	flagAddress = "address"
+	flagAmount = "amount"
 )
 
 var (
@@ -82,6 +85,25 @@ func main() {
 			Usage:   "Register sequencer in the smart contract",
 			Action:  registerSequencer,
 			Flags:   flags,
+		},
+		{
+			Name:    "approve",
+			Aliases: []string{"ap"},
+			Usage:   "Approve tokens to be spent by the smart contract",
+			Action:  approveTokens,
+			Flags:   append(flags, &cli.StringFlag{
+				Name:     flagAddress,
+				Aliases:  []string{"ap"},
+				Usage:    "Smc address that is gonna be approved",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     flagAmount,
+				Aliases:  []string{"am"},
+				Usage:    "Amount that is gonna be approved",
+				Required: true,
+			},
+			),
 		},
 	}
 
@@ -152,11 +174,11 @@ func runMigrations(c db.Config) {
 }
 
 func newEtherman(c config.Config) (*etherman.ClientEtherMan, error) {
-	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
+	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.NetworkConfig.L1ChainID)
 	if err != nil {
 		return nil, err
 	}
-	etherman, err := etherman.NewEtherman(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.BridgeAddr)
+	etherman, err := etherman.NewEtherman(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.BridgeAddr, c.NetworkConfig.MaticAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -250,13 +272,13 @@ func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 	return key, nil
 }
 
-func newAuthFromKeystore(path, password string) (*bind.TransactOpts, error) {
+func newAuthFromKeystore(path, password string, chainId uint64) (*bind.TransactOpts, error) {
 	key, err := newKeyFromKeystore(path, password)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Info("addr: ", key.Address.Hex())
-	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, big.NewInt(1337)) //nolint:gomnd
+	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, new(big.Int).SetUint64(chainId))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -320,6 +342,7 @@ func registerSequencer(ctx *cli.Context) error {
 	if err == pgx.ErrNoRows { //If It doesn't exist, register the sequencer
 		tx, err := etherman.RegisterSequencer(url)
 		if err != nil {
+			log.Error("uff no: ", err)
 			return err
 		}
 		log.Info("Sequencer registered. Check this tx to see the status: ", tx.Hash())
@@ -344,5 +367,63 @@ func registerSequencer(ctx *cli.Context) error {
 	}
 	log.Info("Sequencer updated. Check this tx to see the status: ", tx.Hash())
 
+	return nil
+}
+
+func approveTokens(ctx *cli.Context) error {
+	configFilePath := ctx.String(flagCfg)
+	network := ctx.String(flagNetwork)
+	toName := ctx.String(flagAddress)
+	a := ctx.String(flagAmount)
+
+	c, err := config.Load(configFilePath, network)
+	if err != nil {
+		return err
+	}
+// log.Warnf("%+v", c)
+	var toAddress common.Address
+	switch toName {
+	case "poe":
+		toAddress = c.NetworkConfig.PoEAddr
+	case "bridge":
+		toAddress = c.NetworkConfig.BridgeAddr
+	}
+	
+	fmt.Print("*WARNING* Are you sure you want to approve " + a +
+		" tokens to be spent by the smc <Name: " + toName + ". Address: " + toAddress.String() + ">? [y/N]: ")
+	var input string
+	if _, err := fmt.Scanln(&input); err != nil {
+		return err
+	}
+	input = strings.ToLower(input)
+	if !(input == "y" || input == "yes") {
+		return nil
+	}
+
+	setupLog(c.Log)
+
+	runMigrations(c.Database)
+
+	//Check if it is already registered
+	etherman, err := newEtherman(*c)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	var amount *big.Int
+	amount, _ = new(big.Int).SetString(a, 10)
+
+	tx, err := etherman.ApproveMatic(amount, toAddress)
+	if err != nil {
+		return err
+	}
+	switch c.NetworkConfig.L1ChainID {
+	case 1:
+		fmt.Println("Check tx status: https://etherscan.io/tx/"+tx.Hash().String())
+	case 4:
+		fmt.Println("Check tx status: https://rinkeby.etherscan.io/tx/"+tx.Hash().String())
+	case 5:
+		fmt.Println("Check tx status: https://goerli.etherscan.io/tx/"+tx.Hash().String())
+	}
 	return nil
 }

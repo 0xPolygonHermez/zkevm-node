@@ -50,6 +50,7 @@ func (s *ClientSynchronizer) Sync() error {
 	go func() {
 		// If there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block
 		// Get the latest synced block. If there is no block on db, use genesis block
+		log.Info("Sync started")
 		lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx)
 		if err != nil {
 			if err.Error() == pgx.ErrNoRows.Error() {
