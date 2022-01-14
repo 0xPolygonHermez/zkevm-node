@@ -35,7 +35,7 @@ const (
 	flagCfg     = "cfg"
 	flagNetwork = "network"
 	flagAddress = "address"
-	flagAmount = "amount"
+	flagAmount  = "amount"
 )
 
 var (
@@ -91,18 +91,18 @@ func main() {
 			Aliases: []string{"ap"},
 			Usage:   "Approve tokens to be spent by the smart contract",
 			Action:  approveTokens,
-			Flags:   append(flags, &cli.StringFlag{
+			Flags: append(flags, &cli.StringFlag{
 				Name:     flagAddress,
 				Aliases:  []string{"ap"},
 				Usage:    "Smc address that is gonna be approved",
 				Required: true,
 			},
-			&cli.StringFlag{
-				Name:     flagAmount,
-				Aliases:  []string{"am"},
-				Usage:    "Amount that is gonna be approved",
-				Required: true,
-			},
+				&cli.StringFlag{
+					Name:     flagAmount,
+					Aliases:  []string{"am"},
+					Usage:    "Amount that is gonna be approved",
+					Required: true,
+				},
 			),
 		},
 	}
@@ -272,13 +272,13 @@ func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 	return key, nil
 }
 
-func newAuthFromKeystore(path, password string, chainId uint64) (*bind.TransactOpts, error) {
+func newAuthFromKeystore(path, password string, chainID uint64) (*bind.TransactOpts, error) {
 	key, err := newKeyFromKeystore(path, password)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Info("addr: ", key.Address.Hex())
-	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, new(big.Int).SetUint64(chainId))
+	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, new(big.Int).SetUint64(chainID))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -380,7 +380,7 @@ func approveTokens(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-// log.Warnf("%+v", c)
+	// log.Warnf("%+v", c)
 	var toAddress common.Address
 	switch toName {
 	case "poe":
@@ -388,7 +388,7 @@ func approveTokens(ctx *cli.Context) error {
 	case "bridge":
 		toAddress = c.NetworkConfig.BridgeAddr
 	}
-	
+
 	fmt.Print("*WARNING* Are you sure you want to approve " + a +
 		" tokens to be spent by the smc <Name: " + toName + ". Address: " + toAddress.String() + ">? [y/N]: ")
 	var input string
@@ -417,13 +417,18 @@ func approveTokens(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	const (
+		mainnet = 1
+		rinkeby = 4
+		goerli  = 5
+	)
 	switch c.NetworkConfig.L1ChainID {
-	case 1:
-		fmt.Println("Check tx status: https://etherscan.io/tx/"+tx.Hash().String())
-	case 4:
-		fmt.Println("Check tx status: https://rinkeby.etherscan.io/tx/"+tx.Hash().String())
-	case 5:
-		fmt.Println("Check tx status: https://goerli.etherscan.io/tx/"+tx.Hash().String())
+	case mainnet:
+		fmt.Println("Check tx status: https://etherscan.io/tx/" + tx.Hash().String())
+	case rinkeby:
+		fmt.Println("Check tx status: https://rinkeby.etherscan.io/tx/" + tx.Hash().String())
+	case goerli:
+		fmt.Println("Check tx status: https://goerli.etherscan.io/tx/" + tx.Hash().String())
 	}
 	return nil
 }

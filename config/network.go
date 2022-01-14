@@ -27,7 +27,7 @@ const (
 
 //nolint:gomnd
 var (
-	balance, _ = new(big.Int).SetString("1000000000000000000000", 10)
+	balance, _    = new(big.Int).SetString("1000000000000000000000", 10)
 	mainnetConfig = NetworkConfig{
 		Arity:            16,
 		GenBlockNumber:   13808430,
