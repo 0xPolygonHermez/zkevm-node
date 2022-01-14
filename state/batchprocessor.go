@@ -56,10 +56,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			gasUsed = b.State.EstimateGas(tx)
 			cumulativeGasUsed += gasUsed
 			// Set TX Receipt
-			// For performance reasons blockhash is set outside this method
-			// before adding receipt to database
 			receipt := &Receipt{}
-			receipt.BlockHash = batch.Hash()
 			receipt.Type = tx.Type()
 			receipt.PostState = b.stateRoot
 			receipt.Status = types.ReceiptStatusSuccessful
