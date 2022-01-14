@@ -78,7 +78,19 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 				err = s.state.SetLastBatchNumberSeenOnEthereum(s.ctx, latestProposedBatchNumber)
 				if err != nil {
-					log.Warn("error settign latest proposed batch into db. Error: ", err)
+					log.Warn("error setting latest proposed batch into db. Error: ", err)
+					continue
+				}
+
+				// Check latest Consolidated Batch number in the scm
+				latestConsolidatedBatchNumber, err := s.etherMan.GetLatestConsolidatedBatchNumber()
+				if err != nil {
+					log.Warn("error getting latest consolidated batch in the rollup. Error: ", err)
+					continue
+				}
+				err = s.state.SetLastBatchNumberConsolidatedOnEthereum(s.ctx, latestConsolidatedBatchNumber)
+				if err != nil {
+					log.Warn("error setting latest consolidated batch into db. Error: ", err)
 					continue
 				}
 				if waitDuration != s.cfg.SyncInterval.Duration {
