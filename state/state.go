@@ -84,13 +84,13 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 	s.tree.SetCurrentRoot(stateRoot)
 
 	// Get Sequencer's Chain ID
-	chainId := s.cfg.DefaultChainID
+	chainID := s.cfg.DefaultChainID
 	sq, err := s.GetSequencer(context.Background(), sequencerAddress)
 	if err == nil {
-		chainId = sq.ChainID.Uint64()
+		chainID = sq.ChainID.Uint64()
 	}
 
-	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainId}, nil
+	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID}, nil
 }
 
 // NewGenesisBatchProcessor creates a new batch processor
