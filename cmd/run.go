@@ -59,10 +59,15 @@ func start(ctx *cli.Context) error {
 	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
 	st := state.NewState(stateCfg, stateDb, tr)
 
+	pool, err := pool.NewPostgresPool(c.Database)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	proverClient, conn := newProverClient(c.Prover)
 	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer)
-	// go runJSONRpcServer(*c, st)
-	// go runSequencer(c.Sequencer, etherman, pool, st)
+	go runJSONRpcServer(*c, pool, st)
+	go runSequencer(c.Sequencer, etherman, pool, st)
 	go runAggregator(c.Aggregator, etherman, proverClient, st)
 	waitSignal(conn)
 	return nil
@@ -118,7 +123,7 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 	}
 }
 
-func runJSONRpcServer(c config.Config, st state.State) {
+func runJSONRpcServer(c config.Config, pool pool.Pool, st state.State) {
 	var err error
 	key, err := newKeyFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
 	if err != nil {
@@ -126,11 +131,6 @@ func runJSONRpcServer(c config.Config, st state.State) {
 	}
 
 	seqAddress := key.Address
-
-	pool, err := pool.NewPostgresPool(c.Database)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st).Start(); err != nil {
 		log.Fatal(err)
