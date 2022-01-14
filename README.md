@@ -42,3 +42,5 @@ It's recommended to use `make` for building, testing the code, ... Run `make hel
 - Go 1.16
 - Docker
 - Docker Compose
+- Make
+- GCC
