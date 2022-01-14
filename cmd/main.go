@@ -21,6 +21,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/iden3/go-iden3-crypto/poseidon"
@@ -120,7 +121,9 @@ func start(ctx *cli.Context) error {
 		DefaultChainID: c.NetworkConfig.L2DefaultChainID,
 	}
 
-	st := state.NewState(stateCfg, sqlDB, tr)
+	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
+
+	st := state.NewState(stateCfg, stateDb, tr)
 
 	pool, err := pool.NewPostgresPool(c.Database)
 	if err != nil {
@@ -310,7 +313,9 @@ func registerSequencer(ctx *cli.Context) error {
 		DefaultChainID: c.NetworkConfig.L2DefaultChainID,
 	}
 
-	st := state.NewState(stateCfg, sqlDB, tr)
+	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
+	st := state.NewState(stateCfg, stateDb, tr)
+
 	_, err = st.GetSequencer(ctx.Context, etherman.GetAddress())
 	if err == pgx.ErrNoRows { //If It doesn't exist, register the sequencer
 		tx, err := etherman.RegisterSequencer(url)

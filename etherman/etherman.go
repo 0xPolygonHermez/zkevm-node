@@ -31,6 +31,7 @@ var (
 	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 	depositEventSignatureHash              = crypto.Keccak256Hash([]byte("DepositEvent(address,uint256,uint32,address,uint32)"))
 	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
+	claimEventSignatureHash                = crypto.Keccak256Hash([]byte("WithdrawEvent(uint64,uint32,address,uint256,address)"))
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
@@ -48,6 +49,8 @@ const (
 	DepositsOrder EventOrder = "Deposits"
 	//GlobalExitRootsOrder identifies a gloalExitRoot event
 	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
+	//ClaimsOrder identifies a claim event
+	ClaimsOrder EventOrder = "Claims"
 )
 
 // EtherMan represents an Ethereum Manager
@@ -294,6 +297,14 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 				}
 				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
 			}
+			if len(block.Claims) != 0 {
+				b.Claims = append(blocks[block.BlockHash].Claims, block.Claims...)
+				or := Order{
+					Name: ClaimsOrder,
+					Pos:  len(b.Claims) - 1,
+				}
+				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
+			}
 			blocks[block.BlockHash] = b
 		} else {
 			if len(block.Batches) != 0 {
@@ -321,6 +332,13 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 				or := Order{
 					Name: GlobalExitRootsOrder,
 					Pos:  len(block.GlobalExitRoots) - 1,
+				}
+				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
+			}
+			if len(block.Claims) != 0 {
+				or := Order{
+					Name: ClaimsOrder,
+					Pos:  len(block.Claims) - 1,
 				}
 				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
 			}
@@ -414,7 +432,16 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		block.NewSequencers = append(block.NewSequencers, sequencer)
 		return &block, nil
 	case ownershipTransferredSignatureHash:
-		log.Debug("Unhandled event: OwnershipTransferred: ", vLog)
+		ownership, err := etherMan.PoE.ParseOwnershipTransferred(vLog)
+		if err != nil {
+			return nil, err
+		}
+		emptyAddr := common.Address{}
+		if ownership.PreviousOwner == emptyAddr {
+			log.Debug("New rollup smc deployment detected. Deployment account: ", ownership.NewOwner)
+		} else {
+			log.Debug("Rollup smc OwnershipTransferred from account ", ownership.PreviousOwner, " to ", ownership.NewOwner)
+		}
 		return nil, nil
 	case depositEventSignatureHash:
 		deposit, err := etherMan.Bridge.ParseDepositEvent(vLog)
@@ -458,6 +485,30 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		}
 		block.ParentHash = fullBlock.ParentHash()
 		block.GlobalExitRoots = append(block.GlobalExitRoots, gExitRoot)
+		return &block, nil
+	case claimEventSignatureHash:
+		claim, err := etherMan.Bridge.ParseWithdrawEvent(vLog)
+		if err != nil {
+			return nil, err
+		}
+		var (
+			block    state.Block
+			claimAux state.Claim
+		)
+		claimAux.Amount = claim.Amount
+		claimAux.DestinationAddress = claim.DestinationAddress
+		claimAux.Index = claim.Index
+		claimAux.OriginalNetwork = uint(claim.OriginalNetwork)
+		claimAux.Token = claim.Token
+		claimAux.BlockNumber = vLog.BlockNumber
+		block.BlockHash = vLog.BlockHash
+		block.BlockNumber = vLog.BlockNumber
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
+		}
+		block.ParentHash = fullBlock.ParentHash()
+		block.Claims = append(block.Claims, claimAux)
 		return &block, nil
 	}
 	log.Debug("Event not registered: ", vLog)

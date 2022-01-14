@@ -32,14 +32,6 @@ type BatchProcessor interface {
 	CheckTransaction(tx *types.Transaction) (common.Address, *big.Int, *big.Int, error)
 }
 
-const (
-	addBatchSQL       = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
-	addTransactionSQL = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
-	addReceiptSQL     = `INSERT INTO state.receipt 
-						(type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_hash, tx_index)
-						VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-)
-
 // BasicBatchProcessor is used to process a batch of transactions
 type BasicBatchProcessor struct {
 	State            *BasicState
@@ -91,7 +83,7 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	root := b.stateRoot
 
 	// reset MT currentRoot in case it was modified by failed transaction
-	b.State.Tree.SetCurrentRoot(root)
+	b.State.tree.SetCurrentRoot(root)
 	log.Debugf("processing transaction [%s]: root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
 	sender, nonce, senderBalance, err := b.CheckTransaction(tx)
@@ -103,7 +95,7 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	log.Debugf("processing transaction [%s]: sender balance: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
 
 	// Get receiver Balance
-	receiverBalance, err := b.State.Tree.GetBalance(*tx.To(), root)
+	receiverBalance, err := b.State.tree.GetBalance(*tx.To(), root)
 	if err != nil {
 		return err
 	}
@@ -114,7 +106,7 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	log.Debugf("processing transaction [%s]: new nonce: %v", tx.Hash().Hex(), nonce.Text(encoding.Base10))
 
 	// Store new nonce
-	_, _, err = b.State.Tree.SetNonce(sender, nonce)
+	_, _, err = b.State.tree.SetNonce(sender, nonce)
 	if err != nil {
 		return err
 	}
@@ -138,13 +130,13 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	} else if sequencerAddress == *tx.To() {
 		receiverBalance.Add(receiverBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
 	} else {
-		sequencerBalance, err := b.State.Tree.GetBalance(sequencerAddress, root)
+		sequencerBalance, err := b.State.tree.GetBalance(sequencerAddress, root)
 		if err != nil {
 			return err
 		}
 
 		sequencerBalance.Add(sequencerBalance, new(big.Int).Mul(usedGas, tx.GasPrice()))
-		_, _, err = b.State.Tree.SetBalance(sequencerAddress, sequencerBalance)
+		_, _, err = b.State.tree.SetBalance(sequencerAddress, sequencerBalance)
 		if err != nil {
 			return err
 		}
@@ -157,12 +149,12 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	log.Debugf("processing transaction [%s]: sender balance after refund: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
 
 	// Store new balances
-	_, _, err = b.State.Tree.SetBalance(sender, senderBalance)
+	_, _, err = b.State.tree.SetBalance(sender, senderBalance)
 	if err != nil {
 		return err
 	}
 
-	root, _, err = b.State.Tree.SetBalance(*tx.To(), receiverBalance)
+	root, _, err = b.State.tree.SetBalance(*tx.To(), receiverBalance)
 	if err != nil {
 		return err
 	}
@@ -180,7 +172,7 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	var balance = big.NewInt(0)
 
 	// reset MT currentRoot in case it was modified by failed transaction
-	b.State.Tree.SetCurrentRoot(b.stateRoot)
+	b.State.tree.SetCurrentRoot(b.stateRoot)
 
 	// Check Signature
 	if err := CheckSignature(tx); err != nil {
@@ -202,7 +194,7 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	}
 
 	// Check nonce
-	nonce, err = b.State.Tree.GetNonce(sender, b.stateRoot)
+	nonce, err = b.State.tree.GetNonce(sender, b.stateRoot)
 	if err != nil {
 		return sender, nonce, balance, err
 	}
@@ -212,7 +204,7 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 	}
 
 	// Check balance
-	balance, err = b.State.Tree.GetBalance(sender, b.stateRoot)
+	balance, err = b.State.tree.GetBalance(sender, b.stateRoot)
 	if err != nil {
 		return sender, nonce, balance, err
 	}
@@ -250,14 +242,14 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, error) {
 		batch.Header.Root = root
 	}
 
-	err := b.addBatch(ctx, batch)
+	err := b.State.AddBatch(ctx, batch)
 	if err != nil {
 		return nil, err
 	}
 
 	// store transactions
 	for i, tx := range batch.Transactions {
-		err := b.addTransaction(ctx, tx, batch.BatchNumber, uint(i))
+		err := b.State.AddTransaction(ctx, tx, batch.BatchNumber, uint(i))
 		if err != nil {
 			return nil, err
 		}
@@ -265,39 +257,11 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, error) {
 
 	// store receipts
 	for _, receipt := range batch.Receipts {
-		err := b.addReceipt(ctx, receipt)
+		err := b.State.AddReceipt(ctx, receipt)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return nil, nil
-}
-
-func (b *BasicBatchProcessor) addBatch(ctx context.Context, batch *Batch) error {
-	_, err := b.State.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator,
-		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData, batch.MaticCollateral.String(), batch.ReceivedAt)
-	return err
-}
-
-func (b *BasicBatchProcessor) addTransaction(ctx context.Context, tx *types.Transaction, batchNumber uint64, index uint) error {
-	binary, err := tx.MarshalBinary()
-	if err != nil {
-		panic(err)
-	}
-	encoded := hex.EncodeToHex(binary)
-
-	binary, err = tx.MarshalJSON()
-	if err != nil {
-		panic(err)
-	}
-	decoded := string(binary)
-
-	_, err = b.State.db.Exec(ctx, addTransactionSQL, tx.Hash().Bytes(), "", encoded, decoded, batchNumber, index)
-	return err
-}
-
-func (b *BasicBatchProcessor) addReceipt(ctx context.Context, receipt *types.Receipt) error {
-	_, err := b.State.db.Exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.TxHash.Bytes(), receipt.TransactionIndex)
-	return err
 }
