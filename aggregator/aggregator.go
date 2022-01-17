@@ -10,7 +10,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/jackc/pgx/v4"
 	"google.golang.org/grpc"
 )
 
@@ -98,8 +97,8 @@ func (a *Aggregator) Start() {
 			batchToConsolidate, err := a.State.GetBatchByNumber(a.ctx, lastConsolidatedBatch.BatchNumber+1)
 
 			if err != nil {
-				if err == pgx.ErrNoRows {
-					log.Infof("there is no batches to consolidate")
+				if err == state.ErrBatchNotFound {
+					log.Infof("there are no batches to consolidate")
 					continue
 				}
 				log.Warnf("failed to get batch to consolidate, err: %v", err)
