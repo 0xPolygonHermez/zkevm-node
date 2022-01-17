@@ -884,7 +884,7 @@ func TestStateErrors(t *testing.T) {
 	require.Equal(t, state.ErrSequencerNotFound, err)
 
 	_, err = st.GetLastBatchNumberSeenOnEthereum(ctx)
-	require.Equal(t, state.ErrStateNotSynchronized, err)
+	require.NoError(t, err)
 
 	_, err = st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
 	require.NoError(t, err)

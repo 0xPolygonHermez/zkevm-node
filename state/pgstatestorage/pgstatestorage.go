@@ -3,6 +3,7 @@ package pgstatestorage
 import (
 	"context"
 	"math/big"
+	"reflect"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -20,15 +21,15 @@ const (
 	getPreviousBlockSQL                    = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
 	getBlockByHashSQL                      = "SELECT * FROM state.block WHERE block_hash = $1"
 	getBlockByNumberSQL                    = "SELECT * FROM state.block WHERE block_num = $1"
-	getLastBlockNumberSQL                  = "SELECT COALESCE(MAX(block_num), 0) FROM state.block"
+	getLastBlockNumberSQL                  = "SELECT MAX(block_num) FROM state.block"
 	getLastVirtualBatchSQL                 = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastConsolidatedBatchSQL            = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
 	getPreviousVirtualBatchSQL             = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
 	getPreviousConsolidatedBatchSQL        = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
 	getBatchByHashSQL                      = "SELECT * FROM state.batch WHERE batch_hash = $1"
 	getBatchByNumberSQL                    = "SELECT * FROM state.batch WHERE batch_num = $1"
-	getLastVirtualBatchNumberSQL           = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch"
-	getLastConsolidatedBatchNumberSQL      = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch WHERE consolidated_tx_hash != $1"
+	getLastVirtualBatchNumberSQL           = "SELECT MAX(batch_num) FROM state.batch"
+	getLastConsolidatedBatchNumberSQL      = "SELECT MAX(batch_num) FROM state.batch WHERE consolidated_tx_hash != $1"
 	getTransactionByHashSQL                = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
 	getTransactionByBatchHashAndIndexSQL   = "SELECT transaction.encoded FROM state.transaction inner join state.batch on (state.transaction.batch_num = state.batch.batch_num) WHERE state.batch.batch_hash = $1 and state.transaction.tx_index = $2"
 	getTransactionByBatchNumberAndIndexSQL = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1 AND tx_index = $2"
@@ -119,10 +120,10 @@ func (s *PostgresStorage) GetBlockByNumber(ctx context.Context, blockNumber uint
 func (s *PostgresStorage) GetLastBlockNumber(ctx context.Context) (uint64, error) {
 	var lastBlockNum uint64
 	err := s.db.QueryRow(ctx, getLastBlockNumberSQL).Scan(&lastBlockNum)
-	if lastBlockNum == 0 {
-		return 0, state.ErrStateNotSynchronized
-	}
 	if err != nil {
+		if reflect.TypeOf(err) == reflect.TypeOf(pgx.ScanArgError{}) {
+			return 0, state.ErrStateNotSynchronized
+		}
 		return 0, err
 	}
 	return lastBlockNum, nil
@@ -240,10 +241,10 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 func (s *PostgresStorage) GetLastBatchNumber(ctx context.Context) (uint64, error) {
 	var lastBatchNumber uint64
 	err := s.db.QueryRow(ctx, getLastVirtualBatchNumberSQL).Scan(&lastBatchNumber)
-	if lastBatchNumber == 0 {
-		return 0, state.ErrStateNotSynchronized
-	}
 	if err != nil {
+		if reflect.TypeOf(err) == reflect.TypeOf(pgx.ScanArgError{}) {
+			return 0, state.ErrStateNotSynchronized
+		}
 		return 0, err
 	}
 	return lastBatchNumber, nil
@@ -253,10 +254,10 @@ func (s *PostgresStorage) GetLastBatchNumber(ctx context.Context) (uint64, error
 func (s *PostgresStorage) GetLastConsolidatedBatchNumber(ctx context.Context) (uint64, error) {
 	var lastBatchNumber uint64
 	err := s.db.QueryRow(ctx, getLastConsolidatedBatchNumberSQL, common.Hash{}).Scan(&lastBatchNumber)
-	if lastBatchNumber == 0 {
-		return 0, state.ErrStateNotSynchronized
-	}
 	if err != nil {
+		if reflect.TypeOf(err) == reflect.TypeOf(pgx.ScanArgError{}) {
+			return 0, state.ErrStateNotSynchronized
+		}
 		return 0, err
 	}
 	return lastBatchNumber, nil
@@ -453,10 +454,10 @@ func (s *PostgresStorage) SetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
 	var batchNumber uint64
 	err := s.db.QueryRow(ctx, getLastBatchSeenSQL).Scan(&batchNumber)
-	if batchNumber == 0 {
-		return 0, state.ErrStateNotSynchronized
-	}
 	if err != nil {
+		if reflect.TypeOf(err) == reflect.TypeOf(pgx.ScanArgError{}) {
+			return 0, state.ErrStateNotSynchronized
+		}
 		return 0, err
 	}
 
@@ -473,10 +474,10 @@ func (s *PostgresStorage) SetLastBatchNumberConsolidatedOnEthereum(ctx context.C
 func (s *PostgresStorage) GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error) {
 	var batchNumber uint64
 	err := s.db.QueryRow(ctx, getLastBatchConsolidatedSQL).Scan(&batchNumber)
-	if batchNumber == 0 {
-		return 0, state.ErrStateNotSynchronized
-	}
 	if err != nil {
+		if reflect.TypeOf(err) == reflect.TypeOf(pgx.ScanArgError{}) {
+			return 0, state.ErrStateNotSynchronized
+		}
 		return 0, err
 	}
 
