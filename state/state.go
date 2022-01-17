@@ -62,7 +62,7 @@ var (
 	// ErrInvalidBatchHeader indicates the batch header is invalid
 	ErrInvalidBatchHeader = errors.New("invalid batch header")
 	// ErrStateNotSynchronized indicates the state database may be empty
-	ErrStateNotSynchronized = errors.New("state not sychronized")
+	ErrStateNotSynchronized = errors.New("state not synchronized")
 	// ErrBlockNotFound indicates a block has not been found for the search criteria used
 	ErrBlockNotFound = errors.New("block not found")
 	// ErrBatchNotFound indicates a batch has not been found for the search criteria used
