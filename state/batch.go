@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/binary"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -12,7 +13,7 @@ import (
 var (
 	// TODO: Calculate proper EmptyRootHash
 
-	// EmptyRootHash hash of an emty root
+	// EmptyRootHash hash of an empty root
 	EmptyRootHash = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 	// EmptyUncleHash hash of an empty uncle
 	EmptyUncleHash = common.Hash{}
@@ -76,6 +77,8 @@ type Batch struct {
 	RawTxsData         []byte
 	Receipts           []*types.Receipt
 	MaticCollateral    *big.Int
+	ReceivedAt         time.Time
+	ConsolidatedAt     *time.Time
 }
 
 // NewBatchWithHeader creates a batch with the given header data.

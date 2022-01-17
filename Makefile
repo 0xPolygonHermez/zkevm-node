@@ -2,15 +2,18 @@ DOCKERCOMPOSE := docker-compose -f docker-compose.explorer.yml
 DOCKERCOMPOSEAPP := hez-core
 DOCKERCOMPOSEDB := hez-postgres
 DOCKERCOMPOSENETWORK := hez-network
+DOCKERCOMPOSEPROVER := hez-prover
 
 RUNDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDB)
 RUNCORE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPP)
 RUNNETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
+RUNPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPROVER)
 RUN := $(DOCKERCOMPOSE) up -d
 
 STOPDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEDB)
 STOPCORE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPP) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPP)
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
+STOPPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPROVER)
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
 VERSION := $(shell git describe --tags --always)
@@ -83,6 +86,14 @@ run-network: ## Runs the l1 network
 .PHONY: stop-network
 stop-network: ## Stops the l1 network
 	$(STOPNETWORK)
+
+.PHONY: run-prover
+run-prover: ## Runs the zk prover
+	$(RUNPROVER)
+
+.PHONY: stop-prover
+stop-prover: ## Stop the zk prover
+	$(STOPPROVER)
 
 .PHONY: run
 run: ## Runs all the services available in the docker-compose file

@@ -51,8 +51,8 @@ func (c *zKProverClient) GenProof(ctx context.Context, opts ...grpc.CallOption) 
 }
 
 type ZKProver_GenProofClient interface {
-	Send(*Batch) error
-	Recv() (*Proof, error)
+	Send(*InputProver) error
+	Recv() (*State, error)
 	grpc.ClientStream
 }
 
@@ -60,12 +60,12 @@ type zKProverGenProofClient struct {
 	grpc.ClientStream
 }
 
-func (x *zKProverGenProofClient) Send(m *Batch) error {
+func (x *zKProverGenProofClient) Send(m *InputProver) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *zKProverGenProofClient) Recv() (*Proof, error) {
-	m := new(Proof)
+func (x *zKProverGenProofClient) Recv() (*State, error) {
+	m := new(State)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -153,8 +153,8 @@ func _ZKProver_GenProof_Handler(srv interface{}, stream grpc.ServerStream) error
 }
 
 type ZKProver_GenProofServer interface {
-	Send(*Proof) error
-	Recv() (*Batch, error)
+	Send(*State) error
+	Recv() (*InputProver, error)
 	grpc.ServerStream
 }
 
@@ -162,12 +162,12 @@ type zKProverGenProofServer struct {
 	grpc.ServerStream
 }
 
-func (x *zKProverGenProofServer) Send(m *Proof) error {
+func (x *zKProverGenProofServer) Send(m *State) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *zKProverGenProofServer) Recv() (*Batch, error) {
-	m := new(Batch)
+func (x *zKProverGenProofServer) Recv() (*InputProver, error) {
+	m := new(InputProver)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}

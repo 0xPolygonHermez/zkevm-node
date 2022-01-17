@@ -48,3 +48,16 @@ services:
         image: hermeznetwork/geth-zkevm-contracts:latest
         ports:
           - 8545:8545
+
+    hez-prover:
+      container_name: hez-prover
+      restart: always
+      image: hermeznetwork/zk-mock-prover:latest
+      ports:
+        - 50051:50051
+      environment:
+        - POSTGRES_USER=test_user
+        - POSTGRES_PASSWORD=test_password
+        - POSTGRES_DB=test_db
+        - POSTGRES_HOST=hez-postgres
+        - PROOF_TIME=1000

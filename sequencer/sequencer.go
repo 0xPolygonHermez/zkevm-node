@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -11,8 +12,10 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/jackc/pgx/v4"
 )
 
 // Sequencer represents a sequencer
@@ -23,9 +26,10 @@ type Sequencer struct {
 	State   state.State
 	EthMan  etherman.EtherMan
 	Address common.Address
+	ChainID uint64
 
-	strategy.TxSelector
-	strategy.TxProfitabilityChecker
+	txselector.TxSelector
+	txprofitabilitychecker.TxProfitabilityChecker
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -35,27 +39,35 @@ type Sequencer struct {
 func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	var txSelector strategy.TxSelector
-	switch cfg.Strategy.Type {
-	case strategy.AcceptAll:
-		txSelector = strategy.NewTxSelectorAcceptAll(cfg.Strategy)
-	case strategy.Base:
-		txSelector = strategy.NewTxSelectorBase(cfg.Strategy)
+	var txSelector txselector.TxSelector
+	switch cfg.Strategy.TxSelector.Type {
+	case txselector.AcceptAllType:
+		txSelector = txselector.NewTxSelectorAcceptAll()
+	case txselector.BaseType:
+		txSelector = txselector.NewTxSelectorBase(cfg.Strategy.TxSelector)
 	}
 
-	var txProfitabilityChecker strategy.TxProfitabilityChecker
-	switch cfg.Strategy.TxProfitabilityCheckerType {
-	case strategy.ProfitabilityAcceptAll:
-		txProfitabilityChecker = &strategy.TxProfitabilityCheckerAcceptAll{}
-	case strategy.ProfitabilityBase:
-		txProfitabilityChecker = strategy.NewTxProfitabilityCheckerBase(ethMan, cfg.Strategy.MinReward.Int)
+	var txProfitabilityChecker txprofitabilitychecker.TxProfitabilityChecker
+	switch cfg.Strategy.TxProfitabilityChecker.Type {
+	case txprofitabilitychecker.AcceptAllType:
+		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
+	case txprofitabilitychecker.BaseType:
+		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, state, cfg.Strategy.TxProfitabilityChecker.MinReward.Int, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
+	}
+
+	seqAddress := ethMan.GetAddress()
+	chainID, err := getChainID(ctx, state, seqAddress)
+	if err != nil {
+		cancel()
+		return Sequencer{}, fmt.Errorf("failed to get chain id for the sequencer, err: %v", err)
 	}
 	s := Sequencer{
 		cfg:     cfg,
 		Pool:    pool,
 		State:   state,
 		EthMan:  ethMan,
-		Address: ethMan.GetAddress(),
+		Address: seqAddress,
+		ChainID: chainID,
 
 		TxSelector:             txSelector,
 		TxProfitabilityChecker: txProfitabilityChecker,
@@ -102,8 +114,7 @@ func (s *Sequencer) tryProposeBatch() {
 		return
 	}
 
-	// 2. Estimate available time to run selection
-	// get pending txs from the pool
+	// 2. get pending txs from the pool
 	txs, err := s.Pool.GetPendingTxs(s.ctx)
 	if err != nil {
 		log.Errorf("failed to get pending txs, err: %v", err)
@@ -114,15 +125,6 @@ func (s *Sequencer) tryProposeBatch() {
 		log.Infof("transactions pool is empty, waiting for the new txs...")
 		return
 	}
-
-	// estimate time for selecting txs
-	estimatedTime, err := s.estimateTime(txs)
-	if err != nil {
-		log.Errorf("failed to estimate time for selecting txs, err: %v", err)
-		return
-	}
-
-	log.Infof("Estimated time for selecting txs is %dms", estimatedTime.Milliseconds())
 
 	// 3. Run selection
 	// init batch processor
@@ -138,7 +140,7 @@ func (s *Sequencer) tryProposeBatch() {
 	}
 
 	// select txs
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs, estimatedTime)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs)
 	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
 		log.Errorf("failed to select txs, err: %v", err)
 		return
@@ -179,7 +181,41 @@ func (s *Sequencer) tryProposeBatch() {
 	// NO: discard selection and wait for the new batch
 }
 
-// estimateTime Estimate available time to run selection
-func (s *Sequencer) estimateTime(txs []pool.Transaction) (time.Duration, error) {
-	return time.Hour, nil
+func getChainID(ctx context.Context, st state.State, seqAddress common.Address) (uint64, error) {
+	const intervalToCheckSequencerRegistrationInSeconds = 3
+	var (
+		seq *state.Sequencer
+		err error
+	)
+	for {
+		seq, err = st.GetSequencer(ctx, seqAddress)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				log.Warnf("make sure the address %s has been registered in the smart contract as a sequencer, err: %v", seqAddress.Hex(), err)
+				lastSyncedBatchNum, err := st.GetLastBatchNumber(ctx)
+				if err != nil {
+					log.Errorf("failed to get last synced batch, err: %v", err)
+					return 0, err
+				}
+				lastEthBatchNum, err := st.GetLastBatchNumberSeenOnEthereum(ctx)
+				if err != nil {
+					log.Errorf("failed to get last eth batch, err: %v", err)
+					return 0, err
+				}
+
+				if lastEthBatchNum == 0 {
+					log.Warnf("last eth batch num is 0, waiting to sync...")
+				} else {
+					const oneHundred = 100
+					percentage := lastSyncedBatchNum * oneHundred / lastEthBatchNum
+					log.Warnf("node is still syncing, synced %d%%", percentage)
+				}
+				time.Sleep(intervalToCheckSequencerRegistrationInSeconds * time.Second)
+				continue
+			} else {
+				return 0, err
+			}
+		}
+		return seq.ChainID.Uint64(), nil
+	}
 }
