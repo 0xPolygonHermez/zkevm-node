@@ -1,4 +1,4 @@
-package strategy
+package txselector
 
 import (
 	"github.com/ethereum/go-ethereum/core/types"
@@ -12,18 +12,16 @@ type TxSelector interface {
 	SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error)
 }
 
-// TxSelectorAcceptAll that accept all transactions
-type TxSelectorAcceptAll struct {
-	Strategy Strategy
-}
+// AcceptAll that accept all transactions
+type AcceptAll struct{}
 
 // NewTxSelectorAcceptAll init function
-func NewTxSelectorAcceptAll(strategy Strategy) TxSelector {
-	return &TxSelectorAcceptAll{Strategy: strategy}
+func NewTxSelectorAcceptAll() TxSelector {
+	return &AcceptAll{}
 }
 
 // SelectTxs selects all transactions and don't check anything
-func (s *TxSelectorAcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error) {
+func (s *AcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error) {
 	selectedTxs := make([]*types.Transaction, 0, len(pendingTxs))
 	selectedTxsHashes := make([]string, 0, len(pendingTxs))
 	for _, tx := range pendingTxs {
@@ -34,47 +32,29 @@ func (s *TxSelectorAcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pen
 	return selectedTxs, selectedTxsHashes, nil, nil
 }
 
-// IsProfitable always returns true
-func (s *TxSelectorAcceptAll) IsProfitable([]*types.Transaction) bool {
-	return true
-}
-
-// TxSelectorBase tx selector with basic selection algorithm. Accepts different tx sorting and tx profitability checking structs
-type TxSelectorBase struct {
-	Strategy               Strategy
-	TxSorter               TxSorter
-	TxProfitabilityChecker TxProfitabilityChecker
+// Base tx selector with basic selection algorithm. Accepts different tx sorting and tx profitability checking structs
+type Base struct {
+	TxSorter TxSorter
 }
 
 // NewTxSelectorBase init function
-func NewTxSelectorBase(strategy Strategy) TxSelector {
-	var (
-		sorter               TxSorter
-		profitabilityChecker TxProfitabilityChecker
-	)
+func NewTxSelectorBase(cfg Config) TxSelector {
+	var sorter TxSorter
 
-	switch strategy.TxSorterType {
+	switch cfg.TxSorterType {
 	case ByCostAndTime:
 		sorter = &TxSorterByCostAndTime{}
 	case ByCostAndNonce:
 		sorter = &TxSorterByCostAndNonce{}
 	}
 
-	switch strategy.TxProfitabilityCheckerType {
-	case ProfitabilityBase:
-		profitabilityChecker = &TxProfitabilityCheckerBase{MinReward: strategy.MinReward.Int}
-	case ProfitabilityAcceptAll:
-		profitabilityChecker = &TxProfitabilityCheckerAcceptAll{}
-	}
-	return &TxSelectorBase{
-		Strategy:               strategy,
-		TxSorter:               sorter,
-		TxProfitabilityChecker: profitabilityChecker,
+	return &Base{
+		TxSorter: sorter,
 	}
 }
 
 // SelectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (t *TxSelectorBase) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error) {
+func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error) {
 	sortedTxs := t.TxSorter.SortTxs(pendingTxs)
 	var (
 		selectedTxs                         []*types.Transaction

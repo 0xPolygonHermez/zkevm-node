@@ -77,27 +77,22 @@ func (a *Aggregator) Start() {
 		select {
 		case <-time.After(a.cfg.IntervalToConsolidateState.Duration):
 			// 1. check, if state is synced
-			lastSyncedBatchNum, err := a.State.GetLastBatchNumber(a.ctx)
-			if err != nil {
-				log.Warnf("failed to get last synced batch, err: %v", err)
-				continue
-			}
-			lastEthBatchNum, err := a.State.GetLastBatchNumberSeenOnEthereum(a.ctx)
-			if err != nil {
-				log.Warnf("failed to get last eth batch, err: %v", err)
-				continue
-			}
-			if lastSyncedBatchNum < lastEthBatchNum {
-				log.Infof("waiting for the state to be synced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
-				continue
-			}
-
-			// 2. find next batch to consolidate
 			lastConsolidatedBatch, err := a.State.GetLastBatch(a.ctx, false)
 			if err != nil {
 				log.Warnf("failed to get last consolidated batch, err: %v", err)
 				continue
 			}
+			lastConsolidatedEthBatchNum, err := a.State.GetLastBatchNumberConsolidatedOnEthereum(a.ctx)
+			if err != nil {
+				log.Warnf("failed to get last eth batch, err: %v", err)
+				continue
+			}
+			if lastConsolidatedBatch.BatchNumber < lastConsolidatedEthBatchNum {
+				log.Infof("waiting for the state to be synced, lastConsolidatedBatchNum: %d, lastEthConsolidatedBatchNum: %d", lastConsolidatedBatch.BatchNumber, lastConsolidatedEthBatchNum)
+				continue
+			}
+
+			// 2. find next batch to consolidate
 			delete(batchesSent, lastConsolidatedBatch.BatchNumber)
 
 			batchToConsolidate, err := a.State.GetBatchByNumber(a.ctx, lastConsolidatedBatch.BatchNumber+1)
