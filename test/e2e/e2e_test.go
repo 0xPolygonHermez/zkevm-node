@@ -224,7 +224,7 @@ func TestStateTransition(t *testing.T) {
 
 			// Check leafs
 			batchNumber, err := st.GetLastBatchNumber(ctx)
-			require.Equal(t, state.ErrStateNotSynchronized, err)
+			require.NoError(t, err)
 			for addrStr, leaf := range testCase.ExpectedNewLeafs {
 				addr := common.HexToAddress(addrStr)
 
