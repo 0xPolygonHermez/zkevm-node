@@ -36,21 +36,19 @@ build: ## Build the binary locally into ./dist
 
 .PHONY: build-docker
 build-docker: ## Build a docker image with the core binary
-	docker build -t hezcore -f ./Dockerfile . 
+	docker build -t hezcore -f ./Dockerfile .
 
 .PHONY: test
 test: ## runs only short tests without checking race conditions
 	$(STOPDB) || true
 	$(RUNDB)
-	go test -short -p 1 ./...
-	$(STOPDB)
+	trap '$(STOPDB)' EXIT; go test -short -p 1 ./...
 
 .PHONY: test-full
 test-full: ## runs all tests checking race conditions
 	$(STOPDB) || true
 	$(RUNDB)
-	MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
-	$(STOPDB)
+	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
 
 .PHONY: install-linter
 install-linter: ## install linter
@@ -116,4 +114,3 @@ help: ## Prints this help
 		@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| sort \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
-		
