@@ -87,7 +87,7 @@ func (a *Aggregator) Start() {
 				continue
 			}
 			if lastConsolidatedBatch.BatchNumber < lastConsolidatedEthBatchNum {
-				log.Infow("waiting for the state to be synced, lastConsolidatedBatchNum: %d, lastEthConsolidatedBatchNum: %d", lastConsolidatedBatch.BatchNumber, lastConsolidatedEthBatchNum)
+				log.Infof("waiting for the state to be synced, lastConsolidatedBatchNum: %d, lastEthConsolidatedBatchNum: %d", lastConsolidatedBatch.BatchNumber, lastConsolidatedEthBatchNum)
 				continue
 			}
 

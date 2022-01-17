@@ -178,7 +178,7 @@ func TestStateTransition(t *testing.T) {
 			ethermanConfig := etherman.Config{
 				URL: l1NetworkURL,
 			}
-			etherman, err := etherman.NewEtherman(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(bridgeAddress))
+			etherman, err := etherman.NewEtherman(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(bridgeAddress), common.HexToAddress(maticTokenAddress))
 			require.NoError(t, err)
 			tx, err = etherman.RegisterSequencer(l2NetworkURL)
 			require.NoError(t, err)

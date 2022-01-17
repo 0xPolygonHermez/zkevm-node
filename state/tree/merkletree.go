@@ -469,7 +469,9 @@ func (mt *MerkleTree) newNodeData() []*big.Int {
 
 func (mt *MerkleTree) getNodeData(ctx context.Context, hash *big.Int) ([]*big.Int, error) {
 	//log.Debugw("Get node", "hash", hex.EncodeToString(hash.Bytes()))
-	data, err := mt.store.Get(ctx, hash.Bytes())
+	var k [maxBigIntLen]byte
+	hash.FillBytes(k[:])
+	data, err := mt.store.Get(ctx, k[:])
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +493,9 @@ func (mt *MerkleTree) setNodeData(ctx context.Context, key *big.Int, data []*big
 	}
 	//fmt.Printf("Set node Key: %+v Data: %+v\n", hex.EncodeToHex(key.Bytes()), hex.EncodeToHex(buf.Bytes()))
 	// insert node into the database
-	err := mt.store.Set(ctx, key.Bytes(), buf.Bytes())
+	var k [maxBigIntLen]byte
+	key.FillBytes(k[:])
+	err := mt.store.Set(ctx, k[:], buf.Bytes())
 	if err != nil {
 		return err
 	}
