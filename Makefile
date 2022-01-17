@@ -41,13 +41,13 @@ build-docker: ## Build a docker image with the core binary
 .PHONY: test
 test: ## runs only short tests without checking race conditions
 	$(STOPDB) || true
-	$(RUNDB)
+	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; go test -short -p 1 ./...
 
 .PHONY: test-full
 test-full: ## runs all tests checking race conditions
 	$(STOPDB) || true
-	$(RUNDB)
+	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
 
 .PHONY: install-linter
