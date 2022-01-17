@@ -110,7 +110,7 @@ func (s *Sequencer) tryProposeBatch() {
 		return
 	}
 	if lastSyncedBatchNum+s.cfg.SyncedBlockDif < lastEthBatchNum {
-		log.Infow("waiting for the state to be synced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
+		log.Infof("waiting for the state to be synced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
 		return
 	}
 
