@@ -63,16 +63,8 @@ var (
 	ErrInvalidBatchHeader = errors.New("invalid batch header")
 	// ErrStateNotSynchronized indicates the state database may be empty
 	ErrStateNotSynchronized = errors.New("state not synchronized")
-	// ErrBlockNotFound indicates a block has not been found for the search criteria used
-	ErrBlockNotFound = errors.New("block not found")
-	// ErrBatchNotFound indicates a batch has not been found for the search criteria used
-	ErrBatchNotFound = errors.New("batch not found")
-	// ErrTransactionNotFound indicates a transaction has not been found for the search criteria used
-	ErrTransactionNotFound = errors.New("transaction not found")
-	// ErrReceiptNotFound indicates a receipt has not been found for the search criteria used
-	ErrReceiptNotFound = errors.New("receipt not found")
-	// ErrSequencerNotFound indicates a sequencer has not been found for the search criteria used
-	ErrSequencerNotFound = errors.New("sequencer not found")
+	// ErrNotFound indicates an object has not been found for the search criteria used
+	ErrNotFound = errors.New("block not found")
 )
 
 // BasicState is a implementation of the state

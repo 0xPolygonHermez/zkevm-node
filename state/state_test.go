@@ -487,7 +487,7 @@ func TestStateTransition(t *testing.T) {
 
 			// Check if sequencer is in the DB
 			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
-			if err == state.ErrSequencerNotFound {
+			if err == state.ErrNotFound {
 				sq := state.Sequencer{
 					Address:     common.HexToAddress(testCase.SequencerAddress),
 					URL:         "",
@@ -664,7 +664,7 @@ func TestReceipts(t *testing.T) {
 
 			// Check if sequencer is in the DB
 			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
-			if err == state.ErrSequencerNotFound {
+			if err == state.ErrNotFound {
 				sq := state.Sequencer{
 					Address:     common.HexToAddress(testCase.SequencerAddress),
 					URL:         "",
@@ -824,64 +824,64 @@ func TestStateErrors(t *testing.T) {
 	require.Equal(t, state.ErrStateNotSynchronized, err)
 
 	_, err = st.GetBalance(addr, 0)
-	require.Equal(t, state.ErrBatchNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetNonce(addr, 0)
-	require.Equal(t, state.ErrBatchNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetStateRootByBatchNumber(0)
-	require.Equal(t, state.ErrBatchNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetLastBlock(ctx)
 	require.Equal(t, state.ErrStateNotSynchronized, err)
 
 	_, err = st.GetPreviousBlock(ctx, 0)
-	require.Equal(t, state.ErrBlockNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetBlockByHash(ctx, hash1)
-	require.Equal(t, state.ErrBlockNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetBlockByNumber(ctx, 0)
-	require.Equal(t, state.ErrBlockNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetLastBlockNumber(ctx)
-	require.Equal(t, state.ErrStateNotSynchronized, err)
+	require.NoError(t, err)
 
 	_, err = st.GetLastBatch(ctx, true)
 	require.Equal(t, state.ErrStateNotSynchronized, err)
 
 	_, err = st.GetPreviousBatch(ctx, true, 0)
-	require.Equal(t, state.ErrBatchNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetBatchByHash(ctx, batch1.Hash())
-	require.Equal(t, state.ErrBatchNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetBatchByNumber(ctx, 0)
-	require.Equal(t, state.ErrBatchNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetLastBatchNumber(ctx)
-	require.Equal(t, state.ErrStateNotSynchronized, err)
+	require.NoError(t, err)
 
 	_, err = st.GetLastConsolidatedBatchNumber(ctx)
-	require.Equal(t, state.ErrStateNotSynchronized, err)
+	require.NoError(t, err)
 
 	_, err = st.GetTransactionByBatchHashAndIndex(ctx, batch1.Hash(), 0)
-	require.Equal(t, state.ErrTransactionNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetTransactionByBatchNumberAndIndex(ctx, batch1.BatchNumber, 0)
-	require.Equal(t, state.ErrTransactionNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetTransactionByHash(ctx, txHash)
-	require.Equal(t, state.ErrTransactionNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetTransactionReceipt(ctx, txHash)
-	require.Equal(t, state.ErrReceiptNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetTxsByBatchNum(ctx, batchNumber1)
 	require.NoError(t, err)
 
 	_, err = st.GetSequencer(ctx, batch1.Sequencer)
-	require.Equal(t, state.ErrSequencerNotFound, err)
+	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetLastBatchNumberSeenOnEthereum(ctx)
 	require.NoError(t, err)

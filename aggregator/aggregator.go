@@ -97,7 +97,7 @@ func (a *Aggregator) Start() {
 			batchToConsolidate, err := a.State.GetBatchByNumber(a.ctx, lastConsolidatedBatch.BatchNumber+1)
 
 			if err != nil {
-				if err == state.ErrBatchNotFound {
+				if err == state.ErrNotFound {
 					log.Infof("there are no batches to consolidate")
 					continue
 				}
