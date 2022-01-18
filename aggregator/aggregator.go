@@ -167,7 +167,7 @@ func (a *Aggregator) Start() {
 					NewStateRoot:     common.BytesToHash(stateRootToConsolidate).String(),
 					NewLocalExitRoot: fakeLastGlobalExitRoot.String(),
 					SequencerAddr:    batchToConsolidate.Sequencer.String(),
-					BatchHashData:    batchToConsolidate.BatchHash.String(),
+					BatchHashData:    batchToConsolidate.Hash().Hex(),
 					ChainId:          chainID,
 					BatchNum:         uint32(batchToConsolidate.BatchNumber),
 				},

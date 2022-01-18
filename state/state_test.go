@@ -31,10 +31,8 @@ var (
 	block1, block2                                         *state.Block
 	addr                                                   common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
 	hash1, hash2                                           common.Hash
-	hash3                                                  common.Hash = common.HexToHash("0x56ab2c03b9ffc32ed927c3665d6c21c431527e676c345d18f2841747a3a9af34")
-	hash4                                                  common.Hash = common.HexToHash("0x8b86252fd1b94139154aee46b61f7610100d4075da3886d95ef3694aa016b4ab")
-	blockNumber1, blockNumber2                             uint64      = 1, 2
-	batchNumber1, batchNumber2, batchNumber3, batchNumber4 uint64      = 1, 2, 3, 4
+	blockNumber1, blockNumber2                             uint64 = 1, 2
+	batchNumber1, batchNumber2, batchNumber3, batchNumber4 uint64 = 1, 2, 3, 4
 	batch1, batch2, batch3, batch4                         *state.Batch
 	consolidatedTxHash                                     common.Hash = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")
 	txHash                                                 common.Hash
@@ -120,7 +118,6 @@ func setUpBatches() {
 
 	batch1 = &state.Batch{
 		BatchNumber:        batchNumber1,
-		BatchHash:          hash1,
 		BlockNumber:        blockNumber1,
 		Sequencer:          addr,
 		Aggregator:         addr,
@@ -133,7 +130,6 @@ func setUpBatches() {
 	}
 	batch2 = &state.Batch{
 		BatchNumber:        batchNumber2,
-		BatchHash:          hash2,
 		BlockNumber:        blockNumber1,
 		Sequencer:          addr,
 		Aggregator:         addr,
@@ -146,7 +142,6 @@ func setUpBatches() {
 	}
 	batch3 = &state.Batch{
 		BatchNumber:        batchNumber3,
-		BatchHash:          hash3,
 		BlockNumber:        blockNumber2,
 		Sequencer:          addr,
 		Aggregator:         addr,
@@ -160,7 +155,6 @@ func setUpBatches() {
 	}
 	batch4 = &state.Batch{
 		BatchNumber:        batchNumber4,
-		BatchHash:          hash4,
 		BlockNumber:        blockNumber2,
 		Sequencer:          addr,
 		Aggregator:         addr,
@@ -242,14 +236,14 @@ func TestBasicState_GetBlockByNumber(t *testing.T) {
 func TestBasicState_GetLastVirtualBatch(t *testing.T) {
 	lastBatch, err := testState.GetLastBatch(ctx, true)
 	assert.NoError(t, err)
-	assert.Equal(t, batch4.BatchHash, lastBatch.BatchHash)
+	assert.Equal(t, batch4.Hash(), lastBatch.Hash())
 	assert.Equal(t, batch4.BatchNumber, lastBatch.BatchNumber)
 }
 
 func TestBasicState_GetLastBatch(t *testing.T) {
 	lastBatch, err := testState.GetLastBatch(ctx, false)
 	assert.NoError(t, err)
-	assert.Equal(t, batch2.BatchHash, lastBatch.BatchHash)
+	assert.Equal(t, batch2.Hash(), lastBatch.Hash())
 	assert.Equal(t, batch2.BatchNumber, lastBatch.BatchNumber)
 	assert.Equal(t, maticCollateral, lastBatch.MaticCollateral)
 }
@@ -257,15 +251,15 @@ func TestBasicState_GetLastBatch(t *testing.T) {
 func TestBasicState_GetPreviousBatch(t *testing.T) {
 	previousBatch, err := testState.GetPreviousBatch(ctx, false, 1)
 	assert.NoError(t, err)
-	assert.Equal(t, batch1.BatchHash, previousBatch.BatchHash)
+	assert.Equal(t, batch1.Hash(), previousBatch.Hash())
 	assert.Equal(t, batch1.BatchNumber, previousBatch.BatchNumber)
 	assert.Equal(t, maticCollateral, previousBatch.MaticCollateral)
 }
 
 func TestBasicState_GetBatchByHash(t *testing.T) {
-	batch, err := testState.GetBatchByHash(ctx, batch1.BatchHash)
+	batch, err := testState.GetBatchByHash(ctx, batch1.Hash())
 	assert.NoError(t, err)
-	assert.Equal(t, batch1.BatchHash, batch.BatchHash)
+	assert.Equal(t, batch1.Hash(), batch.Hash())
 	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
 	assert.Equal(t, maticCollateral, batch1.MaticCollateral)
 }
@@ -274,7 +268,7 @@ func TestBasicState_GetBatchByNumber(t *testing.T) {
 	batch, err := testState.GetBatchByNumber(ctx, batch1.BatchNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
-	assert.Equal(t, batch1.BatchHash, batch.BatchHash)
+	assert.Equal(t, batch1.Hash(), batch.Hash())
 }
 
 func TestBasicState_GetLastBatchNumber(t *testing.T) {
@@ -287,7 +281,6 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 	batchNumber := uint64(5)
 	batch := &state.Batch{
 		BatchNumber:        batchNumber,
-		BatchHash:          common.HexToHash("0xaca7af32007b3d33d9d2342221093cd2fdae39ac29c170923c0519f0ca9b35bd"),
 		BlockNumber:        blockNumber2,
 		Sequencer:          addr,
 		Aggregator:         addr,
@@ -517,7 +510,6 @@ func TestStateTransition(t *testing.T) {
 			// Create Batch
 			batch := &state.Batch{
 				BatchNumber:        1,
-				BatchHash:          common.Hash{},
 				BlockNumber:        uint64(0),
 				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
 				Aggregator:         addr,
@@ -547,7 +539,7 @@ func TestStateTransition(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 
 				// Check get transaction by hash and index
-				transaction, err = testState.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
+				transaction, err = testState.GetTransactionByBatchHashAndIndex(ctx, batch.Hash(), 0)
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
@@ -694,7 +686,6 @@ func TestReceipts(t *testing.T) {
 			// Create Batch
 			batch := &state.Batch{
 				BatchNumber:        1,
-				BatchHash:          common.Hash{},
 				BlockNumber:        uint64(0),
 				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
 				Aggregator:         addr,
@@ -724,7 +715,7 @@ func TestReceipts(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 
 				// Check get transaction by hash and index
-				transaction, err = testState.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
+				transaction, err = testState.GetTransactionByBatchHashAndIndex(ctx, batch.Hash(), 0)
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
