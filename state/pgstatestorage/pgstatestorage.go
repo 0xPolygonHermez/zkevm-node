@@ -1,10 +1,13 @@
 package pgstatestorage
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -47,8 +50,8 @@ const (
 	getReceiptSQL                          = "SELECT * FROM state.receipt WHERE tx_hash = $1"
 	resetSQL                               = "DELETE FROM state.block WHERE block_num > $1"
 	addBatchSQL                            = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
-	addTransactionSQL                      = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
-	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, block_num, block_hash, tx_hash, tx_index, tx_from, tx_to)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
+	addTransactionSQLPrefix                = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES "
+	addReceiptSQLPrefix                    = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, block_num, block_hash, tx_hash, tx_index, tx_from, tx_to)	VALUES "
 )
 
 var (
@@ -494,26 +497,85 @@ func (s *PostgresStorage) AddBatch(ctx context.Context, batch *state.Batch) erro
 	return err
 }
 
-// AddTransaction adds a new transqaction to the State Store
-func (s *PostgresStorage) AddTransaction(ctx context.Context, tx *types.Transaction, batchNumber uint64, index uint) error {
-	binary, err := tx.MarshalBinary()
-	if err != nil {
-		panic(err)
+// AddTransactions adds a set transactions to the State Store.
+func (s *PostgresStorage) AddTransactions(ctx context.Context, txs []*types.Transaction, batchNumber uint64) error {
+	if len(txs) == 0 {
+		return nil
 	}
-	encoded := hex.EncodeToHex(binary)
+	buffer := bytes.NewBufferString(addTransactionSQLPrefix)
+	var values []interface{}
+	for i, tx := range txs {
+		binary, err := tx.MarshalBinary()
+		if err != nil {
+			panic(err)
+		}
+		encoded := hex.EncodeToHex(binary)
 
-	binary, err = tx.MarshalJSON()
-	if err != nil {
-		panic(err)
+		binary, err = tx.MarshalJSON()
+		if err != nil {
+			panic(err)
+		}
+		decoded := string(binary)
+
+		buffer.WriteString(valuePlaceholdersForRow(i, 6))
+		buffer.WriteString(",")
+
+		values = append(values,
+			tx.Hash().Bytes(),
+			"",
+			encoded,
+			decoded,
+			batchNumber,
+			i)
 	}
-	decoded := string(binary)
-
-	_, err = s.db.Exec(ctx, addTransactionSQL, tx.Hash().Bytes(), "", encoded, decoded, batchNumber, index)
+	sql := strings.TrimSuffix(buffer.String(), ",")
+	_, err := s.db.Exec(ctx, sql, values...)
 	return err
 }
 
-// AddReceipt adds a new receipt to the State Store
-func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt) error {
-	_, err := s.db.Exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.BlockHash.Bytes(), receipt.TxHash.Bytes(), receipt.TransactionIndex, receipt.From.Bytes(), receipt.To.Bytes())
+// AddReceipts adds a new set of receipts to the State Store.
+func (s *PostgresStorage) AddReceipts(ctx context.Context, receipts []*state.Receipt, blockHash common.Hash) error {
+	if len(receipts) == 0 {
+		return nil
+	}
+	buffer := bytes.NewBufferString(addReceiptSQLPrefix)
+	var values []interface{}
+	for i, receipt := range receipts {
+		buffer.WriteString(valuePlaceholdersForRow(i, 11))
+		buffer.WriteString(",")
+
+		values = append(values,
+			receipt.Type,
+			receipt.PostState,
+			receipt.Status,
+			receipt.CumulativeGasUsed,
+			receipt.GasUsed,
+			receipt.BlockNumber.Uint64(),
+			blockHash.Bytes(),
+			receipt.TxHash.Bytes(),
+			receipt.TransactionIndex,
+			receipt.From.Bytes(),
+			receipt.To.Bytes())
+	}
+	sql := strings.TrimSuffix(buffer.String(), ",")
+	_, err := s.db.Exec(ctx, sql, values...)
 	return err
+}
+
+// valuePlaceholdersForRow generates a string to be used as values in a batch
+// insert query into the database.
+// Given that postgres uses `$#` placeholders, we need to take into account the
+// order of the row and the total number of values per row, so that in the row 0
+// we get "(%1,$2,...%total)" as a result and in the row n we get
+// "($(n*total+1),$(n*total+2),...,$(n*total+total))"
+func valuePlaceholdersForRow(order, total int) string {
+	buffer := bytes.NewBufferString("(")
+	for i := 1; i <= total; i++ {
+		buffer.WriteString(fmt.Sprintf("$%d", order*total+i))
+		if i != total {
+			buffer.WriteString(",")
+		}
+	}
+	buffer.WriteString(")")
+	return buffer.String()
 }

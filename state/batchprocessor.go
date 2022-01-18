@@ -326,25 +326,15 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 	}
 
 	// store transactions
-	for i, tx := range batch.Transactions {
-		err := b.State.AddTransaction(ctx, tx, batch.BatchNumber, uint(i))
-		if err != nil {
-			return err
-		}
+	err = b.State.AddTransactions(ctx, batch.Transactions, batch.BatchNumber)
+	if err != nil {
+		return err
 	}
 
 	blockHash := batch.Hash()
 
 	// store receipts
-	for _, receipt := range batch.Receipts {
-		receipt.BlockHash = blockHash
-		err := b.State.AddReceipt(ctx, receipt)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return b.State.AddReceipts(ctx, batch.Receipts, blockHash)
 }
 
 func getSender(tx *types.Transaction) (*common.Address, error) {
