@@ -64,7 +64,7 @@ var (
 	// ErrStateNotSynchronized indicates the state database may be empty
 	ErrStateNotSynchronized = errors.New("state not synchronized")
 	// ErrNotFound indicates an object has not been found for the search criteria used
-	ErrNotFound = errors.New("block not found")
+	ErrNotFound = errors.New("object not found")
 )
 
 // BasicState is a implementation of the state
