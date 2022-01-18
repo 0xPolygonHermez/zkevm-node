@@ -47,6 +47,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	var gasUsed uint64
 	var index uint
 	var includedTxs []*types.Transaction
+
 	for _, tx := range batch.Transactions {
 		from, to, err := b.ProcessTransaction(tx, batch.Sequencer)
 		if err != nil {
