@@ -46,15 +46,18 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	var cumulativeGasUsed uint64 = 0
 	var gasUsed uint64
 	var index uint
+	var includedTxs []*types.Transaction
 	for _, tx := range batch.Transactions {
 		from, to, err := b.ProcessTransaction(tx, batch.Sequencer)
 		if err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
-			// gasUsed = 0
 		} else {
 			log.Infof("Successfully processed transaction %s", tx.Hash().String())
+
+			includedTxs = append(includedTxs, tx)
 			gasUsed = b.State.EstimateGas(tx)
 			cumulativeGasUsed += gasUsed
+
 			// Set TX Receipt
 			receipt := &Receipt{}
 			receipt.Type = tx.Type()
@@ -71,10 +74,16 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			if to != nil {
 				receipt.To = *to
 			}
+
+			// Add receipt to the list of receipts
 			receipts = append(receipts, receipt)
 			index = index + 1
 		}
 	}
+
+	// Update batch
+	batch.Transactions = includedTxs
+	batch.Receipts = receipts
 
 	// Set batch Header
 	header := &types.Header{}
@@ -95,7 +104,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	batch.Header.MixDigest = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	batch.Header.Nonce = types.BlockNonce{0, 0, 0, 0, 0, 0, 0, 0}
 
-	batch.Receipts = receipts
+	// Store batch
 	_, err := b.commit(batch)
 
 	return err
