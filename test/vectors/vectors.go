@@ -21,6 +21,7 @@ type StateTransitionTestCase struct {
 	Txs              []Tx             `json:"txs"`
 	ExpectedNewRoot  string           `json:"expectedNewRoot"`
 	ExpectedNewLeafs map[string]Leaf  `json:"expectedNewLeafs"`
+	Receipts         []TestReceipt    `json:"receipts"`
 }
 
 // GenesisAccount represents the state of an account when the network
@@ -68,4 +69,26 @@ type TxEventsSendBatchTestCase struct {
 	BatchHashData common.Hash `json:"batchHashData"`
 	MaticAmount   string      `json:"maticAmount"`
 	FullCallData  string      `json:"fullCallData"`
+}
+
+// TestReceipt holds the metadata needed to run the receipt tests
+type TestReceipt struct {
+	TxID    uint    `json:"txId"`
+	Receipt Receipt `json:"receipt"`
+}
+
+// Receipt is the receipt used for receipts tests
+type Receipt struct {
+	TransactionHash    string `json:"transactionHash"`
+	TransactionIndex   uint   `json:"transactionIndex"`
+	BlockNumber        uint64 `json:"blockNumber"`
+	From               string `json:"from"`
+	To                 string `json:"to"`
+	CumulativeGastUsed uint64 `json:"cumulativeGasUsed"`
+	GasUsedForTx       uint64 `json:"gasUsedForTx"`
+	ContractAddress    string `json:"contractAddress"`
+	Logs               uint64 `json:"logs"`
+	LogsBloom          uint64 `json:"logsBloom"`
+	Status             uint64 `json:"status"`
+	BlockHash          string `json:"blockHash"`
 }

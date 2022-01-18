@@ -54,8 +54,11 @@ CREATE TABLE state.receipt
     cumulative_gas_used BIGINT,
     gas_used BIGINT,
     block_num BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE,
+    block_hash BYTEA NOT NULL,
     tx_hash BYTEA NOT NULL REFERENCES state.transaction (hash) ON DELETE CASCADE,
-    tx_index integer
+    tx_index integer,
+    tx_from BYTEA,
+    tx_to BYTEA
 );
 
 CREATE TABLE state.misc
