@@ -816,9 +816,7 @@ func TestStateErrors(t *testing.T) {
 
 	// Clean Up to reset Genesis
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.block")
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
 	_, err = st.GetStateRoot(ctx, true)
 	require.Equal(t, state.ErrStateNotSynchronized, err)
