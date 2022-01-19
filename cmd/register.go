@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/iden3/go-iden3-crypto/poseidon"
-	"github.com/jackc/pgx/v4"
 	"github.com/urfave/cli/v2"
 )
 
@@ -62,7 +62,7 @@ func registerSequencer(ctx *cli.Context) error {
 	st := state.NewState(stateCfg, stateDb, tr)
 
 	_, err = st.GetSequencer(ctx.Context, etherman.GetAddress())
-	if err == pgx.ErrNoRows { //If It doesn't exist, register the sequencer
+	if errors.Is(err, state.ErrNotFound) { //If It doesn't exist, register the sequencer
 		tx, err := etherman.RegisterSequencer(url)
 		if err != nil {
 			log.Error("uff no: ", err)
