@@ -3,13 +3,13 @@ package state
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/jackc/pgx/v4"
 )
 
 // State is the interface of the Hermez state
@@ -61,6 +61,10 @@ type Storage interface {
 var (
 	// ErrInvalidBatchHeader indicates the batch header is invalid
 	ErrInvalidBatchHeader = errors.New("invalid batch header")
+	// ErrStateNotSynchronized indicates the state database may be empty
+	ErrStateNotSynchronized = errors.New("state not synchronized")
+	// ErrNotFound indicates an object has not been found for the search criteria used
+	ErrNotFound = errors.New("object not found")
 )
 
 // BasicState is a implementation of the state
@@ -80,7 +84,7 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 	// init correct state root from previous batch
 	stateRoot, err := s.GetStateRootByBatchNumber(lastBatchNumber)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get state root for batch number %d, err: %v", lastBatchNumber, err)
+		return nil, err
 	}
 
 	s.tree.SetCurrentRoot(stateRoot)
@@ -106,6 +110,9 @@ func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchPro
 func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, error) {
 	batch, err := s.GetLastBatch(ctx, virtual)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrStateNotSynchronized
+		}
 		return nil, err
 	}
 
@@ -121,6 +128,9 @@ func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, erro
 	ctx := context.Background()
 	batch, err := s.GetBatchByNumber(ctx, batchNumber)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrStateNotSynchronized
+		}
 		return nil, err
 	}
 
@@ -135,6 +145,9 @@ func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, erro
 func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
 	root, err := s.GetStateRootByBatchNumber(batchNumber)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrStateNotSynchronized
+		}
 		return nil, err
 	}
 

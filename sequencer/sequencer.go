@@ -15,7 +15,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/jackc/pgx/v4"
 )
 
 // Sequencer represents a sequencer
@@ -190,7 +189,7 @@ func getChainID(ctx context.Context, st state.State, seqAddress common.Address) 
 	for {
 		seq, err = st.GetSequencer(ctx, seqAddress)
 		if err != nil {
-			if err == pgx.ErrNoRows {
+			if err == state.ErrNotFound {
 				log.Warnf("make sure the address %s has been registered in the smart contract as a sequencer, err: %v", seqAddress.Hex(), err)
 				lastSyncedBatchNum, err := st.GetLastBatchNumber(ctx)
 				if err != nil {

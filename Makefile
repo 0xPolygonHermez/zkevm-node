@@ -52,7 +52,7 @@ test-full: ## runs all tests checking race conditions
 
 .PHONY: install-linter
 install-linter: ## install linter
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.30.0
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.39.0
 
 .PHONY: lint
 lint: ## runs linter
