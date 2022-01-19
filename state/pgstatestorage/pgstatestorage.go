@@ -21,7 +21,7 @@ const (
 	getPreviousBlockSQL                    = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
 	getBlockByHashSQL                      = "SELECT * FROM state.block WHERE block_hash = $1"
 	getBlockByNumberSQL                    = "SELECT * FROM state.block WHERE block_num = $1"
-	getLastBlockNumberSQL                  = "SELECT MAX(block_num) FROM state.block"
+	getLastBlockNumberSQL                  = "SELECT COALESCE(MAX(block_num), 0) FROM state.block"
 	getLastVirtualBatchSQL                 = "SELECT batch_num, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at FROM state.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastConsolidatedBatchSQL            = "SELECT batch_num, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
 	getPreviousVirtualBatchSQL             = "SELECT batch_num, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at FROM state.batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
