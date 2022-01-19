@@ -28,8 +28,8 @@ var (
 // BatchProcessor is used to process a batch of transactions
 type BatchProcessor interface {
 	ProcessBatch(batch *Batch) error
-	ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) (*common.Address, *common.Address, error)
-	CheckTransaction(tx *types.Transaction) (common.Address, *big.Int, *big.Int, error)
+	ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error
+	CheckTransaction(tx *types.Transaction) error
 }
 
 // BasicBatchProcessor is used to process a batch of transactions
@@ -38,6 +38,14 @@ type BasicBatchProcessor struct {
 	stateRoot        []byte
 	SequencerAddress common.Address
 	SequencerChainID uint64
+	txCache          txCache
+}
+
+type txCache struct {
+	senderAddress   *common.Address
+	senderNonce     *big.Int
+	senderBalance   *big.Int
+	receiverAddress *common.Address
 }
 
 // ProcessBatch processes all transactions inside a batch
@@ -47,7 +55,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	var gasUsed uint64
 	var index uint
 	for _, tx := range batch.Transactions {
-		from, to, err := b.ProcessTransaction(tx, batch.Sequencer)
+		err := b.ProcessTransaction(tx, batch.Sequencer)
 		if err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
 			// gasUsed = 0
@@ -65,11 +73,11 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			receipt.GasUsed = gasUsed
 			receipt.TxHash = tx.Hash()
 			receipt.TransactionIndex = uint(index)
-			if from != nil {
-				receipt.From = *from
+			if b.txCache.senderAddress != nil {
+				receipt.From = *b.txCache.senderAddress
 			}
-			if to != nil {
-				receipt.To = *to
+			if b.txCache.receiverAddress != nil {
+				receipt.To = *b.txCache.receiverAddress
 			}
 			receipts = append(receipts, receipt)
 			index = index + 1
@@ -102,12 +110,12 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 }
 
 // ProcessTransaction processes a transaction inside a batch
-func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) (*common.Address, *common.Address, error) {
+func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error {
 	log.Debugf("processing transaction [%s]: start", tx.Hash().Hex())
 
 	txb, err := tx.MarshalBinary()
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 	encoded := hex.EncodeToHex(txb)
 	log.Debugf("processing transaction [%s]: raw: %v", tx.Hash().Hex(), encoded)
@@ -119,22 +127,30 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	b.State.tree.SetCurrentRoot(root)
 	log.Debugf("processing transaction [%s]: root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
-	sender, nonce, senderBalance, err := b.CheckTransaction(tx)
+	err = b.CheckTransaction(tx)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
-	log.Debugf("processing transaction [%s]: sender: %v", tx.Hash().Hex(), sender.Hex())
-	log.Debugf("processing transaction [%s]: nonce: %v", tx.Hash().Hex(), nonce.Text(encoding.Base10))
+
+	// Retrieve values from the transaction cache
+	senderAddress := *b.txCache.senderAddress
+	senderNonce := b.txCache.senderNonce
+	senderBalance := b.txCache.senderBalance
+
+	receiverAddress := *tx.To()
+
+	log.Debugf("processing transaction [%s]: sender: %v", tx.Hash().Hex(), senderAddress.Hex())
+	log.Debugf("processing transaction [%s]: nonce: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 	log.Debugf("processing transaction [%s]: sender balance: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
 
 	// Increase Nonce
-	nonce.Add(nonce, big.NewInt(1))
-	log.Debugf("processing transaction [%s]: new nonce: %v", tx.Hash().Hex(), nonce.Text(encoding.Base10))
+	senderNonce.Add(senderNonce, big.NewInt(1))
+	log.Debugf("processing transaction [%s]: new nonce: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 
 	// Store new nonce
-	_, _, err = b.State.tree.SetNonce(sender, nonce)
+	_, _, err = b.State.tree.SetNonce(senderAddress, senderNonce)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	// Calculate Gas
@@ -155,7 +171,7 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	senderBalance.Sub(senderBalance, cost)
 	log.Debugf("processing transaction [%s]: sender balance after cost charged: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
 
-	if sequencerAddress == sender {
+	if sequencerAddress == senderAddress {
 		senderBalance.Add(senderBalance, usedGasValue)
 	}
 
@@ -164,15 +180,15 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	log.Debugf("processing transaction [%s]: sender balance after refund: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
 
 	// Store new sender balances
-	root, _, err = b.State.tree.SetBalance(sender, senderBalance)
+	root, _, err = b.State.tree.SetBalance(senderAddress, senderBalance)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	// Get receiver Balance
-	receiverBalance, err := b.State.tree.GetBalance(*tx.To(), root)
+	receiverBalance, err := b.State.tree.GetBalance(receiverAddress, root)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 	log.Debugf("processing transaction [%s]: receiver balance: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
 
@@ -180,38 +196,43 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 	log.Debugf("processing transaction [%s]: receiver balance after value added: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
 
 	// Pay gas to the sequencer
-	if sequencerAddress == *tx.To() && sender != *tx.To() {
+	if sequencerAddress == receiverAddress && senderAddress != receiverAddress {
 		receiverBalance.Add(receiverBalance, usedGasValue)
 	}
 
-	if sequencerAddress != sender && sequencerAddress != *tx.To() {
+	if sequencerAddress != senderAddress && sequencerAddress != receiverAddress {
 		sequencerBalance, err := b.State.tree.GetBalance(sequencerAddress, root)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
 
 		// Store sequencer balance
 		sequencerBalance.Add(sequencerBalance, usedGasValue)
 		_, _, err = b.State.tree.SetBalance(sequencerAddress, sequencerBalance)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
 	}
 
 	// Store receiver balance
 	root, _, err = b.State.tree.SetBalance(*tx.To(), receiverBalance)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	b.stateRoot = root
 	log.Debugf("processing transaction [%s]: new root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
-	return &sender, tx.To(), nil
+	// Update transaction cache
+	b.txCache.senderNonce = senderNonce
+	b.txCache.senderBalance = senderBalance
+	b.txCache.receiverAddress = &receiverAddress
+
+	return nil
 }
 
 // CheckTransaction checks if a transaction is valid
-func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Address, *big.Int, *big.Int, error) {
+func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) error {
 	var sender = common.Address{}
 	var nonce = big.NewInt(0)
 	var balance = big.NewInt(0)
@@ -221,49 +242,53 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) (common.Ad
 
 	// Check Signature
 	if err := CheckSignature(tx); err != nil {
-		return sender, nonce, balance, err
+		return err
 	}
 
 	// Check ChainID
 	if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
 		log.Debugf("Batch ChainID: %v", b.SequencerChainID)
 		log.Debugf("Transaction ChainID: %v", tx.ChainId().Uint64())
-		return sender, nonce, balance, ErrInvalidChainID
+		return ErrInvalidChainID
 	}
 
 	// Get Sender
 	signer := types.NewEIP155Signer(tx.ChainId())
 	sender, err := signer.Sender(tx)
 	if err != nil {
-		return sender, nonce, balance, err
+		return err
 	}
 
 	// Check nonce
 	nonce, err = b.State.tree.GetNonce(sender, b.stateRoot)
 	if err != nil {
-		return sender, nonce, balance, err
+		return err
 	}
 
 	if nonce.Uint64() != tx.Nonce() {
-		return sender, nonce, balance, ErrInvalidNonce
+		return ErrInvalidNonce
 	}
 
 	// Check balance
 	balance, err = b.State.tree.GetBalance(sender, b.stateRoot)
 	if err != nil {
-		return sender, nonce, balance, err
+		return err
 	}
 
 	if balance.Cmp(tx.Cost()) < 0 {
-		return sender, nonce, balance, ErrInvalidBalance
+		return ErrInvalidBalance
 	}
 
 	// Check gas
 	if tx.Gas() < b.State.EstimateGas(tx) {
-		return sender, nonce, balance, ErrInvalidGas
+		return ErrInvalidGas
 	}
 
-	return sender, nonce, balance, nil
+	b.txCache.senderAddress = &sender
+	b.txCache.senderBalance = balance
+	b.txCache.senderNonce = nonce
+
+	return nil
 }
 
 // Commit the batch state into state
