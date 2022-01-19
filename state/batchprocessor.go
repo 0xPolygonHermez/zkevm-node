@@ -139,7 +139,7 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 		return err
 	}
 
-	err = b.internalCheckTransaction(tx, senderBalance)
+	err = b.checkTransaction(tx, senderBalance)
 	if err != nil {
 		return err
 	}
@@ -244,10 +244,10 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) error {
 		return err
 	}
 
-	return b.internalCheckTransaction(tx, balance)
+	return b.checkTransaction(tx, balance)
 }
 
-func (b *BasicBatchProcessor) internalCheckTransaction(tx *types.Transaction, senderBalance *big.Int) error {
+func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderBalance *big.Int) error {
 	var nonce = big.NewInt(0)
 
 	// reset MT currentRoot in case it was modified by failed transaction
