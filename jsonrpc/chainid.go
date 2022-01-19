@@ -2,10 +2,10 @@ package jsonrpc
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/jackc/pgx/v4"
 )
 
 type chainIDSelector struct {
@@ -28,7 +28,7 @@ func (s *chainIDSelector) getChainID() (uint64, error) {
 		return sequencer.ChainID.Uint64(), nil
 	}
 
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, state.ErrNotFound) {
 		return s.defaultChainID, nil
 	}
 

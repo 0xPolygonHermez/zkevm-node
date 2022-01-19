@@ -10,7 +10,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/jackc/pgx/v4"
 )
 
 // Synchronizer connects L1 and L2
@@ -261,10 +260,9 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > s.genBlockNumber {
 			// Reorg detected. Getting previous block
 			latestBlock, err = s.state.GetBlockByNumber(s.ctx, latestBlock.BlockNumber-1)
-			if err != nil {
-				if err.Error() == pgx.ErrNoRows.Error() {
-					return nil, nil
-				}
+			if errors.Is(err, state.ErrNotFound) {
+				return nil, nil
+			} else if err != nil {
 				return nil, err
 			}
 		} else {
