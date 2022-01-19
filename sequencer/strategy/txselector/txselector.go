@@ -62,7 +62,7 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 	)
 	for _, tx := range sortedTxs {
 		t := tx.Transaction
-		_, _, _, err := batchProcessor.CheckTransaction(&t)
+		err := batchProcessor.CheckTransaction(&t)
 		if err != nil {
 			invalidTxsHashes = append(invalidTxsHashes, tx.Hash().Hex())
 		} else {
