@@ -17,7 +17,6 @@ func (b *Batch) Hash() common.Hash {
 // Batch represents a batch
 type Batch struct {
 	BatchNumber        uint64
-	BatchHash          common.Hash
 	BlockNumber        uint64
 	Sequencer          common.Address
 	Aggregator         common.Address
