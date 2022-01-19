@@ -19,7 +19,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -488,7 +487,7 @@ func TestStateTransition(t *testing.T) {
 
 			// Check if sequencer is in the DB
 			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
-			if err == pgx.ErrNoRows {
+			if err == state.ErrNotFound {
 				sq := state.Sequencer{
 					Address:     common.HexToAddress(testCase.SequencerAddress),
 					URL:         "",
@@ -665,7 +664,7 @@ func TestReceipts(t *testing.T) {
 
 			// Check if sequencer is in the DB
 			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
-			if err == pgx.ErrNoRows {
+			if err == state.ErrNotFound {
 				sq := state.Sequencer{
 					Address:     common.HexToAddress(testCase.SequencerAddress),
 					URL:         "",
@@ -799,4 +798,92 @@ func TestLastConsolidatedBatch(t *testing.T) {
 	bn, err = st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, lastBatchNumberSeen+1, bn)
+}
+
+func TestStateErrors(t *testing.T) {
+	// Create State db
+	mtDb, err := db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	store := tree.NewPostgresStore(mtDb)
+
+	// Create State tree
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+
+	// Create state
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, nil))
+	ctx := context.Background()
+
+	// Clean Up to reset Genesis
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.block")
+	require.NoError(t, err)
+
+	_, err = st.GetStateRoot(ctx, true)
+	require.Equal(t, state.ErrStateNotSynchronized, err)
+
+	_, err = st.GetBalance(addr, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetNonce(addr, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetStateRootByBatchNumber(0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetLastBlock(ctx)
+	require.Equal(t, state.ErrStateNotSynchronized, err)
+
+	_, err = st.GetPreviousBlock(ctx, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetBlockByHash(ctx, hash1)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetBlockByNumber(ctx, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetLastBlockNumber(ctx)
+	require.NoError(t, err)
+
+	_, err = st.GetLastBatch(ctx, true)
+	require.Equal(t, state.ErrStateNotSynchronized, err)
+
+	_, err = st.GetPreviousBatch(ctx, true, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetBatchByHash(ctx, batch1.Hash())
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetBatchByNumber(ctx, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetLastBatchNumber(ctx)
+	require.NoError(t, err)
+
+	_, err = st.GetLastConsolidatedBatchNumber(ctx)
+	require.NoError(t, err)
+
+	_, err = st.GetTransactionByBatchHashAndIndex(ctx, batch1.Hash(), 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetTransactionByBatchNumberAndIndex(ctx, batch1.BatchNumber, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetTransactionByHash(ctx, txHash)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetTransactionReceipt(ctx, txHash)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetTxsByBatchNum(ctx, batchNumber1)
+	require.NoError(t, err)
+
+	_, err = st.GetSequencer(ctx, batch1.Sequencer)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetLastBatchNumberSeenOnEthereum(ctx)
+	require.NoError(t, err)
+
+	_, err = st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
+	require.NoError(t, err)
 }

@@ -53,7 +53,7 @@ func (s *ClientSynchronizer) Sync() error {
 		log.Info("Sync started")
 		lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx)
 		if err != nil {
-			if err.Error() == pgx.ErrNoRows.Error() {
+			if err == state.ErrStateNotSynchronized {
 				log.Warn("error getting the latest ethereum block. No data stored. Setting genesis block. Error: ", err)
 				lastEthBlockSynced = &state.Block{
 					BlockNumber: s.genBlockNumber,
@@ -64,7 +64,7 @@ func (s *ClientSynchronizer) Sync() error {
 					log.Fatal("error setting genesis: ", err)
 				}
 			} else {
-				log.Fatal("unexpected error getting the latest ethereum block. Setting genesis block. Error: %w", err)
+				log.Fatal("unexpected error getting the latest ethereum block. Setting genesis block. Error: ", err)
 			}
 		} else if lastEthBlockSynced.BlockNumber == 0 {
 			lastEthBlockSynced = &state.Block{
