@@ -507,13 +507,13 @@ func (s *PostgresStorage) AddTransactions(ctx context.Context, txs []*types.Tran
 	for i, tx := range txs {
 		binary, err := tx.MarshalBinary()
 		if err != nil {
-			panic(err)
+			return err
 		}
 		encoded := hex.EncodeToHex(binary)
 
 		binary, err = tx.MarshalJSON()
 		if err != nil {
-			panic(err)
+			return err
 		}
 		decoded := string(binary)
 
