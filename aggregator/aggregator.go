@@ -61,20 +61,20 @@ func NewAggregator(
 
 // Start starts the aggregator
 func (a *Aggregator) Start() {
-	// init connection to the prover
-	var opts []grpc.CallOption
-	getProofClient, err := a.ZkProverClient.GenProof(a.ctx, opts...)
-	if err != nil {
-		log.Errorf("failed to connect to the prover, err: %v", err)
-		return
-	}
-
 	// this is a batches, that were sent to ethereum to consolidate
 	batchesSent := make(map[uint64]bool)
 
 	for {
 		select {
 		case <-time.After(a.cfg.IntervalToConsolidateState.Duration):
+			// init connection to the prover
+			var opts []grpc.CallOption
+			getProofClient, err := a.ZkProverClient.GenProof(a.ctx, opts...)
+			if err != nil {
+				log.Errorf("failed to connect to the prover, err: %v", err)
+				return
+			}
+
 			// 1. check, if state is synced
 			lastConsolidatedBatch, err := a.State.GetLastBatch(a.ctx, false)
 			if err != nil {
