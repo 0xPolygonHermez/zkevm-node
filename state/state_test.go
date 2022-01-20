@@ -19,7 +19,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,10 +30,8 @@ var (
 	block1, block2                                         *state.Block
 	addr                                                   common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
 	hash1, hash2                                           common.Hash
-	hash3                                                  common.Hash = common.HexToHash("0x56ab2c03b9ffc32ed927c3665d6c21c431527e676c345d18f2841747a3a9af34")
-	hash4                                                  common.Hash = common.HexToHash("0x8b86252fd1b94139154aee46b61f7610100d4075da3886d95ef3694aa016b4ab")
-	blockNumber1, blockNumber2                             uint64      = 1, 2
-	batchNumber1, batchNumber2, batchNumber3, batchNumber4 uint64      = 1, 2, 3, 4
+	blockNumber1, blockNumber2                             uint64 = 1, 2
+	batchNumber1, batchNumber2, batchNumber3, batchNumber4 uint64 = 1, 2, 3, 4
 	batch1, batch2, batch3, batch4                         *state.Batch
 	consolidatedTxHash                                     common.Hash = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")
 	txHash                                                 common.Hash
@@ -120,7 +117,6 @@ func setUpBatches() {
 
 	batch1 = &state.Batch{
 		BatchNumber:        batchNumber1,
-		BatchHash:          hash1,
 		BlockNumber:        blockNumber1,
 		Sequencer:          addr,
 		Aggregator:         addr,
@@ -133,7 +129,6 @@ func setUpBatches() {
 	}
 	batch2 = &state.Batch{
 		BatchNumber:        batchNumber2,
-		BatchHash:          hash2,
 		BlockNumber:        blockNumber1,
 		Sequencer:          addr,
 		Aggregator:         addr,
@@ -146,7 +141,6 @@ func setUpBatches() {
 	}
 	batch3 = &state.Batch{
 		BatchNumber:        batchNumber3,
-		BatchHash:          hash3,
 		BlockNumber:        blockNumber2,
 		Sequencer:          addr,
 		Aggregator:         addr,
@@ -160,7 +154,6 @@ func setUpBatches() {
 	}
 	batch4 = &state.Batch{
 		BatchNumber:        batchNumber4,
-		BatchHash:          hash4,
 		BlockNumber:        blockNumber2,
 		Sequencer:          addr,
 		Aggregator:         addr,
@@ -242,14 +235,14 @@ func TestBasicState_GetBlockByNumber(t *testing.T) {
 func TestBasicState_GetLastVirtualBatch(t *testing.T) {
 	lastBatch, err := testState.GetLastBatch(ctx, true)
 	assert.NoError(t, err)
-	assert.Equal(t, batch4.BatchHash, lastBatch.BatchHash)
+	assert.Equal(t, batch4.Hash(), lastBatch.Hash())
 	assert.Equal(t, batch4.BatchNumber, lastBatch.BatchNumber)
 }
 
 func TestBasicState_GetLastBatch(t *testing.T) {
 	lastBatch, err := testState.GetLastBatch(ctx, false)
 	assert.NoError(t, err)
-	assert.Equal(t, batch2.BatchHash, lastBatch.BatchHash)
+	assert.Equal(t, batch2.Hash(), lastBatch.Hash())
 	assert.Equal(t, batch2.BatchNumber, lastBatch.BatchNumber)
 	assert.Equal(t, maticCollateral, lastBatch.MaticCollateral)
 }
@@ -257,15 +250,15 @@ func TestBasicState_GetLastBatch(t *testing.T) {
 func TestBasicState_GetPreviousBatch(t *testing.T) {
 	previousBatch, err := testState.GetPreviousBatch(ctx, false, 1)
 	assert.NoError(t, err)
-	assert.Equal(t, batch1.BatchHash, previousBatch.BatchHash)
+	assert.Equal(t, batch1.Hash(), previousBatch.Hash())
 	assert.Equal(t, batch1.BatchNumber, previousBatch.BatchNumber)
 	assert.Equal(t, maticCollateral, previousBatch.MaticCollateral)
 }
 
 func TestBasicState_GetBatchByHash(t *testing.T) {
-	batch, err := testState.GetBatchByHash(ctx, batch1.BatchHash)
+	batch, err := testState.GetBatchByHash(ctx, batch1.Hash())
 	assert.NoError(t, err)
-	assert.Equal(t, batch1.BatchHash, batch.BatchHash)
+	assert.Equal(t, batch1.Hash(), batch.Hash())
 	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
 	assert.Equal(t, maticCollateral, batch1.MaticCollateral)
 }
@@ -274,7 +267,7 @@ func TestBasicState_GetBatchByNumber(t *testing.T) {
 	batch, err := testState.GetBatchByNumber(ctx, batch1.BatchNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
-	assert.Equal(t, batch1.BatchHash, batch.BatchHash)
+	assert.Equal(t, batch1.Hash(), batch.Hash())
 }
 
 func TestBasicState_GetLastBatchNumber(t *testing.T) {
@@ -287,7 +280,6 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 	batchNumber := uint64(5)
 	batch := &state.Batch{
 		BatchNumber:        batchNumber,
-		BatchHash:          common.HexToHash("0xaca7af32007b3d33d9d2342221093cd2fdae39ac29c170923c0519f0ca9b35bd"),
 		BlockNumber:        blockNumber2,
 		Sequencer:          addr,
 		Aggregator:         addr,
@@ -488,7 +480,7 @@ func TestStateTransition(t *testing.T) {
 
 			// Check if sequencer is in the DB
 			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
-			if err == pgx.ErrNoRows {
+			if err == state.ErrNotFound {
 				sq := state.Sequencer{
 					Address:     common.HexToAddress(testCase.SequencerAddress),
 					URL:         "",
@@ -517,7 +509,6 @@ func TestStateTransition(t *testing.T) {
 			// Create Batch
 			batch := &state.Batch{
 				BatchNumber:        1,
-				BatchHash:          common.Hash{},
 				BlockNumber:        uint64(0),
 				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
 				Aggregator:         addr,
@@ -547,16 +538,9 @@ func TestStateTransition(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 
 				// Check get transaction by hash and index
-				transaction, err = testState.GetTransactionByBatchHashAndIndex(ctx, batch.BatchHash, 0)
+				transaction, err = testState.GetTransactionByBatchHashAndIndex(ctx, batch.Hash(), 0)
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
-			}
-
-			for _, transaction := range transactions {
-				receipt, err := testState.GetTransactionReceipt(ctx, transaction.Hash())
-				require.NoError(t, err)
-				assert.Equal(t, transaction.Hash(), receipt.TxHash)
-				assert.Equal(t, testState.EstimateGas(transaction), receipt.GasUsed)
 			}
 
 			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
@@ -612,6 +596,168 @@ func TestLastSeenBatch(t *testing.T) {
 	assert.Equal(t, lastBatchNumberSeen+1, bn)
 }
 
+func TestReceipts(t *testing.T) {
+	// Load test vector
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/receipt-vector.json")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	for _, testCase := range stateTransitionTestCases {
+		t.Run(testCase.Description, func(t *testing.T) {
+			ctx := context.Background()
+			// Init database instance
+			err = dbutils.InitOrReset(cfg)
+			require.NoError(t, err)
+
+			// Create State db
+			stateDb, err = db.NewSQLDB(cfg)
+			require.NoError(t, err)
+
+			// Create State tree
+			store := tree.NewPostgresStore(stateDb)
+			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+			stateTree := tree.NewStateTree(mt, nil)
+
+			// Create state
+			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+
+			genesis := state.Genesis{
+				Balances: make(map[common.Address]*big.Int),
+			}
+			for _, gacc := range testCase.GenesisAccounts {
+				balance := gacc.Balance.Int
+				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
+			}
+
+			for gaddr := range genesis.Balances {
+				balance, err := stateTree.GetBalance(gaddr, nil)
+				require.NoError(t, err)
+				assert.Equal(t, big.NewInt(0), balance)
+			}
+
+			err = st.SetGenesis(ctx, genesis)
+			require.NoError(t, err)
+
+			root, err := st.GetStateRootByBatchNumber(0)
+			require.NoError(t, err)
+
+			for gaddr, gbalance := range genesis.Balances {
+				balance, err := stateTree.GetBalance(gaddr, root)
+				require.NoError(t, err)
+				assert.Equal(t, gbalance, balance)
+			}
+
+			var txs []*types.Transaction
+
+			// Check Old roots
+			assert.Equal(t, testCase.ExpectedOldRoot, new(big.Int).SetBytes(root).String())
+
+			// Check if sequencer is in the DB
+			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
+			if err == state.ErrNotFound {
+				sq := state.Sequencer{
+					Address:     common.HexToAddress(testCase.SequencerAddress),
+					URL:         "",
+					ChainID:     new(big.Int).SetUint64(testCase.ChainIDSequencer),
+					BlockNumber: 0,
+				}
+
+				err = st.AddSequencer(ctx, sq)
+				require.NoError(t, err)
+			}
+
+			// Create Transaction
+			for _, vectorTx := range testCase.Txs {
+				if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" && vectorTx.Reason == "" {
+					var tx types.LegacyTx
+					bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
+
+					err = rlp.DecodeBytes(bytes, &tx)
+					if err == nil {
+						txs = append(txs, types.NewTx(&tx))
+					}
+					require.NoError(t, err)
+				}
+			}
+
+			// Create Batch
+			batch := &state.Batch{
+				BatchNumber:        1,
+				BlockNumber:        uint64(0),
+				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
+				Aggregator:         addr,
+				ConsolidatedTxHash: common.Hash{},
+				Header:             nil,
+				Uncles:             nil,
+				Transactions:       txs,
+				RawTxsData:         nil,
+				MaticCollateral:    big.NewInt(1),
+			}
+
+			// Create Batch Processor
+			bp, err := st.NewBatchProcessor(common.HexToAddress(testCase.SequencerAddress), 0)
+			require.NoError(t, err)
+
+			err = bp.ProcessBatch(batch)
+			require.NoError(t, err)
+
+			// Check Transaction and Receipts
+			transactions, err := testState.GetTxsByBatchNum(ctx, batch.BatchNumber)
+			require.NoError(t, err)
+
+			if len(transactions) > 0 {
+				// Check get transaction by batch number and index
+				transaction, err := testState.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
+				require.NoError(t, err)
+				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+
+				// Check get transaction by hash and index
+				transaction, err = testState.GetTransactionByBatchHashAndIndex(ctx, batch.Hash(), 0)
+				require.NoError(t, err)
+				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
+			}
+
+			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
+			require.NoError(t, err)
+
+			// Check new roots
+			assert.Equal(t, testCase.ExpectedNewRoot, new(big.Int).SetBytes(root).String())
+
+			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
+				newBalance, err := stateTree.GetBalance(common.HexToAddress(key), root)
+				require.NoError(t, err)
+				assert.Equal(t, vectorLeaf.Balance.String(), newBalance.String())
+
+				newNonce, err := stateTree.GetNonce(common.HexToAddress(key), root)
+				require.NoError(t, err)
+				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
+				assert.Equal(t, leafNonce.String(), newNonce.String())
+			}
+
+			// Get Receipts from vector
+			for _, testReceipt := range testCase.Receipts {
+				receipt, err := testState.GetTransactionReceipt(ctx, common.HexToHash(testReceipt.Receipt.TransactionHash))
+				require.NoError(t, err)
+				assert.Equal(t, common.HexToHash(testReceipt.Receipt.TransactionHash), receipt.TxHash)
+
+				// Compare against test receipt
+				assert.Equal(t, testReceipt.Receipt.TransactionHash, receipt.TxHash.String())
+				assert.Equal(t, testReceipt.Receipt.TransactionIndex, receipt.TransactionIndex)
+				assert.Equal(t, testReceipt.Receipt.BlockNumber, receipt.BlockNumber.Uint64())
+				assert.Equal(t, testReceipt.Receipt.From, receipt.From.String())
+				assert.Equal(t, testReceipt.Receipt.To, receipt.To.String())
+				assert.Equal(t, testReceipt.Receipt.CumulativeGastUsed, receipt.CumulativeGasUsed)
+				assert.Equal(t, testReceipt.Receipt.GasUsedForTx, receipt.GasUsed)
+				assert.Equal(t, testReceipt.Receipt.Status, receipt.Status)
+				// BLOCKHASH -> BatchHash
+				assert.Equal(t, common.HexToHash(testReceipt.Receipt.BlockHash), receipt.BlockHash)
+			}
+		})
+	}
+}
+
 func TestLastConsolidatedBatch(t *testing.T) {
 	// Create State db
 	mtDb, err := db.NewSQLDB(cfg)
@@ -643,4 +789,92 @@ func TestLastConsolidatedBatch(t *testing.T) {
 	bn, err = st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, lastBatchNumberSeen+1, bn)
+}
+
+func TestStateErrors(t *testing.T) {
+	// Create State db
+	mtDb, err := db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	store := tree.NewPostgresStore(mtDb)
+
+	// Create State tree
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+
+	// Create state
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, nil))
+	ctx := context.Background()
+
+	// Clean Up to reset Genesis
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.block")
+	require.NoError(t, err)
+
+	_, err = st.GetStateRoot(ctx, true)
+	require.Equal(t, state.ErrStateNotSynchronized, err)
+
+	_, err = st.GetBalance(addr, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetNonce(addr, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetStateRootByBatchNumber(0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetLastBlock(ctx)
+	require.Equal(t, state.ErrStateNotSynchronized, err)
+
+	_, err = st.GetPreviousBlock(ctx, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetBlockByHash(ctx, hash1)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetBlockByNumber(ctx, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetLastBlockNumber(ctx)
+	require.NoError(t, err)
+
+	_, err = st.GetLastBatch(ctx, true)
+	require.Equal(t, state.ErrStateNotSynchronized, err)
+
+	_, err = st.GetPreviousBatch(ctx, true, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetBatchByHash(ctx, batch1.Hash())
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetBatchByNumber(ctx, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetLastBatchNumber(ctx)
+	require.NoError(t, err)
+
+	_, err = st.GetLastConsolidatedBatchNumber(ctx)
+	require.NoError(t, err)
+
+	_, err = st.GetTransactionByBatchHashAndIndex(ctx, batch1.Hash(), 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetTransactionByBatchNumberAndIndex(ctx, batch1.BatchNumber, 0)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetTransactionByHash(ctx, txHash)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetTransactionReceipt(ctx, txHash)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetTxsByBatchNum(ctx, batchNumber1)
+	require.NoError(t, err)
+
+	_, err = st.GetSequencer(ctx, batch1.Sequencer)
+	require.Equal(t, state.ErrNotFound, err)
+
+	_, err = st.GetLastBatchNumberSeenOnEthereum(ctx)
+	require.NoError(t, err)
+
+	_, err = st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
+	require.NoError(t, err)
 }

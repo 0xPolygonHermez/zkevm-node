@@ -2,7 +2,9 @@ package pgstatestorage
 
 import (
 	"context"
+	"errors"
 	"math/big"
+	"reflect"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -11,6 +13,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -19,13 +22,13 @@ const (
 	getPreviousBlockSQL                    = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
 	getBlockByHashSQL                      = "SELECT * FROM state.block WHERE block_hash = $1"
 	getBlockByNumberSQL                    = "SELECT * FROM state.block WHERE block_num = $1"
-	getLastBlockNumberSQL                  = "SELECT MAX(block_num) FROM state.block"
-	getLastVirtualBatchSQL                 = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1"
-	getLastConsolidatedBatchSQL            = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
-	getPreviousVirtualBatchSQL             = "SELECT * FROM state.batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
-	getPreviousConsolidatedBatchSQL        = "SELECT * FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
-	getBatchByHashSQL                      = "SELECT * FROM state.batch WHERE batch_hash = $1"
-	getBatchByNumberSQL                    = "SELECT * FROM state.batch WHERE batch_num = $1"
+	getLastBlockNumberSQL                  = "SELECT COALESCE(MAX(block_num), 0) FROM state.block"
+	getLastVirtualBatchSQL                 = "SELECT batch_num, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at FROM state.batch ORDER BY batch_num DESC LIMIT 1"
+	getLastConsolidatedBatchSQL            = "SELECT batch_num, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
+	getPreviousVirtualBatchSQL             = "SELECT batch_num, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at FROM state.batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
+	getPreviousConsolidatedBatchSQL        = "SELECT batch_num, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
+	getBatchByHashSQL                      = "SELECT batch_num, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at FROM state.batch WHERE batch_hash = $1"
+	getBatchByNumberSQL                    = "SELECT batch_num, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at FROM state.batch WHERE batch_num = $1"
 	getLastVirtualBatchNumberSQL           = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch"
 	getLastConsolidatedBatchNumberSQL      = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch WHERE consolidated_tx_hash != $1"
 	getTransactionByHashSQL                = "SELECT transaction.encoded FROM state.transaction WHERE hash = $1"
@@ -45,7 +48,7 @@ const (
 	resetSQL                               = "DELETE FROM state.block WHERE block_num > $1"
 	addBatchSQL                            = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 	addTransactionSQL                      = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
-	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_hash, tx_index)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, block_num, block_hash, tx_hash, tx_index, tx_from, tx_to)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 )
 
 var (
@@ -66,9 +69,13 @@ func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 func (s *PostgresStorage) GetLastBlock(ctx context.Context) (*state.Block, error) {
 	var block state.Block
 	err := s.db.QueryRow(ctx, getLastBlockSQL).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
-	if err != nil {
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrStateNotSynchronized
+	} else if err != nil {
 		return nil, err
 	}
+
 	return &block, nil
 }
 
@@ -76,9 +83,13 @@ func (s *PostgresStorage) GetLastBlock(ctx context.Context) (*state.Block, error
 func (s *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64) (*state.Block, error) {
 	var block state.Block
 	err := s.db.QueryRow(ctx, getPreviousBlockSQL, offset).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
-	if err != nil {
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
+
 	return &block, nil
 }
 
@@ -86,9 +97,13 @@ func (s *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64) (
 func (s *PostgresStorage) GetBlockByHash(ctx context.Context, hash common.Hash) (*state.Block, error) {
 	var block state.Block
 	err := s.db.QueryRow(ctx, getBlockByHashSQL, hash).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
-	if err != nil {
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
+
 	return &block, nil
 }
 
@@ -96,9 +111,13 @@ func (s *PostgresStorage) GetBlockByHash(ctx context.Context, hash common.Hash) 
 func (s *PostgresStorage) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*state.Block, error) {
 	var block state.Block
 	err := s.db.QueryRow(ctx, getBlockByNumberSQL, blockNumber).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
-	if err != nil {
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
+
 	return &block, nil
 }
 
@@ -106,9 +125,13 @@ func (s *PostgresStorage) GetBlockByNumber(ctx context.Context, blockNumber uint
 func (s *PostgresStorage) GetLastBlockNumber(ctx context.Context) (uint64, error) {
 	var lastBlockNum uint64
 	err := s.db.QueryRow(ctx, getLastBlockNumberSQL).Scan(&lastBlockNum)
-	if err != nil {
+
+	if reflect.TypeOf(err) == reflect.TypeOf(pgx.ScanArgError{}) {
+		return 0, state.ErrStateNotSynchronized
+	} else if err != nil {
 		return 0, err
 	}
+
 	return lastBlockNum, nil
 }
 
@@ -122,19 +145,21 @@ func (s *PostgresStorage) GetLastBatch(ctx context.Context, isVirtual bool) (*st
 
 	if isVirtual {
 		err = s.db.QueryRow(ctx, getLastVirtualBatchSQL).Scan(
-			&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
+			&batch.BatchNumber, &batch.BlockNumber,
 			&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 			&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt)
 	} else {
 		err = s.db.QueryRow(ctx, getLastConsolidatedBatchSQL, common.Hash{}).Scan(
-			&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
+			&batch.BatchNumber, &batch.BlockNumber,
 			&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 			&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt)
 	}
 
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrStateNotSynchronized
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -153,19 +178,21 @@ func (s *PostgresStorage) GetPreviousBatch(ctx context.Context, isVirtual bool, 
 
 	if isVirtual {
 		err = s.db.QueryRow(ctx, getPreviousVirtualBatchSQL, offset).Scan(
-			&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
+			&batch.BatchNumber, &batch.BlockNumber,
 			&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
 			&batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt)
 	} else {
 		err = s.db.QueryRow(ctx, getPreviousConsolidatedBatchSQL, common.Hash{}, offset).Scan(
-			&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber,
+			&batch.BatchNumber, &batch.BlockNumber,
 			&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
 			&batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt)
 	}
 
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -180,13 +207,16 @@ func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash) 
 		maticCollateral pgtype.Numeric
 	)
 	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(
-		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
+		&batch.BatchNumber, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
 		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 		&batch.ReceivedAt, &batch.ConsolidatedAt)
 
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
+
 	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
 	return &batch, nil
 }
@@ -198,12 +228,16 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 		maticCollateral pgtype.Numeric
 	)
 	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
-		&batch.BatchNumber, &batch.BatchHash, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
+		&batch.BatchNumber, &batch.BlockNumber, &batch.Sequencer, &batch.Aggregator,
 		&batch.ConsolidatedTxHash, &batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 		&batch.ReceivedAt, &batch.ConsolidatedAt)
-	if err != nil {
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
+
 	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
 	return &batch, nil
 }
@@ -212,9 +246,11 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 func (s *PostgresStorage) GetLastBatchNumber(ctx context.Context) (uint64, error) {
 	var lastBatchNumber uint64
 	err := s.db.QueryRow(ctx, getLastVirtualBatchNumberSQL).Scan(&lastBatchNumber)
+
 	if err != nil {
 		return 0, err
 	}
+
 	return lastBatchNumber, nil
 }
 
@@ -222,16 +258,22 @@ func (s *PostgresStorage) GetLastBatchNumber(ctx context.Context) (uint64, error
 func (s *PostgresStorage) GetLastConsolidatedBatchNumber(ctx context.Context) (uint64, error) {
 	var lastBatchNumber uint64
 	err := s.db.QueryRow(ctx, getLastConsolidatedBatchNumberSQL, common.Hash{}).Scan(&lastBatchNumber)
+
 	if err != nil {
 		return 0, err
 	}
+
 	return lastBatchNumber, nil
 }
 
 // GetTransactionByBatchHashAndIndex gets a transaction from a batch by index
 func (s *PostgresStorage) GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64) (*types.Transaction, error) {
 	var encoded string
-	if err := s.db.QueryRow(ctx, getTransactionByBatchHashAndIndexSQL, batchHash.Bytes(), index).Scan(&encoded); err != nil {
+	err := s.db.QueryRow(ctx, getTransactionByBatchHashAndIndexSQL, batchHash.Bytes(), index).Scan(&encoded)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -251,7 +293,11 @@ func (s *PostgresStorage) GetTransactionByBatchHashAndIndex(ctx context.Context,
 // GetTransactionByBatchNumberAndIndex gets a transaction from a batch by index
 func (s *PostgresStorage) GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error) {
 	var encoded string
-	if err := s.db.QueryRow(ctx, getTransactionByBatchNumberAndIndexSQL, batchNumber, index).Scan(&encoded); err != nil {
+	err := s.db.QueryRow(ctx, getTransactionByBatchNumberAndIndexSQL, batchNumber, index).Scan(&encoded)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -271,7 +317,11 @@ func (s *PostgresStorage) GetTransactionByBatchNumberAndIndex(ctx context.Contex
 // GetTransactionByHash gets a transaction by its hash
 func (s *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error) {
 	var encoded string
-	if err := s.db.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&encoded); err != nil {
+	err := s.db.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&encoded)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -299,12 +349,15 @@ func (s *PostgresStorage) GetTransactionCount(ctx context.Context, fromAddress c
 }
 
 // GetTransactionReceipt returns the receipt of a transaction by transaction hash
-func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*types.Receipt, error) {
-	var receipt types.Receipt
+func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*state.Receipt, error) {
+	var receipt state.Receipt
 	var blockNumber uint64
 	err := s.db.QueryRow(ctx, getReceiptSQL, transactionHash).Scan(&receipt.Type, &receipt.PostState, &receipt.Status,
-		&receipt.CumulativeGasUsed, &receipt.GasUsed, &blockNumber, &receipt.TxHash, &receipt.TransactionIndex)
-	if err != nil {
+		&receipt.CumulativeGasUsed, &receipt.GasUsed, &blockNumber, &receipt.BlockHash, &receipt.TxHash, &receipt.TransactionIndex, &receipt.From, &receipt.To)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -331,9 +384,13 @@ func (s *PostgresStorage) ConsolidateBatch(ctx context.Context, batchNumber uint
 // GetTxsByBatchNum returns all the txs in a given batch
 func (s *PostgresStorage) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error) {
 	rows, err := s.db.Query(ctx, getTxsByBatchNumSQL, batchNum)
-	if err != nil {
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
+
 	txs := make([]*types.Transaction, 0, len(rows.RawValues()))
 	var (
 		encoded string
@@ -372,7 +429,10 @@ func (s *PostgresStorage) GetSequencer(ctx context.Context, address common.Addre
 	var seq state.Sequencer
 	var cID uint64
 	err := s.db.QueryRow(ctx, getSequencerSQL, address.Bytes()).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
-	if err != nil {
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -401,6 +461,7 @@ func (s *PostgresStorage) SetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
 	var batchNumber uint64
 	err := s.db.QueryRow(ctx, getLastBatchSeenSQL).Scan(&batchNumber)
+
 	if err != nil {
 		return 0, err
 	}
@@ -418,6 +479,7 @@ func (s *PostgresStorage) SetLastBatchNumberConsolidatedOnEthereum(ctx context.C
 func (s *PostgresStorage) GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error) {
 	var batchNumber uint64
 	err := s.db.QueryRow(ctx, getLastBatchConsolidatedSQL).Scan(&batchNumber)
+
 	if err != nil {
 		return 0, err
 	}
@@ -427,7 +489,7 @@ func (s *PostgresStorage) GetLastBatchNumberConsolidatedOnEthereum(ctx context.C
 
 // AddBatch adds a new batch to the State Store
 func (s *PostgresStorage) AddBatch(ctx context.Context, batch *state.Batch) error {
-	_, err := s.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.BatchHash, batch.BlockNumber, batch.Sequencer, batch.Aggregator,
+	_, err := s.db.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.Hash(), batch.BlockNumber, batch.Sequencer, batch.Aggregator,
 		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData, batch.MaticCollateral.String(), batch.ReceivedAt)
 	return err
 }
@@ -451,7 +513,7 @@ func (s *PostgresStorage) AddTransaction(ctx context.Context, tx *types.Transact
 }
 
 // AddReceipt adds a new receipt to the State Store
-func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt) error {
-	_, err := s.db.Exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.TxHash.Bytes(), receipt.TransactionIndex)
+func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt) error {
+	_, err := s.db.Exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.BlockHash.Bytes(), receipt.TxHash.Bytes(), receipt.TransactionIndex, receipt.From.Bytes(), receipt.To.Bytes())
 	return err
 }

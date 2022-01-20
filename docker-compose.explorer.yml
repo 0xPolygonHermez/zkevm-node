@@ -60,4 +60,5 @@ services:
         - POSTGRES_PASSWORD=test_password
         - POSTGRES_DB=test_db
         - POSTGRES_HOST=hez-postgres
+        - POSTGRES_PORT=5432
         - PROOF_TIME=1000

@@ -10,7 +10,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/jackc/pgx/v4"
 )
 
 // Synchronizer connects L1 and L2
@@ -26,11 +25,12 @@ type ClientSynchronizer struct {
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
+	genBalances    state.Genesis
 	cfg            Config
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
-func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, cfg Config) (Synchronizer, error) {
+func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, genBalances state.Genesis, cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:          st,
@@ -38,6 +38,7 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber ui
 		ctx:            ctx,
 		cancelCtx:      cancel,
 		genBlockNumber: genBlockNumber,
+		genBalances:    genBalances,
 		cfg:            cfg,
 	}, nil
 }
@@ -48,11 +49,21 @@ func (s *ClientSynchronizer) Sync() error {
 	go func() {
 		// If there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block
 		// Get the latest synced block. If there is no block on db, use genesis block
+		log.Info("Sync started")
 		lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx)
 		if err != nil {
-			log.Warn("error getting the latest ethereum block. Setting genesis block. Error: ", err)
-			lastEthBlockSynced = &state.Block{
-				BlockNumber: s.genBlockNumber,
+			if err == state.ErrStateNotSynchronized {
+				log.Warn("error getting the latest ethereum block. No data stored. Setting genesis block. Error: ", err)
+				lastEthBlockSynced = &state.Block{
+					BlockNumber: s.genBlockNumber,
+				}
+				// Set genesis
+				err := s.state.SetGenesis(s.ctx, s.genBalances)
+				if err != nil {
+					log.Fatal("error setting genesis: ", err)
+				}
+			} else {
+				log.Fatal("unexpected error getting the latest ethereum block. Setting genesis block. Error: ", err)
 			}
 		} else if lastEthBlockSynced.BlockNumber == 0 {
 			lastEthBlockSynced = &state.Block{
@@ -249,10 +260,9 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > s.genBlockNumber {
 			// Reorg detected. Getting previous block
 			latestBlock, err = s.state.GetBlockByNumber(s.ctx, latestBlock.BlockNumber-1)
-			if err != nil {
-				if err.Error() == pgx.ErrNoRows.Error() {
-					return nil, nil
-				}
+			if errors.Is(err, state.ErrNotFound) {
+				return nil, nil
+			} else if err != nil {
 				return nil, err
 			}
 		} else {

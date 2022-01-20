@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -175,12 +176,14 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 	ctx := context.Background()
 
-	tx, err := e.state.GetTransactionReceipt(ctx, hash)
-	if err != nil {
+	r, err := e.state.GetTransactionReceipt(ctx, hash)
+	if errors.Is(err, state.ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 
-	return tx, nil
+	return r, nil
 }
 
 // SendRawTransaction sends a raw transaction

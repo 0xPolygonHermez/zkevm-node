@@ -3,13 +3,13 @@ package state
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/jackc/pgx/v4"
 )
 
 // State is the interface of the Hermez state
@@ -42,7 +42,7 @@ type Storage interface {
 	GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error)
 	GetTransactionCount(ctx context.Context, address common.Address) (uint64, error)
-	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*types.Receipt, error)
+	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*Receipt, error)
 	Reset(ctx context.Context, blockNumber uint64) error
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
@@ -53,14 +53,18 @@ type Storage interface {
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
 	AddBatch(ctx context.Context, batch *Batch) error
 	AddTransaction(ctx context.Context, tx *types.Transaction, batchNumber uint64, index uint) error
+	AddReceipt(ctx context.Context, receipt *Receipt) error
 	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error
 	GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error)
-	AddReceipt(ctx context.Context, receipt *types.Receipt) error
 }
 
 var (
 	// ErrInvalidBatchHeader indicates the batch header is invalid
 	ErrInvalidBatchHeader = errors.New("invalid batch header")
+	// ErrStateNotSynchronized indicates the state database may be empty
+	ErrStateNotSynchronized = errors.New("state not synchronized")
+	// ErrNotFound indicates an object has not been found for the search criteria used
+	ErrNotFound = errors.New("object not found")
 )
 
 // BasicState is a implementation of the state
@@ -80,18 +84,19 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 	// init correct state root from previous batch
 	stateRoot, err := s.GetStateRootByBatchNumber(lastBatchNumber)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get state root for batch number %d, err: %v", lastBatchNumber, err)
+		return nil, err
 	}
 
 	s.tree.SetCurrentRoot(stateRoot)
 
 	// Get Sequencer's Chain ID
+	chainID := s.cfg.DefaultChainID
 	sq, err := s.GetSequencer(context.Background(), sequencerAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get sequencer %s, err: %v", sequencerAddress, err)
+	if err == nil {
+		chainID = sq.ChainID.Uint64()
 	}
 
-	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: sq.ChainID.Uint64()}, nil
+	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID}, nil
 }
 
 // NewGenesisBatchProcessor creates a new batch processor
@@ -104,7 +109,10 @@ func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchPro
 // GetStateRoot returns the root of the state tree
 func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, error) {
 	batch, err := s.GetLastBatch(ctx, virtual)
-	if err != nil {
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -119,7 +127,10 @@ func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, er
 func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error) {
 	ctx := context.Background()
 	batch, err := s.GetBatchByNumber(ctx, batchNumber)
-	if err != nil {
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -133,7 +144,9 @@ func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, erro
 // GetBalance from a given address
 func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
 	root, err := s.GetStateRootByBatchNumber(batchNumber)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
 		return nil, err
 	}
 

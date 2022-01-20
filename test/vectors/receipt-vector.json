@@ -1,0 +1,679 @@
+[
+  {
+    "id": 0,
+    "description": "2 accounts and 1 valid transaction.",
+    "arity": 4,
+    "chainIdSequencer": 1001,
+    "defaultChainId": 1000,
+    "sequencerAddress": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+    "genesis": [
+      {
+        "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+        "balance": "100000000000000000000",
+        "nonce": "0"
+      },
+      {
+        "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+        "balance": "200000000000000000000",
+        "nonce": "0"
+      }
+    ],
+    "expectedOldRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "txs": [
+      {
+        "id": 0,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 0,
+        "value": "0.1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "rawTx": "0xf86d80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808207f5a01186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb979f910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c01225968799907432",
+        "reason": ""
+      }
+    ],
+    "expectedNewRoot": "16839349720732534632663634369605785751289107377345624633588697492886148997782",
+    "expectedNewLeafs": {
+      "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D": {
+        "balance": "99900000000000000000",
+        "nonce": "1"
+      },
+      "0x4d5Cf5032B2a844602278b01199ED191A86c93ff": {
+        "balance": "200100000000000000000",
+        "nonce": "0"
+      }
+    },
+    "batchL2Data": "0xf871b86ff86d80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808207f5a01186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb979f910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c01225968799907432",
+    "globalExitRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "newLocalExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "inputHash": "57814093851340661808999569393900616943961908456715596531508086955649204758541",
+    "batchHashData": "104516945179502513956983353081340360268184781159545966694069148072753623232938",
+    "localExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "receipts": [
+      {
+        "txId": 0,
+        "receipt": {
+          "transactionHash": "0x0cc3dd49b941271b19df83ba6733bed4023fb82c28d40e6ef863ca589d4a933a",
+          "transactionIndex": 0,
+          "blockNumber": 0,
+          "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+          "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+          "cumulativeGasUsed": 21000,
+          "gasUsedForTx": 21000,
+          "contractAddress": null,
+          "logs": 0,
+          "logsBloom": 0,
+          "status": 1,
+          "blockHash": "0x1b954accb9a156ea2d7d4d1b40367d4cafcdd52eb8705cd9953fbe2294fede32"
+        }
+      }
+    ],
+    "blockInfo": {
+      "blockNumber": 0,
+      "gasUsedForTx": 21000,
+      "blockGasLimit": 30000000,
+      "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "txHashRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "receiptRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "id": 1,
+    "description": "5 accounts. 2 valid tx, 3 invalid tx (same amount as balance, invalid nonce, invalid chain id 1)",
+    "arity": 4,
+    "chainIdSequencer": 1001,
+    "defaultChainId": 1000,
+    "sequencerAddress": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+    "genesis": [
+      {
+        "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+        "balance": "100000000000000000000",
+        "nonce": "0"
+      },
+      {
+        "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+        "balance": "200000000000000000000",
+        "nonce": "0"
+      },
+      {
+        "address": "0xeB17ce701E9D92724AA2ABAdA7E4B28830597Dd9",
+        "pvtKey": "0x1d0722aff4b29780e9a78e0bf28d5e127fb276cfbb0c3eb6a0e1728401777f17",
+        "balance": "100000000000000000000",
+        "nonce": "0"
+      },
+      {
+        "address": "0x187Bd40226A7073b49163b1f6c2b73d8F2aa8478",
+        "pvtKey": "0xd049e68efa0d85a3824c0b79f6817a986bb0cb3a075bcc2699118eca881d70ce",
+        "balance": "000000000000000000000",
+        "nonce": "0"
+      },
+      {
+        "address": "0xabCcEd19d7f290B84608feC510bEe872CC8F5112",
+        "pvtKey": "0x0b929d50d7fda8155539e6befa96ff297e3e9ebce4d908f570310bdf774cb32b",
+        "balance": "000000000000000000000",
+        "nonce": "0"
+      }
+    ],
+    "expectedOldRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "txs": [
+      {
+        "id": 0,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 0,
+        "value": "0.1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "rawTx": "0xf86d80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808207f5a01186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb979f910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c01225968799907432",
+        "reason": ""
+      },
+      {
+        "id": 1,
+        "from": "0xeB17ce701E9D92724AA2ABAdA7E4B28830597Dd9",
+        "to": "0x187Bd40226A7073b49163b1f6c2b73d8F2aa8478",
+        "nonce": 0,
+        "value": "1000",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "rawTx": "0xf86f80843b9aca00830186a094187bd40226a7073b49163b1f6c2b73d8f2aa8478893635c9adc5dea00000808207f5a04c4fbe884ee8912360f4d00199fd189f11b27fa25eca1b9dcfd3ea686e88042ea0113432240c9e7be8de1e8fc0894b68ff4d37528d820814527b5fa2bd034ef38f",
+        "reason": "TX INVALID: Not enough funds to pay total transaction cost"
+      },
+      {
+        "id": 2,
+        "from": "0xeB17ce701E9D92724AA2ABAdA7E4B28830597Dd9",
+        "to": "0x187Bd40226A7073b49163b1f6c2b73d8F2aa8478",
+        "nonce": 0,
+        "value": "1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1000,
+        "rawTx": "0xf86e80843b9aca00830186a094187bd40226a7073b49163b1f6c2b73d8f2aa8478880de0b6b3a7640000808207f4a074ecb6abb3d84c322a4905c60199b8f422b79b940e8a853d580869268009ae31a023fb6caa5b3afc410b79d9b68bf851df1fd46fd6923cc481b3e273aeb92ce67d",
+        "reason": ""
+      },
+      {
+        "id": 3,
+        "from": "0xeB17ce701E9D92724AA2ABAdA7E4B28830597Dd9",
+        "to": "0xabCcEd19d7f290B84608feC510bEe872CC8F5112",
+        "nonce": 0,
+        "value": "1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "rawTx": "0xf86e80843b9aca00830186a094abcced19d7f290b84608fec510bee872cc8f5112880de0b6b3a7640000808207f5a0980717290b2314a735dc00db207c20d5a6461f73761c2022986fd78efa7e774da057de08eada05ec67eb78cceaa7be257cb12b5449aa0d7347dca655f94375c967",
+        "reason": "TX INVALID: Invalid nonce"
+      },
+      {
+        "id": 4,
+        "from": "0xeB17ce701E9D92724AA2ABAdA7E4B28830597Dd9",
+        "to": "0xabCcEd19d7f290B84608feC510bEe872CC8F5112",
+        "nonce": 0,
+        "value": "1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 0,
+        "rawTx": "0xf86c80843b9aca00830186a094abcced19d7f290b84608fec510bee872cc8f5112880de0b6b3a7640000801ba02c92035bc11227e9e94ba066a6d77a65c43d29dfb4a855c9464e1b60fabd6334a07171c6dc84816ffcf025040cd6193ecef3928a0c4e4964ddba320826b76c725d",
+        "reason": "TX INVALID: Chain ID does not match"
+      }
+    ],
+    "expectedNewRoot": "9568962050771181857833105459529305734534076689529052064550105938569302461613",
+    "expectedNewLeafs": {
+      "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D": {
+        "balance": "99900021000000000000",
+        "nonce": "1"
+      },
+      "0x4d5Cf5032B2a844602278b01199ED191A86c93ff": {
+        "balance": "200100000000000000000",
+        "nonce": "0"
+      },
+      "0xeB17ce701E9D92724AA2ABAdA7E4B28830597Dd9": {
+        "balance": "98999979000000000000",
+        "nonce": "1"
+      },
+      "0x187Bd40226A7073b49163b1f6c2b73d8F2aa8478": {
+        "balance": "1000000000000000000",
+        "nonce": "0"
+      },
+      "0xabCcEd19d7f290B84608feC510bEe872CC8F5112": {
+        "balance": "0",
+        "nonce": "0"
+      }
+    },
+    "batchL2Data": "0xf90238b86ff86d80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808207f5a01186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb979f910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c01225968799907432b871f86f80843b9aca00830186a094187bd40226a7073b49163b1f6c2b73d8f2aa8478893635c9adc5dea00000808207f5a04c4fbe884ee8912360f4d00199fd189f11b27fa25eca1b9dcfd3ea686e88042ea0113432240c9e7be8de1e8fc0894b68ff4d37528d820814527b5fa2bd034ef38fb870f86e80843b9aca00830186a094187bd40226a7073b49163b1f6c2b73d8f2aa8478880de0b6b3a7640000808207f4a074ecb6abb3d84c322a4905c60199b8f422b79b940e8a853d580869268009ae31a023fb6caa5b3afc410b79d9b68bf851df1fd46fd6923cc481b3e273aeb92ce67db870f86e80843b9aca00830186a094abcced19d7f290b84608fec510bee872cc8f5112880de0b6b3a7640000808207f5a0980717290b2314a735dc00db207c20d5a6461f73761c2022986fd78efa7e774da057de08eada05ec67eb78cceaa7be257cb12b5449aa0d7347dca655f94375c967b86ef86c80843b9aca00830186a094abcced19d7f290b84608fec510bee872cc8f5112880de0b6b3a7640000801ba02c92035bc11227e9e94ba066a6d77a65c43d29dfb4a855c9464e1b60fabd6334a07171c6dc84816ffcf025040cd6193ecef3928a0c4e4964ddba320826b76c725d",
+    "globalExitRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "newLocalExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "inputHash": "82531216256871040607468515423709123622788408817721907661414715796546756036546",
+    "batchHashData": "104679107987218391624282399623194389135472912414395931966786414484326432455931",
+    "localExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "receipts": [
+      {
+        "txId": 0,
+        "receipt": {
+          "transactionHash": "0x0cc3dd49b941271b19df83ba6733bed4023fb82c28d40e6ef863ca589d4a933a",
+          "transactionIndex": 0,
+          "blockNumber": 0,
+          "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+          "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+          "cumulativeGasUsed": 21000,
+          "gasUsedForTx": 21000,
+          "contractAddress": null,
+          "logs": 0,
+          "logsBloom": 0,
+          "status": 1,
+          "blockHash": "0x6016a96aa1c2db981a98ab579628636360a7e723ab6136a8ea40c47f1e0ba7c1"
+        }
+      },
+      {
+        "txId": 2,
+        "receipt": {
+          "transactionHash": "0x757a5aa97e795d4742a9b8cd7c8f4b203c380d361635a72f94fd1d0d44544bac",
+          "transactionIndex": 1,
+          "blockNumber": 0,
+          "from": "0xeB17ce701E9D92724AA2ABAdA7E4B28830597Dd9",
+          "to": "0x187Bd40226A7073b49163b1f6c2b73d8F2aa8478",
+          "cumulativeGasUsed": 42000,
+          "gasUsedForTx": 21000,
+          "contractAddress": null,
+          "logs": 0,
+          "logsBloom": 0,
+          "status": 1,
+          "blockHash": "0x6016a96aa1c2db981a98ab579628636360a7e723ab6136a8ea40c47f1e0ba7c1"
+        }
+      }
+    ],
+    "blockInfo": {
+      "blockNumber": 0,
+      "gasUsedForTx": 21000,
+      "blockGasLimit": 30000000,
+      "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "txHashRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "receiptRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "id": 2,
+    "description": "2 accounts and 1 invalid tx (tx with more value than balance). Old root equals new root.",
+    "arity": 4,
+    "chainIdSequencer": 1001,
+    "defaultChainId": 1000,
+    "sequencerAddress": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+    "genesis": [
+      {
+        "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+        "balance": "100000000000000000000",
+        "nonce": "0"
+      },
+      {
+        "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+        "balance": "200000000000000000000",
+        "nonce": "0"
+      }
+    ],
+    "expectedOldRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "txs": [
+      {
+        "id": 0,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 0,
+        "value": "10000",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "rawTx": "0xf87080843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff8a021e19e0c9bab2400000808207f5a0510a8a10721e65bf2913889751f3b32de1cb4733a667e06b708f122965da598ea075ca7d27cb4c3846490b4c446605d0120b0720b70dfe5a07f865a161c3726322",
+        "reason": "TX INVALID: Not enough funds to pay total transaction cost"
+      }
+    ],
+    "expectedNewRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "expectedNewLeafs": {
+      "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D": {
+        "balance": "100000000000000000000",
+        "nonce": "0"
+      },
+      "0x4d5Cf5032B2a844602278b01199ED191A86c93ff": {
+        "balance": "200000000000000000000",
+        "nonce": "0"
+      }
+    },
+    "batchL2Data": "0xf874b872f87080843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff8a021e19e0c9bab2400000808207f5a0510a8a10721e65bf2913889751f3b32de1cb4733a667e06b708f122965da598ea075ca7d27cb4c3846490b4c446605d0120b0720b70dfe5a07f865a161c3726322",
+    "globalExitRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "newLocalExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "inputHash": "57708090471006267169256623112834288382936198697386757384084394755932069740346",
+    "batchHashData": "107713570571787785578035858631468526095529724086537530525064221169738207095063",
+    "localExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "receipts": [],
+    "blockInfo": {
+      "blockNumber": 0,
+      "gasUsedForTx": 21000,
+      "blockGasLimit": 30000000,
+      "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "txHashRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "receiptRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "id": 3,
+    "description": "2 accounts and 4 invalid transactions. Two of the transactions have invalid from and to address so no rawTx is provided for them, can be ignored.Tx with same amount than balance and tx with invalid chain id (different chain id than sequencer). Old root equals new root",
+    "arity": 4,
+    "chainIdSequencer": 1001,
+    "defaultChainId": 1000,
+    "sequencerAddress": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+    "genesis": [
+      {
+        "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+        "balance": "100000000000000000000",
+        "nonce": "0"
+      },
+      {
+        "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+        "balance": "200000000000000000000",
+        "nonce": "0"
+      }
+    ],
+    "expectedOldRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "txs": [
+      {
+        "id": 0,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 0,
+        "value": "0.1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 401,
+        "rawTx": "0xf86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a000080820346a06e209c61ca92c2b980d6197e7ac9ccc3f547bf13be6455dfe682aa5dda9655efa016819a7edcc3fefec81ca97c7a6f3d10ec774440e409adbba693ce8b698d41f1",
+        "reason": "TX INVALID: Chain ID does not match"
+      },
+      {
+        "id": 1,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93f",
+        "nonce": 0,
+        "value": "0.1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "reason": ""
+      },
+      {
+        "id": 2,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf03D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 0,
+        "value": "0.1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "reason": ""
+      },
+      {
+        "id": 3,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 0,
+        "value": "100",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "rawTx": "0xf86f80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff89056bc75e2d63100000808207f5a0fe1e96b35c836fbebac887681150c5fc9fdae862d747aaaf8c30373c0becf769a01ff0c900aaaac6d1565a603f69b5a45f222ed205f0a36fdc6e4e4c5a7b88d45b",
+        "reason": "TX INVALID: Not enough funds to pay total transaction cost"
+      }
+    ],
+    "expectedNewRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "expectedNewLeafs": {
+      "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D": {
+        "balance": "100000000000000000000",
+        "nonce": "0"
+      },
+      "0x4d5Cf5032B2a844602278b01199ED191A86c93ff": {
+        "balance": "200000000000000000000",
+        "nonce": "0"
+      }
+    },
+    "batchL2Data": "0xf8e5b870f86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a000080820346a06e209c61ca92c2b980d6197e7ac9ccc3f547bf13be6455dfe682aa5dda9655efa016819a7edcc3fefec81ca97c7a6f3d10ec774440e409adbba693ce8b698d41f1b871f86f80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff89056bc75e2d63100000808207f5a0fe1e96b35c836fbebac887681150c5fc9fdae862d747aaaf8c30373c0becf769a01ff0c900aaaac6d1565a603f69b5a45f222ed205f0a36fdc6e4e4c5a7b88d45b",
+    "globalExitRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "newLocalExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "inputHash": "61543416043828135260997792141086679004733569177168698361648264127249169372064",
+    "batchHashData": "6828216124916051484991897781152553435670334288924258080724906096829526261498",
+    "localExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "receipts": [],
+    "blockInfo": {
+      "blockNumber": 0,
+      "gasUsedForTx": 21000,
+      "blockGasLimit": 30000000,
+      "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "txHashRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "receiptRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "id": 4,
+    "description": "2 accounts and 1 invalid transaction. Wrong encode of the tx (invalid signature). Old root equals new root",
+    "arity": 4,
+    "chainIdSequencer": 1001,
+    "defaultChainId": 1000,
+    "sequencerAddress": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+    "genesis": [
+      {
+        "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+        "balance": "100000000000000000000",
+        "nonce": "0"
+      },
+      {
+        "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+        "balance": "200000000000000000000",
+        "nonce": "0"
+      }
+    ],
+    "expectedOldRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "txs": [
+      {
+        "encodeInvalidData": true,
+        "id": 0,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 0,
+        "value": "0.1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "rawTx": "0xf86d80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808207f5a01186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb979f910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c01225968799907432",
+        "reason": "TX INVALID: Failed to RLP decode raw transaction"
+      }
+    ],
+    "expectedNewRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "expectedNewLeafs": {
+      "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D": {
+        "balance": "100000000000000000000",
+        "nonce": "0"
+      },
+      "0x4d5Cf5032B2a844602278b01199ED191A86c93ff": {
+        "balance": "200000000000000000000",
+        "nonce": "0"
+      }
+    },
+    "batchL2Data": "0xf86eb86cf86d80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808207f5a01186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb979f910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c01225968799",
+    "globalExitRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "newLocalExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "inputHash": "56002120452188909739667648331069915211829661777389624550285281327078632864234",
+    "batchHashData": "22359144131601759789453173673694647146687228312924898252094239658412344180736",
+    "localExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "receipts": [],
+    "blockInfo": {
+      "blockNumber": 0,
+      "gasUsedForTx": 21000,
+      "blockGasLimit": 30000000,
+      "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "txHashRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "receiptRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "id": 5,
+    "description": "2 accounts and 1 valid transaction, from and to are the same",
+    "arity": 4,
+    "chainIdSequencer": 1001,
+    "defaultChainId": 1000,
+    "sequencerAddress": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+    "genesis": [
+      {
+        "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+        "balance": "100000000000000000000",
+        "nonce": "0"
+      },
+      {
+        "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+        "balance": "200000000000000000000",
+        "nonce": "0"
+      }
+    ],
+    "expectedOldRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "txs": [
+      {
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "nonce": 0,
+        "value": "0.1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "rawTx": "0xf86e80843b9aca00830186a094617b3a3528f9cdd6630fd3301b9c8911f7bf063d88016345785d8a0000808207f6a014b2304ca08457f37c4e81284398aa9c511875e47b37b1e6877a26c53c0e7a1ca07f2ed42e23e503c446213de2ce077e5cfdc58f0a672dfc0a5d0aa7c0202098c3",
+        "reason": ""
+      }
+    ],
+    "expectedNewRoot": "17438486316409083994532643493058358002769362667109977490833048423880566432494",
+    "expectedNewLeafs": {
+      "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D": {
+        "balance": "99999979000000000000",
+        "nonce": "1"
+      },
+      "0x4d5Cf5032B2a844602278b01199ED191A86c93ff": {
+        "balance": "200000021000000000000",
+        "nonce": "0"
+      }
+    },
+    "batchL2Data": "0xf872b870f86e80843b9aca00830186a094617b3a3528f9cdd6630fd3301b9c8911f7bf063d88016345785d8a0000808207f6a014b2304ca08457f37c4e81284398aa9c511875e47b37b1e6877a26c53c0e7a1ca07f2ed42e23e503c446213de2ce077e5cfdc58f0a672dfc0a5d0aa7c0202098c3",
+    "globalExitRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "newLocalExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "inputHash": "34654959375231104190072700209624592180292556085410994146534816643224174601448",
+    "batchHashData": "51386423685102634163122949056446645938993499660971653940614451945583609592433",
+    "localExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "receipts": [
+      {
+        "receipt": {
+          "transactionHash": "0x39b4d21d30501daa3725e7058db487d63503d3c94588ca5fc227e832feabc9cb",
+          "transactionIndex": 0,
+          "blockNumber": 0,
+          "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+          "to": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+          "cumulativeGasUsed": 21000,
+          "gasUsedForTx": 21000,
+          "contractAddress": null,
+          "logs": 0,
+          "logsBloom": 0,
+          "status": 1,
+          "blockHash": "0x254660c3e234a7340ee6b935633a0f6362de2ecb08ef4af7a20f8052d70d9ba7"
+        }
+      }
+    ],
+    "blockInfo": {
+      "blockNumber": 0,
+      "gasUsedForTx": 21000,
+      "blockGasLimit": 30000000,
+      "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "txHashRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "receiptRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  {
+    "id": 6,
+    "description": "2 accounts. 1 valid tx, 3 invalid tx (same amount as balance, invalid nonce, invalid chain id",
+    "arity": 4,
+    "chainIdSequencer": 1001,
+    "defaultChainId": 1000,
+    "sequencerAddress": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+    "genesis": [
+      {
+        "address": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "pvtKey": "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
+        "balance": "100000000000000000000",
+        "nonce": "0"
+      },
+      {
+        "address": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "pvtKey": "0x4d27a600dce8c29b7bd080e29a26972377dbb04d7a27d919adbb602bf13cfd23",
+        "balance": "200000000000000000000",
+        "nonce": "0"
+      }
+    ],
+    "expectedOldRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "txs": [
+      {
+        "id": 0,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 0,
+        "value": "100",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "rawTx": "0xf86f80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff89056bc75e2d63100000808207f5a0fe1e96b35c836fbebac887681150c5fc9fdae862d747aaaf8c30373c0becf769a01ff0c900aaaac6d1565a603f69b5a45f222ed205f0a36fdc6e4e4c5a7b88d45b",
+        "reason": "TX INVALID: Not enough funds to pay total transaction cost"
+      },
+      {
+        "id": 1,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 0,
+        "value": "0.1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "rawTx": "0xf86d80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808207f5a01186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb979f910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c01225968799907432",
+        "reason": ""
+      },
+      {
+        "id": 3,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 0,
+        "value": "1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 1001,
+        "rawTx": "0xf86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff880de0b6b3a7640000808207f6a0abf2354a778c3dace42daafd85b0587941170288f5d150621453bb490cbbb897a04d0251dec50bf299922edde433982445f1245e85a61232edc2847bd571250b52",
+        "reason": "TX INVALID: Invalid nonce"
+      },
+      {
+        "id": 4,
+        "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+        "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+        "nonce": 0,
+        "value": "1",
+        "gasLimit": 100000,
+        "gasPrice": "1",
+        "chainId": 0,
+        "rawTx": "0xf86c80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff880de0b6b3a7640000801ba077f76b76aca6161db28545aa742536370e4f57f9a71651688631a423abcbe04aa0131474e130abe8bcc9ef39a44a877eb64b2d43132cb0907abe547aa605b641b8",
+        "reason": "TX INVALID: Chain ID does not match"
+      }
+    ],
+    "expectedNewRoot": "17189536521307802254466496898476475883494701159130821398958894848580122137492",
+    "expectedNewLeafs": {
+      "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D": {
+        "balance": "99899979000000000000",
+        "nonce": "1"
+      },
+      "0x4d5Cf5032B2a844602278b01199ED191A86c93ff": {
+        "balance": "200100021000000000000",
+        "nonce": "0"
+      }
+    },
+    "batchL2Data": "0xf901c6b871f86f80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff89056bc75e2d63100000808207f5a0fe1e96b35c836fbebac887681150c5fc9fdae862d747aaaf8c30373c0becf769a01ff0c900aaaac6d1565a603f69b5a45f222ed205f0a36fdc6e4e4c5a7b88d45bb86ff86d80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808207f5a01186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb979f910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c01225968799907432b870f86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff880de0b6b3a7640000808207f6a0abf2354a778c3dace42daafd85b0587941170288f5d150621453bb490cbbb897a04d0251dec50bf299922edde433982445f1245e85a61232edc2847bd571250b52b86ef86c80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff880de0b6b3a7640000801ba077f76b76aca6161db28545aa742536370e4f57f9a71651688631a423abcbe04aa0131474e130abe8bcc9ef39a44a877eb64b2d43132cb0907abe547aa605b641b8",
+    "globalExitRoot": "4091651772388093439828475955668620102367778455436412389529460210592290187513",
+    "newLocalExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "inputHash": "90582905717410271400742259780772403858311783561529487392006589201384936482381",
+    "batchHashData": "69239392818865584924550783402057973786036864379372948108664522000857659683711",
+    "localExitRoot": "10742956179515319100591595038388130427995406579252011098325992000171378207294",
+    "receipts": [
+      {
+        "txId": 1,
+        "receipt": {
+          "transactionHash": "0x0cc3dd49b941271b19df83ba6733bed4023fb82c28d40e6ef863ca589d4a933a",
+          "transactionIndex": 0,
+          "blockNumber": 0,
+          "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+          "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+          "cumulativeGasUsed": 21000,
+          "gasUsedForTx": 21000,
+          "contractAddress": null,
+          "logs": 0,
+          "logsBloom": 0,
+          "status": 1,
+          "blockHash": "0x5e53ea18cc5f8bf9e047e6920786f49332c87423eeb8d85ff41c4c962aa4c828"
+        }
+      }
+    ],
+    "blockInfo": {
+      "blockNumber": 0,
+      "gasUsedForTx": 21000,
+      "blockGasLimit": 30000000,
+      "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "txHashRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "receiptRoot": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  }
+]

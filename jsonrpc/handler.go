@@ -50,7 +50,7 @@ func newJSONRpcHandler(e *Eth, n *Net, h *Hez) *Handler {
 // Handle is the function that knows which and how a function should
 // be executed when a JSON RPC request is received
 func (d *Handler) Handle(req Request) Response {
-	log.Debugf("request method %s id %v", req.Method, req.ID)
+	log.Debugf("request method %s id %v params %v", req.Method, req.ID, string(req.Params))
 
 	service, fd, err := d.getFnHandler(req)
 	if err != nil {
@@ -75,7 +75,7 @@ func (d *Handler) Handle(req Request) Response {
 
 	output := fd.fv.Call(inArgs)
 	if err := getError(output[1]); err != nil {
-		log.Errorf("failed to call method %s: %v", req.Method, err)
+		log.Errorf("failed to call method %s: %v. Params: %v", req.Method, err, string(req.Params))
 		return NewRPCResponse(req, nil, newInvalidRequestError(err.Error()))
 	}
 

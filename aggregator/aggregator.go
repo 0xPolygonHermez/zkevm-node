@@ -10,7 +10,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/jackc/pgx/v4"
 	"google.golang.org/grpc"
 )
 
@@ -62,20 +61,20 @@ func NewAggregator(
 
 // Start starts the aggregator
 func (a *Aggregator) Start() {
-	// init connection to the prover
-	var opts []grpc.CallOption
-	getProofClient, err := a.ZkProverClient.GenProof(a.ctx, opts...)
-	if err != nil {
-		log.Errorf("failed to connect to the prover, err: %v", err)
-		return
-	}
-
 	// this is a batches, that were sent to ethereum to consolidate
 	batchesSent := make(map[uint64]bool)
 
 	for {
 		select {
 		case <-time.After(a.cfg.IntervalToConsolidateState.Duration):
+			// init connection to the prover
+			var opts []grpc.CallOption
+			getProofClient, err := a.ZkProverClient.GenProof(a.ctx, opts...)
+			if err != nil {
+				log.Errorf("failed to connect to the prover, err: %v", err)
+				return
+			}
+
 			// 1. check, if state is synced
 			lastConsolidatedBatch, err := a.State.GetLastBatch(a.ctx, false)
 			if err != nil {
@@ -88,7 +87,7 @@ func (a *Aggregator) Start() {
 				continue
 			}
 			if lastConsolidatedBatch.BatchNumber < lastConsolidatedEthBatchNum {
-				log.Infow("waiting for the state to be synced, lastConsolidatedBatchNum: %d, lastEthConsolidatedBatchNum: %d", lastConsolidatedBatch.BatchNumber, lastConsolidatedEthBatchNum)
+				log.Infof("waiting for the state to be synced, lastConsolidatedBatchNum: %d, lastEthConsolidatedBatchNum: %d", lastConsolidatedBatch.BatchNumber, lastConsolidatedEthBatchNum)
 				continue
 			}
 
@@ -98,8 +97,8 @@ func (a *Aggregator) Start() {
 			batchToConsolidate, err := a.State.GetBatchByNumber(a.ctx, lastConsolidatedBatch.BatchNumber+1)
 
 			if err != nil {
-				if err == pgx.ErrNoRows {
-					log.Infof("there is no batches to consolidate")
+				if err == state.ErrNotFound {
+					log.Infof("there are no batches to consolidate")
 					continue
 				}
 				log.Warnf("failed to get batch to consolidate, err: %v", err)
@@ -167,7 +166,7 @@ func (a *Aggregator) Start() {
 					NewStateRoot:     common.BytesToHash(stateRootToConsolidate).String(),
 					NewLocalExitRoot: fakeLastGlobalExitRoot.String(),
 					SequencerAddr:    batchToConsolidate.Sequencer.String(),
-					BatchHashData:    batchToConsolidate.BatchHash.String(),
+					BatchHashData:    batchToConsolidate.Hash().Hex(),
 					ChainId:          chainID,
 					BatchNum:         uint32(batchToConsolidate.BatchNumber),
 				},
