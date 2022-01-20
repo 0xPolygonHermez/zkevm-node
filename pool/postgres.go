@@ -2,12 +2,15 @@ package pool
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -130,7 +133,9 @@ func (p *PostgresPool) SetGasPrice(ctx context.Context, gasPrice uint64) error {
 func (p *PostgresPool) GetGasPrice(ctx context.Context) (uint64, error) {
 	sql := "SELECT price FROM pool.gas_price ORDER BY item_id DESC LIMIT 1"
 	rows, err := p.db.Query(ctx, sql)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, state.ErrNotFound
+	} else if err != nil {
 		return 0, err
 	}
 
