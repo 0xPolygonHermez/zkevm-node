@@ -45,7 +45,7 @@ services:
     hez-network:
         container_name: hez-network
         restart: always
-        image: hermeznetwork/geth-zkevm-contracts:old
+        image: hermeznetwork/geth-zkevm-contracts:latest
         ports:
           - 8545:8545
 
