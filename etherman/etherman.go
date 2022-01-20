@@ -175,7 +175,7 @@ func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.Transa
 	if len(txs) == 0 {
 		return nil, errors.New("invalid txs: is empty slice")
 	}
-	callDataHex := "0x"
+	var callDataHex string
 	for _, tx := range txs {
 		v, r, s := tx.RawSignatureValues()
 		sign := 1 - (v.Uint64() & 1)
@@ -190,7 +190,7 @@ func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.Transa
 			tx.ChainId(), uint(0), uint(0),
 		})
 		if err != nil {
-			fmt.Println(err)
+			log.Error("error encoding rlp tx: ", err)
 			return nil, errors.New("error encoding rlp tx: " + err.Error())
 		}
 		newV := new(big.Int).Add(big.NewInt(27), big.NewInt(int64(sign)))
@@ -201,7 +201,10 @@ func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.Transa
 
 	}
 	callData, err := hex.DecodeString(callDataHex)
-
+	if err != nil {
+		log.Error("error coverting hex string to []byte. Error: ", err)
+		return nil, errors.New("error coverting hex string to []byte. Error: "+ err.Error())
+	}
 	tx, err := etherMan.PoE.SendBatch(etherMan.auth, callData, maticAmount)
 	if err != nil {
 		return nil, err
@@ -597,7 +600,9 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 			log.Debug("error decoding tx bytes: ", err, fullDataTx)
 			return []*types.Transaction{}, []byte{}, err
 		}
-		tx.V = new(big.Int).Add(new(big.Int).Mul(tx.V, big.NewInt(2)),big.NewInt(35));
+
+		//tx.V = v-27+chainId*2+35
+		tx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(v), big.NewInt(27)),new(big.Int).Add(new(big.Int).Mul(tx.V, big.NewInt(2)),big.NewInt(35)));
 		tx.R = new(big.Int).SetBytes(r)
 		tx.S = new(big.Int).SetBytes(s)
 
