@@ -158,12 +158,6 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 
 	// New info has to be included into the db using the state
 	for i := range blocks {
-		// Get lastest synced batch number
-		latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
-		if err != nil {
-			log.Warn("error getting latest batch. Error: ", err)
-		}
-
 		// Add block information
 		err = s.state.AddBlock(context.Background(), &blocks[i])
 		if err != nil {
@@ -183,6 +177,12 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 						continue
 					}
 				} else {
+					// Get lastest synced batch number
+					latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
+					if err != nil {
+						log.Fatal("error getting latest batch. Error: ", err)
+					}
+
 					sequencerAddress := batch.Sequencer
 					batchProcessor, err := s.state.NewBatchProcessor(sequencerAddress, latestBatchNumber)
 					if err != nil {
