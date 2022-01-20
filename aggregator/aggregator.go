@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"time"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/etherman"
@@ -11,6 +12,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/state"
 	"google.golang.org/grpc"
+	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/encoding"
 )
 
 // Aggregator represents an aggregator
@@ -137,10 +140,35 @@ func (a *Aggregator) Start() {
 				continue
 			}
 
-			txsHashes := make([]string, 0, len(batchToConsolidate.Transactions))
-			for _, tx := range batchToConsolidate.Transactions {
-				txsHashes = append(txsHashes, tx.Hash().String())
+			rawTxs := batchToConsolidate.RawTxsData
+			// Split transactions
+			var pos int64
+			var txs []string
+			const (
+				headerByteLength = 2
+				sLength = 32
+				rLength = 32
+				vLength = 1
+			)
+			for pos < int64(len(rawTxs)) {
+				length := rawTxs[pos : pos+1]
+				str := hex.EncodeToString(length)
+				num, err := strconv.ParseInt(str, hex.Base, encoding.BitSize64)
+				if err != nil {
+					log.Debug("error parsing header length: ", err)
+					txs = []string{}
+					break
+				}
+				// First byte is the length and must be ignored
+				num = num - 192 - 1// 192 is c0. This value is defined by the rlp protocol
+
+				fullDataTx := rawTxs[pos : pos+num+rLength+sLength+vLength+headerByteLength]
+
+				pos = pos + num + rLength + sLength + vLength + headerByteLength 
+
+				txs = append(txs, hex.EncodeToString(fullDataTx))
 			}
+			log.Debug("Txs: ", txs)
 
 			// TODO: consider putting chain id to the batch, so we will get rid of additional request to db
 			seq, err := a.State.GetSequencer(a.ctx, batchToConsolidate.Sequencer)
@@ -171,9 +199,10 @@ func (a *Aggregator) Start() {
 					BatchNum:         uint32(batchToConsolidate.BatchNumber),
 				},
 				GlobalExitRoot: fakeLastGlobalExitRoot.String(),
-				Txs:            txsHashes,
+				Txs:            txs,
 				Keys:           fakeKeys,
 			}
+			log.Debugf("Data sent to the prover: %+v", inputProver)
 			err = getProofClient.Send(inputProver)
 			if err != nil {
 				log.Warnf("failed to send batch to the prover, batchNumber: %v, err: %v", batchToConsolidate.BatchNumber, err)

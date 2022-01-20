@@ -582,9 +582,8 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 		// First byte is the length and must be ignored
 		num = num - 192 - 1// 192 is c0. This value is defined by the rlp protocol
 
-		fullDataTx := txsData[pos : pos+num+64+64+2]
-	var txs []*types.Transaction
-		txInfo := txsData[pos : pos+num+2]
+		fullDataTx := txsData[pos : pos+num+rLength+sLength+vLength+headerByteLength]
+		txInfo := txsData[pos : pos+num+headerByteLength]
 		r := txsData[pos+num+headerByteLength : pos+num+rLength+headerByteLength]
 		s := txsData[pos+num+rLength+headerByteLength : pos+num+rLength+sLength+headerByteLength]
 		v := txsData[pos+num+rLength+sLength+headerByteLength : pos+num+rLength+sLength+vLength+headerByteLength]
