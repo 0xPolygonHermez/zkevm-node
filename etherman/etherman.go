@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/bridge"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
@@ -23,7 +24,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/encoding"
 )
 
 var (
@@ -171,6 +171,10 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 	return etherMan.sendBatch(ctx, etherMan.auth, txs, maticAmount)
 }
 
+const (
+	ether155V = 27
+)
+
 func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.TransactOpts, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	if len(txs) == 0 {
 		return nil, errors.New("invalid txs: is empty slice")
@@ -193,17 +197,16 @@ func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.Transa
 			log.Error("error encoding rlp tx: ", err)
 			return nil, errors.New("error encoding rlp tx: " + err.Error())
 		}
-		newV := new(big.Int).Add(big.NewInt(27), big.NewInt(int64(sign)))
-		newRPadded := fmt.Sprintf("%064s", r.Text(16))
-		newSPadded := fmt.Sprintf("%064s", s.Text(16))
-		newVPadded := fmt.Sprintf("%02s", newV.Text(16))
+		newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+		newRPadded := fmt.Sprintf("%064s", r.Text(encoding.Base16))
+		newSPadded := fmt.Sprintf("%064s", s.Text(encoding.Base16))
+		newVPadded := fmt.Sprintf("%02s", newV.Text(encoding.Base16))
 		callDataHex = callDataHex + hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded
-
 	}
 	callData, err := hex.DecodeString(callDataHex)
 	if err != nil {
 		log.Error("error coverting hex string to []byte. Error: ", err)
-		return nil, errors.New("error coverting hex string to []byte. Error: "+ err.Error())
+		return nil, errors.New("error coverting hex string to []byte. Error: " + err.Error())
 	}
 	tx, err := etherMan.PoE.SendBatch(etherMan.auth, callData, maticAmount)
 	if err != nil {
@@ -570,9 +573,12 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 	var txs []*types.Transaction
 	const (
 		headerByteLength = 2
-		sLength = 32
-		rLength = 32
-		vLength = 1
+		sLength          = 32
+		rLength          = 32
+		vLength          = 1
+		c0               = 192 // 192 is c0. This value is defined by the rlp protocol
+		etherNewV        = 35
+		mul2             = 2
 	)
 	for pos < int64(len(txsData)) {
 		length := txsData[pos : pos+1]
@@ -583,7 +589,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 			return []*types.Transaction{}, []byte{}, err
 		}
 		// First byte is the length and must be ignored
-		num = num - 192 - 1// 192 is c0. This value is defined by the rlp protocol
+		num = num - c0 - 1
 
 		fullDataTx := txsData[pos : pos+num+rLength+sLength+vLength+headerByteLength]
 		txInfo := txsData[pos : pos+num+headerByteLength]
@@ -591,7 +597,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 		s := txsData[pos+num+rLength+headerByteLength : pos+num+rLength+sLength+headerByteLength]
 		v := txsData[pos+num+rLength+sLength+headerByteLength : pos+num+rLength+sLength+vLength+headerByteLength]
 
-		pos = pos + num + rLength + sLength + vLength + headerByteLength 
+		pos = pos + num + rLength + sLength + vLength + headerByteLength
 
 		// Decode tx
 		var tx types.LegacyTx
@@ -602,7 +608,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 		}
 
 		//tx.V = v-27+chainId*2+35
-		tx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(v), big.NewInt(27)),new(big.Int).Add(new(big.Int).Mul(tx.V, big.NewInt(2)),big.NewInt(35)));
+		tx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(v), big.NewInt(ether155V)), new(big.Int).Add(new(big.Int).Mul(tx.V, big.NewInt(mul2)), big.NewInt(etherNewV)))
 		tx.R = new(big.Int).SetBytes(r)
 		tx.S = new(big.Int).SetBytes(s)
 

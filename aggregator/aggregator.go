@@ -3,17 +3,17 @@ package aggregator
 import (
 	"context"
 	"math/big"
-	"time"
 	"strconv"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/state"
 	"google.golang.org/grpc"
-	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/encoding"
 )
 
 // Aggregator represents an aggregator
@@ -146,9 +146,9 @@ func (a *Aggregator) Start() {
 			var txs []string
 			const (
 				headerByteLength = 2
-				sLength = 32
-				rLength = 32
-				vLength = 1
+				sLength          = 32
+				rLength          = 32
+				vLength          = 1
 			)
 			for pos < int64(len(rawTxs)) {
 				length := rawTxs[pos : pos+1]
@@ -160,11 +160,12 @@ func (a *Aggregator) Start() {
 					break
 				}
 				// First byte is the length and must be ignored
-				num = num - 192 - 1// 192 is c0. This value is defined by the rlp protocol
+				const c0 = 192 // 192 is c0. This value is defined by the rlp protocol
+				num = num - c0 - 1
 
 				fullDataTx := rawTxs[pos : pos+num+rLength+sLength+vLength+headerByteLength]
 
-				pos = pos + num + rLength + sLength + vLength + headerByteLength 
+				pos = pos + num + rLength + sLength + vLength + headerByteLength
 
 				txs = append(txs, hex.EncodeToString(fullDataTx))
 			}
