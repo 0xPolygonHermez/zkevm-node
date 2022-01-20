@@ -167,7 +167,7 @@ func (a *Aggregator) Start() {
 
 				pos = pos + num + rLength + sLength + vLength + headerByteLength
 
-				txs = append(txs, hex.EncodeToString(fullDataTx))
+				txs = append(txs, "0x"+hex.EncodeToString(fullDataTx))
 			}
 			log.Debug("Txs: ", txs)
 

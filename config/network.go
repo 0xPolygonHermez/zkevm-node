@@ -56,10 +56,10 @@ var (
 	}
 	internalTestnetConfig = NetworkConfig{
 		Arity:            4,
-		GenBlockNumber:   6195997,
-		PoEAddr:          common.HexToAddress("0x516A728856e0F87F99578E4Ff69F4908Db2ac669"),
-		BridgeAddr:       common.HexToAddress("0xdEF035490aCb289548F34f0d4Aac488d7314Bf33"),
-		MaticAddr:        common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
+		GenBlockNumber:   6233095,
+		PoEAddr:          common.HexToAddress("0xfeC1D2eE9715Bc7e7EBE2f8f2FF3794b1556Fd59"),
+		BridgeAddr:       common.HexToAddress("0x71d1d24634B9F235E4A2cD958caaEC99b2DE1165"),
+		MaticAddr:        common.HexToAddress("0x754A75FD07d30dba6F612522ed82CAdE24E314D2"),
 		L1ChainID:        5, //Goerli
 		L2DefaultChainID: 1000,
 		Balances: map[common.Address]*big.Int{
@@ -78,6 +78,28 @@ var (
 			common.HexToAddress("0x56b2118d90cCA76E4683EfECEEC35662372d64Cd"): bigIntFromBase10String("1000000000000000000000"),
 			common.HexToAddress("0xd66d09242faa9b3beae711f89d8fff0946974a21"): bigIntFromBase10String("1000000000000000000000"),
 			common.HexToAddress("0x615031554479128d65f30Ffa721791D6441d9727"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x890C6F9dAa205C93FeD6546F9ecb4d8D71cfC250"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x8faF6d5f53cD2459aDB7D4cF8682db024dCdCD26"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x8277F27d66BAB5902bde22Fcf0A13452932Ca347"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x35f165ae573dcF9275Cd0923320950cD82D8813E"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0xA09E79B2c7F5aB5fdF0C282BfbF646821f4df720"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x66Fd7Bd3FB5CAC3A802D655E2C02A22513ce981f"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x4D3d1e505348cA92bFC2eef44F45C2F89244c5F7"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x38B23d0b9AE34bE5e46C7f1Ce9a9035323A1d027"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0xf41832D434405840880a4c4fDB2032a4B243EA35"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0xA4e030860e039C83e46F2b62A6136B9DB51f839D"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x5b49b856136360474993Aa35282eabF087848022"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x6224D3aa2B3DCfc70D49a5B5a425CdE5A1812A70"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x0E2B728ddB680a7CE1bFD10464373e66C918399C"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x16654572A1CC90BA6B58626736F9c49f384C3cC6"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x3B0f36ee2dbC45Da5F1370C619c680eA765A25B3"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x0e35d2eAc7E9C05Ce6b8647232e3FF9d5EC47D7a"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x609aC1DFFec23719Cdf1d79fC8c6bA0Dd4D38aD6"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0xD6035d50189c13673E789Ab8B14DA92186c4d6b0"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0xFF5D77112F7c1E4EF50179129Db6aB2b0A49685F"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x531Df3e16AF889a1d009fF9e49baDc84BB615C19"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x0E7020134410931C9eC16c4dFB251d78E9fC3cAB"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x5A2A939c7D30F24912C97F93EbA321cDe25Dcc26"): bigIntFromBase10String("1000000000000000000000"),
 		},
 	}
 	localConfig = NetworkConfig{
