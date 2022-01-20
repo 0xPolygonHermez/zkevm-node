@@ -165,12 +165,6 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		}
 		lastEthBlockSynced = &blocks[i]
 		for _, element := range order[blocks[i].BlockHash] {
-			// Get lastest synced batch number
-			latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
-			if err != nil {
-				log.Warn("error getting latest batch. Error: ", err)
-			}
-
 			if element.Name == etherman.BatchesOrder {
 				batch := &blocks[i].Batches[element.Pos]
 				emptyHash := common.Hash{}
@@ -183,6 +177,12 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 						continue
 					}
 				} else {
+					// Get lastest synced batch number
+					latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
+					if err != nil {
+						log.Fatal("error getting latest batch. Error: ", err)
+					}
+
 					sequencerAddress := batch.Sequencer
 					batchProcessor, err := s.state.NewBatchProcessor(sequencerAddress, latestBatchNumber)
 					if err != nil {
