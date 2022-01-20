@@ -279,16 +279,20 @@ func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderBala
 	}
 
 	if nonce.Uint64() != tx.Nonce() {
+		log.Debugf("check transaction [%s]: invalid nonce, expected: %d, found: %d", tx.Hash().Hex(), nonce.Uint64(), tx.Nonce())
 		return ErrInvalidNonce
 	}
 
 	// Check balance
 	if senderBalance.Cmp(tx.Cost()) < 0 {
+		log.Debugf("check transaction [%s]: invalid balance, expected: %v, found: %v", tx.Hash().Hex(), tx.Cost().Text(encoding.Base10), senderBalance.Text(encoding.Base10))
 		return ErrInvalidBalance
 	}
 
 	// Check gas
-	if tx.Gas() < b.State.EstimateGas(tx) {
+	gasEstimation := b.State.EstimateGas(tx)
+	if tx.Gas() < gasEstimation {
+		log.Debugf("check transaction [%s]: invalid gas, expected: %v, found: %v", tx.Hash().Hex(), tx.Gas(), gasEstimation)
 		return ErrInvalidGas
 	}
 
