@@ -6,9 +6,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+// Contract is the instance being called
 type Contract struct {
 	Code        []byte
-	Type        int
+	Type        CallType
 	CodeAddress common.Address
 	Address     common.Address
 	Origin      common.Address
@@ -20,6 +21,7 @@ type Contract struct {
 	Static      bool
 }
 
+// NewContract is the contract default constructor
 func NewContract(depth int, origin common.Address, from common.Address, to common.Address, value *big.Int, gas uint64, code []byte) *Contract {
 	contract := &Contract{
 		Caller:      from,
@@ -32,4 +34,17 @@ func NewContract(depth int, origin common.Address, from common.Address, to commo
 		Depth:       depth,
 	}
 	return contract
+}
+
+// NewContractCreation is used for contracts creation
+func NewContractCreation(depth int, origin common.Address, from common.Address, to common.Address, value *big.Int, gas uint64, code []byte) *Contract {
+	c := NewContract(depth, origin, from, to, value, gas, code)
+	return c
+}
+
+// NewContractCall is used to call a contract
+func NewContractCall(depth int, origin common.Address, from common.Address, to common.Address, value *big.Int, gas uint64, code []byte, input []byte) *Contract {
+	c := NewContract(depth, origin, from, to, value, gas, code)
+	c.Input = input
+	return c
 }

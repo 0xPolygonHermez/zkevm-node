@@ -11,7 +11,8 @@ func NewEVM() *EVM {
 	return &EVM{}
 }
 
-func (e *EVM) Run(c *runtime.Contract) *runtime.ExecutionResult {
+// Run implements the runtime interface
+func (e *EVM) Run(c *runtime.Contract, host runtime.Host, config *runtime.ForksInTime) *runtime.ExecutionResult {
 	contract := acquireState()
 	contract.resetReturnData()
 
@@ -19,8 +20,8 @@ func (e *EVM) Run(c *runtime.Contract) *runtime.ExecutionResult {
 	contract.code = c.Code
 	contract.evm = e
 	contract.gas = c.Gas
-	// contract.host = host
-	// contract.config = config
+	contract.host = host
+	contract.config = config
 
 	contract.bitmap.setCode(c.Code)
 

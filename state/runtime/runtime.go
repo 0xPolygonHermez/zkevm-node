@@ -19,6 +19,24 @@ var (
 	ErrCodeStoreOutOfGas        = errors.New("contract creation code storage out of gas")
 )
 
+type CallType int
+
+const (
+	Call CallType = iota
+	CallCode
+	DelegateCall
+	StaticCall
+	Create
+	Create2
+)
+
+// Runtime can process contracts
+type Runtime interface {
+	Run(c *Contract, host Host, config *ForksInTime) *ExecutionResult
+	CanRun(c *Contract, host Host, config *ForksInTime) bool
+	Name() string
+}
+
 // TxContext is the context of the transaction
 type TxContext struct {
 	GasPrice   common.Hash

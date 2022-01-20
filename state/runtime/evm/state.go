@@ -45,7 +45,7 @@ type state struct {
 	code []byte
 	tmp  []byte
 
-	// host   runtime.Host
+	host   runtime.Host
 	msg    *runtime.Contract // change with msg
 	config *runtime.ForksInTime
 
@@ -120,31 +120,31 @@ func (s *state) consumeGas(gas uint64) bool {
 	return true
 }
 
-func (c *state) push(val *big.Int) {
-	c.push1().Set(val)
+func (s *state) push(val *big.Int) {
+	s.push1().Set(val)
 }
 
-func (c *state) push1() *big.Int {
-	if len(c.stack) > c.sp {
-		c.sp++
-		return c.stack[c.sp-1]
+func (s *state) push1() *big.Int {
+	if len(s.stack) > s.sp {
+		s.sp++
+		return s.stack[s.sp-1]
 	}
 	v := big.NewInt(0)
-	c.stack = append(c.stack, v)
-	c.sp++
+	s.stack = append(s.stack, v)
+	s.sp++
 	return v
 }
 
-func (c *state) stackAtLeast(n int) bool {
-	return c.sp >= n
+func (s *state) stackAtLeast(n int) bool {
+	return s.sp >= n
 }
 
-func (c *state) popHash() common.Hash {
-	return common.BytesToHash(c.pop().Bytes())
+func (s *state) popHash() common.Hash {
+	return common.BytesToHash(s.pop().Bytes())
 }
 
-func (c *state) popAddr() (common.Address, bool) {
-	b := c.pop()
+func (s *state) popAddr() (common.Address, bool) {
+	b := s.pop()
 	if b == nil {
 		return common.Address{}, false
 	}
@@ -152,84 +152,84 @@ func (c *state) popAddr() (common.Address, bool) {
 	return common.BytesToAddress(b.Bytes()), true
 }
 
-func (c *state) stackSize() int {
-	return c.sp
+func (s *state) stackSize() int {
+	return s.sp
 }
 
-func (c *state) top() *big.Int {
-	if c.sp == 0 {
+func (s *state) top() *big.Int {
+	if s.sp == 0 {
 		return nil
 	}
-	return c.stack[c.sp-1]
+	return s.stack[s.sp-1]
 }
 
-func (c *state) pop() *big.Int {
-	if c.sp == 0 {
+func (s *state) pop() *big.Int {
+	if s.sp == 0 {
 		return nil
 	}
-	o := c.stack[c.sp-1]
-	c.sp--
+	o := s.stack[s.sp-1]
+	s.sp--
 	return o
 }
 
-func (c *state) peekAt(n int) *big.Int {
-	return c.stack[c.sp-n]
+func (s *state) peekAt(n int) *big.Int {
+	return s.stack[s.sp-n]
 }
 
-func (c *state) swap(n int) {
-	c.stack[c.sp-1], c.stack[c.sp-n-1] = c.stack[c.sp-n-1], c.stack[c.sp-1]
+func (s *state) swap(n int) {
+	s.stack[s.sp-1], s.stack[s.sp-n-1] = s.stack[s.sp-n-1], s.stack[s.sp-1]
 }
 
-func (c *state) get2(dst []byte, offset, length *big.Int) ([]byte, bool) {
+func (s *state) get2(dst []byte, offset, length *big.Int) ([]byte, bool) {
 	if length.Sign() == 0 {
 		return nil, true
 	}
 
-	if !c.checkMemory(offset, length) {
+	if !s.checkMemory(offset, length) {
 		return nil, false
 	}
 
 	o := offset.Uint64()
 	l := length.Uint64()
 
-	dst = append(dst, c.memory[o:o+l]...)
+	dst = append(dst, s.memory[o:o+l]...)
 	return dst, true
 }
 
-func (c *state) checkMemory(offset, size *big.Int) bool {
+func (s *state) checkMemory(offset, size *big.Int) bool {
 	if size.Sign() == 0 {
 		return true
 	}
 
 	if !offset.IsUint64() || !size.IsUint64() {
-		c.exit(errGasUintOverflow)
+		s.exit(errGasUintOverflow)
 		return false
 	}
 
 	o := offset.Uint64()
-	s := size.Uint64()
+	sz := size.Uint64()
 
-	if o > 0xffffffffe0 || s > 0xffffffffe0 {
-		c.exit(errGasUintOverflow)
+	if o > 0xffffffffe0 || sz > 0xffffffffe0 {
+		s.exit(errGasUintOverflow)
 		return false
 	}
 
-	m := uint64(len(c.memory))
-	newSize := o + s
+	m := uint64(len(s.memory))
+	newSize := o + sz
 
 	if m < newSize {
-		w := (newSize + 31) / 32
+		w := (newSize + 31) / 32 //nolint:gomnd
 		newCost := uint64(3*w + w*w/512)
-		cost := newCost - c.lastGasCost
-		c.lastGasCost = newCost
+		cost := newCost - s.lastGasCost
+		s.lastGasCost = newCost
 
-		if !c.consumeGas(cost) {
-			c.exit(errOutOfGas)
+		if !s.consumeGas(cost) {
+			s.exit(errOutOfGas)
 			return false
 		}
 
 		// resize the memory
-		c.memory = extendByteSlice(c.memory, int(w*32))
+		s.memory = extendByteSlice(s.memory, int(w*32)) //nolint:gomnd
 	}
 	return true
 }
@@ -286,4 +286,20 @@ func extendByteSlice(b []byte, needLen int) []byte {
 		b = append(b, make([]byte, n)...)
 	}
 	return b[:needLen]
+}
+
+func (s *state) inStaticCall() bool {
+	return s.msg.Static
+}
+
+func bigToHash(b *big.Int) common.Hash {
+	return common.BytesToHash(b.Bytes())
+}
+
+func (s *state) validJumpdest(dest *big.Int) bool {
+	udest := dest.Uint64()
+	if dest.BitLen() >= 63 || udest >= uint64(len(s.code)) {
+		return false
+	}
+	return s.bitmap.isSet(uint(udest))
 }
