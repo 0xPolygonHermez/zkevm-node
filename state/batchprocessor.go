@@ -111,7 +111,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	batch.Header.Nonce = types.BlockNonce{0, 0, 0, 0, 0, 0, 0, 0}
 
 	// Store batch
-	_, err := b.commit(batch)
+	err := b.commit(batch)
 
 	return err
 }
@@ -275,16 +275,20 @@ func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonc
 
 	// Check nonce
 	if senderNonce.Uint64() != tx.Nonce() {
+		log.Debugf("check transaction [%s]: invalid nonce, expected: %d, found: %d", tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
 		return ErrInvalidNonce
 	}
 
 	// Check balance
 	if senderBalance.Cmp(tx.Cost()) < 0 {
+		log.Debugf("check transaction [%s]: invalid balance, expected: %v, found: %v", tx.Hash().Hex(), tx.Cost().Text(encoding.Base10), senderBalance.Text(encoding.Base10))
 		return ErrInvalidBalance
 	}
 
 	// Check gas
-	if tx.Gas() < b.State.EstimateGas(tx) {
+	gasEstimation := b.State.EstimateGas(tx)
+	if tx.Gas() < gasEstimation {
+		log.Debugf("check transaction [%s]: invalid gas, expected: %v, found: %v", tx.Hash().Hex(), tx.Gas(), gasEstimation)
 		return ErrInvalidGas
 	}
 
@@ -292,7 +296,7 @@ func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonc
 }
 
 // Commit the batch state into state
-func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, error) {
+func (b *BasicBatchProcessor) commit(batch *Batch) error {
 	// Store batch into db
 	ctx := context.Background()
 
@@ -314,14 +318,14 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, error) {
 
 	err := b.State.AddBatch(ctx, batch)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// store transactions
 	for i, tx := range batch.Transactions {
 		err := b.State.AddTransaction(ctx, tx, batch.BatchNumber, uint(i))
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
@@ -332,11 +336,11 @@ func (b *BasicBatchProcessor) commit(batch *Batch) (*common.Hash, error) {
 		receipt.BlockHash = blockHash
 		err := b.State.AddReceipt(ctx, receipt)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
 func getSender(tx *types.Transaction) (*common.Address, error) {

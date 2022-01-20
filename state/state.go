@@ -109,10 +109,10 @@ func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchPro
 // GetStateRoot returns the root of the state tree
 func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, error) {
 	batch, err := s.GetLastBatch(ctx, virtual)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, ErrStateNotSynchronized
-		}
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -127,10 +127,10 @@ func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, er
 func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error) {
 	ctx := context.Background()
 	batch, err := s.GetBatchByNumber(ctx, batchNumber)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, ErrStateNotSynchronized
-		}
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -144,10 +144,9 @@ func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, erro
 // GetBalance from a given address
 func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
 	root, err := s.GetStateRootByBatchNumber(batchNumber)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, ErrStateNotSynchronized
-		}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
 		return nil, err
 	}
 
