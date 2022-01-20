@@ -198,9 +198,9 @@ func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.Transa
 			return nil, errors.New("error encoding rlp tx: " + err.Error())
 		}
 		newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
-		newRPadded := fmt.Sprintf("%064s", r.Text(encoding.Base16))
-		newSPadded := fmt.Sprintf("%064s", s.Text(encoding.Base16))
-		newVPadded := fmt.Sprintf("%02s", newV.Text(encoding.Base16))
+		newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
+		newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
+		newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
 		callDataHex = callDataHex + hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded
 	}
 	callData, err := hex.DecodeString(callDataHex)
