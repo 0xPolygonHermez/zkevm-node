@@ -134,12 +134,17 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 	b.State.tree.SetCurrentRoot(root)
 	log.Debugf("processing transaction [%s]: root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
-	senderBalance, err := b.State.tree.GetBalance(senderAddress, b.stateRoot)
+	senderBalance, err := b.State.tree.GetBalance(senderAddress, root)
 	if err != nil {
 		return err
 	}
 
-	err = b.checkTransaction(tx, senderBalance)
+	senderNonce, err := b.State.tree.GetNonce(senderAddress, root)
+	if err != nil {
+		return err
+	}
+
+	err = b.checkTransaction(tx, senderNonce, senderBalance)
 	if err != nil {
 		return err
 	}
@@ -149,15 +154,15 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 	log.Debugf("processing transaction [%s]: sender balance: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
 
 	// Increase Nonce
-	nonce := big.NewInt(0).SetUint64(tx.Nonce())
-	nonce = big.NewInt(0).Add(nonce, big.NewInt(1))
-	log.Debugf("processing transaction [%s]: new nonce: %v", tx.Hash().Hex(), nonce.Text(encoding.Base10))
+	senderNonce = big.NewInt(0).Add(senderNonce, big.NewInt(1))
+	log.Debugf("processing transaction [%s]: new nonce: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 
 	// Store new nonce
-	_, _, err = b.State.tree.SetNonce(senderAddress, nonce)
+	_, _, err = b.State.tree.SetNonce(senderAddress, senderNonce)
 	if err != nil {
 		return err
 	}
+	log.Debugf("processing transaction [%s]: sender nonce set to: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 
 	// Calculate Gas
 	usedGas := new(big.Int).SetUint64(b.State.EstimateGas(tx))
@@ -234,22 +239,25 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 
 // CheckTransaction checks if a transaction is valid
 func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) error {
-	sender, err := getSender(tx)
+	senderAddress, err := getSender(tx)
 	if err != nil {
 		return err
 	}
 
-	balance, err := b.State.tree.GetBalance(*sender, b.stateRoot)
+	senderNonce, err := b.State.tree.GetNonce(*senderAddress, b.stateRoot)
 	if err != nil {
 		return err
 	}
 
-	return b.checkTransaction(tx, balance)
+	balance, err := b.State.tree.GetBalance(*senderAddress, b.stateRoot)
+	if err != nil {
+		return err
+	}
+
+	return b.checkTransaction(tx, senderNonce, balance)
 }
 
-func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderBalance *big.Int) error {
-	var nonce = big.NewInt(0)
-
+func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
 	// reset MT currentRoot in case it was modified by failed transaction
 	b.State.tree.SetCurrentRoot(b.stateRoot)
 
@@ -265,20 +273,8 @@ func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderBala
 		return ErrInvalidChainID
 	}
 
-	// Get Sender
-	signer := types.NewEIP155Signer(tx.ChainId())
-	sender, err := signer.Sender(tx)
-	if err != nil {
-		return err
-	}
-
 	// Check nonce
-	nonce, err = b.State.tree.GetNonce(sender, b.stateRoot)
-	if err != nil {
-		return err
-	}
-
-	if nonce.Uint64() != tx.Nonce() {
+	if senderNonce.Uint64() != tx.Nonce() {
 		return ErrInvalidNonce
 	}
 
