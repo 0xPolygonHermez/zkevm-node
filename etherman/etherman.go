@@ -1,7 +1,6 @@
 package etherman
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -176,23 +175,34 @@ func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.Transa
 	if len(txs) == 0 {
 		return nil, errors.New("invalid txs: is empty slice")
 	}
-	var data [][]byte
+	callDataHex := "0x"
 	for _, tx := range txs {
-		a := new(bytes.Buffer)
-		err := tx.EncodeRLP(a)
-		if err != nil {
-			return nil, err
-		}
-		log.Debug("Coded tx: ", hex.EncodeToString(a.Bytes()))
-		data = append(data, a.Bytes())
-	}
-	b := new(bytes.Buffer)
-	err := rlp.Encode(b, data)
-	if err != nil {
-		return nil, err
-	}
+		v, r, s := tx.RawSignatureValues()
+		sign := 1 - (v.Uint64() & 1)
 
-	tx, err := etherMan.PoE.SendBatch(etherMan.auth, b.Bytes(), maticAmount)
+		txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
+			tx.Nonce(),
+			tx.GasPrice(),
+			tx.Gas(),
+			tx.To(),
+			tx.Value(),
+			tx.Data(),
+			tx.ChainId(), uint(0), uint(0),
+		})
+		if err != nil {
+			fmt.Println(err)
+			return nil, errors.New("error encoding rlp tx: " + err.Error())
+		}
+		newV := new(big.Int).Add(big.NewInt(27), big.NewInt(int64(sign)))
+		newRPadded := fmt.Sprintf("%064s", r.Text(16))
+		newSPadded := fmt.Sprintf("%064s", s.Text(16))
+		newVPadded := fmt.Sprintf("%02s", newV.Text(16))
+		callDataHex = callDataHex + hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded
+
+	}
+	callData, err := hex.DecodeString(callDataHex)
+
+	tx, err := etherMan.PoE.SendBatch(etherMan.auth, callData, maticAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -395,8 +405,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		} else if isPending {
 			return nil, fmt.Errorf("error: tx is still pending. TxHash: %s", tx.Hash().String())
 		}
-		batch.RawTxsData = tx.Data()
-		txs, err := decodeTxs(tx.Data())
+		txs, rawTxs, err := decodeTxs(tx.Data())
+		batch.RawTxsData = rawTxs
 		if err != nil {
 			log.Warn("No txs decoded in batch: ", batch.BatchNumber, ". This batch is inside block: ", batch.BlockNumber,
 				". Error: ", err)
@@ -525,7 +535,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 	return nil, nil
 }
 
-func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
+func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 	// The first 4 bytes are the function hash bytes. These bytes has to be ripped.
 	// After that, the unpack method is used to read the call data.
 	// The txs data is encoded using rlp and contains encoded txs. So, decoding the txs data,
@@ -552,7 +562,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 
 	txsData = data[0].([]byte)
 
-	//Process coded txs
+	// Process coded txs
 	var pos int64
 	var txs []*types.Transaction
 	const (
@@ -567,7 +577,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 		num, err := strconv.ParseInt(str, hex.Base, encoding.BitSize64)
 		if err != nil {
 			log.Debug("error parsing header length: ", err)
-			return []*types.Transaction{}, err
+			return []*types.Transaction{}, []byte{}, err
 		}
 		// First byte is the length and must be ignored
 		num = num - 192 - 1// 192 is c0. This value is defined by the rlp protocol
@@ -581,12 +591,12 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 
 		pos = pos + num + rLength + sLength + vLength + headerByteLength 
 
-		//Decode tx
+		// Decode tx
 		var tx types.LegacyTx
 		err = rlp.DecodeBytes(txInfo, &tx)
 		if err != nil {
 			log.Debug("error decoding tx bytes: ", err, fullDataTx)
-			return []*types.Transaction{}, err
+			return []*types.Transaction{}, []byte{}, err
 		}
 		tx.V = new(big.Int).Add(new(big.Int).Mul(tx.V, big.NewInt(2)),big.NewInt(35));
 		tx.R = new(big.Int).SetBytes(r)
@@ -594,7 +604,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 
 		txs = append(txs, types.NewTx(&tx))
 	}
-	return txs, nil
+	return txs, txsData, nil
 }
 
 // GetAddress function allows to retrieve the wallet address
