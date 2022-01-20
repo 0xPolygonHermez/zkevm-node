@@ -279,7 +279,7 @@ func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderBala
 	}
 
 	if nonce.Uint64() != tx.Nonce() {
-		log.Debugf("check transaction [%s]: invalid nonce, expected: %v, found: %v", tx.Hash().Hex(), nonce.Text(encoding.Base10), tx.Nonce())
+		log.Debugf("check transaction [%s]: invalid nonce, expected: %d, found: %d", tx.Hash().Hex(), nonce.Uint64(), tx.Nonce())
 		return ErrInvalidNonce
 	}
 
