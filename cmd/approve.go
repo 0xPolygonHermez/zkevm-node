@@ -34,7 +34,7 @@ func approveTokens(ctx *cli.Context) error {
 	}
 
 	fmt.Print("*WARNING* Are you sure you want to approve ", amount,
-		" tokens to be spent by the smc <Name: " + toName + ". Address: " + toAddress.String() + ">? [y/N]: ")
+		" tokens to be spent by the smc <Name: "+toName+". Address: "+toAddress.String()+">? [y/N]: ")
 	var input string
 	if _, err := fmt.Scanln(&input); err != nil {
 		return err
@@ -55,7 +55,8 @@ func approveTokens(ctx *cli.Context) error {
 		return err
 	}
 
-	amountInWei := new(big.Float).Mul(amount, big.NewFloat(1000000000000000000))
+	const decimals = 1000000000000000000
+	amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
 	amountB := new(big.Int)
 	amountInWei.Int(amountB)
 	tx, err := etherman.ApproveMatic(amountB, toAddress)
