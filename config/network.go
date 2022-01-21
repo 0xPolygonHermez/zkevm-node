@@ -63,8 +63,8 @@ var (
 		L1ChainID:        5, //Goerli
 		L2DefaultChainID: 1000,
 		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): bigIntFromBase10String("100000000000000000000"),
-			common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"): bigIntFromBase10String("200000000000000000000"),
+			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): bigIntFromBase10String("1000000000000000000000"),
+			common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"): bigIntFromBase10String("1000000000000000000000"),
 			common.HexToAddress("0xA67CD3f603E42dcBF674ffBa511872Bd397EB895"): bigIntFromBase10String("1000000000000000000000"),
 			common.HexToAddress("0xbAe5deBDDf9381686ec18a8A2B99E09ADa982adf"): bigIntFromBase10String("1000000000000000000000"),
 			common.HexToAddress("0xfcFC415D6D21660b90c0545CA0e91E68172B8650"): bigIntFromBase10String("1000000000000000000000"),
