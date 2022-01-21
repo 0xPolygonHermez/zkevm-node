@@ -4,6 +4,8 @@ set -e
 
 BASEDIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 SCRIPT_FILES="${BASEDIR}/*.sql"
+DBNAME=test_db
+DBUSER=test_user
 
 main(){
     for origin_script in ${SCRIPT_FILES}; do
@@ -16,7 +18,7 @@ main(){
         echo "${script_contents}" > "${script_file_path}"
 
         docker cp "${script_file_path}" hez-postgres:"${script_file_path}"
-        docker exec hez-postgres bash -c "chmod a+x ${script_file_path} && psql test_db test_user -v ON_ERROR_STOP=ON --single-transaction -f ${script_file_path}"
+        docker exec hez-postgres bash -c "chmod a+x ${script_file_path} && psql ${DBNAME} ${DBUSER} -v ON_ERROR_STOP=ON --single-transaction -f ${script_file_path}"
 
         echo "Done"
     done
