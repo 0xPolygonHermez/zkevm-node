@@ -544,8 +544,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 	// The first 4 bytes are the function hash bytes. These bytes has to be ripped.
 	// After that, the unpack method is used to read the call data.
-	// The txs data is encoded using rlp and contains encoded txs. So, decoding the txs data,
-	// it is obteined an array of encoded txs. Each of these txs must to be decoded using rlp.
+	// The txs data is a chunk of concatenated rawTx. This rawTx is the encoded tx information in rlp + the signature information (v, r, s).
+	//So, txs data will look like: txRLP+r+s+v+txRLP2+r2+s2+v2
 
 	// Extract coded txs.
 	// Load contract ABI

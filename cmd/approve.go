@@ -16,12 +16,15 @@ func approveTokens(ctx *cli.Context) error {
 	network := ctx.String(flagNetwork)
 	toName := ctx.String(flagAddress)
 	a := ctx.String(flagAmount)
-
+	amount, _ := new(big.Float).SetString(a)
+	if amount == nil {
+		fmt.Println("Please, introduce a valid amount. Use '.' instead of ',' if it is a decimal number")
+		return nil
+	}
 	c, err := config.Load(configFilePath, network)
 	if err != nil {
 		return err
 	}
-	// log.Warnf("%+v", c)
 	var toAddress common.Address
 	switch toName {
 	case "poe":
@@ -30,8 +33,8 @@ func approveTokens(ctx *cli.Context) error {
 		toAddress = c.NetworkConfig.BridgeAddr
 	}
 
-	fmt.Print("*WARNING* Are you sure you want to approve " + a +
-		" tokens to be spent by the smc <Name: " + toName + ". Address: " + toAddress.String() + ">? [y/N]: ")
+	fmt.Print("*WARNING* Are you sure you want to approve ", amount,
+		" tokens to be spent by the smc <Name: "+toName+". Address: "+toAddress.String()+">? [y/N]: ")
 	var input string
 	if _, err := fmt.Scanln(&input); err != nil {
 		return err
@@ -45,16 +48,18 @@ func approveTokens(ctx *cli.Context) error {
 
 	runMigrations(c.Database)
 
-	//Check if it is already registered
+	// Check if it is already registered
 	etherman, err := newEtherman(*c)
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
-	var amount *big.Int
-	amount, _ = new(big.Int).SetString(a, 10)
 
-	tx, err := etherman.ApproveMatic(amount, toAddress)
+	const decimals = 1000000000000000000
+	amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
+	amountB := new(big.Int)
+	amountInWei.Int(amountB)
+	tx, err := etherman.ApproveMatic(amountB, toAddress)
 	if err != nil {
 		return err
 	}
