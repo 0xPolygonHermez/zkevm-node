@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -e
+
+BASEDIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SCRIPT_FILES="${BASEDIR}/*.sql"
+
+main(){
+    for origin_script in ${SCRIPT_FILES}; do
+        echo "Executing ${origin_script}..."
+
+        script_file_path=$(mktemp)
+        script_file_name=$(basename "${script_file_path}")
+        script_contents=$(eval "echo \"$(cat ${origin_script})\"")
+
+        echo "${script_contents}" > "${script_file_path}"
+
+        docker cp "${script_file_path}" hez-postgres:"${script_file_path}"
+        docker exec hez-postgres bash -c "chmod a+x ${script_file_path} && psql test_db test_user -v ON_ERROR_STOP=ON --single-transaction -f ${script_file_path}"
+
+        echo "Done"
+    done
+}
+
+main "${@}"
