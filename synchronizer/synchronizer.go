@@ -76,6 +76,7 @@ func (s *ClientSynchronizer) Sync() error {
 			case <-s.ctx.Done():
 				return
 			case <-time.After(waitDuration):
+				log.Debug("Syncing since ethereum blockNumber: ", lastEthBlockSynced.BlockNumber, " with blockHash:", lastEthBlockSynced.BlockHash)
 				if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
 					if s.ctx.Err() != nil {
 						continue
@@ -158,12 +159,6 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 
 	// New info has to be included into the db using the state
 	for i := range blocks {
-		// Get lastest synced batch number
-		latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
-		if err != nil {
-			log.Warn("error getting latest batch. Error: ", err)
-		}
-
 		// Add block information
 		err = s.state.AddBlock(context.Background(), &blocks[i])
 		if err != nil {
@@ -174,6 +169,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 			if element.Name == etherman.BatchesOrder {
 				batch := &blocks[i].Batches[element.Pos]
 				emptyHash := common.Hash{}
+				log.Debug("consolidatedTxHash received: ", batch.ConsolidatedTxHash)
 				if batch.ConsolidatedTxHash.String() != emptyHash.String() {
 					// consolidate batch locally
 					err = s.state.ConsolidateBatch(s.ctx, batch.BatchNumber, batch.ConsolidatedTxHash, *batch.ConsolidatedAt)
@@ -183,6 +179,12 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 						continue
 					}
 				} else {
+					// Get lastest synced batch number
+					latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
+					if err != nil {
+						log.Fatal("error getting latest batch. Error: ", err)
+					}
+
 					sequencerAddress := batch.Sequencer
 					batchProcessor, err := s.state.NewBatchProcessor(sequencerAddress, latestBatchNumber)
 					if err != nil {

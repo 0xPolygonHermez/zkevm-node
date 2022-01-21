@@ -37,8 +37,9 @@ func TestDecodeOneTxData(t *testing.T) {
 					auxTxs = append(auxTxs, tx)
 				}
 			}
-			txs, err := decodeTxs(data)
+			txs, raw, err := decodeTxs(data)
 			require.NoError(t, err)
+			assert.Equal(t, callDataTestCase.BatchL2Data, "0x"+hex.EncodeToString(raw))
 			for j := 0; j < len(txs); j++ {
 				var addr common.Address
 				err = addr.UnmarshalText([]byte(auxTxs[j].To))
@@ -207,10 +208,12 @@ func TestRegisterSequencerAndEvent(t *testing.T) {
 func TestSCSendBatchAndVerify(t *testing.T) {
 	callDataTestCases := readTests()
 	dHex := strings.Replace(callDataTestCases[1].FullCallData, "0x", "", -1)
+	txRaw, err := hex.DecodeString(strings.Replace(callDataTestCases[1].BatchL2Data, "0x", "", -1))
+	require.NoError(t, err)
 	data, err := hex.DecodeString(dHex)
 	require.NoError(t, err)
 
-	txs, err := decodeTxs(data)
+	txs, _, err := decodeTxs(data)
 	require.NoError(t, err)
 
 	// Set up testing environment
@@ -235,7 +238,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(block[0].Batches))
 	assert.Equal(t, 5, len(block[0].Batches[0].Transactions))
-	assert.Equal(t, data, block[0].Batches[0].RawTxsData)
+	assert.Equal(t, txRaw, block[0].Batches[0].RawTxsData)
 
 	proofSlc := []string{"0", "0"}
 	proofBelem := proverclient.ProofX{Proof: proofSlc}

@@ -255,6 +255,7 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 			lastVirtualBatchNumber, err := st.GetLastBatchNumber(ctx)
 			require.NoError(t, err)
+			t.Logf("lastConsolidatedBatchNumber: %d lastVirtualBatchNumber: %d", lastConsolidatedBatchNumber, lastVirtualBatchNumber)
 			assert.Equal(t, lastConsolidatedBatchNumber, lastVirtualBatchNumber)
 
 			err = stopCoreContainer()
