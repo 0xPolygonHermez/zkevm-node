@@ -120,10 +120,6 @@ func (s *state) consumeGas(gas uint64) bool {
 	return true
 }
 
-func (s *state) push(val *big.Int) {
-	s.push1().Set(val)
-}
-
 func (s *state) push1() *big.Int {
 	if len(s.stack) > s.sp {
 		s.sp++
@@ -150,10 +146,6 @@ func (s *state) popAddr() (common.Address, bool) {
 	}
 
 	return common.BytesToAddress(b.Bytes()), true
-}
-
-func (s *state) stackSize() int {
-	return s.sp
 }
 
 func (s *state) top() *big.Int {
