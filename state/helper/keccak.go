@@ -73,7 +73,7 @@ func (k *Keccak) WriteRlp(dst []byte, v *fastrlp.Value) []byte {
 	k.buf = v.MarshalTo(k.buf[:0])
 	_, err := k.Write(k.buf)
 	if err != nil {
-		log.Error("error while writting RLP value")
+		log.Error("error while writing RLP value")
 	}
 	return k.Sum(dst)
 }
@@ -91,7 +91,10 @@ func (k *Keccak) Reset() {
 
 // Read hashes the content and returns the intermediate buffer.
 func (k *Keccak) Read() []byte {
-	k.hash.Read(k.tmp)
+	_, err := k.hash.Read(k.tmp)
+	if err != nil {
+		log.Error("error while reading the hash")
+	}
 	return k.tmp
 }
 

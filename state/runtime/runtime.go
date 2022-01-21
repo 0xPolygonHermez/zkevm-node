@@ -7,27 +7,43 @@ import (
 )
 
 var (
-	ErrOutOfGas                 = errors.New("out of gas")
-	ErrStackOverflow            = errors.New("stack overflow")
-	ErrStackUnderflow           = errors.New("stack underflow")
-	ErrNotEnoughFunds           = errors.New("not enough funds")
-	ErrInsufficientBalance      = errors.New("insufficient balance for transfer")
-	ErrMaxCodeSizeExceeded      = errors.New("evm: max code size exceeded")
+	// ErrOutOfGas indicates there is not enough balance to continue the execution
+	ErrOutOfGas = errors.New("out of gas")
+	// ErrStackOverflow indicates a stack overflow has happened
+	ErrStackOverflow = errors.New("stack overflow")
+	// ErrStackUnderflow indicates a stack overflow has happened
+	ErrStackUnderflow = errors.New("stack underflow")
+	// ErrNotEnoughFunds indicates there is not enough funds to continue the execution
+	ErrNotEnoughFunds = errors.New("not enough funds")
+	// ErrInsufficientBalance indicates there is not enough balance to continue the execution
+	ErrInsufficientBalance = errors.New("insufficient balance for transfer")
+	// ErrMaxCodeSizeExceeded indicates the code size is beyond the maximum
+	ErrMaxCodeSizeExceeded = errors.New("evm: max code size exceeded")
+	// ErrContractAddressCollision there is a collision regarding contract addresses
 	ErrContractAddressCollision = errors.New("contract address collision")
-	ErrDepth                    = errors.New("max call depth exceeded")
-	ErrExecutionReverted        = errors.New("execution was reverted")
-	ErrCodeStoreOutOfGas        = errors.New("contract creation code storage out of gas")
+	// ErrDepth indicates the maximun call depth has been passed
+	ErrDepth = errors.New("max call depth exceeded")
+	// ErrExecutionReverted indicates the execution has been reverted
+	ErrExecutionReverted = errors.New("execution was reverted")
+	// ErrCodeStoreOutOfGas indicates there is not enough gas for the storage
+	ErrCodeStoreOutOfGas = errors.New("contract creation code storage out of gas")
 )
 
+// CallType indicates the type of call to a contract
 type CallType int
 
 const (
+	// Call is the default call for a contract
 	Call CallType = iota
+	// CallCode is the callcode call for a contract
 	CallCode
+	// DelegateCall is the delegate call for a contract
 	DelegateCall
+	// StaticCall is the static call for a contract
 	StaticCall
+	// Create is the creation call for a contract
 	Create
-	Create2
+	// Create2
 )
 
 // Runtime can process contracts
@@ -58,14 +74,17 @@ type ExecutionResult struct {
 	Err         error  // Any error encountered during the execution, listed below
 }
 
+// Succeeded indicates the execution was successful
 func (r *ExecutionResult) Succeeded() bool {
 	return r.Err == nil
 }
 
+// Failed indicates the execution was unsuccessful
 func (r *ExecutionResult) Failed() bool {
 	return r.Err != nil
 }
 
+// Reverted indicates the execution was reverted
 func (r *ExecutionResult) Reverted() bool {
 	return r.Err == ErrExecutionReverted
 }

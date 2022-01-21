@@ -1,6 +1,6 @@
 package evm
 
-const bitmapSize = uint(8)
+const bitmapSize = uint(8) //nolint:gomnd
 
 type bitmap struct {
 	buf []byte
