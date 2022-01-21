@@ -1,11 +1,11 @@
 package etherman
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum"
@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/bridge"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
@@ -170,27 +171,44 @@ func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Tran
 	return etherMan.sendBatch(ctx, etherMan.auth, txs, maticAmount)
 }
 
+const (
+	ether155V = 27
+)
+
 func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.TransactOpts, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	if len(txs) == 0 {
 		return nil, errors.New("invalid txs: is empty slice")
 	}
-	var data [][]byte
+	var callDataHex string
 	for _, tx := range txs {
-		a := new(bytes.Buffer)
-		err := tx.EncodeRLP(a)
-		if err != nil {
-			return nil, err
-		}
-		log.Debug("Coded tx: ", hex.EncodeToString(a.Bytes()))
-		data = append(data, a.Bytes())
-	}
-	b := new(bytes.Buffer)
-	err := rlp.Encode(b, data)
-	if err != nil {
-		return nil, err
-	}
+		v, r, s := tx.RawSignatureValues()
+		sign := 1 - (v.Uint64() & 1)
 
-	tx, err := etherMan.PoE.SendBatch(etherMan.auth, b.Bytes(), maticAmount)
+		txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
+			tx.Nonce(),
+			tx.GasPrice(),
+			tx.Gas(),
+			tx.To(),
+			tx.Value(),
+			tx.Data(),
+			tx.ChainId(), uint(0), uint(0),
+		})
+		if err != nil {
+			log.Error("error encoding rlp tx: ", err)
+			return nil, errors.New("error encoding rlp tx: " + err.Error())
+		}
+		newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+		newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
+		newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
+		newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
+		callDataHex = callDataHex + hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded
+	}
+	callData, err := hex.DecodeString(callDataHex)
+	if err != nil {
+		log.Error("error coverting hex string to []byte. Error: ", err)
+		return nil, errors.New("error coverting hex string to []byte. Error: " + err.Error())
+	}
+	tx, err := etherMan.PoE.SendBatch(etherMan.auth, callData, maticAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -393,8 +411,8 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		} else if isPending {
 			return nil, fmt.Errorf("error: tx is still pending. TxHash: %s", tx.Hash().String())
 		}
-		batch.RawTxsData = tx.Data()
-		txs, err := decodeTxs(tx.Data())
+		txs, rawTxs, err := decodeTxs(tx.Data())
+		batch.RawTxsData = rawTxs
 		if err != nil {
 			log.Warn("No txs decoded in batch: ", batch.BatchNumber, ". This batch is inside block: ", batch.BlockNumber,
 				". Error: ", err)
@@ -409,6 +427,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		batch.BatchNumber = new(big.Int).SetBytes(vLog.Topics[1][:]).Uint64()
 		batch.Aggregator = common.BytesToAddress(vLog.Topics[2].Bytes())
 		batch.ConsolidatedTxHash = vLog.TxHash
+		log.Debug("Consolidated tx hash: ", vLog.TxHash, batch.ConsolidatedTxHash)
 		block.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
@@ -522,7 +541,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 	return nil, nil
 }
 
-func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
+func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 	// The first 4 bytes are the function hash bytes. These bytes has to be ripped.
 	// After that, the unpack method is used to read the call data.
 	// The txs data is encoded using rlp and contains encoded txs. So, decoding the txs data,
@@ -549,27 +568,53 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, error) {
 
 	txsData = data[0].([]byte)
 
-	// Decode array of txs
-	var codedTxs [][]byte
-	err = rlp.DecodeBytes(txsData, &codedTxs)
-	if err != nil {
-		log.Debug("error decoding tx bytes: ", err, ". Data: ", hex.EncodeToString(txsData))
-		return nil, err
-	}
-
 	// Process coded txs
+	var pos int64
 	var txs []*types.Transaction
-	for _, codedTx := range codedTxs {
+	const (
+		headerByteLength = 2
+		sLength          = 32
+		rLength          = 32
+		vLength          = 1
+		c0               = 192 // 192 is c0. This value is defined by the rlp protocol
+		etherNewV        = 35
+		mul2             = 2
+	)
+	for pos < int64(len(txsData)) {
+		length := txsData[pos : pos+1]
+		str := hex.EncodeToString(length)
+		num, err := strconv.ParseInt(str, hex.Base, encoding.BitSize64)
+		if err != nil {
+			log.Debug("error parsing header length: ", err)
+			return []*types.Transaction{}, []byte{}, err
+		}
+		// First byte is the length and must be ignored
+		num = num - c0 - 1
+
+		fullDataTx := txsData[pos : pos+num+rLength+sLength+vLength+headerByteLength]
+		txInfo := txsData[pos : pos+num+headerByteLength]
+		r := txsData[pos+num+headerByteLength : pos+num+rLength+headerByteLength]
+		s := txsData[pos+num+rLength+headerByteLength : pos+num+rLength+sLength+headerByteLength]
+		v := txsData[pos+num+rLength+sLength+headerByteLength : pos+num+rLength+sLength+vLength+headerByteLength]
+
+		pos = pos + num + rLength + sLength + vLength + headerByteLength
+
 		// Decode tx
 		var tx types.LegacyTx
-		err = rlp.DecodeBytes(codedTx, &tx)
+		err = rlp.DecodeBytes(txInfo, &tx)
 		if err != nil {
-			log.Debug("error decoding tx bytes: ", err, data)
-			continue
+			log.Debug("error decoding tx bytes: ", err, fullDataTx)
+			return []*types.Transaction{}, []byte{}, err
 		}
+
+		//tx.V = v-27+chainId*2+35
+		tx.V = new(big.Int).Add(new(big.Int).Sub(new(big.Int).SetBytes(v), big.NewInt(ether155V)), new(big.Int).Add(new(big.Int).Mul(tx.V, big.NewInt(mul2)), big.NewInt(etherNewV)))
+		tx.R = new(big.Int).SetBytes(r)
+		tx.S = new(big.Int).SetBytes(s)
+
 		txs = append(txs, types.NewTx(&tx))
 	}
-	return txs, nil
+	return txs, txsData, nil
 }
 
 // GetAddress function allows to retrieve the wallet address
@@ -614,8 +659,6 @@ func (etherMan *ClientEtherMan) GetSequencerCollateral(batchNumber uint64) (*big
 
 // ApproveMatic function allow to approve tokens in matic smc
 func (etherMan *ClientEtherMan) ApproveMatic(maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
-	log.Warn(maticAmount, etherMan.SCAddresses[0], etherMan.auth)
-	log.Warn()
 	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
 	if err != nil {
 		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
