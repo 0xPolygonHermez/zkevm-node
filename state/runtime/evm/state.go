@@ -38,8 +38,6 @@ var (
 	errReturnDataOutOfBounds = errors.New("return data out of bounds")
 )
 
-// Instructions is the code of instructions
-
 type state struct {
 	ip   int
 	code []byte
@@ -57,7 +55,7 @@ type state struct {
 	stack []*big.Int
 	sp    int
 
-	// remove later
+	// EVM
 	evm *EVM
 
 	err  error

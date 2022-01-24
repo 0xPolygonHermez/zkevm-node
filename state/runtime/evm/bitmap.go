@@ -30,10 +30,9 @@ func (b *bitmap) setCode(code []byte) {
 
 		if isPushOp(c) {
 			// push op
-			i += uint(c - 0x60 + 2) //nolint:gomnd
+			i += uint(c - PUSH1 + 2) //nolint:gomnd
 		} else {
-			if c == 0x5B { //nolint:gomnd
-				// jumpdest
+			if c == JUMPDEST {
 				b.set(i)
 			}
 			i++
@@ -42,6 +41,6 @@ func (b *bitmap) setCode(code []byte) {
 }
 
 func isPushOp(i byte) bool {
-	// From PUSH1 (0x60) to PUSH32(0x7F)
+	// From PUSH1 (0x60) to PUSH32 (0x7F)
 	return i>>5 == 3 //nolint:gomnd
 }
