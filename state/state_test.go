@@ -450,11 +450,17 @@ func TestStateTransition(t *testing.T) {
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
 
 			genesis := state.Genesis{
-				Balances: make(map[common.Address]*big.Int),
+				Balances:       make(map[common.Address]*big.Int),
+				SmartContracts: make(map[common.Address][]byte),
 			}
-			for _, gacc := range testCase.GenesisAccounts {
+
+			for _, gacc := range testCase.Genesis.GenesisAccounts {
 				balance := gacc.Balance.Int
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
+			}
+
+			for _, gsc := range testCase.Genesis.GenesisSmartContracts {
+				genesis.SmartContracts[common.HexToAddress(gsc.Address)] = []byte(gsc.Code)
 			}
 
 			for gaddr := range genesis.Balances {
@@ -628,11 +634,17 @@ func TestReceipts(t *testing.T) {
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
 
 			genesis := state.Genesis{
-				Balances: make(map[common.Address]*big.Int),
+				Balances:       make(map[common.Address]*big.Int),
+				SmartContracts: make(map[common.Address][]byte),
 			}
-			for _, gacc := range testCase.GenesisAccounts {
+
+			for _, gacc := range testCase.Genesis.GenesisAccounts {
 				balance := gacc.Balance.Int
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
+			}
+
+			for _, gsc := range testCase.Genesis.GenesisSmartContracts {
+				genesis.SmartContracts[common.HexToAddress(gsc.Address)] = []byte(gsc.Code)
 			}
 
 			for gaddr := range genesis.Balances {
