@@ -55,12 +55,6 @@ func (b *argBytes) UnmarshalText(input []byte) error {
 
 type argBig big.Int
 
-func argBigPtr(b *big.Int) *argBig {
-	v := argBig(*b)
-
-	return &v
-}
-
 func (a *argBig) UnmarshalText(input []byte) error {
 	buf, err := decodeToHex(input)
 	if err != nil {
@@ -77,7 +71,7 @@ func (a *argBig) UnmarshalText(input []byte) error {
 func (a argBig) MarshalText() ([]byte, error) {
 	b := (*big.Int)(&a)
 
-	return []byte("0x" + b.Text(16)), nil
+	return []byte("0x" + b.Text(hex.Base)), nil
 }
 
 func decodeToHex(b []byte) ([]byte, error) {

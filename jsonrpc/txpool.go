@@ -14,7 +14,7 @@ type TxPool struct {
 	pool pool.Pool
 }
 
-type ContentResponse struct {
+type contentResponse struct {
 	Pending map[common.Address]map[uint64]*txPoolTransaction `json:"pending"`
 	Queued  map[common.Address]map[uint64]*txPoolTransaction `json:"queued"`
 }
@@ -33,7 +33,7 @@ type txPoolTransaction struct {
 	TxIndex     interface{}     `json:"transactionIndex"`
 }
 
-// Create response for txpool_content request.
+// Content creates a response for txpool_content request.
 // See https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_content.
 func (t *TxPool) Content() (interface{}, error) {
 	ctx := context.Background()
@@ -47,7 +47,6 @@ func (t *TxPool) Content() (interface{}, error) {
 	pendingRPCTxs := make(map[common.Address]map[uint64]*txPoolTransaction, len(pendingTxs))
 
 	for _, pendingTx := range pendingTxs {
-
 		sender, err := helper.GetSender(&pendingTx.Transaction)
 		if err != nil {
 			return nil, err
@@ -60,7 +59,7 @@ func (t *TxPool) Content() (interface{}, error) {
 		pendingRPCTxs[sender][pendingTx.Nonce()] = toTxPoolTransaction(sender, &pendingTx.Transaction)
 	}
 
-	resp := ContentResponse{
+	resp := contentResponse{
 		Pending: pendingRPCTxs,
 		Queued:  make(map[common.Address]map[uint64]*txPoolTransaction),
 	}

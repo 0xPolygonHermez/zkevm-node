@@ -10,8 +10,8 @@ type Debug struct {
 	state state.State
 }
 
-// Create response for debug_traceTransaction request.
+// TraceTransaction creates a response for debug_traceTransaction request.
 // See https://geth.ethereum.org/docs/rpc/ns-debug#debug_tracetransaction
-func (t *TxPool) TraceTransaction(hash common.Hash) (interface{}, error) {
+func (d *Debug) TraceTransaction(hash common.Hash) (interface{}, error) {
 	return nil, nil
 }
