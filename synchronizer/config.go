@@ -23,5 +23,5 @@ type Config struct {
 	SyncInterval Duration `mapstructure:"SyncInterval"`
 
 	// SyncChunkSize is the number of blocks to sync on each chunk
-	SyncChunkSize int `mapstructure:"SyncChunkSize"`
+	SyncChunkSize uint64 `mapstructure:"SyncChunkSize"`
 }

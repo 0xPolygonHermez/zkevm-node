@@ -142,68 +142,6 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		return block, nil
 	}
 
-	processBlockRange := func(blocks []state.Block, order map[common.Hash][]etherman.Order) {
-		// New info has to be included into the db using the state
-		for i := range blocks {
-			// Add block information
-			err = s.state.AddBlock(context.Background(), &blocks[i])
-			if err != nil {
-				log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
-			}
-			lastEthBlockSynced = &blocks[i]
-			for _, element := range order[blocks[i].BlockHash] {
-				if element.Name == etherman.BatchesOrder {
-					batch := &blocks[i].Batches[element.Pos]
-					emptyHash := common.Hash{}
-					log.Debug("consolidatedTxHash received: ", batch.ConsolidatedTxHash)
-					if batch.ConsolidatedTxHash.String() != emptyHash.String() {
-						// consolidate batch locally
-						err = s.state.ConsolidateBatch(s.ctx, batch.BatchNumber, batch.ConsolidatedTxHash, *batch.ConsolidatedAt)
-						if err != nil {
-							log.Warnf("failed to consolidate batch locally, batch number: %d, err: %v",
-								batch.BatchNumber, err)
-							continue
-						}
-					} else {
-						// Get lastest synced batch number
-						latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
-						if err != nil {
-							log.Fatal("error getting latest batch. Error: ", err)
-						}
-
-						sequencerAddress := batch.Sequencer
-						batchProcessor, err := s.state.NewBatchProcessor(sequencerAddress, latestBatchNumber)
-						if err != nil {
-							log.Error("error creating new batch processor. Error: ", err)
-						}
-						// Add batches
-						err = batchProcessor.ProcessBatch(batch)
-						if err != nil {
-							log.Fatal("error processing batch. BatchNumber: ", batch.BatchNumber, ". Error: ", err)
-						}
-					}
-				} else if element.Name == etherman.NewSequencersOrder {
-					// Add new sequencers
-					err := s.state.AddSequencer(context.Background(), blocks[i].NewSequencers[element.Pos])
-					if err != nil {
-						log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos])
-					}
-				} else if element.Name == etherman.DepositsOrder {
-					//TODO Store info into db
-					log.Warn("Deposit functionality is not implemented in synchronizer yet")
-				} else if element.Name == etherman.GlobalExitRootsOrder {
-					//TODO Store info into db
-					log.Warn("Consolidate globalExitRoot functionality is not implemented in synchronizer yet")
-				} else if element.Name == etherman.ClaimsOrder {
-					//TODO Store info into db
-					log.Warn("Claim functionality is not implemented in synchronizer yet")
-				} else {
-					log.Fatal("error: invalid order element")
-				}
-			}
-		}
-	}
-
 	// Call the blockchain to retrieve data
 	var fromBlock uint64
 	if lastEthBlockSynced.BlockNumber > 0 {
@@ -217,7 +155,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	lastKnownBlock := header.Number
 
 	for {
-		toBlock := fromBlock + uint64(s.cfg.SyncChunkSize)
+		toBlock := fromBlock + s.cfg.SyncChunkSize
 
 		log.Debugf("Getting rollback info from block %d to block %d", fromBlock, toBlock)
 		// This function returns the rollup information contained in the ethereum blocks and an extra param called order.
@@ -229,7 +167,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		if err != nil {
 			return nil, err
 		}
-		processBlockRange(blocks, order)
+		s.processBlockRange(blocks, order)
 		if len(blocks) > 0 {
 			lastEthBlockSynced = &blocks[len(blocks)-1]
 		}
@@ -240,6 +178,67 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		}
 	}
 	return lastEthBlockSynced, nil
+}
+
+func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[common.Hash][]etherman.Order) {
+	// New info has to be included into the db using the state
+	for i := range blocks {
+		// Add block information
+		err := s.state.AddBlock(context.Background(), &blocks[i])
+		if err != nil {
+			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
+		}
+		for _, element := range order[blocks[i].BlockHash] {
+			if element.Name == etherman.BatchesOrder {
+				batch := &blocks[i].Batches[element.Pos]
+				emptyHash := common.Hash{}
+				log.Debug("consolidatedTxHash received: ", batch.ConsolidatedTxHash)
+				if batch.ConsolidatedTxHash.String() != emptyHash.String() {
+					// consolidate batch locally
+					err = s.state.ConsolidateBatch(s.ctx, batch.BatchNumber, batch.ConsolidatedTxHash, *batch.ConsolidatedAt)
+					if err != nil {
+						log.Warnf("failed to consolidate batch locally, batch number: %d, err: %v",
+							batch.BatchNumber, err)
+						continue
+					}
+				} else {
+					// Get lastest synced batch number
+					latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
+					if err != nil {
+						log.Fatal("error getting latest batch. Error: ", err)
+					}
+
+					sequencerAddress := batch.Sequencer
+					batchProcessor, err := s.state.NewBatchProcessor(sequencerAddress, latestBatchNumber)
+					if err != nil {
+						log.Error("error creating new batch processor. Error: ", err)
+					}
+					// Add batches
+					err = batchProcessor.ProcessBatch(batch)
+					if err != nil {
+						log.Fatal("error processing batch. BatchNumber: ", batch.BatchNumber, ". Error: ", err)
+					}
+				}
+			} else if element.Name == etherman.NewSequencersOrder {
+				// Add new sequencers
+				err := s.state.AddSequencer(context.Background(), blocks[i].NewSequencers[element.Pos])
+				if err != nil {
+					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos])
+				}
+			} else if element.Name == etherman.DepositsOrder {
+				//TODO Store info into db
+				log.Warn("Deposit functionality is not implemented in synchronizer yet")
+			} else if element.Name == etherman.GlobalExitRootsOrder {
+				//TODO Store info into db
+				log.Warn("Consolidate globalExitRoot functionality is not implemented in synchronizer yet")
+			} else if element.Name == etherman.ClaimsOrder {
+				//TODO Store info into db
+				log.Warn("Claim functionality is not implemented in synchronizer yet")
+			} else {
+				log.Fatal("error: invalid order element")
+			}
+		}
+	}
 }
 
 // This function allows reset the state until an specific ethereum block
