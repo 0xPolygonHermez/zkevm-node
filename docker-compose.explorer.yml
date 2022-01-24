@@ -2,7 +2,6 @@ version: '3'
 services:
     hez-core:
         container_name: hez-core
-        # restart: always
         image: hezcore
         ports:
             - 8123:8123
@@ -19,7 +18,6 @@ services:
 
     hez-postgres:
         container_name: hez-postgres
-        restart: always
         image: postgres
         ports:
             - 5432:5432
@@ -31,27 +29,35 @@ services:
 
     hez-explorer:
         container_name: hez-explorer
-        restart: always
         image: ulamlabs/blockscout:latest
         ports:
-          - 8080:4000
+          - 4000:4000
         environment:
           - COIN=ETH
           - ETHEREUM_JSONRPC_VARIANT=geth
           - ETHEREUM_JSONRPC_HTTP_URL=http://hez-core:8123
-          - DATABASE_URL=postgres://test_user:test_password@hez-postgres:5432/test_db
+          - DATABASE_URL=postgres://test_user:test_password@hez-explorer-postgres:5432/explorer
           - ECTO_USE_SSL=false
+
+    hez-explorer-postgres:
+        container_name: hez-explorer-postgres
+        image: postgres
+        ports:
+            - 5433:5432
+        environment:
+            # In order to update this values, you may need to run: docker rm -f -v postgres
+            - POSTGRES_USER=test_user
+            - POSTGRES_PASSWORD=test_password
+            - POSTGRES_DB=explorer
 
     hez-network:
         container_name: hez-network
-        restart: always
         image: hermeznetwork/geth-zkevm-contracts:latest
         ports:
           - 8545:8545
 
     hez-prover:
       container_name: hez-prover
-      restart: always
       image: hermeznetwork/zk-mock-prover:latest
       ports:
         - 50051:50051
