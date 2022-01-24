@@ -7,8 +7,8 @@ require (
 	github.com/ethereum/go-ethereum v1.10.12
 	github.com/go-kit/kit v0.9.0 // indirect
 	github.com/gobuffalo/packr/v2 v2.8.3
+	github.com/hashicorp/go-immutable-radix v1.0.0
 	github.com/hermeznetwork/tracerr v0.3.2
-	github.com/holiman/uint256 v1.2.0
 	github.com/iden3/go-iden3-crypto v0.0.12
 	github.com/jackc/pgtype v1.8.1
 	github.com/jackc/pgx/v4 v4.13.0

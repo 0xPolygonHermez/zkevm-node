@@ -10,6 +10,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
 var (
@@ -35,6 +36,7 @@ type BatchProcessor interface {
 type BasicBatchProcessor struct {
 	State            *BasicState
 	stateRoot        []byte
+	runtimes         []runtime.Runtime
 	SequencerAddress common.Address
 	SequencerChainID uint64
 }
@@ -42,48 +44,31 @@ type BasicBatchProcessor struct {
 // ProcessBatch processes all transactions inside a batch
 func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	var receipts []*Receipt
-	var cumulativeGasUsed uint64 = 0
-	var gasUsed uint64
-	var index uint
 	var includedTxs []*types.Transaction
+
+	var cumulativeGasUsed uint64 = 0
+	var index uint
 
 	for _, tx := range batch.Transactions {
 		senderAddress, err := getSender(tx)
 		if err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
 		}
+
 		receiverAddress := tx.To()
 
-		if err := b.processTransaction(tx, *senderAddress, *receiverAddress, batch.Sequencer); err != nil {
-			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
-			// gasUsed = 0
+		result := b.processTransaction(tx, *senderAddress, *receiverAddress, batch.Sequencer)
+
+		if result.Err != nil {
+			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), result.Err)
 		} else {
 			log.Infof("Successfully processed transaction %s", tx.Hash().String())
 
+			cumulativeGasUsed += result.GasUsed
 			includedTxs = append(includedTxs, tx)
-			gasUsed = b.State.EstimateGas(tx)
-			cumulativeGasUsed += gasUsed
-
-			// Set TX Receipt
-			receipt := &Receipt{}
-			receipt.Type = tx.Type()
-			receipt.PostState = b.stateRoot
-			receipt.Status = types.ReceiptStatusSuccessful
-			receipt.CumulativeGasUsed = cumulativeGasUsed
-			receipt.BlockNumber = new(big.Int).SetUint64(batch.BlockNumber)
-			receipt.GasUsed = gasUsed
-			receipt.TxHash = tx.Hash()
-			receipt.TransactionIndex = uint(index)
-			if senderAddress != nil {
-				receipt.From = *senderAddress
-			}
-			if receiverAddress != nil {
-				receipt.To = *receiverAddress
-			}
-
-			// Add receipt to the list of receipts
+			receipt := b.generateReceipt(batch.BlockNumber, tx, index, senderAddress, receiverAddress, result, cumulativeGasUsed)
 			receipts = append(receipts, receipt)
-			index = index + 1
+			index++
 		}
 	}
 
@@ -92,23 +77,8 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	batch.Receipts = receipts
 
 	// Set batch Header
-	header := &types.Header{}
+	header := b.generateBatchHeader(batch.BlockNumber, batch.Sequencer, cumulativeGasUsed)
 	batch.Header = header
-	batch.Header.ParentHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	batch.Header.UncleHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	batch.Header.Coinbase = batch.Sequencer
-	batch.Header.Root = common.BytesToHash(b.stateRoot)
-	batch.Header.TxHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	batch.Header.ReceiptHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	batch.Header.Bloom = types.BytesToBloom([]byte{0})
-	batch.Header.Difficulty = new(big.Int).SetUint64(0)
-	batch.Header.Number = new(big.Int).SetUint64(batch.BlockNumber)
-	batch.Header.GasLimit = 30000000
-	batch.Header.GasUsed = cumulativeGasUsed
-	batch.Header.Time = 0
-	// batch.Header.Extra = []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	batch.Header.MixDigest = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	batch.Header.Nonce = types.BlockNonce{0, 0, 0, 0, 0, 0, 0, 0}
 
 	// Store batch
 	err := b.commit(batch)
@@ -116,13 +86,56 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	return err
 }
 
+func (b *BasicBatchProcessor) generateReceipt(blockNumber uint64, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, result *runtime.ExecutionResult, cumulativeGasUsed uint64) *Receipt {
+	receipt := &Receipt{}
+	receipt.Type = tx.Type()
+	receipt.PostState = b.stateRoot
+	receipt.Status = types.ReceiptStatusSuccessful
+	receipt.CumulativeGasUsed = cumulativeGasUsed
+	receipt.BlockNumber = new(big.Int).SetUint64(blockNumber)
+	receipt.GasUsed = result.GasUsed
+	receipt.TxHash = tx.Hash()
+	receipt.TransactionIndex = index
+	if senderAddress != nil {
+		receipt.From = *senderAddress
+	}
+	if receiverAddress != nil {
+		receipt.To = *receiverAddress
+	}
+
+	return receipt
+}
+
+func (b *BasicBatchProcessor) generateBatchHeader(blockNumber uint64, sequencerAddress common.Address, cumulativeGasUsed uint64) *types.Header {
+	header := &types.Header{}
+	header.ParentHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	header.UncleHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	header.Coinbase = sequencerAddress
+	header.Root = common.BytesToHash(b.stateRoot)
+	header.TxHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	header.ReceiptHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	header.Bloom = types.BytesToBloom([]byte{0})
+	header.Difficulty = new(big.Int).SetUint64(0)
+	header.Number = new(big.Int).SetUint64(blockNumber)
+	header.GasLimit = 30000000
+	header.GasUsed = cumulativeGasUsed
+	header.Time = 0
+	// header.Extra = []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	header.MixDigest = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	header.Nonce = types.BlockNonce{0, 0, 0, 0, 0, 0, 0, 0}
+
+	return header
+}
+
 // ProcessTransaction processes a transaction inside a batch
-func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAddress, receiverAddress common.Address, sequencerAddress common.Address) error {
+func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAddress, receiverAddress common.Address, sequencerAddress common.Address) *runtime.ExecutionResult {
 	log.Debugf("processing transaction [%s]: start", tx.Hash().Hex())
+	var result *runtime.ExecutionResult = &runtime.ExecutionResult{}
 
 	txb, err := tx.MarshalBinary()
 	if err != nil {
-		return err
+		result.Err = err
+		return result
 	}
 	encoded := hex.EncodeToHex(txb)
 	log.Debugf("processing transaction [%s]: raw: %v", tx.Hash().Hex(), encoded)
@@ -136,17 +149,20 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 
 	senderBalance, err := b.State.tree.GetBalance(senderAddress, root)
 	if err != nil {
-		return err
+		result.Err = err
+		return result
 	}
 
 	senderNonce, err := b.State.tree.GetNonce(senderAddress, root)
 	if err != nil {
-		return err
+		result.Err = err
+		return result
 	}
 
 	err = b.checkTransaction(tx, senderNonce, senderBalance)
 	if err != nil {
-		return err
+		result.Err = err
+		return result
 	}
 
 	log.Debugf("processing transaction [%s]: sender: %v", tx.Hash().Hex(), senderAddress.Hex())
@@ -160,17 +176,18 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 	// Store new nonce
 	_, _, err = b.State.tree.SetNonce(senderAddress, senderNonce)
 	if err != nil {
-		return err
+		result.Err = err
+		return result
 	}
 	log.Debugf("processing transaction [%s]: sender nonce set to: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 
 	// Calculate Gas
 	usedGas := new(big.Int).SetUint64(b.State.EstimateGas(tx))
 	usedGasValue := new(big.Int).Mul(usedGas, tx.GasPrice())
-	remainingGas := new(big.Int).SetUint64(tx.Gas() - usedGas.Uint64())
-	unusedGasValue := new(big.Int).Mul(remainingGas, tx.GasPrice())
+	gasLeft := new(big.Int).SetUint64(tx.Gas() - usedGas.Uint64())
+	unusedGasValue := new(big.Int).Mul(gasLeft, tx.GasPrice())
 	log.Debugf("processing transaction [%s]: used gas: %v", tx.Hash().Hex(), usedGas.Text(encoding.Base10))
-	log.Debugf("processing transaction [%s]: remaining gas: %v", tx.Hash().Hex(), remainingGas.Text(encoding.Base10))
+	log.Debugf("processing transaction [%s]: remaining gas: %v", tx.Hash().Hex(), gasLeft.Text(encoding.Base10))
 
 	// Calculate new balances
 	cost := tx.Cost()
@@ -193,13 +210,15 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 	// Store new sender balances
 	root, _, err = b.State.tree.SetBalance(senderAddress, senderBalance)
 	if err != nil {
-		return err
+		result.Err = err
+		return result
 	}
 
 	// Get receiver Balance
 	receiverBalance, err := b.State.tree.GetBalance(receiverAddress, root)
 	if err != nil {
-		return err
+		result.Err = err
+		return result
 	}
 	log.Debugf("processing transaction [%s]: receiver balance: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
 
@@ -214,27 +233,33 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 	if sequencerAddress != senderAddress && sequencerAddress != receiverAddress {
 		sequencerBalance, err := b.State.tree.GetBalance(sequencerAddress, root)
 		if err != nil {
-			return err
+			result.Err = err
+			return result
 		}
 
 		// Store sequencer balance
 		sequencerBalance.Add(sequencerBalance, usedGasValue)
 		_, _, err = b.State.tree.SetBalance(sequencerAddress, sequencerBalance)
 		if err != nil {
-			return err
+			result.Err = err
+			return result
 		}
 	}
 
 	// Store receiver balance
 	root, _, err = b.State.tree.SetBalance(*tx.To(), receiverBalance)
 	if err != nil {
-		return err
+		result.Err = err
+		return result
 	}
 
 	b.stateRoot = root
 	log.Debugf("processing transaction [%s]: new root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
-	return nil
+	result.GasUsed = usedGas.Uint64()
+	result.GasLeft = gasLeft.Uint64()
+
+	return result
 }
 
 // CheckTransaction checks if a transaction is valid
@@ -341,6 +366,10 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 	}
 
 	return nil
+}
+
+func (b *BasicBatchProcessor) setRuntime(r runtime.Runtime) {
+	b.runtimes = append(b.runtimes, r)
 }
 
 func getSender(tx *types.Transaction) (*common.Address, error) {
