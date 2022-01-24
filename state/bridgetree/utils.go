@@ -14,13 +14,13 @@ import (
 func VerifyMerkleProof(leaf [32]byte, proof [][32]byte, index int, root [32]byte) bool {
 	value := leaf
 	for i := 0; i < len(proof); i++ {
-		if int(math.Floor(float64(index)/math.Pow(2, float64(i))))%2 != 0 {
+		if int(math.Floor(float64(index)/math.Pow(2, float64(i))))%2 != 0 { //nolint:gomnd
 			value = hash(proof[i], value)
 		} else {
 			value = hash(value, proof[i])
 		}
 	}
-	return bytes.Compare(value[:], root[:]) == 0
+	return bytes.Equal(value[:], root[:])
 }
 
 // CalculateLeafValue calculates leaf value

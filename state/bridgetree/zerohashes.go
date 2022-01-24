@@ -6,8 +6,10 @@ var HashZero = [32]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 // ZeroHashes is an array of calculated zero hashes for each level of the tree
 var ZeroHashes [][32]byte
 
+const defaultHeight = 32
+
 func init() {
-	ZeroHashes = generateZeroHashes(32)
+	ZeroHashes = generateZeroHashes(defaultHeight)
 }
 
 func generateZeroHashes(height uint8) [][32]byte {

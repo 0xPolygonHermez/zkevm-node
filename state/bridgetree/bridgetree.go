@@ -70,16 +70,16 @@ func (bt *BridgeTree) GetProofTreeByIndex(index int) [][32]byte {
 	currentIndex := index
 	for i := 0; i < int(bt.height); i++ {
 		if currentIndex%2 == 1 {
-			currentIndex -= 1
+			currentIndex--
 		} else {
-			currentIndex += 1
+			currentIndex++
 		}
 		if currentIndex < len(bt.tree[i]) {
 			proof = append(proof, bt.tree[i][currentIndex])
 		} else {
 			proof = append(proof, bt.zeroHashes[i])
 		}
-		currentIndex = currentIndex / 2
+		currentIndex = currentIndex / 2 //nolint:gomnd
 	}
 	return proof
 }
@@ -88,7 +88,7 @@ func (bt *BridgeTree) GetProofTreeByIndex(index int) [][32]byte {
 func (bt *BridgeTree) GetProofTreeByValue(value [32]byte) ([][32]byte, error) {
 	index := -1
 	for i, val := range bt.tree[0] {
-		if bytes.Compare(val[:], value[:]) == 0 {
+		if bytes.Equal(val[:], value[:]) {
 			index = i
 			break
 		}
