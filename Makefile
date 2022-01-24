@@ -104,6 +104,14 @@ stop: ## Stops all services available in the docker-compose file
 .PHONY: restart
 restart: stop run ## Executes `make stop` and `make run` commands
 
+.PHONY: run-db-scripts
+run-db-scripts: ## executes scripts on the db after it has been initialized, potentially using info from the environment
+	./scripts/postgres/run.sh
+
+.PHONY: install-git-hooks
+install-git-hooks: ## Moves hook files to the .git/hooks directory
+	cp .github/hooks/* .git/hooks
+
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
 ## display with the commands and their usage information.

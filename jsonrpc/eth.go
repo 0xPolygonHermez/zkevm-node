@@ -57,7 +57,9 @@ func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error
 // GasPrice returns the average gas price based on the last x blocks
 func (e *Eth) GasPrice() (interface{}, error) {
 	gasPrice, err := e.pool.GetGasPrice(context.Background())
-	if err != nil {
+	if errors.Is(err, state.ErrNotFound) {
+		return hex.EncodeUint64(0), nil
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -72,7 +74,9 @@ func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface
 	}
 
 	balance, err := e.state.GetBalance(address, batchNumber)
-	if err != nil {
+	if errors.Is(err, state.ErrNotFound) {
+		return hex.EncodeUint64(0), nil
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -84,7 +88,9 @@ func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, error)
 	ctx := context.Background()
 
 	batch, err := e.state.GetBatchByHash(ctx, hash)
-	if err != nil {
+	if errors.Is(err, state.ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -101,7 +107,9 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 	}
 
 	batch, err := e.state.GetBatchByNumber(ctx, batchNumber)
-	if err != nil {
+	if errors.Is(err, state.ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -120,7 +128,9 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 	ctx := context.Background()
 
 	tx, err := e.state.GetTransactionByBatchHashAndIndex(ctx, hash, uint64(index))
-	if err != nil {
+	if errors.Is(err, state.ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -138,7 +148,9 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 	}
 
 	tx, err := e.state.GetTransactionByBatchNumberAndIndex(ctx, batchNumber, uint64(index))
-	if err != nil {
+	if errors.Is(err, state.ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -150,7 +162,9 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 	ctx := context.Background()
 
 	tx, err := e.state.GetTransactionByHash(ctx, hash)
-	if err != nil {
+	if errors.Is(err, state.ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 
