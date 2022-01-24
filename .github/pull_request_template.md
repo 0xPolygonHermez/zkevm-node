@@ -1,6 +1,6 @@
 Closes #<issue number>.
 
-### What does this PR does?
+### What does this PR do?
 
 <!-- Describe your changes here- ideally you can get that description straight from
 your descriptive commit message(s)! -->
