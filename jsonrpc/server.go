@@ -29,8 +29,9 @@ func NewServer(config Config, defaultChainID uint64, sequencerAddress common.Add
 	ethEndpoints := &Eth{chainIDSelector: chainIDSelector, pool: p, state: s}
 	netEndpoints := &Net{chainIDSelector: chainIDSelector}
 	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
+	txPoolEndpoints := &TxPool{pool: p}
 
-	handler := newJSONRpcHandler(ethEndpoints, netEndpoints, hezEndpoints)
+	handler := newJSONRpcHandler(ethEndpoints, netEndpoints, hezEndpoints, txPoolEndpoints)
 
 	srv := &Server{
 		config:  config,

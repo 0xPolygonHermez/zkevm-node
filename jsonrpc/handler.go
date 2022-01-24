@@ -35,7 +35,7 @@ type Handler struct {
 	serviceMap map[string]*serviceData
 }
 
-func newJSONRpcHandler(e *Eth, n *Net, h *Hez) *Handler {
+func newJSONRpcHandler(e *Eth, n *Net, h *Hez, p *TxPool) *Handler {
 	d := &Handler{
 		serviceMap: map[string]*serviceData{},
 	}
@@ -43,6 +43,7 @@ func newJSONRpcHandler(e *Eth, n *Net, h *Hez) *Handler {
 	d.registerService("eth", e)
 	d.registerService("net", n)
 	d.registerService("hez", h)
+	d.registerService("txpool", p)
 
 	return d
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/state/helper"
 )
 
 type argUint64 uint64
@@ -255,8 +256,7 @@ func toTransaction(
 ) *transaction {
 	v, r, s := t.RawSignatureValues()
 
-	signer := types.NewEIP155Signer(t.ChainId())
-	from, _ := signer.Sender(t)
+	from, _ := helper.GetSender(t)
 
 	res := &transaction{
 		Nonce:    argUint64(t.Nonce()),
