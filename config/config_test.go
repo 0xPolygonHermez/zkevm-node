@@ -15,7 +15,7 @@ func Test_Defaults(t *testing.T) {
 	}{
 		{
 			path:          "Synchronizer.SyncChunkSize",
-			expectedValue: 100,
+			expectedValue: uint64(100),
 		},
 	}
 
