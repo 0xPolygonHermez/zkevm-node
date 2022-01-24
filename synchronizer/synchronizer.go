@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"time"
 
@@ -177,6 +178,17 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 			break
 		}
 	}
+
+	// in order to prevent repeating querying and checking blocks we return the
+	// latest block checked minus some safety number to avoid issues with reorgs.
+	// safetyBlocks is the default number of blocks to check to always take into
+	// account reorgs.
+	const safetyBlocks = 50
+	if lastKnownBlock.Cmp(new(big.Int).SetUint64(lastEthBlockSynced.BlockNumber+uint64(safetyBlocks))) == 1 {
+		blockHeight := math.Max(0, float64(lastKnownBlock.Uint64()-uint64(safetyBlocks)))
+		lastEthBlockSynced = state.NewBlock(uint64(blockHeight))
+	}
+
 	return lastEthBlockSynced, nil
 }
 
