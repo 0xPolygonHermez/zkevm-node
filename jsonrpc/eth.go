@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -94,7 +95,9 @@ func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, error)
 		return nil, err
 	}
 
-	return batch, nil
+	block := batchToBlock(batch, fullTx)
+
+	return block, nil
 }
 
 // GetBlockByNumber returns information about a block by block number
@@ -113,7 +116,9 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 		return nil, err
 	}
 
-	return batch, nil
+	block := batchToBlock(batch, fullTx)
+
+	return block, nil
 }
 
 // GetCode returns account code at given block number
@@ -263,4 +268,20 @@ func hexToTx(str string) (*types.Transaction, error) {
 	}
 
 	return tx, nil
+}
+
+func batchToBlock(batch *state.Batch, fullTx bool) *block {
+	h := types.CopyHeader(batch.Header)
+	h.Number = big.NewInt(0).SetUint64(batch.BatchNumber)
+	b := types.NewBlock(h, batch.Transactions, batch.Uncles, stateReceiptsToReceipts(batch.Receipts), nil)
+	return toBlock(b, fullTx)
+}
+
+func stateReceiptsToReceipts(stateReceipts []*state.Receipt) []*types.Receipt {
+	rr := make([]*types.Receipt, 0, len(stateReceipts))
+	for _, sr := range stateReceipts {
+		r := sr.Receipt
+		rr = append(rr, &r)
+	}
+	return rr
 }

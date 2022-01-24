@@ -3,17 +3,20 @@ DOCKERCOMPOSEAPP := hez-core
 DOCKERCOMPOSEDB := hez-postgres
 DOCKERCOMPOSENETWORK := hez-network
 DOCKERCOMPOSEPROVER := hez-prover
+DOCKERCOMPOSEEXPLORER := hez-explorer
 
 RUNDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDB)
 RUNCORE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPP)
 RUNNETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
 RUNPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPROVER)
+RUNEXPLORER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORER)
 RUN := $(DOCKERCOMPOSE) up -d
 
 STOPDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEDB)
 STOPCORE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPP) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPP)
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
 STOPPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPROVER)
+STOPEXPLORER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORER)
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
 VERSION := $(shell git describe --tags --always)
@@ -92,6 +95,14 @@ run-prover: ## Runs the zk prover
 .PHONY: stop-prover
 stop-prover: ## Stop the zk prover
 	$(STOPPROVER)
+
+.PHONY: run-explorer
+run-explorer: ## Runs the explorer
+	$(RUNEXPLORER)
+
+.PHONY: stop-explorer
+stop-explorer: ## Stop the explorer
+	$(STOPEXPLORER)
 
 .PHONY: run
 run: ## Runs all the services available in the docker-compose file
