@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -273,7 +274,7 @@ func hexToTx(str string) (*types.Transaction, error) {
 func batchToBlock(batch *state.Batch, fullTx bool) *block {
 	h := types.CopyHeader(batch.Header)
 	h.Number = big.NewInt(0).SetUint64(batch.BatchNumber)
-	b := types.NewBlock(h, batch.Transactions, batch.Uncles, stateReceiptsToReceipts(batch.Receipts), nil)
+	b := types.NewBlock(h, batch.Transactions, batch.Uncles, stateReceiptsToReceipts(batch.Receipts), &trie.StackTrie{})
 	return toBlock(b, fullTx)
 }
 
