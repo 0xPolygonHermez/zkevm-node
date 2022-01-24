@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 )
 
@@ -137,32 +138,32 @@ func (arg *txnArgs) ToTransaction() *types.Transaction {
 	return tx
 }
 
-type block struct {
-	ParentHash      common.Hash         `json:"parentHash"`
-	Sha3Uncles      common.Hash         `json:"sha3Uncles"`
-	Miner           common.Address      `json:"miner"`
-	StateRoot       common.Hash         `json:"stateRoot"`
-	TxRoot          common.Hash         `json:"transactionsRoot"`
-	ReceiptsRoot    common.Hash         `json:"receiptsRoot"`
-	LogsBloom       types.Bloom         `json:"logsBloom"`
-	Difficulty      argUint64           `json:"difficulty"`
-	TotalDifficulty argUint64           `json:"totalDifficulty"`
-	Size            argUint64           `json:"size"`
-	Number          argUint64           `json:"number"`
-	GasLimit        argUint64           `json:"gasLimit"`
-	GasUsed         argUint64           `json:"gasUsed"`
-	Timestamp       argUint64           `json:"timestamp"`
-	ExtraData       argBytes            `json:"extraData"`
-	MixHash         common.Hash         `json:"mixHash"`
-	Nonce           uint64              `json:"nonce"`
-	Hash            common.Hash         `json:"hash"`
-	Transactions    []transactionOrHash `json:"transactions"`
-	Uncles          []common.Hash       `json:"uncles"`
+type rpcBlock struct {
+	ParentHash      common.Hash            `json:"parentHash"`
+	Sha3Uncles      common.Hash            `json:"sha3Uncles"`
+	Miner           common.Address         `json:"miner"`
+	StateRoot       common.Hash            `json:"stateRoot"`
+	TxRoot          common.Hash            `json:"transactionsRoot"`
+	ReceiptsRoot    common.Hash            `json:"receiptsRoot"`
+	LogsBloom       types.Bloom            `json:"logsBloom"`
+	Difficulty      argUint64              `json:"difficulty"`
+	TotalDifficulty argUint64              `json:"totalDifficulty"`
+	Size            argUint64              `json:"size"`
+	Number          argUint64              `json:"number"`
+	GasLimit        argUint64              `json:"gasLimit"`
+	GasUsed         argUint64              `json:"gasUsed"`
+	Timestamp       argUint64              `json:"timestamp"`
+	ExtraData       argBytes               `json:"extraData"`
+	MixHash         common.Hash            `json:"mixHash"`
+	Nonce           uint64                 `json:"nonce"`
+	Hash            common.Hash            `json:"hash"`
+	Transactions    []rpcTransactionOrHash `json:"transactions"`
+	Uncles          []common.Hash          `json:"uncles"`
 }
 
-func toBlock(b *types.Block, fullTx bool) *block {
+func toRPCBlock(b *types.Block, fullTx bool) *rpcBlock {
 	h := b.Header()
-	res := &block{
+	res := &rpcBlock{
 		ParentHash:      h.ParentHash,
 		Sha3Uncles:      h.UncleHash,
 		Miner:           h.Coinbase,
@@ -181,7 +182,7 @@ func toBlock(b *types.Block, fullTx bool) *block {
 		MixHash:         h.MixDigest,
 		Nonce:           h.Nonce.Uint64(),
 		Hash:            h.Hash(),
-		Transactions:    []transactionOrHash{},
+		Transactions:    []rpcTransactionOrHash{},
 		Uncles:          []common.Hash{},
 	}
 
@@ -190,7 +191,7 @@ func toBlock(b *types.Block, fullTx bool) *block {
 			number := argUint64(b.Number().Uint64())
 			hash := b.Hash()
 
-			tx := toTransaction(
+			tx := toRPCTransaction(
 				txn,
 				&number,
 				&hash,
@@ -216,11 +217,11 @@ func toBlock(b *types.Block, fullTx bool) *block {
 }
 
 // For union type of transaction and types.Hash
-type transactionOrHash interface {
+type rpcTransactionOrHash interface {
 	getHash() common.Hash
 }
 
-type transaction struct {
+type rpcTransaction struct {
 	Nonce       argUint64       `json:"nonce"`
 	GasPrice    argBig          `json:"gasPrice"`
 	Gas         argUint64       `json:"gas"`
@@ -237,7 +238,7 @@ type transaction struct {
 	TxIndex     *argUint64      `json:"transactionIndex"`
 }
 
-func (t transaction) getHash() common.Hash { return t.Hash }
+func (t rpcTransaction) getHash() common.Hash { return t.Hash }
 
 // Redefine to implement getHash() of transactionOrHash
 type transactionHash common.Hash
@@ -248,17 +249,17 @@ func (h transactionHash) MarshalText() ([]byte, error) {
 	return []byte(common.Hash(h).String()), nil
 }
 
-func toTransaction(
+func toRPCTransaction(
 	t *types.Transaction,
 	blockNumber *argUint64,
 	blockHash *common.Hash,
 	txIndex *int,
-) *transaction {
+) *rpcTransaction {
 	v, r, s := t.RawSignatureValues()
 
 	from, _ := helper.GetSender(t)
 
-	res := &transaction{
+	res := &rpcTransaction{
 		Nonce:    argUint64(t.Nonce()),
 		GasPrice: argBig(*t.GasPrice()),
 		Gas:      argUint64(t.Gas()),
@@ -288,7 +289,7 @@ func toTransaction(
 	return res
 }
 
-type receipt struct {
+type rpcReceipt struct {
 	Root              common.Hash     `json:"root"`
 	CumulativeGasUsed argUint64       `json:"cumulativeGasUsed"`
 	LogsBloom         types.Bloom     `json:"logsBloom"`
@@ -302,4 +303,27 @@ type receipt struct {
 	ContractAddress   common.Address  `json:"contractAddress"`
 	FromAddr          common.Address  `json:"from"`
 	ToAddr            *common.Address `json:"to"`
+}
+
+func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
+	to := r.To
+	logs := r.Logs
+	if logs == nil {
+		logs = []*types.Log{}
+	}
+	return rpcReceipt{
+		Root:              common.BytesToHash(r.Receipt.PostState),
+		CumulativeGasUsed: argUint64(r.CumulativeGasUsed),
+		LogsBloom:         r.Bloom,
+		Logs:              logs,
+		Status:            argUint64(r.Status),
+		TxHash:            r.TxHash,
+		TxIndex:           argUint64(r.TransactionIndex),
+		BlockHash:         r.BlockHash,
+		BlockNumber:       argUint64(r.BlockNumber.Uint64()),
+		GasUsed:           argUint64(r.GasUsed),
+		ContractAddress:   r.ContractAddress,
+		FromAddr:          r.From,
+		ToAddr:            &to,
+	}
 }

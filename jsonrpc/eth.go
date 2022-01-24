@@ -203,7 +203,7 @@ func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 		return nil, err
 	}
 
-	return r, nil
+	return stateReceiptToRPCReceipt(r), nil
 }
 
 // SendRawTransaction sends a raw transaction
@@ -271,11 +271,11 @@ func hexToTx(str string) (*types.Transaction, error) {
 	return tx, nil
 }
 
-func batchToBlock(batch *state.Batch, fullTx bool) *block {
+func batchToBlock(batch *state.Batch, fullTx bool) *rpcBlock {
 	h := types.CopyHeader(batch.Header)
 	h.Number = big.NewInt(0).SetUint64(batch.BatchNumber)
 	b := types.NewBlock(h, batch.Transactions, batch.Uncles, stateReceiptsToReceipts(batch.Receipts), &trie.StackTrie{})
-	return toBlock(b, fullTx)
+	return toRPCBlock(b, fullTx)
 }
 
 func stateReceiptsToReceipts(stateReceipts []*state.Receipt) []*types.Receipt {
