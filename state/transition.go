@@ -5,11 +5,10 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/0xPolygon/eth-state-transition/helper"
-	"github.com/0xPolygon/eth-state-transition/runtime"
-	"github.com/0xPolygon/eth-state-transition/runtime/evm"
-	"github.com/0xPolygon/eth-state-transition/runtime/precompiled"
-	"github.com/0xPolygon/eth-state-transition/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/state/helper"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
+	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 )
 
 const (
@@ -22,12 +21,12 @@ const (
 	TxGasContractCreation uint64 = 53000
 )
 
-var emptyCodeHashTwo = types.BytesToHash(helper.Keccak256(nil))
+var emptyCodeHashTwo = common.BytesToHash(helper.Keccak256(nil))
 
 // GetHashByNumber returns the hash function of a block number
-type GetHashByNumber = func(i uint64) types.Hash
+type GetHashByNumber = func(i uint64) common.Hash
 
-type GetHashByNumberHelper = func(num uint64, hash types.Hash) GetHashByNumber
+type GetHashByNumberHelper = func(num uint64, hash common.Hash) GetHashByNumber
 
 type Transition struct {
 	runtimes []runtime.Runtime
@@ -63,12 +62,12 @@ func NewTransition(forks runtime.ForksInTime, ctx runtime.TxContext, snap Snapsh
 		totalGas: 0,
 	}
 
-	transition.setRuntime(precompiled.NewPrecompiled())
+	// transition.setRuntime(precompiled.NewPrecompiled())
 	transition.setRuntime(evm.NewEVM())
 
 	// by default for getHash use a simple one
-	transition.getHash = func(n uint64) types.Hash {
-		return types.BytesToHash(helper.Keccak256([]byte(big.NewInt(int64(n)).String())))
+	transition.getHash = func(n uint64) common.Hash {
+		return common.BytesToHash(helper.Keccak256([]byte(big.NewInt(int64(n)).String())))
 	}
 
 	return transition
@@ -87,7 +86,7 @@ func (e *Transition) setRuntime(r runtime.Runtime) {
 }
 
 type BlockResult struct {
-	Root     types.Hash
+	Root     common.Hash
 	Receipts []*Result
 	TotalGas uint64
 }
@@ -154,7 +153,7 @@ func (t *Transition) Write(txn *Transaction) (*Result, error) {
 
 			t.txn = NewTxn(ss)
 			root = aux
-			receipt.Root = types.BytesToHash(root)
+			receipt.Root = common.BytesToHash(root)
 		*/
 	}
 
@@ -263,7 +262,7 @@ func (t *Transition) apply(msg *Transaction) (*runtime.ExecutionResult, error) {
 	value := new(big.Int).Set(msg.Value)
 
 	// Override the context and set the specific transaction fields
-	t.ctx.GasPrice = types.BytesToHash(gasPrice.Bytes())
+	t.ctx.GasPrice = common.BytesToHash(gasPrice.Bytes())
 	t.ctx.Origin = msg.From
 
 	var result *runtime.ExecutionResult = nil
@@ -302,13 +301,13 @@ func (t *Transition) apply(msg *Transaction) (*runtime.ExecutionResult, error) {
 	return result, nil
 }
 
-func (t *Transition) Create(caller types.Address, code []byte, value *big.Int, gas uint64) *runtime.ExecutionResult {
+func (t *Transition) Create(caller common.Address, code []byte, value *big.Int, gas uint64) *runtime.ExecutionResult {
 	address := helper.CreateAddress(caller, t.txn.GetNonce(caller))
 	contract := runtime.NewContractCreation(1, caller, caller, address, value, gas, code)
 	return t.applyCreate(contract, t)
 }
 
-func (t *Transition) Call(caller types.Address, to types.Address, input []byte, value *big.Int, gas uint64) *runtime.ExecutionResult {
+func (t *Transition) Call(caller common.Address, to common.Address, input []byte, value *big.Int, gas uint64) *runtime.ExecutionResult {
 	c := runtime.NewContractCall(1, caller, caller, to, value, gas, t.txn.GetCode(to), input)
 	return t.applyCall(c, runtime.Call, t)
 }
@@ -325,7 +324,7 @@ func (t *Transition) run(contract *runtime.Contract, host runtime.Host) *runtime
 	}
 }
 
-func (t *Transition) transfer(from, to types.Address, amount *big.Int) error {
+func (t *Transition) transfer(from, to common.Address, amount *big.Int) error {
 	if amount == nil {
 		return nil
 	}
@@ -370,9 +369,9 @@ func (t *Transition) applyCall(c *runtime.Contract, callType runtime.CallType, h
 	return result
 }
 
-var emptyHash types.Hash
+var emptyHash common.Hash
 
-func (t *Transition) hasCodeOrNonce(addr types.Address) bool {
+func (t *Transition) hasCodeOrNonce(addr common.Address) bool {
 	nonce := t.txn.GetNonce(addr)
 	if nonce != 0 {
 		return true
@@ -459,7 +458,7 @@ func (t *Transition) applyCreate(c *runtime.Contract, host runtime.Host) *runtim
 	return result
 }
 
-func (t *Transition) SetStorage(addr types.Address, key types.Hash, value types.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
+func (t *Transition) SetStorage(addr common.Address, key common.Hash, value common.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
 	return t.txn.SetStorage(addr, key, value, config)
 }
 
@@ -467,47 +466,47 @@ func (t *Transition) GetTxContext() runtime.TxContext {
 	return t.ctx
 }
 
-func (t *Transition) GetBlockHash(number int64) (res types.Hash) {
+func (t *Transition) GetBlockHash(number int64) (res common.Hash) {
 	return t.getHash(uint64(number))
 }
 
-func (t *Transition) EmitLog(addr types.Address, topics []types.Hash, data []byte) {
+func (t *Transition) EmitLog(addr common.Address, topics []common.Hash, data []byte) {
 	t.txn.EmitLog(addr, topics, data)
 }
 
-func (t *Transition) GetCodeSize(addr types.Address) int {
+func (t *Transition) GetCodeSize(addr common.Address) int {
 	return t.txn.GetCodeSize(addr)
 }
 
-func (t *Transition) GetCodeHash(addr types.Address) (res types.Hash) {
+func (t *Transition) GetCodeHash(addr common.Address) (res common.Hash) {
 	return t.txn.GetCodeHash(addr)
 }
 
-func (t *Transition) GetCode(addr types.Address) []byte {
+func (t *Transition) GetCode(addr common.Address) []byte {
 	return t.txn.GetCode(addr)
 }
 
-func (t *Transition) GetBalance(addr types.Address) *big.Int {
+func (t *Transition) GetBalance(addr common.Address) *big.Int {
 	return t.txn.GetBalance(addr)
 }
 
-func (t *Transition) GetStorage(addr types.Address, key types.Hash) types.Hash {
+func (t *Transition) GetStorage(addr common.Address, key common.Hash) common.Hash {
 	return t.txn.GetState(addr, key)
 }
 
-func (t *Transition) AccountExists(addr types.Address) bool {
+func (t *Transition) AccountExists(addr common.Address) bool {
 	return t.txn.Exist(addr)
 }
 
-func (t *Transition) Empty(addr types.Address) bool {
+func (t *Transition) Empty(addr common.Address) bool {
 	return t.txn.Empty(addr)
 }
 
-func (t *Transition) GetNonce(addr types.Address) uint64 {
+func (t *Transition) GetNonce(addr common.Address) uint64 {
 	return t.txn.GetNonce(addr)
 }
 
-func (t *Transition) Selfdestruct(addr types.Address, beneficiary types.Address) {
+func (t *Transition) Selfdestruct(addr common.Address, beneficiary common.Address) {
 	if !t.txn.HasSuicided(addr) {
 		t.txn.AddRefund(24000)
 	}

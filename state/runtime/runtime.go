@@ -54,6 +54,7 @@ type Runtime interface {
 
 // TxContext is the context of the transaction
 type TxContext struct {
+	Hash       common.Hash
 	GasPrice   common.Hash
 	Origin     common.Address
 	Coinbase   common.Address

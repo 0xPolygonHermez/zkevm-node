@@ -3,7 +3,6 @@ package state
 import (
 	"math/big"
 
-	"github.com/0xPolygon/eth-state-transition/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -15,7 +14,7 @@ type SnapshotWriter interface {
 
 type Snapshot interface {
 	GetCode(hash common.Hash) ([]byte, bool)
-	GetStorage(root common.Hash, key types.Hash) common.Hash
+	GetStorage(root common.Hash, key common.Hash) common.Hash
 	GetAccount(addr common.Address) (*Account, error)
 }
 

@@ -11,6 +11,16 @@ func NewEVM() *EVM {
 	return &EVM{}
 }
 
+// CanRun implements the runtime interface
+func (e *EVM) CanRun(*runtime.Contract, runtime.Host, *runtime.ForksInTime) bool {
+	return true
+}
+
+// Name implements the runtime interface
+func (e *EVM) Name() string {
+	return "hermez-evm"
+}
+
 // Run implements the runtime interface
 func (e *EVM) Run(c *runtime.Contract, host runtime.Host, config *runtime.ForksInTime) *runtime.ExecutionResult {
 	contract := acquireState()
