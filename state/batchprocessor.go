@@ -417,9 +417,15 @@ func (b *BasicBatchProcessor) SetStorage(addr common.Address, key common.Hash, v
 	panic("not implemented")
 }
 
-// GetBalance
-func (b *BasicBatchProcessor) GetBalance(addr common.Address) *big.Int {
-	panic("not implemented")
+// GetBalance gets balance for a given address
+func (b *BasicBatchProcessor) GetBalance(address common.Address) *big.Int {
+	balance, err := b.State.tree.GetBalance(address, b.stateRoot)
+
+	if err != nil {
+		log.Errorf("error on GetBalance for address %v", address)
+	}
+
+	return balance
 }
 
 // GetCodeSize
@@ -432,9 +438,15 @@ func (b *BasicBatchProcessor) GetCodeHash(addr common.Address) common.Hash {
 	panic("not implemented")
 }
 
-// GetCode
-func (b *BasicBatchProcessor) GetCode(addr common.Address) []byte {
-	panic("not implemented")
+// GetCode gets the code stored at a given address
+func (b *BasicBatchProcessor) GetCode(address common.Address) []byte {
+	code, err := b.State.tree.GetCode(address, b.stateRoot)
+
+	if err != nil {
+		log.Errorf("error on GetCode for address %v", address)
+	}
+
+	return code
 }
 
 // Selfdestruct
@@ -467,7 +479,13 @@ func (b *BasicBatchProcessor) Empty(addr common.Address) bool {
 	panic("not implemented")
 }
 
-// GetNonce
-func (b *BasicBatchProcessor) GetNonce(addr common.Address) uint64 {
-	panic("not implemented")
+// GetNonce gets the nonce for an account at a given address
+func (b *BasicBatchProcessor) GetNonce(address common.Address) uint64 {
+	nonce, err := b.State.tree.GetBalance(address, b.stateRoot)
+
+	if err != nil {
+		log.Errorf("error on GetNonce for address %v", address)
+	}
+
+	return nonce.Uint64()
 }
