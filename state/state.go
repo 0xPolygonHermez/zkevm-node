@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/jackc/pgx/v4"
@@ -106,7 +107,11 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 
 	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID}
 	batchProcessor.setRuntime(evm.NewEVM())
-
+	blockNumber, err := s.GetLastBlockNumber(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	batchProcessor.forks = runtime.AllForksEnabled.At(blockNumber)
 	return batchProcessor, nil
 }
 

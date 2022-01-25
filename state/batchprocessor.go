@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -30,6 +31,7 @@ var (
 type BatchProcessor interface {
 	ProcessBatch(batch *Batch) error
 	CheckTransaction(tx *types.Transaction) error
+	runtime.Host
 }
 
 // BasicBatchProcessor is used to process a batch of transactions
@@ -37,12 +39,14 @@ type BasicBatchProcessor struct {
 	State            *BasicState
 	stateRoot        []byte
 	runtimes         []runtime.Runtime
+	forks            runtime.ForksInTime
 	SequencerAddress common.Address
 	SequencerChainID uint64
 }
 
 // ProcessBatch processes all transactions inside a batch
 func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
+	var result *runtime.ExecutionResult
 	var receipts []*Receipt
 	var includedTxs []*types.Transaction
 
@@ -57,7 +61,11 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 
 		receiverAddress := tx.To()
 
-		result := b.processTransaction(tx, *senderAddress, *receiverAddress, batch.Sequencer)
+		if receiverAddress == nil {
+			result = b.run(nil)
+		} else {
+			result = b.transfer(tx, *senderAddress, *receiverAddress, batch.Sequencer)
+		}
 
 		if result.Err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), result.Err)
@@ -128,7 +136,7 @@ func (b *BasicBatchProcessor) generateBatchHeader(blockNumber uint64, sequencerA
 }
 
 // ProcessTransaction processes a transaction inside a batch
-func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAddress, receiverAddress common.Address, sequencerAddress common.Address) *runtime.ExecutionResult {
+func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, receiverAddress common.Address, sequencerAddress common.Address) *runtime.ExecutionResult {
 	log.Debugf("processing transaction [%s]: start", tx.Hash().Hex())
 	var result *runtime.ExecutionResult = &runtime.ExecutionResult{}
 
@@ -372,6 +380,18 @@ func (b *BasicBatchProcessor) setRuntime(r runtime.Runtime) {
 	b.runtimes = append(b.runtimes, r)
 }
 
+func (b *BasicBatchProcessor) run(contract *runtime.Contract) *runtime.ExecutionResult {
+	for _, r := range b.runtimes {
+		if r.CanRun(contract, b, &b.forks) {
+			return r.Run(contract, b, &b.forks)
+		}
+	}
+
+	return &runtime.ExecutionResult{
+		Err: fmt.Errorf("not found"),
+	}
+}
+
 func getSender(tx *types.Transaction) (*common.Address, error) {
 	// Get Sender
 	signer := types.NewEIP155Signer(tx.ChainId())
@@ -380,4 +400,74 @@ func getSender(tx *types.Transaction) (*common.Address, error) {
 		return &common.Address{}, err
 	}
 	return &sender, nil
+}
+
+// AccountExists check if the address already exists in the state
+func (b *BasicBatchProcessor) AccountExists(addr common.Address) bool {
+	panic("not implemented")
+}
+
+// GetStorage check gets the value stored in a given address and key
+func (b *BasicBatchProcessor) GetStorage(addr common.Address, key common.Hash) common.Hash {
+	panic("not implemented")
+}
+
+// SetStorage
+func (b *BasicBatchProcessor) SetStorage(addr common.Address, key common.Hash, value common.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
+	panic("not implemented")
+}
+
+// GetBalance
+func (b *BasicBatchProcessor) GetBalance(addr common.Address) *big.Int {
+	panic("not implemented")
+}
+
+// GetCodeSize
+func (b *BasicBatchProcessor) GetCodeSize(addr common.Address) int {
+	panic("not implemented")
+}
+
+// GetCodeHash
+func (b *BasicBatchProcessor) GetCodeHash(addr common.Address) common.Hash {
+	panic("not implemented")
+}
+
+// GetCode
+func (b *BasicBatchProcessor) GetCode(addr common.Address) []byte {
+	panic("not implemented")
+}
+
+// Selfdestruct
+func (b *BasicBatchProcessor) Selfdestruct(addr common.Address, beneficiary common.Address) {
+	panic("not implemented")
+}
+
+// GetTxContext
+func (b *BasicBatchProcessor) GetTxContext() runtime.TxContext {
+	panic("not implemented")
+}
+
+// GetBlockHash
+func (b *BasicBatchProcessor) GetBlockHash(number int64) common.Hash {
+	panic("not implemented")
+}
+
+// EmitLog
+func (b *BasicBatchProcessor) EmitLog(addr common.Address, topics []common.Hash, data []byte) {
+	panic("not implemented")
+}
+
+// Callx
+func (b *BasicBatchProcessor) Callx(*runtime.Contract, runtime.Host) *runtime.ExecutionResult {
+	panic("not implemented")
+}
+
+// Empty
+func (b *BasicBatchProcessor) Empty(addr common.Address) bool {
+	panic("not implemented")
+}
+
+// GetNonce
+func (b *BasicBatchProcessor) GetNonce(addr common.Address) uint64 {
+	panic("not implemented")
 }
