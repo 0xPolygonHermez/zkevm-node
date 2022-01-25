@@ -395,12 +395,17 @@ func nodeUpCondition(target string) (done bool, err error) {
 	req, err := http.NewRequest(
 		"POST", target,
 		bytes.NewBuffer(jsonStr))
+	if err != nil {
+		return
+	}
+
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return
+		// we allow connection errors to wait for the container up
+		return false, nil
 	}
 
 	if res.Body != nil {
@@ -440,7 +445,8 @@ func proverUpCondition() (done bool, err error) {
 	}
 	conn, err := grpc.Dial("localhost:50051", opts...)
 	if err != nil {
-		return
+		// we allow connection errors to wait for the container up
+		return false, nil
 	}
 
 	proverClient := proverclient.NewZKProverClient(conn)
