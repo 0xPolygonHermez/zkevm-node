@@ -76,7 +76,6 @@ func (s *ClientSynchronizer) Sync() error {
 			case <-s.ctx.Done():
 				return
 			case <-time.After(waitDuration):
-				log.Debug("Syncing since ethereum blockNumber: ", lastEthBlockSynced.BlockNumber, " with blockHash:", lastEthBlockSynced.BlockHash)
 				if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
 					if s.ctx.Err() != nil {
 						continue
