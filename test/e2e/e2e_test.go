@@ -452,7 +452,8 @@ func proverUpCondition() (done bool, err error) {
 	proverClient := proverclient.NewZKProverClient(conn)
 	state, err := proverClient.GetStatus(context.Background(), &proverclient.NoParams{})
 	if err != nil {
-		return
+		// we allow connection errors to wait for the container up
+		return false, nil
 	}
 
 	done = state.Status == proverclient.State_IDLE
