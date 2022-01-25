@@ -182,16 +182,15 @@ func (a *Aggregator) Start() {
 			chainID := uint32(seq.ChainID.Uint64())
 
 			// TODO: change this, once we have exit root
-			fakeLastGlobalExitRoot, _ := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
+			fakeLastGlobalExitRoot := common.HexToHash("0x1234123412341234123412341234123412341234123412341234123412341234")
 			fakeKeys := map[string]string{
 				"0540ae2a259cb9179561cffe6a0a3852a2c1806ad894ed396a2ef16e1f10e9c7": "0000000000000000000000000000000000000000000000056bc75e2d63100000",
 				"061927dd2a72763869c1d5d9336a42d12a9a2f22809c9cf1feeb2a6d1643d950": "0000000000000000000000000000000000000000000000000000000000000000",
 				"03ae74d1bbdff41d14f155ec79bb389db716160c1766a49ee9c9707407f80a11": "00000000000000000000000000000000000000000000000ad78ebc5ac6200000",
 				"18d749d7bcc2bc831229c19256f9e933c08b6acdaff4915be158e34cbbc8a8e1": "0000000000000000000000000000000000000000000000000000000000000000",
 			}
-			var globalExitRootBuf [32]byte
-			globalExitRootBytes := fakeLastGlobalExitRoot.FillBytes(globalExitRootBuf[:])
-			batchHashData := common.BytesToHash(keccak256.Hash(batchToConsolidate.RawTxsData, globalExitRootBytes))
+			globalExitRootBytes := fakeLastGlobalExitRoot
+			batchHashData := common.BytesToHash(keccak256.Hash(batchToConsolidate.RawTxsData, globalExitRootBytes[:]))
 			oldStateRoot := common.BytesToHash(stateRootConsolidated)
 			oldLocalExitRoot := fakeLastGlobalExitRoot
 			newStateRoot := common.BytesToHash(stateRootToConsolidate)
@@ -230,16 +229,11 @@ func (a *Aggregator) Start() {
 			binary.BigEndian.PutUint32(batchChainIDByte, inputProver.PublicInputs.ChainId)
 			binary.BigEndian.PutUint32(batchNumberByte, inputProver.PublicInputs.BatchNum)
 
-			var oldLocalExitRootBuf [32]byte
-			oldLocalExitRootBytes := oldLocalExitRoot.FillBytes(oldLocalExitRootBuf[:])
-			var newLocalExitRootBuf [32]byte
-			newLocalExitRootBytes := newLocalExitRoot.FillBytes(newLocalExitRootBuf[:])
-
 			internalInputHash := keccak256.Hash(
 				oldStateRoot[:],
-				oldLocalExitRootBytes[:],
+				oldLocalExitRoot[:],
 				newStateRoot[:],
-				newLocalExitRootBytes[:],
+				newLocalExitRoot[:],
 				batchToConsolidate.Sequencer[:],
 				batchHashData[:],
 				batchChainIDByte[:],
