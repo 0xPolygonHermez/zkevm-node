@@ -86,15 +86,11 @@ func TestStateTransition(t *testing.T) {
 			stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
 			st := state.NewState(stateCfg, stateDB, tr)
 			genesis := state.Genesis{
-				Balances:       make(map[common.Address]*big.Int),
-				SmartContracts: make(map[common.Address][]byte),
+				Balances: make(map[common.Address]*big.Int),
 			}
-			for _, gacc := range testCase.Genesis.GenesisAccounts {
+			for _, gacc := range testCase.GenesisAccounts {
 				b := gacc.Balance.Int
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &b
-			}
-			for _, gsc := range testCase.Genesis.GenesisSmartContracts {
-				genesis.SmartContracts[common.HexToAddress(gsc.Address)] = []byte(gsc.Code)
 			}
 			err = st.SetGenesis(ctx, genesis)
 			require.NoError(t, err)

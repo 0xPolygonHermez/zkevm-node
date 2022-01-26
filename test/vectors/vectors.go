@@ -16,18 +16,13 @@ type StateTransitionTestCase struct {
 	SequencerAddress    string `json:"sequencerAddress"`
 	SequencerPrivateKey string `json:"sequencerPvtKey"`
 
-	Genesis          Genesis         `json:"genesis"`
-	ExpectedOldRoot  string          `json:"expectedOldRoot"`
-	Txs              []Tx            `json:"txs"`
-	ExpectedNewRoot  string          `json:"expectedNewRoot"`
-	ExpectedNewLeafs map[string]Leaf `json:"expectedNewLeafs"`
-	Receipts         []TestReceipt   `json:"receipts"`
-}
-
-// Genesis represent the initial state when the network starts
-type Genesis struct {
-	GenesisAccounts       []GenesisAccount       `json:"accounts"`
-	GenesisSmartContracts []GenesisSmartContract `json:"smartContracts"`
+	GenesisAccounts       []GenesisAccount       `json:"genesis"`
+	GenesisSmartContracts []GenesisSmartContract `json:"genesisSC"`
+	ExpectedOldRoot       string                 `json:"expectedOldRoot"`
+	Txs                   []Tx                   `json:"txs"`
+	ExpectedNewRoot       string                 `json:"expectedNewRoot"`
+	ExpectedNewLeafs      map[string]Leaf        `json:"expectedNewLeafs"`
+	Receipts              []TestReceipt          `json:"receipts"`
 }
 
 // GenesisAccount represents the state of an account when the network
@@ -42,7 +37,7 @@ type GenesisAccount struct {
 // GenesisSmartContract represents the smart contract to init when the network starts
 type GenesisSmartContract struct {
 	Address string `json:"address"`
-	Code    string `json:"code"`
+	Code    string `json:"bytecode"`
 }
 
 // Tx represents a transactions that will be applied during the test

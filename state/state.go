@@ -179,22 +179,22 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 
 	var root common.Hash
 
-	// Genesis Balances
-	for address, balance := range genesis.Balances {
-		newRoot, _, err := s.tree.SetBalance(address, balance)
-		if err != nil {
-			return err
+	if genesis.Balances != nil { // Genesis Balances
+		for address, balance := range genesis.Balances {
+			newRoot, _, err := s.tree.SetBalance(address, balance)
+			if err != nil {
+				return err
+			}
+			root.SetBytes(newRoot)
 		}
-		root.SetBytes(newRoot)
-	}
-
-	// Genesis Smart Contracts
-	for address, sc := range genesis.SmartContracts {
-		newRoot, _, err := s.tree.SetCode(address, sc)
-		if err != nil {
-			return err
+	} else { // Genesis Smart Contracts
+		for address, sc := range genesis.SmartContracts {
+			newRoot, _, err := s.tree.SetCode(address, sc)
+			if err != nil {
+				return err
+			}
+			root.SetBytes(newRoot)
 		}
-		root.SetBytes(newRoot)
 	}
 
 	// Generate Genesis Batch

@@ -450,17 +450,12 @@ func TestStateTransition(t *testing.T) {
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
 
 			genesis := state.Genesis{
-				Balances:       make(map[common.Address]*big.Int),
-				SmartContracts: make(map[common.Address][]byte),
+				Balances: make(map[common.Address]*big.Int),
 			}
 
-			for _, gacc := range testCase.Genesis.GenesisAccounts {
+			for _, gacc := range testCase.GenesisAccounts {
 				balance := gacc.Balance.Int
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
-			}
-
-			for _, gsc := range testCase.Genesis.GenesisSmartContracts {
-				genesis.SmartContracts[common.HexToAddress(gsc.Address)] = []byte(gsc.Code)
 			}
 
 			for gaddr := range genesis.Balances {
@@ -571,6 +566,47 @@ func TestStateTransition(t *testing.T) {
 	}
 }
 
+func TestStateTransitionSC(t *testing.T) {
+	// Load test vector
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition-sc.json")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	for _, testCase := range stateTransitionTestCases {
+		t.Run(testCase.Description, func(t *testing.T) {
+			ctx := context.Background()
+			// Init database instance
+			err = dbutils.InitOrReset(cfg)
+			require.NoError(t, err)
+
+			// Create State db
+			stateDb, err = db.NewSQLDB(cfg)
+			require.NoError(t, err)
+
+			// Create State tree
+			store := tree.NewPostgresStore(stateDb)
+			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+			stateTree := tree.NewStateTree(mt, nil)
+
+			// Create state
+			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+
+			genesis := state.Genesis{
+				SmartContracts: make(map[common.Address][]byte),
+			}
+
+			for _, gsc := range testCase.GenesisSmartContracts {
+				genesis.SmartContracts[common.HexToAddress(gsc.Address)] = []byte(gsc.Code)
+			}
+
+			err = st.SetGenesis(ctx, genesis)
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestLastSeenBatch(t *testing.T) {
 	// Create State db
 	mtDb, err := db.NewSQLDB(cfg)
@@ -634,17 +670,12 @@ func TestReceipts(t *testing.T) {
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
 
 			genesis := state.Genesis{
-				Balances:       make(map[common.Address]*big.Int),
-				SmartContracts: make(map[common.Address][]byte),
+				Balances: make(map[common.Address]*big.Int),
 			}
 
-			for _, gacc := range testCase.Genesis.GenesisAccounts {
+			for _, gacc := range testCase.GenesisAccounts {
 				balance := gacc.Balance.Int
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
-			}
-
-			for _, gsc := range testCase.Genesis.GenesisSmartContracts {
-				genesis.SmartContracts[common.HexToAddress(gsc.Address)] = []byte(gsc.Code)
 			}
 
 			for gaddr := range genesis.Balances {
