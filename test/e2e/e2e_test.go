@@ -113,7 +113,7 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Wait prover to be ready
-			err = waitPoll(1*time.Second, 5*time.Second, proverUpCondition)
+			err = waitPoll(1*time.Second, 10*time.Second, proverUpCondition)
 			require.NoError(t, err)
 
 			// Eth client
