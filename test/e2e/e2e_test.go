@@ -76,7 +76,8 @@ func TestStateTransition(t *testing.T) {
 			// Set genesis
 			store := tree.NewPostgresStore(sqlDB)
 			mt := tree.NewMerkleTree(store, testCase.Arity, poseidon.Hash)
-			tr := tree.NewStateTree(mt, []byte{})
+			scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
+			tr := tree.NewStateTree(mt, scCodeStore, []byte{})
 
 			stateCfg := state.Config{
 				DefaultChainID: 1000,
