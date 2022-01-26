@@ -24,6 +24,7 @@ Port = 8123
 
 [Synchronizer]
 SyncInterval = "0s"
+SyncChunkSize = 100
 
 [Sequencer]
 IntervalToProposeBatch = "15s"
