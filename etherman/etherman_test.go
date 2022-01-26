@@ -240,10 +240,10 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	assert.Equal(t, 5, len(block[0].Batches[0].Transactions))
 	assert.Equal(t, txRaw, block[0].Batches[0].RawTxsData)
 
-	proofSlc := []string{"0", "0"}
+	proofSlc := []string{"1", "0", "2"}
 	proofBelem := proverclient.ProofX{Proof: proofSlc}
 	var proofB []*proverclient.ProofX
-	proofB = append(proofB, &proofBelem, &proofBelem)
+	proofB = append(proofB, &proofBelem, &proofBelem, &proofBelem)
 	newStateRoot, ok := new(big.Int).SetString("1212121212121212121212121212121212121212121212121212121212121212", 16)
 	assert.True(t, ok)
 	newLocalExitRoot, ok := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)

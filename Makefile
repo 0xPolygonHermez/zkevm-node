@@ -51,7 +51,7 @@ test: ## runs only short tests without checking race conditions
 	trap '$(STOPDB)' EXIT; go test -short -p 1 ./...
 
 .PHONY: test-full
-test-full: ## runs all tests checking race conditions
+test-full: build-docker ## runs all tests checking race conditions
 	$(STOPDB) || true
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
@@ -65,7 +65,7 @@ lint: ## runs linter
 	$(LINT)
 
 .PHONY: validate
-validate: lint build build-docker test-full ## Validate the whole integrity of the code
+validate: lint build test-full ## Validate the whole integrity of the code
 
 .PHONY: run-db
 run-db: ## starts a docker container to run the db instance

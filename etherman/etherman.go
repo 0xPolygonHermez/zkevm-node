@@ -69,6 +69,7 @@ type EtherMan interface {
 	GetLatestProposedBatchNumber() (uint64, error)
 	GetLatestConsolidatedBatchNumber() (uint64, error)
 	GetSequencerCollateral(batchNumber uint64) (*big.Int, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 }
 
 type ethClienter interface {
@@ -664,4 +665,10 @@ func (etherMan *ClientEtherMan) ApproveMatic(maticAmount *big.Int, to common.Add
 		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
 	}
 	return tx, nil
+}
+
+// HeaderByNumber returns a block header from the current canonical chain. If number is
+// nil, the latest known header is returned.
+func (etherMan *ClientEtherMan) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	return etherMan.EtherClient.HeaderByNumber(ctx, number)
 }
