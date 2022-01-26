@@ -18,16 +18,18 @@ func stringToFixedByteArray(str string) ([32]byte, error) {
 }
 
 func strSliceToBigIntArray(strSlc []string) ([2]*big.Int, error) {
-	if len(strSlc) != proofLen {
-		return [2]*big.Int{}, fmt.Errorf("wrong slice length, current %d, expected 2", len(strSlc))
+	if len(strSlc) != proofLen && len(strSlc) != proofLen + 1 {
+		return [2]*big.Int{}, fmt.Errorf("wrong slice length, current %d, expected 2 or 3", len(strSlc))
 	}
 	var res [2]*big.Int
 	for i, v := range strSlc {
-		bigInt, ok := new(big.Int).SetString(v, 16)
-		if !ok {
-			return [2]*big.Int{}, fmt.Errorf("failed to convert string to big int, str: %s", v)
+		if i < proofLen {
+			bigInt, ok := new(big.Int).SetString(v, 16)
+			if !ok {
+				return [2]*big.Int{}, fmt.Errorf("failed to convert string to big int, str: %s", v)
+			}
+			res[i] = bigInt
 		}
-		res[i] = bigInt
 	}
 	return res, nil
 }
@@ -40,11 +42,13 @@ func proofSlcToIntArray(proofs []*proverclient.ProofX) ([2][2]*big.Int, error) {
 	var res [2][2]*big.Int
 	for i, v := range proofs {
 		for j, b := range proofs[i].Proof {
-			bigInt, ok := new(big.Int).SetString(b, 16)
-			if !ok {
-				return [2][2]*big.Int{}, fmt.Errorf("failed to convert string to big int, str: %s", v)
+			if j < proofLen {
+				bigInt, ok := new(big.Int).SetString(b, 16)
+				if !ok {
+					return [2][2]*big.Int{}, fmt.Errorf("failed to convert string to big int, str: %s", v)
+				}
+				res[i][1-j] = bigInt
 			}
-			res[i][1-j] = bigInt
 		}
 	}
 
