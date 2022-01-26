@@ -33,6 +33,8 @@ services:
         ports:
           - 4000:4000
         environment:
+          - NETWORK=POE
+          - SUBNETWORK=Polygon Hermez
           - COIN=ETH
           - ETHEREUM_JSONRPC_VARIANT=geth
           - ETHEREUM_JSONRPC_HTTP_URL=http://hez-core:8123
