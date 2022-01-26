@@ -16,7 +16,7 @@ type BridgeTree struct {
 // NewBridgeTree creates new BridgeTree
 func NewBridgeTree(height uint8) *BridgeTree {
 	var zeroHashes [][32]byte
-	if int(height) <= len(ZeroHashes) {
+	if int(height) < len(ZeroHashes) {
 		zeroHashes = ZeroHashes
 	} else {
 		zeroHashes = generateZeroHashes(height)
