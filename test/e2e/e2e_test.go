@@ -418,11 +418,9 @@ func nodeUpCondition(target string) (bool, error) {
 		return false, err
 	}
 
-	type response struct {
+	r := struct {
 		Result bool
-	}
-
-	r := response{}
+	}{}
 	err = json.Unmarshal(body, &r)
 	if err != nil {
 		return false, err
