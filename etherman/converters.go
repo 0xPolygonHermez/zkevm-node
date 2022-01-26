@@ -18,7 +18,7 @@ func stringToFixedByteArray(str string) ([32]byte, error) {
 }
 
 func strSliceToBigIntArray(strSlc []string) ([2]*big.Int, error) {
-	if len(strSlc) != proofLen && len(strSlc) != proofLen + 1 {
+	if len(strSlc) != proofLen && len(strSlc) != proofLen+1 {
 		return [2]*big.Int{}, fmt.Errorf("wrong slice length, current %d, expected 2 or 3", len(strSlc))
 	}
 	var res [2]*big.Int
