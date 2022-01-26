@@ -44,7 +44,7 @@ func proofSlcToIntArray(proofs []*proverclient.ProofX) ([2][2]*big.Int, error) {
 			if !ok {
 				return [2][2]*big.Int{}, fmt.Errorf("failed to convert string to big int, str: %s", v)
 			}
-			res[i][j] = bigInt
+			res[i][1-j] = bigInt
 		}
 	}
 
