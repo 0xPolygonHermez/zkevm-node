@@ -18,6 +18,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+const fr = "21888242871839275222246405745257275088548364400416034343698204186575808495617"
+
 // Aggregator represents an aggregator
 type Aggregator struct {
 	cfg Config
@@ -228,7 +230,7 @@ func (a *Aggregator) Start() {
 			binary.BigEndian.PutUint32(batchChainIDByte, inputProver.PublicInputs.ChainId)
 			binary.BigEndian.PutUint32(batchNumberByte, inputProver.PublicInputs.BatchNum)
 
-			internalInputHash := keccak256.Hash(
+			hash := keccak256.Hash(
 				oldStateRoot[:],
 				oldLocalExitRoot[:],
 				newStateRoot[:],
@@ -238,6 +240,9 @@ func (a *Aggregator) Start() {
 				batchChainIDByte[:],
 				batchNumberByte[:],
 			)
+			frB, _ := new(big.Int).SetString(fr, 10)
+			inputHashMod := new(big.Int).Mod(new(big.Int).SetBytes(hash), frB)
+			internalInputHash := inputHashMod.Bytes()
 
 			// InputHash must match
 			internalInputHashS := "0x" + hex.EncodeToString(internalInputHash)
