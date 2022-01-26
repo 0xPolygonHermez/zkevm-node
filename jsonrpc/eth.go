@@ -140,7 +140,7 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 		return nil, err
 	}
 
-	return tx, nil
+	return toRPCTransaction(tx, nil, nil, nil), nil
 }
 
 // GetTransactionByBlockNumberAndIndex returns information about a transaction by
@@ -160,7 +160,7 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 		return nil, err
 	}
 
-	return tx, nil
+	return toRPCTransaction(tx, nil, nil, nil), nil
 }
 
 // GetTransactionByHash returns a transaction by his hash
@@ -174,7 +174,7 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 		return nil, err
 	}
 
-	return tx, nil
+	return toRPCTransaction(tx, nil, nil, nil), nil
 }
 
 // GetTransactionCount returns account nonce
