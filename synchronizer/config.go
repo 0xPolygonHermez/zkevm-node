@@ -21,4 +21,7 @@ func (d *Duration) UnmarshalText(data []byte) error {
 type Config struct {
 	// SyncInterval is the delay interval between reading new rollup information
 	SyncInterval Duration `mapstructure:"SyncInterval"`
+
+	// SyncChunkSize is the number of blocks to sync on each chunk
+	SyncChunkSize uint64 `mapstructure:"SyncChunkSize"`
 }

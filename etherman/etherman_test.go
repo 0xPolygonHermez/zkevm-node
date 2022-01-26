@@ -240,7 +240,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	assert.Equal(t, 5, len(block[0].Batches[0].Transactions))
 	assert.Equal(t, txRaw, block[0].Batches[0].RawTxsData)
 
-	proofSlc := []string{"1", "0"}
+	proofSlc := []string{"1", "0", "2"}
 	proofBelem := proverclient.ProofX{Proof: proofSlc}
 	var proofB []*proverclient.ProofX
 	proofB = append(proofB, &proofBelem, &proofBelem)
