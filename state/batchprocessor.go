@@ -409,12 +409,28 @@ func (b *BasicBatchProcessor) AccountExists(address common.Address) bool {
 
 // GetStorage check gets the value stored in a given address and key
 func (b *BasicBatchProcessor) GetStorage(address common.Address, key common.Hash) common.Hash {
-	panic("not implemented")
+	storage, err := b.State.tree.GetStorageAt(address, key, b.stateRoot)
+
+	if err != nil {
+		log.Errorf("error on GetStorage for address %v", address)
+	}
+
+	return common.BytesToHash(storage.Bytes())
 }
 
-// SetStorage
+// SetStorage sets storage for a given address
 func (b *BasicBatchProcessor) SetStorage(address common.Address, key common.Hash, value common.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
-	panic("not implemented")
+	// TODO: Check if we have to charge here
+	root, _, err := b.State.tree.SetStorageAt(address, key, new(big.Int).SetBytes(value.Bytes()))
+
+	if err != nil {
+		log.Errorf("error on SetStorage for address %v", address)
+	} else {
+		b.stateRoot = root
+	}
+
+	// TODO: calculate and return proper value
+	return runtime.StorageModified
 }
 
 // GetBalance gets balance for a given address
@@ -428,15 +444,21 @@ func (b *BasicBatchProcessor) GetBalance(address common.Address) *big.Int {
 	return balance
 }
 
-// GetCodeSize
+// GetCodeSize gets the size of the code at a given address
 func (b *BasicBatchProcessor) GetCodeSize(address common.Address) int {
 	code := b.GetCode(address)
 	return len(code)
 }
 
-// GetCodeHash
+// GetCodeHash gets the hash for the code at a given address
 func (b *BasicBatchProcessor) GetCodeHash(address common.Address) common.Hash {
-	panic("not implemented")
+	hash, err := b.State.tree.GetCodeHash(address, b.stateRoot)
+
+	if err != nil {
+		log.Errorf("error on GetCodeHash for address %v", address)
+	}
+
+	return common.BytesToHash(hash)
 }
 
 // GetCode gets the code stored at a given address
