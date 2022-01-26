@@ -36,19 +36,21 @@ func strSliceToBigIntArray(data []string) ([2]*big.Int, error) {
 }
 
 func proofSlcToIntArray(proofs []*proverclient.ProofX) ([2][2]*big.Int, error) {
-	if len(proofs) != minProofLen {
-		return [2][2]*big.Int{}, fmt.Errorf("wrong proof slice length, current %d, expected 2", len(proofs))
+	if len(proofs) < minProofLen || len(proofs) > maxProofLen {
+		return [2][2]*big.Int{}, fmt.Errorf("wrong slice length, current %d, expected between %d or %d", len(proofs), minProofLen, maxProofLen)
 	}
 
 	var res [2][2]*big.Int
 	for i, v := range proofs {
-		for j, b := range proofs[i].Proof {
-			if j < minProofLen {
-				bigInt, ok := new(big.Int).SetString(b, 16)
-				if !ok {
-					return [2][2]*big.Int{}, fmt.Errorf("failed to convert string to big int, str: %s", v)
+		if i < minProofLen {
+			for j, b := range proofs[i].Proof {
+				if j < minProofLen {
+					bigInt, ok := new(big.Int).SetString(b, 16)
+					if !ok {
+						return [2][2]*big.Int{}, fmt.Errorf("failed to convert string to big int, str: %s", v)
+					}
+					res[i][1-j] = bigInt
 				}
-				res[i][1-j] = bigInt
 			}
 		}
 	}
