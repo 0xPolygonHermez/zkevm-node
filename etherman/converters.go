@@ -19,7 +19,7 @@ func stringToFixedByteArray(str string) ([32]byte, error) {
 }
 
 func strSliceToBigIntArray(data []string) ([2]*big.Int, error) {
-    if len(data) < minProofLen || len(data) >  maxProofLen {
+	if len(data) < minProofLen || len(data) > maxProofLen {
 		return [2]*big.Int{}, fmt.Errorf("wrong slice length, current %d, expected between %d or %d", len(data), minProofLen, maxProofLen)
 	}
 	var res [2]*big.Int
