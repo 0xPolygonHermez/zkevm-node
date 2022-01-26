@@ -18,6 +18,7 @@ type Reader interface {
 	GetBalance(address common.Address, root []byte) (*big.Int, error)
 	GetNonce(address common.Address, root []byte) (*big.Int, error)
 	GetCode(address common.Address, root []byte) ([]byte, error)
+	GetCodeHash(address common.Address, root []byte) ([]byte, error)
 	GetStorageAt(address common.Address, position common.Hash, root []byte) (*big.Int, error)
 	GetCurrentRoot() ([]byte, error)
 }
@@ -97,8 +98,8 @@ func (tree *StateTree) GetNonce(address common.Address, root []byte) (*big.Int, 
 	return proof.Value, nil
 }
 
-// GetCode returns code
-func (tree *StateTree) GetCode(address common.Address, root []byte) ([]byte, error) {
+// GetCodeHash returns code hash
+func (tree *StateTree) GetCodeHash(address common.Address, root []byte) ([]byte, error) {
 	r := tree.currentRoot
 	if root != nil {
 		r = new(big.Int).SetBytes(root)
@@ -118,8 +119,18 @@ func (tree *StateTree) GetCode(address common.Address, root []byte) ([]byte, err
 		return []byte{}, nil
 	}
 
-	// this code gets actual smart contract code from separate storage
-	scCodeHash := proof.Value.Bytes()
+	var buf [32]byte
+	return proof.Value.FillBytes(buf[:]), nil
+}
+
+// GetCode returns code
+func (tree *StateTree) GetCode(address common.Address, root []byte) ([]byte, error) {
+	scCodeHash, err := tree.GetCodeHash(address, root)
+	if err != nil {
+		return nil, err
+	}
+
+	// this code gets actual smart contract code from sc code storage
 	scCode, err := tree.scCodeStore.Get(context.TODO(), scCodeHash)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
