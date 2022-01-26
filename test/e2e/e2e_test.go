@@ -76,7 +76,8 @@ func TestStateTransition(t *testing.T) {
 			// Set genesis
 			store := tree.NewPostgresStore(sqlDB)
 			mt := tree.NewMerkleTree(store, testCase.Arity, poseidon.Hash)
-			tr := tree.NewStateTree(mt, []byte{})
+			scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
+			tr := tree.NewStateTree(mt, scCodeStore, []byte{})
 
 			stateCfg := state.Config{
 				DefaultChainID: 1000,
@@ -113,7 +114,7 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Wait prover to be ready
-			err = waitPoll(1*time.Second, 5*time.Second, proverUpCondition)
+			err = waitPoll(1*time.Second, 10*time.Second, proverUpCondition)
 			require.NoError(t, err)
 
 			// Eth client
