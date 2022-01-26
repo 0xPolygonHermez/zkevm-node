@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/hermeznetwork/hermez-core/proverclient"
+	"github.com/hermeznetwork/hermez-core/hex"
 )
 
 const (
@@ -14,7 +15,11 @@ const (
 
 func stringToFixedByteArray(str string) ([32]byte, error) {
 	var res [32]byte
-	copy(res[:], str)
+	data, err := hex.DecodeHex(str)
+	if err != nil {
+		return [32]byte{}, err
+	}
+	copy(res[:], data)
 	return res, nil
 }
 
