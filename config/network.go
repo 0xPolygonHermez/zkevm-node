@@ -56,10 +56,10 @@ var (
 	}
 	internalTestnetConfig = NetworkConfig{
 		Arity:            4,
-		GenBlockNumber:   6233095,
-		PoEAddr:          common.HexToAddress("0xfeC1D2eE9715Bc7e7EBE2f8f2FF3794b1556Fd59"),
-		BridgeAddr:       common.HexToAddress("0x71d1d24634B9F235E4A2cD958caaEC99b2DE1165"),
-		MaticAddr:        common.HexToAddress("0x754A75FD07d30dba6F612522ed82CAdE24E314D2"),
+		GenBlockNumber:   6262429,
+		PoEAddr:          common.HexToAddress("0xeB037c40d7259342511991713687d58D72A49f49"),
+		BridgeAddr:       common.HexToAddress("0xDb5bf4968b0026bbC5E6a270392F7A26f21d174f"),
+		MaticAddr:        common.HexToAddress("0x3CBFA29d560a25B6fA40C29f5BA0206F4305491b"),
 		L1ChainID:        5, //Goerli
 		L2DefaultChainID: 1000,
 		Balances: map[common.Address]*big.Int{
