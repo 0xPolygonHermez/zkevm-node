@@ -22,13 +22,11 @@ jobs:
       env:
         GOARCH: ${{ matrix.goarch }}
     - name: Login to DockerHub
-      uses: docker/login-action@v1 
+      uses: docker/login-action@v1
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Pull L1 network docker image
       run: docker image pull hermeznetwork/hermez-node-zkevm:latest
-    - name: Build hermez node docker image
-      run: make build-docker
     - name: Test
       run: make test-full

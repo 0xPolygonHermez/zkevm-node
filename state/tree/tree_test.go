@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,7 +41,8 @@ func TestBasicTree(t *testing.T) {
 
 	store := NewPostgresStore(mtDb)
 	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
-	tree := NewStateTree(mt, nil)
+	scCodeStore := NewPostgresSCCodeStore(mtDb)
+	tree := NewStateTree(mt, scCodeStore, nil)
 
 	address := common.Address{
 		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
@@ -72,9 +74,17 @@ func TestBasicTree(t *testing.T) {
 	assert.Equal(t, big.NewInt(2), nonce)
 
 	// Code
-	//code, err := tree.GetCode(address, nil)
-	//require.NoError(t, err)
-	//assert.Equal(t, nil, code)
+	code, err := tree.GetCode(address, nil)
+	require.NoError(t, err)
+	assert.Equal(t, []byte{}, code)
+
+	scCode, _ := hex.DecodeString("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	_, _, err = tree.SetCode(address, scCode)
+	require.NoError(t, err)
+
+	code, err = tree.GetCode(address, nil)
+	require.NoError(t, err)
+	assert.Equal(t, scCode, code)
 
 	// Storage
 	position := common.Hash{
@@ -131,6 +141,10 @@ func TestBasicTree(t *testing.T) {
 	bal, err = tree.GetBalance(address, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(1), bal)
+
+	code, err = tree.GetCode(address, root)
+	require.NoError(t, err)
+	assert.Equal(t, scCode, code)
 }
 
 type testAddState struct {
@@ -163,13 +177,14 @@ func TestMerkleTreeGenesis(t *testing.T) {
 
 	defer mtDb.Close()
 	store := NewPostgresStore(mtDb)
+	scCodeStore := NewPostgresSCCodeStore(mtDb)
 
 	for ti, testVector := range testVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
 			var root []byte
 			var newRoot []byte
 			mt := NewMerkleTree(store, testVector.Arity, nil)
-			tree := NewStateTree(mt, root)
+			tree := NewStateTree(mt, scCodeStore, root)
 			for _, addrState := range testVector.Addresses {
 				// convert strings to big.Int
 				addr := common.HexToAddress(addrState.Address)

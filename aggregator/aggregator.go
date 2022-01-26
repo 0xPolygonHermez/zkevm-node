@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"context"
+	"encoding/binary"
 	"math/big"
 	"strconv"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/iden3/go-iden3-crypto/keccak256"
 	"google.golang.org/grpc"
 )
 
@@ -179,27 +181,32 @@ func (a *Aggregator) Start() {
 			}
 			chainID := uint32(seq.ChainID.Uint64())
 
-			// TODO: change this, once we have exit root
-			fakeLastGlobalExitRoot, _ := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
+			// TODO: change this, once we have dynamic exit root
+			globalExitRoot := common.HexToHash("0xa116e19a7984f21055d07b606c55628a5ffbf8ae1261c1e9f4e3a61620cf810a")
+			oldLocalExitRoot := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+			newLocalExitRoot := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 			fakeKeys := map[string]string{
 				"0540ae2a259cb9179561cffe6a0a3852a2c1806ad894ed396a2ef16e1f10e9c7": "0000000000000000000000000000000000000000000000056bc75e2d63100000",
 				"061927dd2a72763869c1d5d9336a42d12a9a2f22809c9cf1feeb2a6d1643d950": "0000000000000000000000000000000000000000000000000000000000000000",
 				"03ae74d1bbdff41d14f155ec79bb389db716160c1766a49ee9c9707407f80a11": "00000000000000000000000000000000000000000000000ad78ebc5ac6200000",
 				"18d749d7bcc2bc831229c19256f9e933c08b6acdaff4915be158e34cbbc8a8e1": "0000000000000000000000000000000000000000000000000000000000000000",
 			}
+			batchHashData := common.BytesToHash(keccak256.Hash(batchToConsolidate.RawTxsData, globalExitRoot[:]))
+			oldStateRoot := common.BytesToHash(stateRootConsolidated)
+			newStateRoot := common.BytesToHash(stateRootToConsolidate)
 			inputProver := &proverclient.InputProver{
 				Message: "calculate",
 				PublicInputs: &proverclient.PublicInputs{
-					OldStateRoot:     common.BytesToHash(stateRootConsolidated).String(),
-					OldLocalExitRoot: fakeLastGlobalExitRoot.String(),
-					NewStateRoot:     common.BytesToHash(stateRootToConsolidate).String(),
-					NewLocalExitRoot: fakeLastGlobalExitRoot.String(),
+					OldStateRoot:     oldStateRoot.String(),
+					OldLocalExitRoot: oldLocalExitRoot.String(),
+					NewStateRoot:     newStateRoot.String(),
+					NewLocalExitRoot: newLocalExitRoot.String(),
 					SequencerAddr:    batchToConsolidate.Sequencer.String(),
-					BatchHashData:    batchToConsolidate.Hash().Hex(),
+					BatchHashData:    batchHashData.String(),
 					ChainId:          chainID,
 					BatchNum:         uint32(batchToConsolidate.BatchNumber),
 				},
-				GlobalExitRoot: fakeLastGlobalExitRoot.String(),
+				GlobalExitRoot: globalExitRoot.String(),
 				Txs:            txs,
 				Keys:           fakeKeys,
 			}
@@ -214,6 +221,40 @@ func (a *Aggregator) Start() {
 				log.Warnf("failed to get proof from the prover, batchNumber: %v, err: %v", batchToConsolidate.BatchNumber, err)
 				continue
 			}
+
+			// Calc inpuntHash
+			batchChainIDByte := make([]byte, 4)
+			batchNumberByte := make([]byte, 4)
+			binary.BigEndian.PutUint32(batchChainIDByte, inputProver.PublicInputs.ChainId)
+			binary.BigEndian.PutUint32(batchNumberByte, inputProver.PublicInputs.BatchNum)
+
+			internalInputHash := keccak256.Hash(
+				oldStateRoot[:],
+				oldLocalExitRoot[:],
+				newStateRoot[:],
+				newLocalExitRoot[:],
+				batchToConsolidate.Sequencer[:],
+				batchHashData[:],
+				batchChainIDByte[:],
+				batchNumberByte[:],
+			)
+
+			// InputHash must match
+			internalInputHashS := "0x" + hex.EncodeToString(internalInputHash)
+			if proofState.Proof.PublicInputsExtended.InputHash != internalInputHashS {
+				log.Error("inputHash received from the prover (", proofState.Proof.PublicInputsExtended.InputHash,
+					") doesn't match with the internal value: ", internalInputHashS)
+				log.Debug("internalBatchHashData: ", batchHashData, " externalBatchHashData: ", proofState.Proof.PublicInputsExtended.PublicInputs.BatchHashData)
+				log.Debug("inputProver.PublicInputs.OldStateRoot: ", inputProver.PublicInputs.OldStateRoot)
+				log.Debug("inputProver.PublicInputs.OldLocalExitRoot:", inputProver.PublicInputs.OldLocalExitRoot)
+				log.Debug("inputProver.PublicInputs.NewStateRoot: ", inputProver.PublicInputs.NewStateRoot)
+				log.Debug("inputProver.PublicInputs.NewLocalExitRoot: ", inputProver.PublicInputs.NewLocalExitRoot)
+				log.Debug("inputProver.PublicInputs.SequencerAddr: ", inputProver.PublicInputs.SequencerAddr)
+				log.Debug("inputProver.PublicInputs.BatchHashData: ", inputProver.PublicInputs.BatchHashData)
+				log.Debug("inputProver.PublicInputs.ChainId: ", inputProver.PublicInputs.ChainId)
+				log.Debug("inputProver.PublicInputs.BatchNum: ", inputProver.PublicInputs.BatchNum)
+			}
+
 			// 4. send proof + txs to the SC
 			batchNum := new(big.Int).SetUint64(batchToConsolidate.BatchNumber)
 			h, err := a.EtherMan.ConsolidateBatch(batchNum, proofState.Proof)
