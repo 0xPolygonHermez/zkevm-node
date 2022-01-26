@@ -24,7 +24,6 @@ type traceTransactionResponse struct {
 // TraceTransaction creates a response for debug_traceTransaction request.
 // See https://geth.ethereum.org/docs/rpc/ns-debug#debug_tracetransaction
 func (d *Debug) TraceTransaction(hash common.Hash) (interface{}, error) {
-
 	ctx := context.Background()
 
 	tx, err := d.state.GetTransactionByHash(ctx, hash)
