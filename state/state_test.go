@@ -424,10 +424,7 @@ func TestBasicState_AddSequencer(t *testing.T) {
 func TestStateTransition(t *testing.T) {
 	// Load test vector
 	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition.json")
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err)
 
 	for _, testCase := range stateTransitionTestCases {
 		t.Run(testCase.Description, func(t *testing.T) {
@@ -569,10 +566,7 @@ func TestStateTransition(t *testing.T) {
 func TestStateTransitionSC(t *testing.T) {
 	// Load test vector
 	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition-sc.json")
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err)
 
 	for _, testCase := range stateTransitionTestCases {
 		t.Run(testCase.Description, func(t *testing.T) {
