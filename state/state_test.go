@@ -582,7 +582,8 @@ func TestStateTransitionSC(t *testing.T) {
 			// Create State tree
 			store := tree.NewPostgresStore(stateDb)
 			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
-			stateTree := tree.NewStateTree(mt, nil)
+			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+			stateTree := tree.NewStateTree(mt, scCodeStore, nil)
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
