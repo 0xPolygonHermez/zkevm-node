@@ -430,12 +430,11 @@ func TestDepositAndGlobalExitRootEvent(t *testing.T) {
 
 func TestConverter(t *testing.T) {
 	str := "0x53793751b374bcde3992cb106847589b56c34765e728d55e0ca0afe991b6c16f"
-	res , err := stringToFixedByteArray(str)
+	res, err := stringToFixedByteArray(str)
 	if err != nil {
 		log.Error(err)
 		require.NoError(t, err)
 	}
 	finalString := hex.EncodeToString(res[:])
 	assert.Equal(t, str, "0x"+finalString)
-	
 }
