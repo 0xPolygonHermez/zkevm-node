@@ -233,14 +233,14 @@ func TestStateTransition(t *testing.T) {
 
 			// Wait for sequencer to select txs from pool and propose a new batch
 			// Wait for the synchronizer to update state
-			err = waitPoll(1*time.Second, 15*time.Second, func() (done bool, err error) {
+			err = waitPoll(1*time.Second, 15*time.Second, func() (bool, error) {
 				// using a closure here to capture st and currentBatchNumber
 				latestBatchNumber, err := st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
 				if err != nil {
-					return
+					return false, err
 				}
-				done = latestBatchNumber > currentBatchNumber
-				return
+				done := latestBatchNumber > currentBatchNumber
+				return done, nil
 			})
 			// if the state is not expected to change waitPoll can timeout
 			if testCase.ExpectedNewRoot != testCase.ExpectedOldRoot {
@@ -388,15 +388,13 @@ func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Du
 	}
 }
 
-type conditionFunc func() (done bool, err error)
-
-func nodeUpCondition(target string) (done bool, err error) {
+func nodeUpCondition(target string) (bool, error) {
 	var jsonStr = []byte(`{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}`)
 	req, err := http.NewRequest(
 		"POST", target,
 		bytes.NewBuffer(jsonStr))
 	if err != nil {
-		return
+		return false, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -417,7 +415,7 @@ func nodeUpCondition(target string) (done bool, err error) {
 	body, err := ioutil.ReadAll(res.Body)
 
 	if err != nil {
-		return
+		return false, err
 	}
 
 	type response struct {
@@ -427,19 +425,21 @@ func nodeUpCondition(target string) (done bool, err error) {
 	r := response{}
 	err = json.Unmarshal(body, &r)
 	if err != nil {
-		return
+		return false, err
 	}
 
-	done = !r.Result
+	done := !r.Result
 
-	return
+	return done, nil
 }
 
-func networkUpCondition() (done bool, err error) {
+type conditionFunc func() (done bool, err error)
+
+func networkUpCondition() (bool, error) {
 	return nodeUpCondition(l1NetworkURL)
 }
 
-func proverUpCondition() (done bool, err error) {
+func proverUpCondition() (bool, error) {
 	opts := []grpc.DialOption{
 		grpc.WithInsecure(),
 	}
@@ -456,10 +456,11 @@ func proverUpCondition() (done bool, err error) {
 		return false, nil
 	}
 
-	done = state.Status == proverclient.State_IDLE
+	done := state.Status == proverclient.State_IDLE
 
-	return
+	return done, nil
 }
+
 func coreUpCondition() (done bool, err error) {
 	return nodeUpCondition(l2NetworkURL)
 }
