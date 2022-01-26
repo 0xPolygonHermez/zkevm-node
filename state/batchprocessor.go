@@ -403,17 +403,17 @@ func getSender(tx *types.Transaction) (*common.Address, error) {
 }
 
 // AccountExists check if the address already exists in the state
-func (b *BasicBatchProcessor) AccountExists(addr common.Address) bool {
+func (b *BasicBatchProcessor) AccountExists(address common.Address) bool {
 	panic("not implemented")
 }
 
 // GetStorage check gets the value stored in a given address and key
-func (b *BasicBatchProcessor) GetStorage(addr common.Address, key common.Hash) common.Hash {
+func (b *BasicBatchProcessor) GetStorage(address common.Address, key common.Hash) common.Hash {
 	panic("not implemented")
 }
 
 // SetStorage
-func (b *BasicBatchProcessor) SetStorage(addr common.Address, key common.Hash, value common.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
+func (b *BasicBatchProcessor) SetStorage(address common.Address, key common.Hash, value common.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
 	panic("not implemented")
 }
 
@@ -429,12 +429,13 @@ func (b *BasicBatchProcessor) GetBalance(address common.Address) *big.Int {
 }
 
 // GetCodeSize
-func (b *BasicBatchProcessor) GetCodeSize(addr common.Address) int {
-	panic("not implemented")
+func (b *BasicBatchProcessor) GetCodeSize(address common.Address) int {
+	code := b.GetCode(address)
+	return len(code)
 }
 
 // GetCodeHash
-func (b *BasicBatchProcessor) GetCodeHash(addr common.Address) common.Hash {
+func (b *BasicBatchProcessor) GetCodeHash(address common.Address) common.Hash {
 	panic("not implemented")
 }
 
@@ -450,7 +451,7 @@ func (b *BasicBatchProcessor) GetCode(address common.Address) []byte {
 }
 
 // Selfdestruct
-func (b *BasicBatchProcessor) Selfdestruct(addr common.Address, beneficiary common.Address) {
+func (b *BasicBatchProcessor) Selfdestruct(address common.Address, beneficiary common.Address) {
 	panic("not implemented")
 }
 
@@ -465,7 +466,7 @@ func (b *BasicBatchProcessor) GetBlockHash(number int64) common.Hash {
 }
 
 // EmitLog
-func (b *BasicBatchProcessor) EmitLog(addr common.Address, topics []common.Hash, data []byte) {
+func (b *BasicBatchProcessor) EmitLog(address common.Address, topics []common.Hash, data []byte) {
 	panic("not implemented")
 }
 
@@ -475,7 +476,7 @@ func (b *BasicBatchProcessor) Callx(*runtime.Contract, runtime.Host) *runtime.Ex
 }
 
 // Empty
-func (b *BasicBatchProcessor) Empty(addr common.Address) bool {
+func (b *BasicBatchProcessor) Empty(address common.Address) bool {
 	panic("not implemented")
 }
 
