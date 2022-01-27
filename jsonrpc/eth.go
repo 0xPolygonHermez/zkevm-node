@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -94,7 +96,9 @@ func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, error)
 		return nil, err
 	}
 
-	return batch, nil
+	block := batchToBlock(batch, fullTx)
+
+	return block, nil
 }
 
 // GetBlockByNumber returns information about a block by block number
@@ -113,7 +117,9 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 		return nil, err
 	}
 
-	return batch, nil
+	block := batchToBlock(batch, fullTx)
+
+	return block, nil
 }
 
 // GetCode returns account code at given block number
@@ -134,7 +140,7 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 		return nil, err
 	}
 
-	return tx, nil
+	return toRPCTransaction(tx, nil, nil, nil), nil
 }
 
 // GetTransactionByBlockNumberAndIndex returns information about a transaction by
@@ -154,7 +160,7 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 		return nil, err
 	}
 
-	return tx, nil
+	return toRPCTransaction(tx, nil, nil, nil), nil
 }
 
 // GetTransactionByHash returns a transaction by his hash
@@ -168,7 +174,7 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 		return nil, err
 	}
 
-	return tx, nil
+	return toRPCTransaction(tx, nil, nil, nil), nil
 }
 
 // GetTransactionCount returns account nonce
@@ -197,7 +203,7 @@ func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 		return nil, err
 	}
 
-	return r, nil
+	return stateReceiptToRPCReceipt(r), nil
 }
 
 // SendRawTransaction sends a raw transaction
@@ -263,4 +269,20 @@ func hexToTx(str string) (*types.Transaction, error) {
 	}
 
 	return tx, nil
+}
+
+func batchToBlock(batch *state.Batch, fullTx bool) *rpcBlock {
+	h := types.CopyHeader(batch.Header)
+	h.Number = big.NewInt(0).SetUint64(batch.BatchNumber)
+	b := types.NewBlock(h, batch.Transactions, batch.Uncles, stateReceiptsToReceipts(batch.Receipts), &trie.StackTrie{})
+	return toRPCBlock(b, fullTx)
+}
+
+func stateReceiptsToReceipts(stateReceipts []*state.Receipt) []*types.Receipt {
+	rr := make([]*types.Receipt, 0, len(stateReceipts))
+	for _, sr := range stateReceipts {
+		r := sr.Receipt
+		rr = append(rr, &r)
+	}
+	return rr
 }

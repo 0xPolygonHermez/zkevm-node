@@ -218,6 +218,11 @@ func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash) 
 	}
 
 	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
+	batch.Transactions, err = s.getBatchTransactions(ctx, batch)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
 	return &batch, nil
 }
 
@@ -239,6 +244,11 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	}
 
 	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
+	batch.Transactions, err = s.getBatchTransactions(ctx, batch)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
 	return &batch, nil
 }
 
@@ -516,4 +526,15 @@ func (s *PostgresStorage) AddTransaction(ctx context.Context, tx *types.Transact
 func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt) error {
 	_, err := s.db.Exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.BlockHash.Bytes(), receipt.TxHash.Bytes(), receipt.TransactionIndex, receipt.From.Bytes(), receipt.To.Bytes())
 	return err
+}
+
+func (s *PostgresStorage) getBatchTransactions(ctx context.Context, batch state.Batch) ([]*types.Transaction, error) {
+	transactions, err := s.GetTxsByBatchNum(ctx, batch.BatchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		transactions = []*types.Transaction{}
+	} else if err != nil {
+		return nil, err
+	}
+
+	return transactions, nil
 }

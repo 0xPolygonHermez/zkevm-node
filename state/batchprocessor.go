@@ -11,6 +11,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
@@ -26,7 +27,7 @@ var (
 	// ErrInvalidChainID indicates a mismatch between sequencer address and ChainID
 	ErrInvalidChainID = errors.New("invalid chain id for sequencer")
 	// EmptyCodeHash is the hash of empty code
-	EmptyCodeHash = common.Hex2Bytes("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
+	EmptyCodeHash = common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
 )
 
 // BatchProcessor is used to process a batch of transactions
@@ -44,6 +45,7 @@ type BasicBatchProcessor struct {
 	forks            runtime.ForksInTime
 	SequencerAddress common.Address
 	SequencerChainID uint64
+	LastBatch        *Batch
 }
 
 // ProcessBatch processes all transactions inside a batch
@@ -56,7 +58,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	var index uint
 
 	for _, tx := range batch.Transactions {
-		senderAddress, err := getSender(tx)
+		senderAddress, err := helper.GetSender(tx)
 		if err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
 		}
@@ -66,7 +68,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 		if receiverAddress == nil {
 			result = b.run(nil)
 		} else {
-			result = b.transfer(tx, *senderAddress, *receiverAddress, batch.Sequencer)
+			result = b.transfer(tx, senderAddress, *receiverAddress, batch.Sequencer)
 		}
 
 		if result.Err != nil {
@@ -76,7 +78,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 
 			cumulativeGasUsed += result.GasUsed
 			includedTxs = append(includedTxs, tx)
-			receipt := b.generateReceipt(batch.BlockNumber, tx, index, senderAddress, receiverAddress, result, cumulativeGasUsed)
+			receipt := b.generateReceipt(batch.BlockNumber, tx, index, &senderAddress, receiverAddress, result, cumulativeGasUsed)
 			receipts = append(receipts, receipt)
 			index++
 		}
@@ -117,8 +119,13 @@ func (b *BasicBatchProcessor) generateReceipt(blockNumber uint64, tx *types.Tran
 }
 
 func (b *BasicBatchProcessor) generateBatchHeader(blockNumber uint64, sequencerAddress common.Address, cumulativeGasUsed uint64) *types.Header {
+	parentHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	if b.LastBatch != nil {
+		parentHash = b.LastBatch.Hash()
+	}
+
 	header := &types.Header{}
-	header.ParentHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	header.ParentHash = parentHash
 	header.UncleHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	header.Coinbase = sequencerAddress
 	header.Root = common.BytesToHash(b.stateRoot)
@@ -274,17 +281,17 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 
 // CheckTransaction checks if a transaction is valid
 func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) error {
-	senderAddress, err := getSender(tx)
+	senderAddress, err := helper.GetSender(tx)
 	if err != nil {
 		return err
 	}
 
-	senderNonce, err := b.State.tree.GetNonce(*senderAddress, b.stateRoot)
+	senderNonce, err := b.State.tree.GetNonce(senderAddress, b.stateRoot)
 	if err != nil {
 		return err
 	}
 
-	balance, err := b.State.tree.GetBalance(*senderAddress, b.stateRoot)
+	balance, err := b.State.tree.GetBalance(senderAddress, b.stateRoot)
 	if err != nil {
 		return err
 	}
@@ -392,16 +399,6 @@ func (b *BasicBatchProcessor) run(contract *runtime.Contract) *runtime.Execution
 	return &runtime.ExecutionResult{
 		Err: fmt.Errorf("not found"),
 	}
-}
-
-func getSender(tx *types.Transaction) (*common.Address, error) {
-	// Get Sender
-	signer := types.NewEIP155Signer(tx.ChainId())
-	sender, err := signer.Sender(tx)
-	if err != nil {
-		return &common.Address{}, err
-	}
-	return &sender, nil
 }
 
 // AccountExists check if the address already exists in the state

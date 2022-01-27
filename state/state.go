@@ -105,7 +105,12 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		chainID = sq.ChainID.Uint64()
 	}
 
-	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID}
+	lastBatch, err := s.GetBatchByNumber(context.Background(), lastBatchNumber)
+	if err != ErrNotFound && err != nil {
+		return nil, err
+	}
+
+	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch}
 	batchProcessor.setRuntime(evm.NewEVM())
 	blockNumber, err := s.GetLastBlockNumber(context.Background())
 	if err != nil {
