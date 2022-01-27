@@ -8,5 +8,6 @@ import (
 
 // Genesis contains the information to populate State on creation
 type Genesis struct {
-	Balances map[common.Address]*big.Int
+	Balances       map[common.Address]*big.Int
+	SmartContracts map[common.Address][]byte
 }
