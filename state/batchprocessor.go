@@ -25,6 +25,8 @@ var (
 	ErrInvalidGas = errors.New("not enough gas")
 	// ErrInvalidChainID indicates a mismatch between sequencer address and ChainID
 	ErrInvalidChainID = errors.New("invalid chain id for sequencer")
+	// EmptyCodeHash is the hash of empty code
+	EmptyCodeHash = common.Hex2Bytes("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
 )
 
 // BatchProcessor is used to process a batch of transactions
@@ -407,7 +409,7 @@ func (b *BasicBatchProcessor) AccountExists(address common.Address) bool {
 	panic("not implemented")
 }
 
-// GetStorage check gets the value stored in a given address and key
+// GetStorage gets the value stored in a given address and key
 func (b *BasicBatchProcessor) GetStorage(address common.Address, key common.Hash) common.Hash {
 	storage, err := b.State.tree.GetStorageAt(address, key, b.stateRoot)
 
@@ -472,34 +474,38 @@ func (b *BasicBatchProcessor) GetCode(address common.Address) []byte {
 	return code
 }
 
-// Selfdestruct
+// Selfdestruct deletes a contract and refunds gas
 func (b *BasicBatchProcessor) Selfdestruct(address common.Address, beneficiary common.Address) {
 	panic("not implemented")
 }
 
-// GetTxContext
+// GetTxContext returns metadata related to the Tx Context
 func (b *BasicBatchProcessor) GetTxContext() runtime.TxContext {
 	panic("not implemented")
 }
 
-// GetBlockHash
+// GetBlockHash gets the hash of a block
 func (b *BasicBatchProcessor) GetBlockHash(number int64) common.Hash {
 	panic("not implemented")
 }
 
-// EmitLog
+// EmitLog generates logs
 func (b *BasicBatchProcessor) EmitLog(address common.Address, topics []common.Hash, data []byte) {
 	panic("not implemented")
 }
 
-// Callx
+// Callx calls a SC
 func (b *BasicBatchProcessor) Callx(*runtime.Contract, runtime.Host) *runtime.ExecutionResult {
 	panic("not implemented")
 }
 
-// Empty
+// Empty check whether a address is empty
 func (b *BasicBatchProcessor) Empty(address common.Address) bool {
-	panic("not implemented")
+	nonce := b.GetNonce(address)
+	balance := b.GetBalance(address)
+	codehash := b.GetCodeHash(address)
+
+	return nonce == 0 && balance.Int64() == 0 && codehash == EmptyCodeHash
 }
 
 // GetNonce gets the nonce for an account at a given address
