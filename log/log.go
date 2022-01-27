@@ -103,8 +103,9 @@ func sprintStackTrace(st []tracerr.Frame) string {
 // is a tracerr.Error
 func appendStackTraceMaybeArgs(args []interface{}) []interface{} {
 	for i := range args {
-		if err, ok := args[i].(tracerr.Error); ok {
-			st := err.StackTrace()
+		if err, ok := args[i].(error); ok {
+			err = tracerr.Wrap(err)
+			st := tracerr.StackTrace(err)
 			return append(args, sprintStackTrace(st))
 		}
 	}
@@ -171,8 +172,9 @@ func appendStackTraceMaybeKV(msg string, kv []interface{}) string {
 		if i%2 == 0 {
 			continue
 		}
-		if err, ok := kv[i].(tracerr.Error); ok {
-			st := err.StackTrace()
+		if err, ok := kv[i].(error); ok {
+			err = tracerr.Wrap(err)
+			st := tracerr.StackTrace(err)
 			return fmt.Sprintf("%v: %v%v\n", msg, err, sprintStackTrace(st))
 		}
 	}
