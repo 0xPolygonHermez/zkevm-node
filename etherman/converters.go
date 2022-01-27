@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 )
@@ -30,7 +31,7 @@ func strSliceToBigIntArray(data []string) ([2]*big.Int, error) {
 	var res [2]*big.Int
 	for i, v := range data {
 		if i < minProofLen {
-			bigInt, ok := new(big.Int).SetString(v, 10)
+			bigInt, ok := new(big.Int).SetString(v, encoding.Base10)
 			if !ok {
 				return [2]*big.Int{}, fmt.Errorf("failed to convert string to big int, str: %s", v)
 			}
@@ -50,7 +51,7 @@ func proofSlcToIntArray(proofs []*proverclient.ProofX) ([2][2]*big.Int, error) {
 		if i < minProofLen {
 			for j, b := range proofs[i].Proof {
 				if j < minProofLen {
-					bigInt, ok := new(big.Int).SetString(b, 10)
+					bigInt, ok := new(big.Int).SetString(b, encoding.Base10)
 					if !ok {
 						return [2][2]*big.Int{}, fmt.Errorf("failed to convert string to big int, str: %s", v)
 					}

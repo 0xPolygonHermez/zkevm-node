@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Prime field. It is the prime number used as the order in our elliptic curve
 const fr = "21888242871839275222246405745257275088548364400416034343698204186575808495617"
 
 // Aggregator represents an aggregator
