@@ -8,14 +8,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
+	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
@@ -927,7 +930,11 @@ func TestStateErrors(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestEVM(t *testing.T) {
+func TestSCExecution(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
 	require.NoError(t, err)
@@ -943,11 +950,57 @@ func TestEVM(t *testing.T) {
 	stateTree := tree.NewStateTree(mt, scCodeStore, nil)
 
 	// Create state
-	// st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
-	root, err := stateTree.GetCurrentRoot()
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+
+	genesis := state.Genesis{
+		SmartContracts: make(map[common.Address][]byte),
+	}
+
+	genesis.SmartContracts[addr] = []byte{
+		evm.PUSH1, 0x01, evm.PUSH1, 0x02, evm.ADD,
+		evm.PUSH1, 0x00, evm.MSTORE8,
+		evm.PUSH1, 0x01, evm.PUSH1, 0x00, evm.RETURN,
+	}
+
+	err = st.SetGenesis(ctx, genesis)
 	require.NoError(t, err)
 
-	balance, err := stateTree.GetBalance(common.HexToAddress("0xbAe5deBDDf9381686ec18a8A2B99E09ADa982adf"), root)
+	var txs []*types.Transaction
+
+	tx := types.NewTransaction(0, addr, big.NewInt(1000000000000000000), 10000, new(big.Int).SetUint64(1), nil)
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
 	require.NoError(t, err)
-	require.Equal(t, new(big.Int), balance)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTx)
+
+	// Create Batch
+	batch := &state.Batch{
+		BatchNumber:        1,
+		BlockNumber:        uint64(0),
+		Sequencer:          sequencerAddress,
+		Aggregator:         sequencerAddress,
+		ConsolidatedTxHash: common.Hash{},
+		Header:             nil,
+		Uncles:             nil,
+		Transactions:       txs,
+		RawTxsData:         nil,
+		MaticCollateral:    big.NewInt(1),
+	}
+
+	// Create Batch Processor
+	bp, err := st.NewBatchProcessor(addr, 0)
+	require.NoError(t, err)
+
+	err = bp.ProcessBatch(batch)
+	require.NoError(t, err)
+
+	receipt, err := testState.GetTransactionReceipt(ctx, signedTx.Hash())
+	require.NoError(t, err)
+	// Compare against test receipt
+	assert.Equal(t, uint64(24), receipt.GasUsed)
 }

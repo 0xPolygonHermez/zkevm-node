@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -75,8 +76,10 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 		} else {
 			code := b.GetCode(*receiverAddress)
 			if len(code) > 0 {
-				contract := runtime.NewContractCall(0, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
+				log.Debugf("smart contract execution %v", receiverAddress)
+				contract := runtime.NewContractCall(1, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
 				result = b.run(contract)
+				result.GasUsed = tx.Gas() - result.GasLeft
 			} else if tx.Value() != new(big.Int) {
 				result = b.transfer(tx, senderAddress, *receiverAddress, batch.Sequencer)
 			} else {
@@ -150,7 +153,7 @@ func (b *BasicBatchProcessor) generateBatchHeader(blockNumber uint64, sequencerA
 	header.Number = new(big.Int).SetUint64(blockNumber)
 	header.GasLimit = 30000000
 	header.GasUsed = cumulativeGasUsed
-	header.Time = 0
+	header.Time = uint64(time.Now().Unix())
 	// header.Extra = []byte{0, 0, 0, 0, 0, 0, 0, 0}
 	header.MixDigest = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	header.Nonce = types.BlockNonce{0, 0, 0, 0, 0, 0, 0, 0}
@@ -160,7 +163,7 @@ func (b *BasicBatchProcessor) generateBatchHeader(blockNumber uint64, sequencerA
 
 // ProcessTransaction processes a transaction inside a batch
 func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, receiverAddress common.Address, sequencerAddress common.Address) *runtime.ExecutionResult {
-	log.Debugf("processing transaction [%s]: start", tx.Hash().Hex())
+	log.Debugf("processing transfer [%s]: start", tx.Hash().Hex())
 	var result *runtime.ExecutionResult = &runtime.ExecutionResult{}
 
 	txb, err := tx.MarshalBinary()
@@ -169,14 +172,14 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 		return result
 	}
 	encoded := hex.EncodeToHex(txb)
-	log.Debugf("processing transaction [%s]: raw: %v", tx.Hash().Hex(), encoded)
+	log.Debugf("processing transfer [%s]: raw: %v", tx.Hash().Hex(), encoded)
 
 	// save stateRoot and modify it only if transaction processing finishes successfully
 	root := b.stateRoot
 
 	// reset MT currentRoot in case it was modified by failed transaction
 	b.State.tree.SetCurrentRoot(root)
-	log.Debugf("processing transaction [%s]: root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
+	log.Debugf("processing transfer [%s]: root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
 	senderBalance, err := b.State.tree.GetBalance(senderAddress, root)
 	if err != nil {
@@ -196,13 +199,13 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 		return result
 	}
 
-	log.Debugf("processing transaction [%s]: sender: %v", tx.Hash().Hex(), senderAddress.Hex())
-	log.Debugf("processing transaction [%s]: nonce: %v", tx.Hash().Hex(), tx.Nonce())
-	log.Debugf("processing transaction [%s]: sender balance: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
+	log.Debugf("processing transfer [%s]: sender: %v", tx.Hash().Hex(), senderAddress.Hex())
+	log.Debugf("processing transfer [%s]: nonce: %v", tx.Hash().Hex(), tx.Nonce())
+	log.Debugf("processing transfer [%s]: sender balance: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
 
 	// Increase Nonce
 	senderNonce = big.NewInt(0).Add(senderNonce, big.NewInt(1))
-	log.Debugf("processing transaction [%s]: new nonce: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
+	log.Debugf("processing transfer [%s]: new nonce: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 
 	// Store new nonce
 	_, _, err = b.State.tree.SetNonce(senderAddress, senderNonce)
@@ -210,25 +213,25 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 		result.Err = err
 		return result
 	}
-	log.Debugf("processing transaction [%s]: sender nonce set to: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
+	log.Debugf("processing transfer [%s]: sender nonce set to: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 
 	// Calculate Gas
 	usedGas := new(big.Int).SetUint64(b.State.EstimateGas(tx))
 	usedGasValue := new(big.Int).Mul(usedGas, tx.GasPrice())
 	gasLeft := new(big.Int).SetUint64(tx.Gas() - usedGas.Uint64())
 	unusedGasValue := new(big.Int).Mul(gasLeft, tx.GasPrice())
-	log.Debugf("processing transaction [%s]: used gas: %v", tx.Hash().Hex(), usedGas.Text(encoding.Base10))
-	log.Debugf("processing transaction [%s]: remaining gas: %v", tx.Hash().Hex(), gasLeft.Text(encoding.Base10))
+	log.Debugf("processing transfer [%s]: used gas: %v", tx.Hash().Hex(), usedGas.Text(encoding.Base10))
+	log.Debugf("processing transfer [%s]: remaining gas: %v", tx.Hash().Hex(), gasLeft.Text(encoding.Base10))
 
 	// Calculate new balances
 	cost := tx.Cost()
-	log.Debugf("processing transaction [%s]: cost: %v", tx.Hash().Hex(), cost.Text(encoding.Base10))
+	log.Debugf("processing transfer [%s]: cost: %v", tx.Hash().Hex(), cost.Text(encoding.Base10))
 	value := tx.Value()
-	log.Debugf("processing transaction [%s]: value: %v", tx.Hash().Hex(), value.Text(encoding.Base10))
+	log.Debugf("processing transfer [%s]: value: %v", tx.Hash().Hex(), value.Text(encoding.Base10))
 
 	// Sender has to pay transaction cost
 	senderBalance.Sub(senderBalance, cost)
-	log.Debugf("processing transaction [%s]: sender balance after cost charged: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
+	log.Debugf("processing transfer [%s]: sender balance after cost charged: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
 
 	if sequencerAddress == senderAddress {
 		senderBalance.Add(senderBalance, usedGasValue)
@@ -251,10 +254,10 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 		result.Err = err
 		return result
 	}
-	log.Debugf("processing transaction [%s]: receiver balance: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
+	log.Debugf("processing transfer [%s]: receiver balance: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
 
 	receiverBalance.Add(receiverBalance, value)
-	log.Debugf("processing transaction [%s]: receiver balance after value added: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
+	log.Debugf("processing transfer [%s]: receiver balance after value added: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
 
 	// Pay gas to the sequencer
 	if sequencerAddress == receiverAddress && senderAddress != receiverAddress {
@@ -285,7 +288,7 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 	}
 
 	b.stateRoot = root
-	log.Debugf("processing transaction [%s]: new root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
+	log.Debugf("processing transfer [%s]: new root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
 	result.GasUsed = usedGas.Uint64()
 	result.GasLeft = gasLeft.Uint64()
@@ -488,26 +491,36 @@ func (b *BasicBatchProcessor) GetCode(address common.Address) []byte {
 
 // Selfdestruct deletes a contract and refunds gas
 func (b *BasicBatchProcessor) Selfdestruct(address common.Address, beneficiary common.Address) {
+	// TODO: Implement
 	panic("not implemented")
 }
 
 // GetTxContext returns metadata related to the Tx Context
 func (b *BasicBatchProcessor) GetTxContext() runtime.TxContext {
+	// TODO: Implement
 	panic("not implemented")
 }
 
-// GetBlockHash gets the hash of a block
+// GetBlockHash gets the hash of a block (batch in L2)
 func (b *BasicBatchProcessor) GetBlockHash(number int64) common.Hash {
-	panic("not implemented")
+	batch, err := b.State.GetBatchByNumber(context.Background(), uint64(number))
+
+	if err != nil {
+		log.Errorf("error on GetBlockHash for number %v", number)
+	}
+
+	return batch.Hash()
 }
 
 // EmitLog generates logs
 func (b *BasicBatchProcessor) EmitLog(address common.Address, topics []common.Hash, data []byte) {
-	panic("not implemented")
+	// TODO: Implement
+	log.Warn("batchprocessor.EmitLog not implented")
 }
 
 // Callx calls a SC
 func (b *BasicBatchProcessor) Callx(*runtime.Contract, runtime.Host) *runtime.ExecutionResult {
+	// TODO: Implement
 	panic("not implemented")
 }
 

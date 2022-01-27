@@ -37,11 +37,11 @@ LINT := $$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E go
 BUILD := $(GOENVVARS) go build $(LDFLAGS) -o $(GOBIN)/$(GOBINARY) $(GOCMD)
 
 .PHONY: build
-build: ## Build the binary locally into ./dist
+build: ## Builds the binary locally into ./dist
 	$(BUILD)
 
 .PHONY: build-docker
-build-docker: ## Build a docker image with the core binary
+build-docker: ## Builds a docker image with the core binary
 	docker build -t hezcore -f ./Dockerfile .
 
 .PHONY: test
@@ -65,7 +65,7 @@ lint: ## Runs the linter
 	$(LINT)
 
 .PHONY: validate
-validate: lint build test-full ## Validate the whole integrity of the code base
+validate: lint build test-full ## Validates the whole integrity of the code base
 
 .PHONY: run-db
 run-db: ## Runs the node database
