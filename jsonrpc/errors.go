@@ -8,6 +8,7 @@ type detailedError interface {
 	Error() string
 	Code() int
 }
+
 type invalidParamsError struct {
 	err string
 }
@@ -42,6 +43,16 @@ func (e *methodNotFoundError) Error() string {
 
 func (e *methodNotFoundError) Code() int {
 	return -32601
+}
+
+type genesisIsNotTraceableError struct{}
+
+func (e *genesisIsNotTraceableError) Error() string {
+	return "genesis is not traceable"
+}
+
+func (e *genesisIsNotTraceableError) Code() int {
+	return -32000
 }
 
 // NewMethodNotFoundError used when the RPC method does not exist or is not available

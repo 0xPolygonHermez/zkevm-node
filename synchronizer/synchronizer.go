@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -76,7 +78,6 @@ func (s *ClientSynchronizer) Sync() error {
 			case <-s.ctx.Done():
 				return
 			case <-time.After(waitDuration):
-				log.Debug("Syncing since ethereum blockNumber: ", lastEthBlockSynced.BlockNumber, " with blockHash:", lastEthBlockSynced.BlockHash)
 				if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
 					if s.ctx.Err() != nil {
 						continue
@@ -147,24 +148,57 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		fromBlock = lastEthBlockSynced.BlockNumber + 1
 	}
 
-	// This function returns the rollup information contained in the ethereum blocks and an extra param called order.
-	// Order param is a map that contains the event order to allow the synchronizer store the info in the same order that is readed.
-	// Name can be defferent in the order struct. For instance: Batches or Name:NewSequencers. This name is an identifier to check
-	// if the next info that must be stored in the db is a new sequencer or a batch. The value pos (position) tells what is the
-	// array index where this value is.
-	blocks, order, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, fromBlock, nil)
+	header, err := s.etherMan.HeaderByNumber(s.ctx, nil)
 	if err != nil {
 		return nil, err
 	}
+	lastKnownBlock := header.Number
 
+	for {
+		toBlock := fromBlock + s.cfg.SyncChunkSize
+
+		log.Debugf("Getting rollback info from block %d to block %d", fromBlock, toBlock)
+		// This function returns the rollup information contained in the ethereum blocks and an extra param called order.
+		// Order param is a map that contains the event order to allow the synchronizer store the info in the same order that is readed.
+		// Name can be defferent in the order struct. For instance: Batches or Name:NewSequencers. This name is an identifier to check
+		// if the next info that must be stored in the db is a new sequencer or a batch. The value pos (position) tells what is the
+		// array index where this value is.
+		blocks, order, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, fromBlock, &toBlock)
+		if err != nil {
+			return nil, err
+		}
+		s.processBlockRange(blocks, order)
+		if len(blocks) > 0 {
+			lastEthBlockSynced = &blocks[len(blocks)-1]
+		}
+		fromBlock = toBlock + 1
+
+		if lastKnownBlock.Cmp(new(big.Int).SetUint64(fromBlock)) < 1 {
+			break
+		}
+	}
+
+	// in order to prevent repeating querying and checking blocks we return the
+	// latest block checked minus some safety number to avoid issues with reorgs.
+	// safetyBlocks is the default number of blocks to check to always take into
+	// account reorgs.
+	const safetyBlocks = 50
+	if lastKnownBlock.Cmp(new(big.Int).SetUint64(lastEthBlockSynced.BlockNumber+uint64(safetyBlocks))) == 1 {
+		blockHeight := math.Max(0, float64(lastKnownBlock.Uint64()-uint64(safetyBlocks)))
+		lastEthBlockSynced = state.NewBlock(uint64(blockHeight))
+	}
+
+	return lastEthBlockSynced, nil
+}
+
+func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[common.Hash][]etherman.Order) {
 	// New info has to be included into the db using the state
 	for i := range blocks {
 		// Add block information
-		err = s.state.AddBlock(context.Background(), &blocks[i])
+		err := s.state.AddBlock(context.Background(), &blocks[i])
 		if err != nil {
 			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
 		}
-		lastEthBlockSynced = &blocks[i]
 		for _, element := range order[blocks[i].BlockHash] {
 			if element.Name == etherman.BatchesOrder {
 				batch := &blocks[i].Batches[element.Pos]
@@ -216,10 +250,6 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 			}
 		}
 	}
-	if len(blocks) != 0 {
-		return &blocks[len(blocks)-1], nil
-	}
-	return lastEthBlockSynced, nil
 }
 
 // This function allows reset the state until an specific ethereum block

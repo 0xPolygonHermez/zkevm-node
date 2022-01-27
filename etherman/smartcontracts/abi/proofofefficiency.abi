@@ -75,7 +75,7 @@
 			{
 				"indexed": true,
 				"internalType": "uint32",
-				"name": "batchNum",
+				"name": "numBatch",
 				"type": "uint32"
 			},
 			{
@@ -94,7 +94,7 @@
 			{
 				"indexed": true,
 				"internalType": "uint32",
-				"name": "batchNum",
+				"name": "numBatch",
 				"type": "uint32"
 			},
 			{
@@ -373,7 +373,7 @@
 			},
 			{
 				"internalType": "uint32",
-				"name": "batchNum",
+				"name": "numBatch",
 				"type": "uint32"
 			},
 			{

@@ -240,10 +240,10 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	assert.Equal(t, 5, len(block[0].Batches[0].Transactions))
 	assert.Equal(t, txRaw, block[0].Batches[0].RawTxsData)
 
-	proofSlc := []string{"0", "0"}
+	proofSlc := []string{"21565562996339338849564494593510043939919477777537254861096838135755987477204", "15747187504567161371139699773055768026064826386340198020294048673214119551381", "1"}
 	proofBelem := proverclient.ProofX{Proof: proofSlc}
 	var proofB []*proverclient.ProofX
-	proofB = append(proofB, &proofBelem, &proofBelem)
+	proofB = append(proofB, &proofBelem, &proofBelem, &proofBelem)
 	newStateRoot, ok := new(big.Int).SetString("1212121212121212121212121212121212121212121212121212121212121212", 16)
 	assert.True(t, ok)
 	newLocalExitRoot, ok := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
@@ -426,4 +426,15 @@ func TestDepositAndGlobalExitRootEvent(t *testing.T) {
 	assert.Equal(t, uint64(0), block[0].Claims[0].Index)
 	assert.Equal(t, uint(0), block[0].Claims[0].OriginalNetwork)
 	assert.Equal(t, uint64(3), block[0].Claims[0].BlockNumber)
+}
+
+func TestConverter(t *testing.T) {
+	str := "0x53793751b374bcde3992cb106847589b56c34765e728d55e0ca0afe991b6c16f"
+	res, err := stringToFixedByteArray(str)
+	if err != nil {
+		log.Error(err)
+		require.NoError(t, err)
+	}
+	finalString := hex.EncodeToString(res[:])
+	assert.Equal(t, str, "0x"+finalString)
 }

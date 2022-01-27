@@ -96,7 +96,12 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		chainID = sq.ChainID.Uint64()
 	}
 
-	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID}, nil
+	lastBatch, err := s.GetBatchByNumber(context.Background(), lastBatchNumber)
+	if err != ErrNotFound && err != nil {
+		return nil, err
+	}
+
+	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch}, nil
 }
 
 // NewGenesisBatchProcessor creates a new batch processor
@@ -179,13 +184,22 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 
 	var root common.Hash
 
-	// Genesis Balances
-	for address, balance := range genesis.Balances {
-		newRoot, _, err := s.tree.SetBalance(address, balance)
-		if err != nil {
-			return err
+	if genesis.Balances != nil { // Genesis Balances
+		for address, balance := range genesis.Balances {
+			newRoot, _, err := s.tree.SetBalance(address, balance)
+			if err != nil {
+				return err
+			}
+			root.SetBytes(newRoot)
 		}
-		root.SetBytes(newRoot)
+	} else { // Genesis Smart Contracts
+		for address, sc := range genesis.SmartContracts {
+			newRoot, _, err := s.tree.SetCode(address, sc)
+			if err != nil {
+				return err
+			}
+			root.SetBytes(newRoot)
+		}
 	}
 
 	// Generate Genesis Batch

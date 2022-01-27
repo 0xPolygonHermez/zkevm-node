@@ -1,10 +1,14 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -22,6 +26,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
@@ -29,6 +34,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	"gotest.tools/assert"
 )
 
@@ -70,7 +76,8 @@ func TestStateTransition(t *testing.T) {
 			// Set genesis
 			store := tree.NewPostgresStore(sqlDB)
 			mt := tree.NewMerkleTree(store, testCase.Arity, poseidon.Hash)
-			tr := tree.NewStateTree(mt, []byte{})
+			scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
+			tr := tree.NewStateTree(mt, scCodeStore, []byte{})
 
 			stateCfg := state.Config{
 				DefaultChainID: 1000,
@@ -99,14 +106,16 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Wait network to be ready
-			time.Sleep(15 * time.Second)
+			err = waitPoll(1*time.Second, 15*time.Second, networkUpCondition)
+			require.NoError(t, err)
 
 			// Start prover container
 			err = startProverContainer()
 			require.NoError(t, err)
 
 			// Wait prover to be ready
-			time.Sleep(5 * time.Second)
+			err = waitPoll(1*time.Second, 10*time.Second, proverUpCondition)
+			require.NoError(t, err)
 
 			// Eth client
 			client, err := ethclient.Dial(l1NetworkURL)
@@ -192,7 +201,8 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Wait core to be ready
-			time.Sleep(10 * time.Second)
+			err = waitPoll(1*time.Second, 10*time.Second, coreUpCondition)
+			require.NoError(t, err)
 
 			// Update Sequencer ChainID to the one in the test vector
 			_, err = sqlDB.Exec(ctx, "UPDATE state.sequencer SET chain_id = $1 WHERE address = $2", testCase.ChainIDSequencer, common.HexToAddress(testCase.SequencerAddress).Bytes())
@@ -200,6 +210,10 @@ func TestStateTransition(t *testing.T) {
 
 			// Apply transactions
 			l2Client, err := ethclient.Dial(l2NetworkURL)
+			require.NoError(t, err)
+
+			// store current batch number to check later when the state is updated
+			currentBatchNumber, err := st.GetLastBatchNumberSeenOnEthereum(ctx)
 			require.NoError(t, err)
 
 			for _, tx := range testCase.Txs {
@@ -213,14 +227,26 @@ func TestStateTransition(t *testing.T) {
 					require.NoError(t, err)
 
 					t.Logf("sending tx: %v - %v, %s", tx.ID, l2tx.Hash(), tx.From)
-					err = l2Client.SendTransaction(context.Background(), l2tx)
+					err = l2Client.SendTransaction(ctx, l2tx)
 					require.NoError(t, err)
 				}
 			}
 
 			// Wait for sequencer to select txs from pool and propose a new batch
 			// Wait for the synchronizer to update state
-			time.Sleep(10 * time.Second)
+			err = waitPoll(1*time.Second, 15*time.Second, func() (bool, error) {
+				// using a closure here to capture st and currentBatchNumber
+				latestBatchNumber, err := st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
+				if err != nil {
+					return false, err
+				}
+				done := latestBatchNumber > currentBatchNumber
+				return done, nil
+			})
+			// if the state is not expected to change waitPoll can timeout
+			if testCase.ExpectedNewRoot != testCase.ExpectedOldRoot {
+				require.NoError(t, err)
+			}
 
 			// Check leafs
 			batchNumber, err := st.GetLastBatchNumber(ctx)
@@ -359,6 +385,101 @@ func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Du
 			}
 
 			return nil
+		}
+	}
+}
+
+func nodeUpCondition(target string) (bool, error) {
+	var jsonStr = []byte(`{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}`)
+	req, err := http.NewRequest(
+		"POST", target,
+		bytes.NewBuffer(jsonStr))
+	if err != nil {
+		return false, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		// we allow connection errors to wait for the container up
+		return false, nil
+	}
+
+	if res.Body != nil {
+		defer func() {
+			err = res.Body.Close()
+		}()
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+
+	if err != nil {
+		return false, err
+	}
+
+	r := struct {
+		Result bool
+	}{}
+	err = json.Unmarshal(body, &r)
+	if err != nil {
+		return false, err
+	}
+
+	done := !r.Result
+
+	return done, nil
+}
+
+type conditionFunc func() (done bool, err error)
+
+func networkUpCondition() (bool, error) {
+	return nodeUpCondition(l1NetworkURL)
+}
+
+func proverUpCondition() (bool, error) {
+	opts := []grpc.DialOption{
+		grpc.WithInsecure(),
+	}
+	conn, err := grpc.Dial("localhost:50051", opts...)
+	if err != nil {
+		// we allow connection errors to wait for the container up
+		return false, nil
+	}
+
+	proverClient := proverclient.NewZKProverClient(conn)
+	state, err := proverClient.GetStatus(context.Background(), &proverclient.NoParams{})
+	if err != nil {
+		// we allow connection errors to wait for the container up
+		return false, nil
+	}
+
+	done := state.Status == proverclient.State_IDLE
+
+	return done, nil
+}
+
+func coreUpCondition() (done bool, err error) {
+	return nodeUpCondition(l2NetworkURL)
+}
+
+func waitPoll(interval, deadline time.Duration, condition conditionFunc) error {
+	timeout := time.After(deadline)
+	tick := time.Tick(interval)
+
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("Condition not met after %s", deadline)
+		case <-tick:
+			ok, err := condition()
+			if err != nil {
+				return err
+			}
+			if ok {
+				return nil
+			}
 		}
 	}
 }
