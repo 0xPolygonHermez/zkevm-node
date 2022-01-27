@@ -424,10 +424,7 @@ func TestBasicState_AddSequencer(t *testing.T) {
 func TestStateTransition(t *testing.T) {
 	// Load test vector
 	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition.json")
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err)
 
 	for _, testCase := range stateTransitionTestCases {
 		t.Run(testCase.Description, func(t *testing.T) {
@@ -452,6 +449,7 @@ func TestStateTransition(t *testing.T) {
 			genesis := state.Genesis{
 				Balances: make(map[common.Address]*big.Int),
 			}
+
 			for _, gacc := range testCase.GenesisAccounts {
 				balance := gacc.Balance.Int
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
@@ -565,6 +563,45 @@ func TestStateTransition(t *testing.T) {
 	}
 }
 
+func TestStateTransitionSC(t *testing.T) {
+	// Load test vector
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition-sc.json")
+	require.NoError(t, err)
+
+	for _, testCase := range stateTransitionTestCases {
+		t.Run(testCase.Description, func(t *testing.T) {
+			ctx := context.Background()
+			// Init database instance
+			err = dbutils.InitOrReset(cfg)
+			require.NoError(t, err)
+
+			// Create State db
+			stateDb, err = db.NewSQLDB(cfg)
+			require.NoError(t, err)
+
+			// Create State tree
+			store := tree.NewPostgresStore(stateDb)
+			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+			stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+
+			// Create state
+			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+
+			genesis := state.Genesis{
+				SmartContracts: make(map[common.Address][]byte),
+			}
+
+			for _, gsc := range testCase.GenesisSmartContracts {
+				genesis.SmartContracts[common.HexToAddress(gsc.Address)] = []byte(gsc.Code)
+			}
+
+			err = st.SetGenesis(ctx, genesis)
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestLastSeenBatch(t *testing.T) {
 	// Create State db
 	mtDb, err := db.NewSQLDB(cfg)
@@ -630,6 +667,7 @@ func TestReceipts(t *testing.T) {
 			genesis := state.Genesis{
 				Balances: make(map[common.Address]*big.Int),
 			}
+
 			for _, gacc := range testCase.GenesisAccounts {
 				balance := gacc.Balance.Int
 				genesis.Balances[common.HexToAddress(gacc.Address)] = &balance
