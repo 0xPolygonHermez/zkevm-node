@@ -96,7 +96,12 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		chainID = sq.ChainID.Uint64()
 	}
 
-	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID}, nil
+	lastBatch, err := s.GetBatchByNumber(context.Background(), lastBatchNumber)
+	if err != ErrNotFound && err != nil {
+		return nil, err
+	}
+
+	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch}, nil
 }
 
 // NewGenesisBatchProcessor creates a new batch processor

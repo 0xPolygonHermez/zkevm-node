@@ -10,6 +10,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/state/helper"
 )
 
 var (
@@ -37,6 +38,7 @@ type BasicBatchProcessor struct {
 	stateRoot        []byte
 	SequencerAddress common.Address
 	SequencerChainID uint64
+	LastBatch        *Batch
 }
 
 // ProcessBatch processes all transactions inside a batch
@@ -48,13 +50,13 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	var includedTxs []*types.Transaction
 
 	for _, tx := range batch.Transactions {
-		senderAddress, err := getSender(tx)
+		senderAddress, err := helper.GetSender(tx)
 		if err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
 		}
 		receiverAddress := tx.To()
 
-		if err := b.processTransaction(tx, *senderAddress, *receiverAddress, batch.Sequencer); err != nil {
+		if err := b.processTransaction(tx, senderAddress, *receiverAddress, batch.Sequencer); err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
 			// gasUsed = 0
 		} else {
@@ -74,9 +76,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			receipt.GasUsed = gasUsed
 			receipt.TxHash = tx.Hash()
 			receipt.TransactionIndex = uint(index)
-			if senderAddress != nil {
-				receipt.From = *senderAddress
-			}
+			receipt.From = senderAddress
 			if receiverAddress != nil {
 				receipt.To = *receiverAddress
 			}
@@ -91,10 +91,16 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	batch.Transactions = includedTxs
 	batch.Receipts = receipts
 
+	// Parent
+	parentHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	if b.LastBatch != nil {
+		parentHash = b.LastBatch.Hash()
+	}
+
 	// Set batch Header
 	header := &types.Header{}
 	batch.Header = header
-	batch.Header.ParentHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	batch.Header.ParentHash = parentHash
 	batch.Header.UncleHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	batch.Header.Coinbase = batch.Sequencer
 	batch.Header.Root = common.BytesToHash(b.stateRoot)
@@ -239,17 +245,17 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 
 // CheckTransaction checks if a transaction is valid
 func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) error {
-	senderAddress, err := getSender(tx)
+	senderAddress, err := helper.GetSender(tx)
 	if err != nil {
 		return err
 	}
 
-	senderNonce, err := b.State.tree.GetNonce(*senderAddress, b.stateRoot)
+	senderNonce, err := b.State.tree.GetNonce(senderAddress, b.stateRoot)
 	if err != nil {
 		return err
 	}
 
-	balance, err := b.State.tree.GetBalance(*senderAddress, b.stateRoot)
+	balance, err := b.State.tree.GetBalance(senderAddress, b.stateRoot)
 	if err != nil {
 		return err
 	}
@@ -341,14 +347,4 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 	}
 
 	return nil
-}
-
-func getSender(tx *types.Transaction) (*common.Address, error) {
-	// Get Sender
-	signer := types.NewEIP155Signer(tx.ChainId())
-	sender, err := signer.Sender(tx)
-	if err != nil {
-		return &common.Address{}, err
-	}
-	return &sender, nil
 }
