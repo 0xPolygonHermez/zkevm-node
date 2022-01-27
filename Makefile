@@ -45,34 +45,34 @@ build-docker: ## Build a docker image with the core binary
 	docker build -t hezcore -f ./Dockerfile .
 
 .PHONY: test
-test: ## runs only short tests without checking race conditions
+test: ## Runs only short tests without checking race conditions
 	$(STOPDB) || true
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; go test -short -p 1 ./...
 
 .PHONY: test-full
-test-full: build-docker ## runs all tests checking race conditions
+test-full: build-docker ## Runs all tests checking race conditions
 	$(STOPDB) || true
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
 
 .PHONY: install-linter
-install-linter: ## install linter
+install-linter: ## Installs the linter
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.39.0
 
 .PHONY: lint
-lint: ## runs linter
+lint: ## Runs the linter
 	$(LINT)
 
 .PHONY: validate
-validate: lint build test-full ## Validate the whole integrity of the code
+validate: lint build test-full ## Validate the whole integrity of the code base
 
 .PHONY: run-db
-run-db: ## starts a docker container to run the db instance
+run-db: ## Runs the node database
 	$(RUNDB)
 
 .PHONY: stop-db
-stop-db: ## stops the docker container running the db instance
+stop-db: ## Stops the node database
 	$(STOPDB)
 
 .PHONY: run-core
@@ -96,7 +96,7 @@ run-prover: ## Runs the zk prover
 	$(RUNPROVER)
 
 .PHONY: stop-prover
-stop-prover: ## Stop the zk prover
+stop-prover: ## Stops the zk prover
 	$(STOPPROVER)
 
 .PHONY: run-explorer
@@ -104,7 +104,7 @@ run-explorer: ## Runs the explorer
 	$(RUNEXPLORER)
 
 .PHONY: stop-explorer
-stop-explorer: ## Stop the explorer
+stop-explorer: ## Stops the explorer
 	$(STOPEXPLORER)
 
 .PHONY: run-explorer-db
@@ -112,7 +112,7 @@ run-explorer-db: ## Runs the explorer database
 	$(RUNEXPLORERDB)
 
 .PHONY: stop-explorer-db
-stop-explorer-db: ## Stop the explorer database
+stop-explorer-db: ## Stops the explorer database
 	$(STOPEXPLORERDB)
 
 .PHONY: run
@@ -127,7 +127,7 @@ stop: ## Stops all services available in the docker-compose file
 restart: stop run ## Executes `make stop` and `make run` commands
 
 .PHONY: run-db-scripts
-run-db-scripts: ## executes scripts on the db after it has been initialized, potentially using info from the environment
+run-db-scripts: ## Executes scripts on the db after it has been initialized, potentially using info from the environment
 	./scripts/postgres/run.sh
 
 .PHONY: install-git-hooks
