@@ -27,6 +27,7 @@ SyncInterval = "0s"
 SyncChunkSize = 100
 
 [Sequencer]
+AllowNonRegistered = "false"
 IntervalToProposeBatch = "15s"
 SyncedBlockDif = 1
     [Sequencer.Strategy]

@@ -67,8 +67,15 @@ func start(ctx *cli.Context) error {
 
 	proverClient, conn := newProverClient(c.Prover)
 	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer)
-	go runJSONRpcServer(*c, pool, st)
-	go runSequencer(c.Sequencer, etherman, pool, st)
+
+	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
+	// we can only start the jsonrpc server once the sequencer has determined the
+	// right chain ID to use (either custom or default), this channel will
+	// coordinate them (capacity 1 to allow the sequencer to start right away).
+	chainID := make(chan uint64, 1)
+	go runSequencer(c.Sequencer, etherman, pool, st, chainID)
+	go runJSONRpcServer(*c, pool, st, chainID)
+
 	go runAggregator(c.Aggregator, etherman, proverClient, st)
 	waitSignal(conn)
 	return nil
@@ -124,7 +131,7 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 	}
 }
 
-func runJSONRpcServer(c config.Config, pool pool.Pool, st state.State) {
+func runJSONRpcServer(c config.Config, pool pool.Pool, st state.State, chainID <-chan uint64) {
 	var err error
 	key, err := newKeyFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
 	if err != nil {
@@ -133,16 +140,18 @@ func runJSONRpcServer(c config.Config, pool pool.Pool, st state.State) {
 
 	seqAddress := key.Address
 
-	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st, <-chainID).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func runSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool pool.Pool, state state.State) {
+func runSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool pool.Pool, state state.State, chainID chan<- uint64) {
 	seq, err := sequencer.NewSequencer(c, pool, state, etherman)
 	if err != nil {
 		log.Fatal(err)
 	}
+	chainID <- seq.ChainID
+
 	seq.Start()
 }
 

@@ -36,4 +36,11 @@ type Config struct {
 
 	// Strategy is the configuration for the strategy
 	Strategy strategy.Strategy `mapstructure:"Strategy"`
+
+	// AllowNonRegistered determines if the sequencer will run using the default
+	// chain ID
+	AllowNonRegistered bool `mapstructure:"AllowNonRegistered"`
+
+	// DefaultChainID is the common ChainID to all the sequencers
+	DefaultChainID uint64
 }

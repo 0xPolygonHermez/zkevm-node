@@ -65,6 +65,7 @@ type EtherMan interface {
 	RegisterSequencer(url string) (*types.Transaction, error)
 	GetAddress() common.Address
 	GetDefaultChainID() (*big.Int, error)
+	GetCustomChainID() (*big.Int, error)
 	EstimateSendBatchCost(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error)
 	GetLatestProposedBatchNumber() (uint64, error)
 	GetLatestConsolidatedBatchNumber() (uint64, error)
@@ -627,6 +628,13 @@ func (etherMan *ClientEtherMan) GetAddress() common.Address {
 func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
 	defaulChainID, err := etherMan.PoE.DEFAULTCHAINID(&bind.CallOpts{Pending: false})
 	return new(big.Int).SetUint64(uint64(defaulChainID)), err
+}
+
+// GetCustomChainID function allows to retrieve the custom chainID from the smc.
+func (etherMan *ClientEtherMan) GetCustomChainID() (*big.Int, error) {
+	address := etherMan.GetAddress()
+	sequencer, err := etherMan.PoE.Sequencers(&bind.CallOpts{Pending: false}, address)
+	return new(big.Int).SetUint64(uint64(sequencer.ChainID)), err
 }
 
 // EstimateSendBatchCost function estimate gas cost for sending batch to ethereum sc

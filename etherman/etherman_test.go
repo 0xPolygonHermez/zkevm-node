@@ -288,6 +288,24 @@ func TestDefaultChainID(t *testing.T) {
 	assert.Equal(t, big.NewInt(1000), defaultChainID)
 }
 
+func TestCustomChainID(t *testing.T) {
+	// Set up testing environment
+	etherman, commit, _ := newTestingEnv()
+
+	// Register sequencer
+	_, err := etherman.RegisterSequencer("http://localhost")
+	require.NoError(t, err)
+
+	commit()
+
+	// Get chainID
+	customChainID, err := etherman.GetCustomChainID()
+	require.NoError(t, err)
+
+	// Check value
+	assert.Equal(t, big.NewInt(1001), customChainID)
+}
+
 func readTests() []vectors.TxEventsSendBatchTestCase {
 	// Load test vectors
 	txEventsSendBatchTestCases, err := vectors.LoadTxEventsSendBatchTestCases("../test/vectors/smc-txevents-sendbatch-test-vector.json")

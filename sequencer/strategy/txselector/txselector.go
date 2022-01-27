@@ -82,6 +82,8 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 	return selectedTxs, selectedTxsHashes, invalidTxsHashes, nil
 }
 
+// isSCTx returns true if the given transaction is related to smart contract
+// creation.
 func isSCTx(tx types.Transaction) bool {
 	return len(tx.Data()) != 0 || tx.To() == nil
 }
