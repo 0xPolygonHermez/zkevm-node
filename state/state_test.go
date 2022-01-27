@@ -926,3 +926,28 @@ func TestStateErrors(t *testing.T) {
 	_, err = st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
 	require.NoError(t, err)
 }
+
+func TestEVM(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+
+	// Create state
+	// st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+	root, err := stateTree.GetCurrentRoot()
+	require.NoError(t, err)
+
+	balance, err := stateTree.GetBalance(common.HexToAddress("0xbAe5deBDDf9381686ec18a8A2B99E09ADa982adf"), root)
+	require.NoError(t, err)
+	require.Equal(t, new(big.Int), balance)
+}

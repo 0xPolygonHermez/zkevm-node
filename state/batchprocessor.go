@@ -26,8 +26,12 @@ var (
 	ErrInvalidGas = errors.New("not enough gas")
 	// ErrInvalidChainID indicates a mismatch between sequencer address and ChainID
 	ErrInvalidChainID = errors.New("invalid chain id for sequencer")
+	// ErrNotImplemented indicates this feature has not yet been implemented
+	ErrNotImplemented = errors.New("feature not yet implemented")
 	// EmptyCodeHash is the hash of empty code
 	EmptyCodeHash = common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
+	// ZeroAddress is the address 0x0000000000000000000000000000000000000000
+	ZeroAddress = common.HexToAddress("0x0000000000000000000000000000000000000000")
 )
 
 // BatchProcessor is used to process a batch of transactions
@@ -65,10 +69,20 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 
 		receiverAddress := tx.To()
 
-		if receiverAddress == nil {
-			result = b.run(nil)
+		if *receiverAddress == ZeroAddress {
+			log.Warn("contract creation is not yet implemented")
+			result.Err = ErrNotImplemented
 		} else {
-			result = b.transfer(tx, senderAddress, *receiverAddress, batch.Sequencer)
+			code := b.GetCode(*receiverAddress)
+			if len(code) > 0 {
+				contract := runtime.NewContractCall(0, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
+				result = b.run(contract)
+			} else if tx.Value() != new(big.Int) {
+				result = b.transfer(tx, senderAddress, *receiverAddress, batch.Sequencer)
+			} else {
+				log.Error("unknown transaction type")
+				result.Err = ErrNotImplemented
+			}
 		}
 
 		if result.Err != nil {
@@ -403,7 +417,8 @@ func (b *BasicBatchProcessor) run(contract *runtime.Contract) *runtime.Execution
 
 // AccountExists check if the address already exists in the state
 func (b *BasicBatchProcessor) AccountExists(address common.Address) bool {
-	panic("not implemented")
+	// TODO: Implement this properly, may need to modify the MT
+	return !b.Empty(address)
 }
 
 // GetStorage gets the value stored in a given address and key
@@ -496,13 +511,9 @@ func (b *BasicBatchProcessor) Callx(*runtime.Contract, runtime.Host) *runtime.Ex
 	panic("not implemented")
 }
 
-// Empty check whether a address is empty
+// Empty check whether an address is empty
 func (b *BasicBatchProcessor) Empty(address common.Address) bool {
-	nonce := b.GetNonce(address)
-	balance := b.GetBalance(address)
-	codehash := b.GetCodeHash(address)
-
-	return nonce == 0 && balance.Int64() == 0 && codehash == EmptyCodeHash
+	return b.GetNonce(address) == 0 && b.GetBalance(address).Int64() == 0 && b.GetCodeHash(address) == EmptyCodeHash
 }
 
 // GetNonce gets the nonce for an account at a given address
