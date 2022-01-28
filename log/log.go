@@ -123,7 +123,6 @@ func Info(args ...interface{}) {
 
 // Warn calls log.Warn
 func Warn(args ...interface{}) {
-	args = appendStackTraceMaybeArgs(args)
 	getDefaultLog().Warn(args...)
 }
 
@@ -193,7 +192,6 @@ func Infow(template string, kv ...interface{}) {
 
 // Warnw calls log.Warnw
 func Warnw(template string, kv ...interface{}) {
-	template = appendStackTraceMaybeKV(template, kv)
 	getDefaultLog().Warnw(template, kv...)
 }
 
