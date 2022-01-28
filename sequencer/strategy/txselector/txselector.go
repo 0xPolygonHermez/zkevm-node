@@ -26,6 +26,10 @@ func (s *AcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []
 	selectedTxsHashes := make([]string, 0, len(pendingTxs))
 	for _, tx := range pendingTxs {
 		t := tx.Transaction
+		// do not add SC related txs
+		if isSCTx(t) {
+			continue
+		}
 		selectedTxs = append(selectedTxs, &t)
 		selectedTxsHashes = append(selectedTxsHashes, tx.Hash().Hex())
 	}
@@ -62,6 +66,10 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 	)
 	for _, tx := range sortedTxs {
 		t := tx.Transaction
+		// do not add SC related txs
+		if isSCTx(t) {
+			continue
+		}
 		err := batchProcessor.CheckTransaction(&t)
 		if err != nil {
 			invalidTxsHashes = append(invalidTxsHashes, tx.Hash().Hex())
@@ -72,4 +80,8 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 	}
 
 	return selectedTxs, selectedTxsHashes, invalidTxsHashes, nil
+}
+
+func isSCTx(tx types.Transaction) bool {
+	return tx.Data() != nil || tx.To() == nil
 }
