@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -96,7 +94,7 @@ func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, error)
 		return nil, err
 	}
 
-	block := batchToBlock(batch, fullTx)
+	block := batchToRPCBlock(batch, fullTx)
 
 	return block, nil
 }
@@ -117,7 +115,7 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 		return nil, err
 	}
 
-	block := batchToBlock(batch, fullTx)
+	block := batchToRPCBlock(batch, fullTx)
 
 	return block, nil
 }
@@ -269,13 +267,6 @@ func hexToTx(str string) (*types.Transaction, error) {
 	}
 
 	return tx, nil
-}
-
-func batchToBlock(batch *state.Batch, fullTx bool) *rpcBlock {
-	h := types.CopyHeader(batch.Header)
-	h.Number = big.NewInt(0).SetUint64(batch.BatchNumber)
-	b := types.NewBlock(h, batch.Transactions, batch.Uncles, stateReceiptsToReceipts(batch.Receipts), &trie.StackTrie{})
-	return toRPCBlock(b, fullTx)
 }
 
 func stateReceiptsToReceipts(stateReceipts []*state.Receipt) []*types.Receipt {
