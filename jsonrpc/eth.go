@@ -268,12 +268,3 @@ func hexToTx(str string) (*types.Transaction, error) {
 
 	return tx, nil
 }
-
-func stateReceiptsToReceipts(stateReceipts []*state.Receipt) []*types.Receipt {
-	rr := make([]*types.Receipt, 0, len(stateReceipts))
-	for _, sr := range stateReceipts {
-		r := sr.Receipt
-		rr = append(rr, &r)
-	}
-	return rr
-}
