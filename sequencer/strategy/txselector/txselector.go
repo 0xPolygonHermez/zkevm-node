@@ -83,5 +83,5 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 }
 
 func isSCTx(tx types.Transaction) bool {
-	return tx.Data() != nil || tx.To() == nil
+	return len(tx.Data()) != 0 || tx.To() == nil
 }
