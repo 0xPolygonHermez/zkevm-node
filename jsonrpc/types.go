@@ -155,8 +155,8 @@ type rpcBlock struct {
 	Uncles          []common.Hash          `json:"uncles"`
 }
 
-func toRPCBlock(b *types.Block, fullTx bool) *rpcBlock {
-	h := b.Header()
+func batchToRPCBlock(b *state.Batch, fullTx bool) *rpcBlock {
+	h := b.Header
 	res := &rpcBlock{
 		ParentHash:      h.ParentHash,
 		Sha3Uncles:      h.UncleHash,
@@ -167,7 +167,7 @@ func toRPCBlock(b *types.Block, fullTx bool) *rpcBlock {
 		LogsBloom:       h.Bloom,
 		Difficulty:      argUint64(h.Difficulty.Uint64()),
 		TotalDifficulty: argUint64(h.Difficulty.Uint64()), // not needed for POS
-		Size:            argUint64(b.Size()),
+		Size:            argUint64(h.Size()),
 		Number:          argUint64(h.Number.Uint64()),
 		GasLimit:        argUint64(h.GasLimit),
 		GasUsed:         argUint64(h.GasUsed),
@@ -180,9 +180,9 @@ func toRPCBlock(b *types.Block, fullTx bool) *rpcBlock {
 		Uncles:          []common.Hash{},
 	}
 
-	for idx, txn := range b.Transactions() {
+	for idx, txn := range b.Transactions {
 		if fullTx {
-			number := argUint64(b.Number().Uint64())
+			number := argUint64(b.BatchNumber)
 			hash := b.Hash()
 
 			tx := toRPCTransaction(
@@ -203,7 +203,7 @@ func toRPCBlock(b *types.Block, fullTx bool) *rpcBlock {
 		}
 	}
 
-	for _, uncle := range b.Uncles() {
+	for _, uncle := range b.Uncles {
 		res.Uncles = append(res.Uncles, uncle.Hash())
 	}
 
