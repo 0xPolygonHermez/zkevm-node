@@ -99,8 +99,7 @@ func sprintStackTrace(st []tracerr.Frame) string {
 	return builder.String()
 }
 
-// appendStackTraceMaybeArgs will append the stacktrace to the args if one of them
-// is a tracerr.Error
+// appendStackTraceMaybeArgs will append the stacktrace to the args
 func appendStackTraceMaybeArgs(args []interface{}) []interface{} {
 	for i := range args {
 		if err, ok := args[i].(error); ok {
@@ -155,18 +154,19 @@ func Warnf(template string, args ...interface{}) {
 	getDefaultLog().Warnf(template, args...)
 }
 
-// Fatalf calls log.Warnf
+// Fatalf calls log.Fatalf
 func Fatalf(template string, args ...interface{}) {
+	args = appendStackTraceMaybeArgs(args)
 	getDefaultLog().Fatalf(template, args...)
 }
 
 // Errorf calls log.Errorf and stores the error message into the ErrorFile
 func Errorf(template string, args ...interface{}) {
+	args = appendStackTraceMaybeArgs(args)
 	getDefaultLog().Errorf(template, args...)
 }
 
-// appendStackTraceMaybeKV will append the stacktrace to the KV if one of them
-// is a tracerr.Error
+// appendStackTraceMaybeKV will append the stacktrace to the KV
 func appendStackTraceMaybeKV(msg string, kv []interface{}) string {
 	for i := range kv {
 		if i%2 == 0 {
