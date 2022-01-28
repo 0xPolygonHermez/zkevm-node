@@ -80,6 +80,8 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 				contract := runtime.NewContractCall(1, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
 				result = b.run(contract)
 				result.GasUsed = tx.Gas() - result.GasLeft
+				log.Debugf("Transaction Data %v", tx.Data())
+				log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
 			} else if tx.Value() != new(big.Int) {
 				result = b.transfer(tx, senderAddress, *receiverAddress, batch.Sequencer)
 			} else {
@@ -421,7 +423,7 @@ func (b *BasicBatchProcessor) run(contract *runtime.Contract) *runtime.Execution
 // AccountExists check if the address already exists in the state
 func (b *BasicBatchProcessor) AccountExists(address common.Address) bool {
 	// TODO: Implement this properly, may need to modify the MT
-	log.Debug("AccountExists for address %v", address)
+	log.Debugf("AccountExists for address %v", address)
 	return !b.Empty(address)
 }
 
@@ -433,7 +435,7 @@ func (b *BasicBatchProcessor) GetStorage(address common.Address, key common.Hash
 		log.Errorf("error on GetStorage for address %v", address)
 	}
 
-	log.Debug("GetStorage for address %v", address)
+	log.Debugf("GetStorage for address %v", address)
 	return common.BytesToHash(storage.Bytes())
 }
 
@@ -449,7 +451,7 @@ func (b *BasicBatchProcessor) SetStorage(address common.Address, key common.Hash
 	}
 
 	// TODO: calculate and return proper value
-	log.Debug("SetStorage for address %v", address)
+	log.Debugf("SetStorage for address %v", address)
 	return runtime.StorageModified
 }
 
@@ -461,7 +463,7 @@ func (b *BasicBatchProcessor) GetBalance(address common.Address) *big.Int {
 		log.Errorf("error on GetBalance for address %v", address)
 	}
 
-	log.Debug("GetBalance for address %v", address)
+	log.Debugf("GetBalance for address %v", address)
 	return balance
 }
 
@@ -469,7 +471,7 @@ func (b *BasicBatchProcessor) GetBalance(address common.Address) *big.Int {
 func (b *BasicBatchProcessor) GetCodeSize(address common.Address) int {
 	code := b.GetCode(address)
 
-	log.Debug("GetCodeSize for address %v", address)
+	log.Debugf("GetCodeSize for address %v", address)
 	return len(code)
 }
 
@@ -481,7 +483,7 @@ func (b *BasicBatchProcessor) GetCodeHash(address common.Address) common.Hash {
 		log.Errorf("error on GetCodeHash for address %v", address)
 	}
 
-	log.Debug("GetCodeHash for address %v", address)
+	log.Debugf("GetCodeHash for address %v", address)
 	return common.BytesToHash(hash)
 }
 
@@ -493,7 +495,7 @@ func (b *BasicBatchProcessor) GetCode(address common.Address) []byte {
 		log.Errorf("error on GetCode for address %v", address)
 	}
 
-	log.Debug("GetCode for address %v", address)
+	log.Debugf("GetCode for address %v", address)
 	return code
 }
 
@@ -517,7 +519,7 @@ func (b *BasicBatchProcessor) GetBlockHash(number int64) common.Hash {
 		log.Errorf("error on GetBlockHash for number %v", number)
 	}
 
-	log.Debug("GetBlockHash for number %v", number)
+	log.Debugf("GetBlockHash for number %v", number)
 	return batch.Hash()
 }
 
@@ -535,7 +537,7 @@ func (b *BasicBatchProcessor) Callx(*runtime.Contract, runtime.Host) *runtime.Ex
 
 // Empty check whether an address is empty
 func (b *BasicBatchProcessor) Empty(address common.Address) bool {
-	log.Debug("Empty for address %v", address)
+	log.Debugf("Empty for address %v", address)
 	return b.GetNonce(address) == 0 && b.GetBalance(address).Int64() == 0 && b.GetCodeHash(address) == EmptyCodeHash
 }
 
@@ -547,6 +549,6 @@ func (b *BasicBatchProcessor) GetNonce(address common.Address) uint64 {
 		log.Errorf("error on GetNonce for address %v", address)
 	}
 
-	log.Debug("GetNonce for address %v", address)
+	log.Debugf("GetNonce for address %v", address)
 	return nonce.Uint64()
 }
