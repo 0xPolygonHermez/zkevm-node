@@ -204,7 +204,9 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 
 	// Generate Genesis Batch
 	batch := &Batch{
-		BatchNumber:        0,
+		Header: &types.Header{
+			Number: big.NewInt(0),
+		},
 		BlockNumber:        0,
 		ConsolidatedTxHash: common.HexToHash("0x1"),
 		MaticCollateral:    big.NewInt(0),
