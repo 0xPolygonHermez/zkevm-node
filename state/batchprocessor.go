@@ -30,6 +30,7 @@ var (
 type BatchProcessor interface {
 	ProcessBatch(batch *Batch) error
 	CheckTransaction(tx *types.Transaction) error
+	ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error
 }
 
 // BasicBatchProcessor is used to process a batch of transactions
@@ -56,7 +57,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 		}
 		receiverAddress := tx.To()
 
-		if err := b.processTransaction(tx, senderAddress, *receiverAddress, batch.Sequencer); err != nil {
+		if err := b.processTransaction(tx, senderAddress, batch.Sequencer); err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
 			// gasUsed = 0
 		} else {
@@ -122,8 +123,17 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	return err
 }
 
-// ProcessTransaction processes a transaction inside a batch
-func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAddress, receiverAddress common.Address, sequencerAddress common.Address) error {
+// ProcessTransaction processes a transaction
+func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error {
+	senderAddress, err := helper.GetSender(tx)
+	if err != nil {
+		return err
+	}
+
+	return b.processTransaction(tx, senderAddress, sequencerAddress)
+}
+
+func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAddress, sequencerAddress common.Address) error {
 	log.Debugf("processing transaction [%s]: start", tx.Hash().Hex())
 
 	txb, err := tx.MarshalBinary()
@@ -203,6 +213,7 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 	}
 
 	// Get receiver Balance
+	receiverAddress := *tx.To()
 	receiverBalance, err := b.State.tree.GetBalance(receiverAddress, root)
 	if err != nil {
 		return err
@@ -232,7 +243,7 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 	}
 
 	// Store receiver balance
-	root, _, err = b.State.tree.SetBalance(*tx.To(), receiverBalance)
+	root, _, err = b.State.tree.SetBalance(receiverAddress, receiverBalance)
 	if err != nil {
 		return err
 	}

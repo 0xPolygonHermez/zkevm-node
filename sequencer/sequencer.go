@@ -139,7 +139,7 @@ func (s *Sequencer) tryProposeBatch() {
 	}
 
 	// select txs
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs, s.Address)
 	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
 		log.Errorf("failed to select txs, err: %v", err)
 		return
