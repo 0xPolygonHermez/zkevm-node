@@ -182,7 +182,7 @@ func batchToRPCBlock(b *state.Batch, fullTx bool) *rpcBlock {
 
 	for idx, txn := range b.Transactions {
 		if fullTx {
-			number := argUint64(b.BatchNumber)
+			number := argUint64(b.Number().Uint64())
 			hash := b.Hash()
 
 			tx := toRPCTransaction(
