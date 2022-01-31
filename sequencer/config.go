@@ -42,5 +42,5 @@ type Config struct {
 	AllowNonRegistered bool `mapstructure:"AllowNonRegistered"`
 
 	// DefaultChainID is the common ChainID to all the sequencers
-	DefaultChainID uint64
+	DefaultChainID uint64 `mapstructure:"DefaultChainID"`
 }
