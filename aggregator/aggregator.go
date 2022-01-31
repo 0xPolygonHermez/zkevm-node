@@ -80,7 +80,7 @@ func (a *Aggregator) Start() {
 			getProofClient, err := a.ZkProverClient.GenProof(a.ctx, opts...)
 			if err != nil {
 				log.Errorf("failed to connect to the prover, err: %v", err)
-				return
+				continue
 			}
 
 			// 1. check, if state is synced
