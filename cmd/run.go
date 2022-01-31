@@ -65,14 +65,12 @@ func start(ctx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer)
+	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
+	seq := createSequencer(c.Sequencer, etherman, pool, st)
 
-	go func() {
-		c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
-		seq := createSequencer(c.Sequencer, etherman, pool, st)
-		go runSequencer(seq)
-		go runJSONRpcServer(*c, pool, st, seq.ChainID)
-	}()
+	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer)
+	go seq.Start()
+	go runJSONRpcServer(*c, pool, st, seq.ChainID)
 
 	proverClient, conn := newProverClient(c.Prover)
 	go runAggregator(c.Aggregator, etherman, proverClient, st)
@@ -150,10 +148,6 @@ func createSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool
 		log.Fatal(err)
 	}
 	return seq
-}
-
-func runSequencer(seq sequencer.Sequencer) {
-	seq.Start()
 }
 
 func runAggregator(c aggregator.Config, etherman *etherman.ClientEtherMan, proverclient proverclient.ZKProverClient, state state.State) {
