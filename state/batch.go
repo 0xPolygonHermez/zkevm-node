@@ -16,7 +16,6 @@ func (b *Batch) Hash() common.Hash {
 
 // Batch represents a batch
 type Batch struct {
-	BatchNumber        uint64
 	BlockNumber        uint64
 	Sequencer          common.Address
 	Aggregator         common.Address
@@ -34,4 +33,9 @@ type Batch struct {
 // NewBatchWithHeader creates a batch with the given header data.
 func NewBatchWithHeader(header types.Header) *Batch {
 	return &Batch{Header: &header}
+}
+
+// Number is a helper function to get the batch number from the header
+func (b *Batch) Number() *big.Int {
+	return b.Header.Number
 }

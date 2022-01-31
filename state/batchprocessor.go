@@ -98,7 +98,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	}
 
 	// Set batch Header
-	header := &types.Header{}
+	header := types.CopyHeader(batch.Header)
 	batch.Header = header
 	batch.Header.ParentHash = parentHash
 	batch.Header.UncleHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
@@ -108,7 +108,6 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	batch.Header.ReceiptHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	batch.Header.Bloom = types.BytesToBloom([]byte{0})
 	batch.Header.Difficulty = new(big.Int).SetUint64(0)
-	batch.Header.Number = new(big.Int).SetUint64(batch.BlockNumber)
 	batch.Header.GasLimit = 30000000
 	batch.Header.GasUsed = cumulativeGasUsed
 	batch.Header.Time = 0
@@ -312,7 +311,7 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 		batch.Header = &types.Header{
 			Root:       root,
 			Difficulty: big.NewInt(0),
-			Number:     new(big.Int).SetUint64(batch.BatchNumber),
+			Number:     batch.Number(),
 		}
 	}
 
@@ -329,7 +328,7 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 
 	// store transactions
 	for i, tx := range batch.Transactions {
-		err := b.State.AddTransaction(ctx, tx, batch.BatchNumber, uint(i))
+		err := b.State.AddTransaction(ctx, tx, batch.Number().Uint64(), uint(i))
 		if err != nil {
 			return err
 		}
