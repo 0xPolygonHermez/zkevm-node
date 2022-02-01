@@ -3,11 +3,11 @@ package txprofitabilitychecker
 import (
 	"context"
 	"fmt"
-	"github.com/hermeznetwork/hermez-core/encoding"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/state"
 )
@@ -115,7 +115,7 @@ func NewTxProfitabilityCheckerAcceptAll(state state.State, intervalAfterWhichBat
 
 // IsProfitable always returns true
 func (pc *AcceptAll) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, *big.Int, error) {
-	// TODO until gas calculation and price upadter is not implemented, this value will be hardcoded
+	// TODO until gas calculation and price updater is not implemented, this value will be hardcoded
 	maticReward := big.NewInt(int64(len(txs)))
 	maticReward.Mul(maticReward, big.NewInt(encoding.TenToThePowerOf18))
 	if pc.IntervalAfterWhichBatchSentAnyway != 0 {
