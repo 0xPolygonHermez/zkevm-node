@@ -586,33 +586,51 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 		rLength          = 32
 		vLength          = 1
 		c0               = 192 // 192 is c0. This value is defined by the rlp protocol
+		ff               = 255 // max value of rlp header
+		shortRlp         = 55 // length of the short rlp codification
+		f7               = 247 // 192 + 55 = c0 + shortRlp
 		etherNewV        = 35
 		mul2             = 2
 	)
-	for pos < int64(len(txsData)) {
-		length := txsData[pos : pos+1]
-		str := hex.EncodeToString(length)
-		num, err := strconv.ParseInt(str, hex.Base, encoding.BitSize64)
+	txDataLength := len(txsData)
+	for pos < int64(txDataLength) {
+		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos : pos+1]), hex.Base, encoding.BitSize64)
 		if err != nil {
 			log.Debug("error parsing header length: ", err)
 			return []*types.Transaction{}, []byte{}, err
 		}
 		// First byte is the length and must be ignored
-		num = num - c0 - 1
+		len := num - c0 - 1
 
-		fullDataTx := txsData[pos : pos+num+rLength+sLength+vLength+headerByteLength]
-		txInfo := txsData[pos : pos+num+headerByteLength]
-		r := txsData[pos+num+headerByteLength : pos+num+rLength+headerByteLength]
-		s := txsData[pos+num+rLength+headerByteLength : pos+num+rLength+sLength+headerByteLength]
-		v := txsData[pos+num+rLength+sLength+headerByteLength : pos+num+rLength+sLength+vLength+headerByteLength]
+		if len > shortRlp { // If rlp is bigger than lenght 55
+			// numH is the length of the bytes that give the length of the rlp
+			numH, err := strconv.ParseInt(hex.EncodeToString(txsData[pos : pos+1]), hex.Base, encoding.BitSize64)
+			if err != nil {
+				log.Debug("error parsing header length: ", err)
+				return []*types.Transaction{}, []byte{}, err
+			}
+			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
+			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1 : pos+1+numH-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
+			if err != nil {
+				log.Debug("error parsing header length: ", err)
+				return []*types.Transaction{}, []byte{}, err
+			}
+			len = n+1 // +1 is the header. For example 0xf7
+		}
 
-		pos = pos + num + rLength + sLength + vLength + headerByteLength
+		fullDataTx := txsData[pos : pos+len+rLength+sLength+vLength+headerByteLength]
+		txInfo := txsData[pos : pos+len+headerByteLength]
+		r := txsData[pos+len+headerByteLength : pos+len+rLength+headerByteLength]
+		s := txsData[pos+len+rLength+headerByteLength : pos+len+rLength+sLength+headerByteLength]
+		v := txsData[pos+len+rLength+sLength+headerByteLength : pos+len+rLength+sLength+vLength+headerByteLength]
+
+		pos = pos + len + rLength + sLength + vLength + headerByteLength
 
 		// Decode tx
 		var tx types.LegacyTx
 		err = rlp.DecodeBytes(txInfo, &tx)
 		if err != nil {
-			log.Debug("error decoding tx bytes: ", err, fullDataTx)
+			log.Debug("error decoding tx bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo))
 			return []*types.Transaction{}, []byte{}, err
 		}
 
