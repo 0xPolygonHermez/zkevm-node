@@ -606,13 +606,13 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 			// numH is the length of the bytes that give the length of the rlp
 			numH, err := strconv.ParseInt(hex.EncodeToString(txsData[pos : pos+1]), hex.Base, encoding.BitSize64)
 			if err != nil {
-				log.Debug("error parsing header length: ", err)
+				log.Debug("error parsing length of the bytes: ", err)
 				return []*types.Transaction{}, []byte{}, err
 			}
 			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
 			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1 : pos+1+numH-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
 			if err != nil {
-				log.Debug("error parsing header length: ", err)
+				log.Debug("error parsing length: ", err)
 				return []*types.Transaction{}, []byte{}, err
 			}
 			len = n+1 // +1 is the header. For example 0xf7
