@@ -457,6 +457,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		sequencer.URL = seq.SequencerURL
 		block.BlockHash = vLog.BlockHash
 		block.BlockNumber = vLog.BlockNumber
+		sequencer.BlockNumber = vLog.BlockNumber
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err != nil {
 			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
