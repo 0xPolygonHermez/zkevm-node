@@ -49,7 +49,7 @@ const (
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
-	defaultInterval = 1 * time.Second
+	defaultInterval = 2 * time.Second
 	defaultDeadline = 25 * time.Second
 )
 
@@ -445,11 +445,16 @@ func proverUpCondition() (bool, error) {
 	opts := []grpc.DialOption{
 		grpc.WithInsecure(),
 	}
-	conn, err := grpc.Dial("localhost:50051", opts...)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, "localhost:50051", opts...)
 	if err != nil {
 		// we allow connection errors to wait for the container up
 		return false, nil
 	}
+	defer func() {
+		err = conn.Close()
+	}()
 
 	proverClient := proverclient.NewZKProverClient(conn)
 	state, err := proverClient.GetStatus(context.Background(), &proverclient.NoParams{})
