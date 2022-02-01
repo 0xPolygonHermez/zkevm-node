@@ -630,7 +630,8 @@ func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
 	return new(big.Int).SetUint64(uint64(defaulChainID)), err
 }
 
-// GetCustomChainID function allows to retrieve the custom chainID from the smc.
+// GetCustomChainID function allows to retrieve the custom chainID from the latest
+// status of the smart contract (not meant to be used by the synchronizer).
 func (etherMan *ClientEtherMan) GetCustomChainID() (*big.Int, error) {
 	address := etherMan.GetAddress()
 	sequencer, err := etherMan.PoE.Sequencers(&bind.CallOpts{Pending: false}, address)
