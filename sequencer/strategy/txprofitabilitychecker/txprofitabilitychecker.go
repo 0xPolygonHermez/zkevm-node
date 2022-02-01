@@ -46,7 +46,6 @@ func NewTxProfitabilityCheckerBase(
 
 // IsProfitable checks for txs cost against the main reward
 func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, *big.Int, error) {
-
 	// sending amount of txs as matic reward there, bcs to calculate gas cost for tx this value is not important
 	// checker can't get it before, bcs final matic amount is dependent on value from gas estimation
 	// TODO improve the matic amount
@@ -84,7 +83,8 @@ func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (boo
 	// calculate aggregator reward in ether wei
 	aggregatorReward := big.NewInt(0).Mul(reward, big.NewInt(pc.RewardPercentageToAggregator))
 	// bcs on previous step reward was multiplied by not adapted percentage amount (e.g. 80), it should be divided by 100
-	aggregatorReward.Div(aggregatorReward, big.NewInt(100))
+	const percentageDivider = 100
+	aggregatorReward.Div(aggregatorReward, big.NewInt(percentageDivider))
 	// get sequencer reward
 	sequencerReward := big.NewInt(0).Sub(reward, aggregatorReward)
 	// if sequencer reward is less than minimal reward from config, then it makes no sense to send a batch
