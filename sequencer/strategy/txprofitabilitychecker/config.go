@@ -39,6 +39,7 @@ func (t *TokenAmountWithDecimals) UnmarshalText(data []byte) error {
 
 // Config for the tx profitability checker configuration
 type Config struct {
-	Type      Type                    `mapstructure:"Type"`
-	MinReward TokenAmountWithDecimals `mapstructure:"MinReward"`
+	Type                         Type                    `mapstructure:"Type"`
+	MinReward                    TokenAmountWithDecimals `mapstructure:"MinReward"`
+	RewardPercentageToAggregator int64                   `mapstructure:"RewardPercentageToAggregator"`
 }

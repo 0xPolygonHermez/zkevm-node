@@ -52,7 +52,8 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 	case txprofitabilitychecker.AcceptAllType:
 		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
 	case txprofitabilitychecker.BaseType:
-		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, state, cfg.Strategy.TxProfitabilityChecker.MinReward.Int, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
+		minReward := new(big.Int).Mul(cfg.Strategy.TxProfitabilityChecker.MinReward.Int, big.NewInt(encoding.TenToThePowerOf18))
+		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, state, minReward, cfg.IntervalAfterWhichBatchSentAnyway.Duration, cfg.Strategy.TxProfitabilityChecker.RewardPercentageToAggregator)
 	}
 
 	seqAddress := ethMan.GetAddress()
@@ -159,30 +160,26 @@ func (s *Sequencer) tryProposeBatch() {
 
 	// 4. Is selection profitable?
 	// check is it profitable to send selection
-	isProfitable, err := s.TxProfitabilityChecker.IsProfitable(s.ctx, selectedTxs)
+	isProfitable, aggregatorReward, err := s.TxProfitabilityChecker.IsProfitable(s.ctx, selectedTxs)
 	if err != nil {
 		log.Errorf("failed to check that txs are profitable or not, err: %v", err)
 		return
 	}
 	if isProfitable && len(selectedTxs) > 0 {
-		// assume, that fee for 1 tx is 1 matic
-		maticAmount := big.NewInt(int64(len(selectedTxs)))
-		maticAmount = big.NewInt(0).Mul(maticAmount, big.NewInt(encoding.TenToThePowerOf18))
-
 		// YES: send selection to Ethereum
-		sendBatchTx, err := s.EthMan.SendBatch(s.ctx, selectedTxs, maticAmount)
+		sendBatchTx, err := s.EthMan.SendBatch(s.ctx, selectedTxs, aggregatorReward)
 		if err != nil {
 			log.Errorf("failed to send batch proposal to ethereum, err: %v", err)
 			return
 		}
-		log.Infof("Batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
+		log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
 
 		// update txs in the pool as selected
 		err = s.Pool.UpdateTxsState(s.ctx, selectedTxsHashes, pool.TxStateSelected)
 		if err != nil {
 			log.Warnf("failed to update txs state to selected, err: %v", err)
 		}
-		log.Infof("Finished updating selected transactions state in the pool")
+		log.Infof("finished updating selected transactions state in the pool")
 	}
 	// NO: discard selection and wait for the new batch
 }
