@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -66,24 +67,9 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			gasUsed = b.State.EstimateGas(tx)
 			cumulativeGasUsed += gasUsed
 
-			// Set TX Receipt
-			receipt := &Receipt{}
-			receipt.Type = tx.Type()
-			receipt.PostState = b.stateRoot
-			receipt.Status = types.ReceiptStatusSuccessful
-			receipt.CumulativeGasUsed = cumulativeGasUsed
-			receipt.BlockNumber = new(big.Int).SetUint64(batch.BlockNumber)
-			receipt.GasUsed = gasUsed
-			receipt.TxHash = tx.Hash()
-			receipt.TransactionIndex = uint(index)
-			receipt.From = senderAddress
-			if receiverAddress != nil {
-				receipt.To = *receiverAddress
-			}
-
-			// Add receipt to the list of receipts
+			receipt := b.generateReceipt(batch.BlockNumber, tx, index, &senderAddress, receiverAddress, gasUsed, cumulativeGasUsed)
 			receipts = append(receipts, receipt)
-			index = index + 1
+			index++
 		}
 	}
 
@@ -91,15 +77,40 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	batch.Transactions = includedTxs
 	batch.Receipts = receipts
 
-	// Parent
+	b.populateBatchHeader(batch, cumulativeGasUsed)
+
+	// Store batch
+	err := b.commit(batch)
+
+	return err
+}
+
+func (b *BasicBatchProcessor) generateReceipt(blockNumber uint64, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, gasUsed uint64, cumulativeGasUsed uint64) *Receipt {
+	receipt := &Receipt{}
+	receipt.Type = tx.Type()
+	receipt.PostState = b.stateRoot
+	receipt.Status = types.ReceiptStatusSuccessful
+	receipt.CumulativeGasUsed = cumulativeGasUsed
+	receipt.BlockNumber = new(big.Int).SetUint64(blockNumber)
+	receipt.GasUsed = gasUsed
+	receipt.TxHash = tx.Hash()
+	receipt.TransactionIndex = index
+	if senderAddress != nil {
+		receipt.From = *senderAddress
+	}
+	if receiverAddress != nil {
+		receipt.To = *receiverAddress
+	}
+
+	return receipt
+}
+
+func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch, cumulativeGasUsed uint64) {
 	parentHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	if b.LastBatch != nil {
 		parentHash = b.LastBatch.Hash()
 	}
 
-	// Set batch Header
-	header := types.CopyHeader(batch.Header)
-	batch.Header = header
 	batch.Header.ParentHash = parentHash
 	batch.Header.UncleHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	batch.Header.Coinbase = batch.Sequencer
@@ -110,15 +121,9 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	batch.Header.Difficulty = new(big.Int).SetUint64(0)
 	batch.Header.GasLimit = 30000000
 	batch.Header.GasUsed = cumulativeGasUsed
-	batch.Header.Time = 0
-	// batch.Header.Extra = []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	batch.Header.Time = uint64(time.Now().Unix())
 	batch.Header.MixDigest = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	batch.Header.Nonce = types.BlockNonce{0, 0, 0, 0, 0, 0, 0, 0}
-
-	// Store batch
-	err := b.commit(batch)
-
-	return err
 }
 
 // ProcessTransaction processes a transaction inside a batch
