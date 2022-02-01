@@ -17,6 +17,10 @@ func Test_Defaults(t *testing.T) {
 			path:          "Synchronizer.SyncChunkSize",
 			expectedValue: uint64(100),
 		},
+		{
+			path:          "Sequencer.AllowNonRegistered",
+			expectedValue: false,
+		},
 	}
 
 	cfg, err := config.Load("", "")

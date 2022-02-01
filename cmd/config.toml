@@ -23,6 +23,7 @@ Port = 8123
 #SyncChunkSize = 100
 
 [Sequencer]
+AllowNonRegistered = "false"
 IntervalToProposeBatch = "3s"
 SyncedBlockDif = 1
     [Sequencer.Strategy]
