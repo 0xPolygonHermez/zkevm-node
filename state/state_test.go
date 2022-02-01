@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -442,8 +443,10 @@ func TestStateTransition(t *testing.T) {
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
-
+			genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+			genesisBlock.ReceivedAt = time.Now()
 			genesis := state.Genesis{
+				Block:    genesisBlock,
 				Balances: make(map[common.Address]*big.Int),
 			}
 
@@ -583,8 +586,10 @@ func TestStateTransitionSC(t *testing.T) {
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
-
+			genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+			genesisBlock.ReceivedAt = time.Now()
 			genesis := state.Genesis{
+				Block:          genesisBlock,
 				SmartContracts: make(map[common.Address][]byte),
 			}
 
@@ -660,7 +665,10 @@ func TestReceipts(t *testing.T) {
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
 
+			genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+			genesisBlock.ReceivedAt = time.Now()
 			genesis := state.Genesis{
+				Block:    genesisBlock,
 				Balances: make(map[common.Address]*big.Int),
 			}
 
