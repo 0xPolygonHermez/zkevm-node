@@ -11,11 +11,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/stretchr/testify/assert"
-	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/stretchr/testify/require"
 )
 
