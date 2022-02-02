@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"time"
 
@@ -178,16 +177,6 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		}
 	}
 
-	// in order to prevent repeating querying and checking blocks we return the
-	// latest block checked minus some safety number to avoid issues with reorgs.
-	// safetyBlocks is the default number of blocks to check to always take into
-	// account reorgs.
-	const safetyBlocks = 50
-	if lastKnownBlock.Cmp(new(big.Int).SetUint64(lastEthBlockSynced.BlockNumber+uint64(safetyBlocks))) == 1 {
-		blockHeight := math.Max(0, float64(lastKnownBlock.Uint64()-uint64(safetyBlocks)))
-		lastEthBlockSynced = state.NewBlock(uint64(blockHeight))
-	}
-
 	return lastEthBlockSynced, nil
 }
 
@@ -206,11 +195,9 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				log.Debug("consolidatedTxHash received: ", batch.ConsolidatedTxHash)
 				if batch.ConsolidatedTxHash.String() != emptyHash.String() {
 					// consolidate batch locally
-					err = s.state.ConsolidateBatch(s.ctx, batch.BatchNumber, batch.ConsolidatedTxHash, *batch.ConsolidatedAt)
+					err = s.state.ConsolidateBatch(s.ctx, batch.Number().Uint64(), batch.ConsolidatedTxHash, *batch.ConsolidatedAt)
 					if err != nil {
-						log.Warnf("failed to consolidate batch locally, batch number: %d, err: %v",
-							batch.BatchNumber, err)
-						continue
+						log.Fatal("failed to consolidate batch locally, batch number: %d, err: %v", batch.Number().Uint64(), err)
 					}
 				} else {
 					// Get lastest synced batch number
@@ -227,7 +214,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					// Add batches
 					err = batchProcessor.ProcessBatch(batch)
 					if err != nil {
-						log.Fatal("error processing batch. BatchNumber: ", batch.BatchNumber, ". Error: ", err)
+						log.Fatal("error processing batch. BatchNumber: ", batch.Number().Uint64(), ". Error: ", err)
 					}
 				}
 			} else if element.Name == etherman.NewSequencersOrder {

@@ -65,10 +65,14 @@ func start(ctx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	proverClient, conn := newProverClient(c.Prover)
+	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
+	seq := createSequencer(c.Sequencer, etherman, pool, st)
+
 	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer)
-	go runJSONRpcServer(*c, pool, st)
-	go runSequencer(c.Sequencer, etherman, pool, st)
+	go seq.Start()
+	go runJSONRpcServer(*c, pool, st, seq.ChainID)
+
+	proverClient, conn := newProverClient(c.Prover)
 	go runAggregator(c.Aggregator, etherman, proverClient, st)
 	waitSignal(conn)
 	return nil
@@ -124,7 +128,7 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 	}
 }
 
-func runJSONRpcServer(c config.Config, pool pool.Pool, st state.State) {
+func runJSONRpcServer(c config.Config, pool pool.Pool, st state.State, chainID uint64) {
 	var err error
 	key, err := newKeyFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
 	if err != nil {
@@ -133,17 +137,17 @@ func runJSONRpcServer(c config.Config, pool pool.Pool, st state.State) {
 
 	seqAddress := key.Address
 
-	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st, chainID).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func runSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool pool.Pool, state state.State) {
+func createSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool pool.Pool, state state.State) sequencer.Sequencer {
 	seq, err := sequencer.NewSequencer(c, pool, state, etherman)
 	if err != nil {
 		log.Fatal(err)
 	}
-	seq.Start()
+	return seq
 }
 
 func runAggregator(c aggregator.Config, etherman *etherman.ClientEtherMan, proverclient proverclient.ZKProverClient, state state.State) {

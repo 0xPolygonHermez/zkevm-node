@@ -80,7 +80,7 @@ func (a *Aggregator) Start() {
 			getProofClient, err := a.ZkProverClient.GenProof(a.ctx, opts...)
 			if err != nil {
 				log.Errorf("failed to connect to the prover, err: %v", err)
-				return
+				continue
 			}
 
 			// 1. check, if state is synced
@@ -94,15 +94,15 @@ func (a *Aggregator) Start() {
 				log.Warnf("failed to get last eth batch, err: %v", err)
 				continue
 			}
-			if lastConsolidatedBatch.BatchNumber < lastConsolidatedEthBatchNum {
-				log.Infof("waiting for the state to be synced, lastConsolidatedBatchNum: %d, lastEthConsolidatedBatchNum: %d", lastConsolidatedBatch.BatchNumber, lastConsolidatedEthBatchNum)
+			if lastConsolidatedBatch.Number().Uint64() < lastConsolidatedEthBatchNum {
+				log.Infof("waiting for the state to be synced, lastConsolidatedBatchNum: %d, lastEthConsolidatedBatchNum: %d", lastConsolidatedBatch.Number().Uint64(), lastConsolidatedEthBatchNum)
 				continue
 			}
 
 			// 2. find next batch to consolidate
-			delete(batchesSent, lastConsolidatedBatch.BatchNumber)
+			delete(batchesSent, lastConsolidatedBatch.Number().Uint64())
 
-			batchToConsolidate, err := a.State.GetBatchByNumber(a.ctx, lastConsolidatedBatch.BatchNumber+1)
+			batchToConsolidate, err := a.State.GetBatchByNumber(a.ctx, lastConsolidatedBatch.Number().Uint64()+1)
 
 			if err != nil {
 				if err == state.ErrNotFound {
@@ -113,9 +113,9 @@ func (a *Aggregator) Start() {
 				continue
 			}
 
-			if batchesSent[batchToConsolidate.BatchNumber] {
+			if batchesSent[batchToConsolidate.Number().Uint64()] {
 				log.Infof("batch with number %d was already sent, but not yet consolidated by synchronizer",
-					batchToConsolidate.BatchNumber)
+					batchToConsolidate.Number().Uint64())
 				continue
 			}
 
@@ -128,18 +128,18 @@ func (a *Aggregator) Start() {
 			}
 
 			if !isProfitable {
-				log.Info("Batch %d is not profitable, matic collateral %v", batchToConsolidate.BatchNumber, batchToConsolidate.MaticCollateral)
+				log.Info("Batch %d is not profitable, matic collateral %v", batchToConsolidate.Number().Uint64(), batchToConsolidate.MaticCollateral)
 				continue
 			}
 
 			// 4. send zki + txs to the prover
-			stateRootConsolidated, err := a.State.GetStateRootByBatchNumber(lastConsolidatedBatch.BatchNumber)
+			stateRootConsolidated, err := a.State.GetStateRootByBatchNumber(lastConsolidatedBatch.Number().Uint64())
 			if err != nil {
 				log.Warnf("failed to get current state root, err: %v", err)
 				continue
 			}
 
-			stateRootToConsolidate, err := a.State.GetStateRootByBatchNumber(batchToConsolidate.BatchNumber)
+			stateRootToConsolidate, err := a.State.GetStateRootByBatchNumber(batchToConsolidate.Number().Uint64())
 			if err != nil {
 				log.Warnf("failed to get state root to consolidate, err: %v", err)
 				continue
@@ -207,7 +207,7 @@ func (a *Aggregator) Start() {
 					SequencerAddr:    batchToConsolidate.Sequencer.String(),
 					BatchHashData:    batchHashData.String(),
 					ChainId:          chainID,
-					BatchNum:         uint32(batchToConsolidate.BatchNumber),
+					BatchNum:         uint32(batchToConsolidate.Number().Uint64()),
 				},
 				GlobalExitRoot: globalExitRoot.String(),
 				Txs:            txs,
@@ -216,12 +216,12 @@ func (a *Aggregator) Start() {
 			log.Debugf("Data sent to the prover: %+v", inputProver)
 			err = getProofClient.Send(inputProver)
 			if err != nil {
-				log.Warnf("failed to send batch to the prover, batchNumber: %v, err: %v", batchToConsolidate.BatchNumber, err)
+				log.Warnf("failed to send batch to the prover, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64(), err)
 				continue
 			}
 			proofState, err := getProofClient.Recv()
 			if err != nil {
-				log.Warnf("failed to get proof from the prover, batchNumber: %v, err: %v", batchToConsolidate.BatchNumber, err)
+				log.Warnf("failed to get proof from the prover, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64(), err)
 				continue
 			}
 
@@ -262,16 +262,16 @@ func (a *Aggregator) Start() {
 			}
 
 			// 4. send proof + txs to the SC
-			batchNum := new(big.Int).SetUint64(batchToConsolidate.BatchNumber)
+			batchNum := new(big.Int).SetUint64(batchToConsolidate.Number().Uint64())
 			h, err := a.EtherMan.ConsolidateBatch(batchNum, proofState.Proof)
 			if err != nil {
 				log.Warnf("failed to send request to consolidate batch to ethereum, batch number: %d, err: %v",
-					batchToConsolidate.BatchNumber, err)
+					batchToConsolidate.Number().Uint64(), err)
 				continue
 			}
-			batchesSent[batchToConsolidate.BatchNumber] = true
+			batchesSent[batchToConsolidate.Number().Uint64()] = true
 
-			log.Infof("Batch %d consolidated: %s", batchToConsolidate.BatchNumber, h.Hash())
+			log.Infof("Batch %d consolidated: %s", batchToConsolidate.Number().Uint64(), h.Hash())
 		case <-a.ctx.Done():
 			return
 		}

@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -55,10 +56,16 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 	}
 
 	seqAddress := ethMan.GetAddress()
-	chainID, err := getChainID(ctx, state, seqAddress)
-	if err != nil {
-		cancel()
-		return Sequencer{}, fmt.Errorf("failed to get chain id for the sequencer, err: %v", err)
+	var chainID uint64
+	if cfg.AllowNonRegistered {
+		chainID = cfg.DefaultChainID
+	} else {
+		var err error
+		chainID, err = getChainID(ctx, state, ethMan, seqAddress)
+		if err != nil {
+			cancel()
+			return Sequencer{}, fmt.Errorf("failed to get chain id for the sequencer, err: %v", err)
+		}
 	}
 	s := Sequencer{
 		cfg:     cfg,
@@ -127,19 +134,19 @@ func (s *Sequencer) tryProposeBatch() {
 
 	// 3. Run selection
 	// init batch processor
-	lastBatch, err := s.State.GetLastBatch(s.ctx, false)
+	lastVirtualBatch, err := s.State.GetLastBatch(s.ctx, true)
 	if err != nil {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return
 	}
-	bp, err := s.State.NewBatchProcessor(s.Address, lastBatch.BatchNumber)
+	bp, err := s.State.NewBatchProcessor(s.Address, lastVirtualBatch.Number().Uint64())
 	if err != nil {
 		log.Errorf("failed to create new batch processor, err: %v", err)
 		return
 	}
 
 	// select txs
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs, s.Address)
 	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
 		log.Errorf("failed to select txs, err: %v", err)
 		return
@@ -180,7 +187,7 @@ func (s *Sequencer) tryProposeBatch() {
 	// NO: discard selection and wait for the new batch
 }
 
-func getChainID(ctx context.Context, st state.State, seqAddress common.Address) (uint64, error) {
+func getChainID(ctx context.Context, st state.State, ethMan etherman.EtherMan, seqAddress common.Address) (uint64, error) {
 	const intervalToCheckSequencerRegistrationInSeconds = 3
 	var (
 		seq *state.Sequencer
@@ -188,33 +195,22 @@ func getChainID(ctx context.Context, st state.State, seqAddress common.Address) 
 	)
 	for {
 		seq, err = st.GetSequencer(ctx, seqAddress)
-		if err != nil {
-			if err == state.ErrNotFound {
-				log.Warnf("make sure the address %s has been registered in the smart contract as a sequencer, err: %v", seqAddress.Hex(), err)
-				lastSyncedBatchNum, err := st.GetLastBatchNumber(ctx)
-				if err != nil {
-					log.Errorf("failed to get last synced batch, err: %v", err)
-					return 0, err
-				}
-				lastEthBatchNum, err := st.GetLastBatchNumberSeenOnEthereum(ctx)
-				if err != nil {
-					log.Errorf("failed to get last eth batch, err: %v", err)
-					return 0, err
-				}
-
-				if lastEthBatchNum == 0 {
-					log.Warnf("last eth batch num is 0, waiting to sync...")
-				} else {
-					const oneHundred = 100
-					percentage := lastSyncedBatchNum * oneHundred / lastEthBatchNum
-					log.Warnf("node is still syncing, synced %d%%", percentage)
-				}
-				time.Sleep(intervalToCheckSequencerRegistrationInSeconds * time.Second)
-				continue
-			} else {
-				return 0, err
-			}
+		if err == nil && seq != nil {
+			return seq.ChainID.Uint64(), nil
 		}
-		return seq.ChainID.Uint64(), nil
+		if !errors.Is(err, state.ErrNotFound) {
+			return 0, err
+		}
+		chainID, err := ethMan.GetCustomChainID()
+		if err != nil {
+			return 0, err
+		}
+		if chainID.Uint64() != 0 {
+			return chainID.Uint64(), nil
+		}
+
+		log.Warnf("make sure the address %s has been registered in the smart contract as a sequencer, err: %v", seqAddress.Hex(), err)
+
+		time.Sleep(intervalToCheckSequencerRegistrationInSeconds * time.Second)
 	}
 }

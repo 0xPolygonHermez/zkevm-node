@@ -48,6 +48,9 @@ const (
 
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+
+	defaultInterval = 2 * time.Second
+	defaultDeadline = 25 * time.Second
 )
 
 var dbConfig = dbutils.NewConfigFromEnv()
@@ -106,7 +109,7 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Wait network to be ready
-			err = waitPoll(1*time.Second, 15*time.Second, networkUpCondition)
+			err = waitPoll(defaultInterval, defaultDeadline, networkUpCondition)
 			require.NoError(t, err)
 
 			// Start prover container
@@ -114,7 +117,7 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Wait prover to be ready
-			err = waitPoll(1*time.Second, 10*time.Second, proverUpCondition)
+			err = waitPoll(defaultInterval, defaultDeadline, proverUpCondition)
 			require.NoError(t, err)
 
 			// Eth client
@@ -201,7 +204,7 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Wait core to be ready
-			err = waitPoll(1*time.Second, 10*time.Second, coreUpCondition)
+			err = waitPoll(defaultInterval, defaultDeadline, coreUpCondition)
 			require.NoError(t, err)
 
 			// Update Sequencer ChainID to the one in the test vector
@@ -234,7 +237,7 @@ func TestStateTransition(t *testing.T) {
 
 			// Wait for sequencer to select txs from pool and propose a new batch
 			// Wait for the synchronizer to update state
-			err = waitPoll(1*time.Second, 15*time.Second, func() (bool, error) {
+			err = waitPoll(defaultInterval, defaultDeadline, func() (bool, error) {
 				// using a closure here to capture st and currentBatchNumber
 				latestBatchNumber, err := st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
 				if err != nil {
@@ -442,11 +445,16 @@ func proverUpCondition() (bool, error) {
 	opts := []grpc.DialOption{
 		grpc.WithInsecure(),
 	}
-	conn, err := grpc.Dial("localhost:50051", opts...)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, "localhost:50051", opts...)
 	if err != nil {
 		// we allow connection errors to wait for the container up
 		return false, nil
 	}
+	defer func() {
+		err = conn.Close()
+	}()
 
 	proverClient := proverclient.NewZKProverClient(conn)
 	state, err := proverClient.GetStatus(context.Background(), &proverclient.NoParams{})

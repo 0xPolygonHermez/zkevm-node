@@ -99,12 +99,12 @@ func sprintStackTrace(st []tracerr.Frame) string {
 	return builder.String()
 }
 
-// appendStackTraceMaybeArgs will append the stacktrace to the args if one of them
-// is a tracerr.Error
+// appendStackTraceMaybeArgs will append the stacktrace to the args
 func appendStackTraceMaybeArgs(args []interface{}) []interface{} {
 	for i := range args {
-		if err, ok := args[i].(tracerr.Error); ok {
-			st := err.StackTrace()
+		if err, ok := args[i].(error); ok {
+			err = tracerr.Wrap(err)
+			st := tracerr.StackTrace(err)
 			return append(args, sprintStackTrace(st))
 		}
 	}
@@ -123,7 +123,6 @@ func Info(args ...interface{}) {
 
 // Warn calls log.Warn
 func Warn(args ...interface{}) {
-	args = appendStackTraceMaybeArgs(args)
 	getDefaultLog().Warn(args...)
 }
 
@@ -154,25 +153,27 @@ func Warnf(template string, args ...interface{}) {
 	getDefaultLog().Warnf(template, args...)
 }
 
-// Fatalf calls log.Warnf
+// Fatalf calls log.Fatalf
 func Fatalf(template string, args ...interface{}) {
+	args = appendStackTraceMaybeArgs(args)
 	getDefaultLog().Fatalf(template, args...)
 }
 
 // Errorf calls log.Errorf and stores the error message into the ErrorFile
 func Errorf(template string, args ...interface{}) {
+	args = appendStackTraceMaybeArgs(args)
 	getDefaultLog().Errorf(template, args...)
 }
 
-// appendStackTraceMaybeKV will append the stacktrace to the KV if one of them
-// is a tracerr.Error
+// appendStackTraceMaybeKV will append the stacktrace to the KV
 func appendStackTraceMaybeKV(msg string, kv []interface{}) string {
 	for i := range kv {
 		if i%2 == 0 {
 			continue
 		}
-		if err, ok := kv[i].(tracerr.Error); ok {
-			st := err.StackTrace()
+		if err, ok := kv[i].(error); ok {
+			err = tracerr.Wrap(err)
+			st := tracerr.StackTrace(err)
 			return fmt.Sprintf("%v: %v%v\n", msg, err, sprintStackTrace(st))
 		}
 	}
@@ -191,7 +192,6 @@ func Infow(template string, kv ...interface{}) {
 
 // Warnw calls log.Warnw
 func Warnw(template string, kv ...interface{}) {
-	template = appendStackTraceMaybeKV(template, kv)
 	getDefaultLog().Warnw(template, kv...)
 }
 

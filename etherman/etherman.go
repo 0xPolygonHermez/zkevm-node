@@ -65,6 +65,7 @@ type EtherMan interface {
 	RegisterSequencer(url string) (*types.Transaction, error)
 	GetAddress() common.Address
 	GetDefaultChainID() (*big.Int, error)
+	GetCustomChainID() (*big.Int, error)
 	EstimateSendBatchCost(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error)
 	GetLatestProposedBatchNumber() (uint64, error)
 	GetLatestConsolidatedBatchNumber() (uint64, error)
@@ -382,29 +383,21 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log) (*state.Block, error) {
 	switch vLog.Topics[0] {
 	case newBatchEventSignatureHash:
-		var block state.Block
 		// Indexed parameters using topics
-		var batch state.Batch
-		batch.BatchNumber = new(big.Int).SetBytes(vLog.Topics[1][:]).Uint64()
-		batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
 		var head types.Header
 		head.TxHash = vLog.TxHash
 		head.Difficulty = big.NewInt(0)
-		head.Number = new(big.Int).SetUint64(batch.BatchNumber)
+		head.Number = new(big.Int).SetBytes(vLog.Topics[1][:])
+
+		var batch state.Batch
+		batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
 		batch.Header = &head
-		block.BlockNumber = vLog.BlockNumber
 		batch.BlockNumber = vLog.BlockNumber
-		maticCollateral, err := etherMan.GetSequencerCollateral(batch.BatchNumber)
+		maticCollateral, err := etherMan.GetSequencerCollateral(batch.Number().Uint64())
 		if err != nil {
-			return nil, fmt.Errorf("error getting matic collateral for batch: %d. BlockNumber: %d. Error: %w", batch.BatchNumber, block.BlockNumber, err)
+			return nil, fmt.Errorf("error getting matic collateral for batch: %d. BlockNumber: %d. Error: %w", batch.Number().Uint64(), vLog.BlockNumber, err)
 		}
 		batch.MaticCollateral = maticCollateral
-		block.BlockHash = vLog.BlockHash
-		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
-		if err != nil {
-			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
-		}
-		block.ParentHash = fullBlock.ParentHash()
 		// Read the tx for this batch.
 		tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, batch.Header.TxHash)
 		if err != nil {
@@ -415,29 +408,44 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		txs, rawTxs, err := decodeTxs(tx.Data())
 		batch.RawTxsData = rawTxs
 		if err != nil {
-			log.Warn("No txs decoded in batch: ", batch.BatchNumber, ". This batch is inside block: ", batch.BlockNumber,
+			log.Warn("No txs decoded in batch: ", batch.Number(), ". This batch is inside block: ", batch.BlockNumber,
 				". Error: ", err)
 		}
 		batch.Transactions = txs
-		batch.ReceivedAt = block.ReceivedAt
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+		}
+		batch.ReceivedAt = fullBlock.ReceivedAt
+
+		var block state.Block
+		block.BlockNumber = vLog.BlockNumber
+		block.BlockHash = vLog.BlockHash
+		block.ParentHash = fullBlock.ParentHash()
 		block.Batches = append(block.Batches, batch)
 		return &block, nil
 	case consolidateBatchSignatureHash:
-		var block state.Block
+		var head types.Header
+		head.Number = new(big.Int).SetBytes(vLog.Topics[1][:])
+
 		var batch state.Batch
-		batch.BatchNumber = new(big.Int).SetBytes(vLog.Topics[1][:]).Uint64()
+		batch.Header = &head
 		batch.Aggregator = common.BytesToAddress(vLog.Topics[2].Bytes())
 		batch.ConsolidatedTxHash = vLog.TxHash
-		log.Debug("Consolidated tx hash: ", vLog.TxHash, batch.ConsolidatedTxHash)
-		block.BlockNumber = vLog.BlockNumber
-		block.BlockHash = vLog.BlockHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 		if err != nil {
-			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
 		}
-		batch.ConsolidatedAt = &block.ReceivedAt
+		batch.ConsolidatedAt = &fullBlock.ReceivedAt
+
+		var block state.Block
+		block.BlockNumber = vLog.BlockNumber
+		block.BlockHash = vLog.BlockHash
 		block.ParentHash = fullBlock.ParentHash()
 		block.Batches = append(block.Batches, batch)
+
+		log.Debug("Consolidated tx hash: ", vLog.TxHash, batch.ConsolidatedTxHash)
+
 		return &block, nil
 	case newSequencerSignatureHash:
 		seq, err := etherMan.PoE.ParseRegisterSequencer(vLog)
@@ -627,6 +635,14 @@ func (etherMan *ClientEtherMan) GetAddress() common.Address {
 func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
 	defaulChainID, err := etherMan.PoE.DEFAULTCHAINID(&bind.CallOpts{Pending: false})
 	return new(big.Int).SetUint64(uint64(defaulChainID)), err
+}
+
+// GetCustomChainID function allows to retrieve the custom chainID from the latest
+// status of the smart contract (not meant to be used by the synchronizer).
+func (etherMan *ClientEtherMan) GetCustomChainID() (*big.Int, error) {
+	address := etherMan.GetAddress()
+	sequencer, err := etherMan.PoE.Sequencers(&bind.CallOpts{Pending: false}, address)
+	return new(big.Int).SetUint64(uint64(sequencer.ChainID)), err
 }
 
 // EstimateSendBatchCost function estimate gas cost for sending batch to ethereum sc

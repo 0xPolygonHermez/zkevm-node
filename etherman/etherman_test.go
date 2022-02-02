@@ -153,7 +153,7 @@ func TestSCEvents(t *testing.T) {
 		proofC           = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
 		proofB           = [2][2]*big.Int{proofC, proofC}
 	)
-	_, err = etherman.PoE.VerifyBatch(etherman.auth, newLocalExitRoot, newStateRoot, uint32(block[0].Batches[0].BatchNumber), proofA, proofB, proofC)
+	_, err = etherman.PoE.VerifyBatch(etherman.auth, newLocalExitRoot, newStateRoot, uint32(block[0].Batches[0].Number().Uint64()), proofA, proofB, proofC)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -286,6 +286,24 @@ func TestDefaultChainID(t *testing.T) {
 
 	// Check value
 	assert.Equal(t, big.NewInt(1000), defaultChainID)
+}
+
+func TestCustomChainID(t *testing.T) {
+	// Set up testing environment
+	etherman, commit, _ := newTestingEnv()
+
+	// Register sequencer
+	_, err := etherman.RegisterSequencer("http://localhost")
+	require.NoError(t, err)
+
+	commit()
+
+	// Get chainID
+	customChainID, err := etherman.GetCustomChainID()
+	require.NoError(t, err)
+
+	// Check value
+	assert.Equal(t, big.NewInt(1001), customChainID)
 }
 
 func readTests() []vectors.TxEventsSendBatchTestCase {

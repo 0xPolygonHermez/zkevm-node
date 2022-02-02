@@ -83,7 +83,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 				log.Debugf("Transaction Data %v", tx.Data())
 				log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
 			} else if tx.Value() != new(big.Int) {
-				result = b.transfer(tx, senderAddress, *receiverAddress, batch.Sequencer)
+				result = b.transfer(tx, senderAddress, batch.Sequencer)
 			} else {
 				log.Error("unknown transaction type")
 				result.Err = ErrNotImplemented
@@ -108,13 +108,33 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	batch.Receipts = receipts
 
 	// Set batch Header
-	header := b.generateBatchHeader(batch.BlockNumber, batch.Sequencer, cumulativeGasUsed)
-	batch.Header = header
+	b.populateBatchHeader(batch, cumulativeGasUsed)
 
 	// Store batch
 	err := b.commit(batch)
 
 	return err
+}
+
+func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch, cumulativeGasUsed uint64) {
+	parentHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	if b.LastBatch != nil {
+		parentHash = b.LastBatch.Hash()
+	}
+
+	batch.Header.ParentHash = parentHash
+	batch.Header.UncleHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	batch.Header.Coinbase = batch.Sequencer
+	batch.Header.Root = common.BytesToHash(b.stateRoot)
+	batch.Header.TxHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	batch.Header.ReceiptHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	batch.Header.Bloom = types.BytesToBloom([]byte{0})
+	batch.Header.Difficulty = new(big.Int).SetUint64(0)
+	batch.Header.GasLimit = 30000000
+	batch.Header.GasUsed = cumulativeGasUsed
+	batch.Header.Time = uint64(time.Now().Unix())
+	batch.Header.MixDigest = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	batch.Header.Nonce = types.BlockNonce{0, 0, 0, 0, 0, 0, 0, 0}
 }
 
 func (b *BasicBatchProcessor) generateReceipt(blockNumber uint64, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, result *runtime.ExecutionResult, cumulativeGasUsed uint64) *Receipt {
@@ -137,34 +157,8 @@ func (b *BasicBatchProcessor) generateReceipt(blockNumber uint64, tx *types.Tran
 	return receipt
 }
 
-func (b *BasicBatchProcessor) generateBatchHeader(blockNumber uint64, sequencerAddress common.Address, cumulativeGasUsed uint64) *types.Header {
-	parentHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	if b.LastBatch != nil {
-		parentHash = b.LastBatch.Hash()
-	}
-
-	header := &types.Header{}
-	header.ParentHash = parentHash
-	header.UncleHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	header.Coinbase = sequencerAddress
-	header.Root = common.BytesToHash(b.stateRoot)
-	header.TxHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	header.ReceiptHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	header.Bloom = types.BytesToBloom([]byte{0})
-	header.Difficulty = new(big.Int).SetUint64(0)
-	header.Number = new(big.Int).SetUint64(blockNumber)
-	header.GasLimit = 30000000
-	header.GasUsed = cumulativeGasUsed
-	header.Time = uint64(time.Now().Unix())
-	// header.Extra = []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	header.MixDigest = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	header.Nonce = types.BlockNonce{0, 0, 0, 0, 0, 0, 0, 0}
-
-	return header
-}
-
 // ProcessTransaction processes a transaction inside a batch
-func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, receiverAddress common.Address, sequencerAddress common.Address) *runtime.ExecutionResult {
+func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
 	log.Debugf("processing transfer [%s]: start", tx.Hash().Hex())
 	var result *runtime.ExecutionResult = &runtime.ExecutionResult{}
 
@@ -251,6 +245,7 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 	}
 
 	// Get receiver Balance
+	receiverAddress := *tx.To()
 	receiverBalance, err := b.State.tree.GetBalance(receiverAddress, root)
 	if err != nil {
 		result.Err = err
@@ -283,7 +278,7 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 	}
 
 	// Store receiver balance
-	root, _, err = b.State.tree.SetBalance(*tx.To(), receiverBalance)
+	root, _, err = b.State.tree.SetBalance(receiverAddress, receiverBalance)
 	if err != nil {
 		result.Err = err
 		return result
@@ -367,7 +362,7 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 		batch.Header = &types.Header{
 			Root:       root,
 			Difficulty: big.NewInt(0),
-			Number:     new(big.Int).SetUint64(batch.BatchNumber),
+			Number:     batch.Number(),
 		}
 	}
 
@@ -384,7 +379,7 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 
 	// store transactions
 	for i, tx := range batch.Transactions {
-		err := b.State.AddTransaction(ctx, tx, batch.BatchNumber, uint(i))
+		err := b.State.AddTransaction(ctx, tx, batch.Number().Uint64(), uint(i))
 		if err != nil {
 			return err
 		}

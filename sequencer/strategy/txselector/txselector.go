@@ -1,6 +1,7 @@
 package txselector
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -9,7 +10,7 @@ import (
 // TxSelector interface for different types of selection
 type TxSelector interface {
 	// SelectTxs selecting txs and returning selected txs, hashes of the selected txs (to not build array multiple times) and hashes of invalid txs
-	SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error)
+	SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error)
 }
 
 // AcceptAll that accept all transactions
@@ -21,11 +22,15 @@ func NewTxSelectorAcceptAll() TxSelector {
 }
 
 // SelectTxs selects all transactions and don't check anything
-func (s *AcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error) {
+func (s *AcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
 	selectedTxs := make([]*types.Transaction, 0, len(pendingTxs))
 	selectedTxsHashes := make([]string, 0, len(pendingTxs))
 	for _, tx := range pendingTxs {
 		t := tx.Transaction
+		// do not add SC related txs
+		if isSCTx(t) {
+			continue
+		}
 		selectedTxs = append(selectedTxs, &t)
 		selectedTxsHashes = append(selectedTxsHashes, tx.Hash().Hex())
 	}
@@ -54,7 +59,7 @@ func NewTxSelectorBase(cfg Config) TxSelector {
 }
 
 // SelectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction) ([]*types.Transaction, []string, []string, error) {
+func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
 	sortedTxs := t.TxSorter.SortTxs(pendingTxs)
 	var (
 		selectedTxs                         []*types.Transaction
@@ -62,6 +67,10 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 	)
 	for _, tx := range sortedTxs {
 		t := tx.Transaction
+		// do not add SC related txs
+		if isSCTx(t) {
+			continue
+		}
 		err := batchProcessor.CheckTransaction(&t)
 		if err != nil {
 			invalidTxsHashes = append(invalidTxsHashes, tx.Hash().Hex())
@@ -72,4 +81,10 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 	}
 
 	return selectedTxs, selectedTxsHashes, invalidTxsHashes, nil
+}
+
+// isSCTx returns true if the given transaction is related to smart contract
+// creation.
+func isSCTx(tx types.Transaction) bool {
+	return len(tx.Data()) != 0 || tx.To() == nil
 }

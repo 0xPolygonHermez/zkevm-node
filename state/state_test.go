@@ -119,36 +119,33 @@ func setUpBatches() {
 	var err error
 
 	batch1 = &state.Batch{
-		BatchNumber:        batchNumber1,
 		BlockNumber:        blockNumber1,
 		Sequencer:          addr,
 		Aggregator:         addr,
 		ConsolidatedTxHash: consolidatedTxHash,
-		Header:             nil,
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(batchNumber1)},
 		Uncles:             nil,
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
 		ReceivedAt:         time.Now(),
 	}
 	batch2 = &state.Batch{
-		BatchNumber:        batchNumber2,
 		BlockNumber:        blockNumber1,
 		Sequencer:          addr,
 		Aggregator:         addr,
 		ConsolidatedTxHash: consolidatedTxHash,
-		Header:             nil,
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(batchNumber2)},
 		Uncles:             nil,
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
 		ReceivedAt:         time.Now(),
 	}
 	batch3 = &state.Batch{
-		BatchNumber:        batchNumber3,
 		BlockNumber:        blockNumber2,
 		Sequencer:          addr,
 		Aggregator:         addr,
 		ConsolidatedTxHash: common.Hash{},
-		Header:             nil,
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(batchNumber3)},
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
@@ -156,12 +153,11 @@ func setUpBatches() {
 		ReceivedAt:         time.Now(),
 	}
 	batch4 = &state.Batch{
-		BatchNumber:        batchNumber4,
 		BlockNumber:        blockNumber2,
 		Sequencer:          addr,
 		Aggregator:         addr,
 		ConsolidatedTxHash: common.Hash{},
-		Header:             nil,
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(batchNumber4)},
 		Uncles:             nil,
 		Transactions:       nil,
 		RawTxsData:         nil,
@@ -239,14 +235,14 @@ func TestBasicState_GetLastVirtualBatch(t *testing.T) {
 	lastBatch, err := testState.GetLastBatch(ctx, true)
 	assert.NoError(t, err)
 	assert.Equal(t, batch4.Hash(), lastBatch.Hash())
-	assert.Equal(t, batch4.BatchNumber, lastBatch.BatchNumber)
+	assert.Equal(t, batch4.Number().Uint64(), lastBatch.Number().Uint64())
 }
 
 func TestBasicState_GetLastBatch(t *testing.T) {
 	lastBatch, err := testState.GetLastBatch(ctx, false)
 	assert.NoError(t, err)
 	assert.Equal(t, batch2.Hash(), lastBatch.Hash())
-	assert.Equal(t, batch2.BatchNumber, lastBatch.BatchNumber)
+	assert.Equal(t, batch2.Number().Uint64(), lastBatch.Number().Uint64())
 	assert.Equal(t, maticCollateral, lastBatch.MaticCollateral)
 }
 
@@ -254,7 +250,7 @@ func TestBasicState_GetPreviousBatch(t *testing.T) {
 	previousBatch, err := testState.GetPreviousBatch(ctx, false, 1)
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.Hash(), previousBatch.Hash())
-	assert.Equal(t, batch1.BatchNumber, previousBatch.BatchNumber)
+	assert.Equal(t, batch1.Number().Uint64(), previousBatch.Number().Uint64())
 	assert.Equal(t, maticCollateral, previousBatch.MaticCollateral)
 }
 
@@ -262,37 +258,38 @@ func TestBasicState_GetBatchByHash(t *testing.T) {
 	batch, err := testState.GetBatchByHash(ctx, batch1.Hash())
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.Hash(), batch.Hash())
-	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
+	assert.Equal(t, batch1.Number().Uint64(), batch.Number().Uint64())
 	assert.Equal(t, maticCollateral, batch1.MaticCollateral)
 }
 
 func TestBasicState_GetBatchByNumber(t *testing.T) {
-	batch, err := testState.GetBatchByNumber(ctx, batch1.BatchNumber)
+	batch, err := testState.GetBatchByNumber(ctx, batch1.Number().Uint64())
 	assert.NoError(t, err)
-	assert.Equal(t, batch1.BatchNumber, batch.BatchNumber)
+	assert.Equal(t, batch1.Number().Uint64(), batch.Number().Uint64())
 	assert.Equal(t, batch1.Hash(), batch.Hash())
 }
 
 func TestBasicState_GetLastBatchNumber(t *testing.T) {
 	batchNumber, err := testState.GetLastBatchNumber(ctx)
 	assert.NoError(t, err)
-	assert.Equal(t, batch4.BatchNumber, batchNumber)
+	assert.Equal(t, batch4.Number().Uint64(), batchNumber)
 }
 
 func TestBasicState_ConsolidateBatch(t *testing.T) {
 	batchNumber := uint64(5)
 	batch := &state.Batch{
-		BatchNumber:        batchNumber,
 		BlockNumber:        blockNumber2,
 		Sequencer:          addr,
 		Aggregator:         addr,
 		ConsolidatedTxHash: common.Hash{},
-		Header:             nil,
-		Uncles:             nil,
-		Transactions:       nil,
-		RawTxsData:         nil,
-		MaticCollateral:    maticCollateral,
-		ReceivedAt:         time.Now(),
+		Header: &types.Header{
+			Number: big.NewInt(0).SetUint64(batchNumber),
+		},
+		Uncles:          nil,
+		Transactions:    nil,
+		RawTxsData:      nil,
+		MaticCollateral: maticCollateral,
+		ReceivedAt:      time.Now(),
 	}
 
 	bp, err := testState.NewGenesisBatchProcessor(nil)
@@ -510,12 +507,11 @@ func TestStateTransition(t *testing.T) {
 
 			// Create Batch
 			batch := &state.Batch{
-				BatchNumber:        1,
 				BlockNumber:        uint64(0),
 				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
 				Aggregator:         addr,
 				ConsolidatedTxHash: common.Hash{},
-				Header:             nil,
+				Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
 				Uncles:             nil,
 				Transactions:       txs,
 				RawTxsData:         nil,
@@ -530,12 +526,12 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check Transaction and Receipts
-			transactions, err := testState.GetTxsByBatchNum(ctx, batch.BatchNumber)
+			transactions, err := testState.GetTxsByBatchNum(ctx, batch.Number().Uint64())
 			require.NoError(t, err)
 
 			if len(transactions) > 0 {
 				// Check get transaction by batch number and index
-				transaction, err := testState.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
+				transaction, err := testState.GetTransactionByBatchNumberAndIndex(ctx, batch.Number().Uint64(), 0)
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 
@@ -545,7 +541,7 @@ func TestStateTransition(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
-			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
+			root, err = st.GetStateRootByBatchNumber(batch.Number().Uint64())
 			require.NoError(t, err)
 
 			// Check new roots
@@ -728,12 +724,11 @@ func TestReceipts(t *testing.T) {
 
 			// Create Batch
 			batch := &state.Batch{
-				BatchNumber:        1,
 				BlockNumber:        uint64(0),
 				Sequencer:          common.HexToAddress(testCase.SequencerAddress),
 				Aggregator:         addr,
 				ConsolidatedTxHash: common.Hash{},
-				Header:             nil,
+				Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
 				Uncles:             nil,
 				Transactions:       txs,
 				RawTxsData:         nil,
@@ -748,12 +743,12 @@ func TestReceipts(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check Transaction and Receipts
-			transactions, err := testState.GetTxsByBatchNum(ctx, batch.BatchNumber)
+			transactions, err := testState.GetTxsByBatchNum(ctx, batch.Number().Uint64())
 			require.NoError(t, err)
 
 			if len(transactions) > 0 {
 				// Check get transaction by batch number and index
-				transaction, err := testState.GetTransactionByBatchNumberAndIndex(ctx, batch.BatchNumber, 0)
+				transaction, err := testState.GetTransactionByBatchNumberAndIndex(ctx, batch.Number().Uint64(), 0)
 				require.NoError(t, err)
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 
@@ -763,7 +758,7 @@ func TestReceipts(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
-			root, err = st.GetStateRootByBatchNumber(batch.BatchNumber)
+			root, err = st.GetStateRootByBatchNumber(batch.Number().Uint64())
 			require.NoError(t, err)
 
 			// Check new roots
@@ -907,7 +902,7 @@ func TestStateErrors(t *testing.T) {
 	_, err = st.GetTransactionByBatchHashAndIndex(ctx, batch1.Hash(), 0)
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetTransactionByBatchNumberAndIndex(ctx, batch1.BatchNumber, 0)
+	_, err = st.GetTransactionByBatchNumberAndIndex(ctx, batch1.Number().Uint64(), 0)
 	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetTransactionByHash(ctx, txHash)
@@ -985,12 +980,11 @@ func TestSCExecution(t *testing.T) {
 
 	// Create Batch
 	batch := &state.Batch{
-		BatchNumber:        1,
 		BlockNumber:        uint64(0),
 		Sequencer:          sequencerAddress,
 		Aggregator:         sequencerAddress,
 		ConsolidatedTxHash: common.Hash{},
-		Header:             nil,
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
 		Uncles:             nil,
 		Transactions:       txs,
 		RawTxsData:         nil,
