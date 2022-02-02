@@ -1,18 +1,20 @@
 package main
 
 import (
+	"fmt"
 	"math/big"
-	"strings"
-	"strconv"
 	"os"
+	"strconv"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
-	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/urfave/cli/v2"
 )
 
@@ -37,6 +39,12 @@ func main() {
 			Aliases: []string{},
 			Usage:   "decode rlp",
 			Action:  decode,
+		},
+		{
+			Name:    "encode",
+			Aliases: []string{},
+			Usage:   "encode tx with rlp",
+			Action:  encode,
 		},
 	}
 	err := app.Run(os.Args)
@@ -71,6 +79,143 @@ func decode(ctx *cli.Context) error {
 		return err
 	}
 	printTxs(txs, bytesRawTxs)
+	return nil
+}
+
+func encode(ctx *cli.Context) error {
+	fmt.Print("Nonce : ")
+	var nonceS string
+	if _, err := fmt.Scanln(&nonceS); err != nil {
+		return err
+	}
+	nonce, err := strconv.ParseUint(nonceS, 10, 64)
+	if err != nil {
+		log.Error("error decoding nonce: ", err)
+		return err
+	}
+	log.Debug("Nonce: ", nonce)
+	
+	fmt.Print("GasPrice : ")
+	var gasPriceS string
+	if _, err := fmt.Scanln(&gasPriceS); err != nil {
+		return err
+	}
+	gasPrice, _ := new(big.Int).SetString(gasPriceS, 10)
+	log.Debug("GasPrice: ", gasPrice)
+
+	fmt.Print("Gas : ")
+	var gasS string
+	if _, err := fmt.Scanln(&gasS); err != nil {
+		return err
+	}
+	gas, err := strconv.ParseUint(gasS, 10, 64)
+	if err != nil {
+		log.Error("error decoding gas: ", err)
+		return err
+	}
+	log.Debug("Gas: ", gas)
+	
+	fmt.Print("To : ")
+	var toS string
+	if _, err := fmt.Scanln(&toS); err != nil {
+		return err
+	}
+	to := common.HexToAddress(toS)
+	log.Debug("To: ", to)
+
+	fmt.Print("Value : ")
+	var valueS string
+	if _, err := fmt.Scanln(&valueS); err != nil {
+		return err
+	}
+	value, _ := new(big.Int).SetString(valueS, encoding.Base10)
+	log.Debug("Value: ", value)
+
+	fmt.Print("Data : ")
+	var dataS string
+	if _, err := fmt.Scanln(&dataS); err != nil {
+		if err.Error() != "unexpected newline" {
+			return err
+		}
+	}
+	var data []byte
+	if dataS != "" {
+		data, err = hex.DecodeHex(dataS)
+		if err != nil {
+			log.Error("error decoding data: ", err)
+			return err
+		}
+	}
+	log.Debug("Data: ", data)
+
+	fmt.Print("V: ")
+	var vS string
+	if _, err := fmt.Scanln(&vS); err != nil {
+		return err
+	}
+	v, _ := new(big.Int).SetString(vS, encoding.Base10)
+	log.Debug("V: ", v)
+
+	fmt.Print("R: ")
+	var rS string
+	if _, err := fmt.Scanln(&rS); err != nil {
+		return err
+	}
+	r, _ := new(big.Int).SetString(rS, encoding.Base10)
+	log.Debug("R: ", r)
+
+	fmt.Print("S: ")
+	var sS string
+	if _, err := fmt.Scanln(&sS); err != nil {
+		return err
+	}
+	s, _ := new(big.Int).SetString(sS, encoding.Base10)
+	log.Debug("S: ", s)
+
+	var rawTxHex string
+	var txLegacy = types.LegacyTx {
+		Nonce: nonce,
+        GasPrice: gasPrice,
+        Gas: gas,
+        To: &to,
+        Value: value,
+        Data: data,
+        V: v,
+		R: r,
+		S: s,
+	}
+	tx := types.NewTx(&txLegacy)
+
+	V, R, S := tx.RawSignatureValues()
+	sign := 1 - (V.Uint64() & 1)
+
+	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
+		tx.Nonce(),
+		tx.GasPrice(),
+		tx.Gas(),
+		tx.To(),
+		tx.Value(),
+		tx.Data(),
+		tx.ChainId(), uint(0), uint(0),
+	})
+	if err != nil {
+		log.Error("error encoding rlp tx: ", err)
+		return fmt.Errorf("error encoding rlp tx: " + err.Error())
+	}
+	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+	newRPadded := fmt.Sprintf("%064s", R.Text(hex.Base))
+	newSPadded := fmt.Sprintf("%064s", S.Text(hex.Base))
+	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
+	rawTxHex = rawTxHex + hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded
+	
+	rawTx, err := hex.DecodeString(rawTxHex)
+	if err != nil {
+		log.Error("error coverting hex string to []byte. Error: ", err)
+		return fmt.Errorf("error coverting hex string to []byte. Error: " + err.Error())
+	}
+	log.Info("encoded tx with signature using RLP in []byte: ", rawTx)
+	log.Info("rawtx with signature using RLP in hex: ", hex.EncodeToString(rawTx))
+
 	return nil
 }
 
