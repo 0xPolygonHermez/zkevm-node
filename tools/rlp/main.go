@@ -93,7 +93,7 @@ func encode(ctx *cli.Context) error {
 		log.Error("error decoding nonce: ", err)
 		return err
 	}
-	log.Debug("Nonce: ", nonce)
+	log.Info("Nonce: ", nonce)
 	
 	fmt.Print("GasPrice : ")
 	var gasPriceS string
@@ -101,7 +101,7 @@ func encode(ctx *cli.Context) error {
 		return err
 	}
 	gasPrice, _ := new(big.Int).SetString(gasPriceS, 10)
-	log.Debug("GasPrice: ", gasPrice)
+	log.Info("GasPrice: ", gasPrice)
 
 	fmt.Print("Gas : ")
 	var gasS string
@@ -113,7 +113,7 @@ func encode(ctx *cli.Context) error {
 		log.Error("error decoding gas: ", err)
 		return err
 	}
-	log.Debug("Gas: ", gas)
+	log.Info("Gas: ", gas)
 	
 	fmt.Print("To : ")
 	var toS string
@@ -121,7 +121,7 @@ func encode(ctx *cli.Context) error {
 		return err
 	}
 	to := common.HexToAddress(toS)
-	log.Debug("To: ", to)
+	log.Info("To: ", to)
 
 	fmt.Print("Value : ")
 	var valueS string
@@ -129,7 +129,7 @@ func encode(ctx *cli.Context) error {
 		return err
 	}
 	value, _ := new(big.Int).SetString(valueS, encoding.Base10)
-	log.Debug("Value: ", value)
+	log.Info("Value: ", value)
 
 	fmt.Print("Data : ")
 	var dataS string
@@ -146,7 +146,7 @@ func encode(ctx *cli.Context) error {
 			return err
 		}
 	}
-	log.Debug("Data: ", data)
+	log.Info("Data: ", data)
 
 	fmt.Print("V: ")
 	var vS string
@@ -154,7 +154,7 @@ func encode(ctx *cli.Context) error {
 		return err
 	}
 	v, _ := new(big.Int).SetString(vS, encoding.Base10)
-	log.Debug("V: ", v)
+	log.Info("V: ", v)
 
 	fmt.Print("R: ")
 	var rS string
@@ -162,7 +162,7 @@ func encode(ctx *cli.Context) error {
 		return err
 	}
 	r, _ := new(big.Int).SetString(rS, encoding.Base10)
-	log.Debug("R: ", r)
+	log.Info("R: ", r)
 
 	fmt.Print("S: ")
 	var sS string
@@ -170,7 +170,7 @@ func encode(ctx *cli.Context) error {
 		return err
 	}
 	s, _ := new(big.Int).SetString(sS, encoding.Base10)
-	log.Debug("S: ", s)
+	log.Info("S: ", s)
 
 	var rawTxHex string
 	var txLegacy = types.LegacyTx {
@@ -220,25 +220,25 @@ func encode(ctx *cli.Context) error {
 }
 
 func printTxs(txs []*types.Transaction, rawTxs []byte) {
-	log.Debug("RawTxs: ", hex.EncodeToHex(rawTxs))
+	log.Info("RawTxs: ", hex.EncodeToHex(rawTxs))
 	for _, tx := range txs {
-		log.Debug("#######################################################################")
-		log.Debug("#######################################################################")
-		log.Debugf("Decoded tx: %+v", tx)
-		log.Debug("ChainID: ", tx.ChainId())
-		log.Debug("Cost: ", tx.Cost())
-		log.Debug("Data: ", hex.EncodeToString(tx.Data()))
-		log.Debug("Gas: ", tx.Gas())
-		log.Debug("GasPrice: ", tx.GasPrice())
-		log.Debug("Hash: ", tx.Hash())
-		log.Debug("Nonce: ", tx.Nonce())
+		log.Info("#######################################################################")
+		log.Info("#######################################################################")
+		log.Infof("Decoded tx: %+v", tx)
+		log.Info("ChainID: ", tx.ChainId())
+		log.Info("Cost: ", tx.Cost())
+		log.Info("Data: ", hex.EncodeToString(tx.Data()))
+		log.Info("Gas: ", tx.Gas())
+		log.Info("GasPrice: ", tx.GasPrice())
+		log.Info("Hash: ", tx.Hash())
+		log.Info("Nonce: ", tx.Nonce())
 		v, r, s := tx.RawSignatureValues()
-		log.Debug("V: ", v)
-		log.Debug("R: ", r)
-		log.Debug("S: ", s)
-		log.Debug("To: ", tx.To())
-		log.Debug("Type: ", tx.Type())
-		log.Debug("Value: ", tx.Value())
+		log.Info("V: ", v)
+		log.Info("R: ", r)
+		log.Info("S: ", s)
+		log.Info("To: ", tx.To())
+		log.Info("Type: ", tx.Type())
+		log.Info("Value: ", tx.Value())
 	}
 }
 
@@ -294,7 +294,7 @@ func decodeRawTxs(txsData []byte) ([]*types.Transaction, error) {
 	for pos < int64(txDataLength) {
 		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos : pos+1]), hex.Base, encoding.BitSize64)
 		if err != nil {
-			log.Debug("error parsing header length: ", err)
+			log.Error("error parsing header length: ", err)
 			return []*types.Transaction{}, err
 		}
 		// First byte is the length and must be ignored
@@ -304,13 +304,13 @@ func decodeRawTxs(txsData []byte) ([]*types.Transaction, error) {
 			// numH is the length of the bytes that give the length of the rlp
 			numH, err := strconv.ParseInt(hex.EncodeToString(txsData[pos : pos+1]), hex.Base, encoding.BitSize64)
 			if err != nil {
-				log.Debug("error parsing length of the bytes: ", err)
+				log.Error("error parsing length of the bytes: ", err)
 				return []*types.Transaction{}, err
 			}
 			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
 			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1 : pos+1+numH-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
 			if err != nil {
-				log.Debug("error parsing length: ", err)
+				log.Error("error parsing length: ", err)
 				return []*types.Transaction{}, err
 			}
 			len = n+1 // +1 is the header. For example 0xf7
@@ -328,7 +328,7 @@ func decodeRawTxs(txsData []byte) ([]*types.Transaction, error) {
 		var tx types.LegacyTx
 		err = rlp.DecodeBytes(txInfo, &tx)
 		if err != nil {
-			log.Debug("error decoding tx bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo))
+			log.Error("error decoding tx bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo))
 			return []*types.Transaction{}, err
 		}
 
