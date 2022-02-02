@@ -168,9 +168,9 @@ func (s *BasicState) EstimateGas(transaction *types.Transaction) uint64 {
 func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 	// Generate Genesis Block
 	block := &Block{
-		BlockNumber: 0,
-		BlockHash:   common.HexToHash("0x0000000000000"),
-		ParentHash:  common.HexToHash("0x0000000000000"),
+		BlockNumber: genesis.Block.NumberU64(),
+		BlockHash:   genesis.Block.Hash(),
+		ParentHash:  genesis.Block.ParentHash(),
 	}
 
 	// Add Block
@@ -203,12 +203,14 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 	}
 
 	// Generate Genesis Batch
+	receivedAt := genesis.Block.ReceivedAt
 	batch := &Batch{
 		Header: &types.Header{
 			Number: big.NewInt(0),
 		},
-		BlockNumber:        0,
+		BlockNumber:        genesis.Block.NumberU64(),
 		ConsolidatedTxHash: common.HexToHash("0x1"),
+		ConsolidatedAt:     &receivedAt,
 		MaticCollateral:    big.NewInt(0),
 	}
 
