@@ -217,6 +217,16 @@ func WaitGRPCHealthy(address string) error {
 	})
 }
 
+// GetAuth configures and returns an auth object.
+func GetAuth(privateKeyStr string, chainID *big.Int) (*bind.TransactOpts, error) {
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(privateKeyStr, "0x"))
+	if err != nil {
+		return nil, err
+	}
+
+	return bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+}
+
 // Setup creates all the required components and initializes them according to
 // the manager config.
 func (m *Manager) Setup() error {
