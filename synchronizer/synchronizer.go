@@ -156,7 +156,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	for {
 		toBlock := fromBlock + s.cfg.SyncChunkSize
 
-		log.Debugf("Getting rollback info from block %d to block %d", fromBlock, toBlock)
+		log.Debugf("Getting rollup info from block %d to block %d", fromBlock, toBlock)
 		// This function returns the rollup information contained in the ethereum blocks and an extra param called order.
 		// Order param is a map that contains the event order to allow the synchronizer store the info in the same order that is readed.
 		// Name can be defferent in the order struct. For instance: Batches or Name:NewSequencers. This name is an identifier to check
@@ -221,7 +221,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				// Add new sequencers
 				err := s.state.AddSequencer(context.Background(), blocks[i].NewSequencers[element.Pos])
 				if err != nil {
-					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos])
+					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos], " err: ", err)
 				}
 			} else if element.Name == etherman.DepositsOrder {
 				//TODO Store info into db

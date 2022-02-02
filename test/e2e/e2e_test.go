@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
@@ -88,7 +89,10 @@ func TestStateTransition(t *testing.T) {
 
 			stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
 			st := state.NewState(stateCfg, stateDB, tr)
+			genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+			genesisBlock.ReceivedAt = time.Now()
 			genesis := state.Genesis{
+				Block:    genesisBlock,
 				Balances: make(map[common.Address]*big.Int),
 			}
 			for _, gacc := range testCase.GenesisAccounts {

@@ -37,6 +37,7 @@ SyncedBlockDif = 1
         [Sequencer.Strategy.TxProfitabilityChecker]
             TxProfitabilityCheckerType = "acceptall"
             MinReward = "1.1"
+			RewardPercentageToAggregator = 50
 
 [Aggregator]
 IntervalToConsolidateState = "3s"
