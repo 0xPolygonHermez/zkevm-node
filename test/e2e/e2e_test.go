@@ -76,7 +76,7 @@ func setup(ctx context.Context, testCase vectors.StateTransitionTestCase) (state
 	tr := tree.NewStateTree(mt, scCodeStore, []byte{})
 
 	stateCfg := state.Config{
-		DefaultChainID: 1000,
+		DefaultChainID: testCase.DefaultChainID,
 	}
 
 	stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
