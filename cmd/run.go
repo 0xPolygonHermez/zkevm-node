@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -116,7 +117,12 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.
 }
 
 func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.ClientEtherMan, st state.State, cfg synchronizer.Config) {
+	genesisBlock, err := etherman.EtherClient.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(networkConfig.GenBlockNumber))
+	if err != nil {
+		log.Fatal(err)
+	}
 	genesis := state.Genesis{
+		Block:    genesisBlock,
 		Balances: networkConfig.Balances,
 	}
 	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, genesis, cfg)
