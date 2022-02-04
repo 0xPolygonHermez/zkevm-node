@@ -145,7 +145,7 @@ install-git-hooks: ## Moves hook files to the .git/hooks directory
 	cp .github/hooks/* .git/hooks
 
 .PHONY: generate-mocks
-generate-mocks:
+generate-mocks: ## generating mocks for the tests, using mockery tool
 	mockery --name=EtherMan --dir=etherman --output=etherman/mocks --filename=etherman.go
 
 ## Help display.
