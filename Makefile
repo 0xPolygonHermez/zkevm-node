@@ -144,6 +144,10 @@ run-db-scripts: ## Executes scripts on the db after it has been initialized, pot
 install-git-hooks: ## Moves hook files to the .git/hooks directory
 	cp .github/hooks/* .git/hooks
 
+.PHONY: generate-mocks
+generate-mocks:
+	mockery --name=EtherMan --dir=etherman --output=etherman/mocks --filename=etherman.go
+
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
 ## display with the commands and their usage information.
