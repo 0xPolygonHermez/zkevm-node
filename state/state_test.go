@@ -936,6 +936,8 @@ func TestSCExecution(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 400000
+	var scAddress = common.HexToAddress("0xB08EA26d3D53EC62fD4BD76B5E41844c7041eB6B")
 
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
@@ -957,33 +959,48 @@ func TestSCExecution(t *testing.T) {
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	genesisBlock.ReceivedAt = time.Now()
 	genesis := state.Genesis{
-		Block:          genesisBlock,
-		SmartContracts: make(map[common.Address][]byte),
+		Block:    genesisBlock,
+		Balances: make(map[common.Address]*big.Int),
 	}
 
-	// Storage example contract runtime bytecode
-	genesis.SmartContracts[addr] = common.Hex2Bytes("608060405234801561001057600080fd5b50600436106100365760003560e01c80632e64cec11461003b5780636057361d14610059575b600080fd5b610043610075565b60405161005091906100d9565b60405180910390f35b610073600480360381019061006e919061009d565b61007e565b005b60008054905090565b8060008190555050565b60008135905061009781610103565b92915050565b6000602082840312156100b3576100b26100fe565b5b60006100c184828501610088565b91505092915050565b6100d3816100f4565b82525050565b60006020820190506100ee60008301846100ca565b92915050565b6000819050919050565b600080fd5b61010c816100f4565b811461011757600080fd5b5056fea2646970667358221220404e37f487a89a932dca5e77faaf6ca2de3b991f93d230604b1b8daaef64766264736f6c63430008070033")
-
+	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
 	err = st.SetGenesis(ctx, genesis)
 	require.NoError(t, err)
 
+	// Register Sequencer
+	sequencer := state.Sequencer{
+		Address:     sequencerAddress,
+		URL:         "http://www.adrress.com",
+		ChainID:     chainIDSequencer,
+		BlockNumber: genesisBlock.Header().Number.Uint64(),
+	}
+
+	err = testState.AddSequencer(ctx, sequencer)
+	assert.NoError(t, err)
+
 	var txs []*types.Transaction
 
-	// Set stored value to 2
-	tx := types.NewTransaction(0, addr, new(big.Int), 10000, new(big.Int).SetUint64(1), common.Hex2Bytes("6057361d0000000000000000000000000000000000000000000000000000000000000002"))
+	tx0 := types.NewTransaction(0, state.ZeroAddress, new(big.Int), uint64(sequencerBalance), new(big.Int).SetUint64(1), common.Hex2Bytes("608060405234801561001057600080fd5b50610150806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c80632e64cec11461003b5780636057361d14610059575b600080fd5b610043610075565b60405161005091906100d9565b60405180910390f35b610073600480360381019061006e919061009d565b61007e565b005b60008054905090565b8060008190555050565b60008135905061009781610103565b92915050565b6000602082840312156100b3576100b26100fe565b5b60006100c184828501610088565b91505092915050565b6100d3816100f4565b82525050565b60006020820190506100ee60008301846100ca565b92915050565b6000819050919050565b600080fd5b61010c816100f4565b811461011757600080fd5b5056fea2646970667358221220404e37f487a89a932dca5e77faaf6ca2de3b991f93d230604b1b8daaef64766264736f6c63430008070033"))
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
 	require.NoError(t, err)
+
+	signedTx0, err := auth.Signer(auth.From, tx0)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTx0)
+
+	// Set stored value to 2
+	tx := types.NewTransaction(1, scAddress, new(big.Int), 20000, new(big.Int).SetUint64(1), common.Hex2Bytes("6057361d0000000000000000000000000000000000000000000000000000000000000002"))
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
 	txs = append(txs, signedTx)
 
 	// Retrieve stored value
-	tx2 := types.NewTransaction(1, addr, new(big.Int), 10000, new(big.Int).SetUint64(1), common.Hex2Bytes("2e64cec1"))
-
+	tx2 := types.NewTransaction(2, scAddress, new(big.Int), 20000, new(big.Int).SetUint64(1), common.Hex2Bytes("2e64cec1"))
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
 
@@ -1004,7 +1021,7 @@ func TestSCExecution(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(addr, 0)
+	bp, err := st.NewBatchProcessor(sequencerAddress, 0)
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(batch)

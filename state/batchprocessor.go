@@ -16,6 +16,12 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
+const (
+	spuriousDragonMaxCodeSize = 24576
+	maxCallDepth              = 1024
+	contractByteGasCost       = 200
+)
+
 var (
 	// ErrInvalidSig indicates the signature of the transaction is not valid
 	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
@@ -30,7 +36,7 @@ var (
 	// ErrNotImplemented indicates this feature has not yet been implemented
 	ErrNotImplemented = errors.New("feature not yet implemented")
 	// EmptyCodeHash is the hash of empty code
-	EmptyCodeHash = common.HexToHash("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
+	EmptyCodeHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	// ZeroAddress is the address 0x0000000000000000000000000000000000000000
 	ZeroAddress = common.HexToAddress("0x0000000000000000000000000000000000000000")
 )
@@ -112,9 +118,9 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 
 	receiverAddress := tx.To()
 
-	if *tx.To() == ZeroAddress {
-		log.Warn("contract creation is not yet implemented")
-		result.Err = ErrNotImplemented
+	if *receiverAddress == ZeroAddress {
+		log.Debug("smart contract creation")
+		result = b.create(tx, senderAddress, sequencerAddress)
 	} else {
 		code := b.GetCode(*receiverAddress)
 		if len(code) > 0 {
@@ -434,6 +440,99 @@ func (b *BasicBatchProcessor) run(contract *runtime.Contract) *runtime.Execution
 	}
 }
 
+func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+	address := helper.CreateAddress(senderAddress, b.GetNonce(senderAddress))
+	contract := runtime.NewContractCreation(0, senderAddress, senderAddress, address, tx.Value(), tx.Gas(), tx.Data())
+
+	log.Debugf("new contract address = %v", address)
+
+	root := b.stateRoot
+	gasLimit := contract.Gas
+
+	if contract.Depth > int(maxCallDepth)+1 {
+		return &runtime.ExecutionResult{
+			GasLeft: gasLimit,
+			Err:     runtime.ErrDepth,
+		}
+	}
+
+	// Increment nonce of the sender
+	senderNonce, err := b.State.tree.GetNonce(senderAddress, root)
+	if err != nil {
+		return &runtime.ExecutionResult{
+			GasLeft: 0,
+			Err:     err,
+		}
+	}
+	senderNonce = big.NewInt(0).Add(senderNonce, big.NewInt(1))
+	// Store new nonce
+	_, _, err = b.State.tree.SetNonce(senderAddress, senderNonce)
+	if err != nil {
+		return &runtime.ExecutionResult{
+			GasLeft: 0,
+			Err:     err,
+		}
+	}
+
+	// Check if there if there is a collision and the address already exists
+	if !b.Empty(contract.Address) {
+		return &runtime.ExecutionResult{
+			GasLeft: 0,
+			Err:     runtime.ErrContractAddressCollision,
+		}
+	}
+
+	// Tansfer the value
+	transferResult := b.transfer(tx, senderAddress, sequencerAddress)
+	if transferResult.Err != nil {
+		return &runtime.ExecutionResult{
+			GasLeft: gasLimit,
+			Err:     transferResult.Err,
+		}
+	}
+
+	result := b.run(contract)
+	if result.Failed() {
+		return result
+	}
+
+	if b.forks.EIP158 && len(result.ReturnValue) > spuriousDragonMaxCodeSize {
+		// Contract size exceeds 'SpuriousDragon' size limit
+		return &runtime.ExecutionResult{
+			GasLeft: 0,
+			Err:     runtime.ErrMaxCodeSizeExceeded,
+		}
+	}
+
+	gasCost := uint64(len(result.ReturnValue)) * contractByteGasCost
+
+	if result.GasLeft < gasCost {
+		result.Err = runtime.ErrCodeStoreOutOfGas
+		result.ReturnValue = nil
+
+		// Out of gas creating the contract
+		if b.forks.Homestead {
+			result.GasLeft = 0
+		}
+
+		return result
+	}
+
+	result.GasLeft -= gasCost
+	root, _, err = b.State.tree.SetCode(address, result.ReturnValue)
+	if err != nil {
+		return &runtime.ExecutionResult{
+			GasLeft: gasLimit,
+			Err:     err,
+		}
+	}
+
+	result.CreateAddress = address
+	b.stateRoot = root
+
+	return result
+}
+
 // AccountExists check if the address already exists in the state
 func (b *BasicBatchProcessor) AccountExists(address common.Address) bool {
 	// TODO: Implement this properly, may need to modify the MT
@@ -497,7 +596,7 @@ func (b *BasicBatchProcessor) GetCodeHash(address common.Address) common.Hash {
 		log.Errorf("error on GetCodeHash for address %v", address)
 	}
 
-	log.Debugf("GetCodeHash for address %v", address)
+	log.Debugf("GetCodeHash for address %v => %v", address, common.BytesToHash(hash))
 	return common.BytesToHash(hash)
 }
 
