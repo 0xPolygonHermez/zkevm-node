@@ -29,7 +29,7 @@ func (s *TxSorterByCostAndNonce) SortTxs(txs []pool.Transaction) []pool.Transact
 	sort.Slice(txs, func(i, j int) bool {
 		costI := txs[i].Cost()
 		costJ := txs[j].Cost()
-		if costI != costJ {
+		if costI.Cmp(costJ) != 0 {
 			return costI.Cmp(costJ) >= 1
 		}
 		return txs[i].Nonce() < txs[j].Nonce()
@@ -45,7 +45,7 @@ func (s *TxSorterByCostAndTime) SortTxs(txs []pool.Transaction) []pool.Transacti
 	sort.Slice(txs, func(i, j int) bool {
 		costI := txs[i].Cost()
 		costJ := txs[j].Cost()
-		if costI != costJ {
+		if costI.Cmp(costJ) != 0 {
 			return costI.Cmp(costJ) >= 1
 		}
 		return txs[i].ReceivedAt.Before(txs[j].ReceivedAt)
