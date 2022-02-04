@@ -39,6 +39,7 @@ var (
 type BatchProcessor interface {
 	ProcessBatch(batch *Batch) error
 	CheckTransaction(tx *types.Transaction) error
+	ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error
 	runtime.Host
 }
 
@@ -55,7 +56,6 @@ type BasicBatchProcessor struct {
 
 // ProcessBatch processes all transactions inside a batch
 func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
-	var result *runtime.ExecutionResult
 	var receipts []*Receipt
 	var includedTxs []*types.Transaction
 
@@ -65,30 +65,10 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	for _, tx := range batch.Transactions {
 		senderAddress, err := helper.GetSender(tx)
 		if err != nil {
-			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), err)
+			return err
 		}
 
-		receiverAddress := tx.To()
-
-		if *receiverAddress == ZeroAddress {
-			log.Warn("contract creation is not yet implemented")
-			result.Err = ErrNotImplemented
-		} else {
-			code := b.GetCode(*receiverAddress)
-			if len(code) > 0 {
-				log.Debugf("smart contract execution %v", receiverAddress)
-				contract := runtime.NewContractCall(1, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
-				result = b.run(contract)
-				result.GasUsed = tx.Gas() - result.GasLeft
-				log.Debugf("Transaction Data %v", tx.Data())
-				log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
-			} else if tx.Value() != new(big.Int) {
-				result = b.transfer(tx, senderAddress, batch.Sequencer)
-			} else {
-				log.Error("unknown transaction type")
-				result.Err = ErrNotImplemented
-			}
-		}
+		result := b.processTransaction(tx, senderAddress, batch.Sequencer)
 
 		if result.Err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), result.Err)
@@ -97,7 +77,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 
 			cumulativeGasUsed += result.GasUsed
 			includedTxs = append(includedTxs, tx)
-			receipt := b.generateReceipt(batch.BlockNumber, tx, index, &senderAddress, receiverAddress, result, cumulativeGasUsed)
+			receipt := b.generateReceipt(batch.BlockNumber, tx, index, &senderAddress, tx.To(), result, cumulativeGasUsed)
 			receipts = append(receipts, receipt)
 			index++
 		}
@@ -114,6 +94,45 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	err := b.commit(batch)
 
 	return err
+}
+
+// ProcessTransaction processes a transaction
+func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error {
+	senderAddress, err := helper.GetSender(tx)
+	if err != nil {
+		return err
+	}
+
+	result := b.processTransaction(tx, senderAddress, sequencerAddress)
+	return result.Err
+}
+
+func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+	var result *runtime.ExecutionResult
+
+	receiverAddress := tx.To()
+
+	if *tx.To() == ZeroAddress {
+		log.Warn("contract creation is not yet implemented")
+		result.Err = ErrNotImplemented
+	} else {
+		code := b.GetCode(*receiverAddress)
+		if len(code) > 0 {
+			log.Debugf("smart contract execution %v", receiverAddress)
+			contract := runtime.NewContractCall(0, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
+			result = b.run(contract)
+			result.GasUsed = tx.Gas() - result.GasLeft
+			log.Debugf("Transaction Data %v", tx.Data())
+			log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
+		} else if tx.Value() != new(big.Int) {
+			result = b.transfer(tx, senderAddress, sequencerAddress)
+		} else {
+			log.Error("unknown transaction type")
+			result.Err = ErrNotImplemented
+		}
+	}
+
+	return result
 }
 
 func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch, cumulativeGasUsed uint64) {
@@ -157,7 +176,7 @@ func (b *BasicBatchProcessor) generateReceipt(blockNumber uint64, tx *types.Tran
 	return receipt
 }
 
-// ProcessTransaction processes a transaction inside a batch
+// transfer processes a transfer transaction
 func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
 	log.Debugf("processing transfer [%s]: start", tx.Hash().Hex())
 	var result *runtime.ExecutionResult = &runtime.ExecutionResult{}
