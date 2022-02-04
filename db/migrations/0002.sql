@@ -15,5 +15,5 @@ CREATE TABLE pool.txs (
 CREATE TABLE pool.gas_price (
     item_id SERIAL PRIMARY KEY,
     price DECIMAL(78,0),
-    timestamp TIMESTAMP WITHOUT TIME ZONE NOT NULL
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
