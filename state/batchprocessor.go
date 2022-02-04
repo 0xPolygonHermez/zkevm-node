@@ -27,6 +27,12 @@ var (
 	ErrInvalidChainID = errors.New("invalid chain id for sequencer")
 )
 
+// InvalidTxsErrors is map to spot invalid txs
+var InvalidTxErrors = map[string]bool{
+	ErrInvalidSig.Error(): true, ErrInvalidNonce.Error(): true, ErrInvalidBalance.Error(): true,
+	ErrInvalidGas.Error(): true, ErrInvalidChainID.Error(): true,
+}
+
 // BatchProcessor is used to process a batch of transactions
 type BatchProcessor interface {
 	ProcessBatch(batch *Batch) error
