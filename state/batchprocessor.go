@@ -27,7 +27,7 @@ var (
 	ErrInvalidChainID = errors.New("invalid chain id for sequencer")
 )
 
-// InvalidTxsErrors is map to spot invalid txs
+// InvalidTxErrors is map to spot invalid txs
 var InvalidTxErrors = map[string]bool{
 	ErrInvalidSig.Error(): true, ErrInvalidNonce.Error(): true, ErrInvalidBalance.Error(): true,
 	ErrInvalidGas.Error(): true, ErrInvalidChainID.Error(): true,

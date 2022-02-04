@@ -50,9 +50,6 @@ func TestAcceptAll_SelectTxs(t *testing.T) {
 	tx3 := types.NewTransaction(uint64(2), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(14), []byte{})
 	txs := []pool.Transaction{{Transaction: *tx2}, {Transaction: *tx1}, {Transaction: *tx3}}
 
-	bp.On("ProcessTransaction", tx1, seqAddress).Return(state.ErrInvalidBalance)
-	bp.On("ProcessTransaction", tx2, seqAddress).Return(state.ErrInvalidNonce)
-	bp.On("ProcessTransaction", tx3, seqAddress).Return(state.ErrInvalidSig)
 	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(bp, txs, seqAddress)
 	bp.AssertExpectations(t)
 	assert.NoError(t, err)
