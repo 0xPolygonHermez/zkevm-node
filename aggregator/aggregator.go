@@ -26,7 +26,6 @@ type Aggregator struct {
 	cfg Config
 
 	State          state.State
-	BatchProcessor state.BatchProcessor
 	EtherMan       etherman.EtherMan
 	ZkProverClient proverclient.ZKProverClient
 

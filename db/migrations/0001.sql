@@ -8,7 +8,7 @@ CREATE TABLE state.block
     block_hash  BYTEA                       NOT NULL,
     parent_hash BYTEA,
 
-    received_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+    received_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE TABLE state.batch
@@ -24,8 +24,8 @@ CREATE TABLE state.batch
     raw_txs_data         BYTEA,
     matic_collateral     NUMERIC(78,0),
 
-    received_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    consolidated_at TIMESTAMP WITHOUT TIME ZONE
+    received_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    consolidated_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE state.transaction

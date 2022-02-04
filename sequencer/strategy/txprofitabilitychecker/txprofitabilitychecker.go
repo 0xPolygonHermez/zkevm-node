@@ -137,7 +137,6 @@ func isNewBatchNotAppeared(ctx context.Context, state state.State, intervalAfter
 		return false, fmt.Errorf("failed to get last batch, err: %v", err)
 	}
 	interval := intervalAfterWhichBatchSentAnyway * time.Minute
-
 	if batch.ReceivedAt.Before(time.Now().Add(-interval)) {
 		return true, nil
 	}
