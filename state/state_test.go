@@ -954,7 +954,10 @@ func TestSCExecution(t *testing.T) {
 	// Create state
 	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
 
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
 	genesis := state.Genesis{
+		Block:          genesisBlock,
 		SmartContracts: make(map[common.Address][]byte),
 	}
 
