@@ -464,7 +464,9 @@ func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, seque
 			Err:     err,
 		}
 	}
-	senderNonce = big.NewInt(0).Add(senderNonce, big.NewInt(1))
+
+	big.NewInt(0).Add(senderNonce, big.NewInt(1))
+
 	// Store new nonce
 	_, _, err = b.State.tree.SetNonce(senderAddress, senderNonce)
 	if err != nil {
