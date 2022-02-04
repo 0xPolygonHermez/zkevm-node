@@ -1,6 +1,6 @@
-#[Log]
-#Level = "debug"
-#Outputs = ["stdout"]
+[Log]
+Level = "debug"
+Outputs = ["stdout"]
 
 [Database]
 User = "test_user"
@@ -10,21 +10,21 @@ Host = "localhost"
 Port = "5432"
 
 [Etherman]
-URL = "http://hez-network:8545"
-PrivateKeyPath = "./test/test.keystore"
+URL = "http://localhost:8545"
+PrivateKeyPath = "../test/test.keystore"
 PrivateKeyPassword = "testonly"
 
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
 
-#[Synchronizer]
-#SyncInterval = "0s"
-#SyncChunkSize = 100
+[Synchronizer]
+SyncInterval = "5s"
+SyncChunkSize = 100
 
 [Sequencer]
 AllowNonRegistered = "false"
-IntervalToProposeBatch = "3s"
+IntervalToProposeBatch = "15s"
 SyncedBlockDif = 1
     [Sequencer.Strategy]
         [Sequencer.Strategy.TxSelector]
@@ -35,9 +35,9 @@ SyncedBlockDif = 1
             MinReward = "1.1"
 
 [Aggregator]
-IntervalToConsolidateState = "3s"
+IntervalToConsolidateState = "10s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 
 [Prover]
-ProverURI = "hez-prover:50051"
+ProverURI = "localhost:50051"
