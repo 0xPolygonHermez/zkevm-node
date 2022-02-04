@@ -106,25 +106,6 @@ func (m *Manager) State() state.State {
 	return m.st
 }
 
-func initState(arity uint8, defaultChainID uint64) (state.State, error) {
-	sqlDB, err := db.NewSQLDB(dbConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	store := tree.NewPostgresStore(sqlDB)
-	mt := tree.NewMerkleTree(store, arity, poseidon.Hash)
-	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
-	tr := tree.NewStateTree(mt, scCodeStore, []byte{})
-
-	stateCfg := state.Config{
-		DefaultChainID: defaultChainID,
-	}
-
-	stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
-	return state.NewState(stateCfg, stateDB, tr), nil
-}
-
 // CheckVirtualRoot verifies if the given root is the current root of the
 // merkletree for virtual state.
 func (m *Manager) CheckVirtualRoot(expectedRoot string) error {
@@ -145,15 +126,6 @@ func (m *Manager) CheckConsolidatedRoot(expectedRoot string) error {
 	return m.checkRoot(root, expectedRoot)
 }
 
-func (m *Manager) checkRoot(root []byte, expectedRoot string) error {
-	actualRoot := new(big.Int).SetBytes(root).String()
-
-	if expectedRoot != actualRoot {
-		return fmt.Errorf("Invalid root, want %q, got %q", expectedRoot, actualRoot)
-	}
-	return nil
-}
-
 // SetGenesis creates the genesis block in the state and checks.
 func (m *Manager) SetGenesis(genesisAccounts []vectors.GenesisAccount) error {
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
@@ -168,20 +140,6 @@ func (m *Manager) SetGenesis(genesisAccounts []vectors.GenesisAccount) error {
 	}
 
 	err := m.st.SetGenesis(m.ctx, genesis)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *Manager) setSequencerChainID() error {
-	// Update Sequencer ChainID to the one in the test vector
-	sqlDB, err := db.NewSQLDB(dbConfig)
-	if err != nil {
-		return err
-	}
-
-	_, err = sqlDB.Exec(m.ctx, "UPDATE state.sequencer SET chain_id = $1 WHERE address = $2", m.cfg.Sequencer.ChainID, common.HexToAddress(m.cfg.Sequencer.Address).Bytes())
 	if err != nil {
 		return err
 	}
@@ -258,6 +216,83 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
+	err = m.setUpSequencer()
+	if err != nil {
+		return err
+	}
+
+	// Run core container
+	err = startCore()
+	if err != nil {
+		return err
+	}
+
+	return m.setSequencerChainID()
+}
+
+// Teardown stops all the components.
+func Teardown() error {
+	err := stopCore()
+	if err != nil {
+		return err
+	}
+
+	err = stopProver()
+	if err != nil {
+		return err
+	}
+
+	err = stopNetwork()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func initState(arity uint8, defaultChainID uint64) (state.State, error) {
+	sqlDB, err := db.NewSQLDB(dbConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	store := tree.NewPostgresStore(sqlDB)
+	mt := tree.NewMerkleTree(store, arity, poseidon.Hash)
+	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
+	tr := tree.NewStateTree(mt, scCodeStore, []byte{})
+
+	stateCfg := state.Config{
+		DefaultChainID: defaultChainID,
+	}
+
+	stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
+	return state.NewState(stateCfg, stateDB, tr), nil
+}
+
+func (m *Manager) checkRoot(root []byte, expectedRoot string) error {
+	actualRoot := new(big.Int).SetBytes(root).String()
+
+	if expectedRoot != actualRoot {
+		return fmt.Errorf("Invalid root, want %q, got %q", expectedRoot, actualRoot)
+	}
+	return nil
+}
+
+func (m *Manager) setSequencerChainID() error {
+	// Update Sequencer ChainID to the one in the test vector
+	sqlDB, err := db.NewSQLDB(dbConfig)
+	if err != nil {
+		return err
+	}
+
+	_, err = sqlDB.Exec(m.ctx, "UPDATE state.sequencer SET chain_id = $1 WHERE address = $2", m.cfg.Sequencer.ChainID, common.HexToAddress(m.cfg.Sequencer.Address).Bytes())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Manager) setUpSequencer() error {
 	// Eth client
 	client, err := ethclient.Dial(l1NetworkURL)
 	if err != nil {
@@ -389,33 +424,6 @@ func (m *Manager) Setup() error {
 	if err != nil {
 		return err
 	}
-
-	// Run core container
-	err = startCore()
-	if err != nil {
-		return err
-	}
-
-	return m.setSequencerChainID()
-}
-
-// Teardown stops all the components.
-func Teardown() error {
-	err := stopCore()
-	if err != nil {
-		return err
-	}
-
-	err = stopProver()
-	if err != nil {
-		return err
-	}
-
-	err = stopNetwork()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
