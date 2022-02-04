@@ -171,6 +171,7 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		BlockNumber: genesis.Block.NumberU64(),
 		BlockHash:   genesis.Block.Hash(),
 		ParentHash:  genesis.Block.ParentHash(),
+		ReceivedAt:  genesis.Block.ReceivedAt,
 	}
 
 	// Add Block
@@ -212,6 +213,7 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		ConsolidatedTxHash: common.HexToHash("0x1"),
 		ConsolidatedAt:     &receivedAt,
 		MaticCollateral:    big.NewInt(0),
+		ReceivedAt:         time.Now(),
 	}
 
 	// Store batch into db

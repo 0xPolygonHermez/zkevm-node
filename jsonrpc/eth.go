@@ -138,7 +138,14 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 		return nil, err
 	}
 
-	return toRPCTransaction(tx, nil, nil, nil), nil
+	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash())
+	if errors.Is(err, state.ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return toRPCTransaction(tx, receipt.BlockNumber, receipt.BlockHash, uint64(receipt.TransactionIndex)), nil
 }
 
 // GetTransactionByBlockNumberAndIndex returns information about a transaction by
@@ -158,7 +165,14 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 		return nil, err
 	}
 
-	return toRPCTransaction(tx, nil, nil, nil), nil
+	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash())
+	if errors.Is(err, state.ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return toRPCTransaction(tx, receipt.BlockNumber, receipt.BlockHash, uint64(receipt.TransactionIndex)), nil
 }
 
 // GetTransactionByHash returns a transaction by his hash
@@ -172,7 +186,14 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 		return nil, err
 	}
 
-	return toRPCTransaction(tx, nil, nil, nil), nil
+	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash())
+	if errors.Is(err, state.ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return toRPCTransaction(tx, receipt.BlockNumber, receipt.BlockHash, uint64(receipt.TransactionIndex)), nil
 }
 
 // GetTransactionCount returns account nonce

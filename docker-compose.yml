@@ -6,14 +6,14 @@ services:
         ports:
             - 8123:8123
         environment:
-          - HERMEZCORE_DATABASE_USER=test_user
-          - HERMEZCORE_DATABASE_PASSWORD=test_password
-          - HERMEZCORE_DATABASE_NAME=test_db
-          - HERMEZCORE_DATABASE_HOST=hez-postgres
-          - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+            - HERMEZCORE_DATABASE_USER=test_user
+            - HERMEZCORE_DATABASE_PASSWORD=test_password
+            - HERMEZCORE_DATABASE_NAME=test_db
+            - HERMEZCORE_DATABASE_HOST=hez-postgres
+            - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
         volumes:
-          - ./test/test.keystore:/pk/keystore
-          - ./config/config.local.toml:/app/config.toml
+            - ./test/test.keystore:/pk/keystore
+            - ./config/config.local.toml:/app/config.toml
         command: ["./hezcore", "run", "--network", "local", "--cfg", "/app/config.toml"]
 
     hez-postgres:
@@ -29,17 +29,21 @@ services:
 
     hez-explorer:
         container_name: hez-explorer
-        image: ulamlabs/blockscout:latest
+        image: hermeznetwork/hermez-node-blockscout:latest
         ports:
-          - 4000:4000
+            - 4000:4000
         environment:
-          - NETWORK=POE
-          - SUBNETWORK=Polygon Hermez
-          - COIN=ETH
-          - ETHEREUM_JSONRPC_VARIANT=geth
-          - ETHEREUM_JSONRPC_HTTP_URL=http://hez-core:8123
-          - DATABASE_URL=postgres://test_user:test_password@hez-explorer-postgres:5432/explorer
-          - ECTO_USE_SSL=false
+            - NETWORK=POE
+            - SUBNETWORK=Polygon Hermez
+            - COIN=ETH
+            - ETHEREUM_JSONRPC_VARIANT=geth
+            - ETHEREUM_JSONRPC_HTTP_URL=http://hez-core:8123
+            - DATABASE_URL=postgres://test_user:test_password@hez-explorer-postgres:5432/explorer
+            - ECTO_USE_SSL=false
+            - MIX_ENV=prod
+            - LOGO=/images/blockscout_logo.svg
+            - LOGO_FOOTER=/images/blockscout_logo.svg
+        command: ["/bin/sh", "-c", "mix do ecto.create, ecto.migrate; mix phx.server"]
 
     hez-explorer-postgres:
         container_name: hez-explorer-postgres
@@ -51,22 +55,23 @@ services:
             - POSTGRES_USER=test_user
             - POSTGRES_PASSWORD=test_password
             - POSTGRES_DB=explorer
+        command: ["postgres", "-N", "1000"]
 
     hez-network:
         container_name: hez-network
         image: hermeznetwork/geth-zkevm-contracts:latest
         ports:
-          - 8545:8545
+            - 8545:8545
 
     hez-prover:
-      container_name: hez-prover
-      image: hermeznetwork/zk-mock-prover:latest
-      ports:
-        - 50051:50051
-      environment:
-        - POSTGRES_USER=test_user
-        - POSTGRES_PASSWORD=test_password
-        - POSTGRES_DB=test_db
-        - POSTGRES_HOST=hez-postgres
-        - POSTGRES_PORT=5432
-        - PROOF_TIME=1000
+        container_name: hez-prover
+        image: hermeznetwork/zk-mock-prover:latest
+        ports:
+            - 50051:50051
+        environment:
+            - POSTGRES_USER=test_user
+            - POSTGRES_PASSWORD=test_password
+            - POSTGRES_DB=test_db
+            - POSTGRES_HOST=hez-postgres
+            - POSTGRES_PORT=5432
+            - PROOF_TIME=1000

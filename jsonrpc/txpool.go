@@ -47,7 +47,8 @@ func (t *TxPool) Content() (interface{}, error) {
 	pendingRPCTxs := make(map[common.Address]map[uint64]*txPoolTransaction, len(pendingTxs))
 
 	for _, pendingTx := range pendingTxs {
-		sender, err := helper.GetSender(&pendingTx.Transaction)
+		t := pendingTx.Transaction
+		sender, err := helper.GetSender(&t)
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +57,7 @@ func (t *TxPool) Content() (interface{}, error) {
 			pendingRPCTxs[sender] = make(map[uint64]*txPoolTransaction)
 		}
 
-		pendingRPCTxs[sender][pendingTx.Nonce()] = toTxPoolTransaction(sender, &pendingTx.Transaction)
+		pendingRPCTxs[sender][pendingTx.Nonce()] = toTxPoolTransaction(sender, &t)
 	}
 
 	resp := contentResponse{
