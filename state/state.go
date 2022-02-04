@@ -8,8 +8,17 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
+	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/jackc/pgx/v4"
+)
+
+const (
+	// TxGas used for TXs that do not create a contract
+	TxGas uint64 = 21000
+	// TxGasContractCreation user for transactions that create a contract
+	TxGasContractCreation uint64 = 53000
 )
 
 // State is the interface of the Hermez state
@@ -101,7 +110,14 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		return nil, err
 	}
 
-	return &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch}, nil
+	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch}
+	batchProcessor.setRuntime(evm.NewEVM())
+	blockNumber, err := s.GetLastBlockNumber(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	batchProcessor.forks = runtime.AllForksEnabled.At(blockNumber)
+	return batchProcessor, nil
 }
 
 // NewGenesisBatchProcessor creates a new batch processor
@@ -161,7 +177,7 @@ func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*bi
 // EstimateGas for a transaction
 func (s *BasicState) EstimateGas(transaction *types.Transaction) uint64 {
 	// TODO: Calculate once we have txs that interact with SCs
-	return 21000 //nolint:gomnd
+	return TxGas
 }
 
 // SetGenesis populates state with genesis information

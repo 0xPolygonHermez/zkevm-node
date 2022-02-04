@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
@@ -242,6 +243,9 @@ func (s *state) Run() ([]byte, error) {
 			s.exit(errOpCodeNotFound)
 			break
 		}
+
+		log.Debug(op.String())
+
 		// check if the depth of the stack is enough for the instruction
 		if s.sp < inst.stack {
 			s.exit(errStackUnderflow)
