@@ -71,7 +71,7 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 		if isSCTx(t) {
 			continue
 		}
-		err := batchProcessor.CheckTransaction(&t)
+		err := batchProcessor.ProcessTransaction(&t, sequencerAddress)
 		if err != nil {
 			invalidTxsHashes = append(invalidTxsHashes, tx.Hash().Hex())
 		} else {
