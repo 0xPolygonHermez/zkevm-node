@@ -1,4 +1,4 @@
-DOCKERCOMPOSE := docker-compose -f docker-compose.explorer.yml
+DOCKERCOMPOSE := docker-compose -f docker-compose.yml
 DOCKERCOMPOSEAPP := hez-core
 DOCKERCOMPOSEDB := hez-postgres
 DOCKERCOMPOSENETWORK := hez-network
@@ -116,11 +116,21 @@ stop-explorer-db: ## Stops the explorer database
 	$(STOPEXPLORERDB)
 
 .PHONY: run
-run: ## Runs all the services available in the docker-compose file
-	$(RUN)
+run: ## Runs all the services
+	$(RUNDB)
+	$(RUNEXPLORERDB)
+	$(RUNNETWORK)
+	sleep 5
+	$(RUNPROVER)
+	sleep 2
+	$(RUNCORE)
+	sleep 3
+	$(RUNEXPLORER)
+	sleep 3
+	go run ./test/init_network.go .
 
 .PHONY: stop
-stop: ## Stops all services available in the docker-compose file
+stop: ## Stops all services
 	$(STOP)
 
 .PHONY: restart
@@ -133,6 +143,10 @@ run-db-scripts: ## Executes scripts on the db after it has been initialized, pot
 .PHONY: install-git-hooks
 install-git-hooks: ## Moves hook files to the .git/hooks directory
 	cp .github/hooks/* .git/hooks
+
+.PHONY: generate-mocks
+generate-mocks: ## generating mocks for the tests, using mockery tool
+	mockery --name=EtherMan --dir=etherman --output=etherman/mocks --filename=etherman.go
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
