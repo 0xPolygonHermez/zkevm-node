@@ -133,6 +133,7 @@ func TestBase_IsProfitable_FailByMinReward(t *testing.T) {
 
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(1), nil)
 	isProfitable, _, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.False(t, isProfitable)
 }
@@ -147,6 +148,7 @@ func TestBase_IsProfitable_SendBatchAnyway(t *testing.T) {
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(maticAmount, nil)
 
 	isProfitable, reward, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, reward.Cmp(minReward))
 	assert.True(t, isProfitable)
@@ -160,8 +162,8 @@ func TestBase_IsProfitable_GasCostTooBigForSendingTx(t *testing.T) {
 	ctx := context.Background()
 
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(maticAmount, nil)
-
 	isProfitable, _, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.False(t, isProfitable)
 }
@@ -175,6 +177,7 @@ func TestBase_IsProfitable(t *testing.T) {
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
 
 	isProfitable, reward, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.True(t, isProfitable)
 	// gasCostForSendingBatch is 10, tx cost is 20, reward will be 10 eth, aggregator takes 50%, so his reward is 5 eth = 10000 matic

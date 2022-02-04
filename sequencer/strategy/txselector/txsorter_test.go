@@ -1,14 +1,15 @@
 package txselector_test
 
 import (
+	"math/big"
+	"testing"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
-	"time"
 )
 
 func TestTxSorterByCostAndNonce_SortTxs_SameCost(t *testing.T) {
