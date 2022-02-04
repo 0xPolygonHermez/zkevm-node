@@ -989,6 +989,7 @@ func TestSCExecution(t *testing.T) {
 		Transactions:       txs,
 		RawTxsData:         nil,
 		MaticCollateral:    big.NewInt(1),
+		ReceivedAt:         time.Now()
 	}
 
 	// Create Batch Processor
