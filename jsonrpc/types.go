@@ -167,30 +167,22 @@ func batchToRPCBlock(b *state.Batch, fullTx bool) *rpcBlock {
 		LogsBloom:       h.Bloom,
 		Difficulty:      argUint64(h.Difficulty.Uint64()),
 		TotalDifficulty: argUint64(h.Difficulty.Uint64()), // not needed for POS
-		Size:            argUint64(h.Size()),
-		Number:          argUint64(h.Number.Uint64()),
+		Size:            argUint64(b.Size()),
+		Number:          argUint64(b.Number().Uint64()),
 		GasLimit:        argUint64(h.GasLimit),
 		GasUsed:         argUint64(h.GasUsed),
 		Timestamp:       argUint64(h.Time),
 		ExtraData:       argBytes(h.Extra),
 		MixHash:         h.MixDigest,
 		Nonce:           h.Nonce.Uint64(),
-		Hash:            h.Hash(),
+		Hash:            b.Hash(),
 		Transactions:    []rpcTransactionOrHash{},
 		Uncles:          []common.Hash{},
 	}
 
 	for idx, txn := range b.Transactions {
 		if fullTx {
-			number := argUint64(b.Number().Uint64())
-			hash := b.Hash()
-
-			tx := toRPCTransaction(
-				txn,
-				&number,
-				&hash,
-				&idx,
-			)
+			tx := toRPCTransaction(txn, b.Number(), b.Hash(), uint64(idx))
 			res.Transactions = append(
 				res.Transactions,
 				tx,
@@ -227,9 +219,9 @@ type rpcTransaction struct {
 	S           argBig          `json:"s"`
 	Hash        common.Hash     `json:"hash"`
 	From        common.Address  `json:"from"`
-	BlockHash   *common.Hash    `json:"blockHash"`
-	BlockNumber *argUint64      `json:"blockNumber"`
-	TxIndex     *argUint64      `json:"transactionIndex"`
+	BlockHash   common.Hash     `json:"blockHash"`
+	BlockNumber argUint64       `json:"blockNumber"`
+	TxIndex     argUint64       `json:"transactionIndex"`
 }
 
 func (t rpcTransaction) getHash() common.Hash { return t.Hash }
@@ -245,9 +237,9 @@ func (h transactionHash) MarshalText() ([]byte, error) {
 
 func toRPCTransaction(
 	t *types.Transaction,
-	blockNumber *argUint64,
-	blockHash *common.Hash,
-	txIndex *int,
+	blockNumber *big.Int,
+	blockHash common.Hash,
+	txIndex uint64,
 ) *rpcTransaction {
 	v, r, s := t.RawSignatureValues()
 
@@ -268,17 +260,11 @@ func toRPCTransaction(
 	}
 
 	if blockNumber != nil {
-		res.BlockNumber = blockNumber
+		res.BlockNumber = argUint64(blockNumber.Uint64())
 	}
 
-	if blockHash != nil {
-		res.BlockHash = blockHash
-	}
-
-	if txIndex != nil {
-		i := argUint64(uint64(*txIndex))
-		res.TxIndex = &i
-	}
+	res.BlockHash = blockHash
+	res.TxIndex = argUint64(txIndex)
 
 	return res
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -86,10 +87,9 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), result.Err)
 		} else {
 			log.Infof("Successfully processed transaction %s", tx.Hash().String())
-
 			cumulativeGasUsed += result.GasUsed
 			includedTxs = append(includedTxs, tx)
-			receipt := b.generateReceipt(batch.BlockNumber, tx, index, &senderAddress, tx.To(), result, cumulativeGasUsed)
+			receipt := b.generateReceipt(batch, tx, index, &senderAddress, tx.To(), result.GasUsed, cumulativeGasUsed)
 			receipts = append(receipts, receipt)
 			index++
 		}
@@ -153,29 +153,37 @@ func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch, cumulativeGasUse
 		parentHash = b.LastBatch.Hash()
 	}
 
+	rr := make([]*types.Receipt, 0, len(batch.Receipts))
+	for _, receipt := range batch.Receipts {
+		r := receipt.Receipt
+		rr = append(rr, &r)
+	}
+	block := types.NewBlock(batch.Header, batch.Transactions, batch.Uncles, rr, &trie.StackTrie{})
+
 	batch.Header.ParentHash = parentHash
-	batch.Header.UncleHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	batch.Header.UncleHash = block.UncleHash()
 	batch.Header.Coinbase = batch.Sequencer
 	batch.Header.Root = common.BytesToHash(b.stateRoot)
-	batch.Header.TxHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	batch.Header.ReceiptHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	batch.Header.Bloom = types.BytesToBloom([]byte{0})
+	batch.Header.TxHash = block.Header().TxHash
+	batch.Header.ReceiptHash = block.Header().ReceiptHash
+	batch.Header.Bloom = block.Bloom()
 	batch.Header.Difficulty = new(big.Int).SetUint64(0)
 	batch.Header.GasLimit = 30000000
 	batch.Header.GasUsed = cumulativeGasUsed
 	batch.Header.Time = uint64(time.Now().Unix())
-	batch.Header.MixDigest = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	batch.Header.Nonce = types.BlockNonce{0, 0, 0, 0, 0, 0, 0, 0}
+	batch.Header.MixDigest = block.MixDigest()
+	batch.Header.Nonce = block.Header().Nonce
 }
 
-func (b *BasicBatchProcessor) generateReceipt(blockNumber uint64, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, result *runtime.ExecutionResult, cumulativeGasUsed uint64) *Receipt {
+func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, gasUsed uint64, cumulativeGasUsed uint64) *Receipt {
 	receipt := &Receipt{}
 	receipt.Type = tx.Type()
 	receipt.PostState = b.stateRoot
 	receipt.Status = types.ReceiptStatusSuccessful
 	receipt.CumulativeGasUsed = cumulativeGasUsed
-	receipt.BlockNumber = new(big.Int).SetUint64(blockNumber)
-	receipt.GasUsed = result.GasUsed
+	receipt.BlockNumber = batch.Number()
+	receipt.BlockHash = batch.Hash()
+	receipt.GasUsed = gasUsed
 	receipt.TxHash = tx.Hash()
 	receipt.TransactionIndex = index
 	if senderAddress != nil {

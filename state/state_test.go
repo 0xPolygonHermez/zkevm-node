@@ -792,7 +792,7 @@ func TestReceipts(t *testing.T) {
 				// Compare against test receipt
 				assert.Equal(t, testReceipt.Receipt.TransactionHash, receipt.TxHash.String())
 				assert.Equal(t, testReceipt.Receipt.TransactionIndex, receipt.TransactionIndex)
-				assert.Equal(t, testReceipt.Receipt.BlockNumber, receipt.BlockNumber.Uint64())
+				assert.Equal(t, batch.Number().Uint64(), receipt.BlockNumber.Uint64())
 				assert.Equal(t, testReceipt.Receipt.From, receipt.From.String())
 				assert.Equal(t, testReceipt.Receipt.To, receipt.To.String())
 				assert.Equal(t, testReceipt.Receipt.CumulativeGastUsed, receipt.CumulativeGasUsed)
