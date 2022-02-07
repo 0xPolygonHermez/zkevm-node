@@ -25,11 +25,11 @@ type EtherMan struct {
 }
 
 // ConsolidateBatch provides a mock function with given fields: batchNum, proof
-func (_m *EtherMan) ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error) {
+func (_m *EtherMan) ConsolidateBatch(batchNum *big.Int, proof *proverclient.ResGetProof) (*types.Transaction, error) {
 	ret := _m.Called(batchNum, proof)
 
 	var r0 *types.Transaction
-	if rf, ok := ret.Get(0).(func(*big.Int, *proverclient.Proof) *types.Transaction); ok {
+	if rf, ok := ret.Get(0).(func(*big.Int, *proverclient.ResGetProof) *types.Transaction); ok {
 		r0 = rf(batchNum, proof)
 	} else {
 		if ret.Get(0) != nil {
@@ -38,7 +38,7 @@ func (_m *EtherMan) ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proo
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*big.Int, *proverclient.Proof) error); ok {
+	if rf, ok := ret.Get(1).(func(*big.Int, *proverclient.ResGetProof) error); ok {
 		r1 = rf(batchNum, proof)
 	} else {
 		r1 = ret.Error(1)
