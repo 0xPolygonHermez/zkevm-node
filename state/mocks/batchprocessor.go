@@ -3,8 +3,12 @@
 package mocks
 
 import (
+	big "math/big"
+
 	common "github.com/ethereum/go-ethereum/common"
 	mock "github.com/stretchr/testify/mock"
+
+	runtime "github.com/hermeznetwork/hermez-core/state/runtime"
 
 	state "github.com/hermeznetwork/hermez-core/state"
 
@@ -16,6 +20,36 @@ type BatchProcessor struct {
 	mock.Mock
 }
 
+// AccountExists provides a mock function with given fields: addr
+func (_m *BatchProcessor) AccountExists(addr common.Address) bool {
+	ret := _m.Called(addr)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(common.Address) bool); ok {
+		r0 = rf(addr)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// Callx provides a mock function with given fields: _a0, _a1
+func (_m *BatchProcessor) Callx(_a0 *runtime.Contract, _a1 runtime.Host) *runtime.ExecutionResult {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 *runtime.ExecutionResult
+	if rf, ok := ret.Get(0).(func(*runtime.Contract, runtime.Host) *runtime.ExecutionResult); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*runtime.ExecutionResult)
+		}
+	}
+
+	return r0
+}
+
 // CheckTransaction provides a mock function with given fields: tx
 func (_m *BatchProcessor) CheckTransaction(tx *types.Transaction) error {
 	ret := _m.Called(tx)
@@ -25,6 +59,147 @@ func (_m *BatchProcessor) CheckTransaction(tx *types.Transaction) error {
 		r0 = rf(tx)
 	} else {
 		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// EmitLog provides a mock function with given fields: addr, topics, data
+func (_m *BatchProcessor) EmitLog(addr common.Address, topics []common.Hash, data []byte) {
+	_m.Called(addr, topics, data)
+}
+
+// Empty provides a mock function with given fields: addr
+func (_m *BatchProcessor) Empty(addr common.Address) bool {
+	ret := _m.Called(addr)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(common.Address) bool); ok {
+		r0 = rf(addr)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// GetBalance provides a mock function with given fields: addr
+func (_m *BatchProcessor) GetBalance(addr common.Address) *big.Int {
+	ret := _m.Called(addr)
+
+	var r0 *big.Int
+	if rf, ok := ret.Get(0).(func(common.Address) *big.Int); ok {
+		r0 = rf(addr)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*big.Int)
+		}
+	}
+
+	return r0
+}
+
+// GetBlockHash provides a mock function with given fields: number
+func (_m *BatchProcessor) GetBlockHash(number int64) common.Hash {
+	ret := _m.Called(number)
+
+	var r0 common.Hash
+	if rf, ok := ret.Get(0).(func(int64) common.Hash); ok {
+		r0 = rf(number)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	return r0
+}
+
+// GetCode provides a mock function with given fields: addr
+func (_m *BatchProcessor) GetCode(addr common.Address) []byte {
+	ret := _m.Called(addr)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(common.Address) []byte); ok {
+		r0 = rf(addr)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	return r0
+}
+
+// GetCodeHash provides a mock function with given fields: addr
+func (_m *BatchProcessor) GetCodeHash(addr common.Address) common.Hash {
+	ret := _m.Called(addr)
+
+	var r0 common.Hash
+	if rf, ok := ret.Get(0).(func(common.Address) common.Hash); ok {
+		r0 = rf(addr)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	return r0
+}
+
+// GetCodeSize provides a mock function with given fields: addr
+func (_m *BatchProcessor) GetCodeSize(addr common.Address) int {
+	ret := _m.Called(addr)
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func(common.Address) int); ok {
+		r0 = rf(addr)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	return r0
+}
+
+// GetNonce provides a mock function with given fields: addr
+func (_m *BatchProcessor) GetNonce(addr common.Address) uint64 {
+	ret := _m.Called(addr)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(common.Address) uint64); ok {
+		r0 = rf(addr)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	return r0
+}
+
+// GetStorage provides a mock function with given fields: addr, key
+func (_m *BatchProcessor) GetStorage(addr common.Address, key common.Hash) common.Hash {
+	ret := _m.Called(addr, key)
+
+	var r0 common.Hash
+	if rf, ok := ret.Get(0).(func(common.Address, common.Hash) common.Hash); ok {
+		r0 = rf(addr, key)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	return r0
+}
+
+// GetTxContext provides a mock function with given fields:
+func (_m *BatchProcessor) GetTxContext() runtime.TxContext {
+	ret := _m.Called()
+
+	var r0 runtime.TxContext
+	if rf, ok := ret.Get(0).(func() runtime.TxContext); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(runtime.TxContext)
 	}
 
 	return r0
@@ -53,6 +228,25 @@ func (_m *BatchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAdd
 		r0 = rf(tx, sequencerAddress)
 	} else {
 		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Selfdestruct provides a mock function with given fields: addr, beneficiary
+func (_m *BatchProcessor) Selfdestruct(addr common.Address, beneficiary common.Address) {
+	_m.Called(addr, beneficiary)
+}
+
+// SetStorage provides a mock function with given fields: addr, key, value, config
+func (_m *BatchProcessor) SetStorage(addr common.Address, key common.Hash, value common.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
+	ret := _m.Called(addr, key, value, config)
+
+	var r0 runtime.StorageStatus
+	if rf, ok := ret.Get(0).(func(common.Address, common.Hash, common.Hash, *runtime.ForksInTime) runtime.StorageStatus); ok {
+		r0 = rf(addr, key, value, config)
+	} else {
+		r0 = ret.Get(0).(runtime.StorageStatus)
 	}
 
 	return r0
