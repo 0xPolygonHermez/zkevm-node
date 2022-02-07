@@ -41,7 +41,7 @@ func strSliceToBigIntArray(data []string) ([2]*big.Int, error) {
 	return res, nil
 }
 
-func proofSlcToIntArray(proofs []*proverclient.ProofX) ([2][2]*big.Int, error) {
+func proofSlcToIntArray(proofs []*proverclient.ProofB) ([2][2]*big.Int, error) {
 	if len(proofs) < minProofLen || len(proofs) > maxProofLen {
 		return [2][2]*big.Int{}, fmt.Errorf("wrong slice length, current %d, expected between %d or %d", len(proofs), minProofLen, maxProofLen)
 	}
@@ -49,7 +49,7 @@ func proofSlcToIntArray(proofs []*proverclient.ProofX) ([2][2]*big.Int, error) {
 	var res [2][2]*big.Int
 	for i, v := range proofs {
 		if i < minProofLen {
-			for j, b := range proofs[i].Proof {
+			for j, b := range proofs[i].Proofs {
 				if j < minProofLen {
 					bigInt, ok := new(big.Int).SetString(b, encoding.Base10)
 					if !ok {

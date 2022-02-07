@@ -3,6 +3,7 @@ package aggregator
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 	"strconv"
 	"time"
@@ -221,7 +222,7 @@ func (a *Aggregator) Start() {
 			log.Debugf("Data sent to the prover: %+v", inputProver)
 			genProofRes := resGenProof.GetResult()
 			if genProofRes != proverclient.ResGenProof_OK {
-				log.Warnf("failed to get result from the prover, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64())
+				log.Warnf("failed to get result from the prover, batchNumber: %d, err: %v", batchToConsolidate.Number().Uint64())
 				continue
 			}
 			genProofID := resGenProof.GetId()
@@ -232,7 +233,7 @@ func (a *Aggregator) Start() {
 			getProofCtx, getProofCtxCancel = context.WithCancel(a.ctx)
 			getProofClient, err := a.ZkProverClient.GetProof(getProofCtx)
 			if err != nil {
-				log.Warnf("failed to init getProofClient, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64(), err)
+				log.Warnf("failed to init getProofClient, batchNumber: %d, err: %v", batchToConsolidate.Number().Uint64(), err)
 				continue
 			}
 			for resGetProof.Result != proverclient.ResGetProof_COMPLETED_OK {
@@ -240,26 +241,27 @@ func (a *Aggregator) Start() {
 					Id: genProofID,
 				})
 				if err != nil {
-					log.Warnf("failed to send get proof request to the prover, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64(), err)
+					log.Warnf("failed to send get proof request to the prover, batchNumber: %d, err: %v", batchToConsolidate.Number().Uint64(), err)
 					break
 				}
 
 				resGetProof, err = getProofClient.Recv()
 				if err != nil {
-					log.Warnf("failed to get proof from the prover, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64(), err)
+					log.Warnf("failed to get proof from the prover, batchNumber: %d, err: %v", batchToConsolidate.Number().Uint64(), err)
 					break
 				}
 
 				resGetProofState := resGetProof.GetResult()
-				if resGetProofState == proverclient.ResGetProof_ERROR ||
-					resGetProofState == proverclient.ResGetProof_INTERNAL_ERROR ||
+				if resGetProofState == proverclient.ResGetProof_ERROR {
+					panic(fmt.Sprintf("failed to get a proof for batch, batch number %d", batchToConsolidate.Number().Uint64()))
+				}
+				if resGetProofState == proverclient.ResGetProof_INTERNAL_ERROR ||
 					// TODO: what should I do for ResGetProof_COMPLETED_ERR? Somehow mark batch as invalid?
 					resGetProofState == proverclient.ResGetProof_COMPLETED_ERR {
 					log.Warnf("failed to generate proof for batch, batchNumber: %v, ResGetProofState: %v", batchToConsolidate.Number().Uint64(), resGetProofState)
 					break
 				}
 
-				// TODO: not sure, that this behaviour is expected in case of CANCEL
 				if resGetProofState == proverclient.ResGetProof_CANCEL {
 					log.Warnf("proof generation was cancelled, batchNumber: %v", batchToConsolidate.Number().Uint64())
 					break
