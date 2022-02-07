@@ -23,7 +23,6 @@ const (
 )
 
 func main() {
-
 	app := cli.NewApp()
 	app.Name = "RlpTool"
 	app.Version = "v0.0.1"
@@ -62,6 +61,9 @@ func decodeFull(ctx *cli.Context) error {
 		return err
 	}
 	txs, rawTxs, err := decodeFullCallDataToTxs(bytesCallData)
+	if err != nil {
+		return err
+	}
 	printTxs(txs, rawTxs)
 	return nil
 }
@@ -94,7 +96,7 @@ func encode(ctx *cli.Context) error {
 		return err
 	}
 	log.Info("Nonce: ", nonce)
-	
+
 	fmt.Print("GasPrice : ")
 	var gasPriceS string
 	if _, err := fmt.Scanln(&gasPriceS); err != nil {
@@ -114,7 +116,7 @@ func encode(ctx *cli.Context) error {
 		return err
 	}
 	log.Info("Gas: ", gas)
-	
+
 	fmt.Print("To : ")
 	var toS string
 	if _, err := fmt.Scanln(&toS); err != nil {
@@ -173,16 +175,16 @@ func encode(ctx *cli.Context) error {
 	log.Info("S: ", s)
 
 	var rawTxHex string
-	var txLegacy = types.LegacyTx {
-		Nonce: nonce,
-        GasPrice: gasPrice,
-        Gas: gas,
-        To: &to,
-        Value: value,
-        Data: data,
-        V: v,
-		R: r,
-		S: s,
+	var txLegacy = types.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: gasPrice,
+		Gas:      gas,
+		To:       &to,
+		Value:    value,
+		Data:     data,
+		V:        v,
+		R:        r,
+		S:        s,
 	}
 	tx := types.NewTx(&txLegacy)
 
@@ -207,7 +209,7 @@ func encode(ctx *cli.Context) error {
 	newSPadded := fmt.Sprintf("%064s", S.Text(hex.Base))
 	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
 	rawTxHex = rawTxHex + hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded
-	
+
 	rawTx, err := hex.DecodeString(rawTxHex)
 	if err != nil {
 		log.Error("error coverting hex string to []byte. Error: ", err)
@@ -273,7 +275,6 @@ func decodeFullCallDataToTxs(txsData []byte) ([]*types.Transaction, []byte, erro
 	return txs, txsData, err
 }
 
-
 func decodeRawTxs(txsData []byte) ([]*types.Transaction, error) {
 	// Process coded txs
 	var pos int64
@@ -285,14 +286,14 @@ func decodeRawTxs(txsData []byte) ([]*types.Transaction, error) {
 		vLength          = 1
 		c0               = 192 // 192 is c0. This value is defined by the rlp protocol
 		ff               = 255 // max value of rlp header
-		shortRlp         = 55 // length of the short rlp codification
+		shortRlp         = 55  // length of the short rlp codification
 		f7               = 247 // 192 + 55 = c0 + shortRlp
 		etherNewV        = 35
 		mul2             = 2
 	)
 	txDataLength := len(txsData)
 	for pos < int64(txDataLength) {
-		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos : pos+1]), hex.Base, encoding.BitSize64)
+		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
 		if err != nil {
 			log.Error("error parsing header length: ", err)
 			return []*types.Transaction{}, err
@@ -300,20 +301,20 @@ func decodeRawTxs(txsData []byte) ([]*types.Transaction, error) {
 		// First byte is the length and must be ignored
 		len := num - c0 - 1
 
-		if len > shortRlp { // If rlp is bigger than lenght 55
+		if len > shortRlp { // If rlp is bigger than length 55
 			// numH is the length of the bytes that give the length of the rlp
-			numH, err := strconv.ParseInt(hex.EncodeToString(txsData[pos : pos+1]), hex.Base, encoding.BitSize64)
+			numH, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
 			if err != nil {
 				log.Error("error parsing length of the bytes: ", err)
 				return []*types.Transaction{}, err
 			}
 			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
-			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1 : pos+1+numH-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
+			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1:pos+1+numH-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
 			if err != nil {
 				log.Error("error parsing length: ", err)
 				return []*types.Transaction{}, err
 			}
-			len = n+1 // +1 is the header. For example 0xf7
+			len = n + 1 // +1 is the header. For example 0xf7
 		}
 
 		fullDataTx := txsData[pos : pos+len+rLength+sLength+vLength+headerByteLength]
