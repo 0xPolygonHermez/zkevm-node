@@ -18,10 +18,11 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ZKProverClient interface {
-	GetStatus(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*State, error)
-	GenProof(ctx context.Context, opts ...grpc.CallOption) (ZKProver_GenProofClient, error)
-	Cancel(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*State, error)
-	GetProof(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*Proof, error)
+	GetStatus(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*ResGetStatus, error)
+	GenProof(ctx context.Context, in *InputProver, opts ...grpc.CallOption) (*ResGenProof, error)
+	Cancel(ctx context.Context, in *RequestId, opts ...grpc.CallOption) (*ResCancel, error)
+	GetProof(ctx context.Context, opts ...grpc.CallOption) (ZKProver_GetProofClient, error)
+	Execute(ctx context.Context, opts ...grpc.CallOption) (ZKProver_ExecuteClient, error)
 }
 
 type zKProverClient struct {
@@ -32,8 +33,8 @@ func NewZKProverClient(cc grpc.ClientConnInterface) ZKProverClient {
 	return &zKProverClient{cc}
 }
 
-func (c *zKProverClient) GetStatus(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*State, error) {
-	out := new(State)
+func (c *zKProverClient) GetStatus(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*ResGetStatus, error) {
+	out := new(ResGetStatus)
 	err := c.cc.Invoke(ctx, "/zkprover.ZKProver/GetStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -41,39 +42,17 @@ func (c *zKProverClient) GetStatus(ctx context.Context, in *NoParams, opts ...gr
 	return out, nil
 }
 
-func (c *zKProverClient) GenProof(ctx context.Context, opts ...grpc.CallOption) (ZKProver_GenProofClient, error) {
-	stream, err := c.cc.NewStream(ctx, &ZKProver_ServiceDesc.Streams[0], "/zkprover.ZKProver/GenProof", opts...)
+func (c *zKProverClient) GenProof(ctx context.Context, in *InputProver, opts ...grpc.CallOption) (*ResGenProof, error) {
+	out := new(ResGenProof)
+	err := c.cc.Invoke(ctx, "/zkprover.ZKProver/GenProof", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &zKProverGenProofClient{stream}
-	return x, nil
+	return out, nil
 }
 
-type ZKProver_GenProofClient interface {
-	Send(*InputProver) error
-	Recv() (*State, error)
-	grpc.ClientStream
-}
-
-type zKProverGenProofClient struct {
-	grpc.ClientStream
-}
-
-func (x *zKProverGenProofClient) Send(m *InputProver) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *zKProverGenProofClient) Recv() (*State, error) {
-	m := new(State)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *zKProverClient) Cancel(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*State, error) {
-	out := new(State)
+func (c *zKProverClient) Cancel(ctx context.Context, in *RequestId, opts ...grpc.CallOption) (*ResCancel, error) {
+	out := new(ResCancel)
 	err := c.cc.Invoke(ctx, "/zkprover.ZKProver/Cancel", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -81,23 +60,77 @@ func (c *zKProverClient) Cancel(ctx context.Context, in *NoParams, opts ...grpc.
 	return out, nil
 }
 
-func (c *zKProverClient) GetProof(ctx context.Context, in *NoParams, opts ...grpc.CallOption) (*Proof, error) {
-	out := new(Proof)
-	err := c.cc.Invoke(ctx, "/zkprover.ZKProver/GetProof", in, out, opts...)
+func (c *zKProverClient) GetProof(ctx context.Context, opts ...grpc.CallOption) (ZKProver_GetProofClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ZKProver_ServiceDesc.Streams[0], "/zkprover.ZKProver/GetProof", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &zKProverGetProofClient{stream}
+	return x, nil
+}
+
+type ZKProver_GetProofClient interface {
+	Send(*ReqGetProof) error
+	Recv() (*ResGetProof, error)
+	grpc.ClientStream
+}
+
+type zKProverGetProofClient struct {
+	grpc.ClientStream
+}
+
+func (x *zKProverGetProofClient) Send(m *ReqGetProof) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *zKProverGetProofClient) Recv() (*ResGetProof, error) {
+	m := new(ResGetProof)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *zKProverClient) Execute(ctx context.Context, opts ...grpc.CallOption) (ZKProver_ExecuteClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ZKProver_ServiceDesc.Streams[1], "/zkprover.ZKProver/Execute", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &zKProverExecuteClient{stream}
+	return x, nil
+}
+
+type ZKProver_ExecuteClient interface {
+	Send(*InputProver) error
+	Recv() (*ResExecute, error)
+	grpc.ClientStream
+}
+
+type zKProverExecuteClient struct {
+	grpc.ClientStream
+}
+
+func (x *zKProverExecuteClient) Send(m *InputProver) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *zKProverExecuteClient) Recv() (*ResExecute, error) {
+	m := new(ResExecute)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // ZKProverServer is the server API for ZKProver service.
 // All implementations must embed UnimplementedZKProverServer
 // for forward compatibility
 type ZKProverServer interface {
-	GetStatus(context.Context, *NoParams) (*State, error)
-	GenProof(ZKProver_GenProofServer) error
-	Cancel(context.Context, *NoParams) (*State, error)
-	GetProof(context.Context, *NoParams) (*Proof, error)
+	GetStatus(context.Context, *NoParams) (*ResGetStatus, error)
+	GenProof(context.Context, *InputProver) (*ResGenProof, error)
+	Cancel(context.Context, *RequestId) (*ResCancel, error)
+	GetProof(ZKProver_GetProofServer) error
+	Execute(ZKProver_ExecuteServer) error
 	mustEmbedUnimplementedZKProverServer()
 }
 
@@ -105,17 +138,20 @@ type ZKProverServer interface {
 type UnimplementedZKProverServer struct {
 }
 
-func (UnimplementedZKProverServer) GetStatus(context.Context, *NoParams) (*State, error) {
+func (UnimplementedZKProverServer) GetStatus(context.Context, *NoParams) (*ResGetStatus, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
 }
-func (UnimplementedZKProverServer) GenProof(ZKProver_GenProofServer) error {
-	return status.Errorf(codes.Unimplemented, "method GenProof not implemented")
+func (UnimplementedZKProverServer) GenProof(context.Context, *InputProver) (*ResGenProof, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenProof not implemented")
 }
-func (UnimplementedZKProverServer) Cancel(context.Context, *NoParams) (*State, error) {
+func (UnimplementedZKProverServer) Cancel(context.Context, *RequestId) (*ResCancel, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Cancel not implemented")
 }
-func (UnimplementedZKProverServer) GetProof(context.Context, *NoParams) (*Proof, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetProof not implemented")
+func (UnimplementedZKProverServer) GetProof(ZKProver_GetProofServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetProof not implemented")
+}
+func (UnimplementedZKProverServer) Execute(ZKProver_ExecuteServer) error {
+	return status.Errorf(codes.Unimplemented, "method Execute not implemented")
 }
 func (UnimplementedZKProverServer) mustEmbedUnimplementedZKProverServer() {}
 
@@ -148,34 +184,26 @@ func _ZKProver_GetStatus_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ZKProver_GenProof_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(ZKProverServer).GenProof(&zKProverGenProofServer{stream})
-}
-
-type ZKProver_GenProofServer interface {
-	Send(*State) error
-	Recv() (*InputProver, error)
-	grpc.ServerStream
-}
-
-type zKProverGenProofServer struct {
-	grpc.ServerStream
-}
-
-func (x *zKProverGenProofServer) Send(m *State) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *zKProverGenProofServer) Recv() (*InputProver, error) {
-	m := new(InputProver)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
+func _ZKProver_GenProof_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InputProver)
+	if err := dec(in); err != nil {
 		return nil, err
 	}
-	return m, nil
+	if interceptor == nil {
+		return srv.(ZKProverServer).GenProof(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/zkprover.ZKProver/GenProof",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ZKProverServer).GenProof(ctx, req.(*InputProver))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ZKProver_Cancel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NoParams)
+	in := new(RequestId)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -187,27 +215,61 @@ func _ZKProver_Cancel_Handler(srv interface{}, ctx context.Context, dec func(int
 		FullMethod: "/zkprover.ZKProver/Cancel",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZKProverServer).Cancel(ctx, req.(*NoParams))
+		return srv.(ZKProverServer).Cancel(ctx, req.(*RequestId))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ZKProver_GetProof_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(NoParams)
-	if err := dec(in); err != nil {
+func _ZKProver_GetProof_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ZKProverServer).GetProof(&zKProverGetProofServer{stream})
+}
+
+type ZKProver_GetProofServer interface {
+	Send(*ResGetProof) error
+	Recv() (*ReqGetProof, error)
+	grpc.ServerStream
+}
+
+type zKProverGetProofServer struct {
+	grpc.ServerStream
+}
+
+func (x *zKProverGetProofServer) Send(m *ResGetProof) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *zKProverGetProofServer) Recv() (*ReqGetProof, error) {
+	m := new(ReqGetProof)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return srv.(ZKProverServer).GetProof(ctx, in)
+	return m, nil
+}
+
+func _ZKProver_Execute_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ZKProverServer).Execute(&zKProverExecuteServer{stream})
+}
+
+type ZKProver_ExecuteServer interface {
+	Send(*ResExecute) error
+	Recv() (*InputProver, error)
+	grpc.ServerStream
+}
+
+type zKProverExecuteServer struct {
+	grpc.ServerStream
+}
+
+func (x *zKProverExecuteServer) Send(m *ResExecute) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *zKProverExecuteServer) Recv() (*InputProver, error) {
+	m := new(InputProver)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
 	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/zkprover.ZKProver/GetProof",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ZKProverServer).GetProof(ctx, req.(*NoParams))
-	}
-	return interceptor(ctx, in, info, handler)
+	return m, nil
 }
 
 // ZKProver_ServiceDesc is the grpc.ServiceDesc for ZKProver service.
@@ -222,18 +284,24 @@ var ZKProver_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ZKProver_GetStatus_Handler,
 		},
 		{
-			MethodName: "Cancel",
-			Handler:    _ZKProver_Cancel_Handler,
+			MethodName: "GenProof",
+			Handler:    _ZKProver_GenProof_Handler,
 		},
 		{
-			MethodName: "GetProof",
-			Handler:    _ZKProver_GetProof_Handler,
+			MethodName: "Cancel",
+			Handler:    _ZKProver_Cancel_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "GenProof",
-			Handler:       _ZKProver_GenProof_Handler,
+			StreamName:    "GetProof",
+			Handler:       _ZKProver_GetProof_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "Execute",
+			Handler:       _ZKProver_Execute_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

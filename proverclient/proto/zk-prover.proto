@@ -2,59 +2,155 @@ syntax = "proto3";
 
 package zkprover;
 
-option go_package = "proverclient";
+option go_package = "./proverclient";
 
-service ZKProver {
-  rpc GetStatus(NoParams) returns (State) {}
-  rpc GenProof(stream InputProver) returns (stream State) {}
-  rpc Cancel(NoParams) returns (State) {}
-  rpc GetProof(NoParams) returns (Proof) {}
+message Version {
+  string v0_0_1 = 1;
 }
 
+// timestamps are represented in unix time in seconds
+
+/**
+ * Define all methods implementes by the gRPC
+ * GetStatus: non-blocking call
+ * GenProof: non-blocking call
+ * Cancel: non-blocking call
+ * GetProof: blocking call
+ * Execute: blocking call
+ */
+service ZKProver {
+  rpc GetStatus(NoParams) returns (ResGetStatus) {}
+  rpc GenProof(InputProver) returns (ResGenProof) {}
+  rpc Cancel(RequestId) returns (ResCancel) {}
+  rpc GetProof(stream ReqGetProof) returns (stream ResGetProof) {}
+  rpc Execute(stream InputProver) returns (stream ResExecute) {}
+}
+
+/**
+ * Message input types definition
+ */
 message NoParams {}
 
-message State {
-  enum Status {
-    IDLE = 0;
-    ERROR = 1;
-    PENDING = 2;
-    FINISHED = 3;
+message RequestId {
+  string id = 1;
+}
+
+message ReqGetProof {
+  string id = 1;
+  uint64 timeout = 2;
+}
+
+/*
+ * Message output responses types
+ */
+message ResGetStatus {
+  enum StatusProver {
+    BOOTING = 0;
+    COMPUTING = 1;
+    IDLE = 2;
+    HALT = 3;
   }
-  Status status = 1;
+  StatusProver state = 1;
+  string last_computed_request_id = 2;
+  uint64 last_computed_end_time = 3;
+  string current_computing_request_id = 4;
+  uint64 current_computing_start_time = 5;
+  string version_proto = 6;
+  string version_server = 7;
+  repeated string pending_request_queue_ids = 8;
+}
+
+message ResGenProof {
+  enum ResultGenProof {
+    OK = 0;
+    ERROR = 1;
+    INTERNAL_ERROR = 2;
+  }
+  string id = 1;
+  ResultGenProof result = 2;
+}
+
+message ResCancel {
+  enum ResultCancel {
+    OK = 0;
+    ERROR = 1;
+  }
+  ResultCancel result = 1;
+}
+
+message ResGetProof {
+  enum ResultGetProof {
+    COMPLETED_OK = 0;
+    ERROR = 1;
+    COMPLETED_ERR = 2;
+    PENDING = 3;
+    INTERNAL_ERROR = 4;
+    CANCEL = 5;
+  }
+  string id = 1;
   Proof proof = 2;
+  PublicInputsExtended public = 3;
+  ResultGetProof result = 4;
+  string result_string = 5;
 }
 
-message ProofX {
-  repeated string proof = 1;
+message ResExecute {
+  enum ResultExecute {
+    COMPLETED_OK = 0;
+    ERROR = 1;
+    COMPLETED_ERR = 2;
+    INTERNAL_ERROR = 3;
+    CANCEL = 4;
+  }
+  ResultExecute result = 1;
+  map<string, string> diff_keys_values = 2;
+  string new_state_root = 3;
+  ZkCounters counters = 4;
+  repeated string receipts = 5;
+  repeated string logs = 6;
 }
 
+message ZkCounters {
+  uint32 ecrecover = 1;
+  uint32 hash_poseidon = 2;
+  uint32 hash_keccak = 3;
+  uint32 arith = 4;
+}
+
+/*
+ * Define common messages
+ */
 message PublicInputs {
-  string oldStateRoot = 1;
-  string oldLocalExitRoot = 2;
-  string newStateRoot = 3;
-  string newLocalExitRoot = 4;
-  string sequencerAddr = 5;
-  string batchHashData = 6;
-  uint32 chainId = 7;
-  uint32 batchNum = 8;
+  string old_state_root = 1;
+  string old_local_exit_root = 2;
+  string new_state_root = 3;
+  string new_local_exit_root = 4;
+  string sequencer_addr = 5;
+  string batch_hash_data = 6;
+  uint32 chain_id = 7;
+  uint32 batch_num = 8;
+  uint32 block_num = 9;
+  uint64 eth_timestamp = 10;
+}
+
+message ProofB {
+  repeated string proofs = 1;
 }
 
 message Proof {
   repeated string proofA = 1;
-  repeated ProofX proofB = 2;
-  repeated string  proofC = 3;
-  PublicInputsExtended publicInputsExtended = 4;
+  repeated ProofB proofB = 2;
+  repeated string proofC = 3;
 }
 
 message InputProver {
-  string message = 1;
-  PublicInputs publicInputs = 2;
-  string globalExitRoot = 3;
-  repeated string txs = 4;
-  map<string, string> keys = 5;
+  PublicInputs public_inputs = 1;
+  string global_exit_root = 2;
+  repeated string txs = 3;
+  map<string, string> db = 4;
 }
 
 message PublicInputsExtended {
-  PublicInputs publicInputs = 2;
-  string inputHash = 5;
+  PublicInputs public_inputs = 1;
+  string input_hash = 2;
 }

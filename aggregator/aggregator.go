@@ -71,16 +71,12 @@ func (a *Aggregator) Start() {
 	// this is a batches, that were sent to ethereum to consolidate
 	batchesSent := make(map[uint64]bool)
 
+	// define those vars here, bcs it can be used in case <-a.ctx.Done()
+	var getProofCtx context.Context
+	var getProofCtxCancel context.CancelFunc
 	for {
 		select {
 		case <-time.After(a.cfg.IntervalToConsolidateState.Duration):
-			// init connection to the prover
-			var opts []grpc.CallOption
-			getProofClient, err := a.ZkProverClient.GenProof(a.ctx, opts...)
-			if err != nil {
-				log.Errorf("failed to connect to the prover, err: %v", err)
-				continue
-			}
 
 			// 1. check, if state is synced
 			lastConsolidatedBatch, err := a.State.GetLastBatch(a.ctx, false)
@@ -182,12 +178,11 @@ func (a *Aggregator) Start() {
 				continue
 			}
 			chainID := uint32(seq.ChainID.Uint64())
-
 			// TODO: change this, once we have dynamic exit root
 			globalExitRoot := common.HexToHash("0xa116e19a7984f21055d07b606c55628a5ffbf8ae1261c1e9f4e3a61620cf810a")
 			oldLocalExitRoot := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 			newLocalExitRoot := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-			fakeKeys := map[string]string{
+			db := map[string]string{
 				"0540ae2a259cb9179561cffe6a0a3852a2c1806ad894ed396a2ef16e1f10e9c7": "0000000000000000000000000000000000000000000000056bc75e2d63100000",
 				"061927dd2a72763869c1d5d9336a42d12a9a2f22809c9cf1feeb2a6d1643d950": "0000000000000000000000000000000000000000000000000000000000000000",
 				"03ae74d1bbdff41d14f155ec79bb389db716160c1766a49ee9c9707407f80a11": "00000000000000000000000000000000000000000000000ad78ebc5ac6200000",
@@ -197,7 +192,6 @@ func (a *Aggregator) Start() {
 			oldStateRoot := common.BytesToHash(stateRootConsolidated)
 			newStateRoot := common.BytesToHash(stateRootToConsolidate)
 			inputProver := &proverclient.InputProver{
-				Message: "calculate",
 				PublicInputs: &proverclient.PublicInputs{
 					OldStateRoot:     oldStateRoot.String(),
 					OldLocalExitRoot: oldLocalExitRoot.String(),
@@ -207,24 +201,83 @@ func (a *Aggregator) Start() {
 					BatchHashData:    batchHashData.String(),
 					ChainId:          chainID,
 					BatchNum:         uint32(batchToConsolidate.Number().Uint64()),
+					BlockNum:         uint32(batchToConsolidate.BlockNumber),
 				},
 				GlobalExitRoot: globalExitRoot.String(),
 				Txs:            txs,
-				Keys:           fakeKeys,
+				Db:             db,
 			}
-			log.Debugf("Data sent to the prover: %+v", inputProver)
-			err = getProofClient.Send(inputProver)
+
+			// init connection to the prover
+			var opts []grpc.CallOption
+			resGenProof, err := a.ZkProverClient.GenProof(a.ctx, inputProver, opts...)
 			if err != nil {
-				log.Warnf("failed to send batch to the prover, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64(), err)
-				continue
-			}
-			proofState, err := getProofClient.Recv()
-			if err != nil {
-				log.Warnf("failed to get proof from the prover, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64(), err)
+				log.Errorf("failed to connect to the prover to gen proof, err: %v", err)
 				continue
 			}
 
-			// Calc inpuntHash
+			log.Debugf("Data sent to the prover: %+v", inputProver)
+			genProofRes := resGenProof.GetResult()
+			if genProofRes != proverclient.ResGenProof_OK {
+				log.Warnf("failed to get result from the prover, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64())
+				continue
+			}
+			genProofID := resGenProof.GetId()
+
+			resGetProof := &proverclient.ResGetProof{
+				Result: -1,
+			}
+			getProofCtx, getProofCtxCancel = context.WithCancel(a.ctx)
+			getProofClient, err := a.ZkProverClient.GetProof(getProofCtx)
+			if err != nil {
+				log.Warnf("failed to init getProofClient, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64(), err)
+				continue
+			}
+			for resGetProof.Result != proverclient.ResGetProof_COMPLETED_OK {
+				err = getProofClient.Send(&proverclient.ReqGetProof{
+					Id: genProofID,
+				})
+				if err != nil {
+					log.Warnf("failed to send get proof request to the prover, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64(), err)
+					break
+				}
+
+				resGetProof, err = getProofClient.Recv()
+				if err != nil {
+					log.Warnf("failed to get proof from the prover, batchNumber: %v, err: %v", batchToConsolidate.Number().Uint64(), err)
+					break
+				}
+
+				resGetProofState := resGetProof.GetResult()
+				if resGetProofState == proverclient.ResGetProof_ERROR ||
+					resGetProofState == proverclient.ResGetProof_INTERNAL_ERROR ||
+					// TODO: what should I do for ResGetProof_COMPLETED_ERR? Somehow mark batch as invalid?
+					resGetProofState == proverclient.ResGetProof_COMPLETED_ERR {
+					log.Warnf("failed to generate proof for batch, batchNumber: %v, ResGetProofState: %v", batchToConsolidate.Number().Uint64(), resGetProofState)
+					break
+				}
+
+				// TODO: not sure, that this behaviour is expected in case of CANCEL
+				if resGetProofState == proverclient.ResGetProof_CANCEL {
+					log.Warnf("proof generation was cancelled, batchNumber: %v", batchToConsolidate.Number().Uint64())
+					break
+				}
+
+				if resGetProofState == proverclient.ResGetProof_PENDING {
+					// in this case aggregator will wait, to send another request
+					time.Sleep(a.cfg.IntervalFrequencyToGetProofGenerationStateInSeconds.Duration)
+					continue
+				}
+			}
+
+			// getProofCtxCancel call closes the connection stream with the prover. This is the only way to close it by client
+			getProofCtxCancel()
+
+			if resGetProof.GetResult() != 0 {
+				continue
+			}
+
+			// Calc inputHash
 			batchChainIDByte := make([]byte, 4)
 			batchNumberByte := make([]byte, 4)
 			binary.BigEndian.PutUint32(batchChainIDByte, inputProver.PublicInputs.ChainId)
@@ -246,10 +299,11 @@ func (a *Aggregator) Start() {
 
 			// InputHash must match
 			internalInputHashS := "0x" + hex.EncodeToString(internalInputHash)
-			if proofState.Proof.PublicInputsExtended.InputHash != internalInputHashS {
-				log.Error("inputHash received from the prover (", proofState.Proof.PublicInputsExtended.InputHash,
+			publicInputsExtended := resGetProof.GetPublic()
+			if resGetProof.GetPublic().InputHash != internalInputHashS {
+				log.Error("inputHash received from the prover (", publicInputsExtended.InputHash,
 					") doesn't match with the internal value: ", internalInputHashS)
-				log.Debug("internalBatchHashData: ", batchHashData, " externalBatchHashData: ", proofState.Proof.PublicInputsExtended.PublicInputs.BatchHashData)
+				log.Debug("internalBatchHashData: ", batchHashData, " externalBatchHashData: ", publicInputsExtended.PublicInputs.BatchHashData)
 				log.Debug("inputProver.PublicInputs.OldStateRoot: ", inputProver.PublicInputs.OldStateRoot)
 				log.Debug("inputProver.PublicInputs.OldLocalExitRoot:", inputProver.PublicInputs.OldLocalExitRoot)
 				log.Debug("inputProver.PublicInputs.NewStateRoot: ", inputProver.PublicInputs.NewStateRoot)
@@ -262,7 +316,7 @@ func (a *Aggregator) Start() {
 
 			// 4. send proof + txs to the SC
 			batchNum := new(big.Int).SetUint64(batchToConsolidate.Number().Uint64())
-			h, err := a.EtherMan.ConsolidateBatch(batchNum, proofState.Proof)
+			h, err := a.EtherMan.ConsolidateBatch(batchNum, resGetProof.Proof)
 			if err != nil {
 				log.Warnf("failed to send request to consolidate batch to ethereum, batch number: %d, err: %v",
 					batchToConsolidate.Number().Uint64(), err)
@@ -272,6 +326,7 @@ func (a *Aggregator) Start() {
 
 			log.Infof("Batch %d consolidated: %s", batchToConsolidate.Number().Uint64(), h.Hash())
 		case <-a.ctx.Done():
+			getProofCtxCancel()
 			return
 		}
 	}
