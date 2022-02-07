@@ -261,7 +261,7 @@ hash and has parent. This operation has to be done until a match is found.
 func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block, error) {
 	// This function only needs to worry about reorgs if some of the reorganized blocks contained rollup info.
 	latestEthBlockSynced := *latestBlock
-	var deep uint64
+	var depth uint64
 	for {
 		block, err := s.etherMan.EthBlockByNumber(s.ctx, latestBlock.BlockNumber)
 		if err != nil {
@@ -284,10 +284,10 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 			log.Debug("[checkReorg function] => BlockNumber: ", latestBlock.BlockNumber, block.NumberU64())
 			log.Debug("[checkReorg function] => BlockHash: ", block.Hash())
 			log.Debug("[checkReorg function] => BlockHashParent: ", block.ParentHash())
-			deep++
-			log.Debug("REORG: Looking for the latest correct ethereum block. Deep: ", deep)
+			depth++
+			log.Debug("REORG: Looking for the latest correct ethereum block. Depth: ", depth)
 			// Reorg detected. Getting previous block
-			latestBlock, err = s.state.GetPreviousBlock(s.ctx, deep)
+			latestBlock, err = s.state.GetPreviousBlock(s.ctx, depth)
 			if errors.Is(err, state.ErrNotFound) {
 				log.Warn("error checking reorg: previous block not found in db: ", err)
 				return nil, nil
