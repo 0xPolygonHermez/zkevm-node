@@ -42,6 +42,12 @@ var (
 	ZeroAddress = common.HexToAddress("0x0000000000000000000000000000000000000000")
 )
 
+// InvalidTxErrors is map to spot invalid txs
+var InvalidTxErrors = map[string]bool{
+	ErrInvalidSig.Error(): true, ErrInvalidNonce.Error(): true, ErrInvalidBalance.Error(): true,
+	ErrInvalidGas.Error(): true, ErrInvalidChainID.Error(): true,
+}
+
 // BatchProcessor is used to process a batch of transactions
 type BatchProcessor interface {
 	ProcessBatch(batch *Batch) error

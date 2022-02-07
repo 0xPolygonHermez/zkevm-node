@@ -430,6 +430,7 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 
 		var batch state.Batch
 		batch.Header = &head
+		batch.BlockNumber = vLog.BlockNumber
 		batch.Aggregator = common.BytesToAddress(vLog.Topics[2].Bytes())
 		batch.ConsolidatedTxHash = vLog.TxHash
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
