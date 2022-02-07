@@ -29,7 +29,7 @@ services:
 
     hez-explorer:
         container_name: hez-explorer
-        image: hermeznetwork/hermez-node-blockscout:tagname
+        image: hermeznetwork/hermez-node-blockscout:latest
         ports:
             - 4000:4000
         environment:
