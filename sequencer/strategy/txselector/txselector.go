@@ -73,7 +73,11 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 		}
 		err := batchProcessor.ProcessTransaction(&t, sequencerAddress)
 		if err != nil {
-			invalidTxsHashes = append(invalidTxsHashes, tx.Hash().Hex())
+			if state.InvalidTxErrors[err.Error()] {
+				invalidTxsHashes = append(invalidTxsHashes, tx.Hash().Hex())
+			} else {
+				return nil, nil, nil, err
+			}
 		} else {
 			selectedTxs = append(selectedTxs, &t)
 			selectedTxsHashes = append(selectedTxsHashes, t.Hash().Hex())
