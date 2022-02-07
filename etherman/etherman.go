@@ -61,7 +61,7 @@ type EtherMan interface {
 	GetRollupInfoByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]Order, error)
 	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]Order, error)
 	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
-	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
+	ConsolidateBatch(batchNum *big.Int, proof *proverclient.ResGetProof) (*types.Transaction, error)
 	RegisterSequencer(url string) (*types.Transaction, error)
 	GetAddress() common.Address
 	GetDefaultChainID() (*big.Int, error)
@@ -218,8 +218,8 @@ func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.Transa
 }
 
 // ConsolidateBatch function allows the aggregator send the proof for a batch and consolidate it
-func (etherMan *ClientEtherMan) ConsolidateBatch(batchNumber *big.Int, proof *proverclient.Proof) (*types.Transaction, error) {
-	publicInputs := proof.PublicInputsExtended.PublicInputs
+func (etherMan *ClientEtherMan) ConsolidateBatch(batchNumber *big.Int, resGetProof *proverclient.ResGetProof) (*types.Transaction, error) {
+	publicInputs := resGetProof.Public.PublicInputs
 	newLocalExitRoot, err := stringToFixedByteArray(publicInputs.NewLocalExitRoot)
 	if err != nil {
 		return nil, err
@@ -229,16 +229,16 @@ func (etherMan *ClientEtherMan) ConsolidateBatch(batchNumber *big.Int, proof *pr
 		return nil, err
 	}
 
-	proofA, err := strSliceToBigIntArray(proof.ProofA)
+	proofA, err := strSliceToBigIntArray(resGetProof.Proof.ProofA)
 	if err != nil {
 		return nil, err
 	}
 
-	proofB, err := proofSlcToIntArray(proof.ProofB)
+	proofB, err := proofSlcToIntArray(resGetProof.Proof.ProofB)
 	if err != nil {
 		return nil, err
 	}
-	proofC, err := strSliceToBigIntArray(proof.ProofC)
+	proofC, err := strSliceToBigIntArray(resGetProof.Proof.ProofC)
 	if err != nil {
 		return nil, err
 	}

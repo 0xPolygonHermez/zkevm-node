@@ -241,8 +241,8 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	assert.Equal(t, txRaw, block[0].Batches[0].RawTxsData)
 
 	proofSlc := []string{"21565562996339338849564494593510043939919477777537254861096838135755987477204", "15747187504567161371139699773055768026064826386340198020294048673214119551381", "1"}
-	proofBelem := proverclient.ProofX{Proof: proofSlc}
-	var proofB []*proverclient.ProofX
+	proofBelem := proverclient.ProofB{Proofs: proofSlc}
+	var proofB []*proverclient.ProofB
 	proofB = append(proofB, &proofBelem, &proofBelem, &proofBelem)
 	newStateRoot, ok := new(big.Int).SetString("1212121212121212121212121212121212121212121212121212121212121212", 16)
 	assert.True(t, ok)
@@ -252,11 +252,13 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 		NewStateRoot:     newStateRoot.String(),
 		NewLocalExitRoot: newLocalExitRoot.String(),
 	}
-	proof := proverclient.Proof{
-		ProofA: proofSlc,
-		ProofB: proofB,
-		ProofC: proofSlc,
-		PublicInputsExtended: &proverclient.PublicInputsExtended{
+	proof := proverclient.ResGetProof{
+		Proof: &proverclient.Proof{
+			ProofA: proofSlc,
+			ProofB: proofB,
+			ProofC: proofSlc,
+		},
+		Public: &proverclient.PublicInputsExtended{
 			PublicInputs: publicInputs,
 		},
 	}
