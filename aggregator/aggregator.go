@@ -202,6 +202,8 @@ func (a *Aggregator) Start() {
 					ChainId:          chainID,
 					BatchNum:         uint32(batchToConsolidate.Number().Uint64()),
 					BlockNum:         uint32(batchToConsolidate.BlockNumber),
+					// TODO: currently there is a receivedAt value, but probably this should be synced by synchronizer
+					EthTimestamp: uint64(batchToConsolidate.ReceivedAt.Unix()),
 				},
 				GlobalExitRoot: globalExitRoot.String(),
 				Txs:            txs,
