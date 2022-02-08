@@ -19,7 +19,7 @@ func (d *Duration) UnmarshalText(data []byte) error {
 	if err != nil {
 		return err
 	}
-	d.Duration = duration * time.Second
+	d.Duration = duration
 	return nil
 }
 
