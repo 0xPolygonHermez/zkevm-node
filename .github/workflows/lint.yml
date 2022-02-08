@@ -16,6 +16,8 @@ jobs:
           go-version: 1.16.x
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Automatic Rebase
+        uses: cirrus-actions/rebase@1.5
       - name: Lint
         run: |
           make install-linter
