@@ -134,7 +134,7 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 		return nil, err
 	}
 
-	return argBytes(code).MarshalText()
+	return argBytes(code), nil
 }
 
 // GetTransactionByBlockHashAndIndex returns information about a transaction by
