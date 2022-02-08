@@ -122,8 +122,19 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 
 // GetCode returns account code at given block number
 func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{}, error) {
-	// we need this because Metamask is calling this method when a transfer is executed.
-	return "0x", nil
+	batchNumber, err := getNumericBlockNumber(e, *number)
+	if err != nil {
+		return nil, err
+	}
+
+	code, err := e.state.GetCode(address, batchNumber)
+	if errors.Is(err, state.ErrNotFound) {
+		return "0x", nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return argBytes(code), nil
 }
 
 // GetTransactionByBlockHashAndIndex returns information about a transaction by

@@ -1034,4 +1034,11 @@ func TestSCExecution(t *testing.T) {
 	receipt2, err := testState.GetTransactionReceipt(ctx, signedTx2.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1115), receipt2.GasUsed)
+
+	// Check GetCode
+	lastBatch, err := testState.GetLastBatch(ctx, true)
+	assert.NoError(t, err)
+	code, err := st.GetCode(scAddress, lastBatch.Number().Uint64())
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", code)
 }

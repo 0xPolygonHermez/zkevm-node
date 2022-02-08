@@ -38,6 +38,8 @@ var (
 	ErrInvalidChainID = errors.New("invalid chain id for sequencer")
 	// ErrNotImplemented indicates this feature has not yet been implemented
 	ErrNotImplemented = errors.New("feature not yet implemented")
+	// ErrInvalidTxType indicates the tx type is not known
+	ErrInvalidTxType = errors.New("unknown transaction type")
 	// EmptyCodeHash is the hash of empty code
 	EmptyCodeHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	// ZeroAddress is the address 0x0000000000000000000000000000000000000000
@@ -122,31 +124,33 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 }
 
 func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
-	var result *runtime.ExecutionResult
-
 	receiverAddress := tx.To()
 
+	// SC creation?
 	if *receiverAddress == ZeroAddress {
 		log.Debug("smart contract creation")
-		result = b.create(tx, senderAddress, sequencerAddress)
-	} else {
-		code := b.GetCode(*receiverAddress)
-		if len(code) > 0 {
-			log.Debugf("smart contract execution %v", receiverAddress)
-			contract := runtime.NewContractCall(0, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
-			result = b.run(contract)
-			result.GasUsed = tx.Gas() - result.GasLeft
-			log.Debugf("Transaction Data %v", tx.Data())
-			log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
-		} else if tx.Value() != new(big.Int) {
-			result = b.transfer(tx, senderAddress, sequencerAddress)
-		} else {
-			log.Error("unknown transaction type")
-			result.Err = ErrNotImplemented
-		}
+		return b.create(tx, senderAddress, sequencerAddress)
 	}
 
-	return result
+	// SC execution
+	code := b.GetCode(*receiverAddress)
+	if len(code) > 0 {
+		log.Debugf("smart contract execution %v", receiverAddress)
+		contract := runtime.NewContractCall(0, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
+		result := b.run(contract)
+		result.GasUsed = tx.Gas() - result.GasLeft
+		log.Debugf("Transaction Data %v", tx.Data())
+		log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
+		return result
+	}
+
+	// Transfer
+	if tx.Value() != new(big.Int) {
+		return b.transfer(tx, senderAddress, sequencerAddress)
+	}
+
+	log.Error("unknown transaction type")
+	return &runtime.ExecutionResult{Err: ErrInvalidTxType}
 }
 
 func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch, cumulativeGasUsed uint64) {

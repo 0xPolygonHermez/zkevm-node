@@ -27,6 +27,7 @@ type State interface {
 	NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchProcessor, error)
 	GetStateRoot(ctx context.Context, virtual bool) ([]byte, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
+	GetCode(address common.Address, batchNumber uint64) ([]byte, error)
 	EstimateGas(transaction *types.Transaction) uint64
 	GetNonce(address common.Address, batchNumber uint64) (uint64, error)
 	SetGenesis(ctx context.Context, genesis Genesis) error
@@ -172,6 +173,18 @@ func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*bi
 	}
 
 	return s.tree.GetBalance(address, root)
+}
+
+// GetCode from a given address
+func (s *BasicState) GetCode(address common.Address, batchNumber uint64) ([]byte, error) {
+	root, err := s.GetStateRootByBatchNumber(batchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+
+	return s.tree.GetCode(address, root)
 }
 
 // EstimateGas for a transaction
