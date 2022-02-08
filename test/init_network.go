@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
-	"github.com/hermeznetwork/hermez-core/test/e2e"
+	"github.com/hermeznetwork/hermez-core/test/operations"
 )
 
 const (
@@ -82,7 +82,7 @@ func main() {
 
 	// Create matic maticTokenSC sc instance
 	fmt.Println("Loading Matic token SC instance")
-	maticTokenSC, err := e2e.NewToken(common.HexToAddress(maticTokenAddress), client)
+	maticTokenSC, err := operations.NewToken(common.HexToAddress(maticTokenAddress), client)
 	checkErr(err)
 
 	// Send matic to sequencer
