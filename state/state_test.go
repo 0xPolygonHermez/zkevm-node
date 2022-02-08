@@ -303,7 +303,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, common.Hash{}, insertedBatch.ConsolidatedTxHash)
 
-	err = testState.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash, time.Now())
+	err = testState.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash, time.Now(), batch.Aggregator)
 	assert.NoError(t, err)
 
 	insertedBatch, err = testState.GetBatchByNumber(ctx, batchNumber)
