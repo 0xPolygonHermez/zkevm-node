@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -148,7 +147,7 @@ func (s *Sequencer) tryProposeBatch() {
 
 	// select txs
 	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs, s.Address)
-	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
+	if err != nil {
 		log.Errorf("failed to select txs, err: %v", err)
 		return
 	}

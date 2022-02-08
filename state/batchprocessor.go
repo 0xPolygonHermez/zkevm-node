@@ -26,8 +26,10 @@ const (
 var (
 	// ErrInvalidSig indicates the signature of the transaction is not valid
 	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
-	// ErrInvalidNonce indicates the nonce of the transaction is not valid
-	ErrInvalidNonce = errors.New("invalid transaction nonce")
+	// ErrNonceIsBiggerThanAccountNonce indicates the nonce of the transaction is bigger than account nonce
+	ErrNonceIsBiggerThanAccountNonce = errors.New("transaction nonce is bigger than account nonce")
+	// ErrNonceIsSmallerThanAccountNonce indicates the nonce of the transaction is smaller than account nonce
+	ErrNonceIsSmallerThanAccountNonce = errors.New("transaction nonce is less than account nonce")
 	// ErrInvalidBalance indicates the balance of the account is not enough to process the transaction
 	ErrInvalidBalance = errors.New("not enough balance")
 	// ErrInvalidGas indicates the gaslimit is not enough to process the transaction
@@ -44,7 +46,7 @@ var (
 
 // InvalidTxErrors is map to spot invalid txs
 var InvalidTxErrors = map[string]bool{
-	ErrInvalidSig.Error(): true, ErrInvalidNonce.Error(): true, ErrInvalidBalance.Error(): true,
+	ErrInvalidSig.Error(): true, ErrNonceIsSmallerThanAccountNonce.Error(): true, ErrInvalidBalance.Error(): true,
 	ErrInvalidGas.Error(): true, ErrInvalidChainID.Error(): true,
 }
 
@@ -369,9 +371,16 @@ func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonc
 	}
 
 	// Check nonce
-	if senderNonce.Uint64() != tx.Nonce() {
-		log.Debugf("check transaction [%s]: invalid nonce, expected: %d, found: %d", tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
-		return ErrInvalidNonce
+	if senderNonce.Uint64() > tx.Nonce() {
+		log.Debugf("check transaction [%s]: invalid nonce, tx nonce is less than account nonce, expected: %d, found: %d",
+			tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
+		return ErrNonceIsSmallerThanAccountNonce
+	}
+
+	if senderNonce.Uint64() < tx.Nonce() {
+		log.Debugf("check transaction [%s]: invalid nonce at this moment, tx nonce is bigger than account nonce, expected: %d, found: %d",
+			tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
+		return ErrNonceIsBiggerThanAccountNonce
 	}
 
 	// Check balance
