@@ -77,11 +77,6 @@ func (s *ClientSynchronizer) Sync() error {
 			case <-s.ctx.Done():
 				return
 			case <-time.After(waitDuration):
-				if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
-					if s.ctx.Err() != nil {
-						continue
-					}
-				}
 				// Check latest Proposed Batch number in the smc
 				latestProposedBatchNumber, err := s.etherMan.GetLatestProposedBatchNumber()
 				if err != nil {
@@ -104,6 +99,11 @@ func (s *ClientSynchronizer) Sync() error {
 				if err != nil {
 					log.Warn("error setting latest consolidated batch into db. Error: ", err)
 					continue
+				}
+				if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
+					if s.ctx.Err() != nil {
+						continue
+					}
 				}
 				if waitDuration != s.cfg.SyncInterval.Duration {
 					// Check latest Synced Batch
