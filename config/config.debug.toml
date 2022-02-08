@@ -26,6 +26,7 @@ SyncChunkSize = 100
 AllowNonRegistered = "false"
 IntervalToProposeBatch = "15s"
 SyncedBlockDif = 1
+DefaultGasPrice = 1
     [Sequencer.Strategy]
         [Sequencer.Strategy.TxSelector]
             Type = "acceptall"

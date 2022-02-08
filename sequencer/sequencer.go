@@ -67,6 +67,12 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 			return Sequencer{}, fmt.Errorf("failed to get chain id for the sequencer, err: %v", err)
 		}
 	}
+
+	err := pool.SetGasPrice(ctx, cfg.DefaultGasPrice)
+	if err != nil {
+		cancel()
+		return Sequencer{}, fmt.Errorf("failed to set default gas price, err: %v", err)
+	}
 	s := Sequencer{
 		cfg:     cfg,
 		Pool:    pool,
