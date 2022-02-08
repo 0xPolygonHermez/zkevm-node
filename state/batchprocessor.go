@@ -372,7 +372,7 @@ func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonc
 
 	// Check nonce
 	if senderNonce.Uint64() > tx.Nonce() {
-		log.Debugf("check transaction [%s]: invalid nonce, tx nonce is less than account nonce, expected: %d, found: %d",
+		log.Debugf("check transaction [%s]: invalid nonce, tx nonce is smaller than account nonce, expected: %d, found: %d",
 			tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
 		return ErrNonceIsSmallerThanAccountNonce
 	}
