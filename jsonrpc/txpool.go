@@ -5,13 +5,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 )
 
 // TxPool is the txpool jsonrpc endpoint
 type TxPool struct {
-	pool pool.Pool
+	pool jsonrpcTxPool
 }
 
 type contentResponse struct {

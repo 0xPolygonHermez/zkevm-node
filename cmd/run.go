@@ -134,7 +134,7 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 	}
 }
 
-func runJSONRpcServer(c config.Config, pool pool.Pool, st state.State, chainID uint64) {
+func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, chainID uint64) {
 	var err error
 	key, err := newKeyFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
 	if err != nil {
@@ -148,7 +148,7 @@ func runJSONRpcServer(c config.Config, pool pool.Pool, st state.State, chainID u
 	}
 }
 
-func createSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool pool.Pool, state state.State) sequencer.Sequencer {
+func createSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool *pool.PostgresPool, state state.State) sequencer.Sequencer {
 	seq, err := sequencer.NewSequencer(c, pool, state, etherman)
 	if err != nil {
 		log.Fatal(err)
