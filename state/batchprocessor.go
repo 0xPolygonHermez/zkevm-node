@@ -29,7 +29,7 @@ var (
 	// ErrNonceIsBiggerThanAccountNonce indicates the nonce of the transaction is bigger than account nonce
 	ErrNonceIsBiggerThanAccountNonce = errors.New("transaction nonce is bigger than account nonce")
 	// ErrNonceIsSmallerThanAccountNonce indicates the nonce of the transaction is smaller than account nonce
-	ErrNonceIsSmallerThanAccountNonce = errors.New("transaction nonce is less than account nonce")
+	ErrNonceIsSmallerThanAccountNonce = errors.New("transaction nonce is smaller than account nonce")
 	// ErrInvalidBalance indicates the balance of the account is not enough to process the transaction
 	ErrInvalidBalance = errors.New("not enough balance")
 	// ErrInvalidGas indicates the gaslimit is not enough to process the transaction
