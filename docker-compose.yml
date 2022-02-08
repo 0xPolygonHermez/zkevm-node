@@ -29,17 +29,21 @@ services:
 
     hez-explorer:
         container_name: hez-explorer
-        image: ulamlabs/blockscout:latest
+        image: hermeznetwork/hermez-node-blockscout:latest
         ports:
-          - 4000:4000
+            - 4000:4000
         environment:
-          - NETWORK=POE
-          - SUBNETWORK=Polygon Hermez
-          - COIN=ETH
-          - ETHEREUM_JSONRPC_VARIANT=geth
-          - ETHEREUM_JSONRPC_HTTP_URL=http://hez-core:8123
-          - DATABASE_URL=postgres://test_user:test_password@hez-explorer-postgres:5432/explorer
-          - ECTO_USE_SSL=false
+            - NETWORK=POE
+            - SUBNETWORK=Polygon Hermez
+            - COIN=ETH
+            - ETHEREUM_JSONRPC_VARIANT=geth
+            - ETHEREUM_JSONRPC_HTTP_URL=http://hez-core:8123
+            - DATABASE_URL=postgres://test_user:test_password@hez-explorer-postgres:5432/explorer
+            - ECTO_USE_SSL=false
+            - MIX_ENV=prod
+            - LOGO=/images/blockscout_logo.svg
+            - LOGO_FOOTER=/images/blockscout_logo.svg
+        command: ["/bin/sh", "-c", "mix do ecto.create, ecto.migrate; mix phx.server"]
 
     hez-explorer-postgres:
         container_name: hez-explorer-postgres
