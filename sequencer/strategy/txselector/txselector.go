@@ -76,7 +76,7 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 			if state.InvalidTxErrors[err.Error()] {
 				invalidTxsHashes = append(invalidTxsHashes, tx.Hash().Hex())
 			} else if state.ErrNonceIsBiggerThanAccountNonce.Error() == err.Error() {
-				// this means, that this tx could be valid in the future, but can be selected at this moment
+				// this means, that this tx could be valid in the future, but can't be selected at this moment
 				continue
 			} else {
 				return nil, nil, nil, err
