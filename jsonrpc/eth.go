@@ -129,12 +129,12 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 
 	code, err := e.state.GetCode(address, batchNumber)
 	if errors.Is(err, state.ErrNotFound) {
-		return []byte{}, nil
+		return "0x", nil
 	} else if err != nil {
 		return nil, err
 	}
 
-	return code, nil
+	return argBytes(code).MarshalText()
 }
 
 // GetTransactionByBlockHashAndIndex returns information about a transaction by
