@@ -10,6 +10,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/mocks"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,9 +28,9 @@ func TestBase_SelectTxs(t *testing.T) {
 	tx3 := types.NewTransaction(uint64(2), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(14), []byte{})
 	txs := []pool.Transaction{{Transaction: *tx2}, {Transaction: *tx1}, {Transaction: *tx3}}
 
-	bp.On("ProcessTransaction", tx1, seqAddress).Return(state.ErrInvalidBalance)
-	bp.On("ProcessTransaction", tx2, seqAddress).Return(nil)
-	bp.On("ProcessTransaction", tx3, seqAddress).Return(state.ErrInvalidSig)
+	bp.On("ProcessTransaction", tx1, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidBalance})
+	bp.On("ProcessTransaction", tx2, seqAddress).Return(&runtime.ExecutionResult{})
+	bp.On("ProcessTransaction", tx3, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidSig})
 	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(bp, txs, seqAddress)
 	bp.AssertExpectations(t)
 	assert.NoError(t, err)
