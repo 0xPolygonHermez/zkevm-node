@@ -1,7 +1,6 @@
 package jsonrpc
 
 import (
-	"context"
 	"math/big"
 	"strconv"
 	"strings"
@@ -10,17 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 )
-
-// jsonrpcTxPool contains the methods required to interact with the tx pool.
-type jsonrpcTxPool interface {
-	AddTx(ctx context.Context, tx types.Transaction) error
-	GetPendingTxs(ctx context.Context) ([]pool.Transaction, error)
-	GetGasPrice(ctx context.Context) (uint64, error)
-}
 
 type argUint64 uint64
 
