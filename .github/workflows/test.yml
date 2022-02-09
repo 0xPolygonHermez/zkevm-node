@@ -14,7 +14,12 @@ jobs:
         goarch: [ "amd64" ]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Automatic Rebase
+      uses: cirrus-actions/rebase@1.5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Install Go
       uses: actions/setup-go@v1
       with:
