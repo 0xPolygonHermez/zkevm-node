@@ -21,7 +21,7 @@ import (
 type Sequencer struct {
 	cfg Config
 
-	Pool    pool.Pool
+	Pool    sequencerTxPool
 	State   state.State
 	EthMan  etherman.EtherMan
 	Address common.Address
@@ -35,7 +35,7 @@ type Sequencer struct {
 }
 
 // NewSequencer creates a new sequencer
-func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan) (Sequencer, error) {
+func NewSequencer(cfg Config, pool sequencerTxPool, state state.State, ethMan etherman.EtherMan) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var txSelector txselector.TxSelector

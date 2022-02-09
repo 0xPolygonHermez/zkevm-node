@@ -9,14 +9,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // Eth contains implementations for the "eth" RPC endpoints
 type Eth struct {
 	chainIDSelector *chainIDSelector
-	pool            pool.Pool
+	pool            jsonRPCTxPool
 	state           state.State
 }
 

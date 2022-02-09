@@ -12,7 +12,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
@@ -24,7 +23,7 @@ type Server struct {
 }
 
 // NewServer returns the JsonRPC server
-func NewServer(config Config, defaultChainID uint64, sequencerAddress common.Address, p pool.Pool, s state.State, chainID uint64) *Server {
+func NewServer(config Config, defaultChainID uint64, sequencerAddress common.Address, p jsonRPCTxPool, s state.State, chainID uint64) *Server {
 	chainIDSelector := newChainIDSelector(chainID)
 	ethEndpoints := &Eth{chainIDSelector: chainIDSelector, pool: p, state: s}
 	netEndpoints := &Net{chainIDSelector: chainIDSelector}
