@@ -228,12 +228,11 @@ func (tree *StateTree) SetCode(address common.Address, code []byte) (newRoot []b
 	// we need to have exactly maxBigIntLen bytes for a key in db for
 	// interoperability with prover/executor code, but big.Int Bytes()
 	// can return less, so we make sure it has the right size with FillBytes.
-	var buff [maxBigIntLen]byte
-	scCodeHashBI.FillBytes(buff[:])
-	scCodeHash := scCodeHashBI.Bytes()
+	var scCodeHash [maxBigIntLen]byte
+	scCodeHashBI.FillBytes(scCodeHash[:])
 
 	// store smart contract code by its hash
-	err = tree.scCodeStore.Set(context.TODO(), scCodeHash, code)
+	err = tree.scCodeStore.Set(context.TODO(), scCodeHash[:], code)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -246,7 +245,7 @@ func (tree *StateTree) SetCode(address common.Address, code []byte) (newRoot []b
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(context.TODO(), r, k, new(big.Int).SetBytes(scCodeHash))
+	updateProof, err := tree.mt.Set(context.TODO(), r, k, new(big.Int).SetBytes(scCodeHash[:]))
 	if err != nil {
 		return nil, nil, err
 	}
