@@ -15,7 +15,7 @@ import (
 // Eth contains implementations for the "eth" RPC endpoints
 type Eth struct {
 	chainIDSelector *chainIDSelector
-	pool            jsonrpcTxPool
+	pool            jsonRPCTxPool
 	state           state.State
 }
 

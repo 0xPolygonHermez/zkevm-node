@@ -10,7 +10,7 @@ import (
 
 // TxPool is the txpool jsonrpc endpoint
 type TxPool struct {
-	pool jsonrpcTxPool
+	pool jsonRPCTxPool
 }
 
 type contentResponse struct {
