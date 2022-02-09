@@ -1,41 +1,46 @@
 # Production Setup
 
-This document will guide you through all the steps needed to setup your own Hermez Node for production.
-
----
+This document will guide you through all the steps needed to setup your own `Hermez zk-EVM-Node` for production.
 
 ## Network Components
 
 Required:
 
-- Ethereum Node - Interface to L1
-- Hermez zk-EVM-Node - Interface to L2
-  - Sequencer - Responsible to select transactions from the pool and propose new batches
-  - Aggregator - Responsible to consolidate the changes in the state proposed by the Sequencers
-- Hermez zk-Prover - Zero knowledge proof generator
+- `Ethereum Node` - L1 Network
+- `Hermez zk-EVM-Node` - L2 Network
+  - `JSON RPC Server` - Interface to L2 network
+  - `Synchronizer` - Responsible to synchronize data between L1 and L2
+  - `Sequencer` - Responsible to select transactions from the pool and propose new batches
+  - `Aggregator`  - Responsible to consolidate the changes in the state proposed by the `Sequencers`
+- `Hermez zk-Prover` - Zero knowledge proof generator
 
 Optional:
 
-- Metamask - Wallet to manage your accounts
-- Block Scout Explorer - Web UI to interact with the network information
-
----
+- `Metamask` - Wallet to manage blockchain accounts
+- `Block Scout Explorer` - Web UI to interact with the network information
 
 ## Requirements
 
-- docker: All components have images available to be used, check this <https://www.docker.com/get-started>
+- All components have docker images available on docker hub, os it's important that you have an account to download and use them, please check the links below for more details:
+  - [docker: Get-started](https://www.docker.com/get-started)
+  - [docker hub](https://hub.docker.com)
 
----
+Some of the images are still private, so make sure to login before trying to download them. Once you have docker installed on your machine, run the following command to login:
+
+```bash
+docker login
+```
+
+- The examples on this document assume you have `docker-compose` installed, if you need help with the installation, please check the link below:
+  - [docker-compose: Install](https://docs.docker.com/compose/install/)
 
 ## Recommendations
 
-- We strongly recommend using docker-compose to setup the services, check this <https://docs.docker.com/compose/install/>
-- It's also recommended that you create a directory to add the files we are going to create during this document, we are going to refer to this directory as `hermez` directory. To create this directory, run the following command:
+- It's recommended that you create a directory to add the files we are going to create during this document, we are going to refer to this directory as `hermez` directory. To create this directory, run the following command:
 
 ```bash
 mkdir -p /$HOME/hermez
 ```
----
 
 ## Ethereum Node Setup
 
@@ -45,7 +50,7 @@ The first component we are going to setup is the Ethereum Node, it is the first 
 
 Before we start:
 
-> There are may ways to setup an Ethereum L1 environment, we are going to use Geth for this.
+> There are many ways to setup an Ethereum L1 environment, we are going to use Geth for this.
 
 We recommend you to use a dedicated machine to this component, this can be shared by multiple Hermez zk-EVM-Node if you want to have more than one in your infrastructure.
 
@@ -72,7 +77,7 @@ services:
     volumes:
         - /$HOME/hermez/.ethereum:/$HOME/geth/.ethereum
     command: [
-        "--goerli",
+        "--mainnet",
         "--http",
         "--http.addr=0.0.0.0",
         "--http.corsdomain=*",
@@ -101,8 +106,6 @@ If you want to follow the logs of the synchronization, run the following command
 ```bash
 docker logs -f eth-node
 ```
-
----
 
 ## Postgres Setup
 
@@ -147,9 +150,7 @@ docker-compose up -d
 
 Congratulations, your postgres instance is ready!
 
----
-
-## Prove Setup
+## Prover Setup
 
 Before we start:
 
@@ -166,18 +167,18 @@ Also:
 
 - TDB how to setup de prover, docker, downloads, dependencies, etc
 
----
-
 ## Hermez zk-EVM-Node Setup
 
 Very well, we already have the Postgres, Prover and Ethereum Node instances running, now it's time so setup the Hermez zk-EVM-Node.
 
-> The node depends on the Postgres and Prover instances, so make sure it has network access to them.
-> We also expect you to run the node in a dedicated machine
+> The node depends on the Postgres, Prover and Ethereum Node instances, so make sure it has network access to them. We also expect the node to have its own dedicated machine
 
-Before we start:
+Before we start, the node requires the an Ethereum account with:
 
-> The node requires the L1 account credentials in order to send L1 transactions to propose new batches and consolidate the state.
+- Funds on L1 in order to propose new batches and consolidate the state
+- Tokens to pay the collateral for batch proposal
+- Approval of these tokens to be used by the roll-up SC on behalf of the Ethereum account owner
+- Register this account as a sequencer
 
 The node expected to read a `keystore` file, which is an encrypted file containing your credentials.
 To create this file, go to the `hermez` directory and run the following command:
@@ -192,11 +193,13 @@ The command above will create the file `acc.keystore` inside of the `hermez` dir
 
 After it we need to create a configuration file to provide the configurations to the node, to achieve this create a file called `config.toml` inside of the `hermez` directory with this:
 
-> - Remember to replace the database information if you set it differently while setting up the Postgres instance
-> - Remember to set the Database Host with the Postgres instance IP
-> - Remember to set the Etherman URL with the JSON RPC URL of the Ethereum node, which is "http://\<Ethereum Node Instance IP>:\<PORT>"
-> - Remember to set the Etherman Password to allow the node to decrypt the keystore file
-> - Remember to set the Prover URI the IP and port of the Prover Instance like this "\<IP>:\<PORT>"
+Remember to:
+
+- replace the database information if you set it differently while setting up the Postgres instance
+- set the Database Host with the Postgres instance IP
+- set the Etherman URL with the JSON RPC URL of the Ethereum node, which is "http://\<Ethereum Node Instance IP>:\<PORT>"
+- set the Etherman Password to allow the node to decrypt the keystore file
+- set the Prover URI the IP and port of the Prover Instance like this "\<IP>:\<PORT>"
 
 ```toml
 [Log]
@@ -217,7 +220,7 @@ PrivateKeyPassword =
 
 [RPC]
 Host = "0.0.0.0"
-Port = 8123
+Port = 8545
 
 [Synchronizer]
 SyncInterval = "5s"
@@ -258,11 +261,11 @@ services:
     container_name: hez-core
     image: hezcore
     ports:
-        - 8123:8123
+        - 8545:8545
     volumes:
       - /$HOME/hermez/acc/keystore:/pk/keystore
       - /$HOME/hermez/config.toml:/app/config.toml
-    command: ["./hezcore", "run", "--network", "internaltestnet", "--cfg", "/app/config.toml"]
+    command: ["./hezcore", "run", "--network", "mainnet", "--cfg", "/app/config.toml"]
 ```
 
 To run the Hermez zk-EVM-Node instance, go to the `hermez` directory in your terminal and run the following command:
