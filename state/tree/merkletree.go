@@ -27,9 +27,10 @@ const (
 
 // MerkleTree implements merkle tree
 type MerkleTree struct {
-	store        Store
-	hashFunction HashFunction
-	arity        uint8
+	store          Store
+	hashFunction   HashFunction
+	scHashFunction SCHashFunction
+	arity          uint8
 }
 
 // UpdateProof is a proof generated on Set operation
@@ -59,6 +60,9 @@ type Proof struct {
 // HashFunction is a function interface type to specify hash function that MT should use
 type HashFunction func(inputs []*big.Int) (*big.Int, error)
 
+// SCHashFunction is a function interface type to specify hash function that MT should use
+type SCHashFunction func(inputs []byte) (*big.Int, error)
+
 // NewMerkleTree creates new MerkleTree instance
 func NewMerkleTree(store Store, arity uint8, hashFunction HashFunction) *MerkleTree {
 	if hashFunction == nil {
@@ -68,6 +72,8 @@ func NewMerkleTree(store Store, arity uint8, hashFunction HashFunction) *MerkleT
 		store:        store,
 		arity:        arity,
 		hashFunction: hashFunction,
+		// for now scHashFunction is fixed
+		scHashFunction: poseidon.HashBytes,
 	}
 }
 

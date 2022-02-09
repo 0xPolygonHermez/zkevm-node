@@ -7,7 +7,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/iden3/go-iden3-crypto/keccak256"
 )
 
 // DefaultMerkleTreeArity specifies Merkle Tree arity used by default
@@ -222,7 +221,11 @@ func (tree *StateTree) SetCode(address common.Address, code []byte) (newRoot []b
 	}
 
 	// calculating smart contract code hash
-	scCodeHash := keccak256.Hash(code)
+	scCodeHashBI, err := tree.mt.scHashFunction(code)
+	if err != nil {
+		return nil, nil, err
+	}
+	scCodeHash := scCodeHashBI.Bytes()
 
 	// store smart contract code by its hash
 	err = tree.scCodeStore.Set(context.TODO(), scCodeHash, code)
