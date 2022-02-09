@@ -3,6 +3,7 @@ package aggregator
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 	"strconv"
 	"time"
@@ -245,7 +246,7 @@ func (a *Aggregator) Start() {
 			internalInputHash := inputHashMod.Bytes()
 
 			// InputHash must match
-			internalInputHashS := "0x" + hex.EncodeToString(internalInputHash)
+			internalInputHashS := fmt.Sprintf("0x%064s", hex.EncodeToString(internalInputHash))
 			if proofState.Proof.PublicInputsExtended.InputHash != internalInputHashS {
 				log.Error("inputHash received from the prover (", proofState.Proof.PublicInputsExtended.InputHash,
 					") doesn't match with the internal value: ", internalInputHashS)
