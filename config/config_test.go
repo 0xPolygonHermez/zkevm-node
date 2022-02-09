@@ -21,6 +21,10 @@ func Test_Defaults(t *testing.T) {
 			path:          "Sequencer.AllowNonRegistered",
 			expectedValue: false,
 		},
+		{
+			path:          "Sequencer.DefaultGasPriceWei",
+			expectedValue: uint64(1000000000),
+		},
 	}
 
 	cfg, err := config.Load("", "")
