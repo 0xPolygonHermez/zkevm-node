@@ -79,7 +79,7 @@ var (
 	// ErrNotFound indicates an object has not been found for the search criteria used
 	ErrNotFound = errors.New("object not found")
 	// ErrNilDBTransaction indicates the db transaction has not been properly initialized
-	ErrNilDBTransaction = errors.New("nil db transaction")
+	ErrNilDBTransaction = errors.New("database transaction not properly initialized")
 )
 
 // BasicState is a implementation of the state
