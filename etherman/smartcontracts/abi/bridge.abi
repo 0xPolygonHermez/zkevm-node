@@ -2,8 +2,13 @@
 	{
 		"inputs": [
 			{
-				"internalType": "address",
-				"name": "_rollupAddress",
+				"internalType": "uint32",
+				"name": "_networkID",
+				"type": "uint32"
+			},
+			{
+				"internalType": "contract IGlobalExitRootManager",
+				"name": "_globalExitRootManager",
 				"type": "address"
 			}
 		],
@@ -28,6 +33,12 @@
 			{
 				"indexed": false,
 				"internalType": "uint32",
+				"name": "originNetwork",
+				"type": "uint32"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint32",
 				"name": "destinationNetwork",
 				"type": "uint32"
 			},
@@ -44,45 +55,7 @@
 				"type": "uint32"
 			}
 		],
-		"name": "DepositEvent",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "previousOwner",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "newOwner",
-				"type": "address"
-			}
-		],
-		"name": "OwnershipTransferred",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "bytes32",
-				"name": "mainnetExitRoot",
-				"type": "bytes32"
-			},
-			{
-				"indexed": false,
-				"internalType": "bytes32",
-				"name": "rollupExitRoot",
-				"type": "bytes32"
-			}
-		],
-		"name": "UpdateGlobalExitRoot",
+		"name": "BridgeEvent",
 		"type": "event"
 	},
 	{
@@ -119,7 +92,64 @@
 				"type": "address"
 			}
 		],
-		"name": "WithdrawEvent",
+		"name": "ClaimEvent",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint32",
+				"name": "originalNetwork",
+				"type": "uint32"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "originalTokenAddress",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "wrappedTokenAddress",
+				"type": "address"
+			}
+		],
+		"name": "NewWrappedToken",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "previousOwner",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "OwnershipTransferred",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "rollupExitRoot",
+				"type": "bytes32"
+			}
+		],
+		"name": "UpdateRollupRootEvent",
 		"type": "event"
 	},
 	{
@@ -138,7 +168,31 @@
 	{
 		"inputs": [
 			{
-				"internalType": "contract IERC20",
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "addressToTokenInfo",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "originalNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "originalTokenAddress",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
 				"name": "token",
 				"type": "address"
 			},
@@ -167,7 +221,7 @@
 		"inputs": [
 			{
 				"internalType": "address",
-				"name": "token",
+				"name": "originalTokenAddress",
 				"type": "address"
 			},
 			{
@@ -222,6 +276,25 @@
 		"type": "function"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "claimNullifier",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "depositCount",
 		"outputs": [
@@ -248,45 +321,24 @@
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "getLastGlobalExitRoot",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
+				"internalType": "uint32",
+				"name": "originalNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "originalTokenAddress",
+				"type": "address"
 			}
 		],
-		"name": "globalExitRootMap",
+		"name": "getTokenWrappedAddress",
 		"outputs": [
 			{
-				"internalType": "bytes32",
+				"internalType": "address",
 				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "lastGlobalExitRootNum",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
+				"type": "address"
 			}
 		],
 		"stateMutability": "view",
@@ -294,12 +346,12 @@
 	},
 	{
 		"inputs": [],
-		"name": "lastMainnetExitRoot",
+		"name": "globalExitRootManager",
 		"outputs": [
 			{
-				"internalType": "bytes32",
+				"internalType": "contract IGlobalExitRootManager",
 				"name": "",
-				"type": "bytes32"
+				"type": "address"
 			}
 		],
 		"stateMutability": "view",
@@ -307,12 +359,12 @@
 	},
 	{
 		"inputs": [],
-		"name": "lastRollupExitRoot",
+		"name": "networkID",
 		"outputs": [
 			{
-				"internalType": "bytes32",
+				"internalType": "uint32",
 				"name": "",
-				"type": "bytes32"
+				"type": "uint32"
 			}
 		],
 		"stateMutability": "view",
@@ -340,7 +392,26 @@
 	},
 	{
 		"inputs": [],
-		"name": "rollupAddress",
+		"name": "tokenImplementation",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"name": "tokenInfoToAddress",
 		"outputs": [
 			{
 				"internalType": "address",
@@ -360,19 +431,6 @@
 			}
 		],
 		"name": "transferOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "newRollupExitRoot",
-				"type": "bytes32"
-			}
-		],
-		"name": "updateRollupExitRoot",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -429,25 +487,6 @@
 			}
 		],
 		"stateMutability": "pure",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "withdrawNullifier",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
 		"type": "function"
 	}
 ]
