@@ -424,7 +424,13 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 		batch.Header.Root = root
 	}
 
-	err := b.State.AddBatch(ctx, batch)
+	// Begin db transaction
+	err := b.State.BeginDBTransaction(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = b.State.AddBatch(ctx, batch)
 	if err != nil {
 		return err
 	}
@@ -433,6 +439,10 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 	for i, tx := range batch.Transactions {
 		err := b.State.AddTransaction(ctx, tx, batch.Number().Uint64(), uint(i))
 		if err != nil {
+			dbErr := b.State.Rollback(ctx)
+			if dbErr != nil {
+				return dbErr
+			}
 			return err
 		}
 	}
@@ -444,8 +454,20 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 		receipt.BlockHash = blockHash
 		err := b.State.AddReceipt(ctx, receipt)
 		if err != nil {
+			dbErr := b.State.Rollback(ctx)
+			if dbErr != nil {
+				return dbErr
+			}
 			return err
 		}
+	}
+
+	if err != nil {
+		dbErr := b.State.Rollback(ctx)
+		if dbErr != nil {
+			return dbErr
+		}
+		return err
 	}
 
 	return nil
