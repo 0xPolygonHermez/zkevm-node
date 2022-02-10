@@ -466,9 +466,9 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 		}
 	}
 
-	dbErr := b.State.Commit(ctx)
-	if dbErr != nil {
-		return dbErr
+	err = b.State.Commit(ctx)
+	if err != nil {
+		return err
 	}
 
 	return nil
