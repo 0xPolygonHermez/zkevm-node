@@ -58,7 +58,7 @@ var (
 // PostgresStorage implements the Storage interface
 type PostgresStorage struct {
 	db   *pgxpool.Pool
-	dbTx *pgx.Tx
+	dbTx pgx.Tx
 }
 
 // NewPostgresStorage creates a new StateDB
@@ -72,15 +72,14 @@ func (s *PostgresStorage) BeginDBTransaction(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	s.dbTx = &dbTx
+	s.dbTx = dbTx
 	return nil
 }
 
 // Commit commits a db transaction
 func (s *PostgresStorage) Commit(ctx context.Context) error {
 	if s.dbTx != nil {
-		db := *s.dbTx
-		err := db.Commit(ctx)
+		err := s.dbTx.Commit(ctx)
 		s.dbTx = nil
 		return err
 	}
@@ -91,8 +90,7 @@ func (s *PostgresStorage) Commit(ctx context.Context) error {
 // Rollback rollbacks a db transaction
 func (s *PostgresStorage) Rollback(ctx context.Context) error {
 	if s.dbTx != nil {
-		db := *s.dbTx
-		err := db.Rollback(ctx)
+		err := s.dbTx.Rollback(ctx)
 		s.dbTx = nil
 		return err
 	}
@@ -531,8 +529,7 @@ func (s *PostgresStorage) GetLastBatchNumberConsolidatedOnEthereum(ctx context.C
 // AddBatch adds a new batch to the State Store
 func (s *PostgresStorage) AddBatch(ctx context.Context, batch *state.Batch) error {
 	if s.dbTx != nil {
-		db := *s.dbTx
-		_, err := db.Exec(ctx, addBatchSQL, batch.Number().Uint64(), batch.Hash(), batch.BlockNumber, batch.Sequencer, batch.Aggregator,
+		_, err := s.dbTx.Exec(ctx, addBatchSQL, batch.Number().Uint64(), batch.Hash(), batch.BlockNumber, batch.Sequencer, batch.Aggregator,
 			batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData, batch.MaticCollateral.String(), batch.ReceivedAt)
 		return err
 	}
@@ -554,8 +551,7 @@ func (s *PostgresStorage) AddTransaction(ctx context.Context, tx *types.Transact
 	decoded := string(binary)
 
 	if s.dbTx != nil {
-		db := *s.dbTx
-		_, err = db.Exec(ctx, addTransactionSQL, tx.Hash().Bytes(), "", encoded, decoded, batchNumber, index)
+		_, err = s.dbTx.Exec(ctx, addTransactionSQL, tx.Hash().Bytes(), "", encoded, decoded, batchNumber, index)
 		return err
 	}
 	return state.ErrNilDBTransaction
@@ -564,8 +560,7 @@ func (s *PostgresStorage) AddTransaction(ctx context.Context, tx *types.Transact
 // AddReceipt adds a new receipt to the State Store
 func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt) error {
 	if s.dbTx != nil {
-		db := *s.dbTx
-		_, err := db.Exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.BlockHash.Bytes(), receipt.TxHash.Bytes(), receipt.TransactionIndex, receipt.From.Bytes(), receipt.To.Bytes())
+		_, err := s.dbTx.Exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.BlockHash.Bytes(), receipt.TxHash.Bytes(), receipt.TransactionIndex, receipt.From.Bytes(), receipt.To.Bytes())
 		return err
 	}
 	return state.ErrNilDBTransaction
