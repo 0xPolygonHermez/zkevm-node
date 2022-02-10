@@ -432,6 +432,10 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 
 	err = b.State.AddBatch(ctx, batch)
 	if err != nil {
+		dbErr := b.State.Rollback(ctx)
+		if dbErr != nil {
+			return dbErr
+		}
 		return err
 	}
 
@@ -462,12 +466,9 @@ func (b *BasicBatchProcessor) commit(batch *Batch) error {
 		}
 	}
 
-	if err != nil {
-		dbErr := b.State.Rollback(ctx)
-		if dbErr != nil {
-			return dbErr
-		}
-		return err
+	dbErr := b.State.Commit(ctx)
+	if dbErr != nil {
+		return dbErr
 	}
 
 	return nil
