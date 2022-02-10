@@ -122,11 +122,17 @@ With that said, we must setup a Postgres instance to be shared between the Node 
 - Node requires a full access user to run the migrations and control the data.
 - Prover only needs a readonly user to access the historical data and compute the proofs.
 
+We need to create a folder to store the Postgres data outside of the container, in order to not lose all the data if the container is restarted.
+
+```bash
+mkdir -p /$HOME/hermez/.postgres-data
+```
+
 In order to run the Postgres instance, create a file called `docker-compose.yml` inside of the directory `hermez`
 
 > We recommend you to customize the ENVIRONMENT variables values in the file below to your preference:
 
-```dockercompose
+```docker-compose
 version: '3'
 
 services:
@@ -140,6 +146,8 @@ services:
         - POSTGRES_USER=test_user
         - POSTGRES_PASSWORD=test_password
         - POSTGRES_DB=test_db
+      volumes:
+        - ./postgres-data:/$HOME/hermez/.postgres-data
 ```
 
 To run the postgres instance, go to the `hermez` directory in your terminal and run the following command:
