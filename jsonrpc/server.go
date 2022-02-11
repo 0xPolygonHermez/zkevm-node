@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hermeznetwork/hermez-core/gaspriceestimator"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -23,7 +24,14 @@ type Server struct {
 }
 
 // NewServer returns the JsonRPC server
-func NewServer(config Config, defaultChainID uint64, sequencerAddress common.Address, p jsonRPCTxPool, s state.State, chainID uint64) *Server {
+func NewServer(
+	config Config,
+	defaultChainID uint64,
+	sequencerAddress common.Address,
+	p jsonRPCTxPool,
+	s state.State,
+	chainID uint64,
+	gpe gaspriceestimator.GasPriceEstimator) *Server {
 	chainIDSelector := newChainIDSelector(chainID)
 	ethEndpoints := &Eth{chainIDSelector: chainIDSelector, pool: p, state: s}
 	netEndpoints := &Net{chainIDSelector: chainIDSelector}

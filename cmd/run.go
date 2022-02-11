@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/hermeznetwork/hermez-core/gaspriceestimator"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -69,9 +70,10 @@ func start(ctx *cli.Context) error {
 	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
 	seq := createSequencer(c.Sequencer, etherman, pool, st)
 
-	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer)
+	gpe := gaspriceestimator.NewGasPriceEstimatorAllBlocks()
+	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
 	go seq.Start()
-	go runJSONRpcServer(*c, pool, st, seq.ChainID)
+	go runJSONRpcServer(*c, pool, st, seq.ChainID, gpe)
 
 	proverClient, conn := newProverClient(c.Prover)
 	go runAggregator(c.Aggregator, etherman, proverClient, st)
@@ -116,7 +118,7 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.
 	return proverClient, conn
 }
 
-func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.ClientEtherMan, st state.State, cfg synchronizer.Config) {
+func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.ClientEtherMan, st state.State, cfg synchronizer.Config, gpe gaspriceestimator.GasPriceEstimator) {
 	genesisBlock, err := etherman.EtherClient.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(networkConfig.GenBlockNumber))
 	if err != nil {
 		log.Fatal(err)
@@ -125,7 +127,7 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 		Block:    genesisBlock,
 		Balances: networkConfig.Balances,
 	}
-	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, genesis, cfg)
+	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, genesis, cfg, gpe)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -134,7 +136,7 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 	}
 }
 
-func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, chainID uint64) {
+func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, chainID uint64, gpe gaspriceestimator.GasPriceEstimator) {
 	var err error
 	key, err := newKeyFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
 	if err != nil {
@@ -143,7 +145,7 @@ func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, 
 
 	seqAddress := key.Address
 
-	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st, chainID).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st, chainID, gpe).Start(); err != nil {
 		log.Fatal(err)
 	}
 }

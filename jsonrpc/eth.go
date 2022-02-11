@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/gaspriceestimator"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -17,6 +18,7 @@ type Eth struct {
 	chainIDSelector *chainIDSelector
 	pool            jsonRPCTxPool
 	state           state.State
+	gpe             gaspriceestimator.GasPriceEstimator
 }
 
 // BlockNumber returns current block number
@@ -55,6 +57,10 @@ func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error
 
 // GasPrice returns the average gas price based on the last x blocks
 func (e *Eth) GasPrice() (interface{}, error) {
+	gasPriceFromGPE := e.gpe.GetAvgGasPrice()
+	if gasPriceFromGPE != nil && gasPriceFromGPE.Uint64() != 0 {
+		return hex.EncodeUint64(gasPriceFromGPE.Uint64()), nil
+	}
 	gasPrice, err := e.pool.GetGasPrice(context.Background())
 	if errors.Is(err, state.ErrNotFound) {
 		return hex.EncodeUint64(0), nil

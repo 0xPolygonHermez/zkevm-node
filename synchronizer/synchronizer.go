@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hermeznetwork/hermez-core/gaspriceestimator"
 	"math/big"
 	"time"
 
@@ -28,10 +29,17 @@ type ClientSynchronizer struct {
 	genBlockNumber uint64
 	genBalances    state.Genesis
 	cfg            Config
+	gpe            gaspriceestimator.GasPriceEstimator
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
-func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, genBalances state.Genesis, cfg Config) (Synchronizer, error) {
+func NewSynchronizer(
+	ethMan etherman.EtherMan,
+	st state.State,
+	genBlockNumber uint64,
+	genBalances state.Genesis,
+	cfg Config,
+	gpe gaspriceestimator.GasPriceEstimator) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:          st,
@@ -41,6 +49,7 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber ui
 		genBlockNumber: genBlockNumber,
 		genBalances:    genBalances,
 		cfg:            cfg,
+		gpe:            gpe,
 	}, nil
 }
 
@@ -200,7 +209,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 						log.Fatal("failed to consolidate batch locally, batch number: %d, err: %v", batch.Number().Uint64(), err)
 					}
 				} else {
-					// Get lastest synced batch number
+					// Get latest synced batch number
 					latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
 					if err != nil {
 						log.Fatal("error getting latest batch. Error: ", err)
@@ -216,6 +225,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					if err != nil {
 						log.Fatal("error processing batch. BatchNumber: ", batch.Number().Uint64(), ". Error: ", err)
 					}
+					s.gpe.UpdateGasPriceAvg(new(big.Int).SetUint64(batch.Header.GasUsed))
 				}
 			} else if element.Name == etherman.NewSequencersOrder {
 				// Add new sequencers
