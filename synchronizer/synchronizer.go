@@ -188,7 +188,6 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 		err := s.state.BeginDBTransaction(ctx)
 		if err != nil {
 			log.Fatal("error createing db transaction to store block. BlockNumber: ", blocks[i].BlockNumber)
-			return
 		}
 		// Add block information
 		err = s.state.AddBlock(ctx, &blocks[i])
@@ -264,12 +263,11 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				//TODO Store info into db
 				log.Warn("Claim functionality is not implemented in synchronizer yet")
 			} else {
-				log.Fatal("error: invalid order element")
 				err = s.state.Rollback(ctx)
 				if err != nil {
 					log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
 				}
-				return
+				log.Fatal("error: invalid order element")
 			}
 		}
 		err = s.state.Commit(ctx)
