@@ -183,10 +183,22 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[common.Hash][]etherman.Order) {
 	// New info has to be included into the db using the state
 	for i := range blocks {
+		ctx := context.Background()
+		// Begin db transaction
+		err := s.state.BeginDBTransaction(ctx)
+		if err != nil {
+			log.Fatal("error createing db transaction to store block. BlockNumber: ", blocks[i].BlockNumber)
+			return
+		}
 		// Add block information
-		err := s.state.AddBlock(context.Background(), &blocks[i])
+		err = s.state.AddBlock(ctx, &blocks[i])
 		if err != nil {
 			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
+			err = s.state.Rollback(ctx)
+			if err != nil {
+				log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+			}
+			return
 		}
 		for _, element := range order[blocks[i].BlockHash] {
 			if element.Name == etherman.BatchesOrder {
@@ -198,23 +210,43 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					err = s.state.ConsolidateBatch(s.ctx, batch.Number().Uint64(), batch.ConsolidatedTxHash, *batch.ConsolidatedAt, batch.Aggregator)
 					if err != nil {
 						log.Fatal("failed to consolidate batch locally, batch number: %d, err: %v", batch.Number().Uint64(), err)
+						err = s.state.Rollback(ctx)
+						if err != nil {
+							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+						}
+						return
 					}
 				} else {
 					// Get lastest synced batch number
 					latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
 					if err != nil {
 						log.Fatal("error getting latest batch. Error: ", err)
+						err = s.state.Rollback(ctx)
+						if err != nil {
+							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+						}
+						return
 					}
 
 					sequencerAddress := batch.Sequencer
 					batchProcessor, err := s.state.NewBatchProcessor(sequencerAddress, latestBatchNumber)
 					if err != nil {
 						log.Error("error creating new batch processor. Error: ", err)
+						err = s.state.Rollback(ctx)
+						if err != nil {
+							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+						}
+						return
 					}
 					// Add batches
 					err = batchProcessor.ProcessBatch(batch)
 					if err != nil {
 						log.Fatal("error processing batch. BatchNumber: ", batch.Number().Uint64(), ". Error: ", err)
+						err = s.state.Rollback(ctx)
+						if err != nil {
+							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+						}
+						return
 					}
 				}
 			} else if element.Name == etherman.NewSequencersOrder {
@@ -222,6 +254,11 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				err := s.state.AddSequencer(context.Background(), blocks[i].NewSequencers[element.Pos])
 				if err != nil {
 					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos], " err: ", err)
+					err = s.state.Rollback(ctx)
+					if err != nil {
+						log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+					}
+					return
 				}
 			} else if element.Name == etherman.DepositsOrder {
 				//TODO Store info into db
@@ -234,7 +271,16 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				log.Warn("Claim functionality is not implemented in synchronizer yet")
 			} else {
 				log.Fatal("error: invalid order element")
+				err = s.state.Rollback(ctx)
+				if err != nil {
+					log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+				}
+				return
 			}
+		}
+		err = s.state.Commit(ctx)
+		if err != nil {
+			log.Fatal("error committing state to store block. BlockNumber: ", blocks[i].BlockNumber)
 		}
 	}
 }
