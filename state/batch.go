@@ -22,6 +22,8 @@ type Batch struct {
 	Sequencer          common.Address
 	Aggregator         common.Address
 	ConsolidatedTxHash common.Hash
+	ChainID			   *big.Int
+	GlobalExitRoot     common.Hash
 	Header             *types.Header
 	Uncles             []*types.Header
 	Transactions       []*types.Transaction

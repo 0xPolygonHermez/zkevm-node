@@ -13,6 +13,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/bridge"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
+	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/globalexitrootmanager"
 )
 
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth
@@ -40,19 +41,26 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		return nil, nil, common.Address{}, err
 	}
-	calculatedMaticAddr := crypto.CreateAddress(auth.From, nonce+1)
+	calculatedBridgeAddr := crypto.CreateAddress(auth.From, nonce+1)
+	calculatedPoEAddr := crypto.CreateAddress(auth.From, nonce+2)
 	var genesis [32]byte
-	poeAddr, _, poe, err := proofofefficiency.DeployProofofefficiency(auth, client, calculatedMaticAddr, maticAddr, rollupVerifierAddr, genesis)
+	exitManagerAddr, _, exitManager, err := globalexitrootmanager.DeployGlobalexitrootmanager(auth, client, calculatedPoEAddr, calculatedBridgeAddr)
+	bridgeAddr, _, bridge, err := bridge.DeployBridge(auth, client, 0, exitManagerAddr)
 	if err != nil {
 		return nil, nil, common.Address{}, err
 	}
-	bridgeAddr, _, bridge, err := bridge.DeployBridge(auth, client, poeAddr)
+	poeAddr, _, poe, err := proofofefficiency.DeployProofofefficiency(auth, client, exitManagerAddr, maticAddr, rollupVerifierAddr, genesis)
 	if err != nil {
 		return nil, nil, common.Address{}, err
 	}
-	if calculatedMaticAddr != bridgeAddr {
+
+	if calculatedBridgeAddr != bridgeAddr {
 		return nil, nil, common.Address{}, fmt.Errorf("bridgeAddr (" + bridgeAddr.String() +
-			") is different from the expected contract address (" + calculatedMaticAddr.String() + ")")
+			") is different from the expected contract address (" + calculatedBridgeAddr.String() + ")")
+	}
+	if calculatedPoEAddr != poeAddr {
+		return nil, nil, common.Address{}, fmt.Errorf("poeAddr (" + poeAddr.String() +
+			") is different from the expected contract address (" + calculatedPoEAddr.String() + ")")
 	}
 
 	// Approve the bridge and poe to spend 10000 matic tokens
@@ -67,5 +75,5 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	}
 
 	client.Commit()
-	return &ClientEtherMan{EtherClient: client, PoE: poe, Bridge: bridge, Matic: maticContract, SCAddresses: []common.Address{poeAddr, bridgeAddr}, auth: auth}, client.Commit, maticAddr, nil
+	return &ClientEtherMan{EtherClient: client, PoE: poe, Bridge: bridge, Matic: maticContract, GlobalExitRootManager: exitManager, SCAddresses: []common.Address{poeAddr, bridgeAddr, exitManagerAddr}, auth: auth}, client.Commit, maticAddr, nil
 }
