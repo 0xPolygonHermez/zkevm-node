@@ -217,6 +217,14 @@ func GetAuth(privateKeyStr string, chainID *big.Int) (*bind.TransactOpts, error)
 	return bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 }
 
+// WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
+// health standard in package grpc.health.v1
+func WaitGRPCHealthy(address string) error {
+	return waitPoll(defaultInterval, defaultDeadline, func() (bool, error) {
+		return grpcHealthyCondition(address)
+	})
+}
+
 // Setup creates all the required components and initializes them according to
 // the manager config.
 func (m *Manager) Setup() error {
