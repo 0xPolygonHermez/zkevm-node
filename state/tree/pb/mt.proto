@@ -1,0 +1,151 @@
+/**
+* Merkletree service.
+**/
+
+
+syntax = "proto3";
+
+package mt.v1;
+
+option go_package = "github.com/hermeznetwork/hermez-core/state/tree/pb";
+
+service MTService {
+    // Getters
+    /// Get balance for a given address at a given root
+    rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+    /// Get nonce for a given address at a given root
+    rpc GetNonce(GetNonceRequest) returns (GetNonceResponse);
+    /// Get code for a given address at a given root
+    rpc GetCode(GetCodeRequest) returns (GetCodeResponse);
+    /// Get code hash for a given address at a given root
+    rpc GetCodeHash(GetCodeHashRequest) returns (GetCodeHashResponse);
+    /// Get smart contract storage for a given address and position at a given root
+    rpc GetStorageAt(GetStorageAtRequest) returns (GetStorageAtResponse);
+    /// Reverse a hash of an exisiting Merkletree node
+    rpc ReverseHash(ReverseHashRequest) returns (ReverseHashResponse);
+
+    // Setters
+    /// Set the balance for an account at a root
+    rpc SetBalance(SetBalanceRequest) returns (SetBalanceResponse);
+    /// Set the nonce of an account at a root
+    rpc SetNonce(SetNonceRequest) returns (SetNonceResponse);
+    /// Set the code for an account at a root
+    rpc SetCode(SetCodeRequest) returns (SetCodeResponse);
+    /// Set smart contract storage for an account and position at a root
+    rpc SetStorageAt(SetStorageAtRequest) returns (SetStorageAtResponse);
+    /// Set an entry of the reverse hash table
+    rpc SetHashValue(SetHashValueRequest) returns (SetHashValueResponse);
+    /// Set many entries of the reverse hash table
+    rpc SetHashValueBulk(SetHashValueBulkRequest) returns (SetHashValueBulkResponse);
+}
+
+// Get requests
+
+message GetBalanceRequest {
+    string eth_address = 1;
+    string root = 2;
+}
+message GetNonceRequest {
+    string eth_address = 1;
+    string root = 2;
+}
+message GetCodeRequest {
+    string eth_address = 1;
+    string root = 2;
+}
+message GetCodeHashRequest {
+    string eth_address = 1;
+    string root = 2;
+}
+message GetStorageAtRequest {
+    string eth_address = 1;
+    uint64 position = 2;
+    string root = 3;
+}
+message ReverseHashRequest {
+    string hash = 1;
+    string root = 2;
+}
+
+// Set requests
+
+message SetBalanceRequest {
+    string eth_address = 1;
+    string balance = 2;
+    string root = 3;
+}
+message SetNonceRequest {
+    string eth_address = 1;
+    uint64 nonce = 2;
+    string root = 3;
+}
+message SetCodeRequest {
+    string eth_address = 1;
+    string code = 2;
+    string root = 3;
+}
+message SetCodeHashRequest {
+    string eth_address = 1;
+    string code_hash = 2;
+    string root = 3;
+}
+message SetStorageAtRequest {
+    string eth_address = 1;
+    string value = 2;
+    string root = 3;
+}
+message SetHashValueRequest {
+    string hash = 1;
+    string value = 2;
+}
+message SetHashValueBulkRequest {
+    repeated SetHashValueRequest hash_values = 1;
+}
+
+// Get responses
+
+message GetBalanceResponse {
+    string balance = 1;
+}
+message GetNonceResponse {
+    uint64 nonce = 1;
+}
+message GetCodeResponse {
+    string code = 1;
+}
+message GetCodeHashResponse {
+    string hash = 1;
+}
+message GetStorageAtResponse {
+    string value = 1;
+}
+message ReverseHashResponse {
+    string mt_node_value = 1;
+}
+
+// Set responses
+
+message SetBalanceResponse {
+    bool success = 1;
+    string error_description = 2;
+}
+message SetNonceResponse {
+    bool success = 1;
+    string error_description = 2;
+}
+message SetCodeResponse {
+    bool success = 1;
+    string error_description = 2;
+}
+message SetStorageAtResponse {
+    bool success = 1;
+    string error_description = 2;
+}
+message SetHashValueResponse {
+    bool success = 1;
+    string error_description = 2;
+}
+message SetHashValueBulkResponse {
+    bool success = 1;
+    string error_description = 2;
+}

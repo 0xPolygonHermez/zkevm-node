@@ -25,6 +25,14 @@ func Test_Defaults(t *testing.T) {
 			path:          "Sequencer.DefaultGasPriceWei",
 			expectedValue: uint64(1000000000),
 		},
+		{
+			path:          "MTService.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
+			path:          "MTService.Port",
+			expectedValue: 50052,
+		},
 	}
 
 	cfg, err := config.Load("", "")
