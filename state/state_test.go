@@ -970,7 +970,7 @@ func TestSCExecution(t *testing.T) {
 	// Register Sequencer
 	sequencer := state.Sequencer{
 		Address:     sequencerAddress,
-		URL:         "http://www.adrress.com",
+		URL:         "http://www.address.com",
 		ChainID:     chainIDSequencer,
 		BlockNumber: genesisBlock.Header().Number.Uint64(),
 	}
