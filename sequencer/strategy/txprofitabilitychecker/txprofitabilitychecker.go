@@ -95,7 +95,14 @@ func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (boo
 	const ethToMatic = 2000
 	// calculate aggregator reward in matic
 	aggregatorReward.Mul(aggregatorReward, big.NewInt(ethToMatic))
-
+	// if aggregator reward is less than the collateral retrieved from the smc, then it makes no sense to propose a new batch
+	collateral, err := pc.EthMan.GetCurrentSequencerCollateral()
+	if err != nil {
+		return false, big.NewInt(0), fmt.Errorf("failed to get current collateral amount from smc, err: %v", err)
+	}
+	if aggregatorReward.Cmp(collateral) < 0 {
+		return false, big.NewInt(0), nil
+	}
 	return true, aggregatorReward, nil
 }
 
