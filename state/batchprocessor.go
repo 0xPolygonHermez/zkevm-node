@@ -107,9 +107,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	b.populateBatchHeader(batch, cumulativeGasUsed)
 
 	// Store batch
-	err := b.commit(batch)
-
-	return err
+	return b.commit(batch)
 }
 
 // ProcessTransaction processes a transaction
