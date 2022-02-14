@@ -522,7 +522,6 @@ func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, seque
 				Err:     err,
 			}
 		}
-
 	}
 
 	result := b.run(contract)
