@@ -305,11 +305,22 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 
 // GetBatchHeader gets the batch header with the required number.
 func (s *PostgresStorage) GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error) {
-	batch, err := s.GetBatchByNumber(ctx, batchNumber)
-	if err != nil {
+	var (
+		batch           state.Batch
+		maticCollateral pgtype.Numeric
+	)
+	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
+		&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
+		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
+		&batch.ReceivedAt, &batch.ConsolidatedAt)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
 
+	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
 	return batch.Header, nil
 }
 
