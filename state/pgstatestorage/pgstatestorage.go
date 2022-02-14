@@ -144,15 +144,19 @@ func (s *PostgresStorage) GetLastBatch(ctx context.Context, isVirtual bool) (*st
 	var err error
 
 	if isVirtual {
+		var chain uint64
 		err = s.db.QueryRow(ctx, getLastVirtualBatchSQL).Scan(&batch.BlockNumber,
 			&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 			&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
-			&batch.ReceivedAt, &batch.ConsolidatedAt)
+			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot)
+		batch.ChainID = new(big.Int).SetUint64(chain)
 	} else {
+		var chain uint64
 		err = s.db.QueryRow(ctx, getLastConsolidatedBatchSQL, common.Hash{}).Scan(
 			&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 			&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
-			&batch.ReceivedAt, &batch.ConsolidatedAt)
+			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot)
+		batch.ChainID = new(big.Int).SetUint64(chain)
 	}
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -175,15 +179,19 @@ func (s *PostgresStorage) GetPreviousBatch(ctx context.Context, isVirtual bool, 
 	var err error
 
 	if isVirtual {
+		var chain uint64
 		err = s.db.QueryRow(ctx, getPreviousVirtualBatchSQL, offset).Scan(
 			&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 			&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
-			&batch.ReceivedAt, &batch.ConsolidatedAt)
+			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot)
+		batch.ChainID = new(big.Int).SetUint64(chain)
 	} else {
+		var chain uint64
 		err = s.db.QueryRow(ctx, getPreviousConsolidatedBatchSQL, common.Hash{}, offset).Scan(
 			&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
 			&batch.Uncles, &batch.RawTxsData, &maticCollateral,
-			&batch.ReceivedAt, &batch.ConsolidatedAt)
+			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot)
+		batch.ChainID = new(big.Int).SetUint64(chain)
 	}
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -201,18 +209,19 @@ func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash) 
 	var (
 		batch           state.Batch
 		maticCollateral pgtype.Numeric
+		chain 			uint64
 	)
 	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(
 		&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
-		&batch.ReceivedAt, &batch.ConsolidatedAt)
-
+		&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
 	} else if err != nil {
 		return nil, err
 	}
 
+	batch.ChainID = new(big.Int).SetUint64(chain)
 	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
 	batch.Transactions, err = s.getBatchTransactions(ctx, batch)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -227,18 +236,19 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	var (
 		batch           state.Batch
 		maticCollateral pgtype.Numeric
+		chain 			uint64
 	)
 	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
 		&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
-		&batch.ReceivedAt, &batch.ConsolidatedAt)
-
+		&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
 	} else if err != nil {
 		return nil, err
 	}
 
+	batch.ChainID = new(big.Int).SetUint64(chain)
 	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
 	batch.Transactions, err = s.getBatchTransactions(ctx, batch)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {

@@ -122,8 +122,9 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 		log.Fatal(err)
 	}
 	genesis := state.Genesis{
-		Block:    genesisBlock,
-		Balances: networkConfig.Balances,
+		Block:     genesisBlock,
+		Balances:  networkConfig.Balances,
+		L2ChainID: networkConfig.L2DefaultChainID,
 	}
 	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, genesis, cfg)
 	if err != nil {

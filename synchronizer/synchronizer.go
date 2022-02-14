@@ -26,12 +26,12 @@ type ClientSynchronizer struct {
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
-	genBalances    state.Genesis
+	genesis    state.Genesis
 	cfg            Config
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
-func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, genBalances state.Genesis, cfg Config) (Synchronizer, error) {
+func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, genesis state.Genesis, cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:          st,
@@ -39,7 +39,7 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber ui
 		ctx:            ctx,
 		cancelCtx:      cancel,
 		genBlockNumber: genBlockNumber,
-		genBalances:    genBalances,
+		genesis:    genesis,
 		cfg:            cfg,
 	}, nil
 }
@@ -59,7 +59,7 @@ func (s *ClientSynchronizer) Sync() error {
 					BlockNumber: s.genBlockNumber,
 				}
 				// Set genesis
-				err := s.state.SetGenesis(s.ctx, s.genBalances)
+				err := s.state.SetGenesis(s.ctx, s.genesis)
 				if err != nil {
 					log.Fatal("error setting genesis: ", err)
 				}
