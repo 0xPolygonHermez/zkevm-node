@@ -26,7 +26,7 @@ type ClientSynchronizer struct {
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
-	genesis    state.Genesis
+	genesis        state.Genesis
 	cfg            Config
 }
 
@@ -39,7 +39,7 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber ui
 		ctx:            ctx,
 		cancelCtx:      cancel,
 		genBlockNumber: genBlockNumber,
-		genesis:    genesis,
+		genesis:        genesis,
 		cfg:            cfg,
 	}, nil
 }

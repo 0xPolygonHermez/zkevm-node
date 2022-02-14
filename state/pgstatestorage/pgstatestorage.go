@@ -209,7 +209,7 @@ func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash) 
 	var (
 		batch           state.Batch
 		maticCollateral pgtype.Numeric
-		chain 			uint64
+		chain           uint64
 	)
 	err := s.db.QueryRow(ctx, getBatchByHashSQL, hash).Scan(
 		&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
@@ -236,7 +236,7 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	var (
 		batch           state.Batch
 		maticCollateral pgtype.Numeric
-		chain 			uint64
+		chain           uint64
 	)
 	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
 		&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,

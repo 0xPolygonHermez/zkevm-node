@@ -11,9 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/bridge"
+	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/globalexitrootmanager"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/globalexitrootmanager"
 )
 
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth
@@ -42,9 +42,13 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 		return nil, nil, common.Address{}, err
 	}
 	calculatedBridgeAddr := crypto.CreateAddress(auth.From, nonce+1)
-	calculatedPoEAddr := crypto.CreateAddress(auth.From, nonce+2)
+	const pos = 2
+	calculatedPoEAddr := crypto.CreateAddress(auth.From, nonce+pos)
 	var genesis [32]byte
 	exitManagerAddr, _, exitManager, err := globalexitrootmanager.DeployGlobalexitrootmanager(auth, client, calculatedPoEAddr, calculatedBridgeAddr)
+	if err != nil {
+		return nil, nil, common.Address{}, err
+	}
 	bridgeAddr, _, bridge, err := bridge.DeployBridge(auth, client, 0, exitManagerAddr)
 	if err != nil {
 		return nil, nil, common.Address{}, err

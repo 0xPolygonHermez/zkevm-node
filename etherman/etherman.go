@@ -18,9 +18,9 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/bridge"
+	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/globalexitrootmanager"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/globalexitrootmanager"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
@@ -709,7 +709,7 @@ func (etherMan *ClientEtherMan) GetLatestConsolidatedBatchNumber() (uint64, erro
 	return uint64(latestBatch), err
 }
 
-// GetSequencerCollateral function allows to retrieve the sequencer collateral from the smc
+// GetSequencerCollateralByBatchNumber function allows to retrieve the sequencer collateral from the smc
 func (etherMan *ClientEtherMan) GetSequencerCollateralByBatchNumber(batchNumber uint64) (*big.Int, error) {
 	batchInfo, err := etherMan.PoE.SentBatches(&bind.CallOpts{Pending: false}, uint32(batchNumber))
 	return batchInfo.MaticCollateral, err
@@ -730,6 +730,7 @@ func (etherMan *ClientEtherMan) HeaderByNumber(ctx context.Context, number *big.
 	return etherMan.EtherClient.HeaderByNumber(ctx, number)
 }
 
-func (etherMan *ClientEtherMan) GetCurrentSequencerCollateral() (*big.Int, error){
+// GetCurrentSequencerCollateral function allows to retrieve the current sequencer collateral from the smc
+func (etherMan *ClientEtherMan) GetCurrentSequencerCollateral() (*big.Int, error) {
 	return etherMan.PoE.CalculateSequencerCollateral(&bind.CallOpts{Pending: false})
 }

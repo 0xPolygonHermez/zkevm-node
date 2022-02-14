@@ -40,9 +40,10 @@ const (
 	l1NetworkURL = "http://localhost:8545"
 	l2NetworkURL = "http://localhost:8123"
 
-	poeAddress        = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
-	bridgeAddress     = "0xffffffffffffffffffffffffffffffffffffffff"
-	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
+	poeAddress            = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+	bridgeAddress         = "0xffffffffffffffffffffffffffffffffffffffff"
+	maticTokenAddress     = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
+	globalExitRootAddress = "0xffffffffffffffffffffffffffffffffffffffff"
 
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -410,7 +411,7 @@ func (m *Manager) setUpSequencer() error {
 	ethermanConfig := etherman.Config{
 		URL: l1NetworkURL,
 	}
-	etherman, err := etherman.NewEtherman(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(bridgeAddress), common.HexToAddress(maticTokenAddress))
+	etherman, err := etherman.NewEtherman(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(bridgeAddress), common.HexToAddress(maticTokenAddress), common.HexToAddress(globalExitRootAddress))
 	if err != nil {
 		return err
 	}
