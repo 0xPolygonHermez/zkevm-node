@@ -1,11 +1,16 @@
 package config
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"math/big"
+	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/urfave/cli/v2"
 )
 
 //NetworkConfig is the configuration struct for the different environments
@@ -20,10 +25,22 @@ type NetworkConfig struct {
 	Balances         map[common.Address]*big.Int
 }
 
+type networkConfigFromJSON struct {
+	Arity            uint8             `json:"arity"`
+	GenBlockNumber   uint64            `json:"genBlockNumber"`
+	PoEAddr          string            `json:"poeAddr"`
+	BridgeAddr       string            `json:"bridgeAddr"`
+	MaticAddr        string            `json:"maticAddr"`
+	L1ChainID        uint64            `json:"l1ChainID"`
+	L2DefaultChainID uint64            `json:"l2DefaultChainID"`
+	Balances         map[string]string `json:"balances"`
+}
+
 const (
 	testnet         = "testnet"
 	internalTestnet = "internaltestnet"
 	local           = "local"
+	custom          = "custom"
 )
 
 //nolint:gomnd
@@ -135,7 +152,8 @@ var (
 	}
 )
 
-func (cfg *Config) loadNetworkConfig(network string) {
+func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
+	network := ctx.String(flagNetwork)
 	switch network {
 	case testnet:
 		log.Debug("Testnet network selected")
@@ -146,6 +164,12 @@ func (cfg *Config) loadNetworkConfig(network string) {
 	case local:
 		log.Debug("Local network selected")
 		cfg.NetworkConfig = localConfig
+	case custom:
+		customNetworkConfig, err := loadCustomNetworkConfig(ctx)
+		if err != nil {
+			log.Fatalf("Failed to load custom network configuration, err:", err)
+		}
+		cfg.NetworkConfig = customNetworkConfig
 	default:
 		log.Debug("Mainnet network selected")
 		cfg.NetworkConfig = mainnetConfig
@@ -158,4 +182,51 @@ func bigIntFromBase10String(s string) *big.Int {
 		return big.NewInt(0)
 	}
 	return i
+}
+
+func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
+	cfgPath := ctx.String(flagNetworkCfg)
+
+	f, err := os.Open(cfgPath) //nolint:gosec
+	if err != nil {
+		return NetworkConfig{}, err
+	}
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			log.Error(err)
+		}
+	}()
+
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		return NetworkConfig{}, err
+	}
+
+	var cfgJSON networkConfigFromJSON
+	err = json.Unmarshal([]byte(b), &cfgJSON)
+	if err != nil {
+		return NetworkConfig{}, err
+	}
+
+	var cfg NetworkConfig
+	cfg.Arity = cfgJSON.Arity
+	cfg.GenBlockNumber = cfgJSON.GenBlockNumber
+	cfg.PoEAddr = common.HexToAddress(cfgJSON.PoEAddr)
+	cfg.BridgeAddr = common.HexToAddress(cfgJSON.BridgeAddr)
+	cfg.MaticAddr = common.HexToAddress(cfgJSON.MaticAddr)
+	cfg.L1ChainID = cfgJSON.L1ChainID
+	cfg.L2DefaultChainID = cfgJSON.L2DefaultChainID
+	cfg.Balances = make(map[common.Address]*big.Int, len(cfgJSON.Balances))
+
+	for k, v := range cfgJSON.Balances {
+		addr := common.HexToAddress(k)
+		balance, ok := big.NewInt(0).SetString(v, encoding.Base10)
+		if !ok {
+			return NetworkConfig{}, fmt.Errorf("Invalid balance for account %s", addr)
+		}
+		cfg.Balances[addr] = balance
+	}
+
+	return cfg, nil
 }

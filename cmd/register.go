@@ -16,8 +16,6 @@ import (
 )
 
 func registerSequencer(ctx *cli.Context) error {
-	configFilePath := ctx.String(flagCfg)
-	network := ctx.String(flagNetwork)
 	url := ctx.Args().First()
 	fmt.Print("*WARNING* Are you sure you want to register " +
 		"the sequencer in the rollup using the domain <" + url + ">? [y/N]: ")
@@ -30,7 +28,7 @@ func registerSequencer(ctx *cli.Context) error {
 		return nil
 	}
 
-	c, err := config.Load(configFilePath, network)
+	c, err := config.Load(ctx)
 	if err != nil {
 		return err
 	}

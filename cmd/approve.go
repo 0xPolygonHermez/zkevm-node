@@ -12,8 +12,6 @@ import (
 )
 
 func approveTokens(ctx *cli.Context) error {
-	configFilePath := ctx.String(flagCfg)
-	network := ctx.String(flagNetwork)
 	toName := ctx.String(flagAddress)
 	a := ctx.String(flagAmount)
 	amount, _ := new(big.Float).SetString(a)
@@ -21,7 +19,7 @@ func approveTokens(ctx *cli.Context) error {
 		fmt.Println("Please, introduce a valid amount. Use '.' instead of ',' if it is a decimal number")
 		return nil
 	}
-	c, err := config.Load(configFilePath, network)
+	c, err := config.Load(ctx)
 	if err != nil {
 		return err
 	}
