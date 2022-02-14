@@ -150,7 +150,7 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 
 	// Transfer
 	if tx.Value() != new(big.Int) {
-		return b.transfer(tx, senderAddress, *tx.To(), sequencerAddress)
+		return b.transfer(tx, senderAddress, *receiverAddress, sequencerAddress)
 	}
 
 	log.Error("unknown transaction type")
