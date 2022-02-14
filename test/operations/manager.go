@@ -127,24 +127,21 @@ func (m *Manager) CheckConsolidatedRoot(expectedRoot string) error {
 	return m.checkRoot(root, expectedRoot)
 }
 
-// SetGenesis creates the genesis block in the state and checks.
-func (m *Manager) SetGenesis(genesisAccounts []vectors.GenesisAccount) error {
+// SetGenesis creates the genesis block in the state.
+func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	genesisBlock.ReceivedAt = time.Now()
 	genesis := state.Genesis{
 		Block:    genesisBlock,
 		Balances: make(map[common.Address]*big.Int),
 	}
-	for _, gacc := range genesisAccounts {
-		b := gacc.Balance.Int
-		genesis.Balances[common.HexToAddress(gacc.Address)] = &b
+	for address, balanceValue := range genesisAccounts {
+		// prevent taking the address of a loop variable
+		balance := balanceValue
+		genesis.Balances[common.HexToAddress(address)] = &balance
 	}
 
-	err := m.st.SetGenesis(m.ctx, genesis)
-	if err != nil {
-		return err
-	}
-	return nil
+	return m.st.SetGenesis(m.ctx, genesis)
 }
 
 // ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
@@ -200,6 +197,16 @@ func (m *Manager) ApplyTxs(txs []vectors.Tx, initialRoot, finalRoot string) erro
 		return err
 	}
 	return nil
+}
+
+// GetAuth configures and returns an auth object.
+func GetAuth(privateKeyStr string, chainID *big.Int) (*bind.TransactOpts, error) {
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(privateKeyStr, "0x"))
+	if err != nil {
+		return nil, err
+	}
+
+	return bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 }
 
 // WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
@@ -314,13 +321,7 @@ func (m *Manager) setUpSequencer() error {
 		return err
 	}
 
-	// Preparing l1 acc info
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(l1AccHexPrivateKey, "0x"))
-	if err != nil {
-		return err
-	}
-
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	auth, err := GetAuth(l1AccHexPrivateKey, chainID)
 	if err != nil {
 		return err
 	}
@@ -394,12 +395,7 @@ func (m *Manager) setUpSequencer() error {
 	}
 
 	// Create sequencer auth
-	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(m.cfg.Sequencer.PrivateKey, "0x"))
-	if err != nil {
-		return err
-	}
-
-	auth, err = bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	auth, err = GetAuth(m.cfg.Sequencer.PrivateKey, chainID)
 	if err != nil {
 		return err
 	}

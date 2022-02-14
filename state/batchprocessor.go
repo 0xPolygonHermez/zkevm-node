@@ -56,7 +56,8 @@ var InvalidTxErrors = map[string]bool{
 type BatchProcessor interface {
 	ProcessBatch(batch *Batch) error
 	CheckTransaction(tx *types.Transaction) error
-	ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error
+	ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult
+	ProcessUnsignedTransaction(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult
 	runtime.Host
 }
 
@@ -111,14 +112,19 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 }
 
 // ProcessTransaction processes a transaction
-func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error {
+func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
 	senderAddress, err := helper.GetSender(tx)
 	if err != nil {
-		return err
+		return &runtime.ExecutionResult{Err: err}
 	}
 
-	result := b.processTransaction(tx, senderAddress, sequencerAddress)
-	return result.Err
+	return b.processTransaction(tx, senderAddress, sequencerAddress)
+}
+
+// ProcessUnsignedTransaction processes an unsigned transaction from the given
+// sender.
+func (b *BasicBatchProcessor) ProcessUnsignedTransaction(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+	return b.processTransaction(tx, senderAddress, sequencerAddress)
 }
 
 func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
