@@ -143,6 +143,45 @@ func TestMerkleTree(t *testing.T) {
 	assert.Equal(t, v1, v1ProofNew.Value)
 }
 
+func TestHashBytecode(t *testing.T) {
+	data, err := os.ReadFile("test/vectors/smt/smt-hash-bytecode.json")
+	require.NoError(t, err)
+
+	var testVectors []struct {
+		Bytecode     string
+		ExpectedHash string
+	}
+	err = json.Unmarshal(data, &testVectors)
+	require.NoError(t, err)
+
+	dbCfg := dbutils.NewConfigFromEnv()
+
+	err = dbutils.InitOrReset(dbCfg)
+	require.NoError(t, err)
+
+	mtDb, err := db.NewSQLDB(dbCfg)
+	require.NoError(t, err)
+
+	defer mtDb.Close()
+
+	store := NewPostgresStore(mtDb)
+	mt := NewMerkleTree(store, 4, nil)
+
+	for i, testVector := range testVectors {
+		t.Run(fmt.Sprintf("Test vector %d on", i), func(t *testing.T) {
+			inputBytes, err := hex.DecodeString(testVector.Bytecode)
+			require.NoError(t, err)
+
+			actual, err := mt.scHashFunction(inputBytes)
+			require.NoError(t, err)
+
+			if hex.EncodeToString(actual.Bytes()) != testVector.ExpectedHash {
+				t.Errorf("Hash bytecode failed, want %q, got %q", testVector.ExpectedHash, actual)
+			}
+		})
+	}
+}
+
 func merkleTreeAddN(b *testing.B, store Store, n int, hashFunction HashFunction) {
 	//b.ResetTimer()
 
