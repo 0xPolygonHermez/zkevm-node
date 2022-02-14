@@ -168,7 +168,8 @@ func TestHashBytecode(t *testing.T) {
 	mt := NewMerkleTree(store, 4, nil)
 
 	for i, testVector := range testVectors {
-		t.Run(fmt.Sprintf("Test vector %d on", i), func(t *testing.T) {
+		testVector := testVector
+		t.Run(fmt.Sprintf("Test vector %d", i), func(t *testing.T) {
 			inputBytes, err := hex.DecodeString(testVector.Bytecode)
 			require.NoError(t, err)
 
