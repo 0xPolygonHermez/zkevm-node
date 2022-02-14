@@ -107,6 +107,8 @@ func setUpBatch() {
 		MaticCollateral:    maticCollateral,
 		ReceivedAt:         receivedAt,
 		ConsolidatedAt:     &consolidatedAt,
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.Hash{},
 	}
 	ctx := context.Background()
 	_, err = stateDB.Exec(ctx, "DELETE FROM state.batch")
