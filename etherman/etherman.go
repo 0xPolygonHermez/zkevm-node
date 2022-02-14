@@ -94,7 +94,7 @@ type ClientEtherMan struct {
 }
 
 // NewEtherman creates a new etherman
-func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address, maticAddr common.Address) (*ClientEtherMan, error) {
+func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address, maticAddr common.Address, globalExitRootManAddr common.Address) (*ClientEtherMan, error) {
 	// TODO: PoEAddr can be got from bridge smc. Son only bridge smc is required
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
@@ -111,14 +111,18 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, br
 	if err != nil {
 		return nil, err
 	}
+	globalExitRoot, err := globalexitrootmanager.NewGlobalexitrootmanager(globalExitRootManAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
 	matic, err := matic.NewMatic(maticAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, PoEAddr, bridgeAddr)
+	scAddresses = append(scAddresses, PoEAddr, bridgeAddr, globalExitRootManAddr)
 
-	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, Bridge: bridge, Matic: matic, SCAddresses: scAddresses, auth: auth}, nil
+	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, Bridge: bridge, Matic: matic, GlobalExitRootManager: globalExitRoot, SCAddresses: scAddresses, auth: auth}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
