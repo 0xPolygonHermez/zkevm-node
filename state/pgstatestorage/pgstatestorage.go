@@ -303,6 +303,16 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	return &batch, nil
 }
 
+// GetBatchHeader gets the batch header with the required number.
+func (s *PostgresStorage) GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error) {
+	batch, err := s.GetBatchByNumber(ctx, batchNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	return batch.Header, nil
+}
+
 // GetLastBatchNumber gets the latest batch number
 func (s *PostgresStorage) GetLastBatchNumber(ctx context.Context) (uint64, error) {
 	var lastBatchNumber uint64

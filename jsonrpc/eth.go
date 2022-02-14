@@ -382,20 +382,12 @@ func (e *Eth) getBatchHeader(number BlockNumber) (*types.Header, error) {
 		return batch.Header, nil
 
 	case EarliestBlockNumber:
-		batch, err := e.state.GetBatchByNumber(context.Background(), uint64(0))
-		if err != nil {
-			return nil, fmt.Errorf("error fetching batch number 0, %v", err)
-		}
-		return batch.Header, nil
+		return e.state.GetBatchHeader(context.Background(), uint64(0))
 
 	case PendingBlockNumber:
 		return nil, fmt.Errorf("fetching the pending header is not supported")
 
 	default:
-		batch, err := e.state.GetBatchByNumber(context.Background(), uint64(number))
-		if err != nil {
-			return nil, fmt.Errorf("error fetching batch number %d, %v", uint64(number), err)
-		}
-		return batch.Header, nil
+		return e.state.GetBatchHeader(context.Background(), uint64(number))
 	}
 }

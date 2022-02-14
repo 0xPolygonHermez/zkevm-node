@@ -199,14 +199,6 @@ func (m *Manager) ApplyTxs(txs []vectors.Tx, initialRoot, finalRoot string) erro
 	return nil
 }
 
-// WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
-// health standard in package grpc.health.v1
-func WaitGRPCHealthy(address string) error {
-	return waitPoll(defaultInterval, defaultDeadline, func() (bool, error) {
-		return grpcHealthyCondition(address)
-	})
-}
-
 // GetAuth configures and returns an auth object.
 func GetAuth(privateKeyStr string, chainID *big.Int) (*bind.TransactOpts, error) {
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(privateKeyStr, "0x"))
