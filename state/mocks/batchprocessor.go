@@ -220,14 +220,32 @@ func (_m *BatchProcessor) ProcessBatch(batch *state.Batch) error {
 }
 
 // ProcessTransaction provides a mock function with given fields: tx, sequencerAddress
-func (_m *BatchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) error {
+func (_m *BatchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
 	ret := _m.Called(tx, sequencerAddress)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(*types.Transaction, common.Address) error); ok {
+	var r0 *runtime.ExecutionResult
+	if rf, ok := ret.Get(0).(func(*types.Transaction, common.Address) *runtime.ExecutionResult); ok {
 		r0 = rf(tx, sequencerAddress)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*runtime.ExecutionResult)
+		}
+	}
+
+	return r0
+}
+
+// ProcessUnsignedTransaction provides a mock function with given fields: tx, senderAddress, sequencerAddress
+func (_m *BatchProcessor) ProcessUnsignedTransaction(tx *types.Transaction, senderAddress common.Address, sequencerAddress common.Address) *runtime.ExecutionResult {
+	ret := _m.Called(tx, senderAddress, sequencerAddress)
+
+	var r0 *runtime.ExecutionResult
+	if rf, ok := ret.Get(0).(func(*types.Transaction, common.Address, common.Address) *runtime.ExecutionResult); ok {
+		r0 = rf(tx, senderAddress, sequencerAddress)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*runtime.ExecutionResult)
+		}
 	}
 
 	return r0

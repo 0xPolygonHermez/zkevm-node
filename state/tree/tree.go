@@ -45,7 +45,7 @@ type StateTree struct {
 }
 
 // NewStateTree creates new StateTree
-func NewStateTree(mt *MerkleTree, scCodeStore Store, root []byte) ReadWriter {
+func NewStateTree(mt *MerkleTree, scCodeStore Store, root []byte) *StateTree {
 	return &StateTree{
 		mt:          mt,
 		scCodeStore: scCodeStore,

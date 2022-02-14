@@ -115,11 +115,14 @@ func (arg *txnArgs) ToTransaction() *types.Transaction {
 		gas = uint64(*arg.Gas)
 	}
 
-	gasPrice := hex.DecodeHexToBig(string(*arg.GasPrice))
+	gasPrice := big.NewInt(0)
+	if arg.GasPrice != nil {
+		gasPrice.SetBytes(*arg.GasPrice)
+	}
 
 	value := big.NewInt(0)
 	if arg.Value != nil {
-		value = hex.DecodeHexToBig(string(*arg.Value))
+		value.SetBytes(*arg.Value)
 	}
 
 	data := []byte{}
@@ -306,4 +309,10 @@ func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
 		FromAddr:          r.From,
 		ToAddr:            &to,
 	}
+}
+
+func argBytesPtr(b []byte) *argBytes {
+	bb := argBytes(b)
+
+	return &bb
 }

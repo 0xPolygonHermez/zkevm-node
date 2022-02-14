@@ -25,7 +25,12 @@ type Server struct {
 // NewServer returns the JsonRPC server
 func NewServer(config Config, defaultChainID uint64, sequencerAddress common.Address, p jsonRPCTxPool, s state.State, chainID uint64) *Server {
 	chainIDSelector := newChainIDSelector(chainID)
-	ethEndpoints := &Eth{chainIDSelector: chainIDSelector, pool: p, state: s}
+	ethEndpoints := &Eth{
+		chainIDSelector:  chainIDSelector,
+		pool:             p,
+		state:            s,
+		sequencerAddress: sequencerAddress,
+	}
 	netEndpoints := &Net{chainIDSelector: chainIDSelector}
 	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
 	txPoolEndpoints := &TxPool{pool: p}

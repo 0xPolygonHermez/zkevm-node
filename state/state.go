@@ -37,6 +37,9 @@ type State interface {
 
 // Storage is the interface of the Hermez state methods that access database
 type Storage interface {
+	BeginDBTransaction(ctx context.Context) error
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
 	GetLastBlock(ctx context.Context) (*Block, error)
 	GetPreviousBlock(ctx context.Context, offset uint64) (*Block, error)
 	GetBlockByHash(ctx context.Context, hash common.Hash) (*Block, error)
@@ -46,6 +49,7 @@ type Storage interface {
 	GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*Batch, error)
 	GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64) (*Batch, error)
+	GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error)
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
 	GetLastConsolidatedBatchNumber(ctx context.Context) (uint64, error)
 	GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64) (*types.Transaction, error)
@@ -75,6 +79,8 @@ var (
 	ErrStateNotSynchronized = errors.New("state not synchronized")
 	// ErrNotFound indicates an object has not been found for the search criteria used
 	ErrNotFound = errors.New("object not found")
+	// ErrNilDBTransaction indicates the db transaction has not been properly initialized
+	ErrNilDBTransaction = errors.New("database transaction not properly initialized")
 )
 
 // BasicState is a implementation of the state
