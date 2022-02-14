@@ -21,11 +21,11 @@ Optional:
 
 ## Requirements
 
-- All components have docker images available on docker hub, os it's important that you have an account to download and use them, please check the links below for more details:
+- All components have docker images available on docker hub, so it's important that you have an account to download and use them, please check the links below for more details:
   - [docker: Get-started](https://www.docker.com/get-started)
   - [docker hub](https://hub.docker.com)
 
-Some of the images are still private, so make sure to login before trying to download them. Once you have docker installed on your machine, run the following command to login:
+Some of the images are still private, so make sure to login and check if you have access to the [Hermez organization](https://hub.docker.com/orgs/hermeznetwork) before trying to download them. Once you have docker installed on your machine, run the following command to login:
 
 ```bash
 docker login
@@ -77,7 +77,7 @@ services:
     volumes:
         - /$HOME/hermez/.ethereum:/$HOME/geth/.ethereum
     command: [
-        "--mainnet",
+        "--goerli",
         "--http",
         "--http.addr=0.0.0.0",
         "--http.corsdomain=*",
@@ -120,12 +120,12 @@ Also:
 With that said, we must setup a Postgres instance to be shared between the Node and the Prover.
 
 - Node requires a full access user to run the migrations and control the data.
-- Prover only needs a readonly user to access the historical data and compute the proofs.
+- Prover only needs a readonly user to access the Merkletree data and compute the proofs.
 
 We need to create a folder to store the Postgres data outside of the container, in order to not lose all the data if the container is restarted.
 
 ```bash
-mkdir -p /$HOME/hermez/.postgres-data
+mkdir -p /$HOME/hermez/.postgres
 ```
 
 In order to run the Postgres instance, create a file called `docker-compose.yml` inside of the directory `hermez`
@@ -139,15 +139,15 @@ services:
 
   hez-postgres:
     container_name: hez-postgres
-      image: postgres
-      ports:
-        - 5432:5432
-      environment:
-        - POSTGRES_USER=test_user
-        - POSTGRES_PASSWORD=test_password
-        - POSTGRES_DB=test_db
-      volumes:
-        - ./postgres-data:/$HOME/hermez/.postgres-data
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_DB=test_db
+    volumes:
+      - /$HOME/hermez/.postgres:./postgres-data
 ```
 
 To run the postgres instance, go to the `hermez` directory in your terminal and run the following command:
@@ -181,7 +181,7 @@ Very well, we already have the Postgres, Prover and Ethereum Node instances runn
 
 > The node depends on the Postgres, Prover and Ethereum Node instances, so make sure it has network access to them. We also expect the node to have its own dedicated machine
 
-Before we start, the node requires the an Ethereum account with:
+Before we start, the node requires an Ethereum account with:
 
 - Funds on L1 in order to propose new batches and consolidate the state
 - Tokens to pay the collateral for batch proposal
@@ -199,75 +199,30 @@ docker run --rm hermeznetwork/hermez-node-zkevm:latest sh -c "./hezcore encryptK
 
 The command above will create the file `acc.keystore` inside of the `hermez` directory.
 
-After it we need to create a configuration file to provide the configurations to the node, to achieve this create a file called `config.toml` inside of the `hermez` directory with this:
+After it we need to create a configuration file to provide the configurations to the node, to achieve this create a file called `config.toml` inside of the `hermez` directory, then go to the example [config file](config/config.debug.toml) and `copy/paste` the content into the `config.toml` you'll actually use.
 
 Remember to:
 
 - replace the database information if you set it differently while setting up the Postgres instance
-- set the Database Host with the Postgres instance IP
-- set the Etherman URL with the JSON RPC URL of the Ethereum node, which is "<http://[IP]:[PORT]>"
-- set the Etherman Password to allow the node to decrypt the keystore file
-- set the Prover URI the IP and port of the Prover Instance in this format "IP:PORT"
+- set the `Database Host` with the `Postgres instance IP`
+- set the `Etherman URL` with the `JSON RPC URL` of the `Ethereum node`
+- set the `Etherman Password` to allow the node to decrypt the `keystore file`
+- set the `Prover URI` the `IP and port` of the `Prover Instance`
 
-```toml
-[Log]
-Level = "info"
-Outputs = ["stdout"]
 
-[Database]
-User = "test_user"
-Password = "test_password"
-Name = "test_db"
-Host = "" # Set here the IP of the Postgres instance
-Port = "5432"
-
-[Etherman]
-URL = "http://" # Set here the URL to access the Ethereum node
-PrivateKeyPath = "/pk/keystore"
-PrivateKeyPassword = "" # Set here the password used to encrypt the private key
-
-[RPC]
-Host = "0.0.0.0"
-Port = 8545
-
-[Synchronizer]
-SyncInterval = "5s"
-SyncChunkSize = 100
-
-[Sequencer]
-AllowNonRegistered = "false"
-IntervalToProposeBatch = "15s"
-SyncedBlockDif = 1
-    [Sequencer.Strategy]
-        [Sequencer.Strategy.TxSelector]
-            Type = "acceptall"
-            TxSorterType = "bycostandnonce"
-        [Sequencer.Strategy.TxProfitabilityChecker]
-            Type = "acceptall"
-            MinReward = "1.1"
-
-[Aggregator]
-IntervalToConsolidateState = "10s"
-TxProfitabilityCheckerType = "acceptall"
-TxProfitabilityMinReward = "1.1"
-
-[Prover]
-ProverURI = ":" # Set here the IP and PORT to access the Prover instance
-
-```
 
 In order to be able to propose batches we are going to register our Ethereum account as a Sequencer,
 to do this execute this command:
 
 ```bash
-docker run --rm -v /$HOME/hermez/config.toml:/app/config.toml hermeznetwork/hermez-node-zkevm:latest sh -c "./hezcore register --cfg=/app/config.toml --network=mainnet"
+docker run --rm -v /$HOME/hermez/config.toml:/app/config.toml hermeznetwork/hermez-node-zkevm:latest sh -c "./hezcore register --cfg=/app/config.toml --network=internaltestnet <public IP or URL for users to access the sequencer>"
 ```
 
 In order to propose new batches, you must approve the Tokens to be used by the Roll-up on your behalf, to do this execute this command:
 > remember to set the value of the parameter amount before executing
 
 ```bash
-docker run --rm -v /$HOME/hermez/config.toml:/app/config.toml hermeznetwork/hermez-node-zkevm:latest sh -c "./hezcore approve --cfg=/app/config.toml --network=mainnet --address=poe --amount=0"
+docker run --rm -v /$HOME/hermez/config.toml:/app/config.toml hermeznetwork/hermez-node-zkevm:latest sh -c "./hezcore approve --cfg=/app/config.toml --network=internaltestnet --address=poe --amount=0"
 ```
 
 Now we are going to put everything together in order to run the `Hermez zk-EVM-Node` instance.
@@ -371,7 +326,7 @@ To configure a custom network follow these steps:
 3. Click on Settings
 4. On the Left menu click com Networks
 5. Fill up the following fields:
-    1. Network Name: Polygon Hermez - Mainnet
+    1. Network Name: Polygon Hermez - Goerli
     2. New RPC URL: <http://IP-And-Port-of-zk-EMV-Node-Instance>
     3. Chain ID: TBD
     4. Currency Symbol: ETH
@@ -379,4 +334,4 @@ To configure a custom network follow these steps:
 6. Click on Save
 7. Click on the X in the right top corner to close the Settings
 8. Click in the list of networks on the top right corner
-9. Select Polygon Hermez - Mainnet
+9. Select Polygon Hermez - Goerli
