@@ -195,24 +195,23 @@ func (s *PostgresStorage) GetLastBatch(ctx context.Context, isVirtual bool) (*st
 	var (
 		batch           state.Batch
 		maticCollateral pgtype.Numeric
+
+		chain uint64
+		err   error
 	)
-	var err error
 
 	if isVirtual {
-		var chain uint64
 		err = s.queryRow(ctx, getLastVirtualBatchSQL).Scan(&batch.BlockNumber,
 			&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 			&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot)
-		batch.ChainID = new(big.Int).SetUint64(chain)
 	} else {
-		var chain uint64
 		err = s.queryRow(ctx, getLastConsolidatedBatchSQL, common.Hash{}).Scan(
 			&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 			&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot)
-		batch.ChainID = new(big.Int).SetUint64(chain)
 	}
+	batch.ChainID = new(big.Int).SetUint64(chain)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrStateNotSynchronized
@@ -230,24 +229,23 @@ func (s *PostgresStorage) GetPreviousBatch(ctx context.Context, isVirtual bool, 
 	var (
 		batch           state.Batch
 		maticCollateral pgtype.Numeric
+
+		chain uint64
+		err   error
 	)
-	var err error
 
 	if isVirtual {
-		var chain uint64
 		err = s.queryRow(ctx, getPreviousVirtualBatchSQL, offset).Scan(
 			&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 			&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot)
-		batch.ChainID = new(big.Int).SetUint64(chain)
 	} else {
-		var chain uint64
 		err = s.queryRow(ctx, getPreviousConsolidatedBatchSQL, common.Hash{}, offset).Scan(
 			&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
 			&batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot)
-		batch.ChainID = new(big.Int).SetUint64(chain)
 	}
+	batch.ChainID = new(big.Int).SetUint64(chain)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
