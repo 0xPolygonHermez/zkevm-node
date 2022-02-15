@@ -35,6 +35,7 @@ var (
 	depositEventSignatureHash              = crypto.Keccak256Hash([]byte("BridgeEvent(address,uint256,uint32,uint32,address,uint32)"))
 	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
 	claimEventSignatureHash                = crypto.Keccak256Hash([]byte("ClaimEvent(uint64,uint32,address,uint256,address)"))
+	newWrappedTokenEventSignatureHash      = crypto.Keccak256Hash([]byte("NewWrappedToken(uint32,address,address)"))
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
@@ -54,6 +55,8 @@ const (
 	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
 	//ClaimsOrder identifies a claim event
 	ClaimsOrder EventOrder = "Claims"
+	//TokensOrder identifies a TokenWrapped event
+	TokensOrder EventOrder = "Tokens"
 )
 
 // EtherMan represents an Ethereum Manager
@@ -339,6 +342,14 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 				}
 				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
 			}
+			if len(block.Tokens) != 0 {
+				b.Tokens = append(blocks[block.BlockHash].Tokens, block.Tokens...)
+				or := Order{
+					Name: TokensOrder,
+					Pos:  len(b.Tokens) - 1,
+				}
+				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
+			}
 			blocks[block.BlockHash] = b
 		} else {
 			if len(block.Batches) != 0 {
@@ -373,6 +384,13 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 				or := Order{
 					Name: ClaimsOrder,
 					Pos:  len(block.Claims) - 1,
+				}
+				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
+			}
+			if len(block.Tokens) != 0 {
+				or := Order{
+					Name: TokensOrder,
+					Pos:  len(block.Tokens) - 1,
 				}
 				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
 			}
@@ -568,8 +586,30 @@ func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log
 		block.ReceivedAt = fullBlock.ReceivedAt
 		block.Claims = append(block.Claims, claimAux)
 		return &block, nil
+	case newWrappedTokenEventSignatureHash:
+		tokenWrapped, err := etherMan.Bridge.ParseNewWrappedToken(vLog)
+		if err != nil {
+			return nil, err
+		}
+		var (
+			block    state.Block
+			newToken state.TokenWrapped
+		)
+		newToken.OriginalNetwork = uint(tokenWrapped.OriginalNetwork)
+		newToken.OriginalTokenAddress = tokenWrapped.OriginalTokenAddress
+		newToken.WrappedTokenAddress = tokenWrapped.WrappedTokenAddress
+		block.BlockHash = vLog.BlockHash
+		block.BlockNumber = vLog.BlockNumber
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
+		}
+		block.ParentHash = fullBlock.ParentHash()
+		block.ReceivedAt = fullBlock.ReceivedAt
+		block.Tokens = append(block.Tokens, newToken)
+		return &block, nil
 	}
-	log.Debug("Event not registered: ", vLog)
+	log.Warn("Event not registered: ", vLog)
 	return nil, nil
 }
 

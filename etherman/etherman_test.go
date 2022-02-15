@@ -444,7 +444,7 @@ func TestDepositAndGlobalExitRootEvent(t *testing.T) {
 	require.NoError(t, err)
 	block, order, err = etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, ClaimsOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, ClaimsOrder, order[block[0].BlockHash][1].Name)
 	assert.Equal(t, big.NewInt(1000000000000000000), block[0].Claims[0].Amount)
 	assert.Equal(t, uint64(3), block[0].BlockNumber)
 	assert.NotEqual(t, common.Address{}, block[0].Claims[0].Token)
@@ -452,6 +452,10 @@ func TestDepositAndGlobalExitRootEvent(t *testing.T) {
 	assert.Equal(t, uint64(0), block[0].Claims[0].Index)
 	assert.Equal(t, uint(1), block[0].Claims[0].OriginalNetwork)
 	assert.Equal(t, uint64(3), block[0].Claims[0].BlockNumber)
+	assert.Equal(t, TokensOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, uint(1), block[0].Tokens[0].OriginalNetwork)
+	assert.NotEqual(t, common.Address{}, block[0].Tokens[0].OriginalTokenAddress)
+	assert.NotEqual(t, common.Address{}, block[0].Tokens[0].WrappedTokenAddress)
 }
 
 func TestConverter(t *testing.T) {

@@ -16,6 +16,7 @@ type Block struct {
 	Deposits        []Deposit
 	GlobalExitRoots []GlobalExitRoot
 	Claims          []Claim
+	Tokens          []TokenWrapped
 
 	ReceivedAt time.Time
 }
