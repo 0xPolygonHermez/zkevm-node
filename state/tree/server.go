@@ -96,7 +96,20 @@ func (s *Server) GetNonce(ctx context.Context, in *pb.GetNonceRequest) (*pb.GetN
 
 // GetCode gets the code for a given address at a given root.
 func (s *Server) GetCode(ctx context.Context, in *pb.GetCodeRequest) (*pb.GetCodeResponse, error) {
-	return nil, nil
+	root, err := hex.DecodeString(in.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	code, err := s.stree.GetCode(common.HexToAddress(in.EthAddress), root)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetCodeResponse{
+		Code: string(code),
+	}, nil
 }
 
 // GetCodeHash gets code hash for a given address at a given root.

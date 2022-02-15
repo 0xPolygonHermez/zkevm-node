@@ -15,6 +15,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/operations"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
 
@@ -57,7 +58,12 @@ func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
 	return conn, cancel, err
 }
 
-func initMTServer(stree *tree.StateTree) (*tree.Server, error) {
+func initMTServer() (*tree.Server, *tree.StateTree, error) {
+	stree, err := initStree()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	s := grpc.NewServer()
 
 	cfg := &tree.Config{
@@ -67,43 +73,28 @@ func initMTServer(stree *tree.StateTree) (*tree.Server, error) {
 	mtSrv = tree.NewServer(cfg, stree)
 	pb.RegisterMTServiceServer(s, mtSrv)
 
-	return mtSrv, nil
+	return mtSrv, stree, nil
 }
 
 func Test_MTServer_GetBalance(t *testing.T) {
-	stree, err := initStree()
-	if err != nil {
-		t.Fatalf("Could not initialize state tree, %v", err)
-	}
-
-	mtSrv, err := initMTServer(stree)
-	if err != nil {
-		t.Fatalf("Could not initialize MTServer, %v", err)
-	}
+	mtSrv, stree, err := initMTServer()
+	require.NoError(t, err)
 	go mtSrv.Start()
 	defer mtSrv.Stop()
 
 	conn, cancel, err := initConn()
-	if err != nil {
-		t.Fatalf("Failed to initialize grpc connection: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() {
 		cancel()
-		if err := conn.Close(); err != nil {
-			t.Fatalf("Failed to close conn: %v", err)
-		}
+		require.NoError(t, conn.Close())
 	}()
 
 	err = operations.WaitGRPCHealthy(address)
-	if err != nil {
-		t.Fatalf("gRPC server did not come up on time: %v", err)
-	}
+	require.NoError(t, err)
 
 	expectedBalance := big.NewInt(100)
 	root, _, err := stree.SetBalance(common.HexToAddress(ethAddress), expectedBalance, nil)
-	if err != nil {
-		t.Fatalf("could not set balance: %v", err)
-	}
+	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
 	ctx := context.Background()
@@ -111,47 +102,30 @@ func Test_MTServer_GetBalance(t *testing.T) {
 		EthAddress: ethAddress,
 		Root:       hex.EncodeToString(root),
 	})
-	if err != nil {
-		t.Fatalf("GetBalance failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, expectedBalance.String(), resp.Balance, "Did not get the expected balance")
 }
 
 func Test_MTServer_GetNonce(t *testing.T) {
-	stree, err := initStree()
-	if err != nil {
-		t.Fatalf("Could not initialize state tree, %v", err)
-	}
-
-	mtSrv, err := initMTServer(stree)
-	if err != nil {
-		t.Fatalf("Could not initialize MTServer, %v", err)
-	}
+	mtSrv, stree, err := initMTServer()
+	require.NoError(t, err)
 	go mtSrv.Start()
 	defer mtSrv.Stop()
 
 	conn, cancel, err := initConn()
-	if err != nil {
-		t.Fatalf("Failed to initialize grpc connection: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() {
 		cancel()
-		if err := conn.Close(); err != nil {
-			t.Fatalf("Failed to close conn: %v", err)
-		}
+		require.NoError(t, conn.Close())
 	}()
 
 	err = operations.WaitGRPCHealthy(address)
-	if err != nil {
-		t.Fatalf("gRPC server did not come up on time: %v", err)
-	}
+	require.NoError(t, err)
 
 	expectedNonce := big.NewInt(100)
 	root, _, err := stree.SetNonce(common.HexToAddress(ethAddress), expectedNonce)
-	if err != nil {
-		t.Fatalf("could not set balance: %v", err)
-	}
+	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
 	ctx := context.Background()
@@ -159,8 +133,38 @@ func Test_MTServer_GetNonce(t *testing.T) {
 		EthAddress: ethAddress,
 		Root:       hex.EncodeToString(root),
 	})
-	if err != nil {
-		t.Fatalf("GetNonce failed: %v", err)
-	}
+	require.NoError(t, err)
+
 	assert.Equal(t, expectedNonce.Uint64(), resp.Nonce, "Did not get the expected nonce")
+}
+
+func Test_MTServer_GetCode(t *testing.T) {
+	mtSrv, stree, err := initMTServer()
+	require.NoError(t, err)
+	go mtSrv.Start()
+	defer mtSrv.Stop()
+
+	conn, cancel, err := initConn()
+	require.NoError(t, err)
+	defer func() {
+		cancel()
+		require.NoError(t, conn.Close())
+	}()
+
+	err = operations.WaitGRPCHealthy(address)
+	require.NoError(t, err)
+
+	expectedCode := "dead"
+	root, _, err := stree.SetCode(common.HexToAddress(ethAddress), []byte(expectedCode))
+	require.NoError(t, err)
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.GetCode(ctx, &pb.GetCodeRequest{
+		EthAddress: ethAddress,
+		Root:       hex.EncodeToString(root),
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, string(expectedCode), resp.Code, "Did not get the expected code")
 }
