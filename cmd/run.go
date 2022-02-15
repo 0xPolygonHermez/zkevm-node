@@ -166,13 +166,13 @@ func runAggregator(c aggregator.Config, etherman *etherman.ClientEtherMan, prove
 	agg.Start()
 }
 
-// gasPriceEstimator interface for gas price gasPriceEstimator
+// gasPriceEstimator interface for gas price estimator.
 type gasPriceEstimator interface {
 	GetAvgGasPrice() (*big.Int, error)
 	UpdateGasPriceAvg(newValue *big.Int)
 }
 
-// createGasPriceEstimator init gas price gasPriceEstimator based on type in config
+// createGasPriceEstimator init gas price gasPriceEstimator based on type in config.
 func createGasPriceEstimator(cfg gasprice.Config, state state.State, pool *pool.PostgresPool) gasPriceEstimator {
 	switch cfg.Type {
 	case gasprice.AllBatchesType:
