@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	flagYes     = "yes"
 	flagCfg     = "cfg"
 	flagNetwork = "network"
 	flagAddress = "address"
@@ -40,6 +41,12 @@ func main() {
 			Name:     flagNetwork,
 			Aliases:  []string{"n"},
 			Usage:    "Network: mainnet, testnet, internaltestnet, local. By default it uses mainnet",
+			Required: false,
+		},
+		&cli.BoolFlag{
+			Name:     flagYes,
+			Aliases:  []string{"y"},
+			Usage:    "Automatically accepts any confirmation to execute the command",
 			Required: false,
 		},
 	}

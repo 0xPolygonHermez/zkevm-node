@@ -215,14 +215,14 @@ In order to be able to propose batches we are going to register our Ethereum acc
 to do this execute this command:
 
 ```bash
-docker run --rm -v /$HOME/hermez/config.toml:/app/config.toml hermeznetwork/hermez-node-zkevm:latest sh -c "./hezcore register --cfg=/app/config.toml --network=internaltestnet <public IP or URL for users to access the sequencer>"
+docker run --rm -v /$HOME/hermez/config.toml:/app/config.toml hermeznetwork/hermez-node-zkevm:latest sh -c "./hezcore register --cfg=/app/config.toml --network=internaltestnet --y <public IP or URL for users to access the sequencer> "
 ```
 
 In order to propose new batches, you must approve the Tokens to be used by the Roll-up on your behalf, to do this execute this command:
 > remember to set the value of the parameter amount before executing
 
 ```bash
-docker run --rm -v /$HOME/hermez/config.toml:/app/config.toml hermeznetwork/hermez-node-zkevm:latest sh -c "./hezcore approve --cfg=/app/config.toml --network=internaltestnet --address=poe --amount=0"
+docker run --rm -v /$HOME/hermez/config.toml:/app/config.toml hermeznetwork/hermez-node-zkevm:latest sh -c "./hezcore approve --cfg=/app/config.toml --network=internaltestnet --address=poe --amount=0 --y"
 ```
 
 Now we are going to put everything together in order to run the `Hermez zk-EVM-Node` instance.
