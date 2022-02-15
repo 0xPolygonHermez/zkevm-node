@@ -1,4 +1,7 @@
 version: '3'
+networks:
+    default:
+        name: hermez
 services:
     hez-core:
         container_name: hez-core
