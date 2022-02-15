@@ -40,6 +40,8 @@ var (
 	ErrNotImplemented = errors.New("feature not yet implemented")
 	// ErrInvalidTxType indicates the tx type is not known
 	ErrInvalidTxType = errors.New("unknown transaction type")
+	// ErrInvalidCumulativeGas indicates the batch gas is bigger than the max allowed
+	ErrInvalidCumulativeGas = errors.New("cumulative gas is bigger than allowed")
 	// EmptyCodeHash is the hash of empty code
 	EmptyCodeHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	// ZeroAddress is the address 0x0000000000000000000000000000000000000000
@@ -63,22 +65,24 @@ type BatchProcessor interface {
 
 // BasicBatchProcessor is used to process a batch of transactions
 type BasicBatchProcessor struct {
-	State            *BasicState
-	stateRoot        []byte
-	runtimes         []runtime.Runtime
-	forks            runtime.ForksInTime
-	SequencerAddress common.Address
-	SequencerChainID uint64
-	LastBatch        *Batch
+	State                *BasicState
+	stateRoot            []byte
+	runtimes             []runtime.Runtime
+	forks                runtime.ForksInTime
+	SequencerAddress     common.Address
+	SequencerChainID     uint64
+	LastBatch            *Batch
+	CumulativeGasUsed    uint64
+	MaxCumulativeGasUsed uint64
 }
 
 // ProcessBatch processes all transactions inside a batch
 func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	var receipts []*Receipt
 	var includedTxs []*types.Transaction
-
-	var cumulativeGasUsed uint64 = 0
 	var index uint
+
+	b.CumulativeGasUsed = 0
 
 	for _, tx := range batch.Transactions {
 		senderAddress, err := helper.GetSender(tx)
@@ -92,9 +96,9 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), result.Err)
 		} else {
 			log.Infof("Successfully processed transaction %s", tx.Hash().String())
-			cumulativeGasUsed += result.GasUsed
+			b.CumulativeGasUsed += result.GasUsed
 			includedTxs = append(includedTxs, tx)
-			receipt := b.generateReceipt(batch, tx, index, &senderAddress, tx.To(), result.GasUsed, cumulativeGasUsed)
+			receipt := b.generateReceipt(batch, tx, index, &senderAddress, tx.To(), result.GasUsed)
 			receipts = append(receipts, receipt)
 			index++
 		}
@@ -105,7 +109,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 	batch.Receipts = receipts
 
 	// Set batch Header
-	b.populateBatchHeader(batch, cumulativeGasUsed)
+	b.populateBatchHeader(batch)
 
 	// Store batch
 	return b.commit(batch)
@@ -118,7 +122,15 @@ func (b *BasicBatchProcessor) ProcessTransaction(tx *types.Transaction, sequence
 		return &runtime.ExecutionResult{Err: err}
 	}
 
-	return b.processTransaction(tx, senderAddress, sequencerAddress)
+	// Keep track of consumed gas
+	result := b.processTransaction(tx, senderAddress, sequencerAddress)
+	b.CumulativeGasUsed += result.GasUsed
+
+	if b.CumulativeGasUsed > b.MaxCumulativeGasUsed {
+		result.Err = ErrInvalidCumulativeGas
+	}
+
+	return result
 }
 
 // ProcessUnsignedTransaction processes an unsigned transaction from the given
@@ -157,7 +169,7 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 	return &runtime.ExecutionResult{Err: ErrInvalidTxType}
 }
 
-func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch, cumulativeGasUsed uint64) {
+func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch) {
 	parentHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	if b.LastBatch != nil {
 		parentHash = b.LastBatch.Hash()
@@ -179,18 +191,18 @@ func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch, cumulativeGasUse
 	batch.Header.Bloom = block.Bloom()
 	batch.Header.Difficulty = new(big.Int).SetUint64(0)
 	batch.Header.GasLimit = 30000000
-	batch.Header.GasUsed = cumulativeGasUsed
+	batch.Header.GasUsed = b.CumulativeGasUsed
 	batch.Header.Time = uint64(time.Now().Unix())
 	batch.Header.MixDigest = block.MixDigest()
 	batch.Header.Nonce = block.Header().Nonce
 }
 
-func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, gasUsed uint64, cumulativeGasUsed uint64) *Receipt {
+func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, gasUsed uint64) *Receipt {
 	receipt := &Receipt{}
 	receipt.Type = tx.Type()
 	receipt.PostState = b.stateRoot
 	receipt.Status = types.ReceiptStatusSuccessful
-	receipt.CumulativeGasUsed = cumulativeGasUsed
+	receipt.CumulativeGasUsed = b.CumulativeGasUsed
 	receipt.BlockNumber = batch.Number()
 	receipt.BlockHash = batch.Hash()
 	receipt.GasUsed = gasUsed

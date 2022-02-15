@@ -46,7 +46,8 @@ var (
 var cfg = dbutils.NewConfigFromEnv()
 
 var stateCfg = state.Config{
-	DefaultChainID: 1000,
+	DefaultChainID:       1000,
+	MaxCumulativeGasUsed: 800000,
 }
 
 func TestMain(m *testing.M) {

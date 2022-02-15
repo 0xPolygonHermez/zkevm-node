@@ -55,7 +55,8 @@ func start(ctx *cli.Context) error {
 	tr := tree.NewStateTree(mt, scCodeStore, []byte{})
 
 	stateCfg := state.Config{
-		DefaultChainID: c.NetworkConfig.L2DefaultChainID,
+		DefaultChainID:       c.NetworkConfig.L2DefaultChainID,
+		MaxCumulativeGasUsed: c.NetworkConfig.MaxCumulativeGasUsed,
 	}
 
 	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
