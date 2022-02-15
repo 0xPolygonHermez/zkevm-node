@@ -78,7 +78,20 @@ func (s *Server) GetBalance(ctx context.Context, in *pb.GetBalanceRequest) (*pb.
 
 // GetNonce gets nonce for a given address at a given root.
 func (s *Server) GetNonce(ctx context.Context, in *pb.GetNonceRequest) (*pb.GetNonceResponse, error) {
-	return nil, nil
+	root, err := hex.DecodeString(in.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, err := s.stree.GetNonce(common.HexToAddress(in.EthAddress), root)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetNonceResponse{
+		Nonce: nonce.Uint64(),
+	}, nil
 }
 
 // GetCode gets the code for a given address at a given root.

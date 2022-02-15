@@ -10,11 +10,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/operations"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 )
 
@@ -107,7 +107,6 @@ func Test_MTServer_GetBalance(t *testing.T) {
 
 	client := pb.NewMTServiceClient(conn)
 	ctx := context.Background()
-	log.Debugf("before callilng client.GetBalance for ethAddress %q and root %q", ethAddress, hex.EncodeToString(root))
 	resp, err := client.GetBalance(ctx, &pb.GetBalanceRequest{
 		EthAddress: ethAddress,
 		Root:       hex.EncodeToString(root),
@@ -116,8 +115,52 @@ func Test_MTServer_GetBalance(t *testing.T) {
 		t.Fatalf("GetBalance failed: %v", err)
 	}
 
-	actualBalance := resp.Balance
-	if actualBalance != expectedBalance.String() {
-		log.Fatalf("Did not get the expected balance, want %q, got %q", expectedBalance.String(), actualBalance)
+	assert.Equal(t, expectedBalance.String(), resp.Balance, "Did not get the expected balance")
+}
+
+func Test_MTServer_GetNonce(t *testing.T) {
+	stree, err := initStree()
+	if err != nil {
+		t.Fatalf("Could not initialize state tree, %v", err)
 	}
+
+	mtSrv, err := initMTServer(stree)
+	if err != nil {
+		t.Fatalf("Could not initialize MTServer, %v", err)
+	}
+	go mtSrv.Start()
+	defer mtSrv.Stop()
+
+	conn, cancel, err := initConn()
+	if err != nil {
+		t.Fatalf("Failed to initialize grpc connection: %v", err)
+	}
+	defer func() {
+		cancel()
+		if err := conn.Close(); err != nil {
+			t.Fatalf("Failed to close conn: %v", err)
+		}
+	}()
+
+	err = operations.WaitGRPCHealthy(address)
+	if err != nil {
+		t.Fatalf("gRPC server did not come up on time: %v", err)
+	}
+
+	expectedNonce := big.NewInt(100)
+	root, _, err := stree.SetNonce(common.HexToAddress(ethAddress), expectedNonce)
+	if err != nil {
+		t.Fatalf("could not set balance: %v", err)
+	}
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.GetNonce(ctx, &pb.GetNonceRequest{
+		EthAddress: ethAddress,
+		Root:       hex.EncodeToString(root),
+	})
+	if err != nil {
+		t.Fatalf("GetNonce failed: %v", err)
+	}
+	assert.Equal(t, expectedNonce.Uint64(), resp.Nonce, "Did not get the expected nonce")
 }
