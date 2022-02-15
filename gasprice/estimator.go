@@ -17,11 +17,11 @@ type Estimator interface {
 func NewEstimator(cfg Config, state state.State, pool *pool.PostgresPool) Estimator {
 	switch cfg.Type {
 	case AllBatchesType:
-		return NewGasPriceEstimatorAllBatches()
+		return NewEstimatorAllBatches()
 	case LastNBatchesType:
-		return NewGasPriceEstimatorLastNBatches(cfg, state)
+		return NewEstimatorLastNBatches(cfg, state)
 	case DefaultType:
-		return NewDefaultGasPriceEstimator(cfg, pool)
+		return NewDefaultEstimator(cfg, pool)
 	}
 	return nil
 }

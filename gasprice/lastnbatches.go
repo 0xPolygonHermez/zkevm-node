@@ -28,8 +28,8 @@ type LastNBatches struct {
 // UpdateGasPriceAvg for last n bathes strategy is not needed to implement this function
 func (g *LastNBatches) UpdateGasPriceAvg(newValue *big.Int) {}
 
-// NewGasPriceEstimatorLastNBatches init gas price estimator for last n batches strategy
-func NewGasPriceEstimatorLastNBatches(cfg Config, state state.State) *LastNBatches {
+// NewEstimatorLastNBatches init gas price estimator for last n batches strategy
+func NewEstimatorLastNBatches(cfg Config, state state.State) *LastNBatches {
 	return &LastNBatches{
 		cfg:   cfg,
 		state: state,

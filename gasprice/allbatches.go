@@ -14,8 +14,8 @@ type AllBatches struct {
 	agpMux sync.Mutex // Mutex for the averageGasPrice calculation
 }
 
-// NewGasPriceEstimatorAllBatches init gas price estimator for all batches strategy
-func NewGasPriceEstimatorAllBatches() *AllBatches {
+// NewEstimatorAllBatches init gas price estimator for all batches strategy
+func NewEstimatorAllBatches() *AllBatches {
 	return &AllBatches{
 		averageGasPrice:      big.NewInt(0),
 		averageGasPriceCount: big.NewInt(0),

@@ -39,8 +39,8 @@ func (d *Default) setDefaultGasPrice() {
 	}
 }
 
-// NewDefaultGasPriceEstimator init default gas price estimator
-func NewDefaultGasPriceEstimator(cfg Config, pool *pool.PostgresPool) *Default {
+// NewDefaultEstimator init default gas price estimator
+func NewDefaultEstimator(cfg Config, pool *pool.PostgresPool) *Default {
 	gpe := &Default{cfg: cfg, pool: pool}
 	gpe.setDefaultGasPrice()
 	return gpe
