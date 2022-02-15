@@ -44,18 +44,18 @@ func TestStateTransition(t *testing.T) {
 			opsman, err := operations.NewManager(ctx, opsCfg)
 			require.NoError(t, err)
 
-			err = opsman.SetGenesis(testCase.GenesisAccounts)
-			require.NoError(t, err)
+			genesisAccounts := make(map[string]big.Int)
+			for _, gacc := range testCase.GenesisAccounts {
+				genesisAccounts[gacc.Address] = gacc.Balance.Int
+			}
+			require.NoError(t, opsman.SetGenesis(genesisAccounts))
 
 			// Check initial root
-			err = opsman.CheckVirtualRoot(testCase.ExpectedOldRoot)
-			require.NoError(t, err)
+			require.NoError(t, opsman.CheckVirtualRoot(testCase.ExpectedOldRoot))
 
-			err = opsman.Setup()
-			require.NoError(t, err)
+			require.NoError(t, opsman.Setup())
 
-			err = opsman.ApplyTxs(testCase.Txs, testCase.ExpectedOldRoot, testCase.ExpectedNewRoot)
-			require.NoError(t, err)
+			require.NoError(t, opsman.ApplyTxs(testCase.Txs, testCase.ExpectedOldRoot, testCase.ExpectedNewRoot))
 
 			st := opsman.State()
 
@@ -81,8 +81,7 @@ func TestStateTransition(t *testing.T) {
 			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
 
 			// Check consolidated state against the expected state
-			err = opsman.CheckVirtualRoot(testCase.ExpectedNewRoot)
-			require.NoError(t, err)
+			require.NoError(t, opsman.CheckVirtualRoot(testCase.ExpectedNewRoot))
 
 			// Check that last virtual and consolidated batch are the same
 			lastConsolidatedBatchNumber, err := st.GetLastConsolidatedBatchNumber(ctx)

@@ -145,9 +145,13 @@ install-git-hooks: ## Moves hook files to the .git/hooks directory
 	cp .github/hooks/* .git/hooks
 
 .PHONY: generate-mocks
-generate-mocks: ## generating mocks for the tests, using mockery tool
+generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=EtherMan --dir=etherman --output=etherman/mocks --filename=etherman.go
 	mockery --name=BatchProcessor --dir=state --output=state/mocks --filename=batchprocessor.go
+
+.PHONY: generate-code-from-proto
+generate-code-from-proto: ## Generates code from proto files
+	cd state/tree/pb && protoc --proto_path=. --go_out=. --go-grpc_out=. --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative mt.proto
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted

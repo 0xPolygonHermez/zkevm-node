@@ -33,7 +33,13 @@ func NewServer(
 	chainID uint64,
 	gpe gaspriceestimator.GasPriceEstimator) *Server {
 	chainIDSelector := newChainIDSelector(chainID)
-	ethEndpoints := &Eth{chainIDSelector: chainIDSelector, pool: p, state: s, gpe: gpe}
+	ethEndpoints := &Eth{
+		chainIDSelector:  chainIDSelector,
+		pool:             p,
+		state:            s,
+		gpe:              gpe,
+		sequencerAddress: sequencerAddress,
+	}
 	netEndpoints := &Net{chainIDSelector: chainIDSelector}
 	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
 	txPoolEndpoints := &TxPool{pool: p}

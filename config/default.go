@@ -50,4 +50,8 @@ DefaultGasPriceWei = 1000000000
 
 [Prover]
 ProverURI = "0.0.0.0:50051"
+
+[MTService]
+Host = "0.0.0.0"
+Port = 50052
 `

@@ -14,6 +14,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
+	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
@@ -29,8 +30,9 @@ type Config struct {
 	Sequencer         sequencer.Config
 	Aggregator        aggregator.Config
 	Prover            proverclient.Config
-	GasPriceEstimator gaspriceestimator.Config
 	NetworkConfig     NetworkConfig
+	GasPriceEstimator gaspriceestimator.Config
+	MTService         tree.Config
 }
 
 // Load loads the configuration
