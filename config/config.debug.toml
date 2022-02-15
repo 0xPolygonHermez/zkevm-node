@@ -39,7 +39,7 @@ IntervalToConsolidateState = "10s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 
-[Estimator]
+[GasPriceEstimator]
 Type = "default"
 DefaultGasPriceWei = 1000000000
 
