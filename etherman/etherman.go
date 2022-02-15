@@ -84,7 +84,7 @@ type ethClienter interface {
 	ethereum.TransactionReader
 }
 
-// ClientEtherMan is a simple implementation of EtherMan
+// ClientEtherMan is a simple implementation of EtherMan.
 type ClientEtherMan struct {
 	EtherClient           ethClienter
 	PoE                   *proofofefficiency.Proofofefficiency
@@ -96,9 +96,9 @@ type ClientEtherMan struct {
 	auth *bind.TransactOpts
 }
 
-// NewEtherman creates a new etherman
+// NewEtherman creates a new etherman.
 func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address, maticAddr common.Address, globalExitRootManAddr common.Address) (*ClientEtherMan, error) {
-	// TODO: PoEAddr can be got from bridge smc. Son only bridge smc is required
+	// TODO: PoEAddr can be got from bridge smc. So only bridge smc is required
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -128,7 +128,7 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, br
 	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, Bridge: bridge, Matic: matic, GlobalExitRootManager: globalExitRoot, SCAddresses: scAddresses, auth: auth}, nil
 }
 
-// EthBlockByNumber function retrieves the ethereum block information by ethereum block number
+// EthBlockByNumber function retrieves the ethereum block information by ethereum block number.
 func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
 	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 	if err != nil {
@@ -140,7 +140,7 @@ func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumbe
 	return block, nil
 }
 
-// GetRollupInfoByBlock function retrieves the Rollup information that are included in a specific ethereum block
+// GetRollupInfoByBlock function retrieves the Rollup information that are included in a specific ethereum block.
 func (etherMan *ClientEtherMan) GetRollupInfoByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]Order, error) {
 	// First filter query
 	var blockNumBigInt *big.Int
@@ -161,7 +161,7 @@ func (etherMan *ClientEtherMan) GetRollupInfoByBlock(ctx context.Context, blockN
 }
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
-// from block x to block y
+// from block x to block y.
 func (etherMan *ClientEtherMan) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]Order, error) {
 	// First filter query
 	query := ethereum.FilterQuery{
@@ -178,7 +178,7 @@ func (etherMan *ClientEtherMan) GetRollupInfoByBlockRange(ctx context.Context, f
 	return blocks, order, nil
 }
 
-// SendBatch function allows the sequencer send a new batch proposal to the rollup
+// SendBatch function allows the sequencer send a new batch proposal to the rollup.
 func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	return etherMan.sendBatch(ctx, etherMan.auth, txs, maticAmount)
 }
@@ -269,7 +269,7 @@ func (etherMan *ClientEtherMan) ConsolidateBatch(batchNumber *big.Int, proof *pr
 	return tx, nil
 }
 
-// RegisterSequencer function allows to register a new sequencer in the rollup
+// RegisterSequencer function allows to register a new sequencer in the rollup.
 func (etherMan *ClientEtherMan) RegisterSequencer(url string) (*types.Transaction, error) {
 	tx, err := etherMan.PoE.RegisterSequencer(etherMan.auth, url)
 	if err != nil {
@@ -278,7 +278,7 @@ func (etherMan *ClientEtherMan) RegisterSequencer(url string) (*types.Transactio
 	return tx, nil
 }
 
-// Order contains the event order to let the synchronizer store the information following this order
+// Order contains the event order to let the synchronizer store the information following this order.
 type Order struct {
 	Name EventOrder
 	Pos  int
