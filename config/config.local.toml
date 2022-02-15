@@ -34,7 +34,7 @@ SyncedBlockDif = 1
             Type = "acceptall"
             MinReward = "1.1"
 
-[GasPriceEstimator]
+[Estimator]
 Type = "default"
 DefaultGasPriceWei = 1000000000
 

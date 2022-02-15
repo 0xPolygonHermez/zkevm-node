@@ -11,7 +11,7 @@ import (
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/gaspriceestimator"
+	"github.com/hermeznetwork/hermez-core/gasprice"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 )
@@ -31,7 +31,7 @@ func NewServer(
 	p jsonRPCTxPool,
 	s state.State,
 	chainID uint64,
-	gpe gaspriceestimator.GasPriceEstimator) *Server {
+	gpe gasprice.Estimator) *Server {
 	chainIDSelector := newChainIDSelector(chainID)
 	ethEndpoints := &Eth{
 		chainIDSelector:  chainIDSelector,

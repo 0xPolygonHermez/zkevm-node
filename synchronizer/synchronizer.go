@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/etherman"
-	"github.com/hermeznetwork/hermez-core/gaspriceestimator"
+	"github.com/hermeznetwork/hermez-core/gasprice"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 )
@@ -29,7 +29,7 @@ type ClientSynchronizer struct {
 	genBlockNumber uint64
 	genBalances    state.Genesis
 	cfg            Config
-	gpe            gaspriceestimator.GasPriceEstimator
+	gpe            gasprice.Estimator
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -39,7 +39,7 @@ func NewSynchronizer(
 	genBlockNumber uint64,
 	genBalances state.Genesis,
 	cfg Config,
-	gpe gaspriceestimator.GasPriceEstimator) (Synchronizer, error) {
+	gpe gasprice.Estimator) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:          st,

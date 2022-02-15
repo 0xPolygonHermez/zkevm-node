@@ -9,7 +9,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/aggregator"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/etherman"
-	"github.com/hermeznetwork/hermez-core/gaspriceestimator"
+	"github.com/hermeznetwork/hermez-core/gasprice"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
@@ -31,7 +31,7 @@ type Config struct {
 	Aggregator        aggregator.Config
 	Prover            proverclient.Config
 	NetworkConfig     NetworkConfig
-	GasPriceEstimator gaspriceestimator.Config
+	GasPriceEstimator gasprice.Config
 	MTService         tree.Config
 }
 

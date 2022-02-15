@@ -1,4 +1,4 @@
-package gaspriceestimator
+package gasprice
 
 import (
 	"math/big"
