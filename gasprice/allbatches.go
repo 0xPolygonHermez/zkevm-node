@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// AllBatches struct for all batches avg price strategy
+// AllBatches struct for all batches avg price strategy.
 type AllBatches struct {
 	// Average gas price (rolling average)
 	averageGasPrice      *big.Int // The average gas price that gets queried
@@ -14,7 +14,7 @@ type AllBatches struct {
 	agpMux sync.Mutex // Mutex for the averageGasPrice calculation
 }
 
-// NewEstimatorAllBatches init gas price estimator for all batches strategy
+// NewEstimatorAllBatches init gas price estimator for all batches strategy.
 func NewEstimatorAllBatches() *AllBatches {
 	return &AllBatches{
 		averageGasPrice:      big.NewInt(0),
@@ -22,7 +22,7 @@ func NewEstimatorAllBatches() *AllBatches {
 	}
 }
 
-// UpdateGasPriceAvg Updates the rolling average value of the gas price
+// UpdateGasPriceAvg Updates the rolling average value of the gas price.
 func (g *AllBatches) UpdateGasPriceAvg(newValue *big.Int) {
 	g.agpMux.Lock()
 
@@ -36,7 +36,7 @@ func (g *AllBatches) UpdateGasPriceAvg(newValue *big.Int) {
 	g.agpMux.Unlock()
 }
 
-// GetAvgGasPrice get avg gas price from all blocks
+// GetAvgGasPrice get avg gas price from all blocks.
 func (g *AllBatches) GetAvgGasPrice() (*big.Int, error) {
 	return g.averageGasPrice, nil
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/gasprice"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -19,7 +18,7 @@ type Eth struct {
 	pool             jsonRPCTxPool
 	state            state.State
 	sequencerAddress common.Address
-	gpe              gasprice.Estimator
+	gpe              gasPriceEstimator
 }
 
 type blockNumberOrHash struct {

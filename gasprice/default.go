@@ -6,17 +6,16 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
-// Default gas price from config is set
+// Default gas price from config is set.
 type Default struct {
 	cfg  Config
-	pool *pool.PostgresPool
+	pool pool
 }
 
-// GetAvgGasPrice get default gas price from the pool
+// GetAvgGasPrice get default gas price from the pool.
 func (d *Default) GetAvgGasPrice() (*big.Int, error) {
 	ctx := context.Background()
 	gasPrice, err := d.pool.GetGasPrice(ctx)
@@ -28,7 +27,7 @@ func (d *Default) GetAvgGasPrice() (*big.Int, error) {
 	return new(big.Int).SetUint64(gasPrice), nil
 }
 
-// UpdateGasPriceAvg not needed for default strategy
+// UpdateGasPriceAvg not needed for default strategy.
 func (d *Default) UpdateGasPriceAvg(newValue *big.Int) {}
 
 func (d *Default) setDefaultGasPrice() {
@@ -39,8 +38,8 @@ func (d *Default) setDefaultGasPrice() {
 	}
 }
 
-// NewDefaultEstimator init default gas price estimator
-func NewDefaultEstimator(cfg Config, pool *pool.PostgresPool) *Default {
+// NewDefaultEstimator init default gas price estimator.
+func NewDefaultEstimator(cfg Config, pool pool) *Default {
 	gpe := &Default{cfg: cfg, pool: pool}
 	gpe.setDefaultGasPrice()
 	return gpe

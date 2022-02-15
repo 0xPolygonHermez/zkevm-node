@@ -10,9 +10,9 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
-const sampleNumber = 3 // Number of transactions sampled in a batch
+const sampleNumber = 3 // Number of transactions sampled in a batch.
 
-// LastNBatches struct for gas price estimator last n batches
+// LastNBatches struct for gas price estimator last n batches.
 type LastNBatches struct {
 	lastBatchNumber uint64
 	lastPrice       *big.Int
@@ -25,10 +25,10 @@ type LastNBatches struct {
 	state state.State
 }
 
-// UpdateGasPriceAvg for last n bathes strategy is not needed to implement this function
+// UpdateGasPriceAvg for last n bathes strategy is not needed to implement this function.
 func (g *LastNBatches) UpdateGasPriceAvg(newValue *big.Int) {}
 
-// NewEstimatorLastNBatches init gas price estimator for last n batches strategy
+// NewEstimatorLastNBatches init gas price estimator for last n batches strategy.
 func NewEstimatorLastNBatches(cfg Config, state state.State) *LastNBatches {
 	return &LastNBatches{
 		cfg:   cfg,
@@ -36,7 +36,7 @@ func NewEstimatorLastNBatches(cfg Config, state state.State) *LastNBatches {
 	}
 }
 
-// GetAvgGasPrice calculate avg gas price from last n batches
+// GetAvgGasPrice calculate avg gas price from last n batches.
 func (g *LastNBatches) GetAvgGasPrice() (*big.Int, error) {
 	ctx := context.Background()
 
@@ -46,10 +46,10 @@ func (g *LastNBatches) GetAvgGasPrice() (*big.Int, error) {
 	}
 	g.cacheLock.RLock()
 	lastBatchNumber, lastPrice := g.lastBatchNumber, g.lastPrice
+	g.cacheLock.RUnlock()
 	if batchNumber == lastBatchNumber {
 		return lastPrice, nil
 	}
-	g.cacheLock.RUnlock()
 
 	g.fetchLock.Lock()
 	defer g.fetchLock.Unlock()
@@ -100,7 +100,7 @@ func (g *LastNBatches) GetAvgGasPrice() (*big.Int, error) {
 	return price, nil
 }
 
-// getBatchTxsTips calculates batch transaction gas fees
+// getBatchTxsTips calculates batch transaction gas fees.
 func (g *LastNBatches) getBatchTxsTips(ctx context.Context, batchNum uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
 	txs, err := g.state.GetTxsByBatchNum(ctx, batchNum)
 	if txs == nil {

@@ -70,7 +70,7 @@ func start(ctx *cli.Context) error {
 	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
 	seq := createSequencer(c.Sequencer, etherman, pool, st)
 
-	gpe := gasprice.NewEstimator(c.GasPriceEstimator, st, pool)
+	gpe := createGasPriceEstimator(c.GasPriceEstimator, st, pool)
 	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
 	go seq.Start()
 	go runJSONRpcServer(*c, pool, st, seq.ChainID, gpe)
@@ -118,7 +118,7 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.
 	return proverClient, conn
 }
 
-func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.ClientEtherMan, st state.State, cfg synchronizer.Config, gpe gasprice.Estimator) {
+func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.ClientEtherMan, st state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
 	genesisBlock, err := etherman.EtherClient.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(networkConfig.GenBlockNumber))
 	if err != nil {
 		log.Fatal(err)
@@ -136,7 +136,7 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 	}
 }
 
-func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, chainID uint64, gpe gasprice.Estimator) {
+func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, chainID uint64, gpe gasPriceEstimator) {
 	var err error
 	key, err := newKeyFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
 	if err != nil {
@@ -164,6 +164,25 @@ func runAggregator(c aggregator.Config, etherman *etherman.ClientEtherMan, prove
 		log.Fatal(err)
 	}
 	agg.Start()
+}
+
+// gasPriceEstimator interface for gas price gasPriceEstimator
+type gasPriceEstimator interface {
+	GetAvgGasPrice() (*big.Int, error)
+	UpdateGasPriceAvg(newValue *big.Int)
+}
+
+// createGasPriceEstimator init gas price gasPriceEstimator based on type in config
+func createGasPriceEstimator(cfg gasprice.Config, state state.State, pool *pool.PostgresPool) gasPriceEstimator {
+	switch cfg.Type {
+	case gasprice.AllBatchesType:
+		return gasprice.NewEstimatorAllBatches()
+	case gasprice.LastNBatchesType:
+		return gasprice.NewEstimatorLastNBatches(cfg, state)
+	case gasprice.DefaultType:
+		return gasprice.NewDefaultEstimator(cfg, pool)
+	}
+	return nil
 }
 
 func waitSignal(conn *grpc.ClientConn) {
