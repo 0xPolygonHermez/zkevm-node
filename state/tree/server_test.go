@@ -27,9 +27,31 @@ const (
 )
 
 var (
-	mtSrv   *tree.Server
 	address = fmt.Sprintf("%s:%d", host, port)
+	mtSrv   *tree.Server
+	stree   *tree.StateTree
+	conn    *grpc.ClientConn
+	cancel  context.CancelFunc
 )
+
+func init() {
+	var err error
+	mtSrv, stree, err = initMTServer()
+	if err != nil {
+		panic(err)
+	}
+	go mtSrv.Start()
+
+	conn, cancel, err = initConn()
+	if err != nil {
+		panic(err)
+	}
+
+	err = operations.WaitGRPCHealthy(address)
+	if err != nil {
+		panic(err)
+	}
+}
 
 func initStree() (*tree.StateTree, error) {
 	dbCfg := dbutils.NewConfigFromEnv()
@@ -77,19 +99,9 @@ func initMTServer() (*tree.Server, *tree.StateTree, error) {
 }
 
 func Test_MTServer_GetBalance(t *testing.T) {
-	mtSrv, stree, err := initMTServer()
-	require.NoError(t, err)
-	go mtSrv.Start()
-	defer mtSrv.Stop()
-
-	conn, cancel, err := initConn()
-	require.NoError(t, err)
-	defer func() {
-		cancel()
-		require.NoError(t, conn.Close())
-	}()
-
-	err = operations.WaitGRPCHealthy(address)
+	var err error
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err = initStree()
 	require.NoError(t, err)
 
 	expectedBalance := big.NewInt(100)
@@ -108,22 +120,12 @@ func Test_MTServer_GetBalance(t *testing.T) {
 }
 
 func Test_MTServer_GetNonce(t *testing.T) {
-	mtSrv, stree, err := initMTServer()
-	require.NoError(t, err)
-	go mtSrv.Start()
-	defer mtSrv.Stop()
-
-	conn, cancel, err := initConn()
-	require.NoError(t, err)
-	defer func() {
-		cancel()
-		require.NoError(t, conn.Close())
-	}()
-
-	err = operations.WaitGRPCHealthy(address)
+	var err error
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err = initStree()
 	require.NoError(t, err)
 
-	expectedNonce := big.NewInt(100)
+	expectedNonce := big.NewInt(200)
 	root, _, err := stree.SetNonce(common.HexToAddress(ethAddress), expectedNonce)
 	require.NoError(t, err)
 
@@ -139,19 +141,9 @@ func Test_MTServer_GetNonce(t *testing.T) {
 }
 
 func Test_MTServer_GetCode(t *testing.T) {
-	mtSrv, stree, err := initMTServer()
-	require.NoError(t, err)
-	go mtSrv.Start()
-	defer mtSrv.Stop()
-
-	conn, cancel, err := initConn()
-	require.NoError(t, err)
-	defer func() {
-		cancel()
-		require.NoError(t, conn.Close())
-	}()
-
-	err = operations.WaitGRPCHealthy(address)
+	var err error
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err = initStree()
 	require.NoError(t, err)
 
 	expectedCode := "dead"
