@@ -119,7 +119,7 @@ func initMTServer() (*tree.Server, error) {
 	mtSrv = tree.NewServer(cfg, stree)
 	pb.RegisterMTServiceServer(s, mtSrv)
 
-	return mtSrv, nil
+	return mtSrv, stree, nil
 }
 
 func Test_MTServer_GetBalance(t *testing.T) {
