@@ -29,7 +29,6 @@ SyncChunkSize = 100
 [Sequencer]
 AllowNonRegistered = "false"
 IntervalToProposeBatch = "15s"
-DefaultGasPriceWei = 1000000000
 SyncedBlockDif = 1
     [Sequencer.Strategy]
         [Sequencer.Strategy.TxSelector]
@@ -44,6 +43,10 @@ SyncedBlockDif = 1
 IntervalToConsolidateState = "3s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
+
+[GasPriceEstimator]
+Type = "default"
+DefaultGasPriceWei = 1000000000
 
 [Prover]
 ProverURI = "0.0.0.0:50051"

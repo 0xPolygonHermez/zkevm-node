@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hermeznetwork/hermez-core/gaspriceestimator"
 	"io/ioutil"
 	"net"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/gaspriceestimator"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 )
@@ -33,7 +33,7 @@ func NewServer(
 	chainID uint64,
 	gpe gaspriceestimator.GasPriceEstimator) *Server {
 	chainIDSelector := newChainIDSelector(chainID)
-	ethEndpoints := &Eth{chainIDSelector: chainIDSelector, pool: p, state: s}
+	ethEndpoints := &Eth{chainIDSelector: chainIDSelector, pool: p, state: s, gpe: gpe}
 	netEndpoints := &Net{chainIDSelector: chainIDSelector}
 	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
 	txPoolEndpoints := &TxPool{pool: p}

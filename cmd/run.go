@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/hermeznetwork/hermez-core/gaspriceestimator"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/gaspriceestimator"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -70,7 +70,7 @@ func start(ctx *cli.Context) error {
 	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
 	seq := createSequencer(c.Sequencer, etherman, pool, st)
 
-	gpe := gaspriceestimator.NewGasPriceEstimatorAllBlocks()
+	gpe := gaspriceestimator.NewGasPriceEstimator(c.GasPriceEstimator, st, pool)
 	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
 	go seq.Start()
 	go runJSONRpcServer(*c, pool, st, seq.ChainID, gpe)

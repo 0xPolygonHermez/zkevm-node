@@ -22,7 +22,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: false,
 		},
 		{
-			path:          "Sequencer.DefaultGasPriceWei",
+			path:          "GasPriceEstimator.DefaultGasPriceWei",
 			expectedValue: uint64(1000000000),
 		},
 	}
