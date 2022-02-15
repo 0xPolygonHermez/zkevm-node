@@ -15,28 +15,32 @@ import (
 
 const sampleNumber = 3 // Number of transactions sampled in a batch
 
+// GasPriceEstimator interface for gas price estimator
 type GasPriceEstimator interface {
 	GetAvgGasPrice() (*big.Int, error)
 	UpdateGasPriceAvg(newValue *big.Int)
 }
 
+// NewGasPriceEstimator init gas price estimator based on type in config
 func NewGasPriceEstimator(cfg Config, state state.State, pool *pool.PostgresPool) GasPriceEstimator {
 	switch cfg.Type {
-	case "allblocks":
-		return NewGasPriceEstimatorAllBlocks()
-	case "lastnblocks":
-		return NewGasPriceEstimatorLastNBlocks(cfg, state)
-	case "default":
+	case AllBatchesType:
+		return NewGasPriceEstimatorAllBatches()
+	case LastNBatchesType:
+		return NewGasPriceEstimatorLastNBatches(cfg, state)
+	case DefaultType:
 		return NewDefaultGasPriceEstimator(cfg, pool)
 	}
 	return nil
 }
 
+// Default gas price from config is set
 type Default struct {
 	cfg  Config
 	pool *pool.PostgresPool
 }
 
+// GetAvgGasPrice get default gas price from the pool
 func (d *Default) GetAvgGasPrice() (*big.Int, error) {
 	ctx := context.Background()
 	gasPrice, err := d.pool.GetGasPrice(ctx)
@@ -48,9 +52,8 @@ func (d *Default) GetAvgGasPrice() (*big.Int, error) {
 	return new(big.Int).SetUint64(gasPrice), nil
 }
 
-func (d *Default) UpdateGasPriceAvg(newValue *big.Int) {
-	panic("can't update gas price for default gas price estimator strategy")
-}
+// UpdateGasPriceAvg not needed for default strategy
+func (d *Default) UpdateGasPriceAvg(newValue *big.Int) {}
 
 func (d *Default) setDefaultGasPrice() {
 	ctx := context.Background()
@@ -64,7 +67,7 @@ func NewDefaultGasPriceEstimator(cfg Config, pool *pool.PostgresPool) *Default {
 	return &Default{pool: pool}
 }
 
-type AllBlocks struct {
+type AllBatches struct {
 	// Average gas price (rolling average)
 	averageGasPrice      *big.Int // The average gas price that gets queried
 	averageGasPriceCount *big.Int // Param used in the avg. gas price calculation
@@ -72,15 +75,16 @@ type AllBlocks struct {
 	agpMux sync.Mutex // Mutex for the averageGasPrice calculation
 }
 
-func NewGasPriceEstimatorAllBlocks() *AllBlocks {
-	return &AllBlocks{
+// NewGasPriceEstimatorAllBatches init gas price estimator for all batches strategy
+func NewGasPriceEstimatorAllBatches() *AllBatches {
+	return &AllBatches{
 		averageGasPrice:      big.NewInt(0),
 		averageGasPriceCount: big.NewInt(0),
 	}
 }
 
 // UpdateGasPriceAvg Updates the rolling average value of the gas price
-func (g *AllBlocks) UpdateGasPriceAvg(newValue *big.Int) {
+func (g *AllBatches) UpdateGasPriceAvg(newValue *big.Int) {
 	g.agpMux.Lock()
 
 	g.averageGasPriceCount.Add(g.averageGasPriceCount, big.NewInt(1))
@@ -93,12 +97,13 @@ func (g *AllBlocks) UpdateGasPriceAvg(newValue *big.Int) {
 	g.agpMux.Unlock()
 }
 
-// GetAvgGasPrice get avg gas price from all the blocks
-func (g *AllBlocks) GetAvgGasPrice() (*big.Int, error) {
+// GetAvgGasPrice get avg gas price from all blocks
+func (g *AllBatches) GetAvgGasPrice() (*big.Int, error) {
 	return g.averageGasPrice, nil
 }
 
-type LastNBlocks struct {
+// LastNBatches struct for gas price estimator last n batches
+type LastNBatches struct {
 	lastBatchNumber uint64
 	lastPrice       *big.Int
 
@@ -110,18 +115,19 @@ type LastNBlocks struct {
 	state state.State
 }
 
-func (g *LastNBlocks) UpdateGasPriceAvg(newValue *big.Int) {
-	panic("not used in this gas price estimation strategy")
-}
+// UpdateGasPriceAvg for last n bathes strategy is not needed to implement this function
+func (g *LastNBatches) UpdateGasPriceAvg(newValue *big.Int) {}
 
-func NewGasPriceEstimatorLastNBlocks(cfg Config, state state.State) *LastNBlocks {
-	return &LastNBlocks{
+// NewGasPriceEstimatorLastNBatches init gas price estimator for last n batches strategy
+func NewGasPriceEstimatorLastNBatches(cfg Config, state state.State) *LastNBatches {
+	return &LastNBatches{
 		cfg:   cfg,
 		state: state,
 	}
 }
 
-func (g *LastNBlocks) GetAvgGasPrice() (*big.Int, error) {
+// GetAvgGasPrice calculate avg gas price from last n batches
+func (g *LastNBatches) GetAvgGasPrice() (*big.Int, error) {
 	ctx := context.Background()
 
 	batchNumber, err := g.state.GetLastBatchNumber(ctx)
@@ -184,7 +190,8 @@ func (g *LastNBlocks) GetAvgGasPrice() (*big.Int, error) {
 	return price, nil
 }
 
-func (g *LastNBlocks) getBatchTxsTips(ctx context.Context, batchNum uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
+//
+func (g *LastNBatches) getBatchTxsTips(ctx context.Context, batchNum uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
 	txs, err := g.state.GetTxsByBatchNum(ctx, batchNum)
 	if txs == nil {
 		select {
