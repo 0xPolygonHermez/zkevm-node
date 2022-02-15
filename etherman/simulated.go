@@ -17,7 +17,7 @@ import (
 
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth
 // must be 1337. The address that holds the auth will have an initial balance of 10 ETH
-func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *ClientEtherMan, commit func(), maticAddr common.Address, err error) {
+func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client, commit func(), maticAddr common.Address, err error) {
 	// 10000000 ETH in wei
 	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
 	address := auth.From
@@ -67,5 +67,5 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	}
 
 	client.Commit()
-	return &ClientEtherMan{EtherClient: client, PoE: poe, Bridge: bridge, Matic: maticContract, SCAddresses: []common.Address{poeAddr, bridgeAddr}, auth: auth}, client.Commit, maticAddr, nil
+	return &Client{EtherClient: client, PoE: poe, Bridge: bridge, Matic: maticContract, SCAddresses: []common.Address{poeAddr, bridgeAddr}, auth: auth}, client.Commit, maticAddr, nil
 }
