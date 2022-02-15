@@ -119,16 +119,27 @@ func initMTServer() (*tree.Server, error) {
 	mtSrv = tree.NewServer(cfg, stree)
 	pb.RegisterMTServiceServer(s, mtSrv)
 
-	return mtSrv, nil
+	return mtSrv, stree, nil
 }
 
 func Test_MTServer_GetBalance(t *testing.T) {
-	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err := initStree()
+	mtSrv, stree, err := initMTServer()
+	require.NoError(t, err)
+	go mtSrv.Start()
+	defer mtSrv.Stop()
+
+	conn, cancel, err := initConn()
+	require.NoError(t, err)
+	defer func() {
+		cancel()
+		require.NoError(t, conn.Close())
+	}()
+
+	err = operations.WaitGRPCHealthy(address)
 	require.NoError(t, err)
 
 	expectedBalance := big.NewInt(100)
-	root, _, err := stree.SetBalance(common.HexToAddress(ethAddress), expectedBalance, nil)
+	root, _, err := stree.SetBalance(common.HexToAddress(ethAddress), expectedBalance)
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
@@ -143,12 +154,23 @@ func Test_MTServer_GetBalance(t *testing.T) {
 }
 
 func Test_MTServer_GetNonce(t *testing.T) {
-	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err := initStree()
+	mtSrv, stree, err := initMTServer()
+	require.NoError(t, err)
+	go mtSrv.Start()
+	defer mtSrv.Stop()
+
+	conn, cancel, err := initConn()
+	require.NoError(t, err)
+	defer func() {
+		cancel()
+		require.NoError(t, conn.Close())
+	}()
+
+	err = operations.WaitGRPCHealthy(address)
 	require.NoError(t, err)
 
-	expectedNonce := big.NewInt(200)
-	root, _, err := stree.SetNonce(common.HexToAddress(ethAddress), expectedNonce, nil)
+	expectedNonce := big.NewInt(100)
+	root, _, err := stree.SetNonce(common.HexToAddress(ethAddress), expectedNonce)
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
@@ -163,14 +185,23 @@ func Test_MTServer_GetNonce(t *testing.T) {
 }
 
 func Test_MTServer_GetCode(t *testing.T) {
-	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err := initStree()
+	mtSrv, stree, err := initMTServer()
+	require.NoError(t, err)
+	go mtSrv.Start()
+	defer mtSrv.Stop()
+
+	conn, cancel, err := initConn()
+	require.NoError(t, err)
+	defer func() {
+		cancel()
+		require.NoError(t, conn.Close())
+	}()
+
+	err = operations.WaitGRPCHealthy(address)
 	require.NoError(t, err)
 
 	expectedCode := "dead"
-	code, err := hex.DecodeString(expectedCode)
-	require.NoError(t, err)
-	root, _, err := stree.SetCode(common.HexToAddress(ethAddress), code, nil)
+	root, _, err := stree.SetCode(common.HexToAddress(ethAddress), []byte(expectedCode))
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
