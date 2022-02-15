@@ -29,7 +29,9 @@ func NewGasPriceEstimator(cfg Config, state state.State, pool *pool.PostgresPool
 	case LastNBatchesType:
 		return NewGasPriceEstimatorLastNBatches(cfg, state)
 	case DefaultType:
-		return NewDefaultGasPriceEstimator(cfg, pool)
+		gpe := NewDefaultGasPriceEstimator(cfg, pool)
+		gpe.setDefaultGasPrice()
+		return gpe
 	}
 	return nil
 }
