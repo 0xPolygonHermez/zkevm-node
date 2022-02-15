@@ -465,3 +465,28 @@ func Test_MTServer_SetHashValueBulk(t *testing.T) {
 		assert.Equal(t, balance.String(), actualValue.String(), "Did not set the expected hash value bulk")
 	}
 }
+
+func Test_MTServer_GetCodeHash(t *testing.T) {
+	var err error
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err = initStree()
+	require.NoError(t, err)
+
+	code, err := hex.DecodeString("dead")
+	require.NoError(t, err)
+
+	// code hash from test vectors
+	expectedHash := "0244ec1a137a24c92404de9f9c39907be151026a4eb7f9cfea60a5740e8a73b7"
+	root, _, err := stree.SetCode(common.HexToAddress(ethAddress), []byte(code))
+	require.NoError(t, err)
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.GetCodeHash(ctx, &pb.GetCodeHashRequest{
+		EthAddress: ethAddress,
+		Root:       hex.EncodeToString(root),
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, string(expectedHash), resp.Hash, "Did not get the expected code hash")
+}
