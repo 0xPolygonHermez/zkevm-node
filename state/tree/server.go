@@ -84,7 +84,6 @@ func (s *Server) GetNonce(ctx context.Context, in *pb.GetNonceRequest) (*pb.GetN
 	}
 
 	nonce, err := s.stree.GetNonce(common.HexToAddress(in.EthAddress), root)
-
 	if err != nil {
 		return nil, err
 	}
@@ -102,19 +101,30 @@ func (s *Server) GetCode(ctx context.Context, in *pb.GetCodeRequest) (*pb.GetCod
 	}
 
 	code, err := s.stree.GetCode(common.HexToAddress(in.EthAddress), root)
-
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.GetCodeResponse{
-		Code: string(code),
+		Code: hex.EncodeToString(code),
 	}, nil
 }
 
 // GetCodeHash gets code hash for a given address at a given root.
 func (s *Server) GetCodeHash(ctx context.Context, in *pb.GetCodeHashRequest) (*pb.GetCodeHashResponse, error) {
-	return nil, nil
+	root, err := hex.DecodeString(in.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	hash, err := s.stree.GetCodeHash(common.HexToAddress(in.EthAddress), root)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetCodeHashResponse{
+		Hash: hex.EncodeToString(hash),
+	}, nil
 }
 
 // GetStorageAt gets smart contract storage for a given address and position at a given root.
