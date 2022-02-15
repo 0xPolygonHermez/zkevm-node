@@ -32,6 +32,11 @@ var (
 
 func initStree() (*tree.StateTree, error) {
 	dbCfg := dbutils.NewConfigFromEnv()
+	err := dbutils.InitOrReset(dbCfg)
+	if err != nil {
+		return nil, err
+	}
+
 	stateDb, err := db.NewSQLDB(dbCfg)
 	if err != nil {
 		return nil, err
