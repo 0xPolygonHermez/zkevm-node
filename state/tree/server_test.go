@@ -160,7 +160,7 @@ func Test_MTServer_GetCode(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, string(expectedCode), resp.Code, "Did not get the expected code")
+	assert.Equal(t, expectedCode, resp.Code, "Did not get the expected code")
 }
 
 func Test_MTServer_GetCodeHash(t *testing.T) {
@@ -174,7 +174,7 @@ func Test_MTServer_GetCodeHash(t *testing.T) {
 
 	// code hash from test vectors
 	expectedHash := "0244ec1a137a24c92404de9f9c39907be151026a4eb7f9cfea60a5740e8a73b7"
-	root, _, err := stree.SetCode(common.HexToAddress(ethAddress), []byte(code))
+	root, _, err := stree.SetCode(common.HexToAddress(ethAddress), code)
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
@@ -185,5 +185,30 @@ func Test_MTServer_GetCodeHash(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, string(expectedHash), resp.Hash, "Did not get the expected code hash")
+	assert.Equal(t, expectedHash, resp.Hash, "Did not get the expected code hash")
+}
+
+func Test_MTServer_GetStorageAt(t *testing.T) {
+	var err error
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err = initStree()
+	require.NoError(t, err)
+
+	expectedValue := big.NewInt(100)
+
+	position := uint64(101)
+	positionBI := new(big.Int).SetUint64(position)
+	root, _, err := stree.SetStorageAt(common.HexToAddress(ethAddress), common.BigToHash(positionBI), expectedValue)
+	require.NoError(t, err)
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.GetStorageAt(ctx, &pb.GetStorageAtRequest{
+		EthAddress: ethAddress,
+		Root:       hex.EncodeToString(root),
+		Position:   position,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedValue.String(), resp.Value, "Did not get the expected storage at")
 }

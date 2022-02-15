@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"net"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -129,7 +130,20 @@ func (s *Server) GetCodeHash(ctx context.Context, in *pb.GetCodeHashRequest) (*p
 
 // GetStorageAt gets smart contract storage for a given address and position at a given root.
 func (s *Server) GetStorageAt(ctx context.Context, in *pb.GetStorageAtRequest) (*pb.GetStorageAtResponse, error) {
-	return nil, nil
+	root, err := hex.DecodeString(in.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	positionBI := new(big.Int).SetUint64(in.Position)
+	value, err := s.stree.GetStorageAt(common.HexToAddress(in.EthAddress), common.BigToHash(positionBI), root)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetStorageAtResponse{
+		Value: value.String(),
+	}, nil
 }
 
 // ReverseHash reverse a hash of an exisiting Merkletree node.
