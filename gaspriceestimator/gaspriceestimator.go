@@ -29,9 +29,7 @@ func NewGasPriceEstimator(cfg Config, state state.State, pool *pool.PostgresPool
 	case LastNBatchesType:
 		return NewGasPriceEstimatorLastNBatches(cfg, state)
 	case DefaultType:
-		gpe := NewDefaultGasPriceEstimator(cfg, pool)
-		gpe.setDefaultGasPrice()
-		return gpe
+		return NewDefaultGasPriceEstimator(cfg, pool)
 	}
 	return nil
 }
@@ -65,10 +63,14 @@ func (d *Default) setDefaultGasPrice() {
 	}
 }
 
+// NewDefaultGasPriceEstimator init default gas price estimator
 func NewDefaultGasPriceEstimator(cfg Config, pool *pool.PostgresPool) *Default {
-	return &Default{pool: pool}
+	gpe := &Default{pool: pool}
+	gpe.setDefaultGasPrice()
+	return gpe
 }
 
+// AllBatches struct for all batches avg price strategy
 type AllBatches struct {
 	// Average gas price (rolling average)
 	averageGasPrice      *big.Int // The average gas price that gets queried
