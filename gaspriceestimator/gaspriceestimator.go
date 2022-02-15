@@ -57,7 +57,7 @@ func (d *Default) UpdateGasPriceAvg(newValue *big.Int) {}
 
 func (d *Default) setDefaultGasPrice() {
 	ctx := context.Background()
-	err := d.pool.SetGasPrice(ctx, d.cfg.DefaultPriceWei)
+	err := d.pool.SetGasPrice(ctx, d.cfg.DefaultGasPriceWei)
 	if err != nil {
 		panic(fmt.Errorf("failed to set default gas price, err: %v", err))
 	}

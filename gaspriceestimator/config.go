@@ -20,9 +20,9 @@ const (
 type Config struct {
 	Type Type `mapstructure:"Type"`
 
-	DefaultPriceWei uint64   `mapstructure:"DefaultPriceWei"`
-	MaxPrice        *big.Int `mapstructure:"MaxPrice"`
-	IgnorePrice     *big.Int `mapstructure:"IgnorePrice"`
-	CheckBlocks     int      `mapstructure:"CheckBlocks"`
-	Percentile      int      `mapstructure:"Percentile"`
+	DefaultGasPriceWei uint64   `mapstructure:"DefaultGasPriceWei"`
+	MaxPrice           *big.Int `mapstructure:"MaxPrice"`
+	IgnorePrice        *big.Int `mapstructure:"IgnorePrice"`
+	CheckBlocks        int      `mapstructure:"CheckBlocks"`
+	Percentile         int      `mapstructure:"Percentile"`
 }
