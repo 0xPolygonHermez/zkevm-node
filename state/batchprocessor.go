@@ -210,6 +210,7 @@ func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transactio
 func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
 	log.Debugf("processing transfer [%s]: start", tx.Hash().Hex())
 	var result *runtime.ExecutionResult = &runtime.ExecutionResult{}
+	var balances = make(map[common.Address]*big.Int)
 
 	txb, err := tx.MarshalBinary()
 	if err != nil {
@@ -244,6 +245,8 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 		return result
 	}
 
+	balances[senderAddress] = senderBalance
+
 	log.Debugf("processing transfer [%s]: sender: %v", tx.Hash().Hex(), senderAddress.Hex())
 	log.Debugf("processing transfer [%s]: nonce: %v", tx.Hash().Hex(), tx.Nonce())
 	log.Debugf("processing transfer [%s]: sender balance: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
@@ -260,11 +263,28 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 	}
 	log.Debugf("processing transfer [%s]: sender nonce set to: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 
+	// Get receiver Balance
+	receiverBalance, err := b.State.tree.GetBalance(receiverAddress, root)
+	if err != nil {
+		result.Err = err
+		return result
+	}
+	log.Debugf("processing transfer [%s]: receiver balance: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
+	balances[receiverAddress] = receiverBalance
+
+	// Get sequencer Balance
+	sequencerBalance, err := b.State.tree.GetBalance(sequencerAddress, root)
+	if err != nil {
+		result.Err = err
+		return result
+	}
+	balances[sequencerAddress] = sequencerBalance
+
 	// Calculate Gas
 	usedGas := new(big.Int).SetUint64(b.State.EstimateGas(tx))
 	usedGasValue := new(big.Int).Mul(usedGas, tx.GasPrice())
 	gasLeft := new(big.Int).SetUint64(tx.Gas() - usedGas.Uint64())
-	unusedGasValue := new(big.Int).Mul(gasLeft, tx.GasPrice())
+	gasLeftValue := new(big.Int).Mul(gasLeft, tx.GasPrice())
 	log.Debugf("processing transfer [%s]: used gas: %v", tx.Hash().Hex(), usedGas.Text(encoding.Base10))
 	log.Debugf("processing transfer [%s]: remaining gas: %v", tx.Hash().Hex(), gasLeft.Text(encoding.Base10))
 
@@ -275,61 +295,27 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 	log.Debugf("processing transfer [%s]: value: %v", tx.Hash().Hex(), value.Text(encoding.Base10))
 
 	// Sender has to pay transaction cost
-	senderBalance.Sub(senderBalance, cost)
-	log.Debugf("processing transfer [%s]: sender balance after cost charged: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
+	balances[senderAddress].Sub(balances[senderAddress], cost)
+	log.Debugf("processing transfer [%s]: sender balance after cost charged: %v", tx.Hash().Hex(), balances[senderAddress].Text(encoding.Base10))
 
-	if sequencerAddress == senderAddress {
-		senderBalance.Add(senderBalance, usedGasValue)
-	}
+	// Refund unused gas to sender
+	balances[senderAddress].Add(balances[senderAddress], gasLeftValue)
+	log.Debugf("processing transfer [%s]: sender balance after refund: %v", tx.Hash().Hex(), balances[senderAddress].Text(encoding.Base10))
 
-	// Refund unused gas
-	senderBalance.Add(senderBalance, unusedGasValue)
-	log.Debugf("processing transaction [%s]: sender balance after refund: %v", tx.Hash().Hex(), senderBalance.Text(encoding.Base10))
-
-	// Store new sender balances
-	root, _, err = b.State.tree.SetBalance(senderAddress, senderBalance)
-	if err != nil {
-		result.Err = err
-		return result
-	}
-
-	// Get receiver Balance
-	receiverBalance, err := b.State.tree.GetBalance(receiverAddress, root)
-	if err != nil {
-		result.Err = err
-		return result
-	}
-	log.Debugf("processing transfer [%s]: receiver balance: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
-
-	receiverBalance.Add(receiverBalance, value)
-	log.Debugf("processing transfer [%s]: receiver balance after value added: %v", tx.Hash().Hex(), receiverBalance.Text(encoding.Base10))
+	// Add value to receiver
+	balances[receiverAddress].Add(balances[receiverAddress], value)
+	log.Debugf("processing transfer [%s]: receiver balance after value added: %v", tx.Hash().Hex(), balances[receiverAddress].Text(encoding.Base10))
 
 	// Pay gas to the sequencer
-	if sequencerAddress == receiverAddress && senderAddress != receiverAddress {
-		receiverBalance.Add(receiverBalance, usedGasValue)
-	}
+	balances[sequencerAddress].Add(balances[sequencerAddress], usedGasValue)
 
-	if sequencerAddress != senderAddress && sequencerAddress != receiverAddress {
-		sequencerBalance, err := b.State.tree.GetBalance(sequencerAddress, root)
+	// Store new balances
+	for address, balance := range balances {
+		root, _, err = b.State.tree.SetBalance(address, balance)
 		if err != nil {
 			result.Err = err
 			return result
 		}
-
-		// Store sequencer balance
-		sequencerBalance.Add(sequencerBalance, usedGasValue)
-		_, _, err = b.State.tree.SetBalance(sequencerAddress, sequencerBalance)
-		if err != nil {
-			result.Err = err
-			return result
-		}
-	}
-
-	// Store receiver balance
-	root, _, err = b.State.tree.SetBalance(receiverAddress, receiverBalance)
-	if err != nil {
-		result.Err = err
-		return result
 	}
 
 	b.stateRoot = root
