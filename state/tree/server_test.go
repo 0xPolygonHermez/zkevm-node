@@ -264,3 +264,33 @@ func Test_MTServer_SetBalance(t *testing.T) {
 
 	assert.Equal(t, expectedBalance.String(), actualBalance.String(), "Did not set the expected balance")
 }
+
+func Test_MTServer_SetNonce(t *testing.T) {
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err := initStree()
+	require.NoError(t, err)
+
+	expectedNonce := big.NewInt(556)
+
+	oldRoot, err := stree.GetCurrentRoot()
+	require.NoError(t, err)
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.SetNonce(ctx, &pb.SetNonceRequest{
+		EthAddress: ethAddress,
+		Nonce:      expectedNonce.Uint64(),
+		Root:       hex.EncodeToString(oldRoot),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.True(t, resp.Success)
+
+	newRoot, err := stree.GetCurrentRoot()
+	require.NoError(t, err)
+
+	actualNonce, err := stree.GetNonce(common.HexToAddress(ethAddress), newRoot)
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedNonce.String(), actualNonce.String(), "Did not set the expected nonce")
+}

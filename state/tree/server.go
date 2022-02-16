@@ -186,14 +186,12 @@ func (s *Server) SetBalance(ctx context.Context, in *pb.SetBalanceRequest) (*pb.
 	if !success {
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Balance)
 	}
-	log.Debugf("about to set balance from MT service, address: %q, balance: %q", in.EthAddress, balanceBI.String())
 
-	root, _, err := s.stree.SetBalance(common.HexToAddress(in.EthAddress), balanceBI)
+	_, _, err := s.stree.SetBalance(common.HexToAddress(in.EthAddress), balanceBI)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Debugf("root after setting balance: %q", hex.EncodeToString(root))
 	return &pb.SetBalanceResponse{
 		Success: true,
 	}, nil
@@ -201,7 +199,16 @@ func (s *Server) SetBalance(ctx context.Context, in *pb.SetBalanceRequest) (*pb.
 
 // SetNonce sets the nonce of an account at a root.
 func (s *Server) SetNonce(ctx context.Context, in *pb.SetNonceRequest) (*pb.SetNonceResponse, error) {
-	return nil, nil
+	nonceBI := new(big.Int).SetUint64(in.Nonce)
+
+	_, _, err := s.stree.SetNonce(common.HexToAddress(in.EthAddress), nonceBI)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.SetNonceResponse{
+		Success: true,
+	}, nil
 }
 
 // SetCode sets the code for an account at a root.
