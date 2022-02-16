@@ -32,10 +32,10 @@ var (
 	stree   *tree.StateTree
 	conn    *grpc.ClientConn
 	cancel  context.CancelFunc
+	err     error
 )
 
 func init() {
-	var err error
 	mtSrv, stree, err = initMTServer()
 	if err != nil {
 		panic(err)
@@ -55,7 +55,7 @@ func init() {
 
 func initStree() (*tree.StateTree, error) {
 	dbCfg := dbutils.NewConfigFromEnv()
-	err := dbutils.InitOrReset(dbCfg)
+	err = dbutils.InitOrReset(dbCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,6 @@ func initMTServer() (*tree.Server, *tree.StateTree, error) {
 }
 
 func Test_MTServer_GetBalance(t *testing.T) {
-	var err error
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
 	stree, err = initStree()
 	require.NoError(t, err)
@@ -120,7 +119,6 @@ func Test_MTServer_GetBalance(t *testing.T) {
 }
 
 func Test_MTServer_GetNonce(t *testing.T) {
-	var err error
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
 	stree, err = initStree()
 	require.NoError(t, err)
@@ -141,7 +139,6 @@ func Test_MTServer_GetNonce(t *testing.T) {
 }
 
 func Test_MTServer_GetCode(t *testing.T) {
-	var err error
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
 	stree, err = initStree()
 	require.NoError(t, err)
@@ -164,7 +161,6 @@ func Test_MTServer_GetCode(t *testing.T) {
 }
 
 func Test_MTServer_GetCodeHash(t *testing.T) {
-	var err error
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
 	stree, err = initStree()
 	require.NoError(t, err)
@@ -189,7 +185,6 @@ func Test_MTServer_GetCodeHash(t *testing.T) {
 }
 
 func Test_MTServer_GetStorageAt(t *testing.T) {
-	var err error
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
 	stree, err = initStree()
 	require.NoError(t, err)
@@ -211,4 +206,27 @@ func Test_MTServer_GetStorageAt(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedValue.String(), resp.Value, "Did not get the expected storage at")
+}
+
+func Test_MTServer_ReverseHash(t *testing.T) {
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err = initStree()
+	require.NoError(t, err)
+
+	expectedBalance := big.NewInt(100)
+	root, _, err := stree.SetBalance(common.HexToAddress(ethAddress), expectedBalance)
+	require.NoError(t, err)
+
+	key, err := tree.GetKey(tree.LeafTypeBalance, common.HexToAddress(ethAddress), nil, tree.DefaultMerkleTreeArity, nil)
+	require.NoError(t, err)
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.ReverseHash(ctx, &pb.ReverseHashRequest{
+		Hash: hex.EncodeToString(key),
+		Root: hex.EncodeToString(root),
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedBalance.String(), resp.MtNodeValue, "Did not get the expected MT node value")
 }

@@ -148,7 +148,24 @@ func (s *Server) GetStorageAt(ctx context.Context, in *pb.GetStorageAtRequest) (
 
 // ReverseHash reverse a hash of an exisiting Merkletree node.
 func (s *Server) ReverseHash(ctx context.Context, in *pb.ReverseHashRequest) (*pb.ReverseHashResponse, error) {
-	return nil, nil
+	hash, err := hex.DecodeString(in.Hash)
+	if err != nil {
+		return nil, err
+	}
+	root, err := hex.DecodeString(in.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	value, err := s.stree.ReverseHash(root, hash)
+	if err != nil {
+		return nil, err
+	}
+	valueBI := new(big.Int).SetBytes(value)
+
+	return &pb.ReverseHashResponse{
+		MtNodeValue: valueBI.String(),
+	}, nil
 }
 
 // Setters
