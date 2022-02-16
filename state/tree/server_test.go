@@ -341,3 +341,36 @@ func Test_MTServer_SetStorageAt(t *testing.T) {
 
 	assert.Equal(t, expectedValue.String(), actualStorageAt.String(), "Did not set the expected storage at")
 }
+
+func Test_MTServer_SetHashValue(t *testing.T) {
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err := initStree()
+	require.NoError(t, err)
+
+	initialBalance := big.NewInt(100)
+	_, _, err = stree.SetBalance(common.HexToAddress(ethAddress), initialBalance)
+	require.NoError(t, err)
+
+	key, err := tree.GetKey(tree.LeafTypeBalance, common.HexToAddress(ethAddress), nil, tree.DefaultMerkleTreeArity, nil)
+	require.NoError(t, err)
+
+	expectedValue := big.NewInt(100)
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.SetHashValue(ctx, &pb.SetHashValueRequest{
+		Hash:  hex.EncodeToString(key),
+		Value: expectedValue.String(),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.True(t, resp.Success)
+
+	newRoot, err := stree.GetCurrentRoot()
+	require.NoError(t, err)
+
+	actualValue, err := stree.GetBalance(common.HexToAddress(ethAddress), newRoot)
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedValue.String(), actualValue.String(), "Did not set the expected hash value")
+}

@@ -238,3 +238,15 @@ func (tree *StateTree) SetStorageAt(address common.Address, position common.Hash
 
 	return updateProof.NewRoot.Bytes(), updateProof, nil
 }
+
+// SetHashValue sets value for an specific key.
+func (tree *StateTree) SetHashValue(key common.Hash, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+	r := new(big.Int).SetBytes(root)
+	k := new(big.Int).SetBytes(key[:])
+	updateProof, err := tree.mt.Set(context.TODO(), r, k, value)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return updateProof.NewRoot.Bytes(), updateProof, nil
+}

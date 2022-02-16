@@ -247,7 +247,19 @@ func (s *Server) SetStorageAt(ctx context.Context, in *pb.SetStorageAtRequest) (
 
 // SetHashValue set an entry of the reverse hash table.
 func (s *Server) SetHashValue(ctx context.Context, in *pb.SetHashValueRequest) (*pb.SetHashValueResponse, error) {
-	return nil, nil
+	valueBI, success := new(big.Int).SetString(in.Value, 10)
+	if !success {
+		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Value)
+	}
+
+	_, _, err := s.stree.SetHashValue(common.HexToHash(in.Hash), valueBI)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.SetHashValueResponse{
+		Success: true,
+	}, nil
 }
 
 // SetHashValueBulk sets many entries of the reverse hash table.
