@@ -230,7 +230,19 @@ func (s *Server) SetCode(ctx context.Context, in *pb.SetCodeRequest) (*pb.SetCod
 
 // SetStorageAt sets smart contract storage for an account and position at a root.
 func (s *Server) SetStorageAt(ctx context.Context, in *pb.SetStorageAtRequest) (*pb.SetStorageAtResponse, error) {
-	return nil, nil
+	valueBI, success := new(big.Int).SetString(in.Value, 10)
+	if !success {
+		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Value)
+	}
+
+	_, _, err := s.stree.SetStorageAt(common.HexToAddress(in.EthAddress), common.HexToHash(in.Position), valueBI)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.SetStorageAtResponse{
+		Success: true,
+	}, nil
 }
 
 // SetHashValue set an entry of the reverse hash table.

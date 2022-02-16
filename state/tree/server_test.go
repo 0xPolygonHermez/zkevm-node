@@ -242,15 +242,11 @@ func Test_MTServer_SetBalance(t *testing.T) {
 
 	expectedBalance := big.NewInt(100)
 
-	oldRoot, err := stree.GetCurrentRoot()
-	require.NoError(t, err)
-
 	client := pb.NewMTServiceClient(conn)
 	ctx := context.Background()
 	resp, err := client.SetBalance(ctx, &pb.SetBalanceRequest{
 		EthAddress: ethAddress,
 		Balance:    expectedBalance.String(),
-		Root:       hex.EncodeToString(oldRoot),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -272,15 +268,11 @@ func Test_MTServer_SetNonce(t *testing.T) {
 
 	expectedNonce := big.NewInt(556)
 
-	oldRoot, err := stree.GetCurrentRoot()
-	require.NoError(t, err)
-
 	client := pb.NewMTServiceClient(conn)
 	ctx := context.Background()
 	resp, err := client.SetNonce(ctx, &pb.SetNonceRequest{
 		EthAddress: ethAddress,
 		Nonce:      expectedNonce.Uint64(),
-		Root:       hex.EncodeToString(oldRoot),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -302,15 +294,11 @@ func Test_MTServer_SetCode(t *testing.T) {
 
 	expectedCode := "dead"
 
-	oldRoot, err := stree.GetCurrentRoot()
-	require.NoError(t, err)
-
 	client := pb.NewMTServiceClient(conn)
 	ctx := context.Background()
 	resp, err := client.SetCode(ctx, &pb.SetCodeRequest{
 		EthAddress: ethAddress,
 		Code:       expectedCode,
-		Root:       hex.EncodeToString(oldRoot),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -323,4 +311,33 @@ func Test_MTServer_SetCode(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedCode, hex.EncodeToString(actualCode), "Did not set the expected code")
+}
+
+func Test_MTServer_SetStorageAt(t *testing.T) {
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err := initStree()
+	require.NoError(t, err)
+
+	expectedValue := big.NewInt(100)
+	position := uint64(101)
+	positionBI := new(big.Int).SetUint64(position)
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.SetStorageAt(ctx, &pb.SetStorageAtRequest{
+		EthAddress: ethAddress,
+		Position:   common.BytesToHash(positionBI.Bytes()).String(),
+		Value:      expectedValue.String(),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.True(t, resp.Success)
+
+	newRoot, err := stree.GetCurrentRoot()
+	require.NoError(t, err)
+
+	actualStorageAt, err := stree.GetStorageAt(common.HexToAddress(ethAddress), common.BigToHash(positionBI), newRoot)
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedValue.String(), actualStorageAt.String(), "Did not set the expected storage at")
 }
