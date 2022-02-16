@@ -55,6 +55,16 @@ func (s *Server) Stop() {
 	s.srv.Stop()
 }
 
+// Stree is the state tree getter.
+func (s *Server) Stree() *StateTree {
+	return s.stree
+}
+
+// SetStree is the state tree setter.
+func (s *Server) SetStree(stree *StateTree) {
+	s.stree = stree
+}
+
 // Implementation of pb.MTServiceServer interface methods.
 
 // Getters.
@@ -172,7 +182,21 @@ func (s *Server) ReverseHash(ctx context.Context, in *pb.ReverseHashRequest) (*p
 
 // SetBalance sets the balance for an account at a root.
 func (s *Server) SetBalance(ctx context.Context, in *pb.SetBalanceRequest) (*pb.SetBalanceResponse, error) {
-	return nil, nil
+	balanceBI, success := new(big.Int).SetString(in.Balance, 10)
+	if !success {
+		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Balance)
+	}
+	log.Debugf("about to set balance from MT service, address: %q, balance: %q", in.EthAddress, balanceBI.String())
+
+	root, _, err := s.stree.SetBalance(common.HexToAddress(in.EthAddress), balanceBI)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debugf("root after setting balance: %q", hex.EncodeToString(root))
+	return &pb.SetBalanceResponse{
+		Success: true,
+	}, nil
 }
 
 // SetNonce sets the nonce of an account at a root.

@@ -29,14 +29,13 @@ const (
 var (
 	address = fmt.Sprintf("%s:%d", host, port)
 	mtSrv   *tree.Server
-	stree   *tree.StateTree
 	conn    *grpc.ClientConn
 	cancel  context.CancelFunc
 	err     error
 )
 
 func init() {
-	mtSrv, stree, err = initMTServer()
+	mtSrv, err = initMTServer()
 	if err != nil {
 		panic(err)
 	}
@@ -68,7 +67,12 @@ func initStree() (*tree.StateTree, error) {
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 
-	return tree.NewStateTree(mt, scCodeStore), nil
+	stree := tree.NewStateTree(mt, scCodeStore)
+
+	if mtSrv != nil {
+		mtSrv.SetStree(stree)
+	}
+	return stree, nil
 }
 
 func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
@@ -80,10 +84,10 @@ func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
 	return conn, cancel, err
 }
 
-func initMTServer() (*tree.Server, *tree.StateTree, error) {
+func initMTServer() (*tree.Server, error) {
 	stree, err := initStree()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	s := grpc.NewServer()
@@ -95,12 +99,12 @@ func initMTServer() (*tree.Server, *tree.StateTree, error) {
 	mtSrv = tree.NewServer(cfg, stree)
 	pb.RegisterMTServiceServer(s, mtSrv)
 
-	return mtSrv, stree, nil
+	return mtSrv, nil
 }
 
 func Test_MTServer_GetBalance(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err = initStree()
+	stree, err := initStree()
 	require.NoError(t, err)
 
 	expectedBalance := big.NewInt(100)
@@ -120,7 +124,7 @@ func Test_MTServer_GetBalance(t *testing.T) {
 
 func Test_MTServer_GetNonce(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err = initStree()
+	stree, err := initStree()
 	require.NoError(t, err)
 
 	expectedNonce := big.NewInt(200)
@@ -140,7 +144,7 @@ func Test_MTServer_GetNonce(t *testing.T) {
 
 func Test_MTServer_GetCode(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err = initStree()
+	stree, err := initStree()
 	require.NoError(t, err)
 
 	expectedCode := "dead"
@@ -162,7 +166,7 @@ func Test_MTServer_GetCode(t *testing.T) {
 
 func Test_MTServer_GetCodeHash(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err = initStree()
+	stree, err := initStree()
 	require.NoError(t, err)
 
 	code, err := hex.DecodeString("dead")
@@ -186,7 +190,7 @@ func Test_MTServer_GetCodeHash(t *testing.T) {
 
 func Test_MTServer_GetStorageAt(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err = initStree()
+	stree, err := initStree()
 	require.NoError(t, err)
 
 	expectedValue := big.NewInt(100)
@@ -210,7 +214,7 @@ func Test_MTServer_GetStorageAt(t *testing.T) {
 
 func Test_MTServer_ReverseHash(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err = initStree()
+	stree, err := initStree()
 	require.NoError(t, err)
 
 	expectedBalance := big.NewInt(100)
@@ -229,4 +233,34 @@ func Test_MTServer_ReverseHash(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedBalance.String(), resp.MtNodeValue, "Did not get the expected MT node value")
+}
+
+func Test_MTServer_SetBalance(t *testing.T) {
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err := initStree()
+	require.NoError(t, err)
+
+	expectedBalance := big.NewInt(100)
+
+	oldRoot, err := stree.GetCurrentRoot()
+	require.NoError(t, err)
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.SetBalance(ctx, &pb.SetBalanceRequest{
+		EthAddress: ethAddress,
+		Balance:    expectedBalance.String(),
+		Root:       hex.EncodeToString(oldRoot),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.True(t, resp.Success)
+
+	newRoot, err := stree.GetCurrentRoot()
+	require.NoError(t, err)
+
+	actualBalance, err := stree.GetBalance(common.HexToAddress(ethAddress), newRoot)
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedBalance.String(), actualBalance.String(), "Did not set the expected balance")
 }
