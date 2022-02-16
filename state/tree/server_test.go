@@ -123,19 +123,8 @@ func initMTServer() (*tree.Server, error) {
 }
 
 func Test_MTServer_GetBalance(t *testing.T) {
-	mtSrv, stree, err := initMTServer()
-	require.NoError(t, err)
-	go mtSrv.Start()
-	defer mtSrv.Stop()
-
-	conn, cancel, err := initConn()
-	require.NoError(t, err)
-	defer func() {
-		cancel()
-		require.NoError(t, conn.Close())
-	}()
-
-	err = operations.WaitGRPCHealthy(address)
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err = initStree()
 	require.NoError(t, err)
 
 	expectedBalance := big.NewInt(100)
@@ -154,19 +143,8 @@ func Test_MTServer_GetBalance(t *testing.T) {
 }
 
 func Test_MTServer_GetNonce(t *testing.T) {
-	mtSrv, stree, err := initMTServer()
-	require.NoError(t, err)
-	go mtSrv.Start()
-	defer mtSrv.Stop()
-
-	conn, cancel, err := initConn()
-	require.NoError(t, err)
-	defer func() {
-		cancel()
-		require.NoError(t, conn.Close())
-	}()
-
-	err = operations.WaitGRPCHealthy(address)
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err = initStree()
 	require.NoError(t, err)
 
 	expectedNonce := big.NewInt(100)
@@ -185,19 +163,8 @@ func Test_MTServer_GetNonce(t *testing.T) {
 }
 
 func Test_MTServer_GetCode(t *testing.T) {
-	mtSrv, stree, err := initMTServer()
-	require.NoError(t, err)
-	go mtSrv.Start()
-	defer mtSrv.Stop()
-
-	conn, cancel, err := initConn()
-	require.NoError(t, err)
-	defer func() {
-		cancel()
-		require.NoError(t, conn.Close())
-	}()
-
-	err = operations.WaitGRPCHealthy(address)
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err = initStree()
 	require.NoError(t, err)
 
 	expectedCode := "dead"
@@ -268,11 +235,11 @@ func Test_MTServer_GetStorageAt(t *testing.T) {
 
 func Test_MTServer_ReverseHash(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err := initStree()
+	stree, err = initStree()
 	require.NoError(t, err)
 
 	expectedBalance := big.NewInt(100)
-	root, _, err := stree.SetBalance(common.HexToAddress(ethAddress), expectedBalance, nil)
+	root, _, err := stree.SetBalance(common.HexToAddress(ethAddress), expectedBalance)
 	require.NoError(t, err)
 
 	key, err := tree.GetKey(tree.LeafTypeBalance, common.HexToAddress(ethAddress), nil, tree.DefaultMerkleTreeArity, nil)
