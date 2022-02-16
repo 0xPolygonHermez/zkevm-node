@@ -242,7 +242,7 @@ services:
     volumes:
       - /$HOME/hermez/acc/keystore:/pk/keystore
       - /$HOME/hermez/config.toml:/app/config.toml
-    command: ["./hezcore", "run", "--network", "mainnet", "--cfg", "/app/config.toml"]
+    command: ["./hezcore", "run", "--network", "internaltestnet", "--cfg", "/app/config.toml"]
 ```
 
 To run the `Hermez zk-EVM-Node` instance, go to the `hermez` directory in your terminal and run the following command:
