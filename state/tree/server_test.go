@@ -294,3 +294,33 @@ func Test_MTServer_SetNonce(t *testing.T) {
 
 	assert.Equal(t, expectedNonce.String(), actualNonce.String(), "Did not set the expected nonce")
 }
+
+func Test_MTServer_SetCode(t *testing.T) {
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err := initStree()
+	require.NoError(t, err)
+
+	expectedCode := "dead"
+
+	oldRoot, err := stree.GetCurrentRoot()
+	require.NoError(t, err)
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.SetCode(ctx, &pb.SetCodeRequest{
+		EthAddress: ethAddress,
+		Code:       expectedCode,
+		Root:       hex.EncodeToString(oldRoot),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.True(t, resp.Success)
+
+	newRoot, err := stree.GetCurrentRoot()
+	require.NoError(t, err)
+
+	actualCode, err := stree.GetCode(common.HexToAddress(ethAddress), newRoot)
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedCode, hex.EncodeToString(actualCode), "Did not set the expected code")
+}

@@ -213,7 +213,19 @@ func (s *Server) SetNonce(ctx context.Context, in *pb.SetNonceRequest) (*pb.SetN
 
 // SetCode sets the code for an account at a root.
 func (s *Server) SetCode(ctx context.Context, in *pb.SetCodeRequest) (*pb.SetCodeResponse, error) {
-	return nil, nil
+	code, err := hex.DecodeString(in.Code)
+	if err != nil {
+		return nil, err
+	}
+
+	_, _, err = s.stree.SetCode(common.HexToAddress(in.EthAddress), code)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.SetCodeResponse{
+		Success: true,
+	}, nil
 }
 
 // SetStorageAt sets smart contract storage for an account and position at a root.
