@@ -119,12 +119,12 @@ func initMTServer() (*tree.Server, error) {
 	mtSrv = tree.NewServer(cfg, stree)
 	pb.RegisterMTServiceServer(s, mtSrv)
 
-	return mtSrv, stree, nil
+	return mtSrv, nil
 }
 
 func Test_MTServer_GetBalance(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err = initStree()
+	stree, err := initStree()
 	require.NoError(t, err)
 
 	expectedBalance := big.NewInt(100)
@@ -144,7 +144,7 @@ func Test_MTServer_GetBalance(t *testing.T) {
 
 func Test_MTServer_GetNonce(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err = initStree()
+	stree, err := initStree()
 	require.NoError(t, err)
 
 	expectedNonce := big.NewInt(100)
@@ -164,7 +164,7 @@ func Test_MTServer_GetNonce(t *testing.T) {
 
 func Test_MTServer_GetCode(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err = initStree()
+	stree, err := initStree()
 	require.NoError(t, err)
 
 	expectedCode := "dead"
@@ -232,7 +232,7 @@ func Test_MTServer_GetStorageAt(t *testing.T) {
 
 func Test_MTServer_ReverseHash(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
-	stree, err = initStree()
+	stree, err := initStree()
 	require.NoError(t, err)
 
 	expectedBalance := big.NewInt(100)
