@@ -267,7 +267,6 @@ func Test_MTServer_SetBalance(t *testing.T) {
 	resp, err := client.SetBalance(ctx, &pb.SetBalanceRequest{
 		EthAddress: ethAddress,
 		Balance:    expectedBalance.String(),
-		Root:       hex.EncodeToString(oldRoot),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
