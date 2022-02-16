@@ -119,7 +119,7 @@ func initMTServer() (*tree.Server, error) {
 	mtSrv = tree.NewServer(cfg, stree)
 	pb.RegisterMTServiceServer(s, mtSrv)
 
-	return mtSrv, stree, nil
+	return mtSrv, nil
 }
 
 func Test_MTServer_GetBalance(t *testing.T) {
@@ -267,6 +267,7 @@ func Test_MTServer_SetBalance(t *testing.T) {
 	resp, err := client.SetBalance(ctx, &pb.SetBalanceRequest{
 		EthAddress: ethAddress,
 		Balance:    expectedBalance.String(),
+		Root:       hex.EncodeToString(oldRoot),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
