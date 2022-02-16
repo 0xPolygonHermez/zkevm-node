@@ -17,8 +17,8 @@ type gasPriceEstimator interface {
 	UpdateGasPriceAvg(newValue *big.Int)
 }
 
-// synchronizerEtherman contains the methods required to interact with ethereum.
-type synchronizerEtherman interface {
+// localEtherman contains the methods required to interact with ethereum.
+type localEtherman interface {
 	GetLatestProposedBatchNumber() (uint64, error)
 	GetLatestConsolidatedBatchNumber() (uint64, error)
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
