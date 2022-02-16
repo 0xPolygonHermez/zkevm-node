@@ -263,3 +263,18 @@ func (tree *StateTree) SetHashValue(key common.Hash, value *big.Int, root []byte
 
 	return updateProof.NewRoot.Bytes(), updateProof, nil
 }
+
+// SetHashValue sets value for an specific key.
+func (tree *StateTree) SetHashValue(key common.Hash, value *big.Int) (newRoot []byte, proof *UpdateProof, err error) {
+	r := tree.currentRoot
+
+	k := new(big.Int).SetBytes(key[:])
+	updateProof, err := tree.mt.Set(context.TODO(), r, k, value)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tree.currentRoot = updateProof.NewRoot
+
+	return updateProof.NewRoot.Bytes(), updateProof, nil
+}
