@@ -49,13 +49,14 @@ func Load(configFilePath string, network string) (*Config, error) {
 		return nil, err
 	}
 	if configFilePath != "" {
-		path, fullFile := filepath.Split(configFilePath)
+		dirName, fileName := filepath.Split(configFilePath)
 
-		file := strings.Split(fullFile, ".")
+		fileExtension := strings.TrimPrefix(filepath.Ext(fileName), ".")
+		fileNameWithoutExtension := strings.TrimSuffix(fileName, "."+fileExtension)
 
-		viper.AddConfigPath(path)
-		viper.SetConfigName(file[0])
-		viper.SetConfigType(file[1])
+		viper.AddConfigPath(dirName)
+		viper.SetConfigName(fileNameWithoutExtension)
+		viper.SetConfigType(fileExtension)
 	}
 	viper.AutomaticEnv()
 	replacer := strings.NewReplacer(".", "_")
