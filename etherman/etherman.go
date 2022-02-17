@@ -55,32 +55,14 @@ const (
 	ClaimsOrder EventOrder = "Claims"
 )
 
-// EtherMan represents an Ethereum Manager
-type EtherMan interface {
-	EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error)
-	GetRollupInfoByBlock(ctx context.Context, blockNum uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]Order, error)
-	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]Order, error)
-	SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
-	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
-	RegisterSequencer(url string) (*types.Transaction, error)
-	GetAddress() common.Address
-	GetDefaultChainID() (*big.Int, error)
-	GetCustomChainID() (*big.Int, error)
-	EstimateSendBatchCost(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error)
-	GetLatestProposedBatchNumber() (uint64, error)
-	GetLatestConsolidatedBatchNumber() (uint64, error)
-	GetSequencerCollateral(batchNumber uint64) (*big.Int, error)
-	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
-}
-
 type ethClienter interface {
 	ethereum.ChainReader
 	ethereum.LogFilterer
 	ethereum.TransactionReader
 }
 
-// ClientEtherMan is a simple implementation of EtherMan
-type ClientEtherMan struct {
+// Client is a simple implementation of EtherMan
+type Client struct {
 	EtherClient ethClienter
 	PoE         *proofofefficiency.Proofofefficiency
 	Bridge      *bridge.Bridge
@@ -90,8 +72,8 @@ type ClientEtherMan struct {
 	auth *bind.TransactOpts
 }
 
-// NewEtherman creates a new etherman
-func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address, maticAddr common.Address) (*ClientEtherMan, error) {
+// NewClient creates a new Client
+func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address, maticAddr common.Address) (*Client, error) {
 	// TODO: PoEAddr can be got from bridge smc. Son only bridge smc is required
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
@@ -115,11 +97,11 @@ func NewEtherman(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, br
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, PoEAddr, bridgeAddr)
 
-	return &ClientEtherMan{EtherClient: ethClient, PoE: poe, Bridge: bridge, Matic: matic, SCAddresses: scAddresses, auth: auth}, nil
+	return &Client{EtherClient: ethClient, PoE: poe, Bridge: bridge, Matic: matic, SCAddresses: scAddresses, auth: auth}, nil
 }
 
 // EthBlockByNumber function retrieves the ethereum block information by ethereum block number
-func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
+func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
 	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 	if err != nil {
 		if errors.Is(err, ethereum.NotFound) || err.Error() == "block does not exist in blockchain" {
@@ -131,7 +113,7 @@ func (etherMan *ClientEtherMan) EthBlockByNumber(ctx context.Context, blockNumbe
 }
 
 // GetRollupInfoByBlock function retrieves the Rollup information that are included in a specific ethereum block
-func (etherMan *ClientEtherMan) GetRollupInfoByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]Order, error) {
+func (etherMan *Client) GetRollupInfoByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]Order, error) {
 	// First filter query
 	var blockNumBigInt *big.Int
 	if blockHash == nil {
@@ -152,7 +134,7 @@ func (etherMan *ClientEtherMan) GetRollupInfoByBlock(ctx context.Context, blockN
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
 // from block x to block y
-func (etherMan *ClientEtherMan) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]Order, error) {
+func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]Order, error) {
 	// First filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
@@ -169,7 +151,7 @@ func (etherMan *ClientEtherMan) GetRollupInfoByBlockRange(ctx context.Context, f
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup
-func (etherMan *ClientEtherMan) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	return etherMan.sendBatch(ctx, etherMan.auth, txs, maticAmount)
 }
 
@@ -177,7 +159,7 @@ const (
 	ether155V = 27
 )
 
-func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.TransactOpts, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) sendBatch(ctx context.Context, opts *bind.TransactOpts, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	if len(txs) == 0 {
 		return nil, errors.New("invalid txs: is empty slice")
 	}
@@ -218,7 +200,7 @@ func (etherMan *ClientEtherMan) sendBatch(ctx context.Context, opts *bind.Transa
 }
 
 // ConsolidateBatch function allows the aggregator send the proof for a batch and consolidate it
-func (etherMan *ClientEtherMan) ConsolidateBatch(batchNumber *big.Int, proof *proverclient.Proof) (*types.Transaction, error) {
+func (etherMan *Client) ConsolidateBatch(batchNumber *big.Int, proof *proverclient.Proof) (*types.Transaction, error) {
 	publicInputs := proof.PublicInputsExtended.PublicInputs
 	newLocalExitRoot, err := stringToFixedByteArray(publicInputs.NewLocalExitRoot)
 	if err != nil {
@@ -260,7 +242,7 @@ func (etherMan *ClientEtherMan) ConsolidateBatch(batchNumber *big.Int, proof *pr
 }
 
 // RegisterSequencer function allows to register a new sequencer in the rollup
-func (etherMan *ClientEtherMan) RegisterSequencer(url string) (*types.Transaction, error) {
+func (etherMan *Client) RegisterSequencer(url string) (*types.Transaction, error) {
 	tx, err := etherMan.PoE.RegisterSequencer(etherMan.auth, url)
 	if err != nil {
 		return nil, err
@@ -274,7 +256,7 @@ type Order struct {
 	Pos  int
 }
 
-func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, map[common.Hash][]Order, error) {
+func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, map[common.Hash][]Order, error) {
 	logs, err := etherMan.EtherClient.FilterLogs(ctx, query)
 	if err != nil {
 		return []state.Block{}, nil, err
@@ -380,7 +362,7 @@ func (etherMan *ClientEtherMan) readEvents(ctx context.Context, query ethereum.F
 	return blockArr, blockOrder, nil
 }
 
-func (etherMan *ClientEtherMan) processEvent(ctx context.Context, vLog types.Log) (*state.Block, error) {
+func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*state.Block, error) {
 	switch vLog.Topics[0] {
 	case newBatchEventSignatureHash:
 		// Indexed parameters using topics
@@ -647,26 +629,26 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 }
 
 // GetAddress function allows to retrieve the wallet address
-func (etherMan *ClientEtherMan) GetAddress() common.Address {
+func (etherMan *Client) GetAddress() common.Address {
 	return etherMan.auth.From
 }
 
 // GetDefaultChainID function allows to retrieve the default chainID from the smc
-func (etherMan *ClientEtherMan) GetDefaultChainID() (*big.Int, error) {
+func (etherMan *Client) GetDefaultChainID() (*big.Int, error) {
 	defaulChainID, err := etherMan.PoE.DEFAULTCHAINID(&bind.CallOpts{Pending: false})
 	return new(big.Int).SetUint64(uint64(defaulChainID)), err
 }
 
 // GetCustomChainID function allows to retrieve the custom chainID from the latest
 // status of the smart contract (not meant to be used by the synchronizer).
-func (etherMan *ClientEtherMan) GetCustomChainID() (*big.Int, error) {
+func (etherMan *Client) GetCustomChainID() (*big.Int, error) {
 	address := etherMan.GetAddress()
 	sequencer, err := etherMan.PoE.Sequencers(&bind.CallOpts{Pending: false}, address)
 	return new(big.Int).SetUint64(uint64(sequencer.ChainID)), err
 }
 
 // EstimateSendBatchCost function estimate gas cost for sending batch to ethereum sc
-func (etherMan *ClientEtherMan) EstimateSendBatchCost(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error) {
+func (etherMan *Client) EstimateSendBatchCost(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error) {
 	noSendOpts := etherMan.auth
 	noSendOpts.NoSend = true
 	tx, err := etherMan.sendBatch(ctx, noSendOpts, txs, maticAmount)
@@ -677,25 +659,25 @@ func (etherMan *ClientEtherMan) EstimateSendBatchCost(ctx context.Context, txs [
 }
 
 // GetLatestProposedBatchNumber function allows to retrieve the latest proposed batch in the smc
-func (etherMan *ClientEtherMan) GetLatestProposedBatchNumber() (uint64, error) {
+func (etherMan *Client) GetLatestProposedBatchNumber() (uint64, error) {
 	latestBatch, err := etherMan.PoE.LastBatchSent(&bind.CallOpts{Pending: false})
 	return uint64(latestBatch), err
 }
 
 // GetLatestConsolidatedBatchNumber function allows to retrieve the latest consolidated batch in the smc
-func (etherMan *ClientEtherMan) GetLatestConsolidatedBatchNumber() (uint64, error) {
+func (etherMan *Client) GetLatestConsolidatedBatchNumber() (uint64, error) {
 	latestBatch, err := etherMan.PoE.LastVerifiedBatch(&bind.CallOpts{Pending: false})
 	return uint64(latestBatch), err
 }
 
 // GetSequencerCollateral function allows to retrieve the sequencer collateral from the smc
-func (etherMan *ClientEtherMan) GetSequencerCollateral(batchNumber uint64) (*big.Int, error) {
+func (etherMan *Client) GetSequencerCollateral(batchNumber uint64) (*big.Int, error) {
 	batchInfo, err := etherMan.PoE.SentBatches(&bind.CallOpts{Pending: false}, uint32(batchNumber))
 	return batchInfo.MaticCollateral, err
 }
 
 // ApproveMatic function allow to approve tokens in matic smc
-func (etherMan *ClientEtherMan) ApproveMatic(maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
+func (etherMan *Client) ApproveMatic(maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
 	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
 	if err != nil {
 		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
@@ -705,6 +687,6 @@ func (etherMan *ClientEtherMan) ApproveMatic(maticAmount *big.Int, to common.Add
 
 // HeaderByNumber returns a block header from the current canonical chain. If number is
 // nil, the latest known header is returned.
-func (etherMan *ClientEtherMan) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+func (etherMan *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
 	return etherMan.EtherClient.HeaderByNumber(ctx, number)
 }
