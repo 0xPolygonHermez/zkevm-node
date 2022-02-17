@@ -264,7 +264,19 @@ func (s *Server) SetHashValue(ctx context.Context, in *pb.SetHashValueRequest) (
 
 // SetHashValueBulk sets many entries of the reverse hash table.
 func (s *Server) SetHashValueBulk(ctx context.Context, in *pb.SetHashValueBulkRequest) (*pb.SetHashValueBulkResponse, error) {
-	return nil, nil
+	for _, item := range in.HashValues {
+		result, err := s.SetHashValue(ctx, item)
+		if err != nil {
+			return nil, err
+		}
+		if !result.Success {
+			return nil, fmt.Errorf("Unsuccessful hash value set")
+		}
+	}
+
+	return &pb.SetHashValueBulkResponse{
+		Success: true,
+	}, nil
 }
 
 // HealthChecker will provide an implementation of the HealthCheck interface.

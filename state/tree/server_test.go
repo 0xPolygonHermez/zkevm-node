@@ -382,9 +382,18 @@ func Test_MTServer_SetHashValueBulk(t *testing.T) {
 	require.NoError(t, err)
 
 	const (
-		totalItems = 200
+		totalItems = 5
 		maxBalance = 1000
 	)
+
+	// randToken generates a random hex value of a given length.
+	randToken := func(n int) (string, error) {
+		bytes := make([]byte, n)
+		if _, err := rand.Read(bytes); err != nil {
+			return "", err
+		}
+		return hex.EncodeToString(bytes), nil
+	}
 
 	addressesBalances := map[string]*big.Int{}
 	requests := []*pb.SetHashValueRequest{}
@@ -426,13 +435,4 @@ func Test_MTServer_SetHashValueBulk(t *testing.T) {
 
 		assert.Equal(t, balance.String(), actualValue.String(), "Did not set the expected hash value bulk")
 	}
-}
-
-// randHex generates a random hex value of a given length.
-func randToken(n int) (string, error) {
-	bytes := make([]byte, n)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
 }
