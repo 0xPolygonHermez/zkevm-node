@@ -417,7 +417,7 @@ func (m *Manager) setUpSequencer() error {
 	ethermanConfig := etherman.Config{
 		URL: l1NetworkURL,
 	}
-	etherman, err := etherman.NewEtherman(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(bridgeAddress), common.HexToAddress(maticTokenAddress), common.HexToAddress(globalExitRootAddress))
+	etherman, err := etherman.NewClient(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(bridgeAddress), common.HexToAddress(maticTokenAddress), common.HexToAddress(globalExitRootAddress))
 	if err != nil {
 		return err
 	}

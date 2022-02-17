@@ -8,18 +8,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
-// TxProfitabilityChecker interface for different profitability checkers
-type TxProfitabilityChecker interface {
-	IsProfitable(context.Context, []*types.Transaction) (bool, *big.Int, error)
-}
-
 // Base struct
 type Base struct {
-	EthMan etherman.EtherMan
+	EthMan etherman
 	State  state.State
 
 	IntervalAfterWhichBatchSentAnyway time.Duration
@@ -29,11 +23,11 @@ type Base struct {
 
 // NewTxProfitabilityCheckerBase inits base tx profitability checker with min reward from config and ethMan
 func NewTxProfitabilityCheckerBase(
-	ethMan etherman.EtherMan,
+	ethMan etherman,
 	state state.State, minReward *big.Int,
 	intervalAfterWhichBatchSentAnyway time.Duration,
 	rewardPercentageToAggregator int64,
-) TxProfitabilityChecker {
+) *Base {
 	return &Base{
 		EthMan: ethMan,
 		State:  state,
@@ -113,7 +107,7 @@ type AcceptAll struct {
 }
 
 // NewTxProfitabilityCheckerAcceptAll inits tx profitability checker which accept all
-func NewTxProfitabilityCheckerAcceptAll(state state.State, intervalAfterWhichBatchSentAnyway time.Duration) TxProfitabilityChecker {
+func NewTxProfitabilityCheckerAcceptAll(state state.State, intervalAfterWhichBatchSentAnyway time.Duration) *AcceptAll {
 	return &AcceptAll{
 		State:                             state,
 		IntervalAfterWhichBatchSentAnyway: intervalAfterWhichBatchSentAnyway,

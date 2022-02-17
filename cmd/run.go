@@ -93,12 +93,12 @@ func runMigrations(c db.Config) {
 	}
 }
 
-func newEtherman(c config.Config) (*etherman.ClientEtherMan, error) {
+func newEtherman(c config.Config) (*etherman.Client, error) {
 	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.NetworkConfig.L1ChainID)
 	if err != nil {
 		return nil, err
 	}
-	etherman, err := etherman.NewEtherman(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.BridgeAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.GlobalExitRootManAddr)
+	etherman, err := etherman.NewClient(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.BridgeAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.GlobalExitRootManAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.
 	return proverClient, conn
 }
 
-func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.ClientEtherMan, st state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
+func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
 	genesisBlock, err := etherman.EtherClient.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(networkConfig.GenBlockNumber))
 	if err != nil {
 		log.Fatal(err)
@@ -152,7 +152,7 @@ func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, 
 	}
 }
 
-func createSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool *pool.PostgresPool, state state.State) sequencer.Sequencer {
+func createSequencer(c sequencer.Config, etherman *etherman.Client, pool *pool.PostgresPool, state state.State) sequencer.Sequencer {
 	seq, err := sequencer.NewSequencer(c, pool, state, etherman)
 	if err != nil {
 		log.Fatal(err)
@@ -160,7 +160,7 @@ func createSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool
 	return seq
 }
 
-func runAggregator(c aggregator.Config, etherman *etherman.ClientEtherMan, proverclient proverclient.ZKProverClient, state state.State) {
+func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient proverclient.ZKProverClient, state state.State) {
 	agg, err := aggregator.NewAggregator(c, state, etherman, proverclient)
 	if err != nil {
 		log.Fatal(err)

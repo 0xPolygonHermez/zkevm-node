@@ -52,7 +52,7 @@ func TestDecodeOneTxData(t *testing.T) {
 }
 
 //This function prepare the blockchain, the wallet with funds and deploy the smc
-func newTestingEnv() (ethman *ClientEtherMan, commit func(), maticAddr common.Address) {
+func newTestingEnv() (ethman *Client, commit func(), maticAddr common.Address) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
