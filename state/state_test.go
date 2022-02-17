@@ -46,7 +46,8 @@ var (
 var cfg = dbutils.NewConfigFromEnv()
 
 var stateCfg = state.Config{
-	DefaultChainID: 1000,
+	DefaultChainID:       1000,
+	MaxCumulativeGasUsed: 800000,
 }
 
 func TestMain(m *testing.M) {
@@ -986,7 +987,7 @@ func TestSCExecution(t *testing.T) {
 	// Register Sequencer
 	sequencer := state.Sequencer{
 		Address:     sequencerAddress,
-		URL:         "http://www.adrress.com",
+		URL:         "http://www.address.com",
 		ChainID:     chainIDSequencer,
 		BlockNumber: genesisBlock.Header().Number.Uint64(),
 	}

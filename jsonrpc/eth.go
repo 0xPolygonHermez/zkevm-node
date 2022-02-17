@@ -18,6 +18,7 @@ type Eth struct {
 	pool             jsonRPCTxPool
 	state            state.State
 	sequencerAddress common.Address
+	gpe              gasPriceEstimator
 }
 
 type blockNumberOrHash struct {
@@ -104,14 +105,14 @@ func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error
 
 // GasPrice returns the average gas price based on the last x blocks
 func (e *Eth) GasPrice() (interface{}, error) {
-	gasPrice, err := e.pool.GetGasPrice(context.Background())
-	if errors.Is(err, state.ErrNotFound) {
-		return hex.EncodeUint64(0), nil
-	} else if err != nil {
+	gasPrice, err := e.gpe.GetAvgGasPrice()
+	if err != nil {
 		return nil, err
 	}
-
-	return hex.EncodeUint64(gasPrice), nil
+	if gasPrice != nil {
+		return hex.EncodeUint64(gasPrice.Uint64()), nil
+	}
+	return hex.EncodeUint64(0), nil
 }
 
 // GetBalance returns the account's balance at the referenced block

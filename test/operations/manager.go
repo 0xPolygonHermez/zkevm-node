@@ -67,9 +67,9 @@ type SequencerConfig struct {
 
 // Config is the main Manager configuration.
 type Config struct {
-	Arity          uint8
-	DefaultChainID uint64
-	Sequencer      *SequencerConfig
+	Arity     uint8
+	State     *state.Config
+	Sequencer *SequencerConfig
 }
 
 // Manager controls operations and has knowledge about how to set up and tear
@@ -94,7 +94,7 @@ func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 		cfg: cfg,
 		ctx: ctx,
 	}
-	st, err := initState(cfg.Arity, cfg.DefaultChainID)
+	st, err := initState(cfg.Arity, cfg.State.DefaultChainID, cfg.State.MaxCumulativeGasUsed)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +267,7 @@ func Teardown() error {
 	return nil
 }
 
-func initState(arity uint8, defaultChainID uint64) (state.State, error) {
+func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) (state.State, error) {
 	sqlDB, err := db.NewSQLDB(dbConfig)
 	if err != nil {
 		return nil, err
@@ -279,7 +279,8 @@ func initState(arity uint8, defaultChainID uint64) (state.State, error) {
 	tr := tree.NewStateTree(mt, scCodeStore, []byte{})
 
 	stateCfg := state.Config{
-		DefaultChainID: defaultChainID,
+		DefaultChainID:       defaultChainID,
+		MaxCumulativeGasUsed: maxCumulativeGasUsed,
 	}
 
 	stateDB := pgstatestorage.NewPostgresStorage(sqlDB)

@@ -68,11 +68,6 @@ func NewSequencer(cfg Config, pool sequencerTxPool, state state.State, ethMan et
 		}
 	}
 
-	err := pool.SetGasPrice(ctx, cfg.DefaultGasPriceWei)
-	if err != nil {
-		cancel()
-		return Sequencer{}, fmt.Errorf("failed to set default gas price, err: %v", err)
-	}
 	s := Sequencer{
 		cfg:     cfg,
 		Pool:    pool,

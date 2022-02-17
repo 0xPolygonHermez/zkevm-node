@@ -19,6 +19,7 @@ type NetworkConfig struct {
 	L1ChainID             uint64
 	L2DefaultChainID      uint64
 	Balances              map[common.Address]*big.Int
+	MaxCumulativeGasUsed  uint64
 }
 
 const (
@@ -42,6 +43,7 @@ var (
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 		},
+		MaxCumulativeGasUsed: 800000,
 	}
 	testnetConfig = NetworkConfig{
 		Arity:                 4,
@@ -56,6 +58,7 @@ var (
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 		},
+		MaxCumulativeGasUsed: 800000,
 	}
 	internalTestnetConfig = NetworkConfig{
 		Arity:                 4,
@@ -105,6 +108,7 @@ var (
 			common.HexToAddress("0x0E7020134410931C9eC16c4dFB251d78E9fC3cAB"): bigIntFromBase10String("1000000000000000000000"),
 			common.HexToAddress("0x5A2A939c7D30F24912C97F93EbA321cDe25Dcc26"): bigIntFromBase10String("1000000000000000000000"),
 		},
+		MaxCumulativeGasUsed: 800000,
 	}
 	localConfig = NetworkConfig{
 		Arity:                 4,
@@ -137,6 +141,7 @@ var (
 			common.HexToAddress("0xdD2FD4581271e230360230F9337D5c0430Bf44C0"): bigIntFromBase10String("1000000000000000000000"),
 			common.HexToAddress("0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199"): bigIntFromBase10String("1000000000000000000000"),
 		},
+		MaxCumulativeGasUsed: 800000,
 	}
 )
 
