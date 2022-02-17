@@ -140,19 +140,6 @@
 		"type": "event"
 	},
 	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "bytes32",
-				"name": "rollupExitRoot",
-				"type": "bytes32"
-			}
-		],
-		"name": "UpdateRollupRootEvent",
-		"type": "event"
-	},
-	{
 		"inputs": [],
 		"name": "MAINNET_NETWORK_ID",
 		"outputs": [
