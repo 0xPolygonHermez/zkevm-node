@@ -78,7 +78,7 @@ type Client struct {
 }
 
 // NewClient creates a new etherman.
-func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address, maticAddr common.Address, globalExitRootManAddr common.Address) (*ClientEtherMan, error) {
+func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address, maticAddr common.Address, globalExitRootManAddr common.Address) (*Client, error) {
 	// TODO: PoEAddr can be got from bridge smc. So only bridge smc is required
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
@@ -752,6 +752,6 @@ func (etherMan *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*t
 }
 
 // GetCurrentSequencerCollateral function allows to retrieve the current sequencer collateral from the smc
-func (etherMan *ClientEtherMan) GetCurrentSequencerCollateral() (*big.Int, error) {
+func (etherMan *Client) GetCurrentSequencerCollateral() (*big.Int, error) {
 	return etherMan.PoE.CalculateSequencerCollateral(&bind.CallOpts{Pending: false})
 }
