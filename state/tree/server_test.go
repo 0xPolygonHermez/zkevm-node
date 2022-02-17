@@ -2,6 +2,7 @@ package tree_test
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"math/big"
 	"testing"
@@ -373,4 +374,65 @@ func Test_MTServer_SetHashValue(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedValue.String(), actualValue.String(), "Did not set the expected hash value")
+}
+
+func Test_MTServer_SetHashValueBulk(t *testing.T) {
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err := initStree()
+	require.NoError(t, err)
+
+	const (
+		totalItems = 200
+		maxBalance = 1000
+	)
+
+	addressesBalances := map[string]*big.Int{}
+	requests := []*pb.SetHashValueRequest{}
+	for i := 0; i < totalItems; i++ {
+		balanceBI, err := rand.Int(rand.Reader, big.NewInt(maxBalance))
+		require.NoError(t, err)
+
+		address, err := randToken(20)
+		require.NoError(t, err)
+		addressesBalances[address] = balanceBI
+
+		_, _, err = stree.SetBalance(common.HexToAddress(ethAddress), balanceBI)
+		require.NoError(t, err)
+
+		key, err := tree.GetKey(tree.LeafTypeBalance, common.HexToAddress(address), nil, tree.DefaultMerkleTreeArity, nil)
+		require.NoError(t, err)
+
+		requests = append(requests, &pb.SetHashValueRequest{
+			Hash:  hex.EncodeToString(key),
+			Value: balanceBI.String(),
+		})
+	}
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.SetHashValueBulk(ctx, &pb.SetHashValueBulkRequest{
+		HashValues: requests,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.True(t, resp.Success)
+
+	newRoot, err := stree.GetCurrentRoot()
+	require.NoError(t, err)
+
+	for address, balance := range addressesBalances {
+		actualValue, err := stree.GetBalance(common.HexToAddress(address), newRoot)
+		require.NoError(t, err)
+
+		assert.Equal(t, balance.String(), actualValue.String(), "Did not set the expected hash value bulk")
+	}
+}
+
+// randHex generates a random hex value of a given length.
+func randToken(n int) (string, error) {
+	bytes := make([]byte, n)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }
