@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
-	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -86,12 +85,12 @@ var (
 // BasicState is a implementation of the state
 type BasicState struct {
 	cfg  Config
-	tree tree.ReadWriter
+	tree merkletree
 	Storage
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage Storage, tree tree.ReadWriter) State {
+func NewState(cfg Config, storage Storage, tree merkletree) State {
 	return &BasicState{cfg: cfg, tree: tree, Storage: storage}
 }
 
