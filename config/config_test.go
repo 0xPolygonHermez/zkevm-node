@@ -33,12 +33,16 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(1000000000),
 		},
 		{
-			path:          "MTService.Host",
+			path:          "MTServer.Host",
 			expectedValue: "0.0.0.0",
 		},
 		{
-			path:          "MTService.Port",
+			path:          "MTServer.Port",
 			expectedValue: 50052,
+		},
+		{
+			path:          "MTClient.URI",
+			expectedValue: "127.0.0.1:50052",
 		},
 	}
 

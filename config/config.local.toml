@@ -46,6 +46,9 @@ TxProfitabilityMinReward = "1.1"
 [Prover]
 ProverURI = "hez-prover:50051"
 
-[MTService]
+[MTServer]
 Host = "0.0.0.0"
 Port = 50052
+
+[MTClient]
+URI  = "127.0.0.1:50052"

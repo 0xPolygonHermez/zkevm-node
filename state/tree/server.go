@@ -16,7 +16,7 @@ import (
 
 // Server provides the functionality of the MerkleTree service.
 type Server struct {
-	cfg   *Config
+	cfg   *ServerConfig
 	stree *StateTree
 
 	srv *grpc.Server
@@ -24,7 +24,7 @@ type Server struct {
 }
 
 // NewServer is the MT server constructor.
-func NewServer(cfg *Config, stree *StateTree) *Server {
+func NewServer(cfg *ServerConfig, stree *StateTree) *Server {
 	return &Server{
 		cfg:   cfg,
 		stree: stree,
@@ -175,6 +175,19 @@ func (s *Server) ReverseHash(ctx context.Context, in *pb.ReverseHashRequest) (*p
 
 	return &pb.ReverseHashResponse{
 		MtNodeValue: valueBI.String(),
+	}, nil
+}
+
+// GetCurrentRoot gets the current root.
+func (s *Server) GetCurrentRoot(ctx context.Context, in *pb.Empty) (*pb.GetCurrentRootResponse, error) {
+	root, err := s.stree.GetCurrentRoot()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetCurrentRootResponse{
+		Root: hex.EncodeToString(root),
 	}, nil
 }
 
@@ -331,6 +344,18 @@ func (s *Server) SetHashValueBulk(ctx context.Context, in *pb.SetHashValueBulkRe
 			NewRoot: root,
 		},
 	}, nil
+}
+
+// SetCurrentRoot sets the current root.
+func (s *Server) SetCurrentRoot(ctx context.Context, in *pb.SetCurrentRootRequest) (*pb.Empty, error) {
+	root, err := hex.DecodeString(in.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	s.stree.SetCurrentRoot(root)
+
+	return &pb.Empty{}, nil
 }
 
 // HealthChecker will provide an implementation of the HealthCheck interface.

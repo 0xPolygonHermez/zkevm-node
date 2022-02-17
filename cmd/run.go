@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -23,6 +24,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/urfave/cli/v2"
@@ -53,13 +55,24 @@ func start(ctx *cli.Context) error {
 	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
 	tr := tree.NewStateTree(mt, scCodeStore)
 
+	srvCfg := &tree.ServerConfig{
+		Host: c.MTServer.Host,
+		Port: c.MTServer.Port,
+	}
+	s := grpc.NewServer()
+	mtSrv := tree.NewServer(srvCfg, tr)
+	pb.RegisterMTServiceServer(s, mtSrv)
+
+	mtClient, mtConn, mtCancel := newMTClient(c.MTClient)
+	treeAdapter := tree.NewAdapter(context.Background(), mtClient)
+
 	stateCfg := state.Config{
 		DefaultChainID:       c.NetworkConfig.L2DefaultChainID,
 		MaxCumulativeGasUsed: c.NetworkConfig.MaxCumulativeGasUsed,
 	}
 
 	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
-	st := state.NewState(stateCfg, stateDb, tr)
+	st := state.NewState(stateCfg, stateDb, treeAdapter)
 
 	pool, err := pool.NewPostgresPool(c.Database)
 	if err != nil {
@@ -74,9 +87,12 @@ func start(ctx *cli.Context) error {
 	go seq.Start()
 	go runJSONRpcServer(*c, pool, st, seq.ChainID, gpe)
 
-	proverClient, conn := newProverClient(c.Prover)
+	proverClient, proverConn := newProverClient(c.Prover)
 	go runAggregator(c.Aggregator, etherman, proverClient, st)
-	waitSignal(conn)
+	go mtSrv.Start()
+
+	waitSignal([]*grpc.ClientConn{proverConn, mtConn}, []context.CancelFunc{mtCancel})
+
 	return nil
 }
 
@@ -108,13 +124,29 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.
 		// TODO: once we have user and password for prover server, change this
 		grpc.WithInsecure(),
 	}
-	conn, err := grpc.Dial(c.ProverURI, opts...)
+	proverConn, err := grpc.Dial(c.ProverURI, opts...)
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
 	}
 
-	proverClient := proverclient.NewZKProverClient(conn)
-	return proverClient, conn
+	proverClient := proverclient.NewZKProverClient(proverConn)
+	return proverClient, proverConn
+}
+
+func newMTClient(c tree.ClientConfig) (pb.MTServiceClient, *grpc.ClientConn, context.CancelFunc) {
+	opts := []grpc.DialOption{
+		grpc.WithInsecure(),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	mtConn, err := grpc.DialContext(ctx, c.URI, opts...)
+
+	if err != nil {
+		log.Fatalf("fail to dial: %v", err)
+	}
+
+	mtClient := pb.NewMTServiceClient(mtConn)
+
+	return mtClient, mtConn, cancel
 }
 
 func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
@@ -185,7 +217,7 @@ func createGasPriceEstimator(cfg gasprice.Config, state state.State, pool *pool.
 	return nil
 }
 
-func waitSignal(conn *grpc.ClientConn) {
+func waitSignal(conns []*grpc.ClientConn, cancelFuncs []context.CancelFunc) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
@@ -193,7 +225,18 @@ func waitSignal(conn *grpc.ClientConn) {
 		switch sig {
 		case os.Interrupt, os.Kill:
 			log.Info("terminating application gracefully...")
-			os.Exit(0)
+
+			exitStatus := 0
+			for _, conn := range conns {
+				if err := conn.Close(); err != nil {
+					log.Errorf("Could not properly close gRPC connection: %v", err)
+					exitStatus = -1
+				}
+			}
+			for _, cancel := range cancelFuncs {
+				cancel()
+			}
+			os.Exit(exitStatus)
 		}
 	}
 }

@@ -39,7 +39,8 @@ type Config struct {
 	Prover            proverclient.Config
 	NetworkConfig     NetworkConfig
 	GasPriceEstimator gasprice.Config
-	MTService         tree.Config
+	MTServer          tree.ServerConfig
+	MTClient          tree.ClientConfig
 }
 
 // Load loads the configuration
