@@ -1,28 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0
-
 pragma solidity >=0.7.0 <0.9.0;
 
-/**
- * @title Storage
- * @dev Store & retrieve value in a variable
- */
-contract Storage {
+interface ICounter {
+    function count() external view returns (uint);
+    function increment() external;
+}
 
-    uint256 number;
+contract Interaction {
+    address counterAddr;
 
-    /**
-     * @dev Store value in variable
-     * @param num value to store
-     */
-    function store(uint256 num) public {
-        number = num;
+    function setCounterAddr(address _counter) public payable {
+       counterAddr = _counter;
     }
 
-    /**
-     * @dev Return value 
-     * @return value of 'number'
-     */
-    function retrieve() public view returns (uint256){
-        return number;
+    function getCount() external view returns (uint) {
+        return ICounter(counterAddr).count();
     }
 }
