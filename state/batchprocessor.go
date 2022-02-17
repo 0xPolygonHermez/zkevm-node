@@ -98,7 +98,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			log.Infof("Successfully processed transaction %s", tx.Hash().String())
 			b.CumulativeGasUsed += result.GasUsed
 			includedTxs = append(includedTxs, tx)
-			receipt := b.generateReceipt(batch, tx, index, &senderAddress, tx.To(), result.GasUsed)
+			receipt := b.generateReceipt(batch, tx, index, &senderAddress, tx.To(), result)
 			receipts = append(receipts, receipt)
 			index++
 		}
@@ -142,8 +142,8 @@ func (b *BasicBatchProcessor) ProcessUnsignedTransaction(tx *types.Transaction, 
 func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
 	receiverAddress := tx.To()
 
-	// SC creation?
-	if *receiverAddress == ZeroAddress && len(tx.Data()) > 0 {
+	// SC creation
+	if receiverAddress == nil {
 		log.Debug("smart contract creation")
 		return b.create(tx, senderAddress, sequencerAddress)
 	}
@@ -197,7 +197,7 @@ func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch) {
 	batch.Header.Nonce = block.Header().Nonce
 }
 
-func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, gasUsed uint64) *Receipt {
+func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, result *runtime.ExecutionResult) *Receipt {
 	receipt := &Receipt{}
 	receipt.Type = tx.Type()
 	receipt.PostState = b.stateRoot
@@ -205,14 +205,16 @@ func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transactio
 	receipt.CumulativeGasUsed = b.CumulativeGasUsed
 	receipt.BlockNumber = batch.Number()
 	receipt.BlockHash = batch.Hash()
-	receipt.GasUsed = gasUsed
+	receipt.GasUsed = result.GasUsed
 	receipt.TxHash = tx.Hash()
 	receipt.TransactionIndex = index
+	receipt.ContractAddress = result.CreateAddress
 	if senderAddress != nil {
 		receipt.From = *senderAddress
 	}
-	if receiverAddress != nil {
-		receipt.To = *receiverAddress
+
+	if receiverAddress != nil && receiverAddress.Hex() != ZeroAddress.Hex() {
+		receipt.To = receiverAddress
 	}
 
 	return receipt
@@ -469,7 +471,14 @@ func (b *BasicBatchProcessor) run(contract *runtime.Contract) *runtime.Execution
 }
 
 func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
-	address := helper.CreateAddress(senderAddress, b.GetNonce(senderAddress))
+	if len(tx.Data()) <= 0 {
+		return &runtime.ExecutionResult{
+			GasLeft: tx.Gas(),
+			Err:     runtime.ErrCodeNotFound,
+		}
+	}
+
+	address := helper.CreateAddress(senderAddress, tx.Nonce())
 	contract := runtime.NewContractCreation(0, senderAddress, senderAddress, address, tx.Value(), tx.Gas(), tx.Data())
 
 	log.Debugf("new contract address = %v", address)
@@ -687,7 +696,7 @@ func (b *BasicBatchProcessor) Empty(address common.Address) bool {
 
 // GetNonce gets the nonce for an account at a given address
 func (b *BasicBatchProcessor) GetNonce(address common.Address) uint64 {
-	nonce, err := b.State.tree.GetBalance(address, b.stateRoot)
+	nonce, err := b.State.tree.GetNonce(address, b.stateRoot)
 
 	if err != nil {
 		log.Errorf("error on GetNonce for address %v", address)

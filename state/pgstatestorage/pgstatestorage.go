@@ -49,7 +49,7 @@ const (
 	resetSQL                               = "DELETE FROM state.block WHERE block_num > $1"
 	addBatchSQL                            = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 	addTransactionSQL                      = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
-	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, batch_num, batch_hash, tx_hash, tx_index, tx_from, tx_to)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
+	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, batch_num, batch_hash, tx_hash, tx_index, tx_from, tx_to, contract_address)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"
 )
 
 var (
@@ -411,8 +411,9 @@ func (s *PostgresStorage) GetTransactionCount(ctx context.Context, fromAddress c
 func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*state.Receipt, error) {
 	var receipt state.Receipt
 	var batchNumber uint64
+	var to *common.Address
 	err := s.queryRow(ctx, getReceiptSQL, transactionHash).Scan(&receipt.Type, &receipt.PostState, &receipt.Status,
-		&receipt.CumulativeGasUsed, &receipt.GasUsed, &batchNumber, &receipt.BlockHash, &receipt.TxHash, &receipt.TransactionIndex, &receipt.From, &receipt.To)
+		&receipt.CumulativeGasUsed, &receipt.GasUsed, &batchNumber, &receipt.BlockHash, &receipt.TxHash, &receipt.TransactionIndex, &receipt.From, &to, &receipt.ContractAddress)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
@@ -420,6 +421,7 @@ func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 		return nil, err
 	}
 
+	receipt.To = to
 	receipt.BlockNumber = new(big.Int).SetUint64(batchNumber)
 	return &receipt, nil
 }
@@ -573,7 +575,13 @@ func (s *PostgresStorage) AddTransaction(ctx context.Context, tx *types.Transact
 
 // AddReceipt adds a new receipt to the State Store
 func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt) error {
-	_, err := s.exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.BlockHash.Bytes(), receipt.TxHash.Bytes(), receipt.TransactionIndex, receipt.From.Bytes(), receipt.To.Bytes())
+	var to *[]byte = nil
+	if receipt.To != nil {
+		b := receipt.To.Bytes()
+		to = &b
+	}
+
+	_, err := s.exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.BlockHash.Bytes(), receipt.TxHash.Bytes(), receipt.TransactionIndex, receipt.From.Bytes(), to, receipt.ContractAddress.Bytes())
 	return err
 }
 

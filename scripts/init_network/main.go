@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/test/operations"
 )
 
@@ -39,29 +40,29 @@ func main() {
 	ctx := context.Background()
 
 	// Eth client
-	fmt.Println("Connecting to l1")
+	log.Infof("Connecting to l1")
 	client, err := ethclient.Dial(l1NetworkURL)
 	checkErr(err)
 
 	// Get network chain id
-	fmt.Println("Getting chainID")
+	log.Infof("Getting chainID")
 	chainID, err := client.NetworkID(ctx)
 	checkErr(err)
 
 	// Preparing l1 acc info
-	fmt.Println("Preparing authorization")
+	log.Infof("Preparing authorization")
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(l1AccHexPrivateKey, "0x"))
 	checkErr(err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	checkErr(err)
 
 	// Getting l1 info
-	fmt.Println("Getting L1 info")
+	log.Infof("Getting L1 info")
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	checkErr(err)
 
 	// Send some Ether from l1Acc to sequencer acc
-	fmt.Println("Transferring ETH to the sequencer")
+	log.Infof("Transferring ETH to the sequencer")
 	fromAddress := common.HexToAddress(l1AccHexAddress)
 	nonce, err := client.PendingNonceAt(ctx, fromAddress)
 	checkErr(err)
@@ -75,37 +76,37 @@ func main() {
 	checkErr(err)
 
 	// Wait eth transfer to be mined
-	fmt.Println("Waiting tx to be mined")
+	log.Infof("Waiting tx to be mined")
 	const txETHTransferTimeout = 5 * time.Second
 	err = waitTxToBeMined(ctx, client, signedTx.Hash(), txETHTransferTimeout)
 	checkErr(err)
 
 	// Create matic maticTokenSC sc instance
-	fmt.Println("Loading Matic token SC instance")
+	log.Infof("Loading Matic token SC instance")
 	maticTokenSC, err := operations.NewToken(common.HexToAddress(maticTokenAddress), client)
 	checkErr(err)
 
 	// Send matic to sequencer
-	fmt.Println("Transferring MATIC tokens to sequencer")
+	log.Infof("Transferring MATIC tokens to sequencer")
 	maticAmount, _ := big.NewInt(0).SetString("100000000000000000000000", encoding.Base10)
 	tx, err = maticTokenSC.Transfer(auth, toAddress, maticAmount)
 	checkErr(err)
 
 	// wait matic transfer to be mined
-	fmt.Println("Waiting tx to be mined")
+	log.Infof("Waiting tx to be mined")
 	const txMaticTransferTimeout = 5 * time.Second
 	err = waitTxToBeMined(ctx, client, tx.Hash(), txMaticTransferTimeout)
 	checkErr(err)
 
 	// Create sequencer auth
-	fmt.Println("Creating sequencer authorization")
+	log.Infof("Creating sequencer authorization")
 	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(sequencerPrivateKey, "0x"))
 	checkErr(err)
 	auth, err = bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	checkErr(err)
 
 	// approve tokens to be used by PoE SC on behalf of the sequencer
-	fmt.Println("Approving tokens to be used by PoE on behalf of the sequencer")
+	log.Infof("Approving tokens to be used by PoE on behalf of the sequencer")
 	tx, err = maticTokenSC.Approve(auth, common.HexToAddress(poeAddress), maticAmount)
 	checkErr(err)
 	const txApprovalTimeout = 5 * time.Second
@@ -113,7 +114,7 @@ func main() {
 	checkErr(err)
 
 	// Register the sequencer
-	fmt.Println("Registering the sequencer")
+	log.Infof("Registering the sequencer")
 	ethermanConfig := etherman.Config{
 		URL: l1NetworkURL,
 	}
@@ -123,12 +124,12 @@ func main() {
 	checkErr(err)
 
 	// Wait sequencer to be registered
-	fmt.Println("waiting tx to be mined")
+	log.Infof("waiting tx to be mined")
 	const txRegistrationTimeout = 5 * time.Second
 	err = waitTxToBeMined(ctx, client, tx.Hash(), txRegistrationTimeout)
 	checkErr(err)
 
-	fmt.Println("Network initialized properly")
+	log.Infof("Network initialized properly")
 }
 
 func waitTxToBeMined(ctx context.Context, client *ethclient.Client, hash common.Hash, timeout time.Duration) error {
@@ -166,6 +167,6 @@ func waitTxToBeMined(ctx context.Context, client *ethclient.Client, hash common.
 
 func checkErr(err error) {
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }

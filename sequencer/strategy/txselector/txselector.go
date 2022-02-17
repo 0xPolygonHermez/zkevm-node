@@ -29,10 +29,6 @@ func (s *AcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []
 	selectedTxsHashes := make([]string, 0, len(pendingTxs))
 	for _, tx := range pendingTxs {
 		t := tx.Transaction
-		// do not add SC related txs
-		if isSCTx(t) {
-			continue
-		}
 		selectedTxs = append(selectedTxs, &t)
 		selectedTxsHashes = append(selectedTxsHashes, tx.Hash().Hex())
 	}
@@ -69,10 +65,6 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 	)
 	for _, tx := range sortedTxs {
 		t := tx.Transaction
-		// do not add SC related txs
-		if isSCTx(t) {
-			continue
-		}
 		result := batchProcessor.ProcessTransaction(&t, sequencerAddress)
 		if result.Failed() {
 			err := result.Err
@@ -91,10 +83,4 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 	}
 
 	return selectedTxs, selectedTxsHashes, invalidTxsHashes, nil
-}
-
-// isSCTx returns true if the given transaction is related to smart contract
-// creation.
-func isSCTx(tx types.Transaction) bool {
-	return len(tx.Data()) != 0 || tx.To() == nil
 }

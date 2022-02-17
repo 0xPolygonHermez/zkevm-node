@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
-	"github.com/jackc/pgx/v4"
+	"github.com/hermeznetwork/hermez-core/state/tree"
 )
 
 const (
@@ -26,6 +26,7 @@ type State interface {
 	NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchProcessor, error)
 	GetStateRoot(ctx context.Context, virtual bool) ([]byte, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
+	GetStorageAt(address common.Address, position common.Hash, batchNumber uint64) (*big.Int, error)
 	GetCode(address common.Address, batchNumber uint64) ([]byte, error)
 	EstimateGas(transaction *types.Transaction) uint64
 	GetNonce(address common.Address, batchNumber uint64) (uint64, error)
@@ -136,10 +137,7 @@ func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchPro
 // GetStateRoot returns the root of the state tree
 func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, error) {
 	batch, err := s.GetLastBatch(ctx, virtual)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrStateNotSynchronized
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -153,11 +151,9 @@ func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, er
 // GetStateRootByBatchNumber returns state root by batch number from the MT
 func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error) {
 	ctx := context.Background()
-	batch, err := s.GetBatchByNumber(ctx, batchNumber)
 
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrStateNotSynchronized
-	} else if err != nil {
+	batch, err := s.GetBatchByNumber(ctx, batchNumber)
+	if err != nil {
 		return nil, err
 	}
 
@@ -171,9 +167,7 @@ func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, erro
 // GetBalance from a given address
 func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
 	root, err := s.GetStateRootByBatchNumber(batchNumber)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrStateNotSynchronized
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -183,9 +177,7 @@ func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*bi
 // GetCode from a given address
 func (s *BasicState) GetCode(address common.Address, batchNumber uint64) ([]byte, error) {
 	root, err := s.GetStateRootByBatchNumber(batchNumber)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrStateNotSynchronized
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -271,9 +263,21 @@ func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint6
 	}
 
 	n, err := s.tree.GetNonce(address, root)
-	if err != nil {
+	if errors.Is(err, tree.ErrNotFound) {
+		return 0, nil
+	} else if err != nil {
 		return 0, err
 	}
 
 	return n.Uint64(), nil
+}
+
+// GetStorageAt from a given address
+func (s *BasicState) GetStorageAt(address common.Address, position common.Hash, batchNumber uint64) (*big.Int, error) {
+	root, err := s.GetStateRootByBatchNumber(batchNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.tree.GetStorageAt(address, position, root)
 }
