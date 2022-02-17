@@ -12,31 +12,6 @@ import (
 // DefaultMerkleTreeArity specifies Merkle Tree arity used by default
 const DefaultMerkleTreeArity = 4
 
-// Reader interface
-type Reader interface {
-	GetBalance(address common.Address, root []byte) (*big.Int, error)
-	GetNonce(address common.Address, root []byte) (*big.Int, error)
-	GetCode(address common.Address, root []byte) ([]byte, error)
-	GetCodeHash(address common.Address, root []byte) ([]byte, error)
-	GetStorageAt(address common.Address, position common.Hash, root []byte) (*big.Int, error)
-	GetCurrentRoot() ([]byte, error)
-}
-
-// Writer interface
-type Writer interface {
-	SetBalance(address common.Address, balance *big.Int) (newRoot []byte, proof *UpdateProof, err error)
-	SetNonce(address common.Address, nonce *big.Int) (newRoot []byte, proof *UpdateProof, err error)
-	SetCode(address common.Address, code []byte) (newRoot []byte, proof *UpdateProof, err error)
-	SetStorageAt(address common.Address, key common.Hash, value *big.Int) (newRoot []byte, proof *UpdateProof, err error)
-	SetCurrentRoot([]byte)
-}
-
-// ReadWriter interface
-type ReadWriter interface {
-	Reader
-	Writer
-}
-
 // StateTree provides methods to access and modify state in merkletree
 type StateTree struct {
 	mt          *MerkleTree
