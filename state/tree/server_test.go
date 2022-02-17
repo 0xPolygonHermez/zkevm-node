@@ -465,12 +465,3 @@ func Test_MTServer_SetHashValueBulk(t *testing.T) {
 		assert.Equal(t, balance.String(), actualValue.String(), "Did not set the expected hash value bulk")
 	}
 }
-
-// randHex generates a random hex value of a given length.
-func randToken(n int) (string, error) {
-	bytes := make([]byte, n)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
-}
