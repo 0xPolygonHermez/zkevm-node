@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
@@ -35,7 +36,14 @@ var (
 	err     error
 )
 
-func init() {
+func TestMain(m *testing.M) {
+	initialize()
+	defer teardown()
+
+	os.Exit(m.Run())
+}
+
+func initialize() {
 	mtSrv, err = initMTServer()
 	if err != nil {
 		panic(err)
@@ -48,6 +56,17 @@ func init() {
 	}
 
 	err = operations.WaitGRPCHealthy(address)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func teardown() {
+	cancel()
+	mtSrv.Stop()
+
+	dbCfg := dbutils.NewConfigFromEnv()
+	err = dbutils.InitOrReset(dbCfg)
 	if err != nil {
 		panic(err)
 	}
