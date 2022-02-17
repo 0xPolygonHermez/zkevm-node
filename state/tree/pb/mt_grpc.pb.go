@@ -35,6 +35,8 @@ type MTServiceClient interface {
 	GetStorageAt(ctx context.Context, in *GetStorageAtRequest, opts ...grpc.CallOption) (*GetStorageAtResponse, error)
 	/// Reverse a hash of an exisiting Merkletree node
 	ReverseHash(ctx context.Context, in *ReverseHashRequest, opts ...grpc.CallOption) (*ReverseHashResponse, error)
+	/// Get current root
+	GetCurrentRoot(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetCurrentRootResponse, error)
 	// Setters
 	/// Set the balance for an account at a root
 	SetBalance(ctx context.Context, in *SetBalanceRequest, opts ...grpc.CallOption) (*SetBalanceResponse, error)
@@ -48,6 +50,8 @@ type MTServiceClient interface {
 	SetHashValue(ctx context.Context, in *SetHashValueRequest, opts ...grpc.CallOption) (*SetHashValueResponse, error)
 	/// Set many entries of the reverse hash table
 	SetHashValueBulk(ctx context.Context, in *SetHashValueBulkRequest, opts ...grpc.CallOption) (*SetHashValueBulkResponse, error)
+	/// Set current root
+	SetCurrentRoot(ctx context.Context, in *SetCurrentRootRequest, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type mTServiceClient struct {
@@ -112,6 +116,15 @@ func (c *mTServiceClient) ReverseHash(ctx context.Context, in *ReverseHashReques
 	return out, nil
 }
 
+func (c *mTServiceClient) GetCurrentRoot(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetCurrentRootResponse, error) {
+	out := new(GetCurrentRootResponse)
+	err := c.cc.Invoke(ctx, "/mt.v1.MTService/GetCurrentRoot", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *mTServiceClient) SetBalance(ctx context.Context, in *SetBalanceRequest, opts ...grpc.CallOption) (*SetBalanceResponse, error) {
 	out := new(SetBalanceResponse)
 	err := c.cc.Invoke(ctx, "/mt.v1.MTService/SetBalance", in, out, opts...)
@@ -166,6 +179,15 @@ func (c *mTServiceClient) SetHashValueBulk(ctx context.Context, in *SetHashValue
 	return out, nil
 }
 
+func (c *mTServiceClient) SetCurrentRoot(ctx context.Context, in *SetCurrentRootRequest, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, "/mt.v1.MTService/SetCurrentRoot", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MTServiceServer is the server API for MTService service.
 // All implementations must embed UnimplementedMTServiceServer
 // for forward compatibility
@@ -183,6 +205,8 @@ type MTServiceServer interface {
 	GetStorageAt(context.Context, *GetStorageAtRequest) (*GetStorageAtResponse, error)
 	/// Reverse a hash of an exisiting Merkletree node
 	ReverseHash(context.Context, *ReverseHashRequest) (*ReverseHashResponse, error)
+	/// Get current root
+	GetCurrentRoot(context.Context, *Empty) (*GetCurrentRootResponse, error)
 	// Setters
 	/// Set the balance for an account at a root
 	SetBalance(context.Context, *SetBalanceRequest) (*SetBalanceResponse, error)
@@ -196,6 +220,8 @@ type MTServiceServer interface {
 	SetHashValue(context.Context, *SetHashValueRequest) (*SetHashValueResponse, error)
 	/// Set many entries of the reverse hash table
 	SetHashValueBulk(context.Context, *SetHashValueBulkRequest) (*SetHashValueBulkResponse, error)
+	/// Set current root
+	SetCurrentRoot(context.Context, *SetCurrentRootRequest) (*Empty, error)
 	mustEmbedUnimplementedMTServiceServer()
 }
 
@@ -221,6 +247,9 @@ func (UnimplementedMTServiceServer) GetStorageAt(context.Context, *GetStorageAtR
 func (UnimplementedMTServiceServer) ReverseHash(context.Context, *ReverseHashRequest) (*ReverseHashResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReverseHash not implemented")
 }
+func (UnimplementedMTServiceServer) GetCurrentRoot(context.Context, *Empty) (*GetCurrentRootResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCurrentRoot not implemented")
+}
 func (UnimplementedMTServiceServer) SetBalance(context.Context, *SetBalanceRequest) (*SetBalanceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetBalance not implemented")
 }
@@ -238,6 +267,9 @@ func (UnimplementedMTServiceServer) SetHashValue(context.Context, *SetHashValueR
 }
 func (UnimplementedMTServiceServer) SetHashValueBulk(context.Context, *SetHashValueBulkRequest) (*SetHashValueBulkResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetHashValueBulk not implemented")
+}
+func (UnimplementedMTServiceServer) SetCurrentRoot(context.Context, *SetCurrentRootRequest) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetCurrentRoot not implemented")
 }
 func (UnimplementedMTServiceServer) mustEmbedUnimplementedMTServiceServer() {}
 
@@ -360,6 +392,24 @@ func _MTService_ReverseHash_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MTService_GetCurrentRoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MTServiceServer).GetCurrentRoot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/mt.v1.MTService/GetCurrentRoot",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MTServiceServer).GetCurrentRoot(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MTService_SetBalance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetBalanceRequest)
 	if err := dec(in); err != nil {
@@ -468,6 +518,24 @@ func _MTService_SetHashValueBulk_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MTService_SetCurrentRoot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetCurrentRootRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MTServiceServer).SetCurrentRoot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/mt.v1.MTService/SetCurrentRoot",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MTServiceServer).SetCurrentRoot(ctx, req.(*SetCurrentRootRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MTService_ServiceDesc is the grpc.ServiceDesc for MTService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -500,6 +568,10 @@ var MTService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MTService_ReverseHash_Handler,
 		},
 		{
+			MethodName: "GetCurrentRoot",
+			Handler:    _MTService_GetCurrentRoot_Handler,
+		},
+		{
 			MethodName: "SetBalance",
 			Handler:    _MTService_SetBalance_Handler,
 		},
@@ -522,6 +594,10 @@ var MTService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetHashValueBulk",
 			Handler:    _MTService_SetHashValueBulk_Handler,
+		},
+		{
+			MethodName: "SetCurrentRoot",
+			Handler:    _MTService_SetCurrentRoot_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

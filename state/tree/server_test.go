@@ -256,6 +256,22 @@ func Test_MTServer_ReverseHash(t *testing.T) {
 	assert.Equal(t, expectedBalance.String(), resp.MtNodeValue, "Did not get the expected MT node value")
 }
 
+func Test_MTServer_GetCurrentRoot(t *testing.T) {
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err := initStree()
+	require.NoError(t, err)
+
+	expectedRoot, _, err := stree.SetBalance(common.HexToAddress(ethAddress), big.NewInt(100))
+	require.NoError(t, err)
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	resp, err := client.GetCurrentRoot(ctx, &pb.Empty{})
+	require.NoError(t, err)
+
+	assert.Equal(t, hex.EncodeToString(expectedRoot), resp.Root, "Did not get the expected root")
+}
+
 func Test_MTServer_SetBalance(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
 	stree, err := initStree()
@@ -473,4 +489,24 @@ func Test_MTServer_SetHashValueBulk(t *testing.T) {
 
 		assert.Equal(t, balance.String(), actualValue.String(), "Did not set the expected hash value bulk")
 	}
+}
+
+func Test_MTServer_SetCurrentRoot(t *testing.T) {
+	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
+	stree, err := initStree()
+	require.NoError(t, err)
+
+	expectedRoot := "dead"
+
+	client := pb.NewMTServiceClient(conn)
+	ctx := context.Background()
+	_, err = client.SetCurrentRoot(ctx, &pb.SetCurrentRootRequest{
+		Root: expectedRoot,
+	})
+	require.NoError(t, err)
+
+	actualRoot, err := stree.GetCurrentRoot()
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedRoot, hex.EncodeToString(actualRoot), "Did not get the expected root")
 }
