@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -23,11 +24,6 @@ import (
 const (
 	l1NetworkURL = "http://localhost:8545"
 	l2NetworkURL = "http://localhost:8123"
-
-	poeAddress            = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
-	bridgeAddress         = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
-	maticTokenAddress     = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
-	globalExitRootAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
 
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -39,6 +35,9 @@ const (
 // TestStateTransition tests state transitions using the vector
 func main() {
 	ctx := context.Background()
+
+	config, err := config.Load("", "local")
+	checkErr(err)
 
 	// Eth client
 	log.Infof("Connecting to l1")
@@ -69,7 +68,7 @@ func main() {
 	checkErr(err)
 	const gasLimit = 21000
 	toAddress := common.HexToAddress(sequencerAddress)
-	ethAmount, _ := big.NewInt(0).SetString("100000000000000000000", encoding.Base10)
+	ethAmount, _ := big.NewInt(0).SetString("200000000000000000000", encoding.Base10)
 	tx := types.NewTransaction(nonce, toAddress, ethAmount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, tx)
 	checkErr(err)
@@ -84,12 +83,12 @@ func main() {
 
 	// Create matic maticTokenSC sc instance
 	log.Infof("Loading Matic token SC instance")
-	maticTokenSC, err := operations.NewToken(common.HexToAddress(maticTokenAddress), client)
+	maticTokenSC, err := operations.NewToken(config.NetworkConfig.MaticAddr, client)
 	checkErr(err)
 
 	// Send matic to sequencer
 	log.Infof("Transferring MATIC tokens to sequencer")
-	maticAmount, _ := big.NewInt(0).SetString("100000000000000000000000", encoding.Base10)
+	maticAmount, _ := big.NewInt(0).SetString("200000000000000000000000", encoding.Base10)
 	tx, err = maticTokenSC.Transfer(auth, toAddress, maticAmount)
 	checkErr(err)
 
@@ -108,7 +107,7 @@ func main() {
 
 	// approve tokens to be used by PoE SC on behalf of the sequencer
 	log.Infof("Approving tokens to be used by PoE on behalf of the sequencer")
-	tx, err = maticTokenSC.Approve(auth, common.HexToAddress(poeAddress), maticAmount)
+	tx, err = maticTokenSC.Approve(auth, config.NetworkConfig.PoEAddr, maticAmount)
 	checkErr(err)
 	const txApprovalTimeout = 5 * time.Second
 	err = waitTxToBeMined(ctx, client, tx.Hash(), txApprovalTimeout)
@@ -119,7 +118,7 @@ func main() {
 	ethermanConfig := etherman.Config{
 		URL: l1NetworkURL,
 	}
-	etherman, err := etherman.NewClient(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(bridgeAddress), common.HexToAddress(maticTokenAddress), common.HexToAddress(globalExitRootAddress))
+	etherman, err := etherman.NewClient(ethermanConfig, auth, config.NetworkConfig.PoEAddr, config.NetworkConfig.BridgeAddr, config.NetworkConfig.MaticAddr, config.NetworkConfig.GlobalExitRootManAddr)
 	checkErr(err)
 	tx, err = etherman.RegisterSequencer(l2NetworkURL)
 	checkErr(err)

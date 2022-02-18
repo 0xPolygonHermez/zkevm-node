@@ -418,7 +418,7 @@ func (s *PostgresStorage) GetTransactionCount(ctx context.Context, fromAddress c
 func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*state.Receipt, error) {
 	var receipt state.Receipt
 	var batchNumber uint64
-	var to *common.Address
+	var to *[]byte
 	err := s.queryRow(ctx, getReceiptSQL, transactionHash).Scan(&receipt.Type, &receipt.PostState, &receipt.Status,
 		&receipt.CumulativeGasUsed, &receipt.GasUsed, &batchNumber, &receipt.BlockHash, &receipt.TxHash, &receipt.TransactionIndex, &receipt.From, &to, &receipt.ContractAddress)
 
@@ -428,7 +428,11 @@ func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 		return nil, err
 	}
 
-	receipt.To = to
+	if to != nil {
+		toAddr := common.BytesToAddress(*to)
+		receipt.To = &toAddr
+	}
+
 	receipt.BlockNumber = new(big.Int).SetUint64(batchNumber)
 	return &receipt, nil
 }
