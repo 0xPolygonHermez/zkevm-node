@@ -7,36 +7,10 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/iden3/go-iden3-crypto/keccak256"
 )
 
 // DefaultMerkleTreeArity specifies Merkle Tree arity used by default
 const DefaultMerkleTreeArity = 4
-
-// Reader interface
-type Reader interface {
-	GetBalance(address common.Address, root []byte) (*big.Int, error)
-	GetNonce(address common.Address, root []byte) (*big.Int, error)
-	GetCode(address common.Address, root []byte) ([]byte, error)
-	GetCodeHash(address common.Address, root []byte) ([]byte, error)
-	GetStorageAt(address common.Address, position common.Hash, root []byte) (*big.Int, error)
-	GetCurrentRoot() ([]byte, error)
-}
-
-// Writer interface
-type Writer interface {
-	SetBalance(address common.Address, balance *big.Int) (newRoot []byte, proof *UpdateProof, err error)
-	SetNonce(address common.Address, nonce *big.Int) (newRoot []byte, proof *UpdateProof, err error)
-	SetCode(address common.Address, code []byte) (newRoot []byte, proof *UpdateProof, err error)
-	SetStorageAt(address common.Address, key common.Hash, value *big.Int) (newRoot []byte, proof *UpdateProof, err error)
-	SetCurrentRoot([]byte)
-}
-
-// ReadWriter interface
-type ReadWriter interface {
-	Reader
-	Writer
-}
 
 // StateTree provides methods to access and modify state in merkletree
 type StateTree struct {
@@ -46,7 +20,7 @@ type StateTree struct {
 }
 
 // NewStateTree creates new StateTree
-func NewStateTree(mt *MerkleTree, scCodeStore Store, root []byte) ReadWriter {
+func NewStateTree(mt *MerkleTree, scCodeStore Store, root []byte) *StateTree {
 	return &StateTree{
 		mt:          mt,
 		scCodeStore: scCodeStore,
@@ -222,10 +196,18 @@ func (tree *StateTree) SetCode(address common.Address, code []byte) (newRoot []b
 	}
 
 	// calculating smart contract code hash
-	scCodeHash := keccak256.Hash(code)
+	scCodeHashBI, err := tree.mt.scHashFunction(code)
+	if err != nil {
+		return nil, nil, err
+	}
+	// we need to have exactly maxBigIntLen bytes for a key in db for
+	// interoperability with prover/executor code, but big.Int Bytes()
+	// can return less, so we make sure it has the right size with FillBytes.
+	var scCodeHash [maxBigIntLen]byte
+	scCodeHashBI.FillBytes(scCodeHash[:])
 
 	// store smart contract code by its hash
-	err = tree.scCodeStore.Set(context.TODO(), scCodeHash, code)
+	err = tree.scCodeStore.Set(context.TODO(), scCodeHash[:], code)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -238,7 +220,7 @@ func (tree *StateTree) SetCode(address common.Address, code []byte) (newRoot []b
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(context.TODO(), r, k, new(big.Int).SetBytes(scCodeHash))
+	updateProof, err := tree.mt.Set(context.TODO(), r, k, new(big.Int).SetBytes(scCodeHash[:]))
 	if err != nil {
 		return nil, nil, err
 	}

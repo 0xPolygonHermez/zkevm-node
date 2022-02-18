@@ -21,17 +21,24 @@ type Synchronizer interface {
 
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
-	etherMan       etherman.EtherMan
+	etherMan       localEtherman
 	state          state.State
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
-	genBalances    state.Genesis
+	genesis        state.Genesis
 	cfg            Config
+	gpe            gasPriceEstimator
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
-func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, genBalances state.Genesis, cfg Config) (Synchronizer, error) {
+func NewSynchronizer(
+	ethMan localEtherman,
+	st state.State,
+	genBlockNumber uint64,
+	genesis state.Genesis,
+	cfg Config,
+	gpe gasPriceEstimator) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:          st,
@@ -39,8 +46,9 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber ui
 		ctx:            ctx,
 		cancelCtx:      cancel,
 		genBlockNumber: genBlockNumber,
-		genBalances:    genBalances,
+		genesis:        genesis,
 		cfg:            cfg,
+		gpe:            gpe,
 	}, nil
 }
 
@@ -59,7 +67,7 @@ func (s *ClientSynchronizer) Sync() error {
 					BlockNumber: s.genBlockNumber,
 				}
 				// Set genesis
-				err := s.state.SetGenesis(s.ctx, s.genBalances)
+				err := s.state.SetGenesis(s.ctx, s.genesis)
 				if err != nil {
 					log.Fatal("error setting genesis: ", err)
 				}
@@ -77,11 +85,6 @@ func (s *ClientSynchronizer) Sync() error {
 			case <-s.ctx.Done():
 				return
 			case <-time.After(waitDuration):
-				if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
-					if s.ctx.Err() != nil {
-						continue
-					}
-				}
 				// Check latest Proposed Batch number in the smc
 				latestProposedBatchNumber, err := s.etherMan.GetLatestProposedBatchNumber()
 				if err != nil {
@@ -104,6 +107,11 @@ func (s *ClientSynchronizer) Sync() error {
 				if err != nil {
 					log.Warn("error setting latest consolidated batch into db. Error: ", err)
 					continue
+				}
+				if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
+					if s.ctx.Err() != nil {
+						continue
+					}
 				}
 				if waitDuration != s.cfg.SyncInterval.Duration {
 					// Check latest Synced Batch
@@ -183,9 +191,19 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[common.Hash][]etherman.Order) {
 	// New info has to be included into the db using the state
 	for i := range blocks {
-		// Add block information
-		err := s.state.AddBlock(context.Background(), &blocks[i])
+		ctx := context.Background()
+		// Begin db transaction
+		err := s.state.BeginDBTransaction(ctx)
 		if err != nil {
+			log.Fatal("error createing db transaction to store block. BlockNumber: ", blocks[i].BlockNumber)
+		}
+		// Add block information
+		err = s.state.AddBlock(ctx, &blocks[i])
+		if err != nil {
+			err = s.state.Rollback(ctx)
+			if err != nil {
+				log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+			}
 			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
 		}
 		for _, element := range order[blocks[i].BlockHash] {
@@ -195,32 +213,53 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				log.Debug("consolidatedTxHash received: ", batch.ConsolidatedTxHash)
 				if batch.ConsolidatedTxHash.String() != emptyHash.String() {
 					// consolidate batch locally
-					err = s.state.ConsolidateBatch(s.ctx, batch.Number().Uint64(), batch.ConsolidatedTxHash, *batch.ConsolidatedAt)
+					err = s.state.ConsolidateBatch(s.ctx, batch.Number().Uint64(), batch.ConsolidatedTxHash, *batch.ConsolidatedAt, batch.Aggregator)
 					if err != nil {
+						err = s.state.Rollback(ctx)
+						if err != nil {
+							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+						}
 						log.Fatal("failed to consolidate batch locally, batch number: %d, err: %v", batch.Number().Uint64(), err)
 					}
 				} else {
-					// Get lastest synced batch number
+					// Get latest synced batch number
 					latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
 					if err != nil {
+						err = s.state.Rollback(ctx)
+						if err != nil {
+							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+						}
 						log.Fatal("error getting latest batch. Error: ", err)
 					}
 
 					sequencerAddress := batch.Sequencer
 					batchProcessor, err := s.state.NewBatchProcessor(sequencerAddress, latestBatchNumber)
 					if err != nil {
-						log.Error("error creating new batch processor. Error: ", err)
+						err = s.state.Rollback(ctx)
+						if err != nil {
+							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+						}
+						log.Fatal("error creating new batch processor. Error: ", err)
 					}
 					// Add batches
 					err = batchProcessor.ProcessBatch(batch)
 					if err != nil {
+						err = s.state.Rollback(ctx)
+						if err != nil {
+							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+						}
 						log.Fatal("error processing batch. BatchNumber: ", batch.Number().Uint64(), ". Error: ", err)
 					}
+					s.gpe.UpdateGasPriceAvg(new(big.Int).SetUint64(batch.Header.GasUsed))
 				}
 			} else if element.Name == etherman.NewSequencersOrder {
 				// Add new sequencers
 				err := s.state.AddSequencer(context.Background(), blocks[i].NewSequencers[element.Pos])
 				if err != nil {
+					err = s.state.Rollback(ctx)
+					if err != nil {
+						log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+					}
 					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos], " err: ", err)
 				}
 			} else if element.Name == etherman.DepositsOrder {
@@ -233,8 +272,16 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				//TODO Store info into db
 				log.Warn("Claim functionality is not implemented in synchronizer yet")
 			} else {
+				err = s.state.Rollback(ctx)
+				if err != nil {
+					log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+				}
 				log.Fatal("error: invalid order element")
 			}
+		}
+		err = s.state.Commit(ctx)
+		if err != nil {
+			log.Fatal("error committing state to store block. BlockNumber: ", blocks[i].BlockNumber)
 		}
 	}
 }

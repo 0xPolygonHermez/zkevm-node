@@ -9,15 +9,21 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // Eth contains implementations for the "eth" RPC endpoints
 type Eth struct {
-	chainIDSelector *chainIDSelector
-	pool            pool.Pool
-	state           state.State
+	chainIDSelector  *chainIDSelector
+	pool             jsonRPCTxPool
+	state            state.State
+	sequencerAddress common.Address
+	gpe              gasPriceEstimator
+}
+
+type blockNumberOrHash struct {
+	BlockNumber *BlockNumber `json:"blockNumber,omitempty"`
+	BlockHash   *common.Hash `json:"blockHash,omitempty"`
 }
 
 // BlockNumber returns current block number
@@ -30,6 +36,49 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 	}
 
 	return hex.EncodeUint64(lastBatchNumber), nil
+}
+
+// Call executes a new message call immediately and returns the value of
+// executed contract and potential error.
+// Note, this function doesn't make any changes in the state/blockchain and is
+// useful to execute view/pure methods and retrieve values.
+func (e *Eth) Call(arg *txnArgs, filter blockNumberOrHash) (interface{}, error) {
+	tx := arg.ToTransaction()
+
+	// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
+	if tx.Gas() == 0 {
+		// The filter is empty, use the latest block by default
+		if filter.BlockNumber == nil && filter.BlockHash == nil {
+			filter.BlockNumber, _ = createBlockNumberPointer("latest")
+		}
+
+		header, err := e.getHeaderFromBlockNumberOrHash(&filter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get header from block hash or block number")
+		}
+
+		gas := argUint64(header.GasLimit)
+		arg.Gas = &gas
+		tx = arg.ToTransaction()
+	}
+
+	ctx := context.Background()
+	lastVirtualBatch, err := e.state.GetLastBatch(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+	bp, err := e.state.NewBatchProcessor(e.sequencerAddress, lastVirtualBatch.Number().Uint64())
+	if err != nil {
+		return nil, err
+	}
+
+	result := bp.ProcessUnsignedTransaction(tx, *arg.From, e.sequencerAddress)
+
+	if result.Failed() {
+		return nil, fmt.Errorf("unable to execute call: %w", result.Err)
+	}
+
+	return argBytesPtr(result.ReturnValue), nil
 }
 
 // ChainId returns the chain id of the client
@@ -56,14 +105,14 @@ func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error
 
 // GasPrice returns the average gas price based on the last x blocks
 func (e *Eth) GasPrice() (interface{}, error) {
-	gasPrice, err := e.pool.GetGasPrice(context.Background())
-	if errors.Is(err, state.ErrNotFound) {
-		return hex.EncodeUint64(0), nil
-	} else if err != nil {
+	gasPrice, err := e.gpe.GetAvgGasPrice()
+	if err != nil {
 		return nil, err
 	}
-
-	return hex.EncodeUint64(gasPrice), nil
+	if gasPrice != nil {
+		return hex.EncodeUint64(gasPrice.Uint64()), nil
+	}
+	return hex.EncodeUint64(0), nil
 }
 
 // GetBalance returns the account's balance at the referenced block
@@ -122,8 +171,19 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 
 // GetCode returns account code at given block number
 func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{}, error) {
-	// we need this because Metamask is calling this method when a transfer is executed.
-	return "0x", nil
+	batchNumber, err := getNumericBlockNumber(e, *number)
+	if err != nil {
+		return nil, err
+	}
+
+	code, err := e.state.GetCode(address, batchNumber)
+	if errors.Is(err, state.ErrNotFound) {
+		return "0x", nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return argBytes(code), nil
 }
 
 // GetTransactionByBlockHashAndIndex returns information about a transaction by
@@ -288,4 +348,47 @@ func hexToTx(str string) (*types.Transaction, error) {
 	}
 
 	return tx, nil
+}
+
+func (e *Eth) getHeaderFromBlockNumberOrHash(bnh *blockNumberOrHash) (*types.Header, error) {
+	var (
+		header *types.Header
+		err    error
+	)
+
+	if bnh.BlockNumber != nil {
+		header, err = e.getBatchHeader(*bnh.BlockNumber)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get the header of block %d: %w", *bnh.BlockNumber, err)
+		}
+	} else if bnh.BlockHash != nil {
+		block, err := e.state.GetBatchByHash(context.Background(), *bnh.BlockHash)
+		if err != nil {
+			return nil, fmt.Errorf("could not find block referenced by the hash %s, err: %v", bnh.BlockHash.String(), err)
+		}
+
+		header = block.Header
+	}
+
+	return header, nil
+}
+
+func (e *Eth) getBatchHeader(number BlockNumber) (*types.Header, error) {
+	switch number {
+	case LatestBlockNumber:
+		batch, err := e.state.GetLastBatch(context.Background(), false)
+		if err != nil {
+			return nil, err
+		}
+		return batch.Header, nil
+
+	case EarliestBlockNumber:
+		return e.state.GetBatchHeader(context.Background(), uint64(0))
+
+	case PendingBlockNumber:
+		return nil, fmt.Errorf("fetching the pending header is not supported")
+
+	default:
+		return e.state.GetBatchHeader(context.Background(), uint64(number))
+	}
 }

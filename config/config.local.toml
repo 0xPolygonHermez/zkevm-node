@@ -34,6 +34,10 @@ SyncedBlockDif = 1
             Type = "acceptall"
             MinReward = "1.1"
 
+[GasPriceEstimator]
+Type = "default"
+DefaultGasPriceWei = 1000000000
+
 [Aggregator]
 IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"
 IntervalToConsolidateState = "10s"
@@ -42,3 +46,7 @@ TxProfitabilityMinReward = "1.1"
 
 [Prover]
 ProverURI = "hez-prover:50051"
+
+[MTService]
+Host = "0.0.0.0"
+Port = 50052

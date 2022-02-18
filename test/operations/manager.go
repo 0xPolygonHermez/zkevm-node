@@ -34,15 +34,17 @@ import (
 	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const (
 	l1NetworkURL = "http://localhost:8545"
 	l2NetworkURL = "http://localhost:8123"
 
-	poeAddress        = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
-	bridgeAddress     = "0xffffffffffffffffffffffffffffffffffffffff"
-	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
+	poeAddress            = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+	bridgeAddress         = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+	maticTokenAddress     = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
+	globalExitRootAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
 
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
@@ -65,9 +67,9 @@ type SequencerConfig struct {
 
 // Config is the main Manager configuration.
 type Config struct {
-	Arity          uint8
-	DefaultChainID uint64
-	Sequencer      *SequencerConfig
+	Arity     uint8
+	State     *state.Config
+	Sequencer *SequencerConfig
 }
 
 // Manager controls operations and has knowledge about how to set up and tear
@@ -92,7 +94,7 @@ func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 		cfg: cfg,
 		ctx: ctx,
 	}
-	st, err := initState(cfg.Arity, cfg.DefaultChainID)
+	st, err := initState(cfg.Arity, cfg.State.DefaultChainID, cfg.State.MaxCumulativeGasUsed)
 	if err != nil {
 		return nil, err
 	}
@@ -126,24 +128,21 @@ func (m *Manager) CheckConsolidatedRoot(expectedRoot string) error {
 	return m.checkRoot(root, expectedRoot)
 }
 
-// SetGenesis creates the genesis block in the state and checks.
-func (m *Manager) SetGenesis(genesisAccounts []vectors.GenesisAccount) error {
+// SetGenesis creates the genesis block in the state.
+func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	genesisBlock.ReceivedAt = time.Now()
 	genesis := state.Genesis{
 		Block:    genesisBlock,
 		Balances: make(map[common.Address]*big.Int),
 	}
-	for _, gacc := range genesisAccounts {
-		b := gacc.Balance.Int
-		genesis.Balances[common.HexToAddress(gacc.Address)] = &b
+	for address, balanceValue := range genesisAccounts {
+		// prevent taking the address of a loop variable
+		balance := balanceValue
+		genesis.Balances[common.HexToAddress(address)] = &balance
 	}
 
-	err := m.st.SetGenesis(m.ctx, genesis)
-	if err != nil {
-		return err
-	}
-	return nil
+	return m.st.SetGenesis(m.ctx, genesis)
 }
 
 // ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
@@ -201,6 +200,24 @@ func (m *Manager) ApplyTxs(txs []vectors.Tx, initialRoot, finalRoot string) erro
 	return nil
 }
 
+// GetAuth configures and returns an auth object.
+func GetAuth(privateKeyStr string, chainID *big.Int) (*bind.TransactOpts, error) {
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(privateKeyStr, "0x"))
+	if err != nil {
+		return nil, err
+	}
+
+	return bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+}
+
+// WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
+// health standard in package grpc.health.v1
+func WaitGRPCHealthy(address string) error {
+	return waitPoll(defaultInterval, defaultDeadline, func() (bool, error) {
+		return grpcHealthyCondition(address)
+	})
+}
+
 // Setup creates all the required components and initializes them according to
 // the manager config.
 func (m *Manager) Setup() error {
@@ -250,7 +267,7 @@ func Teardown() error {
 	return nil
 }
 
-func initState(arity uint8, defaultChainID uint64) (state.State, error) {
+func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) (state.State, error) {
 	sqlDB, err := db.NewSQLDB(dbConfig)
 	if err != nil {
 		return nil, err
@@ -262,7 +279,8 @@ func initState(arity uint8, defaultChainID uint64) (state.State, error) {
 	tr := tree.NewStateTree(mt, scCodeStore, []byte{})
 
 	stateCfg := state.Config{
-		DefaultChainID: defaultChainID,
+		DefaultChainID:       defaultChainID,
+		MaxCumulativeGasUsed: maxCumulativeGasUsed,
 	}
 
 	stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
@@ -305,13 +323,7 @@ func (m *Manager) setUpSequencer() error {
 		return err
 	}
 
-	// Preparing l1 acc info
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(l1AccHexPrivateKey, "0x"))
-	if err != nil {
-		return err
-	}
-
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	auth, err := GetAuth(l1AccHexPrivateKey, chainID)
 	if err != nil {
 		return err
 	}
@@ -385,12 +397,7 @@ func (m *Manager) setUpSequencer() error {
 	}
 
 	// Create sequencer auth
-	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(m.cfg.Sequencer.PrivateKey, "0x"))
-	if err != nil {
-		return err
-	}
-
-	auth, err = bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	auth, err = GetAuth(m.cfg.Sequencer.PrivateKey, chainID)
 	if err != nil {
 		return err
 	}
@@ -410,7 +417,7 @@ func (m *Manager) setUpSequencer() error {
 	ethermanConfig := etherman.Config{
 		URL: l1NetworkURL,
 	}
-	etherman, err := etherman.NewEtherman(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(bridgeAddress), common.HexToAddress(maticTokenAddress))
+	etherman, err := etherman.NewClient(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(bridgeAddress), common.HexToAddress(maticTokenAddress), common.HexToAddress(globalExitRootAddress))
 	if err != nil {
 		return err
 	}
@@ -599,6 +606,33 @@ func proverUpCondition() (bool, error) {
 
 func coreUpCondition() (done bool, err error) {
 	return nodeUpCondition(l2NetworkURL)
+}
+
+func grpcHealthyCondition(address string) (bool, error) {
+	opts := []grpc.DialOption{
+		grpc.WithInsecure(),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, address, opts...)
+	if err != nil {
+		// we allow connection errors to wait for the container up
+		return false, nil
+	}
+	defer func() {
+		err = conn.Close()
+	}()
+
+	healthClient := grpc_health_v1.NewHealthClient(conn)
+	state, err := healthClient.Check(context.Background(), &grpc_health_v1.HealthCheckRequest{})
+	if err != nil {
+		// we allow connection errors to wait for the container up
+		return false, nil
+	}
+
+	done := state.Status == grpc_health_v1.HealthCheckResponse_SERVING
+
+	return done, nil
 }
 
 func waitPoll(interval, deadline time.Duration, condition conditionFunc) error {

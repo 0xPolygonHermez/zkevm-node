@@ -10,7 +10,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
@@ -27,10 +26,10 @@ type Aggregator struct {
 	cfg Config
 
 	State          state.State
-	EtherMan       etherman.EtherMan
+	EtherMan       etherman
 	ZkProverClient proverclient.ZKProverClient
 
-	ProfitabilityChecker TxProfitabilityChecker
+	ProfitabilityChecker aggregatorTxProfitabilityChecker
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -40,12 +39,12 @@ type Aggregator struct {
 func NewAggregator(
 	cfg Config,
 	state state.State,
-	ethMan etherman.EtherMan,
+	ethMan etherman,
 	zkProverClient proverclient.ZKProverClient,
 ) (Aggregator, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	var profitabilityChecker TxProfitabilityChecker
+	var profitabilityChecker aggregatorTxProfitabilityChecker
 	switch cfg.TxProfitabilityCheckerType {
 	case ProfitabilityBase:
 		profitabilityChecker = NewTxProfitabilityCheckerBase(state, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration, cfg.TxProfitabilityMinReward.Int)
@@ -302,7 +301,7 @@ func (a *Aggregator) Start() {
 			internalInputHash := inputHashMod.Bytes()
 
 			// InputHash must match
-			internalInputHashS := "0x" + hex.EncodeToString(internalInputHash)
+			internalInputHashS := fmt.Sprintf("0x%064s", hex.EncodeToString(internalInputHash))
 			publicInputsExtended := resGetProof.GetPublic()
 			if resGetProof.GetPublic().InputHash != internalInputHashS {
 				log.Error("inputHash received from the prover (", publicInputsExtended.InputHash,

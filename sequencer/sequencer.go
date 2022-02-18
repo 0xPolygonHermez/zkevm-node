@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
@@ -22,21 +20,21 @@ import (
 type Sequencer struct {
 	cfg Config
 
-	Pool    pool.Pool
+	Pool    txPool
 	State   state.State
-	EthMan  etherman.EtherMan
+	EthMan  etherman
 	Address common.Address
 	ChainID uint64
 
 	txselector.TxSelector
-	txprofitabilitychecker.TxProfitabilityChecker
+	TxProfitabilityChecker txProfitabilityChecker
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 // NewSequencer creates a new sequencer
-func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman.EtherMan) (Sequencer, error) {
+func NewSequencer(cfg Config, pool txPool, state state.State, ethMan etherman) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var txSelector txselector.TxSelector
@@ -47,7 +45,7 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 		txSelector = txselector.NewTxSelectorBase(cfg.Strategy.TxSelector)
 	}
 
-	var txProfitabilityChecker txprofitabilitychecker.TxProfitabilityChecker
+	var txProfitabilityChecker txProfitabilityChecker
 	switch cfg.Strategy.TxProfitabilityChecker.Type {
 	case txprofitabilitychecker.AcceptAllType:
 		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
@@ -68,6 +66,7 @@ func NewSequencer(cfg Config, pool pool.Pool, state state.State, ethMan etherman
 			return Sequencer{}, fmt.Errorf("failed to get chain id for the sequencer, err: %v", err)
 		}
 	}
+
 	s := Sequencer{
 		cfg:     cfg,
 		Pool:    pool,
@@ -148,7 +147,7 @@ func (s *Sequencer) tryProposeBatch() {
 
 	// select txs
 	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs, s.Address)
-	if err != nil && !strings.Contains(err.Error(), "selection took too much time") {
+	if err != nil {
 		log.Errorf("failed to select txs, err: %v", err)
 		return
 	}
@@ -184,7 +183,7 @@ func (s *Sequencer) tryProposeBatch() {
 	// NO: discard selection and wait for the new batch
 }
 
-func getChainID(ctx context.Context, st state.State, ethMan etherman.EtherMan, seqAddress common.Address) (uint64, error) {
+func getChainID(ctx context.Context, st state.State, ethMan etherman, seqAddress common.Address) (uint64, error) {
 	const intervalToCheckSequencerRegistrationInSeconds = 3
 	var (
 		seq *state.Sequencer

@@ -1,6 +1,8 @@
 package txselector
 
 import (
+	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -71,10 +73,14 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 		if isSCTx(t) {
 			continue
 		}
-		err := batchProcessor.ProcessTransaction(&t, sequencerAddress)
-		if err != nil {
+		result := batchProcessor.ProcessTransaction(&t, sequencerAddress)
+		if result.Failed() {
+			err := result.Err
 			if state.InvalidTxErrors[err.Error()] {
 				invalidTxsHashes = append(invalidTxsHashes, tx.Hash().Hex())
+			} else if errors.Is(err, state.ErrNonceIsBiggerThanAccountNonce) {
+				// this means, that this tx could be valid in the future, but can't be selected at this moment
+				continue
 			} else {
 				return nil, nil, nil, err
 			}
