@@ -477,7 +477,6 @@ func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, seque
 	root := b.stateRoot
 	gasLimit := contract.Gas
 
-	// Check nonce
 	senderNonce, err := b.State.tree.GetNonce(senderAddress, root)
 	if err != nil {
 		return &runtime.ExecutionResult{
@@ -486,17 +485,19 @@ func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, seque
 		}
 	}
 
-	if senderNonce.Uint64() > tx.Nonce() {
+	senderBalance, err := b.State.tree.GetBalance(senderAddress, root)
+	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft: 0,
-			Err:     ErrNonceIsSmallerThanAccountNonce,
+			Err:     err,
 		}
 	}
 
-	if senderNonce.Uint64() < tx.Nonce() {
+	err = b.checkTransaction(tx, senderNonce, senderBalance)
+	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft: 0,
-			Err:     ErrNonceIsBiggerThanAccountNonce,
+			Err:     err,
 		}
 	}
 
