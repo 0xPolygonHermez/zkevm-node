@@ -14,6 +14,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/gasprice"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -70,9 +71,10 @@ func start(ctx *cli.Context) error {
 	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
 	seq := createSequencer(c.Sequencer, etherman, pool, st)
 
-	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer)
+	gpe := createGasPriceEstimator(c.GasPriceEstimator, st, pool)
+	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
 	go seq.Start()
-	go runJSONRpcServer(*c, pool, st, seq.ChainID)
+	go runJSONRpcServer(*c, pool, st, seq.ChainID, gpe)
 
 	proverClient, conn := newProverClient(c.Prover)
 	go runAggregator(c.Aggregator, etherman, proverClient, st)
@@ -91,12 +93,12 @@ func runMigrations(c db.Config) {
 	}
 }
 
-func newEtherman(c config.Config) (*etherman.ClientEtherMan, error) {
+func newEtherman(c config.Config) (*etherman.Client, error) {
 	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.NetworkConfig.L1ChainID)
 	if err != nil {
 		return nil, err
 	}
-	etherman, err := etherman.NewEtherman(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.BridgeAddr, c.NetworkConfig.MaticAddr)
+	etherman, err := etherman.NewClient(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.BridgeAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.GlobalExitRootManAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -117,16 +119,17 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.
 	return proverClient, conn
 }
 
-func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.ClientEtherMan, st state.State, cfg synchronizer.Config) {
+func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
 	genesisBlock, err := etherman.EtherClient.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(networkConfig.GenBlockNumber))
 	if err != nil {
 		log.Fatal(err)
 	}
 	genesis := state.Genesis{
-		Block:    genesisBlock,
-		Balances: networkConfig.Balances,
+		Block:     genesisBlock,
+		Balances:  networkConfig.Balances,
+		L2ChainID: networkConfig.L2DefaultChainID,
 	}
-	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, genesis, cfg)
+	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, genesis, cfg, gpe)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -135,7 +138,7 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 	}
 }
 
-func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, chainID uint64) {
+func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, chainID uint64, gpe gasPriceEstimator) {
 	var err error
 	key, err := newKeyFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
 	if err != nil {
@@ -144,12 +147,12 @@ func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, 
 
 	seqAddress := key.Address
 
-	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st, chainID).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st, chainID, gpe).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func createSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool *pool.PostgresPool, state state.State) sequencer.Sequencer {
+func createSequencer(c sequencer.Config, etherman *etherman.Client, pool *pool.PostgresPool, state state.State) sequencer.Sequencer {
 	seq, err := sequencer.NewSequencer(c, pool, state, etherman)
 	if err != nil {
 		log.Fatal(err)
@@ -157,12 +160,31 @@ func createSequencer(c sequencer.Config, etherman *etherman.ClientEtherMan, pool
 	return seq
 }
 
-func runAggregator(c aggregator.Config, etherman *etherman.ClientEtherMan, proverclient proverclient.ZKProverClient, state state.State) {
+func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient proverclient.ZKProverClient, state state.State) {
 	agg, err := aggregator.NewAggregator(c, state, etherman, proverclient)
 	if err != nil {
 		log.Fatal(err)
 	}
 	agg.Start()
+}
+
+// gasPriceEstimator interface for gas price estimator.
+type gasPriceEstimator interface {
+	GetAvgGasPrice() (*big.Int, error)
+	UpdateGasPriceAvg(newValue *big.Int)
+}
+
+// createGasPriceEstimator init gas price gasPriceEstimator based on type in config.
+func createGasPriceEstimator(cfg gasprice.Config, state state.State, pool *pool.PostgresPool) gasPriceEstimator {
+	switch cfg.Type {
+	case gasprice.AllBatchesType:
+		return gasprice.NewEstimatorAllBatches()
+	case gasprice.LastNBatchesType:
+		return gasprice.NewEstimatorLastNBatches(cfg, state)
+	case gasprice.DefaultType:
+		return gasprice.NewDefaultEstimator(cfg, pool)
+	}
+	return nil
 }
 
 func waitSignal(conn *grpc.ClientConn) {

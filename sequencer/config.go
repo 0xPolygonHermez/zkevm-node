@@ -43,7 +43,4 @@ type Config struct {
 
 	// DefaultChainID is the common ChainID to all the sequencers
 	DefaultChainID uint64 `mapstructure:"DefaultChainID"`
-
-	// DefaultGasPriceWei is the default gas price for the sequencer
-	DefaultGasPriceWei uint64 `mapstructure:"DefaultGasPriceWei"`
 }

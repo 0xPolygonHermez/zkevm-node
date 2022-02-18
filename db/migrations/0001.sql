@@ -23,6 +23,8 @@ CREATE TABLE state.batch
     uncles               jsonb,
     raw_txs_data         BYTEA,
     matic_collateral     NUMERIC(78,0),
+    chain_id             BIGINT,
+    global_exit_root     BYTEA,
 
     received_at TIMESTAMP WITH TIME ZONE NOT NULL,
     consolidated_at TIMESTAMP WITH TIME ZONE
