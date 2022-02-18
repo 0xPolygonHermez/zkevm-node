@@ -730,7 +730,7 @@ func (etherMan *Client) GetLatestConsolidatedBatchNumber() (uint64, error) {
 	return uint64(latestBatch), err
 }
 
-// GetSequencerCollateralByBatchNumber function allows to retrieve the sequencer collateral from the smc
+// GetSequencerCollateralByBatchNumber function allows to retrieve the sequencer collateral from the smc.
 func (etherMan *Client) GetSequencerCollateralByBatchNumber(batchNumber uint64) (*big.Int, error) {
 	batchInfo, err := etherMan.PoE.SentBatches(&bind.CallOpts{Pending: false}, uint32(batchNumber))
 	return batchInfo.MaticCollateral, err
@@ -751,7 +751,7 @@ func (etherMan *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*t
 	return etherMan.EtherClient.HeaderByNumber(ctx, number)
 }
 
-// GetCurrentSequencerCollateral function allows to retrieve the current sequencer collateral from the smc
+// GetCurrentSequencerCollateral function allows to retrieve the current sequencer collateral from the smc.
 func (etherMan *Client) GetCurrentSequencerCollateral() (*big.Int, error) {
 	return etherMan.PoE.CalculateSequencerCollateral(&bind.CallOpts{Pending: false})
 }

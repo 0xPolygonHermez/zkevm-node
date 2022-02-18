@@ -4,7 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// TokenWrapped struct
+// TokenWrapped struct.
 type TokenWrapped struct {
 	OriginalNetwork      uint
 	OriginalTokenAddress common.Address

@@ -59,15 +59,15 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	}
 
 	if calculatedBridgeAddr != bridgeAddr {
-		return nil, nil, common.Address{}, fmt.Errorf("bridgeAddr (" + bridgeAddr.String() +
-			") is different from the expected contract address (" + calculatedBridgeAddr.String() + ")")
+		return nil, nil, common.Address{}, fmt.Errorf("bridgeAddr (%s) is different from the expected contract address (%s)",
+			bridgeAddr.String(), calculatedBridgeAddr.String())
 	}
 	if calculatedPoEAddr != poeAddr {
-		return nil, nil, common.Address{}, fmt.Errorf("poeAddr (" + poeAddr.String() +
-			") is different from the expected contract address (" + calculatedPoEAddr.String() + ")")
+		return nil, nil, common.Address{}, fmt.Errorf("poeAddr (%s) is different from the expected contract address (%s)",
+			poeAddr.String(), calculatedPoEAddr.String())
 	}
 
-	// Approve the bridge and poe to spend 10000 matic tokens
+	// Approve the bridge and poe to spend 10000 matic tokens.
 	approvedAmount, _ := new(big.Int).SetString("10000000000000000000000", 10) //nolint:gomnd
 	_, err = maticContract.Approve(auth, bridgeAddr, approvedAmount)
 	if err != nil {
