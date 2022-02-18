@@ -364,7 +364,7 @@ func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonc
 	b.State.tree.SetCurrentRoot(b.stateRoot)
 
 	// Check ChainID
-	if tx.ChainId().Uint64() != 0 && tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
+	if tx.ChainId() != nil && tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
 		log.Debugf("Batch ChainID: %v", b.SequencerChainID)
 		log.Debugf("Transaction ChainID: %v", tx.ChainId().Uint64())
 		return ErrInvalidChainID
