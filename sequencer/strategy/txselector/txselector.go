@@ -73,6 +73,9 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 			} else if errors.Is(err, state.ErrNonceIsBiggerThanAccountNonce) {
 				// this means, that this tx could be valid in the future, but can't be selected at this moment
 				continue
+			} else if errors.Is(err, state.ErrInvalidCumulativeGas) {
+				// this means, that cumulative gas from txs is exceeded max amount
+				return selectedTxs, selectedTxsHashes, invalidTxsHashes, nil
 			} else {
 				return nil, nil, nil, err
 			}
