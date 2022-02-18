@@ -99,11 +99,6 @@ func TestSCEvents(t *testing.T) {
 	data, err = hex.DecodeString(dHex)
 	require.NoError(t, err)
 
-	//send propose batch l1 tx
-	// matic, ok = matic.SetString(callDataTestCases[1].MaticAmount, 10)
-	// if !ok {
-	// 	log.Fatal("error decoding maticAmount")
-	// }
 	matic, err = etherman.GetCurrentSequencerCollateral()
 	require.NoError(t, err)
 	matic.Add(matic, big.NewInt(1000000000000000000))
@@ -363,11 +358,6 @@ func TestOrderReadEvent(t *testing.T) {
 	data, err = hex.DecodeString(dHex)
 	require.NoError(t, err)
 
-	//send propose batch l1 tx
-	// matic, ok = matic.SetString(callDataTestCases[1].MaticAmount, 10)
-	// if !ok {
-	// 	log.Fatal("error decoding maticAmount")
-	// }
 	matic, err = etherman.GetCurrentSequencerCollateral()
 	require.NoError(t, err)
 	matic.Add(matic, big.NewInt(1000000000000000000))
