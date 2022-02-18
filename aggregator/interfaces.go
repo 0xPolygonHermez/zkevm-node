@@ -13,7 +13,7 @@ import (
 // etherman contains the methods required to interact with
 // ethereum.
 type etherman interface {
-	ConsolidateBatch(batchNum *big.Int, proof *proverclient.Proof) (*types.Transaction, error)
+	ConsolidateBatch(batchNum *big.Int, proof *proverclient.ResGetProof) (*types.Transaction, error)
 }
 
 // aggregatorTxProfitabilityChecker interface for different profitability
