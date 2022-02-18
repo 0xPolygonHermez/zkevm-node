@@ -130,6 +130,8 @@ func setUpBatches() {
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
 		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 	batch2 = &state.Batch{
 		BlockNumber:        blockNumber1,
@@ -141,6 +143,8 @@ func setUpBatches() {
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
 		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 	batch3 = &state.Batch{
 		BlockNumber:        blockNumber2,
@@ -153,6 +157,8 @@ func setUpBatches() {
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
 		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 	batch4 = &state.Batch{
 		BlockNumber:        blockNumber2,
@@ -165,6 +171,8 @@ func setUpBatches() {
 		RawTxsData:         nil,
 		MaticCollateral:    maticCollateral,
 		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.batch")
@@ -292,6 +300,8 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		RawTxsData:      nil,
 		MaticCollateral: maticCollateral,
 		ReceivedAt:      time.Now(),
+		ChainID:         big.NewInt(1000),
+		GlobalExitRoot:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 
 	bp, err := testState.NewGenesisBatchProcessor(nil)
@@ -303,6 +313,8 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 	insertedBatch, err := testState.GetBatchByNumber(ctx, batchNumber)
 	assert.NoError(t, err)
 	assert.Equal(t, common.Hash{}, insertedBatch.ConsolidatedTxHash)
+	assert.Equal(t, big.NewInt(1000), insertedBatch.ChainID)
+	assert.NotEqual(t, common.Hash{}, insertedBatch.GlobalExitRoot)
 
 	err = testState.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash, time.Now(), batch.Aggregator)
 	assert.NoError(t, err)
@@ -520,6 +532,8 @@ func TestStateTransition(t *testing.T) {
 				Transactions:       txs,
 				RawTxsData:         nil,
 				MaticCollateral:    big.NewInt(1),
+				ChainID:            big.NewInt(1000),
+				GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 			}
 
 			// Create Batch Processor
@@ -742,6 +756,8 @@ func TestReceipts(t *testing.T) {
 				Transactions:       txs,
 				RawTxsData:         nil,
 				MaticCollateral:    big.NewInt(1),
+				ChainID:            big.NewInt(1000),
+				GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 			}
 
 			// Create Batch Processor
@@ -1019,6 +1035,8 @@ func TestSCExecution(t *testing.T) {
 		RawTxsData:         nil,
 		MaticCollateral:    big.NewInt(1),
 		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 
 	// Create Batch Processor

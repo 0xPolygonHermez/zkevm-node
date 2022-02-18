@@ -107,6 +107,8 @@ func setUpBatch() {
 		MaticCollateral:    maticCollateral,
 		ReceivedAt:         receivedAt,
 		ConsolidatedAt:     &consolidatedAt,
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.Hash{},
 	}
 	ctx := context.Background()
 	_, err = stateDB.Exec(ctx, "DELETE FROM state.batch")
@@ -175,6 +177,7 @@ func TestBase_IsProfitable(t *testing.T) {
 	ctx := context.Background()
 
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
+	ethMan.On("GetCurrentSequencerCollateral").Return(big.NewInt(1), nil)
 
 	isProfitable, reward, err := txProfitabilityChecker.IsProfitable(ctx, txs)
 	ethMan.AssertExpectations(t)

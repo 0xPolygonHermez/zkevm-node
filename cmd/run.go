@@ -98,7 +98,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	etherman, err := etherman.NewClient(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.BridgeAddr, c.NetworkConfig.MaticAddr)
+	etherman, err := etherman.NewClient(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.BridgeAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.GlobalExitRootManAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -125,8 +125,9 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 		log.Fatal(err)
 	}
 	genesis := state.Genesis{
-		Block:    genesisBlock,
-		Balances: networkConfig.Balances,
+		Block:     genesisBlock,
+		Balances:  networkConfig.Balances,
+		L2ChainID: networkConfig.L2DefaultChainID,
 	}
 	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, genesis, cfg, gpe)
 	if err != nil {

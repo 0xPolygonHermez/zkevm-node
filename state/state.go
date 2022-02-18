@@ -248,6 +248,8 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		ConsolidatedAt:     &receivedAt,
 		MaticCollateral:    big.NewInt(0),
 		ReceivedAt:         time.Now(),
+		ChainID:            new(big.Int).SetUint64(genesis.L2ChainID),
+		GlobalExitRoot:     common.Hash{},
 	}
 
 	// Store batch into db

@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/bridge"
+	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/globalexitrootmanager"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/hex"
@@ -27,13 +28,14 @@ import (
 )
 
 var (
-	newBatchEventSignatureHash             = crypto.Keccak256Hash([]byte("SendBatch(uint32,address)"))
+	newBatchEventSignatureHash             = crypto.Keccak256Hash([]byte("SendBatch(uint32,address,uint32,bytes32)"))
 	consolidateBatchSignatureHash          = crypto.Keccak256Hash([]byte("VerifyBatch(uint32,address)"))
 	newSequencerSignatureHash              = crypto.Keccak256Hash([]byte("RegisterSequencer(address,string,uint32)"))
 	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
-	depositEventSignatureHash              = crypto.Keccak256Hash([]byte("DepositEvent(address,uint256,uint32,address,uint32)"))
-	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
-	claimEventSignatureHash                = crypto.Keccak256Hash([]byte("WithdrawEvent(uint64,uint32,address,uint256,address)"))
+	depositEventSignatureHash              = crypto.Keccak256Hash([]byte("BridgeEvent(address,uint256,uint32,uint32,address,uint32)"))
+	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
+	claimEventSignatureHash                = crypto.Keccak256Hash([]byte("ClaimEvent(uint64,uint32,address,uint256,address)"))
+	newWrappedTokenEventSignatureHash      = crypto.Keccak256Hash([]byte("NewWrappedToken(uint32,address,address)"))
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
@@ -53,6 +55,8 @@ const (
 	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
 	//ClaimsOrder identifies a claim event
 	ClaimsOrder EventOrder = "Claims"
+	//TokensOrder identifies a TokenWrapped event
+	TokensOrder EventOrder = "Tokens"
 )
 
 type ethClienter interface {
@@ -61,20 +65,21 @@ type ethClienter interface {
 	ethereum.TransactionReader
 }
 
-// Client is a simple implementation of EtherMan
+// Client is a simple implementation of EtherMan.
 type Client struct {
-	EtherClient ethClienter
-	PoE         *proofofefficiency.Proofofefficiency
-	Bridge      *bridge.Bridge
-	Matic       *matic.Matic
-	SCAddresses []common.Address
+	EtherClient           ethClienter
+	PoE                   *proofofefficiency.Proofofefficiency
+	Bridge                *bridge.Bridge
+	Matic                 *matic.Matic
+	GlobalExitRootManager *globalexitrootmanager.Globalexitrootmanager
+	SCAddresses           []common.Address
 
 	auth *bind.TransactOpts
 }
 
-// NewClient creates a new Client
-func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address, maticAddr common.Address) (*Client, error) {
-	// TODO: PoEAddr can be got from bridge smc. Son only bridge smc is required
+// NewClient creates a new etherman.
+func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, bridgeAddr common.Address, maticAddr common.Address, globalExitRootManAddr common.Address) (*Client, error) {
+	// TODO: PoEAddr can be got from bridge smc. So only bridge smc is required
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -90,17 +95,21 @@ func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, brid
 	if err != nil {
 		return nil, err
 	}
+	globalExitRoot, err := globalexitrootmanager.NewGlobalexitrootmanager(globalExitRootManAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
 	matic, err := matic.NewMatic(maticAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, PoEAddr, bridgeAddr)
+	scAddresses = append(scAddresses, PoEAddr, bridgeAddr, globalExitRootManAddr)
 
-	return &Client{EtherClient: ethClient, PoE: poe, Bridge: bridge, Matic: matic, SCAddresses: scAddresses, auth: auth}, nil
+	return &Client{EtherClient: ethClient, PoE: poe, Bridge: bridge, Matic: matic, GlobalExitRootManager: globalExitRoot, SCAddresses: scAddresses, auth: auth}, nil
 }
 
-// EthBlockByNumber function retrieves the ethereum block information by ethereum block number
+// EthBlockByNumber function retrieves the ethereum block information by ethereum block number.
 func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
 	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
 	if err != nil {
@@ -112,7 +121,7 @@ func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64
 	return block, nil
 }
 
-// GetRollupInfoByBlock function retrieves the Rollup information that are included in a specific ethereum block
+// GetRollupInfoByBlock function retrieves the Rollup information that are included in a specific ethereum block.
 func (etherMan *Client) GetRollupInfoByBlock(ctx context.Context, blockNumber uint64, blockHash *common.Hash) ([]state.Block, map[common.Hash][]Order, error) {
 	// First filter query
 	var blockNumBigInt *big.Int
@@ -133,7 +142,7 @@ func (etherMan *Client) GetRollupInfoByBlock(ctx context.Context, blockNumber ui
 }
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
-// from block x to block y
+// from block x to block y.
 func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]Order, error) {
 	// First filter query
 	query := ethereum.FilterQuery{
@@ -150,7 +159,7 @@ func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock
 	return blocks, order, nil
 }
 
-// SendBatch function allows the sequencer send a new batch proposal to the rollup
+// SendBatch function allows the sequencer send a new batch proposal to the rollup.
 func (etherMan *Client) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	return etherMan.sendBatch(ctx, etherMan.auth, txs, maticAmount)
 }
@@ -241,7 +250,7 @@ func (etherMan *Client) ConsolidateBatch(batchNumber *big.Int, proof *proverclie
 	return tx, nil
 }
 
-// RegisterSequencer function allows to register a new sequencer in the rollup
+// RegisterSequencer function allows to register a new sequencer in the rollup.
 func (etherMan *Client) RegisterSequencer(url string) (*types.Transaction, error) {
 	tx, err := etherMan.PoE.RegisterSequencer(etherMan.auth, url)
 	if err != nil {
@@ -250,7 +259,7 @@ func (etherMan *Client) RegisterSequencer(url string) (*types.Transaction, error
 	return tx, nil
 }
 
-// Order contains the event order to let the synchronizer store the information following this order
+// Order contains the event order to let the synchronizer store the information following this order.
 type Order struct {
 	Name EventOrder
 	Pos  int
@@ -267,7 +276,7 @@ func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQue
 	for _, vLog := range logs {
 		block, err := etherMan.processEvent(ctx, vLog)
 		if err != nil {
-			log.Warnf("error processing event. Retrying... Error: %w. vLog: %+v", err, vLog)
+			log.Warnf("error processing event. Retrying... Error: %s. vLog: %+v", err.Error(), vLog)
 			break
 		}
 		if block == nil {
@@ -314,6 +323,14 @@ func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQue
 				}
 				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
 			}
+			if len(block.Tokens) != 0 {
+				b.Tokens = append(blocks[block.BlockHash].Tokens, block.Tokens...)
+				or := Order{
+					Name: TokensOrder,
+					Pos:  len(b.Tokens) - 1,
+				}
+				blockOrder[b.BlockHash] = append(blockOrder[b.BlockHash], or)
+			}
 			blocks[block.BlockHash] = b
 		} else {
 			if len(block.Batches) != 0 {
@@ -351,6 +368,13 @@ func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQue
 				}
 				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
 			}
+			if len(block.Tokens) != 0 {
+				or := Order{
+					Name: TokensOrder,
+					Pos:  len(block.Tokens) - 1,
+				}
+				blockOrder[block.BlockHash] = append(blockOrder[block.BlockHash], or)
+			}
 			blocks[block.BlockHash] = *block
 			blockKeys = append(blockKeys, block.BlockHash)
 		}
@@ -365,17 +389,23 @@ func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQue
 func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*state.Block, error) {
 	switch vLog.Topics[0] {
 	case newBatchEventSignatureHash:
+		batchEvent, err := etherMan.PoE.ParseSendBatch(vLog)
+		if err != nil {
+			return nil, err
+		}
 		// Indexed parameters using topics
 		var head types.Header
 		head.TxHash = vLog.TxHash
 		head.Difficulty = big.NewInt(0)
-		head.Number = new(big.Int).SetBytes(vLog.Topics[1][:])
+		head.Number = new(big.Int).SetUint64(uint64(batchEvent.NumBatch))
 
 		var batch state.Batch
-		batch.Sequencer = common.BytesToAddress(vLog.Topics[2].Bytes())
+		batch.Sequencer = batchEvent.Sequencer
+		batch.ChainID = new(big.Int).SetUint64(uint64(batchEvent.BatchChainID))
+		batch.GlobalExitRoot = batchEvent.LastGlobalExitRoot
 		batch.Header = &head
 		batch.BlockNumber = vLog.BlockNumber
-		maticCollateral, err := etherMan.GetSequencerCollateral(batch.Number().Uint64())
+		maticCollateral, err := etherMan.GetSequencerCollateralByBatchNumber(batch.Number().Uint64())
 		if err != nil {
 			return nil, fmt.Errorf("error getting matic collateral for batch: %d. BlockNumber: %d. Error: %w", batch.Number().Uint64(), vLog.BlockNumber, err)
 		}
@@ -404,6 +434,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 		block.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		block.ParentHash = fullBlock.ParentHash()
+		block.ReceivedAt = fullBlock.ReceivedAt
 		block.Batches = append(block.Batches, batch)
 		return &block, nil
 	case consolidateBatchSignatureHash:
@@ -425,10 +456,10 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 		block.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		block.ParentHash = fullBlock.ParentHash()
+		block.ReceivedAt = fullBlock.ReceivedAt
 		block.Batches = append(block.Batches, batch)
 
 		log.Debug("Consolidated tx hash: ", vLog.TxHash, batch.ConsolidatedTxHash)
-
 		return &block, nil
 	case newSequencerSignatureHash:
 		seq, err := etherMan.PoE.ParseRegisterSequencer(vLog)
@@ -447,6 +478,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
 		}
 		block.ParentHash = fullBlock.ParentHash()
+		block.ReceivedAt = fullBlock.ReceivedAt
 		sequencer.ChainID = new(big.Int).SetUint64(uint64(seq.ChainID))
 		block.NewSequencers = append(block.NewSequencers, sequencer)
 		return &block, nil
@@ -463,7 +495,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 		}
 		return nil, nil
 	case depositEventSignatureHash:
-		deposit, err := etherMan.Bridge.ParseDepositEvent(vLog)
+		deposit, err := etherMan.Bridge.ParseBridgeEvent(vLog)
 		if err != nil {
 			return nil, err
 		}
@@ -473,9 +505,11 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 		)
 		depositAux.Amount = deposit.Amount
 		depositAux.BlockNumber = vLog.BlockNumber
+		depositAux.OriginNetwork = uint(deposit.OriginNetwork)
 		depositAux.DestinationAddress = deposit.DestinationAddress
 		depositAux.DestinationNetwork = uint(deposit.DestinationNetwork)
 		depositAux.TokenAddres = deposit.TokenAddres
+		depositAux.DepositCount = uint(deposit.DepositCount)
 		block.BlockHash = vLog.BlockHash
 		block.BlockNumber = vLog.BlockNumber
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
@@ -483,10 +517,11 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
 		}
 		block.ParentHash = fullBlock.ParentHash()
+		block.ReceivedAt = fullBlock.ReceivedAt
 		block.Deposits = append(block.Deposits, depositAux)
 		return &block, nil
 	case updateGlobalExitRootEventSignatureHash:
-		globalExitRoot, err := etherMan.Bridge.ParseUpdateGlobalExitRoot(vLog)
+		globalExitRoot, err := etherMan.GlobalExitRootManager.ParseUpdateGlobalExitRoot(vLog)
 		if err != nil {
 			return nil, err
 		}
@@ -496,6 +531,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 		)
 		gExitRoot.MainnetExitRoot = globalExitRoot.MainnetExitRoot
 		gExitRoot.RollupExitRoot = globalExitRoot.RollupExitRoot
+		gExitRoot.GlobalExitRootNum = globalExitRoot.GlobalExitRootNum
 		block.BlockHash = vLog.BlockHash
 		block.BlockNumber = vLog.BlockNumber
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
@@ -503,10 +539,11 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
 		}
 		block.ParentHash = fullBlock.ParentHash()
+		block.ReceivedAt = fullBlock.ReceivedAt
 		block.GlobalExitRoots = append(block.GlobalExitRoots, gExitRoot)
 		return &block, nil
 	case claimEventSignatureHash:
-		claim, err := etherMan.Bridge.ParseWithdrawEvent(vLog)
+		claim, err := etherMan.Bridge.ParseClaimEvent(vLog)
 		if err != nil {
 			return nil, err
 		}
@@ -527,10 +564,33 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
 		}
 		block.ParentHash = fullBlock.ParentHash()
+		block.ReceivedAt = fullBlock.ReceivedAt
 		block.Claims = append(block.Claims, claimAux)
 		return &block, nil
+	case newWrappedTokenEventSignatureHash:
+		tokenWrapped, err := etherMan.Bridge.ParseNewWrappedToken(vLog)
+		if err != nil {
+			return nil, err
+		}
+		var (
+			block    state.Block
+			newToken state.TokenWrapped
+		)
+		newToken.OriginalNetwork = uint(tokenWrapped.OriginalNetwork)
+		newToken.OriginalTokenAddress = tokenWrapped.OriginalTokenAddress
+		newToken.WrappedTokenAddress = tokenWrapped.WrappedTokenAddress
+		block.BlockHash = vLog.BlockHash
+		block.BlockNumber = vLog.BlockNumber
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
+		}
+		block.ParentHash = fullBlock.ParentHash()
+		block.ReceivedAt = fullBlock.ReceivedAt
+		block.Tokens = append(block.Tokens, newToken)
+		return &block, nil
 	}
-	log.Debug("Event not registered: ", vLog)
+	log.Warn("Event not registered: ", vLog)
 	return nil, nil
 }
 
@@ -670,8 +730,8 @@ func (etherMan *Client) GetLatestConsolidatedBatchNumber() (uint64, error) {
 	return uint64(latestBatch), err
 }
 
-// GetSequencerCollateral function allows to retrieve the sequencer collateral from the smc
-func (etherMan *Client) GetSequencerCollateral(batchNumber uint64) (*big.Int, error) {
+// GetSequencerCollateralByBatchNumber function allows to retrieve the sequencer collateral from the smc.
+func (etherMan *Client) GetSequencerCollateralByBatchNumber(batchNumber uint64) (*big.Int, error) {
 	batchInfo, err := etherMan.PoE.SentBatches(&bind.CallOpts{Pending: false}, uint32(batchNumber))
 	return batchInfo.MaticCollateral, err
 }
@@ -689,4 +749,9 @@ func (etherMan *Client) ApproveMatic(maticAmount *big.Int, to common.Address) (*
 // nil, the latest known header is returned.
 func (etherMan *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
 	return etherMan.EtherClient.HeaderByNumber(ctx, number)
+}
+
+// GetCurrentSequencerCollateral function allows to retrieve the current sequencer collateral from the smc.
+func (etherMan *Client) GetCurrentSequencerCollateral() (*big.Int, error) {
+	return etherMan.PoE.CalculateSequencerCollateral(&bind.CallOpts{Pending: false})
 }
