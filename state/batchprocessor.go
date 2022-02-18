@@ -209,12 +209,9 @@ func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transactio
 	receipt.TxHash = tx.Hash()
 	receipt.TransactionIndex = index
 	receipt.ContractAddress = result.CreateAddress
+	receipt.To = receiverAddress
 	if senderAddress != nil {
 		receipt.From = *senderAddress
-	}
-
-	if receiverAddress != nil && receiverAddress.Hex() != ZeroAddress.Hex() {
-		receipt.To = receiverAddress
 	}
 
 	return receipt
