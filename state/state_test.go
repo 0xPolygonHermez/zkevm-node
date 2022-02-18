@@ -1178,6 +1178,8 @@ func TestSCCall(t *testing.T) {
 		RawTxsData:         nil,
 		MaticCollateral:    big.NewInt(1),
 		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 
 	// Create Batch Processor
