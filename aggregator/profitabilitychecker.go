@@ -19,11 +19,6 @@ const (
 	ProfitabilityAcceptAll = "acceptall"
 )
 
-// TxProfitabilityChecker interface for different profitability checking algorithms
-type TxProfitabilityChecker interface {
-	IsProfitable(ctx context.Context, maticCollateral *big.Int) (bool, error)
-}
-
 // TxProfitabilityCheckerBase checks matic collateral with min reward
 type TxProfitabilityCheckerBase struct {
 	State                             state.State
@@ -32,7 +27,7 @@ type TxProfitabilityCheckerBase struct {
 }
 
 // NewTxProfitabilityCheckerBase init base tx profitability checker
-func NewTxProfitabilityCheckerBase(state state.State, interval time.Duration, minReward *big.Int) TxProfitabilityChecker {
+func NewTxProfitabilityCheckerBase(state state.State, interval time.Duration, minReward *big.Int) *TxProfitabilityCheckerBase {
 	return &TxProfitabilityCheckerBase{
 		State:                             state,
 		IntervalAfterWhichBatchSentAnyway: interval,
@@ -62,7 +57,7 @@ type TxProfitabilityCheckerAcceptAll struct {
 }
 
 // NewTxProfitabilityCheckerAcceptAll init tx profitability checker that accept all txs
-func NewTxProfitabilityCheckerAcceptAll(state state.State, interval time.Duration) TxProfitabilityChecker {
+func NewTxProfitabilityCheckerAcceptAll(state state.State, interval time.Duration) *TxProfitabilityCheckerAcceptAll {
 	return &TxProfitabilityCheckerAcceptAll{
 		State:                             state,
 		IntervalAfterWhichBatchSentAnyway: interval,

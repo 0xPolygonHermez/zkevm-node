@@ -19,12 +19,13 @@ import (
 )
 
 const (
-	defaultArity               = 4
-	defaultChainID             = 1000
-	defaultSequencerAddress    = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
-	defaultSequencerPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
-	defaultSequencerChainID    = 400
-	defaultSequencerBalance    = 400000
+	defaultArity                = 4
+	defaultChainID              = 1000
+	defaultSequencerAddress     = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
+	defaultSequencerPrivateKey  = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	defaultSequencerChainID     = 400
+	defaultSequencerBalance     = 400000
+	defaultMaxCumulativeGasUsed = 800000
 )
 
 // TestJSONRPC tests JSON RPC methods on a running environment.
@@ -36,8 +37,11 @@ func TestJSONRPC(t *testing.T) {
 	ctx := context.Background()
 
 	opsCfg := &operations.Config{
-		Arity:          defaultArity,
-		DefaultChainID: defaultChainID,
+		Arity: defaultArity,
+		State: &state.Config{
+			DefaultChainID:       defaultChainID,
+			MaxCumulativeGasUsed: defaultMaxCumulativeGasUsed,
+		},
 		Sequencer: &operations.SequencerConfig{
 			Address:    defaultSequencerAddress,
 			PrivateKey: defaultSequencerPrivateKey,
@@ -179,6 +183,8 @@ func deployContracts(opsman *operations.Manager) error {
 		RawTxsData:         nil,
 		MaticCollateral:    big.NewInt(1),
 		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 
 	st := opsman.State()

@@ -21,17 +21,24 @@ type Synchronizer interface {
 
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
-	etherMan       etherman.EtherMan
+	etherMan       localEtherman
 	state          state.State
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
-	genBalances    state.Genesis
+	genesis        state.Genesis
 	cfg            Config
+	gpe            gasPriceEstimator
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
-func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, genBalances state.Genesis, cfg Config) (Synchronizer, error) {
+func NewSynchronizer(
+	ethMan localEtherman,
+	st state.State,
+	genBlockNumber uint64,
+	genesis state.Genesis,
+	cfg Config,
+	gpe gasPriceEstimator) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:          st,
@@ -39,8 +46,9 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber ui
 		ctx:            ctx,
 		cancelCtx:      cancel,
 		genBlockNumber: genBlockNumber,
-		genBalances:    genBalances,
+		genesis:        genesis,
 		cfg:            cfg,
+		gpe:            gpe,
 	}, nil
 }
 
@@ -59,7 +67,7 @@ func (s *ClientSynchronizer) Sync() error {
 					BlockNumber: s.genBlockNumber,
 				}
 				// Set genesis
-				err := s.state.SetGenesis(s.ctx, s.genBalances)
+				err := s.state.SetGenesis(s.ctx, s.genesis)
 				if err != nil {
 					log.Fatal("error setting genesis: ", err)
 				}
@@ -214,7 +222,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 						log.Fatal("failed to consolidate batch locally, batch number: %d, err: %v", batch.Number().Uint64(), err)
 					}
 				} else {
-					// Get lastest synced batch number
+					// Get latest synced batch number
 					latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
 					if err != nil {
 						err = s.state.Rollback(ctx)
@@ -242,6 +250,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 						}
 						log.Fatal("error processing batch. BatchNumber: ", batch.Number().Uint64(), ". Error: ", err)
 					}
+					s.gpe.UpdateGasPriceAvg(new(big.Int).SetUint64(batch.Header.GasUsed))
 				}
 			} else if element.Name == etherman.NewSequencersOrder {
 				// Add new sequencers

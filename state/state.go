@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
-	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -86,12 +85,12 @@ var (
 // BasicState is a implementation of the state
 type BasicState struct {
 	cfg  Config
-	tree tree.ReadWriter
+	tree merkletree
 	Storage
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage Storage, tree tree.ReadWriter) State {
+func NewState(cfg Config, storage Storage, tree merkletree) State {
 	return &BasicState{cfg: cfg, tree: tree, Storage: storage}
 }
 
@@ -117,7 +116,7 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		return nil, err
 	}
 
-	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch}
+	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed}
 	batchProcessor.setRuntime(evm.NewEVM())
 	blockNumber, err := s.GetLastBlockNumber(context.Background())
 	if err != nil {
@@ -249,6 +248,8 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		ConsolidatedAt:     &receivedAt,
 		MaticCollateral:    big.NewInt(0),
 		ReceivedAt:         time.Now(),
+		ChainID:            new(big.Int).SetUint64(genesis.L2ChainID),
+		GlobalExitRoot:     common.Hash{},
 	}
 
 	// Store batch into db

@@ -41,15 +41,16 @@ const (
 	l1NetworkURL = "http://localhost:8545"
 	l2NetworkURL = "http://localhost:8123"
 
-	poeAddress        = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
-	bridgeAddress     = "0xffffffffffffffffffffffffffffffffffffffff"
-	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
+	poeAddress            = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+	bridgeAddress         = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+	maticTokenAddress     = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
+	globalExitRootAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
 
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
 	defaultInterval        = 2 * time.Second
-	defaultDeadline        = 25 * time.Second
+	defaultDeadline        = 30 * time.Second
 	defaultTxMinedDeadline = 5 * time.Second
 
 	makeCmd = "make"
@@ -66,9 +67,9 @@ type SequencerConfig struct {
 
 // Config is the main Manager configuration.
 type Config struct {
-	Arity          uint8
-	DefaultChainID uint64
-	Sequencer      *SequencerConfig
+	Arity     uint8
+	State     *state.Config
+	Sequencer *SequencerConfig
 }
 
 // Manager controls operations and has knowledge about how to set up and tear
@@ -93,7 +94,7 @@ func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 		cfg: cfg,
 		ctx: ctx,
 	}
-	st, err := initState(cfg.Arity, cfg.DefaultChainID)
+	st, err := initState(cfg.Arity, cfg.State.DefaultChainID, cfg.State.MaxCumulativeGasUsed)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +267,7 @@ func Teardown() error {
 	return nil
 }
 
-func initState(arity uint8, defaultChainID uint64) (state.State, error) {
+func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) (state.State, error) {
 	sqlDB, err := db.NewSQLDB(dbConfig)
 	if err != nil {
 		return nil, err
@@ -278,7 +279,8 @@ func initState(arity uint8, defaultChainID uint64) (state.State, error) {
 	tr := tree.NewStateTree(mt, scCodeStore, []byte{})
 
 	stateCfg := state.Config{
-		DefaultChainID: defaultChainID,
+		DefaultChainID:       defaultChainID,
+		MaxCumulativeGasUsed: maxCumulativeGasUsed,
 	}
 
 	stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
@@ -415,7 +417,7 @@ func (m *Manager) setUpSequencer() error {
 	ethermanConfig := etherman.Config{
 		URL: l1NetworkURL,
 	}
-	etherman, err := etherman.NewEtherman(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(bridgeAddress), common.HexToAddress(maticTokenAddress))
+	etherman, err := etherman.NewClient(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(bridgeAddress), common.HexToAddress(maticTokenAddress), common.HexToAddress(globalExitRootAddress))
 	if err != nil {
 		return err
 	}

@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	flagYes        = "yes"
 	flagCfg        = "cfg"
 	flagNetwork    = "network"
 	flagNetworkCfg = "network-cfg"
@@ -44,9 +45,14 @@ func main() {
 			Required: false,
 		},
 		&cli.StringFlag{
-			Name:     flagNetworkCfg,
-			Aliases:  []string{"nc"},
-			Usage:    "Custom network configuration `FILE` when using --network custom parameter",
+			Name:    flagNetworkCfg,
+			Aliases: []string{"nc"},
+			Usage:   "Custom network configuration `FILE` when using --network custom parameter",
+		},
+		&cli.BoolFlag{
+			Name:     flagYes,
+			Aliases:  []string{"y"},
+			Usage:    "Automatically accepts any confirmation to execute the command",
 			Required: false,
 		},
 	}

@@ -1,7 +1,14 @@
 package state
 
+import (
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
+)
+
 // GlobalExitRoot struct
 type GlobalExitRoot struct {
-	MainnetExitRoot [32]byte
-	RollupExitRoot  [32]byte
+	GlobalExitRootNum *big.Int
+	MainnetExitRoot   common.Hash
+	RollupExitRoot    common.Hash
 }

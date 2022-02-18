@@ -31,15 +31,17 @@ func approveTokens(ctx *cli.Context) error {
 		toAddress = c.NetworkConfig.BridgeAddr
 	}
 
-	fmt.Print("*WARNING* Are you sure you want to approve ", amount,
-		" tokens to be spent by the smc <Name: "+toName+". Address: "+toAddress.String()+">? [y/N]: ")
-	var input string
-	if _, err := fmt.Scanln(&input); err != nil {
-		return err
-	}
-	input = strings.ToLower(input)
-	if !(input == "y" || input == "yes") {
-		return nil
+	if !ctx.Bool(flagYes) {
+		fmt.Print("*WARNING* Are you sure you want to approve ", amount,
+			" tokens to be spent by the smc <Name: "+toName+". Address: "+toAddress.String()+">? [y/N]: ")
+		var input string
+		if _, err := fmt.Scanln(&input); err != nil {
+			return err
+		}
+		input = strings.ToLower(input)
+		if !(input == "y" || input == "yes") {
+			return nil
+		}
 	}
 
 	setupLog(c.Log)

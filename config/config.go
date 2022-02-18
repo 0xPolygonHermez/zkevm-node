@@ -9,6 +9,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/aggregator"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/gasprice"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
@@ -28,16 +29,17 @@ const (
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	Log           log.Config
-	Database      db.Config
-	Etherman      etherman.Config
-	RPC           jsonrpc.Config
-	Synchronizer  synchronizer.Config
-	Sequencer     sequencer.Config
-	Aggregator    aggregator.Config
-	Prover        proverclient.Config
-	NetworkConfig NetworkConfig
-	MTService     tree.Config
+	Log               log.Config
+	Database          db.Config
+	Etherman          etherman.Config
+	RPC               jsonrpc.Config
+	Synchronizer      synchronizer.Config
+	Sequencer         sequencer.Config
+	Aggregator        aggregator.Config
+	Prover            proverclient.Config
+	NetworkConfig     NetworkConfig
+	GasPriceEstimator gasprice.Config
+	MTService         tree.Config
 }
 
 // Load loads the configuration
@@ -55,13 +57,14 @@ func Load(ctx *cli.Context) (*Config, error) {
 	}
 	configFilePath := ctx.String(flagCfg)
 	if configFilePath != "" {
-		path, fullFile := filepath.Split(configFilePath)
+		dirName, fileName := filepath.Split(configFilePath)
 
-		file := strings.Split(fullFile, ".")
+		fileExtension := strings.TrimPrefix(filepath.Ext(fileName), ".")
+		fileNameWithoutExtension := strings.TrimSuffix(fileName, "."+fileExtension)
 
-		viper.AddConfigPath(path)
-		viper.SetConfigName(file[0])
-		viper.SetConfigType(file[1])
+		viper.AddConfigPath(dirName)
+		viper.SetConfigName(fileNameWithoutExtension)
+		viper.SetConfigType(fileExtension)
 	}
 	viper.AutomaticEnv()
 	replacer := strings.NewReplacer(".", "_")

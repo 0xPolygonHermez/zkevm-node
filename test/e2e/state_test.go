@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/test/operations"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/stretchr/testify/require"
@@ -33,8 +34,12 @@ func TestStateTransition(t *testing.T) {
 			ctx := context.Background()
 
 			opsCfg := &operations.Config{
-				Arity:          testCase.Arity,
-				DefaultChainID: testCase.DefaultChainID,
+				Arity: testCase.Arity,
+				State: &state.Config{
+					DefaultChainID:       testCase.DefaultChainID,
+					MaxCumulativeGasUsed: 800000,
+				},
+
 				Sequencer: &operations.SequencerConfig{
 					Address:    testCase.SequencerAddress,
 					PrivateKey: testCase.SequencerPrivateKey,
