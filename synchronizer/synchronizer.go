@@ -21,22 +21,22 @@ type Synchronizer interface {
 
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
-	etherMan       etherman.EtherMan
+	etherMan       localEtherman
 	state          state.State
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
-	genBalances    state.Genesis
+	genesis        state.Genesis
 	cfg            Config
 	gpe            gasPriceEstimator
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(
-	ethMan etherman.EtherMan,
+	ethMan localEtherman,
 	st state.State,
 	genBlockNumber uint64,
-	genBalances state.Genesis,
+	genesis state.Genesis,
 	cfg Config,
 	gpe gasPriceEstimator) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -46,7 +46,7 @@ func NewSynchronizer(
 		ctx:            ctx,
 		cancelCtx:      cancel,
 		genBlockNumber: genBlockNumber,
-		genBalances:    genBalances,
+		genesis:        genesis,
 		cfg:            cfg,
 		gpe:            gpe,
 	}, nil
@@ -67,7 +67,7 @@ func (s *ClientSynchronizer) Sync() error {
 					BlockNumber: s.genBlockNumber,
 				}
 				// Set genesis
-				err := s.state.SetGenesis(s.ctx, s.genBalances)
+				err := s.state.SetGenesis(s.ctx, s.genesis)
 				if err != nil {
 					log.Fatal("error setting genesis: ", err)
 				}

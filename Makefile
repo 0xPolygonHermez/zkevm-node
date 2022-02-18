@@ -148,7 +148,7 @@ install-git-hooks: ## Moves hook files to the .git/hooks directory
 
 .PHONY: generate-mocks
 generate-mocks: ## Generates mocks for the tests, using mockery tool
-	mockery --name=EtherMan --dir=etherman --output=etherman/mocks --filename=etherman.go
+	mockery --name=txprofitabilitycheckerEtherman --dir=sequencer/strategy/txprofitabilitychecker --output=sequencer/strategy/txprofitabilitychecker --outpkg=txprofitabilitychecker_test --filename=etherman-mock_test.go
 	mockery --name=BatchProcessor --dir=state --output=state/mocks --filename=batchprocessor.go
 
 .PHONY: generate-code-from-proto
