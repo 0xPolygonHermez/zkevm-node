@@ -356,19 +356,19 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) error {
 		return err
 	}
 
-	return b.checkTransaction(tx, senderNonce, balance)
-}
-
-func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
-	// reset MT currentRoot in case it was modified by failed transaction
-	b.State.tree.SetCurrentRoot(b.stateRoot)
-
 	// Check ChainID
 	if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
 		log.Debugf("Batch ChainID: %v", b.SequencerChainID)
 		log.Debugf("Transaction ChainID: %v", tx.ChainId().Uint64())
 		return ErrInvalidChainID
 	}
+
+	return b.checkTransaction(tx, senderNonce, balance)
+}
+
+func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
+	// reset MT currentRoot in case it was modified by failed transaction
+	b.State.tree.SetCurrentRoot(b.stateRoot)
 
 	// Check nonce
 	if senderNonce.Uint64() > tx.Nonce() {
