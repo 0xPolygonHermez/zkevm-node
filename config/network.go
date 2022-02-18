@@ -28,14 +28,16 @@ type NetworkConfig struct {
 }
 
 type networkConfigFromJSON struct {
-	Arity            uint8             `json:"arity"`
-	GenBlockNumber   uint64            `json:"genBlockNumber"`
-	PoEAddr          string            `json:"poeAddr"`
-	BridgeAddr       string            `json:"bridgeAddr"`
-	MaticAddr        string            `json:"maticAddr"`
-	L1ChainID        uint64            `json:"l1ChainID"`
-	L2DefaultChainID uint64            `json:"l2DefaultChainID"`
-	Balances         map[string]string `json:"balances"`
+	Arity                 uint8             `json:"arity"`
+	GenBlockNumber        uint64            `json:"genBlockNumber"`
+	PoEAddr               string            `json:"poeAddr"`
+	BridgeAddr            string            `json:"bridgeAddr"`
+	MaticAddr             string            `json:"maticAddr"`
+	GlobalExitRootManAddr string            `json:"globalExitRootManAddr"`
+	L1ChainID             uint64            `json:"l1ChainID"`
+	L2DefaultChainID      uint64            `json:"l2DefaultChainID"`
+	Balances              map[string]string `json:"balances"`
+	MaxCumulativeGasUsed  uint64            `json:"maxCumulativeGasUsed"`
 }
 
 const (
@@ -228,6 +230,8 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfg.L1ChainID = cfgJSON.L1ChainID
 	cfg.L2DefaultChainID = cfgJSON.L2DefaultChainID
 	cfg.Balances = make(map[common.Address]*big.Int, len(cfgJSON.Balances))
+	cfg.GlobalExitRootManAddr = common.HexToAddress(cfgJSON.GlobalExitRootManAddr)
+	cfg.MaxCumulativeGasUsed = cfgJSON.MaxCumulativeGasUsed
 
 	for k, v := range cfgJSON.Balances {
 		addr := common.HexToAddress(k)
