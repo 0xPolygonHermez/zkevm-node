@@ -625,7 +625,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 	var pos int64
 	var txs []*types.Transaction
 	const (
-		headerByteLength = 2
+		headerByteLength = 1
 		sLength          = 32
 		rLength          = 32
 		vLength          = 1
@@ -644,22 +644,15 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 			return []*types.Transaction{}, []byte{}, err
 		}
 		// First byte is the length and must be ignored
-		len := num - c0 - 1
-
+		len := num - c0
 		if len > shortRlp { // If rlp is bigger than length 55
-			// numH is the length of the bytes that give the length of the rlp
-			numH, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
-			if err != nil {
-				log.Debug("error parsing length of the bytes: ", err)
-				return []*types.Transaction{}, []byte{}, err
-			}
 			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
-			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1:pos+1+numH-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
+			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1:pos+1+num-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
 			if err != nil {
 				log.Debug("error parsing length: ", err)
 				return []*types.Transaction{}, []byte{}, err
 			}
-			len = n + 1 // +1 is the header. For example 0xf7
+			len = n + num - f7 // num - f7 is the header. For example 0xf7
 		}
 
 		fullDataTx := txsData[pos : pos+len+rLength+sLength+vLength+headerByteLength]
@@ -674,7 +667,7 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 		var tx types.LegacyTx
 		err = rlp.DecodeBytes(txInfo, &tx)
 		if err != nil {
-			log.Debug("error decoding tx bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo))
+			log.Debug("error decoding tx bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
 			return []*types.Transaction{}, []byte{}, err
 		}
 
