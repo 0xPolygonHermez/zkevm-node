@@ -72,7 +72,7 @@ func TestJSONRPC(t *testing.T) {
 	}{
 		{
 			description:    "eth_call, calling double(int256) with data 5",
-			input:          `{"jsonrpc":"2.0", "method":"eth_call", "params":[{"from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D", "to": "0xB08EA26d3D53EC62fD4BD76B5E41844c7041eB6B", "data": "0x6ffa1caa0000000000000000000000000000000000000000000000000000000000000005"}], "id":1}`,
+			input:          `{"jsonrpc":"2.0", "method":"eth_call", "params":[{"from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D", "to": "0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98", "data": "0x6ffa1caa0000000000000000000000000000000000000000000000000000000000000005"}], "id":1}`,
 			expectedOutput: `{"jsonrpc":"2.0","id":1,"result":"0x000000000000000000000000000000000000000000000000000000000000000a"}`,
 		},
 	}
@@ -183,7 +183,7 @@ func deployContracts(opsman *operations.Manager) error {
 		RawTxsData:         nil,
 		MaticCollateral:    big.NewInt(1),
 		ReceivedAt:         time.Now(),
-		ChainID:            big.NewInt(1000),
+		ChainID:            big.NewInt(defaultSequencerChainID),
 		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 
