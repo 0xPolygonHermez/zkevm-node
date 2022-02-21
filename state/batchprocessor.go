@@ -54,15 +54,6 @@ var InvalidTxErrors = map[string]bool{
 	ErrInvalidGas.Error(): true, ErrInvalidChainID.Error(): true,
 }
 
-// BatchProcessor is used to process a batch of transactions
-type BatchProcessor interface {
-	ProcessBatch(batch *Batch) error
-	CheckTransaction(tx *types.Transaction) error
-	ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult
-	ProcessUnsignedTransaction(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult
-	runtime.Host
-}
-
 // BasicBatchProcessor is used to process a batch of transactions
 type BasicBatchProcessor struct {
 	State                *BasicState

@@ -22,8 +22,8 @@ const (
 
 // State is the interface of the Hermez state
 type State interface {
-	NewBatchProcessor(sequencerAddress common.Address, lastBatchNumber uint64) (BatchProcessor, error)
-	NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchProcessor, error)
+	NewBatchProcessor(sequencerAddress common.Address, lastBatchNumber uint64) (*BasicBatchProcessor, error)
+	NewGenesisBatchProcessor(genesisStateRoot []byte) (*BasicBatchProcessor, error)
 	GetStateRoot(ctx context.Context, virtual bool) ([]byte, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
 	GetCode(address common.Address, batchNumber uint64) ([]byte, error)
@@ -95,7 +95,7 @@ func NewState(cfg Config, storage Storage, tree merkletree) State {
 }
 
 // NewBatchProcessor creates a new batch processor
-func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatchNumber uint64) (BatchProcessor, error) {
+func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatchNumber uint64) (*BasicBatchProcessor, error) {
 	// init correct state root from previous batch
 	stateRoot, err := s.GetStateRootByBatchNumber(lastBatchNumber)
 	if err != nil {
@@ -127,7 +127,7 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 }
 
 // NewGenesisBatchProcessor creates a new batch processor
-func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchProcessor, error) {
+func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (*BasicBatchProcessor, error) {
 	s.tree.SetCurrentRoot(genesisStateRoot)
 
 	return &BasicBatchProcessor{State: s, stateRoot: genesisStateRoot}, nil
