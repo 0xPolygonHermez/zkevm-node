@@ -40,6 +40,7 @@ SyncedBlockDif = 1
 			RewardPercentageToAggregator = 50
 
 [Aggregator]
+IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"
 IntervalToConsolidateState = "3s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
