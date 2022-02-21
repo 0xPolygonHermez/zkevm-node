@@ -1080,7 +1080,7 @@ func TestSCCall(t *testing.T) {
 	// /tests/contracts/interactions.sol
 	var scInteractionByteCode = "608060405234801561001057600080fd5b506102b1806100206000396000f3fe6080604052600436106100295760003560e01c8063a87d942c1461002e578063ec39b42914610059575b600080fd5b34801561003a57600080fd5b50610043610075565b60405161005091906101f1565b60405180910390f35b610073600480360381019061006e9190610188565b61011b565b005b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166306661abd6040518163ffffffff1660e01b815260040160206040518083038186803b1580156100de57600080fd5b505afa1580156100f2573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061011691906101b5565b905090565b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050565b60008135905061016d8161024d565b92915050565b60008151905061018281610264565b92915050565b60006020828403121561019e5761019d610248565b5b60006101ac8482850161015e565b91505092915050565b6000602082840312156101cb576101ca610248565b5b60006101d984828501610173565b91505092915050565b6101eb8161023e565b82525050565b600060208201905061020660008301846101e2565b92915050565b60006102178261021e565b9050919050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000819050919050565b600080fd5b6102568161020c565b811461026157600080fd5b50565b61026d8161023e565b811461027857600080fd5b5056fea2646970667358221220bd62b83cf26c8d76260698f0a985ee4839c27bb9b6a062e1806e28f14c20e81864736f6c63430008070033"
 	var scInteractionAddress = common.HexToAddress("0x85e844b762A271022b692CF99cE5c59BA0650Ac8")
-	var expectedFinalRoot = "19253145599372187800925873748326269409813958576926156948489075261942218090181"
+	var expectedFinalRoot = "8568248801809179447838423504847604302118514362079429686070184953337125411010"
 
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
@@ -1124,7 +1124,14 @@ func TestSCCall(t *testing.T) {
 	var txs []*types.Transaction
 
 	// Deploy counter.sol
-	tx := types.NewTransaction(0, state.ZeroAddress, new(big.Int), uint64(sequencerBalance), new(big.Int).SetUint64(1), common.Hex2Bytes(scCounterByteCode))
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scCounterByteCode),
+	})
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
 	require.NoError(t, err)
@@ -1136,7 +1143,15 @@ func TestSCCall(t *testing.T) {
 	txs = append(txs, signedTx)
 
 	// Deploy interaction.sol
-	tx1 := types.NewTransaction(1, state.ZeroAddress, new(big.Int), uint64(sequencerBalance), new(big.Int).SetUint64(1), common.Hex2Bytes(scInteractionByteCode))
+	tx1 := types.NewTx(&types.LegacyTx{
+		Nonce:    1,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scInteractionByteCode),
+	})
+
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
 
