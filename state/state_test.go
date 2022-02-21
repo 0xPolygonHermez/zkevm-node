@@ -1211,8 +1211,8 @@ func TestExitRootStore(t *testing.T) {
 
 	// Create state
 	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
-	
-	exit, err := st.GetLatestExitRoot(ctx)
+
+	_, err = st.GetLatestExitRoot(ctx)
 	require.Error(t, err)
 
 	var exitRoot state.GlobalExitRoot
@@ -1223,7 +1223,7 @@ func TestExitRootStore(t *testing.T) {
 	err = st.AddExitRoot(ctx, &exitRoot)
 	require.NoError(t, err)
 
-	exit, err = st.GetLatestExitRoot(ctx)
+	exit, err := st.GetLatestExitRoot(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, exitRoot.GlobalExitRootNum, exit.GlobalExitRootNum)
 	assert.Equal(t, exitRoot.MainnetExitRoot, exit.MainnetExitRoot)

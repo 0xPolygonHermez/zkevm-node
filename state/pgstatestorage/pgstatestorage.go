@@ -595,7 +595,7 @@ func (s *PostgresStorage) AddExitRoot(ctx context.Context, exitRoot *state.Globa
 // GetLatestExitRoot get the latest ExitRoot stored
 func (s *PostgresStorage) GetLatestExitRoot(ctx context.Context) (*state.GlobalExitRoot, error) {
 	var (
-		exitRoot state.GlobalExitRoot
+		exitRoot  state.GlobalExitRoot
 		globalNum uint64
 	)
 	err := s.queryRow(ctx, getExitRootSQL).Scan(&globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot)
