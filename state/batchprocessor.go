@@ -143,7 +143,7 @@ func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAd
 	receiverAddress := tx.To()
 
 	// SC creation
-	if receiverAddress == nil && len(tx.Data()) > 0 {
+	if receiverAddress == nil {
 		log.Debug("smart contract creation")
 		return b.create(tx, senderAddress, sequencerAddress)
 	}
