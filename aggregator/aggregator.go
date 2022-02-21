@@ -170,14 +170,6 @@ func (a *Aggregator) Start() {
 				txs = append(txs, "0x"+hex.EncodeToString(fullDataTx))
 			}
 			log.Debug("Txs: ", txs)
-
-			// TODO: consider putting chain id to the batch, so we will get rid of additional request to db
-			seq, err := a.State.GetSequencer(a.ctx, batchToConsolidate.Sequencer)
-			if err != nil {
-				log.Warnf("failed to get sequencer from the state, addr: %s, err: %v", seq.Address, err)
-				continue
-			}
-			chainID := uint32(seq.ChainID.Uint64())
 			// TODO: change this, once we have dynamic exit root
 			globalExitRoot := common.HexToHash("0xa116e19a7984f21055d07b606c55628a5ffbf8ae1261c1e9f4e3a61620cf810a")
 			oldLocalExitRoot := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
@@ -188,7 +180,18 @@ func (a *Aggregator) Start() {
 				"03ae74d1bbdff41d14f155ec79bb389db716160c1766a49ee9c9707407f80a11": "00000000000000000000000000000000000000000000000ad78ebc5ac6200000",
 				"18d749d7bcc2bc831229c19256f9e933c08b6acdaff4915be158e34cbbc8a8e1": "0000000000000000000000000000000000000000000000000000000000000000",
 			}
-			batchHashData := common.BytesToHash(keccak256.Hash(batchToConsolidate.RawTxsData, globalExitRoot[:]))
+
+			batchChainIDByte := make([]byte, 4)
+			blockTimestampByte := make([]byte, 8)
+			binary.BigEndian.PutUint32(batchChainIDByte, uint32(batchToConsolidate.ChainID.Uint64()))
+			binary.BigEndian.PutUint64(blockTimestampByte, uint64(batchToConsolidate.ReceivedAt.Unix()))
+			batchHashData := common.BytesToHash(keccak256.Hash(
+				batchToConsolidate.RawTxsData,
+				globalExitRoot[:],
+				blockTimestampByte,
+				batchToConsolidate.Sequencer[:],
+				batchChainIDByte,
+			))
 			oldStateRoot := common.BytesToHash(stateRootConsolidated)
 			newStateRoot := common.BytesToHash(stateRootToConsolidate)
 			inputProver := &proverclient.InputProver{
@@ -199,11 +202,10 @@ func (a *Aggregator) Start() {
 					NewLocalExitRoot: newLocalExitRoot.String(),
 					SequencerAddr:    batchToConsolidate.Sequencer.String(),
 					BatchHashData:    batchHashData.String(),
-					ChainId:          chainID,
+					ChainId:          uint32(batchToConsolidate.ChainID.Uint64()),
 					BatchNum:         uint32(batchToConsolidate.Number().Uint64()),
 					BlockNum:         uint32(batchToConsolidate.BlockNumber),
-					// TODO: currently there is a receivedAt value, but probably this should be synced by synchronizer
-					EthTimestamp: uint64(batchToConsolidate.ReceivedAt.Unix()),
+					EthTimestamp:     uint64(batchToConsolidate.ReceivedAt.Unix()),
 				},
 				GlobalExitRoot: globalExitRoot.String(),
 				Txs:            txs,
@@ -281,11 +283,10 @@ func (a *Aggregator) Start() {
 			}
 
 			// Calc inputHash
-			batchChainIDByte := make([]byte, 4)
 			batchNumberByte := make([]byte, 4)
-			binary.BigEndian.PutUint32(batchChainIDByte, inputProver.PublicInputs.ChainId)
+			blockNumberByte := make([]byte, 4)
 			binary.BigEndian.PutUint32(batchNumberByte, inputProver.PublicInputs.BatchNum)
-
+			binary.BigEndian.PutUint32(blockNumberByte, inputProver.PublicInputs.BlockNum)
 			hash := keccak256.Hash(
 				oldStateRoot[:],
 				oldLocalExitRoot[:],
@@ -295,6 +296,8 @@ func (a *Aggregator) Start() {
 				batchHashData[:],
 				batchChainIDByte[:],
 				batchNumberByte[:],
+				blockNumberByte[:],
+				blockTimestampByte[:],
 			)
 			frB, _ := new(big.Int).SetString(fr, 10)
 			inputHashMod := new(big.Int).Mod(new(big.Int).SetBytes(hash), frB)
@@ -315,6 +318,8 @@ func (a *Aggregator) Start() {
 				log.Debug("inputProver.PublicInputs.BatchHashData: ", inputProver.PublicInputs.BatchHashData)
 				log.Debug("inputProver.PublicInputs.ChainId: ", inputProver.PublicInputs.ChainId)
 				log.Debug("inputProver.PublicInputs.BatchNum: ", inputProver.PublicInputs.BatchNum)
+				log.Debug("inputProver.PublicInputs.BlockNum: ", inputProver.PublicInputs.BlockNum)
+				log.Debug("inputProver.PublicInputs.EthTimestamp: ", inputProver.PublicInputs.EthTimestamp)
 			}
 
 			// 4. send proof + txs to the SC
