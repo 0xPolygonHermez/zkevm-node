@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 	store := tree.NewPostgresStore(stateDB)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDB)
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore, nil))
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
 	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	txs = []*types.Transaction{tx}
 

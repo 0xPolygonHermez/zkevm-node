@@ -53,7 +53,7 @@ func registerSequencer(ctx *cli.Context) error {
 	store := tree.NewPostgresStore(sqlDB)
 	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity, poseidon.Hash)
 	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
-	tr := tree.NewStateTree(mt, scCodeStore, []byte{})
+	tr := tree.NewStateTree(mt, scCodeStore)
 
 	stateCfg := state.Config{
 		DefaultChainID:       c.NetworkConfig.L2DefaultChainID,
