@@ -994,32 +994,38 @@ func TestSCExecution(t *testing.T) {
 
 	var txs []*types.Transaction
 
-	// /tests/contracts/storage.sol bytecode
-	tx0 := types.NewTransaction(0, state.ZeroAddress, new(big.Int), uint64(sequencerBalance), new(big.Int).SetUint64(1), common.Hex2Bytes("608060405234801561001057600080fd5b50610150806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c80632e64cec11461003b5780636057361d14610059575b600080fd5b610043610075565b60405161005091906100d9565b60405180910390f35b610073600480360381019061006e919061009d565b61007e565b005b60008054905090565b8060008190555050565b60008135905061009781610103565b92915050565b6000602082840312156100b3576100b26100fe565b5b60006100c184828501610088565b91505092915050565b6100d3816100f4565b82525050565b60006020820190506100ee60008301846100ca565b92915050565b6000819050919050565b600080fd5b61010c816100f4565b811461011757600080fd5b5056fea2646970667358221220404e37f487a89a932dca5e77faaf6ca2de3b991f93d230604b1b8daaef64766264736f6c63430008070033"))
+	txSCDeploy := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes("608060405234801561001057600080fd5b50610150806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c80632e64cec11461003b5780636057361d14610059575b600080fd5b610043610075565b60405161005091906100d9565b60405180910390f35b610073600480360381019061006e919061009d565b61007e565b005b60008054905090565b8060008190555050565b60008135905061009781610103565b92915050565b6000602082840312156100b3576100b26100fe565b5b60006100c184828501610088565b91505092915050565b6100d3816100f4565b82525050565b60006020820190506100ee60008301846100ca565b92915050565b6000819050919050565b600080fd5b61010c816100f4565b811461011757600080fd5b5056fea2646970667358221220404e37f487a89a932dca5e77faaf6ca2de3b991f93d230604b1b8daaef64766264736f6c63430008070033"),
+	})
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
 	require.NoError(t, err)
 
-	signedTx0, err := auth.Signer(auth.From, tx0)
+	signedTxSCDeploy, err := auth.Signer(auth.From, txSCDeploy)
 	require.NoError(t, err)
 
-	txs = append(txs, signedTx0)
+	txs = append(txs, signedTxSCDeploy)
 
 	// Set stored value to 2
-	tx := types.NewTransaction(1, scAddress, new(big.Int), 20000, new(big.Int).SetUint64(1), common.Hex2Bytes("6057361d0000000000000000000000000000000000000000000000000000000000000002"))
-	signedTx, err := auth.Signer(auth.From, tx)
+	txStoreValue := types.NewTransaction(1, scAddress, new(big.Int), state.TxGas, new(big.Int).SetUint64(1), common.Hex2Bytes("6057361d0000000000000000000000000000000000000000000000000000000000000002"))
+	signedTxStoreValue, err := auth.Signer(auth.From, txStoreValue)
 	require.NoError(t, err)
 
-	txs = append(txs, signedTx)
+	txs = append(txs, signedTxStoreValue)
 
 	// Retrieve stored value
-	tx2 := types.NewTransaction(2, scAddress, new(big.Int), 20000, new(big.Int).SetUint64(1), common.Hex2Bytes("2e64cec1"))
-	signedTx2, err := auth.Signer(auth.From, tx2)
+	txRetrieveValue := types.NewTransaction(2, scAddress, new(big.Int), state.TxGas, new(big.Int).SetUint64(1), common.Hex2Bytes("2e64cec1"))
+	signedTxRetrieveValue, err := auth.Signer(auth.From, txRetrieveValue)
 	require.NoError(t, err)
 
-	txs = append(txs, signedTx2)
+	txs = append(txs, signedTxRetrieveValue)
 
 	// Create Batch
 	batch := &state.Batch{
@@ -1044,11 +1050,11 @@ func TestSCExecution(t *testing.T) {
 	err = bp.ProcessBatch(batch)
 	require.NoError(t, err)
 
-	receipt, err := testState.GetTransactionReceipt(ctx, signedTx.Hash())
+	receipt, err := testState.GetTransactionReceipt(ctx, signedTxStoreValue.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, uint64(5420), receipt.GasUsed)
 
-	receipt2, err := testState.GetTransactionReceipt(ctx, signedTx2.Hash())
+	receipt2, err := testState.GetTransactionReceipt(ctx, signedTxRetrieveValue.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1115), receipt2.GasUsed)
 
@@ -1115,7 +1121,14 @@ func TestSCCall(t *testing.T) {
 	var txs []*types.Transaction
 
 	// Deploy counter.sol
-	tx := types.NewTransaction(0, state.ZeroAddress, new(big.Int), uint64(sequencerBalance), new(big.Int).SetUint64(1), common.Hex2Bytes(scCounterByteCode))
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scCounterByteCode),
+	})
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
 	require.NoError(t, err)
@@ -1127,38 +1140,46 @@ func TestSCCall(t *testing.T) {
 	txs = append(txs, signedTx)
 
 	// Deploy interaction.sol
-	tx1 := types.NewTransaction(1, state.ZeroAddress, new(big.Int), uint64(sequencerBalance), new(big.Int).SetUint64(1), common.Hex2Bytes(scInteractionByteCode))
+	tx1 := types.NewTx(&types.LegacyTx{
+		Nonce:    1,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scInteractionByteCode),
+	})
+
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
 
 	txs = append(txs, signedTx1)
 
 	// Call setCounterAddr method from Interaction SC to set Counter SC Address
-	tx2 := types.NewTransaction(2, scInteractionAddress, new(big.Int), 20000, new(big.Int).SetUint64(1), common.Hex2Bytes("ec39b429000000000000000000000000"+strings.TrimPrefix(scCounterAddress.String(), "0x")))
+	tx2 := types.NewTransaction(2, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("ec39b429000000000000000000000000"+strings.TrimPrefix(scCounterAddress.String(), "0x")))
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
 	txs = append(txs, signedTx2)
 
 	// Increment Counter calling Counter SC
-	tx3 := types.NewTransaction(3, scCounterAddress, new(big.Int), 20000, new(big.Int).SetUint64(1), common.Hex2Bytes("d09de08a"))
+	tx3 := types.NewTransaction(3, scCounterAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("d09de08a"))
 	signedTx3, err := auth.Signer(auth.From, tx3)
 	require.NoError(t, err)
 	txs = append(txs, signedTx3)
 
 	// Retrieve counter value calling Interaction SC (this is the real test as Interaction SC will call Counter SC)
-	tx4 := types.NewTransaction(4, scInteractionAddress, new(big.Int), 20000, new(big.Int).SetUint64(1), common.Hex2Bytes("a87d942c"))
+	tx4 := types.NewTransaction(4, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("a87d942c"))
 	signedTx4, err := auth.Signer(auth.From, tx4)
 	require.NoError(t, err)
 	txs = append(txs, signedTx4)
 
 	// Increment Counter calling again
-	tx5 := types.NewTransaction(5, scCounterAddress, new(big.Int), 20000, new(big.Int).SetUint64(1), common.Hex2Bytes("d09de08a"))
+	tx5 := types.NewTransaction(5, scCounterAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("d09de08a"))
 	signedTx5, err := auth.Signer(auth.From, tx5)
 	require.NoError(t, err)
 	txs = append(txs, signedTx5)
 
 	// Retrieve counter value again
-	tx6 := types.NewTransaction(6, scInteractionAddress, new(big.Int), 20000, new(big.Int).SetUint64(1), common.Hex2Bytes("a87d942c"))
+	tx6 := types.NewTransaction(6, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("a87d942c"))
 	signedTx6, err := auth.Signer(auth.From, tx6)
 	require.NoError(t, err)
 	txs = append(txs, signedTx6)
@@ -1186,7 +1207,7 @@ func TestSCCall(t *testing.T) {
 	err = bp.ProcessBatch(batch)
 	require.NoError(t, err)
 
-	receipt, err := testState.GetTransactionReceipt(ctx, signedTx5.Hash())
+	receipt, err := testState.GetTransactionReceipt(ctx, signedTx6.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
 }
