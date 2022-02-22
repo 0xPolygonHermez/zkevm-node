@@ -70,8 +70,6 @@ type Storage interface {
 	AddReceipt(ctx context.Context, receipt *Receipt) error
 	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error
 	GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error)
-	GetCurrentMTRoot(ctx context.Context) ([]byte, error)
-	SetCurrentMTRoot(ctx context.Context, root []byte) error
 }
 
 var (
@@ -107,11 +105,6 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 
 	ctx := context.Background()
 
-	err = s.SetCurrentMTRoot(ctx, stateRoot)
-	if err != nil {
-		return nil, err
-	}
-
 	// Get Sequencer's Chain ID
 	chainID := s.cfg.DefaultChainID
 	sq, err := s.GetSequencer(context.Background(), sequencerAddress)
@@ -136,11 +129,6 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 
 // NewGenesisBatchProcessor creates a new batch processor
 func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (*BasicBatchProcessor, error) {
-	err := s.SetCurrentMTRoot(context.Background(), genesisStateRoot)
-	if err != nil {
-		return nil, err
-	}
-
 	return &BasicBatchProcessor{State: s, stateRoot: genesisStateRoot}, nil
 }
 
@@ -212,12 +200,6 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 
 	// Add Block
 	err := s.AddBlock(ctx, block)
-	if err != nil {
-		return err
-	}
-
-	// reset tree current root
-	err = s.SetCurrentMTRoot(ctx, nil)
 	if err != nil {
 		return err
 	}

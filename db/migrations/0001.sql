@@ -67,8 +67,7 @@ CREATE TABLE state.receipt
 CREATE TABLE state.misc
 (
     last_batch_num_seen BIGINT,
-    last_batch_num_consolidated BIGINT,
-    current_mt_root BYTEA
+    last_batch_num_consolidated BIGINT
 );
 
 -- Insert default values into misc table
