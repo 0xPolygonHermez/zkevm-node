@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
 
 	setUpBlocks()
 	setUpBatches()
@@ -454,7 +454,7 @@ func TestStateTransition(t *testing.T) {
 			store := tree.NewPostgresStore(stateDb)
 			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-			stateTree := tree.NewStateTree(mt, scCodeStore)
+			stateTree := tree.NewStateTree(mt, scCodeStore, nil)
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -599,7 +599,7 @@ func TestStateTransitionSC(t *testing.T) {
 			store := tree.NewPostgresStore(stateDb)
 			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-			stateTree := tree.NewStateTree(mt, scCodeStore)
+			stateTree := tree.NewStateTree(mt, scCodeStore, nil)
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -632,7 +632,7 @@ func TestLastSeenBatch(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -657,7 +657,10 @@ func TestLastSeenBatch(t *testing.T) {
 func TestReceipts(t *testing.T) {
 	// Load test vector
 	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/receipt-vector.json")
-	require.NoError(t, err)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	for _, testCase := range stateTransitionTestCases {
 		t.Run(testCase.Description, func(t *testing.T) {
@@ -674,7 +677,7 @@ func TestReceipts(t *testing.T) {
 			store := tree.NewPostgresStore(stateDb)
 			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-			stateTree := tree.NewStateTree(mt, scCodeStore)
+			stateTree := tree.NewStateTree(mt, scCodeStore, nil)
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -835,7 +838,7 @@ func TestLastConsolidatedBatch(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -869,7 +872,7 @@ func TestStateErrors(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -965,7 +968,7 @@ func TestSCExecution(t *testing.T) {
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-	stateTree := tree.NewStateTree(mt, scCodeStore)
+	stateTree := tree.NewStateTree(mt, scCodeStore, nil)
 
 	// Create state
 	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -1085,7 +1088,7 @@ func TestSCCall(t *testing.T) {
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-	stateTree := tree.NewStateTree(mt, scCodeStore)
+	stateTree := tree.NewStateTree(mt, scCodeStore, nil)
 
 	// Create state
 	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)

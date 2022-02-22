@@ -40,7 +40,7 @@ func initStree() (*tree.StateTree, error) {
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 
-	return tree.NewStateTree(mt, scCodeStore), nil
+	return tree.NewStateTree(mt, scCodeStore, []byte{}), nil
 }
 
 func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
@@ -95,7 +95,7 @@ func Test_MTServer_GetBalance(t *testing.T) {
 	}
 
 	expectedBalance := big.NewInt(100)
-	root, _, err := stree.SetBalance(common.HexToAddress(ethAddress), expectedBalance, nil)
+	root, _, err := stree.SetBalance(common.HexToAddress(ethAddress), expectedBalance)
 	if err != nil {
 		t.Fatalf("could not set balance: %v", err)
 	}

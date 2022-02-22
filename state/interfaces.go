@@ -16,9 +16,11 @@ type merkletree interface {
 	GetCode(address common.Address, root []byte) ([]byte, error)
 	GetCodeHash(address common.Address, root []byte) ([]byte, error)
 	GetStorageAt(address common.Address, position common.Hash, root []byte) (*big.Int, error)
+	GetCurrentRoot() ([]byte, error)
 
-	SetBalance(address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
-	SetNonce(address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
-	SetCode(address common.Address, code []byte, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
-	SetStorageAt(address common.Address, key common.Hash, value *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
+	SetBalance(address common.Address, balance *big.Int) (newRoot []byte, proof *tree.UpdateProof, err error)
+	SetNonce(address common.Address, nonce *big.Int) (newRoot []byte, proof *tree.UpdateProof, err error)
+	SetCode(address common.Address, code []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
+	SetStorageAt(address common.Address, key common.Hash, value *big.Int) (newRoot []byte, proof *tree.UpdateProof, err error)
+	SetCurrentRoot([]byte)
 }
