@@ -129,7 +129,7 @@ func setUpBatch() {
 
 func TestBase_IsProfitable_FailByMinReward(t *testing.T) {
 	minReward := new(big.Int).Mul(big.NewInt(1000), big.NewInt(encoding.TenToThePowerOf18))
-	ethMan := new(txprofitabilitycheckerEtherman)
+	ethMan := new(etherman)
 	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(60), 50)
 	ctx := context.Background()
 
@@ -142,7 +142,7 @@ func TestBase_IsProfitable_FailByMinReward(t *testing.T) {
 
 func TestBase_IsProfitable_SendBatchAnyway(t *testing.T) {
 	minReward := big.NewInt(0)
-	ethMan := new(txprofitabilitycheckerEtherman)
+	ethMan := new(etherman)
 	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(1), 50)
 
 	ctx := context.Background()
@@ -158,7 +158,7 @@ func TestBase_IsProfitable_SendBatchAnyway(t *testing.T) {
 
 func TestBase_IsProfitable_GasCostTooBigForSendingTx(t *testing.T) {
 	minReward := big.NewInt(0)
-	ethMan := new(txprofitabilitycheckerEtherman)
+	ethMan := new(etherman)
 	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(60), 50)
 
 	ctx := context.Background()
@@ -171,7 +171,7 @@ func TestBase_IsProfitable_GasCostTooBigForSendingTx(t *testing.T) {
 }
 
 func TestBase_IsProfitable(t *testing.T) {
-	ethMan := new(txprofitabilitycheckerEtherman)
+	ethMan := new(etherman)
 	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, big.NewInt(0), time.Duration(60), 50)
 
 	ctx := context.Background()
