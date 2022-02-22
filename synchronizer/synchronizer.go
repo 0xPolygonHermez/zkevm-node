@@ -202,7 +202,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 		if err != nil {
 			err = s.state.Rollback(ctx)
 			if err != nil {
-				log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+				log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err))
 			}
 			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
 		}
@@ -217,7 +217,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					if err != nil {
 						err = s.state.Rollback(ctx)
 						if err != nil {
-							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+							log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err))
 						}
 						log.Fatal("failed to consolidate batch locally, batch number: %d, err: %v", batch.Number().Uint64(), err)
 					}
@@ -227,7 +227,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					if err != nil {
 						err = s.state.Rollback(ctx)
 						if err != nil {
-							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+							log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err))
 						}
 						log.Fatal("error getting latest batch. Error: ", err)
 					}
@@ -237,7 +237,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					if err != nil {
 						err = s.state.Rollback(ctx)
 						if err != nil {
-							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+							log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err))
 						}
 						log.Fatal("error creating new batch processor. Error: ", err)
 					}
@@ -246,7 +246,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					if err != nil {
 						err = s.state.Rollback(ctx)
 						if err != nil {
-							log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+							log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err))
 						}
 						log.Fatal("error processing batch. BatchNumber: ", batch.Number().Uint64(), ". Error: ", err)
 					}
@@ -258,7 +258,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				if err != nil {
 					err = s.state.Rollback(ctx)
 					if err != nil {
-						log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+						log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err))
 					}
 					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos], " err: ", err)
 				}
@@ -274,7 +274,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 			} else {
 				err = s.state.Rollback(ctx)
 				if err != nil {
-					log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+					log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err))
 				}
 				log.Fatal("error: invalid order element")
 			}

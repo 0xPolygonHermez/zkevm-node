@@ -184,7 +184,7 @@ func (m *Manager) ApplyTxs(txs []vectors.Tx, initialRoot, finalRoot string) erro
 
 	// Wait for sequencer to select txs from pool and propose a new batch
 	// Wait for the synchronizer to update state
-	err = waitPoll(defaultInterval, defaultDeadline, func() (bool, error) {
+	err = WaitPoll(defaultInterval, defaultDeadline, func() (bool, error) {
 		// using a closure here to capture st and currentBatchNumber
 		latestBatchNumber, err := m.st.GetLastBatchNumberConsolidatedOnEthereum(m.ctx)
 		if err != nil {
@@ -193,7 +193,7 @@ func (m *Manager) ApplyTxs(txs []vectors.Tx, initialRoot, finalRoot string) erro
 		done := latestBatchNumber > currentBatchNumber
 		return done, nil
 	})
-	// if the state is not expected to change waitPoll can timeout
+	// if the state is not expected to change WaitPoll can timeout
 	if initialRoot != "" && finalRoot != "" && initialRoot != finalRoot && err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func GetAuth(privateKeyStr string, chainID *big.Int) (*bind.TransactOpts, error)
 // WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
 // health standard in package grpc.health.v1
 func WaitGRPCHealthy(address string) error {
-	return waitPoll(defaultInterval, defaultDeadline, func() (bool, error) {
+	return WaitPoll(defaultInterval, defaultDeadline, func() (bool, error) {
 		return grpcHealthyCondition(address)
 	})
 }
@@ -228,10 +228,10 @@ func (m *Manager) Setup() error {
 	}
 
 	// Start prover container
-	err = startProver()
-	if err != nil {
-		return err
-	}
+	//err = startProver()
+	//if err != nil {
+	//	return err
+	//}
 
 	err = m.setUpSequencer()
 	if err != nil {
@@ -444,7 +444,7 @@ func startNetwork() error {
 		return err
 	}
 	// Wait network to be ready
-	return waitPoll(defaultInterval, defaultDeadline, networkUpCondition)
+	return WaitPoll(defaultInterval, defaultDeadline, networkUpCondition)
 }
 
 func stopNetwork() error {
@@ -462,7 +462,7 @@ func startCore() error {
 		return err
 	}
 	// Wait core to be ready
-	return waitPoll(defaultInterval, defaultDeadline, coreUpCondition)
+	return WaitPoll(defaultInterval, defaultDeadline, coreUpCondition)
 }
 
 func stopCore() error {
@@ -480,7 +480,7 @@ func startProver() error {
 		return err
 	}
 	// Wait prover to be ready
-	return waitPoll(defaultInterval, defaultDeadline, proverUpCondition)
+	return WaitPoll(defaultInterval, defaultDeadline, proverUpCondition)
 }
 
 func stopProver() error {
@@ -635,7 +635,7 @@ func grpcHealthyCondition(address string) (bool, error) {
 	return done, nil
 }
 
-func waitPoll(interval, deadline time.Duration, condition conditionFunc) error {
+func WaitPoll(interval, deadline time.Duration, condition conditionFunc) error {
 	timeout := time.After(deadline)
 	tick := time.NewTicker(interval)
 
