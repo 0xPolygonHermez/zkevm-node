@@ -267,7 +267,7 @@ func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) 
 }
 
 func (m *Manager) checkRoot(root []byte, expectedRoot string) error {
-	actualRoot := new(big.Int).SetBytes(root).String()
+	actualRoot := hex.EncodeToHex(root)
 
 	if expectedRoot != actualRoot {
 		return fmt.Errorf("Invalid root, want %q, got %q", expectedRoot, actualRoot)
