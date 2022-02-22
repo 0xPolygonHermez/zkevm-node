@@ -126,8 +126,12 @@ run: ## Runs all the services
 	$(RUNCORE)
 	sleep 3
 	$(RUNEXPLORER)
-	sleep 3
-	go run ./test/init_network.go .
+
+.PHONY: init-network
+init-network: ## Inits network and deploys test smart contract
+	go run ./scripts/init_network/main.go .
+	sleep 5
+	go run ./scripts/deploy_sc/main.go .
 
 .PHONY: stop
 stop: ## Stops all services

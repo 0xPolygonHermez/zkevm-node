@@ -60,7 +60,8 @@ CREATE TABLE state.receipt
     tx_hash BYTEA NOT NULL REFERENCES state.transaction (hash) ON DELETE CASCADE,
     tx_index integer,
     tx_from BYTEA,
-    tx_to BYTEA
+    tx_to BYTEA,
+    contract_address BYTEA
 );
 
 CREATE TABLE state.misc

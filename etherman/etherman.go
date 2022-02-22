@@ -201,6 +201,7 @@ func (etherMan *Client) sendBatch(ctx context.Context, opts *bind.TransactOpts, 
 		log.Error("error coverting hex string to []byte. Error: ", err)
 		return nil, errors.New("error coverting hex string to []byte. Error: " + err.Error())
 	}
+
 	tx, err := etherMan.PoE.SendBatch(etherMan.auth, callData, maticAmount)
 	if err != nil {
 		return nil, err

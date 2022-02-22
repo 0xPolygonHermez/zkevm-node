@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
@@ -102,13 +101,15 @@ func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (boo
 
 // AcceptAll always returns true
 type AcceptAll struct {
+	EthMan                            etherman
 	State                             state.State
 	IntervalAfterWhichBatchSentAnyway time.Duration
 }
 
 // NewTxProfitabilityCheckerAcceptAll inits tx profitability checker which accept all
-func NewTxProfitabilityCheckerAcceptAll(state state.State, intervalAfterWhichBatchSentAnyway time.Duration) *AcceptAll {
+func NewTxProfitabilityCheckerAcceptAll(ethman etherman, state state.State, intervalAfterWhichBatchSentAnyway time.Duration) *AcceptAll {
 	return &AcceptAll{
+		EthMan:                            ethman,
 		State:                             state,
 		IntervalAfterWhichBatchSentAnyway: intervalAfterWhichBatchSentAnyway,
 	}
@@ -116,20 +117,11 @@ func NewTxProfitabilityCheckerAcceptAll(state state.State, intervalAfterWhichBat
 
 // IsProfitable always returns true
 func (pc *AcceptAll) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, *big.Int, error) {
-	// TODO until gas calculation and price updater is not implemented, this value will be hardcoded
-	maticReward := big.NewInt(int64(len(txs)))
-	maticReward.Mul(maticReward, big.NewInt(encoding.TenToThePowerOf18))
-	if pc.IntervalAfterWhichBatchSentAnyway != 0 {
-		ok, err := isNewBatchNotAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
-		if err != nil {
-			return false, maticReward, err
-		}
-		if ok {
-			return true, maticReward, nil
-		}
+	collateral, err := pc.EthMan.GetCurrentSequencerCollateral()
+	if err != nil {
+		return false, big.NewInt(0), fmt.Errorf("failed to get current collateral amount from smc, err: %v", err)
 	}
-
-	return true, maticReward, nil
+	return true, collateral, nil
 }
 
 func isNewBatchNotAppeared(ctx context.Context, state state.State, intervalAfterWhichBatchSentAnyway time.Duration) (bool, error) {
