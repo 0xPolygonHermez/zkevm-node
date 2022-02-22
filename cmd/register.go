@@ -16,8 +16,6 @@ import (
 )
 
 func registerSequencer(ctx *cli.Context) error {
-	configFilePath := ctx.String(flagCfg)
-	network := ctx.String(flagNetwork)
 	url := ctx.Args().First()
 	var input string
 	if !ctx.Bool(flagYes) {
@@ -32,7 +30,7 @@ func registerSequencer(ctx *cli.Context) error {
 		}
 	}
 
-	c, err := config.Load(configFilePath, network)
+	c, err := config.Load(ctx)
 	if err != nil {
 		return err
 	}
