@@ -18,6 +18,13 @@ import (
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
+	"github.com/urfave/cli/v2"
+)
+
+const (
+	flagCfg        = "cfg"
+	flagNetwork    = "network"
+	flagNetworkCfg = "network-cfg"
 )
 
 // Config represents the configuration of the entire Hermez Node
@@ -36,7 +43,7 @@ type Config struct {
 }
 
 // Load loads the configuration
-func Load(configFilePath string, network string) (*Config, error) {
+func Load(ctx *cli.Context) (*Config, error) {
 	var cfg Config
 	viper.SetConfigType("toml")
 
@@ -48,6 +55,7 @@ func Load(configFilePath string, network string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	configFilePath := ctx.String(flagCfg)
 	if configFilePath != "" {
 		dirName, fileName := filepath.Split(configFilePath)
 
@@ -78,7 +86,7 @@ func Load(configFilePath string, network string) (*Config, error) {
 		return nil, err
 	}
 	// Load genesis parameters
-	cfg.loadNetworkConfig(network)
+	cfg.loadNetworkConfig(ctx)
 
 	cfgJSON, _ := json.MarshalIndent(cfg, "", "  ")
 	log.Infof("Configuration loaded: \n%s\n", string(cfgJSON))
