@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"math/big"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/test/operations"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -36,7 +38,12 @@ const (
 func main() {
 	ctx := context.Background()
 
-	config, err := config.Load("", "local")
+	app := cli.NewApp()
+	var n string
+	flag.StringVar(&n, "network", "local", "")
+	context := cli.NewContext(app, flag.CommandLine, nil)
+
+	config, err := config.Load(context)
 	checkErr(err)
 
 	// Eth client
