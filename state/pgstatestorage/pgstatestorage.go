@@ -44,8 +44,6 @@ const (
 	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
 	updateLastBatchConsolidatedSQL         = "UPDATE state.misc SET last_batch_num_consolidated = $1"
 	getLastBatchConsolidatedSQL            = "SELECT last_batch_num_consolidated FROM state.misc LIMIT 1"
-	updateCurrentMTRootSQL                 = "UPDATE state.misc SET current_mt_root = $1"
-	getCurrentMTRootSQL                    = "SELECT current_mt_root FROM state.misc LIMIT 1"
 	getSequencerSQL                        = "SELECT * FROM state.sequencer WHERE address = $1"
 	getReceiptSQL                          = "SELECT * FROM state.receipt WHERE tx_hash = $1"
 	resetSQL                               = "DELETE FROM state.block WHERE block_num > $1"
@@ -583,23 +581,6 @@ func (s *PostgresStorage) AddTransaction(ctx context.Context, tx *types.Transact
 // AddReceipt adds a new receipt to the State Store
 func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt) error {
 	_, err := s.exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.BlockHash.Bytes(), receipt.TxHash.Bytes(), receipt.TransactionIndex, receipt.From.Bytes(), receipt.To.Bytes())
-	return err
-}
-
-// GetCurrentMTRoot queries and returns the current merkle tree root.
-func (s *PostgresStorage) GetCurrentMTRoot(ctx context.Context) ([]byte, error) {
-	var root []byte
-	err := s.queryRow(ctx, getCurrentMTRootSQL, common.Hash{}).Scan(root)
-	if err != nil {
-		return nil, err
-	}
-
-	return root, nil
-}
-
-// SetCurrentMTRoot sets the current merkle tree root.
-func (s *PostgresStorage) SetCurrentMTRoot(ctx context.Context, root []byte) error {
-	_, err := s.exec(ctx, updateCurrentMTRootSQL, root)
 	return err
 }
 

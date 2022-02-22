@@ -69,8 +69,6 @@ type Storage interface {
 	AddReceipt(ctx context.Context, receipt *Receipt) error
 	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error
 	GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error)
-	GetCurrentMTRoot(ctx context.Context) ([]byte, error)
-	SetCurrentMTRoot(ctx context.Context, root []byte) error
 }
 
 var (
@@ -104,12 +102,7 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		return nil, err
 	}
 
-	ctx := context.Background()
-
-	err = s.SetCurrentMTRoot(ctx, stateRoot)
-	if err != nil {
-		return nil, err
-	}
+	s.tree.SetCurrentRoot(stateRoot)
 
 	// Get Sequencer's Chain ID
 	chainID := s.cfg.DefaultChainID
@@ -118,14 +111,14 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		chainID = sq.ChainID.Uint64()
 	}
 
-	lastBatch, err := s.GetBatchByNumber(ctx, lastBatchNumber)
+	lastBatch, err := s.GetBatchByNumber(context.Background(), lastBatchNumber)
 	if err != ErrNotFound && err != nil {
 		return nil, err
 	}
 
 	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed}
 	batchProcessor.setRuntime(evm.NewEVM())
-	blockNumber, err := s.GetLastBlockNumber(ctx)
+	blockNumber, err := s.GetLastBlockNumber(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -135,10 +128,7 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 
 // NewGenesisBatchProcessor creates a new batch processor
 func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchProcessor, error) {
-	err := s.SetCurrentMTRoot(context.Background(), genesisStateRoot)
-	if err != nil {
-		return nil, err
-	}
+	s.tree.SetCurrentRoot(genesisStateRoot)
 
 	return &BasicBatchProcessor{State: s, stateRoot: genesisStateRoot}, nil
 }
@@ -225,19 +215,13 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 	}
 
 	// reset tree current root
-	err = s.SetCurrentMTRoot(ctx, nil)
-	if err != nil {
-		return err
-	}
+	s.tree.SetCurrentRoot(nil)
 
-	var (
-		root    common.Hash
-		newRoot []byte
-	)
+	var root common.Hash
 
 	if genesis.Balances != nil { // Genesis Balances
 		for address, balance := range genesis.Balances {
-			newRoot, _, err = s.tree.SetBalance(address, balance, newRoot)
+			newRoot, _, err := s.tree.SetBalance(address, balance)
 			if err != nil {
 				return err
 			}
@@ -245,7 +229,7 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		}
 	} else { // Genesis Smart Contracts
 		for address, sc := range genesis.SmartContracts {
-			newRoot, _, err = s.tree.SetCode(address, sc, newRoot)
+			newRoot, _, err := s.tree.SetCode(address, sc)
 			if err != nil {
 				return err
 			}

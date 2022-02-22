@@ -236,6 +236,7 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 	root := b.stateRoot
 
 	// reset MT currentRoot in case it was modified by failed transaction
+	b.State.tree.SetCurrentRoot(root)
 	log.Debugf("processing transfer [%s]: root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
 	senderBalance, err := b.State.tree.GetBalance(senderAddress, root)
@@ -267,7 +268,7 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 	log.Debugf("processing transfer [%s]: new nonce: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 
 	// Store new nonce
-	root, _, err = b.State.tree.SetNonce(senderAddress, senderNonce, root)
+	_, _, err = b.State.tree.SetNonce(senderAddress, senderNonce)
 	if err != nil {
 		result.Err = err
 		return result
@@ -322,7 +323,7 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 
 	// Store new balances
 	for address, balance := range balances {
-		root, _, err = b.State.tree.SetBalance(address, balance, root)
+		root, _, err = b.State.tree.SetBalance(address, balance)
 		if err != nil {
 			result.Err = err
 			return result
@@ -359,11 +360,6 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) error {
 }
 
 func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
-	// Check Signature
-	if err := CheckSignature(tx); err != nil {
-		return err
-	}
-
 	// Check ChainID
 	if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
 		log.Debugf("Batch ChainID: %v", b.SequencerChainID)
@@ -519,7 +515,7 @@ func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, seque
 		senderNonce.Add(senderNonce, big.NewInt(1))
 
 		// Store new nonce
-		root, _, err = b.State.tree.SetNonce(senderAddress, senderNonce, root)
+		_, _, err = b.State.tree.SetNonce(senderAddress, senderNonce)
 		if err != nil {
 			return &runtime.ExecutionResult{
 				GasLeft: 0,
@@ -556,7 +552,7 @@ func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, seque
 	}
 
 	result.GasLeft -= gasCost
-	root, _, err = b.State.tree.SetCode(address, result.ReturnValue, root)
+	root, _, err = b.State.tree.SetCode(address, result.ReturnValue)
 	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft: gasLimit,
@@ -592,7 +588,7 @@ func (b *BasicBatchProcessor) GetStorage(address common.Address, key common.Hash
 // SetStorage sets storage for a given address
 func (b *BasicBatchProcessor) SetStorage(address common.Address, key common.Hash, value common.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
 	// TODO: Check if we have to charge here
-	root, _, err := b.State.tree.SetStorageAt(address, key, new(big.Int).SetBytes(value.Bytes()), b.stateRoot)
+	root, _, err := b.State.tree.SetStorageAt(address, key, new(big.Int).SetBytes(value.Bytes()))
 
 	if err != nil {
 		log.Errorf("error on SetStorage for address %v", address)
