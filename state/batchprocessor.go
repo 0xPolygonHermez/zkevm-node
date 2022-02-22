@@ -359,11 +359,6 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) error {
 }
 
 func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
-	// Check Signature
-	if err := CheckSignature(tx); err != nil {
-		return err
-	}
-
 	// Check ChainID
 	if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
 		log.Debugf("Batch ChainID: %v", b.SequencerChainID)
