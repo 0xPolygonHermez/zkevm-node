@@ -61,6 +61,7 @@ func (p *PostgresPool) AddTx(ctx context.Context, tx types.Transaction) error {
 func (p *PostgresPool) GetPendingTxs(ctx context.Context) ([]Transaction, error) {
 	sql := "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1"
 	rows, err := p.db.Query(ctx, sql, TxStatePending)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
