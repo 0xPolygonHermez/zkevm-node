@@ -258,13 +258,17 @@ func (s *Server) SetStorageAt(ctx context.Context, in *pb.SetStorageAtRequest) (
 	if !success {
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Value)
 	}
+	positionBI, success := new(big.Int).SetString(in.Position, 10)
+	if !success {
+		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Position)
+	}
 
 	root, err := hex.DecodeString(in.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	root, _, err = s.stree.SetStorageAt(common.HexToAddress(in.EthAddress), common.HexToHash(in.Position), valueBI, root)
+	root, _, err = s.stree.SetStorageAt(common.HexToAddress(in.EthAddress), positionBI, valueBI, root)
 	if err != nil {
 		return nil, err
 	}

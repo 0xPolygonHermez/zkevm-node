@@ -218,7 +218,7 @@ func Test_MTServer_GetStorageAt(t *testing.T) {
 
 	position := uint64(101)
 	positionBI := new(big.Int).SetUint64(position)
-	root, _, err := stree.SetStorageAt(common.HexToAddress(ethAddress), common.BigToHash(positionBI), expectedValue, nil)
+	root, _, err := stree.SetStorageAt(common.HexToAddress(ethAddress), positionBI, expectedValue, nil)
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
@@ -356,7 +356,7 @@ func Test_MTServer_SetStorageAt(t *testing.T) {
 	ctx := context.Background()
 	resp, err := client.SetStorageAt(ctx, &pb.SetStorageAtRequest{
 		EthAddress: ethAddress,
-		Position:   common.BytesToHash(positionBI.Bytes()).String(),
+		Position:   positionBI.String(),
 		Value:      expectedValue.String(),
 	})
 	require.NoError(t, err)

@@ -134,10 +134,6 @@ func (s *state) stackAtLeast(n int) bool {
 	return s.sp >= n
 }
 
-func (s *state) popHash() common.Hash {
-	return common.BytesToHash(s.pop().Bytes())
-}
-
 func (s *state) popAddr() (common.Address, bool) {
 	b := s.pop()
 	if b == nil {

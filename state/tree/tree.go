@@ -223,9 +223,9 @@ func (tree *StateTree) SetCode(address common.Address, code []byte, root []byte)
 }
 
 // SetStorageAt sets storage value at specified position
-func (tree *StateTree) SetStorageAt(address common.Address, position common.Hash, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetStorageAt(address common.Address, position *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	r := new(big.Int).SetBytes(root)
-	key, err := GetKey(LeafTypeStorage, address, position[:], tree.mt.arity, nil)
+	key, err := GetKey(LeafTypeStorage, address, position.Bytes(), tree.mt.arity, nil)
 	if err != nil {
 		return nil, nil, err
 	}

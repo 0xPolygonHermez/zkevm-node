@@ -582,9 +582,9 @@ func (b *BasicBatchProcessor) GetStorage(address common.Address, key common.Hash
 }
 
 // SetStorage sets storage for a given address
-func (b *BasicBatchProcessor) SetStorage(address common.Address, key common.Hash, value common.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
+func (b *BasicBatchProcessor) SetStorage(address common.Address, key *big.Int, value *big.Int, config *runtime.ForksInTime) runtime.StorageStatus {
 	// TODO: Check if we have to charge here
-	root, _, err := b.State.tree.SetStorageAt(address, key, new(big.Int).SetBytes(value.Bytes()), b.stateRoot)
+	root, _, err := b.State.tree.SetStorageAt(address, key, value, b.stateRoot)
 
 	if err != nil {
 		log.Errorf("error on SetStorage for address %v", address)
