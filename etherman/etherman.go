@@ -27,6 +27,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
+const gasLimitForBatchSending = 10000000
+
 var (
 	newBatchEventSignatureHash             = crypto.Keccak256Hash([]byte("SendBatch(uint32,address,uint32,bytes32)"))
 	consolidateBatchSignatureHash          = crypto.Keccak256Hash([]byte("VerifyBatch(uint32,address)"))
@@ -168,6 +170,11 @@ const (
 	ether155V = 27
 )
 
+// GetTxReceipt get's tx receipt
+func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	return etherMan.EtherClient.TransactionReceipt(ctx, txHash)
+}
+
 func (etherMan *Client) sendBatch(ctx context.Context, opts *bind.TransactOpts, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	if len(txs) == 0 {
 		return nil, errors.New("invalid txs: is empty slice")
@@ -201,7 +208,9 @@ func (etherMan *Client) sendBatch(ctx context.Context, opts *bind.TransactOpts, 
 		log.Error("error coverting hex string to []byte. Error: ", err)
 		return nil, errors.New("error coverting hex string to []byte. Error: " + err.Error())
 	}
-	tx, err := etherMan.PoE.SendBatch(etherMan.auth, callData, maticAmount)
+	auth := etherMan.auth
+	auth.GasLimit = gasLimitForBatchSending
+	tx, err := etherMan.PoE.SendBatch(auth, callData, maticAmount)
 	if err != nil {
 		return nil, err
 	}

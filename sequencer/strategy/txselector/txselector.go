@@ -2,6 +2,7 @@ package txselector
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -42,6 +43,8 @@ func (s *AcceptAll) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []
 // Base tx selector with basic selection algorithm. Accepts different tx sorting and tx profitability checking structs
 type Base struct {
 	TxSorter TxSorter
+
+	batchProcessorLock sync.Mutex
 }
 
 // NewTxSelectorBase init function
@@ -61,8 +64,8 @@ func NewTxSelectorBase(cfg Config) TxSelector {
 }
 
 // SelectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
-	sortedTxs := t.TxSorter.SortTxs(pendingTxs)
+func (b *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
+	sortedTxs := b.TxSorter.SortTxs(pendingTxs)
 	var (
 		selectedTxs                         []*types.Transaction
 		selectedTxsHashes, invalidTxsHashes []string
@@ -73,7 +76,10 @@ func (t *Base) SelectTxs(batchProcessor state.BatchProcessor, pendingTxs []pool.
 		if isSCTx(t) {
 			continue
 		}
+
+		b.batchProcessorLock.Lock()
 		result := batchProcessor.ProcessTransaction(&t, sequencerAddress)
+		b.batchProcessorLock.Unlock()
 		if result.Failed() {
 			err := result.Err
 			if state.InvalidTxErrors[err.Error()] {

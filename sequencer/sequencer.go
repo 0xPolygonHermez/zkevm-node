@@ -7,13 +7,19 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
+)
+
+const (
+	askForTxReceiptFrequency = 1 * time.Second
 )
 
 // Sequencer represents a sequencer
@@ -172,7 +178,22 @@ func (s *Sequencer) tryProposeBatch() {
 			return
 		}
 		log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
-
+		var receipt *types.Receipt
+		for receipt == nil {
+			select {
+			case <-time.After(askForTxReceiptFrequency):
+				receipt, err = s.EthMan.GetTxReceipt(s.ctx, sendBatchTx.Hash())
+				if errors.Is(err, ethereum.NotFound) || receipt == nil {
+					continue
+				}
+				if err != nil {
+					log.Errorf("failed to get receipt, err: %v", err)
+					return
+				}
+			case <-s.ctx.Done():
+				return
+			}
+		}
 		// update txs in the pool as selected
 		err = s.Pool.UpdateTxsState(s.ctx, selectedTxsHashes, pool.TxStateSelected)
 		if err != nil {

@@ -3,6 +3,11 @@ package benchmarks
 import (
 	"context"
 	"fmt"
+	"math/big"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -14,10 +19,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/operations"
 	"github.com/stretchr/testify/require"
-	"math/big"
-	"strings"
-	"testing"
-	"time"
 )
 
 const (
@@ -32,7 +33,7 @@ const (
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
 	defaultInterval        = 5 * time.Second
-	defaultDeadline        = 300 * time.Second
+	defaultDeadline        = 600 * time.Second
 	defaultTxMinedDeadline = 5 * time.Second
 
 	makeCmd = "make"
@@ -139,9 +140,8 @@ func runTxSender(b *testing.B, txsAmount int) {
 		if err != nil {
 			return false, err
 		}
-		fmt.Println("txs")
-		fmt.Println(len(txs))
 
+		fmt.Println(fmt.Sprintf("amount of pending txs: %v", len(txs)))
 		latestBatchNumber, err := st.GetLastBatchNumber(ctx)
 		if err != nil {
 			return false, err
@@ -150,6 +150,10 @@ func runTxSender(b *testing.B, txsAmount int) {
 		return done, nil
 	})
 
-	fmt.Println(st.GetLastBatchNumber(ctx))
+	b.StopTimer()
+
+	lastBatchNumber, err := st.GetLastBatchNumber(ctx)
+	require.NoError(b, err)
+	fmt.Println(fmt.Sprintf("lastBatchNumber: %v", lastBatchNumber))
 	require.NoError(b, operations.Teardown())
 }
