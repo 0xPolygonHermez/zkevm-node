@@ -213,7 +213,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				log.Debug("consolidatedTxHash received: ", batch.ConsolidatedTxHash)
 				if batch.ConsolidatedTxHash.String() != emptyHash.String() {
 					// consolidate batch locally
-					err = s.state.ConsolidateBatch(s.ctx, batch.Number().Uint64(), batch.ConsolidatedTxHash, *batch.ConsolidatedAt, batch.Aggregator)
+					err = s.state.ConsolidateBatch(ctx, batch.Number().Uint64(), batch.ConsolidatedTxHash, *batch.ConsolidatedAt, batch.Aggregator)
 					if err != nil {
 						err = s.state.Rollback(ctx)
 						if err != nil {
@@ -223,7 +223,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					}
 				} else {
 					// Get latest synced batch number
-					latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
+					latestBatchNumber, err := s.state.GetLastBatchNumber(ctx)
 					if err != nil {
 						err = s.state.Rollback(ctx)
 						if err != nil {
@@ -254,7 +254,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				}
 			} else if element.Name == etherman.NewSequencersOrder {
 				// Add new sequencers
-				err := s.state.AddSequencer(context.Background(), blocks[i].NewSequencers[element.Pos])
+				err := s.state.AddSequencer(ctx, blocks[i].NewSequencers[element.Pos])
 				if err != nil {
 					err = s.state.Rollback(ctx)
 					if err != nil {
@@ -266,11 +266,20 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				//TODO Store info into db
 				log.Warn("Deposit functionality is not implemented in synchronizer yet")
 			} else if element.Name == etherman.GlobalExitRootsOrder {
-				//TODO Store info into db
-				log.Warn("Consolidate globalExitRoot functionality is not implemented in synchronizer yet")
+				err := s.state.AddExitRoot(ctx, &blocks[i].GlobalExitRoots[element.Pos])
+				if err != nil {
+					err = s.state.Rollback(ctx)
+					if err != nil {
+						log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+					}
+					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos], " err: ", err)
+				}
 			} else if element.Name == etherman.ClaimsOrder {
 				//TODO Store info into db
 				log.Warn("Claim functionality is not implemented in synchronizer yet")
+			} else if element.Name == etherman.TokensOrder {
+				//TODO Store info into db
+				log.Warn("Tokens functionality is not implemented in synchronizer yet")
 			} else {
 				err = s.state.Rollback(ctx)
 				if err != nil {
