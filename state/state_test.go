@@ -1225,7 +1225,7 @@ func TestExitRootStore(t *testing.T) {
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-	stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
 
 	// Create state
 	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
