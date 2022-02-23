@@ -635,6 +635,7 @@ func grpcHealthyCondition(address string) (bool, error) {
 	return done, nil
 }
 
+// WaitPoll function waits, until condition met or fail after deadline
 func WaitPoll(interval, deadline time.Duration, condition conditionFunc) error {
 	timeout := time.After(deadline)
 	tick := time.NewTicker(interval)

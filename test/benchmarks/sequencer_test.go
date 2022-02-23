@@ -25,19 +25,8 @@ const (
 	l1NetworkURL = "http://localhost:8545"
 	l2NetworkURL = "http://localhost:8123"
 
-	poeAddress        = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
-	bridgeAddress     = "0xffffffffffffffffffffffffffffffffffffffff"
-	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
-
-	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-
-	defaultInterval        = 5 * time.Second
-	defaultDeadline        = 600 * time.Second
-	defaultTxMinedDeadline = 5 * time.Second
-
-	makeCmd = "make"
-	cmdDir  = "../.."
+	defaultInterval = 5 * time.Second
+	defaultDeadline = 600 * time.Second
 )
 
 var dbConfig = dbutils.NewConfigFromEnv()
@@ -71,6 +60,10 @@ var (
 )
 
 func BenchmarkSequencer(b *testing.B) {
+	if testing.Short() {
+		b.Skip()
+	}
+
 	for _, v := range table {
 		b.Run(fmt.Sprintf("amount_of_txs_%d", v.input), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
@@ -119,6 +112,7 @@ func runTxSender(b *testing.B, txsAmount int) {
 	require.NoError(b, err)
 
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, new(big.Int).SetUint64(chainID))
+	require.NoError(b, err)
 	l2Client, err := ethclient.Dial(l2NetworkURL)
 	require.NoError(b, err)
 
@@ -141,7 +135,7 @@ func runTxSender(b *testing.B, txsAmount int) {
 			return false, err
 		}
 
-		fmt.Println(fmt.Sprintf("amount of pending txs: %v", len(txs)))
+		fmt.Printf("amount of pending txs: %v\n", len(txs))
 		latestBatchNumber, err := st.GetLastBatchNumber(ctx)
 		if err != nil {
 			return false, err
@@ -149,11 +143,12 @@ func runTxSender(b *testing.B, txsAmount int) {
 		done := len(txs) == 0 && latestBatchNumber > currentBatchNumber
 		return done, nil
 	})
+	require.NoError(b, err)
 
 	b.StopTimer()
 
 	lastBatchNumber, err := st.GetLastBatchNumber(ctx)
 	require.NoError(b, err)
-	fmt.Println(fmt.Sprintf("lastBatchNumber: %v", lastBatchNumber))
+	fmt.Printf("lastBatchNumber: %v\n", lastBatchNumber)
 	require.NoError(b, operations.Teardown())
 }
