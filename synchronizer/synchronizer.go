@@ -272,9 +272,9 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				//TODO Store info into db
 				log.Warn("Claim functionality is not implemented in synchronizer yet")
 			} else {
-				err = s.state.Rollback(ctx)
-				if err != nil {
-					log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err))
+				rollbackErr := s.state.Rollback(ctx)
+				if rollbackErr != nil {
+					log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blocks[i].BlockNumber, rollbackErr, err))
 				}
 				log.Fatal("error: invalid order element")
 			}

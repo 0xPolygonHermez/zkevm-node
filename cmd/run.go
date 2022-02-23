@@ -76,9 +76,9 @@ func start(ctx *cli.Context) error {
 	go seq.Start()
 	go runJSONRpcServer(*c, pool, st, seq.ChainID, gpe)
 
-	//proverClient, conn := newProverClient(c.Prover)
-	//go runAggregator(c.Aggregator, etherman, proverClient, st)
-	waitSignal(nil)
+	proverClient, conn := newProverClient(c.Prover)
+	go runAggregator(c.Aggregator, etherman, proverClient, st)
+	waitSignal(conn)
 	return nil
 }
 

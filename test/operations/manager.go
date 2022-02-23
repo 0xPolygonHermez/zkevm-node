@@ -228,10 +228,10 @@ func (m *Manager) Setup() error {
 	}
 
 	// Start prover container
-	//err = startProver()
-	//if err != nil {
-	//	return err
-	//}
+	err = startProver()
+	if err != nil {
+		return err
+	}
 
 	err = m.setUpSequencer()
 	if err != nil {
