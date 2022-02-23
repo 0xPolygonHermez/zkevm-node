@@ -276,7 +276,7 @@ func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) 
 	store := tree.NewPostgresStore(sqlDB)
 	mt := tree.NewMerkleTree(store, arity, poseidon.Hash)
 	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
-	tr := tree.NewStateTree(mt, scCodeStore, []byte{})
+	tr := tree.NewStateTree(mt, scCodeStore)
 
 	stateCfg := state.Config{
 		DefaultChainID:       defaultChainID,

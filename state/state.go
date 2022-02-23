@@ -105,7 +105,7 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		return nil, err
 	}
 
-	s.tree.SetCurrentRoot(stateRoot)
+	ctx := context.Background()
 
 	// Get Sequencer's Chain ID
 	chainID := s.cfg.DefaultChainID
@@ -114,14 +114,14 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		chainID = sq.ChainID.Uint64()
 	}
 
-	lastBatch, err := s.GetBatchByNumber(context.Background(), lastBatchNumber)
+	lastBatch, err := s.GetBatchByNumber(ctx, lastBatchNumber)
 	if err != ErrNotFound && err != nil {
 		return nil, err
 	}
 
 	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed}
 	batchProcessor.setRuntime(evm.NewEVM())
-	blockNumber, err := s.GetLastBlockNumber(context.Background())
+	blockNumber, err := s.GetLastBlockNumber(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -131,8 +131,6 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 
 // NewGenesisBatchProcessor creates a new batch processor
 func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (*BasicBatchProcessor, error) {
-	s.tree.SetCurrentRoot(genesisStateRoot)
-
 	return &BasicBatchProcessor{State: s, stateRoot: genesisStateRoot}, nil
 }
 
@@ -208,14 +206,14 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		return err
 	}
 
-	// reset tree current root
-	s.tree.SetCurrentRoot(nil)
-
-	var root common.Hash
+	var (
+		root    common.Hash
+		newRoot []byte
+	)
 
 	if genesis.Balances != nil { // Genesis Balances
 		for address, balance := range genesis.Balances {
-			newRoot, _, err := s.tree.SetBalance(address, balance)
+			newRoot, _, err = s.tree.SetBalance(address, balance, newRoot)
 			if err != nil {
 				return err
 			}
@@ -223,7 +221,7 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		}
 	} else { // Genesis Smart Contracts
 		for address, sc := range genesis.SmartContracts {
-			newRoot, _, err := s.tree.SetCode(address, sc)
+			newRoot, _, err = s.tree.SetCode(address, sc, newRoot)
 			if err != nil {
 				return err
 			}
