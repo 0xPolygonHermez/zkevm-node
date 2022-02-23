@@ -53,6 +53,12 @@ func (b *argBytes) UnmarshalText(input []byte) error {
 	return nil
 }
 
+func argBytesPtr(b []byte) *argBytes {
+	bb := argBytes(b)
+
+	return &bb
+}
+
 type argBig big.Int
 
 func (a *argBig) UnmarshalText(input []byte) error {
@@ -307,12 +313,6 @@ func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
 		GasUsed:           argUint64(r.GasUsed),
 		ContractAddress:   r.ContractAddress,
 		FromAddr:          r.From,
-		ToAddr:            &to,
+		ToAddr:            to,
 	}
-}
-
-func argBytesPtr(b []byte) *argBytes {
-	bb := argBytes(b)
-
-	return &bb
 }

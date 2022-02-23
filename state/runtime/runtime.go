@@ -17,6 +17,8 @@ var (
 	ErrNotEnoughFunds = errors.New("not enough funds")
 	// ErrInsufficientBalance indicates there is not enough balance to continue the execution
 	ErrInsufficientBalance = errors.New("insufficient balance for transfer")
+	// ErrCodeNotFound indicates the code was not found
+	ErrCodeNotFound = errors.New("code not found, data is empty")
 	// ErrMaxCodeSizeExceeded indicates the code size is beyond the maximum
 	ErrMaxCodeSizeExceeded = errors.New("evm: max code size exceeded")
 	// ErrContractAddressCollision there is a collision regarding contract addresses

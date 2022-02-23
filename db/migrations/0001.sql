@@ -60,13 +60,21 @@ CREATE TABLE state.receipt
     tx_hash BYTEA NOT NULL REFERENCES state.transaction (hash) ON DELETE CASCADE,
     tx_index integer,
     tx_from BYTEA,
-    tx_to BYTEA
+    tx_to BYTEA,
+    contract_address BYTEA
 );
 
 CREATE TABLE state.misc
 (
     last_batch_num_seen BIGINT,
     last_batch_num_consolidated BIGINT
+);
+
+CREATE TABLE state.exit_root
+(
+    global_exit_root_num BIGINT,
+    mainnet_exit_root    BYTEA,
+    rollup_exit_root     BYTEA
 );
 
 -- Insert default values into misc table

@@ -1,6 +1,10 @@
 package jsonrpc
 
-import "github.com/hermeznetwork/hermez-core/hex"
+import (
+	"strconv"
+
+	"github.com/hermeznetwork/hermez-core/encoding"
+)
 
 // Net contains implementations for the "net" RPC endpoints
 type Net struct {
@@ -14,5 +18,5 @@ func (n *Net) Version() (interface{}, error) {
 		return nil, err
 	}
 
-	return hex.EncodeUint64(chainID), nil
+	return strconv.FormatInt(int64(chainID), encoding.Base10), nil
 }
