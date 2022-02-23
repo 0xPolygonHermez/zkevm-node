@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,8 +12,10 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/urfave/cli/v2"
+	"google.golang.org/grpc"
 )
 
 func registerSequencer(ctx *cli.Context) error {
@@ -60,8 +63,19 @@ func registerSequencer(ctx *cli.Context) error {
 		MaxCumulativeGasUsed: c.NetworkConfig.MaxCumulativeGasUsed,
 	}
 
+	srvCfg := &tree.ServerConfig{
+		Host: c.MTServer.Host,
+		Port: c.MTServer.Port,
+	}
+	s := grpc.NewServer()
+	mtSrv := tree.NewServer(srvCfg, tr)
+	pb.RegisterMTServiceServer(s, mtSrv)
+
+	mtClient, _, _ := newMTClient(c.MTClient)
+	treeAdapter := tree.NewAdapter(context.Background(), mtClient)
+
 	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
-	st := state.NewState(stateCfg, stateDb, tr)
+	st := state.NewState(stateCfg, stateDb, treeAdapter)
 
 	_, err = st.GetSequencer(ctx.Context, etherman.GetAddress())
 	if errors.Is(err, state.ErrNotFound) { //If It doesn't exist, register the sequencer
