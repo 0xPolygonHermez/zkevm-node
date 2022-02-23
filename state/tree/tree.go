@@ -141,19 +141,6 @@ func (tree *StateTree) ReverseHash(root, hash []byte) ([]byte, error) {
 	return proof.Value.Bytes(), nil
 }
 
-// ReverseHash reverse a hash of an exisiting Merkletree node.
-func (tree *StateTree) ReverseHash(root, hash []byte) ([]byte, error) {
-	hashBI := new(big.Int).SetBytes(hash[:])
-	rootBI := new(big.Int).SetBytes(root[:])
-
-	proof, err := tree.mt.Get(context.Background(), rootBI, hashBI)
-	if err != nil {
-		return nil, err
-	}
-
-	return proof.Value.Bytes(), nil
-}
-
 // SetBalance sets balance
 func (tree *StateTree) SetBalance(address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	if balance.Cmp(big.NewInt(0)) == -1 {
@@ -260,21 +247,6 @@ func (tree *StateTree) SetHashValue(key common.Hash, value *big.Int, root []byte
 	if err != nil {
 		return nil, nil, err
 	}
-
-	return updateProof.NewRoot.Bytes(), updateProof, nil
-}
-
-// SetHashValue sets value for an specific key.
-func (tree *StateTree) SetHashValue(key common.Hash, value *big.Int) (newRoot []byte, proof *UpdateProof, err error) {
-	r := tree.currentRoot
-
-	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(context.TODO(), r, k, value)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	tree.currentRoot = updateProof.NewRoot
 
 	return updateProof.NewRoot.Bytes(), updateProof, nil
 }
