@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 )
 
@@ -113,26 +112,12 @@ func (m *Adapter) GetStorageAt(address common.Address, position common.Hash, roo
 	return value, nil
 }
 
-// GetCurrentRoot returns current MerkleTree root hash.
-func (m *Adapter) GetCurrentRoot() ([]byte, error) {
-	result, err := m.grpcClient.GetCurrentRoot(m.ctx, &pb.Empty{})
-	if err != nil {
-		return nil, err
-	}
-
-	root, err := hex.DecodeString(result.Root)
-	if err != nil {
-		return nil, err
-	}
-
-	return root, nil
-}
-
 // SetBalance sets balance.
-func (m *Adapter) SetBalance(address common.Address, balance *big.Int) (newRoot []byte, proof *UpdateProof, err error) {
+func (m *Adapter) SetBalance(address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	result, err := m.grpcClient.SetBalance(m.ctx, &pb.SetBalanceRequest{
 		EthAddress: address.String(),
 		Balance:    balance.String(),
+		Root:       hex.EncodeToString(root),
 	})
 
 	if err != nil {
@@ -156,10 +141,11 @@ func (m *Adapter) SetBalance(address common.Address, balance *big.Int) (newRoot 
 }
 
 // SetNonce sets nonce.
-func (m *Adapter) SetNonce(address common.Address, nonce *big.Int) (newRoot []byte, proof *UpdateProof, err error) {
+func (m *Adapter) SetNonce(address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	result, err := m.grpcClient.SetNonce(m.ctx, &pb.SetNonceRequest{
 		EthAddress: address.String(),
 		Nonce:      nonce.Uint64(),
+		Root:       hex.EncodeToString(root),
 	})
 
 	if err != nil {
@@ -183,10 +169,11 @@ func (m *Adapter) SetNonce(address common.Address, nonce *big.Int) (newRoot []by
 }
 
 // SetCode sets smart contract code.
-func (m *Adapter) SetCode(address common.Address, code []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (m *Adapter) SetCode(address common.Address, code []byte, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	result, err := m.grpcClient.SetCode(m.ctx, &pb.SetCodeRequest{
 		EthAddress: address.String(),
 		Code:       hex.EncodeToString(code),
+		Root:       hex.EncodeToString(root),
 	})
 
 	if err != nil {
@@ -210,11 +197,12 @@ func (m *Adapter) SetCode(address common.Address, code []byte) (newRoot []byte, 
 }
 
 // SetStorageAt sets storage value at specified position.
-func (m *Adapter) SetStorageAt(address common.Address, position common.Hash, value *big.Int) (newRoot []byte, proof *UpdateProof, err error) {
+func (m *Adapter) SetStorageAt(address common.Address, position common.Hash, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	result, err := m.grpcClient.SetStorageAt(m.ctx, &pb.SetStorageAtRequest{
 		EthAddress: address.String(),
 		Position:   position.String(),
 		Value:      value.String(),
+		Root:       hex.EncodeToString(root),
 	})
 
 	if err != nil {
@@ -235,15 +223,4 @@ func (m *Adapter) SetStorageAt(address common.Address, position common.Hash, val
 	}
 
 	return newRoot, proof, nil
-}
-
-// SetCurrentRoot sets current root of the state tree.
-func (m *Adapter) SetCurrentRoot(root []byte) {
-	_, err := m.grpcClient.SetCurrentRoot(m.ctx, &pb.SetCurrentRootRequest{
-		Root: hex.EncodeToString(root),
-	})
-
-	if err != nil {
-		log.Errorf("Could not set root %q: %v", hex.EncodeToString(root), err)
-	}
 }
