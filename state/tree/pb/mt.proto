@@ -98,6 +98,7 @@ message SetStorageAtRequest {
 message SetHashValueRequest {
     string hash = 1;
     string value = 2;
+    string root = 3;
 }
 message SetHashValueBulkRequest {
     repeated SetHashValueRequest hash_values = 1;
@@ -125,28 +126,38 @@ message ReverseHashResponse {
 }
 
 // Set responses
+message SetCommonData {
+    string new_root = 1;
+    string proof = 2;
+}
 
 message SetBalanceResponse {
     bool success = 1;
     string error_description = 2;
+    SetCommonData data = 3;
 }
 message SetNonceResponse {
     bool success = 1;
     string error_description = 2;
+    SetCommonData data = 3;
 }
 message SetCodeResponse {
     bool success = 1;
     string error_description = 2;
+    SetCommonData data = 3;
 }
 message SetStorageAtResponse {
     bool success = 1;
     string error_description = 2;
+    SetCommonData data = 3;
 }
 message SetHashValueResponse {
     bool success = 1;
     string error_description = 2;
+    SetCommonData data = 3;
 }
 message SetHashValueBulkResponse {
     bool success = 1;
     string error_description = 2;
+    SetCommonData data = 3;
 }

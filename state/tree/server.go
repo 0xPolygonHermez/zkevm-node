@@ -187,13 +187,21 @@ func (s *Server) SetBalance(ctx context.Context, in *pb.SetBalanceRequest) (*pb.
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Balance)
 	}
 
-	_, _, err := s.stree.SetBalance(common.HexToAddress(in.EthAddress), balanceBI)
+	root, err := hex.DecodeString(in.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	root, _, err = s.stree.SetBalance(common.HexToAddress(in.EthAddress), balanceBI, root)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.SetBalanceResponse{
 		Success: true,
+		Data: &pb.SetCommonData{
+			NewRoot: hex.EncodeToString(root),
+		},
 	}, nil
 }
 
@@ -201,13 +209,21 @@ func (s *Server) SetBalance(ctx context.Context, in *pb.SetBalanceRequest) (*pb.
 func (s *Server) SetNonce(ctx context.Context, in *pb.SetNonceRequest) (*pb.SetNonceResponse, error) {
 	nonceBI := new(big.Int).SetUint64(in.Nonce)
 
-	_, _, err := s.stree.SetNonce(common.HexToAddress(in.EthAddress), nonceBI)
+	root, err := hex.DecodeString(in.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	root, _, err = s.stree.SetNonce(common.HexToAddress(in.EthAddress), nonceBI, root)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.SetNonceResponse{
 		Success: true,
+		Data: &pb.SetCommonData{
+			NewRoot: hex.EncodeToString(root),
+		},
 	}, nil
 }
 
@@ -218,13 +234,21 @@ func (s *Server) SetCode(ctx context.Context, in *pb.SetCodeRequest) (*pb.SetCod
 		return nil, err
 	}
 
-	_, _, err = s.stree.SetCode(common.HexToAddress(in.EthAddress), code)
+	root, err := hex.DecodeString(in.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	root, _, err = s.stree.SetCode(common.HexToAddress(in.EthAddress), code, root)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.SetCodeResponse{
 		Success: true,
+		Data: &pb.SetCommonData{
+			NewRoot: hex.EncodeToString(root),
+		},
 	}, nil
 }
 
@@ -235,13 +259,21 @@ func (s *Server) SetStorageAt(ctx context.Context, in *pb.SetStorageAtRequest) (
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Value)
 	}
 
-	_, _, err := s.stree.SetStorageAt(common.HexToAddress(in.EthAddress), common.HexToHash(in.Position), valueBI)
+	root, err := hex.DecodeString(in.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	root, _, err = s.stree.SetStorageAt(common.HexToAddress(in.EthAddress), common.HexToHash(in.Position), valueBI, root)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.SetStorageAtResponse{
 		Success: true,
+		Data: &pb.SetCommonData{
+			NewRoot: hex.EncodeToString(root),
+		},
 	}, nil
 }
 
@@ -252,19 +284,34 @@ func (s *Server) SetHashValue(ctx context.Context, in *pb.SetHashValueRequest) (
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Value)
 	}
 
-	_, _, err := s.stree.SetHashValue(common.HexToHash(in.Hash), valueBI)
+	root, err := hex.DecodeString(in.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	root, _, err = s.stree.SetHashValue(common.HexToHash(in.Hash), valueBI, root)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.SetHashValueResponse{
 		Success: true,
+		Data: &pb.SetCommonData{
+			NewRoot: hex.EncodeToString(root),
+		},
 	}, nil
 }
 
-// SetHashValueBulk sets many entries of the reverse hash table.
+// SetHashValueBulk sets many entries of the reverse hash table. All the root
+// fields are expected to have the same value (the initial root). The method
+// returns the root after setting all the values.
 func (s *Server) SetHashValueBulk(ctx context.Context, in *pb.SetHashValueBulkRequest) (*pb.SetHashValueBulkResponse, error) {
-	for _, item := range in.HashValues {
+	var root string
+	for i, item := range in.HashValues {
+		// once we have inserted the first item we carry over the root value.
+		if i != 0 {
+			item.Root = root
+		}
 		result, err := s.SetHashValue(ctx, item)
 		if err != nil {
 			return nil, err
@@ -272,10 +319,17 @@ func (s *Server) SetHashValueBulk(ctx context.Context, in *pb.SetHashValueBulkRe
 		if !result.Success {
 			return nil, fmt.Errorf("Unsuccessful hash value set")
 		}
+		if result.Data == nil {
+			return nil, fmt.Errorf("No data returned setting hash value")
+		}
+		root = result.Data.NewRoot
 	}
 
 	return &pb.SetHashValueBulkResponse{
 		Success: true,
+		Data: &pb.SetCommonData{
+			NewRoot: root,
+		},
 	}, nil
 }
 
