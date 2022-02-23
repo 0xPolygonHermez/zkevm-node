@@ -23,8 +23,6 @@ service MTService {
     rpc GetStorageAt(GetStorageAtRequest) returns (GetStorageAtResponse);
     /// Reverse a hash of an exisiting Merkletree node
     rpc ReverseHash(ReverseHashRequest) returns (ReverseHashResponse);
-    /// Get current root
-    rpc GetCurrentRoot(Empty) returns (GetCurrentRootResponse);
 
     // Setters
     /// Set the balance for an account at a root
@@ -39,8 +37,6 @@ service MTService {
     rpc SetHashValue(SetHashValueRequest) returns (SetHashValueResponse);
     /// Set many entries of the reverse hash table
     rpc SetHashValueBulk(SetHashValueBulkRequest) returns (SetHashValueBulkResponse);
-    /// Set current root
-    rpc SetCurrentRoot(SetCurrentRootRequest) returns (Empty);
 }
 
 // Get requests
@@ -102,12 +98,10 @@ message SetStorageAtRequest {
 message SetHashValueRequest {
     string hash = 1;
     string value = 2;
+    string root = 3;
 }
 message SetHashValueBulkRequest {
     repeated SetHashValueRequest hash_values = 1;
-}
-message SetCurrentRootRequest {
-    string root = 1;
 }
 
 // Get responses
@@ -130,16 +124,13 @@ message GetStorageAtResponse {
 message ReverseHashResponse {
     string mt_node_value = 1;
 }
-message GetCurrentRootResponse {
-    string root = 1;
-}
 
 // Set responses
-
 message SetCommonData {
     string new_root = 1;
     string proof = 2;
 }
+
 message SetBalanceResponse {
     bool success = 1;
     string error_description = 2;
@@ -163,10 +154,10 @@ message SetStorageAtResponse {
 message SetHashValueResponse {
     bool success = 1;
     string error_description = 2;
+    SetCommonData data = 3;
 }
 message SetHashValueBulkResponse {
     bool success = 1;
     string error_description = 2;
+    SetCommonData data = 3;
 }
-
-message Empty {}
