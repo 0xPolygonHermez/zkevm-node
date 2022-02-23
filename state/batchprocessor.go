@@ -644,8 +644,28 @@ func (b *BasicBatchProcessor) GetCode(address common.Address) []byte {
 
 // Selfdestruct deletes a contract and refunds gas
 func (b *BasicBatchProcessor) Selfdestruct(address common.Address, beneficiary common.Address) {
-	// TODO: Implement
-	panic("not implemented")
+	contractBalance := b.GetBalance(address)
+	if contractBalance.Int64() != 0 {
+		beneficiaryBalance := b.GetBalance(beneficiary)
+		beneficiaryBalance.Add(beneficiaryBalance, contractBalance)
+		_, _, err := b.State.tree.SetBalance(beneficiary, beneficiaryBalance)
+		if err != nil {
+			log.Errorf("error on Selfdestuct for address %v", address)
+		}
+		root, _, err := b.State.tree.SetBalance(beneficiary, big.NewInt(0))
+		if err != nil {
+			log.Errorf("error on Selfdestuct for address %v", address)
+		}
+		b.stateRoot = root
+	}
+	/*
+		root, _, err := b.State.tree.SetCode(address, []byte{})
+		if err != nil {
+			log.Errorf("error on Selfdestuct for address %v", address)
+		}
+		b.stateRoot = root
+	*/
+
 }
 
 // GetTxContext returns metadata related to the Tx Context
