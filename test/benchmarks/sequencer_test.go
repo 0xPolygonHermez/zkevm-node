@@ -71,7 +71,6 @@ func BenchmarkSequencer(b *testing.B) {
 			}
 		})
 	}
-
 }
 
 func runTxSender(b *testing.B, txsAmount int) {
