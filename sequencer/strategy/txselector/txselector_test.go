@@ -9,7 +9,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/mocks"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +16,7 @@ import (
 func TestBase_SelectTxs(t *testing.T) {
 	seqAddress := common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 
-	bp := new(mocks.BatchProcessor)
+	bp := new(batchProcessor)
 
 	txSelector := txselector.NewTxSelectorBase(txselector.Config{
 		TxSorterType: "bycostandnonce",
@@ -45,7 +44,7 @@ func TestBase_SelectTxs(t *testing.T) {
 func TestBase_SelectTxs_ExceededGasLimit(t *testing.T) {
 	seqAddress := common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 
-	bp := new(mocks.BatchProcessor)
+	bp := new(batchProcessor)
 
 	txSelector := txselector.NewTxSelectorBase(txselector.Config{
 		TxSorterType: "bycostandnonce",
@@ -73,7 +72,7 @@ func TestBase_SelectTxs_ExceededGasLimit(t *testing.T) {
 func TestAcceptAll_SelectTxs(t *testing.T) {
 	seqAddress := common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 
-	bp := new(mocks.BatchProcessor)
+	bp := new(batchProcessor)
 
 	txSelector := txselector.NewTxSelectorAcceptAll()
 

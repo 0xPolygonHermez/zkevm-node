@@ -30,9 +30,7 @@ import (
 )
 
 func start(ctx *cli.Context) error {
-	configFilePath := ctx.String(flagCfg)
-	network := ctx.String(flagNetwork)
-	c, err := config.Load(configFilePath, network)
+	c, err := config.Load(ctx)
 	if err != nil {
 		return err
 	}
@@ -188,7 +186,6 @@ func createGasPriceEstimator(cfg gasprice.Config, state state.State, pool *pool.
 }
 
 func waitSignal(conn *grpc.ClientConn) {
-	//func waitSignal() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
@@ -196,7 +193,6 @@ func waitSignal(conn *grpc.ClientConn) {
 		switch sig {
 		case os.Interrupt, os.Kill:
 			log.Info("terminating application gracefully...")
-			//conn.Close() //nolint:gosec,errcheck
 			os.Exit(0)
 		}
 	}

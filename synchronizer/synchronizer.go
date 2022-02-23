@@ -277,6 +277,9 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 			} else if element.Name == etherman.ClaimsOrder {
 				//TODO Store info into db
 				log.Warn("Claim functionality is not implemented in synchronizer yet")
+			} else if element.Name == etherman.TokensOrder {
+				//TODO Store info into db
+				log.Warn("Tokens functionality is not implemented in synchronizer yet")
 			} else {
 				err = s.state.Rollback(ctx)
 				if err != nil {

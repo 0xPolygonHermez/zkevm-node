@@ -8,11 +8,12 @@ import (
 )
 
 const (
-	flagYes     = "yes"
-	flagCfg     = "cfg"
-	flagNetwork = "network"
-	flagAddress = "address"
-	flagAmount  = "amount"
+	flagYes        = "yes"
+	flagCfg        = "cfg"
+	flagNetwork    = "network"
+	flagNetworkCfg = "network-cfg"
+	flagAddress    = "address"
+	flagAmount     = "amount"
 )
 
 const (
@@ -42,6 +43,11 @@ func main() {
 			Aliases:  []string{"n"},
 			Usage:    "Network: mainnet, testnet, internaltestnet, local. By default it uses mainnet",
 			Required: false,
+		},
+		&cli.StringFlag{
+			Name:    flagNetworkCfg,
+			Aliases: []string{"nc"},
+			Usage:   "Custom network configuration `FILE` when using --network custom parameter",
 		},
 		&cli.BoolFlag{
 			Name:     flagYes,
