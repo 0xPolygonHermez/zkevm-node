@@ -16,7 +16,7 @@ import (
 
 // Server provides the functionality of the MerkleTree service.
 type Server struct {
-	cfg   *Config
+	cfg   *ServerConfig
 	stree *StateTree
 
 	srv *grpc.Server
@@ -24,7 +24,7 @@ type Server struct {
 }
 
 // NewServer is the MT server constructor.
-func NewServer(cfg *Config, stree *StateTree) *Server {
+func NewServer(cfg *ServerConfig, stree *StateTree) *Server {
 	return &Server{
 		cfg:   cfg,
 		stree: stree,

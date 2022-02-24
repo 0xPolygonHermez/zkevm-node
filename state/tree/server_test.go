@@ -112,7 +112,7 @@ func initMTServer() (*tree.Server, error) {
 
 	s := grpc.NewServer()
 
-	cfg := &tree.Config{
+	cfg := &tree.ServerConfig{
 		Host: host,
 		Port: port,
 	}
@@ -147,7 +147,7 @@ func Test_MTServer_GetNonce(t *testing.T) {
 	stree, err := initStree()
 	require.NoError(t, err)
 
-	expectedNonce := big.NewInt(200)
+	expectedNonce := big.NewInt(100)
 	root, _, err := stree.SetNonce(common.HexToAddress(ethAddress), expectedNonce, nil)
 	require.NoError(t, err)
 
@@ -170,6 +170,7 @@ func Test_MTServer_GetCode(t *testing.T) {
 	expectedCode := "dead"
 	code, err := hex.DecodeString(expectedCode)
 	require.NoError(t, err)
+
 	root, _, err := stree.SetCode(common.HexToAddress(ethAddress), code, nil)
 	require.NoError(t, err)
 
@@ -271,10 +272,12 @@ func Test_MTServer_SetBalance(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.True(t, resp.Success)
+	require.NotNil(t, resp.Data)
 
 	require.NotNil(t, resp.Data)
 	newRoot, err := hex.DecodeString(resp.Data.NewRoot)
 	require.NoError(t, err)
+	require.Equal(t, hex.EncodeToString(newRoot), resp.Data.NewRoot)
 
 	actualBalance, err := stree.GetBalance(common.HexToAddress(ethAddress), newRoot)
 	require.NoError(t, err)
@@ -298,10 +301,12 @@ func Test_MTServer_SetNonce(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.True(t, resp.Success)
+	require.NotNil(t, resp.Data)
 
 	require.NotNil(t, resp.Data)
 	newRoot, err := hex.DecodeString(resp.Data.NewRoot)
 	require.NoError(t, err)
+	require.Equal(t, hex.EncodeToString(newRoot), resp.Data.NewRoot)
 
 	actualNonce, err := stree.GetNonce(common.HexToAddress(ethAddress), newRoot)
 	require.NoError(t, err)
@@ -325,10 +330,12 @@ func Test_MTServer_SetCode(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.True(t, resp.Success)
+	require.NotNil(t, resp.Data)
 
 	require.NotNil(t, resp.Data)
 	newRoot, err := hex.DecodeString(resp.Data.NewRoot)
 	require.NoError(t, err)
+	require.Equal(t, hex.EncodeToString(newRoot), resp.Data.NewRoot)
 
 	actualCode, err := stree.GetCode(common.HexToAddress(ethAddress), newRoot)
 	require.NoError(t, err)
@@ -355,10 +362,12 @@ func Test_MTServer_SetStorageAt(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.True(t, resp.Success)
+	require.NotNil(t, resp.Data)
 
 	require.NotNil(t, resp.Data)
 	newRoot, err := hex.DecodeString(resp.Data.NewRoot)
 	require.NoError(t, err)
+	require.Equal(t, hex.EncodeToString(newRoot), resp.Data.NewRoot)
 
 	actualStorageAt, err := stree.GetStorageAt(common.HexToAddress(ethAddress), common.BigToHash(positionBI), newRoot)
 	require.NoError(t, err)
