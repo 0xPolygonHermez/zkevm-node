@@ -67,10 +67,7 @@ func start(ctx *cli.Context) error {
 		grpcClientConns []*grpc.ClientConn
 		cancelFuncs     []context.CancelFunc
 	)
-	if ctx.Bool(flagLocalMT) {
-		log.Debugf("running with local MT")
-		st = state.NewState(stateCfg, stateDb, tr)
-	} else {
+	if ctx.Bool(flagRemoteMT) {
 		log.Debugf("running with remote MT")
 		srvCfg := &tree.ServerConfig{
 			Host: c.MTServer.Host,
@@ -88,6 +85,9 @@ func start(ctx *cli.Context) error {
 		cancelFuncs = append(cancelFuncs, mtCancel)
 
 		st = state.NewState(stateCfg, stateDb, treeAdapter)
+	} else {
+		log.Debugf("running with local MT")
+		st = state.NewState(stateCfg, stateDb, tr)
 	}
 	pool, err := pool.NewPostgresPool(c.Database)
 	if err != nil {

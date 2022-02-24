@@ -14,7 +14,7 @@ const (
 	flagNetworkCfg = "network-cfg"
 	flagAddress    = "address"
 	flagAmount     = "amount"
-	flagLocalMT    = "local-merkletree"
+	flagRemoteMT   = "remote-merkletree"
 )
 
 const (
@@ -57,9 +57,9 @@ func main() {
 			Required: false,
 		},
 		&cli.BoolFlag{
-			Name:     flagLocalMT,
+			Name:     flagRemoteMT,
 			Aliases:  []string{"mt"},
-			Usage:    "Use local merkletree instead of connecting to remote server",
+			Usage:    "Connect to merkletree service instead of use local libraries",
 			Required: false,
 		},
 	}
