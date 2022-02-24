@@ -185,14 +185,13 @@ func (tree *StateTree) SetNonce(address common.Address, nonce *big.Int, root []b
 
 // SetCode sets smart contract code
 func (tree *StateTree) SetCode(address common.Address, code []byte, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
-	if code == nil {
-		return nil, nil, fmt.Errorf("invalid smart contract code")
-	}
-
 	// calculating smart contract code hash
-	scCodeHashBI, err := tree.mt.scHashFunction(code)
-	if err != nil {
-		return nil, nil, err
+	scCodeHashBI := big.NewInt(0)
+	if len(code) > 0 {
+		scCodeHashBI, err = tree.mt.scHashFunction(code)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	// we need to have exactly maxBigIntLen bytes for a key in db for
 	// interoperability with prover/executor code, but big.Int Bytes()

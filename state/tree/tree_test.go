@@ -208,3 +208,46 @@ func TestMerkleTreeGenesis(t *testing.T) {
 		})
 	}
 }
+
+func TestCodeUnset(t *testing.T) {
+	dbCfg := dbutils.NewConfigFromEnv()
+
+	err := dbutils.InitOrReset(dbCfg)
+	require.NoError(t, err)
+
+	mtDb, err := db.NewSQLDB(dbCfg)
+	require.NoError(t, err)
+
+	defer mtDb.Close()
+
+	store := NewPostgresStore(mtDb)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	scCodeStore := NewPostgresSCCodeStore(mtDb)
+	tree := NewStateTree(mt, scCodeStore)
+
+	address := common.Address{
+		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+	}
+
+	code, err := tree.GetCode(address, nil)
+	require.NoError(t, err)
+	assert.Equal(t, []byte{}, code)
+
+	scCode, _ := hex.DecodeString("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	root, _, err := tree.SetCode(address, scCode, nil)
+	require.NoError(t, err)
+
+	code, err = tree.GetCode(address, root)
+	require.NoError(t, err)
+	assert.Equal(t, scCode, code)
+
+	root, _, err = tree.SetCode(address, nil, root)
+	require.NoError(t, err)
+
+	code, err = tree.GetCode(address, root)
+	require.NoError(t, err)
+	assert.Equal(t, []byte(nil), code)
+
+	assert.Equal(t, root, []byte{})
+}
