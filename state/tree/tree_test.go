@@ -93,11 +93,13 @@ func TestBasicTree(t *testing.T) {
 		0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29,
 		0x30, 0x31,
 	}
+	positionBI := new(big.Int).SetBytes(position.Bytes())
+
 	storage, err := tree.GetStorageAt(address, position, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(0), storage)
 
-	root, _, err = tree.SetStorageAt(address, position, big.NewInt(4), root)
+	root, _, err = tree.SetStorageAt(address, positionBI, big.NewInt(4), root)
 	require.NoError(t, err)
 
 	storage, err = tree.GetStorageAt(address, position, root)
@@ -110,12 +112,13 @@ func TestBasicTree(t *testing.T) {
 		0x21, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29,
 		0x31, 0x31,
 	}
+	position2BI := new(big.Int).SetBytes(position2.Bytes())
 
 	storage2, err := tree.GetStorageAt(address, position2, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(0), storage2)
 
-	root, _, err = tree.SetStorageAt(address, position2, big.NewInt(5), root)
+	root, _, err = tree.SetStorageAt(address, position2BI, big.NewInt(5), root)
 	require.NoError(t, err)
 
 	storage2, err = tree.GetStorageAt(address, position2, root)

@@ -197,7 +197,7 @@ func (m *Adapter) SetCode(address common.Address, code []byte, root []byte) (new
 }
 
 // SetStorageAt sets storage value at specified position.
-func (m *Adapter) SetStorageAt(address common.Address, position common.Hash, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (m *Adapter) SetStorageAt(address common.Address, position *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	result, err := m.grpcClient.SetStorageAt(m.ctx, &pb.SetStorageAtRequest{
 		EthAddress: address.String(),
 		Position:   position.String(),
