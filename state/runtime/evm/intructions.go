@@ -479,8 +479,8 @@ func opSStore(s *state) {
 		return
 	}
 
-	key := s.popHash()
-	val := s.popHash()
+	key := s.pop()
+	val := s.pop()
 
 	legacyGasMetering := !s.config.Istanbul && (s.config.Petersburg || !s.config.Constantinople)
 
