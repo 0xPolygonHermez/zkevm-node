@@ -50,8 +50,8 @@ const (
 	addBatchSQL                            = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, chain_id, global_exit_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)"
 	addTransactionSQL                      = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
 	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, batch_num, batch_hash, tx_hash, tx_index, tx_from, tx_to, contract_address)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"
-	addExitRootSQL                         = "INSERT INTO state.exit_root (global_exit_root_num, mainnet_exit_root, rollup_exit_root) VALUES ($1, $2, $3)"
-	getExitRootSQL                         = "SELECT global_exit_root_num, mainnet_exit_root, rollup_exit_root FROM state.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
+	addExitRootSQL                         = "INSERT INTO state.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root) VALUES ($1, $2, $3, $4)"
+	getExitRootSQL                         = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root FROM state.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
 )
 
 var (
@@ -600,7 +600,7 @@ func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt
 
 // AddExitRoot adds a new ExitRoot to the State Store
 func (s *PostgresStorage) AddExitRoot(ctx context.Context, exitRoot *state.GlobalExitRoot) error {
-	_, err := s.exec(ctx, addExitRootSQL, exitRoot.GlobalExitRootNum.String(), exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot)
+	_, err := s.exec(ctx, addExitRootSQL, exitRoot.BlockNumber, exitRoot.GlobalExitRootNum.String(), exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot)
 	return err
 }
 
@@ -610,7 +610,7 @@ func (s *PostgresStorage) GetLatestExitRoot(ctx context.Context) (*state.GlobalE
 		exitRoot  state.GlobalExitRoot
 		globalNum uint64
 	)
-	err := s.queryRow(ctx, getExitRootSQL).Scan(&globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot)
+	err := s.queryRow(ctx, getExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
 	} else if err != nil {

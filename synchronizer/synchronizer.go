@@ -272,7 +272,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					if err != nil {
 						log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
 					}
-					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos], " err: ", err)
+					log.Fatal("error storing new globalExitRoot in Block: ", blocks[i].BlockNumber, " GlobalExitRoot: ", blocks[i].GlobalExitRoots[element.Pos], " err: ", err)
 				}
 			} else if element.Name == etherman.ClaimsOrder {
 				//TODO Store info into db

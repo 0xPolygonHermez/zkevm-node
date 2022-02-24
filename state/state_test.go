@@ -1234,10 +1234,13 @@ func TestExitRootStore(t *testing.T) {
 	require.Error(t, err)
 
 	var exitRoot state.GlobalExitRoot
+	exitRoot.BlockNumber = blockNumber1
 	exitRoot.GlobalExitRootNum = big.NewInt(1)
 	exitRoot.MainnetExitRoot = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc")
 	exitRoot.RollupExitRoot = common.HexToHash("0x30e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9ed")
 
+	err = st.AddBlock(ctx, block1)
+	require.NoError(t, err)
 	err = st.AddExitRoot(ctx, &exitRoot)
 	require.NoError(t, err)
 

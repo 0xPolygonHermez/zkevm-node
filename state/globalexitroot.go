@@ -8,6 +8,7 @@ import (
 
 // GlobalExitRoot struct
 type GlobalExitRoot struct {
+	BlockNumber       uint64
 	GlobalExitRootNum *big.Int
 	MainnetExitRoot   common.Hash
 	RollupExitRoot    common.Hash
