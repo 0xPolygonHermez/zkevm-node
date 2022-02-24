@@ -55,25 +55,40 @@ func start(ctx *cli.Context) error {
 	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
 	tr := tree.NewStateTree(mt, scCodeStore)
 
-	srvCfg := &tree.ServerConfig{
-		Host: c.MTServer.Host,
-		Port: c.MTServer.Port,
-	}
-	s := grpc.NewServer()
-	mtSrv := tree.NewServer(srvCfg, tr)
-	pb.RegisterMTServiceServer(s, mtSrv)
-
-	mtClient, mtConn, mtCancel := newMTClient(c.MTClient)
-	treeAdapter := tree.NewAdapter(context.Background(), mtClient)
-
 	stateCfg := state.Config{
 		DefaultChainID:       c.NetworkConfig.L2DefaultChainID,
 		MaxCumulativeGasUsed: c.NetworkConfig.MaxCumulativeGasUsed,
 	}
 
 	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
-	st := state.NewState(stateCfg, stateDb, treeAdapter)
 
+	var (
+		st              state.State
+		grpcClientConns []*grpc.ClientConn
+		cancelFuncs     []context.CancelFunc
+	)
+	if ctx.Bool(flagLocalMT) {
+		log.Debugf("running with local MT")
+		st = state.NewState(stateCfg, stateDb, tr)
+	} else {
+		log.Debugf("running with remote MT")
+		srvCfg := &tree.ServerConfig{
+			Host: c.MTServer.Host,
+			Port: c.MTServer.Port,
+		}
+		s := grpc.NewServer()
+		mtSrv := tree.NewServer(srvCfg, tr)
+		go mtSrv.Start()
+		pb.RegisterMTServiceServer(s, mtSrv)
+
+		mtClient, mtConn, mtCancel := newMTClient(c.MTClient)
+		treeAdapter := tree.NewAdapter(context.Background(), mtClient)
+
+		grpcClientConns = append(grpcClientConns, mtConn)
+		cancelFuncs = append(cancelFuncs, mtCancel)
+
+		st = state.NewState(stateCfg, stateDb, treeAdapter)
+	}
 	pool, err := pool.NewPostgresPool(c.Database)
 	if err != nil {
 		log.Fatal(err)
@@ -89,9 +104,10 @@ func start(ctx *cli.Context) error {
 
 	proverClient, proverConn := newProverClient(c.Prover)
 	go runAggregator(c.Aggregator, etherman, proverClient, st)
-	go mtSrv.Start()
 
-	waitSignal([]*grpc.ClientConn{proverConn, mtConn}, []context.CancelFunc{mtCancel})
+	grpcClientConns = append(grpcClientConns, proverConn)
+
+	waitSignal(grpcClientConns, cancelFuncs)
 
 	return nil
 }
