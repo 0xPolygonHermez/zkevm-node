@@ -140,6 +140,8 @@ func (p *PostgresPool) GetGasPrice(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 
+	defer rows.Close()
+
 	gasPrice := uint64(0)
 
 	for rows.Next() {

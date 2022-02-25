@@ -68,9 +68,7 @@ func (b *Base) SelectTxs(batchProcessor batchProcessor, pendingTxs []pool.Transa
 	)
 	for _, tx := range sortedTxs {
 		t := tx.Transaction
-		b.batchProcessorLock.Lock()
 		result := batchProcessor.ProcessTransaction(&t, sequencerAddress)
-		b.batchProcessorLock.Unlock()
 		if result.Failed() {
 			err := result.Err
 			if state.InvalidTxErrors[err.Error()] {

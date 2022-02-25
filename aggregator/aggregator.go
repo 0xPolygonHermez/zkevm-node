@@ -132,13 +132,13 @@ func (a *Aggregator) Start() {
 			}
 
 			// 4. send zki + txs to the prover
-			stateRootConsolidated, err := a.State.GetStateRootByBatchNumber(lastConsolidatedBatch.Number().Uint64())
+			stateRootConsolidated, err := a.State.GetStateRootByBatchNumber(a.ctx, lastConsolidatedBatch.Number().Uint64())
 			if err != nil {
 				log.Warnf("failed to get current state root, err: %v", err)
 				continue
 			}
 
-			stateRootToConsolidate, err := a.State.GetStateRootByBatchNumber(batchToConsolidate.Number().Uint64())
+			stateRootToConsolidate, err := a.State.GetStateRootByBatchNumber(a.ctx, batchToConsolidate.Number().Uint64())
 			if err != nil {
 				log.Warnf("failed to get state root to consolidate, err: %v", err)
 				continue
