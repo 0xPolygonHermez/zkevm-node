@@ -2,8 +2,6 @@ package txselector
 
 import (
 	"errors"
-	"sync"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -39,8 +37,6 @@ func (s *AcceptAll) SelectTxs(batchProcessor batchProcessor, pendingTxs []pool.T
 // Base tx selector with basic selection algorithm. Accepts different tx sorting and tx profitability checking structs
 type Base struct {
 	TxSorter TxSorter
-
-	batchProcessorLock sync.Mutex
 }
 
 // NewTxSelectorBase init function
