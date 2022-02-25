@@ -54,15 +54,6 @@ var InvalidTxErrors = map[string]bool{
 	ErrInvalidGas.Error(): true, ErrInvalidChainID.Error(): true,
 }
 
-// BatchProcessor is used to process a batch of transactions
-type BatchProcessor interface {
-	ProcessBatch(batch *Batch) error
-	CheckTransaction(tx *types.Transaction) error
-	ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult
-	ProcessUnsignedTransaction(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult
-	runtime.Host
-}
-
 // BasicBatchProcessor is used to process a batch of transactions
 type BasicBatchProcessor struct {
 	State                *BasicState
@@ -98,7 +89,7 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 			log.Infof("Successfully processed transaction %s", tx.Hash().String())
 			b.CumulativeGasUsed += result.GasUsed
 			includedTxs = append(includedTxs, tx)
-			receipt := b.generateReceipt(batch, tx, index, &senderAddress, tx.To(), result.GasUsed)
+			receipt := b.generateReceipt(batch, tx, index, &senderAddress, tx.To(), result)
 			receipts = append(receipts, receipt)
 			index++
 		}
@@ -142,8 +133,8 @@ func (b *BasicBatchProcessor) ProcessUnsignedTransaction(tx *types.Transaction, 
 func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
 	receiverAddress := tx.To()
 
-	// SC creation?
-	if *receiverAddress == ZeroAddress && len(tx.Data()) > 0 {
+	// SC creation
+	if receiverAddress == nil {
 		log.Debug("smart contract creation")
 		return b.create(tx, senderAddress, sequencerAddress)
 	}
@@ -197,7 +188,7 @@ func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch) {
 	batch.Header.Nonce = block.Header().Nonce
 }
 
-func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, gasUsed uint64) *Receipt {
+func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, result *runtime.ExecutionResult) *Receipt {
 	receipt := &Receipt{}
 	receipt.Type = tx.Type()
 	receipt.PostState = b.stateRoot
@@ -205,14 +196,13 @@ func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transactio
 	receipt.CumulativeGasUsed = b.CumulativeGasUsed
 	receipt.BlockNumber = batch.Number()
 	receipt.BlockHash = batch.Hash()
-	receipt.GasUsed = gasUsed
+	receipt.GasUsed = result.GasUsed
 	receipt.TxHash = tx.Hash()
 	receipt.TransactionIndex = index
+	receipt.ContractAddress = result.CreateAddress
+	receipt.To = receiverAddress
 	if senderAddress != nil {
 		receipt.From = *senderAddress
-	}
-	if receiverAddress != nil {
-		receipt.To = *receiverAddress
 	}
 
 	return receipt
@@ -236,7 +226,6 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 	root := b.stateRoot
 
 	// reset MT currentRoot in case it was modified by failed transaction
-	b.State.tree.SetCurrentRoot(root)
 	log.Debugf("processing transfer [%s]: root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
 	senderBalance, err := b.State.tree.GetBalance(senderAddress, root)
@@ -268,7 +257,7 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 	log.Debugf("processing transfer [%s]: new nonce: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 
 	// Store new nonce
-	_, _, err = b.State.tree.SetNonce(senderAddress, senderNonce)
+	root, _, err = b.State.tree.SetNonce(senderAddress, senderNonce, root)
 	if err != nil {
 		result.Err = err
 		return result
@@ -323,7 +312,7 @@ func (b *BasicBatchProcessor) transfer(tx *types.Transaction, senderAddress, rec
 
 	// Store new balances
 	for address, balance := range balances {
-		root, _, err = b.State.tree.SetBalance(address, balance)
+		root, _, err = b.State.tree.SetBalance(address, balance, root)
 		if err != nil {
 			result.Err = err
 			return result
@@ -360,14 +349,6 @@ func (b *BasicBatchProcessor) CheckTransaction(tx *types.Transaction) error {
 }
 
 func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
-	// reset MT currentRoot in case it was modified by failed transaction
-	b.State.tree.SetCurrentRoot(b.stateRoot)
-
-	// Check Signature
-	if err := CheckSignature(tx); err != nil {
-		return err
-	}
-
 	// Check ChainID
 	if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
 		log.Debugf("Batch ChainID: %v", b.SequencerChainID)
@@ -469,13 +450,36 @@ func (b *BasicBatchProcessor) run(contract *runtime.Contract) *runtime.Execution
 }
 
 func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
-	address := helper.CreateAddress(senderAddress, b.GetNonce(senderAddress))
+	if len(tx.Data()) <= 0 {
+		return &runtime.ExecutionResult{
+			GasLeft: tx.Gas(),
+			Err:     runtime.ErrCodeNotFound,
+		}
+	}
+
+	address := helper.CreateAddress(senderAddress, tx.Nonce())
 	contract := runtime.NewContractCreation(0, senderAddress, senderAddress, address, tx.Value(), tx.Gas(), tx.Data())
 
 	log.Debugf("new contract address = %v", address)
 
 	root := b.stateRoot
 	gasLimit := contract.Gas
+
+	senderNonce, err := b.State.tree.GetNonce(senderAddress, root)
+	if err != nil {
+		return &runtime.ExecutionResult{
+			GasLeft: 0,
+			Err:     err,
+		}
+	}
+
+	err = b.CheckTransaction(tx)
+	if err != nil {
+		return &runtime.ExecutionResult{
+			GasLeft: 0,
+			Err:     err,
+		}
+	}
 
 	if contract.Depth > int(maxCallDepth)+1 {
 		return &runtime.ExecutionResult{
@@ -492,7 +496,8 @@ func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, seque
 		}
 	}
 
-	if tx.Value() != new(big.Int) {
+	if tx.Value().Uint64() != 0 {
+		log.Debugf("contract creation includes value transfer = %v", tx.Value())
 		// Tansfer the value
 		transferResult := b.transfer(tx, senderAddress, contract.Address, sequencerAddress)
 		if transferResult.Err != nil {
@@ -503,17 +508,10 @@ func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, seque
 		}
 	} else {
 		// Increment nonce of the sender
-		senderNonce, err := b.State.tree.GetNonce(senderAddress, root)
-		if err != nil {
-			return &runtime.ExecutionResult{
-				GasLeft: 0,
-				Err:     err,
-			}
-		}
-		big.NewInt(0).Add(senderNonce, big.NewInt(1))
+		senderNonce.Add(senderNonce, big.NewInt(1))
 
 		// Store new nonce
-		_, _, err = b.State.tree.SetNonce(senderAddress, senderNonce)
+		root, _, err = b.State.tree.SetNonce(senderAddress, senderNonce, root)
 		if err != nil {
 			return &runtime.ExecutionResult{
 				GasLeft: 0,
@@ -550,7 +548,7 @@ func (b *BasicBatchProcessor) create(tx *types.Transaction, senderAddress, seque
 	}
 
 	result.GasLeft -= gasCost
-	root, _, err := b.State.tree.SetCode(address, result.ReturnValue)
+	root, _, err = b.State.tree.SetCode(address, result.ReturnValue, root)
 	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft: gasLimit,
@@ -584,9 +582,9 @@ func (b *BasicBatchProcessor) GetStorage(address common.Address, key common.Hash
 }
 
 // SetStorage sets storage for a given address
-func (b *BasicBatchProcessor) SetStorage(address common.Address, key common.Hash, value common.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
+func (b *BasicBatchProcessor) SetStorage(address common.Address, key *big.Int, value *big.Int, config *runtime.ForksInTime) runtime.StorageStatus {
 	// TODO: Check if we have to charge here
-	root, _, err := b.State.tree.SetStorageAt(address, key, new(big.Int).SetBytes(value.Bytes()))
+	root, _, err := b.State.tree.SetStorageAt(address, key, value, b.stateRoot)
 
 	if err != nil {
 		log.Errorf("error on SetStorage for address %v", address)
@@ -674,9 +672,15 @@ func (b *BasicBatchProcessor) EmitLog(address common.Address, topics []common.Ha
 }
 
 // Callx calls a SC
-func (b *BasicBatchProcessor) Callx(*runtime.Contract, runtime.Host) *runtime.ExecutionResult {
-	// TODO: Implement
-	panic("not implemented")
+func (b *BasicBatchProcessor) Callx(contract *runtime.Contract, host runtime.Host) *runtime.ExecutionResult {
+	log.Debugf("Callx to address %v", contract.CodeAddress)
+	root := b.stateRoot
+	contract2 := runtime.NewContractCall(contract.Depth+1, contract.Address, contract.Caller, contract.CodeAddress, contract.Value, contract.Gas, contract.Code, contract.Input)
+	result := b.run(contract2)
+	if result.Reverted() {
+		b.stateRoot = root
+	}
+	return result
 }
 
 // Empty check whether an address is empty
@@ -687,7 +691,7 @@ func (b *BasicBatchProcessor) Empty(address common.Address) bool {
 
 // GetNonce gets the nonce for an account at a given address
 func (b *BasicBatchProcessor) GetNonce(address common.Address) uint64 {
-	nonce, err := b.State.tree.GetBalance(address, b.stateRoot)
+	nonce, err := b.State.tree.GetNonce(address, b.stateRoot)
 
 	if err != nil {
 		log.Errorf("error on GetNonce for address %v", address)

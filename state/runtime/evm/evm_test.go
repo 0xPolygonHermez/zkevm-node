@@ -33,7 +33,7 @@ func (m *mockHost) GetStorage(addr common.Address, key common.Hash) common.Hash 
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) SetStorage(addr common.Address, key common.Hash, value common.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
+func (m *mockHost) SetStorage(addr common.Address, key *big.Int, value *big.Int, config *runtime.ForksInTime) runtime.StorageStatus {
 	panic("Not implemented in tests")
 }
 

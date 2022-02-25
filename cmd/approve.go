@@ -12,8 +12,6 @@ import (
 )
 
 func approveTokens(ctx *cli.Context) error {
-	configFilePath := ctx.String(flagCfg)
-	network := ctx.String(flagNetwork)
 	toName := ctx.String(flagAddress)
 	a := ctx.String(flagAmount)
 	amount, _ := new(big.Float).SetString(a)
@@ -21,7 +19,7 @@ func approveTokens(ctx *cli.Context) error {
 		fmt.Println("Please, introduce a valid amount. Use '.' instead of ',' if it is a decimal number")
 		return nil
 	}
-	c, err := config.Load(configFilePath, network)
+	c, err := config.Load(ctx)
 	if err != nil {
 		return err
 	}
@@ -33,15 +31,17 @@ func approveTokens(ctx *cli.Context) error {
 		toAddress = c.NetworkConfig.BridgeAddr
 	}
 
-	fmt.Print("*WARNING* Are you sure you want to approve ", amount,
-		" tokens to be spent by the smc <Name: "+toName+". Address: "+toAddress.String()+">? [y/N]: ")
-	var input string
-	if _, err := fmt.Scanln(&input); err != nil {
-		return err
-	}
-	input = strings.ToLower(input)
-	if !(input == "y" || input == "yes") {
-		return nil
+	if !ctx.Bool(flagYes) {
+		fmt.Print("*WARNING* Are you sure you want to approve ", amount,
+			" tokens to be spent by the smc <Name: "+toName+". Address: "+toAddress.String()+">? [y/N]: ")
+		var input string
+		if _, err := fmt.Scanln(&input); err != nil {
+			return err
+		}
+		input = strings.ToLower(input)
+		if !(input == "y" || input == "yes") {
+			return nil
+		}
 	}
 
 	setupLog(c.Log)

@@ -11,7 +11,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/tree"
-	"github.com/jackc/pgx/v4"
 )
 
 const (
@@ -23,10 +22,11 @@ const (
 
 // State is the interface of the Hermez state
 type State interface {
-	NewBatchProcessor(sequencerAddress common.Address, lastBatchNumber uint64) (BatchProcessor, error)
-	NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchProcessor, error)
+	NewBatchProcessor(sequencerAddress common.Address, lastBatchNumber uint64) (*BasicBatchProcessor, error)
+	NewGenesisBatchProcessor(genesisStateRoot []byte) (*BasicBatchProcessor, error)
 	GetStateRoot(ctx context.Context, virtual bool) ([]byte, error)
 	GetBalance(address common.Address, batchNumber uint64) (*big.Int, error)
+	GetStorageAt(address common.Address, position common.Hash, batchNumber uint64) (*big.Int, error)
 	GetCode(address common.Address, batchNumber uint64) ([]byte, error)
 	EstimateGas(transaction *types.Transaction) uint64
 	GetNonce(address common.Address, batchNumber uint64) (uint64, error)
@@ -68,6 +68,8 @@ type Storage interface {
 	AddBatch(ctx context.Context, batch *Batch) error
 	AddTransaction(ctx context.Context, tx *types.Transaction, batchNumber uint64, index uint) error
 	AddReceipt(ctx context.Context, receipt *Receipt) error
+	AddExitRoot(ctx context.Context, exitRoot *GlobalExitRoot) error
+	GetLatestExitRoot(ctx context.Context) (*GlobalExitRoot, error)
 	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error
 	GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error)
 }
@@ -86,24 +88,24 @@ var (
 // BasicState is a implementation of the state
 type BasicState struct {
 	cfg  Config
-	tree tree.ReadWriter
+	tree merkletree
 	Storage
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage Storage, tree tree.ReadWriter) State {
+func NewState(cfg Config, storage Storage, tree merkletree) State {
 	return &BasicState{cfg: cfg, tree: tree, Storage: storage}
 }
 
 // NewBatchProcessor creates a new batch processor
-func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatchNumber uint64) (BatchProcessor, error) {
+func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatchNumber uint64) (*BasicBatchProcessor, error) {
 	// init correct state root from previous batch
 	stateRoot, err := s.GetStateRootByBatchNumber(lastBatchNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	s.tree.SetCurrentRoot(stateRoot)
+	ctx := context.Background()
 
 	// Get Sequencer's Chain ID
 	chainID := s.cfg.DefaultChainID
@@ -112,14 +114,14 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		chainID = sq.ChainID.Uint64()
 	}
 
-	lastBatch, err := s.GetBatchByNumber(context.Background(), lastBatchNumber)
+	lastBatch, err := s.GetBatchByNumber(ctx, lastBatchNumber)
 	if err != ErrNotFound && err != nil {
 		return nil, err
 	}
 
 	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed}
 	batchProcessor.setRuntime(evm.NewEVM())
-	blockNumber, err := s.GetLastBlockNumber(context.Background())
+	blockNumber, err := s.GetLastBlockNumber(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -128,19 +130,14 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 }
 
 // NewGenesisBatchProcessor creates a new batch processor
-func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (BatchProcessor, error) {
-	s.tree.SetCurrentRoot(genesisStateRoot)
-
+func (s *BasicState) NewGenesisBatchProcessor(genesisStateRoot []byte) (*BasicBatchProcessor, error) {
 	return &BasicBatchProcessor{State: s, stateRoot: genesisStateRoot}, nil
 }
 
 // GetStateRoot returns the root of the state tree
 func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, error) {
 	batch, err := s.GetLastBatch(ctx, virtual)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrStateNotSynchronized
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -154,11 +151,9 @@ func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, er
 // GetStateRootByBatchNumber returns state root by batch number from the MT
 func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error) {
 	ctx := context.Background()
-	batch, err := s.GetBatchByNumber(ctx, batchNumber)
 
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrStateNotSynchronized
-	} else if err != nil {
+	batch, err := s.GetBatchByNumber(ctx, batchNumber)
+	if err != nil {
 		return nil, err
 	}
 
@@ -172,9 +167,7 @@ func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, erro
 // GetBalance from a given address
 func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
 	root, err := s.GetStateRootByBatchNumber(batchNumber)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrStateNotSynchronized
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -184,9 +177,7 @@ func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*bi
 // GetCode from a given address
 func (s *BasicState) GetCode(address common.Address, batchNumber uint64) ([]byte, error) {
 	root, err := s.GetStateRootByBatchNumber(batchNumber)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrStateNotSynchronized
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -215,14 +206,14 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		return err
 	}
 
-	// reset tree current root
-	s.tree.SetCurrentRoot(nil)
-
-	var root common.Hash
+	var (
+		root    common.Hash
+		newRoot []byte
+	)
 
 	if genesis.Balances != nil { // Genesis Balances
 		for address, balance := range genesis.Balances {
-			newRoot, _, err := s.tree.SetBalance(address, balance)
+			newRoot, _, err = s.tree.SetBalance(address, balance, newRoot)
 			if err != nil {
 				return err
 			}
@@ -230,7 +221,7 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		}
 	} else { // Genesis Smart Contracts
 		for address, sc := range genesis.SmartContracts {
-			newRoot, _, err := s.tree.SetCode(address, sc)
+			newRoot, _, err = s.tree.SetCode(address, sc, newRoot)
 			if err != nil {
 				return err
 			}
@@ -249,6 +240,8 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		ConsolidatedAt:     &receivedAt,
 		MaticCollateral:    big.NewInt(0),
 		ReceivedAt:         time.Now(),
+		ChainID:            new(big.Int).SetUint64(genesis.L2ChainID),
+		GlobalExitRoot:     common.Hash{},
 	}
 
 	// Store batch into db
@@ -272,9 +265,21 @@ func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint6
 	}
 
 	n, err := s.tree.GetNonce(address, root)
-	if err != nil {
+	if errors.Is(err, tree.ErrNotFound) {
+		return 0, nil
+	} else if err != nil {
 		return 0, err
 	}
 
 	return n.Uint64(), nil
+}
+
+// GetStorageAt from a given address
+func (s *BasicState) GetStorageAt(address common.Address, position common.Hash, batchNumber uint64) (*big.Int, error) {
+	root, err := s.GetStateRootByBatchNumber(batchNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.tree.GetStorageAt(address, position, root)
 }

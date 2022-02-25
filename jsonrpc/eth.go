@@ -18,6 +18,7 @@ type Eth struct {
 	pool             jsonRPCTxPool
 	state            state.State
 	sequencerAddress common.Address
+	gpe              gasPriceEstimator
 }
 
 type blockNumberOrHash struct {
@@ -41,14 +42,11 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 // executed contract and potential error.
 // Note, this function doesn't make any changes in the state/blockchain and is
 // useful to execute view/pure methods and retrieve values.
-func (e *Eth) Call(arg *txnArgs, filter blockNumberOrHash) (interface{}, error) {
-	tx := arg.ToTransaction()
-
+func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 	// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
-	if tx.Gas() == 0 {
-		// The filter is empty, use the latest block by default
-		if filter.BlockNumber == nil && filter.BlockHash == nil {
-			filter.BlockNumber, _ = createBlockNumberPointer("latest")
+	if arg.Gas == nil || *arg.Gas == argUint64(0) {
+		filter := blockNumberOrHash{
+			BlockNumber: number,
 		}
 
 		header, err := e.getHeaderFromBlockNumberOrHash(&filter)
@@ -58,9 +56,14 @@ func (e *Eth) Call(arg *txnArgs, filter blockNumberOrHash) (interface{}, error) 
 
 		gas := argUint64(header.GasLimit)
 		arg.Gas = &gas
-		tx = arg.ToTransaction()
 	}
 
+	if arg.From == nil {
+		from := state.ZeroAddress
+		arg.From = &from
+	}
+
+	tx := arg.ToTransaction()
 	ctx := context.Background()
 	lastVirtualBatch, err := e.state.GetLastBatch(ctx, true)
 	if err != nil {
@@ -104,14 +107,14 @@ func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error
 
 // GasPrice returns the average gas price based on the last x blocks
 func (e *Eth) GasPrice() (interface{}, error) {
-	gasPrice, err := e.pool.GetGasPrice(context.Background())
-	if errors.Is(err, state.ErrNotFound) {
-		return hex.EncodeUint64(0), nil
-	} else if err != nil {
+	gasPrice, err := e.gpe.GetAvgGasPrice()
+	if err != nil {
 		return nil, err
 	}
-
-	return hex.EncodeUint64(gasPrice), nil
+	if gasPrice != nil {
+		return hex.EncodeUint64(gasPrice.Uint64()), nil
+	}
+	return hex.EncodeUint64(0), nil
 }
 
 // GetBalance returns the account's balance at the referenced block
@@ -183,6 +186,23 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 	}
 
 	return argBytes(code), nil
+}
+
+// GetStorageAt gets the value stored for an specific address and position
+func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number *BlockNumber) (interface{}, error) {
+	batchNumber, err := getNumericBlockNumber(e, *number)
+	if err != nil {
+		return nil, err
+	}
+
+	value, err := e.state.GetStorageAt(address, position, batchNumber)
+	if errors.Is(err, state.ErrNotFound) {
+		return argBytesPtr(common.Hash{}.Bytes()), nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return argBytesPtr(common.BigToHash(value).Bytes()), nil
 }
 
 // GetTransactionByBlockHashAndIndex returns information about a transaction by
@@ -263,7 +283,9 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 	}
 
 	nonce, err := e.state.GetNonce(address, batchNumber)
-	if err != nil {
+	if errors.Is(err, state.ErrNotFound) {
+		return hex.EncodeUint64(0), nil
+	} else if err != nil {
 		return nil, err
 	}
 

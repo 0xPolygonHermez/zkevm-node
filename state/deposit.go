@@ -11,6 +11,8 @@ type Deposit struct {
 	TokenAddres        common.Address
 	Amount             *big.Int
 	DestinationNetwork uint
+	OriginNetwork      uint
 	DestinationAddress common.Address
+	DepositCount       uint
 	BlockNumber        uint64
 }

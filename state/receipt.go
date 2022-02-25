@@ -8,6 +8,6 @@ import (
 // Receipt represents the results of a transaction.
 type Receipt struct {
 	types.Receipt
-	From common.Address `json:"from"`
-	To   common.Address `json:"to"`
+	From common.Address  `json:"from"`
+	To   *common.Address `json:"to"`
 }

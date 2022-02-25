@@ -52,7 +52,7 @@ func TestDecodeOneTxData(t *testing.T) {
 }
 
 //This function prepare the blockchain, the wallet with funds and deploy the smc
-func newTestingEnv() (ethman *ClientEtherMan, commit func(), maticAddr common.Address) {
+func newTestingEnv() (ethman *Client, commit func(), maticAddr common.Address) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
@@ -99,11 +99,9 @@ func TestSCEvents(t *testing.T) {
 	data, err = hex.DecodeString(dHex)
 	require.NoError(t, err)
 
-	//send propose batch l1 tx
-	matic, ok = matic.SetString(callDataTestCases[1].MaticAmount, 10)
-	if !ok {
-		log.Fatal("error decoding maticAmount")
-	}
+	matic, err = etherman.GetCurrentSequencerCollateral()
+	require.NoError(t, err)
+	matic.Add(matic, big.NewInt(1000000000000000000))
 	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
 	require.NoError(t, err)
 
@@ -116,7 +114,7 @@ func TestSCEvents(t *testing.T) {
 	assert.Equal(t, uint64(2), batchNumber)
 
 	// Get sequencer collateral
-	collateral, err := etherman.GetSequencerCollateral(2)
+	collateral, err := etherman.GetSequencerCollateralByBatchNumber(2)
 	require.NoError(t, err)
 
 	// Check collateral value
@@ -128,15 +126,15 @@ func TestSCEvents(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	block, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	for k, tx := range block[1].Batches[0].Transactions {
+	for k, tx := range block[0].Batches[0].Transactions {
 		var addr common.Address
 		err = addr.UnmarshalText([]byte(callDataTestCases[1].Txs[k].To))
 		require.NoError(t, err)
 		assert.Equal(t, &addr, tx.To())
 	}
-	log.Debugf("Block Received with %d txs\n", len(block[1].Batches[0].Transactions))
+	log.Debugf("Block Received with %d txs\n", len(block[0].Batches[0].Transactions))
 
-	block, _, err = etherman.GetRollupInfoByBlock(ctx, block[1].BlockNumber, &block[1].BlockHash)
+	block, _, err = etherman.GetRollupInfoByBlock(ctx, block[0].BlockNumber, &block[0].BlockHash)
 	require.NoError(t, err)
 	for k, tx := range block[0].Batches[0].Transactions {
 		var addr common.Address
@@ -200,10 +198,10 @@ func TestRegisterSequencerAndEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	block, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	assert.Equal(t, etherman.auth.From, block[1].NewSequencers[0].Address)
-	assert.Equal(t, "http://localhost", block[1].NewSequencers[0].URL)
-	assert.Equal(t, big.NewInt(1001), block[1].NewSequencers[0].ChainID)
-	log.Debug("Sequencer synced: ", block[1].NewSequencers[0].Address, ", url: ", block[1].NewSequencers[0].URL, ", and chainId: ", block[1].NewSequencers[0].ChainID)
+	assert.Equal(t, etherman.auth.From, block[0].NewSequencers[0].Address)
+	assert.Equal(t, "http://localhost", block[0].NewSequencers[0].URL)
+	assert.Equal(t, big.NewInt(1001), block[0].NewSequencers[0].ChainID)
+	log.Debug("Sequencer synced: ", block[0].NewSequencers[0].Address, ", url: ", block[0].NewSequencers[0].URL, ", and chainId: ", block[0].NewSequencers[0].ChainID)
 }
 
 func TestSCSendBatchAndVerify(t *testing.T) {
@@ -360,11 +358,9 @@ func TestOrderReadEvent(t *testing.T) {
 	data, err = hex.DecodeString(dHex)
 	require.NoError(t, err)
 
-	//send propose batch l1 tx
-	matic, ok = matic.SetString(callDataTestCases[1].MaticAmount, 10)
-	if !ok {
-		log.Fatal("error decoding maticAmount")
-	}
+	matic, err = etherman.GetCurrentSequencerCollateral()
+	require.NoError(t, err)
+	matic.Add(matic, big.NewInt(1000000000000000000))
 	_, err = etherman.PoE.SendBatch(etherman.auth, data, matic)
 	require.NoError(t, err)
 
@@ -377,12 +373,12 @@ func TestOrderReadEvent(t *testing.T) {
 
 	block, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][0].Name)
-	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][1].Name)
-	assert.Equal(t, BatchesOrder, order[block[1].BlockHash][2].Name)
-	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][3].Name)
-	assert.Equal(t, BatchesOrder, order[block[1].BlockHash][4].Name)
-	assert.Equal(t, NewSequencersOrder, order[block[1].BlockHash][5].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][1].Name)
+	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][2].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][3].Name)
+	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][4].Name)
+	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][5].Name)
 }
 
 func TestDepositAndGlobalExitRootEvent(t *testing.T) {
@@ -406,15 +402,14 @@ func TestDepositAndGlobalExitRootEvent(t *testing.T) {
 
 	block, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, DepositsOrder, order[block[1].BlockHash][0].Name)
-	assert.Equal(t, GlobalExitRootsOrder, order[block[0].BlockHash][0].Name)
-	assert.Equal(t, GlobalExitRootsOrder, order[block[1].BlockHash][1].Name)
-	assert.Equal(t, uint64(2), block[1].BlockNumber)
-	assert.Equal(t, big.NewInt(9000000000000000000), block[1].Deposits[0].Amount)
-	assert.Equal(t, uint(1), block[1].Deposits[0].DestinationNetwork)
-	assert.Equal(t, destinationAddr, block[1].Deposits[0].DestinationAddress)
+	assert.Equal(t, DepositsOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, GlobalExitRootsOrder, order[block[0].BlockHash][1].Name)
+	assert.Equal(t, uint64(2), block[0].BlockNumber)
+	assert.Equal(t, big.NewInt(9000000000000000000), block[0].Deposits[0].Amount)
+	assert.Equal(t, uint(1), block[0].Deposits[0].DestinationNetwork)
+	assert.Equal(t, destinationAddr, block[0].Deposits[0].DestinationAddress)
 	assert.Equal(t, 1, len(block[0].GlobalExitRoots))
-	assert.Equal(t, 1, len(block[1].GlobalExitRoots))
+	assert.Equal(t, 1, len(block[0].GlobalExitRoots))
 
 	//Claim funds
 	var (
@@ -422,11 +417,13 @@ func TestDepositAndGlobalExitRootEvent(t *testing.T) {
 		smtProof [][32]byte
 		index    uint64
 	)
-	mainnetExitRoot := block[1].GlobalExitRoots[0].MainnetExitRoot
-	rollupExitRoot := block[1].GlobalExitRoots[0].RollupExitRoot
+	mainnetExitRoot := block[0].GlobalExitRoots[0].MainnetExitRoot
+	rollupExitRoot := block[0].GlobalExitRoots[0].RollupExitRoot
+	globalExitRootNum := block[0].GlobalExitRoots[0].GlobalExitRootNum
 
-	_, err = etherman.Bridge.Claim(etherman.auth, maticAddr, big.NewInt(1000000000000000000), network,
-		network, etherman.auth.From, smtProof, index, big.NewInt(2), mainnetExitRoot, rollupExitRoot)
+	destNetwork = 1
+	_, err = etherman.Bridge.Claim(etherman.auth, maticAddr, big.NewInt(1000000000000000000), destNetwork,
+		network, etherman.auth.From, smtProof, index, globalExitRootNum, mainnetExitRoot, rollupExitRoot)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -437,14 +434,18 @@ func TestDepositAndGlobalExitRootEvent(t *testing.T) {
 	require.NoError(t, err)
 	block, order, err = etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, ClaimsOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, ClaimsOrder, order[block[0].BlockHash][1].Name)
 	assert.Equal(t, big.NewInt(1000000000000000000), block[0].Claims[0].Amount)
 	assert.Equal(t, uint64(3), block[0].BlockNumber)
 	assert.NotEqual(t, common.Address{}, block[0].Claims[0].Token)
 	assert.Equal(t, etherman.auth.From, block[0].Claims[0].DestinationAddress)
 	assert.Equal(t, uint64(0), block[0].Claims[0].Index)
-	assert.Equal(t, uint(0), block[0].Claims[0].OriginalNetwork)
+	assert.Equal(t, uint(1), block[0].Claims[0].OriginalNetwork)
 	assert.Equal(t, uint64(3), block[0].Claims[0].BlockNumber)
+	assert.Equal(t, TokensOrder, order[block[0].BlockHash][0].Name)
+	assert.Equal(t, uint(1), block[0].Tokens[0].OriginalNetwork)
+	assert.NotEqual(t, common.Address{}, block[0].Tokens[0].OriginalTokenAddress)
+	assert.NotEqual(t, common.Address{}, block[0].Tokens[0].WrappedTokenAddress)
 }
 
 func TestConverter(t *testing.T) {
@@ -472,4 +473,22 @@ func TestDecode(t *testing.T) {
 	assert.Equal(t, vs, v)
 	assert.Equal(t, rs, r)
 	assert.Equal(t, ss, s)
+}
+
+func TestDecodeSmcInteraction(t *testing.T) {
+	dHex := strings.Replace("0x06d6490f00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000001bc16d674ec80000000000000000000000000000000000000000000000000000000000000000008cf84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c0000000000000000000000000000000000000000", "0x", "", -1)
+	data, err := hex.DecodeString(dHex)
+	require.NoError(t, err)
+	txs, _, err := decodeTxs(data)
+	require.NoError(t, err)
+	v, r, s := txs[0].RawSignatureValues()
+	assert.Equal(t, "6057361d0000000000000000000000000000000000000000000000000000000000000004", hex.EncodeToString(txs[0].Data()))
+	vs, _ := new(big.Int).SetString("2038", encoding.Base10)
+	rs, _ := new(big.Int).SetString("52439813673236985820307219467235173403931944419246794350953690522214729109540", encoding.Base10)
+	ss, _ := new(big.Int).SetString("21636541153156884113230878396581781324666928638699850950124295339798334610786", encoding.Base10)
+	assert.Equal(t, vs, v)
+	assert.Equal(t, rs, r)
+	assert.Equal(t, ss, s)
+	assert.Equal(t, uint64(1), txs[0].Nonce())
+	assert.Equal(t, uint64(1001), txs[0].ChainId().Uint64())
 }

@@ -10,7 +10,7 @@ import (
 type Host interface {
 	AccountExists(addr common.Address) bool
 	GetStorage(addr common.Address, key common.Hash) common.Hash
-	SetStorage(addr common.Address, key common.Hash, value common.Hash, config *ForksInTime) StorageStatus
+	SetStorage(addr common.Address, key *big.Int, value *big.Int, config *ForksInTime) StorageStatus
 	GetBalance(addr common.Address) *big.Int
 	GetCodeSize(addr common.Address) int
 	GetCodeHash(addr common.Address) common.Hash

@@ -139,6 +139,7 @@ func (d *Handler) getFnHandler(req Request) (*serviceData, *funcData, detailedEr
 
 	service, ok := d.serviceMap[serviceName]
 	if !ok {
+		log.Infof("Method %s not found", req.Method)
 		return nil, nil, newMethodNotFoundError(req.Method)
 	}
 	fd, ok := service.funcMap[funcName]

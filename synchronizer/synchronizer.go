@@ -21,17 +21,24 @@ type Synchronizer interface {
 
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
-	etherMan       etherman.EtherMan
+	etherMan       localEtherman
 	state          state.State
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
-	genBalances    state.Genesis
+	genesis        state.Genesis
 	cfg            Config
+	gpe            gasPriceEstimator
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
-func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber uint64, genBalances state.Genesis, cfg Config) (Synchronizer, error) {
+func NewSynchronizer(
+	ethMan localEtherman,
+	st state.State,
+	genBlockNumber uint64,
+	genesis state.Genesis,
+	cfg Config,
+	gpe gasPriceEstimator) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:          st,
@@ -39,8 +46,9 @@ func NewSynchronizer(ethMan etherman.EtherMan, st state.State, genBlockNumber ui
 		ctx:            ctx,
 		cancelCtx:      cancel,
 		genBlockNumber: genBlockNumber,
-		genBalances:    genBalances,
+		genesis:        genesis,
 		cfg:            cfg,
+		gpe:            gpe,
 	}, nil
 }
 
@@ -59,7 +67,7 @@ func (s *ClientSynchronizer) Sync() error {
 					BlockNumber: s.genBlockNumber,
 				}
 				// Set genesis
-				err := s.state.SetGenesis(s.ctx, s.genBalances)
+				err := s.state.SetGenesis(s.ctx, s.genesis)
 				if err != nil {
 					log.Fatal("error setting genesis: ", err)
 				}
@@ -205,7 +213,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				log.Debug("consolidatedTxHash received: ", batch.ConsolidatedTxHash)
 				if batch.ConsolidatedTxHash.String() != emptyHash.String() {
 					// consolidate batch locally
-					err = s.state.ConsolidateBatch(s.ctx, batch.Number().Uint64(), batch.ConsolidatedTxHash, *batch.ConsolidatedAt, batch.Aggregator)
+					err = s.state.ConsolidateBatch(ctx, batch.Number().Uint64(), batch.ConsolidatedTxHash, *batch.ConsolidatedAt, batch.Aggregator)
 					if err != nil {
 						err = s.state.Rollback(ctx)
 						if err != nil {
@@ -214,8 +222,8 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 						log.Fatal("failed to consolidate batch locally, batch number: %d, err: %v", batch.Number().Uint64(), err)
 					}
 				} else {
-					// Get lastest synced batch number
-					latestBatchNumber, err := s.state.GetLastBatchNumber(s.ctx)
+					// Get latest synced batch number
+					latestBatchNumber, err := s.state.GetLastBatchNumber(ctx)
 					if err != nil {
 						err = s.state.Rollback(ctx)
 						if err != nil {
@@ -242,10 +250,11 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 						}
 						log.Fatal("error processing batch. BatchNumber: ", batch.Number().Uint64(), ". Error: ", err)
 					}
+					s.gpe.UpdateGasPriceAvg(new(big.Int).SetUint64(batch.Header.GasUsed))
 				}
 			} else if element.Name == etherman.NewSequencersOrder {
 				// Add new sequencers
-				err := s.state.AddSequencer(context.Background(), blocks[i].NewSequencers[element.Pos])
+				err := s.state.AddSequencer(ctx, blocks[i].NewSequencers[element.Pos])
 				if err != nil {
 					err = s.state.Rollback(ctx)
 					if err != nil {
@@ -257,11 +266,20 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				//TODO Store info into db
 				log.Warn("Deposit functionality is not implemented in synchronizer yet")
 			} else if element.Name == etherman.GlobalExitRootsOrder {
-				//TODO Store info into db
-				log.Warn("Consolidate globalExitRoot functionality is not implemented in synchronizer yet")
+				err := s.state.AddExitRoot(ctx, &blocks[i].GlobalExitRoots[element.Pos])
+				if err != nil {
+					err = s.state.Rollback(ctx)
+					if err != nil {
+						log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
+					}
+					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos], " err: ", err)
+				}
 			} else if element.Name == etherman.ClaimsOrder {
 				//TODO Store info into db
 				log.Warn("Claim functionality is not implemented in synchronizer yet")
+			} else if element.Name == etherman.TokensOrder {
+				//TODO Store info into db
+				log.Warn("Tokens functionality is not implemented in synchronizer yet")
 			} else {
 				err = s.state.Rollback(ctx)
 				if err != nil {

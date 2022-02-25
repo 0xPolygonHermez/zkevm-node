@@ -8,10 +8,13 @@ import (
 )
 
 const (
-	flagCfg     = "cfg"
-	flagNetwork = "network"
-	flagAddress = "address"
-	flagAmount  = "amount"
+	flagYes        = "yes"
+	flagCfg        = "cfg"
+	flagNetwork    = "network"
+	flagNetworkCfg = "network-cfg"
+	flagAddress    = "address"
+	flagAmount     = "amount"
+	flagRemoteMT   = "remote-merkletree"
 )
 
 const (
@@ -40,6 +43,23 @@ func main() {
 			Name:     flagNetwork,
 			Aliases:  []string{"n"},
 			Usage:    "Network: mainnet, testnet, internaltestnet, local. By default it uses mainnet",
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:    flagNetworkCfg,
+			Aliases: []string{"nc"},
+			Usage:   "Custom network configuration `FILE` when using --network custom parameter",
+		},
+		&cli.BoolFlag{
+			Name:     flagYes,
+			Aliases:  []string{"y"},
+			Usage:    "Automatically accepts any confirmation to execute the command",
+			Required: false,
+		},
+		&cli.BoolFlag{
+			Name:     flagRemoteMT,
+			Aliases:  []string{"mt"},
+			Usage:    "Connect to merkletree service instead of use local libraries",
 			Required: false,
 		},
 	}

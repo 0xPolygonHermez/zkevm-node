@@ -60,6 +60,7 @@ services:
             - POSTGRES_USER=test_user
             - POSTGRES_PASSWORD=test_password
             - POSTGRES_DB=explorer
+        command: ["postgres", "-N", "500"]
 
     hez-network:
         container_name: hez-network

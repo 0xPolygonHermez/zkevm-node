@@ -16,21 +16,21 @@ import (
 )
 
 func registerSequencer(ctx *cli.Context) error {
-	configFilePath := ctx.String(flagCfg)
-	network := ctx.String(flagNetwork)
 	url := ctx.Args().First()
-	fmt.Print("*WARNING* Are you sure you want to register " +
-		"the sequencer in the rollup using the domain <" + url + ">? [y/N]: ")
 	var input string
-	if _, err := fmt.Scanln(&input); err != nil {
-		return err
-	}
-	input = strings.ToLower(input)
-	if !(input == "y" || input == "yes") {
-		return nil
+	if !ctx.Bool(flagYes) {
+		fmt.Print("*WARNING* Are you sure you want to register " +
+			"the sequencer in the rollup using the domain <" + url + ">? [y/N]: ")
+		if _, err := fmt.Scanln(&input); err != nil {
+			return err
+		}
+		input = strings.ToLower(input)
+		if !(input == "y" || input == "yes") {
+			return nil
+		}
 	}
 
-	c, err := config.Load(configFilePath, network)
+	c, err := config.Load(ctx)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func registerSequencer(ctx *cli.Context) error {
 	store := tree.NewPostgresStore(sqlDB)
 	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity, poseidon.Hash)
 	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
-	tr := tree.NewStateTree(mt, scCodeStore, []byte{})
+	tr := tree.NewStateTree(mt, scCodeStore)
 
 	stateCfg := state.Config{
 		DefaultChainID:       c.NetworkConfig.L2DefaultChainID,
@@ -75,15 +75,18 @@ func registerSequencer(ctx *cli.Context) error {
 	} else if err != nil {
 		return err
 	}
+
 	// If Sequencer exists in the db
-	fmt.Print("*WARNING* Sequencer is already registered. Do you want to update " +
-		"the sequencer url in the rollup usign the domain <" + url + ">? [y/N]: ")
-	if _, err := fmt.Scanln(&input); err != nil {
-		return err
-	}
-	input = strings.ToLower(input)
-	if !(input == "y" || input == "yes") {
-		return nil
+	if !ctx.Bool(flagYes) {
+		fmt.Print("*WARNING* Sequencer is already registered. Do you want to update " +
+			"the sequencer url in the rollup usign the domain <" + url + ">? [y/N]: ")
+		if _, err := fmt.Scanln(&input); err != nil {
+			return err
+		}
+		input = strings.ToLower(input)
+		if !(input == "y" || input == "yes") {
+			return nil
+		}
 	}
 
 	tx, err := etherman.RegisterSequencer(url)
