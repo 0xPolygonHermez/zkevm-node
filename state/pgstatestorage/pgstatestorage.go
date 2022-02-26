@@ -465,6 +465,8 @@ func (s *PostgresStorage) GetTxsByBatchNum(ctx context.Context, batchNum uint64)
 		return nil, err
 	}
 
+	defer rows.Close()
+
 	txs := make([]*types.Transaction, 0, len(rows.RawValues()))
 	var (
 		encoded string

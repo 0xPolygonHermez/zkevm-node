@@ -115,7 +115,7 @@ func NewTxProfitabilityCheckerAcceptAll(ethman etherman, state state.State, inte
 	}
 }
 
-// IsProfitable always returns true
+// IsProfitable always returns true, until it's failed to get sequencer collateral
 func (pc *AcceptAll) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, *big.Int, error) {
 	collateral, err := pc.EthMan.GetCurrentSequencerCollateral()
 	if err != nil {
