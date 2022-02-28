@@ -31,15 +31,6 @@ type imageUpdater struct {
 	dockerPassword string
 }
 
-type dockerCompose struct {
-	Version  string
-	Services map[string]container
-}
-
-type container struct {
-	Image string
-}
-
 func init() {
 	iu := &imageUpdater{
 		fs: afero.NewOsFs(),
@@ -92,8 +83,13 @@ func (iu *imageUpdater) readCurrentDigest(imageName string) (string, error) {
 		return "", err
 	}
 
-	content := &dockerCompose{}
-	err = yaml.Unmarshal(data, content)
+	content := struct {
+		Version  string
+		Services map[string]struct {
+			Image string
+		}
+	}{}
+	err = yaml.Unmarshal(data, &content)
 	if err != nil {
 		return "", err
 	}
