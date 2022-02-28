@@ -89,11 +89,11 @@ func main() {
 			Usage:   "Approve tokens to be spent by the smart contract",
 			Action:  approveTokens,
 			Flags: append(flags, &cli.StringFlag{
-					Name:     flagAmount,
-					Aliases:  []string{"am"},
-					Usage:    "Amount that is gonna be approved",
-					Required: true,
-				},
+				Name:     flagAmount,
+				Aliases:  []string{"am"},
+				Usage:    "Amount that is gonna be approved",
+				Required: true,
+			},
 			),
 		},
 		{

@@ -26,10 +26,10 @@ import (
 )
 
 var (
-	newBatchEventSignatureHash             = crypto.Keccak256Hash([]byte("SendBatch(uint32,address,uint32,bytes32)"))
-	consolidateBatchSignatureHash          = crypto.Keccak256Hash([]byte("VerifyBatch(uint32,address)"))
-	newSequencerSignatureHash              = crypto.Keccak256Hash([]byte("RegisterSequencer(address,string,uint32)"))
-	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+	newBatchEventSignatureHash        = crypto.Keccak256Hash([]byte("SendBatch(uint32,address,uint32,bytes32)"))
+	consolidateBatchSignatureHash     = crypto.Keccak256Hash([]byte("VerifyBatch(uint32,address)"))
+	newSequencerSignatureHash         = crypto.Keccak256Hash([]byte("RegisterSequencer(address,string,uint32)"))
+	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
@@ -53,10 +53,10 @@ type ethClienter interface {
 
 // Client is a simple implementation of EtherMan.
 type Client struct {
-	EtherClient           ethClienter
-	PoE                   *proofofefficiency.Proofofefficiency
-	Matic                 *matic.Matic
-	SCAddresses           []common.Address
+	EtherClient ethClienter
+	PoE         *proofofefficiency.Proofofefficiency
+	Matic       *matic.Matic
+	SCAddresses []common.Address
 
 	auth *bind.TransactOpts
 }
