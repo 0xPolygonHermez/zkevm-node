@@ -128,7 +128,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	etherman, err := etherman.NewClient(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.BridgeAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.GlobalExitRootManAddr)
+	etherman, err := etherman.NewClient(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.MaticAddr)
 	if err != nil {
 		return nil, err
 	}

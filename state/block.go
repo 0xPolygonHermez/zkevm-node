@@ -13,10 +13,6 @@ type Block struct {
 	ParentHash      common.Hash
 	Batches         []Batch
 	NewSequencers   []Sequencer
-	Deposits        []Deposit
-	GlobalExitRoots []GlobalExitRoot
-	Claims          []Claim
-	Tokens          []TokenWrapped
 
 	ReceivedAt time.Time
 }

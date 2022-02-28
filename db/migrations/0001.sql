@@ -70,12 +70,5 @@ CREATE TABLE state.misc
     last_batch_num_consolidated BIGINT
 );
 
-CREATE TABLE state.exit_root
-(
-    global_exit_root_num BIGINT,
-    mainnet_exit_root    BYTEA,
-    rollup_exit_root     BYTEA
-);
-
 -- Insert default values into misc table
 INSERT INTO state.misc (last_batch_num_seen, last_batch_num_consolidated) VALUES(0, 0);
