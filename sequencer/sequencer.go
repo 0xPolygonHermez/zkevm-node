@@ -87,11 +87,14 @@ func NewSequencer(cfg Config, pool txPool, state state.State, ethMan etherman) (
 
 // Start starts the sequencer
 func (s *Sequencer) Start() {
+	ticker := time.NewTicker(s.cfg.IntervalToProposeBatch.Duration)
+	defer ticker.Stop()
 	// Infinite for loop:
 	for {
+		s.tryProposeBatch()
 		select {
-		case <-time.After(s.cfg.IntervalToProposeBatch.Duration):
-			s.tryProposeBatch()
+		case <-ticker.C:
+			// nothing
 		case <-s.ctx.Done():
 			return
 		}
@@ -172,7 +175,6 @@ func (s *Sequencer) tryProposeBatch() {
 			return
 		}
 		log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
-
 		// update txs in the pool as selected
 		err = s.Pool.UpdateTxsState(s.ctx, selectedTxsHashes, pool.TxStateSelected)
 		if err != nil {

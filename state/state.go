@@ -31,7 +31,7 @@ type State interface {
 	EstimateGas(transaction *types.Transaction) uint64
 	GetNonce(address common.Address, batchNumber uint64) (uint64, error)
 	SetGenesis(ctx context.Context, genesis Genesis) error
-	GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error)
+	GetStateRootByBatchNumber(ctx context.Context, batchNumber uint64) ([]byte, error)
 	Storage
 }
 
@@ -99,17 +99,17 @@ func NewState(cfg Config, storage Storage, tree merkletree) State {
 
 // NewBatchProcessor creates a new batch processor
 func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatchNumber uint64) (*BasicBatchProcessor, error) {
+	ctx := context.Background()
+
 	// init correct state root from previous batch
-	stateRoot, err := s.GetStateRootByBatchNumber(lastBatchNumber)
+	stateRoot, err := s.GetStateRootByBatchNumber(ctx, lastBatchNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx := context.Background()
-
 	// Get Sequencer's Chain ID
 	chainID := s.cfg.DefaultChainID
-	sq, err := s.GetSequencer(context.Background(), sequencerAddress)
+	sq, err := s.GetSequencer(ctx, sequencerAddress)
 	if err == nil {
 		chainID = sq.ChainID.Uint64()
 	}
@@ -149,9 +149,7 @@ func (s *BasicState) GetStateRoot(ctx context.Context, virtual bool) ([]byte, er
 }
 
 // GetStateRootByBatchNumber returns state root by batch number from the MT
-func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, error) {
-	ctx := context.Background()
-
+func (s *BasicState) GetStateRootByBatchNumber(ctx context.Context, batchNumber uint64) ([]byte, error) {
 	batch, err := s.GetBatchByNumber(ctx, batchNumber)
 	if err != nil {
 		return nil, err
@@ -166,7 +164,8 @@ func (s *BasicState) GetStateRootByBatchNumber(batchNumber uint64) ([]byte, erro
 
 // GetBalance from a given address
 func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*big.Int, error) {
-	root, err := s.GetStateRootByBatchNumber(batchNumber)
+	ctx := context.Background()
+	root, err := s.GetStateRootByBatchNumber(ctx, batchNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +175,8 @@ func (s *BasicState) GetBalance(address common.Address, batchNumber uint64) (*bi
 
 // GetCode from a given address
 func (s *BasicState) GetCode(address common.Address, batchNumber uint64) ([]byte, error) {
-	root, err := s.GetStateRootByBatchNumber(batchNumber)
+	ctx := context.Background()
+	root, err := s.GetStateRootByBatchNumber(ctx, batchNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +259,8 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 
 // GetNonce returns the nonce of the given account at the given batch number
 func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint64, error) {
-	root, err := s.GetStateRootByBatchNumber(batchNumber)
+	ctx := context.Background()
+	root, err := s.GetStateRootByBatchNumber(ctx, batchNumber)
 	if err != nil {
 		return 0, err
 	}
@@ -276,7 +277,8 @@ func (s *BasicState) GetNonce(address common.Address, batchNumber uint64) (uint6
 
 // GetStorageAt from a given address
 func (s *BasicState) GetStorageAt(address common.Address, position common.Hash, batchNumber uint64) (*big.Int, error) {
-	root, err := s.GetStateRootByBatchNumber(batchNumber)
+	ctx := context.Background()
+	root, err := s.GetStateRootByBatchNumber(ctx, batchNumber)
 	if err != nil {
 		return nil, err
 	}

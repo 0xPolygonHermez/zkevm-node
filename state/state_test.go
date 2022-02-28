@@ -479,7 +479,7 @@ func TestStateTransition(t *testing.T) {
 			err = st.SetGenesis(ctx, genesis)
 			require.NoError(t, err)
 
-			root, err := st.GetStateRootByBatchNumber(0)
+			root, err := st.GetStateRootByBatchNumber(ctx, 0)
 			require.NoError(t, err)
 
 			for gaddr, gbalance := range genesis.Balances {
@@ -559,7 +559,7 @@ func TestStateTransition(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
-			root, err = st.GetStateRootByBatchNumber(batch.Number().Uint64())
+			root, err = st.GetStateRootByBatchNumber(ctx, batch.Number().Uint64())
 			require.NoError(t, err)
 
 			// Check new roots
@@ -700,7 +700,7 @@ func TestReceipts(t *testing.T) {
 			err = st.SetGenesis(ctx, genesis)
 			require.NoError(t, err)
 
-			root, err := st.GetStateRootByBatchNumber(0)
+			root, err := st.GetStateRootByBatchNumber(ctx, 0)
 			require.NoError(t, err)
 
 			for gaddr, gbalance := range genesis.Balances {
@@ -780,7 +780,7 @@ func TestReceipts(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
-			root, err = st.GetStateRootByBatchNumber(batch.Number().Uint64())
+			root, err = st.GetStateRootByBatchNumber(ctx, batch.Number().Uint64())
 			require.NoError(t, err)
 
 			// Check new roots
@@ -885,7 +885,7 @@ func TestStateErrors(t *testing.T) {
 	_, err = st.GetNonce(addr, 0)
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetStateRootByBatchNumber(0)
+	_, err = st.GetStateRootByBatchNumber(ctx, 0)
 	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetLastBlock(ctx)
