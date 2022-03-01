@@ -61,9 +61,9 @@
 			},
 			{
 				"indexed": false,
-				"internalType": "uint32",
+				"internalType": "uint64",
 				"name": "chainID",
-				"type": "uint32"
+				"type": "uint64"
 			}
 		],
 		"name": "RegisterSequencer",
@@ -74,9 +74,9 @@
 		"inputs": [
 			{
 				"indexed": true,
-				"internalType": "uint32",
+				"internalType": "uint64",
 				"name": "numBatch",
-				"type": "uint32"
+				"type": "uint64"
 			},
 			{
 				"indexed": true,
@@ -86,9 +86,9 @@
 			},
 			{
 				"indexed": false,
-				"internalType": "uint32",
+				"internalType": "uint64",
 				"name": "batchChainID",
-				"type": "uint32"
+				"type": "uint64"
 			},
 			{
 				"indexed": false,
@@ -105,9 +105,9 @@
 		"inputs": [
 			{
 				"indexed": true,
-				"internalType": "uint32",
+				"internalType": "uint64",
 				"name": "numBatch",
-				"type": "uint32"
+				"type": "uint64"
 			},
 			{
 				"indexed": true,
@@ -124,9 +124,9 @@
 		"name": "DEFAULT_CHAIN_ID",
 		"outputs": [
 			{
-				"internalType": "uint32",
+				"internalType": "uint64",
 				"name": "",
-				"type": "uint32"
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -189,9 +189,9 @@
 		"name": "lastBatchSent",
 		"outputs": [
 			{
-				"internalType": "uint32",
+				"internalType": "uint64",
 				"name": "",
-				"type": "uint32"
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -202,9 +202,9 @@
 		"name": "lastVerifiedBatch",
 		"outputs": [
 			{
-				"internalType": "uint32",
+				"internalType": "uint64",
 				"name": "",
-				"type": "uint32"
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -303,9 +303,9 @@
 	{
 		"inputs": [
 			{
-				"internalType": "uint32",
+				"internalType": "uint64",
 				"name": "",
-				"type": "uint32"
+				"type": "uint64"
 			}
 		],
 		"name": "sentBatches",
@@ -340,9 +340,9 @@
 				"type": "string"
 			},
 			{
-				"internalType": "uint32",
+				"internalType": "uint64",
 				"name": "chainID",
-				"type": "uint32"
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -374,9 +374,9 @@
 				"type": "bytes32"
 			},
 			{
-				"internalType": "uint32",
+				"internalType": "uint64",
 				"name": "numBatch",
-				"type": "uint32"
+				"type": "uint64"
 			},
 			{
 				"internalType": "uint256[2]",

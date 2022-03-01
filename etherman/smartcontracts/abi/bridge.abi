@@ -63,9 +63,9 @@
 		"inputs": [
 			{
 				"indexed": false,
-				"internalType": "uint64",
+				"internalType": "uint32",
 				"name": "index",
-				"type": "uint64"
+				"type": "uint32"
 			},
 			{
 				"indexed": false,
@@ -237,9 +237,9 @@
 				"type": "bytes32[]"
 			},
 			{
-				"internalType": "uint64",
+				"internalType": "uint32",
 				"name": "index",
-				"type": "uint64"
+				"type": "uint32"
 			},
 			{
 				"internalType": "uint256",
@@ -360,6 +360,30 @@
 	{
 		"inputs": [],
 		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint32",
+				"name": "originalNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "originalTokenAddress",
+				"type": "address"
+			}
+		],
+		"name": "precalculatedWrapperAddress",
 		"outputs": [
 			{
 				"internalType": "address",
