@@ -80,11 +80,9 @@ func Test_CustomNetwork(t *testing.T) {
 	assert.Equal(t, uint8(4), cfg.NetworkConfig.Arity)
 	assert.Equal(t, uint64(1), cfg.NetworkConfig.GenBlockNumber)
 	assert.Equal(t, common.HexToAddress("0xCF7ED3ACCA5A467E9E704C703E8D87F634FB0FC9").Hex(), cfg.NetworkConfig.PoEAddr.Hex())
-	assert.Equal(t, common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA").Hex(), cfg.NetworkConfig.BridgeAddr.Hex())
 	assert.Equal(t, common.HexToAddress("0x37AFFAF737C3683AB73F6E1B0933B725AB9796AA").Hex(), cfg.NetworkConfig.MaticAddr.Hex())
 	assert.Equal(t, uint64(1337), cfg.NetworkConfig.L1ChainID)
 	assert.Equal(t, uint64(1000), cfg.NetworkConfig.L2DefaultChainID)
-	assert.Equal(t, common.HexToAddress("0xABCDEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF").Hex(), cfg.NetworkConfig.GlobalExitRootManAddr.Hex())
 	assert.Equal(t, uint64(123456), cfg.NetworkConfig.MaxCumulativeGasUsed)
 
 	assert.Equal(t, 3, len(cfg.NetworkConfig.Balances))

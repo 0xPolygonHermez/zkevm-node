@@ -45,11 +45,11 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	const pos = 2
 	calculatedPoEAddr := crypto.CreateAddress(auth.From, nonce+pos)
 	var genesis [32]byte
-	exitManagerAddr, _, exitManager, err := globalexitrootmanager.DeployGlobalexitrootmanager(auth, client, calculatedPoEAddr, calculatedBridgeAddr)
+	exitManagerAddr, _, _, err := globalexitrootmanager.DeployGlobalexitrootmanager(auth, client, calculatedPoEAddr, calculatedBridgeAddr)
 	if err != nil {
 		return nil, nil, common.Address{}, err
 	}
-	bridgeAddr, _, bridge, err := bridge.DeployBridge(auth, client, 0, exitManagerAddr)
+	bridgeAddr, _, _, err := bridge.DeployBridge(auth, client, 0, exitManagerAddr)
 	if err != nil {
 		return nil, nil, common.Address{}, err
 	}
@@ -79,5 +79,5 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	}
 
 	client.Commit()
-	return &Client{EtherClient: client, PoE: poe, Bridge: bridge, Matic: maticContract, GlobalExitRootManager: exitManager, SCAddresses: []common.Address{poeAddr, bridgeAddr, exitManagerAddr}, auth: auth}, client.Commit, maticAddr, nil
+	return &Client{EtherClient: client, PoE: poe, Matic: maticContract, SCAddresses: []common.Address{poeAddr}, auth: auth}, client.Commit, maticAddr, nil
 }
