@@ -1211,43 +1211,6 @@ func TestSCCall(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
 }
-
-func TestExitRootStore(t *testing.T) {
-	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
-
-	// Create State db
-	stateDb, err = db.NewSQLDB(cfg)
-	require.NoError(t, err)
-
-	// Create State tree
-	store := tree.NewPostgresStore(stateDb)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
-	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-	stateTree := tree.NewStateTree(mt, scCodeStore)
-
-	// Create state
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
-
-	_, err = st.GetLatestExitRoot(ctx)
-	require.Error(t, err)
-
-	var exitRoot state.GlobalExitRoot
-	exitRoot.GlobalExitRootNum = big.NewInt(1)
-	exitRoot.MainnetExitRoot = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc")
-	exitRoot.RollupExitRoot = common.HexToHash("0x30e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9ed")
-
-	err = st.AddExitRoot(ctx, &exitRoot)
-	require.NoError(t, err)
-
-	exit, err := st.GetLatestExitRoot(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, exitRoot.GlobalExitRootNum, exit.GlobalExitRootNum)
-	assert.Equal(t, exitRoot.MainnetExitRoot, exit.MainnetExitRoot)
-	assert.Equal(t, exitRoot.RollupExitRoot, exit.RollupExitRoot)
-}
-
 func TestSCSelfDestruct(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
