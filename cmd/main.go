@@ -103,6 +103,13 @@ func main() {
 			Action:  encryptKey,
 			Flags:   encryptKeyFlags,
 		},
+		{
+			Name:    "updatedeps",
+			Aliases: []string{},
+			Usage:   "Updates external dependencies like images, test vectors or proto files",
+			Action:  updateDeps,
+			Flags:   flags,
+		},
 	}
 
 	err := app.Run(os.Args)
