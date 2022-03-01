@@ -680,8 +680,9 @@ func (b *BasicBatchProcessor) Selfdestruct(address common.Address, beneficiary c
 	if err != nil {
 		log.Errorf("error on Selfdestuct for address %v", address)
 	}
-
 	b.stateRoot = root
+
+	// TODO: Destroy Storage
 }
 
 // GetTxContext returns metadata related to the Tx Context
