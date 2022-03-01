@@ -1215,11 +1215,10 @@ func TestSCSelfDestruct(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
-	var sequencerBalance = 4000000
+	var sequencerBalance = 120000
 	// /tests/contracts/destroy.sol
 	var scByteCode = "608060405234801561001057600080fd5b50336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555061019f806100606000396000f3fe608060405234801561001057600080fd5b50600436106100415760003560e01c80632e64cec11461004657806343d726d6146100645780636057361d1461006e575b600080fd5b61004e61008a565b60405161005b9190610128565b60405180910390f35b61006c610094565b005b610088600480360381019061008391906100ec565b6100cd565b005b6000600154905090565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16ff5b8060018190555050565b6000813590506100e681610152565b92915050565b6000602082840312156101025761010161014d565b5b6000610110848285016100d7565b91505092915050565b61012281610143565b82525050565b600060208201905061013d6000830184610119565b92915050565b6000819050919050565b600080fd5b61015b81610143565b811461016657600080fd5b5056fea26469706673582212204792262d56891c7cad37c3e7d355188109c9386bb448f96fbe4ae53c7794b72164736f6c63430008070033"
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
-	var expectedFinalRoot = "0000000000000000000000000000000000000000000000000000000000000000000000000000"
 
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
@@ -1257,7 +1256,7 @@ func TestSCSelfDestruct(t *testing.T) {
 		BlockNumber: genesisBlock.Header().Number.Uint64(),
 	}
 
-	err = testState.AddSequencer(ctx, sequencer)
+	err = st.AddSequencer(ctx, sequencer)
 	assert.NoError(t, err)
 
 	var txs []*types.Transaction
@@ -1266,7 +1265,7 @@ func TestSCSelfDestruct(t *testing.T) {
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    0,
 		To:       nil,
-		Value:    new(big.Int),
+		Value:    new(big.Int).SetUint64(0),
 		Gas:      uint64(sequencerBalance),
 		GasPrice: new(big.Int).SetUint64(1),
 		Data:     common.Hex2Bytes(scByteCode),
@@ -1282,7 +1281,7 @@ func TestSCSelfDestruct(t *testing.T) {
 	txs = append(txs, signedTx)
 
 	// Call close method from SC to destroy it
-	tx1 := types.NewTransaction(2, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("43d726d6"))
+	tx1 := types.NewTransaction(1, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("43d726d6"))
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
 	txs = append(txs, signedTx1)
@@ -1310,7 +1309,8 @@ func TestSCSelfDestruct(t *testing.T) {
 	err = bp.ProcessBatch(batch)
 	require.NoError(t, err)
 
-	receipt, err := testState.GetTransactionReceipt(ctx, signedTx1.Hash())
+	// Get SC bytecode
+	code, err := st.GetCode(scAddress, batch.Number().Uint64())
 	require.NoError(t, err)
-	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
+	assert.Equal(t, []byte{}, code)
 }

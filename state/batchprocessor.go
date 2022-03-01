@@ -675,13 +675,13 @@ func (b *BasicBatchProcessor) Selfdestruct(address common.Address, beneficiary c
 		}
 		b.stateRoot = root
 	}
-	/*
-		root, _, err := b.State.tree.SetCode(address, []byte{}, b.stateRoot)
-		if err != nil {
-			log.Errorf("error on Selfdestuct for address %v", address)
-		}
-		b.stateRoot = root
-	*/
+
+	root, _, err := b.State.tree.SetCode(address, []byte{}, b.stateRoot)
+	if err != nil {
+		log.Errorf("error on Selfdestuct for address %v", address)
+	}
+
+	b.stateRoot = root
 }
 
 // GetTxContext returns metadata related to the Tx Context
