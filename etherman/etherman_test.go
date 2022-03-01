@@ -152,7 +152,7 @@ func TestSCEvents(t *testing.T) {
 		proofC           = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
 		proofB           = [2][2]*big.Int{proofC, proofC}
 	)
-	_, err = etherman.PoE.VerifyBatch(etherman.auth, newLocalExitRoot, newStateRoot, uint32(block[0].Batches[0].Number().Uint64()), proofA, proofB, proofC)
+	_, err = etherman.PoE.VerifyBatch(etherman.auth, newLocalExitRoot, newStateRoot, block[0].Batches[0].Number().Uint64(), proofA, proofB, proofC)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
