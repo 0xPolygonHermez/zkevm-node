@@ -16,24 +16,20 @@ const DefaultMerkleTreeArity = 4
 type StateTree struct {
 	mt          *MerkleTree
 	scCodeStore Store
-	currentRoot *big.Int
 }
 
 // NewStateTree creates new StateTree
-func NewStateTree(mt *MerkleTree, scCodeStore Store, root []byte) *StateTree {
+func NewStateTree(mt *MerkleTree, scCodeStore Store) *StateTree {
 	return &StateTree{
 		mt:          mt,
 		scCodeStore: scCodeStore,
-		currentRoot: new(big.Int).SetBytes(root),
 	}
 }
 
 // GetBalance returns balance
 func (tree *StateTree) GetBalance(address common.Address, root []byte) (*big.Int, error) {
-	r := tree.currentRoot
-	if root != nil {
-		r = new(big.Int).SetBytes(root)
-	}
+	r := new(big.Int).SetBytes(root)
+
 	key, err := GetKey(LeafTypeBalance, address, nil, tree.mt.arity, nil)
 	if err != nil {
 		return nil, err
@@ -52,10 +48,8 @@ func (tree *StateTree) GetBalance(address common.Address, root []byte) (*big.Int
 
 // GetNonce returns nonce
 func (tree *StateTree) GetNonce(address common.Address, root []byte) (*big.Int, error) {
-	r := tree.currentRoot
-	if root != nil {
-		r = new(big.Int).SetBytes(root)
-	}
+	r := new(big.Int).SetBytes(root)
+
 	key, err := GetKey(LeafTypeNonce, address, nil, tree.mt.arity, nil)
 	if err != nil {
 		return nil, err
@@ -74,10 +68,8 @@ func (tree *StateTree) GetNonce(address common.Address, root []byte) (*big.Int, 
 
 // GetCodeHash returns code hash
 func (tree *StateTree) GetCodeHash(address common.Address, root []byte) ([]byte, error) {
-	r := tree.currentRoot
-	if root != nil {
-		r = new(big.Int).SetBytes(root)
-	}
+	r := new(big.Int).SetBytes(root)
+
 	key, err := GetKey(LeafTypeCode, address, nil, tree.mt.arity, nil)
 	if err != nil {
 		return nil, err
@@ -118,10 +110,8 @@ func (tree *StateTree) GetCode(address common.Address, root []byte) ([]byte, err
 
 // GetStorageAt returns Storage Value at specified position
 func (tree *StateTree) GetStorageAt(address common.Address, position common.Hash, root []byte) (*big.Int, error) {
-	r := tree.currentRoot
-	if root != nil {
-		r = new(big.Int).SetBytes(root)
-	}
+	r := new(big.Int).SetBytes(root)
+
 	key, err := GetKey(LeafTypeStorage, address, position[:], tree.mt.arity, nil)
 	if err != nil {
 		return nil, err
@@ -138,18 +128,26 @@ func (tree *StateTree) GetStorageAt(address common.Address, position common.Hash
 	return proof.Value, nil
 }
 
-// GetCurrentRoot returns current MerkleTree root hash
-func (tree *StateTree) GetCurrentRoot() ([]byte, error) {
-	return tree.currentRoot.Bytes(), nil
+// ReverseHash reverse a hash of an exisiting Merkletree node.
+func (tree *StateTree) ReverseHash(root, hash []byte) ([]byte, error) {
+	hashBI := new(big.Int).SetBytes(hash[:])
+	rootBI := new(big.Int).SetBytes(root[:])
+
+	proof, err := tree.mt.Get(context.Background(), rootBI, hashBI)
+	if err != nil {
+		return nil, err
+	}
+
+	return proof.Value.Bytes(), nil
 }
 
 // SetBalance sets balance
-func (tree *StateTree) SetBalance(address common.Address, balance *big.Int) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetBalance(address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	if balance.Cmp(big.NewInt(0)) == -1 {
 		return nil, nil, fmt.Errorf("invalid balance")
 	}
 
-	r := tree.currentRoot
+	r := new(big.Int).SetBytes(root)
 	key, err := GetKey(LeafTypeBalance, address, nil, tree.mt.arity, nil)
 	if err != nil {
 		return nil, nil, err
@@ -161,18 +159,16 @@ func (tree *StateTree) SetBalance(address common.Address, balance *big.Int) (new
 		return nil, nil, err
 	}
 
-	tree.currentRoot = updateProof.NewRoot
-
 	return updateProof.NewRoot.Bytes(), updateProof, nil
 }
 
 // SetNonce sets nonce
-func (tree *StateTree) SetNonce(address common.Address, nonce *big.Int) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetNonce(address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	if nonce.Cmp(big.NewInt(0)) == -1 {
 		return nil, nil, fmt.Errorf("invalid nonce")
 	}
 
-	r := tree.currentRoot
+	r := new(big.Int).SetBytes(root)
 	key, err := GetKey(LeafTypeNonce, address, nil, tree.mt.arity, nil)
 	if err != nil {
 		return nil, nil, err
@@ -184,13 +180,11 @@ func (tree *StateTree) SetNonce(address common.Address, nonce *big.Int) (newRoot
 		return nil, nil, err
 	}
 
-	tree.currentRoot = updateProof.NewRoot
-
 	return updateProof.NewRoot.Bytes(), updateProof, nil
 }
 
 // SetCode sets smart contract code
-func (tree *StateTree) SetCode(address common.Address, code []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetCode(address common.Address, code []byte, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	if code == nil {
 		return nil, nil, fmt.Errorf("invalid smart contract code")
 	}
@@ -213,7 +207,7 @@ func (tree *StateTree) SetCode(address common.Address, code []byte) (newRoot []b
 	}
 
 	// set smart contract code hash as a leaf value in merkle tree
-	r := tree.currentRoot
+	r := new(big.Int).SetBytes(root)
 	key, err := GetKey(LeafTypeCode, address, nil, tree.mt.arity, nil)
 	if err != nil {
 		return nil, nil, err
@@ -225,15 +219,13 @@ func (tree *StateTree) SetCode(address common.Address, code []byte) (newRoot []b
 		return nil, nil, err
 	}
 
-	tree.currentRoot = updateProof.NewRoot
-
 	return updateProof.NewRoot.Bytes(), updateProof, nil
 }
 
 // SetStorageAt sets storage value at specified position
-func (tree *StateTree) SetStorageAt(address common.Address, position common.Hash, value *big.Int) (newRoot []byte, proof *UpdateProof, err error) {
-	r := tree.currentRoot
-	key, err := GetKey(LeafTypeStorage, address, position[:], tree.mt.arity, nil)
+func (tree *StateTree) SetStorageAt(address common.Address, position *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+	r := new(big.Int).SetBytes(root)
+	key, err := GetKey(LeafTypeStorage, address, position.Bytes(), tree.mt.arity, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -244,12 +236,17 @@ func (tree *StateTree) SetStorageAt(address common.Address, position common.Hash
 		return nil, nil, err
 	}
 
-	tree.currentRoot = updateProof.NewRoot
-
 	return updateProof.NewRoot.Bytes(), updateProof, nil
 }
 
-// SetCurrentRoot sets current root of the state tree
-func (tree *StateTree) SetCurrentRoot(root []byte) {
-	tree.currentRoot = new(big.Int).SetBytes(root)
+// SetHashValue sets value for an specific key.
+func (tree *StateTree) SetHashValue(key common.Hash, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+	r := new(big.Int).SetBytes(root)
+	k := new(big.Int).SetBytes(key[:])
+	updateProof, err := tree.mt.Set(context.TODO(), r, k, value)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return updateProof.NewRoot.Bytes(), updateProof, nil
 }

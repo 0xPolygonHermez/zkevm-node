@@ -57,8 +57,8 @@ func NewTxSelectorBase(cfg Config) TxSelector {
 }
 
 // SelectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (t *Base) SelectTxs(batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
-	sortedTxs := t.TxSorter.SortTxs(pendingTxs)
+func (b *Base) SelectTxs(batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
+	sortedTxs := b.TxSorter.SortTxs(pendingTxs)
 	var (
 		selectedTxs                         []*types.Transaction
 		selectedTxsHashes, invalidTxsHashes []string

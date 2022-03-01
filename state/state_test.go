@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 
 	setUpBlocks()
 	setUpBatches()
@@ -454,7 +454,7 @@ func TestStateTransition(t *testing.T) {
 			store := tree.NewPostgresStore(stateDb)
 			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-			stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+			stateTree := tree.NewStateTree(mt, scCodeStore)
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -479,7 +479,7 @@ func TestStateTransition(t *testing.T) {
 			err = st.SetGenesis(ctx, genesis)
 			require.NoError(t, err)
 
-			root, err := st.GetStateRootByBatchNumber(0)
+			root, err := st.GetStateRootByBatchNumber(ctx, 0)
 			require.NoError(t, err)
 
 			for gaddr, gbalance := range genesis.Balances {
@@ -559,7 +559,7 @@ func TestStateTransition(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
-			root, err = st.GetStateRootByBatchNumber(batch.Number().Uint64())
+			root, err = st.GetStateRootByBatchNumber(ctx, batch.Number().Uint64())
 			require.NoError(t, err)
 
 			// Check new roots
@@ -599,7 +599,7 @@ func TestStateTransitionSC(t *testing.T) {
 			store := tree.NewPostgresStore(stateDb)
 			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-			stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+			stateTree := tree.NewStateTree(mt, scCodeStore)
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -632,7 +632,7 @@ func TestLastSeenBatch(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -657,10 +657,7 @@ func TestLastSeenBatch(t *testing.T) {
 func TestReceipts(t *testing.T) {
 	// Load test vector
 	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/receipt-vector.json")
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err)
 
 	for _, testCase := range stateTransitionTestCases {
 		t.Run(testCase.Description, func(t *testing.T) {
@@ -677,7 +674,7 @@ func TestReceipts(t *testing.T) {
 			store := tree.NewPostgresStore(stateDb)
 			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-			stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+			stateTree := tree.NewStateTree(mt, scCodeStore)
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -703,7 +700,7 @@ func TestReceipts(t *testing.T) {
 			err = st.SetGenesis(ctx, genesis)
 			require.NoError(t, err)
 
-			root, err := st.GetStateRootByBatchNumber(0)
+			root, err := st.GetStateRootByBatchNumber(ctx, 0)
 			require.NoError(t, err)
 
 			for gaddr, gbalance := range genesis.Balances {
@@ -783,7 +780,7 @@ func TestReceipts(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
-			root, err = st.GetStateRootByBatchNumber(batch.Number().Uint64())
+			root, err = st.GetStateRootByBatchNumber(ctx, batch.Number().Uint64())
 			require.NoError(t, err)
 
 			// Check new roots
@@ -838,7 +835,7 @@ func TestLastConsolidatedBatch(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -872,7 +869,7 @@ func TestStateErrors(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -888,7 +885,7 @@ func TestStateErrors(t *testing.T) {
 	_, err = st.GetNonce(addr, 0)
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetStateRootByBatchNumber(0)
+	_, err = st.GetStateRootByBatchNumber(ctx, 0)
 	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetLastBlock(ctx)
@@ -968,7 +965,7 @@ func TestSCExecution(t *testing.T) {
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-	stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
 
 	// Create state
 	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -1094,7 +1091,7 @@ func TestSCCall(t *testing.T) {
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-	stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
 
 	// Create state
 	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -1213,4 +1210,40 @@ func TestSCCall(t *testing.T) {
 	receipt, err := testState.GetTransactionReceipt(ctx, signedTx6.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
+}
+
+func TestExitRootStore(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+
+	_, err = st.GetLatestExitRoot(ctx)
+	require.Error(t, err)
+
+	var exitRoot state.GlobalExitRoot
+	exitRoot.GlobalExitRootNum = big.NewInt(1)
+	exitRoot.MainnetExitRoot = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc")
+	exitRoot.RollupExitRoot = common.HexToHash("0x30e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9ed")
+
+	err = st.AddExitRoot(ctx, &exitRoot)
+	require.NoError(t, err)
+
+	exit, err := st.GetLatestExitRoot(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, exitRoot.GlobalExitRootNum, exit.GlobalExitRootNum)
+	assert.Equal(t, exitRoot.MainnetExitRoot, exit.MainnetExitRoot)
+	assert.Equal(t, exitRoot.RollupExitRoot, exit.RollupExitRoot)
 }
