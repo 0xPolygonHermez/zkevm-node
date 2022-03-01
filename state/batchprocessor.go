@@ -665,18 +665,18 @@ func (b *BasicBatchProcessor) Selfdestruct(address common.Address, beneficiary c
 	if contractBalance.Int64() != 0 {
 		beneficiaryBalance := b.GetBalance(beneficiary)
 		beneficiaryBalance.Add(beneficiaryBalance, contractBalance)
-		_, _, err := b.State.tree.SetBalance(beneficiary, beneficiaryBalance)
+		root, _, err := b.State.tree.SetBalance(beneficiary, beneficiaryBalance, b.stateRoot)
 		if err != nil {
 			log.Errorf("error on Selfdestuct for address %v", address)
 		}
-		root, _, err := b.State.tree.SetBalance(beneficiary, big.NewInt(0))
+		root, _, err = b.State.tree.SetBalance(beneficiary, big.NewInt(0), root)
 		if err != nil {
 			log.Errorf("error on Selfdestuct for address %v", address)
 		}
 		b.stateRoot = root
 	}
 	/*
-		root, _, err := b.State.tree.SetCode(address, []byte{})
+		root, _, err := b.State.tree.SetCode(address, []byte{}, b.stateRoot)
 		if err != nil {
 			log.Errorf("error on Selfdestuct for address %v", address)
 		}
