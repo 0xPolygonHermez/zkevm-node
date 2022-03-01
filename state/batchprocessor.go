@@ -65,6 +65,15 @@ type BasicBatchProcessor struct {
 	LastBatch            *Batch
 	CumulativeGasUsed    uint64
 	MaxCumulativeGasUsed uint64
+	transactionContext   transactionContext
+}
+
+type transactionContext struct {
+	currentTransaction *types.Transaction
+	currentOrigin      common.Address
+	coinBase           common.Address
+	index              uint
+	difficulty         *big.Int
 }
 
 // ProcessBatch processes all transactions inside a batch
@@ -80,6 +89,10 @@ func (b *BasicBatchProcessor) ProcessBatch(batch *Batch) error {
 		if err != nil {
 			return err
 		}
+
+		// Set transaction context
+		b.transactionContext.index = index
+		b.transactionContext.difficulty = batch.Header.Difficulty
 
 		result := b.processTransaction(tx, senderAddress, batch.Sequencer)
 
@@ -131,6 +144,11 @@ func (b *BasicBatchProcessor) ProcessUnsignedTransaction(tx *types.Transaction, 
 }
 
 func (b *BasicBatchProcessor) processTransaction(tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+	// Set transaction context
+	b.transactionContext.currentTransaction = tx
+	b.transactionContext.currentOrigin = senderAddress
+	b.transactionContext.coinBase = sequencerAddress
+
 	receiverAddress := tx.To()
 
 	// SC creation
@@ -665,13 +683,21 @@ func (b *BasicBatchProcessor) Selfdestruct(address common.Address, beneficiary c
 		}
 		b.stateRoot = root
 	*/
-
 }
 
 // GetTxContext returns metadata related to the Tx Context
 func (b *BasicBatchProcessor) GetTxContext() runtime.TxContext {
-	// TODO: Implement
-	panic("not implemented")
+	return runtime.TxContext{
+		Hash:       b.transactionContext.currentTransaction.Hash(),
+		GasPrice:   common.BigToHash(b.transactionContext.currentTransaction.GasPrice()),
+		Origin:     b.transactionContext.currentOrigin,
+		Coinbase:   b.transactionContext.coinBase,
+		Number:     int64(b.transactionContext.index),
+		Timestamp:  time.Now().Unix(),
+		GasLimit:   int64(b.transactionContext.currentTransaction.Gas()),
+		ChainID:    b.transactionContext.currentTransaction.ChainId().Int64(),
+		Difficulty: common.BigToHash(b.transactionContext.difficulty),
+	}
 }
 
 // GetBlockHash gets the hash of a block (batch in L2)
