@@ -15,29 +15,25 @@ import (
 
 //NetworkConfig is the configuration struct for the different environments
 type NetworkConfig struct {
-	Arity                 uint8
-	GenBlockNumber        uint64
-	PoEAddr               common.Address
-	BridgeAddr            common.Address
-	MaticAddr             common.Address
-	GlobalExitRootManAddr common.Address
-	L1ChainID             uint64
-	L2DefaultChainID      uint64
-	Balances              map[common.Address]*big.Int
-	MaxCumulativeGasUsed  uint64
+	Arity                uint8
+	GenBlockNumber       uint64
+	PoEAddr              common.Address
+	MaticAddr            common.Address
+	L1ChainID            uint64
+	L2DefaultChainID     uint64
+	Balances             map[common.Address]*big.Int
+	MaxCumulativeGasUsed uint64
 }
 
 type networkConfigFromJSON struct {
-	Arity                 uint8             `json:"arity"`
-	GenBlockNumber        uint64            `json:"genBlockNumber"`
-	PoEAddr               string            `json:"poeAddr"`
-	BridgeAddr            string            `json:"bridgeAddr"`
-	MaticAddr             string            `json:"maticAddr"`
-	GlobalExitRootManAddr string            `json:"globalExitRootManAddr"`
-	L1ChainID             uint64            `json:"l1ChainID"`
-	L2DefaultChainID      uint64            `json:"l2DefaultChainID"`
-	Balances              map[string]string `json:"balances"`
-	MaxCumulativeGasUsed  uint64            `json:"maxCumulativeGasUsed"`
+	Arity                uint8             `json:"arity"`
+	GenBlockNumber       uint64            `json:"genBlockNumber"`
+	PoEAddr              string            `json:"poeAddr"`
+	MaticAddr            string            `json:"maticAddr"`
+	L1ChainID            uint64            `json:"l1ChainID"`
+	L2DefaultChainID     uint64            `json:"l2DefaultChainID"`
+	Balances             map[string]string `json:"balances"`
+	MaxCumulativeGasUsed uint64            `json:"maxCumulativeGasUsed"`
 }
 
 const (
@@ -50,14 +46,12 @@ const (
 //nolint:gomnd
 var (
 	mainnetConfig = NetworkConfig{
-		Arity:                 4,
-		GenBlockNumber:        13808430,
-		PoEAddr:               common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
-		BridgeAddr:            common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
-		MaticAddr:             common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
-		GlobalExitRootManAddr: common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"),
-		L1ChainID:             1, //Mainnet
-		L2DefaultChainID:      10000,
+		Arity:            4,
+		GenBlockNumber:   13808430,
+		PoEAddr:          common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
+		MaticAddr:        common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
+		L1ChainID:        1, //Mainnet
+		L2DefaultChainID: 10000,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
@@ -65,14 +59,12 @@ var (
 		MaxCumulativeGasUsed: 800000,
 	}
 	testnetConfig = NetworkConfig{
-		Arity:                 4,
-		GenBlockNumber:        9817974,
-		PoEAddr:               common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
-		BridgeAddr:            common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
-		MaticAddr:             common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
-		GlobalExitRootManAddr: common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"),
-		L1ChainID:             4, //Rinkeby
-		L2DefaultChainID:      40000,
+		Arity:            4,
+		GenBlockNumber:   9817974,
+		PoEAddr:          common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
+		MaticAddr:        common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
+		L1ChainID:        4, //Rinkeby
+		L2DefaultChainID: 40000,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
 			common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
@@ -80,14 +72,12 @@ var (
 		MaxCumulativeGasUsed: 800000,
 	}
 	internalTestnetConfig = NetworkConfig{
-		Arity:                 4,
-		GenBlockNumber:        6279130,
-		PoEAddr:               common.HexToAddress("0xaD9d51A5B5237aC36cF9d5f78EA84F8a79d3a274"),
-		BridgeAddr:            common.HexToAddress("0x9Fe3268dbD5977e98891528Aa882B7726Ef48118"),
-		MaticAddr:             common.HexToAddress("0xA8d4b3CA3e49dCE738E5E29DfcF78499FE7312C9"),
-		GlobalExitRootManAddr: common.HexToAddress("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"),
-		L1ChainID:             5, //Goerli
-		L2DefaultChainID:      1000,
+		Arity:            4,
+		GenBlockNumber:   6279130,
+		PoEAddr:          common.HexToAddress("0xaD9d51A5B5237aC36cF9d5f78EA84F8a79d3a274"),
+		MaticAddr:        common.HexToAddress("0xA8d4b3CA3e49dCE738E5E29DfcF78499FE7312C9"),
+		L1ChainID:        5, //Goerli
+		L2DefaultChainID: 1000,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): bigIntFromBase10String("1000000000000000000000"),
 			common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"): bigIntFromBase10String("1000000000000000000000"),
@@ -130,14 +120,12 @@ var (
 		MaxCumulativeGasUsed: 800000,
 	}
 	localConfig = NetworkConfig{
-		Arity:                 4,
-		GenBlockNumber:        1,
-		PoEAddr:               common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
-		BridgeAddr:            common.HexToAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
-		MaticAddr:             common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
-		GlobalExitRootManAddr: common.HexToAddress("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"),
-		L1ChainID:             1337,
-		L2DefaultChainID:      1000,
+		Arity:            4,
+		GenBlockNumber:   1,
+		PoEAddr:          common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
+		MaticAddr:        common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+		L1ChainID:        1337,
+		L2DefaultChainID: 1000,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"): bigIntFromBase10String("1000000000000000000000"),
 			common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8"): bigIntFromBase10String("1000000000000000000000"),
@@ -225,12 +213,10 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfg.Arity = cfgJSON.Arity
 	cfg.GenBlockNumber = cfgJSON.GenBlockNumber
 	cfg.PoEAddr = common.HexToAddress(cfgJSON.PoEAddr)
-	cfg.BridgeAddr = common.HexToAddress(cfgJSON.BridgeAddr)
 	cfg.MaticAddr = common.HexToAddress(cfgJSON.MaticAddr)
 	cfg.L1ChainID = cfgJSON.L1ChainID
 	cfg.L2DefaultChainID = cfgJSON.L2DefaultChainID
 	cfg.Balances = make(map[common.Address]*big.Int, len(cfgJSON.Balances))
-	cfg.GlobalExitRootManAddr = common.HexToAddress(cfgJSON.GlobalExitRootManAddr)
 	cfg.MaxCumulativeGasUsed = cfgJSON.MaxCumulativeGasUsed
 
 	for k, v := range cfgJSON.Balances {

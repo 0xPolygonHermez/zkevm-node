@@ -12,7 +12,6 @@ const (
 	flagCfg        = "cfg"
 	flagNetwork    = "network"
 	flagNetworkCfg = "network-cfg"
-	flagAddress    = "address"
 	flagAmount     = "amount"
 	flagRemoteMT   = "remote-merkletree"
 )
@@ -90,17 +89,11 @@ func main() {
 			Usage:   "Approve tokens to be spent by the smart contract",
 			Action:  approveTokens,
 			Flags: append(flags, &cli.StringFlag{
-				Name:     flagAddress,
-				Aliases:  []string{"ap"},
-				Usage:    "Smc address that is gonna be approved",
+				Name:     flagAmount,
+				Aliases:  []string{"am"},
+				Usage:    "Amount that is gonna be approved",
 				Required: true,
 			},
-				&cli.StringFlag{
-					Name:     flagAmount,
-					Aliases:  []string{"am"},
-					Usage:    "Amount that is gonna be approved",
-					Required: true,
-				},
 			),
 		},
 		{
@@ -109,6 +102,13 @@ func main() {
 			Usage:   "Encrypts the privatekey with a password and create a keystore file",
 			Action:  encryptKey,
 			Flags:   encryptKeyFlags,
+		},
+		{
+			Name:    "updatedeps",
+			Aliases: []string{},
+			Usage:   "Updates external dependencies like images, test vectors or proto files",
+			Action:  updateDeps,
+			Flags:   flags,
 		},
 	}
 
