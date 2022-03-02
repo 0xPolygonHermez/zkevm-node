@@ -12,5 +12,6 @@ type Genesis struct {
 	Block          *types.Block
 	Balances       map[common.Address]*big.Int
 	SmartContracts map[common.Address][]byte
+	Storage        map[common.Address]map[*big.Int]*big.Int
 	L2ChainID      uint64
 }
