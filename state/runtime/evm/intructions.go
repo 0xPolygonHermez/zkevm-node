@@ -485,7 +485,7 @@ func opSStore(s *state) {
 
 	legacyGasMetering := !s.config.Istanbul && (s.config.Petersburg || !s.config.Constantinople)
 
-	status := s.host.SetStorage(context.TODO(), s.msg.Address, key, val, s.config)
+	status := s.host.SetStorage(context.Background(), s.msg.Address, key, val, s.config)
 	cost := uint64(0)
 
 	switch status {
@@ -572,7 +572,7 @@ func opBalance(s *state) {
 		return
 	}
 
-	s.push1().Set(s.host.GetBalance(context.TODO(), addr))
+	s.push1().Set(s.host.GetBalance(context.Background(), addr))
 }
 
 func opSelfBalance(s *state) {
@@ -581,7 +581,7 @@ func opSelfBalance(s *state) {
 		return
 	}
 
-	s.push1().Set(s.host.GetBalance(context.TODO(), s.msg.Address))
+	s.push1().Set(s.host.GetBalance(context.Background(), s.msg.Address))
 }
 
 func opChainID(s *state) {
