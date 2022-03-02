@@ -59,13 +59,13 @@ services:
 
     hez-network:
         container_name: hez-network
-        image: hermeznetwork/geth-zkevm-contracts:latest
+        image: hermeznetwork/geth-zkevm-contracts@sha256:036a039a651e6f6e573be94c923a79c091f8a7090fe401c3de341230d62429c8
         ports:
           - 8545:8545
 
     hez-prover:
       container_name: hez-prover
-      image: hermeznetwork/zk-mock-prover:latest
+      image: hermeznetwork/zk-mock-prover@sha256:4f4e1c3f3006d96401314b3988c3b2b9bdda8a61cc7166e4016245ab2033c3a6
       ports:
         - 50051:50051
       environment:

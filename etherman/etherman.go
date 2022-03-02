@@ -26,9 +26,9 @@ import (
 )
 
 var (
-	newBatchEventSignatureHash        = crypto.Keccak256Hash([]byte("SendBatch(uint32,address,uint32,bytes32)"))
-	consolidateBatchSignatureHash     = crypto.Keccak256Hash([]byte("VerifyBatch(uint32,address)"))
-	newSequencerSignatureHash         = crypto.Keccak256Hash([]byte("RegisterSequencer(address,string,uint32)"))
+	newBatchEventSignatureHash        = crypto.Keccak256Hash([]byte("SendBatch(uint64,address,uint64,bytes32)"))
+	consolidateBatchSignatureHash     = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
+	newSequencerSignatureHash         = crypto.Keccak256Hash([]byte("RegisterSequencer(address,string,uint64)"))
 	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 
 	// ErrNotFound is used when the object is not found
@@ -213,7 +213,7 @@ func (etherMan *Client) ConsolidateBatch(batchNumber *big.Int, proof *proverclie
 		etherMan.auth,
 		newLocalExitRoot,
 		newStateRoot,
-		uint32(batchNumber.Uint64()),
+		batchNumber.Uint64(),
 		proofA,
 		proofB,
 		proofC,
@@ -545,7 +545,7 @@ func (etherMan *Client) GetLatestConsolidatedBatchNumber() (uint64, error) {
 
 // GetSequencerCollateralByBatchNumber function allows to retrieve the sequencer collateral from the smc.
 func (etherMan *Client) GetSequencerCollateralByBatchNumber(batchNumber uint64) (*big.Int, error) {
-	batchInfo, err := etherMan.PoE.SentBatches(&bind.CallOpts{Pending: false}, uint32(batchNumber))
+	batchInfo, err := etherMan.PoE.SentBatches(&bind.CallOpts{Pending: false}, batchNumber)
 	return batchInfo.MaticCollateral, err
 }
 
