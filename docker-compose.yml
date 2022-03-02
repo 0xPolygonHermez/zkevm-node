@@ -41,7 +41,7 @@ services:
             - COIN=ETH
             - ETHEREUM_JSONRPC_VARIANT=geth
             - ETHEREUM_JSONRPC_HTTP_URL=http://hez-core:8123
-            - DATABASE_URL=postgres://test_user:test_password@explorerdb:5432/explorer
+            - DATABASE_URL=postgres://test_user:test_password@hez-explorer-postgres:5432/explorer
             - ECTO_USE_SSL=false
             - MIX_ENV=prod
             - LOGO=/images/blockscout_logo.svg
@@ -50,8 +50,6 @@ services:
 
     hez-explorer-postgres:
         container_name: hez-explorer-postgres
-        # hez-explorer throws an error when the hostname of the DATABASE_URL includes underscores or hyphens
-        hostname: explorerdb
         image: postgres
         ports:
             - 5433:5432
