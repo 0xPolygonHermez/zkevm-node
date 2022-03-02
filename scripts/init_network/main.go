@@ -125,7 +125,7 @@ func main() {
 	ethermanConfig := etherman.Config{
 		URL: l1NetworkURL,
 	}
-	etherman, err := etherman.NewClient(ethermanConfig, auth, config.NetworkConfig.PoEAddr, config.NetworkConfig.BridgeAddr, config.NetworkConfig.MaticAddr, config.NetworkConfig.GlobalExitRootManAddr)
+	etherman, err := etherman.NewClient(ethermanConfig, auth, config.NetworkConfig.PoEAddr, config.NetworkConfig.MaticAddr)
 	checkErr(err)
 	tx, err = etherman.RegisterSequencer(l2NetworkURL)
 	checkErr(err)

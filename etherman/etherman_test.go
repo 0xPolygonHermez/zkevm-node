@@ -152,7 +152,7 @@ func TestSCEvents(t *testing.T) {
 		proofC           = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
 		proofB           = [2][2]*big.Int{proofC, proofC}
 	)
-	_, err = etherman.PoE.VerifyBatch(etherman.auth, newLocalExitRoot, newStateRoot, uint32(block[0].Batches[0].Number().Uint64()), proofA, proofB, proofC)
+	_, err = etherman.PoE.VerifyBatch(etherman.auth, newLocalExitRoot, newStateRoot, block[0].Batches[0].Number().Uint64(), proofA, proofB, proofC)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -379,73 +379,6 @@ func TestOrderReadEvent(t *testing.T) {
 	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][3].Name)
 	assert.Equal(t, BatchesOrder, order[block[0].BlockHash][4].Name)
 	assert.Equal(t, NewSequencersOrder, order[block[0].BlockHash][5].Name)
-}
-
-func TestDepositAndGlobalExitRootEvent(t *testing.T) {
-	// Set up testing environment
-	etherman, commit, maticAddr := newTestingEnv()
-
-	// Read currentBlock
-	ctx := context.Background()
-	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
-	require.NoError(t, err)
-
-	// Deposit funds
-	amount := big.NewInt(9000000000000000000)
-	var destNetwork uint32 = 1 // 0 is reserved to mainnet. This variable is set in the smc
-	destinationAddr := common.HexToAddress("0x61A1d716a74fb45d29f148C6C20A2eccabaFD753")
-	_, err = etherman.Bridge.Bridge(etherman.auth, maticAddr, amount, destNetwork, destinationAddr)
-	require.NoError(t, err)
-
-	// Mine the tx in a block
-	commit()
-
-	block, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
-	require.NoError(t, err)
-	assert.Equal(t, DepositsOrder, order[block[0].BlockHash][0].Name)
-	assert.Equal(t, GlobalExitRootsOrder, order[block[0].BlockHash][1].Name)
-	assert.Equal(t, uint64(2), block[0].BlockNumber)
-	assert.Equal(t, big.NewInt(9000000000000000000), block[0].Deposits[0].Amount)
-	assert.Equal(t, uint(1), block[0].Deposits[0].DestinationNetwork)
-	assert.Equal(t, destinationAddr, block[0].Deposits[0].DestinationAddress)
-	assert.Equal(t, 1, len(block[0].GlobalExitRoots))
-	assert.Equal(t, 1, len(block[0].GlobalExitRoots))
-
-	//Claim funds
-	var (
-		network  uint32
-		smtProof [][32]byte
-		index    uint64
-	)
-	mainnetExitRoot := block[0].GlobalExitRoots[0].MainnetExitRoot
-	rollupExitRoot := block[0].GlobalExitRoots[0].RollupExitRoot
-	globalExitRootNum := block[0].GlobalExitRoots[0].GlobalExitRootNum
-
-	destNetwork = 1
-	_, err = etherman.Bridge.Claim(etherman.auth, maticAddr, big.NewInt(1000000000000000000), destNetwork,
-		network, etherman.auth.From, smtProof, index, globalExitRootNum, mainnetExitRoot, rollupExitRoot)
-	require.NoError(t, err)
-
-	// Mine the tx in a block
-	commit()
-
-	//Read claim event
-	initBlock, err = etherman.EtherClient.BlockByNumber(ctx, nil)
-	require.NoError(t, err)
-	block, order, err = etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), nil)
-	require.NoError(t, err)
-	assert.Equal(t, ClaimsOrder, order[block[0].BlockHash][1].Name)
-	assert.Equal(t, big.NewInt(1000000000000000000), block[0].Claims[0].Amount)
-	assert.Equal(t, uint64(3), block[0].BlockNumber)
-	assert.NotEqual(t, common.Address{}, block[0].Claims[0].Token)
-	assert.Equal(t, etherman.auth.From, block[0].Claims[0].DestinationAddress)
-	assert.Equal(t, uint64(0), block[0].Claims[0].Index)
-	assert.Equal(t, uint(1), block[0].Claims[0].OriginalNetwork)
-	assert.Equal(t, uint64(3), block[0].Claims[0].BlockNumber)
-	assert.Equal(t, TokensOrder, order[block[0].BlockHash][0].Name)
-	assert.Equal(t, uint(1), block[0].Tokens[0].OriginalNetwork)
-	assert.NotEqual(t, common.Address{}, block[0].Tokens[0].OriginalTokenAddress)
-	assert.NotEqual(t, common.Address{}, block[0].Tokens[0].WrappedTokenAddress)
 }
 
 func TestConverter(t *testing.T) {

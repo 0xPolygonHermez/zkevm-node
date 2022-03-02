@@ -262,24 +262,6 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					}
 					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos], " err: ", err)
 				}
-			} else if element.Name == etherman.DepositsOrder {
-				//TODO Store info into db
-				log.Warn("Deposit functionality is not implemented in synchronizer yet")
-			} else if element.Name == etherman.GlobalExitRootsOrder {
-				err := s.state.AddExitRoot(ctx, &blocks[i].GlobalExitRoots[element.Pos])
-				if err != nil {
-					err = s.state.Rollback(ctx)
-					if err != nil {
-						log.Fatal("error rolling back state to store block. BlockNumber: ", blocks[i].BlockNumber)
-					}
-					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos], " err: ", err)
-				}
-			} else if element.Name == etherman.ClaimsOrder {
-				//TODO Store info into db
-				log.Warn("Claim functionality is not implemented in synchronizer yet")
-			} else if element.Name == etherman.TokensOrder {
-				//TODO Store info into db
-				log.Warn("Tokens functionality is not implemented in synchronizer yet")
 			} else {
 				rollbackErr := s.state.Rollback(ctx)
 				if rollbackErr != nil {

@@ -211,3 +211,133 @@ func TestMerkleTreeGenesis(t *testing.T) {
 		})
 	}
 }
+
+func TestUnsetCode(t *testing.T) {
+	dbCfg := dbutils.NewConfigFromEnv()
+
+	err := dbutils.InitOrReset(dbCfg)
+	require.NoError(t, err)
+
+	mtDb, err := db.NewSQLDB(dbCfg)
+	require.NoError(t, err)
+
+	defer mtDb.Close()
+
+	store := NewPostgresStore(mtDb)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	scCodeStore := NewPostgresSCCodeStore(mtDb)
+	tree := NewStateTree(mt, scCodeStore)
+
+	address := common.Address{
+		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+	}
+
+	// populate the tree
+	bal, err := tree.GetBalance(address, nil)
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(0), bal)
+
+	oldRoot, _, err := tree.SetBalance(address, big.NewInt(1), nil)
+	require.NoError(t, err)
+
+	// set and unset code
+	code, err := tree.GetCode(address, nil)
+	require.NoError(t, err)
+	assert.Equal(t, []byte{}, code)
+
+	scCode, _ := hex.DecodeString("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	root, _, err := tree.SetCode(address, scCode, oldRoot)
+	require.NoError(t, err)
+
+	code, err = tree.GetCode(address, root)
+	require.NoError(t, err)
+	assert.Equal(t, scCode, code)
+
+	newRoot, _, err := tree.SetCode(address, nil, root)
+	require.NoError(t, err)
+
+	code, err = tree.GetCode(address, newRoot)
+	require.NoError(t, err)
+	assert.Equal(t, []byte(nil), code)
+
+	assert.Equal(t, oldRoot, newRoot)
+}
+
+func TestUnsetStorageAtPosition(t *testing.T) {
+	dbCfg := dbutils.NewConfigFromEnv()
+
+	err := dbutils.InitOrReset(dbCfg)
+	require.NoError(t, err)
+
+	mtDb, err := db.NewSQLDB(dbCfg)
+	require.NoError(t, err)
+
+	defer mtDb.Close()
+
+	store := NewPostgresStore(mtDb)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	scCodeStore := NewPostgresSCCodeStore(mtDb)
+	tree := NewStateTree(mt, scCodeStore)
+
+	address := common.Address{
+		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+	}
+
+	// Storage
+	position := common.Hash{
+		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+		0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29,
+		0x30, 0x31,
+	}
+	positionBI := new(big.Int).SetBytes(position.Bytes())
+
+	storage, err := tree.GetStorageAt(address, position, nil)
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(0), storage)
+
+	oldRoot, _, err := tree.SetStorageAt(address, positionBI, big.NewInt(4), nil)
+	require.NoError(t, err)
+
+	storage, err = tree.GetStorageAt(address, position, oldRoot)
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(4), storage)
+
+	position2 := common.Hash{
+		0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+		0x11, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+		0x21, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29,
+		0x31, 0x31,
+	}
+	position2BI := new(big.Int).SetBytes(position2.Bytes())
+
+	storage2, err := tree.GetStorageAt(address, position2, oldRoot)
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(0), storage2)
+
+	root, _, err := tree.SetStorageAt(address, position2BI, big.NewInt(5), oldRoot)
+	require.NoError(t, err)
+
+	storage2, err = tree.GetStorageAt(address, position2, root)
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(5), storage2)
+
+	storage, err = tree.GetStorageAt(address, position, root)
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(4), storage)
+
+	newRoot, _, err := tree.SetStorageAt(address, position2BI, big.NewInt(0), root)
+	require.NoError(t, err)
+
+	storage, err = tree.GetStorageAt(address, position2, root)
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(5), storage)
+
+	storage2, err = tree.GetStorageAt(address, position2, root)
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(5), storage2)
+
+	assert.Equal(t, oldRoot, newRoot)
+}
