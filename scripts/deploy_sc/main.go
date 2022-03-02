@@ -59,7 +59,7 @@ func main() {
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
 	log.Infof("account: %v", fromAddress.Hex())
 	log.Infof("reading nonce")
-	nonce, err := client.NonceAt(context.Background(), fromAddress, nil)
+	nonce, err := client.NonceAt(ctx, fromAddress, nil)
 	log.Infof("nonce: %v", nonce)
 	chkErr(err)
 

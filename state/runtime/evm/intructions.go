@@ -1,6 +1,7 @@
 package evm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -464,7 +465,7 @@ func opSload(s *state) {
 		return
 	}
 
-	val := s.host.GetStorage(s.msg.Address, bigToHash(loc))
+	val := s.host.GetStorage(context.Background(), s.msg.Address, bigToHash(loc))
 	loc.SetBytes(val.Bytes())
 }
 
@@ -484,7 +485,7 @@ func opSStore(s *state) {
 
 	legacyGasMetering := !s.config.Istanbul && (s.config.Petersburg || !s.config.Constantinople)
 
-	status := s.host.SetStorage(s.msg.Address, key, val, s.config)
+	status := s.host.SetStorage(context.TODO(), s.msg.Address, key, val, s.config)
 	cost := uint64(0)
 
 	switch status {
@@ -571,7 +572,7 @@ func opBalance(s *state) {
 		return
 	}
 
-	s.push1().Set(s.host.GetBalance(addr))
+	s.push1().Set(s.host.GetBalance(context.TODO(), addr))
 }
 
 func opSelfBalance(s *state) {
@@ -580,7 +581,7 @@ func opSelfBalance(s *state) {
 		return
 	}
 
-	s.push1().Set(s.host.GetBalance(s.msg.Address))
+	s.push1().Set(s.host.GetBalance(context.TODO(), s.msg.Address))
 }
 
 func opChainID(s *state) {
@@ -647,7 +648,7 @@ func opExtCodeSize(s *state) {
 		return
 	}
 
-	s.push1().SetUint64(uint64(s.host.GetCodeSize(addr)))
+	s.push1().SetUint64(uint64(s.host.GetCodeSize(context.Background(), addr)))
 }
 
 func opGasPrice(s *state) {
@@ -680,11 +681,12 @@ func opExtCodeHash(s *state) {
 		return
 	}
 
+	ctx := context.Background()
 	v := s.push1()
-	if s.host.Empty(address) {
+	if s.host.Empty(ctx, address) {
 		v.Set(zero)
 	} else {
-		v.SetBytes(s.host.GetCodeHash(address).Bytes())
+		v.SetBytes(s.host.GetCodeHash(ctx, address).Bytes())
 	}
 }
 
@@ -750,8 +752,8 @@ func opExtCodeCopy(s *state) {
 	if !s.consumeGas(gas) {
 		return
 	}
-
-	code := s.host.GetCode(address)
+	ctx := context.Background()
+	code := s.host.GetCode(ctx, address)
 	if size != 0 {
 		s.setBytes(s.memory[memOffset.Uint64():], code, size, codeOffset)
 	}
@@ -878,16 +880,16 @@ func opSelfDestruct(s *state) {
 
 	// try to remove the gas first
 	var gas uint64
-
+	ctx := context.Background()
 	// EIP150 reprice fork
 	if s.config.EIP150 {
 		gas = 5000
 		if s.config.EIP158 {
 			// if empty and transfers value
-			if s.host.Empty(address) && s.host.GetBalance(s.msg.Address).Sign() != 0 {
+			if s.host.Empty(ctx, address) && s.host.GetBalance(ctx, s.msg.Address).Sign() != 0 {
 				gas += 25000
 			}
-		} else if !s.host.AccountExists(address) {
+		} else if !s.host.AccountExists(ctx, address) {
 			gas += 25000
 		}
 	}
@@ -1166,12 +1168,13 @@ func (s *state) buildCallContract(op OpCode) (*runtime.Contract, uint64, uint64,
 	eip158 := s.config.EIP158
 	transfersValue := (op == CALL || op == CALLCODE) && value != nil && value.Sign() != 0
 
+	ctx := context.Background()
 	if op == CALL {
 		if eip158 {
-			if transfersValue && s.host.Empty(addr) {
+			if transfersValue && s.host.Empty(ctx, addr) {
 				gasCost += 25000
 			}
-		} else if !s.host.AccountExists(addr) {
+		} else if !s.host.AccountExists(ctx, addr) {
 			gasCost += 25000
 		}
 	}
@@ -1211,7 +1214,7 @@ func (s *state) buildCallContract(op OpCode) (*runtime.Contract, uint64, uint64,
 
 	parent := s
 
-	contract := runtime.NewContractCall(s.msg.Depth+1, parent.msg.Origin, parent.msg.Address, addr, value, gas, s.host.GetCode(addr), args)
+	contract := runtime.NewContractCall(s.msg.Depth+1, parent.msg.Origin, parent.msg.Address, addr, value, gas, s.host.GetCode(ctx, addr), args)
 
 	if op == STATICCALL || parent.msg.Static {
 		contract.Static = true
@@ -1225,7 +1228,7 @@ func (s *state) buildCallContract(op OpCode) (*runtime.Contract, uint64, uint64,
 	}
 
 	if transfersValue {
-		if s.host.GetBalance(s.msg.Address).Cmp(value) < 0 {
+		if s.host.GetBalance(ctx, s.msg.Address).Cmp(value) < 0 {
 			return contract, 0, 0, fmt.Errorf("bad")
 		}
 	}
@@ -1265,8 +1268,9 @@ func (s *state) buildCreateContract(op OpCode) (*runtime.Contract, error) {
 		return nil, nil
 	}
 
+	ctx := context.Background()
 	if hasTransfer {
-		if s.host.GetBalance(s.msg.Address).Cmp(value) < 0 {
+		if s.host.GetBalance(ctx, s.msg.Address).Cmp(value) < 0 {
 			return nil, fmt.Errorf("bad")
 		}
 	}
@@ -1294,7 +1298,7 @@ func (s *state) buildCreateContract(op OpCode) (*runtime.Contract, error) {
 	// Calculate address
 	var address common.Address
 	if op == CREATE {
-		address = helper.CreateAddress(s.msg.Address, s.host.GetNonce(s.msg.Address))
+		address = helper.CreateAddress(s.msg.Address, s.host.GetNonce(ctx, s.msg.Address))
 	} else {
 		address = helper.CreateAddress2(s.msg.Address, bigToHash(salt), input)
 	}

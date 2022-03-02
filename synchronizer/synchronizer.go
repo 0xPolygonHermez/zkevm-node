@@ -233,7 +233,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					}
 
 					sequencerAddress := batch.Sequencer
-					batchProcessor, err := s.state.NewBatchProcessor(sequencerAddress, latestBatchNumber)
+					batchProcessor, err := s.state.NewBatchProcessor(ctx, sequencerAddress, latestBatchNumber)
 					if err != nil {
 						rollbackErr := s.state.Rollback(ctx)
 						if rollbackErr != nil {
@@ -242,7 +242,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 						log.Fatal("error creating new batch processor. Error: ", err)
 					}
 					// Add batches
-					err = batchProcessor.ProcessBatch(batch)
+					err = batchProcessor.ProcessBatch(ctx, batch)
 					if err != nil {
 						rollbackErr := s.state.Rollback(ctx)
 						if rollbackErr != nil {

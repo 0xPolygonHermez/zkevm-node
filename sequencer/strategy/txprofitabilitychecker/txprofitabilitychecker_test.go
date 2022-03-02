@@ -121,7 +121,7 @@ func setUpBatch() {
 		panic(err)
 	}
 
-	err = bp.ProcessBatch(batch)
+	err = bp.ProcessBatch(ctx, batch)
 	if err != nil {
 		panic(err)
 	}

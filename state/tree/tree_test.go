@@ -1,6 +1,7 @@
 package tree
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -49,40 +50,41 @@ func TestBasicTree(t *testing.T) {
 		0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
 	}
 
+	ctx := context.Background()
 	// Balance
-	bal, err := tree.GetBalance(address, nil)
+	bal, err := tree.GetBalance(ctx, address, nil)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(0), bal)
 
-	root, _, err := tree.SetBalance(address, big.NewInt(1), nil)
+	root, _, err := tree.SetBalance(ctx, address, big.NewInt(1), nil)
 	require.NoError(t, err)
 
-	bal, err = tree.GetBalance(address, root)
+	bal, err = tree.GetBalance(ctx, address, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(1), bal)
 
 	// Nonce
-	nonce, err := tree.GetNonce(address, root)
+	nonce, err := tree.GetNonce(ctx, address, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(0), nonce)
 
-	root, _, err = tree.SetNonce(address, big.NewInt(2), root)
+	root, _, err = tree.SetNonce(ctx, address, big.NewInt(2), root)
 	require.NoError(t, err)
 
-	nonce, err = tree.GetNonce(address, root)
+	nonce, err = tree.GetNonce(ctx, address, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(2), nonce)
 
 	// Code
-	code, err := tree.GetCode(address, root)
+	code, err := tree.GetCode(ctx, address, root)
 	require.NoError(t, err)
 	assert.Equal(t, []byte{}, code)
 
 	scCode, _ := hex.DecodeString("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
-	root, _, err = tree.SetCode(address, scCode, root)
+	root, _, err = tree.SetCode(ctx, address, scCode, root)
 	require.NoError(t, err)
 
-	code, err = tree.GetCode(address, root)
+	code, err = tree.GetCode(ctx, address, root)
 	require.NoError(t, err)
 	assert.Equal(t, scCode, code)
 
@@ -95,14 +97,14 @@ func TestBasicTree(t *testing.T) {
 	}
 	positionBI := new(big.Int).SetBytes(position.Bytes())
 
-	storage, err := tree.GetStorageAt(address, position, root)
+	storage, err := tree.GetStorageAt(ctx, address, position, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(0), storage)
 
-	root, _, err = tree.SetStorageAt(address, positionBI, big.NewInt(4), root)
+	root, _, err = tree.SetStorageAt(ctx, address, positionBI, big.NewInt(4), root)
 	require.NoError(t, err)
 
-	storage, err = tree.GetStorageAt(address, position, root)
+	storage, err = tree.GetStorageAt(ctx, address, position, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(4), storage)
 
@@ -114,38 +116,38 @@ func TestBasicTree(t *testing.T) {
 	}
 	position2BI := new(big.Int).SetBytes(position2.Bytes())
 
-	storage2, err := tree.GetStorageAt(address, position2, root)
+	storage2, err := tree.GetStorageAt(ctx, address, position2, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(0), storage2)
 
-	root, _, err = tree.SetStorageAt(address, position2BI, big.NewInt(5), root)
+	root, _, err = tree.SetStorageAt(ctx, address, position2BI, big.NewInt(5), root)
 	require.NoError(t, err)
 
-	storage2, err = tree.GetStorageAt(address, position2, root)
+	storage2, err = tree.GetStorageAt(ctx, address, position2, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(5), storage2)
 
-	storage, err = tree.GetStorageAt(address, position, root)
+	storage, err = tree.GetStorageAt(ctx, address, position, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(4), storage)
 
-	bal, err = tree.GetBalance(address, root)
+	bal, err = tree.GetBalance(ctx, address, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(1), bal)
 
 	balX, _ := new(big.Int).SetString("200000000000000000000", 10)
-	newRoot, _, err := tree.SetBalance(address, balX, root)
+	newRoot, _, err := tree.SetBalance(ctx, address, balX, root)
 	require.NoError(t, err)
 
-	bal, err = tree.GetBalance(address, newRoot)
+	bal, err = tree.GetBalance(ctx, address, newRoot)
 	require.NoError(t, err)
 	assert.Equal(t, balX, bal)
 
-	bal, err = tree.GetBalance(address, root)
+	bal, err = tree.GetBalance(ctx, address, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(1), bal)
 
-	code, err = tree.GetCode(address, root)
+	code, err = tree.GetCode(ctx, address, root)
 	require.NoError(t, err)
 	assert.Equal(t, scCode, code)
 }
@@ -182,6 +184,7 @@ func TestMerkleTreeGenesis(t *testing.T) {
 	store := NewPostgresStore(mtDb)
 	scCodeStore := NewPostgresSCCodeStore(mtDb)
 
+	ctx := context.Background()
 	for ti, testVector := range testVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
 			var root []byte
@@ -197,10 +200,10 @@ func TestMerkleTreeGenesis(t *testing.T) {
 				nonce, success := new(big.Int).SetString(addrState.Nonce, 10)
 				require.True(t, success)
 
-				root, _, err = tree.SetBalance(addr, balance, root)
+				root, _, err = tree.SetBalance(ctx, addr, balance, root)
 				require.NoError(t, err)
 
-				root, _, err = tree.SetNonce(addr, nonce, root)
+				root, _, err = tree.SetNonce(ctx, addr, nonce, root)
 				require.NoError(t, err)
 			}
 
