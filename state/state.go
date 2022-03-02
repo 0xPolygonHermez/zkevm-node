@@ -117,7 +117,9 @@ func (s *BasicState) NewBatchProcessor(sequencerAddress common.Address, lastBatc
 		return nil, err
 	}
 
-	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed}
+	transactionContext := transactionContext{difficulty: new(big.Int)}
+
+	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, transactionContext: transactionContext}
 	batchProcessor.setRuntime(evm.NewEVM())
 	blockNumber, err := s.GetLastBlockNumber(ctx)
 	if err != nil {
