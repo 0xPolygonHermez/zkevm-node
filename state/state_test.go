@@ -1211,6 +1211,49 @@ func TestSCCall(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
 }
+
+func TestGenesisStorage(t *testing.T) {
+	var address = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	genesis := state.Genesis{
+		Block:   genesisBlock,
+		Storage: make(map[common.Address]map[*big.Int]*big.Int),
+	}
+
+	values := make(map[*big.Int]*big.Int)
+
+	for i := 0; i < 10; i++ {
+		values[new(big.Int).SetInt64(int64(i))] = new(big.Int).SetInt64(int64(i))
+	}
+
+	genesis.Storage[address] = values
+	err = st.SetGenesis(ctx, genesis)
+	require.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		value, err := st.GetStorageAt(address, common.BigToHash(new(big.Int).SetInt64(int64(i))), 0)
+		assert.NoError(t, err)
+		assert.NotEqual(t, int64(i), value)
+	}
+}
 func TestSCSelfDestruct(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
