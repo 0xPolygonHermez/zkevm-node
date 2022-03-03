@@ -1,6 +1,7 @@
 package gasprice
 
 import (
+	"context"
 	"math/big"
 	"sync"
 )
@@ -37,6 +38,6 @@ func (g *AllBatches) UpdateGasPriceAvg(newValue *big.Int) {
 }
 
 // GetAvgGasPrice get avg gas price from all blocks.
-func (g *AllBatches) GetAvgGasPrice() (*big.Int, error) {
+func (g *AllBatches) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
 	return g.averageGasPrice, nil
 }

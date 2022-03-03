@@ -1,6 +1,7 @@
 package txselector_test
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
@@ -28,12 +29,13 @@ func TestBase_SelectTxs(t *testing.T) {
 	tx4 := types.NewTransaction(uint64(100), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(16), []byte{})
 	txs := []pool.Transaction{{Transaction: *tx2}, {Transaction: *tx1}, {Transaction: *tx4}, {Transaction: *tx3}}
 
-	bp.On("ProcessTransaction", tx1, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidBalance})
-	bp.On("ProcessTransaction", tx2, seqAddress).Return(&runtime.ExecutionResult{})
-	bp.On("ProcessTransaction", tx3, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidSig})
-	bp.On("ProcessTransaction", tx4, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrNonceIsBiggerThanAccountNonce})
+	ctx := context.Background()
+	bp.On("ProcessTransaction", ctx, tx1, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidBalance})
+	bp.On("ProcessTransaction", ctx, tx2, seqAddress).Return(&runtime.ExecutionResult{})
+	bp.On("ProcessTransaction", ctx, tx3, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidSig})
+	bp.On("ProcessTransaction", ctx, tx4, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrNonceIsBiggerThanAccountNonce})
 
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(bp, txs, seqAddress)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
 	bp.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(selectedTxs))
@@ -56,12 +58,13 @@ func TestBase_SelectTxs_ExceededGasLimit(t *testing.T) {
 	tx4 := types.NewTransaction(uint64(3), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	txs := []pool.Transaction{{Transaction: *tx2}, {Transaction: *tx1}, {Transaction: *tx4}, {Transaction: *tx3}}
 
-	bp.On("ProcessTransaction", tx1, seqAddress).Return(&runtime.ExecutionResult{})
-	bp.On("ProcessTransaction", tx2, seqAddress).Return(&runtime.ExecutionResult{})
-	bp.On("ProcessTransaction", tx3, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidCumulativeGas})
+	ctx := context.Background()
+	bp.On("ProcessTransaction", ctx, tx1, seqAddress).Return(&runtime.ExecutionResult{})
+	bp.On("ProcessTransaction", ctx, tx2, seqAddress).Return(&runtime.ExecutionResult{})
+	bp.On("ProcessTransaction", ctx, tx3, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidCumulativeGas})
 	bp.AssertNotCalled(t, "ProcessTransaction", tx4, seqAddress)
 
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(bp, txs, seqAddress)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
 	bp.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(selectedTxs))
@@ -81,7 +84,9 @@ func TestAcceptAll_SelectTxs(t *testing.T) {
 	tx3 := types.NewTransaction(uint64(2), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(14), []byte{})
 	txs := []pool.Transaction{{Transaction: *tx2}, {Transaction: *tx1}, {Transaction: *tx3}}
 
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(bp, txs, seqAddress)
+	ctx := context.Background()
+
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
 	bp.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(selectedTxs))

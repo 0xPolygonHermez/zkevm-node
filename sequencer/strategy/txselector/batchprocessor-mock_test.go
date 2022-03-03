@@ -3,7 +3,10 @@
 package txselector_test
 
 import (
+	context "context"
+
 	common "github.com/ethereum/go-ethereum/common"
+
 	mock "github.com/stretchr/testify/mock"
 
 	runtime "github.com/hermeznetwork/hermez-core/state/runtime"
@@ -16,13 +19,13 @@ type batchProcessor struct {
 	mock.Mock
 }
 
-// ProcessTransaction provides a mock function with given fields: tx, sequencerAddress
-func (_m *batchProcessor) ProcessTransaction(tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
-	ret := _m.Called(tx, sequencerAddress)
+// ProcessTransaction provides a mock function with given fields: ctx, tx, sequencerAddress
+func (_m *batchProcessor) ProcessTransaction(ctx context.Context, tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
+	ret := _m.Called(ctx, tx, sequencerAddress)
 
 	var r0 *runtime.ExecutionResult
-	if rf, ok := ret.Get(0).(func(*types.Transaction, common.Address) *runtime.ExecutionResult); ok {
-		r0 = rf(tx, sequencerAddress)
+	if rf, ok := ret.Get(0).(func(context.Context, *types.Transaction, common.Address) *runtime.ExecutionResult); ok {
+		r0 = rf(ctx, tx, sequencerAddress)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*runtime.ExecutionResult)

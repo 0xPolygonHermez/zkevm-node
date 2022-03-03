@@ -195,10 +195,11 @@ func deployContracts(opsman *operations.Manager) error {
 	}
 
 	st := opsman.State()
-	bp, err := st.NewBatchProcessor(sequencerAddress, 0)
+	ctx := context.Background()
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
 	if err != nil {
 		return err
 	}
 
-	return bp.ProcessBatch(batch)
+	return bp.ProcessBatch(ctx, batch)
 }

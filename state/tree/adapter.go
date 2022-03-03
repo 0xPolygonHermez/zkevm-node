@@ -13,22 +13,19 @@ import (
 // Adapter exposes the MT methods required by the state and translates them into
 // gRPC calls using its client member.
 type Adapter struct {
-	ctx context.Context
-
 	grpcClient pb.MTServiceClient
 }
 
 // NewAdapter is the constructor of Adapter.
-func NewAdapter(ctx context.Context, client pb.MTServiceClient) *Adapter {
+func NewAdapter(client pb.MTServiceClient) *Adapter {
 	return &Adapter{
-		ctx:        ctx,
 		grpcClient: client,
 	}
 }
 
 // GetBalance returns balance.
-func (m *Adapter) GetBalance(address common.Address, root []byte) (*big.Int, error) {
-	result, err := m.grpcClient.GetBalance(m.ctx, &pb.GetBalanceRequest{
+func (m *Adapter) GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
+	result, err := m.grpcClient.GetBalance(ctx, &pb.GetBalanceRequest{
 		EthAddress: address.String(),
 		Root:       hex.EncodeToString(root),
 	})
@@ -45,8 +42,8 @@ func (m *Adapter) GetBalance(address common.Address, root []byte) (*big.Int, err
 }
 
 // GetNonce returns nonce.
-func (m *Adapter) GetNonce(address common.Address, root []byte) (*big.Int, error) {
-	result, err := m.grpcClient.GetNonce(m.ctx, &pb.GetNonceRequest{
+func (m *Adapter) GetNonce(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
+	result, err := m.grpcClient.GetNonce(ctx, &pb.GetNonceRequest{
 		EthAddress: address.String(),
 		Root:       hex.EncodeToString(root),
 	})
@@ -58,8 +55,8 @@ func (m *Adapter) GetNonce(address common.Address, root []byte) (*big.Int, error
 }
 
 // GetCode returns code.
-func (m *Adapter) GetCode(address common.Address, root []byte) ([]byte, error) {
-	result, err := m.grpcClient.GetCode(m.ctx, &pb.GetCodeRequest{
+func (m *Adapter) GetCode(ctx context.Context, address common.Address, root []byte) ([]byte, error) {
+	result, err := m.grpcClient.GetCode(ctx, &pb.GetCodeRequest{
 		EthAddress: address.String(),
 		Root:       hex.EncodeToString(root),
 	})
@@ -76,8 +73,8 @@ func (m *Adapter) GetCode(address common.Address, root []byte) ([]byte, error) {
 }
 
 // GetCodeHash returns code hash.
-func (m *Adapter) GetCodeHash(address common.Address, root []byte) ([]byte, error) {
-	result, err := m.grpcClient.GetCodeHash(m.ctx, &pb.GetCodeHashRequest{
+func (m *Adapter) GetCodeHash(ctx context.Context, address common.Address, root []byte) ([]byte, error) {
+	result, err := m.grpcClient.GetCodeHash(ctx, &pb.GetCodeHashRequest{
 		EthAddress: address.String(),
 		Root:       hex.EncodeToString(root),
 	})
@@ -94,8 +91,8 @@ func (m *Adapter) GetCodeHash(address common.Address, root []byte) ([]byte, erro
 }
 
 // GetStorageAt returns Storage Value at specified position.
-func (m *Adapter) GetStorageAt(address common.Address, position common.Hash, root []byte) (*big.Int, error) {
-	result, err := m.grpcClient.GetStorageAt(m.ctx, &pb.GetStorageAtRequest{
+func (m *Adapter) GetStorageAt(ctx context.Context, address common.Address, position common.Hash, root []byte) (*big.Int, error) {
+	result, err := m.grpcClient.GetStorageAt(ctx, &pb.GetStorageAtRequest{
 		EthAddress: address.String(),
 		Root:       hex.EncodeToString(root),
 		Position:   position.Big().Uint64(),
@@ -113,8 +110,8 @@ func (m *Adapter) GetStorageAt(address common.Address, position common.Hash, roo
 }
 
 // SetBalance sets balance.
-func (m *Adapter) SetBalance(address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
-	result, err := m.grpcClient.SetBalance(m.ctx, &pb.SetBalanceRequest{
+func (m *Adapter) SetBalance(ctx context.Context, address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+	result, err := m.grpcClient.SetBalance(ctx, &pb.SetBalanceRequest{
 		EthAddress: address.String(),
 		Balance:    balance.String(),
 		Root:       hex.EncodeToString(root),
@@ -141,8 +138,8 @@ func (m *Adapter) SetBalance(address common.Address, balance *big.Int, root []by
 }
 
 // SetNonce sets nonce.
-func (m *Adapter) SetNonce(address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
-	result, err := m.grpcClient.SetNonce(m.ctx, &pb.SetNonceRequest{
+func (m *Adapter) SetNonce(ctx context.Context, address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+	result, err := m.grpcClient.SetNonce(ctx, &pb.SetNonceRequest{
 		EthAddress: address.String(),
 		Nonce:      nonce.Uint64(),
 		Root:       hex.EncodeToString(root),
@@ -169,8 +166,8 @@ func (m *Adapter) SetNonce(address common.Address, nonce *big.Int, root []byte) 
 }
 
 // SetCode sets smart contract code.
-func (m *Adapter) SetCode(address common.Address, code []byte, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
-	result, err := m.grpcClient.SetCode(m.ctx, &pb.SetCodeRequest{
+func (m *Adapter) SetCode(ctx context.Context, address common.Address, code []byte, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+	result, err := m.grpcClient.SetCode(ctx, &pb.SetCodeRequest{
 		EthAddress: address.String(),
 		Code:       hex.EncodeToString(code),
 		Root:       hex.EncodeToString(root),
@@ -197,8 +194,8 @@ func (m *Adapter) SetCode(address common.Address, code []byte, root []byte) (new
 }
 
 // SetStorageAt sets storage value at specified position.
-func (m *Adapter) SetStorageAt(address common.Address, position *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
-	result, err := m.grpcClient.SetStorageAt(m.ctx, &pb.SetStorageAtRequest{
+func (m *Adapter) SetStorageAt(ctx context.Context, address common.Address, position *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+	result, err := m.grpcClient.SetStorageAt(ctx, &pb.SetStorageAtRequest{
 		EthAddress: address.String(),
 		Position:   position.String(),
 		Value:      value.String(),

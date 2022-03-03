@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -8,20 +9,20 @@ import (
 
 // Host is the execution host
 type Host interface {
-	AccountExists(addr common.Address) bool
-	GetStorage(addr common.Address, key common.Hash) common.Hash
-	SetStorage(addr common.Address, key *big.Int, value *big.Int, config *ForksInTime) StorageStatus
-	GetBalance(addr common.Address) *big.Int
-	GetCodeSize(addr common.Address) int
-	GetCodeHash(addr common.Address) common.Hash
-	GetCode(addr common.Address) []byte
-	Selfdestruct(addr common.Address, beneficiary common.Address)
+	AccountExists(ctx context.Context, addr common.Address) bool
+	GetStorage(ctx context.Context, addr common.Address, key common.Hash) common.Hash
+	SetStorage(ctx context.Context, addr common.Address, key *big.Int, value *big.Int, config *ForksInTime) StorageStatus
+	GetBalance(ctx context.Context, addr common.Address) *big.Int
+	GetCodeSize(ctx context.Context, addr common.Address) int
+	GetCodeHash(ctx context.Context, addr common.Address) common.Hash
+	GetCode(ctx context.Context, addr common.Address) []byte
+	Selfdestruct(ctx context.Context, addr common.Address, beneficiary common.Address)
 	GetTxContext() TxContext
 	GetBlockHash(number int64) common.Hash
 	EmitLog(addr common.Address, topics []common.Hash, data []byte)
 	Callx(*Contract, Host) *ExecutionResult
-	Empty(addr common.Address) bool
-	GetNonce(addr common.Address) uint64
+	Empty(ctx context.Context, addr common.Address) bool
+	GetNonce(ctx context.Context, addr common.Address) uint64
 }
 
 // StorageStatus is the status of the storage access

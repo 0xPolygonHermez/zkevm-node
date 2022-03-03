@@ -66,6 +66,7 @@ func (w *Wait) GRPCHealthy(address string) error {
 // TxToBeMined waits until a tx has been mined or the given timeout expires.
 func (w *Wait) TxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) error {
 	start := time.Now()
+	ctx := context.Background()
 	for {
 		if time.Since(start) > timeout {
 			return errors.New("timeout exceed")
@@ -73,7 +74,7 @@ func (w *Wait) TxToBeMined(client *ethclient.Client, hash common.Hash, timeout t
 
 		time.Sleep(1 * time.Second)
 
-		_, isPending, err := client.TransactionByHash(context.Background(), hash)
+		_, isPending, err := client.TransactionByHash(ctx, hash)
 		if err == ethereum.NotFound {
 			continue
 		}
@@ -83,7 +84,7 @@ func (w *Wait) TxToBeMined(client *ethclient.Client, hash common.Hash, timeout t
 		}
 
 		if !isPending {
-			r, err := client.TransactionReceipt(context.Background(), hash)
+			r, err := client.TransactionReceipt(ctx, hash)
 			if err != nil {
 				return err
 			}

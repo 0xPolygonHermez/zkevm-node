@@ -142,14 +142,14 @@ func (s *Sequencer) tryProposeBatch() {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return
 	}
-	bp, err := s.State.NewBatchProcessor(s.Address, lastVirtualBatch.Number().Uint64())
+	bp, err := s.State.NewBatchProcessor(s.ctx, s.Address, lastVirtualBatch.Number().Uint64())
 	if err != nil {
 		log.Errorf("failed to create new batch processor, err: %v", err)
 		return
 	}
 
 	// select txs
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs, s.Address)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(s.ctx, bp, txs, s.Address)
 	if err != nil {
 		log.Errorf("failed to select txs, err: %v", err)
 		return
