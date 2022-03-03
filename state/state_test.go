@@ -491,7 +491,6 @@ func TestStateTransition(t *testing.T) {
 			var txs []*types.Transaction
 
 			// Check Old roots
-			log.Debugf("root: %s", hex.EncodeToString(root))
 			assert.Equal(t, testCase.ExpectedOldRoot, hex.EncodeToHex(root))
 
 			// Check if sequencer is in the DB
