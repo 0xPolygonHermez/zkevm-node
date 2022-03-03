@@ -27,7 +27,7 @@ func NewStateTree(mt *MerkleTree, scCodeStore Store) *StateTree {
 }
 
 // GetBalance returns balance
-func (tree *StateTree) GetBalance(address common.Address, root []byte) (*big.Int, error) {
+func (tree *StateTree) GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
 	r := new(big.Int).SetBytes(root)
 
 	key, err := GetKey(LeafTypeBalance, address, nil, tree.mt.arity, nil)
@@ -36,7 +36,7 @@ func (tree *StateTree) GetBalance(address common.Address, root []byte) (*big.Int
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(context.TODO(), r, k)
+	proof, err := tree.mt.Get(ctx, r, k)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (tree *StateTree) GetBalance(address common.Address, root []byte) (*big.Int
 }
 
 // GetNonce returns nonce
-func (tree *StateTree) GetNonce(address common.Address, root []byte) (*big.Int, error) {
+func (tree *StateTree) GetNonce(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
 	r := new(big.Int).SetBytes(root)
 
 	key, err := GetKey(LeafTypeNonce, address, nil, tree.mt.arity, nil)
@@ -56,7 +56,7 @@ func (tree *StateTree) GetNonce(address common.Address, root []byte) (*big.Int, 
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(context.TODO(), r, k)
+	proof, err := tree.mt.Get(ctx, r, k)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (tree *StateTree) GetNonce(address common.Address, root []byte) (*big.Int, 
 }
 
 // GetCodeHash returns code hash
-func (tree *StateTree) GetCodeHash(address common.Address, root []byte) ([]byte, error) {
+func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, root []byte) ([]byte, error) {
 	r := new(big.Int).SetBytes(root)
 
 	key, err := GetKey(LeafTypeCode, address, nil, tree.mt.arity, nil)
@@ -77,7 +77,7 @@ func (tree *StateTree) GetCodeHash(address common.Address, root []byte) ([]byte,
 
 	// this code gets only the hash of the smart contract code from the merkle tree
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(context.TODO(), r, k)
+	proof, err := tree.mt.Get(ctx, r, k)
 	if err != nil {
 		return nil, err
 	}
@@ -90,14 +90,14 @@ func (tree *StateTree) GetCodeHash(address common.Address, root []byte) ([]byte,
 }
 
 // GetCode returns code
-func (tree *StateTree) GetCode(address common.Address, root []byte) ([]byte, error) {
-	scCodeHash, err := tree.GetCodeHash(address, root)
+func (tree *StateTree) GetCode(ctx context.Context, address common.Address, root []byte) ([]byte, error) {
+	scCodeHash, err := tree.GetCodeHash(ctx, address, root)
 	if err != nil {
 		return nil, err
 	}
 
 	// this code gets actual smart contract code from sc code storage
-	scCode, err := tree.scCodeStore.Get(context.TODO(), scCodeHash)
+	scCode, err := tree.scCodeStore.Get(ctx, scCodeHash)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return []byte{}, nil
@@ -109,7 +109,7 @@ func (tree *StateTree) GetCode(address common.Address, root []byte) ([]byte, err
 }
 
 // GetStorageAt returns Storage Value at specified position
-func (tree *StateTree) GetStorageAt(address common.Address, position common.Hash, root []byte) (*big.Int, error) {
+func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address, position common.Hash, root []byte) (*big.Int, error) {
 	r := new(big.Int).SetBytes(root)
 
 	key, err := GetKey(LeafTypeStorage, address, position[:], tree.mt.arity, nil)
@@ -118,7 +118,7 @@ func (tree *StateTree) GetStorageAt(address common.Address, position common.Hash
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(context.TODO(), r, k)
+	proof, err := tree.mt.Get(ctx, r, k)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (tree *StateTree) ReverseHash(root, hash []byte) ([]byte, error) {
 }
 
 // SetBalance sets balance
-func (tree *StateTree) SetBalance(address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetBalance(ctx context.Context, address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	if balance.Cmp(big.NewInt(0)) == -1 {
 		return nil, nil, fmt.Errorf("invalid balance")
 	}
@@ -154,7 +154,7 @@ func (tree *StateTree) SetBalance(address common.Address, balance *big.Int, root
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(context.TODO(), r, k, balance)
+	updateProof, err := tree.mt.Set(ctx, r, k, balance)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -163,7 +163,7 @@ func (tree *StateTree) SetBalance(address common.Address, balance *big.Int, root
 }
 
 // SetNonce sets nonce
-func (tree *StateTree) SetNonce(address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	if nonce.Cmp(big.NewInt(0)) == -1 {
 		return nil, nil, fmt.Errorf("invalid nonce")
 	}
@@ -175,7 +175,7 @@ func (tree *StateTree) SetNonce(address common.Address, nonce *big.Int, root []b
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(context.TODO(), r, k, nonce)
+	updateProof, err := tree.mt.Set(ctx, r, k, nonce)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -184,7 +184,7 @@ func (tree *StateTree) SetNonce(address common.Address, nonce *big.Int, root []b
 }
 
 // SetCode sets smart contract code
-func (tree *StateTree) SetCode(address common.Address, code []byte, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code []byte, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	// calculating smart contract code hash
 	scCodeHashBI := big.NewInt(0)
 	if len(code) > 0 {
@@ -200,7 +200,7 @@ func (tree *StateTree) SetCode(address common.Address, code []byte, root []byte)
 	scCodeHashBI.FillBytes(scCodeHash[:])
 
 	// store smart contract code by its hash
-	err = tree.scCodeStore.Set(context.TODO(), scCodeHash[:], code)
+	err = tree.scCodeStore.Set(ctx, scCodeHash[:], code)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -213,7 +213,7 @@ func (tree *StateTree) SetCode(address common.Address, code []byte, root []byte)
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(context.TODO(), r, k, new(big.Int).SetBytes(scCodeHash[:]))
+	updateProof, err := tree.mt.Set(ctx, r, k, new(big.Int).SetBytes(scCodeHash[:]))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -222,7 +222,7 @@ func (tree *StateTree) SetCode(address common.Address, code []byte, root []byte)
 }
 
 // SetStorageAt sets storage value at specified position
-func (tree *StateTree) SetStorageAt(address common.Address, position *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address, position *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	r := new(big.Int).SetBytes(root)
 	key, err := GetKey(LeafTypeStorage, address, position.Bytes(), tree.mt.arity, nil)
 	if err != nil {
@@ -230,7 +230,7 @@ func (tree *StateTree) SetStorageAt(address common.Address, position *big.Int, v
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(context.TODO(), r, k, value)
+	updateProof, err := tree.mt.Set(ctx, r, k, value)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -239,10 +239,10 @@ func (tree *StateTree) SetStorageAt(address common.Address, position *big.Int, v
 }
 
 // SetHashValue sets value for an specific key.
-func (tree *StateTree) SetHashValue(key common.Hash, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetHashValue(ctx context.Context, key common.Hash, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	r := new(big.Int).SetBytes(root)
 	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(context.TODO(), r, k, value)
+	updateProof, err := tree.mt.Set(ctx, r, k, value)
 	if err != nil {
 		return nil, nil, err
 	}

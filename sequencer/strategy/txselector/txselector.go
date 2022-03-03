@@ -1,6 +1,7 @@
 package txselector
 
 import (
+	"context"
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -12,7 +13,7 @@ import (
 // TxSelector interface for different types of selection
 type TxSelector interface {
 	// SelectTxs selecting txs and returning selected txs, hashes of the selected txs (to not build array multiple times) and hashes of invalid txs
-	SelectTxs(batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error)
+	SelectTxs(ctx context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error)
 }
 
 // AcceptAll that accept all transactions
@@ -24,7 +25,7 @@ func NewTxSelectorAcceptAll() TxSelector {
 }
 
 // SelectTxs selects all transactions and don't check anything
-func (s *AcceptAll) SelectTxs(batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
+func (s *AcceptAll) SelectTxs(cxt context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
 	selectedTxs := make([]*types.Transaction, 0, len(pendingTxs))
 	selectedTxsHashes := make([]string, 0, len(pendingTxs))
 	for _, tx := range pendingTxs {
@@ -57,7 +58,7 @@ func NewTxSelectorBase(cfg Config) TxSelector {
 }
 
 // SelectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (b *Base) SelectTxs(batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
+func (b *Base) SelectTxs(ctx context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
 	sortedTxs := b.TxSorter.SortTxs(pendingTxs)
 	var (
 		selectedTxs                         []*types.Transaction
@@ -65,7 +66,7 @@ func (b *Base) SelectTxs(batchProcessor batchProcessor, pendingTxs []pool.Transa
 	)
 	for _, tx := range sortedTxs {
 		t := tx.Transaction
-		result := batchProcessor.ProcessTransaction(&t, sequencerAddress)
+		result := batchProcessor.ProcessTransaction(ctx, &t, sequencerAddress)
 		if result.Failed() {
 			err := result.Err
 			if state.InvalidTxErrors[err.Error()] {

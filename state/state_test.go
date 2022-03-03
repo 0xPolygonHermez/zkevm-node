@@ -188,7 +188,7 @@ func setUpBatches() {
 	}
 
 	for _, b := range batches {
-		err := bp.ProcessBatch(b)
+		err := bp.ProcessBatch(ctx, b)
 		if err != nil {
 			panic(err)
 		}
@@ -307,7 +307,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 	bp, err := testState.NewGenesisBatchProcessor(nil)
 	assert.NoError(t, err)
 
-	err = bp.ProcessBatch(batch)
+	err = bp.ProcessBatch(ctx, batch)
 	assert.NoError(t, err)
 
 	insertedBatch, err := testState.GetBatchByNumber(ctx, batchNumber)
@@ -471,7 +471,7 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			for gaddr := range genesis.Balances {
-				balance, err := stateTree.GetBalance(gaddr, nil)
+				balance, err := stateTree.GetBalance(ctx, gaddr, nil)
 				require.NoError(t, err)
 				assert.Equal(t, big.NewInt(0), balance)
 			}
@@ -483,7 +483,7 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			for gaddr, gbalance := range genesis.Balances {
-				balance, err := stateTree.GetBalance(gaddr, root)
+				balance, err := stateTree.GetBalance(ctx, gaddr, root)
 				require.NoError(t, err)
 				assert.Equal(t, gbalance, balance)
 			}
@@ -537,10 +537,10 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(common.HexToAddress(testCase.SequencerAddress), 0)
+			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), 0)
 			require.NoError(t, err)
 
-			err = bp.ProcessBatch(batch)
+			err = bp.ProcessBatch(ctx, batch)
 			require.NoError(t, err)
 
 			// Check Transaction and Receipts
@@ -566,11 +566,11 @@ func TestStateTransition(t *testing.T) {
 			assert.Equal(t, testCase.ExpectedNewRoot, new(big.Int).SetBytes(root).String())
 
 			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
-				newBalance, err := stateTree.GetBalance(common.HexToAddress(key), root)
+				newBalance, err := stateTree.GetBalance(ctx, common.HexToAddress(key), root)
 				require.NoError(t, err)
 				assert.Equal(t, vectorLeaf.Balance.String(), newBalance.String())
 
-				newNonce, err := stateTree.GetNonce(common.HexToAddress(key), root)
+				newNonce, err := stateTree.GetNonce(ctx, common.HexToAddress(key), root)
 				require.NoError(t, err)
 				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
 				assert.Equal(t, leafNonce.String(), newNonce.String())
@@ -692,7 +692,7 @@ func TestReceipts(t *testing.T) {
 			}
 
 			for gaddr := range genesis.Balances {
-				balance, err := stateTree.GetBalance(gaddr, nil)
+				balance, err := stateTree.GetBalance(ctx, gaddr, nil)
 				require.NoError(t, err)
 				assert.Equal(t, big.NewInt(0), balance)
 			}
@@ -704,7 +704,7 @@ func TestReceipts(t *testing.T) {
 			require.NoError(t, err)
 
 			for gaddr, gbalance := range genesis.Balances {
-				balance, err := stateTree.GetBalance(gaddr, root)
+				balance, err := stateTree.GetBalance(ctx, gaddr, root)
 				require.NoError(t, err)
 				assert.Equal(t, gbalance, balance)
 			}
@@ -758,10 +758,10 @@ func TestReceipts(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(common.HexToAddress(testCase.SequencerAddress), 0)
+			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), 0)
 			require.NoError(t, err)
 
-			err = bp.ProcessBatch(batch)
+			err = bp.ProcessBatch(ctx, batch)
 			require.NoError(t, err)
 
 			// Check Transaction and Receipts
@@ -787,11 +787,11 @@ func TestReceipts(t *testing.T) {
 			assert.Equal(t, testCase.ExpectedNewRoot, new(big.Int).SetBytes(root).String())
 
 			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
-				newBalance, err := stateTree.GetBalance(common.HexToAddress(key), root)
+				newBalance, err := stateTree.GetBalance(ctx, common.HexToAddress(key), root)
 				require.NoError(t, err)
 				assert.Equal(t, vectorLeaf.Balance.String(), newBalance.String())
 
-				newNonce, err := stateTree.GetNonce(common.HexToAddress(key), root)
+				newNonce, err := stateTree.GetNonce(ctx, common.HexToAddress(key), root)
 				require.NoError(t, err)
 				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
 				assert.Equal(t, leafNonce.String(), newNonce.String())
@@ -879,10 +879,10 @@ func TestStateErrors(t *testing.T) {
 	_, err = st.GetStateRoot(ctx, true)
 	require.Equal(t, state.ErrStateNotSynchronized, err)
 
-	_, err = st.GetBalance(addr, 0)
+	_, err = st.GetBalance(ctx, addr, 0)
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetNonce(addr, 0)
+	_, err = st.GetNonce(ctx, addr, 0)
 	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetStateRootByBatchNumber(ctx, 0)
@@ -1044,10 +1044,10 @@ func TestSCExecution(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
 	require.NoError(t, err)
 
-	err = bp.ProcessBatch(batch)
+	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
 	receipt, err := testState.GetTransactionReceipt(ctx, signedTxStoreValue.Hash())
@@ -1061,7 +1061,7 @@ func TestSCExecution(t *testing.T) {
 	// Check GetCode
 	lastBatch, err := testState.GetLastBatch(ctx, true)
 	assert.NoError(t, err)
-	code, err := st.GetCode(scAddress, lastBatch.Number().Uint64())
+	code, err := st.GetCode(ctx, scAddress, lastBatch.Number().Uint64())
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", code)
 }
@@ -1201,10 +1201,10 @@ func TestSCCall(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
 	require.NoError(t, err)
 
-	err = bp.ProcessBatch(batch)
+	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
 	receipt, err := testState.GetTransactionReceipt(ctx, signedTx6.Hash())

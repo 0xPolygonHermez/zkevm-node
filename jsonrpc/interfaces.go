@@ -19,5 +19,5 @@ type jsonRPCTxPool interface {
 
 // gasPriceEstimator contains the methods required to interact with gas price estimator
 type gasPriceEstimator interface {
-	GetAvgGasPrice() (*big.Int, error)
+	GetAvgGasPrice(ctx context.Context) (*big.Int, error)
 }

@@ -79,7 +79,7 @@ func start(ctx *cli.Context) error {
 		pb.RegisterMTServiceServer(s, mtSrv)
 
 		mtClient, mtConn, mtCancel := newMTClient(c.MTClient)
-		treeAdapter := tree.NewAdapter(context.Background(), mtClient)
+		treeAdapter := tree.NewAdapter(mtClient)
 
 		grpcClientConns = append(grpcClientConns, mtConn)
 		cancelFuncs = append(cancelFuncs, mtCancel)
@@ -216,7 +216,7 @@ func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient 
 
 // gasPriceEstimator interface for gas price estimator.
 type gasPriceEstimator interface {
-	GetAvgGasPrice() (*big.Int, error)
+	GetAvgGasPrice(ctx context.Context) (*big.Int, error)
 	UpdateGasPriceAvg(newValue *big.Int)
 }
 

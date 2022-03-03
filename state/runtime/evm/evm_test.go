@@ -1,6 +1,7 @@
 package evm
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
@@ -25,31 +26,31 @@ func newMockContract(value *big.Int, gas uint64, code []byte) *runtime.Contract 
 // we don't test all opcodes in this test
 type mockHost struct{}
 
-func (m *mockHost) AccountExists(addr common.Address) bool {
+func (m *mockHost) AccountExists(ctx context.Context, addr common.Address) bool {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetStorage(addr common.Address, key common.Hash) common.Hash {
+func (m *mockHost) GetStorage(ctx context.Context, addr common.Address, key common.Hash) common.Hash {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) SetStorage(addr common.Address, key *big.Int, value *big.Int, config *runtime.ForksInTime) runtime.StorageStatus {
+func (m *mockHost) SetStorage(cxt context.Context, addr common.Address, key *big.Int, value *big.Int, config *runtime.ForksInTime) runtime.StorageStatus {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetBalance(addr common.Address) *big.Int {
+func (m *mockHost) GetBalance(ctx context.Context, addr common.Address) *big.Int {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetCodeSize(addr common.Address) int {
+func (m *mockHost) GetCodeSize(ctx context.Context, addr common.Address) int {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetCodeHash(addr common.Address) common.Hash {
+func (m *mockHost) GetCodeHash(ctx context.Context, addr common.Address) common.Hash {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetCode(addr common.Address) []byte {
+func (m *mockHost) GetCode(ctx context.Context, addr common.Address) []byte {
 	panic("Not implemented in tests")
 }
 
@@ -73,11 +74,11 @@ func (m *mockHost) Callx(*runtime.Contract, runtime.Host) *runtime.ExecutionResu
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) Empty(addr common.Address) bool {
+func (m *mockHost) Empty(ctx context.Context, addr common.Address) bool {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetNonce(addr common.Address) uint64 {
+func (m *mockHost) GetNonce(ctx context.Context, addr common.Address) uint64 {
 	panic("Not implemented in tests")
 }
 

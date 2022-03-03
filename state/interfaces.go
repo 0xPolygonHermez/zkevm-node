@@ -1,6 +1,7 @@
 package state
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -11,14 +12,14 @@ import (
 
 // merkletree contains the methods required to interact with the Merkle tree.
 type merkletree interface {
-	GetBalance(address common.Address, root []byte) (*big.Int, error)
-	GetNonce(address common.Address, root []byte) (*big.Int, error)
-	GetCode(address common.Address, root []byte) ([]byte, error)
-	GetCodeHash(address common.Address, root []byte) ([]byte, error)
-	GetStorageAt(address common.Address, position common.Hash, root []byte) (*big.Int, error)
+	GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
+	GetNonce(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
+	GetCode(ctx context.Context, address common.Address, root []byte) ([]byte, error)
+	GetCodeHash(ctx context.Context, address common.Address, root []byte) ([]byte, error)
+	GetStorageAt(ctx context.Context, address common.Address, position common.Hash, root []byte) (*big.Int, error)
 
-	SetBalance(address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
-	SetNonce(address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
-	SetCode(address common.Address, code []byte, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
-	SetStorageAt(address common.Address, key *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
+	SetBalance(ctx context.Context, address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
+	SetNonce(ctx context.Context, address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
+	SetCode(ctx context.Context, address common.Address, code []byte, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
+	SetStorageAt(ctx context.Context, address common.Address, key *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
 }

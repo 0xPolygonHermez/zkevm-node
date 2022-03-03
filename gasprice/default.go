@@ -16,8 +16,7 @@ type Default struct {
 }
 
 // GetAvgGasPrice get default gas price from the pool.
-func (d *Default) GetAvgGasPrice() (*big.Int, error) {
-	ctx := context.Background()
+func (d *Default) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
 	gasPrice, err := d.pool.GetGasPrice(ctx)
 	if errors.Is(err, state.ErrNotFound) {
 		return big.NewInt(0), nil
