@@ -2,6 +2,7 @@ package evm
 
 import (
 	"context"
+
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
