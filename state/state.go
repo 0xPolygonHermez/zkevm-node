@@ -227,6 +227,16 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 		}
 	}
 
+	for address, storage := range genesis.Storage {
+		for key, value := range storage {
+			newRoot, _, err = s.tree.SetStorageAt(address, key, value, newRoot)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	root.SetBytes(newRoot)
+
 	// Generate Genesis Batch
 	receivedAt := genesis.Block.ReceivedAt
 	batch := &Batch{
