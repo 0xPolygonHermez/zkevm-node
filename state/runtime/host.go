@@ -20,7 +20,7 @@ type Host interface {
 	GetTxContext() TxContext
 	GetBlockHash(number int64) common.Hash
 	EmitLog(addr common.Address, topics []common.Hash, data []byte)
-	Callx(*Contract, Host) *ExecutionResult
+	Callx(context.Context, *Contract, Host) *ExecutionResult
 	Empty(ctx context.Context, addr common.Address) bool
 	GetNonce(ctx context.Context, addr common.Address) uint64
 }

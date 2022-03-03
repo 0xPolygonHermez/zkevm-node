@@ -70,7 +70,7 @@ func (m *mockHost) EmitLog(addr common.Address, topics []common.Hash, data []byt
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) Callx(*runtime.Contract, runtime.Host) *runtime.ExecutionResult {
+func (m *mockHost) Callx(context.Context, *runtime.Contract, runtime.Host) *runtime.ExecutionResult {
 	panic("Not implemented in tests")
 }
 
@@ -145,6 +145,7 @@ func TestRun(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			evm := NewEVM()
@@ -154,7 +155,7 @@ func TestRun(t *testing.T) {
 			if config == nil {
 				config = &runtime.ForksInTime{}
 			}
-			res := evm.Run(contract, host, config)
+			res := evm.Run(ctx, contract, host, config)
 			assert.Equal(t, tt.expected.GasUsed, res.GasUsed)
 			assert.Equal(t, tt.expected.GasLeft, res.GasLeft)
 			assert.Equal(t, tt.expected.Err, res.Err)

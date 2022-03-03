@@ -1,6 +1,7 @@
 package evm
 
 import (
+	"context"
 	"errors"
 	"math/big"
 	"sync"
@@ -222,7 +223,7 @@ func (s *state) checkMemory(offset, size *big.Int) bool {
 }
 
 // Run executes the virtual machine
-func (s *state) Run() ([]byte, error) {
+func (s *state) Run(ctx context.Context) ([]byte, error) {
 	var vmerr error
 
 	codeSize := len(s.code)
@@ -254,7 +255,7 @@ func (s *state) Run() ([]byte, error) {
 		}
 
 		// execute the instruction
-		inst.inst(s)
+		inst.inst(ctx, s)
 
 		// check if stack size exceeds the max size
 		if s.sp > stackSize {

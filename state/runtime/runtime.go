@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -49,7 +50,7 @@ const (
 
 // Runtime can process contracts
 type Runtime interface {
-	Run(c *Contract, host Host, config *ForksInTime) *ExecutionResult
+	Run(ctx context.Context, c *Contract, host Host, config *ForksInTime) *ExecutionResult
 	CanRun(c *Contract, host Host, config *ForksInTime) bool
 	Name() string
 }

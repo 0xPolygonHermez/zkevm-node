@@ -13,7 +13,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
-type instruction func(s *state)
+type instruction func(ctx context.Context, s *state)
 
 const (
 	wSize = 32
@@ -25,7 +25,7 @@ var (
 	wordSize = big.NewInt(wSize)
 )
 
-func opAdd(s *state) {
+func opAdd(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.top()
 
@@ -33,7 +33,7 @@ func opAdd(s *state) {
 	toU256(b)
 }
 
-func opMul(s *state) {
+func opMul(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.top()
 
@@ -41,7 +41,7 @@ func opMul(s *state) {
 	toU256(b)
 }
 
-func opSub(s *state) {
+func opSub(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.top()
 
@@ -49,7 +49,7 @@ func opSub(s *state) {
 	toU256(b)
 }
 
-func opDiv(s *state) {
+func opDiv(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.top()
 
@@ -62,7 +62,7 @@ func opDiv(s *state) {
 	}
 }
 
-func opSDiv(s *state) {
+func opSDiv(ctx context.Context, s *state) {
 	a := to256(s.pop())
 	b := to256(s.top())
 
@@ -79,7 +79,7 @@ func opSDiv(s *state) {
 	}
 }
 
-func opMod(s *state) {
+func opMod(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.top()
 
@@ -92,7 +92,7 @@ func opMod(s *state) {
 	}
 }
 
-func opSMod(s *state) {
+func opSMod(ctx context.Context, s *state) {
 	a := to256(s.pop())
 	b := to256(s.top())
 
@@ -123,7 +123,7 @@ func releaseBig(b *big.Int) {
 	bigPool.Put(b)
 }
 
-func opExp(s *state) {
+func opExp(ctx context.Context, s *state) {
 	x := s.pop()
 	y := s.top()
 
@@ -154,7 +154,7 @@ func opExp(s *state) {
 	releaseBig(z)
 }
 
-func opAddMod(s *state) {
+func opAddMod(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.pop()
 	z := s.top()
@@ -169,7 +169,7 @@ func opAddMod(s *state) {
 	}
 }
 
-func opMulMod(s *state) {
+func opMulMod(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.pop()
 	z := s.top()
@@ -184,21 +184,21 @@ func opMulMod(s *state) {
 	}
 }
 
-func opAnd(s *state) {
+func opAnd(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.top()
 
 	b.And(a, b)
 }
 
-func opOr(s *state) {
+func opOr(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.top()
 
 	b.Or(a, b)
 }
 
-func opXor(s *state) {
+func opXor(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.top()
 
@@ -207,7 +207,7 @@ func opXor(s *state) {
 
 var opByteMask = big.NewInt(255) //nolint:gomnd
 
-func opByte(s *state) {
+func opByte(ctx context.Context, s *state) {
 	x := s.pop()
 	y := s.top()
 
@@ -221,14 +221,14 @@ func opByte(s *state) {
 	}
 }
 
-func opNot(s *state) {
+func opNot(ctx context.Context, s *state) {
 	a := s.top()
 
 	a.Not(a)
 	toU256(a)
 }
 
-func opIsZero(s *state) {
+func opIsZero(ctx context.Context, s *state) {
 	a := s.top()
 
 	if a.Sign() == 0 {
@@ -238,7 +238,7 @@ func opIsZero(s *state) {
 	}
 }
 
-func opEq(s *state) {
+func opEq(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.top()
 
@@ -249,7 +249,7 @@ func opEq(s *state) {
 	}
 }
 
-func opLt(s *state) {
+func opLt(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.top()
 
@@ -260,7 +260,7 @@ func opLt(s *state) {
 	}
 }
 
-func opGt(s *state) {
+func opGt(ctx context.Context, s *state) {
 	a := s.pop()
 	b := s.top()
 
@@ -271,7 +271,7 @@ func opGt(s *state) {
 	}
 }
 
-func opSlt(s *state) {
+func opSlt(ctx context.Context, s *state) {
 	a := to256(s.pop())
 	b := to256(s.top())
 
@@ -282,7 +282,7 @@ func opSlt(s *state) {
 	}
 }
 
-func opSgt(s *state) {
+func opSgt(ctx context.Context, s *state) {
 	a := to256(s.pop())
 	b := to256(s.top())
 
@@ -293,7 +293,7 @@ func opSgt(s *state) {
 	}
 }
 
-func opSignExtension(s *state) {
+func opSignExtension(ctx context.Context, s *state) {
 	ext := s.pop()
 	x := s.top()
 
@@ -325,7 +325,7 @@ func equalOrOverflowsUint256(b *big.Int) bool {
 	return b.BitLen() > 8 //nolint:gomnd
 }
 
-func opShl(s *state) {
+func opShl(ctx context.Context, s *state) {
 	if !s.config.Constantinople {
 		s.exit(errOpCodeNotFound)
 		return
@@ -342,7 +342,7 @@ func opShl(s *state) {
 	}
 }
 
-func opShr(s *state) {
+func opShr(ctx context.Context, s *state) {
 	if !s.config.Constantinople {
 		s.exit(errOpCodeNotFound)
 		return
@@ -359,7 +359,7 @@ func opShr(s *state) {
 	}
 }
 
-func opSar(s *state) {
+func opSar(ctx context.Context, s *state) {
 	if !s.config.Constantinople {
 		s.exit(errOpCodeNotFound)
 		return
@@ -391,7 +391,7 @@ var bufPool = sync.Pool{
 	},
 }
 
-func opMload(s *state) {
+func opMload(ctx context.Context, s *state) {
 	offset := s.pop()
 
 	var ok bool
@@ -407,7 +407,7 @@ var (
 	_S = _W / 8 //nolint:gomnd
 )
 
-func opMStore(s *state) {
+func opMStore(ctx context.Context, s *state) {
 	offset := s.pop()
 	val := s.pop()
 
@@ -437,7 +437,7 @@ func opMStore(s *state) {
 	}
 }
 
-func opMStore8(s *state) {
+func opMStore8(ctx context.Context, s *state) {
 	offset := s.pop()
 	val := s.pop()
 
@@ -449,7 +449,7 @@ func opMStore8(s *state) {
 
 // --- storage ---
 
-func opSload(s *state) {
+func opSload(ctx context.Context, s *state) {
 	loc := s.top()
 
 	var gas uint64
@@ -465,11 +465,11 @@ func opSload(s *state) {
 		return
 	}
 
-	val := s.host.GetStorage(context.Background(), s.msg.Address, bigToHash(loc))
+	val := s.host.GetStorage(ctx, s.msg.Address, bigToHash(loc))
 	loc.SetBytes(val.Bytes())
 }
 
-func opSStore(s *state) {
+func opSStore(ctx context.Context, s *state) {
 	if s.inStaticCall() {
 		s.exit(errWriteProtection)
 		return
@@ -485,7 +485,7 @@ func opSStore(s *state) {
 
 	legacyGasMetering := !s.config.Istanbul && (s.config.Petersburg || !s.config.Constantinople)
 
-	status := s.host.SetStorage(context.Background(), s.msg.Address, key, val, s.config)
+	status := s.host.SetStorage(ctx, s.msg.Address, key, val, s.config)
 	cost := uint64(0)
 
 	switch status {
@@ -525,7 +525,7 @@ func opSStore(s *state) {
 
 const sha3WordGas uint64 = 6
 
-func opSha3(s *state) {
+func opSha3(ctx context.Context, s *state) {
 	offset := s.pop()
 	length := s.pop()
 
@@ -545,17 +545,17 @@ func opSha3(s *state) {
 	v.SetBytes(s.tmp)
 }
 
-func opPop(s *state) {
+func opPop(ctx context.Context, s *state) {
 	s.pop()
 }
 
 // context operations
 
-func opAddress(s *state) {
+func opAddress(ctx context.Context, s *state) {
 	s.push1().SetBytes(s.msg.Address.Bytes())
 }
 
-func opBalance(s *state) {
+func opBalance(ctx context.Context, s *state) {
 	addr, _ := s.popAddr()
 
 	var gas uint64
@@ -572,19 +572,19 @@ func opBalance(s *state) {
 		return
 	}
 
-	s.push1().Set(s.host.GetBalance(context.Background(), addr))
+	s.push1().Set(s.host.GetBalance(ctx, addr))
 }
 
-func opSelfBalance(s *state) {
+func opSelfBalance(ctx context.Context, s *state) {
 	if !s.config.Istanbul {
 		s.exit(errOpCodeNotFound)
 		return
 	}
 
-	s.push1().Set(s.host.GetBalance(context.Background(), s.msg.Address))
+	s.push1().Set(s.host.GetBalance(ctx, s.msg.Address))
 }
 
-func opChainID(s *state) {
+func opChainID(ctx context.Context, s *state) {
 	if !s.config.Istanbul {
 		s.exit(errOpCodeNotFound)
 		return
@@ -593,15 +593,15 @@ func opChainID(s *state) {
 	s.push1().SetUint64(uint64(s.host.GetTxContext().ChainID))
 }
 
-func opOrigin(s *state) {
+func opOrigin(ctx context.Context, s *state) {
 	s.push1().SetBytes(s.host.GetTxContext().Origin.Bytes())
 }
 
-func opCaller(s *state) {
+func opCaller(ctx context.Context, s *state) {
 	s.push1().SetBytes(s.msg.Caller.Bytes())
 }
 
-func opCallValue(s *state) {
+func opCallValue(ctx context.Context, s *state) {
 	v := s.push1()
 	if value := s.msg.Value; value != nil {
 		v.Set(value)
@@ -617,7 +617,7 @@ func min(i, j uint64) uint64 {
 	return j
 }
 
-func opCallDataLoad(s *state) {
+func opCallDataLoad(ctx context.Context, s *state) {
 	offset := s.top()
 
 	bufPtr := bufPool.Get().(*[]byte)
@@ -627,15 +627,15 @@ func opCallDataLoad(s *state) {
 	bufPool.Put(bufPtr)
 }
 
-func opCallDataSize(s *state) {
+func opCallDataSize(ctx context.Context, s *state) {
 	s.push1().SetUint64(uint64(len(s.msg.Input)))
 }
 
-func opCodeSize(s *state) {
+func opCodeSize(ctx context.Context, s *state) {
 	s.push1().SetUint64(uint64(len(s.code)))
 }
 
-func opExtCodeSize(s *state) {
+func opExtCodeSize(ctx context.Context, s *state) {
 	addr, _ := s.popAddr()
 
 	var gas uint64
@@ -648,14 +648,14 @@ func opExtCodeSize(s *state) {
 		return
 	}
 
-	s.push1().SetUint64(uint64(s.host.GetCodeSize(context.Background(), addr)))
+	s.push1().SetUint64(uint64(s.host.GetCodeSize(ctx, addr)))
 }
 
-func opGasPrice(s *state) {
+func opGasPrice(ctx context.Context, s *state) {
 	s.push1().SetBytes(s.host.GetTxContext().GasPrice.Bytes())
 }
 
-func opReturnDataSize(s *state) {
+func opReturnDataSize(ctx context.Context, s *state) {
 	if !s.config.Byzantium {
 		s.exit(errOpCodeNotFound)
 	} else {
@@ -663,7 +663,7 @@ func opReturnDataSize(s *state) {
 	}
 }
 
-func opExtCodeHash(s *state) {
+func opExtCodeHash(ctx context.Context, s *state) {
 	if !s.config.Constantinople {
 		s.exit(errOpCodeNotFound)
 		return
@@ -681,7 +681,6 @@ func opExtCodeHash(s *state) {
 		return
 	}
 
-	ctx := context.Background()
 	v := s.push1()
 	if s.host.Empty(ctx, address) {
 		v.Set(zero)
@@ -690,15 +689,15 @@ func opExtCodeHash(s *state) {
 	}
 }
 
-func opPC(s *state) {
+func opPC(ctx context.Context, s *state) {
 	s.push1().SetUint64(uint64(s.ip))
 }
 
-func opMSize(s *state) {
+func opMSize(ctx context.Context, s *state) {
 	s.push1().SetUint64(uint64(len(s.memory)))
 }
 
-func opGas(s *state) {
+func opGas(ctx context.Context, s *state) {
 	s.push1().SetUint64(s.gas)
 }
 
@@ -728,7 +727,7 @@ func (s *state) setBytes(dst, input []byte, size uint64, dataOffset *big.Int) {
 
 const copyGas uint64 = 3
 
-func opExtCodeCopy(s *state) {
+func opExtCodeCopy(ctx context.Context, s *state) {
 	address, _ := s.popAddr()
 	memOffset := s.pop()
 	codeOffset := s.pop()
@@ -752,14 +751,13 @@ func opExtCodeCopy(s *state) {
 	if !s.consumeGas(gas) {
 		return
 	}
-	ctx := context.Background()
 	code := s.host.GetCode(ctx, address)
 	if size != 0 {
 		s.setBytes(s.memory[memOffset.Uint64():], code, size, codeOffset)
 	}
 }
 
-func opCallDataCopy(s *state) {
+func opCallDataCopy(ctx context.Context, s *state) {
 	memOffset := s.pop()
 	dataOffset := s.pop()
 	length := s.pop()
@@ -778,7 +776,7 @@ func opCallDataCopy(s *state) {
 	}
 }
 
-func opReturnDataCopy(s *state) {
+func opReturnDataCopy(ctx context.Context, s *state) {
 	if !s.config.Byzantium {
 		s.exit(errOpCodeNotFound)
 		return
@@ -812,7 +810,7 @@ func opReturnDataCopy(s *state) {
 	copy(s.memory[memOffset.Uint64():], data)
 }
 
-func opCodeCopy(s *state) {
+func opCodeCopy(ctx context.Context, s *state) {
 	memOffset := s.pop()
 	dataOffset := s.pop()
 	length := s.pop()
@@ -832,7 +830,7 @@ func opCodeCopy(s *state) {
 
 // block information
 
-func opBlockHash(s *state) {
+func opBlockHash(ctx context.Context, s *state) {
 	num := s.top()
 
 	if !num.IsInt64() {
@@ -850,27 +848,27 @@ func opBlockHash(s *state) {
 	}
 }
 
-func opCoinbase(s *state) {
+func opCoinbase(ctx context.Context, s *state) {
 	s.push1().SetBytes(s.host.GetTxContext().Coinbase.Bytes())
 }
 
-func opTimestamp(s *state) {
+func opTimestamp(ctx context.Context, s *state) {
 	s.push1().SetInt64(s.host.GetTxContext().Timestamp)
 }
 
-func opNumber(s *state) {
+func opNumber(ctx context.Context, s *state) {
 	s.push1().SetInt64(s.host.GetTxContext().Number)
 }
 
-func opDifficulty(s *state) {
+func opDifficulty(ctx context.Context, s *state) {
 	s.push1().SetBytes(s.host.GetTxContext().Difficulty.Bytes())
 }
 
-func opGasLimit(s *state) {
+func opGasLimit(ctx context.Context, s *state) {
 	s.push1().SetInt64(s.host.GetTxContext().GasLimit)
 }
 
-func opSelfDestruct(s *state) {
+func opSelfDestruct(ctx context.Context, s *state) {
 	if s.inStaticCall() {
 		s.exit(errWriteProtection)
 		return
@@ -880,7 +878,6 @@ func opSelfDestruct(s *state) {
 
 	// try to remove the gas first
 	var gas uint64
-	ctx := context.Background()
 	// EIP150 reprice fork
 	if s.config.EIP150 {
 		gas = 5000
@@ -902,7 +899,7 @@ func opSelfDestruct(s *state) {
 	s.halt()
 }
 
-func opJump(s *state) {
+func opJump(ctx context.Context, s *state) {
 	dest := s.pop()
 
 	if s.validJumpdest(dest) {
@@ -912,7 +909,7 @@ func opJump(s *state) {
 	}
 }
 
-func opJumpi(s *state) {
+func opJumpi(ctx context.Context, s *state) {
 	dest := s.pop()
 	cond := s.pop()
 
@@ -925,11 +922,11 @@ func opJumpi(s *state) {
 	}
 }
 
-func opJumpDest(s *state) {
+func opJumpDest(ctx context.Context, s *state) {
 }
 
 func opPush(n int) instruction {
-	return func(s *state) {
+	return func(ctx context.Context, s *state) {
 		ins := s.code
 		ip := s.ip
 
@@ -945,7 +942,7 @@ func opPush(n int) instruction {
 }
 
 func opDup(n int) instruction {
-	return func(s *state) {
+	return func(ctx context.Context, s *state) {
 		if !s.stackAtLeast(n) {
 			s.exit(errStackUnderflow)
 		} else {
@@ -956,7 +953,7 @@ func opDup(n int) instruction {
 }
 
 func opSwap(n int) instruction {
-	return func(s *state) {
+	return func(ctx context.Context, s *state) {
 		if !s.stackAtLeast(n + 1) {
 			s.exit(errStackUnderflow)
 		} else {
@@ -967,7 +964,7 @@ func opSwap(n int) instruction {
 
 func opLog(size int) instruction {
 	size = size - 1
-	return func(s *state) {
+	return func(ctx context.Context, s *state) {
 		if s.inStaticCall() {
 			s.exit(errWriteProtection)
 			return
@@ -1003,12 +1000,12 @@ func opLog(size int) instruction {
 	}
 }
 
-func opStop(s *state) {
+func opStop(ctx context.Context, s *state) {
 	s.halt()
 }
 
 func opCreate(op OpCode) instruction {
-	return func(s *state) {
+	return func(ctx context.Context, s *state) {
 		if s.inStaticCall() {
 			s.exit(errWriteProtection)
 			return
@@ -1024,7 +1021,7 @@ func opCreate(op OpCode) instruction {
 		// reset the return data
 		s.resetReturnData()
 
-		contract, err := s.buildCreateContract(op)
+		contract, err := s.buildCreateContract(ctx, op)
 		if err != nil {
 			s.push1().Set(zero)
 			if contract != nil {
@@ -1039,7 +1036,7 @@ func opCreate(op OpCode) instruction {
 		contract.Type = runtime.Create
 
 		// Correct call
-		result := s.host.Callx(contract, s.host)
+		result := s.host.Callx(ctx, contract, s.host)
 
 		v := s.push1()
 		if op == CREATE && s.config.Homestead && errors.Is(result.Err, runtime.ErrCodeStoreOutOfGas) {
@@ -1059,7 +1056,7 @@ func opCreate(op OpCode) instruction {
 }
 
 func opCall(op OpCode) instruction {
-	return func(s *state) {
+	return func(ctx context.Context, s *state) {
 		s.resetReturnData()
 
 		if op == CALL && s.inStaticCall() {
@@ -1096,7 +1093,7 @@ func opCall(op OpCode) instruction {
 			panic("not expected")
 		}
 
-		contract, offset, size, err := s.buildCallContract(op)
+		contract, offset, size, err := s.buildCallContract(ctx, op)
 		if err != nil {
 			s.push1().Set(zero)
 			if contract != nil {
@@ -1110,7 +1107,7 @@ func opCall(op OpCode) instruction {
 
 		contract.Type = callType
 
-		result := s.host.Callx(contract, s.host)
+		result := s.host.Callx(ctx, contract, s.host)
 
 		v := s.push1()
 		if result.Succeeded() {
@@ -1130,7 +1127,7 @@ func opCall(op OpCode) instruction {
 	}
 }
 
-func (s *state) buildCallContract(op OpCode) (*runtime.Contract, uint64, uint64, error) {
+func (s *state) buildCallContract(ctx context.Context, op OpCode) (*runtime.Contract, uint64, uint64, error) {
 	// Pop input arguments
 	initialGas := s.pop()
 	addr, _ := s.popAddr()
@@ -1168,7 +1165,6 @@ func (s *state) buildCallContract(op OpCode) (*runtime.Contract, uint64, uint64,
 	eip158 := s.config.EIP158
 	transfersValue := (op == CALL || op == CALLCODE) && value != nil && value.Sign() != 0
 
-	ctx := context.Background()
 	if op == CALL {
 		if eip158 {
 			if transfersValue && s.host.Empty(ctx, addr) {
@@ -1235,7 +1231,7 @@ func (s *state) buildCallContract(op OpCode) (*runtime.Contract, uint64, uint64,
 	return contract, retOffset.Uint64(), retSize.Uint64(), nil
 }
 
-func (s *state) buildCreateContract(op OpCode) (*runtime.Contract, error) {
+func (s *state) buildCreateContract(ctx context.Context, op OpCode) (*runtime.Contract, error) {
 	// Pop input arguments
 	value := s.pop()
 	offset := s.pop()
@@ -1268,7 +1264,6 @@ func (s *state) buildCreateContract(op OpCode) (*runtime.Contract, error) {
 		return nil, nil
 	}
 
-	ctx := context.Background()
 	if hasTransfer {
 		if s.host.GetBalance(ctx, s.msg.Address).Cmp(value) < 0 {
 			return nil, fmt.Errorf("bad")
@@ -1307,7 +1302,7 @@ func (s *state) buildCreateContract(op OpCode) (*runtime.Contract, error) {
 }
 
 func opHalt(op OpCode) instruction {
-	return func(s *state) {
+	return func(ctx context.Context, s *state) {
 		if op == REVERT && !s.config.Byzantium {
 			s.exit(errOpCodeNotFound)
 			return

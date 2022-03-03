@@ -161,7 +161,7 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 	if len(code) > 0 {
 		log.Debugf("smart contract execution %v", receiverAddress)
 		contract := runtime.NewContractCall(0, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
-		result := b.run(contract)
+		result := b.run(ctx, contract)
 		result.GasUsed = tx.Gas() - result.GasLeft
 		log.Debugf("Transaction Data %v", tx.Data())
 		log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
@@ -452,10 +452,10 @@ func (b *BasicBatchProcessor) setRuntime(r runtime.Runtime) {
 	b.runtimes = append(b.runtimes, r)
 }
 
-func (b *BasicBatchProcessor) run(contract *runtime.Contract) *runtime.ExecutionResult {
+func (b *BasicBatchProcessor) run(ctx context.Context, contract *runtime.Contract) *runtime.ExecutionResult {
 	for _, r := range b.runtimes {
 		if r.CanRun(contract, b, &b.forks) {
-			return r.Run(contract, b, &b.forks)
+			return r.Run(ctx, contract, b, &b.forks)
 		}
 	}
 
@@ -535,7 +535,7 @@ func (b *BasicBatchProcessor) create(ctx context.Context, tx *types.Transaction,
 		}
 	}
 
-	result := b.run(contract)
+	result := b.run(ctx, contract)
 	if result.Failed() {
 		return result
 	}
@@ -716,11 +716,11 @@ func (b *BasicBatchProcessor) EmitLog(address common.Address, topics []common.Ha
 }
 
 // Callx calls a SC
-func (b *BasicBatchProcessor) Callx(contract *runtime.Contract, host runtime.Host) *runtime.ExecutionResult {
+func (b *BasicBatchProcessor) Callx(ctx context.Context, contract *runtime.Contract, host runtime.Host) *runtime.ExecutionResult {
 	log.Debugf("Callx to address %v", contract.CodeAddress)
 	root := b.stateRoot
 	contract2 := runtime.NewContractCall(contract.Depth+1, contract.Address, contract.Caller, contract.CodeAddress, contract.Value, contract.Gas, contract.Code, contract.Input)
-	result := b.run(contract2)
+	result := b.run(ctx, contract2)
 	if result.Reverted() {
 		b.stateRoot = root
 	}
