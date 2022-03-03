@@ -64,6 +64,18 @@ CREATE TABLE state.receipt
     contract_address BYTEA
 );
 
+CREATE TABLE state.log
+(
+    log_index integer,
+    transaction_index integer,
+    transaction_hash BYTEA NOT NULL REFERENCES state.transaction (hash) ON DELETE CASCADE,
+    batch_hash BYTEA NOT NULL,
+    batch_num BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
+    address BYTEA NOT NULL,
+    data BYTEA NOT NULL,
+    topics jsonb NOT NULL
+);
+
 CREATE TABLE state.misc
 (
     last_batch_num_seen BIGINT,

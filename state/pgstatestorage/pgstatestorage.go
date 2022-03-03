@@ -50,6 +50,8 @@ const (
 	addBatchSQL                            = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, chain_id, global_exit_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)"
 	addTransactionSQL                      = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
 	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, batch_num, batch_hash, tx_hash, tx_index, tx_from, tx_to, contract_address)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"
+	addLogSQL                              = "INSERT INTO state.log (log_index, transaction_index, transaction_hash, batch_hash, batch_num, address, data, topics)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+	getLogsSQL                             = "SELECT * FROM state.log WHERE transaction_hash = $1"
 )
 
 var (
@@ -434,7 +436,37 @@ func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 	}
 
 	receipt.BlockNumber = new(big.Int).SetUint64(batchNumber)
+
+	logs, err := s.GetTransactionLogs(ctx, transactionHash)
+	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
+		return nil, err
+	}
+
+	receipt.Logs = logs
+
 	return &receipt, nil
+}
+
+// GetTransactionLogs returns the logs of a transaction by transaction hash
+func (s *PostgresStorage) GetTransactionLogs(ctx context.Context, transactionHash common.Hash) ([]*types.Log, error) {
+	rows, err := s.query(ctx, getLogsSQL, transactionHash.Bytes())
+	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	logs := make([]*types.Log, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		var log types.Log
+		err := rows.Scan(&log.Index, &log.TxIndex, &log.TxHash, &log.BlockHash, &log.BlockNumber, &log.Address, &log.Data, &log.Topics)
+		if err != nil {
+			return nil, err
+		}
+		logs = append(logs, &log)
+	}
+
+	return logs, nil
 }
 
 // Reset resets the state to a block
@@ -595,6 +627,12 @@ func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt
 	}
 
 	_, err := s.exec(ctx, addReceiptSQL, receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.BlockHash.Bytes(), receipt.TxHash.Bytes(), receipt.TransactionIndex, receipt.From.Bytes(), to, receipt.ContractAddress.Bytes())
+	return err
+}
+
+// AddLog adds a new log to the State Store
+func (s *PostgresStorage) AddLog(ctx context.Context, log *types.Log) error {
+	_, err := s.exec(ctx, addLogSQL, log.Index, log.TxIndex, log.TxHash.Bytes(), log.BlockHash.Bytes(), log.BlockNumber, log.Address.Bytes(), log.Data, log.Topics)
 	return err
 }
 

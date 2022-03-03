@@ -68,6 +68,7 @@ type Storage interface {
 	AddBatch(ctx context.Context, batch *Batch) error
 	AddTransaction(ctx context.Context, tx *types.Transaction, batchNumber uint64, index uint) error
 	AddReceipt(ctx context.Context, receipt *Receipt) error
+	AddLog(ctx context.Context, log *types.Log) error
 	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error
 	GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error)
 }

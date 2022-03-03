@@ -66,6 +66,7 @@ type BasicBatchProcessor struct {
 	CumulativeGasUsed    uint64
 	MaxCumulativeGasUsed uint64
 	transactionContext   transactionContext
+	logs                 []*types.Log
 }
 
 type transactionContext struct {
@@ -83,6 +84,7 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 	var index uint
 
 	b.CumulativeGasUsed = 0
+	b.logs = []*types.Log{}
 
 	for _, tx := range batch.Transactions {
 		senderAddress, err := helper.GetSender(tx)
@@ -445,6 +447,16 @@ func (b *BasicBatchProcessor) commit(ctx context.Context, batch *Batch) error {
 		}
 	}
 
+	// store logs
+	for _, log := range b.logs {
+		log.BlockHash = blockHash
+		log.BlockNumber = batch.Number().Uint64()
+		err := b.State.AddLog(ctx, log)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -711,8 +723,18 @@ func (b *BasicBatchProcessor) GetBlockHash(number int64) common.Hash {
 
 // EmitLog generates logs
 func (b *BasicBatchProcessor) EmitLog(address common.Address, topics []common.Hash, data []byte) {
-	// TODO: Implement
-	log.Warn("batchprocessor.EmitLog not implemented")
+	log.Debugf("EmitLog for address %v", address)
+	txLog := &types.Log{
+		Address: address,
+		Topics:  topics,
+		Data:    data,
+		TxHash:  b.transactionContext.currentTransaction.Hash(),
+		TxIndex: b.transactionContext.index,
+		Index:   uint(len(b.logs)),
+		Removed: false,
+	}
+
+	b.logs = append(b.logs, txLog)
 }
 
 // Callx calls a SC
