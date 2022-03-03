@@ -1,6 +1,9 @@
 package dependencies
 
-import "github.com/spf13/afero"
+import (
+	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/spf13/afero"
+)
 
 const (
 	defaultSourceRepo    = "https://github.com/hermeznetwork/test-vectors"
@@ -26,10 +29,14 @@ func init() {
 }
 
 func (tu *testVectorUpdater) update() error {
+	log.Infof("Cloning %q...", tu.sourceRepo)
 	tmpdir, err := cloneTargetRepo(tu.fs, tu.sourceRepo)
 	if err != nil {
 		return nil
 	}
 
-	return updateFiles(tu.fs, tmpdir, tu.targetDirPath)
+	targetDirPath := getTargetPath(tu.targetDirPath)
+
+	log.Infof("Updating files %q...", tu.sourceRepo)
+	return updateFiles(tu.fs, tmpdir, targetDirPath)
 }

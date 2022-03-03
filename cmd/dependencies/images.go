@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
-	"runtime"
 	"strings"
 
 	"github.com/hermeznetwork/hermez-core/log"
@@ -79,7 +77,7 @@ func (iu *imageUpdater) updateImage(imageName string) error {
 }
 
 func (iu *imageUpdater) readCurrentDigest(imageName string) (string, error) {
-	data, err := afero.ReadFile(iu.fs, iu.getTargetFilePath())
+	data, err := afero.ReadFile(iu.fs, getTargetPath(iu.targetFilePath))
 	if err != nil {
 		return "", err
 	}
@@ -120,7 +118,7 @@ func (iu *imageUpdater) readRemoteDigest(imageName string) (string, error) {
 }
 
 func (iu *imageUpdater) updateDigest(imageName, currentDigest, remoteDigest string) error {
-	targetFilePath := iu.getTargetFilePath()
+	targetFilePath := getTargetPath(iu.targetFilePath)
 	log.Infof("Updating %q...", targetFilePath)
 	oldContent, err := afero.ReadFile(iu.fs, targetFilePath)
 	if err != nil {
@@ -216,13 +214,4 @@ func (iu *imageUpdater) readLatestTag(imageName, token string) (string, error) {
 	}
 	log.Infof("Remote digest of %q is %q", imageName, r.Images[0].Digest)
 	return r.Images[0].Digest, nil
-}
-
-func (iu *imageUpdater) getTargetFilePath() string {
-	if strings.HasPrefix(iu.targetFilePath, "/") {
-		return iu.targetFilePath
-	}
-	_, filename, _, _ := runtime.Caller(1)
-
-	return path.Join(path.Dir(filename), iu.targetFilePath)
 }
