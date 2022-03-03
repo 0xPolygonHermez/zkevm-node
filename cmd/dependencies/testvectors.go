@@ -32,7 +32,7 @@ func (tu *testVectorUpdater) update() error {
 	log.Infof("Cloning %q...", tu.sourceRepo)
 	tmpdir, err := cloneTargetRepo(tu.fs, tu.sourceRepo)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	targetDirPath := getTargetPath(tu.targetDirPath)
