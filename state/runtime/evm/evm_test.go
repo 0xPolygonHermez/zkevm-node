@@ -54,7 +54,7 @@ func (m *mockHost) GetCode(ctx context.Context, addr common.Address) []byte {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) Selfdestruct(addr common.Address, beneficiary common.Address) {
+func (m *mockHost) Selfdestruct(ctx context.Context, addr common.Address, beneficiary common.Address) {
 	panic("Not implemented in tests")
 }
 

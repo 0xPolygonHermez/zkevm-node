@@ -115,7 +115,9 @@ func (s *BasicState) NewBatchProcessor(ctx context.Context, sequencerAddress com
 		return nil, err
 	}
 
-	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed}
+	transactionContext := transactionContext{difficulty: new(big.Int)}
+
+	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, transactionContext: transactionContext}
 	batchProcessor.setRuntime(evm.NewEVM())
 	blockNumber, err := s.GetLastBlockNumber(ctx)
 	if err != nil {
@@ -225,7 +227,7 @@ func (s *BasicState) SetGenesis(ctx context.Context, genesis Genesis) error {
 
 	for address, storage := range genesis.Storage {
 		for key, value := range storage {
-			newRoot, _, err = s.tree.SetStorageAt(address, key, value, newRoot)
+			newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
 			if err != nil {
 				return err
 			}

@@ -16,7 +16,7 @@ type Host interface {
 	GetCodeSize(ctx context.Context, addr common.Address) int
 	GetCodeHash(ctx context.Context, addr common.Address) common.Hash
 	GetCode(ctx context.Context, addr common.Address) []byte
-	Selfdestruct(addr common.Address, beneficiary common.Address)
+	Selfdestruct(ctx context.Context, addr common.Address, beneficiary common.Address)
 	GetTxContext() TxContext
 	GetBlockHash(number int64) common.Hash
 	EmitLog(addr common.Address, topics []common.Hash, data []byte)

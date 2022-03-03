@@ -898,7 +898,7 @@ func opSelfDestruct(s *state) {
 		return
 	}
 
-	s.host.Selfdestruct(s.msg.Address, address)
+	s.host.Selfdestruct(ctx, s.msg.Address, address)
 	s.halt()
 }
 

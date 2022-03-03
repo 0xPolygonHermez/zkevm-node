@@ -65,6 +65,15 @@ type BasicBatchProcessor struct {
 	LastBatch            *Batch
 	CumulativeGasUsed    uint64
 	MaxCumulativeGasUsed uint64
+	transactionContext   transactionContext
+}
+
+type transactionContext struct {
+	currentTransaction *types.Transaction
+	currentOrigin      common.Address
+	coinBase           common.Address
+	index              uint
+	difficulty         *big.Int
 }
 
 // ProcessBatch processes all transactions inside a batch
@@ -80,6 +89,10 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 		if err != nil {
 			return err
 		}
+
+		// Set transaction context
+		b.transactionContext.index = index
+		b.transactionContext.difficulty = batch.Header.Difficulty
 
 		result := b.processTransaction(ctx, tx, senderAddress, batch.Sequencer)
 
@@ -131,6 +144,10 @@ func (b *BasicBatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx
 }
 
 func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+	// Set transaction context
+	b.transactionContext.currentTransaction = tx
+	b.transactionContext.currentOrigin = senderAddress
+	b.transactionContext.coinBase = sequencerAddress
 	receiverAddress := tx.To()
 
 	// SC creation
@@ -640,15 +657,44 @@ func (b *BasicBatchProcessor) GetCode(ctx context.Context, address common.Addres
 }
 
 // Selfdestruct deletes a contract and refunds gas
-func (b *BasicBatchProcessor) Selfdestruct(address common.Address, beneficiary common.Address) {
-	// TODO: Implement
-	panic("not implemented")
+func (b *BasicBatchProcessor) Selfdestruct(ctx context.Context, address common.Address, beneficiary common.Address) {
+	contractBalance := b.GetBalance(ctx, address)
+	if contractBalance.Int64() != 0 {
+		beneficiaryBalance := b.GetBalance(ctx, beneficiary)
+		beneficiaryBalance.Add(beneficiaryBalance, contractBalance)
+		root, _, err := b.State.tree.SetBalance(ctx, beneficiary, beneficiaryBalance, b.stateRoot)
+		if err != nil {
+			log.Errorf("error on Selfdestuct for address %v", address)
+		}
+		root, _, err = b.State.tree.SetBalance(ctx, beneficiary, big.NewInt(0), root)
+		if err != nil {
+			log.Errorf("error on Selfdestuct for address %v", address)
+		}
+		b.stateRoot = root
+	}
+
+	root, _, err := b.State.tree.SetCode(ctx, address, []byte{}, b.stateRoot)
+	if err != nil {
+		log.Errorf("error on Selfdestuct for address %v", address)
+	}
+	b.stateRoot = root
+
+	// TODO: Destroy Storage
 }
 
 // GetTxContext returns metadata related to the Tx Context
 func (b *BasicBatchProcessor) GetTxContext() runtime.TxContext {
-	// TODO: Implement
-	panic("not implemented")
+	return runtime.TxContext{
+		Hash:       b.transactionContext.currentTransaction.Hash(),
+		GasPrice:   common.BigToHash(b.transactionContext.currentTransaction.GasPrice()),
+		Origin:     b.transactionContext.currentOrigin,
+		Coinbase:   b.transactionContext.coinBase,
+		Number:     int64(b.transactionContext.index),
+		Timestamp:  time.Now().Unix(),
+		GasLimit:   int64(b.transactionContext.currentTransaction.Gas()),
+		ChainID:    b.transactionContext.currentTransaction.ChainId().Int64(),
+		Difficulty: common.BigToHash(b.transactionContext.difficulty),
+	}
 }
 
 // GetBlockHash gets the hash of a block (batch in L2)
