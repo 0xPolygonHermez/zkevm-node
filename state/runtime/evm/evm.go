@@ -1,6 +1,9 @@
 package evm
 
-import "github.com/hermeznetwork/hermez-core/state/runtime"
+import (
+	"context"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
+)
 
 // EVM is the Ethereum Virtual Machine
 type EVM struct {
@@ -22,7 +25,7 @@ func (e *EVM) Name() string {
 }
 
 // Run implements the runtime interface
-func (e *EVM) Run(c *runtime.Contract, host runtime.Host, config *runtime.ForksInTime) *runtime.ExecutionResult {
+func (e *EVM) Run(ctx context.Context, c *runtime.Contract, host runtime.Host, config *runtime.ForksInTime) *runtime.ExecutionResult {
 	contract := acquireState()
 	contract.resetReturnData()
 
@@ -35,7 +38,7 @@ func (e *EVM) Run(c *runtime.Contract, host runtime.Host, config *runtime.ForksI
 
 	contract.bitmap.setCode(c.Code)
 
-	ret, err := contract.Run()
+	ret, err := contract.Run(ctx)
 
 	var returnValue []byte
 	returnValue = append(returnValue[:0], ret...)
