@@ -572,7 +572,7 @@ func opBalance(ctx context.Context, s *state) {
 		return
 	}
 
-	s.push1().Set(s.host.GetBalance(context.Background(), addr))
+	s.push1().Set(s.host.GetBalance(ctx, addr))
 }
 
 func opSelfBalance(ctx context.Context, s *state) {
@@ -581,7 +581,7 @@ func opSelfBalance(ctx context.Context, s *state) {
 		return
 	}
 
-	s.push1().Set(s.host.GetBalance(context.Background(), s.msg.Address))
+	s.push1().Set(s.host.GetBalance(ctx, s.msg.Address))
 }
 
 func opChainID(ctx context.Context, s *state) {
@@ -648,7 +648,7 @@ func opExtCodeSize(ctx context.Context, s *state) {
 		return
 	}
 
-	s.push1().SetUint64(uint64(s.host.GetCodeSize(context.Background(), addr)))
+	s.push1().SetUint64(uint64(s.host.GetCodeSize(ctx, addr)))
 }
 
 func opGasPrice(ctx context.Context, s *state) {
