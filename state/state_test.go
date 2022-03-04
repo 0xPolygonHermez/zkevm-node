@@ -1456,7 +1456,37 @@ func TestEmitLog(t *testing.T) {
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
-	receipt, err := testState.GetTransactionReceipt(ctx, signedTx1.Hash())
+	receipt, err := st.GetTransactionReceipt(ctx, signedTx1.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, scAddress, receipt.Logs[0].Address)
+
+	hash := batch.Hash()
+	logs, err := st.GetLogs(ctx, 0, 0, nil, nil, &hash)
+	require.NoError(t, err)
+	assert.Equal(t, scAddress, logs[0].Address)
+
+	logs, err = st.GetLogs(ctx, 0, 5, nil, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, scAddress, logs[0].Address)
+
+	logs, err = st.GetLogs(ctx, 5, 5, nil, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(logs))
+
+	addresses := []common.Address{}
+	addresses = append(addresses, scAddress)
+	logs, err = st.GetLogs(ctx, 0, 5, addresses, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, scAddress, logs[0].Address)
+
+	topics := []common.Hash{}
+	topics = append(topics, common.HexToHash("0xc6d8c0af6d21f291e7c359603aa97e0ed500f04db6e983b9fce75a91c6b8da6b"))
+
+	logs, err = st.GetLogs(ctx, 0, 5, nil, topics, nil)
+	require.NoError(t, err)
+	assert.Equal(t, scAddress, logs[0].Address)
+
+	logs, err = st.GetLogs(ctx, 0, 5, addresses, topics, nil)
+	require.NoError(t, err)
+	assert.Equal(t, scAddress, logs[0].Address)
 }
