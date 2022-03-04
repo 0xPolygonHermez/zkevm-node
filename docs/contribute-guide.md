@@ -1,6 +1,6 @@
 # Pull Request guidelines
 
-This document addresses how we should create PRs, give and receive reviews. The motivation is to have better code, reduce the time from creation to merge while sharing knowledge and insights that help everyone becaming better developers.
+This document addresses how we should create PRs, give and receive reviews. The motivation is to have better code, reduce the time from creation to merge while sharing knowledge and insights that help everyone becoming better developers.
 
 Note that non of this is a hard rule, but suggestions / guidelines. Although everyone is encouraged to stick to this points as much as posible. Use your common sense if some of this do not apply well on a particular PR
 
@@ -22,7 +22,7 @@ Note that non of this is a hard rule, but suggestions / guidelines. Although eve
 - Try to use positive language. You can even use emoji to clarify tone.
 - Be super clear on how confident you are when requesting changes. One way to do it is by starting the message like this:
   - `Opinion: ...` this way you're indicating a some how personal preference to the PR author. It's great to share opinions that may not be based on evidence, The author should understand this as `if you agree with me, you could do this change`
-  - `Suggestion: ...` similar to opinion, but should have some back up / evidence / reasoning on why the suggestion is better than what done by the author. It should be read as `I think this could be done better this way, unless you have arguments to deffend the original solution you should do it`
+  - `Suggestion: ...` similar to opinion, but should have some back up / evidence / reasoning on why the suggestion is better than what done by the author. It should be read as `I think this could be done better this way, unless you have arguments to defend the original solution you should do it`
   - `Request: ...` indicates that the PR won't be approved unless the request is applied. This should always include arguments that make obvious why the changes being requested are needed
 - Avoid doing code reviews for too consecutive time, try to don't do reviews for more than one hour non-stop
 
