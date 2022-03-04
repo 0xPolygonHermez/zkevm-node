@@ -1408,7 +1408,7 @@ func TestEmitLog(t *testing.T) {
 
 	var txs []*types.Transaction
 
-	// Deploy destruct.sol
+	// Deploy event.sol
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    0,
 		To:       nil,
