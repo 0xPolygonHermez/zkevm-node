@@ -444,6 +444,7 @@ func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 	}
 
 	receipt.Logs = logs
+	receipt.Bloom = types.CreateBloom(types.Receipts{&receipt.Receipt})
 
 	return &receipt, nil
 }
@@ -687,7 +688,7 @@ func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt
 }
 
 // AddLog adds a new log to the State Store
-func (s *PostgresStorage) AddLog(ctx context.Context, log *types.Log) error {
+func (s *PostgresStorage) AddLog(ctx context.Context, log types.Log) error {
 	_, err := s.exec(ctx, addLogSQL, log.Index, log.TxIndex, log.TxHash.Bytes(), log.BlockHash.Bytes(), log.BlockNumber, log.Address.Bytes(), log.Data, log.Topics)
 	return err
 }

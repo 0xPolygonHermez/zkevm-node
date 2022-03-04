@@ -289,9 +289,10 @@ type rpcReceipt struct {
 	BlockHash         common.Hash     `json:"blockHash"`
 	BlockNumber       argUint64       `json:"blockNumber"`
 	GasUsed           argUint64       `json:"gasUsed"`
-	ContractAddress   common.Address  `json:"contractAddress"`
 	FromAddr          common.Address  `json:"from"`
 	ToAddr            *common.Address `json:"to"`
+	ContractAddress   *common.Address `json:"contractAddress"`
+	Type              argUint64       `json:"type"`
 }
 
 func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
@@ -300,6 +301,13 @@ func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
 	if logs == nil {
 		logs = []*types.Log{}
 	}
+
+	var contractAddress *common.Address = nil
+	if r.ContractAddress != state.ZeroAddress {
+		ca := r.ContractAddress
+		contractAddress = &ca
+	}
+
 	return rpcReceipt{
 		Root:              common.BytesToHash(r.Receipt.PostState),
 		CumulativeGasUsed: argUint64(r.CumulativeGasUsed),
@@ -311,8 +319,9 @@ func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
 		BlockHash:         r.BlockHash,
 		BlockNumber:       argUint64(r.BlockNumber.Uint64()),
 		GasUsed:           argUint64(r.GasUsed),
-		ContractAddress:   r.ContractAddress,
+		ContractAddress:   contractAddress,
 		FromAddr:          r.From,
 		ToAddr:            to,
+		Type:              argUint64(r.Type),
 	}
 }
