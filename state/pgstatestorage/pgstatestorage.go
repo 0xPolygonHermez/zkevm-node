@@ -51,7 +51,8 @@ const (
 	addTransactionSQL                      = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
 	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, batch_num, batch_hash, tx_hash, tx_index, tx_from, tx_to, contract_address)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"
 	addLogSQL                              = "INSERT INTO state.log (log_index, transaction_index, transaction_hash, batch_hash, batch_num, address, data, topics)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
-	getLogsSQL                             = "SELECT * FROM state.log WHERE transaction_hash = $1"
+	getTransactionLogsSQL                  = "SELECT * FROM state.log WHERE transaction_hash = $1"
+	getLogsSQLByBatchHash                  = "SELECT * FROM state.log WHERE batch_hash = $1"
 )
 
 var (
@@ -437,7 +438,7 @@ func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 
 	receipt.BlockNumber = new(big.Int).SetUint64(batchNumber)
 
-	logs, err := s.GetTransactionLogs(ctx, transactionHash)
+	logs, err := s.getTransactionLogs(ctx, transactionHash)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}
@@ -447,10 +448,65 @@ func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 	return &receipt, nil
 }
 
-// GetTransactionLogs returns the logs of a transaction by transaction hash
-func (s *PostgresStorage) GetTransactionLogs(ctx context.Context, transactionHash common.Hash) ([]*types.Log, error) {
-	rows, err := s.query(ctx, getLogsSQL, transactionHash.Bytes())
+// getTransactionLogs returns the logs of a transaction by transaction hash
+func (s *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHash common.Hash) ([]*types.Log, error) {
+	rows, err := s.query(ctx, getTransactionLogsSQL, transactionHash.Bytes())
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	logs := make([]*types.Log, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		var log types.Log
+		err := rows.Scan(&log.Index, &log.TxIndex, &log.TxHash, &log.BlockHash, &log.BlockNumber, &log.Address, &log.Data, &log.Topics)
+		if err != nil {
+			return nil, err
+		}
+		logs = append(logs, &log)
+	}
+
+	return logs, nil
+}
+
+func (s *PostgresStorage) addressesToBytes(addresses []common.Address) [][]byte {
+	converted := make([][]byte, 0, len(addresses))
+
+	for _, address := range addresses {
+		converted = append(converted, address.Bytes())
+	}
+
+	return converted
+}
+
+func (s *PostgresStorage) hashesToString(hashes []common.Hash) []string {
+	converted := make([]string, 0, len(hashes))
+
+	for _, hash := range hashes {
+		converted = append(converted, hash.String())
+	}
+
+	return converted
+}
+
+// GetLogs returns the logs that match the filter
+func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics []common.Hash, batchHash *common.Hash) ([]*types.Log, error) {
+	var err error
+	var rows pgx.Rows
+	if batchHash != nil {
+		rows, err = s.query(ctx, getLogsSQLByBatchHash, batchHash.Bytes())
+	} else if addresses != nil && topics != nil {
+		rows, err = s.query(ctx, "SELECT * FROM state.log WHERE batch_num BETWEEN $1 AND $2 AND address = any($3) AND topics::jsonb ? any($4)", fromBatch, toBatch, s.addressesToBytes(addresses), s.hashesToString(topics))
+	} else if addresses != nil {
+		rows, err = s.query(ctx, "SELECT * FROM state.log WHERE batch_num BETWEEN $1 AND $2 AND address = any($3)", fromBatch, toBatch, s.addressesToBytes(addresses))
+	} else if topics != nil {
+		rows, err = s.query(ctx, "SELECT * FROM state.log WHERE batch_num BETWEEN $1 AND $2 AND topics::jsonb ? any($3)", fromBatch, toBatch, s.hashesToString(topics))
+	} else {
+		rows, err = s.query(ctx, "SELECT * FROM state.log WHERE batch_num BETWEEN $1 AND $2", fromBatch, toBatch)
+	}
+
+	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
