@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -97,7 +98,7 @@ func initStree() (*tree.StateTree, error) {
 
 func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
 	opts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	conn, err := grpc.DialContext(ctx, address, opts...)

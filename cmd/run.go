@@ -29,6 +29,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func start(ctx *cli.Context) error {
@@ -138,7 +139,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.ClientConn) {
 	opts := []grpc.DialOption{
 		// TODO: once we have user and password for prover server, change this
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	proverConn, err := grpc.Dial(c.ProverURI, opts...)
 	if err != nil {
@@ -151,7 +152,7 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.
 
 func newMTClient(c tree.ClientConfig) (pb.MTServiceClient, *grpc.ClientConn, context.CancelFunc) {
 	opts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	mtConn, err := grpc.DialContext(ctx, c.URI, opts...)
