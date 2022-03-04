@@ -25,7 +25,7 @@ const fr = "21888242871839275222246405745257275088548364400416034343698204186575
 type Aggregator struct {
 	cfg Config
 
-	State          state.State
+	State          localState
 	EtherMan       etherman
 	ZkProverClient proverclient.ZKProverClient
 
@@ -38,7 +38,7 @@ type Aggregator struct {
 // NewAggregator creates a new aggregator
 func NewAggregator(
 	cfg Config,
-	state state.State,
+	state localState,
 	ethMan etherman,
 	zkProverClient proverclient.ZKProverClient,
 ) (Aggregator, error) {

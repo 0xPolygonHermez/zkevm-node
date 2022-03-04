@@ -12,7 +12,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // Server is an API backend to handle RPC requests
@@ -28,7 +27,7 @@ func NewServer(
 	defaultChainID uint64,
 	sequencerAddress common.Address,
 	p jsonRPCTxPool,
-	s state.State,
+	s localState,
 	chainID uint64,
 	gpe gasPriceEstimator) *Server {
 	chainIDSelector := newChainIDSelector(chainID)

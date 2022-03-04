@@ -16,7 +16,7 @@ import (
 type Eth struct {
 	chainIDSelector  *chainIDSelector
 	pool             jsonRPCTxPool
-	state            state.State
+	state            localState
 	sequencerAddress common.Address
 	gpe              gasPriceEstimator
 }

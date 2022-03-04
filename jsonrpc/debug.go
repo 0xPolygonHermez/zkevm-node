@@ -11,7 +11,7 @@ import (
 
 // Debug is the debug jsonrpc endpoint
 type Debug struct {
-	state state.State
+	state localState
 }
 
 type traceTransactionResponse struct {

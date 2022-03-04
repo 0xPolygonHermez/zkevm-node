@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // Consumer interfaces required by the package.
@@ -31,4 +32,13 @@ type etherman interface {
 // txProfitabilityChecker interface for different profitability checkers.
 type txProfitabilityChecker interface {
 	IsProfitable(context.Context, []*types.Transaction) (bool, *big.Int, error)
+}
+
+// localState gathers the methods required to interact with the state.
+type localState interface {
+	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
+	GetSequencer(ctx context.Context, address common.Address) (*state.Sequencer, error)
+	GetLastBatchNumber(ctx context.Context) (uint64, error)
+	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
+	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, lastBatchNumber uint64) (*state.BasicBatchProcessor, error)
 }

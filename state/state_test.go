@@ -29,7 +29,7 @@ import (
 
 var (
 	stateDb                                                *pgxpool.Pool
-	testState                                              state.State
+	testState                                              *state.BasicState
 	block1, block2                                         *state.Block
 	addr                                                   common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
 	hash1, hash2                                           common.Hash

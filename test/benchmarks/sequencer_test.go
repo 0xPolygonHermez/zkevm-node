@@ -91,7 +91,7 @@ func BenchmarkSequencer(b *testing.B) {
 	}
 }
 
-func setUpEnv(b *testing.B) (state.State, *pool.PostgresPool, *big.Int, *ethclient.Client) {
+func setUpEnv(b *testing.B) (*state.BasicState, *pool.PostgresPool, *big.Int, *ethclient.Client) {
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(b, err)
 
@@ -115,7 +115,7 @@ func setUpEnv(b *testing.B) (state.State, *pool.PostgresPool, *big.Int, *ethclie
 	return st, pl, gasPrice, l2Client
 }
 
-func tearDownEnv(b *testing.B, st state.State) {
+func tearDownEnv(b *testing.B, st localState) {
 	lastBatchNumber, err := st.GetLastBatchNumber(ctx)
 	require.NoError(b, err)
 	fmt.Printf("lastBatchNumber: %v\n", lastBatchNumber)

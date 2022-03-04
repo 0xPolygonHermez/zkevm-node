@@ -22,7 +22,7 @@ type Synchronizer interface {
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
 	etherMan       localEtherman
-	state          state.State
+	state          localState
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
@@ -34,7 +34,7 @@ type ClientSynchronizer struct {
 // NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(
 	ethMan localEtherman,
-	st state.State,
+	st localState,
 	genBlockNumber uint64,
 	genesis state.Genesis,
 	cfg Config,
