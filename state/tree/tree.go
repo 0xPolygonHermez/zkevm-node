@@ -249,3 +249,23 @@ func (tree *StateTree) SetHashValue(ctx context.Context, key common.Hash, value 
 
 	return updateProof.NewRoot.Bytes(), updateProof, nil
 }
+
+// SetNodeData sets data for a specific node.
+func (tree *StateTree) SetNodeData(ctx context.Context, key *big.Int, value *big.Int) (err error) {
+	var k [maxBigIntLen]byte
+	key.FillBytes(k[:])
+
+	return tree.mt.store.Set(ctx, k[:], value.Bytes())
+}
+
+// GetNodeData sets data for a specific node.
+func (tree *StateTree) GetNodeData(ctx context.Context, key *big.Int) (*big.Int, error) {
+	var k [maxBigIntLen]byte
+	key.FillBytes(k[:])
+	data, err := tree.mt.store.Get(ctx, k[:])
+	if err != nil {
+		return nil, err
+	}
+
+	return new(big.Int).SetBytes(data), nil
+}

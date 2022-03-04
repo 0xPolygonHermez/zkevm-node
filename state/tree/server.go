@@ -70,7 +70,7 @@ func (s *Server) SetStree(stree *StateTree) {
 // Getters.
 
 // GetBalance gets the balance for a given address at a given root.
-func (s *Server) GetBalance(ctx context.Context, in *pb.GetBalanceRequest) (*pb.GetBalanceResponse, error) {
+func (s *Server) GetBalance(ctx context.Context, in *pb.CommonGetRequest) (*pb.GetBalanceResponse, error) {
 	root, err := hex.DecodeString(in.Root)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func (s *Server) GetBalance(ctx context.Context, in *pb.GetBalanceRequest) (*pb.
 }
 
 // GetNonce gets nonce for a given address at a given root.
-func (s *Server) GetNonce(ctx context.Context, in *pb.GetNonceRequest) (*pb.GetNonceResponse, error) {
+func (s *Server) GetNonce(ctx context.Context, in *pb.CommonGetRequest) (*pb.GetNonceResponse, error) {
 	root, err := hex.DecodeString(in.Root)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func (s *Server) GetNonce(ctx context.Context, in *pb.GetNonceRequest) (*pb.GetN
 }
 
 // GetCode gets the code for a given address at a given root.
-func (s *Server) GetCode(ctx context.Context, in *pb.GetCodeRequest) (*pb.GetCodeResponse, error) {
+func (s *Server) GetCode(ctx context.Context, in *pb.CommonGetRequest) (*pb.GetCodeResponse, error) {
 	root, err := hex.DecodeString(in.Root)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func (s *Server) GetCode(ctx context.Context, in *pb.GetCodeRequest) (*pb.GetCod
 }
 
 // GetCodeHash gets code hash for a given address at a given root.
-func (s *Server) GetCodeHash(ctx context.Context, in *pb.GetCodeHashRequest) (*pb.GetCodeHashResponse, error) {
+func (s *Server) GetCodeHash(ctx context.Context, in *pb.CommonGetRequest) (*pb.GetCodeHashResponse, error) {
 	root, err := hex.DecodeString(in.Root)
 	if err != nil {
 		return nil, err
@@ -181,7 +181,7 @@ func (s *Server) ReverseHash(ctx context.Context, in *pb.ReverseHashRequest) (*p
 // Setters
 
 // SetBalance sets the balance for an account at a root.
-func (s *Server) SetBalance(ctx context.Context, in *pb.SetBalanceRequest) (*pb.SetBalanceResponse, error) {
+func (s *Server) SetBalance(ctx context.Context, in *pb.SetBalanceRequest) (*pb.CommonSetResponse, error) {
 	balanceBI, success := new(big.Int).SetString(in.Balance, 10)
 	if !success {
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Balance)
@@ -197,16 +197,14 @@ func (s *Server) SetBalance(ctx context.Context, in *pb.SetBalanceRequest) (*pb.
 		return nil, err
 	}
 
-	return &pb.SetBalanceResponse{
+	return &pb.CommonSetResponse{
 		Success: true,
-		Data: &pb.SetCommonData{
-			NewRoot: hex.EncodeToString(root),
-		},
+		NewRoot: hex.EncodeToString(root),
 	}, nil
 }
 
 // SetNonce sets the nonce of an account at a root.
-func (s *Server) SetNonce(ctx context.Context, in *pb.SetNonceRequest) (*pb.SetNonceResponse, error) {
+func (s *Server) SetNonce(ctx context.Context, in *pb.SetNonceRequest) (*pb.CommonSetResponse, error) {
 	nonceBI := new(big.Int).SetUint64(in.Nonce)
 
 	root, err := hex.DecodeString(in.Root)
@@ -219,16 +217,14 @@ func (s *Server) SetNonce(ctx context.Context, in *pb.SetNonceRequest) (*pb.SetN
 		return nil, err
 	}
 
-	return &pb.SetNonceResponse{
+	return &pb.CommonSetResponse{
 		Success: true,
-		Data: &pb.SetCommonData{
-			NewRoot: hex.EncodeToString(root),
-		},
+		NewRoot: hex.EncodeToString(root),
 	}, nil
 }
 
 // SetCode sets the code for an account at a root.
-func (s *Server) SetCode(ctx context.Context, in *pb.SetCodeRequest) (*pb.SetCodeResponse, error) {
+func (s *Server) SetCode(ctx context.Context, in *pb.SetCodeRequest) (*pb.CommonSetResponse, error) {
 	code, err := hex.DecodeString(in.Code)
 	if err != nil {
 		return nil, err
@@ -244,16 +240,14 @@ func (s *Server) SetCode(ctx context.Context, in *pb.SetCodeRequest) (*pb.SetCod
 		return nil, err
 	}
 
-	return &pb.SetCodeResponse{
+	return &pb.CommonSetResponse{
 		Success: true,
-		Data: &pb.SetCommonData{
-			NewRoot: hex.EncodeToString(root),
-		},
+		NewRoot: hex.EncodeToString(root),
 	}, nil
 }
 
 // SetStorageAt sets smart contract storage for an account and position at a root.
-func (s *Server) SetStorageAt(ctx context.Context, in *pb.SetStorageAtRequest) (*pb.SetStorageAtResponse, error) {
+func (s *Server) SetStorageAt(ctx context.Context, in *pb.SetStorageAtRequest) (*pb.CommonSetResponse, error) {
 	valueBI, success := new(big.Int).SetString(in.Value, 10)
 	if !success {
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Value)
@@ -273,49 +267,37 @@ func (s *Server) SetStorageAt(ctx context.Context, in *pb.SetStorageAtRequest) (
 		return nil, err
 	}
 
-	return &pb.SetStorageAtResponse{
+	return &pb.CommonSetResponse{
 		Success: true,
-		Data: &pb.SetCommonData{
-			NewRoot: hex.EncodeToString(root),
-		},
+		NewRoot: hex.EncodeToString(root),
 	}, nil
 }
 
 // SetHashValue set an entry of the reverse hash table.
-func (s *Server) SetHashValue(ctx context.Context, in *pb.SetHashValueRequest) (*pb.SetHashValueResponse, error) {
+func (s *Server) SetHashValue(ctx context.Context, in *pb.HashValuePair) (*pb.SetHashValueResponse, error) {
 	valueBI, success := new(big.Int).SetString(in.Value, 10)
 	if !success {
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Value)
 	}
-
-	root, err := hex.DecodeString(in.Root)
-	if err != nil {
-		return nil, err
+	keyBI, success := new(big.Int).SetString(in.Hash, 10)
+	if !success {
+		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Value)
 	}
 
-	root, _, err = s.stree.SetHashValue(ctx, common.HexToHash(in.Hash), valueBI, root)
+	err := s.stree.SetNodeData(ctx, keyBI, valueBI)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.SetHashValueResponse{
 		Success: true,
-		Data: &pb.SetCommonData{
-			NewRoot: hex.EncodeToString(root),
-		},
 	}, nil
 }
 
-// SetHashValueBulk sets many entries of the reverse hash table. All the root
-// fields are expected to have the same value (the initial root). The method
-// returns the root after setting all the values.
-func (s *Server) SetHashValueBulk(ctx context.Context, in *pb.SetHashValueBulkRequest) (*pb.SetHashValueBulkResponse, error) {
-	var root string
-	for i, item := range in.HashValues {
+// SetStateTransitionNodes sets many entries of the reverse hash table.
+func (s *Server) SetStateTransitionNodes(ctx context.Context, in *pb.SetStateTransitionNodesRequest) (*pb.SetStateTransitionNodesResponse, error) {
+	for _, item := range in.WriteHashValues {
 		// once we have inserted the first item we carry over the root value.
-		if i != 0 {
-			item.Root = root
-		}
 		result, err := s.SetHashValue(ctx, item)
 		if err != nil {
 			return nil, err
@@ -323,17 +305,10 @@ func (s *Server) SetHashValueBulk(ctx context.Context, in *pb.SetHashValueBulkRe
 		if !result.Success {
 			return nil, fmt.Errorf("Unsuccessful hash value set")
 		}
-		if result.Data == nil {
-			return nil, fmt.Errorf("No data returned setting hash value")
-		}
-		root = result.Data.NewRoot
 	}
 
-	return &pb.SetHashValueBulkResponse{
+	return &pb.SetStateTransitionNodesResponse{
 		Success: true,
-		Data: &pb.SetCommonData{
-			NewRoot: root,
-		},
 	}, nil
 }
 

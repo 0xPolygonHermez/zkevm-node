@@ -134,7 +134,7 @@ func Test_MTServer_GetBalance(t *testing.T) {
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
-	resp, err := client.GetBalance(ctx, &pb.GetBalanceRequest{
+	resp, err := client.GetBalance(ctx, &pb.CommonGetRequest{
 		EthAddress: ethAddress,
 		Root:       hex.EncodeToString(root),
 	})
@@ -154,7 +154,7 @@ func Test_MTServer_GetNonce(t *testing.T) {
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
-	resp, err := client.GetNonce(ctx, &pb.GetNonceRequest{
+	resp, err := client.GetNonce(ctx, &pb.CommonGetRequest{
 		EthAddress: ethAddress,
 		Root:       hex.EncodeToString(root),
 	})
@@ -176,7 +176,7 @@ func Test_MTServer_GetCode(t *testing.T) {
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
-	resp, err := client.GetCode(ctx, &pb.GetCodeRequest{
+	resp, err := client.GetCode(ctx, &pb.CommonGetRequest{
 		EthAddress: ethAddress,
 		Root:       hex.EncodeToString(root),
 	})
@@ -199,7 +199,7 @@ func Test_MTServer_GetCodeHash(t *testing.T) {
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
-	resp, err := client.GetCodeHash(ctx, &pb.GetCodeHashRequest{
+	resp, err := client.GetCodeHash(ctx, &pb.CommonGetRequest{
 		EthAddress: ethAddress,
 		Root:       hex.EncodeToString(root),
 	})
@@ -271,12 +271,9 @@ func Test_MTServer_SetBalance(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.True(t, resp.Success)
-	require.NotNil(t, resp.Data)
 
-	require.NotNil(t, resp.Data)
-	newRoot, err := hex.DecodeString(resp.Data.NewRoot)
+	newRoot, err := hex.DecodeString(resp.NewRoot)
 	require.NoError(t, err)
-	require.Equal(t, hex.EncodeToString(newRoot), resp.Data.NewRoot)
 
 	actualBalance, err := stree.GetBalance(ctx, common.HexToAddress(ethAddress), newRoot)
 	require.NoError(t, err)
@@ -300,12 +297,9 @@ func Test_MTServer_SetNonce(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.True(t, resp.Success)
-	require.NotNil(t, resp.Data)
 
-	require.NotNil(t, resp.Data)
-	newRoot, err := hex.DecodeString(resp.Data.NewRoot)
+	newRoot, err := hex.DecodeString(resp.NewRoot)
 	require.NoError(t, err)
-	require.Equal(t, hex.EncodeToString(newRoot), resp.Data.NewRoot)
 
 	actualNonce, err := stree.GetNonce(ctx, common.HexToAddress(ethAddress), newRoot)
 	require.NoError(t, err)
@@ -329,12 +323,9 @@ func Test_MTServer_SetCode(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.True(t, resp.Success)
-	require.NotNil(t, resp.Data)
 
-	require.NotNil(t, resp.Data)
-	newRoot, err := hex.DecodeString(resp.Data.NewRoot)
+	newRoot, err := hex.DecodeString(resp.NewRoot)
 	require.NoError(t, err)
-	require.Equal(t, hex.EncodeToString(newRoot), resp.Data.NewRoot)
 
 	actualCode, err := stree.GetCode(ctx, common.HexToAddress(ethAddress), newRoot)
 	require.NoError(t, err)
@@ -361,12 +352,9 @@ func Test_MTServer_SetStorageAt(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.True(t, resp.Success)
-	require.NotNil(t, resp.Data)
 
-	require.NotNil(t, resp.Data)
-	newRoot, err := hex.DecodeString(resp.Data.NewRoot)
+	newRoot, err := hex.DecodeString(resp.NewRoot)
 	require.NoError(t, err)
-	require.Equal(t, hex.EncodeToString(newRoot), resp.Data.NewRoot)
 
 	actualStorageAt, err := stree.GetStorageAt(ctx, common.HexToAddress(ethAddress), common.BigToHash(positionBI), newRoot)
 	require.NoError(t, err)
@@ -380,97 +368,68 @@ func Test_MTServer_SetHashValue(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	initialBalance := big.NewInt(100)
-	root, _, err := stree.SetBalance(ctx, common.HexToAddress(ethAddress), initialBalance, nil)
-	require.NoError(t, err)
 
-	key, err := tree.GetKey(tree.LeafTypeBalance, common.HexToAddress(ethAddress), nil, tree.DefaultMerkleTreeArity, nil)
-	require.NoError(t, err)
-
+	key := big.NewInt(200)
 	expectedValue := big.NewInt(100)
 
 	client := pb.NewMTServiceClient(conn)
-	resp, err := client.SetHashValue(ctx, &pb.SetHashValueRequest{
-		Hash:  hex.EncodeToString(key),
+	resp, err := client.SetHashValue(ctx, &pb.HashValuePair{
+		Hash:  key.String(),
 		Value: expectedValue.String(),
-		Root:  hex.EncodeToString(root),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.True(t, resp.Success)
 
-	require.NotNil(t, resp.Data)
-	newRoot, err := hex.DecodeString(resp.Data.NewRoot)
-	require.NoError(t, err)
-
-	actualValue, err := stree.GetBalance(ctx, common.HexToAddress(ethAddress), newRoot)
+	actualValue, err := stree.GetNodeData(ctx, key)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedValue.String(), actualValue.String(), "Did not set the expected hash value")
 }
 
-func Test_MTServer_SetHashValueBulk(t *testing.T) {
+func Test_MTServer_SetStateTransitionNodes(t *testing.T) {
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
 	stree, err := initStree()
 	require.NoError(t, err)
 
 	const (
 		totalItems = 5
-		maxBalance = 1000
+		maxValue   = 3000
+		maxKey     = 1000
 	)
 
-	// randToken generates a random hex value of a given length.
-	randToken := func(n int) (string, error) {
-		bytes := make([]byte, n)
-		if _, err := rand.Read(bytes); err != nil {
-			return "", err
-		}
-		return hex.EncodeToString(bytes), nil
-	}
-
-	addressesBalances := map[string]*big.Int{}
-	requests := []*pb.SetHashValueRequest{}
+	requests := []*pb.HashValuePair{}
 
 	ctx := context.Background()
 
-	var root []byte
 	for i := 0; i < totalItems; i++ {
-		balanceBI, err := rand.Int(rand.Reader, big.NewInt(maxBalance))
+		valueBI, err := rand.Int(rand.Reader, big.NewInt(maxValue))
 		require.NoError(t, err)
 
-		address, err := randToken(20)
-		require.NoError(t, err)
-		addressesBalances[address] = balanceBI
-
-		root, _, err = stree.SetBalance(ctx, common.HexToAddress(ethAddress), balanceBI, root)
+		keyBI, err := rand.Int(rand.Reader, big.NewInt(maxKey))
 		require.NoError(t, err)
 
-		key, err := tree.GetKey(tree.LeafTypeBalance, common.HexToAddress(address), nil, tree.DefaultMerkleTreeArity, nil)
-		require.NoError(t, err)
-
-		requests = append(requests, &pb.SetHashValueRequest{
-			Hash:  hex.EncodeToString(key),
-			Value: balanceBI.String(),
-			Root:  hex.EncodeToString(root),
+		requests = append(requests, &pb.HashValuePair{
+			Hash:  keyBI.String(),
+			Value: valueBI.String(),
 		})
 	}
 
 	client := pb.NewMTServiceClient(conn)
-	resp, err := client.SetHashValueBulk(ctx, &pb.SetHashValueBulkRequest{
-		HashValues: requests,
+	resp, err := client.SetStateTransitionNodes(ctx, &pb.SetStateTransitionNodesRequest{
+		WriteHashValues: requests,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.True(t, resp.Success)
 
-	require.NotNil(t, resp.Data)
-	newRoot, err := hex.DecodeString(resp.Data.NewRoot)
-	require.NoError(t, err)
+	for _, keyValuePair := range requests {
+		keyBI, success := new(big.Int).SetString(keyValuePair.Hash, 10)
+		require.True(t, success)
 
-	for address, balance := range addressesBalances {
-		actualValue, err := stree.GetBalance(ctx, common.HexToAddress(address), newRoot)
+		actualValue, err := stree.GetNodeData(ctx, keyBI)
 		require.NoError(t, err)
 
-		assert.Equal(t, balance.String(), actualValue.String(), "Did not set the expected hash value bulk")
+		assert.Equal(t, keyValuePair.Value, actualValue.String(), "Did not set the expected hash value bulk")
 	}
 }

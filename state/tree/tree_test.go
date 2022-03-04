@@ -343,3 +343,33 @@ func TestUnsetStorageAtPosition(t *testing.T) {
 
 	assert.Equal(t, oldRoot, newRoot)
 }
+
+func TestSetGetNode(t *testing.T) {
+	dbCfg := dbutils.NewConfigFromEnv()
+
+	err := dbutils.InitOrReset(dbCfg)
+	require.NoError(t, err)
+
+	mtDb, err := db.NewSQLDB(dbCfg)
+	require.NoError(t, err)
+
+	defer mtDb.Close()
+
+	store := NewPostgresStore(mtDb)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	scCodeStore := NewPostgresSCCodeStore(mtDb)
+	tree := NewStateTree(mt, scCodeStore)
+
+	ctx := context.Background()
+
+	key := big.NewInt(15)
+	value := big.NewInt(10)
+
+	require.NoError(t, tree.SetNodeData(ctx, key, value))
+
+	actualValue, err := tree.GetNodeData(ctx, key)
+	require.NoError(t, err)
+
+	expectedValue := value
+	require.Equal(t, expectedValue, actualValue)
+}
