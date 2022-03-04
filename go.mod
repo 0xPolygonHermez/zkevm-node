@@ -8,7 +8,7 @@ require (
 	github.com/hermeznetwork/tracerr v0.3.2
 	github.com/iden3/go-iden3-crypto v0.0.13
 	github.com/jackc/pgconn v1.10.0
-	github.com/jackc/pgtype v1.8.1
+	github.com/jackc/pgtype v1.10.0
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/rubenv/sql-migrate v0.0.0-20211023115951-9f02b1e13857
