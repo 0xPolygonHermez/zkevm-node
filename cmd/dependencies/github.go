@@ -8,56 +8,85 @@ import (
 	"github.com/go-git/go-billy/v5/helper/chroot"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/spf13/afero"
 )
 
-func cloneTargetRepo(aferoFs afero.Fs, repoURL string) (string, error) {
-	tmpdir, err := afero.TempDir(aferoFs, "", "hermez-core-deps")
+type githubManager struct {
+	aferoFs afero.Fs
+
+	sshKey string
+	token  string
+}
+
+func newGithubManager(aferoFs afero.Fs, sshKey, token string) *githubManager {
+	return &githubManager{
+		aferoFs: aferoFs,
+		token:   token,
+		sshKey:  sshKey,
+	}
+}
+
+func (gm *githubManager) cloneTargetRepo(repoURL string) (string, error) {
+	tmpdir, err := afero.TempDir(gm.aferoFs, "", "hermez-core-deps")
 	if err != nil {
 		return "", err
 	}
-
-	billyFS := newAdapter(aferoFs)
+	billyFS := newAdapter(gm.aferoFs)
 	billyFS, err = billyFS.Chroot(tmpdir)
 	if err != nil {
 		return "", err
 	}
-
-	var auth transport.AuthMethod
-	sshKey := os.Getenv("UPDATE_DEPS_SSH_PK")
-	if sshKey != "" {
-		pvkFile, err := afero.TempFile(aferoFs, "", "")
+	cloneOptions := &git.CloneOptions{
+		URL: repoURL,
+	}
+	if gm.token != "" || gm.sshKey != "" {
+		auth, err := gm.determineAuth()
 		if err != nil {
 			return "", err
 		}
-		defer func() {
-			if err := aferoFs.Remove(pvkFile.Name()); err != nil {
-				log.Errorf("Could not remove temporary file %q: %v", pvkFile.Name(), err)
-			}
-		}()
-		_, err = pvkFile.WriteString(sshKey)
-		if err != nil {
-			return "", err
-		}
-		const defaultUser = "int-bot"
-		auth, err = ssh.NewPublicKeysFromFile(defaultUser, pvkFile.Name(), "")
-		if err != nil {
-			return "", err
+		if auth != nil {
+			cloneOptions.Auth = auth
 		}
 	}
 	storer := memory.NewStorage()
-	_, err = git.Clone(storer, billyFS, &git.CloneOptions{
-		URL:  repoURL,
-		Auth: auth,
-	})
+	_, err = git.Clone(storer, billyFS, cloneOptions)
 	if err != nil {
 		return "", err
 	}
-
 	return tmpdir, nil
+}
+
+func (gm *githubManager) determineAuth() (transport.AuthMethod, error) {
+	if gm.token != "" {
+		return &http.BasicAuth{
+			Username: "int-bot", // this can be anything except an empty string
+			Password: gm.token,
+		}, nil
+	}
+
+	pvkFile, err := afero.TempFile(gm.aferoFs, "", "")
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := gm.aferoFs.Remove(pvkFile.Name()); err != nil {
+			log.Errorf("Could not remove temporary file %q: %v", pvkFile.Name(), err)
+		}
+	}()
+	_, err = pvkFile.WriteString(gm.sshKey)
+	if err != nil {
+		return nil, err
+	}
+	const defaultUser = "int-bot"
+	auth, err := ssh.NewPublicKeysFromFile(defaultUser, pvkFile.Name(), "")
+	if err != nil {
+		return nil, err
+	}
+	return auth, nil
 }
 
 const (

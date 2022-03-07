@@ -24,6 +24,11 @@ func updateFiles(fs afero.Fs, sourceDir, targetDir string) error {
 		sourcePath := path.Join(sourceDir, relativePath)
 
 		sourceFile, err := fs.Open(sourcePath)
+		if os.IsNotExist(err) {
+			// we allow source files to not exist, for instance, test vectors that we
+			// have in hermez-core but are not present in the upstream repo
+			return nil
+		}
 		if err != nil {
 			return err
 		}
@@ -32,13 +37,13 @@ func updateFiles(fs afero.Fs, sourceDir, targetDir string) error {
 				log.Errorf("Could not close %s: %v", sourceFile.Name(), err)
 			}
 		}()
-		destinationFile, err := fs.OpenFile(wpath, os.O_RDWR, 0644)
+		targetFile, err := fs.OpenFile(wpath, os.O_RDWR, 0644)
 		if err != nil {
 			return err
 		}
 		defer func() {
-			if err := destinationFile.Close(); err != nil {
-				log.Errorf("Could not close %s: %v", destinationFile.Name(), err)
+			if err := targetFile.Close(); err != nil {
+				log.Errorf("Could not close %s: %v", targetFile.Name(), err)
 			}
 		}()
 		buf := make([]byte, bufferSize)
@@ -50,7 +55,7 @@ func updateFiles(fs afero.Fs, sourceDir, targetDir string) error {
 			if n == 0 {
 				break
 			}
-			if _, err := destinationFile.Write(buf[:n]); err != nil {
+			if _, err := targetFile.Write(buf[:n]); err != nil {
 				return err
 			}
 		}

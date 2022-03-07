@@ -11,7 +11,9 @@ import (
 func Test_cloneTargetRepo(t *testing.T) {
 	var appFs = afero.NewMemMapFs()
 
-	tmpdir, err := cloneTargetRepo(appFs, "https://github.com/git-fixtures/basic.git")
+	gm := newGithubManager(appFs, "", "")
+
+	tmpdir, err := gm.cloneTargetRepo("https://github.com/git-fixtures/basic.git")
 	require.NoError(t, err)
 
 	expectedChangelog := "Initial changelog\n"
