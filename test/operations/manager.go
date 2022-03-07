@@ -65,7 +65,7 @@ type Manager struct {
 	cfg *Config
 	ctx context.Context
 
-	st   state.State
+	st   *state.State
 	wait *Wait
 }
 
@@ -93,7 +93,7 @@ func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 }
 
 // State is a getter for the st field.
-func (m *Manager) State() state.State {
+func (m *Manager) State() *state.State {
 	return m.st
 }
 
@@ -261,7 +261,7 @@ func Teardown() error {
 	return nil
 }
 
-func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) (state.State, error) {
+func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) (*state.State, error) {
 	sqlDB, err := db.NewSQLDB(dbConfig)
 	if err != nil {
 		return nil, err
