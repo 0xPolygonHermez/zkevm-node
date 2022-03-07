@@ -34,8 +34,8 @@ type txProfitabilityChecker interface {
 	IsProfitable(context.Context, []*types.Transaction) (bool, *big.Int, error)
 }
 
-// localState gathers the methods required to interact with the state.
-type localState interface {
+// stateInterface gathers the methods required to interact with the state.
+type stateInterface interface {
 	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
 	GetSequencer(ctx context.Context, address common.Address) (*state.Sequencer, error)
 	GetLastBatchNumber(ctx context.Context) (uint64, error)

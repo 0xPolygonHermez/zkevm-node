@@ -27,8 +27,8 @@ type localEtherman interface {
 	EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error)
 }
 
-// localState gathers the methods required to interact with the state.
-type localState interface {
+// stateInterface gathers the methods required to interact with the state.
+type stateInterface interface {
 	GetLastBlock(ctx context.Context) (*state.Block, error)
 	SetGenesis(ctx context.Context, genesis state.Genesis) error
 	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error

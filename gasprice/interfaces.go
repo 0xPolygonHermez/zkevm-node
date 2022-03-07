@@ -14,8 +14,8 @@ type pool interface {
 	GetGasPrice(ctx context.Context) (uint64, error)
 }
 
-// localState gathers the methods required to interact with the state.
-type localState interface {
+// stateInterface gathers the methods required to interact with the state.
+type stateInterface interface {
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
 }

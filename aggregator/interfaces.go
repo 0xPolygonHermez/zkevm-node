@@ -24,8 +24,8 @@ type aggregatorTxProfitabilityChecker interface {
 	IsProfitable(context.Context, *big.Int) (bool, error)
 }
 
-// localState gathers the methods to interract with the state.
-type localState interface {
+// stateInterface gathers the methods to interract with the state.
+type stateInterface interface {
 	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
 	GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64) (*state.Batch, error)

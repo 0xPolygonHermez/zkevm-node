@@ -20,14 +20,14 @@ type LastNBatches struct {
 	cacheLock sync.RWMutex
 	fetchLock sync.Mutex
 
-	state localState
+	state stateInterface
 }
 
 // UpdateGasPriceAvg for last n bathes strategy is not needed to implement this function.
 func (g *LastNBatches) UpdateGasPriceAvg(newValue *big.Int) {}
 
 // NewEstimatorLastNBatches init gas price estimator for last n batches strategy.
-func NewEstimatorLastNBatches(cfg Config, state localState) *LastNBatches {
+func NewEstimatorLastNBatches(cfg Config, state stateInterface) *LastNBatches {
 	return &LastNBatches{
 		cfg:   cfg,
 		state: state,

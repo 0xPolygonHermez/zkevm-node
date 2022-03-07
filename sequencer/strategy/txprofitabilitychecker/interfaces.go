@@ -16,7 +16,7 @@ type etherman interface {
 	GetCurrentSequencerCollateral() (*big.Int, error)
 }
 
-// localState gathers the methods required to interact with the state.
-type localState interface {
+// stateInterface gathers the methods required to interact with the state.
+type stateInterface interface {
 	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
 }

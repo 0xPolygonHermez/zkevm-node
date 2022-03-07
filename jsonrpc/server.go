@@ -27,7 +27,7 @@ func NewServer(
 	defaultChainID uint64,
 	sequencerAddress common.Address,
 	p jsonRPCTxPool,
-	s localState,
+	s stateInterface,
 	chainID uint64,
 	gpe gasPriceEstimator) *Server {
 	chainIDSelector := newChainIDSelector(chainID)

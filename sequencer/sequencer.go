@@ -21,7 +21,7 @@ type Sequencer struct {
 	cfg Config
 
 	Pool    txPool
-	State   localState
+	State   stateInterface
 	EthMan  etherman
 	Address common.Address
 	ChainID uint64
@@ -34,7 +34,7 @@ type Sequencer struct {
 }
 
 // NewSequencer creates a new sequencer
-func NewSequencer(cfg Config, pool txPool, state localState, ethMan etherman) (Sequencer, error) {
+func NewSequencer(cfg Config, pool txPool, state stateInterface, ethMan etherman) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var txSelector txselector.TxSelector
@@ -185,7 +185,7 @@ func (s *Sequencer) tryProposeBatch() {
 	// NO: discard selection and wait for the new batch
 }
 
-func getChainID(ctx context.Context, st localState, ethMan etherman, seqAddress common.Address) (uint64, error) {
+func getChainID(ctx context.Context, st stateInterface, ethMan etherman, seqAddress common.Address) (uint64, error) {
 	const intervalToCheckSequencerRegistrationInSeconds = 3
 	var (
 		seq *state.Sequencer

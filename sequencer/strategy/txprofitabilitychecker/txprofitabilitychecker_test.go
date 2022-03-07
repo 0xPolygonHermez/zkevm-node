@@ -21,15 +21,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// localState gathers the methods required to interact with the state.
-type localState interface {
+// stateInterface gathers the methods required to interact with the state.
+type stateInterface interface {
 	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
 	NewGenesisBatchProcessor(genesisStateRoot []byte) (*state.BasicBatchProcessor, error)
 }
 
 var (
 	stateDB   *pgxpool.Pool
-	testState localState
+	testState stateInterface
 
 	addr               common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
 	consolidatedTxHash common.Hash    = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")

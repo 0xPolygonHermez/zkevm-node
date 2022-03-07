@@ -24,8 +24,8 @@ type gasPriceEstimator interface {
 	GetAvgGasPrice(ctx context.Context) (*big.Int, error)
 }
 
-// localState gathers the methods required to interact with the state.
-type localState interface {
+// stateInterface gathers the methods required to interact with the state.
+type stateInterface interface {
 	GetLastConsolidatedBatchNumber(ctx context.Context) (uint64, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error)
 	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*state.Receipt, error)
