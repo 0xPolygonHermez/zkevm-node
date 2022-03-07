@@ -1,2 +1,8 @@
 /dist/
 /test/e2e/keystore
+
+/test/vectors/src/**/*md
+/test/vectors/src/**/*js
+/test/vectors/src/**/*sol
+/test/vectors/src/**/*sh
+/test/vectors/src/package.json

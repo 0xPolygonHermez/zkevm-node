@@ -42,12 +42,19 @@ func init() {
 }
 
 func TestMerkleTreeKey(t *testing.T) {
-	data, err := os.ReadFile("test/vectors/smt/smt-key.json")
-	require.NoError(t, err)
-
 	var testVectors []testVectorKey
-	err = json.Unmarshal(data, &testVectors)
-	require.NoError(t, err)
+	for _, file := range []string{
+		"test/vectors/src/merkle-tree/smt-key-eth-balance.json",
+		"test/vectors/src/merkle-tree/smt-key-eth-nonce.json",
+	} {
+		data, err := os.ReadFile(file)
+		require.NoError(t, err)
+
+		var fileTestVectors []testVectorKey
+		err = json.Unmarshal(data, &fileTestVectors)
+		require.NoError(t, err)
+		testVectors = append(testVectors, fileTestVectors...)
+	}
 
 	for ti, testVector := range testVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
@@ -60,7 +67,7 @@ func TestMerkleTreeKey(t *testing.T) {
 }
 
 func TestKeyContractCode(t *testing.T) {
-	data, err := os.ReadFile("test/vectors/smt/smt-key-contract-code.json")
+	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-key-contract-code.json")
 	require.NoError(t, err)
 
 	var testVectors []testVectorKeyContract
@@ -80,7 +87,7 @@ func TestKeyContractCode(t *testing.T) {
 }
 
 func TestKeyContractStorage(t *testing.T) {
-	data, err := os.ReadFile("test/vectors/smt/smt-key-contract-code.json")
+	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-key-contract-code.json")
 	require.NoError(t, err)
 
 	var testVectors []testVectorKeyContract
