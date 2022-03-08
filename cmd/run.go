@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -32,6 +33,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+type mtStore interface {
+	Get(ctx context.Context, key []byte) ([]byte, error)
+	Set(ctx context.Context, key []byte, value []byte) error
+}
+
 func start(ctx *cli.Context) error {
 	c, err := config.Load(ctx)
 	if err != nil {
@@ -42,18 +48,15 @@ func start(ctx *cli.Context) error {
 
 	etherman, err := newEtherman(*c)
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
 
-	sqlDB, err := db.NewSQLDB(c.Database)
+	store, scCodeStore, err := newMTStores(c)
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
-	store := tree.NewPostgresStore(sqlDB)
+
 	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity, poseidon.Hash)
-	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
 	tr := tree.NewStateTree(mt, scCodeStore)
 
 	stateCfg := state.Config{
@@ -61,6 +64,10 @@ func start(ctx *cli.Context) error {
 		MaxCumulativeGasUsed: c.NetworkConfig.MaxCumulativeGasUsed,
 	}
 
+	sqlDB, err := db.NewSQLDB(c.Database)
+	if err != nil {
+		return err
+	}
 	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
 
 	var (
@@ -284,4 +291,48 @@ func newAuthFromKeystore(path, password string, chainID uint64) (*bind.TransactO
 		log.Fatal(err)
 	}
 	return auth, nil
+}
+
+func newMTStores(c *config.Config) (mtStore, mtStore, error) {
+	switch c.MTServer.StoreBackend {
+	case tree.PgMTStoreBackend:
+		sqlDB, err := db.NewSQLDB(c.Database)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		store := tree.NewPostgresStore(sqlDB)
+		scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
+
+		return store, scCodeStore, nil
+	case tree.PgRistrettoMTStoreBackend:
+		sqlDB, err := db.NewSQLDB(c.Database)
+		if err != nil {
+			return nil, nil, err
+		}
+		cache, err := tree.NewStoreCache()
+		if err != nil {
+			return nil, nil, err
+		}
+		store := tree.NewPgRistrettoStore(sqlDB, cache)
+		scCodeStore := tree.NewPgRistrettoSCCodeStore(sqlDB, cache)
+		return store, scCodeStore, nil
+	case tree.BadgerRistrettoMTStoreBackend:
+		cache, err := tree.NewStoreCache()
+		if err != nil {
+			return nil, nil, err
+		}
+		dataDir := "~/.hermezcore/db"
+		err = os.MkdirAll(dataDir, 0750)
+		if err != nil {
+			return nil, nil, err
+		}
+		db, err := tree.NewBadgerDB(dataDir)
+		if err != nil {
+			return nil, nil, err
+		}
+		store := tree.NewBadgerRistrettoStore(db, cache)
+		return store, store, nil
+	}
+	return nil, nil, fmt.Errorf("Unknown MT store backend: %q", c.MTServer.StoreBackend)
 }

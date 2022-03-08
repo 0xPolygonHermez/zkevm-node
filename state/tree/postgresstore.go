@@ -62,3 +62,9 @@ func (p *PostgresStore) Set(ctx context.Context, key []byte, value []byte) error
 	}
 	return nil
 }
+
+// Reset clears the db.
+func (p *PostgresStore) Reset() error {
+	_, err := p.db.Exec(context.Background(), fmt.Sprintf("TRUNCATE TABLE %s;", p.tableName))
+	return err
+}

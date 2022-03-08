@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"path"
@@ -201,6 +202,11 @@ func merkleTreeAddN(b *testing.B, store Store, n int, hashFunction HashFunction)
 	}
 }
 
+type benchStore interface {
+	Store
+	Reset() error
+}
+
 func BenchmarkMerkleTreeAdd(b *testing.B) {
 	nLeaves := []int{
 		10,
@@ -226,9 +232,24 @@ func BenchmarkMerkleTreeAdd(b *testing.B) {
 	require.NoError(b, err)
 	defer mtDb.Close()
 
-	stores := map[string]Store{
-		"postgres": NewPostgresStore(mtDb),
-		"memory":   NewMemStore(),
+	cache, err := NewStoreCache()
+	require.NoError(b, err)
+
+	dir, err := ioutil.TempDir("", "badgerRistretoDB")
+	require.NoError(b, err)
+	defer func() {
+		if err := os.RemoveAll(dir); err != nil {
+			log.Errorf("Could not remove temporary dir %q: %v", dir, err)
+		}
+	}()
+	badgerDb, err := NewBadgerDB(dir)
+	require.NoError(b, err)
+
+	stores := map[string]benchStore{
+		"postgres":        NewPostgresStore(mtDb),
+		"memory":          NewMemStore(),
+		"pgRistretto":     NewPgRistrettoStore(mtDb, cache),
+		"badgerRistretto": NewBadgerRistrettoStore(badgerDb, cache),
 	}
 
 	for _, n := range nLeaves {
@@ -236,11 +257,7 @@ func BenchmarkMerkleTreeAdd(b *testing.B) {
 			for storeName, store := range stores {
 				b.Run(fmt.Sprintf("n=%d,store=%s,hash=%s", n, storeName, hName), func(b *testing.B) {
 					for i := 0; i < b.N; i++ {
-						if storeName == "postgres" {
-							_, err := mtDb.Exec(context.Background(), "TRUNCATE TABLE state.merkletree;")
-							require.NoError(b, err)
-						}
-
+						require.NoError(b, store.Reset())
 						merkleTreeAddN(b, store, n, h)
 					}
 				})
@@ -256,4 +273,56 @@ func sha256Hash(inputs []*big.Int) (*big.Int, error) {
 		hash.Write(input.FillBytes(byte32[:])) //nolint:gosec,errcheck
 	}
 	return new(big.Int).SetBytes(hash.Sum(nil)), nil
+}
+
+const (
+	maxBenchmarkItems = 50
+)
+
+func toKey(i int) []byte {
+	return []byte(fmt.Sprintf("item:%d", i))
+}
+
+func BenchmarkMerkleTreeGet(b *testing.B) {
+	dbCfg := dbutils.NewConfigFromEnv()
+	err := dbutils.InitOrReset(dbCfg)
+	require.NoError(b, err)
+
+	stateDb, err := db.NewSQLDB(dbCfg)
+	require.NoError(b, err)
+
+	cache, err := NewStoreCache()
+	require.NoError(b, err)
+
+	dir, err := ioutil.TempDir("", "badgerRistretoDB")
+	require.NoError(b, err)
+	defer func() {
+		if err := os.RemoveAll(dir); err != nil {
+			log.Errorf("Could not remove temporary dir %q: %v", dir, err)
+		}
+	}()
+	badgerDb, err := NewBadgerDB(dir)
+	require.NoError(b, err)
+
+	stores := map[string]benchStore{
+		"pg":              NewPostgresStore(stateDb),
+		"pgRistretto":     NewPgRistrettoStore(stateDb, cache),
+		"badgerRistretto": NewBadgerRistrettoStore(badgerDb, cache),
+	}
+	for name, store := range stores {
+		require.NoError(b, store.Reset())
+		b.Run(fmt.Sprintf("store=%s", name), func(b *testing.B) {
+			ctx := context.Background()
+			for i := 0; i < maxBenchmarkItems; i++ {
+				require.NoError(b, store.Set(ctx, toKey(i), toKey(i)))
+			}
+			b.ResetTimer()
+			for j := 0; j < b.N; j++ {
+				for i := 0; i < maxBenchmarkItems; i++ {
+					_, err := store.Get(ctx, toKey(i))
+					require.NoError(b, err)
+				}
+			}
+		})
+	}
 }

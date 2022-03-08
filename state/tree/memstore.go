@@ -42,3 +42,9 @@ func (m *MemStore) Set(ctx context.Context, key []byte, value []byte) error {
 	m.kv[k] = kv
 	return nil
 }
+
+// Reset clears the stored data.
+func (m *MemStore) Reset() error {
+	m.kv = make(map[[byte32len]byte]kvPair)
+	return nil
+}
