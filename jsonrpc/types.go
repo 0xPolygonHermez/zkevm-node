@@ -325,3 +325,29 @@ func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
 		Type:              argUint64(r.Type),
 	}
 }
+
+type rpcLog struct {
+	Address     common.Address `json:"address"`
+	Topics      []common.Hash  `json:"topics"`
+	Data        argBytes       `json:"data"`
+	BlockNumber argUint64      `json:"blockNumber"`
+	TxHash      common.Hash    `json:"transactionHash"`
+	TxIndex     argUint64      `json:"transactionIndex"`
+	BlockHash   common.Hash    `json:"blockHash"`
+	LogIndex    argUint64      `json:"logIndex"`
+	Removed     bool           `json:"removed"`
+}
+
+func logToRPCLog(l types.Log) rpcLog {
+	return rpcLog{
+		Address:     l.Address,
+		Topics:      l.Topics,
+		Data:        l.Data,
+		BlockNumber: argUint64(l.BlockNumber),
+		TxHash:      l.TxHash,
+		TxIndex:     argUint64(l.TxIndex),
+		BlockHash:   l.BlockHash,
+		LogIndex:    argUint64(l.Index),
+		Removed:     l.Removed,
+	}
+}

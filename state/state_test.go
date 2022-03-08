@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1363,8 +1364,8 @@ func TestEmitLog(t *testing.T) {
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var sequencerBalance = 120000
-	// /tests/contracts/event.sol
-	var scByteCode = "608060405234801561001057600080fd5b50610187806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c80632e64cec11461003b5780636057361d14610059575b600080fd5b610043610075565b6040516100509190610110565b60405180910390f35b610073600480360381019061006e91906100d4565b61007e565b005b60008054905090565b806000819055507fc6d8c0af6d21f291e7c359603aa97e0ed500f04db6e983b9fce75a91c6b8da6b816040516100b49190610110565b60405180910390a150565b6000813590506100ce8161013a565b92915050565b6000602082840312156100ea576100e9610135565b5b60006100f8848285016100bf565b91505092915050565b61010a8161012b565b82525050565b60006020820190506101256000830184610101565b92915050565b6000819050919050565b600080fd5b6101438161012b565b811461014e57600080fd5b5056fea26469706673582212206810475b158b074f8bb64ef4a1a5f982a95c7cad198c7140d37e67e721c3027b64736f6c63430008070033"
+	// /tests/contracts/emitLog.sol
+	var scByteCode = "608060405234801561001057600080fd5b507f5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a60405160405180910390a160017f977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac6260405160405180910390a2600260017fbb6e4da744abea70325874159d52c1ad3e57babfae7c329a948e7dcb274deb0960405160405180910390a36003600260017f966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b760405160405180910390a46003600260017fe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a6460046040516101039190610243565b60405180910390a46002600360047fe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a6460016040516101419190610228565b60405180910390a46001600260037f966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b760405160405180910390a4600160027fbb6e4da744abea70325874159d52c1ad3e57babfae7c329a948e7dcb274deb0960405160405180910390a360017f977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac6260405160405180910390a27f5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a60405160405180910390a161028c565b61021381610268565b82525050565b6102228161027a565b82525050565b600060208201905061023d600083018461020a565b92915050565b60006020820190506102586000830184610219565b92915050565b6000819050919050565b60006102738261025e565b9050919050565b60006102858261025e565b9050919050565b603f8061029a6000396000f3fe6080604052600080fdfea2646970667358221220762c67d81efb5d60dba1d35e07b0924d0b098edb99abd3d76793806defeaabba64736f6c63430008070033"
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
 
 	// Init database instance
@@ -1408,7 +1409,7 @@ func TestEmitLog(t *testing.T) {
 
 	var txs []*types.Transaction
 
-	// Deploy event.sol
+	// Deploy SC
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    0,
 		To:       nil,
@@ -1426,12 +1427,6 @@ func TestEmitLog(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 	txs = append(txs, signedTx)
-
-	// Store "1"
-	tx1 := types.NewTransaction(1, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("6057361d0000000000000000000000000000000000000000000000000000000000000001"))
-	signedTx1, err := auth.Signer(auth.From, tx1)
-	require.NoError(t, err)
-	txs = append(txs, signedTx1)
 
 	// Create Batch
 	batch := &state.Batch{
@@ -1456,18 +1451,27 @@ func TestEmitLog(t *testing.T) {
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
-	receipt, err := st.GetTransactionReceipt(ctx, signedTx1.Hash())
+	receipt, err := st.GetTransactionReceipt(ctx, signedTx.Hash())
 	require.NoError(t, err)
-	assert.Equal(t, scAddress, receipt.Logs[0].Address)
+	require.Equal(t, 10, len(receipt.Logs))
+	for _, l := range receipt.Logs {
+		assert.Equal(t, scAddress, l.Address)
+	}
 
 	hash := batch.Hash()
 	logs, err := st.GetLogs(ctx, 0, 0, nil, nil, &hash)
 	require.NoError(t, err)
-	assert.Equal(t, scAddress, logs[0].Address)
+	require.Equal(t, 10, len(logs))
+	for _, l := range logs {
+		assert.Equal(t, scAddress, l.Address)
+	}
 
 	logs, err = st.GetLogs(ctx, 0, 5, nil, nil, nil)
 	require.NoError(t, err)
-	assert.Equal(t, scAddress, logs[0].Address)
+	require.Equal(t, 10, len(logs))
+	for _, l := range logs {
+		assert.Equal(t, scAddress, l.Address)
+	}
 
 	logs, err = st.GetLogs(ctx, 5, 5, nil, nil, nil)
 	require.NoError(t, err)
@@ -1477,16 +1481,220 @@ func TestEmitLog(t *testing.T) {
 	addresses = append(addresses, scAddress)
 	logs, err = st.GetLogs(ctx, 0, 5, addresses, nil, nil)
 	require.NoError(t, err)
-	assert.Equal(t, scAddress, logs[0].Address)
+	require.Equal(t, 10, len(logs))
+	for _, l := range logs {
+		assert.Equal(t, scAddress, l.Address)
+	}
 
-	topics := []common.Hash{}
-	topics = append(topics, common.HexToHash("0xc6d8c0af6d21f291e7c359603aa97e0ed500f04db6e983b9fce75a91c6b8da6b"))
+	type topicsTestCase struct {
+		topics           [][]common.Hash
+		expectedLogCount int
+	}
 
-	logs, err = st.GetLogs(ctx, 0, 5, nil, topics, nil)
-	require.NoError(t, err)
-	assert.Equal(t, scAddress, logs[0].Address)
+	topicsTestCases := []topicsTestCase{
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0x5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a")},
+			},
+			expectedLogCount: 2,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0x977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac62")},
+			},
+			expectedLogCount: 2,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0x977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac62")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+			},
+			expectedLogCount: 2,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0xbb6e4da744abea70325874159d52c1ad3e57babfae7c329a948e7dcb274deb09")},
+			},
+			expectedLogCount: 2,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0xbb6e4da744abea70325874159d52c1ad3e57babfae7c329a948e7dcb274deb09")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0xbb6e4da744abea70325874159d52c1ad3e57babfae7c329a948e7dcb274deb09")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0xbb6e4da744abea70325874159d52c1ad3e57babfae7c329a948e7dcb274deb09")},
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0x966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b7")},
+			},
+			expectedLogCount: 2,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0x966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b7")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0x966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b7")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0x966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b7")},
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")},
+			},
+			expectedLogCount: 2,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0x966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b7")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0x966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b7")},
+				{},
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0x966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b7")},
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{common.HexToHash("0x966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b7")},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+			},
+			expectedLogCount: 5,
+		},
+		{
+			topics: [][]common.Hash{
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000004")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{},
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{},
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")},
+			},
+			expectedLogCount: 4,
+		},
+		{
+			topics: [][]common.Hash{
+				{},
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{},
+				{},
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000001")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{},
+				{},
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")},
+			},
+			expectedLogCount: 1,
+		},
+		{
+			topics: [][]common.Hash{
+				{},
+				{},
+				{},
+				{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003")},
+			},
+			expectedLogCount: 2,
+		},
+	}
 
-	logs, err = st.GetLogs(ctx, 0, 5, addresses, topics, nil)
-	require.NoError(t, err)
-	assert.Equal(t, scAddress, logs[0].Address)
+	for i, testCase := range topicsTestCases {
+		name := strconv.Itoa(i)
+		t.Run(name, func(t *testing.T) {
+			logs, err = st.GetLogs(ctx, 0, 5, nil, testCase.topics, nil)
+			require.NoError(t, err)
+			require.Equal(t, testCase.expectedLogCount, len(logs))
+			for _, l := range logs {
+				assert.Equal(t, scAddress, l.Address)
+			}
+		})
+	}
 }

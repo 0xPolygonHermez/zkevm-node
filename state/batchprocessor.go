@@ -146,6 +146,8 @@ func (b *BasicBatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx
 }
 
 func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+	log.Debugf("Processing tx: %v", tx.Hash())
+
 	// Set transaction context
 	b.transactionContext.currentTransaction = tx
 	b.transactionContext.currentOrigin = senderAddress

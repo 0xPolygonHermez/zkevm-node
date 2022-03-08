@@ -19,6 +19,10 @@ import (
 )
 
 const (
+	maxTopics = 4
+)
+
+const (
 	getLastBlockSQL                        = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1"
 	getPreviousBlockSQL                    = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
 	getBlockByHashSQL                      = "SELECT * FROM state.block WHERE block_hash = $1"
@@ -50,9 +54,10 @@ const (
 	addBatchSQL                            = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, chain_id, global_exit_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)"
 	addTransactionSQL                      = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
 	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, batch_num, batch_hash, tx_hash, tx_index, tx_from, tx_to, contract_address)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"
-	addLogSQL                              = "INSERT INTO state.log (log_index, transaction_index, transaction_hash, batch_hash, batch_num, address, data, topics)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+	addLogSQL                              = "INSERT INTO state.log (log_index, transaction_index, transaction_hash, batch_hash, batch_num, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 	getTransactionLogsSQL                  = "SELECT * FROM state.log WHERE transaction_hash = $1"
 	getLogsSQLByBatchHash                  = "SELECT * FROM state.log WHERE batch_hash = $1"
+	getLogsByFilter                        = "SELECT * FROM state.log WHERE batch_num BETWEEN $1 AND $2 AND (address = any($3) OR $3 IS NULL) AND (topic0 = any($4) OR $4 IS NULL) AND (topic1 = any($5) OR $5 IS NULL) AND (topic2 = any($6) OR $6 IS NULL) AND (topic3 = any($7) OR $7 IS NULL)"
 )
 
 var (
@@ -422,6 +427,7 @@ func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 	var receipt state.Receipt
 	var batchNumber uint64
 	var to *[]byte
+
 	err := s.queryRow(ctx, getReceiptSQL, transactionHash).Scan(&receipt.Type, &receipt.PostState, &receipt.Status,
 		&receipt.CumulativeGasUsed, &receipt.GasUsed, &batchNumber, &receipt.BlockHash, &receipt.TxHash, &receipt.TransactionIndex, &receipt.From, &to, &receipt.ContractAddress)
 
@@ -461,10 +467,21 @@ func (s *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHas
 
 	for rows.Next() {
 		var log types.Log
-		err := rows.Scan(&log.Index, &log.TxIndex, &log.TxHash, &log.BlockHash, &log.BlockNumber, &log.Address, &log.Data, &log.Topics)
+		var topicsAsBytes [maxTopics]*[]byte
+		err := rows.Scan(&log.Index, &log.TxIndex, &log.TxHash, &log.BlockHash, &log.BlockNumber, &log.Address, &log.Data,
+			&topicsAsBytes[0], &topicsAsBytes[1], &topicsAsBytes[2], &topicsAsBytes[3])
 		if err != nil {
 			return nil, err
 		}
+
+		log.Topics = []common.Hash{}
+		for i := 0; i < maxTopics; i++ {
+			if topicsAsBytes[i] != nil {
+				topicHash := common.BytesToHash(*topicsAsBytes[i])
+				log.Topics = append(log.Topics, topicHash)
+			}
+		}
+
 		logs = append(logs, &log)
 	}
 
@@ -481,30 +498,40 @@ func (s *PostgresStorage) addressesToBytes(addresses []common.Address) [][]byte 
 	return converted
 }
 
-func (s *PostgresStorage) hashesToString(hashes []common.Hash) []string {
-	converted := make([]string, 0, len(hashes))
+func (s *PostgresStorage) hashesToBytes(hashes []common.Hash) [][]byte {
+	converted := make([][]byte, 0, len(hashes))
 
 	for _, hash := range hashes {
-		converted = append(converted, hash.String())
+		converted = append(converted, hash.Bytes())
 	}
 
 	return converted
 }
 
 // GetLogs returns the logs that match the filter
-func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics []common.Hash, batchHash *common.Hash) ([]*types.Log, error) {
+func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash) ([]*types.Log, error) {
 	var err error
 	var rows pgx.Rows
 	if batchHash != nil {
 		rows, err = s.query(ctx, getLogsSQLByBatchHash, batchHash.Bytes())
-	} else if addresses != nil && topics != nil {
-		rows, err = s.query(ctx, "SELECT * FROM state.log WHERE batch_num BETWEEN $1 AND $2 AND address = any($3) AND topics::jsonb ? any($4)", fromBatch, toBatch, s.addressesToBytes(addresses), s.hashesToString(topics))
-	} else if addresses != nil {
-		rows, err = s.query(ctx, "SELECT * FROM state.log WHERE batch_num BETWEEN $1 AND $2 AND address = any($3)", fromBatch, toBatch, s.addressesToBytes(addresses))
-	} else if topics != nil {
-		rows, err = s.query(ctx, "SELECT * FROM state.log WHERE batch_num BETWEEN $1 AND $2 AND topics::jsonb ? any($3)", fromBatch, toBatch, s.hashesToString(topics))
 	} else {
-		rows, err = s.query(ctx, "SELECT * FROM state.log WHERE batch_num BETWEEN $1 AND $2", fromBatch, toBatch)
+		args := []interface{}{fromBatch, toBatch}
+
+		if len(addresses) > 0 {
+			args = append(args, s.addressesToBytes(addresses))
+		} else {
+			args = append(args, nil)
+		}
+
+		for i := 0; i < maxTopics; i++ {
+			if len(topics) > i && len(topics[i]) > 0 {
+				args = append(args, s.hashesToBytes(topics[i]))
+			} else {
+				args = append(args, nil)
+			}
+		}
+
+		rows, err = s.query(ctx, getLogsByFilter, args...)
 	}
 
 	if err != nil {
@@ -516,10 +543,21 @@ func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch
 
 	for rows.Next() {
 		var log types.Log
-		err := rows.Scan(&log.Index, &log.TxIndex, &log.TxHash, &log.BlockHash, &log.BlockNumber, &log.Address, &log.Data, &log.Topics)
+		var topicsAsBytes [maxTopics]*[]byte
+		err := rows.Scan(&log.Index, &log.TxIndex, &log.TxHash, &log.BlockHash, &log.BlockNumber, &log.Address, &log.Data,
+			&topicsAsBytes[0], &topicsAsBytes[1], &topicsAsBytes[2], &topicsAsBytes[3])
 		if err != nil {
 			return nil, err
 		}
+
+		log.Topics = []common.Hash{}
+		for i := 0; i < maxTopics; i++ {
+			if topicsAsBytes[i] != nil {
+				topicHash := common.BytesToHash(*topicsAsBytes[i])
+				log.Topics = append(log.Topics, topicHash)
+			}
+		}
+
 		logs = append(logs, &log)
 	}
 
@@ -688,8 +726,18 @@ func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt
 }
 
 // AddLog adds a new log to the State Store
-func (s *PostgresStorage) AddLog(ctx context.Context, log types.Log) error {
-	_, err := s.exec(ctx, addLogSQL, log.Index, log.TxIndex, log.TxHash.Bytes(), log.BlockHash.Bytes(), log.BlockNumber, log.Address.Bytes(), log.Data, log.Topics)
+func (s *PostgresStorage) AddLog(ctx context.Context, l types.Log) error {
+	var topicsAsBytes [maxTopics]*[]byte
+	for i := 0; i < len(l.Topics); i++ {
+		if l.Topics[i] != state.EmptyCodeHash {
+			topicBytes := l.Topics[i].Bytes()
+			topicsAsBytes[i] = &topicBytes
+		}
+	}
+
+	_, err := s.exec(ctx, addLogSQL, l.Index, l.TxIndex, l.TxHash.Bytes(),
+		l.BlockHash.Bytes(), l.BlockNumber, l.Address.Bytes(), l.Data,
+		topicsAsBytes[0], topicsAsBytes[1], topicsAsBytes[2], topicsAsBytes[3])
 	return err
 }
 

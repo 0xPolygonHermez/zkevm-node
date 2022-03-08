@@ -12,6 +12,7 @@ Password = "test_password"
 Name = "test_db"
 Host = "localhost"
 Port = "5432"
+EnableLog = false
 
 [Etherman]
 URL = "http://localhost"
