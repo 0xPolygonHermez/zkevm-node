@@ -77,11 +77,11 @@ func (gm *githubManager) determineAuth() (transport.AuthMethod, error) {
 			log.Errorf("Could not remove temporary file %q: %v", pvkFile.Name(), err)
 		}
 	}()
-	_, err = pvkFile.WriteString(gm.sshKey)
+	_, err = pvkFile.WriteString(gm.sshKey + "\n")
 	if err != nil {
 		return nil, err
 	}
-	const defaultUser = "int-bot"
+	const defaultUser = "git"
 	auth, err := ssh.NewPublicKeysFromFile(defaultUser, pvkFile.Name(), "")
 	if err != nil {
 		return nil, err

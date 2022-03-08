@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	defaultSourceRepo    = "https://github.com/hermeznetwork/test-vectors"
+	defaultSourceRepo    = "git@github.com:hermeznetwork/test-vectors.git"
 	defaultTargetDirPath = "../../test/vectors/src"
 )
 
