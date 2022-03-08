@@ -29,6 +29,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func start(ctx *cli.Context) error {
@@ -63,7 +64,7 @@ func start(ctx *cli.Context) error {
 	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
 
 	var (
-		st              state.State
+		st              *state.State
 		grpcClientConns []*grpc.ClientConn
 		cancelFuncs     []context.CancelFunc
 	)
@@ -138,7 +139,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.ClientConn) {
 	opts := []grpc.DialOption{
 		// TODO: once we have user and password for prover server, change this
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	proverConn, err := grpc.Dial(c.ProverURI, opts...)
 	if err != nil {
@@ -151,7 +152,7 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.
 
 func newMTClient(c tree.ClientConfig) (pb.MTServiceClient, *grpc.ClientConn, context.CancelFunc) {
 	opts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	mtConn, err := grpc.DialContext(ctx, c.URI, opts...)
@@ -165,7 +166,7 @@ func newMTClient(c tree.ClientConfig) (pb.MTServiceClient, *grpc.ClientConn, con
 	return mtClient, mtConn, cancel
 }
 
-func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
+func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st *state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
 	genesisBlock, err := etherman.EtherClient.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(networkConfig.GenBlockNumber))
 	if err != nil {
 		log.Fatal(err)
@@ -184,7 +185,7 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 	}
 }
 
-func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, chainID uint64, gpe gasPriceEstimator) {
+func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st *state.State, chainID uint64, gpe gasPriceEstimator) {
 	var err error
 	key, err := newKeyFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
 	if err != nil {
@@ -198,7 +199,7 @@ func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st state.State, 
 	}
 }
 
-func createSequencer(c sequencer.Config, etherman *etherman.Client, pool *pool.PostgresPool, state state.State) sequencer.Sequencer {
+func createSequencer(c sequencer.Config, etherman *etherman.Client, pool *pool.PostgresPool, state *state.State) sequencer.Sequencer {
 	seq, err := sequencer.NewSequencer(c, pool, state, etherman)
 	if err != nil {
 		log.Fatal(err)
@@ -206,7 +207,7 @@ func createSequencer(c sequencer.Config, etherman *etherman.Client, pool *pool.P
 	return seq
 }
 
-func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient proverclient.ZKProverClient, state state.State) {
+func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient proverclient.ZKProverClient, state *state.State) {
 	agg, err := aggregator.NewAggregator(c, state, etherman, proverclient)
 	if err != nil {
 		log.Fatal(err)
@@ -221,7 +222,7 @@ type gasPriceEstimator interface {
 }
 
 // createGasPriceEstimator init gas price gasPriceEstimator based on type in config.
-func createGasPriceEstimator(cfg gasprice.Config, state state.State, pool *pool.PostgresPool) gasPriceEstimator {
+func createGasPriceEstimator(cfg gasprice.Config, state *state.State, pool *pool.PostgresPool) gasPriceEstimator {
 	switch cfg.Type {
 	case gasprice.AllBatchesType:
 		return gasprice.NewEstimatorAllBatches()

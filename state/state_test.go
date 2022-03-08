@@ -30,7 +30,7 @@ import (
 
 var (
 	stateDb                                                *pgxpool.Pool
-	testState                                              state.State
+	testState                                              *state.State
 	block1, block2                                         *state.Block
 	addr                                                   common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
 	hash1, hash2                                           common.Hash
@@ -437,7 +437,7 @@ func TestBasicState_AddSequencer(t *testing.T) {
 
 func TestStateTransition(t *testing.T) {
 	// Load test vector
-	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition.json")
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/src/test-vector-data/state-transition.json")
 	require.NoError(t, err)
 
 	for _, testCase := range stateTransitionTestCases {
@@ -492,7 +492,7 @@ func TestStateTransition(t *testing.T) {
 			var txs []*types.Transaction
 
 			// Check Old roots
-			assert.Equal(t, testCase.ExpectedOldRoot, new(big.Int).SetBytes(root).String())
+			assert.Equal(t, testCase.ExpectedOldRoot, hex.EncodeToHex(root))
 
 			// Check if sequencer is in the DB
 			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
@@ -564,7 +564,7 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check new roots
-			assert.Equal(t, testCase.ExpectedNewRoot, new(big.Int).SetBytes(root).String())
+			assert.Equal(t, testCase.ExpectedNewRoot, hex.EncodeToHex(root))
 
 			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
 				newBalance, err := stateTree.GetBalance(ctx, common.HexToAddress(key), root)
@@ -582,7 +582,7 @@ func TestStateTransition(t *testing.T) {
 
 func TestStateTransitionSC(t *testing.T) {
 	// Load test vector
-	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition-sc.json")
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/src/state-transition-sc.json")
 	require.NoError(t, err)
 
 	for _, testCase := range stateTransitionTestCases {
@@ -657,7 +657,7 @@ func TestLastSeenBatch(t *testing.T) {
 
 func TestReceipts(t *testing.T) {
 	// Load test vector
-	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/receipt-vector.json")
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/src/receipt-test-vectors/receipt-vector.json")
 	require.NoError(t, err)
 
 	for _, testCase := range stateTransitionTestCases {

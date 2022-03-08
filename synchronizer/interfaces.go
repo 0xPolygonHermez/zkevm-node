@@ -3,6 +3,7 @@ package synchronizer
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -24,4 +25,22 @@ type localEtherman interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]etherman.Order, error)
 	EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error)
+}
+
+// stateInterface gathers the methods required to interact with the state.
+type stateInterface interface {
+	GetLastBlock(ctx context.Context) (*state.Block, error)
+	SetGenesis(ctx context.Context, genesis state.Genesis) error
+	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error
+	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error
+	GetLastBatchNumber(ctx context.Context) (uint64, error)
+	BeginDBTransaction(ctx context.Context) error
+	Rollback(ctx context.Context) error
+	AddBlock(ctx context.Context, block *state.Block) error
+	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time, aggregator common.Address) error
+	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, lastBatchNumber uint64) (*state.BasicBatchProcessor, error)
+	AddSequencer(ctx context.Context, seq state.Sequencer) error
+	Commit(ctx context.Context) error
+	Reset(ctx context.Context, blockNumber uint64) error
+	GetPreviousBlock(ctx context.Context, offset uint64) (*state.Block, error)
 }

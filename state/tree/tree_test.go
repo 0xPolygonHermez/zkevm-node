@@ -165,7 +165,7 @@ type testVectorGenesis struct {
 }
 
 func TestMerkleTreeGenesis(t *testing.T) {
-	data, err := os.ReadFile("test/vectors/smt/smt-genesis.json")
+	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-genesis.json")
 	require.NoError(t, err)
 
 	var testVectors []testVectorGenesis

@@ -44,3 +44,7 @@ It's recommended to use `make` for building, testing the code, ... Run `make hel
 - Docker Compose
 - Make
 - GCC
+
+## Contribute
+
+Before creating a PR, pleae read this [guide](docs/contribute-guie.md)

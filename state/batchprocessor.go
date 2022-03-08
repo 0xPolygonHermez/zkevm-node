@@ -56,7 +56,7 @@ var InvalidTxErrors = map[string]bool{
 
 // BasicBatchProcessor is used to process a batch of transactions
 type BasicBatchProcessor struct {
-	State                *BasicState
+	State                *State
 	stateRoot            []byte
 	runtimes             []runtime.Runtime
 	forks                runtime.ForksInTime

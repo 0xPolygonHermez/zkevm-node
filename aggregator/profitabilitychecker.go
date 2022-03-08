@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"time"
-
-	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // TxProfitabilityCheckerType checks profitability of batch validation
@@ -21,13 +19,13 @@ const (
 
 // TxProfitabilityCheckerBase checks matic collateral with min reward
 type TxProfitabilityCheckerBase struct {
-	State                             state.State
+	State                             stateInterface
 	IntervalAfterWhichBatchSentAnyway time.Duration
 	MinReward                         *big.Int
 }
 
 // NewTxProfitabilityCheckerBase init base tx profitability checker
-func NewTxProfitabilityCheckerBase(state state.State, interval time.Duration, minReward *big.Int) *TxProfitabilityCheckerBase {
+func NewTxProfitabilityCheckerBase(state stateInterface, interval time.Duration, minReward *big.Int) *TxProfitabilityCheckerBase {
 	return &TxProfitabilityCheckerBase{
 		State:                             state,
 		IntervalAfterWhichBatchSentAnyway: interval,
@@ -52,12 +50,12 @@ func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, maticCol
 
 // TxProfitabilityCheckerAcceptAll validate batch anyway and don't check anything
 type TxProfitabilityCheckerAcceptAll struct {
-	State                             state.State
+	State                             stateInterface
 	IntervalAfterWhichBatchSentAnyway time.Duration
 }
 
 // NewTxProfitabilityCheckerAcceptAll init tx profitability checker that accept all txs
-func NewTxProfitabilityCheckerAcceptAll(state state.State, interval time.Duration) *TxProfitabilityCheckerAcceptAll {
+func NewTxProfitabilityCheckerAcceptAll(state stateInterface, interval time.Duration) *TxProfitabilityCheckerAcceptAll {
 	return &TxProfitabilityCheckerAcceptAll{
 		State:                             state,
 		IntervalAfterWhichBatchSentAnyway: interval,
@@ -79,7 +77,7 @@ func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx context.Context, mat
 	return true, nil
 }
 
-func isConsolidatedBatchAppeared(ctx context.Context, state state.State, intervalAfterWhichBatchConsolidatedAnyway time.Duration) (bool, error) {
+func isConsolidatedBatchAppeared(ctx context.Context, state stateInterface, intervalAfterWhichBatchConsolidatedAnyway time.Duration) (bool, error) {
 	batch, err := state.GetLastBatch(ctx, false)
 	if err != nil {
 		return false, fmt.Errorf("failed to get last consolidated batch, err: %v", err)

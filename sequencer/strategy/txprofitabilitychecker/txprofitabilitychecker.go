@@ -7,13 +7,12 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // Base struct
 type Base struct {
 	EthMan etherman
-	State  state.State
+	State  stateInterface
 
 	IntervalAfterWhichBatchSentAnyway time.Duration
 	MinReward                         *big.Int
@@ -23,7 +22,7 @@ type Base struct {
 // NewTxProfitabilityCheckerBase inits base tx profitability checker with min reward from config and ethMan
 func NewTxProfitabilityCheckerBase(
 	ethMan etherman,
-	state state.State, minReward *big.Int,
+	state stateInterface, minReward *big.Int,
 	intervalAfterWhichBatchSentAnyway time.Duration,
 	rewardPercentageToAggregator int64,
 ) *Base {
@@ -102,12 +101,12 @@ func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (boo
 // AcceptAll always returns true
 type AcceptAll struct {
 	EthMan                            etherman
-	State                             state.State
+	State                             stateInterface
 	IntervalAfterWhichBatchSentAnyway time.Duration
 }
 
 // NewTxProfitabilityCheckerAcceptAll inits tx profitability checker which accept all
-func NewTxProfitabilityCheckerAcceptAll(ethman etherman, state state.State, intervalAfterWhichBatchSentAnyway time.Duration) *AcceptAll {
+func NewTxProfitabilityCheckerAcceptAll(ethman etherman, state stateInterface, intervalAfterWhichBatchSentAnyway time.Duration) *AcceptAll {
 	return &AcceptAll{
 		EthMan:                            ethman,
 		State:                             state,
@@ -124,7 +123,7 @@ func (pc *AcceptAll) IsProfitable(ctx context.Context, txs []*types.Transaction)
 	return true, collateral, nil
 }
 
-func isNewBatchNotAppeared(ctx context.Context, state state.State, intervalAfterWhichBatchSentAnyway time.Duration) (bool, error) {
+func isNewBatchNotAppeared(ctx context.Context, state stateInterface, intervalAfterWhichBatchSentAnyway time.Duration) (bool, error) {
 	batch, err := state.GetLastBatch(ctx, true)
 	if err != nil {
 		return false, fmt.Errorf("failed to get last batch, err: %v", err)

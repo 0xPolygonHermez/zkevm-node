@@ -4,7 +4,7 @@ FROM golang:1.17 AS build
 ENV CGO_ENABLED=1
 
 # INSTALL DEPENDENCIES
-RUN go get -u github.com/gobuffalo/packr/v2/packr2
+RUN go install github.com/gobuffalo/packr/v2/packr2@v2.8.3
 COPY go.mod go.sum /src/
 RUN cd /src && go mod download
 

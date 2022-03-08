@@ -14,12 +14,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
@@ -37,6 +37,8 @@ const (
 
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+
+	aggregatorAddress = "0xb94f5374fce5edbc8e2a8697c15331677e6ebf0b"
 
 	makeCmd = "make"
 	cmdDir  = "../.."
@@ -63,7 +65,7 @@ type Manager struct {
 	cfg *Config
 	ctx context.Context
 
-	st   state.State
+	st   *state.State
 	wait *Wait
 }
 
@@ -91,7 +93,7 @@ func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 }
 
 // State is a getter for the st field.
-func (m *Manager) State() state.State {
+func (m *Manager) State() *state.State {
 	return m.st
 }
 
@@ -134,39 +136,52 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 
 // ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
 // the final state.
-func (m *Manager) ApplyTxs(txs []vectors.Tx, initialRoot, finalRoot string) error {
-	// Apply transactions
-	l2Client, err := ethclient.Dial(l2NetworkURL)
-	if err != nil {
-		return err
-	}
-
+func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot string) error {
 	// store current batch number to check later when the state is updated
 	currentBatchNumber, err := m.st.GetLastBatchNumberSeenOnEthereum(m.ctx)
 	if err != nil {
 		return err
 	}
 
-	for _, tx := range txs {
-		if string(tx.RawTx) != "" && tx.Overwrite.S == "" {
-			l2tx := new(types.Transaction)
+	var txs []*types.Transaction
+	for _, vectorTx := range vectorTxs {
+		if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" {
+			var tx types.LegacyTx
+			bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
 
-			b, err := hex.DecodeHex(tx.RawTx)
-			if err != nil {
-				return err
+			err = rlp.DecodeBytes(bytes, &tx)
+			if err == nil {
+				txs = append(txs, types.NewTx(&tx))
 			}
-
-			err = l2tx.UnmarshalBinary(b)
-			if err != nil {
-				return err
-			}
-
-			log.Infof("sending tx: %v - %v, %s", tx.ID, l2tx.Hash(), tx.From)
-			err = l2Client.SendTransaction(m.ctx, l2tx)
 			if err != nil {
 				return err
 			}
 		}
+	}
+	// Create Batch
+	batch := &state.Batch{
+		BlockNumber:        uint64(0),
+		Sequencer:          common.HexToAddress(m.cfg.Sequencer.Address),
+		Aggregator:         common.HexToAddress(aggregatorAddress),
+		ConsolidatedTxHash: common.Hash{},
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
+		Uncles:             nil,
+		Transactions:       txs,
+		RawTxsData:         nil,
+		MaticCollateral:    big.NewInt(1),
+		ChainID:            big.NewInt(int64(m.cfg.State.DefaultChainID)),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
+	}
+
+	// Create Batch Processor
+	bp, err := m.st.NewBatchProcessor(m.ctx, common.HexToAddress(m.cfg.Sequencer.Address), 0)
+	if err != nil {
+		return err
+	}
+
+	err = bp.ProcessBatch(m.ctx, batch)
+	if err != nil {
+		return err
 	}
 
 	// Wait for sequencer to select txs from pool and propose a new batch
@@ -246,7 +261,7 @@ func Teardown() error {
 	return nil
 }
 
-func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) (state.State, error) {
+func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) (*state.State, error) {
 	sqlDB, err := db.NewSQLDB(dbConfig)
 	if err != nil {
 		return nil, err
@@ -267,7 +282,7 @@ func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) 
 }
 
 func (m *Manager) checkRoot(root []byte, expectedRoot string) error {
-	actualRoot := new(big.Int).SetBytes(root).String()
+	actualRoot := hex.EncodeToHex(root)
 
 	if expectedRoot != actualRoot {
 		return fmt.Errorf("Invalid root, want %q, got %q", expectedRoot, actualRoot)
