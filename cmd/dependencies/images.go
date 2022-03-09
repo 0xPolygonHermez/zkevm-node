@@ -46,7 +46,6 @@ func init() {
 func (iu *imageUpdater) update() error {
 	images := []string{
 		"hermeznetwork/geth-zkevm-contracts",
-		"hermeznetwork/zk-mock-prover",
 	}
 
 	for _, image := range images {

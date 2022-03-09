@@ -12,48 +12,44 @@ option go_package = "github.com/hermeznetwork/hermez-core/state/tree/pb";
 service MTService {
     // Getters
     /// Get balance for a given address at a given root
-    rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+    rpc GetBalance(CommonGetRequest) returns (GetBalanceResponse);
     /// Get nonce for a given address at a given root
-    rpc GetNonce(GetNonceRequest) returns (GetNonceResponse);
+    rpc GetNonce(CommonGetRequest) returns (GetNonceResponse);
     /// Get code for a given address at a given root
-    rpc GetCode(GetCodeRequest) returns (GetCodeResponse);
+    rpc GetCode(CommonGetRequest) returns (GetCodeResponse);
     /// Get code hash for a given address at a given root
-    rpc GetCodeHash(GetCodeHashRequest) returns (GetCodeHashResponse);
+    rpc GetCodeHash(CommonGetRequest) returns (GetCodeHashResponse);
     /// Get smart contract storage for a given address and position at a given root
     rpc GetStorageAt(GetStorageAtRequest) returns (GetStorageAtResponse);
+    /// Get set of reads and writes that updated the state at a given root
+    rpc GetStateTransitionNodes(GetStateTransitionNodesRequest) returns (GetStateTransitionNodesResponse);
     /// Reverse a hash of an exisiting Merkletree node
     rpc ReverseHash(ReverseHashRequest) returns (ReverseHashResponse);
 
     // Setters
     /// Set the balance for an account at a root
-    rpc SetBalance(SetBalanceRequest) returns (SetBalanceResponse);
+    rpc SetBalance(SetBalanceRequest) returns (CommonSetResponse);
     /// Set the nonce of an account at a root
-    rpc SetNonce(SetNonceRequest) returns (SetNonceResponse);
+    rpc SetNonce(SetNonceRequest) returns (CommonSetResponse);
     /// Set the code for an account at a root
-    rpc SetCode(SetCodeRequest) returns (SetCodeResponse);
+    rpc SetCode(SetCodeRequest) returns (CommonSetResponse);
     /// Set smart contract storage for an account and position at a root
-    rpc SetStorageAt(SetStorageAtRequest) returns (SetStorageAtResponse);
+    rpc SetStorageAt(SetStorageAtRequest) returns (CommonSetResponse);
     /// Set an entry of the reverse hash table
-    rpc SetHashValue(SetHashValueRequest) returns (SetHashValueResponse);
+    rpc SetHashValue(HashValuePair) returns (SetHashValueResponse);
     /// Set many entries of the reverse hash table
-    rpc SetHashValueBulk(SetHashValueBulkRequest) returns (SetHashValueBulkResponse);
+    rpc SetStateTransitionNodes(SetStateTransitionNodesRequest) returns (SetStateTransitionNodesResponse);
+}
+
+// Messages common to Get and set requests
+message HashValuePair {
+    string hash = 1;
+    string value = 2;
 }
 
 // Get requests
 
-message GetBalanceRequest {
-    string eth_address = 1;
-    string root = 2;
-}
-message GetNonceRequest {
-    string eth_address = 1;
-    string root = 2;
-}
-message GetCodeRequest {
-    string eth_address = 1;
-    string root = 2;
-}
-message GetCodeHashRequest {
+message CommonGetRequest {
     string eth_address = 1;
     string root = 2;
 }
@@ -61,6 +57,9 @@ message GetStorageAtRequest {
     string eth_address = 1;
     uint64 position = 2;
     string root = 3;
+}
+message GetStateTransitionNodesRequest {
+    string root = 1;
 }
 message ReverseHashRequest {
     string hash = 1;
@@ -95,13 +94,9 @@ message SetStorageAtRequest {
     string value = 3;
     string root = 4;
 }
-message SetHashValueRequest {
-    string hash = 1;
-    string value = 2;
-    string root = 3;
-}
-message SetHashValueBulkRequest {
-    repeated SetHashValueRequest hash_values = 1;
+message SetStateTransitionNodesRequest {
+    repeated HashValuePair write_hash_values = 1;
+    repeated HashValuePair read_hash_values = 2;
 }
 
 // Get responses
@@ -121,43 +116,26 @@ message GetCodeHashResponse {
 message GetStorageAtResponse {
     string value = 1;
 }
+message GetStateTransitionNodesResponse {
+    repeated HashValuePair write_hash_values = 1;
+    repeated HashValuePair read_hash_values = 2;
+}
 message ReverseHashResponse {
     string mt_node_value = 1;
 }
 
 // Set responses
-message SetCommonData {
-    string new_root = 1;
-    string proof = 2;
-}
 
-message SetBalanceResponse {
+message CommonSetResponse {
     bool success = 1;
-    string error_description = 2;
-    SetCommonData data = 3;
-}
-message SetNonceResponse {
-    bool success = 1;
-    string error_description = 2;
-    SetCommonData data = 3;
-}
-message SetCodeResponse {
-    bool success = 1;
-    string error_description = 2;
-    SetCommonData data = 3;
-}
-message SetStorageAtResponse {
-    bool success = 1;
-    string error_description = 2;
-    SetCommonData data = 3;
+    string new_root = 2;
+    string error_description = 3;
 }
 message SetHashValueResponse {
     bool success = 1;
     string error_description = 2;
-    SetCommonData data = 3;
 }
-message SetHashValueBulkResponse {
+message SetStateTransitionNodesResponse {
     bool success = 1;
     string error_description = 2;
-    SetCommonData data = 3;
 }

@@ -70,12 +70,28 @@ func Test_updateFiles(t *testing.T) {
 				"/tmp/src/c.json":                   "new-c-content",
 			},
 			initialTargetFiles: map[string]string{
+				"/a/b/src/subdira1/a.json":          "old-a-content",
+				"/a/b/src/subdirb1/subdirb2/b.json": "old-b-content",
+			},
+			expectedTargetFiles: map[string]string{
+				"/a/b/src/subdira1/a.json":          "new-a-content",
+				"/a/b/src/subdirb1/subdirb2/b.json": "new-b-content",
+			},
+		},
+		{
+			description: "unexisting target file does not give error",
+			initialSourceFiles: map[string]string{
+				"/tmp/src/subdira1/a.json":          "new-a-content",
+				"/tmp/src/subdirb1/subdirb2/b.json": "new-b-content",
+				"/tmp/src/c.json":                   "new-c-content",
+			},
+			initialTargetFiles: map[string]string{
 				"/a/b/src/subdira1/a.json":        "old-a-content",
-				"/a/b/src/subdir1/subdir2/b.json": "old-b-content",
+				"/a/b/src/subdir1/subdir2/d.json": "old-d-content",
 			},
 			expectedTargetFiles: map[string]string{
 				"/a/b/src/subdira1/a.json":        "new-a-content",
-				"/a/b/src/subdir1/subdir2/b.json": "new-b-content",
+				"/a/b/src/subdir1/subdir2/d.json": "old-d-content",
 			},
 		},
 	}
@@ -93,6 +109,8 @@ func Test_updateFiles(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, expectedContent, string(actualContent))
 			}
+			require.NoError(t, appFs.RemoveAll(defaultSourceDir))
+			require.NoError(t, appFs.RemoveAll(defaultTargetDir))
 		})
 	}
 }

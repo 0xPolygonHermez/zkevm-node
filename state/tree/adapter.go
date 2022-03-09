@@ -25,7 +25,7 @@ func NewAdapter(client pb.MTServiceClient) *Adapter {
 
 // GetBalance returns balance.
 func (m *Adapter) GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
-	result, err := m.grpcClient.GetBalance(ctx, &pb.GetBalanceRequest{
+	result, err := m.grpcClient.GetBalance(ctx, &pb.CommonGetRequest{
 		EthAddress: address.String(),
 		Root:       hex.EncodeToString(root),
 	})
@@ -43,7 +43,7 @@ func (m *Adapter) GetBalance(ctx context.Context, address common.Address, root [
 
 // GetNonce returns nonce.
 func (m *Adapter) GetNonce(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
-	result, err := m.grpcClient.GetNonce(ctx, &pb.GetNonceRequest{
+	result, err := m.grpcClient.GetNonce(ctx, &pb.CommonGetRequest{
 		EthAddress: address.String(),
 		Root:       hex.EncodeToString(root),
 	})
@@ -56,7 +56,7 @@ func (m *Adapter) GetNonce(ctx context.Context, address common.Address, root []b
 
 // GetCode returns code.
 func (m *Adapter) GetCode(ctx context.Context, address common.Address, root []byte) ([]byte, error) {
-	result, err := m.grpcClient.GetCode(ctx, &pb.GetCodeRequest{
+	result, err := m.grpcClient.GetCode(ctx, &pb.CommonGetRequest{
 		EthAddress: address.String(),
 		Root:       hex.EncodeToString(root),
 	})
@@ -74,7 +74,7 @@ func (m *Adapter) GetCode(ctx context.Context, address common.Address, root []by
 
 // GetCodeHash returns code hash.
 func (m *Adapter) GetCodeHash(ctx context.Context, address common.Address, root []byte) ([]byte, error) {
-	result, err := m.grpcClient.GetCodeHash(ctx, &pb.GetCodeHashRequest{
+	result, err := m.grpcClient.GetCodeHash(ctx, &pb.CommonGetRequest{
 		EthAddress: address.String(),
 		Root:       hex.EncodeToString(root),
 	})
@@ -125,11 +125,7 @@ func (m *Adapter) SetBalance(ctx context.Context, address common.Address, balanc
 		return nil, nil, fmt.Errorf("Could not set balance %d for address %q", balance, address.String())
 	}
 
-	if result.Data == nil {
-		return nil, nil, fmt.Errorf("No data returned in gRPC call SetBalance")
-	}
-
-	newRoot, err = hex.DecodeString(result.Data.NewRoot)
+	newRoot, err = hex.DecodeString(result.NewRoot)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -153,11 +149,7 @@ func (m *Adapter) SetNonce(ctx context.Context, address common.Address, nonce *b
 		return nil, nil, fmt.Errorf("Could not set nonce %d for address %q", nonce, address.String())
 	}
 
-	if result.Data == nil {
-		return nil, nil, fmt.Errorf("No data returned in gRPC call SetNonce")
-	}
-
-	newRoot, err = hex.DecodeString(result.Data.NewRoot)
+	newRoot, err = hex.DecodeString(result.NewRoot)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -181,11 +173,7 @@ func (m *Adapter) SetCode(ctx context.Context, address common.Address, code []by
 		return nil, nil, fmt.Errorf("Could not set code %q for address %q", code, address.String())
 	}
 
-	if result.Data == nil {
-		return nil, nil, fmt.Errorf("No data returned in gRPC call SetCode")
-	}
-
-	newRoot, err = hex.DecodeString(result.Data.NewRoot)
+	newRoot, err = hex.DecodeString(result.NewRoot)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -210,11 +198,7 @@ func (m *Adapter) SetStorageAt(ctx context.Context, address common.Address, posi
 		return nil, nil, fmt.Errorf("Could not set storage at position %q for address %q and value %d", position.String(), address.String(), value)
 	}
 
-	if result.Data == nil {
-		return nil, nil, fmt.Errorf("No data returned in gRPC call SetStorageAt")
-	}
-
-	newRoot, err = hex.DecodeString(result.Data.NewRoot)
+	newRoot, err = hex.DecodeString(result.NewRoot)
 	if err != nil {
 		return nil, nil, err
 	}

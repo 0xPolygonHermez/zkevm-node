@@ -1,25 +1,34 @@
 package dependencies
 
 import (
+	"os"
+
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/spf13/afero"
 )
 
 const (
-	defaultSourceRepo    = "https://github.com/hermeznetwork/test-vectors"
+	defaultSourceRepo    = "git@github.com:hermeznetwork/test-vectors.git"
 	defaultTargetDirPath = "../../test/vectors/src"
 )
 
 type testVectorUpdater struct {
 	fs afero.Fs
 
+	gm *githubManager
+
 	sourceRepo    string
 	targetDirPath string
 }
 
 func init() {
+	aferoFs := afero.NewOsFs()
+
+	gm := newGithubManager(aferoFs, os.Getenv("UPDATE_DEPS_SSH_PK"), os.Getenv("GITHUB_TOKEN"))
 	tv := &testVectorUpdater{
-		fs: afero.NewOsFs(),
+		fs: aferoFs,
+
+		gm: gm,
 
 		sourceRepo:    defaultSourceRepo,
 		targetDirPath: defaultTargetDirPath,
@@ -30,7 +39,7 @@ func init() {
 
 func (tu *testVectorUpdater) update() error {
 	log.Infof("Cloning %q...", tu.sourceRepo)
-	tmpdir, err := cloneTargetRepo(tu.fs, tu.sourceRepo)
+	tmpdir, err := tu.gm.cloneTargetRepo(tu.sourceRepo)
 	if err != nil {
 		return err
 	}
