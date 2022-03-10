@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,6 +16,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
 )
+
+const amountOfPendingTxsRequested = 30000
 
 // Sequencer represents a sequencer
 type Sequencer struct {
@@ -124,7 +127,7 @@ func (s *Sequencer) tryProposeBatch() {
 	}
 
 	// 2. get pending txs from the pool
-	txs, err := s.Pool.GetPendingTxs(s.ctx)
+	txs, err := s.Pool.GetPendingTxs(s.ctx, amountOfPendingTxsRequested)
 	if err != nil {
 		log.Errorf("failed to get pending txs, err: %v", err)
 		return
@@ -162,25 +165,37 @@ func (s *Sequencer) tryProposeBatch() {
 
 	// 4. Is selection profitable?
 	// check is it profitable to send selection
-	isProfitable, aggregatorReward, err := s.TxProfitabilityChecker.IsProfitable(s.ctx, selectedTxs)
-	if err != nil {
-		log.Errorf("failed to check that txs are profitable or not, err: %v", err)
-		return
-	}
-	if isProfitable && len(selectedTxs) > 0 {
-		// YES: send selection to Ethereum
-		sendBatchTx, err := s.EthMan.SendBatch(s.ctx, selectedTxs, aggregatorReward)
+	var isSent bool
+	for !isSent {
+		isProfitable, aggregatorReward, err := s.TxProfitabilityChecker.IsProfitable(s.ctx, selectedTxs)
 		if err != nil {
-			log.Errorf("failed to send batch proposal to ethereum, err: %v", err)
+			log.Errorf("failed to check that txs are profitable or not, err: %v", err)
 			return
 		}
-		log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
-		// update txs in the pool as selected
-		err = s.Pool.UpdateTxsState(s.ctx, selectedTxsHashes, pool.TxStateSelected)
-		if err != nil {
-			log.Warnf("failed to update txs state to selected, err: %v", err)
+		if isProfitable && len(selectedTxs) > 0 {
+			// YES: send selection to Ethereum
+			sendBatchTx, err := s.EthMan.SendBatch(s.ctx, selectedTxs, aggregatorReward)
+			if err != nil {
+				if strings.Contains(err.Error(), "gas required exceeds allowance") ||
+					strings.Contains(err.Error(), "oversized data") ||
+					strings.Contains(err.Error(), "content length too large") {
+					cutSelectedTxs := (len(selectedTxs) - 1) * 8 / 10
+					selectedTxs = selectedTxs[:cutSelectedTxs]
+					selectedTxsHashes = selectedTxsHashes[:cutSelectedTxs]
+					continue
+				}
+				log.Errorf("failed to send batch proposal to ethereum, err: %v", err)
+				return
+			}
+			// update txs in the pool as selected
+			err = s.Pool.UpdateTxsState(s.ctx, selectedTxsHashes, pool.TxStateSelected)
+			if err != nil {
+				log.Warnf("failed to update txs state to selected, err: %v", err)
+			}
+			isSent = true
+			log.Infof("finished updating selected transactions state in the pool")
+			log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
 		}
-		log.Infof("finished updating selected transactions state in the pool")
 	}
 	// NO: discard selection and wait for the new batch
 }

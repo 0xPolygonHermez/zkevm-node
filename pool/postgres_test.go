@@ -99,7 +99,7 @@ func Test_GetPendingTxs(t *testing.T) {
 		}
 	}
 
-	txs, err := p.GetPendingTxs(ctx)
+	txs, err := p.GetPendingTxs(ctx, 100)
 	if err != nil {
 		t.Error(err)
 	}
