@@ -17,7 +17,10 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
-const amountOfPendingTxsRequested = 30000
+const (
+	amountOfPendingTxsRequested = 30000
+	percentageToCutSelectedTxs  = 8
+)
 
 // Sequencer represents a sequencer
 type Sequencer struct {
@@ -179,7 +182,7 @@ func (s *Sequencer) tryProposeBatch() {
 				if strings.Contains(err.Error(), "gas required exceeds allowance") ||
 					strings.Contains(err.Error(), "oversized data") ||
 					strings.Contains(err.Error(), "content length too large") {
-					cutSelectedTxs := (len(selectedTxs) - 1) * 8 / 10
+					cutSelectedTxs := (len(selectedTxs) - 1) * percentageToCutSelectedTxs / 10
 					selectedTxs = selectedTxs[:cutSelectedTxs]
 					selectedTxsHashes = selectedTxsHashes[:cutSelectedTxs]
 					continue
