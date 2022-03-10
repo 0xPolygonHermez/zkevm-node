@@ -162,7 +162,7 @@ update-external-dependencies: ## Updates external dependencies like images, test
 	go run ./cmd/... updatedeps
 
 .PHONY: run-benchmarks
-run-benchmarks: ## Runs benchmars
+run-benchmarks: run-db ## Runs benchmars
 	go test -bench=. ./state/tree
 
 ## Help display.
