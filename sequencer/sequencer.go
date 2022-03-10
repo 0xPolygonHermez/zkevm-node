@@ -20,6 +20,7 @@ import (
 const (
 	amountOfPendingTxsRequested = 30000
 	percentageToCutSelectedTxs  = 8
+	ten                         = 10
 )
 
 // Sequencer represents a sequencer
@@ -182,7 +183,7 @@ func (s *Sequencer) tryProposeBatch() {
 				if strings.Contains(err.Error(), "gas required exceeds allowance") ||
 					strings.Contains(err.Error(), "oversized data") ||
 					strings.Contains(err.Error(), "content length too large") {
-					cutSelectedTxs := (len(selectedTxs) - 1) * percentageToCutSelectedTxs / 10
+					cutSelectedTxs := (len(selectedTxs) - 1) * percentageToCutSelectedTxs / ten
 					selectedTxs = selectedTxs[:cutSelectedTxs]
 					selectedTxsHashes = selectedTxsHashes[:cutSelectedTxs]
 					continue
