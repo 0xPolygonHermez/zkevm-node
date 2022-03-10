@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/iden3/go-iden3-crypto/poseidon"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -51,7 +53,11 @@ func start(ctx *cli.Context) error {
 		return err
 	}
 
-	store, scCodeStore, err := newMTStores(c)
+	sqlDB, err := db.NewSQLDB(c.Database)
+	if err != nil {
+		return err
+	}
+	store, scCodeStore, err := newMTStores(c, sqlDB)
 	if err != nil {
 		return err
 	}
@@ -64,10 +70,6 @@ func start(ctx *cli.Context) error {
 		MaxCumulativeGasUsed: c.NetworkConfig.MaxCumulativeGasUsed,
 	}
 
-	sqlDB, err := db.NewSQLDB(c.Database)
-	if err != nil {
-		return err
-	}
 	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
 
 	var (
@@ -293,23 +295,14 @@ func newAuthFromKeystore(path, password string, chainID uint64) (*bind.TransactO
 	return auth, nil
 }
 
-func newMTStores(c *config.Config) (mtStore, mtStore, error) {
+func newMTStores(c *config.Config, sqlDB *pgxpool.Pool) (mtStore, mtStore, error) {
 	switch c.MTServer.StoreBackend {
 	case tree.PgMTStoreBackend:
-		sqlDB, err := db.NewSQLDB(c.Database)
-		if err != nil {
-			return nil, nil, err
-		}
-
 		store := tree.NewPostgresStore(sqlDB)
 		scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
 
 		return store, scCodeStore, nil
 	case tree.PgRistrettoMTStoreBackend:
-		sqlDB, err := db.NewSQLDB(c.Database)
-		if err != nil {
-			return nil, nil, err
-		}
 		cache, err := tree.NewStoreCache()
 		if err != nil {
 			return nil, nil, err
@@ -322,8 +315,12 @@ func newMTStores(c *config.Config) (mtStore, mtStore, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		dataDir := "~/.hermezcore/db"
-		err = os.MkdirAll(dataDir, 0750)
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, nil, err
+		}
+		dataDir := path.Join(home, ".hermezcore", "db")
+		err = os.MkdirAll(dataDir, os.ModePerm)
 		if err != nil {
 			return nil, nil, err
 		}
