@@ -5,12 +5,13 @@ on:
       - main
       - master
       - develop
+      - update-external-dependencies
   pull_request:
 jobs:
   test:
     strategy:
       matrix:
-        go-version: [ 1.16.x ]
+        go-version: [ 1.17.x ]
         goarch: [ "amd64" ]
     runs-on: ubuntu-latest
     steps:

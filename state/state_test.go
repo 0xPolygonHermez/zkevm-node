@@ -29,7 +29,7 @@ import (
 
 var (
 	stateDb                                                *pgxpool.Pool
-	testState                                              state.State
+	testState                                              *state.State
 	block1, block2                                         *state.Block
 	addr                                                   common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
 	hash1, hash2                                           common.Hash
@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 
 	setUpBlocks()
 	setUpBatches()
@@ -188,7 +188,7 @@ func setUpBatches() {
 	}
 
 	for _, b := range batches {
-		err := bp.ProcessBatch(b)
+		err := bp.ProcessBatch(ctx, b)
 		if err != nil {
 			panic(err)
 		}
@@ -307,7 +307,7 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 	bp, err := testState.NewGenesisBatchProcessor(nil)
 	assert.NoError(t, err)
 
-	err = bp.ProcessBatch(batch)
+	err = bp.ProcessBatch(ctx, batch)
 	assert.NoError(t, err)
 
 	insertedBatch, err := testState.GetBatchByNumber(ctx, batchNumber)
@@ -436,7 +436,7 @@ func TestBasicState_AddSequencer(t *testing.T) {
 
 func TestStateTransition(t *testing.T) {
 	// Load test vector
-	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition.json")
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/src/test-vector-data/state-transition.json")
 	require.NoError(t, err)
 
 	for _, testCase := range stateTransitionTestCases {
@@ -454,7 +454,7 @@ func TestStateTransition(t *testing.T) {
 			store := tree.NewPostgresStore(stateDb)
 			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-			stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+			stateTree := tree.NewStateTree(mt, scCodeStore)
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -471,7 +471,7 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			for gaddr := range genesis.Balances {
-				balance, err := stateTree.GetBalance(gaddr, nil)
+				balance, err := stateTree.GetBalance(ctx, gaddr, nil)
 				require.NoError(t, err)
 				assert.Equal(t, big.NewInt(0), balance)
 			}
@@ -479,11 +479,11 @@ func TestStateTransition(t *testing.T) {
 			err = st.SetGenesis(ctx, genesis)
 			require.NoError(t, err)
 
-			root, err := st.GetStateRootByBatchNumber(0)
+			root, err := st.GetStateRootByBatchNumber(ctx, 0)
 			require.NoError(t, err)
 
 			for gaddr, gbalance := range genesis.Balances {
-				balance, err := stateTree.GetBalance(gaddr, root)
+				balance, err := stateTree.GetBalance(ctx, gaddr, root)
 				require.NoError(t, err)
 				assert.Equal(t, gbalance, balance)
 			}
@@ -491,7 +491,7 @@ func TestStateTransition(t *testing.T) {
 			var txs []*types.Transaction
 
 			// Check Old roots
-			assert.Equal(t, testCase.ExpectedOldRoot, new(big.Int).SetBytes(root).String())
+			assert.Equal(t, testCase.ExpectedOldRoot, hex.EncodeToHex(root))
 
 			// Check if sequencer is in the DB
 			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
@@ -537,10 +537,10 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(common.HexToAddress(testCase.SequencerAddress), 0)
+			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), 0)
 			require.NoError(t, err)
 
-			err = bp.ProcessBatch(batch)
+			err = bp.ProcessBatch(ctx, batch)
 			require.NoError(t, err)
 
 			// Check Transaction and Receipts
@@ -559,18 +559,18 @@ func TestStateTransition(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
-			root, err = st.GetStateRootByBatchNumber(batch.Number().Uint64())
+			root, err = st.GetStateRootByBatchNumber(ctx, batch.Number().Uint64())
 			require.NoError(t, err)
 
 			// Check new roots
-			assert.Equal(t, testCase.ExpectedNewRoot, new(big.Int).SetBytes(root).String())
+			assert.Equal(t, testCase.ExpectedNewRoot, hex.EncodeToHex(root))
 
 			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
-				newBalance, err := stateTree.GetBalance(common.HexToAddress(key), root)
+				newBalance, err := stateTree.GetBalance(ctx, common.HexToAddress(key), root)
 				require.NoError(t, err)
 				assert.Equal(t, vectorLeaf.Balance.String(), newBalance.String())
 
-				newNonce, err := stateTree.GetNonce(common.HexToAddress(key), root)
+				newNonce, err := stateTree.GetNonce(ctx, common.HexToAddress(key), root)
 				require.NoError(t, err)
 				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
 				assert.Equal(t, leafNonce.String(), newNonce.String())
@@ -581,7 +581,7 @@ func TestStateTransition(t *testing.T) {
 
 func TestStateTransitionSC(t *testing.T) {
 	// Load test vector
-	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/state-transition-sc.json")
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/src/state-transition-sc.json")
 	require.NoError(t, err)
 
 	for _, testCase := range stateTransitionTestCases {
@@ -599,7 +599,7 @@ func TestStateTransitionSC(t *testing.T) {
 			store := tree.NewPostgresStore(stateDb)
 			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-			stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+			stateTree := tree.NewStateTree(mt, scCodeStore)
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -632,7 +632,7 @@ func TestLastSeenBatch(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -656,11 +656,8 @@ func TestLastSeenBatch(t *testing.T) {
 
 func TestReceipts(t *testing.T) {
 	// Load test vector
-	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/receipt-vector.json")
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/src/receipt-test-vectors/receipt-vector.json")
+	require.NoError(t, err)
 
 	for _, testCase := range stateTransitionTestCases {
 		t.Run(testCase.Description, func(t *testing.T) {
@@ -677,7 +674,7 @@ func TestReceipts(t *testing.T) {
 			store := tree.NewPostgresStore(stateDb)
 			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-			stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+			stateTree := tree.NewStateTree(mt, scCodeStore)
 
 			// Create state
 			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -695,7 +692,7 @@ func TestReceipts(t *testing.T) {
 			}
 
 			for gaddr := range genesis.Balances {
-				balance, err := stateTree.GetBalance(gaddr, nil)
+				balance, err := stateTree.GetBalance(ctx, gaddr, nil)
 				require.NoError(t, err)
 				assert.Equal(t, big.NewInt(0), balance)
 			}
@@ -703,11 +700,11 @@ func TestReceipts(t *testing.T) {
 			err = st.SetGenesis(ctx, genesis)
 			require.NoError(t, err)
 
-			root, err := st.GetStateRootByBatchNumber(0)
+			root, err := st.GetStateRootByBatchNumber(ctx, 0)
 			require.NoError(t, err)
 
 			for gaddr, gbalance := range genesis.Balances {
-				balance, err := stateTree.GetBalance(gaddr, root)
+				balance, err := stateTree.GetBalance(ctx, gaddr, root)
 				require.NoError(t, err)
 				assert.Equal(t, gbalance, balance)
 			}
@@ -761,10 +758,10 @@ func TestReceipts(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(common.HexToAddress(testCase.SequencerAddress), 0)
+			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), 0)
 			require.NoError(t, err)
 
-			err = bp.ProcessBatch(batch)
+			err = bp.ProcessBatch(ctx, batch)
 			require.NoError(t, err)
 
 			// Check Transaction and Receipts
@@ -783,18 +780,18 @@ func TestReceipts(t *testing.T) {
 				assert.Equal(t, transaction.Hash(), transactions[0].Hash())
 			}
 
-			root, err = st.GetStateRootByBatchNumber(batch.Number().Uint64())
+			root, err = st.GetStateRootByBatchNumber(ctx, batch.Number().Uint64())
 			require.NoError(t, err)
 
 			// Check new roots
 			assert.Equal(t, testCase.ExpectedNewRoot, new(big.Int).SetBytes(root).String())
 
 			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
-				newBalance, err := stateTree.GetBalance(common.HexToAddress(key), root)
+				newBalance, err := stateTree.GetBalance(ctx, common.HexToAddress(key), root)
 				require.NoError(t, err)
 				assert.Equal(t, vectorLeaf.Balance.String(), newBalance.String())
 
-				newNonce, err := stateTree.GetNonce(common.HexToAddress(key), root)
+				newNonce, err := stateTree.GetNonce(ctx, common.HexToAddress(key), root)
 				require.NoError(t, err)
 				leafNonce, _ := big.NewInt(0).SetString(vectorLeaf.Nonce, 10)
 				assert.Equal(t, leafNonce.String(), newNonce.String())
@@ -838,7 +835,7 @@ func TestLastConsolidatedBatch(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -872,7 +869,7 @@ func TestStateErrors(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore, nil))
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -882,13 +879,13 @@ func TestStateErrors(t *testing.T) {
 	_, err = st.GetStateRoot(ctx, true)
 	require.Equal(t, state.ErrStateNotSynchronized, err)
 
-	_, err = st.GetBalance(addr, 0)
+	_, err = st.GetBalance(ctx, addr, 0)
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetNonce(addr, 0)
+	_, err = st.GetNonce(ctx, addr, 0)
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetStateRootByBatchNumber(0)
+	_, err = st.GetStateRootByBatchNumber(ctx, 0)
 	require.Equal(t, state.ErrNotFound, err)
 
 	_, err = st.GetLastBlock(ctx)
@@ -954,7 +951,7 @@ func TestSCExecution(t *testing.T) {
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var sequencerBalance = 400000
-	var scAddress = common.HexToAddress("0xB08EA26d3D53EC62fD4BD76B5E41844c7041eB6B")
+	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
 
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
@@ -968,7 +965,7 @@ func TestSCExecution(t *testing.T) {
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-	stateTree := tree.NewStateTree(mt, scCodeStore, nil)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
 
 	// Create state
 	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
@@ -997,31 +994,38 @@ func TestSCExecution(t *testing.T) {
 
 	var txs []*types.Transaction
 
-	tx0 := types.NewTransaction(0, state.ZeroAddress, new(big.Int), uint64(sequencerBalance), new(big.Int).SetUint64(1), common.Hex2Bytes("608060405234801561001057600080fd5b50610150806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c80632e64cec11461003b5780636057361d14610059575b600080fd5b610043610075565b60405161005091906100d9565b60405180910390f35b610073600480360381019061006e919061009d565b61007e565b005b60008054905090565b8060008190555050565b60008135905061009781610103565b92915050565b6000602082840312156100b3576100b26100fe565b5b60006100c184828501610088565b91505092915050565b6100d3816100f4565b82525050565b60006020820190506100ee60008301846100ca565b92915050565b6000819050919050565b600080fd5b61010c816100f4565b811461011757600080fd5b5056fea2646970667358221220404e37f487a89a932dca5e77faaf6ca2de3b991f93d230604b1b8daaef64766264736f6c63430008070033"))
+	txSCDeploy := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes("608060405234801561001057600080fd5b50610150806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c80632e64cec11461003b5780636057361d14610059575b600080fd5b610043610075565b60405161005091906100d9565b60405180910390f35b610073600480360381019061006e919061009d565b61007e565b005b60008054905090565b8060008190555050565b60008135905061009781610103565b92915050565b6000602082840312156100b3576100b26100fe565b5b60006100c184828501610088565b91505092915050565b6100d3816100f4565b82525050565b60006020820190506100ee60008301846100ca565b92915050565b6000819050919050565b600080fd5b61010c816100f4565b811461011757600080fd5b5056fea2646970667358221220404e37f487a89a932dca5e77faaf6ca2de3b991f93d230604b1b8daaef64766264736f6c63430008070033"),
+	})
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
 	require.NoError(t, err)
 
-	signedTx0, err := auth.Signer(auth.From, tx0)
+	signedTxSCDeploy, err := auth.Signer(auth.From, txSCDeploy)
 	require.NoError(t, err)
 
-	txs = append(txs, signedTx0)
+	txs = append(txs, signedTxSCDeploy)
 
 	// Set stored value to 2
-	tx := types.NewTransaction(1, scAddress, new(big.Int), 20000, new(big.Int).SetUint64(1), common.Hex2Bytes("6057361d0000000000000000000000000000000000000000000000000000000000000002"))
-	signedTx, err := auth.Signer(auth.From, tx)
+	txStoreValue := types.NewTransaction(1, scAddress, new(big.Int), state.TxGas, new(big.Int).SetUint64(1), common.Hex2Bytes("6057361d0000000000000000000000000000000000000000000000000000000000000002"))
+	signedTxStoreValue, err := auth.Signer(auth.From, txStoreValue)
 	require.NoError(t, err)
 
-	txs = append(txs, signedTx)
+	txs = append(txs, signedTxStoreValue)
 
 	// Retrieve stored value
-	tx2 := types.NewTransaction(2, scAddress, new(big.Int), 20000, new(big.Int).SetUint64(1), common.Hex2Bytes("2e64cec1"))
-	signedTx2, err := auth.Signer(auth.From, tx2)
+	txRetrieveValue := types.NewTransaction(2, scAddress, new(big.Int), state.TxGas, new(big.Int).SetUint64(1), common.Hex2Bytes("2e64cec1"))
+	signedTxRetrieveValue, err := auth.Signer(auth.From, txRetrieveValue)
 	require.NoError(t, err)
 
-	txs = append(txs, signedTx2)
+	txs = append(txs, signedTxRetrieveValue)
 
 	// Create Batch
 	batch := &state.Batch{
@@ -1040,24 +1044,316 @@ func TestSCExecution(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
 	require.NoError(t, err)
 
-	err = bp.ProcessBatch(batch)
+	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
-	receipt, err := testState.GetTransactionReceipt(ctx, signedTx.Hash())
+	receipt, err := testState.GetTransactionReceipt(ctx, signedTxStoreValue.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, uint64(5420), receipt.GasUsed)
 
-	receipt2, err := testState.GetTransactionReceipt(ctx, signedTx2.Hash())
+	receipt2, err := testState.GetTransactionReceipt(ctx, signedTxRetrieveValue.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1115), receipt2.GasUsed)
 
 	// Check GetCode
 	lastBatch, err := testState.GetLastBatch(ctx, true)
 	assert.NoError(t, err)
-	code, err := st.GetCode(scAddress, lastBatch.Number().Uint64())
+	code, err := st.GetCode(ctx, scAddress, lastBatch.Number().Uint64())
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", code)
+}
+
+func TestSCCall(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 4000000
+	// /tests/contracts/counter.sol
+	var scCounterByteCode = "608060405234801561001057600080fd5b50610173806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c806306661abd1461003b578063d09de08a14610059575b600080fd5b610043610063565b6040516100509190610093565b60405180910390f35b610061610069565b005b60005481565b600160008082825461007b91906100ae565b92505081905550565b61008d81610104565b82525050565b60006020820190506100a86000830184610084565b92915050565b60006100b982610104565b91506100c483610104565b9250827fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff038211156100f9576100f861010e565b5b828201905092915050565b6000819050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fdfea2646970667358221220cf95ec40a64d40a7b470f2bfb618f78637c1ffd7365b8db4828efa2fba19c4b364736f6c63430008070033"
+	var scCounterAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	// /tests/contracts/interactions.sol
+	var scInteractionByteCode = "608060405234801561001057600080fd5b506102b1806100206000396000f3fe6080604052600436106100295760003560e01c8063a87d942c1461002e578063ec39b42914610059575b600080fd5b34801561003a57600080fd5b50610043610075565b60405161005091906101f1565b60405180910390f35b610073600480360381019061006e9190610188565b61011b565b005b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166306661abd6040518163ffffffff1660e01b815260040160206040518083038186803b1580156100de57600080fd5b505afa1580156100f2573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061011691906101b5565b905090565b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050565b60008135905061016d8161024d565b92915050565b60008151905061018281610264565b92915050565b60006020828403121561019e5761019d610248565b5b60006101ac8482850161015e565b91505092915050565b6000602082840312156101cb576101ca610248565b5b60006101d984828501610173565b91505092915050565b6101eb8161023e565b82525050565b600060208201905061020660008301846101e2565b92915050565b60006102178261021e565b9050919050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000819050919050565b600080fd5b6102568161020c565b811461026157600080fd5b50565b61026d8161023e565b811461027857600080fd5b5056fea2646970667358221220bd62b83cf26c8d76260698f0a985ee4839c27bb9b6a062e1806e28f14c20e81864736f6c63430008070033"
+	var scInteractionAddress = common.HexToAddress("0x85e844b762A271022b692CF99cE5c59BA0650Ac8")
+	var expectedFinalRoot = "8568248801809179447838423504847604302118514362079429686070184953337125411010"
+
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	genesis := state.Genesis{
+		Block:    genesisBlock,
+		Balances: make(map[common.Address]*big.Int),
+	}
+
+	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
+	err = st.SetGenesis(ctx, genesis)
+	require.NoError(t, err)
+
+	// Register Sequencer
+	sequencer := state.Sequencer{
+		Address:     sequencerAddress,
+		URL:         "http://www.address.com",
+		ChainID:     chainIDSequencer,
+		BlockNumber: genesisBlock.Header().Number.Uint64(),
+	}
+
+	err = testState.AddSequencer(ctx, sequencer)
+	assert.NoError(t, err)
+
+	var txs []*types.Transaction
+
+	// Deploy counter.sol
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scCounterByteCode),
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	txs = append(txs, signedTx)
+
+	// Deploy interaction.sol
+	tx1 := types.NewTx(&types.LegacyTx{
+		Nonce:    1,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scInteractionByteCode),
+	})
+
+	signedTx1, err := auth.Signer(auth.From, tx1)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTx1)
+
+	// Call setCounterAddr method from Interaction SC to set Counter SC Address
+	tx2 := types.NewTransaction(2, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("ec39b429000000000000000000000000"+strings.TrimPrefix(scCounterAddress.String(), "0x")))
+	signedTx2, err := auth.Signer(auth.From, tx2)
+	require.NoError(t, err)
+	txs = append(txs, signedTx2)
+
+	// Increment Counter calling Counter SC
+	tx3 := types.NewTransaction(3, scCounterAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("d09de08a"))
+	signedTx3, err := auth.Signer(auth.From, tx3)
+	require.NoError(t, err)
+	txs = append(txs, signedTx3)
+
+	// Retrieve counter value calling Interaction SC (this is the real test as Interaction SC will call Counter SC)
+	tx4 := types.NewTransaction(4, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("a87d942c"))
+	signedTx4, err := auth.Signer(auth.From, tx4)
+	require.NoError(t, err)
+	txs = append(txs, signedTx4)
+
+	// Increment Counter calling again
+	tx5 := types.NewTransaction(5, scCounterAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("d09de08a"))
+	signedTx5, err := auth.Signer(auth.From, tx5)
+	require.NoError(t, err)
+	txs = append(txs, signedTx5)
+
+	// Retrieve counter value again
+	tx6 := types.NewTransaction(6, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("a87d942c"))
+	signedTx6, err := auth.Signer(auth.From, tx6)
+	require.NoError(t, err)
+	txs = append(txs, signedTx6)
+
+	// Create Batch
+	batch := &state.Batch{
+		BlockNumber:        uint64(0),
+		Sequencer:          sequencerAddress,
+		Aggregator:         sequencerAddress,
+		ConsolidatedTxHash: common.Hash{},
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
+		Uncles:             nil,
+		Transactions:       txs,
+		RawTxsData:         nil,
+		MaticCollateral:    big.NewInt(1),
+		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
+	}
+
+	// Create Batch Processor
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+	require.NoError(t, err)
+
+	err = bp.ProcessBatch(ctx, batch)
+	require.NoError(t, err)
+
+	receipt, err := testState.GetTransactionReceipt(ctx, signedTx6.Hash())
+	require.NoError(t, err)
+	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
+}
+
+func TestGenesisStorage(t *testing.T) {
+	var address = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	genesis := state.Genesis{
+		Block:   genesisBlock,
+		Storage: make(map[common.Address]map[*big.Int]*big.Int),
+	}
+
+	values := make(map[*big.Int]*big.Int)
+
+	for i := 0; i < 10; i++ {
+		values[new(big.Int).SetInt64(int64(i))] = new(big.Int).SetInt64(int64(i))
+	}
+
+	genesis.Storage[address] = values
+	err = st.SetGenesis(ctx, genesis)
+	require.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		value, err := st.GetStorageAt(ctx, address, common.BigToHash(new(big.Int).SetInt64(int64(i))), 0)
+		assert.NoError(t, err)
+		assert.NotEqual(t, int64(i), value)
+	}
+}
+func TestSCSelfDestruct(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 120000
+	// /tests/contracts/destruct.sol
+	var scByteCode = "608060405234801561001057600080fd5b50336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555061019f806100606000396000f3fe608060405234801561001057600080fd5b50600436106100415760003560e01c80632e64cec11461004657806343d726d6146100645780636057361d1461006e575b600080fd5b61004e61008a565b60405161005b9190610128565b60405180910390f35b61006c610094565b005b610088600480360381019061008391906100ec565b6100cd565b005b6000600154905090565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16ff5b8060018190555050565b6000813590506100e681610152565b92915050565b6000602082840312156101025761010161014d565b5b6000610110848285016100d7565b91505092915050565b61012281610143565b82525050565b600060208201905061013d6000830184610119565b92915050565b6000819050919050565b600080fd5b61015b81610143565b811461016657600080fd5b5056fea26469706673582212204792262d56891c7cad37c3e7d355188109c9386bb448f96fbe4ae53c7794b72164736f6c63430008070033"
+	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	genesis := state.Genesis{
+		Block:    genesisBlock,
+		Balances: make(map[common.Address]*big.Int),
+	}
+
+	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
+	err = st.SetGenesis(ctx, genesis)
+	require.NoError(t, err)
+
+	// Register Sequencer
+	sequencer := state.Sequencer{
+		Address:     sequencerAddress,
+		URL:         "http://www.address.com",
+		ChainID:     chainIDSequencer,
+		BlockNumber: genesisBlock.Header().Number.Uint64(),
+	}
+
+	err = st.AddSequencer(ctx, sequencer)
+	assert.NoError(t, err)
+
+	var txs []*types.Transaction
+
+	// Deploy destruct.sol
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int).SetUint64(0),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scByteCode),
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	txs = append(txs, signedTx)
+
+	// Call close method from SC to destroy it
+	tx1 := types.NewTransaction(1, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("43d726d6"))
+	signedTx1, err := auth.Signer(auth.From, tx1)
+	require.NoError(t, err)
+	txs = append(txs, signedTx1)
+
+	// Create Batch
+	batch := &state.Batch{
+		BlockNumber:        uint64(0),
+		Sequencer:          sequencerAddress,
+		Aggregator:         sequencerAddress,
+		ConsolidatedTxHash: common.Hash{},
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
+		Uncles:             nil,
+		Transactions:       txs,
+		RawTxsData:         nil,
+		MaticCollateral:    big.NewInt(1),
+		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
+	}
+
+	// Create Batch Processor
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+	require.NoError(t, err)
+
+	err = bp.ProcessBatch(ctx, batch)
+	require.NoError(t, err)
+
+	// Get SC bytecode
+	code, err := st.GetCode(ctx, scAddress, batch.Number().Uint64())
+	require.NoError(t, err)
+	assert.Equal(t, []byte{}, code)
 }

@@ -6,8 +6,6 @@ import (
 	"math/big"
 	"sort"
 	"sync"
-
-	"github.com/hermeznetwork/hermez-core/state"
 )
 
 const sampleNumber = 3 // Number of transactions sampled in a batch.
@@ -22,14 +20,14 @@ type LastNBatches struct {
 	cacheLock sync.RWMutex
 	fetchLock sync.Mutex
 
-	state state.State
+	state stateInterface
 }
 
 // UpdateGasPriceAvg for last n bathes strategy is not needed to implement this function.
 func (g *LastNBatches) UpdateGasPriceAvg(newValue *big.Int) {}
 
 // NewEstimatorLastNBatches init gas price estimator for last n batches strategy.
-func NewEstimatorLastNBatches(cfg Config, state state.State) *LastNBatches {
+func NewEstimatorLastNBatches(cfg Config, state stateInterface) *LastNBatches {
 	return &LastNBatches{
 		cfg:   cfg,
 		state: state,
@@ -37,9 +35,7 @@ func NewEstimatorLastNBatches(cfg Config, state state.State) *LastNBatches {
 }
 
 // GetAvgGasPrice calculate avg gas price from last n batches.
-func (g *LastNBatches) GetAvgGasPrice() (*big.Int, error) {
-	ctx := context.Background()
-
+func (g *LastNBatches) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
 	batchNumber, err := g.state.GetLastBatchNumber(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last batch number, err: %v", err)

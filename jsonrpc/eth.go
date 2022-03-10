@@ -16,7 +16,7 @@ import (
 type Eth struct {
 	chainIDSelector  *chainIDSelector
 	pool             jsonRPCTxPool
-	state            state.State
+	state            stateInterface
 	sequencerAddress common.Address
 	gpe              gasPriceEstimator
 }
@@ -42,14 +42,11 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 // executed contract and potential error.
 // Note, this function doesn't make any changes in the state/blockchain and is
 // useful to execute view/pure methods and retrieve values.
-func (e *Eth) Call(arg *txnArgs, filter blockNumberOrHash) (interface{}, error) {
-	tx := arg.ToTransaction()
-
+func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 	// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
-	if tx.Gas() == 0 {
-		// The filter is empty, use the latest block by default
-		if filter.BlockNumber == nil && filter.BlockHash == nil {
-			filter.BlockNumber, _ = createBlockNumberPointer("latest")
+	if arg.Gas == nil || *arg.Gas == argUint64(0) {
+		filter := blockNumberOrHash{
+			BlockNumber: number,
 		}
 
 		header, err := e.getHeaderFromBlockNumberOrHash(&filter)
@@ -59,20 +56,25 @@ func (e *Eth) Call(arg *txnArgs, filter blockNumberOrHash) (interface{}, error) 
 
 		gas := argUint64(header.GasLimit)
 		arg.Gas = &gas
-		tx = arg.ToTransaction()
 	}
 
+	if arg.From == nil {
+		from := state.ZeroAddress
+		arg.From = &from
+	}
+
+	tx := arg.ToTransaction()
 	ctx := context.Background()
 	lastVirtualBatch, err := e.state.GetLastBatch(ctx, true)
 	if err != nil {
 		return nil, err
 	}
-	bp, err := e.state.NewBatchProcessor(e.sequencerAddress, lastVirtualBatch.Number().Uint64())
+	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, lastVirtualBatch.Number().Uint64())
 	if err != nil {
 		return nil, err
 	}
 
-	result := bp.ProcessUnsignedTransaction(tx, *arg.From, e.sequencerAddress)
+	result := bp.ProcessUnsignedTransaction(ctx, tx, *arg.From, e.sequencerAddress)
 
 	if result.Failed() {
 		return nil, fmt.Errorf("unable to execute call: %w", result.Err)
@@ -105,7 +107,8 @@ func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error
 
 // GasPrice returns the average gas price based on the last x blocks
 func (e *Eth) GasPrice() (interface{}, error) {
-	gasPrice, err := e.gpe.GetAvgGasPrice()
+	ctx := context.Background()
+	gasPrice, err := e.gpe.GetAvgGasPrice(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -117,12 +120,13 @@ func (e *Eth) GasPrice() (interface{}, error) {
 
 // GetBalance returns the account's balance at the referenced block
 func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface{}, error) {
-	batchNumber, err := getNumericBlockNumber(e, *number)
+	ctx := context.Background()
+	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
 	if err != nil {
 		return nil, err
 	}
 
-	balance, err := e.state.GetBalance(address, batchNumber)
+	balance, err := e.state.GetBalance(ctx, address, batchNumber)
 	if errors.Is(err, state.ErrNotFound) {
 		return hex.EncodeUint64(0), nil
 	} else if err != nil {
@@ -152,7 +156,7 @@ func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, error)
 func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := getNumericBlockNumber(e, number)
+	batchNumber, err := getNumericBlockNumber(ctx, e, number)
 	if err != nil {
 		return nil, err
 	}
@@ -171,12 +175,14 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 
 // GetCode returns account code at given block number
 func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{}, error) {
-	batchNumber, err := getNumericBlockNumber(e, *number)
+	ctx := context.Background()
+
+	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
 	if err != nil {
 		return nil, err
 	}
 
-	code, err := e.state.GetCode(address, batchNumber)
+	code, err := e.state.GetCode(ctx, address, batchNumber)
 	if errors.Is(err, state.ErrNotFound) {
 		return "0x", nil
 	} else if err != nil {
@@ -184,6 +190,25 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 	}
 
 	return argBytes(code), nil
+}
+
+// GetStorageAt gets the value stored for an specific address and position
+func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number *BlockNumber) (interface{}, error) {
+	ctx := context.Background()
+
+	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
+	if err != nil {
+		return nil, err
+	}
+
+	value, err := e.state.GetStorageAt(ctx, address, position, batchNumber)
+	if errors.Is(err, state.ErrNotFound) {
+		return argBytesPtr(common.Hash{}.Bytes()), nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return argBytesPtr(common.BigToHash(value).Bytes()), nil
 }
 
 // GetTransactionByBlockHashAndIndex returns information about a transaction by
@@ -213,7 +238,7 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := getNumericBlockNumber(e, *number)
+	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
 	if err != nil {
 		return nil, err
 	}
@@ -258,13 +283,16 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 
 // GetTransactionCount returns account nonce
 func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, error) {
-	batchNumber, err := getNumericBlockNumber(e, *number)
+	ctx := context.Background()
+	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
 	if err != nil {
 		return nil, err
 	}
 
-	nonce, err := e.state.GetNonce(address, batchNumber)
-	if err != nil {
+	nonce, err := e.state.GetNonce(ctx, address, batchNumber)
+	if errors.Is(err, state.ErrNotFound) {
+		return hex.EncodeUint64(0), nil
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -310,9 +338,7 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 	return tx.Hash().Hex(), nil
 }
 
-func getNumericBlockNumber(e *Eth, number BlockNumber) (uint64, error) {
-	ctx := context.Background()
-
+func getNumericBlockNumber(ctx context.Context, e *Eth, number BlockNumber) (uint64, error) {
 	switch number {
 	case LatestBlockNumber:
 		lastBatchNumber, err := e.state.GetLastBatchNumber(ctx)

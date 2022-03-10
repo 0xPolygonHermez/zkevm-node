@@ -171,12 +171,3 @@ func NewRPCResponse(req Request, reply []byte, err detailedError) Response {
 
 	return response
 }
-
-func createBlockNumberPointer(str string) (*BlockNumber, error) {
-	blockNumber, err := stringToBlockNumber(str)
-	if err != nil {
-		return nil, err
-	}
-
-	return &blockNumber, nil
-}

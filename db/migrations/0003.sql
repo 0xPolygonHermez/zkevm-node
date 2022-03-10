@@ -15,5 +15,5 @@ CREATE TABLE state.merkletree
 CREATE TABLE state.sc_code
 (
     hash BYTEA PRIMARY KEY,
-    data BYTEA NOT NULL
+    data BYTEA
 );

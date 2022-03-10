@@ -1,6 +1,7 @@
 package evm
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
@@ -25,35 +26,35 @@ func newMockContract(value *big.Int, gas uint64, code []byte) *runtime.Contract 
 // we don't test all opcodes in this test
 type mockHost struct{}
 
-func (m *mockHost) AccountExists(addr common.Address) bool {
+func (m *mockHost) AccountExists(ctx context.Context, addr common.Address) bool {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetStorage(addr common.Address, key common.Hash) common.Hash {
+func (m *mockHost) GetStorage(ctx context.Context, addr common.Address, key common.Hash) common.Hash {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) SetStorage(addr common.Address, key common.Hash, value common.Hash, config *runtime.ForksInTime) runtime.StorageStatus {
+func (m *mockHost) SetStorage(cxt context.Context, addr common.Address, key *big.Int, value *big.Int, config *runtime.ForksInTime) runtime.StorageStatus {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetBalance(addr common.Address) *big.Int {
+func (m *mockHost) GetBalance(ctx context.Context, addr common.Address) *big.Int {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetCodeSize(addr common.Address) int {
+func (m *mockHost) GetCodeSize(ctx context.Context, addr common.Address) int {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetCodeHash(addr common.Address) common.Hash {
+func (m *mockHost) GetCodeHash(ctx context.Context, addr common.Address) common.Hash {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetCode(addr common.Address) []byte {
+func (m *mockHost) GetCode(ctx context.Context, addr common.Address) []byte {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) Selfdestruct(addr common.Address, beneficiary common.Address) {
+func (m *mockHost) Selfdestruct(ctx context.Context, addr common.Address, beneficiary common.Address) {
 	panic("Not implemented in tests")
 }
 
@@ -69,15 +70,15 @@ func (m *mockHost) EmitLog(addr common.Address, topics []common.Hash, data []byt
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) Callx(*runtime.Contract, runtime.Host) *runtime.ExecutionResult {
+func (m *mockHost) Callx(context.Context, *runtime.Contract, runtime.Host) *runtime.ExecutionResult {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) Empty(addr common.Address) bool {
+func (m *mockHost) Empty(ctx context.Context, addr common.Address) bool {
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetNonce(addr common.Address) uint64 {
+func (m *mockHost) GetNonce(ctx context.Context, addr common.Address) uint64 {
 	panic("Not implemented in tests")
 }
 
@@ -144,6 +145,7 @@ func TestRun(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			evm := NewEVM()
@@ -153,7 +155,7 @@ func TestRun(t *testing.T) {
 			if config == nil {
 				config = &runtime.ForksInTime{}
 			}
-			res := evm.Run(contract, host, config)
+			res := evm.Run(ctx, contract, host, config)
 			assert.Equal(t, tt.expected.GasUsed, res.GasUsed)
 			assert.Equal(t, tt.expected.GasLeft, res.GasLeft)
 			assert.Equal(t, tt.expected.Err, res.Err)

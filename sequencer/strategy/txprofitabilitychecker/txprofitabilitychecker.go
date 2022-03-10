@@ -7,14 +7,12 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // Base struct
 type Base struct {
 	EthMan etherman
-	State  state.State
+	State  stateInterface
 
 	IntervalAfterWhichBatchSentAnyway time.Duration
 	MinReward                         *big.Int
@@ -24,7 +22,7 @@ type Base struct {
 // NewTxProfitabilityCheckerBase inits base tx profitability checker with min reward from config and ethMan
 func NewTxProfitabilityCheckerBase(
 	ethMan etherman,
-	state state.State, minReward *big.Int,
+	state stateInterface, minReward *big.Int,
 	intervalAfterWhichBatchSentAnyway time.Duration,
 	rewardPercentageToAggregator int64,
 ) *Base {
@@ -102,37 +100,30 @@ func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (boo
 
 // AcceptAll always returns true
 type AcceptAll struct {
-	State                             state.State
+	EthMan                            etherman
+	State                             stateInterface
 	IntervalAfterWhichBatchSentAnyway time.Duration
 }
 
 // NewTxProfitabilityCheckerAcceptAll inits tx profitability checker which accept all
-func NewTxProfitabilityCheckerAcceptAll(state state.State, intervalAfterWhichBatchSentAnyway time.Duration) *AcceptAll {
+func NewTxProfitabilityCheckerAcceptAll(ethman etherman, state stateInterface, intervalAfterWhichBatchSentAnyway time.Duration) *AcceptAll {
 	return &AcceptAll{
+		EthMan:                            ethman,
 		State:                             state,
 		IntervalAfterWhichBatchSentAnyway: intervalAfterWhichBatchSentAnyway,
 	}
 }
 
-// IsProfitable always returns true
+// IsProfitable always returns true, until it's failed to get sequencer collateral
 func (pc *AcceptAll) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, *big.Int, error) {
-	// TODO until gas calculation and price updater is not implemented, this value will be hardcoded
-	maticReward := big.NewInt(int64(len(txs)))
-	maticReward.Mul(maticReward, big.NewInt(encoding.TenToThePowerOf18))
-	if pc.IntervalAfterWhichBatchSentAnyway != 0 {
-		ok, err := isNewBatchNotAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
-		if err != nil {
-			return false, maticReward, err
-		}
-		if ok {
-			return true, maticReward, nil
-		}
+	collateral, err := pc.EthMan.GetCurrentSequencerCollateral()
+	if err != nil {
+		return false, big.NewInt(0), fmt.Errorf("failed to get current collateral amount from smc, err: %v", err)
 	}
-
-	return true, maticReward, nil
+	return true, collateral, nil
 }
 
-func isNewBatchNotAppeared(ctx context.Context, state state.State, intervalAfterWhichBatchSentAnyway time.Duration) (bool, error) {
+func isNewBatchNotAppeared(ctx context.Context, state stateInterface, intervalAfterWhichBatchSentAnyway time.Duration) (bool, error) {
 	batch, err := state.GetLastBatch(ctx, true)
 	if err != nil {
 		return false, fmt.Errorf("failed to get last batch, err: %v", err)

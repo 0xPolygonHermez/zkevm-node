@@ -1,10 +1,10 @@
 # CONTAINER FOR BUILDING BINARY
-FROM golang:1.16 AS build
+FROM golang:1.17 AS build
 
 ENV CGO_ENABLED=1
 
 # INSTALL DEPENDENCIES
-RUN go get -u github.com/gobuffalo/packr/v2/packr2
+RUN go install github.com/gobuffalo/packr/v2/packr2@v2.8.3
 COPY go.mod go.sum /src/
 RUN cd /src && go mod download
 
@@ -14,7 +14,7 @@ RUN cd /src/db && packr2
 RUN cd /src && make build
 
 # CONTAINER FOR RUNNING BINARY
-FROM golang:1.16
+FROM golang:1.17
 WORKDIR /app
 COPY --from=build /src/dist/hezcore /app/hezcore
 EXPOSE 8123

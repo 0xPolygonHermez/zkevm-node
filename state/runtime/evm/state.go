@@ -1,6 +1,7 @@
 package evm
 
 import (
+	"context"
 	"errors"
 	"math/big"
 	"sync"
@@ -134,10 +135,6 @@ func (s *state) stackAtLeast(n int) bool {
 	return s.sp >= n
 }
 
-func (s *state) popHash() common.Hash {
-	return common.BytesToHash(s.pop().Bytes())
-}
-
 func (s *state) popAddr() (common.Address, bool) {
 	b := s.pop()
 	if b == nil {
@@ -226,7 +223,7 @@ func (s *state) checkMemory(offset, size *big.Int) bool {
 }
 
 // Run executes the virtual machine
-func (s *state) Run() ([]byte, error) {
+func (s *state) Run(ctx context.Context) ([]byte, error) {
 	var vmerr error
 
 	codeSize := len(s.code)
@@ -258,7 +255,7 @@ func (s *state) Run() ([]byte, error) {
 		}
 
 		// execute the instruction
-		inst.inst(s)
+		inst.inst(ctx, s)
 
 		// check if stack size exceeds the max size
 		if s.sp > stackSize {

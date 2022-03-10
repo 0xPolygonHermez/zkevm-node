@@ -8,11 +8,12 @@ import (
 )
 
 const (
-	flagYes     = "yes"
-	flagCfg     = "cfg"
-	flagNetwork = "network"
-	flagAddress = "address"
-	flagAmount  = "amount"
+	flagYes        = "yes"
+	flagCfg        = "cfg"
+	flagNetwork    = "network"
+	flagNetworkCfg = "network-cfg"
+	flagAmount     = "amount"
+	flagRemoteMT   = "remote-merkletree"
 )
 
 const (
@@ -43,10 +44,21 @@ func main() {
 			Usage:    "Network: mainnet, testnet, internaltestnet, local. By default it uses mainnet",
 			Required: false,
 		},
+		&cli.StringFlag{
+			Name:    flagNetworkCfg,
+			Aliases: []string{"nc"},
+			Usage:   "Custom network configuration `FILE` when using --network custom parameter",
+		},
 		&cli.BoolFlag{
 			Name:     flagYes,
 			Aliases:  []string{"y"},
 			Usage:    "Automatically accepts any confirmation to execute the command",
+			Required: false,
+		},
+		&cli.BoolFlag{
+			Name:     flagRemoteMT,
+			Aliases:  []string{"mt"},
+			Usage:    "Connect to merkletree service instead of use local libraries",
 			Required: false,
 		},
 	}
@@ -77,17 +89,11 @@ func main() {
 			Usage:   "Approve tokens to be spent by the smart contract",
 			Action:  approveTokens,
 			Flags: append(flags, &cli.StringFlag{
-				Name:     flagAddress,
-				Aliases:  []string{"ap"},
-				Usage:    "Smc address that is gonna be approved",
+				Name:     flagAmount,
+				Aliases:  []string{"am"},
+				Usage:    "Amount that is gonna be approved",
 				Required: true,
 			},
-				&cli.StringFlag{
-					Name:     flagAmount,
-					Aliases:  []string{"am"},
-					Usage:    "Amount that is gonna be approved",
-					Required: true,
-				},
 			),
 		},
 		{
@@ -96,6 +102,13 @@ func main() {
 			Usage:   "Encrypts the privatekey with a password and create a keystore file",
 			Action:  encryptKey,
 			Flags:   encryptKeyFlags,
+		},
+		{
+			Name:    "updatedeps",
+			Aliases: []string{},
+			Usage:   "Updates external dependencies like images, test vectors or proto files",
+			Action:  updateDeps,
+			Flags:   flags,
 		},
 	}
 

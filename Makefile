@@ -126,8 +126,12 @@ run: ## Runs all the services
 	$(RUNCORE)
 	sleep 3
 	$(RUNEXPLORER)
-	sleep 3
-	go run ./test/init_network.go .
+
+.PHONY: init-network
+init-network: ## Inits network and deploys test smart contract
+	go run ./scripts/init_network/main.go .
+	sleep 5
+	go run ./scripts/deploy_sc/main.go .
 
 .PHONY: stop
 stop: ## Stops all services
@@ -146,12 +150,16 @@ install-git-hooks: ## Moves hook files to the .git/hooks directory
 
 .PHONY: generate-mocks
 generate-mocks: ## Generates mocks for the tests, using mockery tool
-	mockery --name=txprofitabilitycheckerEtherman --dir=sequencer/strategy/txprofitabilitychecker --output=sequencer/strategy/txprofitabilitychecker --outpkg=txprofitabilitychecker_test --filename=etherman-mock_test.go
-	mockery --name=BatchProcessor --dir=state --output=state/mocks --filename=batchprocessor.go
+	mockery --name=etherman --dir=sequencer/strategy/txprofitabilitychecker --output=sequencer/strategy/txprofitabilitychecker --outpkg=txprofitabilitychecker_test --filename=etherman-mock_test.go
+	mockery --name=batchProcessor --dir=sequencer/strategy/txselector --output=sequencer/strategy/txselector --outpkg=txselector_test --filename=batchprocessor-mock_test.go
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files
 	cd state/tree/pb && protoc --proto_path=. --go_out=. --go-grpc_out=. --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative mt.proto
+
+.PHONY: update-external-dependencies
+update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files
+	go run ./cmd/... updatedeps
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted

@@ -1,6 +1,7 @@
 package runtime_test
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
@@ -43,7 +44,7 @@ func TestRuntime(t *testing.T) {
 	// mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	// host := runtime.NewMerkleTreeHost(tree.NewStateTree(mt, nil))
 
-	res := testEvm.Run(contract, nil, config)
+	res := testEvm.Run(context.Background(), contract, nil, config)
 	assert.Equal(t, uint64(4976), res.GasLeft)
 	assert.NoError(t, res.Err)
 }

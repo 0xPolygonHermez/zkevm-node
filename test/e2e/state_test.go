@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/test/operations"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
@@ -26,7 +27,7 @@ func TestStateTransition(t *testing.T) {
 		require.NoError(t, operations.Teardown())
 	}()
 
-	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/state-transition.json")
+	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/src/test-vector-data/state-transition.json")
 	require.NoError(t, err)
 
 	for _, testCase := range testCases {
@@ -70,11 +71,11 @@ func TestStateTransition(t *testing.T) {
 			for addrStr, leaf := range testCase.ExpectedNewLeafs {
 				addr := common.HexToAddress(addrStr)
 
-				actualBalance, err := st.GetBalance(addr, batchNumber)
+				actualBalance, err := st.GetBalance(ctx, addr, batchNumber)
 				require.NoError(t, err)
 				assert.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("addr: %s expected: %s found: %s", addr.Hex(), leaf.Balance.Text(encoding.Base10), actualBalance.Text(encoding.Base10)))
 
-				actualNonce, err := st.GetNonce(addr, batchNumber)
+				actualNonce, err := st.GetNonce(ctx, addr, batchNumber)
 				require.NoError(t, err)
 				assert.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, encoding.Base10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}
@@ -82,7 +83,7 @@ func TestStateTransition(t *testing.T) {
 			// Check state against the expected state
 			root, err := st.GetStateRoot(ctx, true)
 			require.NoError(t, err)
-			strRoot := new(big.Int).SetBytes(root).String()
+			strRoot := hex.EncodeToHex(root)
 			assert.Equal(t, testCase.ExpectedNewRoot, strRoot, "Invalid new root")
 
 			// Check consolidated state against the expected state

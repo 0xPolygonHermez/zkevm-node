@@ -39,7 +39,7 @@ func init() {
 }
 
 func TestMerkleTreeRaw(t *testing.T) {
-	data, err := os.ReadFile("test/vectors/smt/smt-raw.json")
+	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-raw.json")
 	require.NoError(t, err)
 
 	var testVectors []testVectorRaw
@@ -144,7 +144,7 @@ func TestMerkleTree(t *testing.T) {
 }
 
 func TestHashBytecode(t *testing.T) {
-	data, err := os.ReadFile("test/vectors/smt/smt-hash-bytecode.json")
+	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-hash-bytecode.json")
 	require.NoError(t, err)
 
 	var testVectors []struct {

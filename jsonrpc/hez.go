@@ -4,13 +4,12 @@ import (
 	"context"
 
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // Hez contains implementations for the "hez" RPC endpoints
 type Hez struct {
 	defaultChainID uint64
-	state          state.State
+	state          stateInterface
 }
 
 // DefaultChainId returns the default chain id that is allowed to be used by all the sequencers

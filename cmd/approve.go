@@ -5,37 +5,26 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/urfave/cli/v2"
 )
 
 func approveTokens(ctx *cli.Context) error {
-	configFilePath := ctx.String(flagCfg)
-	network := ctx.String(flagNetwork)
-	toName := ctx.String(flagAddress)
 	a := ctx.String(flagAmount)
 	amount, _ := new(big.Float).SetString(a)
 	if amount == nil {
 		fmt.Println("Please, introduce a valid amount. Use '.' instead of ',' if it is a decimal number")
 		return nil
 	}
-	c, err := config.Load(configFilePath, network)
+	c, err := config.Load(ctx)
 	if err != nil {
 		return err
-	}
-	var toAddress common.Address
-	switch toName {
-	case "poe":
-		toAddress = c.NetworkConfig.PoEAddr
-	case "bridge":
-		toAddress = c.NetworkConfig.BridgeAddr
 	}
 
 	if !ctx.Bool(flagYes) {
 		fmt.Print("*WARNING* Are you sure you want to approve ", amount,
-			" tokens to be spent by the smc <Name: "+toName+". Address: "+toAddress.String()+">? [y/N]: ")
+			" tokens to be spent by the smc <Name: PoE. Address: "+c.NetworkConfig.PoEAddr.String()+">? [y/N]: ")
 		var input string
 		if _, err := fmt.Scanln(&input); err != nil {
 			return err
@@ -61,7 +50,7 @@ func approveTokens(ctx *cli.Context) error {
 	amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
 	amountB := new(big.Int)
 	amountInWei.Int(amountB)
-	tx, err := etherman.ApproveMatic(amountB, toAddress)
+	tx, err := etherman.ApproveMatic(amountB, c.NetworkConfig.PoEAddr)
 	if err != nil {
 		return err
 	}

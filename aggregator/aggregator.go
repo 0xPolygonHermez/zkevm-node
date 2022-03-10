@@ -25,7 +25,7 @@ const fr = "21888242871839275222246405745257275088548364400416034343698204186575
 type Aggregator struct {
 	cfg Config
 
-	State          state.State
+	State          stateInterface
 	EtherMan       etherman
 	ZkProverClient proverclient.ZKProverClient
 
@@ -38,7 +38,7 @@ type Aggregator struct {
 // NewAggregator creates a new aggregator
 func NewAggregator(
 	cfg Config,
-	state state.State,
+	state stateInterface,
 	ethMan etherman,
 	zkProverClient proverclient.ZKProverClient,
 ) (Aggregator, error) {
@@ -128,13 +128,13 @@ func (a *Aggregator) Start() {
 			}
 
 			// 4. send zki + txs to the prover
-			stateRootConsolidated, err := a.State.GetStateRootByBatchNumber(lastConsolidatedBatch.Number().Uint64())
+			stateRootConsolidated, err := a.State.GetStateRootByBatchNumber(a.ctx, lastConsolidatedBatch.Number().Uint64())
 			if err != nil {
 				log.Warnf("failed to get current state root, err: %v", err)
 				continue
 			}
 
-			stateRootToConsolidate, err := a.State.GetStateRootByBatchNumber(batchToConsolidate.Number().Uint64())
+			stateRootToConsolidate, err := a.State.GetStateRootByBatchNumber(a.ctx, batchToConsolidate.Number().Uint64())
 			if err != nil {
 				log.Warnf("failed to get state root to consolidate, err: %v", err)
 				continue

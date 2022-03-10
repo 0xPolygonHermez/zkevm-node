@@ -21,7 +21,7 @@ type Sequencer struct {
 	cfg Config
 
 	Pool    txPool
-	State   state.State
+	State   stateInterface
 	EthMan  etherman
 	Address common.Address
 	ChainID uint64
@@ -34,7 +34,7 @@ type Sequencer struct {
 }
 
 // NewSequencer creates a new sequencer
-func NewSequencer(cfg Config, pool txPool, state state.State, ethMan etherman) (Sequencer, error) {
+func NewSequencer(cfg Config, pool txPool, state stateInterface, ethMan etherman) (Sequencer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var txSelector txselector.TxSelector
@@ -48,7 +48,7 @@ func NewSequencer(cfg Config, pool txPool, state state.State, ethMan etherman) (
 	var txProfitabilityChecker txProfitabilityChecker
 	switch cfg.Strategy.TxProfitabilityChecker.Type {
 	case txprofitabilitychecker.AcceptAllType:
-		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
+		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerAcceptAll(ethMan, state, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
 	case txprofitabilitychecker.BaseType:
 		minReward := new(big.Int).Mul(cfg.Strategy.TxProfitabilityChecker.MinReward.Int, big.NewInt(encoding.TenToThePowerOf18))
 		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, state, minReward, cfg.IntervalAfterWhichBatchSentAnyway.Duration, cfg.Strategy.TxProfitabilityChecker.RewardPercentageToAggregator)
@@ -87,11 +87,14 @@ func NewSequencer(cfg Config, pool txPool, state state.State, ethMan etherman) (
 
 // Start starts the sequencer
 func (s *Sequencer) Start() {
+	ticker := time.NewTicker(s.cfg.IntervalToProposeBatch.Duration)
+	defer ticker.Stop()
 	// Infinite for loop:
 	for {
+		s.tryProposeBatch()
 		select {
-		case <-time.After(s.cfg.IntervalToProposeBatch.Duration):
-			s.tryProposeBatch()
+		case <-ticker.C:
+			// nothing
 		case <-s.ctx.Done():
 			return
 		}
@@ -139,14 +142,14 @@ func (s *Sequencer) tryProposeBatch() {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return
 	}
-	bp, err := s.State.NewBatchProcessor(s.Address, lastVirtualBatch.Number().Uint64())
+	bp, err := s.State.NewBatchProcessor(s.ctx, s.Address, lastVirtualBatch.Number().Uint64())
 	if err != nil {
 		log.Errorf("failed to create new batch processor, err: %v", err)
 		return
 	}
 
 	// select txs
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(bp, txs, s.Address)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(s.ctx, bp, txs, s.Address)
 	if err != nil {
 		log.Errorf("failed to select txs, err: %v", err)
 		return
@@ -172,7 +175,6 @@ func (s *Sequencer) tryProposeBatch() {
 			return
 		}
 		log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
-
 		// update txs in the pool as selected
 		err = s.Pool.UpdateTxsState(s.ctx, selectedTxsHashes, pool.TxStateSelected)
 		if err != nil {
@@ -183,7 +185,7 @@ func (s *Sequencer) tryProposeBatch() {
 	// NO: discard selection and wait for the new batch
 }
 
-func getChainID(ctx context.Context, st state.State, ethMan etherman, seqAddress common.Address) (uint64, error) {
+func getChainID(ctx context.Context, st stateInterface, ethMan etherman, seqAddress common.Address) (uint64, error) {
 	const intervalToCheckSequencerRegistrationInSeconds = 3
 	var (
 		seq *state.Sequencer

@@ -21,9 +21,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// stateInterface gathers the methods required to interact with the state.
+type stateInterface interface {
+	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
+	NewGenesisBatchProcessor(genesisStateRoot []byte) (*state.BasicBatchProcessor, error)
+}
+
 var (
 	stateDB   *pgxpool.Pool
-	testState state.State
+	testState stateInterface
 
 	addr               common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
 	consolidatedTxHash common.Hash    = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")
@@ -58,7 +64,7 @@ func TestMain(m *testing.M) {
 	store := tree.NewPostgresStore(stateDB)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDB)
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore, nil))
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
 	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	txs = []*types.Transaction{tx}
 
@@ -121,7 +127,7 @@ func setUpBatch() {
 		panic(err)
 	}
 
-	err = bp.ProcessBatch(batch)
+	err = bp.ProcessBatch(ctx, batch)
 	if err != nil {
 		panic(err)
 	}
@@ -129,7 +135,7 @@ func setUpBatch() {
 
 func TestBase_IsProfitable_FailByMinReward(t *testing.T) {
 	minReward := new(big.Int).Mul(big.NewInt(1000), big.NewInt(encoding.TenToThePowerOf18))
-	ethMan := new(txprofitabilitycheckerEtherman)
+	ethMan := new(etherman)
 	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(60), 50)
 	ctx := context.Background()
 
@@ -142,7 +148,7 @@ func TestBase_IsProfitable_FailByMinReward(t *testing.T) {
 
 func TestBase_IsProfitable_SendBatchAnyway(t *testing.T) {
 	minReward := big.NewInt(0)
-	ethMan := new(txprofitabilitycheckerEtherman)
+	ethMan := new(etherman)
 	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(1), 50)
 
 	ctx := context.Background()
@@ -158,7 +164,7 @@ func TestBase_IsProfitable_SendBatchAnyway(t *testing.T) {
 
 func TestBase_IsProfitable_GasCostTooBigForSendingTx(t *testing.T) {
 	minReward := big.NewInt(0)
-	ethMan := new(txprofitabilitycheckerEtherman)
+	ethMan := new(etherman)
 	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(60), 50)
 
 	ctx := context.Background()
@@ -171,7 +177,7 @@ func TestBase_IsProfitable_GasCostTooBigForSendingTx(t *testing.T) {
 }
 
 func TestBase_IsProfitable(t *testing.T) {
-	ethMan := new(txprofitabilitycheckerEtherman)
+	ethMan := new(etherman)
 	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, big.NewInt(0), time.Duration(60), 50)
 
 	ctx := context.Background()
