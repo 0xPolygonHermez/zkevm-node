@@ -16,4 +16,7 @@ type Config struct {
 
 	// Port Number
 	Port string `mapstructure:"Port"`
+
+	// EnableLog
+	EnableLog bool `mapstructure:"EnableLog"`
 }

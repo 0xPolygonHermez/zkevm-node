@@ -66,6 +66,7 @@ type BasicBatchProcessor struct {
 	CumulativeGasUsed    uint64
 	MaxCumulativeGasUsed uint64
 	transactionContext   transactionContext
+	logs                 []types.Log
 }
 
 type transactionContext struct {
@@ -83,6 +84,7 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 	var index uint
 
 	b.CumulativeGasUsed = 0
+	b.logs = []types.Log{}
 
 	for _, tx := range batch.Transactions {
 		senderAddress, err := helper.GetSender(tx)
@@ -144,6 +146,8 @@ func (b *BasicBatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx
 }
 
 func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+	log.Debugf("Processing tx: %v", tx.Hash())
+
 	// Set transaction context
 	b.transactionContext.currentTransaction = tx
 	b.transactionContext.currentOrigin = senderAddress
@@ -186,6 +190,12 @@ func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch) {
 	rr := make([]*types.Receipt, 0, len(batch.Receipts))
 	for _, receipt := range batch.Receipts {
 		r := receipt.Receipt
+		for _, l := range b.logs {
+			if l.TxHash == receipt.TxHash {
+				rl := l
+				r.Logs = append(r.Logs, &rl)
+			}
+		}
 		rr = append(rr, &r)
 	}
 	block := types.NewBlock(batch.Header, batch.Transactions, batch.Uncles, rr, &trie.StackTrie{})
@@ -194,8 +204,8 @@ func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch) {
 	batch.Header.UncleHash = block.UncleHash()
 	batch.Header.Coinbase = batch.Sequencer
 	batch.Header.Root = common.BytesToHash(b.stateRoot)
-	batch.Header.TxHash = block.Header().TxHash
-	batch.Header.ReceiptHash = block.Header().ReceiptHash
+	batch.Header.TxHash = block.TxHash()
+	batch.Header.ReceiptHash = block.ReceiptHash()
 	batch.Header.Bloom = block.Bloom()
 	batch.Header.Difficulty = new(big.Int).SetUint64(0)
 	batch.Header.GasLimit = 30000000
@@ -440,6 +450,16 @@ func (b *BasicBatchProcessor) commit(ctx context.Context, batch *Batch) error {
 	for _, receipt := range batch.Receipts {
 		receipt.BlockHash = blockHash
 		err := b.State.AddReceipt(ctx, receipt)
+		if err != nil {
+			return err
+		}
+	}
+
+	// store logs
+	for _, txLog := range b.logs {
+		txLog.BlockHash = blockHash
+		txLog.BlockNumber = batch.Number().Uint64()
+		err := b.State.AddLog(ctx, txLog)
 		if err != nil {
 			return err
 		}
@@ -711,8 +731,18 @@ func (b *BasicBatchProcessor) GetBlockHash(number int64) common.Hash {
 
 // EmitLog generates logs
 func (b *BasicBatchProcessor) EmitLog(address common.Address, topics []common.Hash, data []byte) {
-	// TODO: Implement
-	log.Warn("batchprocessor.EmitLog not implemented")
+	log.Debugf("EmitLog for address %v", address)
+	txLog := types.Log{
+		Address: address,
+		Topics:  topics,
+		Data:    common.CopyBytes(data),
+		TxHash:  b.transactionContext.currentTransaction.Hash(),
+		TxIndex: b.transactionContext.index,
+		Index:   uint(len(b.logs)),
+		Removed: false,
+	}
+
+	b.logs = append(b.logs, txLog)
 }
 
 // Callx calls a SC

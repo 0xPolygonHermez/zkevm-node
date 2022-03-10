@@ -13,7 +13,20 @@ import (
 
 // NewSQLDB creates a new SQL DB
 func NewSQLDB(cfg Config) (*pgxpool.Pool, error) {
-	return pgxpool.Connect(context.Background(), "postgres://"+cfg.User+":"+cfg.Password+"@"+cfg.Host+":"+cfg.Port+"/"+cfg.Name)
+	config, err := pgxpool.ParseConfig("postgres://" + cfg.User + ":" + cfg.Password + "@" + cfg.Host + ":" + cfg.Port + "/" + cfg.Name)
+	if err != nil {
+		log.Errorf("Unable to parse DB config: %v\n", err)
+		return nil, err
+	}
+	if cfg.EnableLog {
+		config.ConnConfig.Logger = logger{}
+	}
+	conn, err := pgxpool.ConnectConfig(context.Background(), config)
+	if err != nil {
+		log.Errorf("Unable to connect to database: %v\n", err)
+		return nil, err
+	}
+	return conn, nil
 }
 
 // RunMigrations will execute pending migrations if needed to keep

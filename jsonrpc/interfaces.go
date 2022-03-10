@@ -42,4 +42,5 @@ type stateInterface interface {
 	GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error)
 	GetNonce(ctx context.Context, address common.Address, batchNumber uint64) (uint64, error)
 	GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error)
+	GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash) ([]*types.Log, error)
 }

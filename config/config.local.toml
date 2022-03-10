@@ -8,6 +8,7 @@ Password = "test_password"
 Name = "test_db"
 Host = "hez-postgres"
 Port = "5432"
+EnableLog = false
 
 [Etherman]
 URL = "http://hez-network:8545"
