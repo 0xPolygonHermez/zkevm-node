@@ -24,6 +24,7 @@ type Batch struct {
 	ConsolidatedTxHash common.Hash
 	ChainID            *big.Int
 	GlobalExitRoot     common.Hash
+	RollupExitRoot     common.Hash
 	Header             *types.Header
 	Uncles             []*types.Header
 	Transactions       []*types.Transaction
