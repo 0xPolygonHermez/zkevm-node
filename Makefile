@@ -161,6 +161,10 @@ generate-code-from-proto: ## Generates code from proto files
 update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files
 	go run ./cmd/... updatedeps
 
+.PHONY: run-benchmarks
+run-benchmarks: run-db ## Runs benchmars
+	go test -bench=. ./state/tree
+
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
 ## display with the commands and their usage information.

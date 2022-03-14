@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
@@ -39,6 +40,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "MTServer.Port",
 			expectedValue: 50052,
+		},
+		{
+			path:          "MTServer.StoreBackend",
+			expectedValue: tree.PgMTStoreBackend,
 		},
 		{
 			path:          "MTClient.URI",

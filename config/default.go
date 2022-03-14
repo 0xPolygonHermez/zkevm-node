@@ -55,6 +55,7 @@ ProverURI = "0.0.0.0:50051"
 [MTServer]
 Host = "0.0.0.0"
 Port = 50052
+StoreBackend = "PostgreSQL"
 
 [MTClient]
 URI = "127.0.0.1:50052"

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -114,7 +114,7 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		fmt.Printf("\nError: %v\n", err)
+		log.Fatal(err)
 		os.Exit(1)
 	}
 }
