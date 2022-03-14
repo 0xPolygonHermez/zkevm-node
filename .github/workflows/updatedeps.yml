@@ -34,3 +34,4 @@ jobs:
         body: Check for new images, test vectors and proto files and update the code to use them.
         branch: update-external-dependencies
         base: develop
+        author: int-bot <int-bot@users.noreply.github.com>
