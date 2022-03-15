@@ -20,6 +20,15 @@ jobs:
         GOARCH: "amd64"
     - name: Install Protoc
       uses: arduino/setup-protoc@v1
+    - name: Install protoc-gen-go
+      run: |
+        go install github.com/golang/protobuf/protoc-gen-go@latest
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+    - name: Install solc
+      run: |
+        curl -sL https://github.com/ethereum/solc-bin/raw/gh-pages/linux-amd64/solc-linux-amd64-v0.8.12%2Bcommit.f00d7308 -o /usr/local/bin/solc
+        chmod a+x /usr/local/bin/solc
+        solc --version
     - name: Update deps
       env:
         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

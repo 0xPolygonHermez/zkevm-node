@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/test/utils"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 )
@@ -96,7 +96,7 @@ services:
 			}()
 
 			actualOutput, err := subject.readCurrentDigest(imageName)
-			require.NoError(t, checkError(err, tc.expectedError, tc.expectedErrorMsg))
+			require.NoError(t, utils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}
@@ -176,7 +176,7 @@ func Test_image_readRemoteDigest(t *testing.T) {
 			}
 
 			actualOutput, err := subject.readRemoteDigest(imageName)
-			require.NoError(t, checkError(err, tc.expectedError, tc.expectedErrorMsg))
+			require.NoError(t, utils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}
@@ -284,7 +284,7 @@ services:
 			}()
 
 			err := subject.updateDigest(imageName, tc.oldDigest, tc.newDigest)
-			require.NoError(t, checkError(err, tc.expectedError, tc.expectedErrorMsg))
+			require.NoError(t, utils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 			actualFileContents, err := afero.ReadFile(appFs, defaultPath)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedFinalFileContents, string(actualFileContents))
@@ -307,22 +307,4 @@ func createFile(appFs afero.Fs, path, content string) error {
 	_, err = f.WriteString(content)
 
 	return err
-}
-
-func checkError(err error, expected bool, msg string) error {
-	if !expected && err != nil {
-		return fmt.Errorf("Unexpected error %v", err)
-	}
-	if expected {
-		if err == nil {
-			return fmt.Errorf("Expected error didn't happen")
-		}
-		if msg == "" {
-			return fmt.Errorf("Expected error message not defined")
-		}
-		if !strings.HasPrefix(err.Error(), msg) {
-			return fmt.Errorf("Wrong error, expected %q, got %q", msg, err.Error())
-		}
-	}
-	return nil
 }

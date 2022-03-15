@@ -10,7 +10,7 @@ import (
 
 const (
 	defaultPBSourceRepo    = "git@github.com:hermeznetwork/comms-protocol.git"
-	defaultPBTargetDirPath = "../../proto/src"
+	defaultPBTargetDirPath = "../../../proto/src"
 )
 
 type pbUpdater struct {
