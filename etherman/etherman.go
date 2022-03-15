@@ -184,7 +184,7 @@ func (etherMan *Client) sendBatch(ctx context.Context, opts *bind.TransactOpts, 
 }
 
 // ConsolidateBatch function allows the aggregator send the proof for a batch and consolidate it
-func (etherMan *Client) ConsolidateBatch(batchNumber *big.Int, resGetProof *proverclient.ResGetProof) (*types.Transaction, error) {
+func (etherMan *Client) ConsolidateBatch(batchNumber *big.Int, resGetProof *proverclient.GetProofResponse) (*types.Transaction, error) {
 	publicInputs := resGetProof.Public.PublicInputs
 	newLocalExitRoot, err := stringToFixedByteArray(publicInputs.NewLocalExitRoot)
 	if err != nil {

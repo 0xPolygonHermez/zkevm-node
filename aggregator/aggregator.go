@@ -5,11 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
-	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
@@ -27,7 +25,7 @@ type Aggregator struct {
 
 	State          stateInterface
 	EtherMan       etherman
-	ZkProverClient proverclient.ZKProverClient
+	ZkProverClient proverclient.ZKProverServiceClient
 
 	ProfitabilityChecker aggregatorTxProfitabilityChecker
 
@@ -40,7 +38,7 @@ func NewAggregator(
 	cfg Config,
 	state stateInterface,
 	ethMan etherman,
-	zkProverClient proverclient.ZKProverClient,
+	zkProverClient proverclient.ZKProverServiceClient,
 ) (Aggregator, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -141,35 +139,6 @@ func (a *Aggregator) Start() {
 			}
 
 			rawTxs := batchToConsolidate.RawTxsData
-			// Split transactions
-			var pos int64
-			var txs []string
-			const (
-				headerByteLength = 2
-				sLength          = 32
-				rLength          = 32
-				vLength          = 1
-			)
-			for pos < int64(len(rawTxs)) {
-				length := rawTxs[pos : pos+1]
-				str := hex.EncodeToString(length)
-				num, err := strconv.ParseInt(str, hex.Base, encoding.BitSize64)
-				if err != nil {
-					log.Debug("error parsing header length: ", err)
-					txs = []string{}
-					break
-				}
-				// First byte is the length and must be ignored
-				const c0 = 192 // 192 is c0. This value is defined by the rlp protocol
-				num = num - c0 - 1
-
-				fullDataTx := rawTxs[pos : pos+num+rLength+sLength+vLength+headerByteLength]
-
-				pos = pos + num + rLength + sLength + vLength + headerByteLength
-
-				txs = append(txs, "0x"+hex.EncodeToString(fullDataTx))
-			}
-			log.Debug("Txs: ", txs)
 			// TODO: change this, once we have dynamic exit root
 			globalExitRoot := common.HexToHash("0xa116e19a7984f21055d07b606c55628a5ffbf8ae1261c1e9f4e3a61620cf810a")
 			oldLocalExitRoot := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
@@ -208,13 +177,15 @@ func (a *Aggregator) Start() {
 					EthTimestamp:     uint64(batchToConsolidate.ReceivedAt.Unix()),
 				},
 				GlobalExitRoot: globalExitRoot.String(),
-				Txs:            txs,
+				BatchL2Data:    string(rawTxs),
 				Db:             db,
 			}
 
+			genProofRequest := proverclient.GenProofRequest{Input: inputProver}
+
 			// init connection to the prover
 			var opts []grpc.CallOption
-			resGenProof, err := a.ZkProverClient.GenProof(a.ctx, inputProver, opts...)
+			resGenProof, err := a.ZkProverClient.GenProof(a.ctx, &genProofRequest, opts...)
 			if err != nil {
 				log.Errorf("failed to connect to the prover to gen proof, err: %v", err)
 				continue
@@ -222,13 +193,13 @@ func (a *Aggregator) Start() {
 
 			log.Debugf("Data sent to the prover: %+v", inputProver)
 			genProofRes := resGenProof.GetResult()
-			if genProofRes != proverclient.ResGenProof_OK {
+			if genProofRes != proverclient.GenProofResponse_RESULT_GEN_PROOF_OK {
 				log.Warnf("failed to get result from the prover, batchNumber: %d, err: %v", batchToConsolidate.Number().Uint64())
 				continue
 			}
 			genProofID := resGenProof.GetId()
 
-			resGetProof := &proverclient.ResGetProof{
+			resGetProof := &proverclient.GetProofResponse{
 				Result: -1,
 			}
 			getProofCtx, getProofCtxCancel = context.WithCancel(a.ctx)
@@ -237,8 +208,8 @@ func (a *Aggregator) Start() {
 				log.Warnf("failed to init getProofClient, batchNumber: %d, err: %v", batchToConsolidate.Number().Uint64(), err)
 				continue
 			}
-			for resGetProof.Result != proverclient.ResGetProof_COMPLETED_OK {
-				err = getProofClient.Send(&proverclient.ReqGetProof{
+			for resGetProof.Result != proverclient.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK {
+				err = getProofClient.Send(&proverclient.GetProofRequest{
 					Id: genProofID,
 				})
 				if err != nil {
@@ -253,22 +224,21 @@ func (a *Aggregator) Start() {
 				}
 
 				resGetProofState := resGetProof.GetResult()
-				if resGetProofState == proverclient.ResGetProof_ERROR {
+				if resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_ERROR ||
+					resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_COMPLETED_ERROR {
 					panic(fmt.Sprintf("failed to get a proof for batch, batch number %d", batchToConsolidate.Number().Uint64()))
 				}
-				if resGetProofState == proverclient.ResGetProof_INTERNAL_ERROR ||
-					// TODO: what should I do for ResGetProof_COMPLETED_ERR? Somehow mark batch as invalid?
-					resGetProofState == proverclient.ResGetProof_COMPLETED_ERR {
+				if resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_INTERNAL_ERROR {
 					log.Warnf("failed to generate proof for batch, batchNumber: %v, ResGetProofState: %v", batchToConsolidate.Number().Uint64(), resGetProofState)
 					break
 				}
 
-				if resGetProofState == proverclient.ResGetProof_CANCEL {
+				if resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_CANCEL {
 					log.Warnf("proof generation was cancelled, batchNumber: %v", batchToConsolidate.Number().Uint64())
 					break
 				}
 
-				if resGetProofState == proverclient.ResGetProof_PENDING {
+				if resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_PENDING {
 					// in this case aggregator will wait, to send another request
 					time.Sleep(a.cfg.IntervalFrequencyToGetProofGenerationStateInSeconds.Duration)
 					continue

@@ -136,7 +136,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman, nil
 }
 
-func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.ClientConn) {
+func newProverClient(c proverclient.Config) (proverclient.ZKProverServiceClient, *grpc.ClientConn) {
 	opts := []grpc.DialOption{
 		// TODO: once we have user and password for prover server, change this
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -146,7 +146,7 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverClient, *grpc.
 		log.Fatalf("fail to dial: %v", err)
 	}
 
-	proverClient := proverclient.NewZKProverClient(proverConn)
+	proverClient := proverclient.NewZKProverServiceClient(proverConn)
 	return proverClient, proverConn
 }
 
@@ -207,7 +207,7 @@ func createSequencer(c sequencer.Config, etherman *etherman.Client, pool *pool.P
 	return seq
 }
 
-func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient proverclient.ZKProverClient, state *state.State) {
+func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient proverclient.ZKProverServiceClient, state *state.State) {
 	agg, err := aggregator.NewAggregator(c, state, etherman, proverclient)
 	if err != nil {
 		log.Fatal(err)

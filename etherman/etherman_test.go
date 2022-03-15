@@ -251,7 +251,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 		NewStateRoot:     newStateRoot.String(),
 		NewLocalExitRoot: newLocalExitRoot.String(),
 	}
-	proof := proverclient.ResGetProof{
+	proof := proverclient.GetProofResponse{
 		Proof: &proverclient.Proof{
 			ProofA: proofSlc,
 			ProofB: proofB,
