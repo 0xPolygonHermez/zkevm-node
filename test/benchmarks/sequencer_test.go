@@ -136,7 +136,7 @@ func runTxSender(b *testing.B, l2Client *ethclient.Client, pl *pool.PostgresPool
 	// Wait for the synchronizer to update state
 	err = operations.NewWait().Poll(defaultInterval, defaultDeadline, func() (bool, error) {
 		// using a closure here to capture st and currentBatchNumber
-		count, err := pl.GetPendingTxsAmount(ctx)
+		count, err := pl.CountPendingTransactions(ctx)
 		if err != nil {
 			return false, err
 		}

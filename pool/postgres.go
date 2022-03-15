@@ -60,6 +60,8 @@ func (p *PostgresPool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 // GetPendingTxs returns an array of transactions with all
 // the transactions which have the state equals pending
+// limit parameter is used to limit amount of pending txs from the db,
+// if limit = 0, then there is no limit
 func (p *PostgresPool) GetPendingTxs(ctx context.Context, limit uint64) ([]Transaction, error) {
 	var (
 		rows pgx.Rows
@@ -108,9 +110,9 @@ func (p *PostgresPool) GetPendingTxs(ctx context.Context, limit uint64) ([]Trans
 	return txs, nil
 }
 
-// GetPendingTxsAmount get number of pending transactions
+// CountPendingTransactions get number of pending transactions
 // used in bench tests
-func (p *PostgresPool) GetPendingTxsAmount(ctx context.Context) (uint64, error) {
+func (p *PostgresPool) CountPendingTransactions(ctx context.Context) (uint64, error) {
 	sql := "SELECT COUNT(*) FROM pool.txs WHERE state = $1"
 	var counter uint64
 	err := p.db.QueryRow(ctx, sql, TxStatePending).Scan(&counter)

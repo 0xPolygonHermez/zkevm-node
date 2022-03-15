@@ -111,6 +111,47 @@ func Test_GetPendingTxs(t *testing.T) {
 	}
 }
 
+func Test_GetPendingTxsZeroPassed(t *testing.T) {
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+
+	sqlDB, err := db.NewSQLDB(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer sqlDB.Close() //nolint:gosec,errcheck
+
+	p, err := NewPostgresPool(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	const txsCount = 10
+
+	ctx := context.Background()
+
+	// insert pending transactions
+	for i := 0; i < txsCount; i++ {
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+		err := p.AddTx(ctx, *tx)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	txs, err := p.GetPendingTxs(ctx, 0)
+	if err != nil {
+		t.Error(err)
+	}
+
+	assert.Equal(t, txsCount, len(txs))
+
+	for i := 0; i < txsCount; i++ {
+		assert.Equal(t, TxStatePending, txs[0].State)
+	}
+}
+
 func Test_UpdateTxsState(t *testing.T) {
 	if err := dbutils.InitOrReset(cfg); err != nil {
 		panic(err)
