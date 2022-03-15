@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/crypto"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -32,7 +33,7 @@ func TestBase_SelectTxs(t *testing.T) {
 	ctx := context.Background()
 	bp.On("ProcessTransaction", ctx, tx1, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidBalance})
 	bp.On("ProcessTransaction", ctx, tx2, seqAddress).Return(&runtime.ExecutionResult{})
-	bp.On("ProcessTransaction", ctx, tx3, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidSig})
+	bp.On("ProcessTransaction", ctx, tx3, seqAddress).Return(&runtime.ExecutionResult{Err: crypto.ErrInvalidSig})
 	bp.On("ProcessTransaction", ctx, tx4, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrNonceIsBiggerThanAccountNonce})
 
 	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)

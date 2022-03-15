@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/hermeznetwork/hermez-core/crypto"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -24,8 +25,6 @@ const (
 )
 
 var (
-	// ErrInvalidSig indicates the signature of the transaction is not valid
-	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
 	// ErrNonceIsBiggerThanAccountNonce indicates the nonce of the transaction is bigger than account nonce
 	ErrNonceIsBiggerThanAccountNonce = errors.New("transaction nonce is bigger than account nonce")
 	// ErrNonceIsSmallerThanAccountNonce indicates the nonce of the transaction is smaller than account nonce
@@ -50,7 +49,7 @@ var (
 
 // InvalidTxErrors is map to spot invalid txs
 var InvalidTxErrors = map[string]bool{
-	ErrInvalidSig.Error(): true, ErrNonceIsSmallerThanAccountNonce.Error(): true, ErrInvalidBalance.Error(): true,
+	crypto.ErrInvalidSig.Error(): true, ErrNonceIsSmallerThanAccountNonce.Error(): true, ErrInvalidBalance.Error(): true,
 	ErrInvalidGas.Error(): true, ErrInvalidChainID.Error(): true,
 }
 
@@ -87,7 +86,7 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 	b.logs = []types.Log{}
 
 	for _, tx := range batch.Transactions {
-		senderAddress, err := helper.GetSender(tx)
+		senderAddress, err := helper.GetSender(*tx)
 		if err != nil {
 			return err
 		}
@@ -123,7 +122,7 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 
 // ProcessTransaction processes a transaction
 func (b *BasicBatchProcessor) ProcessTransaction(ctx context.Context, tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
-	senderAddress, err := helper.GetSender(tx)
+	senderAddress, err := helper.GetSender(*tx)
 	if err != nil {
 		return &runtime.ExecutionResult{Err: err}
 	}
@@ -357,7 +356,7 @@ func (b *BasicBatchProcessor) transfer(ctx context.Context, tx *types.Transactio
 
 // CheckTransaction checks if a transaction is valid
 func (b *BasicBatchProcessor) CheckTransaction(ctx context.Context, tx *types.Transaction) error {
-	senderAddress, err := helper.GetSender(tx)
+	senderAddress, err := helper.GetSender(*tx)
 	if err != nil {
 		return err
 	}
