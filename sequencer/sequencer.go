@@ -23,8 +23,8 @@ const (
 	percentageToCutSelectedTxs  = 80
 	fullPercentage              = 100
 
-	ErrGasRequiredExceedsAllowance = "gas required exceeds allowance"
-	ErrContentLengthTooLarge       = "content length too large"
+	errGasRequiredExceedsAllowance = "gas required exceeds allowance"
+	errContentLengthTooLarge       = "content length too large"
 )
 
 // Sequencer represents a sequencer
@@ -184,9 +184,9 @@ func (s *Sequencer) tryProposeBatch() {
 			// YES: send selection to Ethereum
 			sendBatchTx, err := s.EthMan.SendBatch(s.ctx, selectedTxs, aggregatorReward)
 			if err != nil {
-				if strings.Contains(err.Error(), ErrGasRequiredExceedsAllowance) ||
+				if strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
 					errors.Is(err, core.ErrOversizedData) ||
-					strings.Contains(err.Error(), ErrContentLengthTooLarge) {
+					strings.Contains(err.Error(), errContentLengthTooLarge) {
 					cutSelectedTxs := (len(selectedTxs) - 1) * percentageToCutSelectedTxs / fullPercentage
 					selectedTxs = selectedTxs[:cutSelectedTxs]
 					selectedTxsHashes = selectedTxsHashes[:cutSelectedTxs]
