@@ -65,19 +65,20 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 
 	tx := arg.ToTransaction()
 	ctx := context.Background()
-	lastVirtualBatch, err := e.state.GetLastBatch(ctx, true)
+
+	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
-	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, lastVirtualBatch.Number().Uint64())
+
+	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, batchNumber)
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 
 	result := bp.ProcessUnsignedTransaction(ctx, tx, *arg.From, e.sequencerAddress)
-
 	if result.Failed() {
-		return nil, fmt.Errorf("unable to execute call: %w", result.Err)
+		return nil, nil
 	}
 
 	return argBytesPtr(result.ReturnValue), nil
