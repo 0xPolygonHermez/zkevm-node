@@ -23,7 +23,6 @@ const (
 	percentageToCutSelectedTxs  = 80
 	fullPercentage              = 100
 
-	// errors
 	ErrGasRequiredExceedsAllowance = "gas required exceeds allowance"
 	ErrContentLengthTooLarge       = "content length too large"
 )
