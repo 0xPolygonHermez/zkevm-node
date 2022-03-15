@@ -8,14 +8,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 )
 
 const (
-	// TxGas used for TXs that do not create a contract
-	TxGas uint64 = 21000
+	// TransferGas used for TXs that do not create a contract
+	TransferGas uint64 = 21000
 	// TxGasContractCreation user for transactions that create a contract
 	TxGasContractCreation uint64 = 53000
 )
@@ -130,8 +131,22 @@ func (s *State) GetCode(ctx context.Context, address common.Address, batchNumber
 
 // EstimateGas for a transaction
 func (s *State) EstimateGas(transaction *types.Transaction) uint64 {
-	// TODO: Calculate once we have txs that interact with SCs
-	return TxGas
+	ctx := context.Background()
+	sequencerAddress := common.Address{}
+	lastBatch, err := s.GetLastBatch(ctx, true)
+	if err != nil {
+		log.Errorf("failed to get last batch from the state, err: %v", err)
+		return 0
+	}
+	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Number().Uint64())
+	if err != nil {
+		log.Errorf("failed to get create a new batch processor, err: %v", err)
+		return 0
+	}
+	bp.SetGasEstimationExecution(true)
+	result := bp.ProcessTransaction(ctx, transaction, sequencerAddress)
+	bp.SetGasEstimationExecution(false)
+	return result.GasUsed
 }
 
 // SetGenesis populates state with genesis information

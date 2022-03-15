@@ -70,11 +70,17 @@ type BasicBatchProcessor struct {
 }
 
 type transactionContext struct {
-	currentTransaction *types.Transaction
-	currentOrigin      common.Address
-	coinBase           common.Address
-	index              uint
-	difficulty         *big.Int
+	executingGasEstimation bool
+	currentTransaction     *types.Transaction
+	currentOrigin          common.Address
+	coinBase               common.Address
+	index                  uint
+	difficulty             *big.Int
+}
+
+// SetGasEstimationExecution enables gas estimation run mode
+func (b *BasicBatchProcessor) SetGasEstimationExecution(active bool) {
+	b.transactionContext.executingGasEstimation = active
 }
 
 // ProcessBatch processes all transactions inside a batch
@@ -309,7 +315,7 @@ func (b *BasicBatchProcessor) transfer(ctx context.Context, tx *types.Transactio
 	balances[sequencerAddress] = sequencerBalance
 
 	// Calculate Gas
-	usedGas := new(big.Int).SetUint64(b.State.EstimateGas(tx))
+	usedGas := new(big.Int).SetUint64(TransferGas)
 	usedGasValue := new(big.Int).Mul(usedGas, tx.GasPrice())
 	gasLeft := new(big.Int).SetUint64(tx.Gas() - usedGas.Uint64())
 	gasLeftValue := new(big.Int).Mul(gasLeft, tx.GasPrice())
@@ -377,7 +383,7 @@ func (b *BasicBatchProcessor) CheckTransaction(ctx context.Context, tx *types.Tr
 
 func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
 	// Check ChainID
-	if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
+	if !b.transactionContext.executingGasEstimation && tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
 		log.Debugf("Batch ChainID: %v", b.SequencerChainID)
 		log.Debugf("Transaction ChainID: %v", tx.ChainId().Uint64())
 		return ErrInvalidChainID
@@ -403,10 +409,12 @@ func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonc
 	}
 
 	// Check gas
-	gasEstimation := b.State.EstimateGas(tx)
-	if tx.Gas() < gasEstimation {
-		log.Debugf("check transaction [%s]: invalid gas, expected: %v, found: %v", tx.Hash().Hex(), tx.Gas(), gasEstimation)
-		return ErrInvalidGas
+	if !b.transactionContext.executingGasEstimation {
+		gasEstimation := b.State.EstimateGas(tx)
+		if tx.Gas() < gasEstimation {
+			log.Debugf("check transaction [%s]: invalid gas, expected: %v, found: %v", tx.Hash().Hex(), tx.Gas(), gasEstimation)
+			return ErrInvalidGas
+		}
 	}
 
 	return nil
@@ -592,6 +600,7 @@ func (b *BasicBatchProcessor) create(ctx context.Context, tx *types.Transaction,
 	}
 
 	result.CreateAddress = address
+	result.GasUsed = gasCost
 	b.stateRoot = root
 
 	return result
