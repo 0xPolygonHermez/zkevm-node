@@ -315,7 +315,7 @@ func (b *BasicBatchProcessor) transfer(ctx context.Context, tx *types.Transactio
 	balances[sequencerAddress] = sequencerBalance
 
 	// Calculate Gas
-	usedGas := new(big.Int).SetUint64(TransferGas)
+	usedGas := new(big.Int).SetUint64(TxTransferGas)
 	usedGasValue := new(big.Int).Mul(usedGas, tx.GasPrice())
 	gasLeft := new(big.Int).SetUint64(tx.Gas() - usedGas.Uint64())
 	gasLeftValue := new(big.Int).Mul(gasLeft, tx.GasPrice())
@@ -382,35 +382,39 @@ func (b *BasicBatchProcessor) CheckTransaction(ctx context.Context, tx *types.Tr
 }
 
 func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
-	// Check ChainID
-	if !b.transactionContext.executingGasEstimation && tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
-		log.Debugf("Batch ChainID: %v", b.SequencerChainID)
-		log.Debugf("Transaction ChainID: %v", tx.ChainId().Uint64())
-		return ErrInvalidChainID
-	}
-
-	// Check nonce
-	if senderNonce.Uint64() > tx.Nonce() {
-		log.Debugf("check transaction [%s]: invalid nonce, tx nonce is smaller than account nonce, expected: %d, found: %d",
-			tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
-		return ErrNonceIsSmallerThanAccountNonce
-	}
-
-	if senderNonce.Uint64() < tx.Nonce() {
-		log.Debugf("check transaction [%s]: invalid nonce at this moment, tx nonce is bigger than account nonce, expected: %d, found: %d",
-			tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
-		return ErrNonceIsBiggerThanAccountNonce
-	}
-
 	// Check balance
 	if senderBalance.Cmp(tx.Cost()) < 0 {
 		log.Debugf("check transaction [%s]: invalid balance, expected: %v, found: %v", tx.Hash().Hex(), tx.Cost().Text(encoding.Base10), senderBalance.Text(encoding.Base10))
 		return ErrInvalidBalance
 	}
 
-	// Check gas
 	if !b.transactionContext.executingGasEstimation {
-		gasEstimation := b.State.EstimateGas(tx)
+		// Check ChainID
+		if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.State.cfg.DefaultChainID {
+			log.Debugf("Batch ChainID: %v", b.SequencerChainID)
+			log.Debugf("Transaction ChainID: %v", tx.ChainId().Uint64())
+			return ErrInvalidChainID
+		}
+
+		// Check nonce
+		if senderNonce.Uint64() > tx.Nonce() {
+			log.Debugf("check transaction [%s]: invalid nonce, tx nonce is smaller than account nonce, expected: %d, found: %d",
+				tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
+			return ErrNonceIsSmallerThanAccountNonce
+		}
+
+		if senderNonce.Uint64() < tx.Nonce() {
+			log.Debugf("check transaction [%s]: invalid nonce at this moment, tx nonce is bigger than account nonce, expected: %d, found: %d",
+				tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
+			return ErrNonceIsBiggerThanAccountNonce
+		}
+
+		// Check gas
+		gasEstimation, err := b.State.EstimateGas(tx)
+		if err != nil {
+			log.Debugf("check transaction [%s]: error estimating gas", tx.Hash().Hex())
+			return ErrInvalidGas
+		}
 		if tx.Gas() < gasEstimation {
 			log.Debugf("check transaction [%s]: invalid gas, expected: %v, found: %v", tx.Hash().Hex(), tx.Gas(), gasEstimation)
 			return ErrInvalidGas

@@ -1015,14 +1015,14 @@ func TestSCExecution(t *testing.T) {
 	txs = append(txs, signedTxSCDeploy)
 
 	// Set stored value to 2
-	txStoreValue := types.NewTransaction(1, scAddress, new(big.Int), state.TransferGas, new(big.Int).SetUint64(1), common.Hex2Bytes("6057361d0000000000000000000000000000000000000000000000000000000000000002"))
+	txStoreValue := types.NewTransaction(1, scAddress, new(big.Int), state.TxTransferGas, new(big.Int).SetUint64(1), common.Hex2Bytes("6057361d0000000000000000000000000000000000000000000000000000000000000002"))
 	signedTxStoreValue, err := auth.Signer(auth.From, txStoreValue)
 	require.NoError(t, err)
 
 	txs = append(txs, signedTxStoreValue)
 
 	// Retrieve stored value
-	txRetrieveValue := types.NewTransaction(2, scAddress, new(big.Int), state.TransferGas, new(big.Int).SetUint64(1), common.Hex2Bytes("2e64cec1"))
+	txRetrieveValue := types.NewTransaction(2, scAddress, new(big.Int), state.TxTransferGas, new(big.Int).SetUint64(1), common.Hex2Bytes("2e64cec1"))
 	signedTxRetrieveValue, err := auth.Signer(auth.From, txRetrieveValue)
 	require.NoError(t, err)
 
@@ -1767,7 +1767,8 @@ func TestEstimateGas(t *testing.T) {
 	txs = append(txs, signedTxSCDeploy)
 
 	// Estimate Gas
-	gasEstimation := st.EstimateGas(signedTxSCDeploy)
+	gasEstimation, err := st.EstimateGas(signedTxSCDeploy)
+	require.NoError(t, err)
 	assert.Equal(t, uint64(67200), gasEstimation)
 
 	// Create Batch
@@ -1794,12 +1795,13 @@ func TestEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 
 	// Set stored value to 2
-	txStoreValue := types.NewTransaction(1, scAddress, new(big.Int), state.TransferGas, new(big.Int).SetUint64(1), common.Hex2Bytes("6057361d0000000000000000000000000000000000000000000000000000000000000002"))
+	txStoreValue := types.NewTransaction(1, scAddress, new(big.Int), state.TxTransferGas, new(big.Int).SetUint64(1), common.Hex2Bytes("6057361d0000000000000000000000000000000000000000000000000000000000000002"))
 	signedTxStoreValue, err := auth.Signer(auth.From, txStoreValue)
 	require.NoError(t, err)
 
 	// Estimate Gas
-	gasEstimation = st.EstimateGas(signedTxStoreValue)
+	gasEstimation, err = st.EstimateGas(signedTxStoreValue)
+	require.NoError(t, err)
 	assert.Equal(t, uint64(5420), gasEstimation)
 
 	txs = []*types.Transaction{}
@@ -1811,11 +1813,12 @@ func TestEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 
 	// Transfer
-	txTransfer := types.NewTransaction(1, sequencerAddress, new(big.Int).SetInt64(10000), state.TransferGas, new(big.Int).SetUint64(1), nil)
+	txTransfer := types.NewTransaction(1, sequencerAddress, new(big.Int).SetInt64(10000), state.TxTransferGas, new(big.Int).SetUint64(1), nil)
 	signedTxTransfer, err := auth.Signer(auth.From, txTransfer)
 	require.NoError(t, err)
 
 	// Estimate Gas
-	gasEstimation = st.EstimateGas(signedTxTransfer)
-	assert.Equal(t, uint64(state.TransferGas), gasEstimation)
+	gasEstimation, err = st.EstimateGas(signedTxTransfer)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(state.TxTransferGas), gasEstimation)
 }
