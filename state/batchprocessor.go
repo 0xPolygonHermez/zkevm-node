@@ -431,8 +431,8 @@ func (b *BasicBatchProcessor) commit(ctx context.Context, batch *Batch) error {
 		batch.Header.Root = root
 
 		// set local exit root
-		key := new(big.Int).SetUint64(b.State.cfg.GlobalExitRootManagerPosition)
-		localExitRoot, err := b.State.tree.GetStorageAt(ctx, b.State.cfg.GlobalExitRootManagerAddr, common.BigToHash(key), b.stateRoot)
+		key := new(big.Int).SetUint64(b.State.cfg.L2GlobalExitRootManagerPosition)
+		localExitRoot, err := b.State.tree.GetStorageAt(ctx, b.State.cfg.L2GlobalExitRootManagerAddr, common.BigToHash(key), b.stateRoot)
 		if err != nil {
 			return err
 		}

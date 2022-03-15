@@ -8,8 +8,8 @@ type Config struct {
 	DefaultChainID uint64
 	// MaxCumulativeGasUsed is the max gas allowed per batch
 	MaxCumulativeGasUsed uint64
-	// Address of the exit root manager SC
-	GlobalExitRootManagerAddr common.Address
-	// Position inside SC's storage to read the new local state root
-	GlobalExitRootManagerPosition uint64
+	// L2GlobalExitRootManagerAddr is the L2 address of the exit root manager SC
+	L2GlobalExitRootManagerAddr common.Address
+	// L2GlobalExitRootManagerPosition is the position inside SC's storage to read the new local state root
+	L2GlobalExitRootManagerPosition uint64
 }
