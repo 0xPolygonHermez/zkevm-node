@@ -25,7 +25,6 @@ const (
 
 	// errors
 	ErrGasRequiredExceedsAllowance = "gas required exceeds allowance"
-	ErrOversizedData               = "oversized data"
 	ErrContentLengthTooLarge       = "content length too large"
 )
 
