@@ -29,6 +29,7 @@ services:
             - POSTGRES_USER=test_user
             - POSTGRES_PASSWORD=test_password
             - POSTGRES_DB=test_db
+        command: ["postgres", "-N", "500"]
 
     hez-explorer:
         container_name: hez-explorer

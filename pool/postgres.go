@@ -49,8 +49,10 @@ func (p *PostgresPool) AddTx(ctx context.Context, tx types.Transaction) error {
 	decoded := string(b)
 
 	receivedAt := time.Now()
-	sql := "INSERT INTO pool.txs (hash, encoded, decoded, state, received_at) VALUES($1, $2, $3, $4, $5)"
-	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, TxStatePending, receivedAt); err != nil {
+	gasPrice := tx.GasPrice().Uint64()
+	nonce := tx.Nonce()
+	sql := "INSERT INTO pool.txs (hash, encoded, decoded, state, gas_price, nonce, received_at) VALUES($1, $2, $3, $4, $5, $6, $7)"
+	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, TxStatePending, gasPrice, nonce, receivedAt); err != nil {
 		return err
 	}
 	return nil
@@ -58,9 +60,21 @@ func (p *PostgresPool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 // GetPendingTxs returns an array of transactions with all
 // the transactions which have the state equals pending
-func (p *PostgresPool) GetPendingTxs(ctx context.Context) ([]Transaction, error) {
-	sql := "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1"
-	rows, err := p.db.Query(ctx, sql, TxStatePending)
+// limit parameter is used to limit amount of pending txs from the db,
+// if limit = 0, then there is no limit
+func (p *PostgresPool) GetPendingTxs(ctx context.Context, limit uint64) ([]Transaction, error) {
+	var (
+		rows pgx.Rows
+		err  error
+		sql  string
+	)
+	if limit == 0 {
+		sql = "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1"
+		rows, err = p.db.Query(ctx, sql, TxStatePending)
+	} else {
+		sql = "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1 LIMIT $2"
+		rows, err = p.db.Query(ctx, sql, TxStatePending, limit)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +108,18 @@ func (p *PostgresPool) GetPendingTxs(ctx context.Context) ([]Transaction, error)
 	}
 
 	return txs, nil
+}
+
+// CountPendingTransactions get number of pending transactions
+// used in bench tests
+func (p *PostgresPool) CountPendingTransactions(ctx context.Context) (uint64, error) {
+	sql := "SELECT COUNT(*) FROM pool.txs WHERE state = $1"
+	var counter uint64
+	err := p.db.QueryRow(ctx, sql, TxStatePending).Scan(&counter)
+	if err != nil {
+		return 0, err
+	}
+	return counter, nil
 }
 
 // UpdateTxState updates a transaction state accordingly to the
