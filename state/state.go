@@ -143,8 +143,7 @@ func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
 		log.Errorf("failed to get create a new batch processor, err: %v", err)
 		return 0, err
 	}
-	bp.SetGasEstimationExecution(true)
-	result := bp.ProcessTransaction(ctx, transaction, sequencerAddress)
+	result := bp.estimateGas(ctx, transaction, sequencerAddress)
 	return result.GasUsed, result.Err
 }
 

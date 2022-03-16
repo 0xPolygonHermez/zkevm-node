@@ -1116,7 +1116,7 @@ func TestSCCall(t *testing.T) {
 		BlockNumber: genesisBlock.Header().Number.Uint64(),
 	}
 
-	err = testState.AddSequencer(ctx, sequencer)
+	err = st.AddSequencer(ctx, sequencer)
 	assert.NoError(t, err)
 
 	var txs []*types.Transaction
@@ -1208,7 +1208,7 @@ func TestSCCall(t *testing.T) {
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
-	receipt, err := testState.GetTransactionReceipt(ctx, signedTx6.Hash())
+	receipt, err := st.GetTransactionReceipt(ctx, signedTx6.Hash())
 	require.NoError(t, err)
 	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
 }
@@ -1698,7 +1698,6 @@ func TestEmitLog(t *testing.T) {
 		})
 	}
 }
-
 func TestEstimateGas(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -1742,7 +1741,7 @@ func TestEstimateGas(t *testing.T) {
 		BlockNumber: genesisBlock.Header().Number.Uint64(),
 	}
 
-	err = testState.AddSequencer(ctx, sequencer)
+	err = st.AddSequencer(ctx, sequencer)
 	assert.NoError(t, err)
 
 	var txs []*types.Transaction

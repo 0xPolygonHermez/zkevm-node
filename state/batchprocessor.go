@@ -79,8 +79,8 @@ type transactionContext struct {
 }
 
 // SetGasEstimationExecution enables gas estimation run mode
-func (b *BasicBatchProcessor) SetGasEstimationExecution(active bool) {
-	b.transactionContext.executingGasEstimation = active
+func (b *BasicBatchProcessor) SetGasEstimationExecution(mode bool) {
+	b.transactionContext.executingGasEstimation = mode
 }
 
 // ProcessBatch processes all transactions inside a batch
@@ -136,12 +136,14 @@ func (b *BasicBatchProcessor) ProcessTransaction(ctx context.Context, tx *types.
 
 	// Keep track of consumed gas
 	result := b.processTransaction(ctx, tx, senderAddress, sequencerAddress)
-	b.CumulativeGasUsed += result.GasUsed
 
-	if b.CumulativeGasUsed > b.MaxCumulativeGasUsed {
-		result.Err = ErrInvalidCumulativeGas
+	if !b.transactionContext.executingGasEstimation {
+		b.CumulativeGasUsed += result.GasUsed
+
+		if b.CumulativeGasUsed > b.MaxCumulativeGasUsed {
+			result.Err = ErrInvalidCumulativeGas
+		}
 	}
-
 	return result
 }
 
@@ -149,6 +151,24 @@ func (b *BasicBatchProcessor) ProcessTransaction(ctx context.Context, tx *types.
 // sender.
 func (b *BasicBatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
 	return b.processTransaction(ctx, tx, senderAddress, sequencerAddress)
+}
+
+func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
+	err := b.State.BeginDBTransaction(ctx)
+	if err != nil {
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	b.SetGasEstimationExecution(true)
+	result := b.ProcessTransaction(ctx, tx, sequencerAddress)
+	b.SetGasEstimationExecution(false)
+
+	err = b.State.Rollback(ctx)
+	if err != nil {
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	return result
 }
 
 func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
@@ -171,7 +191,13 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 	if len(code) > 0 {
 		log.Debugf("smart contract execution %v", receiverAddress)
 		contract := runtime.NewContractCall(0, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
+		root := b.stateRoot
+
 		result := b.run(ctx, contract)
+
+		if b.transactionContext.executingGasEstimation {
+			b.stateRoot = root
+		}
 		result.GasUsed = tx.Gas() - result.GasLeft
 		log.Debugf("Transaction Data %v", tx.Data())
 		log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
@@ -273,7 +299,7 @@ func (b *BasicBatchProcessor) transfer(ctx context.Context, tx *types.Transactio
 		return result
 	}
 
-	err = b.checkTransaction(tx, senderNonce, senderBalance)
+	err = b.checkTransaction(ctx, tx, senderNonce, senderBalance)
 	if err != nil {
 		result.Err = err
 		return result
@@ -352,7 +378,10 @@ func (b *BasicBatchProcessor) transfer(ctx context.Context, tx *types.Transactio
 		}
 	}
 
-	b.stateRoot = root
+	if !b.transactionContext.executingGasEstimation {
+		b.stateRoot = root
+	}
+
 	log.Debugf("processing transfer [%s]: new root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
 	result.GasUsed = usedGas.Uint64()
@@ -378,14 +407,27 @@ func (b *BasicBatchProcessor) CheckTransaction(ctx context.Context, tx *types.Tr
 		return err
 	}
 
-	return b.checkTransaction(tx, senderNonce, balance)
+	return b.checkTransaction(ctx, tx, senderNonce, balance)
 }
 
-func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
+func (b *BasicBatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
 	// Check balance
 	if senderBalance.Cmp(tx.Cost()) < 0 {
 		log.Debugf("check transaction [%s]: invalid balance, expected: %v, found: %v", tx.Hash().Hex(), tx.Cost().Text(encoding.Base10), senderBalance.Text(encoding.Base10))
 		return ErrInvalidBalance
+	}
+
+	// Check nonce
+	if senderNonce.Uint64() > tx.Nonce() {
+		log.Debugf("check transaction [%s]: invalid nonce, tx nonce is smaller than account nonce, expected: %d, found: %d",
+			tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
+		return ErrNonceIsSmallerThanAccountNonce
+	}
+
+	if senderNonce.Uint64() < tx.Nonce() {
+		log.Debugf("check transaction [%s]: invalid nonce at this moment, tx nonce is bigger than account nonce, expected: %d, found: %d",
+			tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
+		return ErrNonceIsBiggerThanAccountNonce
 	}
 
 	if !b.transactionContext.executingGasEstimation {
@@ -396,27 +438,14 @@ func (b *BasicBatchProcessor) checkTransaction(tx *types.Transaction, senderNonc
 			return ErrInvalidChainID
 		}
 
-		// Check nonce
-		if senderNonce.Uint64() > tx.Nonce() {
-			log.Debugf("check transaction [%s]: invalid nonce, tx nonce is smaller than account nonce, expected: %d, found: %d",
-				tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
-			return ErrNonceIsSmallerThanAccountNonce
-		}
-
-		if senderNonce.Uint64() < tx.Nonce() {
-			log.Debugf("check transaction [%s]: invalid nonce at this moment, tx nonce is bigger than account nonce, expected: %d, found: %d",
-				tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
-			return ErrNonceIsBiggerThanAccountNonce
-		}
-
 		// Check gas
-		gasEstimation, err := b.State.EstimateGas(tx)
-		if err != nil {
+		result := b.estimateGas(ctx, tx, b.SequencerAddress)
+		if result.Err != nil {
 			log.Debugf("check transaction [%s]: error estimating gas", tx.Hash().Hex())
 			return ErrInvalidGas
 		}
-		if tx.Gas() < gasEstimation {
-			log.Debugf("check transaction [%s]: invalid gas, expected: %v, found: %v", tx.Hash().Hex(), tx.Gas(), gasEstimation)
+		if tx.Gas() < result.GasUsed {
+			log.Debugf("check transaction [%s]: invalid gas, expected: %v, found: %v", tx.Hash().Hex(), tx.Gas(), result.GasUsed)
 			return ErrInvalidGas
 		}
 	}
@@ -605,7 +634,10 @@ func (b *BasicBatchProcessor) create(ctx context.Context, tx *types.Transaction,
 
 	result.CreateAddress = address
 	result.GasUsed = gasCost
-	b.stateRoot = root
+
+	if !b.transactionContext.executingGasEstimation {
+		b.stateRoot = root
+	}
 
 	return result
 }
@@ -744,18 +776,20 @@ func (b *BasicBatchProcessor) GetBlockHash(number int64) common.Hash {
 
 // EmitLog generates logs
 func (b *BasicBatchProcessor) EmitLog(address common.Address, topics []common.Hash, data []byte) {
-	log.Debugf("EmitLog for address %v", address)
-	txLog := types.Log{
-		Address: address,
-		Topics:  topics,
-		Data:    common.CopyBytes(data),
-		TxHash:  b.transactionContext.currentTransaction.Hash(),
-		TxIndex: b.transactionContext.index,
-		Index:   uint(len(b.logs)),
-		Removed: false,
-	}
+	if !b.transactionContext.executingGasEstimation {
+		log.Debugf("EmitLog for address %v", address)
+		txLog := types.Log{
+			Address: address,
+			Topics:  topics,
+			Data:    common.CopyBytes(data),
+			TxHash:  b.transactionContext.currentTransaction.Hash(),
+			TxIndex: b.transactionContext.index,
+			Index:   uint(len(b.logs)),
+			Removed: false,
+		}
 
-	b.logs = append(b.logs, txLog)
+		b.logs = append(b.logs, txLog)
+	}
 }
 
 // Callx calls a SC
