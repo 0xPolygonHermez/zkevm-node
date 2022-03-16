@@ -154,20 +154,9 @@ func (b *BasicBatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx
 }
 
 func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
-	err := b.State.BeginDBTransaction(ctx)
-	if err != nil {
-		return &runtime.ExecutionResult{Err: err}
-	}
-
 	b.SetGasEstimationExecution(true)
 	result := b.ProcessTransaction(ctx, tx, sequencerAddress)
 	b.SetGasEstimationExecution(false)
-
-	err = b.State.Rollback(ctx)
-	if err != nil {
-		return &runtime.ExecutionResult{Err: err}
-	}
-
 	return result
 }
 
