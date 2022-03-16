@@ -141,7 +141,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		log.Errorf("error checking reorgs. Retrying... Err: %v", err)
 		return lastEthBlockSynced, fmt.Errorf("error checking reorgs")
 	} else if block != nil {
-		err = s.resetState(block.BlockNumber)
+		err = s.resetState(block)
 		if err != nil {
 			log.Errorf("error resetting the state to a previous block. Err: %v, Retrying...", err)
 			return lastEthBlockSynced, fmt.Errorf("error resetting the state to a previous block")
@@ -278,11 +278,25 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 }
 
 // This function allows reset the state until an specific ethereum block
-func (s *ClientSynchronizer) resetState(ethBlockNum uint64) error {
-	log.Debug("Reverting synchronization to block: ", ethBlockNum)
-	err := s.state.Reset(s.ctx, ethBlockNum)
+func (s *ClientSynchronizer) resetState(block *state.Block) error {
+	log.Debug("Reverting synchronization to block: ", block.BlockNumber)
+	ctx := context.Background()
+	err := s.state.BeginDBTransaction(ctx)
+	err = s.state.Reset(s.ctx, block)
 	if err != nil {
-		return err
+		rollbackErr := s.state.Rollback(ctx)
+		if rollbackErr != nil {
+			log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err))
+		}
+		log.Fatal("error resetting the state. Error: ", err)
+	}
+	err = s.state.Commit(ctx)
+	if err != nil {
+		rollbackErr := s.state.Rollback(ctx)
+		if rollbackErr != nil {
+			log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err))
+		}
+		log.Fatal("error commiting the resetted state. Error: ", err)
 	}
 
 	return nil

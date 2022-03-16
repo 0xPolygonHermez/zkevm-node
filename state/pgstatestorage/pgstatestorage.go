@@ -51,6 +51,7 @@ const (
 	getSequencerSQL                        = "SELECT * FROM state.sequencer WHERE address = $1"
 	getReceiptSQL                          = "SELECT * FROM state.receipt WHERE tx_hash = $1"
 	resetSQL                               = "DELETE FROM state.block WHERE block_num > $1"
+	resetConsolidationSQL                  = "UPDATE state.batch SET aggregator = '\x0000000000000000000000000000000000000000', consolidated_tx_hash = '\x0000000000000000000000000000000000000000000000000000000000000000', consolidated_at = null WHERE consolidated_at > $1"
 	addBatchSQL                            = "INSERT INTO state.batch (batch_num, batch_hash, block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, chain_id, global_exit_root, rollup_exit_root) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)"
 	addTransactionSQL                      = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, batch_num, tx_index) VALUES($1, $2, $3, $4, $5, $6)"
 	addReceiptSQL                          = "INSERT INTO state.receipt (type, post_state, status, cumulative_gas_used, gas_used, batch_num, batch_hash, tx_hash, tx_index, tx_from, tx_to, contract_address)	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"
@@ -565,8 +566,13 @@ func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch
 }
 
 // Reset resets the state to a block
-func (s *PostgresStorage) Reset(ctx context.Context, blockNumber uint64) error {
-	if _, err := s.exec(ctx, resetSQL, blockNumber); err != nil {
+func (s *PostgresStorage) Reset(ctx context.Context, block *state.Block) error {
+	if _, err := s.exec(ctx, resetSQL, block.BlockNumber); err != nil {
+		return err
+	}
+
+	//Remove consolidations
+	if _, err := s.exec(ctx, resetConsolidationSQL, block.ReceivedAt); err != nil {
 		return err
 	}
 	return nil
