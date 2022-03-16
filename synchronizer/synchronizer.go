@@ -282,6 +282,9 @@ func (s *ClientSynchronizer) resetState(block *state.Block) error {
 	log.Debug("Reverting synchronization to block: ", block.BlockNumber)
 	ctx := context.Background()
 	err := s.state.BeginDBTransaction(ctx)
+	if err != nil {
+		log.Fatal("error starting a db transaction to reset the state. Error: ", err)
+	}
 	err = s.state.Reset(s.ctx, block)
 	if err != nil {
 		rollbackErr := s.state.Rollback(ctx)
@@ -296,7 +299,7 @@ func (s *ClientSynchronizer) resetState(block *state.Block) error {
 		if rollbackErr != nil {
 			log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err))
 		}
-		log.Fatal("error commiting the resetted state. Error: ", err)
+		log.Fatal("error committing the resetted state. Error: ", err)
 	}
 
 	return nil
