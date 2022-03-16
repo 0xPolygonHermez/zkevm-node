@@ -138,7 +138,7 @@ func (a *Aggregator) Start() {
 				continue
 			}
 
-			rawTxs := batchToConsolidate.RawTxsData
+			rawTxs := hex.EncodeToHex(batchToConsolidate.RawTxsData)
 			// TODO: change this, once we have dynamic exit root
 			globalExitRoot := common.HexToHash("0xa116e19a7984f21055d07b606c55628a5ffbf8ae1261c1e9f4e3a61620cf810a")
 			oldLocalExitRoot := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
@@ -176,9 +176,10 @@ func (a *Aggregator) Start() {
 					BlockNum:         uint32(batchToConsolidate.BlockNumber),
 					EthTimestamp:     uint64(batchToConsolidate.ReceivedAt.Unix()),
 				},
-				GlobalExitRoot: globalExitRoot.String(),
-				BatchL2Data:    string(rawTxs),
-				Db:             db,
+				GlobalExitRoot:    globalExitRoot.String(),
+				BatchL2Data:       rawTxs,
+				Db:                db,
+				ContractsBytecode: db,
 			}
 
 			genProofRequest := proverclient.GenProofRequest{Input: inputProver}
@@ -226,7 +227,7 @@ func (a *Aggregator) Start() {
 				resGetProofState := resGetProof.GetResult()
 				if resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_ERROR ||
 					resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_COMPLETED_ERROR {
-					panic(fmt.Sprintf("failed to get a proof for batch, batch number %d", batchToConsolidate.Number().Uint64()))
+					log.Fatalf("failed to get a proof for batch, batch number %d", batchToConsolidate.Number().Uint64())
 				}
 				if resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_INTERNAL_ERROR {
 					log.Warnf("failed to generate proof for batch, batchNumber: %v, ResGetProofState: %v", batchToConsolidate.Number().Uint64(), resGetProofState)

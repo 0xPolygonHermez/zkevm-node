@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"math/big"
 	"strconv"
 	"time"
@@ -12,7 +13,8 @@ import (
 
 type zkProverServiceServer struct {
 	proverservice.ZKProverServiceServer
-	id int
+	id         int
+	idsToState map[string]int
 }
 
 const (
@@ -28,13 +30,15 @@ var mockProof = &proverservice.Proof{
 
 func (zkp *zkProverServiceServer) GenProof(ctx context.Context, request *proverservice.GenProofRequest) (*proverservice.GenProofResponse, error) {
 	zkp.id++
+	idStr := strconv.Itoa(zkp.id)
+	zkp.idsToState[idStr] = 0
 	return &proverservice.GenProofResponse{
-		Id:     strconv.Itoa(zkp.id),
+		Id:     idStr,
 		Result: proverservice.GenProofResponse_RESULT_GEN_PROOF_OK,
 	}, nil
 }
 
-func (zkp *zkProverServiceServer) GetProof(server proverservice.ZKProverService_GetProofServer) error {
+func (zkp *zkProverServiceServer) GetProof(srv proverservice.ZKProverService_GetProofServer) error {
 	newStateRoot, _ := new(big.Int).SetString("1212121212121212121212121212121212121212121212121212121212121212", 16)
 	newLocalExitRoot, _ := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
 	publicInputs := &proverservice.PublicInputs{
@@ -42,17 +46,57 @@ func (zkp *zkProverServiceServer) GetProof(server proverservice.ZKProverService_
 		NewLocalExitRoot: newLocalExitRoot.String(),
 	}
 
-	resp := &proverservice.GetProofResponse{
-		Id:     strconv.Itoa(zkp.id),
-		Proof:  mockProof,
-		Public: &proverservice.PublicInputsExtended{PublicInputs: publicInputs},
-		Result: proverservice.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK,
+	ctx := srv.Context()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		req, err := srv.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			fmt.Printf("GetProof err: %v", err)
+			continue
+		}
+		if st, ok := zkp.idsToState[req.Id]; ok {
+			if st == 1 {
+				resp := &proverservice.GetProofResponse{
+					Id:     req.Id,
+					Proof:  mockProof,
+					Public: &proverservice.PublicInputsExtended{PublicInputs: publicInputs},
+					Result: proverservice.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK,
+				}
+				err := srv.Send(resp)
+				if err != nil {
+					fmt.Printf("Get proof err: %v\n", err)
+				}
+			} else if st == 0 {
+				resp := &proverservice.GetProofResponse{
+					Id:     req.Id,
+					Result: proverservice.GetProofResponse_RESULT_GET_PROOF_PENDING,
+				}
+				zkp.idsToState[req.Id] = 1
+				err := srv.Send(resp)
+				if err != nil {
+					fmt.Printf("Get proof err: %v\n", err)
+				}
+			}
+		} else {
+			resp := &proverservice.GetProofResponse{
+				Id:     req.Id,
+				Result: proverservice.GetProofResponse_RESULT_GET_PROOF_ERROR,
+			}
+			err := srv.Send(resp)
+			if err != nil {
+				fmt.Printf("Get proof err: %v\n", err)
+			}
+		}
 	}
-	err := server.Send(resp)
-	if err != nil {
-		fmt.Printf("Get proof err: %v\n", err)
-	}
-	return err
 }
 
 func (zkp *zkProverServiceServer) GetStatus(ctx context.Context, request *proverservice.GetStatusRequest) (*proverservice.GetStatusResponse, error) {
@@ -64,7 +108,7 @@ func (zkp *zkProverServiceServer) GetStatus(ctx context.Context, request *prover
 		CurrentComputingStartTime: 0,
 		VersionProto:              serverProtoVersion,
 		VersionServer:             serverVersion,
-		PendingRequestQueueIds:    nil,
+		PendingRequestQueueIds:    []string{},
 	}, nil
 }
 
