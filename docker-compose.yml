@@ -69,7 +69,7 @@ services:
 
     hez-prover:
       container_name: hez-prover
-      image: proverservice
+      image: hermeznetwork/hez-mock-prover
       ports:
         - 50051:50051
       environment:
