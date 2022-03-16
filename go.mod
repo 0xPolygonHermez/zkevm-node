@@ -18,7 +18,7 @@ require (
 	github.com/rubenv/sql-migrate v0.0.0-20211023115951-9f02b1e13857
 	github.com/spf13/afero v1.8.2
 	github.com/spf13/viper v1.10.1
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/umbracle/fastrlp v0.0.0-20211229195328-c1416904ae17
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/zap v1.21.0
