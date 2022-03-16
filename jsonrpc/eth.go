@@ -51,7 +51,8 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 
 		header, err := e.getHeaderFromBlockNumberOrHash(&filter)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get header from block hash or block number")
+			log.Errorf("failed to get header from block hash or block number")
+			return "0x", nil
 		}
 
 		gas := argUint64(header.GasLimit)
@@ -65,19 +66,21 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 
 	tx := arg.ToTransaction()
 	ctx := context.Background()
-	lastVirtualBatch, err := e.state.GetLastBatch(ctx, true)
+
+	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
 	if err != nil {
-		return nil, err
+		return "0x", nil
 	}
-	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, lastVirtualBatch.Number().Uint64())
+
+	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, batchNumber)
 	if err != nil {
-		return nil, err
+		return "0x", nil
 	}
 
 	result := bp.ProcessUnsignedTransaction(ctx, tx, *arg.From, e.sequencerAddress)
-
 	if result.Failed() {
-		return nil, fmt.Errorf("unable to execute call: %w", result.Err)
+		log.Errorf("unable to execute call: %w", result.Err)
+		return "0x", nil
 	}
 
 	return argBytesPtr(result.ReturnValue), nil

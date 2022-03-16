@@ -7,10 +7,12 @@ CREATE TABLE pool.txs (
     encoded   VARCHAR,
     decoded   jsonb,
     state     varchar(15),
+    gas_price DECIMAL(78,0),
+    nonce     DECIMAL(78,0),
     received_at timestamp
 );
 
--- create json indexes to query ordered by nonce and by tx state
+CREATE INDEX idx_state_gas_price_nonce ON pool.txs(state, gas_price, nonce);
 
 CREATE TABLE pool.gas_price (
     item_id SERIAL PRIMARY KEY,

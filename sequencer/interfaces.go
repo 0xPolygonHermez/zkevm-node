@@ -14,7 +14,7 @@ import (
 
 // txPool contains the methods required to interact with the tx pool.
 type txPool interface {
-	GetPendingTxs(ctx context.Context) ([]pool.Transaction, error)
+	GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
 	UpdateTxState(ctx context.Context, hash common.Hash, newState pool.TxState) error
 	UpdateTxsState(ctx context.Context, hashes []string, newState pool.TxState) error
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
