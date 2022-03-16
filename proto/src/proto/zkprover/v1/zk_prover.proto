@@ -1,0 +1,358 @@
+syntax = "proto3";
+
+package zkprover.v1;
+
+message Version {
+    string v0_0_1 = 1;
+}
+
+// timestamps are represented in unix time in seconds
+
+/**
+ * Define all methods implementes by the gRPC
+ * GetStatus: get server report about its current state (non-blocking call)
+ * GenProof: ask prover to start proof generation. If prover is biusy, request is queued (non-blocking call)
+ * Cancel: ask prover to cancel specific proof (non-blocking call)
+ * GetProof: retrieve proof information given a timeout (blocking call)
+ * Execute: execute state-transition and gets a report about the starte change (blocking call)
+ * SynchronizeBatchProposal: processes a batch proposed in L1 and updates Merkle Tree
+ */
+service ZKProverService {
+    rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
+    rpc GenProof(GenProofRequest) returns (GenProofResponse) {}
+    rpc Cancel(CancelRequest) returns (CancelResponse) {}
+    rpc GetProof(stream GetProofRequest) returns (stream GetProofResponse) {}
+    rpc Execute(stream ExecuteRequest) returns (stream ExecuteResponse) {}
+    rpc SynchronizeBatchProposal(SynchronizeBatchProposalRequest) returns (SynchronizeBatchProposalResponse) {}
+}
+
+///////////////////
+// Request messages
+///////////////////
+
+/**
+ * @dev GetStatusRequest
+ */
+message GetStatusRequest {}
+
+/**
+ * @dev GenProofRequest
+ * @param {id} - proof identifier
+ */
+message GenProofRequest {
+    string id = 1;
+}
+
+/**
+ * @dev CancelRequest
+ * @param {id} - proof identifier
+ */
+ message CancelRequest {
+    string id = 1;
+}
+
+/**
+ * @dev Request GetProof
+ * @param {id} - proof identifier
+ * @param {timeout} - time to wait until the service responds
+ */
+message GetProofRequest {
+    string id = 1;
+    uint64 timeout = 2;
+}
+
+/**
+ * @dev ExecuteRequest
+ * @param {input} - input prover
+ */
+ message ExecuteRequest {
+    InputProver input = 1;
+}
+
+/**
+ * @dev SynchronizeBatchProposalRequest
+ * @param {batch_l2_data} - batch hash data
+ * @param {state_root} - smt state root
+ */
+message SynchronizeBatchProposalRequest {
+    bytes batch_l2_data = 1;
+	bytes state_root = 2;
+}
+
+/////////////////////
+// Responses messages
+/////////////////////
+
+/**
+ * @dev Response GetStatus
+ * @param {state} - server state
+ * - BOOTING: being ready to compute proofs
+ * - COMPUTING: busy computing a proof
+ * - IDLE: waiting for a proof to compute
+ * - HALT: stop
+ * @param {last_computed_request_id} - last proof identifier that has been computed
+ * @param {last_computed_end_time} - last proof timestamp when it was finished
+ * @param {current_computing_request_id} - current proof identifier that ius being computed
+ * @param {current_computing_start_time} - current proof timestamp when it was started
+ * @param {version_proto} - .proto verion
+ * @param {version_server} - server version
+ * @param {pending_request_queue_ids} - list of pending proof identifier that are in the queue
+ */
+message GetStatusResponse {
+    enum StatusProver {
+        STATUS_PROVER_UNSPECIFIED = 0;
+        STATUS_PROVER_BOOTING = 1;
+        STATUS_PROVER_COMPUTING = 2;
+        STATUS_PROVER_IDLE = 3;
+        STATUS_PROVER_HALT = 4;
+    }
+    StatusProver state = 1;
+    string last_computed_request_id = 2;
+    uint64 last_computed_end_time = 3;
+    string current_computing_request_id = 4;
+    uint64 current_computing_start_time = 5;
+    string version_proto = 6;
+    string version_server = 7;
+    repeated string pending_request_queue_ids = 8;
+}
+
+/**
+ * @dev Response GenProof
+ * @param {id} - proof identifier
+ * @param {result} - response result
+ *  - OK: succesfull response
+ *  - ERROR: request is not correct
+ *  - INTERNAL_ERROR: server error when delivering the response
+ */
+message GenProofResponse {
+    enum ResultGenProof {
+        RESULT_GEN_PROOF_UNSPECIFIED = 0;
+        RESULT_GEN_PROOF_OK = 1;
+        RESULT_GEN_PROOF_ERROR = 2;
+        RESULT_GEN_PROOF_INTERNAL_ERROR = 3;
+    }
+    string id = 1;
+    ResultGenProof result = 2;
+}
+
+/**
+ * @dev CancelResponse
+ * @param {result} - request result
+ *  - OK: proof has been cancelled
+ *  - ERROR: proof has not been cancelled
+ */
+message CancelResponse {
+    enum ResultCancel {
+        RESULT_CANCEL_UNSPECIFIED = 0;
+        RESULT_CANCEL_OK = 1;
+        RESULT_CANCEL_ERROR = 2;
+    }
+    ResultCancel result = 1;
+}
+
+/**
+ * @dev GetProofResponse
+ * @param {id} - proof identifier
+ * @param {proof} - groth16 proof
+ * @param {public} - public circuit inputs
+ * @param {result} - response result
+ *  - COMPLETED_OK: proof has been computed successfully and it is valid
+ *  - ERROR: request error
+ *  - COMPLETED_ERROR: proof has been computed successfully and it is not valid
+ *  - PENDING: proof is being computed
+ *  - INTERNAL_ERROR: server error during proof computation
+ *  - CANCEL: proof has been cancelled
+ * @param {result_string} - extends result information
+ */
+message GetProofResponse {
+    enum ResultGetProof {
+        RESULT_GET_PROOF_UNSPECIFIED = 0;
+        RESULT_GET_PROOF_COMPLETED_OK = 1;
+        RESULT_GET_PROOF_ERROR = 2;
+        RESULT_GET_PROOF_COMPLETED_ERROR = 3;
+        RESULT_GET_PROOF_PENDING = 4;
+        RESULT_GET_PROOF_INTERNAL_ERROR = 5;
+        RESULT_GET_PROOF_CANCEL = 6;
+    }
+    string id = 1;
+    Proof proof = 2;
+    PublicInputsExtended public = 3;
+    ResultGetProof result = 4;
+    string result_string = 5;
+}
+
+/**
+ * @dev ExecuteResponse
+ * @param {result} - response result
+ *  - COMPLETED_OK: proof has been computed successfully and it is valid
+ *  - ERROR: request error
+ *  - COMPLETED_ERROR: proof has been computed successfully and it is not valid
+ *  - PENDING: proof is being computed
+ *  - INTERNAL_ERROR: server error during proof computation
+ *  - CANCEL: proof has been cancelled
+ * @param {diff_keys_values} - modified keys-values in the smt
+ * @param {new_state_root} - smt new state root
+ * @param {counters} - group all necesarry circuit counters
+ * @param {receipts} - ethereum receipts
+ * @param {logs} - ethereum logs
+ */
+message ExecuteResponse {
+    enum ResultExecute {
+        RESULT_EXECUTE_UNSPECIFIED = 0;
+        RESULT_EXECUTE_COMPLETED_OK = 1;
+        RESULT_EXECUTE_ERROR = 2;
+        RESULT_EXECUTE_COMPLETED_ERR = 3;
+        RESULT_EXECUTE_INTERNAL_ERROR = 4;
+        RESULT_EXECUTE_CANCEL = 5;
+    }
+    ResultExecute result = 1;
+    map<string, string> diff_keys_values = 2;
+    string new_state_root = 3;
+    ZkCounters counters = 4;
+    repeated string receipts = 5;
+    repeated string logs = 6;
+}
+
+/**
+ * @dev ZkCounters
+ * @param {ecrecover} - total ecrecover made by the circuit
+ * @param {hash_poseidon} - total poseidon hashes made by the circuit
+ * @param {hash_keccak} - total hash_keccak made by the circuit
+ * @param {arith} - total arith made by the circuit
+ */
+message ZkCounters {
+    uint32 ecrecover = 1;
+    uint32 hash_poseidon = 2;
+    uint32 hash_keccak = 3;
+    uint32 arith = 4;
+}
+
+/*
+ * @dev PublicInputs
+ * @param {old_state_root}
+ * @param {old_local_exit_root}
+ * @param {new_state_root}
+ * @param {new_local_exit_root}
+ * @param {sequencer_addr}
+ * @param {batch_hash_data}
+ * @param {chain_id}
+ * @param {batch_num}
+ * @param {block_num}
+ * @param {eth_timestamp}
+ */
+message PublicInputs {
+    string old_state_root = 1;
+    string old_local_exit_root = 2;
+    string new_state_root = 3;
+    string new_local_exit_root = 4;
+    string sequencer_addr = 5;
+    string batch_hash_data = 6;
+    uint32 chain_id = 7;
+    uint32 batch_num = 8;
+    uint32 block_num = 9;
+    uint64 eth_timestamp = 10;
+}
+
+/**
+ * @dev ProofB
+ * @param {proofs} - two elliptic curves points
+ */
+message ProofB {
+    repeated string proofs = 1;
+}
+
+/**
+ * @dev Proof
+ * @param {proof_a} - elliptic curve point
+ * @param {proof_b} - two elliptic curves points
+ * @param {proof_c} - elliptic curve point
+ */
+message Proof {
+    repeated string proof_a = 1;
+    repeated ProofB proof_b = 2;
+    repeated string proof_c = 3;
+}
+
+/**
+ * @dev InputProver
+ * @param {public_inputs} - public inputs
+ * @param {global_exit_root} - bridge global exit root
+ * @param {batch_l2_data} - contract calldata
+ * @param {db} - database containing all key-values in smt matching the old state root
+ * @param {contracts_bytecode} - key is the hash(contractBytecode), value is the bytecode itself
+ */
+message InputProver {
+    PublicInputs public_inputs = 1;
+    string global_exit_root = 2;
+    string batch_l2_data = 3;
+    map<string, string> db = 4;
+    map<string, string> contracts_bytecode = 5;
+}
+
+/**
+ * @dev PublicInputsExtended
+ * @param {public_inputs} - public inputs
+ * @param {input_hash} - global hash of all public inputs. Used as a sanity check.
+ */
+message PublicInputsExtended {
+    PublicInputs public_inputs = 1;
+    string input_hash = 2;
+}
+
+/**
+ * @dev SynchronizeBatchProposalResponse
+ * @param {receipts} - all receipts generated by the batch execution
+ */
+message SynchronizeBatchProposalResponse {
+    repeated Receipt receipts = 1;
+}
+
+/**
+ * @dev Receipt - zkEVM receipt
+ * @param {type}
+ * @param {post_state}
+ * @param {status} - if the transaction was reverted or not
+ * @param {cumulative_gas_used} - sum of gasUsed by this transaction and all preceding transactions in the same block
+ * @param {bloom} - bloom filter
+ * @param {logs} - log list
+ * @param {tx_hash} - transaction hash
+ * @param {contract_address} - contract associated with the transaction
+ * @param {gas_used} - total fees paid
+ * @param {transaction_index} - transactions index position in the block
+ * @param {from} - address of the sender
+ * @param {to} - address of the receiver
+ */
+message Receipt {
+	uint32 type = 1;
+	bytes post_state = 2;
+	uint64 status = 3;
+	uint64 cumulative_gas_used = 4;
+	bytes bloom = 5;
+	repeated Log logs = 6;
+	bytes tx_hash = 7;
+	string contract_address = 8;
+	uint64 gas_used = 9;
+	uint32 transaction_index = 12;
+	string from = 13;
+	string to = 14;
+}
+
+/**
+ * @dev Log - zkEVM log
+ * @param {address} - address that generated the log
+ * @param {topics} - list of topics (indexed properties) for this log
+ * @param {data} - data included in the log
+ * @param {tx_hash} - The transaction hash of the transaction of this log
+ * @param {tx_index} - The index of the transaction in the block of the transaction of this log
+ * @param {index} - The index of this log across all logs in the entire block
+ * @param {removed} - During a re-org, if a transaction is orphaned, this will be set to true to indicate the Log entry has been removed
+ */
+message Log {
+	string address = 1;
+	repeated bytes topics = 2;
+	bytes data = 3;
+	bytes tx_hash = 5;
+	uint32 tx_index = 6;
+	uint32 index = 8;
+	bool removed = 9;
+}

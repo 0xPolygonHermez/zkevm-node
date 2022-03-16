@@ -1,6 +1,7 @@
 package dependencies
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/spf13/afero"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 type githubManager struct {
@@ -85,6 +87,11 @@ func (gm *githubManager) determineAuth() (transport.AuthMethod, error) {
 	auth, err := ssh.NewPublicKeysFromFile(defaultUser, pvkFile.Name(), "")
 	if err != nil {
 		return nil, err
+	}
+	auth.HostKeyCallbackHelper = ssh.HostKeyCallbackHelper{
+		HostKeyCallback: func(hostname string, remote net.Addr, key gossh.PublicKey) error {
+			return nil
+		},
 	}
 	return auth, nil
 }

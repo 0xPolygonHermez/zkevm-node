@@ -8,6 +8,7 @@ Password = "test_password"
 Name = "test_db"
 Host = "hez-postgres"
 Port = "5432"
+EnableLog = false
 
 [Etherman]
 URL = "http://hez-network:8545"
@@ -50,6 +51,7 @@ ProverURI = "hez-prover:50051"
 [MTServer]
 Host = "0.0.0.0"
 Port = 50052
+StoreBackend = "PostgreSQL"
 
 [MTClient]
 URI  = "127.0.0.1:50052"

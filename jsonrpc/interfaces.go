@@ -15,7 +15,7 @@ import (
 // jsonRPCTxPool contains the methods required to interact with the tx pool.
 type jsonRPCTxPool interface {
 	AddTx(ctx context.Context, tx types.Transaction) error
-	GetPendingTxs(ctx context.Context) ([]pool.Transaction, error)
+	GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
 	GetGasPrice(ctx context.Context) (uint64, error)
 }
 
@@ -42,4 +42,5 @@ type stateInterface interface {
 	GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error)
 	GetNonce(ctx context.Context, address common.Address, batchNumber uint64) (uint64, error)
 	GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error)
+	GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash) ([]*types.Log, error)
 }

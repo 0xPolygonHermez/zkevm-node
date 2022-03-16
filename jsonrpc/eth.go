@@ -51,7 +51,8 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 
 		header, err := e.getHeaderFromBlockNumberOrHash(&filter)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get header from block hash or block number")
+			log.Errorf("failed to get header from block hash or block number")
+			return "0x", nil
 		}
 
 		gas := argUint64(header.GasLimit)
@@ -65,19 +66,21 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 
 	tx := arg.ToTransaction()
 	ctx := context.Background()
-	lastVirtualBatch, err := e.state.GetLastBatch(ctx, true)
+
+	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
 	if err != nil {
-		return nil, err
+		return "0x", nil
 	}
-	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, lastVirtualBatch.Number().Uint64())
+
+	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, batchNumber)
 	if err != nil {
-		return nil, err
+		return "0x", nil
 	}
 
 	result := bp.ProcessUnsignedTransaction(ctx, tx, *arg.From, e.sequencerAddress)
-
 	if result.Failed() {
-		return nil, fmt.Errorf("unable to execute call: %w", result.Err)
+		log.Errorf("unable to execute call: %w", result.Err)
+		return "0x", nil
 	}
 
 	return argBytesPtr(result.ReturnValue), nil
@@ -121,7 +124,7 @@ func (e *Eth) GasPrice() (interface{}, error) {
 // GetBalance returns the account's balance at the referenced block
 func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
-	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
+	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +159,7 @@ func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, error)
 func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := getNumericBlockNumber(ctx, e, number)
+	batchNumber, err := e.getNumericBlockNumber(ctx, number)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +180,7 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
+	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
 	if err != nil {
 		return nil, err
 	}
@@ -192,11 +195,38 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 	return argBytes(code), nil
 }
 
+// GetLogs returns a list of logs accordingly to the provided filter
+func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
+	ctx := context.Background()
+
+	fromBlock, err := e.getNumericBlockNumber(ctx, filter.fromBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	toBlock, err := e.getNumericBlockNumber(ctx, filter.toBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]rpcLog, 0, len(logs))
+	for _, l := range logs {
+		result = append(result, logToRPCLog(*l))
+	}
+
+	return result, nil
+}
+
 // GetStorageAt gets the value stored for an specific address and position
 func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
+	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +268,7 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
+	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +314,7 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 // GetTransactionCount returns account nonce
 func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
-	batchNumber, err := getNumericBlockNumber(ctx, e, *number)
+	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +368,7 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 	return tx.Hash().Hex(), nil
 }
 
-func getNumericBlockNumber(ctx context.Context, e *Eth, number BlockNumber) (uint64, error) {
+func (e *Eth) getNumericBlockNumber(ctx context.Context, number BlockNumber) (uint64, error) {
 	switch number {
 	case LatestBlockNumber:
 		lastBatchNumber, err := e.state.GetLastBatchNumber(ctx)

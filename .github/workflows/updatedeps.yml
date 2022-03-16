@@ -18,6 +18,8 @@ jobs:
         go-version: "1.17.x"
       env:
         GOARCH: "amd64"
+    - name: Install Protoc
+      uses: arduino/setup-protoc@v1
     - name: Update deps
       env:
         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -32,3 +34,4 @@ jobs:
         body: Check for new images, test vectors and proto files and update the code to use them.
         branch: update-external-dependencies
         base: develop
+        author: int-bot <int-bot@users.noreply.github.com>

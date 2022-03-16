@@ -155,11 +155,15 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files
-	cd state/tree/pb && protoc --proto_path=. --go_out=. --go-grpc_out=. --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative mt.proto
+	cd proto/src/proto/mt/v1 && protoc --proto_path=. --go_out=../../../../../state/tree/pb --go-grpc_out=../../../../../state/tree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative mt.proto
 
 .PHONY: update-external-dependencies
 update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files
 	go run ./cmd/... updatedeps
+
+.PHONY: run-benchmarks
+run-benchmarks: run-db ## Runs benchmars
+	go test -bench=. ./state/tree
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted

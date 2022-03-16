@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	defaultSourceRepo    = "git@github.com:hermeznetwork/test-vectors.git"
-	defaultTargetDirPath = "../../test/vectors/src"
+	defaultTUSourceRepo    = "git@github.com:hermeznetwork/test-vectors.git"
+	defaultTUTargetDirPath = "../../test/vectors/src"
 )
 
 type testVectorUpdater struct {
@@ -30,8 +30,8 @@ func init() {
 
 		gm: gm,
 
-		sourceRepo:    defaultSourceRepo,
-		targetDirPath: defaultTargetDirPath,
+		sourceRepo:    defaultTUSourceRepo,
+		targetDirPath: defaultTUTargetDirPath,
 	}
 
 	dependenciesList = append(dependenciesList, tv)
