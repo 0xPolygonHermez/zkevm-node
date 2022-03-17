@@ -307,6 +307,21 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	return batch, nil
 }
 
+// GetBathByStateRoot gets the batch with the required state root
+func (s *PostgresStorage) GetBathByStateRoot(ctx context.Context, stateRoot []byte) (*state.Batch, error) {
+	batch, err := s.getBatchWithoutTxsByStateRoot(ctx, stateRoot[])
+	if err != nil {
+		return nil, err
+	}
+
+	batch.Transactions, err = s.getBatchTransactions(ctx, *batch)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
+	return batch, nil
+}
+
 // GetBatchHeader gets the batch header with the required number.
 func (s *PostgresStorage) GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error) {
 	batch, err := s.getBatchWithoutTxsByNumber(ctx, batchNumber)
@@ -753,6 +768,28 @@ func (s *PostgresStorage) getBatchTransactions(ctx context.Context, batch state.
 }
 
 func (s *PostgresStorage) getBatchWithoutTxsByNumber(ctx context.Context, batchNumber uint64) (*state.Batch, error) {
+	var (
+		batch           state.Batch
+		maticCollateral pgtype.Numeric
+		chain           uint64
+	)
+	err := s.db.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(
+		&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
+		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
+		&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot, &batch.RollupExitRoot)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	batch.ChainID = new(big.Int).SetUint64(chain)
+	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
+
+	return &batch, nil
+}
+
+func (s *PostgresStorage) getBatchWithoutTxsByStateRoot(ctx context.Context, stateRoot []byte) (*state.Batch, error) {
 	var (
 		batch           state.Batch
 		maticCollateral pgtype.Numeric
