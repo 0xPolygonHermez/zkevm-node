@@ -3,7 +3,7 @@ package dependencies
 import (
 	"testing"
 
-	"github.com/hermeznetwork/hermez-core/test/utils"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 )
@@ -99,8 +99,8 @@ func Test_updateFiles(t *testing.T) {
 	for _, tc := range tcs {
 		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
-			require.NoError(t, utils.CreateTestFiles(appFs, tc.initialSourceFiles))
-			require.NoError(t, utils.CreateTestFiles(appFs, tc.initialTargetFiles))
+			require.NoError(t, testutils.CreateTestFiles(appFs, tc.initialSourceFiles))
+			require.NoError(t, testutils.CreateTestFiles(appFs, tc.initialTargetFiles))
 
 			require.NoError(t, updateFiles(appFs, defaultSourceDir, defaultTargetDir))
 			a := afero.Afero{Fs: appFs}

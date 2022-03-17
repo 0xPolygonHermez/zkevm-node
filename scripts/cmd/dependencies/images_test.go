@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/test/utils"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 )
@@ -96,7 +96,7 @@ services:
 			}()
 
 			actualOutput, err := subject.readCurrentDigest(imageName)
-			require.NoError(t, utils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
+			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}
@@ -176,7 +176,7 @@ func Test_image_readRemoteDigest(t *testing.T) {
 			}
 
 			actualOutput, err := subject.readRemoteDigest(imageName)
-			require.NoError(t, utils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
+			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}
@@ -284,7 +284,7 @@ services:
 			}()
 
 			err := subject.updateDigest(imageName, tc.oldDigest, tc.newDigest)
-			require.NoError(t, utils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
+			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 			actualFileContents, err := afero.ReadFile(appFs, defaultPath)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedFinalFileContents, string(actualFileContents))

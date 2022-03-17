@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/hermeznetwork/hermez-core/scripts/cmd/compilesc"
-	"github.com/hermeznetwork/hermez-core/test/utils"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 )
@@ -62,10 +62,10 @@ contract Double {
 	for _, tc := range tcs {
 		tc := tc
 
-		require.NoError(t, utils.CreateTestFiles(aferoFs, tc.files))
+		require.NoError(t, testutils.CreateTestFiles(aferoFs, tc.files))
 
 		actual, err := subject.Compile(tc.input)
-		require.NoError(t, utils.CheckError(err, tc.expectedErr, tc.expectedErrMsg))
+		require.NoError(t, testutils.CheckError(err, tc.expectedErr, tc.expectedErrMsg))
 
 		require.Equal(t, tc.expected, actual)
 
@@ -218,10 +218,10 @@ contract DoubleBouble {
 	for _, tc := range tcs {
 		tc := tc
 
-		require.NoError(t, utils.CreateTestFiles(aferoFs, tc.initialFiles))
+		require.NoError(t, testutils.CreateTestFiles(aferoFs, tc.initialFiles))
 
 		err := subject.Run(tc.input)
-		require.NoError(t, utils.CheckError(err, tc.expectedErr, tc.expectedErrMsg))
+		require.NoError(t, testutils.CheckError(err, tc.expectedErr, tc.expectedErrMsg))
 
 		for path, expectedContent := range tc.expectedFiles {
 			actualContent, err := afero.ReadFile(aferoFs, path)
