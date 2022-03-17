@@ -1433,7 +1433,7 @@ func TestEmitLog(t *testing.T) {
 
 	// tx to call emitLog
 	hashCall := sha3.NewLegacyKeccak256()
-	_, err = hashCall.Write([]byte("emitLog()"))
+	_, err = hashCall.Write([]byte("emitLogs()"))
 	require.NoError(t, err)
 	dataCall := hashCall.Sum(nil)[:4]
 	txCall := types.NewTransaction(1, scAddress, new(big.Int), uint64(sequencerBalance), new(big.Int).SetUint64(1), dataCall)
