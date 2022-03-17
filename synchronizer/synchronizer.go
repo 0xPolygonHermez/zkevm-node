@@ -283,23 +283,28 @@ func (s *ClientSynchronizer) resetState(block *state.Block) error {
 	ctx := context.Background()
 	err := s.state.BeginDBTransaction(ctx)
 	if err != nil {
-		log.Fatal("error starting a db transaction to reset the state. Error: ", err)
+		log.Error("error starting a db transaction to reset the state. Error: ", err)
+		return err
 	}
-	err = s.state.Reset(s.ctx, block)
+	err = s.state.Reset(ctx, block)
 	if err != nil {
 		rollbackErr := s.state.Rollback(ctx)
 		if rollbackErr != nil {
-			log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err))
+			log.Error(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err))
+			return rollbackErr
 		}
-		log.Fatal("error resetting the state. Error: ", err)
+		log.Error("error resetting the state. Error: ", err)
+		return err
 	}
 	err = s.state.Commit(ctx)
 	if err != nil {
 		rollbackErr := s.state.Rollback(ctx)
 		if rollbackErr != nil {
-			log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err))
+			log.Error(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err))
+			return rollbackErr
 		}
-		log.Fatal("error committing the resetted state. Error: ", err)
+		log.Error("error committing the resetted state. Error: ", err)
+		return err
 	}
 
 	return nil
