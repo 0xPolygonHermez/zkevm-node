@@ -17,8 +17,6 @@ import (
 const (
 	// TxTransferGas used for TXs that do not create a contract
 	TxTransferGas uint64 = 21000
-	// TxGasContractCreation user for transactions that create a contract
-	TxGasContractCreation uint64 = 53000
 )
 
 var (
