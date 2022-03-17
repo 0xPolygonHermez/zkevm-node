@@ -280,27 +280,26 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 // This function allows reset the state until an specific ethereum block
 func (s *ClientSynchronizer) resetState(block *state.Block) error {
 	log.Debug("Reverting synchronization to block: ", block.BlockNumber)
-	ctx := context.Background()
-	err := s.state.BeginDBTransaction(ctx)
+	err := s.state.BeginDBTransaction(s.ctx)
 	if err != nil {
 		log.Error("error starting a db transaction to reset the state. Error: ", err)
 		return err
 	}
-	err = s.state.Reset(ctx, block)
+	err = s.state.Reset(s.ctx, block)
 	if err != nil {
-		rollbackErr := s.state.Rollback(ctx)
+		rollbackErr := s.state.Rollback(s.ctx)
 		if rollbackErr != nil {
-			log.Error(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err))
+			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err)
 			return rollbackErr
 		}
 		log.Error("error resetting the state. Error: ", err)
 		return err
 	}
-	err = s.state.Commit(ctx)
+	err = s.state.Commit(s.ctx)
 	if err != nil {
-		rollbackErr := s.state.Rollback(ctx)
+		rollbackErr := s.state.Rollback(s.ctx)
 		if rollbackErr != nil {
-			log.Error(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err))
+			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err)
 			return rollbackErr
 		}
 		log.Error("error committing the resetted state. Error: ", err)
