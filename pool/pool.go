@@ -48,8 +48,10 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 }
 
 // GetPendingTxs from the pool
-func (p *Pool) GetPendingTxs(ctx context.Context) ([]Transaction, error) {
-	return p.storage.GetTxsByState(ctx, TxStatePending)
+// limit parameter is used to limit amount of pending txs from the db,
+// if limit = 0, then there is no limit
+func (p *Pool) GetPendingTxs(ctx context.Context, limit uint64) ([]Transaction, error) {
+	return p.storage.GetTxsByState(ctx, TxStatePending, limit)
 }
 
 // UpdateTxState updates a transaction state accordingly to the
@@ -71,6 +73,12 @@ func (p *Pool) SetGasPrice(ctx context.Context, gasPrice uint64) error {
 // GetGasPrice returns the current gas price
 func (p *Pool) GetGasPrice(ctx context.Context) (uint64, error) {
 	return p.storage.GetGasPrice(ctx)
+}
+
+// CountPendingTransactions get number of pending transactions
+// used in bench tests
+func (p *Pool) CountPendingTransactions(ctx context.Context) (uint64, error) {
+	return p.storage.CountTransactionsByState(ctx, TxStatePending)
 }
 
 func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {

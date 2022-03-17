@@ -11,11 +11,12 @@ import (
 
 type storage interface {
 	AddTx(ctx context.Context, tx types.Transaction, state TxState) error
-	GetTxsByState(ctx context.Context, state TxState) ([]Transaction, error)
+	GetTxsByState(ctx context.Context, state TxState, limit uint64) ([]Transaction, error)
 	UpdateTxState(ctx context.Context, hash common.Hash, newState TxState) error
 	UpdateTxsState(ctx context.Context, hashes []common.Hash, newState TxState) error
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	GetGasPrice(ctx context.Context) (uint64, error)
+	CountTransactionsByState(ctx context.Context, state TxState) (uint64, error)
 }
 
 type stateInterface interface {

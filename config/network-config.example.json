@@ -3,6 +3,8 @@
     "genBlockNumber":   1,
     "poeAddr":          "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
     "maticAddr":        "0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa",
+    "l2globalExitRootManagerAddr": "0x0000000000000000000000000000000000000000",
+    "l2globalExitRootManagerPosition": 2,
     "l1ChainID":        1337,
     "l2DefaultChainID": 1000,
     "balances": {

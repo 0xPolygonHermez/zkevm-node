@@ -26,7 +26,7 @@ const (
 	l1NetworkURL = "http://localhost:8545"
 	l2NetworkURL = "http://localhost:8123"
 
-	defaultInterval = 30 * time.Second
+	defaultInterval = 10 * time.Second
 	defaultDeadline = 6000 * time.Second
 
 	gasLimit = 21000
@@ -138,13 +138,13 @@ func runTxSender(b *testing.B, l2Client *ethclient.Client, pl *pool.Pool, gasPri
 	// Wait for the synchronizer to update state
 	err = operations.NewWait().Poll(defaultInterval, defaultDeadline, func() (bool, error) {
 		// using a closure here to capture st and currentBatchNumber
-		txs, err := pl.GetPendingTxs(ctx)
+		count, err := pl.CountPendingTransactions(ctx)
 		if err != nil {
 			return false, err
 		}
 
-		fmt.Printf("amount of pending txs: %v\n", len(txs))
-		done := len(txs) == 0
+		fmt.Printf("amount of pending txs: %v\n", count)
+		done := count == 0
 		return done, nil
 	})
 	require.NoError(b, err)

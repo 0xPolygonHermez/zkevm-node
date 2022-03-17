@@ -155,6 +155,7 @@ func Test_GetPendingTxs(t *testing.T) {
 	p := pool.NewPool(s, st)
 
 	const txsCount = 10
+	const limit = 5
 
 	ctx := context.Background()
 
@@ -174,7 +175,74 @@ func Test_GetPendingTxs(t *testing.T) {
 		}
 	}
 
-	txs, err := p.GetPendingTxs(ctx)
+	txs, err := p.GetPendingTxs(ctx, limit)
+	if err != nil {
+		t.Error(err)
+	}
+
+	assert.Equal(t, limit, len(txs))
+
+	for i := 0; i < txsCount; i++ {
+		assert.Equal(t, pool.TxStatePending, txs[0].State)
+	}
+}
+
+func Test_GetPendingTxsZeroPassed(t *testing.T) {
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+
+	sqlDB, err := db.NewSQLDB(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer sqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(sqlDB)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
+	genesis := state.Genesis{
+		Block: genesisBlock,
+		Balances: map[common.Address]*big.Int{
+			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
+		},
+	}
+	err = st.SetGenesis(context.Background(), genesis)
+	if err != nil {
+		t.Error(err)
+	}
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p := pool.NewPool(s, st)
+
+	const txsCount = 10
+	const limit = 0
+
+	ctx := context.Background()
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	require.NoError(t, err)
+
+	// insert pending transactions
+	for i := 0; i < txsCount; i++ {
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+		signedTx, err := auth.Signer(auth.From, tx)
+		require.NoError(t, err)
+		if err := p.AddTx(ctx, *signedTx); err != nil {
+			t.Error(err)
+		}
+	}
+
+	txs, err := p.GetPendingTxs(ctx, limit)
 	if err != nil {
 		t.Error(err)
 	}

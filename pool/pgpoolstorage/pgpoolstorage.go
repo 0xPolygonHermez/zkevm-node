@@ -50,17 +50,31 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx types.Transaction, s
 	decoded := string(b)
 
 	receivedAt := time.Now()
-	sql := "INSERT INTO pool.txs (hash, encoded, decoded, state, received_at) VALUES($1, $2, $3, $4, $5)"
-	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, state, receivedAt); err != nil {
+	gasPrice := tx.GasPrice().Uint64()
+	nonce := tx.Nonce()
+	sql := "INSERT INTO pool.txs (hash, encoded, decoded, state, gas_price, nonce, received_at) VALUES($1, $2, $3, $4, $5, $6, $7)"
+	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, state, gasPrice, nonce, receivedAt); err != nil {
 		return err
 	}
 	return nil
 }
 
 // GetTxsByState returns an array of transactions filtered by state
-func (p *PostgresPoolStorage) GetTxsByState(ctx context.Context, state pool.TxState) ([]pool.Transaction, error) {
-	sql := "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1"
-	rows, err := p.db.Query(ctx, sql, state.String())
+// limit parameter is used to limit amount txs from the db,
+// if limit = 0, then there is no limit
+func (p *PostgresPoolStorage) GetTxsByState(ctx context.Context, state pool.TxState, limit uint64) ([]pool.Transaction, error) {
+	var (
+		rows pgx.Rows
+		err  error
+		sql  string
+	)
+	if limit == 0 {
+		sql = "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1"
+		rows, err = p.db.Query(ctx, sql, state.String())
+	} else {
+		sql = "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1 LIMIT $2"
+		rows, err = p.db.Query(ctx, sql, state.String(), limit)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +108,18 @@ func (p *PostgresPoolStorage) GetTxsByState(ctx context.Context, state pool.TxSt
 	}
 
 	return txs, nil
+}
+
+// CountTransactionsByState get number of transactions
+// accordingly to the provided state
+func (p *PostgresPoolStorage) CountTransactionsByState(ctx context.Context, state pool.TxState) (uint64, error) {
+	sql := "SELECT COUNT(*) FROM pool.txs WHERE state = $1"
+	var counter uint64
+	err := p.db.QueryRow(ctx, sql, state.String()).Scan(&counter)
+	if err != nil {
+		return 0, err
+	}
+	return counter, nil
 }
 
 // UpdateTxState updates a transaction state accordingly to the
