@@ -9,7 +9,7 @@ contract EmitLog {
     event LogABC(uint256 indexed a, uint256 indexed b, uint256 indexed c);
     event LogABCD(uint256 indexed a, uint256 indexed b, uint256 indexed c, uint256 d);
 
-    constructor() public {
+    function emitLog() public {
         emit Log();
         emit LogA(1);
         emit LogAB(1, 2);

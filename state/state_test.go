@@ -27,6 +27,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -1429,7 +1430,17 @@ func TestEmitLog(t *testing.T) {
 
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	txs = append(txs, signedTx)
+
+	// tx to call emitLog
+	hashCall := sha3.NewLegacyKeccak256()
+	_, err = hashCall.Write([]byte("emitLog()"))
+	require.NoError(t, err)
+	dataCall := hashCall.Sum(nil)[:4]
+	txCall := types.NewTransaction(1, scAddress, new(big.Int), uint64(sequencerBalance), new(big.Int).SetUint64(1), dataCall)
+	signedTxCall, err := auth.Signer(auth.From, txCall)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTx, signedTxCall)
 
 	// Create Batch
 	batch := &state.Batch{
@@ -1454,7 +1465,8 @@ func TestEmitLog(t *testing.T) {
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
-	receipt, err := st.GetTransactionReceipt(ctx, signedTx.Hash())
+	// Check logs
+	receipt, err := st.GetTransactionReceipt(ctx, signedTxCall.Hash())
 	require.NoError(t, err)
 	require.Equal(t, 10, len(receipt.Logs))
 	for _, l := range receipt.Logs {
