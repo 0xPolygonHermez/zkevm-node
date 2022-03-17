@@ -33,7 +33,7 @@ func NewPostgresPoolStorage(cfg db.Config) (*PostgresPoolStorage, error) {
 	}, nil
 }
 
-// AddTx adds a transaction to the pool table with pending state
+// AddTx adds a transaction to the pool table with the provided state
 func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx types.Transaction, state pool.TxState) error {
 	hash := tx.Hash().Hex()
 
@@ -118,12 +118,6 @@ func (p *PostgresPoolStorage) UpdateTxsState(ctx context.Context, hashes []commo
 		return err
 	}
 	return nil
-}
-
-// CleanUpInvalidAndNonSelectedTxs removes from the transaction pool table
-// the invalid and Non selected transactions
-func (p *PostgresPoolStorage) CleanUpInvalidAndNonSelectedTxs(ctx context.Context) error {
-	panic("not implemented yet")
 }
 
 // SetGasPrice allows an external component to define the gas price

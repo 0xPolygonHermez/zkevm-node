@@ -6,11 +6,17 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -20,7 +26,13 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/iden3/go-iden3-crypto/poseidon"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+const (
+	senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 )
 
 var cfg = dbutils.NewConfigFromEnv()
@@ -46,25 +58,26 @@ func Test_AddTx(t *testing.T) {
 	}
 	defer sqlDB.Close() //nolint:gosec,errcheck
 
-	store := tree.NewPostgresStore(sqlDB)
-	mt := tree.NewMerkleTree(store, 4, poseidon.Hash)
-	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
-	tr := tree.NewStateTree(mt, scCodeStore)
+	st := newState(sqlDB)
 
-	stateCfg := state.Config{
-		DefaultChainID:       1000,
-		MaxCumulativeGasUsed: 800000,
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
+	genesis := state.Genesis{
+		Block: genesisBlock,
+		Balances: map[common.Address]*big.Int{
+			common.HexToAddress("0xb48cA794d49EeC406A5dD2c547717e37b5952a83"): balance,
+		},
 	}
-
-	stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
-	st := state.NewState(stateCfg, stateDB, tr)
+	err = st.SetGenesis(context.Background(), genesis)
+	if err != nil {
+		t.Error(err)
+	}
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
 	if err != nil {
 		t.Error(err)
 	}
-
-	st.SetGenesis(context.Background(), state.Genesis{})
 
 	p := pool.NewPool(s, st)
 
@@ -118,22 +131,45 @@ func Test_GetPendingTxs(t *testing.T) {
 	}
 	defer sqlDB.Close() //nolint:gosec,errcheck
 
+	st := newState(sqlDB)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
+	genesis := state.Genesis{
+		Block: genesisBlock,
+		Balances: map[common.Address]*big.Int{
+			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
+		},
+	}
+	err = st.SetGenesis(context.Background(), genesis)
+	if err != nil {
+		t.Error(err)
+	}
+
 	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
 	if err != nil {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, nil)
+	p := pool.NewPool(s, st)
 
 	const txsCount = 10
 
 	ctx := context.Background()
 
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	require.NoError(t, err)
+
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-		err := p.AddTx(ctx, *tx)
-		if err != nil {
+		signedTx, err := auth.Signer(auth.From, tx)
+		require.NoError(t, err)
+		if err := p.AddTx(ctx, *signedTx); err != nil {
 			t.Error(err)
 		}
 	}
@@ -151,41 +187,65 @@ func Test_GetPendingTxs(t *testing.T) {
 }
 
 func Test_UpdateTxsState(t *testing.T) {
-	if err := dbutils.InitOrReset(cfg); err != nil {
-		panic(err)
-	}
-
 	ctx := context.Background()
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
-	if err != nil {
-		t.Error(err)
-	}
-
-	p := pool.NewPool(s, nil)
-
-	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	err = p.AddTx(ctx, *tx1)
-	if err != nil {
-		t.Error(err)
-	}
-
-	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	err = p.AddTx(ctx, *tx2)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = p.UpdateTxsState(ctx, []common.Hash{tx1.Hash(), tx2.Hash()}, pool.TxStateInvalid)
-	if err != nil {
-		t.Error(err)
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
 	}
 
 	sqlDB, err := db.NewSQLDB(cfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close()
+	defer sqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(sqlDB)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
+	genesis := state.Genesis{
+		Block: genesisBlock,
+		Balances: map[common.Address]*big.Int{
+			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
+		},
+	}
+	err = st.SetGenesis(context.Background(), genesis)
+	if err != nil {
+		t.Error(err)
+	}
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p := pool.NewPool(s, st)
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	require.NoError(t, err)
+
+	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	signedTx1, err := auth.Signer(auth.From, tx1)
+	require.NoError(t, err)
+	if err := p.AddTx(ctx, *signedTx1); err != nil {
+		t.Error(err)
+	}
+
+	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	signedTx2, err := auth.Signer(auth.From, tx2)
+	require.NoError(t, err)
+	if err := p.AddTx(ctx, *signedTx2); err != nil {
+		t.Error(err)
+	}
+
+	err = p.UpdateTxsState(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()}, pool.TxStateInvalid)
+	if err != nil {
+		t.Error(err)
+	}
 
 	var count int
 	err = sqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs WHERE state = $1", pool.TxStateInvalid).Scan(&count)
@@ -196,28 +256,10 @@ func Test_UpdateTxsState(t *testing.T) {
 }
 
 func Test_UpdateTxState(t *testing.T) {
-	if err := dbutils.InitOrReset(cfg); err != nil {
-		panic(err)
-	}
-
 	ctx := context.Background()
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
-	if err != nil {
-		t.Error(err)
-	}
-
-	p := pool.NewPool(s, nil)
-
-	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	err = p.AddTx(ctx, *tx)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = p.UpdateTxState(ctx, tx.Hash(), pool.TxStateInvalid)
-	if err != nil {
-		t.Error(err)
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
 	}
 
 	sqlDB, err := db.NewSQLDB(cfg)
@@ -226,7 +268,48 @@ func Test_UpdateTxState(t *testing.T) {
 	}
 	defer sqlDB.Close() //nolint:gosec,errcheck
 
-	rows, err := sqlDB.Query(ctx, "SELECT state FROM pool.txs WHERE hash = $1", tx.Hash().Hex())
+	st := newState(sqlDB)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
+	genesis := state.Genesis{
+		Block: genesisBlock,
+		Balances: map[common.Address]*big.Int{
+			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
+		},
+	}
+	err = st.SetGenesis(context.Background(), genesis)
+	if err != nil {
+		t.Error(err)
+	}
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p := pool.NewPool(s, st)
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	require.NoError(t, err)
+
+	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	if err := p.AddTx(ctx, *signedTx); err != nil {
+		t.Error(err)
+	}
+
+	err = p.UpdateTxState(ctx, signedTx.Hash(), pool.TxStateInvalid)
+	if err != nil {
+		t.Error(err)
+	}
+
+	rows, err := sqlDB.Query(ctx, "SELECT state FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
 	if err != nil {
 		t.Error(err)
 	}
@@ -234,8 +317,7 @@ func Test_UpdateTxState(t *testing.T) {
 
 	var state string
 	rows.Next()
-	err = rows.Scan(&state)
-	if err != nil {
+	if err := rows.Scan(&state); err != nil {
 		t.Error(err)
 	}
 
@@ -273,4 +355,21 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	}
 
 	assert.Equal(t, expectedGasPrice, gasPrice)
+}
+
+func newState(sqlDB *pgxpool.Pool) *state.State {
+	store := tree.NewPostgresStore(sqlDB)
+	mt := tree.NewMerkleTree(store, 4, poseidon.Hash)
+	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
+	tr := tree.NewStateTree(mt, scCodeStore)
+
+	stateCfg := state.Config{
+		DefaultChainID:       1000,
+		MaxCumulativeGasUsed: 800000,
+	}
+
+	stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
+	st := state.NewState(stateCfg, stateDB, tr)
+
+	return st
 }

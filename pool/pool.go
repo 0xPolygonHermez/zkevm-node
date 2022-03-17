@@ -38,6 +38,7 @@ func NewPool(s storage, st stateInterface) *Pool {
 	}
 }
 
+// AddTx adds a transaction to the pool with the pending state
 func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 	if err := p.validateTx(ctx, tx); err != nil {
 		return err
@@ -46,22 +47,28 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 	return p.storage.AddTx(ctx, tx, TxStatePending)
 }
 
+// GetPendingTxs from the pool
 func (p *Pool) GetPendingTxs(ctx context.Context) ([]Transaction, error) {
 	return p.storage.GetTxsByState(ctx, TxStatePending)
 }
 
+// UpdateTxState updates a transaction state accordingly to the
+// provided state and hash
 func (p *Pool) UpdateTxState(ctx context.Context, hash common.Hash, newState TxState) error {
 	return p.storage.UpdateTxState(ctx, hash, newState)
 }
 
+// UpdateTxsState updates transactions state accordingly to the provided state and hashes
 func (p *Pool) UpdateTxsState(ctx context.Context, hashes []common.Hash, newState TxState) error {
 	return p.storage.UpdateTxsState(ctx, hashes, newState)
 }
 
+// SetGasPrice allows an external component to define the gas price
 func (p *Pool) SetGasPrice(ctx context.Context, gasPrice uint64) error {
 	return p.storage.SetGasPrice(ctx, gasPrice)
 }
 
+// GetGasPrice returns the current gas price
 func (p *Pool) GetGasPrice(ctx context.Context) (uint64, error) {
 	return p.storage.GetGasPrice(ctx)
 }
@@ -113,5 +120,6 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	if balance.Cmp(tx.Cost()) < 0 {
 		return ErrInsufficientFunds
 	}
+
 	return nil
 }
