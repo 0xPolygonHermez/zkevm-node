@@ -104,11 +104,13 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 			log.Infof("Successfully processed transaction %s", tx.Hash().String())
 		}
 
-		b.CumulativeGasUsed += result.GasUsed
-		includedTxs = append(includedTxs, tx)
-		receipt := b.generateReceipt(batch, tx, index, &senderAddress, tx.To(), result)
-		receipts = append(receipts, receipt)
-		index++
+		if result.Succeeded() || result.Reverted() {
+			b.CumulativeGasUsed += result.GasUsed
+			includedTxs = append(includedTxs, tx)
+			receipt := b.generateReceipt(batch, tx, index, &senderAddress, tx.To(), result)
+			receipts = append(receipts, receipt)
+			index++
+		}
 	}
 
 	// Update batch
