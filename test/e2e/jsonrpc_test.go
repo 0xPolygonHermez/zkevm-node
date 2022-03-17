@@ -196,7 +196,7 @@ func deployContracts(opsman *operations.Manager) error {
 
 	st := opsman.State()
 	ctx := context.Background()
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"))
 	if err != nil {
 		return err
 	}

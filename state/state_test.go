@@ -538,7 +538,7 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), 0)
+			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), common.Hex2Bytes("0x"))
 			require.NoError(t, err)
 
 			err = bp.ProcessBatch(ctx, batch)
@@ -759,7 +759,7 @@ func TestReceipts(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), 0)
+			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), common.Hex2Bytes("0x"))
 			require.NoError(t, err)
 
 			err = bp.ProcessBatch(ctx, batch)
@@ -1045,7 +1045,7 @@ func TestSCExecution(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"))
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
@@ -1202,7 +1202,7 @@ func TestSCCall(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"))
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
@@ -1347,7 +1347,7 @@ func TestSCSelfDestruct(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"))
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
@@ -1445,7 +1445,7 @@ func TestEmitLog(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"))
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
