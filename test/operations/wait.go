@@ -22,7 +22,7 @@ import (
 
 const (
 	defaultInterval        = 2 * time.Second
-	defaultDeadline        = 60 * time.Second
+	defaultDeadline        = 30 * time.Second
 	defaultTxMinedDeadline = 5 * time.Second
 )
 
