@@ -5,7 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/crypto"
+	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 )
 
@@ -88,7 +88,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return ErrNegativeValue
 	}
 	// Make sure the transaction is signed properly.
-	if err := crypto.CheckSignature(tx); err != nil {
+	if err := state.CheckSignature(tx); err != nil {
 		return ErrInvalidSender
 	}
 	from, err := helper.GetSender(tx)
