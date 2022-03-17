@@ -223,7 +223,7 @@ func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transactio
 	receipt.Type = tx.Type()
 	receipt.PostState = b.stateRoot
 
-	if result.Err == nil {
+	if result.Succeeded() {
 		receipt.Status = types.ReceiptStatusSuccessful
 	} else {
 		receipt.Status = types.ReceiptStatusFailed
