@@ -249,7 +249,7 @@ func (a *Aggregator) Start() {
 			// getProofCtxCancel call closes the connection stream with the prover. This is the only way to close it by client
 			getProofCtxCancel()
 
-			if resGetProof.GetResult() != 0 {
+			if resGetProof.GetResult() != proverclient.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK {
 				continue
 			}
 

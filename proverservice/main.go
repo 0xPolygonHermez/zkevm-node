@@ -16,7 +16,8 @@ func main() {
 	}
 
 	s := grpc.NewServer()
-	zkProverServiceServer := &zkProverServiceServer{id: 0}
+
+	zkProverServiceServer := NewZkProverServiceServer()
 	proverservice.RegisterZKProverServiceServer(s, zkProverServiceServer)
 	fmt.Println("start a service...")
 	if err := s.Serve(lis); err != nil {

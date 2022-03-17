@@ -28,6 +28,14 @@ var mockProof = &proverservice.Proof{
 	ProofC: []string{"0", "0"},
 }
 
+func NewZkProverServiceServer() *zkProverServiceServer {
+	idsToState := make(map[string]int)
+	return &zkProverServiceServer{
+		id:         0,
+		idsToState: idsToState,
+	}
+}
+
 func (zkp *zkProverServiceServer) GenProof(ctx context.Context, request *proverservice.GenProofRequest) (*proverservice.GenProofResponse, error) {
 	zkp.id++
 	idStr := strconv.Itoa(zkp.id)
