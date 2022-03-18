@@ -20,6 +20,10 @@ jobs:
         GOARCH: "amd64"
     - name: Install Protoc
       uses: arduino/setup-protoc@v1
+    - name: Install protoc-gen-go
+      run: |
+        go install github.com/golang/protobuf/protoc-gen-go@latest
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
     - name: Update deps
       env:
         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

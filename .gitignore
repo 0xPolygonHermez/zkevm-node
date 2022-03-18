@@ -6,3 +6,6 @@
 /test/vectors/src/**/*sol
 /test/vectors/src/**/*sh
 /test/vectors/src/package.json
+
+/test/contracts/**/*.abi
+/test/contracts/**/*.bin

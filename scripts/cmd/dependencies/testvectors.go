@@ -9,7 +9,7 @@ import (
 
 const (
 	defaultTUSourceRepo    = "git@github.com:hermeznetwork/test-vectors.git"
-	defaultTUTargetDirPath = "../../test/vectors/src"
+	defaultTUTargetDirPath = "../../../test/vectors/src"
 )
 
 type testVectorUpdater struct {
