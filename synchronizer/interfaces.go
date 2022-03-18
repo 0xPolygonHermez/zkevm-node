@@ -42,6 +42,6 @@ type stateInterface interface {
 	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*state.BasicBatchProcessor, error)
 	AddSequencer(ctx context.Context, seq state.Sequencer) error
 	Commit(ctx context.Context) error
-	Reset(ctx context.Context, blockNumber uint64) error
+	Reset(ctx context.Context, block *state.Block) error
 	GetPreviousBlock(ctx context.Context, offset uint64) (*state.Block, error)
 }

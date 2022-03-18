@@ -49,7 +49,7 @@ type storage interface {
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error)
 	GetTransactionCount(ctx context.Context, address common.Address) (uint64, error)
 	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*Receipt, error)
-	Reset(ctx context.Context, blockNumber uint64) error
+	Reset(ctx context.Context, block *Block) error
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time, aggregator common.Address) error
 	GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error)
 	AddSequencer(ctx context.Context, seq Sequencer) error
