@@ -45,14 +45,6 @@ func NewState(cfg Config, storage storage, tree merkletree) *State {
 
 // NewBatchProcessor creates a new batch processor
 func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*BasicBatchProcessor, error) {
-	// init correct state root from previous batch
-	/*
-		stateRoot, err := s.GetStateRootByBatchNumber(ctx, lastBatchNumber)
-		if err != nil {
-			return nil, err
-		}
-	*/
-
 	// Get Sequencer's Chain ID
 	chainID := s.cfg.DefaultChainID
 	sq, err := s.GetSequencer(ctx, sequencerAddress)

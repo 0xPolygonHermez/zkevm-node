@@ -538,7 +538,7 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), common.Hex2Bytes("0x"))
+			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), common.Hex2Bytes(strings.TrimPrefix(testCase.ExpectedOldRoot, "0x")))
 			require.NoError(t, err)
 
 			err = bp.ProcessBatch(ctx, batch)
@@ -759,7 +759,9 @@ func TestReceipts(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), common.Hex2Bytes("0x"))
+			stateRoot, ok := new(big.Int).SetString(testCase.ExpectedOldRoot, 10)
+			assert.Equal(t, true, ok)
+			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), stateRoot.Bytes())
 			require.NoError(t, err)
 
 			err = bp.ProcessBatch(ctx, batch)
@@ -953,6 +955,7 @@ func TestSCExecution(t *testing.T) {
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var sequencerBalance = 400000
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	var stateRoot = "0x23f74ec0030d8307f32eb1fd2e088d2efb9f7dff8d28e45fbdd4e55f6137eeab"
 
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
@@ -1045,7 +1048,8 @@ func TestSCExecution(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"))
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes(strings.TrimPrefix(stateRoot, "0x")))
+
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
@@ -1079,6 +1083,7 @@ func TestSCCall(t *testing.T) {
 	var scInteractionByteCode = "608060405234801561001057600080fd5b506102b1806100206000396000f3fe6080604052600436106100295760003560e01c8063a87d942c1461002e578063ec39b42914610059575b600080fd5b34801561003a57600080fd5b50610043610075565b60405161005091906101f1565b60405180910390f35b610073600480360381019061006e9190610188565b61011b565b005b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166306661abd6040518163ffffffff1660e01b815260040160206040518083038186803b1580156100de57600080fd5b505afa1580156100f2573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061011691906101b5565b905090565b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050565b60008135905061016d8161024d565b92915050565b60008151905061018281610264565b92915050565b60006020828403121561019e5761019d610248565b5b60006101ac8482850161015e565b91505092915050565b6000602082840312156101cb576101ca610248565b5b60006101d984828501610173565b91505092915050565b6101eb8161023e565b82525050565b600060208201905061020660008301846101e2565b92915050565b60006102178261021e565b9050919050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000819050919050565b600080fd5b6102568161020c565b811461026157600080fd5b50565b61026d8161023e565b811461027857600080fd5b5056fea2646970667358221220bd62b83cf26c8d76260698f0a985ee4839c27bb9b6a062e1806e28f14c20e81864736f6c63430008070033"
 	var scInteractionAddress = common.HexToAddress("0x85e844b762A271022b692CF99cE5c59BA0650Ac8")
 	var expectedFinalRoot = "8568248801809179447838423504847604302118514362079429686070184953337125411010"
+	var stateRoot = "0x236a5c853ae354e96f6d52b8b40bf46d4348b1ea10364a9de93b68c7b5e40444"
 
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
@@ -1202,7 +1207,8 @@ func TestSCCall(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"))
+
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes(strings.TrimPrefix(stateRoot, "0x")))
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
@@ -1367,6 +1373,7 @@ func TestEmitLog(t *testing.T) {
 	// /tests/contracts/emitLog.sol
 	var scByteCode = "608060405234801561001057600080fd5b507f5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a60405160405180910390a160017f977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac6260405160405180910390a2600260017fbb6e4da744abea70325874159d52c1ad3e57babfae7c329a948e7dcb274deb0960405160405180910390a36003600260017f966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b760405160405180910390a46003600260017fe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a6460046040516101039190610243565b60405180910390a46002600360047fe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a6460016040516101419190610228565b60405180910390a46001600260037f966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b760405160405180910390a4600160027fbb6e4da744abea70325874159d52c1ad3e57babfae7c329a948e7dcb274deb0960405160405180910390a360017f977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac6260405160405180910390a27f5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a60405160405180910390a161028c565b61021381610268565b82525050565b6102228161027a565b82525050565b600060208201905061023d600083018461020a565b92915050565b60006020820190506102586000830184610219565b92915050565b6000819050919050565b60006102738261025e565b9050919050565b60006102858261025e565b9050919050565b603f8061029a6000396000f3fe6080604052600080fdfea2646970667358221220762c67d81efb5d60dba1d35e07b0924d0b098edb99abd3d76793806defeaabba64736f6c63430008070033"
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	var stateRoot = "0x20759f625aa56355296258f9a7ed5e222770150bac177cce33d33ff9e5b18d8c"
 
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
@@ -1445,7 +1452,7 @@ func TestEmitLog(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"))
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes(strings.TrimPrefix(stateRoot, "0x")))
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)

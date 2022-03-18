@@ -196,7 +196,13 @@ func deployContracts(opsman *operations.Manager) error {
 
 	st := opsman.State()
 	ctx := context.Background()
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"))
+
+	lastVirtualBatch, err := st.GetLastBatch(ctx, true)
+	if err != nil {
+		return err
+	}
+
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, lastVirtualBatch.Header.Root[:])
 	if err != nil {
 		return err
 	}
