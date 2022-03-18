@@ -104,8 +104,8 @@ func (e *Eth) ChainId() (interface{}, error) { //nolint:golint
 // node performance.
 func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error) {
 	tx := arg.ToTransaction()
-	gasEstimation := e.state.EstimateGas(tx)
-	return hex.EncodeUint64(gasEstimation), nil
+	gasEstimation, err := e.state.EstimateGas(tx)
+	return hex.EncodeUint64(gasEstimation), err
 }
 
 // GasPrice returns the average gas price based on the last x blocks
