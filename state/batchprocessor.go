@@ -102,6 +102,9 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), result.Err)
 		} else {
 			log.Infof("Successfully processed transaction %s", tx.Hash().String())
+		}
+
+		if result.Succeeded() || result.Reverted() {
 			b.CumulativeGasUsed += result.GasUsed
 			includedTxs = append(includedTxs, tx)
 			receipt := b.generateReceipt(batch, tx, index, &senderAddress, tx.To(), result)
@@ -219,7 +222,13 @@ func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transactio
 	receipt := &Receipt{}
 	receipt.Type = tx.Type()
 	receipt.PostState = b.stateRoot
-	receipt.Status = types.ReceiptStatusSuccessful
+
+	if result.Succeeded() {
+		receipt.Status = types.ReceiptStatusSuccessful
+	} else {
+		receipt.Status = types.ReceiptStatusFailed
+	}
+
 	receipt.CumulativeGasUsed = b.CumulativeGasUsed
 	receipt.BlockNumber = batch.Number()
 	receipt.BlockHash = batch.Hash()
