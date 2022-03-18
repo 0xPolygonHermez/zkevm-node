@@ -3,7 +3,7 @@ package dependencies
 import (
 	"testing"
 
-	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 )
@@ -99,8 +99,8 @@ func Test_updateFiles(t *testing.T) {
 	for _, tc := range tcs {
 		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
-			require.NoError(t, createTestFiles(appFs, tc.initialSourceFiles))
-			require.NoError(t, createTestFiles(appFs, tc.initialTargetFiles))
+			require.NoError(t, testutils.CreateTestFiles(appFs, tc.initialSourceFiles))
+			require.NoError(t, testutils.CreateTestFiles(appFs, tc.initialTargetFiles))
 
 			require.NoError(t, updateFiles(appFs, defaultSourceDir, defaultTargetDir))
 			a := afero.Afero{Fs: appFs}
@@ -113,24 +113,4 @@ func Test_updateFiles(t *testing.T) {
 			require.NoError(t, appFs.RemoveAll(defaultTargetDir))
 		})
 	}
-}
-
-func createTestFiles(appFs afero.Fs, files map[string]string) error {
-	for path, content := range files {
-		f, err := appFs.Create(path)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err := f.Close(); err != nil {
-				log.Errorf("Could not close %s: %v", f.Name(), err)
-			}
-		}()
-		_, err = f.WriteString(content)
-
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

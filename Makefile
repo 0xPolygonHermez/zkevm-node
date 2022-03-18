@@ -45,13 +45,13 @@ build-docker: ## Builds a docker image with the core binary
 	docker build -t hezcore -f ./Dockerfile .
 
 .PHONY: test
-test: ## Runs only short tests without checking race conditions
+test: compile-smart-contracts ## Runs only short tests without checking race conditions
 	$(STOPDB) || true
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; go test -short -p 1 ./...
 
 .PHONY: test-full
-test-full: build-docker ## Runs all tests checking race conditions
+test-full: build-docker compile-smart-contracts ## Runs all tests checking race conditions
 	$(STOPDB) || true
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
@@ -116,7 +116,7 @@ stop-explorer-db: ## Stops the explorer database
 	$(STOPEXPLORERDB)
 
 .PHONY: run
-run: ## Runs all the services
+run: compile-smart-contracts ## Runs all the services
 	$(RUNDB)
 	$(RUNEXPLORERDB)
 	$(RUNNETWORK)
@@ -161,11 +161,15 @@ generate-code-from-proto: ## Generates code from proto files
 
 .PHONY: update-external-dependencies
 update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files
-	go run ./cmd/... updatedeps
+	go run ./scripts/cmd/... updatedeps
 
 .PHONY: run-benchmarks
 run-benchmarks: run-db ## Runs benchmars
 	go test -bench=. ./state/tree
+
+.PHONY: compile-smart-contracts
+compile-smart-contracts: ## Compiles smart contracts used in tests and local deployments
+	go run ./scripts/cmd/... compilesc --in ./test/contracts
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted

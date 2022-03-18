@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	dockerComposePath     = "../../docker-compose.yml"
+	dockerComposePath     = "../../../docker-compose.yml"
 	defaultImageAPIServer = "https://hub.docker.com"
 	defaultLoginPattern   = "/v2/users/login"
 )
