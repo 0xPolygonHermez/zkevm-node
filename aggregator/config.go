@@ -49,6 +49,10 @@ type Config struct {
 	// trying to consolidate a new state
 	IntervalToConsolidateState Duration `mapstructure:"IntervalToConsolidateState"`
 
+	// IntervalFrequencyToGetProofGenerationStateInSeconds is the time the aggregator waits until
+	// trying to get proof generation status, in case prover client returns PENDING state
+	IntervalFrequencyToGetProofGenerationStateInSeconds Duration `mapstructure:"IntervalFrequencyToGetProofGenerationStateInSeconds"`
+
 	// TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
 	// possible values: base/acceptall
 	TxProfitabilityCheckerType TxProfitabilityCheckerType `mapstructure:"TxProfitabilityCheckerType"`

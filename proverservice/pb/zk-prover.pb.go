@@ -4,7 +4,7 @@
 // 	protoc        v3.19.1
 // source: zk-prover.proto
 
-package proverclient
+package pb
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"

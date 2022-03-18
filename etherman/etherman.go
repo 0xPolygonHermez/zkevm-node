@@ -184,8 +184,8 @@ func (etherMan *Client) sendBatch(ctx context.Context, opts *bind.TransactOpts, 
 }
 
 // ConsolidateBatch function allows the aggregator send the proof for a batch and consolidate it
-func (etherMan *Client) ConsolidateBatch(batchNumber *big.Int, proof *proverclient.Proof) (*types.Transaction, error) {
-	publicInputs := proof.PublicInputsExtended.PublicInputs
+func (etherMan *Client) ConsolidateBatch(batchNumber *big.Int, resGetProof *proverclient.GetProofResponse) (*types.Transaction, error) {
+	publicInputs := resGetProof.Public.PublicInputs
 	newLocalExitRoot, err := stringToFixedByteArray(publicInputs.NewLocalExitRoot)
 	if err != nil {
 		return nil, err
@@ -195,16 +195,16 @@ func (etherMan *Client) ConsolidateBatch(batchNumber *big.Int, proof *proverclie
 		return nil, err
 	}
 
-	proofA, err := strSliceToBigIntArray(proof.ProofA)
+	proofA, err := strSliceToBigIntArray(resGetProof.Proof.ProofA)
 	if err != nil {
 		return nil, err
 	}
 
-	proofB, err := proofSlcToIntArray(proof.ProofB)
+	proofB, err := proofSlcToIntArray(resGetProof.Proof.ProofB)
 	if err != nil {
 		return nil, err
 	}
-	proofC, err := strSliceToBigIntArray(proof.ProofC)
+	proofC, err := strSliceToBigIntArray(resGetProof.Proof.ProofC)
 	if err != nil {
 		return nil, err
 	}

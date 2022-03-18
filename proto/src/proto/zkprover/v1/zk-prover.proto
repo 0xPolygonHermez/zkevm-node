@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package zkprover.v1;
 
+option go_package = "./proverclient";
+
 message Version {
     string v0_0_1 = 1;
 }
@@ -11,7 +13,7 @@ message Version {
 /**
  * Define all methods implementes by the gRPC
  * GetStatus: get server report about its current state (non-blocking call)
- * GenProof: ask prover to start proof generation. If prover is biusy, request is queued (non-blocking call)
+ * GenProof: ask prover to start proof generation. If prover is busy, request is queued (non-blocking call)
  * Cancel: ask prover to cancel specific proof (non-blocking call)
  * GetProof: retrieve proof information given a timeout (blocking call)
  * Execute: execute state-transition and gets a report about the starte change (blocking call)
@@ -37,17 +39,17 @@ message GetStatusRequest {}
 
 /**
  * @dev GenProofRequest
- * @param {id} - proof identifier
+ * @param {input} - input prover
  */
 message GenProofRequest {
-    string id = 1;
+    InputProver input = 1;
 }
 
 /**
  * @dev CancelRequest
  * @param {id} - proof identifier
  */
- message CancelRequest {
+message CancelRequest {
     string id = 1;
 }
 
@@ -65,7 +67,7 @@ message GetProofRequest {
  * @dev ExecuteRequest
  * @param {input} - input prover
  */
- message ExecuteRequest {
+message ExecuteRequest {
     InputProver input = 1;
 }
 
@@ -76,7 +78,7 @@ message GetProofRequest {
  */
 message SynchronizeBatchProposalRequest {
     bytes batch_l2_data = 1;
-	bytes state_root = 2;
+    bytes state_root = 2;
 }
 
 /////////////////////
@@ -323,18 +325,18 @@ message SynchronizeBatchProposalResponse {
  * @param {to} - address of the receiver
  */
 message Receipt {
-	uint32 type = 1;
-	bytes post_state = 2;
-	uint64 status = 3;
-	uint64 cumulative_gas_used = 4;
-	bytes bloom = 5;
-	repeated Log logs = 6;
-	bytes tx_hash = 7;
-	string contract_address = 8;
-	uint64 gas_used = 9;
-	uint32 transaction_index = 12;
-	string from = 13;
-	string to = 14;
+    uint32 type = 1;
+    bytes post_state = 2;
+    uint64 status = 3;
+    uint64 cumulative_gas_used = 4;
+    bytes bloom = 5;
+    repeated Log logs = 6;
+    bytes tx_hash = 7;
+    string contract_address = 8;
+    uint64 gas_used = 9;
+    uint32 transaction_index = 12;
+    string from = 13;
+    string to = 14;
 }
 
 /**
@@ -348,11 +350,11 @@ message Receipt {
  * @param {removed} - During a re-org, if a transaction is orphaned, this will be set to true to indicate the Log entry has been removed
  */
 message Log {
-	string address = 1;
-	repeated bytes topics = 2;
-	bytes data = 3;
-	bytes tx_hash = 5;
-	uint32 tx_index = 6;
-	uint32 index = 8;
-	bool removed = 9;
+    string address = 1;
+    repeated bytes topics = 2;
+    bytes data = 3;
+    bytes tx_hash = 5;
+    uint32 tx_index = 6;
+    uint32 index = 8;
+    bool removed = 9;
 }

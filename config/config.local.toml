@@ -40,6 +40,7 @@ Type = "default"
 DefaultGasPriceWei = 1000000000
 
 [Aggregator]
+IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"
 IntervalToConsolidateState = "10s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
