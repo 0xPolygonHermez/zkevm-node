@@ -125,7 +125,7 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 func (b *BasicBatchProcessor) ProcessTransaction(ctx context.Context, tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
 	senderAddress, err := helper.GetSender(tx)
 	if err != nil {
-		return &runtime.ExecutionResult{Err: err}
+		return &runtime.ExecutionResult{Err: err, StateRoot: b.stateRoot}
 	}
 
 	// Keep track of consumed gas
@@ -157,7 +157,9 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 	// SC creation
 	if receiverAddress == nil {
 		log.Debug("smart contract creation")
-		return b.create(ctx, tx, senderAddress, sequencerAddress)
+		result := b.create(ctx, tx, senderAddress, sequencerAddress)
+		result.StateRoot = b.stateRoot
+		return result
 	}
 
 	// SC execution
@@ -169,16 +171,19 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 		result.GasUsed = tx.Gas() - result.GasLeft
 		log.Debugf("Transaction Data %v", tx.Data())
 		log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
+		result.StateRoot = b.stateRoot
 		return result
 	}
 
 	// Transfer
 	if tx.Value() != new(big.Int) {
-		return b.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress)
+		result := b.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress)
+		result.StateRoot = b.stateRoot
+		return result
 	}
 
 	log.Error("unknown transaction type")
-	return &runtime.ExecutionResult{Err: ErrInvalidTxType}
+	return &runtime.ExecutionResult{Err: ErrInvalidTxType, StateRoot: b.stateRoot}
 }
 
 func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch) {
