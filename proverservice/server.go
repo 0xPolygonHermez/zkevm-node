@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hermeznetwork/hermez-core/proverservice/api/proverservice"
+	"github.com/hermeznetwork/hermez-core/proverservice/pb"
 )
 
 type zkProverServiceServer struct {
-	proverservice.ZKProverServiceServer
+	pb.ZKProverServiceServer
 	id         int
 	idsToState map[string]int
 }
@@ -22,9 +22,9 @@ const (
 	serverVersion      = "1"
 )
 
-var mockProof = &proverservice.Proof{
+var mockProof = &pb.Proof{
 	ProofA: []string{"0", "0"},
-	ProofB: []*proverservice.ProofB{{Proofs: []string{"0", "0"}}, {Proofs: []string{"0", "0"}}},
+	ProofB: []*pb.ProofB{{Proofs: []string{"0", "0"}}, {Proofs: []string{"0", "0"}}},
 	ProofC: []string{"0", "0"},
 }
 
@@ -36,20 +36,20 @@ func NewZkProverServiceServer() *zkProverServiceServer {
 	}
 }
 
-func (zkp *zkProverServiceServer) GenProof(ctx context.Context, request *proverservice.GenProofRequest) (*proverservice.GenProofResponse, error) {
+func (zkp *zkProverServiceServer) GenProof(ctx context.Context, request *pb.GenProofRequest) (*pb.GenProofResponse, error) {
 	zkp.id++
 	idStr := strconv.Itoa(zkp.id)
 	zkp.idsToState[idStr] = 0
-	return &proverservice.GenProofResponse{
+	return &pb.GenProofResponse{
 		Id:     idStr,
-		Result: proverservice.GenProofResponse_RESULT_GEN_PROOF_OK,
+		Result: pb.GenProofResponse_RESULT_GEN_PROOF_OK,
 	}, nil
 }
 
-func (zkp *zkProverServiceServer) GetProof(srv proverservice.ZKProverService_GetProofServer) error {
+func (zkp *zkProverServiceServer) GetProof(srv pb.ZKProverService_GetProofServer) error {
 	newStateRoot, _ := new(big.Int).SetString("1212121212121212121212121212121212121212121212121212121212121212", 16)
 	newLocalExitRoot, _ := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
-	publicInputs := &proverservice.PublicInputs{
+	publicInputs := &pb.PublicInputs{
 		NewStateRoot:     newStateRoot.String(),
 		NewLocalExitRoot: newLocalExitRoot.String(),
 	}
@@ -73,20 +73,20 @@ func (zkp *zkProverServiceServer) GetProof(srv proverservice.ZKProverService_Get
 		}
 		if st, ok := zkp.idsToState[req.Id]; ok {
 			if st == 1 {
-				resp := &proverservice.GetProofResponse{
+				resp := &pb.GetProofResponse{
 					Id:     req.Id,
 					Proof:  mockProof,
-					Public: &proverservice.PublicInputsExtended{PublicInputs: publicInputs},
-					Result: proverservice.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK,
+					Public: &pb.PublicInputsExtended{PublicInputs: publicInputs},
+					Result: pb.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK,
 				}
 				err := srv.Send(resp)
 				if err != nil {
 					fmt.Printf("Get proof err: %v\n", err)
 				}
 			} else if st == 0 {
-				resp := &proverservice.GetProofResponse{
+				resp := &pb.GetProofResponse{
 					Id:     req.Id,
-					Result: proverservice.GetProofResponse_RESULT_GET_PROOF_PENDING,
+					Result: pb.GetProofResponse_RESULT_GET_PROOF_PENDING,
 				}
 				zkp.idsToState[req.Id] = 1
 				err := srv.Send(resp)
@@ -95,9 +95,9 @@ func (zkp *zkProverServiceServer) GetProof(srv proverservice.ZKProverService_Get
 				}
 			}
 		} else {
-			resp := &proverservice.GetProofResponse{
+			resp := &pb.GetProofResponse{
 				Id:     req.Id,
-				Result: proverservice.GetProofResponse_RESULT_GET_PROOF_ERROR,
+				Result: pb.GetProofResponse_RESULT_GET_PROOF_ERROR,
 			}
 			err := srv.Send(resp)
 			if err != nil {
@@ -107,9 +107,9 @@ func (zkp *zkProverServiceServer) GetProof(srv proverservice.ZKProverService_Get
 	}
 }
 
-func (zkp *zkProverServiceServer) GetStatus(ctx context.Context, request *proverservice.GetStatusRequest) (*proverservice.GetStatusResponse, error) {
-	return &proverservice.GetStatusResponse{
-		State:                     proverservice.GetStatusResponse_STATUS_PROVER_IDLE,
+func (zkp *zkProverServiceServer) GetStatus(ctx context.Context, request *pb.GetStatusRequest) (*pb.GetStatusResponse, error) {
+	return &pb.GetStatusResponse{
+		State:                     pb.GetStatusResponse_STATUS_PROVER_IDLE,
 		LastComputedRequestId:     strconv.Itoa(zkp.id),
 		LastComputedEndTime:       uint64(time.Now().Unix()),
 		CurrentComputingRequestId: strconv.Itoa(zkp.id + 1),
@@ -120,14 +120,14 @@ func (zkp *zkProverServiceServer) GetStatus(ctx context.Context, request *prover
 	}, nil
 }
 
-func (zkp *zkProverServiceServer) Cancel(ctx context.Context, request *proverservice.CancelRequest) (*proverservice.CancelResponse, error) {
-	return &proverservice.CancelResponse{Result: proverservice.CancelResponse_RESULT_CANCEL_OK}, nil
+func (zkp *zkProverServiceServer) Cancel(ctx context.Context, request *pb.CancelRequest) (*pb.CancelResponse, error) {
+	return &pb.CancelResponse{Result: pb.CancelResponse_RESULT_CANCEL_OK}, nil
 }
 
-func (zkp *zkProverServiceServer) Execute(server proverservice.ZKProverService_ExecuteServer) error {
+func (zkp *zkProverServiceServer) Execute(server pb.ZKProverService_ExecuteServer) error {
 	return nil
 }
 
-func (zkp *zkProverServiceServer) SynchronizeBatchProposal(ctx context.Context, request *proverservice.SynchronizeBatchProposalRequest) (*proverservice.SynchronizeBatchProposalResponse, error) {
+func (zkp *zkProverServiceServer) SynchronizeBatchProposal(ctx context.Context, request *pb.SynchronizeBatchProposalRequest) (*pb.SynchronizeBatchProposalResponse, error) {
 	return nil, nil
 }

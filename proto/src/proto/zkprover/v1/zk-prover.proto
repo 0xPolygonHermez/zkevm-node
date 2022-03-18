@@ -5,7 +5,7 @@ package zkprover.v1;
 option go_package = "./proverclient";
 
 message Version {
-  string v0_0_1 = 1;
+    string v0_0_1 = 1;
 }
 
 // timestamps are represented in unix time in seconds
@@ -20,12 +20,12 @@ message Version {
  * SynchronizeBatchProposal: processes a batch proposed in L1 and updates Merkle Tree
  */
 service ZKProverService {
-  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
-  rpc GenProof(GenProofRequest) returns (GenProofResponse) {}
-  rpc Cancel(CancelRequest) returns (CancelResponse) {}
-  rpc GetProof(stream GetProofRequest) returns (stream GetProofResponse) {}
-  rpc Execute(stream ExecuteRequest) returns (stream ExecuteResponse) {}
-  rpc SynchronizeBatchProposal(SynchronizeBatchProposalRequest) returns (SynchronizeBatchProposalResponse) {}
+    rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
+    rpc GenProof(GenProofRequest) returns (GenProofResponse) {}
+    rpc Cancel(CancelRequest) returns (CancelResponse) {}
+    rpc GetProof(stream GetProofRequest) returns (stream GetProofResponse) {}
+    rpc Execute(stream ExecuteRequest) returns (stream ExecuteResponse) {}
+    rpc SynchronizeBatchProposal(SynchronizeBatchProposalRequest) returns (SynchronizeBatchProposalResponse) {}
 }
 
 ///////////////////
@@ -42,7 +42,7 @@ message GetStatusRequest {}
  * @param {input} - input prover
  */
 message GenProofRequest {
-  InputProver input = 1;
+    InputProver input = 1;
 }
 
 /**
@@ -50,7 +50,7 @@ message GenProofRequest {
  * @param {id} - proof identifier
  */
 message CancelRequest {
-  string id = 1;
+    string id = 1;
 }
 
 /**
@@ -59,8 +59,8 @@ message CancelRequest {
  * @param {timeout} - time to wait until the service responds
  */
 message GetProofRequest {
-  string id = 1;
-  uint64 timeout = 2;
+    string id = 1;
+    uint64 timeout = 2;
 }
 
 /**
@@ -68,7 +68,7 @@ message GetProofRequest {
  * @param {input} - input prover
  */
 message ExecuteRequest {
-  InputProver input = 1;
+    InputProver input = 1;
 }
 
 /**
@@ -77,8 +77,8 @@ message ExecuteRequest {
  * @param {state_root} - smt state root
  */
 message SynchronizeBatchProposalRequest {
-  bytes batch_l2_data = 1;
-  bytes state_root = 2;
+    bytes batch_l2_data = 1;
+    bytes state_root = 2;
 }
 
 /////////////////////
@@ -101,21 +101,21 @@ message SynchronizeBatchProposalRequest {
  * @param {pending_request_queue_ids} - list of pending proof identifier that are in the queue
  */
 message GetStatusResponse {
-  enum StatusProver {
-    STATUS_PROVER_UNSPECIFIED = 0;
-    STATUS_PROVER_BOOTING = 1;
-    STATUS_PROVER_COMPUTING = 2;
-    STATUS_PROVER_IDLE = 3;
-    STATUS_PROVER_HALT = 4;
-  }
-  StatusProver state = 1;
-  string last_computed_request_id = 2;
-  uint64 last_computed_end_time = 3;
-  string current_computing_request_id = 4;
-  uint64 current_computing_start_time = 5;
-  string version_proto = 6;
-  string version_server = 7;
-  repeated string pending_request_queue_ids = 8;
+    enum StatusProver {
+        STATUS_PROVER_UNSPECIFIED = 0;
+        STATUS_PROVER_BOOTING = 1;
+        STATUS_PROVER_COMPUTING = 2;
+        STATUS_PROVER_IDLE = 3;
+        STATUS_PROVER_HALT = 4;
+    }
+    StatusProver state = 1;
+    string last_computed_request_id = 2;
+    uint64 last_computed_end_time = 3;
+    string current_computing_request_id = 4;
+    uint64 current_computing_start_time = 5;
+    string version_proto = 6;
+    string version_server = 7;
+    repeated string pending_request_queue_ids = 8;
 }
 
 /**
@@ -127,14 +127,14 @@ message GetStatusResponse {
  *  - INTERNAL_ERROR: server error when delivering the response
  */
 message GenProofResponse {
-  enum ResultGenProof {
-    RESULT_GEN_PROOF_UNSPECIFIED = 0;
-    RESULT_GEN_PROOF_OK = 1;
-    RESULT_GEN_PROOF_ERROR = 2;
-    RESULT_GEN_PROOF_INTERNAL_ERROR = 3;
-  }
-  string id = 1;
-  ResultGenProof result = 2;
+    enum ResultGenProof {
+        RESULT_GEN_PROOF_UNSPECIFIED = 0;
+        RESULT_GEN_PROOF_OK = 1;
+        RESULT_GEN_PROOF_ERROR = 2;
+        RESULT_GEN_PROOF_INTERNAL_ERROR = 3;
+    }
+    string id = 1;
+    ResultGenProof result = 2;
 }
 
 /**
@@ -144,12 +144,12 @@ message GenProofResponse {
  *  - ERROR: proof has not been cancelled
  */
 message CancelResponse {
-  enum ResultCancel {
-    RESULT_CANCEL_UNSPECIFIED = 0;
-    RESULT_CANCEL_OK = 1;
-    RESULT_CANCEL_ERROR = 2;
-  }
-  ResultCancel result = 1;
+    enum ResultCancel {
+        RESULT_CANCEL_UNSPECIFIED = 0;
+        RESULT_CANCEL_OK = 1;
+        RESULT_CANCEL_ERROR = 2;
+    }
+    ResultCancel result = 1;
 }
 
 /**
@@ -167,20 +167,20 @@ message CancelResponse {
  * @param {result_string} - extends result information
  */
 message GetProofResponse {
-  enum ResultGetProof {
-    RESULT_GET_PROOF_UNSPECIFIED = 0;
-    RESULT_GET_PROOF_COMPLETED_OK = 1;
-    RESULT_GET_PROOF_ERROR = 2;
-    RESULT_GET_PROOF_COMPLETED_ERROR = 3;
-    RESULT_GET_PROOF_PENDING = 4;
-    RESULT_GET_PROOF_INTERNAL_ERROR = 5;
-    RESULT_GET_PROOF_CANCEL = 6;
-  }
-  string id = 1;
-  Proof proof = 2;
-  PublicInputsExtended public = 3;
-  ResultGetProof result = 4;
-  string result_string = 5;
+    enum ResultGetProof {
+        RESULT_GET_PROOF_UNSPECIFIED = 0;
+        RESULT_GET_PROOF_COMPLETED_OK = 1;
+        RESULT_GET_PROOF_ERROR = 2;
+        RESULT_GET_PROOF_COMPLETED_ERROR = 3;
+        RESULT_GET_PROOF_PENDING = 4;
+        RESULT_GET_PROOF_INTERNAL_ERROR = 5;
+        RESULT_GET_PROOF_CANCEL = 6;
+    }
+    string id = 1;
+    Proof proof = 2;
+    PublicInputsExtended public = 3;
+    ResultGetProof result = 4;
+    string result_string = 5;
 }
 
 /**
@@ -199,20 +199,20 @@ message GetProofResponse {
  * @param {logs} - ethereum logs
  */
 message ExecuteResponse {
-  enum ResultExecute {
-    RESULT_EXECUTE_UNSPECIFIED = 0;
-    RESULT_EXECUTE_COMPLETED_OK = 1;
-    RESULT_EXECUTE_ERROR = 2;
-    RESULT_EXECUTE_COMPLETED_ERR = 3;
-    RESULT_EXECUTE_INTERNAL_ERROR = 4;
-    RESULT_EXECUTE_CANCEL = 5;
-  }
-  ResultExecute result = 1;
-  map<string, string> diff_keys_values = 2;
-  string new_state_root = 3;
-  ZkCounters counters = 4;
-  repeated string receipts = 5;
-  repeated string logs = 6;
+    enum ResultExecute {
+        RESULT_EXECUTE_UNSPECIFIED = 0;
+        RESULT_EXECUTE_COMPLETED_OK = 1;
+        RESULT_EXECUTE_ERROR = 2;
+        RESULT_EXECUTE_COMPLETED_ERR = 3;
+        RESULT_EXECUTE_INTERNAL_ERROR = 4;
+        RESULT_EXECUTE_CANCEL = 5;
+    }
+    ResultExecute result = 1;
+    map<string, string> diff_keys_values = 2;
+    string new_state_root = 3;
+    ZkCounters counters = 4;
+    repeated string receipts = 5;
+    repeated string logs = 6;
 }
 
 /**
@@ -223,10 +223,10 @@ message ExecuteResponse {
  * @param {arith} - total arith made by the circuit
  */
 message ZkCounters {
-  uint32 ecrecover = 1;
-  uint32 hash_poseidon = 2;
-  uint32 hash_keccak = 3;
-  uint32 arith = 4;
+    uint32 ecrecover = 1;
+    uint32 hash_poseidon = 2;
+    uint32 hash_keccak = 3;
+    uint32 arith = 4;
 }
 
 /*
@@ -243,16 +243,16 @@ message ZkCounters {
  * @param {eth_timestamp}
  */
 message PublicInputs {
-  string old_state_root = 1;
-  string old_local_exit_root = 2;
-  string new_state_root = 3;
-  string new_local_exit_root = 4;
-  string sequencer_addr = 5;
-  string batch_hash_data = 6;
-  uint32 chain_id = 7;
-  uint32 batch_num = 8;
-  uint32 block_num = 9;
-  uint64 eth_timestamp = 10;
+    string old_state_root = 1;
+    string old_local_exit_root = 2;
+    string new_state_root = 3;
+    string new_local_exit_root = 4;
+    string sequencer_addr = 5;
+    string batch_hash_data = 6;
+    uint32 chain_id = 7;
+    uint32 batch_num = 8;
+    uint32 block_num = 9;
+    uint64 eth_timestamp = 10;
 }
 
 /**
@@ -260,7 +260,7 @@ message PublicInputs {
  * @param {proofs} - two elliptic curves points
  */
 message ProofB {
-  repeated string proofs = 1;
+    repeated string proofs = 1;
 }
 
 /**
@@ -270,9 +270,9 @@ message ProofB {
  * @param {proof_c} - elliptic curve point
  */
 message Proof {
-  repeated string proof_a = 1;
-  repeated ProofB proof_b = 2;
-  repeated string proof_c = 3;
+    repeated string proof_a = 1;
+    repeated ProofB proof_b = 2;
+    repeated string proof_c = 3;
 }
 
 /**
@@ -284,11 +284,11 @@ message Proof {
  * @param {contracts_bytecode} - key is the hash(contractBytecode), value is the bytecode itself
  */
 message InputProver {
-  PublicInputs public_inputs = 1;
-  string global_exit_root = 2;
-  string batch_l2_data = 3;
-  map<string, string> db = 4;
-  map<string, string> contracts_bytecode = 5;
+    PublicInputs public_inputs = 1;
+    string global_exit_root = 2;
+    string batch_l2_data = 3;
+    map<string, string> db = 4;
+    map<string, string> contracts_bytecode = 5;
 }
 
 /**
@@ -297,8 +297,8 @@ message InputProver {
  * @param {input_hash} - global hash of all public inputs. Used as a sanity check.
  */
 message PublicInputsExtended {
-  PublicInputs public_inputs = 1;
-  string input_hash = 2;
+    PublicInputs public_inputs = 1;
+    string input_hash = 2;
 }
 
 /**
@@ -306,7 +306,7 @@ message PublicInputsExtended {
  * @param {receipts} - all receipts generated by the batch execution
  */
 message SynchronizeBatchProposalResponse {
-  repeated Receipt receipts = 1;
+    repeated Receipt receipts = 1;
 }
 
 /**
@@ -325,18 +325,18 @@ message SynchronizeBatchProposalResponse {
  * @param {to} - address of the receiver
  */
 message Receipt {
-  uint32 type = 1;
-  bytes post_state = 2;
-  uint64 status = 3;
-  uint64 cumulative_gas_used = 4;
-  bytes bloom = 5;
-  repeated Log logs = 6;
-  bytes tx_hash = 7;
-  string contract_address = 8;
-  uint64 gas_used = 9;
-  uint32 transaction_index = 12;
-  string from = 13;
-  string to = 14;
+    uint32 type = 1;
+    bytes post_state = 2;
+    uint64 status = 3;
+    uint64 cumulative_gas_used = 4;
+    bytes bloom = 5;
+    repeated Log logs = 6;
+    bytes tx_hash = 7;
+    string contract_address = 8;
+    uint64 gas_used = 9;
+    uint32 transaction_index = 12;
+    string from = 13;
+    string to = 14;
 }
 
 /**
@@ -350,11 +350,11 @@ message Receipt {
  * @param {removed} - During a re-org, if a transaction is orphaned, this will be set to true to indicate the Log entry has been removed
  */
 message Log {
-  string address = 1;
-  repeated bytes topics = 2;
-  bytes data = 3;
-  bytes tx_hash = 5;
-  uint32 tx_index = 6;
-  uint32 index = 8;
-  bool removed = 9;
+    string address = 1;
+    repeated bytes topics = 2;
+    bytes data = 3;
+    bytes tx_hash = 5;
+    uint32 tx_index = 6;
+    uint32 index = 8;
+    bool removed = 9;
 }

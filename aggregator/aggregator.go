@@ -242,7 +242,6 @@ func (a *Aggregator) Start() {
 				if resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_PENDING {
 					// in this case aggregator will wait, to send another request
 					time.Sleep(a.cfg.IntervalFrequencyToGetProofGenerationStateInSeconds.Duration)
-					continue
 				}
 			}
 
