@@ -25,7 +25,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
-	"github.com/iden3/go-iden3-crypto/poseidon"
+	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

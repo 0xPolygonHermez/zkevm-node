@@ -242,7 +242,7 @@ func Test_MTServer_ReverseHash(t *testing.T) {
 	root, _, err := stree.SetBalance(ctx, common.HexToAddress(ethAddress), expectedBalance, nil)
 	require.NoError(t, err)
 
-	key, err := tree.GetKey(tree.LeafTypeBalance, common.HexToAddress(ethAddress), nil, tree.DefaultMerkleTreeArity, nil)
+	key, err := tree.KeyEthAddrBalance(common.HexToAddress(ethAddress))
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
