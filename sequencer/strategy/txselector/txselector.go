@@ -13,7 +13,7 @@ import (
 // TxSelector interface for different types of selection
 type TxSelector interface {
 	// SelectTxs selecting txs and returning selected txs, hashes of the selected txs (to not build array multiple times) and hashes of invalid txs
-	SelectTxs(ctx context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error)
+	SelectTxs(ctx context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []common.Hash, []common.Hash, error)
 }
 
 // AcceptAll that accept all transactions
@@ -25,13 +25,13 @@ func NewTxSelectorAcceptAll() TxSelector {
 }
 
 // SelectTxs selects all transactions and don't check anything
-func (s *AcceptAll) SelectTxs(cxt context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
+func (s *AcceptAll) SelectTxs(cxt context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []common.Hash, []common.Hash, error) {
 	selectedTxs := make([]*types.Transaction, 0, len(pendingTxs))
-	selectedTxsHashes := make([]string, 0, len(pendingTxs))
+	selectedTxsHashes := make([]common.Hash, 0, len(pendingTxs))
 	for _, tx := range pendingTxs {
 		t := tx.Transaction
 		selectedTxs = append(selectedTxs, &t)
-		selectedTxsHashes = append(selectedTxsHashes, tx.Hash().Hex())
+		selectedTxsHashes = append(selectedTxsHashes, tx.Hash())
 	}
 	return selectedTxs, selectedTxsHashes, nil, nil
 }
@@ -58,11 +58,11 @@ func NewTxSelectorBase(cfg Config) TxSelector {
 }
 
 // SelectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (b *Base) SelectTxs(ctx context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []string, []string, error) {
+func (b *Base) SelectTxs(ctx context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []common.Hash, []common.Hash, error) {
 	sortedTxs := b.TxSorter.SortTxs(pendingTxs)
 	var (
 		selectedTxs                         []*types.Transaction
-		selectedTxsHashes, invalidTxsHashes []string
+		selectedTxsHashes, invalidTxsHashes []common.Hash
 	)
 	for _, tx := range sortedTxs {
 		t := tx.Transaction
@@ -70,7 +70,7 @@ func (b *Base) SelectTxs(ctx context.Context, batchProcessor batchProcessor, pen
 		if result.Failed() {
 			err := result.Err
 			if state.InvalidTxErrors[err.Error()] {
-				invalidTxsHashes = append(invalidTxsHashes, tx.Hash().Hex())
+				invalidTxsHashes = append(invalidTxsHashes, tx.Hash())
 			} else if errors.Is(err, state.ErrNonceIsBiggerThanAccountNonce) {
 				// this means, that this tx could be valid in the future, but can't be selected at this moment
 				continue
@@ -82,7 +82,7 @@ func (b *Base) SelectTxs(ctx context.Context, batchProcessor batchProcessor, pen
 			}
 		} else {
 			selectedTxs = append(selectedTxs, &t)
-			selectedTxsHashes = append(selectedTxsHashes, t.Hash().Hex())
+			selectedTxsHashes = append(selectedTxsHashes, t.Hash())
 		}
 	}
 

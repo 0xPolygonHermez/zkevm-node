@@ -351,13 +351,6 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 		return nil, err
 	}
 
-	log.Debugf("checking TX signature: %v", tx.Hash().Hex())
-	if err := state.CheckSignature(tx); err != nil {
-		log.Warnf("Invalid signature[%v]: %v", tx.Hash().Hex(), err)
-		return nil, err
-	}
-	log.Debugf("TX signature OK: %v", tx.Hash().Hex())
-
 	log.Debugf("adding TX to the pool: %v", tx.Hash().Hex())
 	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
 		log.Warnf("Failed to add TX to the pool[%v]: %v", tx.Hash().Hex(), err)

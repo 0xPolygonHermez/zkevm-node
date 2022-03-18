@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/pool/pgpoolstorage"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/operations"
@@ -91,13 +92,14 @@ func BenchmarkSequencer(b *testing.B) {
 	}
 }
 
-func setUpEnv(b *testing.B) (*state.State, *pool.PostgresPool, *big.Int, *ethclient.Client) {
+func setUpEnv(b *testing.B) (*state.State, *pool.Pool, *big.Int, *ethclient.Client) {
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(b, err)
 
 	st := opsman.State()
-	pl, err := pool.NewPostgresPool(dbConfig)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(dbConfig)
 	require.NoError(b, err)
+	pl := pool.NewPool(s, st)
 	// store current batch number to check later when the state is updated
 	require.NoError(b, opsman.SetGenesis(genesisAccounts))
 	require.NoError(b, opsman.Setup())
@@ -122,7 +124,7 @@ func tearDownEnv(b *testing.B, st stateInterface) {
 	require.NoError(b, operations.Teardown())
 }
 
-func runTxSender(b *testing.B, l2Client *ethclient.Client, pl *pool.PostgresPool, gasPrice *big.Int, txsAmount int) {
+func runTxSender(b *testing.B, l2Client *ethclient.Client, pl *pool.Pool, gasPrice *big.Int, txsAmount int) {
 	var err error
 	for i := 0; i < txsAmount; i++ {
 		tx := types.NewTransaction(uint64(i), common.HexToAddress(genAccAddr2), ethAmount, gasLimit, gasPrice, nil)

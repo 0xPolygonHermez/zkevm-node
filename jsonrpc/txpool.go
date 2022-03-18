@@ -47,7 +47,7 @@ func (t *TxPool) Content() (interface{}, error) {
 
 	for _, pendingTx := range pendingTxs {
 		t := pendingTx.Transaction
-		sender, err := helper.GetSender(&t)
+		sender, err := helper.GetSender(t)
 		if err != nil {
 			return nil, err
 		}
