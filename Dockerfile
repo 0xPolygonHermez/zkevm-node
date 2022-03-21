@@ -17,5 +17,6 @@ RUN cd /src && make build
 FROM golang:1.17
 WORKDIR /app
 COPY --from=build /src/dist/hezcore /app/hezcore
+COPY --from=build /src/config/config.local.toml /app/config.local.toml
 EXPOSE 8123
 CMD ["./hezcore", "run"]
