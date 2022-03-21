@@ -31,6 +31,8 @@ CREATE TABLE state.batch
     consolidated_at TIMESTAMP WITH TIME ZONE
 );
 
+CREATE INDEX ON state.batch((header->>'stateRoot'));
+
 CREATE TABLE state.transaction
 (
     hash         BYTEA PRIMARY KEY,
