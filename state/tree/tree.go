@@ -12,6 +12,11 @@ import (
 // DefaultMerkleTreeArity specifies Merkle Tree arity used by default
 const DefaultMerkleTreeArity = 4
 
+var (
+	// ErrDBTxsNotSupported indicates db transactions are not supported
+	ErrDBTxsNotSupported = errors.New("transactions are not supported")
+)
+
 // StateTree provides methods to access and modify state in merkletree
 type StateTree struct {
 	mt          *MerkleTree

@@ -42,6 +42,33 @@ func NewState(cfg Config, storage storage, tree merkletree) *State {
 	return &State{cfg: cfg, tree: tree, storage: storage}
 }
 
+// BeginStateTransaction starts a transaction block
+func (s *State) BeginStateTransaction(ctx context.Context) error {
+	err := s.storage.BeginDBTransaction(ctx)
+	if err != nil {
+		return err
+	}
+	return s.tree.BeginDBTransaction(ctx)
+}
+
+// CommitState commits a state into db
+func (s *State) CommitState(ctx context.Context) error {
+	err := s.storage.Commit(ctx)
+	if err != nil {
+		return err
+	}
+	return s.tree.Commit(ctx)
+}
+
+// RollbackState rollbacks a db state transaction
+func (s *State) RollbackState(ctx context.Context) error {
+	err := s.storage.Rollback(ctx)
+	if err != nil {
+		return err
+	}
+	return s.tree.Rollback(ctx)
+}
+
 // NewBatchProcessor creates a new batch processor
 func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, lastBatchNumber uint64) (*BasicBatchProcessor, error) {
 	// init correct state root from previous batch

@@ -3,16 +3,10 @@ package tree
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 )
 
 const (
 	byte32len = 32
-)
-
-var (
-	// ErrDBTxsNotSupported indicates db transactions are not supported
-	ErrDBTxsNotSupported = errors.New("transactions are not supported")
 )
 
 type kvPair struct {

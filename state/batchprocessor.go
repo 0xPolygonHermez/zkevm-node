@@ -160,13 +160,7 @@ func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transac
 	// Save current root
 	root := b.stateRoot
 
-	err := b.State.BeginDBTransaction(ctx)
-	if err != nil {
-		result.Err = err
-		return result
-	}
-
-	err = b.State.tree.BeginDBTransaction(ctx)
+	err := b.State.BeginStateTransaction(ctx)
 	if err != nil {
 		result.Err = err
 		return result
@@ -176,13 +170,7 @@ func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transac
 	result = b.ProcessTransaction(ctx, tx, sequencerAddress)
 	b.SetSimulationMode(false)
 
-	err = b.State.Rollback(ctx)
-	if err != nil {
-		result.Err = err
-		return result
-	}
-
-	err = b.State.tree.Rollback(ctx)
+	err = b.State.RollbackState(ctx)
 	if err != nil {
 		result.Err = err
 		return result
