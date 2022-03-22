@@ -3,10 +3,16 @@ package tree
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 )
 
 const (
 	byte32len = 32
+)
+
+var (
+	// ErrDBTxsNotSupported indicates db transactions are not supported
+	ErrDBTxsNotSupported = errors.New("transactions are not supported")
 )
 
 type kvPair struct {
@@ -23,6 +29,21 @@ type MemStore struct {
 func NewMemStore() *MemStore {
 	kv := make(map[[byte32len]byte]kvPair)
 	return &MemStore{kv}
+}
+
+// BeginDBTransaction starts a transaction block
+func (m *MemStore) BeginDBTransaction(ctx context.Context) error {
+	return ErrDBTxsNotSupported
+}
+
+// Commit commits a db transaction
+func (m *MemStore) Commit(ctx context.Context) error {
+	return ErrDBTxsNotSupported
+}
+
+// Rollback rollbacks a db transaction
+func (m *MemStore) Rollback(ctx context.Context) error {
+	return ErrDBTxsNotSupported
 }
 
 // Get gets value of key from the memory

@@ -34,6 +34,21 @@ func NewBadgerDB(dataDir string) (*badger.DB, error) {
 	return db, nil
 }
 
+// BeginDBTransaction starts a transaction block
+func (b *BadgerRistrettoStore) BeginDBTransaction(ctx context.Context) error {
+	return ErrDBTxsNotSupported
+}
+
+// Commit commits a db transaction
+func (b *BadgerRistrettoStore) Commit(ctx context.Context) error {
+	return ErrDBTxsNotSupported
+}
+
+// Rollback rollbacks a db transaction
+func (b *BadgerRistrettoStore) Rollback(ctx context.Context) error {
+	return ErrDBTxsNotSupported
+}
+
 // NewBadgerRistrettoStore creates an instance of BadgerRistrettoStore.
 func NewBadgerRistrettoStore(db *badger.DB, cache *ristretto.Cache) *BadgerRistrettoStore {
 	return &BadgerRistrettoStore{

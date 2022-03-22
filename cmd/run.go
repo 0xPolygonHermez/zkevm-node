@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -27,7 +26,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
-	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -37,6 +35,9 @@ import (
 )
 
 type mtStore interface {
+	BeginDBTransaction(ctx context.Context) error
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
 	Get(ctx context.Context, key []byte) ([]byte, error)
 	Set(ctx context.Context, key []byte, value []byte) error
 }
@@ -82,7 +83,7 @@ func start(ctx *cli.Context) error {
 	)
 	if ctx.Bool(flagRemoteMT) {
 		log.Debugf("running with remote MT")
-		srvCfg := &tree.ServerConfig{
+		/*srvCfg := &tree.ServerConfig{
 			Host: c.MTServer.Host,
 			Port: c.MTServer.Port,
 		}
@@ -97,7 +98,7 @@ func start(ctx *cli.Context) error {
 		grpcClientConns = append(grpcClientConns, mtConn)
 		cancelFuncs = append(cancelFuncs, mtCancel)
 
-		st = state.NewState(stateCfg, stateDb, treeAdapter)
+		st = state.NewState(stateCfg, stateDb, treeAdapter)*/
 	} else {
 		log.Debugf("running with local MT")
 		st = state.NewState(stateCfg, stateDb, tr)
@@ -164,6 +165,7 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverServiceClient,
 	return proverClient, proverConn
 }
 
+/*
 func newMTClient(c tree.ClientConfig) (pb.MTServiceClient, *grpc.ClientConn, context.CancelFunc) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -178,7 +180,7 @@ func newMTClient(c tree.ClientConfig) (pb.MTServiceClient, *grpc.ClientConn, con
 	mtClient := pb.NewMTServiceClient(mtConn)
 
 	return mtClient, mtConn, cancel
-}
+}*/
 
 func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st *state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
 	genesisBlock, err := etherman.EtherClient.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(networkConfig.GenBlockNumber))

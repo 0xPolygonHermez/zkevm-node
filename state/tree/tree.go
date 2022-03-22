@@ -26,6 +26,33 @@ func NewStateTree(mt *MerkleTree, scCodeStore Store) *StateTree {
 	}
 }
 
+// BeginDBTransaction starts a transaction block
+func (tree *StateTree) BeginDBTransaction(ctx context.Context) error {
+	err := tree.mt.BeginDBTransaction(ctx)
+	if err != nil {
+		return err
+	}
+	return tree.scCodeStore.BeginDBTransaction(ctx)
+}
+
+// Commit commits a db transaction
+func (tree *StateTree) Commit(ctx context.Context) error {
+	err := tree.mt.store.Commit(ctx)
+	if err != nil {
+		return err
+	}
+	return tree.scCodeStore.Commit(ctx)
+}
+
+// Rollback rollbacks a db transaction
+func (tree *StateTree) Rollback(ctx context.Context) error {
+	err := tree.mt.store.Rollback(ctx)
+	if err != nil {
+		return err
+	}
+	return tree.scCodeStore.Rollback(ctx)
+}
+
 // GetBalance returns balance
 func (tree *StateTree) GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
 	r := new(big.Int).SetBytes(root)

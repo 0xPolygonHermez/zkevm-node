@@ -77,6 +77,21 @@ func NewMerkleTree(store Store, arity uint8, hashFunction HashFunction) *MerkleT
 	}
 }
 
+// BeginDBTransaction starts a transaction block
+func (mt *MerkleTree) BeginDBTransaction(ctx context.Context) error {
+	return mt.store.BeginDBTransaction(ctx)
+}
+
+// Commit commits a db transaction
+func (mt *MerkleTree) Commit(ctx context.Context) error {
+	return mt.store.Commit(ctx)
+}
+
+// Rollback rollbacks a db transaction
+func (mt *MerkleTree) Rollback(ctx context.Context) error {
+	return mt.store.Rollback(ctx)
+}
+
 // Set method sets value of a leaf at a given location (key) in the tree
 func (mt *MerkleTree) Set(ctx context.Context, oldRoot *big.Int, key *big.Int, value *big.Int) (*UpdateProof, error) {
 	var err error
