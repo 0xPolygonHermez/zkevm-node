@@ -5,7 +5,6 @@ on:
       - main
       - master
       - develop
-      - update-external-dependencies
   pull_request:
 jobs:
   lint:
