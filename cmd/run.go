@@ -37,6 +37,9 @@ import (
 )
 
 type mtStore interface {
+	BeginDBTransaction(ctx context.Context) error
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
 	Get(ctx context.Context, key []byte) ([]byte, error)
 	Set(ctx context.Context, key []byte, value []byte) error
 }

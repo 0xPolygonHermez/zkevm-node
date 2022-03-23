@@ -25,6 +25,21 @@ func NewMemStore() *MemStore {
 	return &MemStore{kv}
 }
 
+// BeginDBTransaction starts a transaction block
+func (m *MemStore) BeginDBTransaction(ctx context.Context) error {
+	return ErrDBTxsNotSupported
+}
+
+// Commit commits a db transaction
+func (m *MemStore) Commit(ctx context.Context) error {
+	return ErrDBTxsNotSupported
+}
+
+// Rollback rollbacks a db transaction
+func (m *MemStore) Rollback(ctx context.Context) error {
+	return ErrDBTxsNotSupported
+}
+
 // Get gets value of key from the memory
 func (m *MemStore) Get(ctx context.Context, key []byte) ([]byte, error) {
 	k := sha256.Sum256(key)

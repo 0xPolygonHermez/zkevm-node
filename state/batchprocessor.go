@@ -155,9 +155,29 @@ func (b *BasicBatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx
 }
 
 func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
+	result := new(runtime.ExecutionResult)
+
+	// Save current root
+	root := b.stateRoot
+
+	err := b.State.BeginStateTransaction(ctx)
+	if err != nil {
+		result.Err = err
+		return result
+	}
+
 	b.SetSimulationMode(true)
-	result := b.ProcessTransaction(ctx, tx, sequencerAddress)
+	result = b.ProcessTransaction(ctx, tx, sequencerAddress)
 	b.SetSimulationMode(false)
+
+	err = b.State.RollbackState(ctx)
+	if err != nil {
+		result.Err = err
+		return result
+	}
+
+	// Restore root
+	b.stateRoot = root
 	return result
 }
 
@@ -183,14 +203,9 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 	if len(code) > 0 {
 		log.Debugf("smart contract execution %v", receiverAddress)
 		contract := runtime.NewContractCall(0, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
-		root := b.stateRoot
-
 		result := b.run(ctx, contract)
-
-		if b.transactionContext.simulationMode {
-			b.stateRoot = root
-		}
 		result.GasUsed = tx.Gas() - result.GasLeft
+
 		log.Debugf("Transaction Data %v", tx.Data())
 		log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
 		result.StateRoot = b.stateRoot
@@ -379,9 +394,7 @@ func (b *BasicBatchProcessor) transfer(ctx context.Context, tx *types.Transactio
 		}
 	}
 
-	if !b.transactionContext.simulationMode {
-		b.stateRoot = root
-	}
+	b.stateRoot = root
 
 	log.Debugf("processing transfer [%s]: new root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
@@ -643,10 +656,7 @@ func (b *BasicBatchProcessor) create(ctx context.Context, tx *types.Transaction,
 
 	result.CreateAddress = address
 	result.GasUsed = gasCost
-
-	if !b.transactionContext.simulationMode {
-		b.stateRoot = root
-	}
+	b.stateRoot = root
 
 	return result
 }

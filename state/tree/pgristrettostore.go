@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dgraph-io/ristretto"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -14,6 +15,7 @@ import (
 // PgRistrettoStore uses PostgreSQL with a ristretto cache in front.
 type PgRistrettoStore struct {
 	db        *pgxpool.Pool
+	dbTx      pgx.Tx
 	tableName string
 	cache     *ristretto.Cache
 }
@@ -36,6 +38,52 @@ func NewPgRistrettoSCCodeStore(db *pgxpool.Pool, cache *ristretto.Cache) *PgRist
 	}
 }
 
+// BeginDBTransaction starts a transaction block
+func (p *PgRistrettoStore) BeginDBTransaction(ctx context.Context) error {
+	dbTx, err := p.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	p.dbTx = dbTx
+	return nil
+}
+
+// Commit commits a db transaction
+func (p *PgRistrettoStore) Commit(ctx context.Context) error {
+	if p.dbTx != nil {
+		err := p.dbTx.Commit(ctx)
+		p.dbTx = nil
+		return err
+	}
+
+	return ErrNilDBTransaction
+}
+
+// Rollback rollbacks a db transaction
+func (p *PgRistrettoStore) Rollback(ctx context.Context) error {
+	if p.dbTx != nil {
+		err := p.dbTx.Rollback(ctx)
+		p.dbTx = nil
+		return err
+	}
+
+	return ErrNilDBTransaction
+}
+
+func (p *PgRistrettoStore) exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
+	if p.dbTx != nil {
+		return p.dbTx.Exec(ctx, sql, arguments...)
+	}
+	return p.db.Exec(ctx, sql, arguments...)
+}
+
+func (p *PgRistrettoStore) queryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
+	if p.dbTx != nil {
+		return p.dbTx.QueryRow(ctx, sql, args...)
+	}
+	return p.db.QueryRow(ctx, sql, args...)
+}
+
 // Get gets value of key, first trying the cache, then the db.
 func (p *PgRistrettoStore) Get(ctx context.Context, key []byte) ([]byte, error) {
 	value, found := p.cache.Get(key)
@@ -47,7 +95,7 @@ func (p *PgRistrettoStore) Get(ctx context.Context, key []byte) ([]byte, error) 
 		return data, nil
 	}
 	var data []byte
-	err := p.db.QueryRow(ctx, fmt.Sprintf(getNodeByKeySQL, p.tableName), key).Scan(&data)
+	err := p.queryRow(ctx, fmt.Sprintf(getNodeByKeySQL, p.tableName), key).Scan(&data)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -62,7 +110,7 @@ func (p *PgRistrettoStore) Get(ctx context.Context, key []byte) ([]byte, error) 
 // If record with such a key already exists its assumed that the value is correct,
 // because it's a reverse hash table, and the key is a hash of the value.
 func (p *PgRistrettoStore) Set(ctx context.Context, key []byte, value []byte) error {
-	_, err := p.db.Exec(ctx, fmt.Sprintf(setNodeByKeySQL, p.tableName), key, value)
+	_, err := p.exec(ctx, fmt.Sprintf(setNodeByKeySQL, p.tableName), key, value)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			return nil
@@ -76,6 +124,6 @@ func (p *PgRistrettoStore) Set(ctx context.Context, key []byte, value []byte) er
 func (p *PgRistrettoStore) Reset() error {
 	p.cache.Clear()
 
-	_, err := p.db.Exec(context.Background(), fmt.Sprintf("TRUNCATE TABLE %s;", p.tableName))
+	_, err := p.exec(context.Background(), fmt.Sprintf("TRUNCATE TABLE %s;", p.tableName))
 	return err
 }

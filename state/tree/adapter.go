@@ -23,6 +23,21 @@ func NewAdapter(client pb.MTServiceClient) *Adapter {
 	}
 }
 
+// BeginDBTransaction starts a transaction block
+func (m *Adapter) BeginDBTransaction(ctx context.Context) error {
+	return ErrDBTxsNotSupported
+}
+
+// Commit commits a db transaction
+func (m *Adapter) Commit(ctx context.Context) error {
+	return ErrDBTxsNotSupported
+}
+
+// Rollback rollbacks a db transaction
+func (m *Adapter) Rollback(ctx context.Context) error {
+	return ErrDBTxsNotSupported
+}
+
 // GetBalance returns balance.
 func (m *Adapter) GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
 	result, err := m.grpcClient.GetBalance(ctx, &pb.CommonGetRequest{

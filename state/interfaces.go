@@ -14,6 +14,9 @@ import (
 
 // merkletree contains the methods required to interact with the Merkle tree.
 type merkletree interface {
+	BeginDBTransaction(ctx context.Context) error
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
 	GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
 	GetNonce(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
 	GetCode(ctx context.Context, address common.Address, root []byte) ([]byte, error)

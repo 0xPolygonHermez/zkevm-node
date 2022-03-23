@@ -12,6 +12,11 @@ import (
 // DefaultMerkleTreeArity specifies Merkle Tree arity used by default
 const DefaultMerkleTreeArity = 4
 
+var (
+	// ErrDBTxsNotSupported indicates db transactions are not supported
+	ErrDBTxsNotSupported = errors.New("transactions are not supported")
+)
+
 // StateTree provides methods to access and modify state in merkletree
 type StateTree struct {
 	mt          *MerkleTree
@@ -24,6 +29,33 @@ func NewStateTree(mt *MerkleTree, scCodeStore Store) *StateTree {
 		mt:          mt,
 		scCodeStore: scCodeStore,
 	}
+}
+
+// BeginDBTransaction starts a transaction block
+func (tree *StateTree) BeginDBTransaction(ctx context.Context) error {
+	err := tree.mt.BeginDBTransaction(ctx)
+	if err != nil {
+		return err
+	}
+	return tree.scCodeStore.BeginDBTransaction(ctx)
+}
+
+// Commit commits a db transaction
+func (tree *StateTree) Commit(ctx context.Context) error {
+	err := tree.mt.store.Commit(ctx)
+	if err != nil {
+		return err
+	}
+	return tree.scCodeStore.Commit(ctx)
+}
+
+// Rollback rollbacks a db transaction
+func (tree *StateTree) Rollback(ctx context.Context) error {
+	err := tree.mt.store.Rollback(ctx)
+	if err != nil {
+		return err
+	}
+	return tree.scCodeStore.Rollback(ctx)
 }
 
 // GetBalance returns balance
