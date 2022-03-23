@@ -43,13 +43,7 @@ func NewState(cfg Config, storage storage, tree merkletree) *State {
 }
 
 // NewBatchProcessor creates a new batch processor
-func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, lastBatchNumber uint64) (*BasicBatchProcessor, error) {
-	// init correct state root from previous batch
-	stateRoot, err := s.GetStateRootByBatchNumber(ctx, lastBatchNumber)
-	if err != nil {
-		return nil, err
-	}
-
+func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*BasicBatchProcessor, error) {
 	// Get Sequencer's Chain ID
 	chainID := s.cfg.DefaultChainID
 	sq, err := s.GetSequencer(ctx, sequencerAddress)
@@ -57,7 +51,7 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 		chainID = sq.ChainID.Uint64()
 	}
 
-	lastBatch, err := s.GetBatchByNumber(ctx, lastBatchNumber)
+	lastBatch, err := s.GetBatchByStateRoot(ctx, stateRoot)
 	if err != ErrNotFound && err != nil {
 		return nil, err
 	}
@@ -136,7 +130,7 @@ func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return 0, err
 	}
-	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Number().Uint64())
+	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Header.Root[:])
 	if err != nil {
 		log.Errorf("failed to get create a new batch processor, err: %v", err)
 		return 0, err

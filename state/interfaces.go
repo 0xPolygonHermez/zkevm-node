@@ -40,6 +40,7 @@ type storage interface {
 	GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*Batch, error)
 	GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64) (*Batch, error)
+	GetBatchByStateRoot(ctx context.Context, stateRoot []byte) (*Batch, error)
 	GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error)
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
 	GetLastConsolidatedBatchNumber(ctx context.Context) (uint64, error)

@@ -72,7 +72,12 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 		return "0x", nil
 	}
 
-	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, batchNumber)
+	batch, err := e.state.GetBatchByNumber(ctx, batchNumber)
+	if err != nil {
+		return "0x", nil
+	}
+
+	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, batch.Header.Root[:])
 	if err != nil {
 		return "0x", nil
 	}

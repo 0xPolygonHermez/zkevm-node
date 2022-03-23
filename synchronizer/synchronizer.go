@@ -232,8 +232,18 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 						log.Fatal("error getting latest batch. Error: ", err)
 					}
 
+					// Get batch header
+					latestBatchHeader, err := s.state.GetBatchHeader(ctx, latestBatchNumber)
+					if err != nil {
+						rollbackErr := s.state.Rollback(ctx)
+						if rollbackErr != nil {
+							log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blocks[i].BlockNumber, rollbackErr, err))
+						}
+						log.Fatal("error getting latest batch header. Error: ", err)
+					}
+
 					sequencerAddress := batch.Sequencer
-					batchProcessor, err := s.state.NewBatchProcessor(ctx, sequencerAddress, latestBatchNumber)
+					batchProcessor, err := s.state.NewBatchProcessor(ctx, sequencerAddress, latestBatchHeader.Root[:])
 					if err != nil {
 						rollbackErr := s.state.Rollback(ctx)
 						if rollbackErr != nil {
