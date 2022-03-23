@@ -14,27 +14,30 @@ import (
 
 // PgRistrettoStore uses PostgreSQL with a ristretto cache in front.
 type PgRistrettoStore struct {
-	db        *pgxpool.Pool
-	dbTx      pgx.Tx
-	tableName string
-	cache     *ristretto.Cache
+	db             *pgxpool.Pool
+	dbTx           pgx.Tx
+	tableName      string
+	constraintName string
+	cache          *ristretto.Cache
 }
 
 // NewPgRistrettoStore creates an instance of PgRistrettoStore.
 func NewPgRistrettoStore(db *pgxpool.Pool, cache *ristretto.Cache) *PgRistrettoStore {
 	return &PgRistrettoStore{
-		db:        db,
-		tableName: merkleTreeTable,
-		cache:     cache,
+		db:             db,
+		tableName:      merkleTreeTable,
+		constraintName: mtConstraint,
+		cache:          cache,
 	}
 }
 
 // NewPgRistrettoSCCodeStore creates an instance of PgRistrettoStore.
 func NewPgRistrettoSCCodeStore(db *pgxpool.Pool, cache *ristretto.Cache) *PgRistrettoStore {
 	return &PgRistrettoStore{
-		db:        db,
-		tableName: scCodeTreeTable,
-		cache:     cache,
+		db:             db,
+		tableName:      scCodeTreeTable,
+		constraintName: scCodeConstraint,
+		cache:          cache,
 	}
 }
 
@@ -110,7 +113,7 @@ func (p *PgRistrettoStore) Get(ctx context.Context, key []byte) ([]byte, error) 
 // If record with such a key already exists its assumed that the value is correct,
 // because it's a reverse hash table, and the key is a hash of the value.
 func (p *PgRistrettoStore) Set(ctx context.Context, key []byte, value []byte) error {
-	_, err := p.exec(ctx, fmt.Sprintf(setNodeByKeySQL, p.tableName), key, value)
+	_, err := p.exec(ctx, fmt.Sprintf(setNodeByKeySQL, p.tableName, p.constraintName), key, value)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			return nil

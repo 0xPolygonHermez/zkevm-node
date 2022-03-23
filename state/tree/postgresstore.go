@@ -12,13 +12,15 @@ import (
 )
 
 const (
-	getNodeByKeySQL = "SELECT data FROM %s WHERE hash = $1"
-	setNodeByKeySQL = "INSERT INTO %s (hash, data) VALUES ($1, $2)"
+	getNodeByKeySQL = "SELECT COALESCE(data, null) FROM %s WHERE hash = $1"
+	setNodeByKeySQL = "INSERT INTO %s (hash, data) VALUES ($1, $2) ON CONFLICT ON CONSTRAINT %s DO NOTHING;"
 )
 
 const (
-	merkleTreeTable = "state.merkletree"
-	scCodeTreeTable = "state.sc_code"
+	merkleTreeTable  = "state.merkletree"
+	scCodeTreeTable  = "state.sc_code"
+	mtConstraint     = "merkletree_pkey"
+	scCodeConstraint = "sc_code_pkey"
 )
 
 var (
@@ -28,19 +30,20 @@ var (
 
 // PostgresStore stores key-value pairs in memory
 type PostgresStore struct {
-	db        *pgxpool.Pool
-	dbTx      pgx.Tx
-	tableName string
+	db             *pgxpool.Pool
+	dbTx           pgx.Tx
+	tableName      string
+	constraintName string
 }
 
 // NewPostgresStore creates an instance of PostgresStore
 func NewPostgresStore(db *pgxpool.Pool) *PostgresStore {
-	return &PostgresStore{db: db, tableName: merkleTreeTable}
+	return &PostgresStore{db: db, tableName: merkleTreeTable, constraintName: mtConstraint}
 }
 
 // NewPostgresSCCodeStore creates an instance of PostgresStore
 func NewPostgresSCCodeStore(db *pgxpool.Pool) *PostgresStore {
-	return &PostgresStore{db: db, tableName: scCodeTreeTable}
+	return &PostgresStore{db: db, tableName: scCodeTreeTable, constraintName: scCodeConstraint}
 }
 
 // BeginDBTransaction starts a transaction block
@@ -91,7 +94,7 @@ func (p *PostgresStore) queryRow(ctx context.Context, sql string, args ...interf
 
 // Get gets value of key from the db
 func (p *PostgresStore) Get(ctx context.Context, key []byte) ([]byte, error) {
-	var data []byte
+	data := []byte{}
 	err := p.queryRow(ctx, fmt.Sprintf(getNodeByKeySQL, p.tableName), key).Scan(&data)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -99,6 +102,7 @@ func (p *PostgresStore) Get(ctx context.Context, key []byte) ([]byte, error) {
 		}
 		return nil, err
 	}
+
 	return data, nil
 }
 
@@ -106,7 +110,7 @@ func (p *PostgresStore) Get(ctx context.Context, key []byte) ([]byte, error) {
 // If record with such a key already exists its assumed that the value is correct,
 // because it's a reverse hash table, and the key is a hash of the value
 func (p *PostgresStore) Set(ctx context.Context, key []byte, value []byte) error {
-	_, err := p.exec(ctx, fmt.Sprintf(setNodeByKeySQL, p.tableName), key, value)
+	_, err := p.exec(ctx, fmt.Sprintf(setNodeByKeySQL, p.tableName, p.constraintName), key, value)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			return nil
