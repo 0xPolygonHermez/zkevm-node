@@ -37,7 +37,7 @@ func updateFiles(fs afero.Fs, sourceDir, targetDir string) error {
 				log.Errorf("Could not close %s: %v", sourceFile.Name(), err)
 			}
 		}()
-		targetFile, err := fs.OpenFile(wpath, os.O_RDWR, 0644)
+		targetFile, err := fs.OpenFile(wpath, os.O_RDWR|os.O_TRUNC, 0644)
 		if err != nil {
 			return err
 		}
