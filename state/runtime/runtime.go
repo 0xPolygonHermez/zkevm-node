@@ -76,6 +76,7 @@ type ExecutionResult struct {
 	GasUsed       uint64 // Total gas used as result of execution
 	Err           error  // Any error encountered during the execution, listed below
 	CreateAddress common.Address
+	StateRoot     []byte
 }
 
 // Succeeded indicates the execution was successful

@@ -174,7 +174,7 @@ func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot string
 	}
 
 	// Create Batch Processor
-	bp, err := m.st.NewBatchProcessor(m.ctx, common.HexToAddress(m.cfg.Sequencer.Address), 0)
+	bp, err := m.st.NewBatchProcessor(m.ctx, common.HexToAddress(m.cfg.Sequencer.Address), common.Hex2Bytes(strings.TrimPrefix(initialRoot, "0x")))
 	if err != nil {
 		return err
 	}

@@ -540,7 +540,7 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), 0)
+			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), common.Hex2Bytes(strings.TrimPrefix(testCase.ExpectedOldRoot, "0x")))
 			require.NoError(t, err)
 
 			err = bp.ProcessBatch(ctx, batch)
@@ -761,7 +761,9 @@ func TestReceipts(t *testing.T) {
 			}
 
 			// Create Batch Processor
-			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), 0)
+			stateRoot, ok := new(big.Int).SetString(testCase.ExpectedOldRoot, 10)
+			assert.Equal(t, true, ok)
+			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), stateRoot.Bytes())
 			require.NoError(t, err)
 
 			err = bp.ProcessBatch(ctx, batch)
@@ -955,6 +957,7 @@ func TestSCExecution(t *testing.T) {
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var sequencerBalance = 400000
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	var stateRoot = "0x23f74ec0030d8307f32eb1fd2e088d2efb9f7dff8d28e45fbdd4e55f6137eeab"
 
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
@@ -1047,7 +1050,8 @@ func TestSCExecution(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes(strings.TrimPrefix(stateRoot, "0x")))
+
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
@@ -1080,6 +1084,7 @@ func TestSCCall(t *testing.T) {
 	scInteractionByteCode, err := compilesc.ReadBytecode("interaction.sol")
 	require.NoError(t, err)
 	var scInteractionAddress = common.HexToAddress("0x85e844b762A271022b692CF99cE5c59BA0650Ac8")
+	var stateRoot = "0x236a5c853ae354e96f6d52b8b40bf46d4348b1ea10364a9de93b68c7b5e40444"
 	var expectedFinalRoot = "5241619567610880215670173716655616355071093812240119030254379390542265998597"
 
 	// Init database instance
@@ -1204,7 +1209,8 @@ func TestSCCall(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes(strings.TrimPrefix(stateRoot, "0x")))
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
@@ -1350,7 +1356,7 @@ func TestSCSelfDestruct(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"))
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
@@ -1371,6 +1377,7 @@ func TestEmitLog(t *testing.T) {
 	scByteCode, err := compilesc.ReadBytecode("emitLog.sol")
 	require.NoError(t, err)
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	var stateRoot = "0x28bca78c7bed7bb292fb40355053c2ac3f9f1c566d32b3f25acae23d64762f24"
 
 	// Init database instance
 	err = dbutils.InitOrReset(cfg)
@@ -1459,7 +1466,7 @@ func TestEmitLog(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes(strings.TrimPrefix(stateRoot, "0x")))
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
@@ -1719,6 +1726,7 @@ func TestEstimateGas(t *testing.T) {
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var sequencerBalance = 400000
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	var stateRoot = "0x23f74ec0030d8307f32eb1fd2e088d2efb9f7dff8d28e45fbdd4e55f6137eeab"
 
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
@@ -1802,7 +1810,7 @@ func TestEstimateGas(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, 0)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes(strings.TrimPrefix(stateRoot, "0x")))
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)

@@ -34,11 +34,12 @@ type stateInterface interface {
 	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error
 	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
+	GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error)
 	BeginDBTransaction(ctx context.Context) error
 	Rollback(ctx context.Context) error
 	AddBlock(ctx context.Context, block *state.Block) error
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time, aggregator common.Address) error
-	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, lastBatchNumber uint64) (*state.BasicBatchProcessor, error)
+	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*state.BasicBatchProcessor, error)
 	AddSequencer(ctx context.Context, seq state.Sequencer) error
 	Commit(ctx context.Context) error
 	Reset(ctx context.Context, block *state.Block) error
