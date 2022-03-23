@@ -252,7 +252,7 @@ func toRPCTransaction(
 ) *rpcTransaction {
 	v, r, s := t.RawSignatureValues()
 
-	from, _ := helper.GetSender(t)
+	from, _ := helper.GetSender(*t)
 
 	res := &rpcTransaction{
 		Nonce:    argUint64(t.Nonce()),

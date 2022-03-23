@@ -21,6 +21,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/pool/pgpoolstorage"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -101,11 +102,13 @@ func start(ctx *cli.Context) error {
 		log.Debugf("running with local MT")
 		st = state.NewState(stateCfg, stateDb, tr)
 	}
-	pool, err := pool.NewPostgresPool(c.Database)
+
+	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(c.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	pool := pool.NewPool(poolDb, st)
 	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
 	seq := createSequencer(c.Sequencer, etherman, pool, st)
 
@@ -196,7 +199,7 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 	}
 }
 
-func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st *state.State, chainID uint64, gpe gasPriceEstimator) {
+func runJSONRpcServer(c config.Config, pool *pool.Pool, st *state.State, chainID uint64, gpe gasPriceEstimator) {
 	var err error
 	key, err := newKeyFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
 	if err != nil {
@@ -210,7 +213,7 @@ func runJSONRpcServer(c config.Config, pool *pool.PostgresPool, st *state.State,
 	}
 }
 
-func createSequencer(c sequencer.Config, etherman *etherman.Client, pool *pool.PostgresPool, state *state.State) sequencer.Sequencer {
+func createSequencer(c sequencer.Config, etherman *etherman.Client, pool *pool.Pool, state *state.State) sequencer.Sequencer {
 	seq, err := sequencer.NewSequencer(c, pool, state, etherman)
 	if err != nil {
 		log.Fatal(err)
@@ -233,7 +236,7 @@ type gasPriceEstimator interface {
 }
 
 // createGasPriceEstimator init gas price gasPriceEstimator based on type in config.
-func createGasPriceEstimator(cfg gasprice.Config, state *state.State, pool *pool.PostgresPool) gasPriceEstimator {
+func createGasPriceEstimator(cfg gasprice.Config, state *state.State, pool *pool.Pool) gasPriceEstimator {
 	switch cfg.Type {
 	case gasprice.AllBatchesType:
 		return gasprice.NewEstimatorAllBatches()

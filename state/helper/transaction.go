@@ -6,9 +6,9 @@ import (
 )
 
 // GetSender gets the sender from the transaction's signature
-func GetSender(tx *types.Transaction) (common.Address, error) {
+func GetSender(tx types.Transaction) (common.Address, error) {
 	signer := types.NewEIP155Signer(tx.ChainId())
-	sender, err := signer.Sender(tx)
+	sender, err := signer.Sender(&tx)
 	if err != nil {
 		return common.Address{}, err
 	}
