@@ -677,6 +677,7 @@ func (b *BasicBatchProcessor) GetStorage(ctx context.Context, address common.Add
 	}
 
 	log.Debugf("GetStorage for address %v", address)
+
 	return common.BytesToHash(storage.Bytes())
 }
 
@@ -838,5 +839,6 @@ func (b *BasicBatchProcessor) GetNonce(ctx context.Context, address common.Addre
 	}
 
 	log.Debugf("GetNonce for address %v", address)
+
 	return nonce.Uint64()
 }
