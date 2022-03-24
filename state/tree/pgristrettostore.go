@@ -43,6 +43,10 @@ func NewPgRistrettoSCCodeStore(db *pgxpool.Pool, cache *ristretto.Cache) *PgRist
 
 // BeginDBTransaction starts a transaction block
 func (p *PgRistrettoStore) BeginDBTransaction(ctx context.Context) error {
+	if p.dbTx != nil {
+		return ErrAlreadyInitializedDBTransaction
+	}
+
 	dbTx, err := p.db.Begin(ctx)
 	if err != nil {
 		return err

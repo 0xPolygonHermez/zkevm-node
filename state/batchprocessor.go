@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"time"
 
@@ -21,6 +22,8 @@ const (
 	spuriousDragonMaxCodeSize = 24576
 	maxCallDepth              = 1024
 	contractByteGasCost       = 200
+	nonZeroCost               = 68
+	zeroCost                  = 4
 )
 
 var (
@@ -44,6 +47,8 @@ var (
 	EmptyCodeHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	// ZeroAddress is the address 0x0000000000000000000000000000000000000000
 	ZeroAddress = common.HexToAddress("0x0000000000000000000000000000000000000000")
+	// ErrIntrinsicGasOverflow indicates overflow during gas estimation
+	ErrIntrinsicGasOverflow = fmt.Errorf("overflow in intrinsic gas estimation")
 )
 
 // InvalidTxErrors is map to spot invalid txs
@@ -154,31 +159,62 @@ func (b *BasicBatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx
 	return b.processTransaction(ctx, tx, senderAddress, sequencerAddress)
 }
 
-func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
-	result := new(runtime.ExecutionResult)
+func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction) *runtime.ExecutionResult {
+	result := &runtime.ExecutionResult{Err: nil, GasUsed: 0}
 
-	// Save current root
-	root := b.stateRoot
+	cost := uint64(0)
 
-	err := b.State.BeginStateTransaction(ctx)
-	if err != nil {
-		result.Err = err
-		return result
+	if b.isContractCreation(tx) {
+		cost += TxSmartContractCreationGas
+	} else {
+		cost += TxTransferGas
 	}
 
-	b.SetSimulationMode(true)
-	result = b.ProcessTransaction(ctx, tx, sequencerAddress)
-	b.SetSimulationMode(false)
+	if !b.isTransfer(ctx, tx) {
+		payload := tx.Data()
 
-	err = b.State.RollbackState(ctx)
-	if err != nil {
-		result.Err = err
-		return result
+		if len(payload) > 0 {
+			zeros := uint64(0)
+
+			for i := 0; i < len(payload); i++ {
+				if payload[i] == 0 {
+					zeros++
+				}
+			}
+
+			nonZeros := uint64(len(payload)) - zeros
+
+			if (math.MaxUint64-cost)/nonZeroCost < nonZeros {
+				result.Err = ErrIntrinsicGasOverflow
+				return result
+			}
+
+			cost += nonZeros * nonZeroCost
+
+			if (math.MaxUint64-cost)/4 < zeros {
+				result.Err = ErrIntrinsicGasOverflow
+			}
+
+			cost += zeros * zeroCost
+		}
 	}
 
-	// Restore root
-	b.stateRoot = root
+	result.GasUsed = cost
+
 	return result
+}
+
+func (b *BasicBatchProcessor) isContractCreation(tx *types.Transaction) bool {
+	return tx.To() == nil && len(tx.Data()) > 0
+}
+
+func (b *BasicBatchProcessor) isSmartContractExecution(ctx context.Context, tx *types.Transaction) bool {
+	code := b.GetCodeHash(ctx, *tx.To())
+	return code != EmptyCodeHash
+}
+
+func (b *BasicBatchProcessor) isTransfer(ctx context.Context, tx *types.Transaction) bool {
+	return !b.isContractCreation(tx) && !b.isSmartContractExecution(ctx, tx) && tx.Value() != big.NewInt(0)
 }
 
 func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
@@ -191,7 +227,7 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 	receiverAddress := tx.To()
 
 	// SC creation
-	if receiverAddress == nil {
+	if b.isContractCreation(tx) {
 		log.Debug("smart contract creation")
 		result := b.create(ctx, tx, senderAddress, sequencerAddress)
 		result.StateRoot = b.stateRoot
@@ -199,8 +235,9 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 	}
 
 	// SC execution
-	code := b.GetCode(ctx, *receiverAddress)
-	if len(code) > 0 {
+
+	if b.isSmartContractExecution(ctx, tx) {
+		code := b.GetCode(ctx, *receiverAddress)
 		log.Debugf("smart contract execution %v", receiverAddress)
 		contract := runtime.NewContractCall(0, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
 		result := b.run(ctx, contract)
@@ -213,7 +250,7 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 	}
 
 	// Transfer
-	if tx.Value() != new(big.Int) {
+	if b.isTransfer(ctx, tx) {
 		result := b.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress)
 		result.StateRoot = b.stateRoot
 		return result
@@ -453,7 +490,7 @@ func (b *BasicBatchProcessor) checkTransaction(ctx context.Context, tx *types.Tr
 		}
 
 		// Check gas
-		result := b.estimateGas(ctx, tx, b.SequencerAddress)
+		result := b.estimateGas(ctx, tx)
 		if result.Err != nil {
 			log.Debugf("check transaction [%s]: error estimating gas", tx.Hash().Hex())
 			return ErrInvalidGas
