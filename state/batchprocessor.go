@@ -548,6 +548,8 @@ func (b *BasicBatchProcessor) run(ctx context.Context, contract *runtime.Contrac
 }
 
 func (b *BasicBatchProcessor) create(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+	root := b.stateRoot
+
 	if len(tx.Data()) <= 0 {
 		return &runtime.ExecutionResult{
 			GasLeft: tx.Gas(),
@@ -560,7 +562,6 @@ func (b *BasicBatchProcessor) create(ctx context.Context, tx *types.Transaction,
 
 	log.Debugf("new contract address = %v", address)
 
-	root := b.stateRoot
 	gasLimit := contract.Gas
 
 	senderNonce, err := b.State.tree.GetNonce(ctx, senderAddress, root)
@@ -609,19 +610,23 @@ func (b *BasicBatchProcessor) create(ctx context.Context, tx *types.Transaction,
 		senderNonce.Add(senderNonce, big.NewInt(1))
 
 		// Store new nonce
-		root, _, err = b.State.tree.SetNonce(ctx, senderAddress, senderNonce, root)
+		root, _, err := b.State.tree.SetNonce(ctx, senderAddress, senderNonce, root)
 		if err != nil {
 			return &runtime.ExecutionResult{
 				GasLeft: 0,
 				Err:     err,
 			}
 		}
+
+		b.stateRoot = root
 	}
 
 	result := b.run(ctx, contract)
 	if result.Failed() {
 		return result
 	}
+	// Update root with the result after SC Execution
+	root = b.stateRoot
 
 	if b.forks.EIP158 && len(result.ReturnValue) > spuriousDragonMaxCodeSize {
 		// Contract size exceeds 'SpuriousDragon' size limit
