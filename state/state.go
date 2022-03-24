@@ -17,6 +17,8 @@ import (
 const (
 	// TxTransferGas used for TXs that do not create a contract
 	TxTransferGas uint64 = 21000
+	// TxSmartContractCreationGas used for TXs that create a contract
+	TxSmartContractCreationGas uint64 = 53000
 )
 
 var (
@@ -28,6 +30,8 @@ var (
 	ErrNotFound = errors.New("object not found")
 	// ErrNilDBTransaction indicates the db transaction has not been properly initialized
 	ErrNilDBTransaction = errors.New("database transaction not properly initialized")
+	// ErrAlreadyInitializedDBTransaction indicates the db transaction was already initialized
+	ErrAlreadyInitializedDBTransaction = errors.New("database transaction already initialized")
 )
 
 // State is a implementation of the state
@@ -162,7 +166,7 @@ func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
 		log.Errorf("failed to get create a new batch processor, err: %v", err)
 		return 0, err
 	}
-	result := bp.estimateGas(ctx, transaction, sequencerAddress)
+	result := bp.estimateGas(ctx, transaction)
 	return result.GasUsed, result.Err
 }
 

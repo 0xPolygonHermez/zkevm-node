@@ -79,6 +79,10 @@ func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 
 // BeginDBTransaction starts a transaction block
 func (s *PostgresStorage) BeginDBTransaction(ctx context.Context) error {
+	if s.dbTx != nil {
+		return state.ErrAlreadyInitializedDBTransaction
+	}
+
 	dbTx, err := s.db.Begin(ctx)
 	if err != nil {
 		return err

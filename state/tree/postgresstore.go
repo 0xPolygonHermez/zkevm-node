@@ -26,6 +26,8 @@ const (
 var (
 	// ErrNilDBTransaction indicates the db transaction has not been properly initialized
 	ErrNilDBTransaction = errors.New("database transaction not properly initialized")
+	// ErrAlreadyInitializedDBTransaction indicates the db transaction was already initialized
+	ErrAlreadyInitializedDBTransaction = errors.New("database transaction already initialized")
 )
 
 // PostgresStore stores key-value pairs in memory
@@ -48,6 +50,10 @@ func NewPostgresSCCodeStore(db *pgxpool.Pool) *PostgresStore {
 
 // BeginDBTransaction starts a transaction block
 func (p *PostgresStore) BeginDBTransaction(ctx context.Context) error {
+	if p.dbTx != nil {
+		return ErrAlreadyInitializedDBTransaction
+	}
+
 	dbTx, err := p.db.Begin(ctx)
 	if err != nil {
 		return err
