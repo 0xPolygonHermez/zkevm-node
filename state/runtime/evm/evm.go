@@ -12,8 +12,18 @@ type EVM struct {
 }
 
 // NewEVM creates a new EVM
-func NewEVM(instrumented bool) *EVM {
-	return &EVM{instrumented: instrumented}
+func NewEVM() *EVM {
+	return &EVM{}
+}
+
+// EnableInstrumentation enables EVM instrumentation
+func (e *EVM) EnableInstrumentation() {
+	e.instrumented = true
+}
+
+// DisableInstrumentation enables EVM instrumentation
+func (e *EVM) DisableInstrumentation() {
+	e.instrumented = false
 }
 
 // CanRun implements the runtime interface

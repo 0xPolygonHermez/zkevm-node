@@ -26,7 +26,7 @@ var (
 )
 
 func TestRuntime(t *testing.T) {
-	testEvm := evm.NewEVM(false)
+	testEvm := evm.NewEVM()
 	contract := runtime.NewContract(1, zeroAddr, zeroAddr, zeroAddr, value, gas, code)
 	config := &runtime.ForksInTime{
 		EIP158: true,

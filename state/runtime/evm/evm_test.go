@@ -148,7 +148,7 @@ func TestRun(t *testing.T) {
 	ctx := context.Background()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			evm := NewEVM(false)
+			evm := NewEVM()
 			contract := newMockContract(tt.value, tt.gas, tt.code)
 			host := &mockHost{}
 			config := tt.config

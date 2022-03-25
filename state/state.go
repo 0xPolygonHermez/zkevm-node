@@ -91,7 +91,7 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 	transactionContext := transactionContext{difficulty: new(big.Int)}
 
 	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, transactionContext: transactionContext}
-	batchProcessor.setRuntime(evm.NewEVM(false))
+	batchProcessor.setRuntime(evm.NewEVM())
 	blockNumber, err := s.GetLastBlockNumber(ctx)
 	if err != nil {
 		return nil, err
@@ -230,7 +230,9 @@ func (s *State) TraceTransaction(transactionHash common.Hash) ([]instrumentation
 	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, stateRoot)
 	// Activate EVM Instrumentation
 	bp.runtimes = []runtime.Runtime{}
-	bp.setRuntime(evm.NewEVM(true))
+	evm := evm.NewEVM()
+	evm.EnableInstrumentation()
+	bp.setRuntime(evm)
 	if err != nil {
 		log.Errorf("trace transaction: failed to get create a new batch processor, err: %v", err)
 		return nil, err
