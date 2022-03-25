@@ -228,15 +228,16 @@ func (s *State) TraceTransaction(transactionHash common.Hash) ([]instrumentation
 	sequencerAddress := batch.Header.Coinbase
 
 	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, stateRoot)
+	if err != nil {
+		log.Errorf("trace transaction: failed to get create a new batch processor, err: %v", err)
+		return nil, err
+	}
+
 	// Activate EVM Instrumentation
 	bp.runtimes = []runtime.Runtime{}
 	evm := evm.NewEVM()
 	evm.EnableInstrumentation()
 	bp.setRuntime(evm)
-	if err != nil {
-		log.Errorf("trace transaction: failed to get create a new batch processor, err: %v", err)
-		return nil, err
-	}
 
 	err = s.BeginDBTransaction(ctx)
 	if err != nil {
