@@ -138,7 +138,7 @@ func (s *Sequencer) tryProposeBatch() {
 	var isSent bool
 	for !isSent {
 		selectedTxs, selectedTxsHashes, isSent = s.sendBatchToEthereum(selectedTxs, selectedTxsHashes)
-		if selectedTxs == nil || len(selectedTxs) == 0 {
+		if len(selectedTxs) == 0 {
 			return
 		}
 	}

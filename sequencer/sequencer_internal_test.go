@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -150,13 +151,16 @@ func TestMain(m *testing.M) {
 	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
 
 	intervalToProposeBatch := new(Duration)
-	err = intervalToProposeBatch.UnmarshalText([]byte("5s"))
+	_ = intervalToProposeBatch.UnmarshalText([]byte("5s"))
 	intervalAfterWhichBatchSentAnyway := new(Duration)
-	err = intervalAfterWhichBatchSentAnyway.UnmarshalText([]byte("60s"))
+	_ = intervalAfterWhichBatchSentAnyway.UnmarshalText([]byte("60s"))
 	minReward := new(txprofitabilitychecker.TokenAmountWithDecimals)
-	err = minReward.UnmarshalText([]byte("1.1"))
+	_ = minReward.UnmarshalText([]byte("1.1"))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	if err != nil {
+		panic(err)
+	}
 	pl = pool.NewPool(s, testState)
 	seqCfg = Config{
 		IntervalToProposeBatch:            *intervalToProposeBatch,
@@ -178,6 +182,9 @@ func TestMain(m *testing.M) {
 	}
 
 	err = testState.SetLastBatchNumberSeenOnEthereum(context.Background(), lastBatchNumberSeen)
+	if err != nil {
+		panic(err)
+	}
 	ctx := context.Background()
 	_, err = stateDB.Exec(ctx, "DELETE FROM state.block")
 	if err != nil {
@@ -195,7 +202,9 @@ func TestMain(m *testing.M) {
 		},
 	}
 	err = testState.SetGenesis(ctx, genesis)
-
+	if err != nil {
+		panic(err)
+	}
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	if err != nil {
 		panic(err)
@@ -220,6 +229,7 @@ func TestMain(m *testing.M) {
 	}
 
 	m.Run()
+	os.Exit(1)
 }
 
 func TestSequencerIsSynced(t *testing.T) {
@@ -415,11 +425,9 @@ func TestSequencerSendBatchEthereumCut(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, 4, len(selTxs))
 	assert.Equal(t, 4, len(selTxsHashes))
-
 	aggrReward := big.NewInt(1)
 	eth.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
 	eth.On("GetCurrentSequencerCollateral").Return(aggrReward, nil)
-
 	eth.On("SendBatch", seq.ctx, selTxs, aggrReward).Return(nil, errors.New("gas required exceeds allowance"))
 
 	cutTxs, cutTxsHash, ok := seq.sendBatchToEthereum(selTxs, selTxsHashes)
