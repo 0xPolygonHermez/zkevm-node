@@ -155,8 +155,7 @@ func (b *BasicBatchProcessor) ProcessTransaction(ctx context.Context, tx *types.
 // ProcessUnsignedTransaction processes an unsigned transaction from the given
 // sender.
 func (b *BasicBatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
-	result := b.processTransaction(ctx, tx, senderAddress, sequencerAddress)
-	return result
+	return b.processTransaction(ctx, tx, senderAddress, sequencerAddress)
 }
 
 func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction) *runtime.ExecutionResult {
