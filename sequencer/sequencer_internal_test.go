@@ -434,7 +434,6 @@ func TestSequencerSendBatchEthereumCut(t *testing.T) {
 	assert.False(t, ok)
 	assert.Equal(t, 3, len(cutTxs))
 	assert.Equal(t, 3, len(cutTxsHash))
-
 }
 
 func setTxsToPendingState() {
