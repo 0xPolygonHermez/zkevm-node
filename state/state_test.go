@@ -1843,4 +1843,12 @@ func TestEstimateGas(t *testing.T) {
 	gasEstimation, err = st.EstimateGas(signedTxTransfer)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(state.TxTransferGas), gasEstimation)
+
+	// Execution Trace
+	receipt, err := st.GetTransactionReceipt(ctx, signedTxStoreValue.Hash())
+	require.NoError(t, err)
+
+	structLogs, err := st.TraceTransaction(receipt.TxHash)
+	require.NoError(t, err)
+	assert.Equal(t, "PUSH1", structLogs[0].Op)
 }

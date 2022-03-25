@@ -140,7 +140,6 @@ func (b *BasicBatchProcessor) ProcessTransaction(ctx context.Context, tx *types.
 		return &runtime.ExecutionResult{Err: err, StateRoot: b.stateRoot}
 	}
 
-	// Keep track of consumed gas
 	result := b.processTransaction(ctx, tx, senderAddress, sequencerAddress)
 
 	if !b.transactionContext.simulationMode {
@@ -156,7 +155,8 @@ func (b *BasicBatchProcessor) ProcessTransaction(ctx context.Context, tx *types.
 // ProcessUnsignedTransaction processes an unsigned transaction from the given
 // sender.
 func (b *BasicBatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
-	return b.processTransaction(ctx, tx, senderAddress, sequencerAddress)
+	result := b.processTransaction(ctx, tx, senderAddress, sequencerAddress)
+	return result
 }
 
 func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction) *runtime.ExecutionResult {
@@ -226,7 +226,6 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 	b.transactionContext.coinBase = sequencerAddress
 	receiverAddress := tx.To()
 
-	// SC creation
 	if b.isContractCreation(tx) {
 		log.Debug("smart contract creation")
 		result := b.create(ctx, tx, senderAddress, sequencerAddress)
@@ -234,12 +233,10 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 		return result
 	}
 
-	// SC execution
-
 	if b.isSmartContractExecution(ctx, tx) {
 		code := b.GetCode(ctx, *receiverAddress)
 		log.Debugf("smart contract execution %v", receiverAddress)
-		contract := runtime.NewContractCall(0, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
+		contract := runtime.NewContractCall(1, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
 		result := b.run(ctx, contract)
 		result.GasUsed = tx.Gas() - result.GasLeft
 
@@ -249,7 +246,6 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 		return result
 	}
 
-	// Transfer
 	if b.isTransfer(ctx, tx) {
 		result := b.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress)
 		result.StateRoot = b.stateRoot

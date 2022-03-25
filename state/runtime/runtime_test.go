@@ -26,7 +26,7 @@ var (
 )
 
 func TestRuntime(t *testing.T) {
-	testEvm := evm.NewEVM()
+	testEvm := evm.NewEVM(false)
 	contract := runtime.NewContract(1, zeroAddr, zeroAddr, zeroAddr, value, gas, code)
 	config := &runtime.ForksInTime{
 		EIP158: true,
@@ -37,12 +37,6 @@ func TestRuntime(t *testing.T) {
 		panic(err)
 	}
 	defer stateDb.Close()
-
-	// TODO: Improve when state transition is implemented
-
-	// store := tree.NewPostgresStore(stateDb)
-	// mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
-	// host := runtime.NewMerkleTreeHost(tree.NewStateTree(mt, nil))
 
 	res := testEvm.Run(context.Background(), contract, nil, config)
 	assert.Equal(t, uint64(4976), res.GasLeft)

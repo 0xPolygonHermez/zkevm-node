@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
 
 var (
@@ -77,6 +78,7 @@ type ExecutionResult struct {
 	Err           error  // Any error encountered during the execution, listed below
 	CreateAddress common.Address
 	StateRoot     []byte
+	StructLogs    []instrumentation.StructLog
 }
 
 // Succeeded indicates the execution was successful

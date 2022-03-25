@@ -1052,6 +1052,8 @@ func opCreate(op OpCode) instruction {
 		if result.Reverted() {
 			s.returnData = append(s.returnData[:0], result.ReturnValue...)
 		}
+
+		s.returnStructLogs = result.StructLogs
 	}
 }
 
@@ -1124,6 +1126,7 @@ func opCall(op OpCode) instruction {
 
 		s.gas += result.GasLeft
 		s.returnData = append(s.returnData[:0], result.ReturnValue...)
+		s.returnStructLogs = result.StructLogs
 	}
 }
 
