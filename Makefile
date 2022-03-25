@@ -133,6 +133,10 @@ init-network: ## Inits network and deploys test smart contract
 	sleep 5
 	go run ./scripts/deploy_sc/main.go .
 
+.PHONY: deploy-uniswap
+deploy-uniswap: ## Deploy the uniswap environment to the network
+	go run ./scripts/uniswap/main.go .
+
 .PHONY: stop
 stop: ## Stops all services
 	$(STOP)
@@ -184,6 +188,8 @@ compile-smart-contracts: ## Compiles smart contracts used in tests and local dep
 	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/erc20.sol $(FLAGS)
 	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/interaction.sol $(FLAGS)
 	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/storage.sol $(FLAGS)
+	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.5.16$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/core --bin $(INPUTDIR)/uniswap/v2/UniswapV2ERC20.sol $(FLAGS)
+	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.5.16$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/core --bin $(INPUTDIR)/uniswap/v2/UniswapV2Factory.sol $(FLAGS)
 	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.5.16$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/core --bin $(INPUTDIR)/uniswap/v2/UniswapV2Pair.sol $(FLAGS)
 	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.6.6$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/periphery --bin $(INPUTDIR)/uniswap/v2/UniswapV2Migrator.sol $(FLAGS)
 	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.6.6$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/periphery --bin $(INPUTDIR)/uniswap/v2/UniswapV2Router01.sol $(FLAGS)
