@@ -173,7 +173,7 @@ OUTPUTDIR := $(INPUTDIR)/bin
 CONTRACTSVOLUME := -v $$(pwd)/test/contracts:$(INPUTDIR)
 SOLCIMAGEPREFIX := ethereum/solc:
 SOLCIMAGESUFFIX := -alpine
-FLAGS := --overwrite
+FLAGS := --overwrite --optimize
 
 .PHONY: compile-smart-contracts
 compile-smart-contracts: ## Compiles smart contracts used in tests and local deployments
@@ -184,10 +184,10 @@ compile-smart-contracts: ## Compiles smart contracts used in tests and local dep
 	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/erc20.sol $(FLAGS)
 	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/interaction.sol $(FLAGS)
 	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/storage.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.5.16$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/core --bin $(INPUTDIR)/uniswap/v2/core/UniswapV2Pair.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.6.6$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/periphery --bin $(INPUTDIR)/uniswap/v2/periphery/UniswapV2Migrator.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.6.6$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/periphery --bin $(INPUTDIR)/uniswap/v2/periphery/UniswapV2Router01.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.6.6$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/periphery --bin $(INPUTDIR)/uniswap/v2/periphery/UniswapV2Router02.sol $(FLAGS)
+	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.5.16$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/core --bin $(INPUTDIR)/uniswap/v2/UniswapV2Pair.sol $(FLAGS)
+	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.6.6$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/periphery --bin $(INPUTDIR)/uniswap/v2/UniswapV2Migrator.sol $(FLAGS)
+	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.6.6$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/periphery --bin $(INPUTDIR)/uniswap/v2/UniswapV2Router01.sol $(FLAGS)
+	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.6.6$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/periphery --bin $(INPUTDIR)/uniswap/v2/UniswapV2Router02.sol $(FLAGS)
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted

@@ -2,6 +2,9 @@ package testutils
 
 import (
 	"fmt"
+	"os"
+	"path"
+	"runtime"
 	"strings"
 
 	"github.com/hermeznetwork/hermez-core/log"
@@ -48,4 +51,21 @@ func CheckError(err error, expected bool, msg string) error {
 		}
 	}
 	return nil
+}
+
+// ReadBytecode reads the bytecode of the given contract.
+func ReadBytecode(contractPath string) (string, error) {
+	const basePath = "../../test/contracts/bin"
+
+	_, currentFilename, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("Could not get name of current file")
+	}
+	fullBasePath := path.Join(path.Dir(currentFilename), basePath)
+
+	content, err := os.ReadFile(path.Join(fullBasePath, contractPath))
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
 }

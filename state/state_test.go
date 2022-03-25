@@ -18,11 +18,11 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/scripts/cmd/compilesc"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -1078,14 +1078,14 @@ func TestSCCall(t *testing.T) {
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var sequencerBalance = 4000000
-	scCounterByteCode, err := compilesc.ReadBytecode("counter.sol")
+	scCounterByteCode, err := testutils.ReadBytecode("Counter.bin")
 	require.NoError(t, err)
 	var scCounterAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
-	scInteractionByteCode, err := compilesc.ReadBytecode("interaction.sol")
+	scInteractionByteCode, err := testutils.ReadBytecode("Interaction.bin")
 	require.NoError(t, err)
 	var scInteractionAddress = common.HexToAddress("0x85e844b762A271022b692CF99cE5c59BA0650Ac8")
 	var stateRoot = "0x236a5c853ae354e96f6d52b8b40bf46d4348b1ea10364a9de93b68c7b5e40444"
-	var expectedFinalRoot = "5241619567610880215670173716655616355071093812240119030254379390542265998597"
+	var expectedFinalRoot = "20664951758840745974444121049737642565652818998385629128471095142198722727287"
 
 	// Init database instance
 	err = dbutils.InitOrReset(cfg)
@@ -1209,7 +1209,6 @@ func TestSCCall(t *testing.T) {
 	}
 
 	// Create Batch Processor
-
 	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes(strings.TrimPrefix(stateRoot, "0x")))
 	require.NoError(t, err)
 
@@ -1269,7 +1268,7 @@ func TestSCSelfDestruct(t *testing.T) {
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var sequencerBalance = 120000
 	// /tests/contracts/destruct.sol
-	scByteCode, err := compilesc.ReadBytecode("destruct.sol")
+	scByteCode, err := testutils.ReadBytecode("Destruct.bin")
 	require.NoError(t, err)
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
 
@@ -1374,7 +1373,7 @@ func TestEmitLog(t *testing.T) {
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var sequencerBalance = 1200000
 	// /tests/contracts/emitLog.sol
-	scByteCode, err := compilesc.ReadBytecode("emitLog.sol")
+	scByteCode, err := testutils.ReadBytecode("EmitLog.bin")
 	require.NoError(t, err)
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
 	var stateRoot = "0x28bca78c7bed7bb292fb40355053c2ac3f9f1c566d32b3f25acae23d64762f24"

@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/scripts/cmd/compilesc"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -41,13 +41,13 @@ func main() {
 
 	sendEthTransaction(ctx, client, auth)
 
-	counterHexBytes, err := compilesc.ReadBytecode("counter.sol")
+	counterHexBytes, err := testutils.ReadBytecode("Counter.bin")
 	chkErr(err)
-	emitLogHexBytes, err := compilesc.ReadBytecode("emitLog.sol")
+	emitLogHexBytes, err := testutils.ReadBytecode("EmitLog.bin")
 	chkErr(err)
-	erc20HexBytes, err := compilesc.ReadBytecode("erc20.sol")
+	erc20HexBytes, err := testutils.ReadBytecode("ERC20.bin")
 	chkErr(err)
-	storageHexBytes, err := compilesc.ReadBytecode("storage.sol")
+	storageHexBytes, err := testutils.ReadBytecode("Storage.bin")
 	chkErr(err)
 
 	var scAddr common.Address
