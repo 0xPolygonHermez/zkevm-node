@@ -229,7 +229,7 @@ func (s *State) TraceTransaction(transactionHash common.Hash) ([]instrumentation
 
 	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, stateRoot)
 	if err != nil {
-		log.Errorf("trace transaction: failed to get create a new batch processor, err: %v", err)
+		log.Errorf("trace transaction: failed to create a new batch processor, err: %v", err)
 		return nil, err
 	}
 
