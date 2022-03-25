@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -25,6 +25,7 @@ const (
 
 	errGasRequiredExceedsAllowance = "gas required exceeds allowance"
 	errContentLengthTooLarge       = "content length too large"
+	errOversizedData               = "oversized data"
 )
 
 // Sequencer represents a sequencer
@@ -119,93 +120,136 @@ func (s *Sequencer) Stop() {
 
 func (s *Sequencer) tryProposeBatch() {
 	// 1. Wait for synchronizer to sync last batch
+	if !s.isSynced() {
+		return
+	}
+	// 2. get pending txs from the pool
+	txs, ok := s.getPendingTxs()
+	if !ok {
+		return
+	}
+	// 3. Run selection
+	selectedTxs, selectedTxsHashes, ok := s.selectTxs(txs)
+	if !ok {
+		return
+	}
+	// 4. Is selection profitable?
+	// check is it profitable to send selection
+	var isSent bool
+	for !isSent {
+		selectedTxs, selectedTxsHashes, isSent = s.sendBatchToEthereum(selectedTxs, selectedTxsHashes)
+		if selectedTxs == nil || len(selectedTxs) == 0 {
+			return
+		}
+	}
+	// NO: discard selection and wait for the new batch
+}
+
+func (s *Sequencer) isSynced() bool {
 	lastSyncedBatchNum, err := s.State.GetLastBatchNumber(s.ctx)
 	if err != nil {
 		log.Errorf("failed to get last synced batch, err: %v", err)
-		return
+		return false
 	}
 	lastEthBatchNum, err := s.State.GetLastBatchNumberSeenOnEthereum(s.ctx)
 	if err != nil {
 		log.Errorf("failed to get last eth batch, err: %v", err)
-		return
+		return false
 	}
 	if lastSyncedBatchNum+s.cfg.SyncedBlockDif < lastEthBatchNum {
 		log.Infof("waiting for the state to be synced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
-		return
+		return false
 	}
+	return true
+}
 
-	// 2. get pending txs from the pool
+func (s *Sequencer) getPendingTxs() ([]pool.Transaction, bool) {
 	txs, err := s.Pool.GetPendingTxs(s.ctx, amountOfPendingTxsRequested)
 	if err != nil {
 		log.Errorf("failed to get pending txs, err: %v", err)
-		return
+		return nil, false
 	}
 
 	if len(txs) == 0 {
 		log.Infof("transactions pool is empty, waiting for the new txs...")
-		return
+		return nil, false
 	}
 
-	// 3. Run selection
-	// init batch processor
+	return txs, true
+}
+
+func (s *Sequencer) selectTxs(txs []pool.Transaction) ([]*types.Transaction, []common.Hash, bool) {
 	lastVirtualBatch, err := s.State.GetLastBatch(s.ctx, true)
 	if err != nil {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
-		return
+		return nil, nil, false
 	}
+	// init batch processor
 	bp, err := s.State.NewBatchProcessor(s.ctx, s.Address, lastVirtualBatch.Header.Root[:])
 	if err != nil {
 		log.Errorf("failed to create new batch processor, err: %v", err)
-		return
+		return nil, nil, false
 	}
 
 	// select txs
 	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(s.ctx, bp, txs, s.Address)
 	if err != nil {
 		log.Errorf("failed to select txs, err: %v", err)
-		return
+		return nil, nil, false
 	}
 
 	if err = s.Pool.UpdateTxsState(s.ctx, invalidTxsHashes, pool.TxStateInvalid); err != nil {
 		log.Errorf("failed to update txs state to invalid, err: %v", err)
-		return
+		return nil, nil, false
 	}
+	return selectedTxs, selectedTxsHashes, true
+}
 
-	// 4. Is selection profitable?
-	// check is it profitable to send selection
-	var isSent bool
-	for !isSent {
-		isProfitable, aggregatorReward, err := s.TxProfitabilityChecker.IsProfitable(s.ctx, selectedTxs)
-		if err != nil {
-			log.Errorf("failed to check that txs are profitable or not, err: %v", err)
-			return
-		}
-		if isProfitable && len(selectedTxs) > 0 {
-			// YES: send selection to Ethereum
-			sendBatchTx, err := s.EthMan.SendBatch(s.ctx, selectedTxs, aggregatorReward)
-			if err != nil {
-				if strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
-					errors.Is(err, core.ErrOversizedData) ||
-					strings.Contains(err.Error(), errContentLengthTooLarge) {
-					cutSelectedTxs := (len(selectedTxs) - 1) * percentageToCutSelectedTxs / fullPercentage
-					selectedTxs = selectedTxs[:cutSelectedTxs]
-					selectedTxsHashes = selectedTxsHashes[:cutSelectedTxs]
-					continue
-				}
-				log.Errorf("failed to send batch proposal to ethereum, err: %v", err)
-				return
-			}
-			// update txs in the pool as selected
-			err = s.Pool.UpdateTxsState(s.ctx, selectedTxsHashes, pool.TxStateSelected)
-			if err != nil {
-				log.Warnf("failed to update txs state to selected, err: %v", err)
-			}
-			isSent = true
-			log.Infof("finished updating selected transactions state in the pool")
-			log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
-		}
+func isDataForEthTxTooBig(err error) bool {
+	if strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
+		strings.Contains(err.Error(), errOversizedData) ||
+		strings.Contains(err.Error(), errContentLengthTooLarge) {
+		return true
 	}
-	// NO: discard selection and wait for the new batch
+	return false
+}
+
+func (s *Sequencer) sendBatchToEthereum(selectedTxs []*types.Transaction, selectedTxsHashes []common.Hash) ([]*types.Transaction, []common.Hash, bool) {
+	isProfitable, aggregatorReward, err := s.TxProfitabilityChecker.IsProfitable(s.ctx, selectedTxs)
+	if err != nil {
+		log.Errorf("failed to check that txs are profitable or not, err: %v", err)
+		return nil, nil, false
+	}
+	if isProfitable && len(selectedTxs) > 0 {
+		// YES: send selection to Ethereum
+		sendBatchTx, err := s.EthMan.SendBatch(s.ctx, selectedTxs, aggregatorReward)
+		if err != nil {
+			if isDataForEthTxTooBig(err) {
+				selectedTxs, selectedTxsHashes = cutSelectedTxs(selectedTxs, selectedTxsHashes)
+				return selectedTxs, selectedTxsHashes, false
+			}
+			log.Errorf("failed to send batch proposal to ethereum, err: %v", err)
+			return nil, nil, false
+		}
+		// update txs in the pool as selected
+		err = s.Pool.UpdateTxsState(s.ctx, selectedTxsHashes, pool.TxStateSelected)
+		if err != nil {
+			// it's fatal here, bcs txs are selected and sent to ethereum, but txs were not updated in the local db.
+			// probably txs should be updated manually. If sequencer don't fail here, those txs will be sent again
+			// and sequencer will lose tokens
+			log.Fatalf("failed to update txs state to selected, selectedTxsHashes: %v, err: %v", selectedTxsHashes, err)
+		}
+		log.Infof("finished updating selected transactions state in the pool")
+		log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
+	}
+	return nil, nil, true
+}
+
+func cutSelectedTxs(selectedTxs []*types.Transaction, selectedTxsHashes []common.Hash) ([]*types.Transaction, []common.Hash) {
+	cutSelectedTxs := len(selectedTxs) * percentageToCutSelectedTxs / fullPercentage
+	selectedTxs = selectedTxs[:cutSelectedTxs]
+	selectedTxsHashes = selectedTxsHashes[:cutSelectedTxs]
+	return selectedTxs, selectedTxsHashes
 }
 
 func getChainID(ctx context.Context, st stateInterface, ethMan etherman, seqAddress common.Address) (uint64, error) {
