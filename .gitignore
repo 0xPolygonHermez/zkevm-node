@@ -9,3 +9,4 @@
 
 /test/contracts/**/*.abi
 /test/contracts/**/*.bin
+/test/contracts/bin
