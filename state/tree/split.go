@@ -73,9 +73,12 @@ func scalarToh4(s *big.Int) []uint64 {
 
 	r := make([]uint64, 4)
 
+	m, _ := hex.DecodeHex("0x00000000FFFFFFFF")
+	r[3] = binary.BigEndian.Uint64(b[0:8]) & binary.BigEndian.Uint64(m)
+
 	f, _ := hex.DecodeHex("0xFFFFFFFFFFFFFFFF")
 	fbe := binary.BigEndian.Uint64(f)
-	r[3] = binary.BigEndian.Uint64(b[0:8]) & fbe
+
 	r[2] = binary.BigEndian.Uint64(b[8:16]) & fbe
 	r[1] = binary.BigEndian.Uint64(b[16:24]) & fbe
 	r[0] = binary.BigEndian.Uint64(b[24:]) & fbe

@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
-	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 )
 
 // DefaultMerkleTreeArity specifies Merkle Tree arity used by default
@@ -233,14 +232,14 @@ func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, non
 // SetCode sets smart contract code
 func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code []byte, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	// calculating smart contract code hash
-	scCodeHash4 := [poseidon.CAPLEN]uint64{}
+	scCodeHash4 := []uint64{}
 	if len(code) > 0 {
 		scCodeHash4, err = tree.mt.scHashFunction(code)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-	scCodeHash, err := hex.DecodeString(h4ToString(scCodeHash4[:]))
+	scCodeHash, err := hex.DecodeString(h4ToString(scCodeHash4))
 	if err != nil {
 		return nil, nil, err
 	}

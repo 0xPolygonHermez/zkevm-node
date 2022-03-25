@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -202,11 +201,9 @@ func TestMerkleTreeGenesis(t *testing.T) {
 				require.True(t, success)
 
 				root, _, err = tree.SetBalance(ctx, addr, balance, root)
-				log.Debugf("root after setting balance: %v", hex.EncodeToHex(root))
 				require.NoError(t, err)
 
 				root, _, err = tree.SetNonce(ctx, addr, nonce, root)
-				log.Debugf("root after setting nonce: %v", hex.EncodeToHex(root))
 				require.NoError(t, err)
 			}
 

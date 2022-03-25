@@ -1,10 +1,10 @@
 package tree
 
 import (
+	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/log"
 	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 )
 
@@ -99,6 +99,64 @@ func KeyContractStorage(ethAddr common.Address, storagePos []byte) ([]byte, erro
 		storageArr[6],
 		storageArr[7],
 	}
-	log.Debugf("key1: %v", key1)
 	return keyEthAddr(ethAddr, leafTypeStorage, key1)
+}
+
+// hashContractBytecode computes the bytecode hash in order to add it to the
+// state-tree
+func hashContractBytecode(code []byte) ([]uint64, error) {
+	const (
+		bytecodeElementsHash = 4
+		bytecodeBytesElement = 7
+
+		maxBytesToAdd = bytecodeElementsHash * bytecodeBytesElement
+	)
+
+	numHashes := int(math.Ceil(float64(len(code)) / float64(maxBytesToAdd)))
+
+	tmpHash := [4]uint64{}
+	capIn := [4]uint64{}
+	var err error
+
+	bytesPointer := 0
+	for i := 0; i < numHashes; i++ {
+		elementsToHash := [8]uint64{}
+
+		if i != 0 {
+			for j := 0; j < 4; j++ {
+				elementsToHash[j] = tmpHash[j]
+			}
+		} else {
+			for j := 0; j < 4; j++ {
+				elementsToHash[j] = 0
+			}
+		}
+		subsetBytecode := code[bytesPointer : int(math.Min(float64(len(code)-1), float64(bytesPointer+maxBytesToAdd)))+1]
+		bytesPointer += maxBytesToAdd
+
+		tmpElem := [7]byte{}
+		counter := 0
+		index := 4
+		for j := 0; j < maxBytesToAdd; j++ {
+			byteToAdd := []byte{0}
+
+			if j < len(subsetBytecode) {
+				byteToAdd = subsetBytecode[j : j+1]
+			}
+			tmpElem[counter] = byteToAdd[0]
+			counter++
+
+			if counter == bytecodeBytesElement {
+				elementsToHash[index] = new(big.Int).SetBytes(tmpElem[:]).Uint64()
+				index++
+				tmpElem = [7]byte{}
+				counter = 0
+			}
+		}
+		tmpHash, err = poseidon.Hash(elementsToHash, capIn)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return tmpHash[:], nil
 }

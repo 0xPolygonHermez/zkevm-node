@@ -59,7 +59,7 @@ type Proof struct {
 // HashFunction is a function interface type to specify hash function that MT should use
 type HashFunction func(inp [poseidon.NROUNDSF]uint64, cap [poseidon.CAPLEN]uint64) ([poseidon.CAPLEN]uint64, error)
 
-type scHashFunction func(code []byte) ([poseidon.CAPLEN]uint64, error)
+type scHashFunction func(code []byte) ([]uint64, error)
 
 // NewMerkleTree creates new MerkleTree instance
 func NewMerkleTree(store Store, arity uint8, hashFunction HashFunction) *MerkleTree {
@@ -67,9 +67,7 @@ func NewMerkleTree(store Store, arity uint8, hashFunction HashFunction) *MerkleT
 		hashFunction = poseidon.Hash
 	}
 
-	scHashFunction := func(code []byte) ([poseidon.CAPLEN]uint64, error) {
-		return [poseidon.CAPLEN]uint64{}, nil
-	}
+	scHashFunction := hashContractBytecode
 
 	return &MerkleTree{
 		store:          store,
