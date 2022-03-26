@@ -294,7 +294,13 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 						val := fea2scalar(valA)
 						rKey := siblings[level+1][:4]
 
-						insKey = mt.joinKey([]uint64{accKey[0], accKey[1], accKey[2], accKey[3], uint64(uKey)}, rKey)
+						auxKey := make([]uint64, 4)
+						for j := 0; j < 4; j++ {
+							if len(accKey) > j {
+								auxKey[j] = accKey[j]
+							}
+						}
+						insKey = mt.joinKey([]uint64{auxKey[0], auxKey[1], auxKey[2], auxKey[3], uint64(uKey)}, rKey)
 						insValue = scalar2fea(val)
 						isOld0 = false
 

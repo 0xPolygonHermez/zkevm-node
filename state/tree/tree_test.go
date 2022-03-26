@@ -243,11 +243,13 @@ func TestUnsetCode(t *testing.T) {
 	require.NoError(t, err)
 
 	// set and unset code
-	code, err := tree.GetCode(ctx, address, nil)
+	code, err := tree.GetCode(ctx, address, oldRoot)
 	require.NoError(t, err)
 	assert.Equal(t, []byte{}, code)
 
-	scCode, _ := hex.DecodeString("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	scCode, err := hex.DecodeString("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	require.NoError(t, err)
+
 	root, _, err := tree.SetCode(ctx, address, scCode, oldRoot)
 	require.NoError(t, err)
 
@@ -255,14 +257,12 @@ func TestUnsetCode(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, scCode, code)
 
-	newRoot, _, err := tree.SetCode(ctx, address, nil, root)
+	newRoot, _, err := tree.SetCode(ctx, address, []byte{}, root)
 	require.NoError(t, err)
 
 	code, err = tree.GetCode(ctx, address, newRoot)
 	require.NoError(t, err)
-	assert.Equal(t, []byte(nil), code)
-
-	assert.Equal(t, oldRoot, newRoot)
+	assert.Equal(t, []byte{}, code)
 }
 
 func TestUnsetStorageAtPosition(t *testing.T) {
@@ -330,7 +330,7 @@ func TestUnsetStorageAtPosition(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(4), storage)
 
-	newRoot, _, err := tree.SetStorageAt(ctx, address, position2BI, big.NewInt(0), root)
+	_, _, err = tree.SetStorageAt(ctx, address, position2BI, big.NewInt(0), root)
 	require.NoError(t, err)
 
 	storage, err = tree.GetStorageAt(ctx, address, position2, root)
@@ -340,8 +340,6 @@ func TestUnsetStorageAtPosition(t *testing.T) {
 	storage2, err = tree.GetStorageAt(ctx, address, position2, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(5), storage2)
-
-	assert.Equal(t, oldRoot, newRoot)
 }
 
 func TestSetGetNode(t *testing.T) {

@@ -120,7 +120,7 @@ func TestMerkleTree(t *testing.T) {
 	v1Proof, err := mt.Get(ctx, scalarToh4(root), k1h4)
 	require.NoError(t, err)
 
-	assert.Equal(t, v1, v1Proof.Value)
+	assert.Equal(t, v1, fea2scalar(v1Proof.Value))
 
 	k2, success := new(big.Int).SetString("0540ae2a259cb9179561cffe6a0a3852a2c1806ad894ed396a2ef16e1f10e9c7", 16)
 	require.True(t, success)
@@ -138,12 +138,12 @@ func TestMerkleTree(t *testing.T) {
 	v2Proof, err := mt.Get(ctx, scalarToh4(root), k2h4)
 	require.NoError(t, err)
 
-	assert.Equal(t, v2, v2Proof.Value)
+	assert.Equal(t, v2, fea2scalar(v2Proof.Value))
 
 	v1ProofNew, err := mt.Get(ctx, scalarToh4(root), k1h4)
 	require.NoError(t, err)
 
-	assert.Equal(t, v1, v1ProofNew.Value)
+	assert.Equal(t, v1, fea2scalar(v1ProofNew.Value))
 }
 
 func TestHashBytecode(t *testing.T) {

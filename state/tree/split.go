@@ -48,6 +48,9 @@ func scalar2fea(value *big.Int) []uint64 {
 
 // h4ToScalar converts array of 4 uint64 into a unique 256 bits scalar.
 func h4ToScalar(h4 []uint64) *big.Int {
+	if len(h4) == 0 {
+		return new(big.Int)
+	}
 	result := new(big.Int).SetUint64(h4[0])
 
 	for i := 1; i < 4; i++ {

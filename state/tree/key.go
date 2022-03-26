@@ -106,7 +106,7 @@ func KeyContractStorage(ethAddr common.Address, storagePos []byte) ([]byte, erro
 // state-tree
 func hashContractBytecode(code []byte) ([]uint64, error) {
 	const (
-		bytecodeElementsHash = 4
+		bytecodeElementsHash = 8
 		bytecodeBytesElement = 7
 
 		maxBytesToAdd = bytecodeElementsHash * bytecodeBytesElement
@@ -115,12 +115,11 @@ func hashContractBytecode(code []byte) ([]uint64, error) {
 	numHashes := int(math.Ceil(float64(len(code)) / float64(maxBytesToAdd)))
 
 	tmpHash := [4]uint64{}
-	capIn := [4]uint64{}
 	var err error
 
 	bytesPointer := 0
 	for i := 0; i < numHashes; i++ {
-		elementsToHash := [8]uint64{}
+		elementsToHash := [12]uint64{}
 
 		if i != 0 {
 			for j := 0; j < 4; j++ {
@@ -133,7 +132,6 @@ func hashContractBytecode(code []byte) ([]uint64, error) {
 		}
 		subsetBytecode := code[bytesPointer : int(math.Min(float64(len(code)-1), float64(bytesPointer+maxBytesToAdd)))+1]
 		bytesPointer += maxBytesToAdd
-
 		tmpElem := [7]byte{}
 		counter := 0
 		index := 4
@@ -153,7 +151,21 @@ func hashContractBytecode(code []byte) ([]uint64, error) {
 				counter = 0
 			}
 		}
-		tmpHash, err = poseidon.Hash(elementsToHash, capIn)
+		tmpHash, err = poseidon.Hash([8]uint64{
+			elementsToHash[4],
+			elementsToHash[5],
+			elementsToHash[6],
+			elementsToHash[7],
+			elementsToHash[8],
+			elementsToHash[9],
+			elementsToHash[10],
+			elementsToHash[11],
+		}, [4]uint64{
+			elementsToHash[0],
+			elementsToHash[1],
+			elementsToHash[2],
+			elementsToHash[3],
+		})
 		if err != nil {
 			return nil, err
 		}
