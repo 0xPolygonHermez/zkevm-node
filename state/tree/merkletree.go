@@ -131,16 +131,12 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 		}
 		siblings[level] = node[:]
 		if isOneSiblings(siblings[level]) {
-			hKV, err := mt.getNodeData(ctx, siblings[level][4:])
+			foundOldValH = siblings[level][4:8]
+			foundValA, err := mt.getNodeData(ctx, foundOldValH[:8])
 			if err != nil {
 				return nil, err
 			}
-			foundRKey = hKV[0:4]
-			foundOldValH = hKV[4:]
-			foundValA, err := mt.getNodeData(ctx, foundOldValH)
-			if err != nil {
-				return nil, err
-			}
+			foundRKey = siblings[level][:4]
 			foundVal = foundValA[:]
 			foundKey = mt.joinKey(accKey[:], foundRKey)
 		} else {
@@ -160,15 +156,13 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 			if nodeIsEq(key[:], foundKey) { // Update
 				mode = modeUpdate
 
-				newValH, err := mt.hashSave(ctx, value[:])
+				newValH, err := mt.hashSave(ctx, value[:], []uint64{0, 0, 0, 0})
 				if err != nil {
 					return nil, err
 				}
-				newKVH, err := mt.hashSave(ctx, []uint64{foundRKey[0], foundRKey[1], foundRKey[2], foundRKey[3], newValH[0], newValH[1], newValH[2], newValH[3]})
-				if err != nil {
-					return nil, err
-				}
-				newLeafHash, err := mt.hashSave(ctx, []uint64{1, 0, 0, 0, newKVH[0], newKVH[1], newKVH[2], newKVH[3]})
+				newLeafHash, err := mt.hashSave(ctx,
+					[]uint64{foundRKey[0], foundRKey[1], foundRKey[2], foundRKey[3], newValH[0], newValH[1], newValH[2], newValH[3]},
+					[]uint64{1, 0, 0, 0})
 				if err != nil {
 					return nil, err
 				}
@@ -191,11 +185,10 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 				}
 
 				oldKey := removeKeyBits(foundKey, level2+1)
-				oldKVH, err := mt.hashSave(ctx, []uint64{oldKey[0], oldKey[1], oldKey[2], oldKey[3], foundOldValH[0], foundOldValH[1], foundOldValH[2], foundOldValH[3]})
-				if err != nil {
-					return nil, err
-				}
-				oldLeafHash, err := mt.hashSave(ctx, []uint64{1, 0, 0, 0, oldKVH[0], oldKVH[1], oldKVH[2], oldKVH[3]})
+				oldLeafHash, err := mt.hashSave(ctx,
+					[]uint64{oldKey[0], oldKey[1], oldKey[2], oldKey[3], foundOldValH[0], foundOldValH[1], foundOldValH[2], foundOldValH[3]},
+					[]uint64{1, 0, 0, 0},
+				)
 				if err != nil {
 					return nil, err
 				}
@@ -205,19 +198,17 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 				isOld0 = false
 
 				newKey := removeKeyBits(key[:], level2+1)
-				newValH, err := mt.hashSave(ctx, value[:])
+				newValH, err := mt.hashSave(ctx, value[:], []uint64{0, 0, 0, 0})
 				if err != nil {
 					return nil, err
 				}
-				newKVH, err := mt.hashSave(ctx, []uint64{newKey[0], newKey[1], newKey[2], newKey[3], newValH[0], newValH[1], newValH[2], newValH[3]})
+				newLeafHash, err := mt.hashSave(ctx,
+					[]uint64{newKey[0], newKey[1], newKey[2], newKey[3], newValH[0], newValH[1], newValH[2], newValH[3]},
+					[]uint64{1, 0, 0, 0},
+				)
 				if err != nil {
 					return nil, err
 				}
-				newLeafHash, err := mt.hashSave(ctx, []uint64{1, 0, 0, 0, newKVH[0], newKVH[1], newKVH[2], newKVH[3]})
-				if err != nil {
-					return nil, err
-				}
-
 				for i := 0; i < 8; i++ {
 					node[i] = 0
 				}
@@ -226,7 +217,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 					node[foundKeys[level2]*4+uint(j)] = oldLeafHash[j]
 				}
 
-				r2, err := mt.hashSave(ctx, node)
+				r2, err := mt.hashSave(ctx, node, []uint64{0, 0, 0, 0})
 				if err != nil {
 					return nil, err
 				}
@@ -239,7 +230,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 					for j := 0; j < 4; j++ {
 						node[keys[level2]*4+uint(j)] = r2[j]
 					}
-					r2, err = mt.hashSave(ctx, node)
+					r2, err = mt.hashSave(ctx, node, []uint64{0, 0, 0, 0})
 					if err != nil {
 						return nil, err
 					}
@@ -257,15 +248,14 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 		} else { // insert without foundKey
 			mode = modeInsertNotFound
 			newKey := removeKeyBits(key[:], level+1)
-			newValH, err := mt.hashSave(ctx, value[:])
+			newValH, err := mt.hashSave(ctx, value[:], []uint64{0, 0, 0, 0})
 			if err != nil {
 				return nil, err
 			}
-			newKVH, err := mt.hashSave(ctx, []uint64{newKey[0], newKey[1], newKey[2], newKey[3], newValH[0], newValH[1], newValH[2], newValH[3]})
-			if err != nil {
-				return nil, err
-			}
-			newLeafHash, err := mt.hashSave(ctx, []uint64{1, 0, 0, 0, newKVH[0], newKVH[1], newKVH[2], newKVH[3]})
+			newLeafHash, err := mt.hashSave(ctx,
+				[]uint64{newKey[0], newKey[1], newKey[2], newKey[3], newValH[0], newValH[1], newValH[2], newValH[3]},
+				[]uint64{1, 0, 0, 0},
+			)
 			if err != nil {
 				return nil, err
 			}
@@ -295,18 +285,14 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 					siblings[level+1] = node
 
 					if isOneSiblings(siblings[level+1]) {
-						hKV, err := mt.getNodeData(ctx, siblings[level+1][4:])
+						valH := siblings[level+1][4:]
+						valANode, err := mt.getNodeData(ctx, valH)
 						if err != nil {
 							return nil, err
 						}
-						rKey := hKV[0:4]
-
-						valH := hKV[4:]
-						valA, err := mt.getNodeData(ctx, valH)
-						if err != nil {
-							return nil, err
-						}
+						valA := valANode[0:8]
 						val := fea2scalar(valA)
+						rKey := siblings[level+1][:4]
 
 						insKey = mt.joinKey([]uint64{accKey[0], accKey[1], accKey[2], accKey[3], uint64(uKey)}, rKey)
 						insValue = scalar2fea(val)
@@ -320,11 +306,10 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 						}
 
 						oldKey := removeKeyBits(insKey, level+1)
-						oldKVH, err := mt.hashSave(ctx, []uint64{oldKey[0], oldKey[1], oldKey[2], oldKey[3], valH[0], valH[1], valH[2], valH[3]})
-						if err != nil {
-							return nil, err
-						}
-						oldLeafHash, err := mt.hashSave(ctx, []uint64{1, 0, 0, 0, oldKVH[0], oldKVH[1], oldKVH[2], oldKVH[3]})
+						oldLeafHash, err := mt.hashSave(ctx,
+							[]uint64{oldKey[0], oldKey[1], oldKey[2], oldKey[3], valH[0], valH[1], valH[2], valH[3]},
+							[]uint64{1, 0, 0, 0},
+						)
 						if err != nil {
 							return nil, err
 						}
@@ -354,7 +339,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 	siblings = siblings[:level+1]
 
 	for level >= 0 {
-		newRoot, err = mt.hashSave(ctx, siblings[level])
+		newRoot, err = mt.hashSave(ctx, siblings[level][:8], siblings[level][8:12])
 		if err != nil {
 			return nil, err
 		}
@@ -415,21 +400,18 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key []uint64) (*Proof, erro
 		siblings[level] = node[:]
 
 		if isOneSiblings(siblings[level]) {
-			hKV, err := mt.getNodeData(ctx, siblings[level][0:4])
+			nodeValA, err := mt.getNodeData(ctx, siblings[level][4:8])
 			if err != nil {
 				return nil, err
 			}
-			foundRKey := hKV[0:4]
-			foundOldValH := hKV[4:]
-			foundValA, err := mt.getNodeData(ctx, foundOldValH)
-			if err != nil {
-				return nil, err
-			}
+			foundValA := nodeValA[0:8]
+			foundRKey := siblings[level][0:4]
 			foundVal = foundValA[:]
 			foundKey = mt.joinKey(accKey[:], foundRKey)
 		} else {
 			r = siblings[level][keys[level]*4 : keys[level]*4+4]
 			accKey = append(accKey, uint64(keys[level]))
+			level++
 		}
 	}
 
@@ -445,7 +427,7 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key []uint64) (*Proof, erro
 		}
 	}
 
-	siblings = siblings[0:level]
+	siblings = siblings[:level+1]
 
 	return &Proof{
 		Root:     root,
@@ -481,18 +463,21 @@ func (mt *MerkleTree) getUniqueSibling(a []uint64) int64 {
 	return -1
 }
 
-func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []uint64) ([]uint64, error) {
+func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []uint64, cap []uint64) ([]uint64, error) {
 	if len(nodeData) != poseidon.NROUNDSF {
 		return nil, fmt.Errorf("Invalid data length of %v", nodeData)
 	}
-	capIn := [4]uint64{}
+	if len(cap) != poseidon.CAPLEN {
+		return nil, fmt.Errorf("Invalid cap length of %v", cap)
+	}
+	capIn := [4]uint64{cap[0], cap[1], cap[2], cap[3]}
 	nd := [8]uint64{nodeData[0], nodeData[1], nodeData[2], nodeData[3], nodeData[4], nodeData[5], nodeData[6], nodeData[7]}
 	hash, err := mt.hashFunction(nd, capIn)
 	if err != nil {
 		return nil, err
 	}
 
-	err = mt.setNodeData(ctx, hash[:], nodeData)
+	err = mt.setNodeData(ctx, hash[:], append(nodeData, cap...))
 	if err != nil {
 		return nil, err
 	}
@@ -501,9 +486,6 @@ func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []uint64) ([]uint64
 }
 
 func (mt *MerkleTree) setNodeData(ctx context.Context, key []uint64, data []uint64) error {
-	if len(key) != poseidon.CAPLEN {
-		return fmt.Errorf("SMT key must be an array of 4 Fields, %v", key)
-	}
 	var dataByte []byte
 	for i := 0; i < len(data); i++ {
 		e := fmt.Sprintf("%016s", strconv.FormatUint(data[i], 16))
@@ -517,17 +499,13 @@ func (mt *MerkleTree) setNodeData(ctx context.Context, key []uint64, data []uint
 }
 
 func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64) ([]uint64, error) {
-	if len(key) != poseidon.CAPLEN {
-		return nil, fmt.Errorf("SMT key must be an array of 4 Fields, %v", key)
-	}
-
 	dataByte, err := mt.store.Get(ctx, h4ToScalar(key).Bytes())
 	if err != nil {
 		return nil, err
 	}
 
-	res := make([]uint64, 8)
-	for i := 0; i < 8; i++ {
+	res := make([]uint64, 12)
+	for i := 0; i < 12; i++ {
 		res[i] = binary.BigEndian.Uint64(dataByte[i*8 : (i+1)*8])
 	}
 	return res[:], nil
@@ -564,9 +542,9 @@ func (mt *MerkleTree) joinKey(bits []uint64, k []uint64) []uint64 {
 	return auxk
 }
 
-// isOneSiblings checks if a node is a final node (final node: [1, 0, 0, 0,...])
+// isOneSiblings checks if a node is a final node (final node: [n0, n1, ... n7, 1, 0, 0, 0])
 func isOneSiblings(n []uint64) bool {
-	return n[0] == 1 && n[1] == 0 && n[2] == 0 && n[3] == 0
+	return n[8] == 1
 }
 
 // nodeIsEq returns true if the node items are equal.

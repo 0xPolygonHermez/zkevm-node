@@ -8,7 +8,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/log"
 )
 
 // DefaultMerkleTreeArity specifies Merkle Tree arity used by default
@@ -113,7 +112,6 @@ func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, 
 	if err != nil {
 		return nil, err
 	}
-
 	// this code gets only the hash of the smart contract code from the merkle tree
 	k := new(big.Int).SetBytes(key[:])
 	proof, err := tree.mt.Get(ctx, scalarToh4(r), scalarToh4(k))
@@ -187,12 +185,11 @@ func (tree *StateTree) SetBalance(ctx context.Context, address common.Address, b
 
 	r := new(big.Int).SetBytes(root)
 	key, err := KeyEthAddrBalance(address)
-	log.Debugf("balance key: %v", key)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	k := new(big.Int).SetBytes(key[:])
+	k := new(big.Int).SetBytes(key)
 	balanceH8 := scalar2fea(balance)
 
 	updateProof, err := tree.mt.Set(ctx, scalarToh4(r), scalarToh4(k), balanceH8)
@@ -200,8 +197,8 @@ func (tree *StateTree) SetBalance(ctx context.Context, address common.Address, b
 		return nil, nil, err
 	}
 
-	rootFF := h4ToScalar(updateProof.NewRoot)
-	return rootFF.Bytes(), updateProof, nil
+	rootBI := h4ToScalar(updateProof.NewRoot)
+	return rootBI.Bytes(), updateProof, nil
 }
 
 // SetNonce sets nonce
@@ -239,17 +236,11 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 			return nil, nil, err
 		}
 	}
-	scCodeHash, err := hex.DecodeString(h4ToString(scCodeHash4))
+	scCodeHash, err := hex.DecodeHex(h4ToString(scCodeHash4))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// we need to have exactly maxBigIntLen bytes for a key in db for
-	// interoperability with prover/executor code, but big.Int Bytes()
-	// can return less, so we make sure it has the right size with FillBytes.
-	if len(scCodeHash) < maxBigIntLen {
-		scCodeHash = append(scCodeHash, make([]byte, maxBigIntLen-len(scCodeHash))...)
-	}
 	// store smart contract code by its hash
 	err = tree.scCodeStore.Set(ctx, scCodeHash[:], code)
 	if err != nil {
@@ -262,7 +253,6 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 	if err != nil {
 		return nil, nil, err
 	}
-
 	k := new(big.Int).SetBytes(key[:])
 	scCodeHashBI := new(big.Int).SetBytes(scCodeHash[:])
 	scCodeHashH8 := scalar2fea(scCodeHashBI)
