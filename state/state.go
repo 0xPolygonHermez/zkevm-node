@@ -239,13 +239,13 @@ func (s *State) TraceTransaction(transactionHash common.Hash) ([]instrumentation
 	evm.EnableInstrumentation()
 	bp.setRuntime(evm)
 
-	err = s.BeginDBTransaction(ctx)
+	err = s.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("trace transaction: failed to begin db transaction, err: %v", err)
 		return nil, err
 	}
 	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress)
-	err = s.Rollback(ctx)
+	err = s.RollbackState(ctx)
 	if err != nil {
 		log.Errorf("trace transaction: failed to rollback transaction, err: %v", err)
 		return result.StructLogs, err
