@@ -31,11 +31,33 @@ var (
 // StorageMetaData contains all meta data concerning the Storage contract.
 var StorageMetaData = &bind.MetaData{
 	ABI: "[{\"inputs\":[],\"name\":\"retrieve\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"num\",\"type\":\"uint256\"}],\"name\":\"store\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	Bin: "0x6080604052348015600f57600080fd5b5060ac8061001e6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c80632e64cec11460375780636057361d14604c575b600080fd5b60005460405190815260200160405180910390f35b605c6057366004605e565b600055565b005b600060208284031215606f57600080fd5b503591905056fea26469706673582212209e463ed974e3561e9447ea296aae5714a0cf40dc1fbd587a7363612637de979564736f6c634300080d0033",
 }
 
 // StorageABI is the input ABI used to generate the binding from.
 // Deprecated: Use StorageMetaData.ABI instead.
 var StorageABI = StorageMetaData.ABI
+
+// StorageBin is the compiled bytecode used for deploying new contracts.
+// Deprecated: Use StorageMetaData.Bin instead.
+var StorageBin = StorageMetaData.Bin
+
+// DeployStorage deploys a new Ethereum contract, binding an instance of Storage to it.
+func DeployStorage(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Storage, error) {
+	parsed, err := StorageMetaData.GetAbi()
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
+
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(StorageBin), backend)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	return address, tx, &Storage{StorageCaller: StorageCaller{contract: contract}, StorageTransactor: StorageTransactor{contract: contract}, StorageFilterer: StorageFilterer{contract: contract}}, nil
+}
 
 // Storage is an auto generated Go binding around an Ethereum contract.
 type Storage struct {

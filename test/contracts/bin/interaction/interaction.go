@@ -31,11 +31,33 @@ var (
 // InteractionMetaData contains all meta data concerning the Interaction contract.
 var InteractionMetaData = &bind.MetaData{
 	ABI: "[{\"inputs\":[],\"name\":\"getCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_counter\",\"type\":\"address\"}],\"name\":\"setCounterAddr\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b50610183806100206000396000f3fe6080604052600436106100295760003560e01c8063a87d942c1461002e578063ec39b42914610055575b600080fd5b34801561003a57600080fd5b50610043610087565b60405190815260200160405180910390f35b610085610063366004610104565b600080546001600160a01b0319166001600160a01b0392909216919091179055565b005b60008060009054906101000a90046001600160a01b03166001600160a01b03166306661abd6040518163ffffffff1660e01b8152600401602060405180830381865afa1580156100db573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906100ff9190610134565b905090565b60006020828403121561011657600080fd5b81356001600160a01b038116811461012d57600080fd5b9392505050565b60006020828403121561014657600080fd5b505191905056fea264697066735822122096cce63b5f19027be5838a20177be79a0d6c341b36e4a8fe82209ae25f7e131664736f6c634300080d0033",
 }
 
 // InteractionABI is the input ABI used to generate the binding from.
 // Deprecated: Use InteractionMetaData.ABI instead.
 var InteractionABI = InteractionMetaData.ABI
+
+// InteractionBin is the compiled bytecode used for deploying new contracts.
+// Deprecated: Use InteractionMetaData.Bin instead.
+var InteractionBin = InteractionMetaData.Bin
+
+// DeployInteraction deploys a new Ethereum contract, binding an instance of Interaction to it.
+func DeployInteraction(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Interaction, error) {
+	parsed, err := InteractionMetaData.GetAbi()
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
+
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(InteractionBin), backend)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	return address, tx, &Interaction{InteractionCaller: InteractionCaller{contract: contract}, InteractionTransactor: InteractionTransactor{contract: contract}, InteractionFilterer: InteractionFilterer{contract: contract}}, nil
+}
 
 // Interaction is an auto generated Go binding around an Ethereum contract.
 type Interaction struct {

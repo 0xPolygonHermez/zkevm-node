@@ -182,7 +182,7 @@ SOLC_IMAGE_SUFFIX := -alpine
 FLAGS := --overwrite --optimize
 ABIGEN_DOCKER_IMAGE := ethereum/client-go:alltools-latest
 COMPILE_CMD := eval $(DOCKER_CMD) $(CONTRACTS_VOLUME) -e SC_NAME='$$SC_NAME' $(SOLC_IMAGE_PREFIX)'$$SOLC_VERSION'$(SOLC_IMAGE_SUFFIX) -o $(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME' $(OUTPUT_TYPE) $(INPUT_DIR)/'$$SC_INPUT_PATH''$$SC_NAME'.sol $(FLAGS)
-GENERATE_CMD := eval $(DOCKER_CMD) $(CONTRACTS_VOLUME) $(ABIGEN_DOCKER_IMAGE) abigen --abi=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.abi --pkg='$$SC_NAME' --out=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.go
+GENERATE_CMD := eval $(DOCKER_CMD) $(CONTRACTS_VOLUME) $(ABIGEN_DOCKER_IMAGE) abigen --bin=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.bin --abi=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.abi --pkg='$$SC_NAME' --out=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.go
 
 .PHONY: compile-scs
 compile-scs: ## Compiles smart contracts used in tests and local deployments

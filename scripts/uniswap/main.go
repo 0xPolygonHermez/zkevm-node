@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/core/UniswapV2Factory"
 	"github.com/hermeznetwork/hermez-core/test/testutils"
 )
 
@@ -36,12 +37,18 @@ func main() {
 
 	auth := getAuth(ctx, client)
 
-	deploySC(ctx, client, auth, "uniswap/v2/core/UniswapV2ERC20.bin", 1200000)
-	deploySC(ctx, client, auth, "uniswap/v2/core/UniswapV2Factory.bin", 1200000)
-	deploySC(ctx, client, auth, "uniswap/v2/core/UniswapV2Pair.bin", 1200000)
-	deploySC(ctx, client, auth, "uniswap/v2/periphery/UniswapV2Migrator.bin", 1200000)
-	deploySC(ctx, client, auth, "uniswap/v2/periphery/UniswapV2Router01.bin", 1200000)
-	deploySC(ctx, client, auth, "uniswap/v2/periphery/UniswapV2Router02.bin", 1200000)
+	addr, tx, uniswapV2Factory, err := UniswapV2Factory.DeployUniswapV2Factory(auth, client, auth.From)
+	chkErr(err)
+	log.Debug("addr ", addr)
+	log.Debug("tx ", tx)
+	log.Debug("uniswapV2Factory ", uniswapV2Factory)
+
+	// deploySC(ctx, client, auth, "uniswap/v2/core/UniswapV2ERC20.bin", 1200000)
+	// deploySC(ctx, client, auth, "uniswap/v2/core/UniswapV2Factory.bin", 1200000)
+	// deploySC(ctx, client, auth, "uniswap/v2/core/UniswapV2Pair.bin", 1200000)
+	// deploySC(ctx, client, auth, "uniswap/v2/periphery/UniswapV2Migrator.bin", 1200000)
+	// deploySC(ctx, client, auth, "uniswap/v2/periphery/UniswapV2Router01.bin", 1200000)
+	// deploySC(ctx, client, auth, "uniswap/v2/periphery/UniswapV2Router02.bin", 1200000)
 }
 
 func getAuth(ctx context.Context, client *ethclient.Client) *bind.TransactOpts {

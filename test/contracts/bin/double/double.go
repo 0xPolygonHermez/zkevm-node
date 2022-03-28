@@ -31,11 +31,33 @@ var (
 // DoubleMetaData contains all meta data concerning the Double contract.
 var DoubleMetaData = &bind.MetaData{
 	ABI: "[{\"inputs\":[{\"internalType\":\"int256\",\"name\":\"a\",\"type\":\"int256\"}],\"name\":\"double\",\"outputs\":[{\"internalType\":\"int256\",\"name\":\"\",\"type\":\"int256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b50610152806100206000396000f3fe608060405234801561001057600080fd5b506004361061002b5760003560e01c80636ffa1caa14610030575b600080fd5b61004361003e366004610068565b610055565b60405190815260200160405180910390f35b6000610062826002610097565b92915050565b60006020828403121561007a57600080fd5b5035919050565b634e487b7160e01b600052601160045260246000fd5b60006001600160ff1b03818413828413808216868404861116156100bd576100bd610081565b600160ff1b60008712828116878305891216156100dc576100dc610081565b600087129250878205871284841616156100f8576100f8610081565b8785058712818416161561010e5761010e610081565b50505092909302939250505056fea2646970667358221220a622fdada16414b2c403a6367d0d7cca4153478e0d9a9e0bbd576671a50d63ca64736f6c634300080d0033",
 }
 
 // DoubleABI is the input ABI used to generate the binding from.
 // Deprecated: Use DoubleMetaData.ABI instead.
 var DoubleABI = DoubleMetaData.ABI
+
+// DoubleBin is the compiled bytecode used for deploying new contracts.
+// Deprecated: Use DoubleMetaData.Bin instead.
+var DoubleBin = DoubleMetaData.Bin
+
+// DeployDouble deploys a new Ethereum contract, binding an instance of Double to it.
+func DeployDouble(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Double, error) {
+	parsed, err := DoubleMetaData.GetAbi()
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
+
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(DoubleBin), backend)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	return address, tx, &Double{DoubleCaller: DoubleCaller{contract: contract}, DoubleTransactor: DoubleTransactor{contract: contract}, DoubleFilterer: DoubleFilterer{contract: contract}}, nil
+}
 
 // Double is an auto generated Go binding around an Ethereum contract.
 type Double struct {

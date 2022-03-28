@@ -31,11 +31,33 @@ var (
 // CounterMetaData contains all meta data concerning the Counter contract.
 var CounterMetaData = &bind.MetaData{
 	ABI: "[{\"inputs\":[],\"name\":\"count\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"increment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b5060cb8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806306661abd146037578063d09de08a146051575b600080fd5b603f60005481565b60405190815260200160405180910390f35b60576059565b005b6001600080828254606991906070565b9091555050565b60008219821115609057634e487b7160e01b600052601160045260246000fd5b50019056fea264697066735822122043b3e492b41e3ec6fe5b8a35ea961baa179b03983fd916dfa1f3b975a9bc991464736f6c634300080d0033",
 }
 
 // CounterABI is the input ABI used to generate the binding from.
 // Deprecated: Use CounterMetaData.ABI instead.
 var CounterABI = CounterMetaData.ABI
+
+// CounterBin is the compiled bytecode used for deploying new contracts.
+// Deprecated: Use CounterMetaData.Bin instead.
+var CounterBin = CounterMetaData.Bin
+
+// DeployCounter deploys a new Ethereum contract, binding an instance of Counter to it.
+func DeployCounter(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Counter, error) {
+	parsed, err := CounterMetaData.GetAbi()
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
+
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(CounterBin), backend)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	return address, tx, &Counter{CounterCaller: CounterCaller{contract: contract}, CounterTransactor: CounterTransactor{contract: contract}, CounterFilterer: CounterFilterer{contract: contract}}, nil
+}
 
 // Counter is an auto generated Go binding around an Ethereum contract.
 type Counter struct {

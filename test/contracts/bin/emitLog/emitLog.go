@@ -31,11 +31,33 @@ var (
 // EmitLogMetaData contains all meta data concerning the EmitLog contract.
 var EmitLogMetaData = &bind.MetaData{
 	ABI: "[{\"anonymous\":false,\"inputs\":[],\"name\":\"Log\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"a\",\"type\":\"uint256\"}],\"name\":\"LogA\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"a\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"b\",\"type\":\"uint256\"}],\"name\":\"LogAB\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"a\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"b\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"c\",\"type\":\"uint256\"}],\"name\":\"LogABC\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"a\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"b\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"c\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"d\",\"type\":\"uint256\"}],\"name\":\"LogABCD\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"emitLogs\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b5061025e806100206000396000f3fe608060405234801561001057600080fd5b506004361061002b5760003560e01c80637966b4f614610030575b600080fd5b61003861003a565b005b6040517f5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a90600090a16040516001907f977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac6290600090a26040516002906001907fbb6e4da744abea70325874159d52c1ad3e57babfae7c329a948e7dcb274deb0990600090a36003600260017f966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b760405160405180910390a46003600260017fe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a64600460405161012891815260200190565b60405180910390a46002600360047fe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a64600160405161016891815260200190565b60405180910390a46001600260037f966018f1afaee50c6bcf5eb4ae089eeb650bd1deb473395d69dd307ef2e689b760405160405180910390a46040516001906002907fbb6e4da744abea70325874159d52c1ad3e57babfae7c329a948e7dcb274deb0990600090a36040516001907f977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac6290600090a26040517f5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a90600090a156fea26469706673582212206f39a180217c791840369ba4bcd6029d71ddb5f662b429367803bf4db3ebc94e64736f6c634300080d0033",
 }
 
 // EmitLogABI is the input ABI used to generate the binding from.
 // Deprecated: Use EmitLogMetaData.ABI instead.
 var EmitLogABI = EmitLogMetaData.ABI
+
+// EmitLogBin is the compiled bytecode used for deploying new contracts.
+// Deprecated: Use EmitLogMetaData.Bin instead.
+var EmitLogBin = EmitLogMetaData.Bin
+
+// DeployEmitLog deploys a new Ethereum contract, binding an instance of EmitLog to it.
+func DeployEmitLog(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *EmitLog, error) {
+	parsed, err := EmitLogMetaData.GetAbi()
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
+
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(EmitLogBin), backend)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	return address, tx, &EmitLog{EmitLogCaller: EmitLogCaller{contract: contract}, EmitLogTransactor: EmitLogTransactor{contract: contract}, EmitLogFilterer: EmitLogFilterer{contract: contract}}, nil
+}
 
 // EmitLog is an auto generated Go binding around an Ethereum contract.
 type EmitLog struct {

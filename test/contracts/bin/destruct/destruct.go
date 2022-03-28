@@ -31,11 +31,33 @@ var (
 // DestructMetaData contains all meta data concerning the Destruct contract.
 var DestructMetaData = &bind.MetaData{
 	ABI: "[{\"inputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"close\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"retrieve\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"num\",\"type\":\"uint256\"}],\"name\":\"store\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b50600080546001600160a01b0319163317905560ca806100316000396000f3fe6080604052348015600f57600080fd5b5060043610603c5760003560e01c80632e64cec114604157806343d726d61460565780636057361d14605e575b600080fd5b60015460405190815260200160405180910390f35b605c606e565b005b605c6069366004607c565b600155565b6000546001600160a01b0316ff5b600060208284031215608d57600080fd5b503591905056fea2646970667358221220b2452d20ff4477232d29dacab5306ea252b5e2ab5db75a273a4c97e9a8b6489564736f6c634300080d0033",
 }
 
 // DestructABI is the input ABI used to generate the binding from.
 // Deprecated: Use DestructMetaData.ABI instead.
 var DestructABI = DestructMetaData.ABI
+
+// DestructBin is the compiled bytecode used for deploying new contracts.
+// Deprecated: Use DestructMetaData.Bin instead.
+var DestructBin = DestructMetaData.Bin
+
+// DeployDestruct deploys a new Ethereum contract, binding an instance of Destruct to it.
+func DeployDestruct(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Destruct, error) {
+	parsed, err := DestructMetaData.GetAbi()
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
+
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(DestructBin), backend)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	return address, tx, &Destruct{DestructCaller: DestructCaller{contract: contract}, DestructTransactor: DestructTransactor{contract: contract}, DestructFilterer: DestructFilterer{contract: contract}}, nil
+}
 
 // Destruct is an auto generated Go binding around an Ethereum contract.
 type Destruct struct {
