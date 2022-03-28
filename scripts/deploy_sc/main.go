@@ -45,8 +45,8 @@ func main() {
 	chkErr(err)
 	emitLogHexBytes, err := testutils.ReadBytecode("emitLog/EmitLog.bin")
 	chkErr(err)
-	erc20HexBytes, err := testutils.ReadBytecode("erc20/ERC20.bin")
-	chkErr(err)
+	// erc20HexBytes, err := testutils.ReadBytecode("erc20/ERC20.bin")
+	// chkErr(err)
 	storageHexBytes, err := testutils.ReadBytecode("storage/Storage.bin")
 	chkErr(err)
 
@@ -57,8 +57,8 @@ func main() {
 	scAddr = deploySC(ctx, client, auth, emitLogHexBytes, 400000)
 	sendTxsToEmitLogSC(ctx, client, auth, scAddr)
 
-	scAddr = deploySC(ctx, client, auth, erc20HexBytes, 1200000)
-	sendTxsToERC20SC(ctx, client, auth, scAddr)
+	// scAddr = deploySC(ctx, client, auth, erc20HexBytes, 1200000)
+	// sendTxsToERC20SC(ctx, client, auth, scAddr)
 
 	scAddr = deploySC(ctx, client, auth, storageHexBytes, 400000)
 	sendTxsToStorageSC(ctx, client, auth, scAddr)

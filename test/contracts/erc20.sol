@@ -18,9 +18,14 @@ contract ERC20 is IERC20 {
     uint override public totalSupply;
     mapping(address => uint) override public balanceOf;
     mapping(address => mapping(address => uint)) override public allowance;
-    string public name = "Solidity by Example";
-    string public symbol = "SOLBYEX";
+    string public name;
+    string public symbol;
     uint8 public decimals = 18;
+
+    constructor(string memory n, string memory s) {
+        name = n;
+        symbol = s;
+    }
 
     function transfer(address recipient, uint amount) override external returns (bool) {
         balanceOf[msg.sender] -= amount;
