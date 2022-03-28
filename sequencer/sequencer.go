@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -207,7 +208,7 @@ func (s *Sequencer) selectTxs(txs []pool.Transaction) ([]*types.Transaction, []c
 
 func isDataForEthTxTooBig(err error) bool {
 	if strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
-		strings.Contains(err.Error(), errOversizedData) ||
+		errors.As(err, &core.ErrOversizedData) ||
 		strings.Contains(err.Error(), errContentLengthTooLarge) {
 		return true
 	}
