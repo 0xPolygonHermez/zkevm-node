@@ -166,10 +166,10 @@ func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address,
 
 // ReverseHash reverse a hash of an exisiting Merkletree node.
 func (tree *StateTree) ReverseHash(root, hash []byte) ([]byte, error) {
-	hashFF := new(big.Int).SetBytes(hash[:])
-	rootFF := new(big.Int).SetBytes(root[:])
+	hashBI := new(big.Int).SetBytes(hash[:])
+	rootBI := new(big.Int).SetBytes(root[:])
 
-	proof, err := tree.mt.Get(context.Background(), scalarToh4(rootFF), scalarToh4(hashFF))
+	proof, err := tree.mt.Get(context.Background(), scalarToh4(rootBI), scalarToh4(hashBI))
 	if err != nil {
 		return nil, err
 	}
@@ -222,8 +222,7 @@ func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, non
 		return nil, nil, err
 	}
 
-	rootFF := h4ToScalar(updateProof.NewRoot)
-	return rootFF.Bytes(), updateProof, nil
+	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
 }
 
 // SetCode sets smart contract code
@@ -260,8 +259,7 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 		return nil, nil, err
 	}
 
-	rootFF := h4ToScalar(updateProof.NewRoot)
-	return rootFF.Bytes(), updateProof, nil
+	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
 }
 
 // SetStorageAt sets storage value at specified position
@@ -279,8 +277,7 @@ func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address,
 		return nil, nil, err
 	}
 
-	rootFF := h4ToScalar(updateProof.NewRoot)
-	return rootFF.Bytes(), updateProof, nil
+	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
 }
 
 // SetHashValue sets value for an specific key.
@@ -293,8 +290,7 @@ func (tree *StateTree) SetHashValue(ctx context.Context, key common.Hash, value 
 		return nil, nil, err
 	}
 
-	rootFF := h4ToScalar(updateProof.NewRoot)
-	return rootFF.Bytes(), updateProof, nil
+	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
 }
 
 // SetNodeData sets data for a specific node.
