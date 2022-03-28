@@ -26,7 +26,6 @@ const (
 
 	errGasRequiredExceedsAllowance = "gas required exceeds allowance"
 	errContentLengthTooLarge       = "content length too large"
-	errOversizedData               = "oversized data"
 )
 
 // Sequencer represents a sequencer
