@@ -45,13 +45,13 @@ build-docker: ## Builds a docker image with the core binary
 	docker build -t hezcore -f ./Dockerfile .
 
 .PHONY: test
-test: compile-smart-contracts ## Runs only short tests without checking race conditions
+test: compile-scs ## Runs only short tests without checking race conditions
 	$(STOPDB) || true
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; go test -short -p 1 ./...
 
 .PHONY: test-full
-test-full: build-docker compile-smart-contracts ## Runs all tests checking race conditions
+test-full: build-docker compile-scs ## Runs all tests checking race conditions
 	$(STOPDB) || true
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
@@ -116,7 +116,7 @@ stop-explorer-db: ## Stops the explorer database
 	$(STOPEXPLORERDB)
 
 .PHONY: run
-run: compile-smart-contracts ## Runs all the services
+run: compile-scs ## Runs all the services
 	$(RUNDB)
 	$(RUNEXPLORERDB)
 	$(RUNNETWORK)
@@ -171,29 +171,36 @@ update-external-dependencies: ## Updates external dependencies like images, test
 run-benchmarks: run-db ## Runs benchmars
 	go test -bench=. ./state/tree
 
-COMMAND := docker run --rm
-INPUTDIR := /sources
-OUTPUTDIR := $(INPUTDIR)/bin
-CONTRACTSVOLUME := -v $$(pwd)/test/contracts:$(INPUTDIR)
-SOLCIMAGEPREFIX := ethereum/solc:
-SOLCIMAGESUFFIX := -alpine
+DOCKER_CMD := docker run --rm
+INPUT_DIR := /contracts
+OUTPUT_DIR := $(INPUT_DIR)/bin
+OUTPUT_TYPE := --abi --bin
+CONTRACTS_DIR := $$(pwd)/test/contracts
+CONTRACTS_VOLUME := -v $(CONTRACTS_DIR):$(INPUT_DIR)
+SOLC_IMAGE_PREFIX := ethereum/solc:
+SOLC_IMAGE_SUFFIX := -alpine
 FLAGS := --overwrite --optimize
+ABIGEN_DOCKER_IMAGE := ethereum/client-go:alltools-latest
+COMPILE_CMD := eval $(DOCKER_CMD) $(CONTRACTS_VOLUME) -e SC_NAME='$$SC_NAME' $(SOLC_IMAGE_PREFIX)'$$SOLC_VERSION'$(SOLC_IMAGE_SUFFIX) -o $(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME' $(OUTPUT_TYPE) $(INPUT_DIR)/'$$SC_INPUT_PATH''$$SC_NAME'.sol $(FLAGS)
+GENERATE_CMD := eval $(DOCKER_CMD) $(CONTRACTS_VOLUME) $(ABIGEN_DOCKER_IMAGE) abigen --abi=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.abi --pkg='$$SC_NAME' --out=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.go
 
-.PHONY: compile-smart-contracts
-compile-smart-contracts: ## Compiles smart contracts used in tests and local deployments
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/counter.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/destruct.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/double.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/emitLog.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/erc20.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/interaction.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.8.13$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR) --bin $(INPUTDIR)/storage.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.5.16$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/core --bin $(INPUTDIR)/uniswap/v2/UniswapV2ERC20.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.5.16$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/core --bin $(INPUTDIR)/uniswap/v2/UniswapV2Factory.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.5.16$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/core --bin $(INPUTDIR)/uniswap/v2/UniswapV2Pair.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.6.6$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/periphery --bin $(INPUTDIR)/uniswap/v2/UniswapV2Migrator.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.6.6$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/periphery --bin $(INPUTDIR)/uniswap/v2/UniswapV2Router01.sol $(FLAGS)
-	$(COMMAND) $(CONTRACTSVOLUME) $(SOLCIMAGEPREFIX)0.6.6$(SOLCIMAGESUFFIX) -o $(OUTPUTDIR)/uniswap/v2/periphery --bin $(INPUTDIR)/uniswap/v2/UniswapV2Router02.sol $(FLAGS)
+.PHONY: compile-scs
+compile-scs: ## Compiles smart contracts used in tests and local deployments
+	SC_NAME=counter SOLC_VERSION=0.8.13 $(COMPILE_CMD) && $(GENERATE_CMD)
+	SC_NAME=destruct SOLC_VERSION=0.8.13 $(COMPILE_CMD) && $(GENERATE_CMD)
+	SC_NAME=double SOLC_VERSION=0.8.13 $(COMPILE_CMD) && $(GENERATE_CMD)
+	SC_NAME=emitLog SOLC_VERSION=0.8.13 $(COMPILE_CMD) && $(GENERATE_CMD)
+	SC_NAME=erc20 SOLC_VERSION=0.8.13 $(COMPILE_CMD) && $(GENERATE_CMD)
+	SC_NAME=interaction SOLC_VERSION=0.8.13 $(COMPILE_CMD) && $(GENERATE_CMD)
+	SC_NAME=storage SOLC_VERSION=0.8.13 $(COMPILE_CMD) && $(GENERATE_CMD)
+
+	SC_NAME=UniswapV2ERC20 SOLC_VERSION=0.5.16 SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD)
+	SC_NAME=UniswapV2Factory SOLC_VERSION=0.5.16 SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD)
+	SC_NAME=UniswapV2Pair SOLC_VERSION=0.5.16 SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD)
+
+	SC_NAME=UniswapV2Migrator SOLC_VERSION=0.6.6 SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/periphery/ $(COMPILE_CMD) && $(GENERATE_CMD)
+	SC_NAME=UniswapV2Router01 SOLC_VERSION=0.6.6 SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/periphery/ $(COMPILE_CMD) && $(GENERATE_CMD)
+	SC_NAME=UniswapV2Router02 SOLC_VERSION=0.6.6 SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/periphery/ $(COMPILE_CMD) && $(GENERATE_CMD)
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
