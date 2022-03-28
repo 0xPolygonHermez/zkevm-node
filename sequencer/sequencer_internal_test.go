@@ -228,8 +228,8 @@ func TestMain(m *testing.M) {
 		txs = append(txs, signedTx)
 	}
 
-	m.Run()
-	os.Exit(1)
+	result := m.Run()
+	os.Exit(result)
 }
 
 func TestSequencerIsSynced(t *testing.T) {
