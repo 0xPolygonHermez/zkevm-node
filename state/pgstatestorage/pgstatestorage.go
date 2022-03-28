@@ -755,10 +755,8 @@ func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *state.Receipt
 func (s *PostgresStorage) AddLog(ctx context.Context, l types.Log) error {
 	var topicsAsBytes [maxTopics]*[]byte
 	for i := 0; i < len(l.Topics); i++ {
-		if l.Topics[i] != state.EmptyCodeHash {
-			topicBytes := l.Topics[i].Bytes()
-			topicsAsBytes[i] = &topicBytes
-		}
+		topicBytes := l.Topics[i].Bytes()
+		topicsAsBytes[i] = &topicBytes
 	}
 
 	_, err := s.exec(ctx, addLogSQL, l.Index, l.TxIndex, l.TxHash.Bytes(),
