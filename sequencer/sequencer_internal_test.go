@@ -45,11 +45,12 @@ var (
 	seqCfg    Config
 	pl        *pool.Pool
 
-	genesisHash         common.Hash
-	addr                common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
-	consolidatedTxHash  common.Hash    = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")
-	maticCollateral                    = big.NewInt(1000000000000000000)
-	txs                 []*types.Transaction
+	genesisHash common.Hash
+	txs         []*types.Transaction
+
+	addr                       = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
+	consolidatedTxHash         = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")
+	maticCollateral            = big.NewInt(1000000000000000000)
 	maticAmount                = big.NewInt(1000000000000000001)
 	lastBatchNumberSeen uint64 = 1
 	senderPrivateKey           = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
