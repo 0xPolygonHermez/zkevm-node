@@ -235,7 +235,7 @@ func (s *Sequencer) sendBatchToEthereum(selectedTxs []*types.Transaction, select
 		err = s.Pool.UpdateTxsState(s.ctx, selectedTxsHashes, pool.TxStateSelected)
 		if err != nil {
 			// it's fatal here, bcs txs are selected and sent to ethereum, but txs were not updated in the local db.
-			// probably txs should be updated manually. If sequencer don't fail here, those txs will be sent again
+			// probably txs should be updated manually. If sequencer doesn't fail here, those txs will be sent again
 			// and sequencer will lose tokens
 			log.Fatalf("failed to update txs state to selected, selectedTxsHashes: %v, err: %v", selectedTxsHashes, err)
 		}

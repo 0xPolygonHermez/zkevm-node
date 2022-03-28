@@ -26,7 +26,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -63,27 +62,24 @@ var stateCfg = state.Config{
 	MaxCumulativeGasUsed: 800000,
 }
 
-func setUpBlock() {
-	var err error
-	ctx := context.Background()
-	hash1 := common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
+func setUpBlock(ctx context.Context, t *testing.T) {
+	blockHash := common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 
 	block := &state.Block{
 		BlockNumber: 1,
-		BlockHash:   hash1,
+		BlockHash:   blockHash,
 		ParentHash:  genesisHash,
 		ReceivedAt:  time.Now(),
 	}
 
-	_, err = stateDB.Exec(ctx, "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)",
+	_, err := stateDB.Exec(ctx, "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)",
 		block.BlockNumber, block.BlockHash.Bytes(), block.ParentHash.Bytes(), block.ReceivedAt)
 	if err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 }
 
-func setUpBatch() {
-	var err error
+func setUpBatch(ctx context.Context, t *testing.T) {
 	receivedAt := time.Now().Add(time.Duration(-5) * time.Minute)
 	consolidatedAt := time.Now()
 	batch := &state.Batch{
@@ -100,35 +96,28 @@ func setUpBatch() {
 		ChainID:            big.NewInt(1000),
 		GlobalExitRoot:     common.Hash{},
 	}
-	ctx := context.Background()
-	if err != nil {
-		panic(err)
-	}
-
 	bp, err := testState.NewGenesisBatchProcessor(nil)
 	if err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	err = bp.ProcessBatch(ctx, batch)
 	if err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 }
 
-func cleanUpBatches() {
-	ctx := context.Background()
+func cleanUpBatches(ctx context.Context, t *testing.T) {
 	_, err := stateDB.Exec(ctx, "DELETE FROM state.batch WHERE block_num = $1", 1)
 	if err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 }
 
-func cleanUpBlocks() {
-	ctx := context.Background()
+func cleanUpBlocks(ctx context.Context, t *testing.T) {
 	_, err := stateDB.Exec(ctx, "DELETE FROM state.block WHERE block_num = $1", 1)
 	if err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 }
 
@@ -235,43 +224,43 @@ func TestMain(m *testing.M) {
 func TestSequencerIsSynced(t *testing.T) {
 	eth := new(ethermanMock)
 	eth.On("GetAddress").Return(addr)
-
-	setUpBlock()
-	setUpBatch()
+	ctx := context.Background()
+	setUpBlock(ctx, t)
+	setUpBatch(ctx, t)
 
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	synced := seq.isSynced()
-	assert.True(t, synced)
+	require.True(t, synced)
 
-	cleanUpBatches()
-	cleanUpBlocks()
+	cleanUpBatches(ctx, t)
+	cleanUpBlocks(ctx, t)
 }
 
 func TestSequencerIsNotSynced(t *testing.T) {
 	eth := new(ethermanMock)
 	ctx := context.Background()
 
-	setUpBlock()
-	setUpBatch()
+	setUpBlock(ctx, t)
+	setUpBatch(ctx, t)
 
 	eth.On("GetAddress").Return(addr)
 
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = testState.SetLastBatchNumberSeenOnEthereum(ctx, 5)
 	require.NoError(t, err)
 
 	synced := seq.isSynced()
-	assert.False(t, synced)
+	require.False(t, synced)
 
 	err = testState.SetLastBatchNumberSeenOnEthereum(ctx, lastBatchNumberSeen)
 	require.NoError(t, err)
 
-	cleanUpBatches()
-	cleanUpBlocks()
+	cleanUpBatches(ctx, t)
+	cleanUpBlocks(ctx, t)
 }
 
 func TestSequencerGetPendingTxs(t *testing.T) {
@@ -280,7 +269,7 @@ func TestSequencerGetPendingTxs(t *testing.T) {
 	eth.On("GetAddress").Return(addr)
 
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for i := 0; i < 2; i++ {
 		err = pl.UpdateTxState(ctx, txs[i].Hash(), pool.TxStateSelected)
@@ -288,8 +277,8 @@ func TestSequencerGetPendingTxs(t *testing.T) {
 	}
 
 	pendTxs, ok := seq.getPendingTxs()
-	assert.True(t, ok)
-	assert.Equal(t, 2, len(pendTxs))
+	require.True(t, ok)
+	require.Equal(t, 2, len(pendTxs))
 
 	for i := 2; i < 4; i++ {
 		err = pl.UpdateTxState(ctx, txs[i].Hash(), pool.TxStateSelected)
@@ -297,10 +286,10 @@ func TestSequencerGetPendingTxs(t *testing.T) {
 	}
 
 	pendTxs, ok = seq.getPendingTxs()
-	assert.False(t, ok)
-	assert.Equal(t, 0, len(pendTxs))
+	require.False(t, ok)
+	require.Equal(t, 0, len(pendTxs))
 
-	setTxsToPendingState()
+	setTxsToPendingState(ctx, t)
 }
 
 func TestSequencerSelectTxs(t *testing.T) {
@@ -309,14 +298,14 @@ func TestSequencerSelectTxs(t *testing.T) {
 	eth.On("GetAddress").Return(addr)
 
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	txs, err := pl.GetPendingTxs(ctx, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	selTxs, selTxsHashes, ok := seq.selectTxs(txs)
-	assert.True(t, ok)
-	assert.Equal(t, 4, len(selTxs))
-	assert.Equal(t, 4, len(selTxsHashes))
+	require.True(t, ok)
+	require.Equal(t, 4, len(selTxs))
+	require.Equal(t, 4, len(selTxsHashes))
 }
 
 func TestSequencerSelectTxsInvTxs(t *testing.T) {
@@ -325,52 +314,52 @@ func TestSequencerSelectTxsInvTxs(t *testing.T) {
 	eth.On("GetAddress").Return(addr)
 
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	if err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1000))
 	if err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 
 	tx := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(5), uint64(21000), big.NewInt(10), []byte{})
 	signedTx, err := auth.Signer(auth.From, tx)
 	if err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	if err := pl.AddTx(ctx, *signedTx); err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	txs = append(txs, signedTx)
 
 	txs, err := pl.GetPendingTxs(ctx, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	selTxs, selTxsHashes, ok := seq.selectTxs(txs)
-	assert.True(t, ok)
-	assert.Equal(t, 4, len(selTxs))
-	assert.Equal(t, 4, len(selTxsHashes))
+	require.True(t, ok)
+	require.Equal(t, 4, len(selTxs))
+	require.Equal(t, 4, len(selTxsHashes))
 
 	rows, err := stateDB.Query(ctx, "SELECT state FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
 
 	if err != nil {
-		t.Error(err)
+		require.NoError(t, err)
 	}
 	defer rows.Close()
 
 	var state string
 	rows.Next()
 	if err := rows.Scan(&state); err != nil {
-		t.Error(err)
+		require.NoError(t, err)
 	}
 
-	assert.Equal(t, pool.TxStateInvalid, pool.TxState(state))
+	require.Equal(t, pool.TxStateInvalid, pool.TxState(state))
 
 	_, err = stateDB.Exec(ctx, "DELETE FROM pool.txs WHERE hash = $1", tx.Hash().Hex())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestSequencerSendBatchEthereum(t *testing.T) {
@@ -379,14 +368,14 @@ func TestSequencerSendBatchEthereum(t *testing.T) {
 	eth.On("GetAddress").Return(addr)
 
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	txs, err := pl.GetPendingTxs(ctx, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	selTxs, selTxsHashes, ok := seq.selectTxs(txs)
-	assert.True(t, ok)
-	assert.Equal(t, 4, len(selTxs))
-	assert.Equal(t, 4, len(selTxsHashes))
+	require.True(t, ok)
+	require.Equal(t, 4, len(selTxs))
+	require.Equal(t, 4, len(selTxsHashes))
 
 	aggrReward := big.NewInt(1)
 	eth.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
@@ -397,9 +386,9 @@ func TestSequencerSendBatchEthereum(t *testing.T) {
 	eth.On("SendBatch", seq.ctx, selTxs, aggrReward).Return(tx, nil)
 
 	cuttedTxs, cuttedTxsHash, ok := seq.sendBatchToEthereum(selTxs, selTxsHashes)
-	assert.True(t, ok)
-	assert.Nil(t, cuttedTxs)
-	assert.Nil(t, cuttedTxsHash)
+	require.True(t, ok)
+	require.Nil(t, cuttedTxs)
+	require.Nil(t, cuttedTxsHash)
 
 	var count int
 	err = stateDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs WHERE state = $1", pool.TxStateSelected).Scan(&count)
@@ -407,8 +396,8 @@ func TestSequencerSendBatchEthereum(t *testing.T) {
 		t.Error(err)
 	}
 
-	assert.Equal(t, 4, count)
-	setTxsToPendingState()
+	require.Equal(t, 4, count)
+	setTxsToPendingState(ctx, t)
 }
 
 func TestSequencerSendBatchEthereumCut(t *testing.T) {
@@ -417,32 +406,31 @@ func TestSequencerSendBatchEthereumCut(t *testing.T) {
 	eth.On("GetAddress").Return(addr)
 
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	txs, err := pl.GetPendingTxs(ctx, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	selTxs, selTxsHashes, ok := seq.selectTxs(txs)
-	assert.True(t, ok)
-	assert.Equal(t, 4, len(selTxs))
-	assert.Equal(t, 4, len(selTxsHashes))
+	require.True(t, ok)
+	require.Equal(t, 4, len(selTxs))
+	require.Equal(t, 4, len(selTxsHashes))
 	aggrReward := big.NewInt(1)
 	eth.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
 	eth.On("GetCurrentSequencerCollateral").Return(aggrReward, nil)
 	eth.On("SendBatch", seq.ctx, selTxs, aggrReward).Return(nil, errors.New("gas required exceeds allowance"))
 
 	cutTxs, cutTxsHash, ok := seq.sendBatchToEthereum(selTxs, selTxsHashes)
-	assert.False(t, ok)
-	assert.Equal(t, 3, len(cutTxs))
-	assert.Equal(t, 3, len(cutTxsHash))
+	require.False(t, ok)
+	require.Equal(t, 3, len(cutTxs))
+	require.Equal(t, 3, len(cutTxsHash))
 }
 
-func setTxsToPendingState() {
+func setTxsToPendingState(ctx context.Context, t *testing.T) {
 	var err error
-	ctx := context.Background()
 	for _, tx := range txs {
 		err = pl.UpdateTxState(ctx, tx.Hash(), pool.TxStatePending)
 		if err != nil {
-			panic(err)
+			require.NoError(t, err)
 		}
 	}
 }
