@@ -426,11 +426,7 @@ func TestSequencerSendBatchEthereumCut(t *testing.T) {
 }
 
 func setTxsToPendingState(ctx context.Context, t *testing.T) {
-	var err error
 	for _, tx := range txs {
-		err = pl.UpdateTxState(ctx, tx.Hash(), pool.TxStatePending)
-		if err != nil {
-			require.NoError(t, err)
-		}
+		require.NoError(t, pl.UpdateTxState(ctx, tx.Hash(), pool.TxStatePending))
 	}
 }
