@@ -158,7 +158,7 @@ type rpcBlock struct {
 	Timestamp       argUint64              `json:"timestamp"`
 	ExtraData       argBytes               `json:"extraData"`
 	MixHash         common.Hash            `json:"mixHash"`
-	Nonce           uint64                 `json:"nonce"`
+	Nonce           argBytes               `json:"nonce"`
 	Hash            common.Hash            `json:"hash"`
 	Transactions    []rpcTransactionOrHash `json:"transactions"`
 	Uncles          []common.Hash          `json:"uncles"`
@@ -166,6 +166,10 @@ type rpcBlock struct {
 
 func batchToRPCBlock(b *state.Batch, fullTx bool) *rpcBlock {
 	h := b.Header
+
+	n := big.NewInt(0).SetUint64(h.Nonce.Uint64())
+	nonce := common.LeftPadBytes(n.Bytes(), 8)
+
 	res := &rpcBlock{
 		ParentHash:      h.ParentHash,
 		Sha3Uncles:      h.UncleHash,
@@ -183,7 +187,7 @@ func batchToRPCBlock(b *state.Batch, fullTx bool) *rpcBlock {
 		Timestamp:       argUint64(h.Time),
 		ExtraData:       argBytes(h.Extra),
 		MixHash:         h.MixDigest,
-		Nonce:           h.Nonce.Uint64(),
+		Nonce:           nonce,
 		Hash:            b.Hash(),
 		Transactions:    []rpcTransactionOrHash{},
 		Uncles:          []common.Hash{},
