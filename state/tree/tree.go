@@ -31,6 +31,11 @@ func NewStateTree(mt *MerkleTree, scCodeStore Store) *StateTree {
 	}
 }
 
+// SupportsDBTransactions indicates whether the store implementation supports DB transactions
+func (tree *StateTree) SupportsDBTransactions() bool {
+	return tree.mt.SupportsDBTransactions() && tree.scCodeStore.SupportsDBTransactions()
+}
+
 // BeginDBTransaction starts a transaction block
 func (tree *StateTree) BeginDBTransaction(ctx context.Context) error {
 	err := tree.mt.BeginDBTransaction(ctx)

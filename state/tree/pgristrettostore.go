@@ -41,6 +41,11 @@ func NewPgRistrettoSCCodeStore(db *pgxpool.Pool, cache *ristretto.Cache) *PgRist
 	}
 }
 
+// SupportsDBTransactions indicates whether the store implementation supports DB transactions
+func (p *PgRistrettoStore) SupportsDBTransactions() bool {
+	return true
+}
+
 // BeginDBTransaction starts a transaction block
 func (p *PgRistrettoStore) BeginDBTransaction(ctx context.Context) error {
 	if p.dbTx != nil {

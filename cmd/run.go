@@ -37,6 +37,7 @@ import (
 )
 
 type mtStore interface {
+	SupportsDBTransactions() bool
 	BeginDBTransaction(ctx context.Context) error
 	Commit(ctx context.Context) error
 	Rollback(ctx context.Context) error

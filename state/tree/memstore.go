@@ -25,6 +25,11 @@ func NewMemStore() *MemStore {
 	return &MemStore{kv}
 }
 
+// SupportsDBTransactions indicates whether the store implementation supports DB transactions
+func (m *MemStore) SupportsDBTransactions() bool {
+	return false
+}
+
 // BeginDBTransaction starts a transaction block
 func (m *MemStore) BeginDBTransaction(ctx context.Context) error {
 	return ErrDBTxsNotSupported
