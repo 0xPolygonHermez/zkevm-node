@@ -31,7 +31,7 @@ func TestStateTransition(t *testing.T) {
 
 	// Load test vectors
 	var testCases []vectors.StateTransitionTestCase
-	root := filepath.Clean("../test/vectors/src/state-transition/no-data")
+	root := filepath.Clean("./../vectors/src/state-transition/no-data")
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
