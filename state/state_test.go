@@ -2,8 +2,10 @@ package state_test
 
 import (
 	"context"
+	"io/fs"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -438,8 +440,27 @@ func TestBasicState_AddSequencer(t *testing.T) {
 }
 
 func TestStateTransition(t *testing.T) {
-	// Load test vector
-	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/src/test-vector-data/state-transition.json")
+	// Load test vectors
+	var stateTransitionTestCases []vectors.StateTransitionTestCase
+	root := filepath.Clean("../test/vectors/src/state-transition/no-data")
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Ext(path) != ".json" {
+			return nil
+		}
+		tmpStateTransitionTestCases, err := vectors.LoadStateTransitionTestCases(path)
+		if err != nil {
+			return err
+		}
+
+		stateTransitionTestCases = append(stateTransitionTestCases, tmpStateTransitionTestCases...)
+		return nil
+	})
 	require.NoError(t, err)
 
 	for _, testCase := range stateTransitionTestCases {
