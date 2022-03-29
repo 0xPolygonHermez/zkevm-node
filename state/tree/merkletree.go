@@ -62,17 +62,13 @@ type HashFunction func(inp [poseidon.NROUNDSF]uint64, cap [poseidon.CAPLEN]uint6
 type scHashFunction func(code []byte) ([]uint64, error)
 
 // NewMerkleTree creates new MerkleTree instance
-func NewMerkleTree(store Store, arity uint8, hashFunction HashFunction) *MerkleTree {
-	if hashFunction == nil {
-		hashFunction = poseidon.Hash
-	}
-
+func NewMerkleTree(store Store, arity uint8) *MerkleTree {
 	scHashFunction := hashContractBytecode
 
 	return &MerkleTree{
 		store:          store,
 		arity:          arity,
-		hashFunction:   hashFunction,
+		hashFunction:   poseidon.Hash,
 		scHashFunction: scHashFunction,
 	}
 }

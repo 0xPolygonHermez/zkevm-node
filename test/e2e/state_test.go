@@ -3,9 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"math/big"
-	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -30,26 +28,7 @@ func TestStateTransition(t *testing.T) {
 	}()
 
 	// Load test vectors
-	var testCases []vectors.StateTransitionTestCase
-	root := filepath.Clean("./../vectors/src/state-transition/no-data")
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if filepath.Ext(path) != ".json" {
-			return nil
-		}
-		tmpStateTransitionTestCases, err := vectors.LoadStateTransitionTestCases(path)
-		if err != nil {
-			return err
-		}
-
-		testCases = append(testCases, tmpStateTransitionTestCases...)
-		return nil
-	})
+	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/src/state-transition/no-data/general.json")
 	require.NoError(t, err)
 
 	for _, testCase := range testCases {

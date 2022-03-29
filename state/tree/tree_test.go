@@ -41,7 +41,7 @@ func TestBasicTree(t *testing.T) {
 	defer mtDb.Close()
 
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 	scCodeStore := NewPostgresSCCodeStore(mtDb)
 	tree := NewStateTree(mt, scCodeStore)
 
@@ -188,7 +188,7 @@ func TestMerkleTreeGenesis(t *testing.T) {
 	for ti, testVector := range testVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
 			var root []byte
-			mt := NewMerkleTree(store, testVector.Arity, nil)
+			mt := NewMerkleTree(store, testVector.Arity)
 			tree := NewStateTree(mt, scCodeStore)
 			for _, addrState := range testVector.Addresses {
 				// convert strings to big.Int
@@ -224,7 +224,7 @@ func TestUnsetCode(t *testing.T) {
 	defer mtDb.Close()
 
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 	scCodeStore := NewPostgresSCCodeStore(mtDb)
 	tree := NewStateTree(mt, scCodeStore)
 
@@ -277,7 +277,7 @@ func TestUnsetStorageAtPosition(t *testing.T) {
 	defer mtDb.Close()
 
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 	scCodeStore := NewPostgresSCCodeStore(mtDb)
 	tree := NewStateTree(mt, scCodeStore)
 
@@ -354,7 +354,7 @@ func TestSetGetNode(t *testing.T) {
 	defer mtDb.Close()
 
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 	scCodeStore := NewPostgresSCCodeStore(mtDb)
 	tree := NewStateTree(mt, scCodeStore)
 

@@ -67,7 +67,7 @@ func TestMerkleTreeRaw(t *testing.T) {
 		for ti, testVector := range testVectors {
 			t.Run(fmt.Sprintf("Test vector %d on %s store", ti, storeName), func(t *testing.T) {
 				root := scalarToh4(new(big.Int))
-				mt := NewMerkleTree(store, testVector.Arity, nil)
+				mt := NewMerkleTree(store, testVector.Arity)
 				log.Debugf("expectedRoot: %v", testVector.ExpectedRoot)
 				for i := 0; i < len(testVector.Keys); i++ {
 					k, ok := new(big.Int).SetString(testVector.Keys[i], 10)
@@ -102,7 +102,7 @@ func TestMerkleTree(t *testing.T) {
 
 	root := new(big.Int)
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, 4, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 
 	k1, success := new(big.Int).SetString("03ae74d1bbdff41d14f155ec79bb389db716160c1766a49ee9c9707407f80a11", 16)
 	require.True(t, success)
@@ -168,7 +168,7 @@ func TestHashBytecode(t *testing.T) {
 	defer mtDb.Close()
 
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, 4, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 
 	for i, testVector := range testVectors {
 		testVector := testVector
@@ -189,7 +189,7 @@ func TestHashBytecode(t *testing.T) {
 func merkleTreeAddN(b *testing.B, store Store, n int, hashFunction HashFunction) {
 	//b.ResetTimer()
 
-	mt := NewMerkleTree(store, 4, hashFunction)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 
 	ctx := context.Background()
 	root := scalarToh4(new(big.Int))

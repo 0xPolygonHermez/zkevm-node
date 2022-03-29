@@ -99,7 +99,7 @@ func initStree() (*tree.StateTree, error) {
 		return nil, err
 	}
 	store := tree.NewPostgresStore(stateDb)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 
 	stree := tree.NewStateTree(mt, scCodeStore)

@@ -11,7 +11,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
-	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 	"github.com/urfave/cli/v2"
 )
 
@@ -51,7 +50,7 @@ func registerSequencer(ctx *cli.Context) error {
 		return err
 	}
 	store := tree.NewPostgresStore(sqlDB)
-	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity, poseidon.Hash)
+	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity)
 	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
 	tr := tree.NewStateTree(mt, scCodeStore)
 

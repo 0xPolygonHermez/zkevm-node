@@ -76,7 +76,7 @@ func TestMain(m *testing.M) {
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
 
 	store := tree.NewPostgresStore(stateDb)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 
@@ -476,7 +476,7 @@ func TestStateTransition(t *testing.T) {
 
 			// Create State tree
 			store := tree.NewPostgresStore(stateDb)
-			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 			stateTree := tree.NewStateTree(mt, scCodeStore)
 
@@ -621,7 +621,7 @@ func TestStateTransitionSC(t *testing.T) {
 
 			// Create State tree
 			store := tree.NewPostgresStore(stateDb)
-			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 			stateTree := tree.NewStateTree(mt, scCodeStore)
 
@@ -652,7 +652,7 @@ func TestLastSeenBatch(t *testing.T) {
 	store := tree.NewPostgresStore(mtDb)
 
 	// Create State tree
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
@@ -696,7 +696,7 @@ func TestReceipts(t *testing.T) {
 
 			// Create State tree
 			store := tree.NewPostgresStore(stateDb)
-			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+			mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 			scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 			stateTree := tree.NewStateTree(mt, scCodeStore)
 
@@ -854,7 +854,7 @@ func TestLastConsolidatedBatch(t *testing.T) {
 	store := tree.NewPostgresStore(mtDb)
 
 	// Create State tree
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
@@ -888,7 +888,7 @@ func TestStateErrors(t *testing.T) {
 	store := tree.NewPostgresStore(mtDb)
 
 	// Create State tree
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
@@ -986,7 +986,7 @@ func TestSCExecution(t *testing.T) {
 
 	// Create State tree
 	store := tree.NewPostgresStore(stateDb)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
@@ -1114,7 +1114,7 @@ func TestSCCall(t *testing.T) {
 
 	// Create State tree
 	store := tree.NewPostgresStore(stateDb)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
@@ -1251,7 +1251,7 @@ func TestGenesisStorage(t *testing.T) {
 
 	// Create State tree
 	store := tree.NewPostgresStore(stateDb)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
@@ -1301,7 +1301,7 @@ func TestSCSelfDestruct(t *testing.T) {
 
 	// Create State tree
 	store := tree.NewPostgresStore(stateDb)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
@@ -1406,7 +1406,7 @@ func TestEmitLog(t *testing.T) {
 
 	// Create State tree
 	store := tree.NewPostgresStore(stateDb)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
@@ -1756,7 +1756,7 @@ func TestEstimateGas(t *testing.T) {
 
 	// Create State tree
 	store := tree.NewPostgresStore(stateDb)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
