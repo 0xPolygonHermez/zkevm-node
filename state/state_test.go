@@ -736,7 +736,7 @@ func TestReceipts(t *testing.T) {
 			var txs []*types.Transaction
 
 			// Check Old roots
-			assert.Equal(t, testCase.ExpectedOldRoot, new(big.Int).SetBytes(root).String())
+			assert.Equal(t, testCase.ExpectedOldRoot, hex.EncodeToHex(root))
 
 			// Check if sequencer is in the DB
 			_, err = st.GetSequencer(ctx, common.HexToAddress(testCase.SequencerAddress))
@@ -754,15 +754,14 @@ func TestReceipts(t *testing.T) {
 
 			// Create Transaction
 			for _, vectorTx := range testCase.Txs {
-				if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" && vectorTx.Reason == "" {
+				if string(vectorTx.RawTx) != "" && vectorTx.Reason == "" {
 					var tx types.LegacyTx
-					bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
+					bytes, err := hex.DecodeHex(vectorTx.RawTx)
+					require.NoError(t, err)
 
 					err = rlp.DecodeBytes(bytes, &tx)
-					if err == nil {
-						txs = append(txs, types.NewTx(&tx))
-					}
 					require.NoError(t, err)
+					txs = append(txs, types.NewTx(&tx))
 				}
 			}
 
@@ -778,13 +777,11 @@ func TestReceipts(t *testing.T) {
 				RawTxsData:         nil,
 				MaticCollateral:    big.NewInt(1),
 				ChainID:            big.NewInt(1000),
-				GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
+				GlobalExitRoot:     common.HexToHash(testCase.GlobalExitRoot),
 			}
 
 			// Create Batch Processor
-			stateRoot, ok := new(big.Int).SetString(testCase.ExpectedOldRoot, 10)
-			assert.Equal(t, true, ok)
-			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), stateRoot.Bytes())
+			bp, err := st.NewBatchProcessor(ctx, common.HexToAddress(testCase.SequencerAddress), root)
 			require.NoError(t, err)
 
 			err = bp.ProcessBatch(ctx, batch)
@@ -810,7 +807,7 @@ func TestReceipts(t *testing.T) {
 			require.NoError(t, err)
 
 			// Check new roots
-			assert.Equal(t, testCase.ExpectedNewRoot, new(big.Int).SetBytes(root).String())
+			assert.Equal(t, testCase.ExpectedNewRoot, hex.EncodeToHex(root))
 
 			for key, vectorLeaf := range testCase.ExpectedNewLeafs {
 				newBalance, err := stateTree.GetBalance(ctx, common.HexToAddress(key), root)
