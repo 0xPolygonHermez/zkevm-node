@@ -34,6 +34,11 @@ func NewBadgerDB(dataDir string) (*badger.DB, error) {
 	return db, nil
 }
 
+// SupportsDBTransactions indicates whether the store implementation supports DB transactions
+func (b *BadgerRistrettoStore) SupportsDBTransactions() bool {
+	return false
+}
+
 // BeginDBTransaction starts a transaction block
 func (b *BadgerRistrettoStore) BeginDBTransaction(ctx context.Context) error {
 	return ErrDBTxsNotSupported

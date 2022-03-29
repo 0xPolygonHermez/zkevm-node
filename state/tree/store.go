@@ -12,6 +12,7 @@ var (
 
 // Store interface
 type Store interface {
+	SupportsDBTransactions() bool
 	BeginDBTransaction(ctx context.Context) error
 	Commit(ctx context.Context) error
 	Rollback(ctx context.Context) error

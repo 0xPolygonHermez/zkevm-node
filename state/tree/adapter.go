@@ -23,6 +23,11 @@ func NewAdapter(client pb.MTServiceClient) *Adapter {
 	}
 }
 
+// SupportsDBTransactions indicates whether the store implementation supports DB transactions
+func (m *Adapter) SupportsDBTransactions() bool {
+	return false
+}
+
 // BeginDBTransaction starts a transaction block
 func (m *Adapter) BeginDBTransaction(ctx context.Context) error {
 	return ErrDBTxsNotSupported
