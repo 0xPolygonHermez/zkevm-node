@@ -368,7 +368,7 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 
 func (e *Eth) getNumericBlockNumber(ctx context.Context, number BlockNumber) (uint64, error) {
 	switch number {
-	case LatestBlockNumber:
+	case LatestBlockNumber, PendingBlockNumber:
 		lastBatchNumber, err := e.state.GetLastBatchNumber(ctx)
 		if err != nil {
 			return 0, err
@@ -376,10 +376,7 @@ func (e *Eth) getNumericBlockNumber(ctx context.Context, number BlockNumber) (ui
 
 		return lastBatchNumber, nil
 	case EarliestBlockNumber:
-		return 0, fmt.Errorf("fetching the earliest header is not supported")
-
-	case PendingBlockNumber:
-		return 0, fmt.Errorf("fetching the pending header is not supported")
+		return 0, nil
 
 	default:
 		if number < 0 {

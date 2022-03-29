@@ -128,13 +128,15 @@ run: compile-scs ## Runs all the services
 	$(RUNEXPLORER)
 
 .PHONY: init-network
-init-network: ## Inits network and deploys test smart contract
+init-network: ## Initializes the network
 	go run ./scripts/init_network/main.go .
-	sleep 5
+
+.PHONY: deploy-sc
+deploy-sc: ## deploys test smart contract
 	go run ./scripts/deploy_sc/main.go .
 
 .PHONY: deploy-uniswap
-deploy-uniswap: ## Deploy the uniswap environment to the network
+deploy-uniswap: ## deploy the uniswap environment to the network
 	go run ./scripts/uniswap/main.go .
 
 .PHONY: stop

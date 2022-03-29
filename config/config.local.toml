@@ -37,7 +37,7 @@ SyncedBlockDif = 1
 
 [GasPriceEstimator]
 Type = "default"
-DefaultGasPriceWei = 1000000000
+DefaultGasPriceWei = 1
 
 [Aggregator]
 IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"

@@ -39,35 +39,44 @@ func main() {
 
 	auth := getAuth(ctx, client)
 
-	log.Debug(auth)
-
 	// Deploy ERC20 Tokens to be swapped
-	aCoinAddr := deployERC20(auth, client, "A COIN", "ACOIN")
-	log.Debug("A Coin SC deployed: %v", aCoinAddr.Hex())
-	bCoinAddr := deployERC20(auth, client, "B COIN", "BCOIN")
-	log.Debug("B Coin SC deployed: %v", bCoinAddr.Hex())
-	cCoinAddr := deployERC20(auth, client, "C COIN", "CCOIN")
-	log.Debug("C Coin SC deployed: %v", cCoinAddr.Hex())
+	aCoinAddr, tx := deployERC20(auth, client, "A COIN", "ACO")
+	log.Debugf("A Coin SC tx: %v", tx.Hash().Hex())
+	log.Debugf("A Coin SC addr: %v", aCoinAddr.Hex())
+
+	bCoinAddr, tx := deployERC20(auth, client, "B COIN", "BCO")
+	log.Debugf("B Coin SC tx: %v", tx.Hash().Hex())
+	log.Debugf("B Coin SC addr: %v", bCoinAddr.Hex())
+
+	cCoinAddr, tx := deployERC20(auth, client, "C COIN", "CCO")
+	log.Debugf("C Coin SC tx: %v", tx.Hash().Hex())
+	log.Debugf("C Coin SC addr: %v", cCoinAddr.Hex())
 
 	// Deploy wETH Token
 	wethAddr, tx, _, err := weth.DeployWeth(auth, client)
-	log.Debug("wEth SC deployed: %v", wethAddr.Hex())
+	chkErr(err)
+	log.Debugf("wEth SC tx: %v", tx.Hash().Hex())
+	log.Debugf("wEth SC addr: %v", wethAddr.Hex())
 
 	// Deploy Uniswap Factory
 	factoryAddr, tx, factory, err := UniswapV2Factory.DeployUniswapV2Factory(auth, client, auth.From)
 	chkErr(err)
 	waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
-	log.Debug("Uniswap Factory SC deployed: %v", factoryAddr.Hex())
+	log.Debugf("Uniswap Factory SC tx: %v", tx.Hash().Hex())
+	log.Debugf("Uniswap Factory SC addr: %v", factoryAddr.Hex())
 
 	// Create uniswap pairs to allow tokens to be swapped
-	createPair(factory, auth, client, aCoinAddr, bCoinAddr)
-	createPair(factory, auth, client, bCoinAddr, cCoinAddr)
+	tx = createPair(factory, auth, client, aCoinAddr, bCoinAddr)
+	log.Debugf("Uniswap Pair A <-> B tx: %v", tx.Hash().Hex())
+	tx = createPair(factory, auth, client, bCoinAddr, cCoinAddr)
+	log.Debugf("Uniswap Pair B <-> C tx: %v", tx.Hash().Hex())
 
 	// Deploy Uniswap Router
 	_, tx, _, err = UniswapV2Router02.DeployUniswapV2Router02(auth, client, factoryAddr, wethAddr)
 	chkErr(err)
 	waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
-	log.Debug("Uniswap Factory SC deployed: %v", factoryAddr.Hex())
+	log.Debugf("Uniswap Factory SC tx: %v", tx.Hash().Hex())
+	log.Debugf("Uniswap Factory SC addr: %v", factoryAddr.Hex())
 }
 
 func getAuth(ctx context.Context, client *ethclient.Client) *bind.TransactOpts {
@@ -142,18 +151,18 @@ func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Du
 	}
 }
 
-func deployERC20(auth *bind.TransactOpts, client *ethclient.Client, name, symbol string) common.Address {
-	log.Debug(name, symbol)
+func deployERC20(auth *bind.TransactOpts, client *ethclient.Client, name, symbol string) (common.Address, *types.Transaction) {
 	addr, tx, _, err := erc20.DeployErc20(auth, client, name, symbol)
 	chkErr(err)
 	waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
-	return addr
+	return addr, tx
 }
 
-func createPair(factory *UniswapV2Factory.UniswapV2Factory, auth *bind.TransactOpts, client *ethclient.Client, tokenA, tokenB common.Address) {
+func createPair(factory *UniswapV2Factory.UniswapV2Factory, auth *bind.TransactOpts, client *ethclient.Client, tokenA, tokenB common.Address) *types.Transaction {
 	tx, err := factory.CreatePair(auth, tokenA, tokenB)
 	chkErr(err)
 	waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	return tx
 }
 
 func chkErr(err error) {
