@@ -380,7 +380,7 @@ func Test_MTServer_SetStorageAt(t *testing.T) {
 	newRoot, err := hex.DecodeString(resp.NewRoot)
 	require.NoError(t, err)
 
-	actualStorageAt, err := stree.GetStorageAt(ctx, common.HexToAddress(ethAddress), common.BigToHash(positionBI), newRoot)
+	actualStorageAt, err := stree.GetStorageAt(ctx, common.HexToAddress(ethAddress), positionBI, newRoot)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedValue.String(), actualStorageAt.String(), "Did not set the expected storage at")

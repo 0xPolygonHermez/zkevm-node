@@ -524,7 +524,7 @@ func (b *BasicBatchProcessor) commit(ctx context.Context, batch *Batch) error {
 
 		// set local exit root
 		key := new(big.Int).SetUint64(b.State.cfg.L2GlobalExitRootManagerPosition)
-		localExitRoot, err := b.State.tree.GetStorageAt(ctx, b.State.cfg.L2GlobalExitRootManagerAddr, common.BigToHash(key), b.stateRoot)
+		localExitRoot, err := b.State.tree.GetStorageAt(ctx, b.State.cfg.L2GlobalExitRootManagerAddr, key, b.stateRoot)
 		if err != nil {
 			return err
 		}
@@ -712,7 +712,7 @@ func (b *BasicBatchProcessor) AccountExists(ctx context.Context, address common.
 
 // GetStorage gets the value stored in a given address and key
 func (b *BasicBatchProcessor) GetStorage(ctx context.Context, address common.Address, key common.Hash) common.Hash {
-	storage, err := b.State.tree.GetStorageAt(ctx, address, key, b.stateRoot)
+	storage, err := b.State.tree.GetStorageAt(ctx, address, key.Big(), b.stateRoot)
 
 	if err != nil {
 		log.Errorf("error on GetStorage for address %v", address)

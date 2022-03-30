@@ -145,10 +145,10 @@ func (tree *StateTree) GetCode(ctx context.Context, address common.Address, root
 }
 
 // GetStorageAt returns Storage Value at specified position
-func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address, position common.Hash, root []byte) (*big.Int, error) {
+func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root []byte) (*big.Int, error) {
 	r := new(big.Int).SetBytes(root)
 
-	key, err := KeyContractStorage(address, position[:])
+	key, err := KeyContractStorage(address, position.Bytes())
 	if err != nil {
 		return nil, err
 	}

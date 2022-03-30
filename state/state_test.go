@@ -1276,7 +1276,7 @@ func TestGenesisStorage(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
-		value, err := st.GetStorageAt(ctx, address, common.BigToHash(new(big.Int).SetInt64(int64(i))), 0)
+		value, err := st.GetStorageAt(ctx, address, new(big.Int).SetInt64(int64(i)), 0)
 		assert.NoError(t, err)
 		assert.NotEqual(t, int64(i), value)
 	}

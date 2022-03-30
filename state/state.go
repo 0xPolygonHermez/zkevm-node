@@ -265,7 +265,7 @@ func (s *State) GetNonce(ctx context.Context, address common.Address, batchNumbe
 }
 
 // GetStorageAt from a given address
-func (s *State) GetStorageAt(ctx context.Context, address common.Address, position common.Hash, batchNumber uint64) (*big.Int, error) {
+func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, batchNumber uint64) (*big.Int, error) {
 	root, err := s.GetStateRootByBatchNumber(ctx, batchNumber)
 	if err != nil {
 		return nil, err
