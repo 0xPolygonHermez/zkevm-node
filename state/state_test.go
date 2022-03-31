@@ -1885,7 +1885,7 @@ func TestStorageOnDeploy(t *testing.T) {
 
 	// Create State tree
 	store := tree.NewPostgresStore(stateDb)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
