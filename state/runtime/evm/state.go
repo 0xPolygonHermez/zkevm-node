@@ -46,17 +46,22 @@ type state struct {
 	code []byte
 	tmp  []byte
 
-	host             runtime.Host
-	msg              *runtime.Contract // change with msg
-	config           *runtime.ForksInTime
-	instrumented     bool
-	returnStructLogs []instrumentation.StructLog
+	host   runtime.Host
+	msg    *runtime.Contract // change with msg
+	config *runtime.ForksInTime
 
-	// memory
+	// Instrumentation
+	instrumented  bool
+	returnVMTrace instrumentation.VMTrace
+	stackPush     []uint64
+	memDiff       *instrumentation.MemoryDiff
+	storeDiff     *instrumentation.StoreDiff
+
+	// Memory
 	memory      []byte
 	lastGasCost uint64
 
-	// stack
+	// Stack
 	stack []*big.Int
 	sp    int
 
@@ -131,6 +136,11 @@ func (s *state) push1() *big.Int {
 	v := big.NewInt(0)
 	s.stack = append(s.stack, v)
 	s.sp++
+
+	if s.instrumented {
+		s.stackPush = append(s.stackPush, v.Uint64())
+	}
+
 	return v
 }
 
@@ -226,12 +236,18 @@ func (s *state) checkMemory(offset, size *big.Int) bool {
 }
 
 // Run executes the virtual machine
-func (s *state) Run(ctx context.Context) ([]byte, []instrumentation.StructLog, error) {
+func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, error) {
 	var vmerr error
-	var structLogs []instrumentation.StructLog
+	var vmTrace instrumentation.VMTrace
 
 	codeSize := len(s.code)
 	for !s.stop {
+		if s.instrumented {
+			s.stackPush = []uint64{}
+			s.memDiff = nil
+			s.storeDiff = nil
+		}
+
 		if s.ip >= codeSize {
 			s.halt()
 			break
@@ -268,25 +284,32 @@ func (s *state) Run(ctx context.Context) ([]byte, []instrumentation.StructLog, e
 		}
 
 		if s.instrumented {
-			structLog := instrumentation.StructLog{
-				Pc:         uint64(s.ip),
-				Op:         op.String(),
-				Gas:        s.gas,
-				GasCost:    inst.gas,
-				Memory:     s.memory,
-				MemorySize: len(s.memory),
-				Stack:      s.stack,
-				ReturnData: s.returnData,
-				Depth:      s.msg.Depth,
-				Err:        s.err,
+			vmTrace.ParentStep = s.msg.Depth
+			vmTrace.Code = common.Bytes2Hex(s.code)
+			vmTrace.Subs = []instrumentation.VMTrace{}
+
+			operation := instrumentation.VMOperation{
+				Pc:          uint64(s.ip),
+				Instruction: byte(op),
+				GasCost:     inst.gas,
+				Executed: instrumentation.VMExecutedOperation{
+					GasUsed:   s.gas,
+					StackPush: s.stackPush,
+				},
 			}
 
-			structLogs = append(structLogs, structLog)
+			if s.memDiff != nil {
+				operation.Executed.MemDiff = *s.memDiff
+			}
+
+			if s.storeDiff != nil {
+				operation.Executed.StoreDiff = *s.storeDiff
+			}
+
+			vmTrace.Operations = append(vmTrace.Operations, operation)
 
 			if op == CREATE || op == CREATE2 || op == CALL || op == CALLCODE || op == DELEGATECALL || op == STATICCALL {
-				for i := range s.returnStructLogs {
-					structLogs = append(structLogs, s.returnStructLogs[i])
-				}
+				vmTrace.Subs = append(vmTrace.Subs, s.returnVMTrace)
 			}
 		}
 
@@ -296,7 +319,7 @@ func (s *state) Run(ctx context.Context) ([]byte, []instrumentation.StructLog, e
 	if err := s.err; err != nil {
 		vmerr = err
 	}
-	return s.ret, structLogs, vmerr
+	return s.ret, vmTrace, vmerr
 }
 
 func extendByteSlice(b []byte, needLen int) []byte {

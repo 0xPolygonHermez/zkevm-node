@@ -18,10 +18,7 @@ type traceTransactionResponse struct {
 	Gas         uint64        `json:"gas"`
 	Failed      bool          `json:"failed"`
 	ReturnValue string        `json:"returnValue"`
-	StructLogs  []interface{} `json:"structLogs"`
-}
-
-type structLog struct {
+	Operations  []interface{} `json:"operations"`
 }
 
 // TraceTransaction creates a response for debug_traceTransaction request.
@@ -34,8 +31,8 @@ func (d *Debug) TraceTransaction(hash common.Hash) (interface{}, error) {
 		return genesisIsNotTraceableError{}, nil
 	}
 
-	txStructLogs, err := d.state.TraceTransaction(hash)
-	if err != nil {
+	result := d.state.ReplayTransaction(hash)
+	if result.Err != nil {
 		return nil, err
 	}
 
@@ -44,16 +41,16 @@ func (d *Debug) TraceTransaction(hash common.Hash) (interface{}, error) {
 		return genesisIsNotTraceableError{}, nil
 	}
 
-	structLogs := make([]interface{}, 0, len(txStructLogs))
-	for _, txStructLog := range txStructLogs {
-		structLogs = append(structLogs, txStructLog)
+	operations := make([]interface{}, 0, len(result.VMTrace.Operations))
+	for _, operation := range result.VMTrace.Operations {
+		operations = append(operations, operation)
 	}
 
 	resp := traceTransactionResponse{
 		Gas:         tx.Gas(),
 		Failed:      rcpt.Status == types.ReceiptStatusFailed,
 		ReturnValue: "",
-		StructLogs:  structLogs,
+		Operations:  operations,
 	}
 
 	return resp, nil

@@ -11,7 +11,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 )
 
@@ -171,26 +170,26 @@ func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
 	return result.GasUsed, result.Err
 }
 
-// TraceTransaction gets a trace by rexecuting it
-func (s *State) TraceTransaction(transactionHash common.Hash) ([]instrumentation.StructLog, error) {
+// ReplayTransaction gets trace by rexecuting a transaction
+func (s *State) ReplayTransaction(transactionHash common.Hash) *runtime.ExecutionResult {
 	ctx := context.Background()
 
 	tx, err := s.GetTransactionByHash(ctx, transactionHash)
 	if err != nil {
 		log.Errorf("trace transaction: failed to get transaction by hash, err: %v", err)
-		return nil, err
+		return &runtime.ExecutionResult{Err: err}
 	}
 
 	receipt, err := s.GetTransactionReceipt(ctx, transactionHash)
 	if err != nil {
 		log.Errorf("trace transaction: failed to get receipt by tx hash, err: %v", err)
-		return nil, err
+		return &runtime.ExecutionResult{Err: err}
 	}
 
 	batch, err := s.GetBatchByHash(ctx, receipt.BlockHash)
 	if err != nil {
 		log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
-		return nil, err
+		return &runtime.ExecutionResult{Err: err}
 	}
 
 	var stateRoot []byte
@@ -199,13 +198,13 @@ func (s *State) TraceTransaction(transactionHash common.Hash) ([]instrumentation
 		previousTX, err := s.GetTransactionByBatchHashAndIndex(ctx, receipt.BlockHash, uint64(receipt.TransactionIndex-1))
 		if err != nil {
 			log.Errorf("trace transaction: failed to get previous tx, err: %v", err)
-			return nil, err
+			return &runtime.ExecutionResult{Err: err}
 		}
 
 		previousReceipt, err := s.GetTransactionReceipt(ctx, previousTX.Hash())
 		if err != nil {
 			log.Errorf("trace transaction: failed to get receipt by previous tx hash, err: %v", err)
-			return nil, err
+			return &runtime.ExecutionResult{Err: err}
 		}
 
 		stateRoot = previousReceipt.PostState
@@ -215,11 +214,11 @@ func (s *State) TraceTransaction(transactionHash common.Hash) ([]instrumentation
 			previousBatch, err = s.GetLastBatch(ctx, true)
 			if err != nil {
 				log.Errorf("trace transaction: failed to get last batch, err: %v", err)
-				return nil, err
+				return &runtime.ExecutionResult{Err: err}
 			}
 		} else if err != nil {
 			log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
-			return nil, err
+			return &runtime.ExecutionResult{Err: err}
 		}
 
 		stateRoot = previousBatch.Header.Root.Bytes()
@@ -230,7 +229,7 @@ func (s *State) TraceTransaction(transactionHash common.Hash) ([]instrumentation
 	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, stateRoot)
 	if err != nil {
 		log.Errorf("trace transaction: failed to create a new batch processor, err: %v", err)
-		return nil, err
+		return &runtime.ExecutionResult{Err: err}
 	}
 
 	// Activate EVM Instrumentation
@@ -242,16 +241,17 @@ func (s *State) TraceTransaction(transactionHash common.Hash) ([]instrumentation
 	err = s.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("trace transaction: failed to begin db transaction, err: %v", err)
-		return nil, err
+		return &runtime.ExecutionResult{Err: err}
 	}
 	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress)
 	err = s.RollbackState(ctx)
 	if err != nil {
 		log.Errorf("trace transaction: failed to rollback transaction, err: %v", err)
-		return result.StructLogs, err
+		result.Err = err
+		return result
 	}
 
-	return result.StructLogs, result.Err
+	return result
 }
 
 // SetGenesis populates state with genesis information

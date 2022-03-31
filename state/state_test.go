@@ -21,6 +21,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/scripts/cmd/compilesc"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
+	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
@@ -1848,7 +1849,7 @@ func TestEstimateGas(t *testing.T) {
 	receipt, err := st.GetTransactionReceipt(ctx, signedTxStoreValue.Hash())
 	require.NoError(t, err)
 
-	structLogs, err := st.TraceTransaction(receipt.TxHash)
-	require.NoError(t, err)
-	assert.Equal(t, "PUSH1", structLogs[0].Op)
+	result := st.ReplayTransaction(receipt.TxHash)
+	require.NoError(t, result.Err)
+	assert.Equal(t, "PUSH1", evm.OpCode(result.VMTrace.Operations[0].Instruction).String())
 }

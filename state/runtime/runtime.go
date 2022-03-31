@@ -78,7 +78,8 @@ type ExecutionResult struct {
 	Err           error  // Any error encountered during the execution, listed below
 	CreateAddress common.Address
 	StateRoot     []byte
-	StructLogs    []instrumentation.StructLog
+	// StructLogs    []instrumentation.StructLog
+	VMTrace instrumentation.VMTrace
 }
 
 // Succeeded indicates the execution was successful

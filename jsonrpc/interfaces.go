@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
 // Consumer interfaces required by the package.
@@ -44,5 +44,5 @@ type stateInterface interface {
 	GetNonce(ctx context.Context, address common.Address, batchNumber uint64) (uint64, error)
 	GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error)
 	GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash) ([]*types.Log, error)
-	TraceTransaction(transactionHash common.Hash) ([]instrumentation.StructLog, error)
+	ReplayTransaction(transactionHash common.Hash) *runtime.ExecutionResult
 }
