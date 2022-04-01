@@ -198,6 +198,8 @@ compile-scs: ## Compiles smart contracts used in tests and local deployments
 
 	SC_NAME=weth SOLC_VERSION=0.4.18 $(COMPILE_CMD) && $(GENERATE_CMD)
 
+	SC_NAME=UniswapInterfaceMulticall SOLC_VERSION=0.7.6-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/interface/ $(COMPILE_CMD) && $(GENERATE_CMD)
+
 	SC_NAME=UniswapV2ERC20 SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD)
 	SC_NAME=UniswapV2Factory SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD)
 	SC_NAME=UniswapV2Pair SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD)

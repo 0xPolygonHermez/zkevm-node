@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -12,9 +14,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
 	erc20 "github.com/hermeznetwork/hermez-core/test/contracts/bin/ERC20"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/core/UniswapV2Factory"
+	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/interface/UniswapInterfaceMulticall"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/periphery/UniswapV2Router02"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/weth"
 )
@@ -34,18 +38,23 @@ func main() {
 	log.Infof("connected")
 
 	auth := getAuth(ctx, client, pk)
+	fmt.Println()
 
 	// Deploy ERC20 Tokens to be swapped
-	aCoinAddr := deployERC20(auth, client, "A COIN", "ACO")
-	bCoinAddr := deployERC20(auth, client, "B COIN", "BCO")
-	cCoinAddr := deployERC20(auth, client, "C COIN", "CCO")
+	aCoinAddr, aCoin := deployERC20(auth, client, "A COIN", "ACO")
+	fmt.Println()
+	bCoinAddr, bCoin := deployERC20(auth, client, "B COIN", "BCO")
+	fmt.Println()
+	cCoinAddr, cCoin := deployERC20(auth, client, "C COIN", "CCO")
+	fmt.Println()
 
 	// Deploy wETH Token, it's required by uniswap to swap ETH by tokens
-	wethAddr, tx, _, err := weth.DeployWeth(auth, client)
+	wEthAddr, tx, _, err := weth.DeployWeth(auth, client)
 	chkErr(err)
 	waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	log.Debugf("wEth SC tx: %v", tx.Hash().Hex())
-	log.Debugf("wEth SC addr: %v", wethAddr.Hex())
+	log.Debugf("wEth SC addr: %v", wEthAddr.Hex())
+	fmt.Println()
 
 	// Deploy Uniswap Factory
 	factoryAddr, tx, factory, err := UniswapV2Factory.DeployUniswapV2Factory(auth, client, auth.From)
@@ -53,19 +62,60 @@ func main() {
 	waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	log.Debugf("Uniswap Factory SC tx: %v", tx.Hash().Hex())
 	log.Debugf("Uniswap Factory SC addr: %v", factoryAddr.Hex())
-
-	// Create uniswap pairs to allow tokens to be swapped
-	tx = createPair(factory, auth, client, aCoinAddr, bCoinAddr)
-	log.Debugf("Uniswap Pair A <-> B tx: %v", tx.Hash().Hex())
-	tx = createPair(factory, auth, client, bCoinAddr, cCoinAddr)
-	log.Debugf("Uniswap Pair B <-> C tx: %v", tx.Hash().Hex())
+	fmt.Println()
 
 	// Deploy Uniswap Router
-	routerAddr, tx, _, err := UniswapV2Router02.DeployUniswapV2Router02(auth, client, factoryAddr, wethAddr)
+	routerAddr, tx, router, err := UniswapV2Router02.DeployUniswapV2Router02(auth, client, factoryAddr, wEthAddr)
 	chkErr(err)
 	waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	log.Debugf("Uniswap Router SC tx: %v", tx.Hash().Hex())
 	log.Debugf("Uniswap Router SC addr: %v", routerAddr.Hex())
+	fmt.Println()
+
+	// Deploy Uniswap Interface Multicall
+	multicallAddr, tx, _, err := UniswapInterfaceMulticall.DeployUniswapInterfaceMulticall(auth, client)
+	chkErr(err)
+	waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	log.Debugf("Uniswap Interface Multicall SC tx: %v", tx.Hash().Hex())
+	log.Debugf("Uniswap Interface Multicall SC addr: %v", multicallAddr.Hex())
+	fmt.Println()
+
+	// Create uniswap pairs to allow tokens to be swapped
+	tx, wEth_ACoin_PairAddr := createPair(auth, client, factory, wEthAddr, aCoinAddr)
+	log.Debugf("Uniswap Pair wEth <-> B tx: %v", tx.Hash().Hex())
+	log.Debugf("Uniswap Pair wEth <-> B addr: %v", wEth_ACoin_PairAddr.Hash().Hex())
+	fmt.Println()
+	tx, aCoin_bCoin_PairAddr := createPair(auth, client, factory, aCoinAddr, bCoinAddr)
+	log.Debugf("Uniswap Pair A <-> B tx: %v", tx.Hash().Hex())
+	log.Debugf("Uniswap Pair A <-> B addr: %v", aCoin_bCoin_PairAddr.Hash().Hex())
+	fmt.Println()
+	tx, bCoin_cCoin_PairAddr := createPair(auth, client, factory, bCoinAddr, cCoinAddr)
+	log.Debugf("Uniswap Pair B <-> C tx: %v", tx.Hash().Hex())
+	log.Debugf("Uniswap Pair B <-> C addr: %v", bCoin_cCoin_PairAddr.Hash().Hex())
+	fmt.Println()
+	tx, cCoin_wEth_PairAddr := createPair(auth, client, factory, cCoinAddr, wEthAddr)
+	log.Debugf("Uniswap Pair C <-> wEth tx: %v", tx.Hash().Hex())
+	log.Debugf("Uniswap Pair C <-> wEth addr: %v", cCoin_wEth_PairAddr.Hash().Hex())
+	fmt.Println()
+
+	// Mint balance to tokens
+	tx = mintERC20(auth, client, aCoin, "500000000000000000000")
+	log.Debugf("Mint A Coin tx: %v", tx.Hash().Hex())
+	fmt.Println()
+	tx = mintERC20(auth, client, bCoin, "600000000000000000000")
+	log.Debugf("Mint B Coin tx: %v", tx.Hash().Hex())
+	fmt.Println()
+	tx = mintERC20(auth, client, cCoin, "700000000000000000000")
+	log.Debugf("Mint C Coin tx: %v", tx.Hash().Hex())
+	fmt.Println()
+
+	// Add liquidity to the pool
+	tx = addLiquidity(auth, client, router, aCoinAddr, bCoinAddr, aCoin_bCoin_PairAddr)
+	log.Debugf("Add Liquidity to Pair A <-> B tx: %v", tx.Hash().Hex())
+	fmt.Println()
+	tx = addLiquidity(auth, client, router, bCoinAddr, cCoinAddr, bCoin_cCoin_PairAddr)
+	log.Debugf("Add Liquidity to Pair B <-> C tx: %v", tx.Hash().Hex())
+	fmt.Println()
 
 	// Execute swaps
 }
@@ -112,19 +162,46 @@ func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Du
 	}
 }
 
-func deployERC20(auth *bind.TransactOpts, client *ethclient.Client, name, symbol string) common.Address {
-	addr, tx, _, err := erc20.DeployErc20(auth, client, name, symbol)
+func deployERC20(auth *bind.TransactOpts, client *ethclient.Client, name, symbol string) (common.Address, *erc20.Erc20) {
+	log.Debugf("Deploying ERC20 Token: [%v]%v", symbol, name)
+	addr, tx, instance, err := erc20.DeployErc20(auth, client, name, symbol)
 	chkErr(err)
 	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	log.Debugf("%v SC tx: %v", name, tx.Hash().Hex())
 	log.Debugf("%v SC addr: %v", name, addr.Hex())
-
-	return addr
+	return addr, instance
 }
 
-func createPair(factory *UniswapV2Factory.UniswapV2Factory, auth *bind.TransactOpts, client *ethclient.Client, tokenA, tokenB common.Address) *types.Transaction {
+func mintERC20(auth *bind.TransactOpts, client *ethclient.Client, erc20sc *erc20.Erc20, amount string) *types.Transaction {
+	name, err := erc20sc.Name(nil)
+	chkErr(err)
+	log.Debugf("Minting %v tokens for account %v on token %v", amount, auth.From, name)
+	mintAmount, _ := big.NewInt(0).SetString(amount, encoding.Base10)
+	tx, err := erc20sc.Mint(auth, mintAmount)
+	chkErr(err)
+	waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	return tx
+}
+
+func createPair(auth *bind.TransactOpts, client *ethclient.Client, factory *UniswapV2Factory.UniswapV2Factory, tokenA, tokenB common.Address) (*types.Transaction, common.Address) {
 	tx, err := factory.CreatePair(auth, tokenA, tokenB)
+	chkErr(err)
+	r, err := waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+
+	pair := common.Address{}
+	if r.Status == types.ReceiptStatusSuccessful {
+		pair, err = factory.GetPair(nil, tokenA, tokenB)
+		chkErr(err)
+	}
+
+	return tx, pair
+}
+
+func addLiquidity(auth *bind.TransactOpts, client *ethclient.Client, router *UniswapV2Router02.UniswapV2Router02, tokenA, tokenB common.Address, pairAddr common.Address) *types.Transaction {
+	amount, _ := big.NewInt(0).SetString("100000000000000000000", encoding.Base10)
+	tx, err := router.AddLiquidity(auth, tokenA, tokenB, amount, amount, amount, amount, pairAddr, big.NewInt(0))
 	chkErr(err)
 	waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	return tx
