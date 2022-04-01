@@ -46,6 +46,8 @@ const (
 	StaticCall
 	// Create is the creation call for a contract
 	Create
+	// Create2 is the creation call for a contract from a contract
+	Create2
 )
 
 // Runtime can process contracts

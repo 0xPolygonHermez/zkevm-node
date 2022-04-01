@@ -199,7 +199,7 @@ func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transac
 		}
 	}
 
-	result.GasUsed = cost
+	result.GasUsed = cost * 5
 
 	return result
 }
@@ -239,7 +239,7 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 	if b.isSmartContractExecution(ctx, tx) {
 		code := b.GetCode(ctx, *receiverAddress)
 		log.Debugf("smart contract execution %v", receiverAddress)
-		contract := runtime.NewContractCall(0, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
+		contract := runtime.NewContractCall(1, senderAddress, senderAddress, *receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
 		result := b.run(ctx, contract)
 		result.GasUsed = tx.Gas() - result.GasLeft
 
@@ -584,6 +584,96 @@ func (b *BasicBatchProcessor) run(ctx context.Context, contract *runtime.Contrac
 	}
 }
 
+func (b *BasicBatchProcessor) applyCreate(ctx context.Context, contract *runtime.Contract, host runtime.Host) *runtime.ExecutionResult {
+	gasLimit := contract.Gas
+	root := b.stateRoot
+
+	senderNonce, err := b.State.tree.GetNonce(ctx, contract.Caller, root)
+	if err != nil {
+		return &runtime.ExecutionResult{
+			GasLeft: 0,
+			Err:     err,
+		}
+	}
+
+	if contract.Depth > int(maxCallDepth)+1 {
+		return &runtime.ExecutionResult{
+			GasLeft: gasLimit,
+			Err:     runtime.ErrDepth,
+		}
+	}
+
+	// Check if there if there is a collision and the address already exists
+	if !b.Empty(ctx, contract.Address) {
+		return &runtime.ExecutionResult{
+			GasLeft: 0,
+			Err:     runtime.ErrContractAddressCollision,
+		}
+	}
+
+	// Increment nonce of the sender
+	senderNonce.Add(senderNonce, big.NewInt(1))
+
+	// Store new nonce
+	root, _, err = b.State.tree.SetNonce(ctx, contract.Caller, senderNonce, root)
+	if err != nil {
+		return &runtime.ExecutionResult{
+			GasLeft: 0,
+			Err:     err,
+		}
+	}
+
+	b.stateRoot = root
+
+	log.Debugf("apply create: run contract with address %v", contract.Address)
+	result := b.run(ctx, contract)
+	if result.Failed() {
+		log.Debugf("apply create failed for address %v", contract.Address)
+		return result
+	}
+	log.Debugf("apply create: run contract with address %v finished", contract.Address)
+	// Update root with the result after SC Execution
+	root = b.stateRoot
+
+	if b.forks.EIP158 && len(result.ReturnValue) > spuriousDragonMaxCodeSize {
+		// Contract size exceeds 'SpuriousDragon' size limit
+		return &runtime.ExecutionResult{
+			GasLeft: 0,
+			Err:     runtime.ErrMaxCodeSizeExceeded,
+		}
+	}
+
+	gasCost := uint64(len(result.ReturnValue)) * contractByteGasCost
+	/*
+		if result.GasLeft < gasCost {
+			result.Err = runtime.ErrCodeStoreOutOfGas
+			result.ReturnValue = nil
+
+			// Out of gas creating the contract
+			if b.forks.Homestead {
+				result.GasLeft = 0
+			}
+			return result
+		}
+	*/
+	result.GasLeft -= gasCost
+	root, _, err = b.State.tree.SetCode(ctx, contract.Address, result.ReturnValue, root)
+	if err != nil {
+		return &runtime.ExecutionResult{
+			GasLeft: gasLimit,
+			Err:     err,
+		}
+	}
+
+	result.CreateAddress = contract.Address
+	result.GasUsed = gasCost
+	b.stateRoot = root
+
+	log.Debugf("apply create finished for address %v", contract.Address)
+
+	return result
+}
+
 func (b *BasicBatchProcessor) create(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
 	root := b.stateRoot
 
@@ -755,7 +845,7 @@ func (b *BasicBatchProcessor) GetBalance(ctx context.Context, address common.Add
 func (b *BasicBatchProcessor) GetCodeSize(ctx context.Context, address common.Address) int {
 	code := b.GetCode(ctx, address)
 
-	log.Debugf("GetCodeSize for address %v", address)
+	log.Debugf("GetCodeSize for address %v, len = %v", address, len(code))
 	return len(code)
 }
 
@@ -856,6 +946,10 @@ func (b *BasicBatchProcessor) EmitLog(address common.Address, topics []common.Ha
 
 // Callx calls a SC
 func (b *BasicBatchProcessor) Callx(ctx context.Context, contract *runtime.Contract, host runtime.Host) *runtime.ExecutionResult {
+	if contract.Type == runtime.Create {
+		log.Debugf("Callx. New Contract Creation %v", contract.Address)
+		return b.applyCreate(ctx, contract, host)
+	}
 	log.Debugf("Callx to address %v", contract.CodeAddress)
 	root := b.stateRoot
 	contract2 := runtime.NewContractCall(contract.Depth+1, contract.Address, contract.Caller, contract.CodeAddress, contract.Value, contract.Gas, contract.Code, contract.Input)
