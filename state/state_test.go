@@ -20,7 +20,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/scripts/cmd/compilesc"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
@@ -76,7 +75,7 @@ func TestMain(m *testing.M) {
 	store := tree.NewPostgresStore(stateDb)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 
 	setUpBlocks()
 	setUpBatches()
@@ -460,7 +459,7 @@ func TestStateTransition(t *testing.T) {
 			stateTree := tree.NewStateTree(mt, scCodeStore)
 
 			// Create state
-			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+			st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
 			genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 			genesisBlock.ReceivedAt = time.Now()
 			genesis := state.Genesis{
@@ -605,7 +604,7 @@ func TestStateTransitionSC(t *testing.T) {
 			stateTree := tree.NewStateTree(mt, scCodeStore)
 
 			// Create state
-			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+			st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
 			genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 			genesisBlock.ReceivedAt = time.Now()
 			genesis := state.Genesis{
@@ -635,7 +634,7 @@ func TestLastSeenBatch(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -680,7 +679,7 @@ func TestReceipts(t *testing.T) {
 			stateTree := tree.NewStateTree(mt, scCodeStore)
 
 			// Create state
-			st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+			st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
 
 			genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 			genesisBlock.ReceivedAt = time.Now()
@@ -840,7 +839,7 @@ func TestLastConsolidatedBatch(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -874,7 +873,7 @@ func TestStateErrors(t *testing.T) {
 
 	// Create state
 	scCodeStore := tree.NewPostgresSCCodeStore(mtDb)
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), tree.NewStateTree(mt, scCodeStore))
 	ctx := context.Background()
 
 	// Clean Up to reset Genesis
@@ -974,7 +973,7 @@ func TestSCExecution(t *testing.T) {
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
 	// Create state
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
 
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	genesisBlock.ReceivedAt = time.Now()
@@ -1102,7 +1101,7 @@ func TestSCCall(t *testing.T) {
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
 	// Create state
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
 
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	genesisBlock.ReceivedAt = time.Now()
@@ -1238,7 +1237,7 @@ func TestGenesisStorage(t *testing.T) {
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
 	// Create state
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
 
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	genesisBlock.ReceivedAt = time.Now()
@@ -1288,7 +1287,7 @@ func TestSCSelfDestruct(t *testing.T) {
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
 	// Create state
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
 
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	genesisBlock.ReceivedAt = time.Now()
@@ -1394,7 +1393,7 @@ func TestEmitLog(t *testing.T) {
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
 	// Create state
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
 
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	genesisBlock.ReceivedAt = time.Now()
@@ -1743,7 +1742,7 @@ func TestEstimateGas(t *testing.T) {
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
 	// Create state
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
 
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	genesisBlock.ReceivedAt = time.Now()
@@ -1870,7 +1869,7 @@ func TestStorageOnDeploy(t *testing.T) {
 	stateTree := tree.NewStateTree(mt, scCodeStore)
 
 	// Create state
-	st := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDb), stateTree)
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
 
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	genesisBlock.ReceivedAt = time.Now()
