@@ -93,7 +93,23 @@ func (mt *MerkleTree) Rollback(ctx context.Context) error {
 	return mt.store.Rollback(ctx)
 }
 
-// Set method sets value of a leaf at a given location (key) in the tree
+// Set method sets value of a leaf at a given location (key) in the tree.
+//
+// The algorithm works as follows:
+// * First we iterate through the tree nodes from the root following the path
+//   associated to the given key trying to determine if it already exists in the
+//   tree.
+// * Then, depending on the result of the previous operation, the leaf node is
+//   updated/created/reset, with different actions for each of the following
+//   cases:
+//   * Update: key exists
+//   * Insert with found key: part of the branch nodes in the path are already
+//     created
+//   * Insert without found key: none of the branch nodes in the path are already
+//     created
+//   * Delete: node value is empty and path exists.
+// * Finally, the tree is traversed backwards from the leaf to the root updating
+//   or creating all the affected branch nodes (including the root itself)
 func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, value []uint64) (*UpdateProof, error) {
 	// exit early if context is cancelled
 	err := ctx.Err()
@@ -120,6 +136,8 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 	oldValue := make([]uint64, 8)
 	isOld0 := true
 
+	// in this loop we iterate through the tree nodes from the root following the
+	// path associated to the given key trying to determine if exists in the tree.
 	for (!nodeIsZero(r)) && (foundKey == nil) {
 		node, err := mt.getNodeData(ctx, r)
 		if err != nil {
@@ -147,9 +165,11 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 		accKey = accKey[:len(accKey)-1]
 	}
 
+	// now we insert the leaf taking into account different cases: update, insert
+	// with found key, insert without found key and delete.
 	if !nodeIsZero(value) {
 		if foundKey != nil {
-			if nodeIsEq(key[:], foundKey) { // Update
+			if nodeIsEq(key[:], foundKey) { // Update, key path exists
 				mode = modeUpdate
 
 				newValH, err := mt.hashSave(ctx, value[:], []uint64{0, 0, 0, 0})
@@ -170,7 +190,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 				} else {
 					newRoot = newLeafHash[:]
 				}
-			} else { // insert with foundKey
+			} else { // insert with foundKey, part of the key path already exists
 				mode = modeInsertFound
 
 				node := make([]uint64, 8)
@@ -241,7 +261,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 					newRoot = r2
 				}
 			}
-		} else { // insert without foundKey
+		} else { // insert without foundKey, key path is not present
 			mode = modeInsertNotFound
 			newKey := removeKeyBits(key[:], level+1)
 			newValH, err := mt.hashSave(ctx, value[:], []uint64{0, 0, 0, 0})
@@ -264,7 +284,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 			}
 		}
 	} else {
-		if (foundKey != nil) && nodeIsEq(key[:], foundKey) { // Delete
+		if (foundKey != nil) && nodeIsEq(key[:], foundKey) { // Delete, node value is empty and key path exists
 			if level >= 0 {
 				for j := 0; j < 4; j++ {
 					siblings[level][keys[level]*4+uint(j)] = 0
@@ -333,13 +353,15 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 				mode = modeDeleteLast
 				newRoot = make([]uint64, 4)
 			}
-		} else {
+		} else { // nothing to do, node value is empty and key path doesn't exists
 			mode = modeZeroToZero
 		}
 	}
 
 	siblings = siblings[:level+1]
 
+	// now we traverse the tree backwards from the leaf to the root updating
+	// or creating all the affected branch nodes (including the root itself).
 	for level >= 0 {
 		newRoot, err = mt.hashSave(ctx, siblings[level][:8], siblings[level][8:12])
 		if err != nil {
@@ -370,7 +392,10 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 	return &proof, nil
 }
 
-// Get method gets value at a given location in the tree
+// Get method gets value at a given location in the tree.
+//
+// The algorithm has a single step, we traverse the tree from the root following
+// the path assciated with the given key.
 func (mt *MerkleTree) Get(ctx context.Context, root, key []uint64) (*Proof, error) {
 	// exit early if context is cancelled
 	err := ctx.Err()
@@ -394,6 +419,8 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key []uint64) (*Proof, erro
 	value := make([]uint64, 8)
 	isOld0 := true
 
+	// this loops iterates the tree nodes from the root following the path
+	// associated with the given key.
 	for (!nodeIsZero(r)) && (foundKey == nil) {
 		node, err := mt.getNodeData(ctx, r)
 		if err != nil {
@@ -420,9 +447,13 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key []uint64) (*Proof, erro
 	level--
 
 	if foundKey != nil {
+		// the complete path or part of it is present in the tree.
 		if nodeIsEq(key, foundKey) {
+			// the complete path associated with the key is present, value found.
 			value = foundVal
 		} else {
+			// only part of the path is present, update partial results related to
+			// the existing path.
 			insKey = foundKey
 			insValue = foundVal
 			isOld0 = false
