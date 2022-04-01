@@ -304,11 +304,41 @@ func TestMTNodeCacheFlushesContentsOnDBTxCommit(t *testing.T) {
 	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
 	_, err := subject.Set(ctx, nil, key, value)
 	require.NoError(t, err)
+
+	require.Greater(t, len(subject.cache.data), 0)
+
 	require.NoError(t, subject.Commit(ctx))
 
 	require.Equal(t, len(subject.cache.data), 0)
 	require.False(t, subject.cache.isActive())
 
+	require.True(t, storeMock.AssertExpectations(t))
+}
+
+func TestMTNodeCacheResetsOnDBTxRollback(t *testing.T) {
+	ctx := context.Background()
+
+	storeMock := new(storeMock)
+	storeMock.On("BeginDBTransaction", ctx).Return(nil)
+	storeMock.On("Rollback", ctx).Return(nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	require.NoError(t, subject.BeginDBTransaction(ctx))
+
+	key := []uint64{1, 1, 1, 1}
+	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
+	_, err := subject.Set(ctx, nil, key, value)
+	require.NoError(t, err)
+
+	require.Greater(t, len(subject.cache.data), 0)
+
+	require.NoError(t, subject.Rollback(ctx))
+
+	require.Equal(t, len(subject.cache.data), 0)
+	require.False(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertNotCalled(t, "Set"))
 	require.True(t, storeMock.AssertExpectations(t))
 }
 
