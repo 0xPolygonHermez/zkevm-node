@@ -185,7 +185,7 @@ func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transac
 		}
 	}
 
-	result.GasUsed = cost * 5
+	result.GasUsed = cost + cost + cost + cost + cost
 
 	return result
 }

@@ -195,6 +195,7 @@ compile-scs: ## Compiles smart contracts used in tests and local deployments
 	SC_NAME=erc20 SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD)
 	SC_NAME=interaction SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD)
 	SC_NAME=storage SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD)
+	SC_NAME=storageOnDeploy SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD)
 
 	SC_NAME=weth SOLC_VERSION=0.4.18 $(COMPILE_CMD) && $(GENERATE_CMD)
 

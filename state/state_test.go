@@ -1851,7 +1851,7 @@ func TestStorageOnDeploy(t *testing.T) {
 	var sequencerBalance = 80000000
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
 	var expectedStoredValue = common.BigToHash(new(big.Int).SetInt64(1234))
-	scByteCode, err := compilesc.ReadBytecode("storageOnDeploy.sol")
+	scByteCode, err := testutils.ReadBytecode("storageOnDeploy.sol")
 	require.NoError(t, err)
 
 	// Init database instance
@@ -1940,6 +1940,6 @@ func TestStorageOnDeploy(t *testing.T) {
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
-	value := bp.GetStorage(ctx, scAddress, common.BigToHash(new(big.Int).SetInt64(0)))
+	value := bp.Host.GetStorage(ctx, scAddress, common.BigToHash(new(big.Int).SetInt64(0)))
 	assert.Equal(t, expectedStoredValue, value)
 }
