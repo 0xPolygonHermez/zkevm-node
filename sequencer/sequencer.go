@@ -188,34 +188,6 @@ type selectTxsRes struct {
 }
 
 func (s *Sequencer) selectTxs(txs []pool.Transaction, root []byte) (selectTxsRes, bool) {
-	//lastVirtualBatch, err := s.State.GetLastBatch(s.ctx, true)
-	//if err != nil {
-	//	log.Errorf("failed to get last batch from the state, err: %v", err)
-	//	return selectTxsRes{}, false
-	//}
-	//lastVirtualBatchNumber := lastVirtualBatch.Header.Number.Uint64()
-	//batchNumber := s.lastSentBatchNumber + 1
-	//// init batch processor
-	//if root == nil || lastVirtualBatchNumber == s.lastSentBatchNumber {
-	//	root = lastVirtualBatch.Header.Root[:]
-	//	batchNumber = lastVirtualBatch.Number().Uint64() + 1
-	//}
-	//if lastVirtualBatchNumber > s.lastSentBatchNumber {
-	//	_, err := s.State.GetBatchByStateRoot(s.ctx, root)
-	//	if err == pgx.ErrNoRows {
-	//		if s.cfg.InitBatchProcessorIfDiffType == InitBatchProcessorIfDiffTypeSynced {
-	//			root = lastVirtualBatch.Header.Root[:]
-	//			batchNumber = lastVirtualBatch.Number().Uint64() + 1
-	//		}
-	//	}
-	//	if err != nil {
-	//		log.Errorf("failed to get batch from the state by root, err: %v", err)
-	//		return selectTxsRes{}, false
-	//	}
-	//	root = lastVirtualBatch.Header.Root[:]
-	//	batchNumber = lastVirtualBatch.Number().Uint64() + 1
-	//}
-	//bp, err := s.State.NewBatchProcessor(s.ctx, s.Address, lastVirtualBatch.Header.Root[:])
 	root, batchNumber, err := s.getRoot(root)
 	if err != nil {
 		return selectTxsRes{}, false
