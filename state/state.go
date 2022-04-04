@@ -82,7 +82,7 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 		chainID = sq.ChainID.Uint64()
 	}
 
-	lastBatch, err := s.GetBatchByStateRoot(ctx, stateRoot)
+	lastBatch, err := s.GetLastBatchByStateRoot(ctx, stateRoot)
 	if err != ErrNotFound && err != nil {
 		return nil, err
 	}
