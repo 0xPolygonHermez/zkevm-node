@@ -435,7 +435,7 @@ func TestSequencerGetRoot(t *testing.T) {
 	require.NoError(t, err)
 	batch, err := testState.GetLastBatch(ctx, true)
 	require.NoError(t, err)
-	root, batchNumber, err := seq.getRoot(nil)
+	root, batchNumber, err := seq.chooseRoot(nil)
 	require.NoError(t, err)
 	require.Equal(t, batch.Header.Root[:], root)
 	require.Equal(t, uint64(1), batchNumber)
@@ -454,7 +454,7 @@ func TestSequencerGetRootNoPrevRootExistingSynced(t *testing.T) {
 	batch, err := testState.GetLastBatch(ctx, true)
 	require.NoError(t, err)
 
-	root, batchNumber, err := seq.getRoot(prevRoot)
+	root, batchNumber, err := seq.chooseRoot(prevRoot)
 	require.NoError(t, err)
 	require.Equal(t, batch.Header.Root[:], root)
 	require.Equal(t, uint64(1), batchNumber)
@@ -473,7 +473,7 @@ func TestSequencerGetRootNoPrevRootSynced(t *testing.T) {
 
 	prevRoot := common.Hex2Bytes("0xa116e19a7984f21055d07b606c55628a5ffbf8ae1261c1e9f4e3a61620cf810a")
 
-	root, batchNumber, err := seq.getRoot(prevRoot)
+	root, batchNumber, err := seq.chooseRoot(prevRoot)
 	require.NoError(t, err)
 	require.Equal(t, prevRoot, root)
 	require.Equal(t, uint64(1), batchNumber)

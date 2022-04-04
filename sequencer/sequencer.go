@@ -188,7 +188,7 @@ type selectTxsRes struct {
 }
 
 func (s *Sequencer) selectTxs(txs []pool.Transaction, root []byte) (selectTxsRes, bool) {
-	root, batchNumber, err := s.getRoot(root)
+	root, batchNumber, err := s.chooseRoot(root)
 	if err != nil {
 		return selectTxsRes{}, false
 	}
@@ -217,8 +217,8 @@ func (s *Sequencer) selectTxs(txs []pool.Transaction, root []byte) (selectTxsRes
 	}, true
 }
 
-// getRoot the sequencer is deciding how to instantiate the batch processor
-func (s *Sequencer) getRoot(prevRoot []byte) ([]byte, uint64, error) {
+// chooseRoot the sequencer is deciding how to instantiate the batch processor
+func (s *Sequencer) chooseRoot(prevRoot []byte) ([]byte, uint64, error) {
 	lastVirtualBatch, err := s.State.GetLastBatch(s.ctx, true)
 	if err != nil {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
