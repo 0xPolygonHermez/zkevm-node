@@ -47,6 +47,8 @@ type Config struct {
 	// Strategy is the configuration for the strategy
 	Strategy strategy.Strategy `mapstructure:"Strategy"`
 
+	// InitBatchProcessorIfDiffType is for the case, when last synchronized batch num more than latest sent batch
+	// If "synced" init bp by synced batch, if "calculated" init by previous calculated root
 	InitBatchProcessorIfDiffType InitBatchProcessorIfDiffType `mapstructure:"InitBatchProcessorIfDiffType"`
 	// AllowNonRegistered determines if the sequencer will run using the default
 	// chain ID
