@@ -237,7 +237,7 @@ func (s *Sequencer) chooseRoot(prevRoot []byte) ([]byte, uint64, error) {
 		// in this case sequencer is trying to get batch by root
 		// if root exist, it means sequencer can use root from the synced batch
 		// if not exist, than batch processor initialization should be decided by param from the config
-		_, err := s.State.GetBatchByStateRoot(s.ctx, prevRoot)
+		_, err := s.State.GetLastBatchByStateRoot(s.ctx, prevRoot)
 		if err != nil {
 			if errors.Is(err, state.ErrNotFound) {
 				if s.cfg.InitBatchProcessorIfDiffType == InitBatchProcessorIfDiffTypeSynced {

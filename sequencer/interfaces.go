@@ -40,6 +40,6 @@ type stateInterface interface {
 	GetSequencer(ctx context.Context, address common.Address) (*state.Sequencer, error)
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
-	GetBatchByStateRoot(ctx context.Context, stateRoot []byte) (*state.Batch, error)
+	GetLastBatchByStateRoot(ctx context.Context, stateRoot []byte) (*state.Batch, error)
 	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*state.BasicBatchProcessor, error)
 }
