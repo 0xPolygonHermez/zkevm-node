@@ -136,7 +136,14 @@ func (arg *txnArgs) ToTransaction() *types.Transaction {
 		data = *arg.Data
 	}
 
-	tx := types.NewTransaction(nonce, *arg.To, value, gas, gasPrice, data)
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		To:       arg.To,
+		Value:    value,
+		Gas:      gas,
+		GasPrice: gasPrice,
+		Data:     data,
+	})
 
 	return tx
 }
