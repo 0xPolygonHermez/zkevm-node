@@ -303,10 +303,10 @@ func TestSequencerSelectTxs(t *testing.T) {
 
 	txs, err := pl.GetPendingTxs(ctx, 0)
 	require.NoError(t, err)
-	selTxs, selTxsHashes, ok := seq.selectTxs(txs)
+	selTxsRes, ok := seq.selectTxs(txs, nil)
 	require.True(t, ok)
-	require.Equal(t, 4, len(selTxs))
-	require.Equal(t, 4, len(selTxsHashes))
+	require.Equal(t, 4, len(selTxsRes.selectedTxs))
+	require.Equal(t, 4, len(selTxsRes.selectedTxsHashes))
 }
 
 func TestSequencerSelectTxsInvTxs(t *testing.T) {
@@ -339,10 +339,10 @@ func TestSequencerSelectTxsInvTxs(t *testing.T) {
 
 	txs, err := pl.GetPendingTxs(ctx, 0)
 	require.NoError(t, err)
-	selTxs, selTxsHashes, ok := seq.selectTxs(txs)
+	selTxsRes, ok := seq.selectTxs(txs, nil)
 	require.True(t, ok)
-	require.Equal(t, 4, len(selTxs))
-	require.Equal(t, 4, len(selTxsHashes))
+	require.Equal(t, 4, len(selTxsRes.selectedTxs))
+	require.Equal(t, 4, len(selTxsRes.selectedTxsHashes))
 
 	rows, err := stateDB.Query(ctx, "SELECT state FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
 
@@ -373,10 +373,10 @@ func TestSequencerSendBatchEthereum(t *testing.T) {
 
 	txs, err := pl.GetPendingTxs(ctx, 0)
 	require.NoError(t, err)
-	selTxs, selTxsHashes, ok := seq.selectTxs(txs)
+	selTxsRes, ok := seq.selectTxs(txs, nil)
 	require.True(t, ok)
-	require.Equal(t, 4, len(selTxs))
-	require.Equal(t, 4, len(selTxsHashes))
+	require.Equal(t, 4, len(selTxsRes.selectedTxs))
+	require.Equal(t, 4, len(selTxsRes.selectedTxsHashes))
 
 	aggrReward := big.NewInt(1)
 	eth.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
@@ -384,9 +384,9 @@ func TestSequencerSendBatchEthereum(t *testing.T) {
 
 	tx := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(5), uint64(21000), big.NewInt(10), []byte{})
 
-	eth.On("SendBatch", seq.ctx, selTxs, aggrReward).Return(tx, nil)
+	eth.On("SendBatch", seq.ctx, selTxsRes.selectedTxs, aggrReward).Return(tx, nil)
 
-	cuttedTxs, cuttedTxsHash, ok := seq.sendBatchToEthereum(selTxs, selTxsHashes)
+	cuttedTxs, cuttedTxsHash, ok := seq.sendBatchToEthereum(selTxsRes.selectedTxs, selTxsRes.selectedTxsHashes, selTxsRes.batchNumber)
 	require.True(t, ok)
 	require.Nil(t, cuttedTxs)
 	require.Nil(t, cuttedTxsHash)
@@ -411,19 +411,72 @@ func TestSequencerSendBatchEthereumCut(t *testing.T) {
 
 	txs, err := pl.GetPendingTxs(ctx, 0)
 	require.NoError(t, err)
-	selTxs, selTxsHashes, ok := seq.selectTxs(txs)
+	selTxsRes, ok := seq.selectTxs(txs, nil)
 	require.True(t, ok)
-	require.Equal(t, 4, len(selTxs))
-	require.Equal(t, 4, len(selTxsHashes))
+	require.Equal(t, 4, len(selTxsRes.selectedTxs))
+	require.Equal(t, 4, len(selTxsRes.selectedTxsHashes))
 	aggrReward := big.NewInt(1)
 	eth.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
 	eth.On("GetCurrentSequencerCollateral").Return(aggrReward, nil)
-	eth.On("SendBatch", seq.ctx, selTxs, aggrReward).Return(nil, errors.New("gas required exceeds allowance"))
+	eth.On("SendBatch", seq.ctx, selTxsRes.selectedTxs, aggrReward).Return(nil, errors.New("gas required exceeds allowance"))
 
-	cutTxs, cutTxsHash, ok := seq.sendBatchToEthereum(selTxs, selTxsHashes)
+	cutTxs, cutTxsHash, ok := seq.sendBatchToEthereum(selTxsRes.selectedTxs, selTxsRes.selectedTxsHashes, selTxsRes.batchNumber)
 	require.False(t, ok)
 	require.Equal(t, 3, len(cutTxs))
 	require.Equal(t, 3, len(cutTxsHash))
+}
+
+func TestSequencerGetRoot(t *testing.T) {
+	eth := new(ethermanMock)
+	ctx := context.Background()
+	eth.On("GetAddress").Return(addr)
+
+	seq, err := NewSequencer(seqCfg, pl, testState, eth)
+	require.NoError(t, err)
+	batch, err := testState.GetLastBatch(ctx, true)
+	require.NoError(t, err)
+	root, batchNumber, err := seq.getRoot(nil)
+	require.NoError(t, err)
+	require.Equal(t, batch.Header.Root[:], root)
+	require.Equal(t, uint64(1), batchNumber)
+}
+
+func TestSequencerGetRootNoPrevRootExistingSynced(t *testing.T) {
+	eth := new(ethermanMock)
+	ctx := context.Background()
+	eth.On("GetAddress").Return(addr)
+
+	seq, err := NewSequencer(seqCfg, pl, testState, eth)
+	require.NoError(t, err)
+
+	prevRoot := common.Hex2Bytes("0xa116e19a7984f21055d07b606c55628a5ffbf8ae1261c1e9f4e3a61620cf810a")
+
+	batch, err := testState.GetLastBatch(ctx, true)
+	require.NoError(t, err)
+
+	root, batchNumber, err := seq.getRoot(prevRoot)
+	require.NoError(t, err)
+	require.Equal(t, batch.Header.Root[:], root)
+	require.Equal(t, uint64(1), batchNumber)
+}
+
+func TestSequencerGetRootNoPrevRootSynced(t *testing.T) {
+	eth := new(ethermanMock)
+	ctx := context.Background()
+	eth.On("GetAddress").Return(addr)
+
+	seq, err := NewSequencer(seqCfg, pl, testState, eth)
+	seq.cfg.InitBatchProcessorIfDiffType = InitBatchProcessorIfDiffTypeCalculated
+	setUpBlock(ctx, t)
+	setUpBatch(ctx, t)
+	require.NoError(t, err)
+
+	prevRoot := common.Hex2Bytes("0xa116e19a7984f21055d07b606c55628a5ffbf8ae1261c1e9f4e3a61620cf810a")
+
+	root, batchNumber, err := seq.getRoot(prevRoot)
+	require.NoError(t, err)
+	require.Equal(t, prevRoot, root)
+	require.Equal(t, uint64(1), batchNumber)
 }
 
 func setTxsToPendingState(ctx context.Context, t *testing.T) {

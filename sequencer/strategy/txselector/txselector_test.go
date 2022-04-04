@@ -35,7 +35,7 @@ func TestBase_SelectTxs(t *testing.T) {
 	bp.On("ProcessTransaction", ctx, tx3, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidSig})
 	bp.On("ProcessTransaction", ctx, tx4, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrNonceIsBiggerThanAccountNonce})
 
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, _, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
 	bp.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(selectedTxs))
@@ -64,7 +64,7 @@ func TestBase_SelectTxs_ExceededGasLimit(t *testing.T) {
 	bp.On("ProcessTransaction", ctx, tx3, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidCumulativeGas})
 	bp.AssertNotCalled(t, "ProcessTransaction", tx4, seqAddress)
 
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, _, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
 	bp.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(selectedTxs))
@@ -86,7 +86,7 @@ func TestAcceptAll_SelectTxs(t *testing.T) {
 
 	ctx := context.Background()
 
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, _, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
 	bp.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(selectedTxs))
