@@ -19,4 +19,7 @@ type Config struct {
 
 	// EnableLog
 	EnableLog bool `mapstructure:"EnableLog"`
+
+	// MaxConns is the maximum number of connections in the pool.
+	MaxConns int `mapstructure:"MaxConns"`
 }

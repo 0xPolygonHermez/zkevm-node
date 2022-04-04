@@ -9,6 +9,7 @@ Name = "test_db"
 Host = "hez-postgres"
 Port = "5432"
 EnableLog = false
+MaxConns = 10
 
 [Etherman]
 URL = "http://hez-network:8545"

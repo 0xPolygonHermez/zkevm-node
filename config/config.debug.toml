@@ -9,6 +9,7 @@ Name = "test_db"
 Host = "localhost"
 Port = "5432"
 EnableLog = true
+MaxConns = 10
 
 [Etherman]
 URL = "http://localhost:8545"

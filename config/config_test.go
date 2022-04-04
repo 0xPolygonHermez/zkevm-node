@@ -54,6 +54,10 @@ func Test_Defaults(t *testing.T) {
 			path:          "MTClient.URI",
 			expectedValue: "127.0.0.1:50052",
 		},
+		{
+			path:          "Database.MaxConns",
+			expectedValue: 10,
+		},
 	}
 
 	ctx := cli.NewContext(cli.NewApp(), flag.NewFlagSet("", flag.PanicOnError), nil)
