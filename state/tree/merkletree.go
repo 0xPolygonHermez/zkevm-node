@@ -77,6 +77,11 @@ func NewMerkleTree(store Store, arity uint8, hashFunction HashFunction) *MerkleT
 	}
 }
 
+// SupportsDBTransactions indicates whether the store implementation supports DB transactions
+func (mt *MerkleTree) SupportsDBTransactions() bool {
+	return mt.store.SupportsDBTransactions()
+}
+
 // BeginDBTransaction starts a transaction block
 func (mt *MerkleTree) BeginDBTransaction(ctx context.Context) error {
 	return mt.store.BeginDBTransaction(ctx)

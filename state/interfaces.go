@@ -14,6 +14,7 @@ import (
 
 // merkletree contains the methods required to interact with the Merkle tree.
 type merkletree interface {
+	SupportsDBTransactions() bool
 	BeginDBTransaction(ctx context.Context) error
 	Commit(ctx context.Context) error
 	Rollback(ctx context.Context) error
