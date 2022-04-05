@@ -22,7 +22,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -138,7 +137,7 @@ func TestMain(m *testing.M) {
 	store := tree.NewPostgresStore(stateDB)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDB)
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
 
 	intervalToProposeBatch := new(Duration)
 	_ = intervalToProposeBatch.UnmarshalText([]byte("5s"))

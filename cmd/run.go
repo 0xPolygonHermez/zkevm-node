@@ -26,7 +26,6 @@ import (
 	proverclientpb "github.com/hermeznetwork/hermez-core/proverclient/pb"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
@@ -77,7 +76,7 @@ func start(ctx *cli.Context) error {
 		L2GlobalExitRootManagerPosition: c.NetworkConfig.L2GlobalExitRootManagerPosition,
 	}
 
-	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
+	stateDb := state.NewPostgresStorage(sqlDB)
 
 	var (
 		st              *state.State

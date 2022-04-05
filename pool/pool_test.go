@@ -22,7 +22,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/pool/pgpoolstorage"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -435,7 +434,7 @@ func newState(sqlDB *pgxpool.Pool) *state.State {
 		MaxCumulativeGasUsed: 800000,
 	}
 
-	stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
+	stateDB := state.NewPostgresStorage(sqlDB)
 	st := state.NewState(stateCfg, stateDB, tr)
 
 	return st

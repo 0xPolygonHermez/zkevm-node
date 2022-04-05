@@ -21,7 +21,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
@@ -276,7 +275,7 @@ func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) 
 		MaxCumulativeGasUsed: maxCumulativeGasUsed,
 	}
 
-	stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
+	stateDB := state.NewPostgresStorage(sqlDB)
 	return state.NewState(stateCfg, stateDB, tr), nil
 }
 
