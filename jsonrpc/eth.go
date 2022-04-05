@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -163,6 +164,22 @@ func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, error)
 // GetBlockByNumber returns information about a block by block number
 func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, error) {
 	ctx := context.Background()
+
+	if number == PendingBlockNumber {
+		lastBatch, err := e.state.GetLastBatch(context.Background(), true)
+		if err != nil {
+			return nil, err
+		}
+		header := &types.Header{
+			ParentHash: lastBatch.Hash(),
+			Number:     big.NewInt(0).SetUint64(lastBatch.Number().Uint64() + 1),
+			Difficulty: big.NewInt(0),
+		}
+		batch := &state.Batch{Header: header}
+		block := batchToRPCBlock(batch, fullTx)
+
+		return block, nil
+	}
 
 	batchNumber, err := e.getNumericBlockNumber(ctx, number)
 	if err != nil {
@@ -434,10 +451,23 @@ func (e *Eth) getBatchHeader(number BlockNumber) (*types.Header, error) {
 		return batch.Header, nil
 
 	case EarliestBlockNumber:
-		return e.state.GetBatchHeader(context.Background(), uint64(0))
+		batch, err := e.state.GetBatchByNumber(context.Background(), 0)
+		if err != nil {
+			return nil, err
+		}
+		return batch.Header, nil
 
 	case PendingBlockNumber:
-		return nil, fmt.Errorf("fetching the pending header is not supported")
+		lastBatch, err := e.state.GetLastBatch(context.Background(), true)
+		if err != nil {
+			return nil, err
+		}
+		header := &types.Header{
+			ParentHash: lastBatch.Hash(),
+			Number:     big.NewInt(0).SetUint64(lastBatch.Number().Uint64() + 1),
+			Difficulty: big.NewInt(0),
+		}
+		return header, nil
 
 	default:
 		return e.state.GetBatchHeader(context.Background(), uint64(number))
