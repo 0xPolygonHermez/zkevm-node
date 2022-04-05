@@ -23,6 +23,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/pool/pgpoolstorage"
 	"github.com/hermeznetwork/hermez-core/proverclient"
+	proverclientpb "github.com/hermeznetwork/hermez-core/proverclient/pb"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
@@ -153,7 +154,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman, nil
 }
 
-func newProverClient(c proverclient.Config) (proverclient.ZKProverServiceClient, *grpc.ClientConn) {
+func newProverClient(c proverclient.Config) (proverclientpb.ZKProverServiceClient, *grpc.ClientConn) {
 	opts := []grpc.DialOption{
 		// TODO: once we have user and password for prover server, change this
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -163,7 +164,7 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverServiceClient,
 		log.Fatalf("fail to dial: %v", err)
 	}
 
-	proverClient := proverclient.NewZKProverServiceClient(proverConn)
+	proverClient := proverclientpb.NewZKProverServiceClient(proverConn)
 	return proverClient, proverConn
 }
 
@@ -224,7 +225,7 @@ func createSequencer(c sequencer.Config, etherman *etherman.Client, pool *pool.P
 	return seq
 }
 
-func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient proverclient.ZKProverServiceClient, state *state.State) {
+func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient proverclientpb.ZKProverServiceClient, state *state.State) {
 	agg, err := aggregator.NewAggregator(c, state, etherman, proverclient)
 	if err != nil {
 		log.Fatal(err)
