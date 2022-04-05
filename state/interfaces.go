@@ -22,7 +22,7 @@ type merkletree interface {
 	GetNonce(ctx context.Context, address common.Address, root []byte) (*big.Int, error)
 	GetCode(ctx context.Context, address common.Address, root []byte) ([]byte, error)
 	GetCodeHash(ctx context.Context, address common.Address, root []byte) ([]byte, error)
-	GetStorageAt(ctx context.Context, address common.Address, position common.Hash, root []byte) (*big.Int, error)
+	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root []byte) (*big.Int, error)
 
 	SetBalance(ctx context.Context, address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
 	SetNonce(ctx context.Context, address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)

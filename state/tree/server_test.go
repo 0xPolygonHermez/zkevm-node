@@ -3,9 +3,12 @@ package tree_test
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
+	"path"
+	"runtime"
 	"testing"
 	"time"
 
@@ -36,6 +39,17 @@ var (
 	cancel  context.CancelFunc
 	err     error
 )
+
+func init() {
+	// Change dir to project root
+	// This is important because we have relative paths to files containing test vectors
+	_, filename, _, _ := runtime.Caller(0)
+	dir := path.Join(path.Dir(filename), "../../")
+	err := os.Chdir(dir)
+	if err != nil {
+		panic(err)
+	}
+}
 
 func TestMain(m *testing.M) {
 	initialize()
@@ -85,7 +99,7 @@ func initStree() (*tree.StateTree, error) {
 		return nil, err
 	}
 	store := tree.NewPostgresStore(stateDb)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
 
 	stree := tree.NewStateTree(mt, scCodeStore)
@@ -186,15 +200,25 @@ func Test_MTServer_GetCode(t *testing.T) {
 }
 
 func Test_MTServer_GetCodeHash(t *testing.T) {
+	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-raw.json")
+	require.NoError(t, err)
+
+	var testVectors []struct {
+		Bytecode     string
+		ExpectedHash string
+	}
+	err = json.Unmarshal(data, &testVectors)
+	require.NoError(t, err)
+
 	require.NoError(t, dbutils.InitOrReset(dbutils.NewConfigFromEnv()))
 	stree, err := initStree()
 	require.NoError(t, err)
 
-	code, err := hex.DecodeString("dead")
+	code, err := hex.DecodeString(testVectors[0].Bytecode)
 	require.NoError(t, err)
 	ctx := context.Background()
-	// code hash from test vectors
-	expectedHash := "0244ec1a137a24c92404de9f9c39907be151026a4eb7f9cfea60a5740e8a73b7"
+
+	expectedHash := testVectors[0].ExpectedHash
 	root, _, err := stree.SetCode(ctx, common.HexToAddress(ethAddress), code, nil)
 	require.NoError(t, err)
 
@@ -242,7 +266,7 @@ func Test_MTServer_ReverseHash(t *testing.T) {
 	root, _, err := stree.SetBalance(ctx, common.HexToAddress(ethAddress), expectedBalance, nil)
 	require.NoError(t, err)
 
-	key, err := tree.GetKey(tree.LeafTypeBalance, common.HexToAddress(ethAddress), nil, tree.DefaultMerkleTreeArity, nil)
+	key, err := tree.KeyEthAddrBalance(common.HexToAddress(ethAddress))
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
@@ -356,7 +380,7 @@ func Test_MTServer_SetStorageAt(t *testing.T) {
 	newRoot, err := hex.DecodeString(resp.NewRoot)
 	require.NoError(t, err)
 
-	actualStorageAt, err := stree.GetStorageAt(ctx, common.HexToAddress(ethAddress), common.BigToHash(positionBI), newRoot)
+	actualStorageAt, err := stree.GetStorageAt(ctx, common.HexToAddress(ethAddress), positionBI, newRoot)
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedValue.String(), actualStorageAt.String(), "Did not set the expected storage at")

@@ -39,3 +39,4 @@ jobs:
         branch: update-external-dependencies
         base: develop
         author: int-bot <int-bot@users.noreply.github.com>
+        committer: int-bot <int-bot@users.noreply.github.com>

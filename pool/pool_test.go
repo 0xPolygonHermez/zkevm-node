@@ -25,7 +25,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -427,7 +426,7 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 
 func newState(sqlDB *pgxpool.Pool) *state.State {
 	store := tree.NewPostgresStore(sqlDB)
-	mt := tree.NewMerkleTree(store, 4, poseidon.Hash)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
 	tr := tree.NewStateTree(mt, scCodeStore)
 

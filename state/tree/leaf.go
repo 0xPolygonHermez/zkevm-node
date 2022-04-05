@@ -1,15 +1,15 @@
 package tree
 
-// LeafType specifies type of the leaf
-type LeafType uint8
+// leafType specifies type of the leaf
+type leafType uint8
 
 const (
-	// LeafTypeBalance specifies that leaf stores Balance
-	LeafTypeBalance LeafType = 0
-	// LeafTypeNonce specifies that leaf stores Nonce
-	LeafTypeNonce LeafType = 1
-	// LeafTypeCode specifies that leaf stores Code
-	LeafTypeCode LeafType = 2
-	// LeafTypeStorage specifies that leaf stores Storage Value
-	LeafTypeStorage LeafType = 3
+	// leafTypeBalance specifies that leaf stores Balance
+	leafTypeBalance leafType = 0
+	// leafTypeNonce specifies that leaf stores Nonce
+	leafTypeNonce leafType = 1
+	// leafTypeCode specifies that leaf stores Code
+	leafTypeCode leafType = 2
+	// leafTypeStorage specifies that leaf stores Storage Value
+	leafTypeStorage leafType = 3
 )

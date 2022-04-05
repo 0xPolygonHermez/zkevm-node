@@ -29,7 +29,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
@@ -67,7 +66,7 @@ func start(ctx *cli.Context) error {
 		return err
 	}
 
-	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity, poseidon.Hash)
+	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity)
 	tr := tree.NewStateTree(mt, scCodeStore)
 
 	stateCfg := state.Config{
