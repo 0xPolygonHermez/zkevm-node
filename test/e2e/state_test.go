@@ -27,7 +27,8 @@ func TestStateTransition(t *testing.T) {
 		require.NoError(t, operations.Teardown())
 	}()
 
-	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/src/test-vector-data/state-transition.json")
+	// Load test vectors
+	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/src/state-transition/no-data/general.json")
 	require.NoError(t, err)
 
 	for _, testCase := range testCases {

@@ -146,7 +146,7 @@ func (s *Server) GetStorageAt(ctx context.Context, in *pb.GetStorageAtRequest) (
 	}
 
 	positionBI := new(big.Int).SetUint64(in.Position)
-	value, err := s.stree.GetStorageAt(ctx, common.HexToAddress(in.EthAddress), common.BigToHash(positionBI), root)
+	value, err := s.stree.GetStorageAt(ctx, common.HexToAddress(in.EthAddress), positionBI, root)
 	if err != nil {
 		return nil, err
 	}

@@ -25,7 +25,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 const (
@@ -268,7 +267,7 @@ func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) 
 	}
 
 	store := tree.NewPostgresStore(sqlDB)
-	mt := tree.NewMerkleTree(store, arity, poseidon.Hash)
+	mt := tree.NewMerkleTree(store, arity)
 	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
 	tr := tree.NewStateTree(mt, scCodeStore)
 

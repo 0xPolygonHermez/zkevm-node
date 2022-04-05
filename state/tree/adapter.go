@@ -111,11 +111,11 @@ func (m *Adapter) GetCodeHash(ctx context.Context, address common.Address, root 
 }
 
 // GetStorageAt returns Storage Value at specified position.
-func (m *Adapter) GetStorageAt(ctx context.Context, address common.Address, position common.Hash, root []byte) (*big.Int, error) {
+func (m *Adapter) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root []byte) (*big.Int, error) {
 	result, err := m.grpcClient.GetStorageAt(ctx, &pb.GetStorageAtRequest{
 		EthAddress: address.String(),
 		Root:       hex.EncodeToString(root),
-		Position:   position.Big().Uint64(),
+		Position:   position.Uint64(),
 	})
 	if err != nil {
 		return nil, err
