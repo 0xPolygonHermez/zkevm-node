@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/hermeznetwork/hermez-core/hex"
 	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
@@ -67,6 +68,18 @@ func h4ToString(h4 []uint64) string {
 	sc := h4ToScalar(h4)
 
 	return fmt.Sprintf("0x%064s", hex.EncodeToString(sc.Bytes()))
+}
+
+// stringToh4 converts an hex string into array of 4 Scalars of 64 bits.
+func stringToh4(str string) ([]uint64, error) {
+	str = strings.TrimLeft(str, "0x")
+
+	bi, ok := new(big.Int).SetString(str, 16)
+	if !ok {
+		return nil, fmt.Errorf("Could not convert %q into big int", str)
+	}
+
+	return scalarToh4(bi), nil
 }
 
 // scalarToh4 converts a *big.Int into an array of 4 uint64

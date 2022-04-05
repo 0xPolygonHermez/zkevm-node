@@ -3,6 +3,7 @@ package tree
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -30,6 +31,7 @@ type MerkleTree struct {
 	hashFunction   HashFunction
 	scHashFunction scHashFunction
 	arity          uint8
+	cache          *nodeCache
 }
 
 // UpdateProof is a proof generated on Set operation
@@ -56,40 +58,50 @@ type Proof struct {
 	InsValue []uint64
 }
 
-// HashFunction is a function interface type to specify hash function that MT should use
+// HashFunction is a function interface type to specify hash function that MT should use.
 type HashFunction func(inp [poseidon.NROUNDSF]uint64, cap [poseidon.CAPLEN]uint64) ([poseidon.CAPLEN]uint64, error)
 
 type scHashFunction func(code []byte) ([]uint64, error)
 
-// NewMerkleTree creates new MerkleTree instance
+// NewMerkleTree creates new MerkleTree instance.
 func NewMerkleTree(store Store, arity uint8) *MerkleTree {
-	scHashFunction := hashContractBytecode
-
 	return &MerkleTree{
 		store:          store,
 		arity:          arity,
 		hashFunction:   poseidon.Hash,
-		scHashFunction: scHashFunction,
+		scHashFunction: hashContractBytecode,
+		cache:          newNodeCache(),
 	}
 }
 
-// SupportsDBTransactions indicates whether the store implementation supports DB transactions
+// SupportsDBTransactions indicates whether the store implementation supports DB transactions.
 func (mt *MerkleTree) SupportsDBTransactions() bool {
 	return mt.store.SupportsDBTransactions()
 }
 
 // BeginDBTransaction starts a transaction block
 func (mt *MerkleTree) BeginDBTransaction(ctx context.Context) error {
+	mt.cache.init()
+
 	return mt.store.BeginDBTransaction(ctx)
 }
 
 // Commit commits a db transaction
 func (mt *MerkleTree) Commit(ctx context.Context) error {
+	defer mt.cache.teardown()
+
+	err := mt.writeCacheContents(ctx)
+	if err != nil {
+		return err
+	}
+
 	return mt.store.Commit(ctx)
 }
 
 // Rollback rollbacks a db transaction
 func (mt *MerkleTree) Rollback(ctx context.Context) error {
+	mt.cache.teardown()
+
 	return mt.store.Rollback(ctx)
 }
 
@@ -519,22 +531,48 @@ func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []uint64, cap []uin
 }
 
 func (mt *MerkleTree) setNodeData(ctx context.Context, key []uint64, data []uint64) error {
-	var dataByte []byte
-	for i := 0; i < len(data); i++ {
-		e := fmt.Sprintf("%016s", strconv.FormatUint(data[i], 16))
-		eByte, err := hex.DecodeHex(e)
-		if err != nil {
-			return err
-		}
-		dataByte = append(dataByte, eByte...)
+	if !mt.cache.isActive() {
+		return mt.setStoreNodeData(ctx, key, data)
 	}
+	err := mt.cache.set(key, data)
+	if err != nil {
+		log.Errorf("Error setting data in MT node cache: %v", err)
+	}
+	return nil
+}
+
+func (mt *MerkleTree) setStoreNodeData(ctx context.Context, key []uint64, data []uint64) error {
+	dataByte, err := uint64ToByte(data)
+	if err != nil {
+		return err
+	}
+
 	return mt.store.Set(ctx, h4ToScalar(key).Bytes(), dataByte)
 }
 
 func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64) ([]uint64, error) {
-	dataByte, err := mt.store.Get(ctx, h4ToScalar(key).Bytes())
-	if err != nil {
-		return nil, err
+	var (
+		dataByte []byte
+		err      error
+	)
+	if mt.cache.isActive() {
+		cachedData, err := mt.cache.get(key)
+		if err != nil && !errors.Is(err, errMTNodeCacheItemNotFound) {
+			log.Errorf("Error getting data from MT node cache: %v", err)
+		}
+		if cachedData != nil {
+			dataByte, err = uint64ToByte(cachedData)
+			if err != nil {
+				log.Errorf("Error decoding MT node cache data: %v", err)
+			}
+		}
+	}
+	if len(dataByte) == 0 {
+		log.Debugf("about to call store.Get...")
+		dataByte, err = mt.store.Get(ctx, h4ToScalar(key).Bytes())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	res := make([]uint64, 12)
@@ -600,4 +638,32 @@ func removeKeyBits(key []uint64, nBits int) []uint64 {
 		auxk[i] = auxk[i] >> n
 	}
 	return auxk[:]
+}
+
+// writeCacheContents writes the contents of the cache to the data store.
+func (mt *MerkleTree) writeCacheContents(ctx context.Context) error {
+	for k, v := range mt.cache.data {
+		key, err := stringToh4(k)
+		if err != nil {
+			return err
+		}
+		err = mt.setStoreNodeData(ctx, key, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func uint64ToByte(data []uint64) ([]byte, error) {
+	var dataByte []byte
+	for i := 0; i < len(data); i++ {
+		e := fmt.Sprintf("%016s", strconv.FormatUint(data[i], 16))
+		eByte, err := hex.DecodeHex(e)
+		if err != nil {
+			return nil, err
+		}
+		dataByte = append(dataByte, eByte...)
+	}
+	return dataByte, nil
 }

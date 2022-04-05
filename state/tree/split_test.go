@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -175,6 +176,50 @@ func Test_fea2scalar(t *testing.T) {
 			actual := scalar2fea(res)
 
 			require.Equal(t, tc.input, actual)
+		})
+	}
+}
+
+func Test_stringToh4(t *testing.T) {
+	tcs := []struct {
+		description    string
+		input          string
+		expected       []uint64
+		expectedErr    bool
+		expectedErrMsg string
+	}{
+		{
+			description: "happy path",
+			input:       "cafe",
+			expected:    []uint64{51966, 0, 0, 0},
+		},
+		{
+			description: "0x prefix is allowed",
+			input:       "0xcafe",
+			expected:    []uint64{51966, 0, 0, 0},
+		},
+
+		{
+			description:    "non hex input causes error",
+			input:          "yu74",
+			expectedErr:    true,
+			expectedErrMsg: "Could not convert",
+		},
+		{
+			description:    "empty input causes error",
+			input:          "",
+			expectedErr:    true,
+			expectedErrMsg: "Could not convert",
+		},
+	}
+
+	for _, tc := range tcs {
+		tc := tc
+		t.Run(tc.description, func(t *testing.T) {
+			actual, err := stringToh4(tc.input)
+			require.NoError(t, testutils.CheckError(err, tc.expectedErr, tc.expectedErrMsg))
+
+			require.Equal(t, tc.expected, actual)
 		})
 	}
 }
