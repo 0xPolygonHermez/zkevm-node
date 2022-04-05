@@ -41,6 +41,8 @@ type Sequencer struct {
 	txselector.TxSelector
 	TxProfitabilityChecker txProfitabilityChecker
 
+	lastSentBatchNumber uint64
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -101,9 +103,10 @@ func NewSequencer(cfg Config, pool txPool, state stateInterface, ethMan etherman
 func (s *Sequencer) Start() {
 	ticker := time.NewTicker(s.cfg.IntervalToProposeBatch.Duration)
 	defer ticker.Stop()
+	var root []byte
 	// Infinite for loop:
 	for {
-		s.tryProposeBatch()
+		root = s.tryProposeBatch(root)
 		select {
 		case <-ticker.C:
 			// nothing
@@ -118,31 +121,30 @@ func (s *Sequencer) Stop() {
 	s.cancel()
 }
 
-func (s *Sequencer) tryProposeBatch() {
+func (s *Sequencer) tryProposeBatch(root []byte) []byte {
 	// 1. Wait for synchronizer to sync last batch
 	if !s.isSynced() {
-		return
+		return nil
 	}
 	// 2. get pending txs from the pool
 	txs, ok := s.getPendingTxs()
 	if !ok {
-		return
+		return nil
 	}
 	// 3. Run selection
-	selectedTxs, selectedTxsHashes, ok := s.selectTxs(txs)
+	selectedTxsRes, ok := s.selectTxs(txs, root)
 	if !ok {
-		return
+		return nil
 	}
-	// 4. Is selection profitable?
-	// check is it profitable to send selection
+	// 4. Send batch to ethereum
 	var isSent bool
 	for !isSent {
-		selectedTxs, selectedTxsHashes, isSent = s.sendBatchToEthereum(selectedTxs, selectedTxsHashes)
-		if len(selectedTxs) == 0 {
-			return
+		selectedTxsRes.selectedTxs, selectedTxsRes.selectedTxsHashes, isSent = s.sendBatchToEthereum(selectedTxsRes.selectedTxs, selectedTxsRes.selectedTxsHashes, selectedTxsRes.batchNumber)
+		if len(selectedTxsRes.selectedTxs) == 0 {
+			return nil
 		}
 	}
-	// NO: discard selection and wait for the new batch
+	return selectedTxsRes.newRoot
 }
 
 func (s *Sequencer) isSynced() bool {
@@ -178,31 +180,92 @@ func (s *Sequencer) getPendingTxs() ([]pool.Transaction, bool) {
 	return txs, true
 }
 
-func (s *Sequencer) selectTxs(txs []pool.Transaction) ([]*types.Transaction, []common.Hash, bool) {
-	lastVirtualBatch, err := s.State.GetLastBatch(s.ctx, true)
+type selectTxsRes struct {
+	selectedTxs       []*types.Transaction
+	selectedTxsHashes []common.Hash
+	newRoot           []byte
+	batchNumber       uint64
+}
+
+func (s *Sequencer) selectTxs(txs []pool.Transaction, root []byte) (selectTxsRes, bool) {
+	root, batchNumber, err := s.chooseRoot(root)
 	if err != nil {
-		log.Errorf("failed to get last batch from the state, err: %v", err)
-		return nil, nil, false
+		return selectTxsRes{}, false
 	}
-	// init batch processor
-	bp, err := s.State.NewBatchProcessor(s.ctx, s.Address, lastVirtualBatch.Header.Root[:])
+	bp, err := s.State.NewBatchProcessor(s.ctx, s.Address, root)
 	if err != nil {
 		log.Errorf("failed to create new batch processor, err: %v", err)
-		return nil, nil, false
+		return selectTxsRes{}, false
 	}
 
 	// select txs
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, err := s.TxSelector.SelectTxs(s.ctx, bp, txs, s.Address)
+	selectedTxs, selectedTxsHashes, invalidTxsHashes, newRoot, err := s.TxSelector.SelectTxs(s.ctx, bp, txs, s.Address)
 	if err != nil {
 		log.Errorf("failed to select txs, err: %v", err)
-		return nil, nil, false
+		return selectTxsRes{}, false
 	}
 
 	if err = s.Pool.UpdateTxsState(s.ctx, invalidTxsHashes, pool.TxStateInvalid); err != nil {
 		log.Errorf("failed to update txs state to invalid, err: %v", err)
-		return nil, nil, false
+		return selectTxsRes{}, false
 	}
-	return selectedTxs, selectedTxsHashes, true
+	return selectTxsRes{
+		selectedTxs:       selectedTxs,
+		selectedTxsHashes: selectedTxsHashes,
+		newRoot:           newRoot,
+		batchNumber:       batchNumber,
+	}, true
+}
+
+// chooseRoot the sequencer is deciding how to instantiate the batch processor
+func (s *Sequencer) chooseRoot(prevRoot []byte) ([]byte, uint64, error) {
+	lastVirtualBatch, err := s.State.GetLastBatch(s.ctx, true)
+	if err != nil {
+		log.Errorf("failed to get last batch from the state, err: %v", err)
+		return nil, 0, err
+	}
+	lastVirtualBatchNumber := lastVirtualBatch.Header.Number.Uint64()
+	lastVirtualBatchRoot := lastVirtualBatch.Header.Root[:]
+	var isFromLastVirtualBatch bool
+
+	// check if previous root is present, if not, take root from previous synced batch
+	// if lastVirtualBatchNumber == s.lastSentBatchNumber, it means, that sequencer is synced
+	// and can take root from synced batch
+	if prevRoot == nil || lastVirtualBatchNumber == s.lastSentBatchNumber {
+		isFromLastVirtualBatch = true
+	} else if lastVirtualBatchNumber > s.lastSentBatchNumber {
+		// in this case sequencer is trying to get batch by root
+		// if root exist, it means sequencer can use root from the synced batch
+		// if not exist, than batch processor initialization should be decided by param from the config
+		_, err := s.State.GetLastBatchByStateRoot(s.ctx, prevRoot)
+		if err != nil {
+			if errors.Is(err, state.ErrNotFound) {
+				if s.cfg.InitBatchProcessorIfDiffType == InitBatchProcessorIfDiffTypeSynced {
+					isFromLastVirtualBatch = true
+				}
+			} else {
+				log.Errorf("failed to get batch from the state by root, err: %v", err)
+				return nil, 0, err
+			}
+		} else {
+			isFromLastVirtualBatch = true
+		}
+	}
+
+	var (
+		root        []byte
+		batchNumber uint64
+	)
+
+	if isFromLastVirtualBatch {
+		root = lastVirtualBatchRoot
+		batchNumber = lastVirtualBatchNumber + 1
+	} else {
+		root = prevRoot
+		batchNumber = s.lastSentBatchNumber + 1
+	}
+
+	return root, batchNumber, nil
 }
 
 func isDataForEthTxTooBig(err error) bool {
@@ -214,7 +277,7 @@ func isDataForEthTxTooBig(err error) bool {
 	return false
 }
 
-func (s *Sequencer) sendBatchToEthereum(selectedTxs []*types.Transaction, selectedTxsHashes []common.Hash) ([]*types.Transaction, []common.Hash, bool) {
+func (s *Sequencer) sendBatchToEthereum(selectedTxs []*types.Transaction, selectedTxsHashes []common.Hash, batchNumber uint64) ([]*types.Transaction, []common.Hash, bool) {
 	isProfitable, aggregatorReward, err := s.TxProfitabilityChecker.IsProfitable(s.ctx, selectedTxs)
 	if err != nil {
 		log.Errorf("failed to check that txs are profitable or not, err: %v", err)
@@ -240,6 +303,7 @@ func (s *Sequencer) sendBatchToEthereum(selectedTxs []*types.Transaction, select
 			log.Fatalf("failed to update txs state to selected, selectedTxsHashes: %v, err: %v", selectedTxsHashes, err)
 		}
 		log.Infof("finished updating selected transactions state in the pool")
+		s.lastSentBatchNumber = batchNumber
 		log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
 	}
 	return nil, nil, true

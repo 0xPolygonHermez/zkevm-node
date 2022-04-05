@@ -7,7 +7,7 @@ const (
 	// AcceptAllType strategy accepts all txs
 	AcceptAllType Type = "acceptall"
 	// BaseType strategy that have basic selection algorithm and can accept different sorting algorithms and profitability checkers
-	BaseType = "base"
+	BaseType Type = "base"
 )
 
 // Config for the tx selector configuration
