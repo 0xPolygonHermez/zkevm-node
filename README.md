@@ -14,6 +14,12 @@ The protocol defines three phases of development, the repo currently implements:
 
 *Note that in terms of feature set, v1.5 and v2.0 are the same from the point of view of the node.*
 
+Glossary:
+
+- Batch: equivalent of a block, but in the L2 realm. Note that the `jsonrpc` uses "block" instead of "batch" as it has to be compatible with the API of L1, so for this particular package block means batch.
+- Invalid transaction: transaction that can't be processed and doesn't affect the state. Note that such a transaction could be included in a virtual batch.
+- Reverted transaction: transaction that is executed, but is reverted (because of smart contract logic). Main difference with *invalid transaction* is that this transaction modifies the state, at least to increment nonce off the sender.
+
 ## Architecture
 
 *It's important to note that currently this implementation is a monolith monorepo, but this is very likely to change in the near future.*
@@ -47,4 +53,4 @@ It's recommended to use `make` for building, testing the code, ... Run `make hel
 
 ## Contribute
 
-Before creating a PR, pleae read this [guide](docs/contribute-guie.md)
+Before creating a PR, please read this [guide](docs/contribute-guie.md)
