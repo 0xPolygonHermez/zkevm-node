@@ -9,7 +9,7 @@ Name = "test_db"
 Host = "hez-postgres"
 Port = "5432"
 EnableLog = false
-MaxConns = 10
+MaxConns = 200
 
 [Etherman]
 URL = "http://hez-network:8545"
@@ -19,6 +19,7 @@ PrivateKeyPassword = "testonly"
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
+MaxRequestsPerIPAndSecond = 50
 
 [Synchronizer]
 SyncInterval = "1s"

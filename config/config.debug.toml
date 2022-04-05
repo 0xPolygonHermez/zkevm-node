@@ -19,6 +19,7 @@ PrivateKeyPassword = "testonly"
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
+MaxRequestsPerIPAndSecond = 10
 
 [Synchronizer]
 SyncInterval = "5s"

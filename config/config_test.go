@@ -56,7 +56,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Database.MaxConns",
-			expectedValue: 10,
+			expectedValue: 200,
+		},
+		{
+			path:          "RPC.MaxRequestsPerIPAndSecond",
+			expectedValue: float64(50),
 		},
 	}
 

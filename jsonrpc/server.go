@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/didip/tollbooth/v6"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/log"
 )
@@ -68,7 +69,9 @@ func (s *Server) Start() error {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", s.handle)
+
+	lmt := tollbooth.NewLimiter(s.config.MaxRequestsPerIPAndSecond, nil)
+	mux.Handle("/", tollbooth.LimitFuncHandler(lmt, s.handle))
 
 	s.srv = &http.Server{
 		Handler: mux,
