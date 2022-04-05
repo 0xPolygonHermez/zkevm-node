@@ -95,6 +95,16 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 	b.CumulativeGasUsed = 0
 	b.logs = []types.Log{}
 
+	// Set Global Exit Root
+	globalExitRootPos := helper.Keccak256(batch.Number().Bytes(), new(big.Int).SetUint64(b.State.cfg.GlobalExitRootStoragePosition).Bytes())
+
+	root, _, err := b.State.tree.SetStorageAt(ctx, b.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), b.stateRoot)
+	if err != nil {
+		return err
+	}
+
+	b.stateRoot = root
+
 	for _, tx := range batch.Transactions {
 		senderAddress, err := helper.GetSender(*tx)
 		if err != nil {
@@ -523,8 +533,8 @@ func (b *BasicBatchProcessor) commit(ctx context.Context, batch *Batch) error {
 		batch.Header.Root = root
 
 		// set local exit root
-		key := new(big.Int).SetUint64(b.State.cfg.L2GlobalExitRootManagerPosition)
-		localExitRoot, err := b.State.tree.GetStorageAt(ctx, b.State.cfg.L2GlobalExitRootManagerAddr, key, b.stateRoot)
+		key := new(big.Int).SetUint64(b.State.cfg.LocalExitRootStoragePosition)
+		localExitRoot, err := b.State.tree.GetStorageAt(ctx, b.State.cfg.L2GlobalExitRootManagerAddr, common.BigToHash(key), b.stateRoot)
 		if err != nil {
 			return err
 		}
