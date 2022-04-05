@@ -117,11 +117,39 @@ func main() {
 	log.Debugf("Mint C Coin tx: %v", tx.Hash().Hex())
 	fmt.Println()
 
+	liquidityAmount, _ := big.NewInt(0).SetString("100000000000000000000", encoding.Base10)
+
+	// Add allowance
+	log.Debugf("Approving liquidity amount to be used by the router for token A")
+	tx, err = aCoin.Approve(auth, routerAddr, liquidityAmount)
+	chkErr(err)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+	log.Debugf("Approval A Coin tx: %v", tx.Hash().Hex())
+	fmt.Println()
+
+	log.Debugf("Approving liquidity amount to be used by the router for token B")
+	tx, err = bCoin.Approve(auth, routerAddr, liquidityAmount)
+	chkErr(err)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+	log.Debugf("Approval B Coin tx: %v", tx.Hash().Hex())
+	fmt.Println()
+
+	log.Debugf("Approving liquidity amount to be used by the router for token C")
+	tx, err = cCoin.Approve(auth, routerAddr, liquidityAmount)
+	chkErr(err)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+	log.Debugf("Approval C Coin tx: %v", tx.Hash().Hex())
+	fmt.Println()
+
 	// Add liquidity to the pool
-	tx = addLiquidity(auth, client, router, aCoinAddr, bCoinAddr, aCoinBCoinPairAddr)
+	tx = addLiquidity(auth, client, router, aCoinAddr, bCoinAddr, liquidityAmount)
 	log.Debugf("Add Liquidity to Pair A <-> B tx: %v", tx.Hash().Hex())
 	fmt.Println()
-	tx = addLiquidity(auth, client, router, bCoinAddr, cCoinAddr, bCoinCCoinPairAddr)
+
+	tx = addLiquidity(auth, client, router, bCoinAddr, cCoinAddr, liquidityAmount)
 	log.Debugf("Add Liquidity to Pair B <-> C tx: %v", tx.Hash().Hex())
 	fmt.Println()
 
@@ -208,9 +236,9 @@ func createPair(auth *bind.TransactOpts, client *ethclient.Client, factory *Unis
 	return tx, pair
 }
 
-func addLiquidity(auth *bind.TransactOpts, client *ethclient.Client, router *UniswapV2Router02.UniswapV2Router02, tokenA, tokenB common.Address, pairAddr common.Address) *types.Transaction {
-	amount, _ := big.NewInt(0).SetString("100000000000000000000", encoding.Base10)
-	tx, err := router.AddLiquidity(auth, tokenA, tokenB, amount, amount, amount, amount, pairAddr, big.NewInt(0))
+func addLiquidity(auth *bind.TransactOpts, client *ethclient.Client, router *UniswapV2Router02.UniswapV2Router02, tokenA, tokenB common.Address, amount *big.Int) *types.Transaction {
+	log.Debugf("Adding liquidity for tokens:\nToken A: %v\nToken B:%v\nTo:%v", tokenA.Hex(), tokenB.Hex(), auth.From)
+	tx, err := router.AddLiquidity(auth, tokenA, tokenB, amount, amount, amount, amount, auth.From, big.NewInt(time.Now().UTC().Unix()))
 	chkErr(err)
 	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
