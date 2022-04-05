@@ -11,7 +11,7 @@ require (
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/hermeznetwork/tracerr v0.3.2
-	github.com/iden3/go-iden3-crypto v0.0.13
+	github.com/iden3/go-iden3-crypto v0.0.14-0.20220322090623-d3e4218fe366
 	github.com/jackc/pgconn v1.11.0
 	github.com/jackc/pgtype v1.10.0
 	github.com/jackc/pgx/v4 v4.15.0

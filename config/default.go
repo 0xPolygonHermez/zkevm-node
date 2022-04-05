@@ -31,6 +31,7 @@ SyncChunkSize = 100
 AllowNonRegistered = "false"
 IntervalToProposeBatch = "15s"
 SyncedBlockDif = 1
+InitBatchProcessorIfDiffType = "synced"
     [Sequencer.Strategy]
         [Sequencer.Strategy.TxSelector]
             TxSelectorType = "acceptall"

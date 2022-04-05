@@ -9,9 +9,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/urfave/cli/v2"
 )
 
@@ -51,7 +49,7 @@ func registerSequencer(ctx *cli.Context) error {
 		return err
 	}
 	store := tree.NewPostgresStore(sqlDB)
-	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity, poseidon.Hash)
+	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity)
 	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
 	tr := tree.NewStateTree(mt, scCodeStore)
 
@@ -62,7 +60,7 @@ func registerSequencer(ctx *cli.Context) error {
 		L2GlobalExitRootManagerPosition: c.NetworkConfig.L2GlobalExitRootManagerPosition,
 	}
 
-	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
+	stateDb := state.NewPostgresStorage(sqlDB)
 	st := state.NewState(stateCfg, stateDb, tr)
 
 	_, err = st.GetSequencer(ctx.Context, etherman.GetAddress())

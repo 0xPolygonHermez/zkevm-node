@@ -23,6 +23,7 @@ type StateTransitionTestCase struct {
 	ExpectedNewRoot       string                 `json:"expectedNewRoot"`
 	ExpectedNewLeafs      map[string]Leaf        `json:"expectedNewLeafs"`
 	Receipts              []TestReceipt          `json:"receipts"`
+	GlobalExitRoot        string                 `json:"globalExitRoot"`
 }
 
 // GenesisAccount represents the state of an account when the network

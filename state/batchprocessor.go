@@ -505,7 +505,7 @@ func (b *BasicBatchProcessor) commit(ctx context.Context, batch *Batch) error {
 
 		// set local exit root
 		key := new(big.Int).SetUint64(b.Host.State.cfg.L2GlobalExitRootManagerPosition)
-		localExitRoot, err := b.Host.State.tree.GetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, common.BigToHash(key), b.Host.stateRoot)
+		localExitRoot, err := b.Host.State.tree.GetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, key, b.Host.stateRoot)
 		if err != nil {
 			return err
 		}

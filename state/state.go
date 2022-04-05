@@ -38,17 +38,17 @@ var (
 type State struct {
 	cfg  Config
 	tree merkletree
-	storage
+	*PostgresStorage
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage storage, tree merkletree) *State {
-	return &State{cfg: cfg, tree: tree, storage: storage}
+func NewState(cfg Config, storage *PostgresStorage, tree merkletree) *State {
+	return &State{cfg: cfg, tree: tree, PostgresStorage: storage}
 }
 
 // BeginStateTransaction starts a transaction block
 func (s *State) BeginStateTransaction(ctx context.Context) error {
-	err := s.storage.BeginDBTransaction(ctx)
+	err := s.PostgresStorage.BeginDBTransaction(ctx)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (s *State) BeginStateTransaction(ctx context.Context) error {
 
 // CommitState commits a state into db
 func (s *State) CommitState(ctx context.Context) error {
-	err := s.storage.Commit(ctx)
+	err := s.PostgresStorage.Commit(ctx)
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (s *State) CommitState(ctx context.Context) error {
 
 // RollbackState rollbacks a db state transaction
 func (s *State) RollbackState(ctx context.Context) error {
-	err := s.storage.Rollback(ctx)
+	err := s.PostgresStorage.Rollback(ctx)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (s *State) GetNonce(ctx context.Context, address common.Address, batchNumbe
 }
 
 // GetStorageAt from a given address
-func (s *State) GetStorageAt(ctx context.Context, address common.Address, position common.Hash, batchNumber uint64) (*big.Int, error) {
+func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, batchNumber uint64) (*big.Int, error) {
 	root, err := s.GetStateRootByBatchNumber(ctx, batchNumber)
 	if err != nil {
 		return nil, err

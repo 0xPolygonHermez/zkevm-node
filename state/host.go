@@ -38,7 +38,7 @@ func (h *Host) AccountExists(ctx context.Context, address common.Address) bool {
 }
 
 // GetStorage gets the value stored in a given address and key
-func (h *Host) GetStorage(ctx context.Context, address common.Address, key common.Hash) common.Hash {
+func (h *Host) GetStorage(ctx context.Context, address common.Address, key *big.Int) common.Hash {
 	storage, err := h.State.tree.GetStorageAt(ctx, address, key, h.stateRoot)
 
 	if err != nil {

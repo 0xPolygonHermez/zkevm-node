@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/proverclient"
+	"github.com/hermeznetwork/hermez-core/proverclient/pb"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -240,24 +240,24 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	assert.Equal(t, txRaw, block[0].Batches[0].RawTxsData)
 
 	proofSlc := []string{"21565562996339338849564494593510043939919477777537254861096838135755987477204", "15747187504567161371139699773055768026064826386340198020294048673214119551381", "1"}
-	proofBelem := proverclient.ProofB{Proofs: proofSlc}
-	var proofB []*proverclient.ProofB
+	proofBelem := pb.ProofB{Proofs: proofSlc}
+	var proofB []*pb.ProofB
 	proofB = append(proofB, &proofBelem, &proofBelem, &proofBelem)
 	newStateRoot, ok := new(big.Int).SetString("1212121212121212121212121212121212121212121212121212121212121212", 16)
 	assert.True(t, ok)
 	newLocalExitRoot, ok := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
 	assert.True(t, ok)
-	publicInputs := &proverclient.PublicInputs{
+	publicInputs := &pb.PublicInputs{
 		NewStateRoot:     newStateRoot.String(),
 		NewLocalExitRoot: newLocalExitRoot.String(),
 	}
-	proof := proverclient.GetProofResponse{
-		Proof: &proverclient.Proof{
+	proof := pb.GetProofResponse{
+		Proof: &pb.Proof{
 			ProofA: proofSlc,
 			ProofB: proofB,
 			ProofC: proofSlc,
 		},
-		Public: &proverclient.PublicInputsExtended{
+		Public: &pb.PublicInputsExtended{
 			PublicInputs: publicInputs,
 		},
 	}

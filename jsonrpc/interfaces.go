@@ -37,7 +37,7 @@ type stateInterface interface {
 	GetBatchByHash(ctx context.Context, hash common.Hash) (*state.Batch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64) (*state.Batch, error)
 	GetCode(ctx context.Context, address common.Address, batchNumber uint64) ([]byte, error)
-	GetStorageAt(ctx context.Context, address common.Address, position common.Hash, batchNumber uint64) (*big.Int, error)
+	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, batchNumber uint64) (*big.Int, error)
 	GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64) (*types.Transaction, error)
 	GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error)
 	GetNonce(ctx context.Context, address common.Address, batchNumber uint64) (uint64, error)

@@ -8,12 +8,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
 // TxSelector interface for different types of selection
 type TxSelector interface {
 	// SelectTxs selecting txs and returning selected txs, hashes of the selected txs (to not build array multiple times) and hashes of invalid txs
-	SelectTxs(ctx context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []common.Hash, []common.Hash, error)
+	SelectTxs(ctx context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []common.Hash, []common.Hash, []byte, error)
 }
 
 // AcceptAll that accept all transactions
@@ -25,7 +26,7 @@ func NewTxSelectorAcceptAll() TxSelector {
 }
 
 // SelectTxs selects all transactions and don't check anything
-func (s *AcceptAll) SelectTxs(cxt context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []common.Hash, []common.Hash, error) {
+func (s *AcceptAll) SelectTxs(cxt context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []common.Hash, []common.Hash, []byte, error) {
 	selectedTxs := make([]*types.Transaction, 0, len(pendingTxs))
 	selectedTxsHashes := make([]common.Hash, 0, len(pendingTxs))
 	for _, tx := range pendingTxs {
@@ -33,7 +34,7 @@ func (s *AcceptAll) SelectTxs(cxt context.Context, batchProcessor batchProcessor
 		selectedTxs = append(selectedTxs, &t)
 		selectedTxsHashes = append(selectedTxsHashes, tx.Hash())
 	}
-	return selectedTxs, selectedTxsHashes, nil, nil
+	return selectedTxs, selectedTxsHashes, nil, nil, nil
 }
 
 // Base tx selector with basic selection algorithm. Accepts different tx sorting and tx profitability checking structs
@@ -58,15 +59,16 @@ func NewTxSelectorBase(cfg Config) TxSelector {
 }
 
 // SelectTxs process txs and split valid txs into batches of txs. This process should be completed in less than selectionTime
-func (b *Base) SelectTxs(ctx context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []common.Hash, []common.Hash, error) {
+func (b *Base) SelectTxs(ctx context.Context, batchProcessor batchProcessor, pendingTxs []pool.Transaction, sequencerAddress common.Address) ([]*types.Transaction, []common.Hash, []common.Hash, []byte, error) {
 	sortedTxs := b.TxSorter.SortTxs(pendingTxs)
 	var (
 		selectedTxs                         []*types.Transaction
 		selectedTxsHashes, invalidTxsHashes []common.Hash
+		result                              *runtime.ExecutionResult
 	)
 	for _, tx := range sortedTxs {
 		t := tx.Transaction
-		result := batchProcessor.ProcessTransaction(ctx, &t, sequencerAddress)
+		result = batchProcessor.ProcessTransaction(ctx, &t, sequencerAddress)
 		if result.Failed() {
 			err := result.Err
 			if state.InvalidTxErrors[err.Error()] {
@@ -76,9 +78,9 @@ func (b *Base) SelectTxs(ctx context.Context, batchProcessor batchProcessor, pen
 				continue
 			} else if errors.Is(err, state.ErrInvalidCumulativeGas) {
 				// this means, that cumulative gas from txs is exceeded max amount
-				return selectedTxs, selectedTxsHashes, invalidTxsHashes, nil
+				return selectedTxs, selectedTxsHashes, invalidTxsHashes, result.StateRoot, nil
 			} else {
-				return nil, nil, nil, err
+				return nil, nil, nil, nil, err
 			}
 		} else {
 			selectedTxs = append(selectedTxs, &t)
@@ -86,5 +88,5 @@ func (b *Base) SelectTxs(ctx context.Context, batchProcessor batchProcessor, pen
 		}
 	}
 
-	return selectedTxs, selectedTxsHashes, invalidTxsHashes, nil
+	return selectedTxs, selectedTxsHashes, invalidTxsHashes, result.StateRoot, nil
 }

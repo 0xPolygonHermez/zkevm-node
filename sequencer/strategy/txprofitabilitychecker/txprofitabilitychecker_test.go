@@ -14,7 +14,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -62,9 +61,9 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDB.Close()
 	store := tree.NewPostgresStore(stateDB)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDB)
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
 	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	txs = []*types.Transaction{tx}
 

@@ -253,7 +253,7 @@ func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number 
 		return nil, err
 	}
 
-	value, err := e.state.GetStorageAt(ctx, address, position, batchNumber)
+	value, err := e.state.GetStorageAt(ctx, address, position.Big(), batchNumber)
 	if errors.Is(err, state.ErrNotFound) {
 		return argBytesPtr(common.Hash{}.Bytes()), nil
 	} else if err != nil {
@@ -392,6 +392,7 @@ func (e *Eth) getNumericBlockNumber(ctx context.Context, number BlockNumber) (ui
 		}
 
 		return lastBatchNumber, nil
+
 	case EarliestBlockNumber:
 		return 0, nil
 

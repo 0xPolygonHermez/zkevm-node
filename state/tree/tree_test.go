@@ -41,7 +41,7 @@ func TestBasicTree(t *testing.T) {
 	defer mtDb.Close()
 
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 	scCodeStore := NewPostgresSCCodeStore(mtDb)
 	tree := NewStateTree(mt, scCodeStore)
 
@@ -97,14 +97,14 @@ func TestBasicTree(t *testing.T) {
 	}
 	positionBI := new(big.Int).SetBytes(position.Bytes())
 
-	storage, err := tree.GetStorageAt(ctx, address, position, root)
+	storage, err := tree.GetStorageAt(ctx, address, positionBI, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(0), storage)
 
 	root, _, err = tree.SetStorageAt(ctx, address, positionBI, big.NewInt(4), root)
 	require.NoError(t, err)
 
-	storage, err = tree.GetStorageAt(ctx, address, position, root)
+	storage, err = tree.GetStorageAt(ctx, address, positionBI, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(4), storage)
 
@@ -116,18 +116,18 @@ func TestBasicTree(t *testing.T) {
 	}
 	position2BI := new(big.Int).SetBytes(position2.Bytes())
 
-	storage2, err := tree.GetStorageAt(ctx, address, position2, root)
+	storage2, err := tree.GetStorageAt(ctx, address, position2BI, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(0), storage2)
 
 	root, _, err = tree.SetStorageAt(ctx, address, position2BI, big.NewInt(5), root)
 	require.NoError(t, err)
 
-	storage2, err = tree.GetStorageAt(ctx, address, position2, root)
+	storage2, err = tree.GetStorageAt(ctx, address, position2BI, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(5), storage2)
 
-	storage, err = tree.GetStorageAt(ctx, address, position, root)
+	storage, err = tree.GetStorageAt(ctx, address, positionBI, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(4), storage)
 
@@ -188,7 +188,7 @@ func TestMerkleTreeGenesis(t *testing.T) {
 	for ti, testVector := range testVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
 			var root []byte
-			mt := NewMerkleTree(store, testVector.Arity, nil)
+			mt := NewMerkleTree(store, testVector.Arity)
 			tree := NewStateTree(mt, scCodeStore)
 			for _, addrState := range testVector.Addresses {
 				// convert strings to big.Int
@@ -224,7 +224,7 @@ func TestUnsetCode(t *testing.T) {
 	defer mtDb.Close()
 
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 	scCodeStore := NewPostgresSCCodeStore(mtDb)
 	tree := NewStateTree(mt, scCodeStore)
 
@@ -243,11 +243,13 @@ func TestUnsetCode(t *testing.T) {
 	require.NoError(t, err)
 
 	// set and unset code
-	code, err := tree.GetCode(ctx, address, nil)
+	code, err := tree.GetCode(ctx, address, oldRoot)
 	require.NoError(t, err)
 	assert.Equal(t, []byte{}, code)
 
-	scCode, _ := hex.DecodeString("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	scCode, err := hex.DecodeString("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	require.NoError(t, err)
+
 	root, _, err := tree.SetCode(ctx, address, scCode, oldRoot)
 	require.NoError(t, err)
 
@@ -255,14 +257,12 @@ func TestUnsetCode(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, scCode, code)
 
-	newRoot, _, err := tree.SetCode(ctx, address, nil, root)
+	newRoot, _, err := tree.SetCode(ctx, address, []byte{}, root)
 	require.NoError(t, err)
 
 	code, err = tree.GetCode(ctx, address, newRoot)
 	require.NoError(t, err)
-	assert.Equal(t, []byte(nil), code)
-
-	assert.Equal(t, oldRoot, newRoot)
+	assert.Equal(t, []byte{}, code)
 }
 
 func TestUnsetStorageAtPosition(t *testing.T) {
@@ -277,7 +277,7 @@ func TestUnsetStorageAtPosition(t *testing.T) {
 	defer mtDb.Close()
 
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 	scCodeStore := NewPostgresSCCodeStore(mtDb)
 	tree := NewStateTree(mt, scCodeStore)
 
@@ -296,14 +296,14 @@ func TestUnsetStorageAtPosition(t *testing.T) {
 	positionBI := new(big.Int).SetBytes(position.Bytes())
 
 	ctx := context.Background()
-	storage, err := tree.GetStorageAt(ctx, address, position, nil)
+	storage, err := tree.GetStorageAt(ctx, address, positionBI, nil)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(0), storage)
 
 	oldRoot, _, err := tree.SetStorageAt(ctx, address, positionBI, big.NewInt(4), nil)
 	require.NoError(t, err)
 
-	storage, err = tree.GetStorageAt(ctx, address, position, oldRoot)
+	storage, err = tree.GetStorageAt(ctx, address, positionBI, oldRoot)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(4), storage)
 
@@ -315,33 +315,31 @@ func TestUnsetStorageAtPosition(t *testing.T) {
 	}
 	position2BI := new(big.Int).SetBytes(position2.Bytes())
 
-	storage2, err := tree.GetStorageAt(ctx, address, position2, oldRoot)
+	storage2, err := tree.GetStorageAt(ctx, address, position2BI, oldRoot)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(0), storage2)
 
 	root, _, err := tree.SetStorageAt(ctx, address, position2BI, big.NewInt(5), oldRoot)
 	require.NoError(t, err)
 
-	storage2, err = tree.GetStorageAt(ctx, address, position2, root)
+	storage2, err = tree.GetStorageAt(ctx, address, position2BI, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(5), storage2)
 
-	storage, err = tree.GetStorageAt(ctx, address, position, root)
+	storage, err = tree.GetStorageAt(ctx, address, positionBI, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(4), storage)
 
-	newRoot, _, err := tree.SetStorageAt(ctx, address, position2BI, big.NewInt(0), root)
+	_, _, err = tree.SetStorageAt(ctx, address, position2BI, big.NewInt(0), root)
 	require.NoError(t, err)
 
-	storage, err = tree.GetStorageAt(ctx, address, position2, root)
+	storage, err = tree.GetStorageAt(ctx, address, position2BI, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(5), storage)
 
-	storage2, err = tree.GetStorageAt(ctx, address, position2, root)
+	storage2, err = tree.GetStorageAt(ctx, address, position2BI, root)
 	require.NoError(t, err)
 	assert.Equal(t, big.NewInt(5), storage2)
-
-	assert.Equal(t, oldRoot, newRoot)
 }
 
 func TestSetGetNode(t *testing.T) {
@@ -356,7 +354,7 @@ func TestSetGetNode(t *testing.T) {
 	defer mtDb.Close()
 
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, DefaultMerkleTreeArity, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 	scCodeStore := NewPostgresSCCodeStore(mtDb)
 	tree := NewStateTree(mt, scCodeStore)
 
