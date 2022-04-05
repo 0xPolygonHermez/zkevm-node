@@ -224,7 +224,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis) error {
 	}
 
 	if genesis.Nonces != nil {
-		for address, nonce := range genesis.Balances {
+		for address, nonce := range genesis.Nonces {
 			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
 			if err != nil {
 				return err
