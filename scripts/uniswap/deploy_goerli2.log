@@ -1,0 +1,95 @@
+2022-04-06T09:44:07-03:00       INFO    uniswap/main.go:38      connecting to https://goerli.infura.io/v3/f694519bed4a476bbe8905b8c2e00ace
+2022-04-06T09:44:07-03:00       INFO    uniswap/main.go:41      connected
+2022-04-06T09:44:08-03:00       INFO    uniswap/main.go:167     chainID: 5
+
+2022-04-06T09:44:08-03:00       DEBUG   uniswap/main.go:207     Deploying ERC20 Token: [ACO]A COIN
+2022-04-06T09:44:09-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0xfe98ee794c177c43322d3ac4c3a392fdcaa38feb942bc858de3f36dd9b05d0c8
+2022-04-06T09:44:24-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0xfe98ee794c177c43322d3ac4c3a392fdcaa38feb942bc858de3f36dd9b05d0c8
+2022-04-06T09:44:24-03:00       DEBUG   uniswap/main.go:212     A COIN SC tx: 0xfe98ee794c177c43322d3ac4c3a392fdcaa38feb942bc858de3f36dd9b05d0c8
+2022-04-06T09:44:24-03:00       DEBUG   uniswap/main.go:213     A COIN SC addr: 0xEE5534DD4e2f1c333d8F325939878c11838533B9
+
+2022-04-06T09:44:24-03:00       DEBUG   uniswap/main.go:207     Deploying ERC20 Token: [BCO]B COIN
+2022-04-06T09:44:25-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0x10301a42d1de2cd51cf3c7950aac4c0b6c7731728232a1f77659b058cb8014ec
+2022-04-06T09:44:40-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0x10301a42d1de2cd51cf3c7950aac4c0b6c7731728232a1f77659b058cb8014ec
+2022-04-06T09:44:40-03:00       DEBUG   uniswap/main.go:212     B COIN SC tx: 0x10301a42d1de2cd51cf3c7950aac4c0b6c7731728232a1f77659b058cb8014ec
+2022-04-06T09:44:40-03:00       DEBUG   uniswap/main.go:213     B COIN SC addr: 0xC0cAFfef426Ef4cE27C7E51a966B5458bF6AAde1
+
+2022-04-06T09:44:40-03:00       DEBUG   uniswap/main.go:207     Deploying ERC20 Token: [CCO]C COIN
+2022-04-06T09:44:41-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0x17d21bf2fc0100551246ecc0057385bc895339a22187bf768a9a64791203048c
+2022-04-06T09:44:52-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0x17d21bf2fc0100551246ecc0057385bc895339a22187bf768a9a64791203048c
+2022-04-06T09:44:52-03:00       DEBUG   uniswap/main.go:212     C COIN SC tx: 0x17d21bf2fc0100551246ecc0057385bc895339a22187bf768a9a64791203048c
+2022-04-06T09:44:52-03:00       DEBUG   uniswap/main.go:213     C COIN SC addr: 0x463a72A7F984b3fAd190CbFaEe47bfa86Bb7334f
+
+2022-04-06T09:44:52-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0xb636e75df99b620d0baaeeb2849113ce3a687e4eb4b559c0f63aba6933d8d87d
+2022-04-06T09:45:06-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0xb636e75df99b620d0baaeeb2849113ce3a687e4eb4b559c0f63aba6933d8d87d
+2022-04-06T09:45:06-03:00       DEBUG   uniswap/main.go:61      wEth SC tx: 0xb636e75df99b620d0baaeeb2849113ce3a687e4eb4b559c0f63aba6933d8d87d
+2022-04-06T09:45:06-03:00       DEBUG   uniswap/main.go:62      wEth SC addr: 0xe41fd43E39f265213b845a6149E93DE449336BA3
+
+2022-04-06T09:45:07-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0x88112aec377b8162eb81a56ae36b09a344829a6c3b372f02571a616055139bc9
+2022-04-06T09:45:37-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0x88112aec377b8162eb81a56ae36b09a344829a6c3b372f02571a616055139bc9
+2022-04-06T09:45:37-03:00       DEBUG   uniswap/main.go:70      Uniswap Factory SC tx: 0x88112aec377b8162eb81a56ae36b09a344829a6c3b372f02571a616055139bc9
+2022-04-06T09:45:37-03:00       DEBUG   uniswap/main.go:71      Uniswap Factory SC addr: 0x6701d135f1206670B9887C1a48967912666148d0
+
+2022-04-06T09:45:38-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0x65039b2e3ffc5c3663d77b0f27330d65c24b6b4f4cd31123fe6d74d425ae469a
+2022-04-06T09:45:52-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0x65039b2e3ffc5c3663d77b0f27330d65c24b6b4f4cd31123fe6d74d425ae469a
+2022-04-06T09:45:52-03:00       DEBUG   uniswap/main.go:79      Uniswap Router SC tx: 0x65039b2e3ffc5c3663d77b0f27330d65c24b6b4f4cd31123fe6d74d425ae469a
+2022-04-06T09:45:52-03:00       DEBUG   uniswap/main.go:80      Uniswap Router SC addr: 0x65f85bC759Ca1CEcfe1Ea8ADC6db17b0b22aCa13
+
+2022-04-06T09:45:52-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0xc95311d62e90c941b712af711f6d05fc86eed2a30e50732a09e787d22ba936c8
+2022-04-06T09:46:01-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0xc95311d62e90c941b712af711f6d05fc86eed2a30e50732a09e787d22ba936c8
+2022-04-06T09:46:01-03:00       DEBUG   uniswap/main.go:88      Uniswap Interface Multicall SC tx: 0xc95311d62e90c941b712af711f6d05fc86eed2a30e50732a09e787d22ba936c8
+2022-04-06T09:46:01-03:00       DEBUG   uniswap/main.go:89      Uniswap Interface Multicall SC addr: 0xc0ca4E759c988259B9CC11597f1F336508b3F7B1
+
+2022-04-06T09:46:01-03:00       DEBUG   uniswap/main.go:93      Creating pair wEth <-> A
+2022-04-06T09:46:02-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0x871d7e67fe62f49b4b517442f9332fd19fff001507951ea224fd551dfd52d505
+2022-04-06T09:46:06-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0x871d7e67fe62f49b4b517442f9332fd19fff001507951ea224fd551dfd52d505
+2022-04-06T09:46:07-03:00       DEBUG   uniswap/main.go:95      Uniswap Pair wEth <-> A tx: 0x871d7e67fe62f49b4b517442f9332fd19fff001507951ea224fd551dfd52d505
+2022-04-06T09:46:07-03:00       DEBUG   uniswap/main.go:96      Uniswap Pair wEth <-> A addr: 0x000000000000000000000000cbdb28d8a0cd87ec68e5eb31f8d8c9faf6184743
+
+2022-04-06T09:46:07-03:00       DEBUG   uniswap/main.go:98      Creating pair A <-> B
+2022-04-06T09:46:08-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0x6f936fb0d4532abd62011d990d6540a0054eddd8b0ca733fe2312121c9ce0ffb
+2022-04-06T09:46:22-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0x6f936fb0d4532abd62011d990d6540a0054eddd8b0ca733fe2312121c9ce0ffb
+2022-04-06T09:46:22-03:00       DEBUG   uniswap/main.go:100     Uniswap Pair A <-> B tx: 0x6f936fb0d4532abd62011d990d6540a0054eddd8b0ca733fe2312121c9ce0ffb
+2022-04-06T09:46:22-03:00       DEBUG   uniswap/main.go:101     Uniswap Pair A <-> B addr: 0x000000000000000000000000a47b79afbea788c34bb070626051b317e1d6a5f8
+
+2022-04-06T09:46:22-03:00       DEBUG   uniswap/main.go:103     Creating pair B <-> C
+2022-04-06T09:46:23-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0xad5b1a6ec79b6570d6c911fc42c744566a39533d9a4f13dc5894c679f4be2125
+2022-04-06T09:46:51-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0xad5b1a6ec79b6570d6c911fc42c744566a39533d9a4f13dc5894c679f4be2125
+2022-04-06T09:46:51-03:00       DEBUG   uniswap/main.go:105     Uniswap Pair B <-> C tx: 0xad5b1a6ec79b6570d6c911fc42c744566a39533d9a4f13dc5894c679f4be2125
+2022-04-06T09:46:51-03:00       DEBUG   uniswap/main.go:106     Uniswap Pair B <-> C addr: 0x0000000000000000000000001bb2602563ad7f47e85dee7c3adad5ba7ad8b5b6
+
+2022-04-06T09:46:51-03:00       DEBUG   uniswap/main.go:108     Creating pair C <-> wEth
+2022-04-06T09:46:52-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0x1f2e23a99b9eda3a02abc1d4e9707272a0d561f7cb7e370b2a3a277e4147a7ae
+2022-04-06T09:47:07-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0x1f2e23a99b9eda3a02abc1d4e9707272a0d561f7cb7e370b2a3a277e4147a7ae
+2022-04-06T09:47:08-03:00       DEBUG   uniswap/main.go:110     Uniswap Pair C <-> wEth tx: 0x1f2e23a99b9eda3a02abc1d4e9707272a0d561f7cb7e370b2a3a277e4147a7ae
+2022-04-06T09:47:08-03:00       DEBUG   uniswap/main.go:111     Uniswap Pair C <-> wEth addr: 0x0000000000000000000000001f01ecf577afff66d01ba5f21da989d8cc41a720
+
+2022-04-06T09:47:08-03:00       DEBUG   uniswap/main.go:220     Minting 500000000000000000000 tokens for account 0xb48cA794d49EeC406A5dD2c547717e37b5952a83 on token A COIN
+2022-04-06T09:47:09-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0x75ebbb397a17572eb4910b187494bb04cc684a2ce5e7ff9b7bb351c3e06a4133
+2022-04-06T09:47:38-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0x75ebbb397a17572eb4910b187494bb04cc684a2ce5e7ff9b7bb351c3e06a4133
+2022-04-06T09:47:38-03:00       DEBUG   uniswap/main.go:116     Mint A Coin tx: 0x75ebbb397a17572eb4910b187494bb04cc684a2ce5e7ff9b7bb351c3e06a4133
+
+2022-04-06T09:47:38-03:00       DEBUG   uniswap/main.go:220     Minting 600000000000000000000 tokens for account 0xb48cA794d49EeC406A5dD2c547717e37b5952a83 on token B COIN
+2022-04-06T09:47:39-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0x0573825fba7db225cc15375c3a3ebdbadc02e6cd6d37181923fb0622448721ca
+2022-04-06T09:47:53-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0x0573825fba7db225cc15375c3a3ebdbadc02e6cd6d37181923fb0622448721ca
+2022-04-06T09:47:53-03:00       DEBUG   uniswap/main.go:119     Mint B Coin tx: 0x0573825fba7db225cc15375c3a3ebdbadc02e6cd6d37181923fb0622448721ca
+
+2022-04-06T09:47:53-03:00       DEBUG   uniswap/main.go:220     Minting 700000000000000000000 tokens for account 0xb48cA794d49EeC406A5dD2c547717e37b5952a83 on token C COIN
+2022-04-06T09:47:54-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0xa7df58de9b09403db329e6e6d77bb19e65e0d73f3808a93b4d97d9e57a50da56
+2022-04-06T09:48:06-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0xa7df58de9b09403db329e6e6d77bb19e65e0d73f3808a93b4d97d9e57a50da56
+2022-04-06T09:48:06-03:00       DEBUG   uniswap/main.go:122     Mint C Coin tx: 0xa7df58de9b09403db329e6e6d77bb19e65e0d73f3808a93b4d97d9e57a50da56
+
+2022-04-06T09:48:06-03:00       DEBUG   uniswap/main.go:128     Approving liquidity amount to be used by the router for token A
+2022-04-06T09:48:07-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0xc8dbdcd265202e381a5f7c4110a1c9f48d082a69e2a0154ddbcb6dbc41203eb7
+2022-04-06T09:48:22-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0xc8dbdcd265202e381a5f7c4110a1c9f48d082a69e2a0154ddbcb6dbc41203eb7
+2022-04-06T09:48:22-03:00       DEBUG   uniswap/main.go:133     Approval A Coin tx: 0xc8dbdcd265202e381a5f7c4110a1c9f48d082a69e2a0154ddbcb6dbc41203eb7
+
+2022-04-06T09:48:22-03:00       DEBUG   uniswap/main.go:136     Approving liquidity amount to be used by the router for token B
+2022-04-06T09:48:23-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0xf83aa38d12bd993613debd270a832a869f88e0c7983bb27610a37e7330752fdc
+2022-04-06T09:48:36-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0xf83aa38d12bd993613debd270a832a869f88e0c7983bb27610a37e7330752fdc
+2022-04-06T09:48:36-03:00       DEBUG   uniswap/main.go:141     Approval B Coin tx: 0xf83aa38d12bd993613debd270a832a869f88e0c7983bb27610a37e7330752fdc
+
+2022-04-06T09:48:36-03:00       DEBUG   uniswap/main.go:144     Approving liquidity amount to be used by the router for token C
+2022-04-06T09:48:37-03:00       INFO    uniswap/main.go:178     waiting tx to be mined: 0xe63231c758078585f5fbcc3574706eba1917f45d0a4b08dec7f56d3373e52589
+2022-04-06T09:48:52-03:00       INFO    uniswap/main.go:199     tx mined[SUCCESS]: 0xe63231c758078585f5fbcc3574706eba1917f45d0a4b08dec7f56d3373e52589
+2022-04-06T09:48:52-03:00       DEBUG   uniswap/main.go:149     Approval C Coin tx: 0xe63231c758078585f5fbcc3574706eba1917f45d0a4b08dec7f56d3373e52589

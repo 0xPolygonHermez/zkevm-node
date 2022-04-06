@@ -76,37 +76,6 @@ contract UniswapV2Router02 is IUniswapV2Router02 {
         liquidity = IUniswapV2Pair(pair).mint(to);
     }
 
-    // function addLiquidity(
-    //     address tokenA,
-    //     address tokenB,
-    //     uint amountADesired,
-    //     uint amountBDesired,
-    //     uint amountAMin,
-    //     uint amountBMin,
-    //     address to,
-    //     uint deadline
-    // ) external virtual override returns (uint amountA, uint amountB, uint liquidity) {
-    //     // these requires are used to avoid changing the method signature
-    //     require(tokenA != tokenB, "tokenA != tokenB");
-    //     require(tokenA != to, "tokenA != to");
-    //     require(tokenB != to, "tokenB != to");
-    //     require(amountADesired != 0, "amountADesired != 0");
-    //     require(amountBDesired != 0, "amountBDesired != 0");
-    //     require(amountAMin != 0, "amountAMin != 0");
-    //     require(amountBMin != 0, "amountBMin != 0");
-    //     require(deadline != 0, "deadline != 0");
-
-    //     // these assignments are used to avoid changing the return parameters
-    //     (amountA, amountB) = (10, 20);
-    //     liquidity = 30;
-
-    //     (amountA, amountB) = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
-    //     //     address pair = UniswapV2Library.pairFor(factory, tokenA, tokenB);
-    //     //     TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, amountA);
-    //     //     TransferHelper.safeTransferFrom(tokenB, msg.sender, pair, amountB);
-    //     //     liquidity = IUniswapV2Pair(pair).mint(to);
-    // }
-
     function addLiquidityETH(
         address token,
         uint amountTokenDesired,

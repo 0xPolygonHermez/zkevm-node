@@ -32,6 +32,9 @@ const (
 func main() {
 	ctx := context.Background()
 
+	// pk := "" // replace by your account in goerli
+	// networkURL := "" // replace by your goerli infura project url
+
 	log.Infof("connecting to %v", networkURL)
 	client, err := ethclient.Dial(networkURL)
 	chkErr(err)
@@ -67,7 +70,7 @@ func main() {
 	fmt.Println()
 
 	// Deploy Uniswap Router
-	routerAddr, tx, router, err := UniswapV2Router02.DeployUniswapV2Router02(auth, client, factoryAddr, wEthAddr)
+	routerAddr, tx, _, err := UniswapV2Router02.DeployUniswapV2Router02(auth, client, factoryAddr, wEthAddr)
 	chkErr(err)
 	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
@@ -144,14 +147,21 @@ func main() {
 	log.Debugf("Approval C Coin tx: %v", tx.Hash().Hex())
 	fmt.Println()
 
-	// Add liquidity to the pool
-	tx = addLiquidity(auth, client, router, aCoinAddr, bCoinAddr, liquidityAmount)
-	log.Debugf("Add Liquidity to Pair A <-> B tx: %v", tx.Hash().Hex())
-	fmt.Println()
+	// goerli test - use this if you have already deployed the SCs to goerli, check /scripts/uniswap/deploy_goerli2.log for more info
+	// router, err := UniswapV2Router02.NewUniswapV2Router02(common.HexToAddress("0x65f85bC759Ca1CEcfe1Ea8ADC6db17b0b22aCa13"), client)
+	// chkErr(err)
 
-	tx = addLiquidity(auth, client, router, bCoinAddr, cCoinAddr, liquidityAmount)
-	log.Debugf("Add Liquidity to Pair B <-> C tx: %v", tx.Hash().Hex())
-	fmt.Println()
+	// aCoinAddr := common.HexToAddress("0xEE5534DD4e2f1c333d8F325939878c11838533B9")
+	// bCoinAddr := common.HexToAddress("0xC0cAFfef426Ef4cE27C7E51a966B5458bF6AAde1")
+
+	// THIS ADD LIQUIDITY IS NOT WORKING, IT FAILS DURING THE GAS ESTIMATION
+	// Add liquidity to the pool -
+	// tx := addLiquidity(auth, client, router, aCoinAddr, bCoinAddr, liquidityAmount)
+	// log.Debugf("Add Liquidity to Pair A <-> B tx: %v", tx.Hash().Hex())
+	// fmt.Println()
+	// tx = addLiquidity(auth, client, router, bCoinAddr, cCoinAddr, liquidityAmount)
+	// log.Debugf("Add Liquidity to Pair B <-> C tx: %v", tx.Hash().Hex())
+	// fmt.Println()
 
 	// Execute swaps
 }
@@ -238,7 +248,8 @@ func createPair(auth *bind.TransactOpts, client *ethclient.Client, factory *Unis
 
 func addLiquidity(auth *bind.TransactOpts, client *ethclient.Client, router *UniswapV2Router02.UniswapV2Router02, tokenA, tokenB common.Address, amount *big.Int) *types.Transaction {
 	log.Debugf("Adding liquidity for tokens:\nToken A: %v\nToken B:%v\nTo:%v", tokenA.Hex(), tokenB.Hex(), auth.From)
-	tx, err := router.AddLiquidity(auth, tokenA, tokenB, amount, amount, amount, amount, auth.From, big.NewInt(time.Now().UTC().Unix()))
+	tx, err := router.AddLiquidity(auth, tokenA, tokenB, amount, amount, amount, amount, auth.From, big.NewInt(time.Now().UTC().Add(5*time.Minute).Unix()))
+	log.Debug(tx)
 	chkErr(err)
 	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
