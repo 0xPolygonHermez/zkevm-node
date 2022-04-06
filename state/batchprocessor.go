@@ -16,6 +16,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
+	solsha3 "github.com/miguelmota/go-solidity-sha3"
 )
 
 const (
@@ -96,7 +97,15 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 	b.logs = []types.Log{}
 
 	// Set Global Exit Root
-	globalExitRootPos := helper.Keccak256(batch.Number().Bytes(), new(big.Int).SetUint64(b.State.cfg.GlobalExitRootStoragePosition).Bytes())
+	//globalExitRootPos := helper.Keccak256(batch.Number().Bytes(), new(big.Int).SetUint64(b.State.cfg.GlobalExitRootStoragePosition).Bytes())
+	globalExitRootPos := solsha3.SoliditySHA3(
+		[]string{"uint256", "uint256"},
+		[]interface{}{
+			batch.Number(),
+			b.State.cfg.GlobalExitRootStoragePosition,
+		},
+	)
+	log.Debugf("b.State.cfg.L2GlobalExitRootManagerAddr: %s, globalExitRoot: %s, batch number: %d, GlobalExitRootStoragePosition: %d, globalExitRootPos: %s", b.State.cfg.L2GlobalExitRootManagerAddr, batch.GlobalExitRoot, batch.Number(), b.State.cfg.GlobalExitRootStoragePosition, hex.EncodeToHex(globalExitRootPos))
 
 	root, _, err := b.State.tree.SetStorageAt(ctx, b.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), b.stateRoot)
 	if err != nil {
