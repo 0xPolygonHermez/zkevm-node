@@ -97,7 +97,6 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 	b.logs = []types.Log{}
 
 	// Set Global Exit Root
-	//globalExitRootPos := helper.Keccak256(batch.Number().Bytes(), new(big.Int).SetUint64(b.State.cfg.GlobalExitRootStoragePosition).Bytes())
 	globalExitRootPos := solsha3.SoliditySHA3(
 		[]string{"uint256", "uint256"},
 		[]interface{}{
@@ -105,8 +104,6 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 			b.State.cfg.GlobalExitRootStoragePosition,
 		},
 	)
-	log.Debugf("b.State.cfg.L2GlobalExitRootManagerAddr: %s, globalExitRoot: %s, batch number: %d, GlobalExitRootStoragePosition: %d, globalExitRootPos: %s", b.State.cfg.L2GlobalExitRootManagerAddr, batch.GlobalExitRoot, batch.Number(), b.State.cfg.GlobalExitRootStoragePosition, hex.EncodeToHex(globalExitRootPos))
-
 	root, _, err := b.State.tree.SetStorageAt(ctx, b.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), b.stateRoot)
 	if err != nil {
 		return err
@@ -543,7 +540,7 @@ func (b *BasicBatchProcessor) commit(ctx context.Context, batch *Batch) error {
 
 		// set local exit root
 		key := new(big.Int).SetUint64(b.State.cfg.LocalExitRootStoragePosition)
-		localExitRoot, err := b.State.tree.GetStorageAt(ctx, b.State.cfg.L2GlobalExitRootManagerAddr, common.BigToHash(key), b.stateRoot)
+		localExitRoot, err := b.State.tree.GetStorageAt(ctx, b.State.cfg.L2GlobalExitRootManagerAddr, key, b.stateRoot)
 		if err != nil {
 			return err
 		}
