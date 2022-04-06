@@ -139,10 +139,10 @@ func (a *Aggregator) Start() {
 			}
 
 			rawTxs := hex.EncodeToHex(batchToConsolidate.RawTxsData)
-			// TODO: change this, once we have dynamic exit root
-			globalExitRoot := common.HexToHash("0xa116e19a7984f21055d07b606c55628a5ffbf8ae1261c1e9f4e3a61620cf810a")
-			oldLocalExitRoot := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-			newLocalExitRoot := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+			globalExitRoot := batchToConsolidate.GlobalExitRoot
+			oldLocalExitRoot := lastConsolidatedBatch.RollupExitRoot
+			newLocalExitRoot := batchToConsolidate.RollupExitRoot
+			// TODO: change this, once it will be clear, what db means
 			db := map[string]string{
 				"0540ae2a259cb9179561cffe6a0a3852a2c1806ad894ed396a2ef16e1f10e9c7": "0000000000000000000000000000000000000000000000056bc75e2d63100000",
 				"061927dd2a72763869c1d5d9336a42d12a9a2f22809c9cf1feeb2a6d1643d950": "0000000000000000000000000000000000000000000000000000000000000000",
