@@ -53,7 +53,7 @@
     "newLocalExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
     "inputHash": "0xa2d6f70384a5211fc6c8cf1698132ee9e8cf83943004448c0065dc727dee5c3a",
     "batchHashData": "0x3d53e7e5be04b00f66af647512af6d17e4e767a5e41fa1293010b885c9fe06db",
-    "localExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
+    "oldLocalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "timestamp": 1944498031,
     "receipts": [
       {
@@ -220,7 +220,7 @@
     "newLocalExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
     "inputHash": "0xc73f96aeb18f5f2ea748b1d419ea9f54ce14786b808411ff45940c96c4180478",
     "batchHashData": "0x60f52a72fc8220735aed08989d658d2c8aa1bc3d017752efe8af362ce706accb",
-    "localExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
+    "oldLocalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "timestamp": 1944498031,
     "receipts": [
       {
@@ -322,7 +322,7 @@
     "newLocalExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
     "inputHash": "0xf2504d451bd3eed2aec077c2f5942de1612a2d4a032fbb06a927dc5dbbc6e73a",
     "batchHashData": "0x7d828641885688648e7b9d8dd8978c7b2627acf37e4d862a4dc8eca209693560",
-    "localExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
+    "oldLocalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "timestamp": 1944498031,
     "receipts": [],
     "blockInfo": {
@@ -402,7 +402,7 @@
     "newLocalExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
     "inputHash": "0x96e05e9f60038c40c9b91af035e660aec2e2ee604e3a61aab1a31157746645bc",
     "batchHashData": "0xede443c6a76851cd129176ea5fa92143c892688bd38342d336fc02bd8c252023",
-    "localExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
+    "oldLocalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "timestamp": 1944498031,
     "receipts": [],
     "blockInfo": {
@@ -472,7 +472,7 @@
     "newLocalExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
     "inputHash": "0x544971e11c46494b592741b656ad19513f33f1946bff2aadfa8eee1ea3e5ebe9",
     "batchHashData": "0xb9c0cb7695d04dd27b85bb2a78845f14adeab04d91c3d959b92cde3127b4959f",
-    "localExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
+    "oldLocalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "timestamp": 1944498031,
     "receipts": [],
     "blockInfo": {
@@ -565,7 +565,7 @@
     "newLocalExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
     "inputHash": "0x2b06935c61b3ad0ebbb32aff65e75babc188530573937ffbb10ca7bced6b0b3c",
     "batchHashData": "0xfe58265c6da0fbbefd3549a2f32914f83fe7314736cc04dd03dd8391f7e739d2",
-    "localExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
+    "oldLocalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "timestamp": 1944498031,
     "receipts": [
       {
@@ -710,7 +710,7 @@
     "newLocalExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
     "inputHash": "0x899b298f322ba7d5c81e9e175ad2f752ee8de0aa04dbf1427bf107b8a51bc6b0",
     "batchHashData": "0xe3de819937586c66bb4ff7f2f5e5eff66aab5050e32ef03fcc3a8015869c700f",
-    "localExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
+    "oldLocalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "timestamp": 1944498031,
     "receipts": [],
     "blockInfo": {
@@ -763,7 +763,7 @@
     "newLocalExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
     "inputHash": "0xaf9400acdf7fa66e70a6dcfed831bbd9e66f7452f28c06209adc4e6ada5a74b4",
     "batchHashData": "0x75aad5d25c5617c0a33a3d0831c48d429c6d394bf31a58ebeff3640e8f235a92",
-    "localExitRoot": "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e",
+    "oldLocalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "timestamp": 1944498031,
     "receipts": [],
     "blockInfo": {
