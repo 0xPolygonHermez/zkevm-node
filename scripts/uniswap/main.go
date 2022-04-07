@@ -19,6 +19,7 @@ import (
 	ERC20 "github.com/hermeznetwork/hermez-core/test/contracts/bin/ERC20"
 	WETH "github.com/hermeznetwork/hermez-core/test/contracts/bin/WETH"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/core/UniswapV2Factory"
+	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/core/UniswapV2Pair"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/interface/UniswapInterfaceMulticall"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/periphery/UniswapV2Router02"
 )
@@ -139,10 +140,21 @@ func main() {
 
 	// Execute swaps
 	log.Debugf("Swapping A <-> B")
-	pair, err := factory.GetPair(nil, aCoinAddr, bCoinAddr)
+	pairAddr, err := factory.GetPair(nil, aCoinAddr, bCoinAddr)
 	chkErr(err)
-	log.Debugf("Swapping A <-> B pair: %v", pair.Hex())
-	tx, err = router.SwapExactTokensForTokens(auth, big.NewInt(1000), big.NewInt(1000), []common.Address{aCoinAddr, bCoinAddr}, auth.From, getDeadline())
+	log.Debugf("Swapping A <-> B pair: %v", pairAddr.Hex())
+	pairSC, err := UniswapV2Pair.NewUniswapV2Pair(pairAddr, client)
+	chkErr(err)
+
+	pairReserves, err := pairSC.GetReserves(nil)
+	chkErr(err)
+	log.Debugf("Swapping A <-> B reserves: 0: %v 1: %v Block Timestamp: %v", pairReserves.Reserve0, pairReserves.Reserve1, pairReserves.BlockTimestampLast)
+
+	exactAmountIn := big.NewInt(1000)
+	amountOut, err := router.GetAmountOut(nil, exactAmountIn, pairReserves.Reserve0, pairReserves.Reserve1)
+	chkErr(err)
+
+	tx, err = router.SwapExactTokensForTokens(auth, exactAmountIn, amountOut, []common.Address{aCoinAddr, bCoinAddr}, auth.From, getDeadline())
 	chkErr(err)
 	log.Debugf("Swapping A <-> B tx: %v", tx.Hash().Hex())
 	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
