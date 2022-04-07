@@ -95,14 +95,14 @@ func Test_CustomNetwork(t *testing.T) {
 	assert.Equal(t, uint64(1000), cfg.NetworkConfig.L2DefaultChainID)
 	assert.Equal(t, uint64(123456), cfg.NetworkConfig.MaxCumulativeGasUsed)
 
-	assert.Equal(t, 3, len(cfg.NetworkConfig.Balances))
+	assert.Equal(t, 3, len(cfg.NetworkConfig.Genesis.Balances))
 
 	assertBalance := func(t *testing.T, a, b string) {
 		balance, ok := big.NewInt(0).SetString(b, encoding.Base10)
 		assert.True(t, ok)
 
 		addr := common.HexToAddress(a)
-		balanceFound, found := cfg.NetworkConfig.Balances[addr]
+		balanceFound, found := cfg.NetworkConfig.Genesis.Balances[addr]
 		assert.True(t, found)
 
 		if !found {

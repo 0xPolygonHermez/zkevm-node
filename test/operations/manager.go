@@ -134,7 +134,7 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 
 // ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
 // the final state.
-func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot string) error {
+func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot, globalExitRoot string) error {
 	// store current batch number to check later when the state is updated
 	currentBatchNumber, err := m.st.GetLastBatchNumberSeenOnEthereum(m.ctx)
 	if err != nil {
@@ -145,7 +145,10 @@ func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot string
 	for _, vectorTx := range vectorTxs {
 		if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" {
 			var tx types.LegacyTx
-			bytes, _ := hex.DecodeString(strings.TrimPrefix(string(vectorTx.RawTx), "0x"))
+			bytes, err := hex.DecodeHex(vectorTx.RawTx)
+			if err != nil {
+				return err
+			}
 
 			err = rlp.DecodeBytes(bytes, &tx)
 			if err == nil {
@@ -168,7 +171,7 @@ func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot string
 		RawTxsData:         nil,
 		MaticCollateral:    big.NewInt(1),
 		ChainID:            big.NewInt(int64(m.cfg.State.DefaultChainID)),
-		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
+		GlobalExitRoot:     common.HexToHash(globalExitRoot),
 	}
 
 	// Create Batch Processor
@@ -271,8 +274,9 @@ func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) 
 	tr := tree.NewStateTree(mt, scCodeStore)
 
 	stateCfg := state.Config{
-		DefaultChainID:       defaultChainID,
-		MaxCumulativeGasUsed: maxCumulativeGasUsed,
+		DefaultChainID:              defaultChainID,
+		MaxCumulativeGasUsed:        maxCumulativeGasUsed,
+		L2GlobalExitRootManagerAddr: common.HexToAddress("0xAE4bB80bE56B819606589DE61d5ec3b522EEB032"),
 	}
 
 	stateDB := state.NewPostgresStorage(sqlDB)
