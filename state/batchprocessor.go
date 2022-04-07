@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -20,11 +21,12 @@ import (
 )
 
 const (
-	spuriousDragonMaxCodeSize = 24576
-	maxCallDepth              = 1024
-	contractByteGasCost       = 200
-	nonZeroCost               = 68
-	zeroCost                  = 4
+	spuriousDragonMaxCodeSize  = 24576
+	maxCallDepth               = 1024
+	contractByteGasCost        = 200
+	nonZeroCost                = 68
+	zeroCost                   = 4
+	bridgeClaimMethodSignature = "0x122650ff"
 )
 
 var (
@@ -478,10 +480,12 @@ func (b *BasicBatchProcessor) CheckTransaction(ctx context.Context, tx *types.Tr
 }
 
 func (b *BasicBatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
-	// Check balance
-	if senderBalance.Cmp(tx.Cost()) < 0 {
-		log.Debugf("check transaction [%s]: invalid balance, expected: %v, found: %v", tx.Hash().Hex(), tx.Cost().Text(encoding.Base10), senderBalance.Text(encoding.Base10))
-		return ErrInvalidBalance
+	// Check balance except for claim transactions to bridge contract
+	if !(*tx.To() == b.State.cfg.L2GlobalExitRootManagerAddr && strings.HasPrefix("0x"+common.Bytes2Hex(tx.Data()), bridgeClaimMethodSignature)) {
+		if senderBalance.Cmp(tx.Cost()) < 0 {
+			log.Debugf("check transaction [%s]: invalid balance, expected: %v, found: %v", tx.Hash().Hex(), tx.Cost().Text(encoding.Base10), senderBalance.Text(encoding.Base10))
+			return ErrInvalidBalance
+		}
 	}
 
 	// Check nonce
