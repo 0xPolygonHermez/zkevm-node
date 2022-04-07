@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -21,12 +20,11 @@ import (
 )
 
 const (
-	spuriousDragonMaxCodeSize  = 24576
-	maxCallDepth               = 1024
-	contractByteGasCost        = 200
-	nonZeroCost                = 68
-	zeroCost                   = 4
-	bridgeClaimMethodSignature = "0x122650ff"
+	spuriousDragonMaxCodeSize = 24576
+	maxCallDepth              = 1024
+	contractByteGasCost       = 200
+	nonZeroCost               = 68
+	zeroCost                  = 4
 )
 
 var (
@@ -360,14 +358,22 @@ func (b *BasicBatchProcessor) transfer(ctx context.Context, tx *types.Transactio
 
 	senderBalance, err := b.State.tree.GetBalance(ctx, senderAddress, root)
 	if err != nil {
-		result.Err = err
-		return result
+		if err == ErrNotFound {
+			senderBalance = big.NewInt(0)
+		} else {
+			result.Err = err
+			return result
+		}
 	}
 
 	senderNonce, err := b.State.tree.GetNonce(ctx, senderAddress, root)
 	if err != nil {
-		result.Err = err
-		return result
+		if err == ErrNotFound {
+			senderNonce = big.NewInt(0)
+		} else {
+			result.Err = err
+			return result
+		}
 	}
 
 	err = b.checkTransaction(ctx, tx, senderNonce, senderBalance)
@@ -468,24 +474,30 @@ func (b *BasicBatchProcessor) CheckTransaction(ctx context.Context, tx *types.Tr
 
 	senderNonce, err := b.State.tree.GetNonce(ctx, senderAddress, b.stateRoot)
 	if err != nil {
-		return err
+		if err == ErrNotFound {
+			senderNonce = big.NewInt(0)
+		} else {
+			return err
+		}
 	}
 
-	balance, err := b.State.tree.GetBalance(ctx, senderAddress, b.stateRoot)
+	senderBalance, err := b.State.tree.GetBalance(ctx, senderAddress, b.stateRoot)
 	if err != nil {
-		return err
+		if err == ErrNotFound {
+			senderBalance = big.NewInt(0)
+		} else {
+			return err
+		}
 	}
 
-	return b.checkTransaction(ctx, tx, senderNonce, balance)
+	return b.checkTransaction(ctx, tx, senderNonce, senderBalance)
 }
 
 func (b *BasicBatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
-	// Check balance except for claim transactions to bridge contract
-	if !(*tx.To() == b.State.cfg.L2GlobalExitRootManagerAddr && strings.HasPrefix("0x"+common.Bytes2Hex(tx.Data()), bridgeClaimMethodSignature)) {
-		if senderBalance.Cmp(tx.Cost()) < 0 {
-			log.Debugf("check transaction [%s]: invalid balance, expected: %v, found: %v", tx.Hash().Hex(), tx.Cost().Text(encoding.Base10), senderBalance.Text(encoding.Base10))
-			return ErrInvalidBalance
-		}
+	// Check balance
+	if senderBalance.Cmp(tx.Cost()) < 0 {
+		log.Debugf("check transaction [%s]: invalid balance, expected: %v, found: %v", tx.Hash().Hex(), tx.Cost().Text(encoding.Base10), senderBalance.Text(encoding.Base10))
+		return ErrInvalidBalance
 	}
 
 	// Check nonce
