@@ -9,9 +9,10 @@ import (
 
 // Genesis contains the information to populate State on creation
 type Genesis struct {
-	Block          *types.Block
-	Balances       map[common.Address]*big.Int
-	SmartContracts map[common.Address][]byte
-	Storage        map[common.Address]map[*big.Int]*big.Int
-	L2ChainID      uint64
+	Block          *types.Block                             `json:"-"`
+	Balances       map[common.Address]*big.Int              `json:"balances"`
+	SmartContracts map[common.Address][]byte                `json:"smartContracts"`
+	Storage        map[common.Address]map[*big.Int]*big.Int `json:"storage"`
+	Nonces         map[common.Address]*big.Int              `json:"nonces"`
+	L2ChainID      uint64                                   `json:"-"`
 }

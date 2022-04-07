@@ -568,7 +568,6 @@ func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64) ([]uint64, 
 		}
 	}
 	if len(dataByte) == 0 {
-		log.Debugf("about to call store.Get...")
 		dataByte, err = mt.store.Get(ctx, h4ToScalar(key).Bytes())
 		if err != nil {
 			return nil, err

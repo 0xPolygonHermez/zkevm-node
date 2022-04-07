@@ -25,5 +25,5 @@ type merkletree interface {
 	SetBalance(ctx context.Context, address common.Address, balance *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
 	SetNonce(ctx context.Context, address common.Address, nonce *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
 	SetCode(ctx context.Context, address common.Address, code []byte, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
-	SetStorageAt(ctx context.Context, address common.Address, key *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
+	SetStorageAt(ctx context.Context, address common.Address, position *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *tree.UpdateProof, err error)
 }

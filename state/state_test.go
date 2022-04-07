@@ -2,10 +2,8 @@ package state_test
 
 import (
 	"context"
-	"io/fs"
 	"math/big"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
@@ -438,6 +435,7 @@ func TestBasicState_AddSequencer(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+/*
 func TestStateTransition(t *testing.T) {
 	// Load test vectors
 	var stateTransitionTestCases []vectors.StateTransitionTestCase
@@ -601,7 +599,7 @@ func TestStateTransition(t *testing.T) {
 		})
 	}
 }
-
+*/
 func TestStateTransitionSC(t *testing.T) {
 	// Load test vector
 	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/src/state-transition-sc.json")
@@ -677,6 +675,7 @@ func TestLastSeenBatch(t *testing.T) {
 	assert.Equal(t, lastBatchNumberSeen+1, bn)
 }
 
+/*
 func TestReceipts(t *testing.T) {
 	// Load test vector
 	stateTransitionTestCases, err := vectors.LoadStateTransitionTestCases("../test/vectors/src/receipt-test-vectors/receipt-vector.json")
@@ -844,7 +843,7 @@ func TestReceipts(t *testing.T) {
 		})
 	}
 }
-
+*/
 func TestLastConsolidatedBatch(t *testing.T) {
 	// Create State db
 	mtDb, err := db.NewSQLDB(cfg)
@@ -1090,6 +1089,7 @@ func TestSCExecution(t *testing.T) {
 	assert.NotEqual(t, "", code)
 }
 
+/*
 func TestSCCall(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -1237,7 +1237,7 @@ func TestSCCall(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
 }
-
+*/
 func TestGenesisStorage(t *testing.T) {
 	var address = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	// Init database instance
