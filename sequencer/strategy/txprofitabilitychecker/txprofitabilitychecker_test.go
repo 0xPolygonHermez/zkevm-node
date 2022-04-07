@@ -12,6 +12,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
@@ -27,8 +28,9 @@ type stateInterface interface {
 }
 
 var (
-	stateDB   *pgxpool.Pool
-	testState stateInterface
+	stateDB     *pgxpool.Pool
+	testState   stateInterface
+	priceGetter pricegetter.Client
 
 	addr               common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
 	consolidatedTxHash common.Hash    = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")
@@ -66,6 +68,16 @@ func TestMain(m *testing.M) {
 	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
 	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	txs = []*types.Transaction{tx}
+
+	defaultPrice := new(pricegetter.TokenPrice)
+	_ = defaultPrice.UnmarshalText([]byte("2000"))
+	priceGetter, err = pricegetter.NewClient(pricegetter.Config{
+		Type:         pricegetter.DefaultType,
+		DefaultPrice: pricegetter.TokenPrice{},
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	setUpBlock()
 	setUpBatch()
@@ -135,7 +147,7 @@ func setUpBatch() {
 func TestBase_IsProfitable_FailByMinReward(t *testing.T) {
 	minReward := new(big.Int).Mul(big.NewInt(1000), big.NewInt(encoding.TenToThePowerOf18))
 	ethMan := new(etherman)
-	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(60), 50)
+	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, priceGetter, minReward, time.Duration(60), 50)
 	ctx := context.Background()
 
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(1), nil)
@@ -148,7 +160,7 @@ func TestBase_IsProfitable_FailByMinReward(t *testing.T) {
 func TestBase_IsProfitable_SendBatchAnyway(t *testing.T) {
 	minReward := big.NewInt(0)
 	ethMan := new(etherman)
-	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(1), 50)
+	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, priceGetter, minReward, time.Duration(1), 50)
 
 	ctx := context.Background()
 
@@ -164,7 +176,7 @@ func TestBase_IsProfitable_SendBatchAnyway(t *testing.T) {
 func TestBase_IsProfitable_GasCostTooBigForSendingTx(t *testing.T) {
 	minReward := big.NewInt(0)
 	ethMan := new(etherman)
-	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(60), 50)
+	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, priceGetter, minReward, time.Duration(60), 50)
 
 	ctx := context.Background()
 
@@ -177,7 +189,7 @@ func TestBase_IsProfitable_GasCostTooBigForSendingTx(t *testing.T) {
 
 func TestBase_IsProfitable(t *testing.T) {
 	ethMan := new(etherman)
-	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, big.NewInt(0), time.Duration(60), 50)
+	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, priceGetter, big.NewInt(0), time.Duration(60), 50)
 
 	ctx := context.Background()
 
