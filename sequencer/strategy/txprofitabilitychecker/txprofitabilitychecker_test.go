@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 	_ = defaultPrice.UnmarshalText([]byte("2000"))
 	priceGetter, err = pricegetter.NewClient(pricegetter.Config{
 		Type:         pricegetter.DefaultType,
-		DefaultPrice: pricegetter.TokenPrice{},
+		DefaultPrice: *defaultPrice,
 	})
 	if err != nil {
 		panic(err)
