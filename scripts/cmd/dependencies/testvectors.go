@@ -7,10 +7,11 @@ import (
 	"github.com/spf13/afero"
 )
 
-const (
-	defaultTUSourceRepo    = "git@github.com:hermeznetwork/test-vectors.git"
-	defaultTUTargetDirPath = "../../../test/vectors/src"
-)
+// TVConfig is the configuration for the test vector updater.
+type TVConfig struct {
+	TargetDirPath string
+	SourceRepo    string
+}
 
 type testVectorUpdater struct {
 	fs afero.Fs
@@ -21,20 +22,19 @@ type testVectorUpdater struct {
 	targetDirPath string
 }
 
-func init() {
+func newTestVectorUpdater(sourceRepo, targetDirPath string) *testVectorUpdater {
 	aferoFs := afero.NewOsFs()
 
 	gm := newGithubManager(aferoFs, os.Getenv("UPDATE_DEPS_SSH_PK"), os.Getenv("GITHUB_TOKEN"))
-	tv := &testVectorUpdater{
+
+	return &testVectorUpdater{
 		fs: aferoFs,
 
 		gm: gm,
 
-		sourceRepo:    defaultTUSourceRepo,
-		targetDirPath: defaultTUTargetDirPath,
+		sourceRepo:    sourceRepo,
+		targetDirPath: targetDirPath,
 	}
-
-	dependenciesList = append(dependenciesList, tv)
 }
 
 func (tu *testVectorUpdater) update() error {

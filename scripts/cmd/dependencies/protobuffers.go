@@ -8,10 +8,11 @@ import (
 	"github.com/spf13/afero"
 )
 
-const (
-	defaultPBSourceRepo    = "git@github.com:hermeznetwork/comms-protocol.git"
-	defaultPBTargetDirPath = "../../../proto/src"
-)
+// PBConfig is the configuration for the protobuffers updater.
+type PBConfig struct {
+	SourceRepo    string
+	TargetDirPath string
+}
 
 type pbUpdater struct {
 	fs afero.Fs
@@ -22,21 +23,19 @@ type pbUpdater struct {
 	targetDirPath string
 }
 
-func init() {
+func newPBUpdater(sourceRepo, targetDirPath string) *pbUpdater {
 	aferoFs := afero.NewOsFs()
 
 	gm := newGithubManager(aferoFs, os.Getenv("UPDATE_DEPS_SSH_PK"), os.Getenv("GITHUB_TOKEN"))
 
-	pb := &pbUpdater{
+	return &pbUpdater{
 		fs: aferoFs,
 
 		gm: gm,
 
-		sourceRepo:    defaultPBSourceRepo,
-		targetDirPath: defaultPBTargetDirPath,
+		sourceRepo:    sourceRepo,
+		targetDirPath: targetDirPath,
 	}
-
-	dependenciesList = append(dependenciesList, pb)
 }
 
 func (pb *pbUpdater) update() error {

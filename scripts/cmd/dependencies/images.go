@@ -14,10 +14,15 @@ import (
 )
 
 const (
-	dockerComposePath     = "../../../docker-compose.yml"
 	defaultImageAPIServer = "https://hub.docker.com"
 	defaultLoginPattern   = "/v2/users/login"
 )
+
+// ImagesConfig is the configuration for the images updater.
+type ImagesConfig struct {
+	Names          []string
+	TargetFilePath string
+}
 
 type imageUpdater struct {
 	fs afero.Fs
@@ -27,28 +32,26 @@ type imageUpdater struct {
 
 	dockerUsername string
 	dockerPassword string
+
+	images []string
 }
 
-func init() {
-	iu := &imageUpdater{
+func newImageUpdater(images []string, targetFilePath string) *imageUpdater {
+	return &imageUpdater{
 		fs: afero.NewOsFs(),
 
-		targetFilePath: dockerComposePath,
+		targetFilePath: targetFilePath,
 		imageAPIServer: defaultImageAPIServer,
 
 		dockerUsername: os.Getenv("DOCKERHUB_USERNAME"),
 		dockerPassword: os.Getenv("DOCKERHUB_PASSWORD"),
-	}
 
-	dependenciesList = append(dependenciesList, iu)
+		images: images,
+	}
 }
 
 func (iu *imageUpdater) update() error {
-	images := []string{
-		"hermeznetwork/geth-zkevm-contracts",
-	}
-
-	for _, image := range images {
+	for _, image := range iu.images {
 		if err := iu.updateImage(image); err != nil {
 			return err
 		}
