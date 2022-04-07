@@ -16,11 +16,11 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/test/contracts/bin/erc20"
+	ERC20 "github.com/hermeznetwork/hermez-core/test/contracts/bin/ERC20"
+	WETH "github.com/hermeznetwork/hermez-core/test/contracts/bin/WETH"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/core/UniswapV2Factory"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/interface/UniswapInterfaceMulticall"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/periphery/UniswapV2Router02"
-	"github.com/hermeznetwork/hermez-core/test/contracts/bin/weth"
 )
 
 const (
@@ -57,7 +57,7 @@ func main() {
 	fmt.Println()
 
 	// Deploy wETH Token, it's required by uniswap to swap ETH by tokens
-	wEthAddr, tx, wethSC, err := weth.DeployWeth(auth, client)
+	wEthAddr, tx, wethSC, err := WETH.DeployWETH(auth, client)
 	chkErr(err)
 	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
@@ -189,9 +189,9 @@ func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Du
 	}
 }
 
-func deployERC20(auth *bind.TransactOpts, client *ethclient.Client, name, symbol string) (common.Address, *erc20.Erc20) {
+func deployERC20(auth *bind.TransactOpts, client *ethclient.Client, name, symbol string) (common.Address, *ERC20.ERC20) {
 	log.Debugf("Deploying ERC20 Token: [%v]%v", symbol, name)
-	addr, tx, instance, err := erc20.DeployErc20(auth, client, name, symbol)
+	addr, tx, instance, err := ERC20.DeployERC20(auth, client, name, symbol)
 	chkErr(err)
 	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
@@ -200,7 +200,7 @@ func deployERC20(auth *bind.TransactOpts, client *ethclient.Client, name, symbol
 	return addr, instance
 }
 
-func mintERC20(auth *bind.TransactOpts, client *ethclient.Client, erc20sc *erc20.Erc20, amount string) *types.Transaction {
+func mintERC20(auth *bind.TransactOpts, client *ethclient.Client, erc20sc *ERC20.ERC20, amount string) *types.Transaction {
 	name, err := erc20sc.Name(nil)
 	chkErr(err)
 	log.Debugf("Minting %v tokens for account %v on token %v", amount, auth.From, name)
