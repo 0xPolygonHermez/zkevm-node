@@ -35,6 +35,9 @@ InitBatchProcessorIfDiffType = "synced"
         [Sequencer.Strategy.TxProfitabilityChecker]
             Type = "acceptall"
             MinReward = "1.1"
+    [Sequencer.PriceGetter]
+        Type = "default"
+        DefaultPrice = "2000"
 
 [Aggregator]
 IntervalToConsolidateState = "10s"

@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/stretchr/testify/assert"
@@ -33,6 +34,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.InitBatchProcessorIfDiffType",
 			expectedValue: sequencer.InitBatchProcessorIfDiffTypeSynced,
+		},
+		{
+			path:          "Sequencer.PriceGetter.Type",
+			expectedValue: pricegetter.DefaultType,
 		},
 		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",

@@ -20,3 +20,9 @@ type etherman interface {
 type stateInterface interface {
 	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
 }
+
+// priceGetter is for getting eth/matic price, used for the base tx profitability checker
+type priceGetter interface {
+	SyncPrice(ctx context.Context)
+	GetPrice(ctx context.Context) (*big.Float, error)
+}

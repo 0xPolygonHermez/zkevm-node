@@ -3,6 +3,7 @@ package sequencer
 import (
 	"time"
 
+	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
 )
 
@@ -46,6 +47,9 @@ type Config struct {
 
 	// Strategy is the configuration for the strategy
 	Strategy strategy.Strategy `mapstructure:"Strategy"`
+
+	// PriceGetter config for the price getter
+	PriceGetter pricegetter.Config `mapstructure:"PriceGetter"`
 
 	// InitBatchProcessorIfDiffType is for the case, when last synchronized batch num more than latest sent batch
 	// If "synced" init bp by synced batch, if "calculated" init by previous calculated root
