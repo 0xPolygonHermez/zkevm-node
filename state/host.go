@@ -183,11 +183,24 @@ func (h *Host) EmitLog(address common.Address, topics []common.Hash, data []byte
 
 // Callx calls a SC
 func (h *Host) Callx(ctx context.Context, contract *runtime.Contract, host runtime.Host) *runtime.ExecutionResult {
+	log.Debugf("Callx to address %v", contract.CodeAddress)
+
 	if contract.Type == runtime.Create {
 		log.Debugf("Callx. New Contract Creation %v", contract.Address)
 		return h.applyCreate(ctx, contract, host)
 	}
-	log.Debugf("Callx to address %v", contract.CodeAddress)
+
+	if contract.Type == runtime.Call {
+		log.Debugf("Callx. New Transfer from %v to %v", contract.Caller, contract.Address)
+		err := h.transfer(ctx, contract.Caller, contract.Address, contract.Value)
+		if err != nil {
+			return &runtime.ExecutionResult{
+				GasLeft: contract.Gas,
+				Err:     err,
+			}
+		}
+	}
+
 	root := h.stateRoot
 	contract2 := runtime.NewContractCall(contract.Depth+1, contract.Address, contract.Caller, contract.CodeAddress, contract.Value, contract.Gas, contract.Code, contract.Input)
 	result := h.run(ctx, contract2)
@@ -214,6 +227,34 @@ func (h *Host) GetNonce(ctx context.Context, address common.Address) uint64 {
 	log.Debugf("GetNonce for address %v", address)
 
 	return nonce.Uint64()
+}
+
+func (h *Host) transfer(ctx context.Context, senderAddress, receiverAddress common.Address, value *big.Int) error {
+	var err error
+	var balances = make(map[common.Address]*big.Int)
+
+	root := h.stateRoot
+
+	senderBalance := h.GetBalance(ctx, senderAddress)
+	balances[senderAddress] = senderBalance
+
+	receiverBalance := h.GetBalance(ctx, receiverAddress)
+	balances[receiverAddress] = receiverBalance
+
+	balances[senderAddress].Sub(balances[senderAddress], value)
+	balances[receiverAddress].Add(balances[receiverAddress], value)
+
+	// Store new balances
+	for address, balance := range balances {
+		root, _, err = h.State.tree.SetBalance(ctx, address, balance, root)
+		if err != nil {
+			return err
+		}
+	}
+
+	h.stateRoot = root
+
+	return nil
 }
 
 func (h *Host) applyCreate(ctx context.Context, contract *runtime.Contract, host runtime.Host) *runtime.ExecutionResult {
