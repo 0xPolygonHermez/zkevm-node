@@ -20,12 +20,12 @@ Host = "0.0.0.0"
 Port = 8123
 
 [Synchronizer]
-SyncInterval = "5s"
+SyncInterval = "1s"
 SyncChunkSize = 100
 
 [Sequencer]
 AllowNonRegistered = "false"
-IntervalToProposeBatch = "15s"
+IntervalToProposeBatch = "5s"
 SyncedBlockDif = 1
 InitBatchProcessorIfDiffType = "synced"
     [Sequencer.Strategy]

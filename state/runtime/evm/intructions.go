@@ -465,7 +465,7 @@ func opSload(ctx context.Context, s *state) {
 		return
 	}
 
-	val := s.host.GetStorage(ctx, s.msg.Address, bigToHash(loc))
+	val := s.host.GetStorage(ctx, s.msg.Address, loc)
 	loc.SetBytes(val.Bytes())
 }
 

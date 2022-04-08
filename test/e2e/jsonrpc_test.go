@@ -13,9 +13,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/scripts/cmd/compilesc"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/test/operations"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -148,7 +148,7 @@ func checkError(err error, expected bool, msg string) error {
 func deployContracts(opsman *operations.Manager) error {
 	var txs []*types.Transaction
 
-	bytecode, err := compilesc.ReadBytecode("double.sol")
+	bytecode, err := testutils.ReadBytecode("Double/Double.bin")
 	if err != nil {
 		return err
 	}

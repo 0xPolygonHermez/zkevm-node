@@ -16,7 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/scripts/cmd/compilesc"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -41,13 +41,13 @@ func main() {
 
 	sendEthTransaction(ctx, client, auth)
 
-	counterHexBytes, err := compilesc.ReadBytecode("counter.sol")
+	counterHexBytes, err := testutils.ReadBytecode("Counter/Counter.bin")
 	chkErr(err)
-	emitLogHexBytes, err := compilesc.ReadBytecode("emitLog.sol")
+	emitLogHexBytes, err := testutils.ReadBytecode("EmitLog/EmitLog.bin")
 	chkErr(err)
-	erc20HexBytes, err := compilesc.ReadBytecode("erc20.sol")
-	chkErr(err)
-	storageHexBytes, err := compilesc.ReadBytecode("storage.sol")
+	// erc20HexBytes, err := testutils.ReadBytecode("ERC20/ERC20.bin")
+	// chkErr(err)
+	storageHexBytes, err := testutils.ReadBytecode("Storage/Storage.bin")
 	chkErr(err)
 
 	var scAddr common.Address
@@ -57,8 +57,8 @@ func main() {
 	scAddr = deploySC(ctx, client, auth, emitLogHexBytes, 400000)
 	sendTxsToEmitLogSC(ctx, client, auth, scAddr)
 
-	scAddr = deploySC(ctx, client, auth, erc20HexBytes, 1200000)
-	sendTxsToERC20SC(ctx, client, auth, scAddr)
+	// scAddr = deploySC(ctx, client, auth, erc20HexBytes, 1200000)
+	// sendTxsToERC20SC(ctx, client, auth, scAddr)
 
 	scAddr = deploySC(ctx, client, auth, storageHexBytes, 400000)
 	sendTxsToStorageSC(ctx, client, auth, scAddr)
@@ -99,60 +99,60 @@ func sendTxsToEmitLogSC(ctx context.Context, client *ethclient.Client, auth *bin
 	log.Infof("counter incremented")
 }
 
-func sendTxsToERC20SC(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, scAddr common.Address) {
-	// mint
-	hash := sha3.NewLegacyKeccak256()
-	_, err := hash.Write([]byte("mint(uint256)"))
-	chkErr(err)
-	methodID := hash.Sum(nil)[:4]
-	a, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	amount := common.LeftPadBytes(a.Bytes(), 32)
+// func sendTxsToERC20SC(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, scAddr common.Address) {
+// 	// mint
+// 	hash := sha3.NewLegacyKeccak256()
+// 	_, err := hash.Write([]byte("mint(uint256)"))
+// 	chkErr(err)
+// 	methodID := hash.Sum(nil)[:4]
+// 	a, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
+// 	amount := common.LeftPadBytes(a.Bytes(), 32)
 
-	var data []byte
-	data = append(data, methodID...)
-	data = append(data, amount...)
+// 	var data []byte
+// 	data = append(data, methodID...)
+// 	data = append(data, amount...)
 
-	log.Infof("sending mint")
-	scCall(ctx, client, auth, scAddr, data)
-	log.Infof("mint processed successfully")
+// 	log.Infof("sending mint")
+// 	scCall(ctx, client, auth, scAddr, data)
+// 	log.Infof("mint processed successfully")
 
-	// transfer
-	hash = sha3.NewLegacyKeccak256()
-	_, err = hash.Write([]byte("transfer(address,uint256)"))
-	chkErr(err)
-	methodID = hash.Sum(nil)[:4]
-	receiver := common.LeftPadBytes(common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").Bytes(), 32)
-	a, _ = big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	amount = common.LeftPadBytes(a.Bytes(), 32)
+// 	// transfer
+// 	hash = sha3.NewLegacyKeccak256()
+// 	_, err = hash.Write([]byte("transfer(address,uint256)"))
+// 	chkErr(err)
+// 	methodID = hash.Sum(nil)[:4]
+// 	receiver := common.LeftPadBytes(common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").Bytes(), 32)
+// 	a, _ = big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
+// 	amount = common.LeftPadBytes(a.Bytes(), 32)
 
-	data = []byte{}
-	data = append(data, methodID...)
-	data = append(data, receiver...)
-	data = append(data, amount...)
+// 	data = []byte{}
+// 	data = append(data, methodID...)
+// 	data = append(data, receiver...)
+// 	data = append(data, amount...)
 
-	log.Infof("sending transfer")
-	scCall(ctx, client, auth, scAddr, data)
-	log.Infof("transfer processed successfully")
+// 	log.Infof("sending transfer")
+// 	scCall(ctx, client, auth, scAddr, data)
+// 	log.Infof("transfer processed successfully")
 
-	// invalid transfer - no enough balance
-	// TODO: uncomment this when hezcore is able to handle reverted transactions
-	// hash = sha3.NewLegacyKeccak256()
-	// _, err := hash.Write([]byte("transfer(address,uint256)"))
-	// chkErr(err)
-	// methodID = hash.Sum(nil)[:4]
-	// receiver = common.LeftPadBytes(common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").Bytes(), 32)
-	// a, _ = big.NewInt(0).SetString("2000000000000000000000", encoding.Base10)
-	// amount = common.LeftPadBytes(a.Bytes(), 32)
+// 	// invalid transfer - no enough balance
+// 	// TODO: uncomment this when hezcore is able to handle reverted transactions
+// 	// hash = sha3.NewLegacyKeccak256()
+// 	// _, err := hash.Write([]byte("transfer(address,uint256)"))
+// 	// chkErr(err)
+// 	// methodID = hash.Sum(nil)[:4]
+// 	// receiver = common.LeftPadBytes(common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").Bytes(), 32)
+// 	// a, _ = big.NewInt(0).SetString("2000000000000000000000", encoding.Base10)
+// 	// amount = common.LeftPadBytes(a.Bytes(), 32)
 
-	// data = []byte{}
-	// data = append(data, methodID...)
-	// data = append(data, receiver...)
-	// data = append(data, amount...)
+// 	// data = []byte{}
+// 	// data = append(data, methodID...)
+// 	// data = append(data, receiver...)
+// 	// data = append(data, amount...)
 
-	// log.Infof("sending transfer")
-	// scCall(ctx, client, auth, scAddr, data)
-	// log.Infof("transfer processed successfully")
-}
+// 	// log.Infof("sending transfer")
+// 	// scCall(ctx, client, auth, scAddr, data)
+// 	// log.Infof("transfer processed successfully")
+// }
 
 func sendTxsToStorageSC(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, scAddr common.Address) {
 	hash := sha3.NewLegacyKeccak256()
