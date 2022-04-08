@@ -17,6 +17,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 	"github.com/stretchr/testify/assert"
+	mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -205,6 +206,140 @@ func merkleTreeAddN(b *testing.B, store Store, n int, hashFunction HashFunction)
 
 		root = proof.NewRoot
 	}
+}
+
+func TestMTNodeCacheIsNotUsedForWritesOnNonDBTx(t *testing.T) {
+	ctx := context.Background()
+	key := []uint64{1, 1, 1, 1}
+	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
+
+	storeMock := new(storeMock)
+	storeMock.On("Set", ctx, mock.AnythingOfType("[]uint8"), mock.AnythingOfType("[]uint8")).Return(nil, nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	_, err := subject.Set(ctx, nil, key, value)
+	require.NoError(t, err)
+
+	require.Equal(t, len(subject.cache.data), 0)
+	require.False(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertExpectations(t))
+}
+
+func TestMTNodeCacheIsNotUsedForReadsOnNonDBTx(t *testing.T) {
+	ctx := context.Background()
+	key := []uint64{1, 1, 1, 1}
+	root := []uint64{2, 2, 2, 2, 2, 2, 2, 2}
+	node := make([]byte, 96)
+
+	storeMock := new(storeMock)
+	storeMock.On("Get", ctx, mock.AnythingOfType("[]uint8")).Return(node, nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	_, err := subject.Get(ctx, root, key)
+	require.NoError(t, err)
+
+	require.False(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertExpectations(t))
+}
+
+func TestMTNodeCachePreventsDBWritesOnDBTx(t *testing.T) {
+	ctx := context.Background()
+
+	storeMock := new(storeMock)
+	storeMock.On("BeginDBTransaction", ctx).Return(nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	require.NoError(t, subject.BeginDBTransaction(ctx))
+
+	key := []uint64{1, 1, 1, 1}
+	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
+	_, err := subject.Set(ctx, nil, key, value)
+	require.NoError(t, err)
+
+	require.Greater(t, len(subject.cache.data), 0)
+	require.True(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertNotCalled(t, "Set"))
+	require.True(t, storeMock.AssertExpectations(t))
+}
+
+func TestMTNodeCachePreventsDBReadsOnDBTx(t *testing.T) {
+	ctx := context.Background()
+
+	storeMock := new(storeMock)
+	storeMock.On("BeginDBTransaction", ctx).Return(nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	require.NoError(t, subject.BeginDBTransaction(ctx))
+
+	key := []uint64{1, 1, 1, 1}
+	_, err := subject.Get(ctx, nil, key)
+	require.NoError(t, err)
+
+	require.True(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertNotCalled(t, "Get"))
+	require.True(t, storeMock.AssertExpectations(t))
+}
+
+func TestMTNodeCacheFlushesContentsOnDBTxCommit(t *testing.T) {
+	ctx := context.Background()
+
+	storeMock := new(storeMock)
+	storeMock.On("BeginDBTransaction", ctx).Return(nil)
+	storeMock.On("Commit", ctx).Return(nil)
+	storeMock.On("Set", ctx, mock.AnythingOfType("[]uint8"), mock.AnythingOfType("[]uint8")).Return(nil, nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	require.NoError(t, subject.BeginDBTransaction(ctx))
+
+	key := []uint64{1, 1, 1, 1}
+	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
+	_, err := subject.Set(ctx, nil, key, value)
+	require.NoError(t, err)
+
+	require.Greater(t, len(subject.cache.data), 0)
+
+	require.NoError(t, subject.Commit(ctx))
+
+	require.Equal(t, len(subject.cache.data), 0)
+	require.False(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertExpectations(t))
+}
+
+func TestMTNodeCacheResetsOnDBTxRollback(t *testing.T) {
+	ctx := context.Background()
+
+	storeMock := new(storeMock)
+	storeMock.On("BeginDBTransaction", ctx).Return(nil)
+	storeMock.On("Rollback", ctx).Return(nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	require.NoError(t, subject.BeginDBTransaction(ctx))
+
+	key := []uint64{1, 1, 1, 1}
+	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
+	_, err := subject.Set(ctx, nil, key, value)
+	require.NoError(t, err)
+
+	require.Greater(t, len(subject.cache.data), 0)
+
+	require.NoError(t, subject.Rollback(ctx))
+
+	require.Equal(t, len(subject.cache.data), 0)
+	require.False(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertNotCalled(t, "Set"))
+	require.True(t, storeMock.AssertExpectations(t))
 }
 
 type benchStore interface {

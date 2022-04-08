@@ -150,7 +150,8 @@ func main() {
 	chkErr(err)
 	log.Debugf("Swapping A <-> B reserves: 0: %v 1: %v Block Timestamp: %v", pairReserves.Reserve0, pairReserves.Reserve1, pairReserves.BlockTimestampLast)
 
-	exactAmountIn := big.NewInt(1000)
+	const sourceAmount = 1000
+	exactAmountIn := big.NewInt(sourceAmount)
 	amountOut, err := router.GetAmountOut(nil, exactAmountIn, pairReserves.Reserve0, pairReserves.Reserve1)
 	chkErr(err)
 
@@ -231,7 +232,6 @@ func approveERC20(auth *bind.TransactOpts, client *ethclient.Client,
 	},
 	routerAddr common.Address,
 	amount string) {
-
 	name, err := sc.Name(nil)
 	chkErr(err)
 
@@ -256,7 +256,8 @@ func addLiquidity(auth *bind.TransactOpts, client *ethclient.Client, router *Uni
 }
 
 func getDeadline() *big.Int {
-	return big.NewInt(time.Now().UTC().Add(5 * time.Minute).Unix())
+	const deadLinelimit = 5 * time.Minute
+	return big.NewInt(time.Now().UTC().Add(deadLinelimit).Unix())
 }
 
 func chkErr(err error) {

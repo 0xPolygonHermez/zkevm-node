@@ -41,13 +41,13 @@ func main() {
 
 	sendEthTransaction(ctx, client, auth)
 
-	counterHexBytes, err := testutils.ReadBytecode("counter/Counter.bin")
+	counterHexBytes, err := testutils.ReadBytecode("Counter/Counter.bin")
 	chkErr(err)
-	emitLogHexBytes, err := testutils.ReadBytecode("emitLog/EmitLog.bin")
+	emitLogHexBytes, err := testutils.ReadBytecode("EmitLog/EmitLog.bin")
 	chkErr(err)
-	// erc20HexBytes, err := testutils.ReadBytecode("erc20/ERC20.bin")
+	// erc20HexBytes, err := testutils.ReadBytecode("ERC20/ERC20.bin")
 	// chkErr(err)
-	storageHexBytes, err := testutils.ReadBytecode("storage/Storage.bin")
+	storageHexBytes, err := testutils.ReadBytecode("Storage/Storage.bin")
 	chkErr(err)
 
 	var scAddr common.Address

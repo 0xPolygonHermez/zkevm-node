@@ -6,13 +6,17 @@ Hermez Core is a Go implementation of a node that operates the zkEVM Hermez Netw
 
 Since this is an implementation of a protocol it's fundamental to understand it, [here](https://hackmd.io/tEny6MhSQaqPpu4ltUyC_w) you can find the specification of the protocol.
 
-The protocol defines three phases of development, the repo currently implements:
+Glossary:
 
-- [ ] v1.3: almost fully implemented
-- [ ] v1.5: WIP
-- [ ] v2.0: WIP
-
-*Note that in terms of feature set, v1.5 and v2.0 are the same from the point of view of the node.*
+- Batch: equivalent of a block, but in the L2 realm. Note that the `jsonrpc` uses "block" instead of "batch" as it has to be compatible with the API of L1, so for this particular package block means batch.
+- Virtual state: state reached by virtual batches, which are sequences of transactions sent to L1 by sequencers. In order to understand the outcome of executing this transactions, the nodes have to synchronize those batches and execute the sequences.
+- Consolidated state: state that is proven on-chain by submitting a ZKP (Zero Knowledge Proof) that proofs the execution of a sequence of the last unconsolidated batch (virtual batch that has not been consolidated yet).
+- Invalid transaction: transaction that can't be processed and doesn't affect the state. Note that such a transaction could be included in a virtual batch.
+- Reverted transaction: transaction that is executed, but is reverted (because of smart contract logic). Main difference with *invalid transaction* is that this transaction modifies the state, at least to increment nonce off the sender.
+- v1.0: refers to the payment rollup already in production, and has nothing to do with this project (zkEVM).
+- v1.3: first iteration of the zkEVM project, includes processing Ether transfers with ZKPs
+- v1.5: the Node implemented in this repo is able to provide most of the expected functionalities by a EVM compatible network, as an example, executing Uniswap smart contracts. However ZKPs will not be included in this version
+- v2.0: Implements all the RPC features, and uses ZKPs to process any kind of transaction
 
 ## Architecture
 
@@ -47,4 +51,4 @@ It's recommended to use `make` for building, testing the code, ... Run `make hel
 
 ## Contribute
 
-Before creating a PR, pleae read this [guide](docs/contribute-guie.md)
+Before creating a PR, please read this [guide](docs/contribute-guie.md)

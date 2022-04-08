@@ -81,6 +81,19 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 	b.CumulativeGasUsed = 0
 	b.Host.logs = []types.Log{}
 
+	// Set Global Exit Root storage position
+	var batchNumberBuf, storagePositionBuf [32]byte
+	batchNumber := batch.Number().FillBytes(batchNumberBuf[:])
+	storagePosition := new(big.Int).SetUint64(b.Host.State.cfg.GlobalExitRootStoragePosition).FillBytes(storagePositionBuf[:])
+	globalExitRootPos := helper.Keccak256(batchNumber, storagePosition)
+
+	root, _, err := b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), b.Host.stateRoot)
+	if err != nil {
+		return err
+	}
+
+	b.Host.stateRoot = root
+
 	for _, tx := range batch.Transactions {
 		senderAddress, err := helper.GetSender(*tx)
 		if err != nil {
@@ -323,14 +336,22 @@ func (b *BasicBatchProcessor) transfer(ctx context.Context, tx *types.Transactio
 
 	senderBalance, err := b.Host.State.tree.GetBalance(ctx, senderAddress, root)
 	if err != nil {
-		result.Err = err
-		return result
+		if err == ErrNotFound {
+			senderBalance = big.NewInt(0)
+		} else {
+			result.Err = err
+			return result
+		}
 	}
 
 	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, root)
 	if err != nil {
-		result.Err = err
-		return result
+		if err == ErrNotFound {
+			senderNonce = big.NewInt(0)
+		} else {
+			result.Err = err
+			return result
+		}
 	}
 
 	err = b.checkTransaction(ctx, tx, senderNonce, senderBalance)
@@ -431,15 +452,23 @@ func (b *BasicBatchProcessor) CheckTransaction(ctx context.Context, tx *types.Tr
 
 	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot)
 	if err != nil {
-		return err
+		if err == ErrNotFound {
+			senderNonce = big.NewInt(0)
+		} else {
+			return err
+		}
 	}
 
-	balance, err := b.Host.State.tree.GetBalance(ctx, senderAddress, b.Host.stateRoot)
+	senderBalance, err := b.Host.State.tree.GetBalance(ctx, senderAddress, b.Host.stateRoot)
 	if err != nil {
-		return err
+		if err == ErrNotFound {
+			senderBalance = big.NewInt(0)
+		} else {
+			return err
+		}
 	}
 
-	return b.checkTransaction(ctx, tx, senderNonce, balance)
+	return b.checkTransaction(ctx, tx, senderNonce, senderBalance)
 }
 
 func (b *BasicBatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
@@ -504,7 +533,7 @@ func (b *BasicBatchProcessor) commit(ctx context.Context, batch *Batch) error {
 		batch.Header.Root = root
 
 		// set local exit root
-		key := new(big.Int).SetUint64(b.Host.State.cfg.L2GlobalExitRootManagerPosition)
+		key := new(big.Int).SetUint64(b.Host.State.cfg.LocalExitRootStoragePosition)
 		localExitRoot, err := b.Host.State.tree.GetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, key, b.Host.stateRoot)
 		if err != nil {
 			return err

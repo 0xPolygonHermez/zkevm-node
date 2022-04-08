@@ -196,33 +196,47 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis) error {
 		newRoot []byte
 	)
 
-	if genesis.Balances != nil { // Genesis Balances
+	if genesis.Balances != nil {
 		for address, balance := range genesis.Balances {
 			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
 			if err != nil {
 				return err
 			}
-			root.SetBytes(newRoot)
 		}
-	} else { // Genesis Smart Contracts
+		root.SetBytes(newRoot)
+	}
+
+	if genesis.SmartContracts != nil {
 		for address, sc := range genesis.SmartContracts {
 			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot)
 			if err != nil {
 				return err
 			}
-			root.SetBytes(newRoot)
 		}
+		root.SetBytes(newRoot)
 	}
 
-	for address, storage := range genesis.Storage {
-		for key, value := range storage {
-			newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
+	if len(genesis.Storage) > 0 {
+		for address, storage := range genesis.Storage {
+			for key, value := range storage {
+				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		root.SetBytes(newRoot)
+	}
+
+	if genesis.Nonces != nil {
+		for address, nonce := range genesis.Nonces {
+			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
 			if err != nil {
 				return err
 			}
 		}
+		root.SetBytes(newRoot)
 	}
-	root.SetBytes(newRoot)
 
 	// Generate Genesis Batch
 	receivedAt := genesis.Block.ReceivedAt

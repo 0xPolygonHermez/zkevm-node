@@ -148,7 +148,7 @@ func checkError(err error, expected bool, msg string) error {
 func deployContracts(opsman *operations.Manager) error {
 	var txs []*types.Transaction
 
-	bytecode, err := testutils.ReadBytecode("Double.bin")
+	bytecode, err := testutils.ReadBytecode("Double/Double.bin")
 	if err != nil {
 		return err
 	}
