@@ -143,7 +143,8 @@ func main() {
 	fmt.Println()
 
 	// Execute swaps
-	swapExactAmountIn := big.NewInt(1000)
+	const swapExactAmountInNumber = 1000
+	swapExactAmountIn := big.NewInt(swapExactAmountInNumber)
 	ethAuth := getAuth(ctx, client, pk)
 	ethAuth.Value = swapExactAmountIn
 	swapExactETHForTokens(auth, client, factory, router, aCoinAddr)
@@ -158,7 +159,6 @@ func main() {
 func swapExactETHForTokens(auth *bind.TransactOpts, client *ethclient.Client,
 	factory *UniswapV2Factory.UniswapV2Factory, router *UniswapV2Router02.UniswapV2Router02,
 	token common.Address) {
-
 	tokeWeth, err := router.WETH(nil)
 	chkErr(err)
 
@@ -188,7 +188,6 @@ func swapExactETHForTokens(auth *bind.TransactOpts, client *ethclient.Client,
 func swapExactTokensForETH(auth *bind.TransactOpts, client *ethclient.Client,
 	factory *UniswapV2Factory.UniswapV2Factory, router *UniswapV2Router02.UniswapV2Router02,
 	token common.Address, exactAmountIn *big.Int) {
-
 	tokeWeth, err := router.WETH(nil)
 	chkErr(err)
 
