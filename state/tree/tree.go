@@ -48,7 +48,7 @@ func (tree *StateTree) BeginDBTransaction(ctx context.Context) error {
 
 // Commit commits a db transaction
 func (tree *StateTree) Commit(ctx context.Context) error {
-	err := tree.mt.store.Commit(ctx)
+	err := tree.mt.Commit(ctx)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (tree *StateTree) Commit(ctx context.Context) error {
 
 // Rollback rollbacks a db transaction
 func (tree *StateTree) Rollback(ctx context.Context) error {
-	err := tree.mt.store.Rollback(ctx)
+	err := tree.mt.Rollback(ctx)
 	if err != nil {
 		return err
 	}
