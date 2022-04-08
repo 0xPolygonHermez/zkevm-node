@@ -183,7 +183,6 @@ func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Du
 
 		r, err := client.TransactionReceipt(context.Background(), hash)
 		if errors.Is(err, ethereum.NotFound) {
-			//log.Infof("Receipt not found yet, retrying...")
 			time.Sleep(1 * time.Second)
 			continue
 		}

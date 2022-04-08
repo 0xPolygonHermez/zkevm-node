@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -16,13 +15,14 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/test/testutils"
-	"golang.org/x/crypto/sha3"
+	"github.com/hermeznetwork/hermez-core/test/contracts/bin/Counter"
+	"github.com/hermeznetwork/hermez-core/test/contracts/bin/ERC20"
+	"github.com/hermeznetwork/hermez-core/test/contracts/bin/EmitLog"
+	"github.com/hermeznetwork/hermez-core/test/contracts/bin/Storage"
 )
 
 const (
-	networkURL = "http://localhost:8123"
-
+	networkURL    = "http://localhost:8123"
 	accPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
 	txMinedTimeoutLimit = 60 * time.Second
@@ -39,143 +39,88 @@ func main() {
 
 	auth := getAuth(ctx, client)
 
-	sendEthTransaction(ctx, client, auth)
+	const receiverAddr = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
 
-	counterHexBytes, err := testutils.ReadBytecode("Counter/Counter.bin")
-	chkErr(err)
-	emitLogHexBytes, err := testutils.ReadBytecode("EmitLog/EmitLog.bin")
-	chkErr(err)
-	// erc20HexBytes, err := testutils.ReadBytecode("ERC20/ERC20.bin")
-	// chkErr(err)
-	storageHexBytes, err := testutils.ReadBytecode("Storage/Storage.bin")
-	chkErr(err)
-
-	var scAddr common.Address
-	scAddr = deploySC(ctx, client, auth, counterHexBytes, 400000)
-	sendTxsToCounterSC(ctx, client, auth, scAddr)
-
-	scAddr = deploySC(ctx, client, auth, emitLogHexBytes, 400000)
-	sendTxsToEmitLogSC(ctx, client, auth, scAddr)
-
-	// scAddr = deploySC(ctx, client, auth, erc20HexBytes, 1200000)
-	// sendTxsToERC20SC(ctx, client, auth, scAddr)
-
-	scAddr = deploySC(ctx, client, auth, storageHexBytes, 400000)
-	sendTxsToStorageSC(ctx, client, auth, scAddr)
-}
-
-func sendEthTransaction(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts) {
-	// ETH Transfer
-	to := common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	// Valid ETH Transfer
+	to := common.HexToAddress(receiverAddr)
 	amount, _ := big.NewInt(0).SetString("10000000000000000000", encoding.Base10)
-	ethTransfer(ctx, client, auth, to, amount)
+	tx := ethTransfer(ctx, client, auth, to, amount, nil)
 
-	// Invalid ETH Transfer - no enough balance
-	// TODO: uncomment this when hezcore is able to handle reverted transactions
-	// to = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
-	// amount, _ = big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	// ethTransfer(ctx, client, auth, to, amount)
-}
-
-func sendTxsToCounterSC(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, scAddr common.Address) {
-	hash := sha3.NewLegacyKeccak256()
-	_, err := hash.Write([]byte("increment()"))
+	// Invalid ETH Transfer
+	amount, _ = big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
+	nonce := tx.Nonce() + 1
+	tx2 := ethTransfer(ctx, client, auth, to, amount, &nonce)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
-	data := hash.Sum(nil)[:4]
-
-	log.Infof("sending tx to increment counter")
-	scCall(ctx, client, auth, scAddr, data)
-	log.Infof("counter incremented")
-}
-
-func sendTxsToEmitLogSC(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, scAddr common.Address) {
-	hash := sha3.NewLegacyKeccak256()
-	_, err := hash.Write([]byte("emitLogs()"))
+	_, err = waitTxToBeMined(client, tx2.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
-	data := hash.Sum(nil)[:4]
 
-	log.Infof("sending tx to increment counter")
-	scCall(ctx, client, auth, scAddr, data)
-	log.Infof("counter incremented")
-}
-
-// func sendTxsToERC20SC(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, scAddr common.Address) {
-// 	// mint
-// 	hash := sha3.NewLegacyKeccak256()
-// 	_, err := hash.Write([]byte("mint(uint256)"))
-// 	chkErr(err)
-// 	methodID := hash.Sum(nil)[:4]
-// 	a, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-// 	amount := common.LeftPadBytes(a.Bytes(), 32)
-
-// 	var data []byte
-// 	data = append(data, methodID...)
-// 	data = append(data, amount...)
-
-// 	log.Infof("sending mint")
-// 	scCall(ctx, client, auth, scAddr, data)
-// 	log.Infof("mint processed successfully")
-
-// 	// transfer
-// 	hash = sha3.NewLegacyKeccak256()
-// 	_, err = hash.Write([]byte("transfer(address,uint256)"))
-// 	chkErr(err)
-// 	methodID = hash.Sum(nil)[:4]
-// 	receiver := common.LeftPadBytes(common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").Bytes(), 32)
-// 	a, _ = big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-// 	amount = common.LeftPadBytes(a.Bytes(), 32)
-
-// 	data = []byte{}
-// 	data = append(data, methodID...)
-// 	data = append(data, receiver...)
-// 	data = append(data, amount...)
-
-// 	log.Infof("sending transfer")
-// 	scCall(ctx, client, auth, scAddr, data)
-// 	log.Infof("transfer processed successfully")
-
-// 	// invalid transfer - no enough balance
-// 	// TODO: uncomment this when hezcore is able to handle reverted transactions
-// 	// hash = sha3.NewLegacyKeccak256()
-// 	// _, err := hash.Write([]byte("transfer(address,uint256)"))
-// 	// chkErr(err)
-// 	// methodID = hash.Sum(nil)[:4]
-// 	// receiver = common.LeftPadBytes(common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").Bytes(), 32)
-// 	// a, _ = big.NewInt(0).SetString("2000000000000000000000", encoding.Base10)
-// 	// amount = common.LeftPadBytes(a.Bytes(), 32)
-
-// 	// data = []byte{}
-// 	// data = append(data, methodID...)
-// 	// data = append(data, receiver...)
-// 	// data = append(data, amount...)
-
-// 	// log.Infof("sending transfer")
-// 	// scCall(ctx, client, auth, scAddr, data)
-// 	// log.Infof("transfer processed successfully")
-// }
-
-func sendTxsToStorageSC(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, scAddr common.Address) {
-	hash := sha3.NewLegacyKeccak256()
-	_, err := hash.Write([]byte("store(uint256)"))
+	// Counter
+	_, tx, counterSC, err := Counter.DeployCounter(auth, client)
 	chkErr(err)
-	methodID := hash.Sum(nil)[:4]
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+	tx, err = counterSC.Increment(auth)
+	chkErr(err)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+
+	// EmitLog
+	_, tx, emitLogSC, err := EmitLog.DeployEmitLog(auth, client)
+	chkErr(err)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+	tx, err = emitLogSC.EmitLogs(auth)
+	chkErr(err)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+
+	// ERC20
+	mintAmount, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
+	_, tx, erc20SC, err := ERC20.DeployERC20(auth, client, "Test Coin", "TCO")
+	chkErr(err)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+	tx, err = erc20SC.Mint(auth, mintAmount)
+	chkErr(err)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+	transferAmount, _ := big.NewInt(0).SetString("900000000000000000000", encoding.Base10)
+	tx, err = erc20SC.Transfer(auth, common.HexToAddress(receiverAddr), transferAmount)
+	chkErr(err)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+
+	// invalid transfer - no enough balance
+	// TODO: Check how to by pass the nonce automatically generated by the code to allow this transaction to be sent
+	// together with the previous transfer, so it can be mined as an invalid transaction
+	// transferAmount, _ = big.NewInt(0).SetString("2000000000000000000000", encoding.Base10)
+	// tx, err = erc20SC.Transfer(auth, common.HexToAddress(receiverAddr), transferAmount)
+	// chkErr(err)
+	// _, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	// chkErr(err)
+
+	// Storage
 	const numberToStore = 22
-	number := common.LeftPadBytes(big.NewInt(numberToStore).Bytes(), 32)
-
-	var data []byte
-	data = append(data, methodID...)
-	data = append(data, number...)
-
-	log.Infof("sending tx to store number: %v", number)
-	scCall(ctx, client, auth, scAddr, data)
-	log.Infof("number stored")
+	_, tx, storageSC, err := Storage.DeployStorage(auth, client)
+	chkErr(err)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
+	tx, err = storageSC.Store(auth, big.NewInt(numberToStore))
+	chkErr(err)
+	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	chkErr(err)
 }
 
-func ethTransfer(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, to common.Address, amount *big.Int) {
-	log.Infof("reading nonce for account: %v", auth.From.Hex())
-	nonce, err := client.NonceAt(ctx, auth.From, nil)
-	log.Infof("nonce: %v", nonce)
-	chkErr(err)
+func ethTransfer(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, to common.Address, amount *big.Int, nonce *uint64) *types.Transaction {
+	if nonce == nil {
+		log.Infof("reading nonce for account: %v", auth.From.Hex())
+		var err error
+		n, err := client.NonceAt(ctx, auth.From, nil)
+		log.Infof("nonce: %v", n)
+		chkErr(err)
+		nonce = &n
+	}
 
 	gasPrice, err := client.SuggestGasPrice(context.Background())
 	chkErr(err)
@@ -183,7 +128,7 @@ func ethTransfer(ctx context.Context, client *ethclient.Client, auth *bind.Trans
 	gasLimit, err := client.EstimateGas(context.Background(), ethereum.CallMsg{To: &to})
 	chkErr(err)
 
-	tx := types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil)
+	tx := types.NewTransaction(*nonce, to, amount, gasLimit, gasPrice, nil)
 
 	signedTx, err := auth.Signer(auth.From, tx)
 	chkErr(err)
@@ -193,38 +138,7 @@ func ethTransfer(ctx context.Context, client *ethclient.Client, auth *bind.Trans
 	chkErr(err)
 	log.Infof("tx sent: %v", signedTx.Hash().Hex())
 
-	_, err = waitTxToBeMined(client, signedTx.Hash(), txMinedTimeoutLimit)
-	chkErr(err)
-
-	log.Infof("tx processed successfully!")
-}
-
-func scCall(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, scAddr common.Address, data []byte) {
-	log.Infof("reading nonce for account: %v", auth.From.Hex())
-	nonce, err := client.NonceAt(ctx, auth.From, nil)
-	log.Infof("nonce: %v", nonce)
-	chkErr(err)
-
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	chkErr(err)
-
-	gasLimit, err := client.EstimateGas(context.Background(), ethereum.CallMsg{To: &scAddr, Data: data})
-	chkErr(err)
-
-	tx := types.NewTransaction(nonce, scAddr, big.NewInt(0), gasLimit, gasPrice, data)
-
-	signedTx, err := auth.Signer(auth.From, tx)
-	chkErr(err)
-
-	log.Infof("calling SC")
-	err = client.SendTransaction(ctx, signedTx)
-	chkErr(err)
-	log.Infof("tx sent: %v", signedTx.Hash().Hex())
-
-	_, err = waitTxToBeMined(client, signedTx.Hash(), txMinedTimeoutLimit)
-	chkErr(err)
-
-	log.Infof("tx processed successfully!")
+	return signedTx
 }
 
 func getAuth(ctx context.Context, client *ethclient.Client) *bind.TransactOpts {
@@ -240,43 +154,8 @@ func getAuth(ctx context.Context, client *ethclient.Client) *bind.TransactOpts {
 	return auth
 }
 
-func deploySC(ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, scHexByte string, gasLimit uint64) common.Address {
-	log.Infof("reading nonce for account: %v", auth.From.Hex())
-	nonce, err := client.NonceAt(ctx, auth.From, nil)
-	log.Infof("nonce: %v", nonce)
-	chkErr(err)
-
-	// we need to use this method to send `TO` field as `NULL`,
-	// so the explorer can detect this is a smart contract creation
-
-	tx := types.NewTx(&types.LegacyTx{
-		Nonce:    nonce,
-		To:       nil,
-		Value:    new(big.Int),
-		Gas:      gasLimit,
-		GasPrice: new(big.Int).SetUint64(1),
-		Data:     common.Hex2Bytes(scHexByte),
-	})
-
-	signedTx, err := auth.Signer(auth.From, tx)
-	chkErr(err)
-
-	log.Infof("sending tx to deploy sc")
-
-	err = client.SendTransaction(ctx, signedTx)
-	chkErr(err)
-	log.Infof("tx sent: %v", signedTx.Hash().Hex())
-
-	r, err := waitTxToBeMined(client, signedTx.Hash(), txMinedTimeoutLimit)
-	chkErr(err)
-
-	log.Infof("SC Deployed to address: %v", r.ContractAddress.Hex())
-
-	return r.ContractAddress
-}
-
 func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) (*types.Receipt, error) {
-	log.Infof("waiting tx to be mined")
+	log.Infof("waiting tx to be mined: %v", hash.Hex())
 	start := time.Now()
 	for {
 		if time.Since(start) > timeout {
@@ -285,7 +164,6 @@ func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Du
 
 		r, err := client.TransactionReceipt(context.Background(), hash)
 		if errors.Is(err, ethereum.NotFound) {
-			log.Infof("Receipt not found yet, retrying...")
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -295,7 +173,9 @@ func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Du
 		}
 
 		if r.Status == types.ReceiptStatusFailed {
-			return nil, fmt.Errorf("transaction has failed: %s", string(r.PostState))
+			log.Errorf("tx mined[FAILED]: %v", hash.Hex())
+		} else {
+			log.Infof("tx mined[SUCCESS]: %v", hash.Hex())
 		}
 
 		return r, nil
