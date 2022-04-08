@@ -355,14 +355,22 @@ func (b *BasicBatchProcessor) transfer(ctx context.Context, tx *types.Transactio
 
 	senderBalance, err := b.State.tree.GetBalance(ctx, senderAddress, root)
 	if err != nil {
-		result.Err = err
-		return result
+		if err == ErrNotFound {
+			senderBalance = big.NewInt(0)
+		} else {
+			result.Err = err
+			return result
+		}
 	}
 
 	senderNonce, err := b.State.tree.GetNonce(ctx, senderAddress, root)
 	if err != nil {
-		result.Err = err
-		return result
+		if err == ErrNotFound {
+			senderNonce = big.NewInt(0)
+		} else {
+			result.Err = err
+			return result
+		}
 	}
 
 	err = b.checkTransaction(ctx, tx, senderNonce, senderBalance)
@@ -463,15 +471,23 @@ func (b *BasicBatchProcessor) CheckTransaction(ctx context.Context, tx *types.Tr
 
 	senderNonce, err := b.State.tree.GetNonce(ctx, senderAddress, b.stateRoot)
 	if err != nil {
-		return err
+		if err == ErrNotFound {
+			senderNonce = big.NewInt(0)
+		} else {
+			return err
+		}
 	}
 
-	balance, err := b.State.tree.GetBalance(ctx, senderAddress, b.stateRoot)
+	senderBalance, err := b.State.tree.GetBalance(ctx, senderAddress, b.stateRoot)
 	if err != nil {
-		return err
+		if err == ErrNotFound {
+			senderBalance = big.NewInt(0)
+		} else {
+			return err
+		}
 	}
 
-	return b.checkTransaction(ctx, tx, senderNonce, balance)
+	return b.checkTransaction(ctx, tx, senderNonce, senderBalance)
 }
 
 func (b *BasicBatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
