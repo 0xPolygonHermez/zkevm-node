@@ -71,9 +71,7 @@ func NewSequencer(cfg Config, pool txPool, state stateInterface, ethMan etherman
 			cancel()
 			return Sequencer{}, err
 		}
-		if cfg.PriceGetter.Type == pricegetter.AsyncType {
-			go priceGetter.SyncPrice(ctx)
-		}
+		priceGetter.Start(ctx)
 		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerBase(
 			ethMan,
 			state,
