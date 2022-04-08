@@ -1807,7 +1807,7 @@ func TestEstimateGas(t *testing.T) {
 	// Estimate Gas
 	gasEstimation, err := st.EstimateGas(signedTxSCDeploy)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(75208*5), gasEstimation)
+	assert.Equal(t, uint64(75208), gasEstimation)
 
 	// Create Batch
 	batch := &state.Batch{
@@ -1842,7 +1842,7 @@ func TestEstimateGas(t *testing.T) {
 	// Estimate Gas
 	gasEstimation, err = st.EstimateGas(signedTxStoreValue)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(21464*5), gasEstimation)
+	assert.Equal(t, uint64(21464), gasEstimation)
 
 	txs = []*types.Transaction{}
 	txs = append(txs, signedTxStoreValue)
@@ -1860,7 +1860,7 @@ func TestEstimateGas(t *testing.T) {
 	// Estimate Gas
 	gasEstimation, err = st.EstimateGas(signedTxTransfer)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(state.TxTransferGas*5), gasEstimation)
+	assert.Equal(t, uint64(state.TxTransferGas), gasEstimation)
 }
 
 func TestStorageOnDeploy(t *testing.T) {

@@ -205,7 +205,7 @@ func TestMain(m *testing.M) {
 	}
 
 	for i := 0; i < 4; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(21000*5), big.NewInt(10), []byte{})
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(21000), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		if err != nil {
 			panic(err)
