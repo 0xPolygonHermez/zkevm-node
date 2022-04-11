@@ -25,6 +25,15 @@ jobs:
       run: |
         go install github.com/golang/protobuf/protoc-gen-go@latest
         go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: check login
+      run: |
+        ls -al ~/.docker
+        cat ~/.docker/config.json || true
     - name: Update deps
       env:
         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
