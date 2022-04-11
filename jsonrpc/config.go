@@ -4,4 +4,6 @@ package jsonrpc
 type Config struct {
 	Host string `mapstructure:"Host"`
 	Port int    `mapstructure:"Port"`
+
+	MaxRequestsPerIPAndSecond float64 `mapstructure:"MaxRequestsPerIPAndSecond"`
 }

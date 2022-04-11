@@ -9,6 +9,7 @@ Name = "test_db"
 Host = "localhost"
 Port = "5432"
 EnableLog = true
+MaxConns = 10
 
 [Etherman]
 URL = "http://localhost:8545"
@@ -18,6 +19,7 @@ PrivateKeyPassword = "testonly"
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
+MaxRequestsPerIPAndSecond = 10
 
 [Synchronizer]
 SyncInterval = "5s"

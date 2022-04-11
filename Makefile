@@ -45,13 +45,13 @@ build-docker: ## Builds a docker image with the core binary
 	docker build -t hezcore -f ./Dockerfile .
 
 .PHONY: test
-test: compile-smart-contracts ## Runs only short tests without checking race conditions
+test: compile-scs ## Runs only short tests without checking race conditions
 	$(STOPDB) || true
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; go test -short -p 1 ./...
 
 .PHONY: test-full
-test-full: build-docker compile-smart-contracts ## Runs all tests checking race conditions
+test-full: build-docker compile-scs ## Runs all tests checking race conditions
 	$(STOPDB) || true
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
@@ -116,7 +116,7 @@ stop-explorer-db: ## Stops the explorer database
 	$(STOPEXPLORERDB)
 
 .PHONY: run
-run: compile-smart-contracts ## Runs all the services
+run: compile-scs ## Runs all the services
 	$(RUNDB)
 	$(RUNEXPLORERDB)
 	$(RUNNETWORK)
@@ -128,10 +128,16 @@ run: compile-smart-contracts ## Runs all the services
 	$(RUNEXPLORER)
 
 .PHONY: init-network
-init-network: ## Inits network and deploys test smart contract
+init-network: ## Initializes the network
 	go run ./scripts/init_network/main.go .
-	sleep 5
+
+.PHONY: deploy-sc
+deploy-sc: ## deploys test smart contract
 	go run ./scripts/deploy_sc/main.go .
+
+.PHONY: deploy-uniswap
+deploy-uniswap: ## deploy the uniswap environment to the network
+	go run ./scripts/uniswap/main.go .
 
 .PHONY: stop
 stop: ## Stops all services
@@ -169,9 +175,41 @@ update-external-dependencies: ## Updates external dependencies like images, test
 run-benchmarks: run-db ## Runs benchmars
 	go test -bench=. ./state/tree
 
-.PHONY: compile-smart-contracts
-compile-smart-contracts: ## Compiles smart contracts used in tests and local deployments
-	go run ./scripts/cmd/... compilesc --in ./test/contracts
+DOCKER_CMD := docker run --rm
+INPUT_DIR := /contracts
+OUTPUT_DIR := $(INPUT_DIR)/bin
+OUTPUT_TYPE := --abi --bin
+CONTRACTS_DIR := $$(pwd)/test/contracts
+CONTRACTS_VOLUME := -v $(CONTRACTS_DIR):$(INPUT_DIR)
+SOLC_IMAGE_PREFIX := ethereum/solc:
+FLAGS := --overwrite --optimize
+ABIGEN_DOCKER_IMAGE := ethereum/client-go:alltools-latest
+COMPILE_CMD := eval $(DOCKER_CMD) $(CONTRACTS_VOLUME) -e SC_NAME='$$SC_NAME' $(SOLC_IMAGE_PREFIX)'$$SOLC_VERSION' -o $(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME' $(OUTPUT_TYPE) $(INPUT_DIR)/'$$SC_INPUT_PATH''$$SC_NAME'.sol $(FLAGS)
+GENERATE_CMD := eval $(DOCKER_CMD) $(CONTRACTS_VOLUME) $(ABIGEN_DOCKER_IMAGE) abigen --bin=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.bin --abi=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.abi --pkg='$$SC_NAME' --out=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.go
+GIVEPERMISSION := eval $(DOCKER_CMD) $(CONTRACTS_VOLUME) $(ABIGEN_DOCKER_IMAGE) chmod 555 $(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.go
+
+.PHONY: compile-scs
+compile-scs: ## Compiles smart contracts used in tests and local deployments
+	rm -Rf $(CONTRACTS_DIR)/bin
+	SC_NAME=Counter SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	SC_NAME=Destruct SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	SC_NAME=Double SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	SC_NAME=EmitLog SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	SC_NAME=ERC20 SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	SC_NAME=Interaction SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	SC_NAME=Storage SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	SC_NAME=StorageOnDeploy SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+
+	SC_NAME=WETH SOLC_VERSION=0.4.18 $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+
+	SC_NAME=UniswapInterfaceMulticall SOLC_VERSION=0.7.6-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/interface/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+
+	SC_NAME=UniswapV2ERC20 SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	SC_NAME=UniswapV2Factory SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	SC_NAME=UniswapV2Pair SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+
+	SC_NAME=UniswapV2Migrator SOLC_VERSION=0.6.6-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/periphery/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	SC_NAME=UniswapV2Router02 SOLC_VERSION=0.6.6-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/periphery/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted

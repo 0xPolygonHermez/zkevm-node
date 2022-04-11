@@ -30,7 +30,7 @@ func (m *mockHost) AccountExists(ctx context.Context, addr common.Address) bool 
 	panic("Not implemented in tests")
 }
 
-func (m *mockHost) GetStorage(ctx context.Context, addr common.Address, key common.Hash) common.Hash {
+func (m *mockHost) GetStorage(ctx context.Context, addr common.Address, key *big.Int) common.Hash {
 	panic("Not implemented in tests")
 }
 

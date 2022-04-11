@@ -90,7 +90,9 @@ func (nc *nodeCache) clear() {
 	nc.lock.Lock()
 	defer nc.lock.Unlock()
 
-	nc.data = make(map[string][]uint64)
+	for k := range nc.data {
+		delete(nc.data, k)
+	}
 }
 
 // isActive is the active field getter.

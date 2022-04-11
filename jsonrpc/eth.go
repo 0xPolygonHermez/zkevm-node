@@ -452,7 +452,11 @@ func (e *Eth) getBatchHeader(number BlockNumber) (*types.Header, error) {
 		return batch.Header, nil
 
 	case EarliestBlockNumber:
-		return e.state.GetBatchHeader(context.Background(), uint64(0))
+		batch, err := e.state.GetBatchByNumber(context.Background(), 0)
+		if err != nil {
+			return nil, err
+		}
+		return batch.Header, nil
 
 	case PendingBlockNumber:
 		lastBatch, err := e.state.GetLastBatch(context.Background(), true)
