@@ -14,6 +14,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
@@ -150,8 +151,11 @@ func TestBase_IsProfitable_FailByMinReward(t *testing.T) {
 	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, priceGetter, minReward, time.Duration(60), 50)
 	ctx := context.Background()
 
+	ethMan.On("GetCurrentSequencerCollateral").Return(big.NewInt(1), nil)
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(1), nil)
-	isProfitable, _, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	isProfitable, _, err := txProfitabilityChecker.IsProfitable(ctx, txselector.SelectTxsOutput{
+		SelectedTxs: txs,
+	})
 	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.False(t, isProfitable)
@@ -164,12 +168,14 @@ func TestBase_IsProfitable_SendBatchAnyway(t *testing.T) {
 
 	ctx := context.Background()
 
-	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(maticAmount, nil)
+	ethMan.On("GetCurrentSequencerCollateral").Return(big.NewInt(1), nil)
 
-	isProfitable, reward, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	isProfitable, reward, err := txProfitabilityChecker.IsProfitable(ctx, txselector.SelectTxsOutput{
+		SelectedTxs: txs,
+	})
 	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
-	assert.Equal(t, 0, reward.Cmp(minReward))
+	assert.Equal(t, 1, reward.Cmp(minReward))
 	assert.True(t, isProfitable)
 }
 
@@ -180,8 +186,11 @@ func TestBase_IsProfitable_GasCostTooBigForSendingTx(t *testing.T) {
 
 	ctx := context.Background()
 
+	ethMan.On("GetCurrentSequencerCollateral").Return(big.NewInt(1), nil)
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(maticAmount, nil)
-	isProfitable, _, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	isProfitable, _, err := txProfitabilityChecker.IsProfitable(ctx, txselector.SelectTxsOutput{
+		SelectedTxs: txs,
+	})
 	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.False(t, isProfitable)
@@ -196,7 +205,9 @@ func TestBase_IsProfitable(t *testing.T) {
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
 	ethMan.On("GetCurrentSequencerCollateral").Return(big.NewInt(1), nil)
 
-	isProfitable, reward, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	isProfitable, reward, err := txProfitabilityChecker.IsProfitable(ctx, txselector.SelectTxsOutput{
+		SelectedTxs: txs,
+	})
 	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.True(t, isProfitable)

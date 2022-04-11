@@ -35,12 +35,16 @@ func TestBase_SelectTxs(t *testing.T) {
 	bp.On("ProcessTransaction", ctx, tx3, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidSig})
 	bp.On("ProcessTransaction", ctx, tx4, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrNonceIsBiggerThanAccountNonce})
 
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, _, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
+	selTxsRes, err := txSelector.SelectTxs(ctx, txselector.SelectTxsInput{
+		BatchProcessor:   bp,
+		PendingTxs:       txs,
+		SequencerAddress: seqAddress,
+	})
 	bp.AssertExpectations(t)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(selectedTxs))
-	assert.Equal(t, 1, len(selectedTxsHashes))
-	assert.Equal(t, 2, len(invalidTxsHashes))
+	assert.Equal(t, 1, len(selTxsRes.SelectedTxs))
+	assert.Equal(t, 1, len(selTxsRes.SelectedTxsHashes))
+	assert.Equal(t, 2, len(selTxsRes.InvalidTxsHashes))
 }
 
 func TestBase_SelectTxs_ExceededGasLimit(t *testing.T) {
@@ -64,12 +68,16 @@ func TestBase_SelectTxs_ExceededGasLimit(t *testing.T) {
 	bp.On("ProcessTransaction", ctx, tx3, seqAddress).Return(&runtime.ExecutionResult{Err: state.ErrInvalidCumulativeGas})
 	bp.AssertNotCalled(t, "ProcessTransaction", tx4, seqAddress)
 
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, _, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
+	selTxsRes, err := txSelector.SelectTxs(ctx, txselector.SelectTxsInput{
+		BatchProcessor:   bp,
+		PendingTxs:       txs,
+		SequencerAddress: seqAddress,
+	})
 	bp.AssertExpectations(t)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(selectedTxs))
-	assert.Equal(t, 2, len(selectedTxsHashes))
-	assert.Equal(t, 0, len(invalidTxsHashes))
+	assert.Equal(t, 2, len(selTxsRes.SelectedTxs))
+	assert.Equal(t, 2, len(selTxsRes.SelectedTxsHashes))
+	assert.Equal(t, 0, len(selTxsRes.InvalidTxsHashes))
 }
 
 func TestAcceptAll_SelectTxs(t *testing.T) {
@@ -86,10 +94,14 @@ func TestAcceptAll_SelectTxs(t *testing.T) {
 
 	ctx := context.Background()
 
-	selectedTxs, selectedTxsHashes, invalidTxsHashes, _, err := txSelector.SelectTxs(ctx, bp, txs, seqAddress)
+	selTxsRes, err := txSelector.SelectTxs(ctx, txselector.SelectTxsInput{
+		BatchProcessor:   bp,
+		PendingTxs:       txs,
+		SequencerAddress: seqAddress,
+	})
 	bp.AssertExpectations(t)
 	assert.NoError(t, err)
-	assert.Equal(t, 3, len(selectedTxs))
-	assert.Equal(t, 3, len(selectedTxsHashes))
-	assert.Equal(t, 0, len(invalidTxsHashes))
+	assert.Equal(t, 3, len(selTxsRes.SelectedTxs))
+	assert.Equal(t, 3, len(selTxsRes.SelectedTxsHashes))
+	assert.Equal(t, 0, len(selTxsRes.InvalidTxsHashes))
 }
