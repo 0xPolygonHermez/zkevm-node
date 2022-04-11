@@ -14,6 +14,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -65,7 +66,19 @@ func NewSequencer(cfg Config, pool txPool, state stateInterface, ethMan etherman
 		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerAcceptAll(ethMan, state, cfg.IntervalAfterWhichBatchSentAnyway.Duration)
 	case txprofitabilitychecker.BaseType:
 		minReward := new(big.Int).Mul(cfg.Strategy.TxProfitabilityChecker.MinReward.Int, big.NewInt(encoding.TenToThePowerOf18))
-		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, state, minReward, cfg.IntervalAfterWhichBatchSentAnyway.Duration, cfg.Strategy.TxProfitabilityChecker.RewardPercentageToAggregator)
+		priceGetter, err := pricegetter.NewClient(cfg.PriceGetter)
+		if err != nil {
+			cancel()
+			return Sequencer{}, err
+		}
+		priceGetter.Start(ctx)
+		txProfitabilityChecker = txprofitabilitychecker.NewTxProfitabilityCheckerBase(
+			ethMan,
+			state,
+			priceGetter,
+			minReward,
+			cfg.IntervalAfterWhichBatchSentAnyway.Duration,
+			cfg.Strategy.TxProfitabilityChecker.RewardPercentageToAggregator)
 	}
 
 	seqAddress := ethMan.GetAddress()

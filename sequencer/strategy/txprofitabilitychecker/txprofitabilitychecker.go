@@ -7,12 +7,14 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/pricegetter"
 )
 
 // Base struct
 type Base struct {
-	EthMan etherman
-	State  stateInterface
+	EthMan      etherman
+	State       stateInterface
+	PriceGetter pricegetter.Client
 
 	IntervalAfterWhichBatchSentAnyway time.Duration
 	MinReward                         *big.Int
@@ -22,13 +24,16 @@ type Base struct {
 // NewTxProfitabilityCheckerBase inits base tx profitability checker with min reward from config and ethMan
 func NewTxProfitabilityCheckerBase(
 	ethMan etherman,
-	state stateInterface, minReward *big.Int,
+	state stateInterface,
+	priceGetter priceGetter,
+	minReward *big.Int,
 	intervalAfterWhichBatchSentAnyway time.Duration,
 	rewardPercentageToAggregator int64,
 ) *Base {
 	return &Base{
-		EthMan: ethMan,
-		State:  state,
+		EthMan:      ethMan,
+		State:       state,
+		PriceGetter: priceGetter,
 
 		MinReward:                         minReward,
 		IntervalAfterWhichBatchSentAnyway: intervalAfterWhichBatchSentAnyway,
@@ -83,10 +88,15 @@ func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (boo
 	if sequencerReward.Cmp(pc.MinReward) < 0 {
 		return false, big.NewInt(0), nil
 	}
-	// bcs price updater is not supported yet, ethToMatic ratio is hardcoded there
-	const ethToMatic = 2000
+	// get price from the price updater
+	price, err := pc.PriceGetter.GetPrice(ctx)
+	if err != nil {
+		return false, big.NewInt(0), err
+	}
+	priceInt := new(big.Int)
+	price.Int(priceInt)
 	// calculate aggregator reward in matic
-	aggregatorReward.Mul(aggregatorReward, big.NewInt(ethToMatic))
+	aggregatorReward.Mul(aggregatorReward, priceInt)
 	// if aggregator reward is less than the collateral retrieved from the smc, then it makes no sense to propose a new batch
 	collateral, err := pc.EthMan.GetCurrentSequencerCollateral()
 	if err != nil {
