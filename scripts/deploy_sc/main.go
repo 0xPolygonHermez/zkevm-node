@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"math/big"
 	"strings"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/scripts"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/Counter"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/ERC20"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/EmitLog"
@@ -50,45 +50,45 @@ func main() {
 	amount, _ = big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	nonce := tx.Nonce() + 1
 	tx2 := ethTransfer(ctx, client, auth, to, amount, &nonce)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx2.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx2.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 
 	// Counter
 	_, tx, counterSC, err := Counter.DeployCounter(auth, client)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	tx, err = counterSC.Increment(auth)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 
 	// EmitLog
 	_, tx, emitLogSC, err := EmitLog.DeployEmitLog(auth, client)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	tx, err = emitLogSC.EmitLogs(auth)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 
 	// ERC20
 	mintAmount, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	_, tx, erc20SC, err := ERC20.DeployERC20(auth, client, "Test Coin", "TCO")
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	tx, err = erc20SC.Mint(auth, mintAmount)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	transferAmount, _ := big.NewInt(0).SetString("900000000000000000000", encoding.Base10)
 	tx, err = erc20SC.Transfer(auth, common.HexToAddress(receiverAddr), transferAmount)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 
 	// invalid transfer - no enough balance
@@ -97,18 +97,18 @@ func main() {
 	// transferAmount, _ = big.NewInt(0).SetString("2000000000000000000000", encoding.Base10)
 	// tx, err = erc20SC.Transfer(auth, common.HexToAddress(receiverAddr), transferAmount)
 	// chkErr(err)
-	// _, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	// _, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	// chkErr(err)
 
 	// Storage
 	const numberToStore = 22
 	_, tx, storageSC, err := Storage.DeployStorage(auth, client)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	tx, err = storageSC.Store(auth, big.NewInt(numberToStore))
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 }
 
@@ -152,34 +152,6 @@ func getAuth(ctx context.Context, client *ethclient.Client) *bind.TransactOpts {
 	chkErr(err)
 
 	return auth
-}
-
-func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) (*types.Receipt, error) {
-	log.Infof("waiting tx to be mined: %v", hash.Hex())
-	start := time.Now()
-	for {
-		if time.Since(start) > timeout {
-			return nil, errors.New("timeout exceed")
-		}
-
-		r, err := client.TransactionReceipt(context.Background(), hash)
-		if errors.Is(err, ethereum.NotFound) {
-			time.Sleep(1 * time.Second)
-			continue
-		}
-		if err != nil {
-			log.Errorf("Failed to get tx receipt: %v", err)
-			return nil, err
-		}
-
-		if r.Status == types.ReceiptStatusFailed {
-			log.Errorf("tx mined[FAILED]: %v", hash.Hex())
-		} else {
-			log.Infof("tx mined[SUCCESS]: %v", hash.Hex())
-		}
-
-		return r, nil
-	}
 }
 
 func chkErr(err error) {

@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -16,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/scripts"
 	ERC20 "github.com/hermeznetwork/hermez-core/test/contracts/bin/ERC20"
 	WETH "github.com/hermeznetwork/hermez-core/test/contracts/bin/WETH"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/core/UniswapV2Factory"
@@ -25,8 +24,9 @@ import (
 )
 
 const (
-	networkURL          = "http://localhost:8123"
-	pk                  = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	networkURL = "http://localhost:8123"
+	//pk                  = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	pk                  = "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
 	txMinedTimeoutLimit = 60 * time.Second
 )
 
@@ -60,7 +60,7 @@ func main() {
 	// Deploy wETH Token, it's required by uniswap to swap ETH by tokens
 	wEthAddr, tx, wethSC, err := WETH.DeployWETH(auth, client)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	log.Debugf("wEth SC tx: %v", tx.Hash().Hex())
 	log.Debugf("wEth SC addr: %v", wEthAddr.Hex())
@@ -69,7 +69,7 @@ func main() {
 	// Deploy Uniswap Factory
 	factoryAddr, tx, factory, err := UniswapV2Factory.DeployUniswapV2Factory(auth, client, auth.From)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	log.Debugf("Uniswap Factory SC tx: %v", tx.Hash().Hex())
 	log.Debugf("Uniswap Factory SC addr: %v", factoryAddr.Hex())
@@ -78,7 +78,7 @@ func main() {
 	// Deploy Uniswap Router
 	routerAddr, tx, router, err := UniswapV2Router02.DeployUniswapV2Router02(auth, client, factoryAddr, wEthAddr)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	log.Debugf("Uniswap Router SC tx: %v", tx.Hash().Hex())
 	log.Debugf("Uniswap Router SC addr: %v", routerAddr.Hex())
@@ -87,7 +87,7 @@ func main() {
 	// Deploy Uniswap Interface Multicall
 	multicallAddr, tx, _, err := UniswapInterfaceMulticall.DeployUniswapInterfaceMulticall(auth, client)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	log.Debugf("Uniswap Interface Multicall SC tx: %v", tx.Hash().Hex())
 	log.Debugf("Uniswap Interface Multicall SC addr: %v", multicallAddr.Hex())
@@ -114,7 +114,7 @@ func main() {
 	wAuth.Value = wethDepositAmount
 	tx, err = wethSC.Deposit(auth)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 
 	// Add allowance
@@ -181,7 +181,7 @@ func swapExactETHForTokens(auth *bind.TransactOpts, client *ethclient.Client,
 	tx, err := router.SwapExactETHForTokens(auth, amountOut, []common.Address{token, tokeWeth}, auth.From, getDeadline())
 	chkErr(err)
 	log.Debug(logPrefix, " tx: ", tx.Hash().Hex())
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 }
 
@@ -210,7 +210,7 @@ func swapExactTokensForETH(auth *bind.TransactOpts, client *ethclient.Client,
 	tx, err := router.SwapExactETHForTokens(auth, amountOut, []common.Address{token, tokeWeth}, auth.From, getDeadline())
 	chkErr(err)
 	log.Debug(logPrefix, " tx: ", tx.Hash().Hex())
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 }
 
@@ -235,7 +235,7 @@ func swapExactTokensForTokens(auth *bind.TransactOpts, client *ethclient.Client,
 	tx, err := router.SwapExactTokensForTokens(auth, exactAmountIn, amountOut, []common.Address{tokenA, tokenB}, auth.From, getDeadline())
 	chkErr(err)
 	log.Debug(logPrefix, " tx: ", tx.Hash().Hex())
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 }
 
@@ -250,39 +250,11 @@ func getAuth(ctx context.Context, client *ethclient.Client, pkHex string) *bind.
 	return auth
 }
 
-func waitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) (*types.Receipt, error) {
-	log.Infof("waiting tx to be mined: %v", hash.Hex())
-	start := time.Now()
-	for {
-		if time.Since(start) > timeout {
-			return nil, errors.New("timeout exceed")
-		}
-
-		r, err := client.TransactionReceipt(context.Background(), hash)
-		if errors.Is(err, ethereum.NotFound) {
-			time.Sleep(1 * time.Second)
-			continue
-		}
-		if err != nil {
-			log.Errorf("Failed to get tx receipt: %v", err)
-			return nil, err
-		}
-
-		if r.Status == types.ReceiptStatusFailed {
-			log.Errorf("tx mined[FAILED]: %v", hash.Hex())
-		} else {
-			log.Infof("tx mined[SUCCESS]: %v", hash.Hex())
-		}
-
-		return r, nil
-	}
-}
-
 func deployERC20(auth *bind.TransactOpts, client *ethclient.Client, name, symbol string) (common.Address, *ERC20.ERC20) {
 	log.Debugf("Deploying ERC20 Token: [%v]%v", symbol, name)
 	addr, tx, instance, err := ERC20.DeployERC20(auth, client, name, symbol)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	log.Debugf("%v SC tx: %v", name, tx.Hash().Hex())
 	log.Debugf("%v SC addr: %v", name, addr.Hex())
@@ -296,7 +268,7 @@ func mintERC20(auth *bind.TransactOpts, client *ethclient.Client, erc20sc *ERC20
 	mintAmount, _ := big.NewInt(0).SetString(amount, encoding.Base10)
 	tx, err := erc20sc.Mint(auth, mintAmount)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	return tx
 }
@@ -316,7 +288,7 @@ func approveERC20(auth *bind.TransactOpts, client *ethclient.Client,
 	log.Debugf("Approving %v tokens to be used by the router for %v on behalf of account %v", a.Text(encoding.Base10), name, auth.From)
 	tx, err := sc.Approve(auth, routerAddr, a)
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	log.Debugf("Approval %v tx: %v", name, tx.Hash().Hex())
 }
@@ -326,7 +298,7 @@ func addLiquidity(auth *bind.TransactOpts, client *ethclient.Client, router *Uni
 	log.Debugf("Adding liquidity(%v) for tokens A: %v, B:%v, Recipient: %v", amount, tokenA.Hex(), tokenB.Hex(), auth.From.Hex())
 	tx, err := router.AddLiquidity(auth, tokenA, tokenB, a, a, a, a, auth.From, getDeadline())
 	chkErr(err)
-	_, err = waitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txMinedTimeoutLimit)
 	chkErr(err)
 	return tx
 }
