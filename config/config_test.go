@@ -40,6 +40,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: pricegetter.DefaultType,
 		},
 		{
+			path:          "Sequencer.PriceGetter.DefaultPrice",
+			expectedValue: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
+		},
+		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",
 			expectedValue: uint64(1000000000),
 		},
@@ -79,10 +83,7 @@ func Test_Defaults(t *testing.T) {
 		tc := tc
 		t.Run(tc.path, func(t *testing.T) {
 			actual := getValueFromStruct(tc.path, cfg)
-
-			if actual != tc.expectedValue {
-				t.Fatalf("Unexpected default value for path %q, want %d, got %d", tc.path, tc.expectedValue, actual)
-			}
+			require.Equal(t, tc.expectedValue, actual)
 		})
 	}
 }
