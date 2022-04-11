@@ -198,7 +198,7 @@ func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transac
 		}
 	}
 
-	result.GasUsed = cost
+	result.GasUsed = cost + cost + cost + cost + cost // temporary solution to increase the current estimation
 
 	return result
 }
