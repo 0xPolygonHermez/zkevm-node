@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -159,6 +160,12 @@ func (iu *imageUpdater) dockerLogin() (string, error) {
 	defer func() {
 		err = res.Body.Close()
 	}()
+
+	content, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	log.Debugf("returned content: %s", content)
 
 	decoder := json.NewDecoder(res.Body)
 	r := struct {
