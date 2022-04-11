@@ -17,7 +17,7 @@ type Host struct {
 	State              *State
 	stateRoot          []byte
 	transactionContext transactionContext
-	logs               []types.Log
+	logs               map[common.Hash][]*types.Log
 	forks              runtime.ForksInTime
 	runtimes           []runtime.Runtime
 }
@@ -167,18 +167,31 @@ func (h *Host) GetBlockHash(number int64) common.Hash {
 func (h *Host) EmitLog(address common.Address, topics []common.Hash, data []byte) {
 	if !h.transactionContext.simulationMode {
 		log.Debugf("EmitLog for address %v", address)
-		txLog := types.Log{
+
+		txLog := &types.Log{
 			Address: address,
 			Topics:  topics,
 			Data:    common.CopyBytes(data),
 			TxHash:  h.transactionContext.currentTransaction.Hash(),
 			TxIndex: h.transactionContext.index,
-			Index:   uint(len(h.logs)),
+			Index:   h.getLogIndex(),
 			Removed: false,
 		}
 
-		h.logs = append(h.logs, txLog)
+		if _, found := h.logs[h.transactionContext.currentTransaction.Hash()]; !found {
+			h.logs[h.transactionContext.currentTransaction.Hash()] = []*types.Log{}
+		}
+
+		h.logs[h.transactionContext.currentTransaction.Hash()] = append(h.logs[h.transactionContext.currentTransaction.Hash()], txLog)
 	}
+}
+
+func (h *Host) getLogIndex() uint {
+	nextIndex := 0
+	for l := range h.logs {
+		nextIndex += len(l)
+	}
+	return uint(nextIndex)
 }
 
 // Callx calls a SC
@@ -354,7 +367,11 @@ func (h *Host) setRuntime(r runtime.Runtime) {
 func (h *Host) run(ctx context.Context, contract *runtime.Contract) *runtime.ExecutionResult {
 	for _, r := range h.runtimes {
 		if r.CanRun(contract, h, &h.forks) {
-			return r.Run(ctx, contract, h, &h.forks)
+			result := r.Run(ctx, contract, h, &h.forks)
+			if result.Err != nil {
+				delete(h.logs, h.transactionContext.currentTransaction.Hash())
+			}
+			return result
 		}
 	}
 
