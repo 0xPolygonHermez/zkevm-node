@@ -1,0 +1,36 @@
+---
+compileUnits:
+  parallel:
+  - name: auto
+    solcVersion: 0.8.12-alpine
+    inputPath: auto
+    outputPath: "."
+
+  sequential:
+  - name: WETH
+    solcVersion: 0.4.18
+  - name: UniswapInterfaceMulticall
+    solcVersion: 0.7.6-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/interface/
+  - name: UniswapV2ERC20
+    solcVersion: 0.5.16-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/core/
+  - name: UniswapV2Factory
+    solcVersion: 0.5.16-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/core/
+  - name: UniswapV2Pair
+    solcVersion: 0.5.16-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/core/
+
+  - name: UniswapV2Migrator
+    solcVersion: 0.6.6-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/periphery/
+  - name: UniswapV2Router02
+    solcVersion: 0.6.6-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/periphery/
