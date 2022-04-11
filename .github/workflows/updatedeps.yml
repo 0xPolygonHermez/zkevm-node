@@ -1,10 +1,9 @@
 ---
 name: Update dependencies
 on:
-  pull_request:
-#  schedule:
-#    - cron:  '* */6 * * *'
-#  workflow_dispatch:
+  schedule:
+    - cron:  '* */6 * * *'
+  workflow_dispatch:
 jobs:
   updatedeps:
     runs-on: ubuntu-latest
