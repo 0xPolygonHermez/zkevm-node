@@ -187,29 +187,34 @@ ABIGEN_DOCKER_IMAGE := ethereum/client-go:alltools-latest
 COMPILE_CMD := eval $(DOCKER_CMD) $(CONTRACTS_VOLUME) -e SC_NAME='$$SC_NAME' $(SOLC_IMAGE_PREFIX)'$$SOLC_VERSION' -o $(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME' $(OUTPUT_TYPE) $(INPUT_DIR)/'$$SC_INPUT_PATH''$$SC_NAME'.sol $(FLAGS)
 GENERATE_CMD := eval $(DOCKER_CMD) $(CONTRACTS_VOLUME) $(ABIGEN_DOCKER_IMAGE) abigen --bin=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.bin --abi=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.abi --pkg='$$SC_NAME' --out=$(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.go
 GIVEPERMISSION := eval $(DOCKER_CMD) $(CONTRACTS_VOLUME) $(ABIGEN_DOCKER_IMAGE) chmod 555 $(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.go
+ECHO_CLEAN_UP := eval echo Cleaning up $(CONTRACTS_DIR)/bin
+ECHO_COMPILING := eval echo Compiling $(INPUT_DIR)/'$$SC_INPUT_PATH''$$SC_NAME'.sol with version '$$SOLC_VERSION'
+ECHO_GENERATING := eval echo Generating go code from $(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.bin
+ECHO_GENERATED := eval echo Code generated at  $(OUTPUT_DIR)/'$$SC_OUTPUT_PATH''$$SC_NAME'/'$$SC_NAME'.go
+FULL_CMD := $(ECHO_COMPILING) && $(COMPILE_CMD) && $(ECHO_GENERATING) && $(GENERATE_CMD) && $(ECHO_GENERATED) && $(GIVEPERMISSION) && echo ""
 
 .PHONY: compile-scs
 compile-scs: ## Compiles smart contracts used in tests and local deployments
-	rm -Rf $(CONTRACTS_DIR)/bin
-	SC_NAME=Counter SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
-	SC_NAME=Destruct SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
-	SC_NAME=Double SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
-	SC_NAME=EmitLog SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
-	SC_NAME=ERC20 SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
-	SC_NAME=Interaction SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
-	SC_NAME=Storage SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
-	SC_NAME=StorageOnDeploy SOLC_VERSION=0.8.13-alpine $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	@$(ECHO_CLEAN_UP) && rm -Rf $(CONTRACTS_DIR)/bin
+	@SC_NAME=Counter SOLC_VERSION=0.8.13-alpine $(FULL_CMD)
+	@SC_NAME=Destruct SOLC_VERSION=0.8.13-alpine $(FULL_CMD)
+	@SC_NAME=Double SOLC_VERSION=0.8.13-alpine $(FULL_CMD)
+	@SC_NAME=EmitLog SOLC_VERSION=0.8.13-alpine $(FULL_CMD)
+	@SC_NAME=ERC20 SOLC_VERSION=0.8.13-alpine $(FULL_CMD)
+	@SC_NAME=Interaction SOLC_VERSION=0.8.13-alpine $(FULL_CMD)
+	@SC_NAME=Storage SOLC_VERSION=0.8.13-alpine $(FULL_CMD)
+	@SC_NAME=StorageOnDeploy SOLC_VERSION=0.8.13-alpine $(FULL_CMD)
 
-	SC_NAME=WETH SOLC_VERSION=0.4.18 $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	@SC_NAME=WETH SOLC_VERSION=0.4.18 $(FULL_CMD)
 
-	SC_NAME=UniswapInterfaceMulticall SOLC_VERSION=0.7.6-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/interface/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	@SC_NAME=UniswapInterfaceMulticall SOLC_VERSION=0.7.6-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/interface/ $(FULL_CMD)
 
-	SC_NAME=UniswapV2ERC20 SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
-	SC_NAME=UniswapV2Factory SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
-	SC_NAME=UniswapV2Pair SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	@SC_NAME=UniswapV2ERC20 SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(FULL_CMD)
+	@SC_NAME=UniswapV2Factory SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(FULL_CMD)
+	@SC_NAME=UniswapV2Pair SOLC_VERSION=0.5.16-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/core/ $(FULL_CMD)
 
-	SC_NAME=UniswapV2Migrator SOLC_VERSION=0.6.6-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/periphery/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
-	SC_NAME=UniswapV2Router02 SOLC_VERSION=0.6.6-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/periphery/ $(COMPILE_CMD) && $(GENERATE_CMD) && $(GIVEPERMISSION)
+	@SC_NAME=UniswapV2Migrator SOLC_VERSION=0.6.6-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/periphery/ $(FULL_CMD)
+	@SC_NAME=UniswapV2Router02 SOLC_VERSION=0.6.6-alpine SC_INPUT_PATH=uniswap/v2/ SC_OUTPUT_PATH=uniswap/v2/periphery/ $(FULL_CMD)
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
