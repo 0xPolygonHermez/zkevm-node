@@ -74,12 +74,14 @@ func NewTxSelectorBase(cfg Config) TxSelector {
 	}
 }
 
+// SelectTxsInput is type for the input of the SelectTxs method
 type SelectTxsInput struct {
 	BatchProcessor               batchProcessor
 	PendingTxs, PendingClaimsTxs []pool.Transaction
 	SequencerAddress             common.Address
 }
 
+// SelectTxsOutput is type for the output of the SelectTxs method
 type SelectTxsOutput struct {
 	SelectedTxs, SelectedClaimsTxs                               []*types.Transaction
 	SelectedTxsHashes, SelectedClaimsTxsHashes, InvalidTxsHashes []common.Hash
