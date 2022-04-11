@@ -140,8 +140,7 @@ func (iu *imageUpdater) dockerLogin() (string, error) {
 	log.Debugf("username length: %d", len(iu.dockerUsername))
 	log.Debugf("password length: %d", len(iu.dockerPassword))
 
-	//jsonStr := fmt.Sprintf(`{"username":"%s","password":"%s"}`, iu.dockerUsername, iu.dockerPassword)
-	jsonStr := `{"username":"fgimenez","password":"bfce68d4-37a3-44b1-9dd1-fad429246787"}`
+	jsonStr := fmt.Sprintf(`{"username":"%s","password":"%s"}`, iu.dockerUsername, iu.dockerPassword)
 	req, err := http.NewRequest(
 		"POST", target,
 		bytes.NewBuffer([]byte(jsonStr)))
