@@ -137,6 +137,9 @@ func (iu *imageUpdater) updateDigest(imageName, currentDigest, remoteDigest stri
 
 func (iu *imageUpdater) dockerLogin() (string, error) {
 	target := fmt.Sprintf("%s%s", iu.imageAPIServer, defaultLoginPattern)
+	log.Debugf("username length: %d", len(iu.dockerUsername))
+	log.Debugf("password length: %d", len(iu.dockerPassword))
+
 	jsonStr := fmt.Sprintf(`{"username":"%s","password":"%s"}`, iu.dockerUsername, iu.dockerPassword)
 	req, err := http.NewRequest(
 		"POST", target,
