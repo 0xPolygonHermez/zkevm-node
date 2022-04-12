@@ -24,7 +24,7 @@ import (
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
 	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
-	NewGenesisBatchProcessor(genesisStateRoot []byte) (*state.BasicBatchProcessor, error)
+	NewGenesisBatchProcessor(genesisStateRoot []byte) (*state.BatchProcessor, error)
 }
 
 var (

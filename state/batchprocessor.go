@@ -57,8 +57,8 @@ var InvalidTxErrors = map[string]bool{
 	ErrInvalidGas.Error(): true, ErrInvalidChainID.Error(): true,
 }
 
-// BasicBatchProcessor is used to process a batch of transactions
-type BasicBatchProcessor struct {
+// BatchProcessor is used to process a batch of transactions
+type BatchProcessor struct {
 	SequencerAddress     common.Address
 	SequencerChainID     uint64
 	LastBatch            *Batch
@@ -68,12 +68,12 @@ type BasicBatchProcessor struct {
 }
 
 // SetSimulationMode allows execution without updating the state
-func (b *BasicBatchProcessor) SetSimulationMode(active bool) {
+func (b *BatchProcessor) SetSimulationMode(active bool) {
 	b.Host.transactionContext.simulationMode = active
 }
 
 // ProcessBatch processes all transactions inside a batch
-func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
+func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 	var receipts []*Receipt
 	var includedTxs []*types.Transaction
 	var index uint
@@ -133,7 +133,7 @@ func (b *BasicBatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) er
 }
 
 // ProcessTransaction processes a transaction
-func (b *BasicBatchProcessor) ProcessTransaction(ctx context.Context, tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
+func (b *BatchProcessor) ProcessTransaction(ctx context.Context, tx *types.Transaction, sequencerAddress common.Address) *runtime.ExecutionResult {
 	senderAddress, err := helper.GetSender(*tx)
 	if err != nil {
 		return &runtime.ExecutionResult{Err: err, StateRoot: b.Host.stateRoot}
@@ -154,11 +154,11 @@ func (b *BasicBatchProcessor) ProcessTransaction(ctx context.Context, tx *types.
 
 // ProcessUnsignedTransaction processes an unsigned transaction from the given
 // sender.
-func (b *BasicBatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+func (b *BatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
 	return b.processTransaction(ctx, tx, senderAddress, sequencerAddress)
 }
 
-func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction) *runtime.ExecutionResult {
+func (b *BatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction) *runtime.ExecutionResult {
 	result := &runtime.ExecutionResult{Err: nil, GasUsed: 0}
 
 	cost := uint64(0)
@@ -203,19 +203,19 @@ func (b *BasicBatchProcessor) estimateGas(ctx context.Context, tx *types.Transac
 	return result
 }
 
-func (b *BasicBatchProcessor) isContractCreation(tx *types.Transaction) bool {
+func (b *BatchProcessor) isContractCreation(tx *types.Transaction) bool {
 	return tx.To() == nil && len(tx.Data()) > 0
 }
 
-func (b *BasicBatchProcessor) isSmartContractExecution(ctx context.Context, tx *types.Transaction) bool {
+func (b *BatchProcessor) isSmartContractExecution(ctx context.Context, tx *types.Transaction) bool {
 	return b.Host.GetCodeHash(ctx, *tx.To()) != EmptyCodeHash
 }
 
-func (b *BasicBatchProcessor) isTransfer(ctx context.Context, tx *types.Transaction) bool {
+func (b *BatchProcessor) isTransfer(ctx context.Context, tx *types.Transaction) bool {
 	return !b.isContractCreation(tx) && !b.isSmartContractExecution(ctx, tx) && tx.Value() != big.NewInt(0)
 }
 
-func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
 	log.Debugf("Processing tx: %v", tx.Hash())
 
 	// Set transaction context
@@ -254,7 +254,7 @@ func (b *BasicBatchProcessor) processTransaction(ctx context.Context, tx *types.
 	return &runtime.ExecutionResult{Err: ErrInvalidTxType, StateRoot: b.Host.stateRoot}
 }
 
-func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch) {
+func (b *BatchProcessor) populateBatchHeader(batch *Batch) {
 	parentHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	if b.LastBatch != nil {
 		parentHash = b.LastBatch.Hash()
@@ -288,7 +288,7 @@ func (b *BasicBatchProcessor) populateBatchHeader(batch *Batch) {
 	batch.Header.Nonce = block.Header().Nonce
 }
 
-func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, result *runtime.ExecutionResult) *Receipt {
+func (b *BatchProcessor) generateReceipt(batch *Batch, tx *types.Transaction, index uint, senderAddress *common.Address, receiverAddress *common.Address, result *runtime.ExecutionResult) *Receipt {
 	receipt := &Receipt{}
 	receipt.Type = tx.Type()
 	receipt.PostState = b.Host.stateRoot
@@ -315,7 +315,7 @@ func (b *BasicBatchProcessor) generateReceipt(batch *Batch, tx *types.Transactio
 }
 
 // transfer processes a transfer transaction
-func (b *BasicBatchProcessor) transfer(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
 	log.Debugf("processing transfer [%s]: start", tx.Hash().Hex())
 	var result *runtime.ExecutionResult = &runtime.ExecutionResult{}
 	var balances = make(map[common.Address]*big.Int)
@@ -444,7 +444,7 @@ func (b *BasicBatchProcessor) transfer(ctx context.Context, tx *types.Transactio
 }
 
 // CheckTransaction checks if a transaction is valid
-func (b *BasicBatchProcessor) CheckTransaction(ctx context.Context, tx *types.Transaction) error {
+func (b *BatchProcessor) CheckTransaction(ctx context.Context, tx *types.Transaction) error {
 	senderAddress, err := helper.GetSender(*tx)
 	if err != nil {
 		return err
@@ -471,7 +471,7 @@ func (b *BasicBatchProcessor) CheckTransaction(ctx context.Context, tx *types.Tr
 	return b.checkTransaction(ctx, tx, senderNonce, senderBalance)
 }
 
-func (b *BasicBatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
+func (b *BatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
 	// Check balance
 	if senderBalance.Cmp(tx.Cost()) < 0 {
 		log.Debugf("check transaction [%s]: invalid balance, expected: %v, found: %v", tx.Hash().Hex(), tx.Cost().Text(encoding.Base10), senderBalance.Text(encoding.Base10))
@@ -515,7 +515,7 @@ func (b *BasicBatchProcessor) checkTransaction(ctx context.Context, tx *types.Tr
 }
 
 // Commit the batch state into state
-func (b *BasicBatchProcessor) commit(ctx context.Context, batch *Batch) error {
+func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 	// Store batch into db
 	var root common.Hash
 
@@ -578,7 +578,7 @@ func (b *BasicBatchProcessor) commit(ctx context.Context, batch *Batch) error {
 	return nil
 }
 
-func (b *BasicBatchProcessor) create(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
 	root := b.Host.stateRoot
 
 	if len(tx.Data()) <= 0 {
