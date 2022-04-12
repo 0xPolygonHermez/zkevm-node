@@ -4,18 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"io"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v3"
-)
-
-const (
-	defaultImageAPIServer = "https://hub.docker.com"
-	defaultLoginPattern   = "/v2/users/login"
 )
 
 // ImagesConfig is the configuration for the images updater.
@@ -28,7 +24,6 @@ type imageUpdater struct {
 	fs afero.Fs
 
 	targetFilePath string
-	imageAPIServer string
 
 	dockerUsername string
 	dockerPassword string
@@ -41,7 +36,6 @@ func newImageUpdater(images []string, targetFilePath string) *imageUpdater {
 		fs: afero.NewOsFs(),
 
 		targetFilePath: targetFilePath,
-		imageAPIServer: defaultImageAPIServer,
 
 		dockerUsername: os.Getenv("DOCKERHUB_USERNAME"),
 		dockerPassword: os.Getenv("DOCKERHUB_PASSWORD"),
@@ -112,11 +106,11 @@ func (iu *imageUpdater) readCurrentDigest(imageName string) (string, error) {
 }
 
 func (iu *imageUpdater) readRemoteDigest(imageName string) (string, error) {
-	token, err := iu.dockerLogin()
+	err := iu.dockerLogin()
 	if err != nil {
 		return "", err
 	}
-	return iu.readLatestTag(imageName, token)
+	return iu.readLatestTag(imageName)
 }
 
 func (iu *imageUpdater) updateDigest(imageName, currentDigest, remoteDigest string) error {
@@ -134,86 +128,57 @@ func (iu *imageUpdater) updateDigest(imageName, currentDigest, remoteDigest stri
 	return afero.WriteFile(iu.fs, targetFilePath, []byte(newContent), 0664)
 }
 
-func (iu *imageUpdater) dockerLogin() (string, error) {
-	target := fmt.Sprintf("%s%s", iu.imageAPIServer, defaultLoginPattern)
-	jsonStr := fmt.Sprintf(`{"username":"%s","password":"%s"}`, iu.dockerUsername, iu.dockerPassword)
-	req, err := http.NewRequest(
-		"POST", target,
-		bytes.NewBuffer([]byte(jsonStr)))
+func (iu *imageUpdater) dockerLogin() error {
+	c := exec.Command("docker", "login", "--username", iu.dockerUsername, "--password-stdin") // #nosec G204
+	stdin, err := c.StdinPipe()
 	if err != nil {
-		return "", err
+		return err
 	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	res, err := client.Do(req)
+	passReader := strings.NewReader(iu.dockerPassword)
+	_, err = io.Copy(stdin, passReader)
 	if err != nil {
-		return "", err
+		return err
 	}
-
-	if res.Body == nil {
-		return "", fmt.Errorf("Empty body returned")
-	}
-
-	defer func() {
-		err = res.Body.Close()
-	}()
-
-	decoder := json.NewDecoder(res.Body)
-	r := struct {
-		Token string
-	}{}
-	err = decoder.Decode(&r)
+	err = stdin.Close()
 	if err != nil {
-		return "", err
+		return err
 	}
-	if r.Token == "" {
-		return "", fmt.Errorf("Login failed, empty token received")
-	}
-	return r.Token, nil
+
+	return c.Run()
 }
 
-func (iu *imageUpdater) readLatestTag(imageName, token string) (string, error) {
-	target := fmt.Sprintf("%s/v2/repositories/%s/tags/latest", iu.imageAPIServer, imageName)
-	req, err := http.NewRequest("GET", target, nil)
+type result struct {
+	RepoDigests []string
+}
+
+func (iu *imageUpdater) readLatestTag(imageName string) (string, error) {
+	c := exec.Command("docker", "pull", imageName) // #nosec G204
+	err := c.Run()
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("JWT %s", token))
-
-	client := &http.Client{}
-	res, err := client.Do(req)
+	c = exec.Command("docker", "inspect", imageName) // #nosec G204
+	output, err := c.CombinedOutput()
 	if err != nil {
 		return "", err
 	}
 
-	if res.Body == nil {
-		return "", fmt.Errorf("Empty body returned")
-	}
+	reader := bytes.NewReader(output)
+	decoder := json.NewDecoder(reader)
 
-	defer func() {
-		err = res.Body.Close()
-	}()
-
-	decoder := json.NewDecoder(res.Body)
 	r := struct {
-		Images []struct {
-			Digest string
-		}
+		Results []result
 	}{}
-	err = decoder.Decode(&r)
+	err = decoder.Decode(&r.Results)
 	if err != nil {
 		return "", err
 	}
-
-	if len(r.Images) == 0 {
-		return "", fmt.Errorf("No images found for name %q", imageName)
+	items := strings.Split(r.Results[0].RepoDigests[0], "@")
+	const requiredItems = 2
+	if len(items) < requiredItems {
+		return "", fmt.Errorf("Returned image does not include digest %q", r.Results[0].RepoDigests[0])
 	}
-	if r.Images[0].Digest == "" {
-		return "", fmt.Errorf("Remote retrieval failed, empty digest received %q", imageName)
-	}
-	log.Infof("Remote digest of %q is %q", imageName, r.Images[0].Digest)
-	return r.Images[0].Digest, nil
+	log.Infof("Remote digest of %q is %q", imageName, items[1])
+	return items[1], nil
 }
