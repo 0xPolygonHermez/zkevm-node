@@ -79,7 +79,7 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 	var index uint
 
 	b.CumulativeGasUsed = 0
-	b.Host.logs = []types.Log{}
+	b.Host.logs = map[common.Hash][]*types.Log{}
 
 	// Set Global Exit Root storage position
 	var batchNumberBuf, storagePositionBuf [32]byte
@@ -263,12 +263,7 @@ func (b *BatchProcessor) populateBatchHeader(batch *Batch) {
 	rr := make([]*types.Receipt, 0, len(batch.Receipts))
 	for _, receipt := range batch.Receipts {
 		r := receipt.Receipt
-		for _, l := range b.Host.logs {
-			if l.TxHash == receipt.TxHash {
-				rl := l
-				r.Logs = append(r.Logs, &rl)
-			}
-		}
+		r.Logs = append(r.Logs, b.Host.logs[receipt.TxHash]...)
 		rr = append(rr, &r)
 	}
 	block := types.NewBlock(batch.Header, batch.Transactions, batch.Uncles, rr, &trie.StackTrie{})
@@ -566,12 +561,16 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 	}
 
 	// store logs
-	for _, txLog := range b.Host.logs {
-		txLog.BlockHash = blockHash
-		txLog.BlockNumber = batch.Number().Uint64()
-		err := b.Host.State.AddLog(ctx, txLog)
-		if err != nil {
-			return err
+	for _, tx := range batch.Transactions {
+		if txLogs, found := b.Host.logs[tx.Hash()]; found {
+			for _, txLog := range txLogs {
+				txLog.BlockHash = blockHash
+				txLog.BlockNumber = batch.Number().Uint64()
+				err := b.Host.State.AddLog(ctx, *txLog)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
