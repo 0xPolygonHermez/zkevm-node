@@ -15,7 +15,7 @@ import (
 // jsonRPCTxPool contains the methods required to interact with the tx pool.
 type jsonRPCTxPool interface {
 	AddTx(ctx context.Context, tx types.Transaction) error
-	GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
+	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
 	GetGasPrice(ctx context.Context) (uint64, error)
 }
 

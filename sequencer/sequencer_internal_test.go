@@ -150,7 +150,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	pl = pool.NewPool(s, testState)
+	pl = pool.NewPool(s, testState, stateCfg.L2GlobalExitRootManagerAddr)
 	seqCfg = Config{
 		IntervalToProposeBatch:            *intervalToProposeBatch,
 		SyncedBlockDif:                    1,
@@ -276,7 +276,7 @@ func TestSequencerGetPendingTxs(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	pendTxs, ok := seq.getPendingTxs()
+	pendTxs, _, ok := seq.getPendingTxs()
 	require.True(t, ok)
 	require.Equal(t, 2, len(pendTxs))
 
@@ -285,7 +285,7 @@ func TestSequencerGetPendingTxs(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	pendTxs, ok = seq.getPendingTxs()
+	pendTxs, _, ok = seq.getPendingTxs()
 	require.False(t, ok)
 	require.Equal(t, 0, len(pendTxs))
 
@@ -300,12 +300,12 @@ func TestSequencerSelectTxs(t *testing.T) {
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
 	require.NoError(t, err)
 
-	txs, err := pl.GetPendingTxs(ctx, 0)
+	txs, err := pl.GetPendingTxs(ctx, false, 0)
 	require.NoError(t, err)
-	selTxsRes, ok := seq.selectTxs(txs, nil)
+	selTxsRes, ok := seq.selectTxs(txs, nil, nil)
 	require.True(t, ok)
-	require.Equal(t, 4, len(selTxsRes.selectedTxs))
-	require.Equal(t, 4, len(selTxsRes.selectedTxsHashes))
+	require.Equal(t, 4, len(selTxsRes.SelectedTxs))
+	require.Equal(t, 4, len(selTxsRes.SelectedTxsHashes))
 }
 
 func TestSequencerSelectTxsInvTxs(t *testing.T) {
@@ -336,12 +336,12 @@ func TestSequencerSelectTxsInvTxs(t *testing.T) {
 	}
 	txs = append(txs, signedTx)
 
-	txs, err := pl.GetPendingTxs(ctx, 0)
+	txs, err := pl.GetPendingTxs(ctx, false, 0)
 	require.NoError(t, err)
-	selTxsRes, ok := seq.selectTxs(txs, nil)
+	selTxsRes, ok := seq.selectTxs(txs, nil, nil)
 	require.True(t, ok)
-	require.Equal(t, 4, len(selTxsRes.selectedTxs))
-	require.Equal(t, 4, len(selTxsRes.selectedTxsHashes))
+	require.Equal(t, 4, len(selTxsRes.SelectedTxs))
+	require.Equal(t, 4, len(selTxsRes.SelectedTxsHashes))
 
 	rows, err := stateDB.Query(ctx, "SELECT state FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
 
@@ -370,12 +370,12 @@ func TestSequencerSendBatchEthereum(t *testing.T) {
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
 	require.NoError(t, err)
 
-	txs, err := pl.GetPendingTxs(ctx, 0)
+	txs, err := pl.GetPendingTxs(ctx, false, 0)
 	require.NoError(t, err)
-	selTxsRes, ok := seq.selectTxs(txs, nil)
+	selTxsRes, ok := seq.selectTxs(txs, nil, nil)
 	require.True(t, ok)
-	require.Equal(t, 4, len(selTxsRes.selectedTxs))
-	require.Equal(t, 4, len(selTxsRes.selectedTxsHashes))
+	require.Equal(t, 4, len(selTxsRes.SelectedTxs))
+	require.Equal(t, 4, len(selTxsRes.SelectedTxsHashes))
 
 	aggrReward := big.NewInt(1)
 	eth.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
@@ -383,12 +383,10 @@ func TestSequencerSendBatchEthereum(t *testing.T) {
 
 	tx := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(5), uint64(21000), big.NewInt(10), []byte{})
 
-	eth.On("SendBatch", seq.ctx, selTxsRes.selectedTxs, aggrReward).Return(tx, nil)
+	eth.On("SendBatch", seq.ctx, selTxsRes.SelectedTxs, aggrReward).Return(tx, nil)
 
-	cuttedTxs, cuttedTxsHash, ok := seq.sendBatchToEthereum(selTxsRes.selectedTxs, selTxsRes.selectedTxsHashes, selTxsRes.batchNumber)
+	ok = seq.sendBatchToEthereum(selTxsRes)
 	require.True(t, ok)
-	require.Nil(t, cuttedTxs)
-	require.Nil(t, cuttedTxsHash)
 
 	var count int
 	err = stateDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs WHERE state = $1", pool.TxStateSelected).Scan(&count)
@@ -408,21 +406,24 @@ func TestSequencerSendBatchEthereumCut(t *testing.T) {
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
 	require.NoError(t, err)
 
-	txs, err := pl.GetPendingTxs(ctx, 0)
+	txs, err := pl.GetPendingTxs(ctx, false, 0)
 	require.NoError(t, err)
-	selTxsRes, ok := seq.selectTxs(txs, nil)
+	selTxsRes, ok := seq.selectTxs(txs, nil, nil)
 	require.True(t, ok)
-	require.Equal(t, 4, len(selTxsRes.selectedTxs))
-	require.Equal(t, 4, len(selTxsRes.selectedTxsHashes))
+	require.Equal(t, 4, len(selTxsRes.SelectedTxs))
+	require.Equal(t, 4, len(selTxsRes.SelectedTxsHashes))
 	aggrReward := big.NewInt(1)
 	eth.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
 	eth.On("GetCurrentSequencerCollateral").Return(aggrReward, nil)
-	eth.On("SendBatch", seq.ctx, selTxsRes.selectedTxs, aggrReward).Return(nil, errors.New("gas required exceeds allowance"))
+	eth.On("SendBatch", seq.ctx, selTxsRes.SelectedTxs, aggrReward).Return(nil, errors.New("gas required exceeds allowance"))
 
-	cutTxs, cutTxsHash, ok := seq.sendBatchToEthereum(selTxsRes.selectedTxs, selTxsRes.selectedTxsHashes, selTxsRes.batchNumber)
-	require.False(t, ok)
-	require.Equal(t, 3, len(cutTxs))
-	require.Equal(t, 3, len(cutTxsHash))
+	eth.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
+	eth.On("GetCurrentSequencerCollateral").Return(aggrReward, nil)
+	tx := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(5), uint64(21000), big.NewInt(10), []byte{})
+	eth.On("SendBatch", seq.ctx, selTxsRes.SelectedTxs[:3], aggrReward).Return(tx, nil)
+
+	ok = seq.sendBatchToEthereum(selTxsRes)
+	require.True(t, ok)
 }
 
 func TestSequencerGetRoot(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pricegetter"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 )
 
 // Base struct
@@ -42,7 +42,30 @@ func NewTxProfitabilityCheckerBase(
 }
 
 // IsProfitable checks for txs cost against the main reward
-func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, *big.Int, error) {
+func (pc *Base) IsProfitable(ctx context.Context, selectionRes txselector.SelectTxsOutput) (bool, *big.Int, error) {
+	collateral, err := pc.EthMan.GetCurrentSequencerCollateral()
+	if err != nil {
+		return false, big.NewInt(0), fmt.Errorf("failed to get current collateral amount from smc, err: %v", err)
+	}
+
+	// if there is no batches in time, then sequencer have to forge anyway
+	if pc.IntervalAfterWhichBatchSentAnyway != 0 {
+		ok, err := isNewBatchNotAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
+		if err != nil {
+			return false, big.NewInt(0), err
+		}
+		if ok {
+			return true, collateral, nil
+		}
+	}
+
+	var sentAnyway bool
+	if len(selectionRes.SelectedClaimsTxs) > 0 {
+		sentAnyway = true
+	}
+
+	txs := append(selectionRes.SelectedTxs, selectionRes.SelectedClaimsTxs...)
+
 	// sending amount of txs as matic reward there, bcs to calculate gas cost for tx this value is not important
 	// checker can't get it before, bcs final matic amount is dependent on value from gas estimation
 	// TODO improve the matic amount
@@ -54,27 +77,17 @@ func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (boo
 
 	// calculate gas cost of all txs in a batch
 	txsGasCost := big.NewInt(0)
-	for _, tx := range txs {
+	for _, tx := range selectionRes.SelectedTxs {
 		txsGasCost.Add(txsGasCost, tx.Cost())
 	}
 
 	reward := new(big.Int).Sub(txsGasCost, gasCostForSendingBatch)
 
-	// if there is no batches in time, then sequencer have to forge anyway
-	if pc.IntervalAfterWhichBatchSentAnyway != 0 {
-		ok, err := isNewBatchNotAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
-		if err != nil {
-			return false, big.NewInt(0), err
-		}
-		// TODO: how much should sequencer send for collateral, if there is no profit for sequencer?
-		if ok {
-			return true, big.NewInt(0), nil
-		}
-	}
-
 	// if gasCostForSendingBatch is more than txsGasCost, then selection is not profitable
-	if reward.Cmp(big.NewInt(0)) < 0 {
+	if reward.Cmp(big.NewInt(0)) < 0 && !sentAnyway {
 		return false, big.NewInt(0), nil
+	} else if sentAnyway {
+		return true, collateral, nil
 	}
 
 	// calculate aggregator reward in ether wei
@@ -85,8 +98,10 @@ func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (boo
 	// get sequencer reward
 	sequencerReward := big.NewInt(0).Sub(reward, aggregatorReward)
 	// if sequencer reward is less than minimal reward from config, then it makes no sense to send a batch
-	if sequencerReward.Cmp(pc.MinReward) < 0 {
+	if sequencerReward.Cmp(pc.MinReward) < 0 && !sentAnyway {
 		return false, big.NewInt(0), nil
+	} else if sentAnyway {
+		return true, collateral, nil
 	}
 	// get price from the price updater
 	price, err := pc.PriceGetter.GetPrice(ctx)
@@ -98,13 +113,12 @@ func (pc *Base) IsProfitable(ctx context.Context, txs []*types.Transaction) (boo
 	// calculate aggregator reward in matic
 	aggregatorReward.Mul(aggregatorReward, priceInt)
 	// if aggregator reward is less than the collateral retrieved from the smc, then it makes no sense to propose a new batch
-	collateral, err := pc.EthMan.GetCurrentSequencerCollateral()
-	if err != nil {
-		return false, big.NewInt(0), fmt.Errorf("failed to get current collateral amount from smc, err: %v", err)
-	}
-	if aggregatorReward.Cmp(collateral) < 0 {
+	if aggregatorReward.Cmp(collateral) < 0 && !sentAnyway {
 		return false, big.NewInt(0), nil
+	} else if sentAnyway {
+		return true, collateral, nil
 	}
+
 	return true, aggregatorReward, nil
 }
 
@@ -125,7 +139,7 @@ func NewTxProfitabilityCheckerAcceptAll(ethman etherman, state stateInterface, i
 }
 
 // IsProfitable always returns true, until it's failed to get sequencer collateral
-func (pc *AcceptAll) IsProfitable(ctx context.Context, txs []*types.Transaction) (bool, *big.Int, error) {
+func (pc *AcceptAll) IsProfitable(ctx context.Context, selectionRes txselector.SelectTxsOutput) (bool, *big.Int, error) {
 	collateral, err := pc.EthMan.GetCurrentSequencerCollateral()
 	if err != nil {
 		return false, big.NewInt(0), fmt.Errorf("failed to get current collateral amount from smc, err: %v", err)

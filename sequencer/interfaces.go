@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
@@ -14,7 +15,7 @@ import (
 
 // txPool contains the methods required to interact with the tx pool.
 type txPool interface {
-	GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
+	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
 	UpdateTxState(ctx context.Context, hash common.Hash, newState pool.TxState) error
 	UpdateTxsState(ctx context.Context, hashes []common.Hash, newState pool.TxState) error
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
@@ -31,7 +32,7 @@ type etherman interface {
 
 // txProfitabilityChecker interface for different profitability checkers.
 type txProfitabilityChecker interface {
-	IsProfitable(context.Context, []*types.Transaction) (bool, *big.Int, error)
+	IsProfitable(context.Context, txselector.SelectTxsOutput) (bool, *big.Int, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.

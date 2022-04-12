@@ -9,6 +9,7 @@ CREATE TABLE pool.txs (
     state     varchar(15),
     gas_price DECIMAL(78,0),
     nonce     DECIMAL(78,0),
+    is_claims BOOLEAN,
     received_at timestamp
 );
 
