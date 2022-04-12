@@ -457,6 +457,9 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 		mul2             = 2
 	)
 	txDataLength := len(txsData)
+	if txDataLength == 0 {
+		return txs, txsData, nil
+	}
 	for pos < int64(txDataLength) {
 		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
 		if err != nil {
