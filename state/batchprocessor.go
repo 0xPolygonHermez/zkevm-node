@@ -195,10 +195,11 @@ func (b *BatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction)
 			}
 
 			cost += zeros * zeroCost
+			cost = cost + cost + cost + cost + cost // temporary solution
 		}
 	}
 
-	result.GasUsed = cost + cost + cost + cost + cost // temporary solution to increase the current estimation
+	result.GasUsed = cost
 
 	return result
 }
