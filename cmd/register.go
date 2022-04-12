@@ -68,7 +68,7 @@ func registerSequencer(ctx *cli.Context) error {
 	if errors.Is(err, state.ErrNotFound) { //If It doesn't exist, register the sequencer
 		tx, err := etherman.RegisterSequencer(url)
 		if err != nil {
-			log.Error("error: ", err)
+			log.Error("failed to register sequencer. Error: ", err)
 			return err
 		}
 		log.Info("Sequencer registered. Check this tx to see the status: ", tx.Hash())
