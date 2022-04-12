@@ -31,7 +31,7 @@ import (
 type stateTestInterface interface {
 	stateInterface
 	// following methods used for tests
-	NewGenesisBatchProcessor(genesisStateRoot []byte) (*state.BasicBatchProcessor, error)
+	NewGenesisBatchProcessor(genesisStateRoot []byte) (*state.BatchProcessor, error)
 	GetNonce(ctx context.Context, address common.Address, batchNumber uint64) (uint64, error)
 	GetBalance(ctx context.Context, address common.Address, batchNumber uint64) (*big.Int, error)
 	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error
