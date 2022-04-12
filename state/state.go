@@ -74,7 +74,7 @@ func (s *State) RollbackState(ctx context.Context) error {
 }
 
 // NewBatchProcessor creates a new batch processor
-func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*BasicBatchProcessor, error) {
+func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*BatchProcessor, error) {
 	// Get Sequencer's Chain ID
 	chainID := s.cfg.DefaultChainID
 	sq, err := s.GetSequencer(ctx, sequencerAddress)
@@ -95,18 +95,18 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 	}
 	host.forks = runtime.AllForksEnabled.At(blockNumber)
 
-	batchProcessor := &BasicBatchProcessor{SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, Host: host}
+	batchProcessor := &BatchProcessor{SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, Host: host}
 	batchProcessor.Host.setRuntime(evm.NewEVM())
 
 	return batchProcessor, nil
 }
 
 // NewGenesisBatchProcessor creates a new batch processor
-func (s *State) NewGenesisBatchProcessor(genesisStateRoot []byte) (*BasicBatchProcessor, error) {
+func (s *State) NewGenesisBatchProcessor(genesisStateRoot []byte) (*BatchProcessor, error) {
 	host := Host{State: s, stateRoot: genesisStateRoot, transactionContext: transactionContext{difficulty: new(big.Int)}}
 	host.setRuntime(evm.NewEVM())
 	host.forks = runtime.AllForksEnabled.At(0)
-	return &BasicBatchProcessor{Host: host}, nil
+	return &BatchProcessor{Host: host}, nil
 }
 
 // GetStateRoot returns the root of the state tree

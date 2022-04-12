@@ -2,11 +2,9 @@ package tree
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/dgraph-io/ristretto"
-	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 )
 
 const (
@@ -55,9 +53,6 @@ func newNodeCache() *nodeCache {
 
 // get reads a MT node cache entry.
 func (nc *nodeCache) get(key []uint64) ([]uint64, error) {
-	if len(key) != poseidon.CAPLEN {
-		return nil, fmt.Errorf("Invalid key length should be %d", poseidon.CAPLEN)
-	}
 	keyStr := h4ToString(key)
 
 	item, ok := nc.data[keyStr]
@@ -71,9 +66,6 @@ func (nc *nodeCache) get(key []uint64) ([]uint64, error) {
 func (nc *nodeCache) set(key []uint64, value []uint64) error {
 	if len(nc.data) >= maxMTNodeCacheEntries {
 		return errors.New("MT node cache is full")
-	}
-	if len(key) != poseidon.CAPLEN {
-		return fmt.Errorf("Invalid key length, should be %d", poseidon.CAPLEN)
 	}
 	keyStr := h4ToString(key)
 
@@ -90,7 +82,9 @@ func (nc *nodeCache) clear() {
 	nc.lock.Lock()
 	defer nc.lock.Unlock()
 
-	nc.data = make(map[string][]uint64)
+	for k := range nc.data {
+		delete(nc.data, k)
+	}
 }
 
 // isActive is the active field getter.

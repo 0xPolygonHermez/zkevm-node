@@ -102,13 +102,6 @@ func TestMTNodeCacheSet(t *testing.T) {
 				"0x0000000000000002000000000000000100000000000000010000000000000001": {16},
 			},
 		},
-		{
-			description:    "key length != 4 causes error",
-			key:            [][]uint64{{1, 1, 1}},
-			value:          [][]uint64{{15}},
-			expectedErr:    true,
-			expectedErrMsg: "Invalid key length, should be 4",
-		},
 	}
 
 	for _, tc := range tcs {

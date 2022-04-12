@@ -1,10 +1,6 @@
 package dependencies
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/hermeznetwork/hermez-core/log"
@@ -96,86 +92,6 @@ services:
 			}()
 
 			actualOutput, err := subject.readCurrentDigest(imageName)
-			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
-			require.Equal(t, tc.expectedOutput, actualOutput)
-		})
-	}
-}
-
-func Test_image_readRemoteDigest(t *testing.T) {
-	const (
-		imageName             = "imageorg/imagerepo"
-		defaultDockerUsername = "user"
-		defaultDockerPassword = "pass"
-		defaultJWTToken       = "expectedToken"
-		defaultDigest         = "expectedDigest"
-	)
-
-	tcs := []struct {
-		description      string
-		loginResponse    string
-		getTagResponse   string
-		expectedOutput   string
-		expectedError    bool
-		expectedErrorMsg string
-	}{
-		{
-			description:    "happy path",
-			loginResponse:  defaultJWTToken,
-			getTagResponse: defaultDigest,
-			expectedOutput: defaultDigest,
-		},
-		{
-			description:      "empty token received",
-			loginResponse:    "",
-			expectedError:    true,
-			expectedErrorMsg: "Login failed, empty token received",
-		},
-		{
-			description:      "empty digest received",
-			loginResponse:    defaultJWTToken,
-			getTagResponse:   "",
-			expectedError:    true,
-			expectedErrorMsg: "Remote retrieval failed, empty digest received",
-		},
-	}
-
-	for _, tc := range tcs {
-		tc := tc
-		t.Run(tc.description, func(t *testing.T) {
-			mux := http.NewServeMux()
-			mux.HandleFunc(defaultLoginPattern, func(res http.ResponseWriter, req *http.Request) {
-				require.Equal(t, http.MethodPost, req.Method)
-				require.Equal(t, "application/json", req.Header.Get("Content-type"))
-
-				decoder := json.NewDecoder(req.Body)
-				var data struct {
-					Username, Password string
-				}
-				require.NoError(t, decoder.Decode(&data))
-				require.Equal(t, defaultDockerUsername, data.Username)
-				require.Equal(t, defaultDockerPassword, data.Password)
-
-				_, err := res.Write([]byte(fmt.Sprintf(`{"token":"%s"}`, tc.loginResponse)))
-				require.NoError(t, err)
-			})
-			mux.HandleFunc("/v2/repositories/imageorg/imagerepo/tags/latest", func(res http.ResponseWriter, req *http.Request) {
-				if req.Header.Get("Authorization") != fmt.Sprintf("JWT %s", tc.loginResponse) {
-					http.Error(res, "Invalid auth", http.StatusForbidden)
-				}
-				_, err := res.Write([]byte(fmt.Sprintf(`{"images":[{"digest":"%s"}]}`, tc.getTagResponse)))
-				require.NoError(t, err)
-			})
-			ts := httptest.NewServer(mux)
-			defer ts.Close()
-
-			subject := &imageUpdater{
-				imageAPIServer: ts.URL,
-				dockerUsername: defaultDockerUsername,
-				dockerPassword: defaultDockerPassword,
-			}
-
-			actualOutput, err := subject.readRemoteDigest(imageName)
 			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})

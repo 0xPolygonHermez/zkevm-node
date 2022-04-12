@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/stretchr/testify/assert"
@@ -35,6 +36,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: sequencer.InitBatchProcessorIfDiffTypeSynced,
 		},
 		{
+			path:          "Sequencer.PriceGetter.Type",
+			expectedValue: pricegetter.DefaultType,
+		},
+		{
+			path:          "Sequencer.PriceGetter.DefaultPrice",
+			expectedValue: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
+		},
+		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",
 			expectedValue: uint64(1000000000),
 		},
@@ -54,6 +63,14 @@ func Test_Defaults(t *testing.T) {
 			path:          "MTClient.URI",
 			expectedValue: "127.0.0.1:50052",
 		},
+		{
+			path:          "Database.MaxConns",
+			expectedValue: 200,
+		},
+		{
+			path:          "RPC.MaxRequestsPerIPAndSecond",
+			expectedValue: float64(50),
+		},
 	}
 
 	ctx := cli.NewContext(cli.NewApp(), flag.NewFlagSet("", flag.PanicOnError), nil)
@@ -66,10 +83,7 @@ func Test_Defaults(t *testing.T) {
 		tc := tc
 		t.Run(tc.path, func(t *testing.T) {
 			actual := getValueFromStruct(tc.path, cfg)
-
-			if actual != tc.expectedValue {
-				t.Fatalf("Unexpected default value for path %q, want %d, got %d", tc.path, tc.expectedValue, actual)
-			}
+			require.Equal(t, tc.expectedValue, actual)
 		})
 	}
 }

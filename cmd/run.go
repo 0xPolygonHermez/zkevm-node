@@ -112,7 +112,7 @@ func start(ctx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	pool := pool.NewPool(poolDb, st)
+	pool := pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
 	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
 	seq := createSequencer(c.Sequencer, etherman, pool, st)
 

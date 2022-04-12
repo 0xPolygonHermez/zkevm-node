@@ -39,7 +39,7 @@ type stateInterface interface {
 	RollbackState(ctx context.Context) error
 	AddBlock(ctx context.Context, block *state.Block) error
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time, aggregator common.Address) error
-	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*state.BasicBatchProcessor, error)
+	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*state.BatchProcessor, error)
 	AddSequencer(ctx context.Context, seq state.Sequencer) error
 	CommitState(ctx context.Context) error
 	Reset(ctx context.Context, block *state.Block) error
