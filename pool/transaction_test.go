@@ -10,7 +10,6 @@ import (
 )
 
 func Test_IsClaimTx(t *testing.T) {
-
 	l2GlobalExitRootManagerAddr := common.HexToAddress("0x00000000000000000000000000000001")
 	differentAddr := common.HexToAddress("0x00000000000000000000000000000002")
 	claimData := hex.DecodeHexToBig(bridgeClaimMethodSignature).Bytes()
