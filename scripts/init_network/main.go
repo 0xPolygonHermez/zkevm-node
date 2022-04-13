@@ -85,10 +85,6 @@ func main() {
 	chainIDL1, err := clientL1.NetworkID(ctx)
 	chkErr(err)
 
-	log.Infof("Getting chainID L2")
-	chainIDL2, err := clientL2.NetworkID(ctx)
-	chkErr(err)
-
 	// Preparing l1 acc info
 	log.Infof("Creating deployer authorization")
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(l1AccHexPrivateKey, "0x"))
@@ -161,6 +157,8 @@ func main() {
 	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), txTimeout)
 	chkErr(err)
 	log.Infof("sequencer registered")
+
+	time.Sleep(10 * time.Second)
 
 	// Deposit funds to L2 via bridge
 	log.Infof("Depositing funds to L2 via bridge")
@@ -241,6 +239,10 @@ func main() {
 			common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
 		},
 	}
+
+	log.Infof("Getting chainID L2")
+	chainIDL2, err := clientL2.NetworkID(ctx)
+	chkErr(err)
 
 	// Preparing bridge receiver acc info
 	log.Infof("Creating bridge receiver authorization")
