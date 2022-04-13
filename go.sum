@@ -423,6 +423,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:
 github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/iden3/go-iden3-crypto v0.0.14-0.20220322090623-d3e4218fe366 h1:2hTJCj0RnpdrTTN6jOaUL/B7yW8ofHb4BJEQ5Wmrc10=
 github.com/iden3/go-iden3-crypto v0.0.14-0.20220322090623-d3e4218fe366/go.mod h1:swXIv0HFbJKobbQBtsB50G7IHr6PbTowutSew/iBEoo=
+github.com/iden3/go-iden3-crypto v0.0.14-0.20220413123345-edc36bfa5247 h1:9i4N178PRIcROyIsnHbMxINrwPkN/czg7TI2izUQDc8=
+github.com/iden3/go-iden3-crypto v0.0.14-0.20220413123345-edc36bfa5247/go.mod h1:swXIv0HFbJKobbQBtsB50G7IHr6PbTowutSew/iBEoo=
 github.com/imdario/mergo v0.3.11/go.mod h1:jmQim1M+e3UYxmgPu/WyfjB3N3VflVyUjjjwH0dnCYA=
 github.com/imdario/mergo v0.3.12 h1:b6R2BslTbIEToALKP7LxUvijTsNI9TAe80pLWN2g/HU=
 github.com/imdario/mergo v0.3.12/go.mod h1:jmQim1M+e3UYxmgPu/WyfjB3N3VflVyUjjjwH0dnCYA=
