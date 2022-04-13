@@ -39,7 +39,7 @@ const (
 	bridgeDepositReceiverAddress    = "0xc949254d682d8c9ad5682521675b8f43b102aec4"
 	bridgeDepositReceiverPrivateKey = "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
 
-	txTimeout = 5 * time.Second
+	txTimeout = 60 * time.Second
 )
 
 type deposit struct {
@@ -83,6 +83,10 @@ func main() {
 	// Get network chain id
 	log.Infof("Getting chainID L1")
 	chainIDL1, err := clientL1.NetworkID(ctx)
+	chkErr(err)
+
+	log.Infof("Getting chainID L2")
+	chainIDL2, err := clientL2.NetworkID(ctx)
 	chkErr(err)
 
 	// Preparing l1 acc info
@@ -242,7 +246,7 @@ func main() {
 	log.Infof("Creating bridge receiver authorization")
 	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(bridgeDepositReceiverPrivateKey, "0x"))
 	chkErr(err)
-	authBridgeReceiver, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDL1)
+	authBridgeReceiver, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDL2)
 	chkErr(err)
 
 	sendL2Claim(ctx, authBridgeReceiver, clientL2, deposit, smtProof, globalExitRoot)
@@ -302,7 +306,6 @@ func sendL2Claim(ctx context.Context, auth *bind.TransactOpts, client *ethclient
 	chkErr(err)
 
 	log.Infof("waiting L2 Claim tx to be mined")
-	const txTimeout = 15 * time.Second
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
 
