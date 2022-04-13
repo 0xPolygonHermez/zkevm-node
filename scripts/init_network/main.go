@@ -197,8 +197,8 @@ func main() {
 		Amount:     depositAmount,
 		OrigNet:    0,
 		DestNet:    destNetwork,
-		DestAddr:   authSequencer.From,
-		DepositCnt: 1,
+		DestAddr:   destAddr,
+		DepositCnt: 0,
 	}
 	smtProof := [][32]byte{
 		common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"),
