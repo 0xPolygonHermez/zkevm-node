@@ -176,7 +176,7 @@ run-benchmarks: run-db ## Runs benchmars
 	go test -bench=. ./state/tree
 
 .PHONY: compile-scs
-compile-scs: ## Compiles smart contracts used in tests and local deployments
+compile-scs: ## Compiles smart contracts, configuration in test/contracts/index.yaml
 	go run ./scripts/cmd... compilesc --input ./test/contracts
 
 ## Help display.
