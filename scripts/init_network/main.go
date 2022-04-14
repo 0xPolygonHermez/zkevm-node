@@ -158,7 +158,8 @@ func main() {
 	chkErr(err)
 	log.Infof("sequencer registered")
 
-	time.Sleep(10 * time.Second)
+	const intervalToWaitTheSequencerToGetRegistered = 10 * time.Second
+	time.Sleep(intervalToWaitTheSequencerToGetRegistered)
 
 	// Deposit funds to L2 via bridge
 	log.Infof("Depositing funds to L2 via bridge")
