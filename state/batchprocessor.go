@@ -195,6 +195,7 @@ func (b *BatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction)
 			}
 
 			cost += zeros * zeroCost
+			cost = cost + cost + cost + cost + cost // temporary solution
 		}
 	}
 
