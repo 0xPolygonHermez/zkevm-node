@@ -132,7 +132,7 @@ init-network: ## Initializes the network
 	go run ./scripts/init_network/main.go .
 
 .PHONY: deploy-sc
-deploy-sc: ## deploys test smart contract
+deploy-sc: ## deploys some examples of transactions and smart contracts
 	go run ./scripts/deploy_sc/main.go .
 
 .PHONY: deploy-uniswap
