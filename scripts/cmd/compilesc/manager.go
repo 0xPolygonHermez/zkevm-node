@@ -180,7 +180,7 @@ func (cm *Manager) fileActions(name, solcVersion, inputPath, outputPath string) 
 
 // Compile invokes solc on the given sol file.
 func (cm *Manager) Compile(name, solcVersion, inputPath, outputPath string) error {
-	log.Infof("Compiling %q...", name)
+	log.Infof("Compiling %s.sol with version %s", path.Join(cm.basePath, inputPath, name), solcVersion)
 
 	solcImage := fmt.Sprintf("%s:%s", defaultSolcImage, solcVersion)
 
@@ -197,12 +197,17 @@ func (cm *Manager) Compile(name, solcVersion, inputPath, outputPath string) erro
 	envPath := os.Getenv("PATH")
 	c.Env = []string{fmt.Sprintf("PATH=%s", envPath)}
 
-	return c.Run()
+	err := c.Run()
+	if err != nil {
+		return err
+	}
+	log.Infof("Compiler run successfully, artifacts can be found at %q", path.Join(cm.basePath, "bin", name))
+	return nil
 }
 
 // Abigen generates bindings for the given file
 func (cm *Manager) Abigen(name, inputPath, outputPath string) error {
-	log.Infof("Generating bindings for %q...", name)
+	log.Infof("Generating go code for %q...", name)
 
 	c := exec.Command(
 		"docker", "run", "--rm",
@@ -218,5 +223,10 @@ func (cm *Manager) Abigen(name, inputPath, outputPath string) error {
 	envPath := os.Getenv("PATH")
 	c.Env = []string{fmt.Sprintf("PATH=%s", envPath)}
 
-	return c.Run()
+	err := c.Run()
+	if err != nil {
+		return err
+	}
+	log.Infof("Code generated at %q", path.Join(cm.basePath, "bin", outputPath, name, fmt.Sprintf("%s.go", name)))
+	return nil
 }
