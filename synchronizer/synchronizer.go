@@ -282,7 +282,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 		}
 		err = s.state.CommitState(ctx)
 		if err != nil {
-			log.Fatal("error committing state to store block. BlockNumber: ", blocks[i].BlockNumber)
+			log.Fatalf("error committing state to store block. BlockNumber: %v, err: %v", blocks[i].BlockNumber, err)
 		}
 	}
 }

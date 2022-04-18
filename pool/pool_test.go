@@ -95,6 +95,7 @@ func Test_AddTx(t *testing.T) {
 	}
 
 	rows, err := sqlDB.Query(ctx, "SELECT hash, encoded, decoded, state FROM pool.txs")
+	defer rows.Close()
 	if err != nil {
 		t.Error(err)
 	}
@@ -376,10 +377,10 @@ func Test_UpdateTxState(t *testing.T) {
 	}
 
 	rows, err := sqlDB.Query(ctx, "SELECT state FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
+	defer rows.Close()
 	if err != nil {
 		t.Error(err)
 	}
-	defer rows.Close()
 
 	var state string
 	rows.Next()

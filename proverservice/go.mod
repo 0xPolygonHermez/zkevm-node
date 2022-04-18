@@ -3,6 +3,7 @@ module github.com/hermeznetwork/hermez-core/proverservice
 go 1.17
 
 require (
+	github.com/dimiro1/health v0.0.0-20191019130555-c5cbb4d46ffc
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.27.1
 )

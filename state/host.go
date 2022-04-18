@@ -91,7 +91,7 @@ func (h *Host) GetCodeHash(ctx context.Context, address common.Address) common.H
 	hash, err := h.State.tree.GetCodeHash(ctx, address, h.stateRoot)
 
 	if err != nil {
-		log.Errorf("error on GetCodeHash for address %v", address)
+		log.Errorf("error on GetCodeHash for address %v, err: %v", address, err)
 	}
 
 	log.Debugf("GetCodeHash for address %v => %v", address, common.BytesToHash(hash))
