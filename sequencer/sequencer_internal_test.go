@@ -344,7 +344,7 @@ func TestSequencerSelectTxsInvTxs(t *testing.T) {
 	require.Equal(t, 4, len(selTxsRes.SelectedTxsHashes))
 
 	rows, err := stateDB.Query(ctx, "SELECT state FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
-	defer rows.Close()
+	defer rows.Close() // nolint:gosec,errcheck
 	if err != nil {
 		require.NoError(t, err)
 	}
