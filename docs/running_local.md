@@ -48,6 +48,24 @@ To restart the environment:
 make restart
 ```
 
+## Sample data
+
+The `make run` will execute the containers needed to run the environment but this will not execute anything else, so the L2 will be basically empty.
+
+If you need sample data already deployed to the network, we have the following scripts:
+
+To add some examples of transactions and smart contracts:
+
+```bash
+make deploy-examples
+```
+
+To deploy a full a uniswap environment:
+
+```bash
+make deploy-uniswap
+```
+
 ## Accessing the environment
 
 - Hermez Node Database 
