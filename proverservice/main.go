@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/dimiro1/health"
 	"github.com/hermeznetwork/hermez-core/proverservice/pb"
 	"google.golang.org/grpc"
 )
@@ -25,9 +24,8 @@ func main() {
 
 	go func() {
 		fmt.Println("starting health service...")
-		handler := health.NewHandler()
-		http.Handle("/health", handler)
-		if err = http.ListenAndServe(":50052", handler); err != nil {
+		http.HandleFunc("/health", health)
+		if err = http.ListenAndServe(":50052", nil); err != nil {
 			fmt.Printf("failed to serve: %v\n", err)
 		}
 	}()
