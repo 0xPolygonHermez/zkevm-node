@@ -12,6 +12,7 @@ const (
 	down status = "DOWN"
 )
 
+// HealthCheckResponse resp for the health request
 type HealthCheckResponse struct {
 	Status status
 }
