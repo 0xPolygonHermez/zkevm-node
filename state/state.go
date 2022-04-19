@@ -3,11 +3,14 @@ package state
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/google/uuid"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
@@ -37,40 +40,92 @@ var (
 // State is a implementation of the state
 type State struct {
 	cfg  Config
-	tree merkletree
+	tree statetree
 	*PostgresStorage
+
+	mu    *sync.Mutex
+	dbTxs map[string]bool
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage, tree merkletree) *State {
-	return &State{cfg: cfg, tree: tree, PostgresStorage: storage}
+func NewState(cfg Config, storage *PostgresStorage, tree statetree) *State {
+	return &State{
+		cfg:             cfg,
+		tree:            tree,
+		PostgresStorage: storage,
+
+		mu:    new(sync.Mutex),
+		dbTxs: make(map[string]bool),
+	}
 }
 
 // BeginStateTransaction starts a transaction block
-func (s *State) BeginStateTransaction(ctx context.Context) error {
-	err := s.PostgresStorage.BeginDBTransaction(ctx)
-	if err != nil {
-		return err
+func (s *State) BeginStateTransaction(ctx context.Context) (string, error) {
+	const maxAttempts = 3
+	var (
+		txBundleID string
+		found      bool
+	)
+
+	s.mu.Lock()
+	for i := 0; i < maxAttempts; i++ {
+		txBundleID = uuid.NewString()
+		_, idExists := s.dbTxs[txBundleID]
+		if !idExists {
+			found = true
+			break
+		}
 	}
-	return s.tree.BeginDBTransaction(ctx)
+	s.mu.Unlock()
+
+	if !found {
+		return "", fmt.Errorf("Could not find unused uuid for db tx bundle")
+	}
+
+	if err := s.PostgresStorage.BeginDBTransaction(ctx, txBundleID); err != nil {
+		return "", err
+	}
+	if err := s.tree.BeginDBTransaction(ctx, txBundleID); err != nil {
+		return "", err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.dbTxs[txBundleID] = true
+
+	return txBundleID, nil
 }
 
 // CommitState commits a state into db
-func (s *State) CommitState(ctx context.Context) error {
-	err := s.PostgresStorage.Commit(ctx)
-	if err != nil {
+func (s *State) CommitState(ctx context.Context, txBundleID string) error {
+	if err := s.tree.Commit(ctx, txBundleID); err != nil {
 		return err
 	}
-	return s.tree.Commit(ctx)
+
+	if err := s.PostgresStorage.Commit(ctx, txBundleID); err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.dbTxs, txBundleID)
+	return nil
 }
 
 // RollbackState rollbacks a db state transaction
-func (s *State) RollbackState(ctx context.Context) error {
-	err := s.PostgresStorage.Rollback(ctx)
-	if err != nil {
+func (s *State) RollbackState(ctx context.Context, txBundleID string) error {
+	if err := s.tree.Rollback(ctx, txBundleID); err != nil {
 		return err
 	}
-	return s.tree.Rollback(ctx)
+
+	if err := s.PostgresStorage.Rollback(ctx, txBundleID); err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.dbTxs, txBundleID)
+	return nil
 }
 
 // NewBatchProcessor creates a new batch processor
@@ -99,6 +154,17 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 	batchProcessor.Host.setRuntime(evm.NewEVM())
 
 	return batchProcessor, nil
+}
+
+// NewBatchProcessorDBTx creates a new batch processor for the given DB tx bundle.
+func (s *State) NewBatchProcessorDBTx(ctx context.Context, txBundleID string, sequencerAddress common.Address, stateRoot []byte) (*BatchProcessor, error) {
+	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, stateRoot)
+	if err != nil {
+		return nil, err
+	}
+	bp.TxBundleID = txBundleID
+	bp.Host.txBundleID = txBundleID
+	return bp, nil
 }
 
 // NewGenesisBatchProcessor creates a new batch processor
@@ -144,7 +210,7 @@ func (s *State) GetBalance(ctx context.Context, address common.Address, batchNum
 		return nil, err
 	}
 
-	return s.tree.GetBalance(ctx, address, root)
+	return s.tree.GetBalance(ctx, address, root, "")
 }
 
 // GetCode from a given address
@@ -154,7 +220,7 @@ func (s *State) GetCode(ctx context.Context, address common.Address, batchNumber
 		return nil, err
 	}
 
-	return s.tree.GetCode(ctx, address, root)
+	return s.tree.GetCode(ctx, address, root, "")
 }
 
 // EstimateGas for a transaction
@@ -186,7 +252,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis) error {
 	}
 
 	// Add Block
-	err := s.AddBlock(ctx, block)
+	err := s.PostgresStorage.AddBlock(ctx, block, "")
 	if err != nil {
 		return err
 	}
@@ -198,7 +264,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis) error {
 
 	if genesis.Balances != nil {
 		for address, balance := range genesis.Balances {
-			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
+			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot, "")
 			if err != nil {
 				return err
 			}
@@ -208,7 +274,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis) error {
 
 	if genesis.SmartContracts != nil {
 		for address, sc := range genesis.SmartContracts {
-			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot)
+			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot, "")
 			if err != nil {
 				return err
 			}
@@ -219,7 +285,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis) error {
 	if len(genesis.Storage) > 0 {
 		for address, storage := range genesis.Storage {
 			for key, value := range storage {
-				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
+				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot, "")
 				if err != nil {
 					return err
 				}
@@ -230,7 +296,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis) error {
 
 	if genesis.Nonces != nil {
 		for address, nonce := range genesis.Nonces {
-			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
+			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot, "")
 			if err != nil {
 				return err
 			}
@@ -273,7 +339,7 @@ func (s *State) GetNonce(ctx context.Context, address common.Address, batchNumbe
 		return 0, err
 	}
 
-	n, err := s.tree.GetNonce(ctx, address, root)
+	n, err := s.tree.GetNonce(ctx, address, root, "")
 	if errors.Is(err, tree.ErrNotFound) {
 		return 0, nil
 	} else if err != nil {
@@ -290,5 +356,30 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 		return nil, err
 	}
 
-	return s.tree.GetStorageAt(ctx, address, position, root)
+	return s.tree.GetStorageAt(ctx, address, position, root, "")
+}
+
+// AddBlockDBTx adds a new block to the State Store for the given DB tx bundle.
+func (s *State) AddBlockDBTx(ctx context.Context, txBundleID string, block *Block) error {
+	return s.PostgresStorage.AddBlock(ctx, block, txBundleID)
+}
+
+// AddBlock adds a new block to the State Store.
+func (s *State) AddBlock(ctx context.Context, block *Block) error {
+	return s.PostgresStorage.AddBlock(ctx, block, "")
+}
+
+// AddSequencerDBTx adds a new sequencer
+func (s *State) AddSequencerDBTx(ctx context.Context, txBundleID string, seq Sequencer) error {
+	return s.PostgresStorage.AddSequencer(ctx, seq, txBundleID)
+}
+
+// ConsolidateBatchDBTx consolidates a batch for the given DB tx bundle.
+func (s *State) ConsolidateBatchDBTx(ctx context.Context, txBundleID string, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time, aggregator common.Address) error {
+	return s.PostgresStorage.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash, consolidatedAt, aggregator, txBundleID)
+}
+
+// ResetDBTx resets the state to block for the given DB tx bundle.
+func (s *State) ResetDBTx(ctx context.Context, txBundleID string, block *Block) error {
+	return s.PostgresStorage.Reset(ctx, block, txBundleID)
 }

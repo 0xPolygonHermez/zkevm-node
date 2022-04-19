@@ -40,17 +40,17 @@ func (b *BadgerRistrettoStore) SupportsDBTransactions() bool {
 }
 
 // BeginDBTransaction starts a transaction block
-func (b *BadgerRistrettoStore) BeginDBTransaction(ctx context.Context) error {
+func (b *BadgerRistrettoStore) BeginDBTransaction(ctx context.Context, txBundleID string) error {
 	return ErrDBTxsNotSupported
 }
 
 // Commit commits a db transaction
-func (b *BadgerRistrettoStore) Commit(ctx context.Context) error {
+func (b *BadgerRistrettoStore) Commit(ctx context.Context, txBundleID string) error {
 	return ErrDBTxsNotSupported
 }
 
 // Rollback rollbacks a db transaction
-func (b *BadgerRistrettoStore) Rollback(ctx context.Context) error {
+func (b *BadgerRistrettoStore) Rollback(ctx context.Context, txBundleID string) error {
 	return ErrDBTxsNotSupported
 }
 
@@ -63,7 +63,7 @@ func NewBadgerRistrettoStore(db *badger.DB, cache *ristretto.Cache) *BadgerRistr
 }
 
 // Get gets value of key, first trying the cache, then the db.
-func (b *BadgerRistrettoStore) Get(ctx context.Context, key []byte) (data []byte, err error) {
+func (b *BadgerRistrettoStore) Get(ctx context.Context, key []byte, txBundleID string) (data []byte, err error) {
 	value, found := b.cache.Get(key)
 	if found {
 		data, ok := value.([]byte)
@@ -96,7 +96,7 @@ func (b *BadgerRistrettoStore) Get(ctx context.Context, key []byte) (data []byte
 // Set inserts a key-value pair into the db.
 // If record with such a key already exists its assumed that the value is correct,
 // because it's a reverse hash table, and the key is a hash of the value.
-func (b *BadgerRistrettoStore) Set(ctx context.Context, key []byte, value []byte) error {
+func (b *BadgerRistrettoStore) Set(ctx context.Context, key []byte, value []byte, txBundleID string) error {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 	return b.db.Update(func(txn *badger.Txn) error {

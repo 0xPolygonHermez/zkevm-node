@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -33,19 +35,34 @@ var (
 // PostgresStore stores key-value pairs in memory
 type PostgresStore struct {
 	db             *pgxpool.Pool
-	dbTx           pgx.Tx
 	tableName      string
 	constraintName string
+
+	mu  *sync.Mutex
+	txs map[string]pgx.Tx
 }
 
 // NewPostgresStore creates an instance of PostgresStore
 func NewPostgresStore(db *pgxpool.Pool) *PostgresStore {
-	return &PostgresStore{db: db, tableName: merkleTreeTable, constraintName: mtConstraint}
+	return &PostgresStore{
+		db: db, tableName: merkleTreeTable,
+		constraintName: mtConstraint,
+
+		mu:  new(sync.Mutex),
+		txs: make(map[string]pgx.Tx),
+	}
 }
 
 // NewPostgresSCCodeStore creates an instance of PostgresStore
 func NewPostgresSCCodeStore(db *pgxpool.Pool) *PostgresStore {
-	return &PostgresStore{db: db, tableName: scCodeTreeTable, constraintName: scCodeConstraint}
+	return &PostgresStore{
+		db:             db,
+		tableName:      scCodeTreeTable,
+		constraintName: scCodeConstraint,
+
+		mu:  new(sync.Mutex),
+		txs: make(map[string]pgx.Tx),
+	}
 }
 
 // SupportsDBTransactions indicates whether the store implementation supports DB transactions
@@ -54,59 +71,84 @@ func (p *PostgresStore) SupportsDBTransactions() bool {
 }
 
 // BeginDBTransaction starts a transaction block
-func (p *PostgresStore) BeginDBTransaction(ctx context.Context) error {
-	if p.dbTx != nil {
-		return ErrAlreadyInitializedDBTransaction
-	}
-
-	dbTx, err := p.db.Begin(ctx)
+func (p *PostgresStore) BeginDBTransaction(ctx context.Context, txBundleID string) error {
+	tx, err := p.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	p.dbTx = dbTx
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	_, ok := p.txs[txBundleID]
+	if ok {
+		return fmt.Errorf("DB Tx bundle %q already exists", txBundleID)
+	}
+	p.txs[txBundleID] = tx
+
 	return nil
 }
 
 // Commit commits a db transaction
-func (p *PostgresStore) Commit(ctx context.Context) error {
-	if p.dbTx != nil {
-		err := p.dbTx.Commit(ctx)
-		p.dbTx = nil
-		return err
+func (p *PostgresStore) Commit(ctx context.Context, txBundleID string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	tx, ok := p.txs[txBundleID]
+
+	if !ok {
+		return fmt.Errorf("DB Tx bundle %q does not exist", txBundleID)
 	}
 
-	return ErrNilDBTransaction
+	err := tx.Commit(ctx)
+	delete(p.txs, txBundleID)
+
+	return err
 }
 
 // Rollback rollbacks a db transaction
-func (p *PostgresStore) Rollback(ctx context.Context) error {
-	if p.dbTx != nil {
-		err := p.dbTx.Rollback(ctx)
-		p.dbTx = nil
-		return err
+func (p *PostgresStore) Rollback(ctx context.Context, txBundleID string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	tx, ok := p.txs[txBundleID]
+	if !ok {
+		return fmt.Errorf("DB Tx bundle %q does not exist", txBundleID)
 	}
 
-	return ErrNilDBTransaction
+	err := tx.Rollback(ctx)
+	delete(p.txs, txBundleID)
+
+	return err
 }
 
-func (p *PostgresStore) exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
-	if p.dbTx != nil {
-		return p.dbTx.Exec(ctx, sql, arguments...)
+func (p *PostgresStore) queryRow(ctx context.Context, txBundleID string, sql string, args ...interface{}) pgx.Row {
+	if txBundleID == "" {
+		return p.db.QueryRow(ctx, sql, args...)
 	}
-	return p.db.Exec(ctx, sql, arguments...)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	tx, ok := p.txs[txBundleID]
+	if !ok {
+		log.Errorf("DB Tx bundle %q does not exist", txBundleID)
+	}
+	return tx.QueryRow(ctx, sql, args...)
 }
 
-func (p *PostgresStore) queryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
-	if p.dbTx != nil {
-		return p.dbTx.QueryRow(ctx, sql, args...)
+func (p *PostgresStore) exec(ctx context.Context, txBundleID string, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
+	if txBundleID == "" {
+		return p.db.Exec(ctx, sql, arguments...)
 	}
-	return p.db.QueryRow(ctx, sql, args...)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	tx, ok := p.txs[txBundleID]
+	if !ok {
+		return nil, fmt.Errorf("DB Tx bundle %q does not exist", txBundleID)
+	}
+	return tx.Exec(ctx, sql, arguments...)
 }
 
 // Get gets value of key from the db
-func (p *PostgresStore) Get(ctx context.Context, key []byte) ([]byte, error) {
+func (p *PostgresStore) Get(ctx context.Context, key []byte, txBundleID string) ([]byte, error) {
 	var data []byte
-	err := p.queryRow(ctx, fmt.Sprintf(getNodeByKeySQL, p.tableName), key).Scan(&data)
+	err := p.queryRow(ctx, txBundleID, fmt.Sprintf(getNodeByKeySQL, p.tableName), key).Scan(&data)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -120,8 +162,8 @@ func (p *PostgresStore) Get(ctx context.Context, key []byte) ([]byte, error) {
 // Set inserts a key-value pair into the db.
 // If record with such a key already exists its assumed that the value is correct,
 // because it's a reverse hash table, and the key is a hash of the value
-func (p *PostgresStore) Set(ctx context.Context, key []byte, value []byte) error {
-	_, err := p.exec(ctx, fmt.Sprintf(setNodeByKeySQL, p.tableName, p.constraintName), key, value)
+func (p *PostgresStore) Set(ctx context.Context, key []byte, value []byte, txBundleID string) error {
+	_, err := p.exec(ctx, txBundleID, fmt.Sprintf(setNodeByKeySQL, p.tableName, p.constraintName), key, value)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			return nil
@@ -133,6 +175,6 @@ func (p *PostgresStore) Set(ctx context.Context, key []byte, value []byte) error
 
 // Reset clears the db.
 func (p *PostgresStore) Reset() error {
-	_, err := p.exec(context.Background(), fmt.Sprintf("TRUNCATE TABLE %s;", p.tableName))
+	_, err := p.exec(context.Background(), "", fmt.Sprintf("TRUNCATE TABLE %s;", p.tableName))
 	return err
 }

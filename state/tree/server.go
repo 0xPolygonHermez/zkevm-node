@@ -76,7 +76,7 @@ func (s *Server) GetBalance(ctx context.Context, in *pb.CommonGetRequest) (*pb.G
 		return nil, err
 	}
 
-	balance, err := s.stree.GetBalance(ctx, common.HexToAddress(in.EthAddress), root)
+	balance, err := s.stree.GetBalance(ctx, common.HexToAddress(in.EthAddress), root, "")
 
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func (s *Server) GetNonce(ctx context.Context, in *pb.CommonGetRequest) (*pb.Get
 		return nil, err
 	}
 
-	nonce, err := s.stree.GetNonce(ctx, common.HexToAddress(in.EthAddress), root)
+	nonce, err := s.stree.GetNonce(ctx, common.HexToAddress(in.EthAddress), root, "")
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (s *Server) GetCode(ctx context.Context, in *pb.CommonGetRequest) (*pb.GetC
 		return nil, err
 	}
 
-	code, err := s.stree.GetCode(ctx, common.HexToAddress(in.EthAddress), root)
+	code, err := s.stree.GetCode(ctx, common.HexToAddress(in.EthAddress), root, "")
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (s *Server) GetCodeHash(ctx context.Context, in *pb.CommonGetRequest) (*pb.
 		return nil, err
 	}
 
-	hash, err := s.stree.GetCodeHash(ctx, common.HexToAddress(in.EthAddress), root)
+	hash, err := s.stree.GetCodeHash(ctx, common.HexToAddress(in.EthAddress), root, "")
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (s *Server) GetStorageAt(ctx context.Context, in *pb.GetStorageAtRequest) (
 	}
 
 	positionBI := new(big.Int).SetUint64(in.Position)
-	value, err := s.stree.GetStorageAt(ctx, common.HexToAddress(in.EthAddress), positionBI, root)
+	value, err := s.stree.GetStorageAt(ctx, common.HexToAddress(in.EthAddress), positionBI, root, "")
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (s *Server) SetBalance(ctx context.Context, in *pb.SetBalanceRequest) (*pb.
 		return nil, err
 	}
 
-	root, _, err = s.stree.SetBalance(ctx, common.HexToAddress(in.EthAddress), balanceBI, root)
+	root, _, err = s.stree.SetBalance(ctx, common.HexToAddress(in.EthAddress), balanceBI, root, "")
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +212,7 @@ func (s *Server) SetNonce(ctx context.Context, in *pb.SetNonceRequest) (*pb.Comm
 		return nil, err
 	}
 
-	root, _, err = s.stree.SetNonce(ctx, common.HexToAddress(in.EthAddress), nonceBI, root)
+	root, _, err = s.stree.SetNonce(ctx, common.HexToAddress(in.EthAddress), nonceBI, root, "")
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +235,7 @@ func (s *Server) SetCode(ctx context.Context, in *pb.SetCodeRequest) (*pb.Common
 		return nil, err
 	}
 
-	root, _, err = s.stree.SetCode(ctx, common.HexToAddress(in.EthAddress), code, root)
+	root, _, err = s.stree.SetCode(ctx, common.HexToAddress(in.EthAddress), code, root, "")
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +262,7 @@ func (s *Server) SetStorageAt(ctx context.Context, in *pb.SetStorageAtRequest) (
 		return nil, err
 	}
 
-	root, _, err = s.stree.SetStorageAt(ctx, common.HexToAddress(in.EthAddress), positionBI, valueBI, root)
+	root, _, err = s.stree.SetStorageAt(ctx, common.HexToAddress(in.EthAddress), positionBI, valueBI, root, "")
 	if err != nil {
 		return nil, err
 	}

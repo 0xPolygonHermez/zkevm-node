@@ -31,22 +31,22 @@ func (m *MemStore) SupportsDBTransactions() bool {
 }
 
 // BeginDBTransaction starts a transaction block
-func (m *MemStore) BeginDBTransaction(ctx context.Context) error {
+func (m *MemStore) BeginDBTransaction(ctx context.Context, txBundleID string) error {
 	return ErrDBTxsNotSupported
 }
 
 // Commit commits a db transaction
-func (m *MemStore) Commit(ctx context.Context) error {
+func (m *MemStore) Commit(ctx context.Context, txBundleID string) error {
 	return ErrDBTxsNotSupported
 }
 
 // Rollback rollbacks a db transaction
-func (m *MemStore) Rollback(ctx context.Context) error {
+func (m *MemStore) Rollback(ctx context.Context, txBundleID string) error {
 	return ErrDBTxsNotSupported
 }
 
 // Get gets value of key from the memory
-func (m *MemStore) Get(ctx context.Context, key []byte) ([]byte, error) {
+func (m *MemStore) Get(ctx context.Context, key []byte, txBundleID string) ([]byte, error) {
 	k := sha256.Sum256(key)
 	kv, ok := m.kv[k]
 	if !ok {
@@ -56,7 +56,7 @@ func (m *MemStore) Get(ctx context.Context, key []byte) ([]byte, error) {
 }
 
 // Set sets value of key in the memory
-func (m *MemStore) Set(ctx context.Context, key []byte, value []byte) error {
+func (m *MemStore) Set(ctx context.Context, key []byte, value []byte, txBundleID string) error {
 	k := sha256.Sum256(key)
 	kv := kvPair{key, value}
 	m.kv[k] = kv

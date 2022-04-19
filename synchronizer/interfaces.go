@@ -35,13 +35,15 @@ type stateInterface interface {
 	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
 	GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error)
-	BeginStateTransaction(ctx context.Context) error
-	RollbackState(ctx context.Context) error
-	AddBlock(ctx context.Context, block *state.Block) error
-	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time, aggregator common.Address) error
-	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*state.BatchProcessor, error)
-	AddSequencer(ctx context.Context, seq state.Sequencer) error
-	CommitState(ctx context.Context) error
-	Reset(ctx context.Context, block *state.Block) error
 	GetPreviousBlock(ctx context.Context, offset uint64) (*state.Block, error)
+
+	BeginStateTransaction(ctx context.Context) (string, error)
+	RollbackState(ctx context.Context, txBundleID string) error
+	CommitState(ctx context.Context, txBundleID string) error
+
+	AddBlockDBTx(ctx context.Context, txBundleID string, block *state.Block) error
+	ConsolidateBatchDBTx(ctx context.Context, txBundleID string, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time, aggregator common.Address) error
+	NewBatchProcessorDBTx(ctx context.Context, txBundleID string, sequencerAddress common.Address, stateRoot []byte) (*state.BatchProcessor, error)
+	AddSequencerDBTx(ctx context.Context, txBundleID string, seq state.Sequencer) error
+	ResetDBTx(ctx context.Context, txBundleID string, block *state.Block) error
 }

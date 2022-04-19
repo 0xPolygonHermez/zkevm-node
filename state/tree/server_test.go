@@ -27,7 +27,7 @@ import (
 
 const (
 	host = "0.0.0.0"
-	port = 50060
+	port = 50061
 
 	ethAddress = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
 )
@@ -144,7 +144,7 @@ func Test_MTServer_GetBalance(t *testing.T) {
 
 	ctx := context.Background()
 	expectedBalance := big.NewInt(100)
-	root, _, err := stree.SetBalance(ctx, common.HexToAddress(ethAddress), expectedBalance, nil)
+	root, _, err := stree.SetBalance(ctx, common.HexToAddress(ethAddress), expectedBalance, nil, "")
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
@@ -164,7 +164,7 @@ func Test_MTServer_GetNonce(t *testing.T) {
 
 	ctx := context.Background()
 	expectedNonce := big.NewInt(100)
-	root, _, err := stree.SetNonce(ctx, common.HexToAddress(ethAddress), expectedNonce, nil)
+	root, _, err := stree.SetNonce(ctx, common.HexToAddress(ethAddress), expectedNonce, nil, "")
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
@@ -186,7 +186,7 @@ func Test_MTServer_GetCode(t *testing.T) {
 	code, err := hex.DecodeString(expectedCode)
 	require.NoError(t, err)
 	ctx := context.Background()
-	root, _, err := stree.SetCode(ctx, common.HexToAddress(ethAddress), code, nil)
+	root, _, err := stree.SetCode(ctx, common.HexToAddress(ethAddress), code, nil, "")
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
@@ -220,7 +220,7 @@ func Test_MTServer_GetCodeHash(t *testing.T) {
 		ctx := context.Background()
 
 		expectedHash := testVector.ExpectedHash
-		root, _, err := stree.SetCode(ctx, common.HexToAddress(ethAddress), code, nil)
+		root, _, err := stree.SetCode(ctx, common.HexToAddress(ethAddress), code, nil, "")
 		require.NoError(t, err)
 
 		client := pb.NewMTServiceClient(conn)
@@ -230,7 +230,7 @@ func Test_MTServer_GetCodeHash(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		assert.Equal(t, expectedHash, resp.Hash, "Did not get the expected code hash")
+		require.Equal(t, expectedHash, resp.Hash, "Did not get the expected code hash")
 	}
 }
 
@@ -244,7 +244,7 @@ func Test_MTServer_GetStorageAt(t *testing.T) {
 	ctx := context.Background()
 	position := uint64(101)
 	positionBI := new(big.Int).SetUint64(position)
-	root, _, err := stree.SetStorageAt(ctx, common.HexToAddress(ethAddress), positionBI, expectedValue, nil)
+	root, _, err := stree.SetStorageAt(ctx, common.HexToAddress(ethAddress), positionBI, expectedValue, nil, "")
 	require.NoError(t, err)
 
 	client := pb.NewMTServiceClient(conn)
@@ -265,7 +265,7 @@ func Test_MTServer_ReverseHash(t *testing.T) {
 
 	ctx := context.Background()
 	expectedBalance := big.NewInt(100)
-	root, _, err := stree.SetBalance(ctx, common.HexToAddress(ethAddress), expectedBalance, nil)
+	root, _, err := stree.SetBalance(ctx, common.HexToAddress(ethAddress), expectedBalance, nil, "")
 	require.NoError(t, err)
 
 	key, err := tree.KeyEthAddrBalance(common.HexToAddress(ethAddress))
@@ -301,7 +301,7 @@ func Test_MTServer_SetBalance(t *testing.T) {
 	newRoot, err := hex.DecodeString(resp.NewRoot)
 	require.NoError(t, err)
 
-	actualBalance, err := stree.GetBalance(ctx, common.HexToAddress(ethAddress), newRoot)
+	actualBalance, err := stree.GetBalance(ctx, common.HexToAddress(ethAddress), newRoot, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedBalance.String(), actualBalance.String(), "Did not set the expected balance")
@@ -327,7 +327,7 @@ func Test_MTServer_SetNonce(t *testing.T) {
 	newRoot, err := hex.DecodeString(resp.NewRoot)
 	require.NoError(t, err)
 
-	actualNonce, err := stree.GetNonce(ctx, common.HexToAddress(ethAddress), newRoot)
+	actualNonce, err := stree.GetNonce(ctx, common.HexToAddress(ethAddress), newRoot, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedNonce.String(), actualNonce.String(), "Did not set the expected nonce")
@@ -353,7 +353,7 @@ func Test_MTServer_SetCode(t *testing.T) {
 	newRoot, err := hex.DecodeString(resp.NewRoot)
 	require.NoError(t, err)
 
-	actualCode, err := stree.GetCode(ctx, common.HexToAddress(ethAddress), newRoot)
+	actualCode, err := stree.GetCode(ctx, common.HexToAddress(ethAddress), newRoot, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedCode, hex.EncodeToString(actualCode), "Did not set the expected code")
@@ -382,7 +382,7 @@ func Test_MTServer_SetStorageAt(t *testing.T) {
 	newRoot, err := hex.DecodeString(resp.NewRoot)
 	require.NoError(t, err)
 
-	actualStorageAt, err := stree.GetStorageAt(ctx, common.HexToAddress(ethAddress), positionBI, newRoot)
+	actualStorageAt, err := stree.GetStorageAt(ctx, common.HexToAddress(ethAddress), positionBI, newRoot, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, expectedValue.String(), actualStorageAt.String(), "Did not set the expected storage at")
