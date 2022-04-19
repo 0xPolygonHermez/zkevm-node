@@ -36,7 +36,7 @@ type nodeCache struct {
 }
 
 const (
-	maxMTNodeCacheEntries = 256
+	maxMTNodeCacheEntries = 65536
 )
 
 var (
