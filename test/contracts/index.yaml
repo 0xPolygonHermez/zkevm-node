@@ -1,0 +1,59 @@
+---
+# This file contains the configuration for the `make compile-sc` command.
+# It will be read by the code under scripts/cmd/compilecs to compile and
+# generate go bindings for all the smart contracts required for our tests
+# and deployments. Internally, the code use docker containers for all its
+# operations, so that there is no need to install any additional tool
+# besides docker.
+
+# The configuration in this file is composed of a set of compile units, each
+# compile unit describes how to compile a solidity contract or set of them
+# under the same directory. They have the following fields:
+# * name: identifier of the compile unit, it can be the name of a smart
+#   contract or a directory containing more than one.
+# * solcVersion: tag to use for the ethereum/solc docker image to be used to
+#   compile the code
+# * inputPath: where to find the contract relative to test/contracts
+# * outputPath: where to put the compile and bindings generation results
+#   relative to test/contracts/bin
+#
+# The compile units are grouped into two sets:
+# * parallel: all the compile units under this key will be compiled in parallel
+# * sequential: all the compile units under this key will be compiled
+#   sequentially in the given order.
+
+compileUnits:
+  parallel:
+  - name: auto  # all the files under tests/contracts/auto will be compiled automatically
+    solcVersion: 0.8.12-alpine
+    inputPath: auto
+    outputPath: "."
+
+  sequential:
+  - name: WETH
+    solcVersion: 0.4.18
+  - name: UniswapInterfaceMulticall
+    solcVersion: 0.7.6-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/interface/
+  - name: UniswapV2ERC20
+    solcVersion: 0.5.16-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/core/
+  - name: UniswapV2Factory
+    solcVersion: 0.5.16-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/core/
+  - name: UniswapV2Pair
+    solcVersion: 0.5.16-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/core/
+
+  - name: UniswapV2Migrator
+    solcVersion: 0.6.6-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/periphery/
+  - name: UniswapV2Router02
+    solcVersion: 0.6.6-alpine
+    inputPath: uniswap/v2/
+    outputPath: uniswap/v2/periphery/

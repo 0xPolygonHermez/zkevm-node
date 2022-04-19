@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 
 	"github.com/hermeznetwork/hermez-core/proverservice/pb"
@@ -20,8 +21,17 @@ func main() {
 
 	zkProverServiceServer := NewZkProverServiceServer()
 	pb.RegisterZKProverServiceServer(s, zkProverServiceServer)
+
+	go func() {
+		fmt.Println("starting health service...")
+		http.HandleFunc("/health", health)
+		if err = http.ListenAndServe(":50052", nil); err != nil {
+			fmt.Printf("failed to serve: %v\n", err)
+		}
+	}()
+
 	fmt.Println("start a service...")
-	if err := s.Serve(lis); err != nil {
+	if err = s.Serve(lis); err != nil {
 		fmt.Printf("failed to serve: %v\n", err)
 	}
 }

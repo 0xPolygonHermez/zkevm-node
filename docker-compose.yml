@@ -69,9 +69,10 @@ services:
 
     hez-prover:
       container_name: hez-prover
-      image: hermeznetwork/hez-mock-prover@sha256:5eab47124ac1943fa6380035cf87586bd9dfea9d7e53e606e14f7d671e4bdb7f
+      image: hermeznetwork/hez-mock-prover@sha256:b5df709516e7c3375c87eba4b8c3c267f9ba59d3438c83509b42cf8f5b6aeb5a
       ports:
         - 50051:50051
+        - 50052:50052
       environment:
         - POSTGRES_USER=test_user
         - POSTGRES_PASSWORD=test_password

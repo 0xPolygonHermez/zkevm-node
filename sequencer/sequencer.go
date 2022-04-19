@@ -321,6 +321,8 @@ func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput)
 			s.lastSentBatchNumber = selectionRes.BatchNumber
 			log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
 			isSent = true
+		} else {
+			return false
 		}
 	}
 	return true
