@@ -584,30 +584,28 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	log.Debugf("Transaction Data %v", tx.Data())
 	log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
 
-	if result.Succeeded() {
-		// Increment sender nonce
-		senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot)
-		if err != nil {
-			result.Err = err
-			result.StateRoot = b.Host.stateRoot
-			return result
-		}
-
-		// Increment nonce of the sender
-		senderNonce.Add(senderNonce, big.NewInt(1))
-
-		// Store new nonce
-		root, _, err := b.Host.State.tree.SetNonce(ctx, senderAddress, senderNonce, b.Host.stateRoot)
-		if err != nil {
-			result.Err = err
-			result.StateRoot = b.Host.stateRoot
-			return result
-		}
-
-		b.Host.stateRoot = root
+	// Increment sender nonce
+	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot)
+	if err != nil {
+		result.Err = err
+		result.StateRoot = b.Host.stateRoot
+		return result
 	}
 
+	// Increment nonce of the sender
+	senderNonce.Add(senderNonce, big.NewInt(1))
+
+	// Store new nonce
+	root, _, err := b.Host.State.tree.SetNonce(ctx, senderAddress, senderNonce, b.Host.stateRoot)
+	if err != nil {
+		result.Err = err
+		result.StateRoot = b.Host.stateRoot
+		return result
+	}
+
+	b.Host.stateRoot = root
 	result.StateRoot = b.Host.stateRoot
+
 	return result
 }
 
