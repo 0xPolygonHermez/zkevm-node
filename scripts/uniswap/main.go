@@ -112,10 +112,10 @@ func main() {
 	fmt.Println()
 
 	// wrapping eth
-	wethDepositAmount, _ := big.NewInt(0).SetString("20000000000000000", encoding.Base10)
-	log.Debugf("Depositing %v ETH for account %v on token wEth", wethDepositAmount.Text(encoding.Base10), auth.From)
+	wethDepositoAmount := "20000000000000000"
+	log.Debugf("Depositing %v ETH for account %v on token wEth", wethDepositoAmount, auth.From)
 	wAuth := getAuth(ctx, client, pk)
-	wAuth.Value = wethDepositAmount
+	wAuth.Value, _ = big.NewInt(0).SetString(wethDepositoAmount, encoding.Base10)
 	tx, err = wethSC.Deposit(auth)
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
@@ -128,7 +128,7 @@ func main() {
 	fmt.Println()
 	approveERC20(auth, client, cCoin, routerAddr, cMintAmount)
 	fmt.Println()
-	approveERC20(auth, client, wethSC, routerAddr, wethDepositAmount.Text(encoding.Base10))
+	approveERC20(auth, client, wethSC, routerAddr, wethDepositoAmount)
 	fmt.Println()
 
 	const liquidityAmount = "10000000000000000000"
@@ -145,10 +145,14 @@ func main() {
 	// Execute swaps
 	const swapExactAmountInNumber = 1000000000000000000
 	swapExactAmountIn := big.NewInt(swapExactAmountInNumber)
+
+	log.Debugf("Swaping tokens from A <-> B")
 	swapExactTokensForTokens(auth, client, factory, router, aCoinAddr, bCoinAddr, swapExactAmountIn)
+	fmt.Println()
+
+	log.Debugf("Swaping tokens from B <-> C")
 	swapExactTokensForTokens(auth, client, factory, router, bCoinAddr, cCoinAddr, swapExactAmountIn)
-	swapExactTokensForTokens(auth, client, factory, router, cCoinAddr, bCoinAddr, swapExactAmountIn)
-	swapExactTokensForTokens(auth, client, factory, router, bCoinAddr, aCoinAddr, swapExactAmountIn)
+	fmt.Println()
 }
 
 func swapExactTokensForTokens(auth *bind.TransactOpts, client *ethclient.Client,
@@ -168,6 +172,7 @@ func swapExactTokensForTokens(auth *bind.TransactOpts, client *ethclient.Client,
 
 	amountOut, err := router.GetAmountOut(nil, exactAmountIn, pairReserves.Reserve0, pairReserves.Reserve1)
 	chkErr(err)
+	log.Debug(logPrefix, " exactAmountIn: ", exactAmountIn, " amountOut: ", amountOut)
 
 	tx, err := router.SwapExactTokensForTokens(auth, exactAmountIn, amountOut, []common.Address{tokenA, tokenB}, auth.From, getDeadline())
 	chkErr(err)
