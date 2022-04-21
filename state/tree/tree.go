@@ -122,7 +122,9 @@ func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, 
 		return nil, nil
 	}
 
-	return fea2scalar(proof.Value).Bytes(), nil
+	valueBi := fea2scalar(proof.Value)
+	var valueBuff [maxBigIntLen]byte
+	return valueBi.FillBytes(valueBuff[:]), nil
 }
 
 // GetCode returns code

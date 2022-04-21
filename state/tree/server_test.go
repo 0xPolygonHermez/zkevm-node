@@ -27,7 +27,7 @@ import (
 
 const (
 	host = "0.0.0.0"
-	port = 50051
+	port = 50060
 
 	ethAddress = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
 )
@@ -200,7 +200,7 @@ func Test_MTServer_GetCode(t *testing.T) {
 }
 
 func Test_MTServer_GetCodeHash(t *testing.T) {
-	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-raw.json")
+	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-hash-bytecode.json")
 	require.NoError(t, err)
 
 	var testVectors []struct {
@@ -214,22 +214,24 @@ func Test_MTServer_GetCodeHash(t *testing.T) {
 	stree, err := initStree()
 	require.NoError(t, err)
 
-	code, err := hex.DecodeString(testVectors[0].Bytecode)
-	require.NoError(t, err)
-	ctx := context.Background()
+	for _, testVector := range testVectors {
+		code, err := hex.DecodeString(testVector.Bytecode)
+		require.NoError(t, err)
+		ctx := context.Background()
 
-	expectedHash := testVectors[0].ExpectedHash
-	root, _, err := stree.SetCode(ctx, common.HexToAddress(ethAddress), code, nil)
-	require.NoError(t, err)
+		expectedHash := testVector.ExpectedHash
+		root, _, err := stree.SetCode(ctx, common.HexToAddress(ethAddress), code, nil)
+		require.NoError(t, err)
 
-	client := pb.NewMTServiceClient(conn)
-	resp, err := client.GetCodeHash(ctx, &pb.CommonGetRequest{
-		EthAddress: ethAddress,
-		Root:       hex.EncodeToString(root),
-	})
-	require.NoError(t, err)
+		client := pb.NewMTServiceClient(conn)
+		resp, err := client.GetCodeHash(ctx, &pb.CommonGetRequest{
+			EthAddress: ethAddress,
+			Root:       hex.EncodeToString(root),
+		})
+		require.NoError(t, err)
 
-	assert.Equal(t, expectedHash, resp.Hash, "Did not get the expected code hash")
+		assert.Equal(t, expectedHash, resp.Hash, "Did not get the expected code hash")
+	}
 }
 
 func Test_MTServer_GetStorageAt(t *testing.T) {

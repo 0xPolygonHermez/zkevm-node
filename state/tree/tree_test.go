@@ -371,3 +371,45 @@ func TestSetGetNode(t *testing.T) {
 	expectedValue := value
 	require.Equal(t, expectedValue, actualValue)
 }
+
+func TestGetCodeHash(t *testing.T) {
+	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-hash-bytecode.json")
+	require.NoError(t, err)
+
+	var testVectors []struct {
+		Bytecode     string
+		ExpectedHash string
+	}
+	err = json.Unmarshal(data, &testVectors)
+	require.NoError(t, err)
+
+	dbCfg := dbutils.NewConfigFromEnv()
+	err = dbutils.InitOrReset(dbCfg)
+	require.NoError(t, err)
+
+	mtDb, err := db.NewSQLDB(dbCfg)
+	require.NoError(t, err)
+
+	defer mtDb.Close()
+
+	store := NewPostgresStore(mtDb)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
+	scCodeStore := NewPostgresSCCodeStore(mtDb)
+	tree := NewStateTree(mt, scCodeStore)
+
+	ethAddress := common.HexToAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9")
+	for _, testVector := range testVectors {
+		code, err := hex.DecodeString(testVector.Bytecode)
+		require.NoError(t, err)
+		ctx := context.Background()
+
+		expectedHash := testVector.ExpectedHash
+		root, _, err := tree.SetCode(ctx, ethAddress, code, nil)
+		require.NoError(t, err)
+
+		resp, err := tree.GetCodeHash(ctx, ethAddress, root)
+		require.NoError(t, err)
+
+		require.Equal(t, expectedHash, hex.EncodeToHex(resp), "Did not get the expected code hash")
+	}
+}

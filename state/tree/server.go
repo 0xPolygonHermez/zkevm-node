@@ -134,7 +134,7 @@ func (s *Server) GetCodeHash(ctx context.Context, in *pb.CommonGetRequest) (*pb.
 	}
 
 	return &pb.GetCodeHashResponse{
-		Hash: hex.EncodeToString(hash),
+		Hash: fmt.Sprintf("0x%s", hex.EncodeToString(hash)),
 	}, nil
 }
 
