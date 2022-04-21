@@ -53,7 +53,10 @@ func keyEthAddr(ethAddr common.Address, leafType leafType, key1 [8]uint64) ([]by
 		return nil, err
 	}
 
-	return h4ToScalar(result[:]).Bytes(), nil
+	resultBi := h4ToScalar(result[:])
+	var k [maxBigIntLen]byte
+
+	return resultBi.FillBytes(k[:]), nil
 }
 
 // KeyEthAddrBalance returns the key of balance leaf:
