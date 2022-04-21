@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -34,7 +33,7 @@ func NewPostgresPoolStorage(cfg db.Config) (*PostgresPoolStorage, error) {
 }
 
 // AddTx adds a transaction to the pool table with the provided state
-func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx types.Transaction, state pool.TxState) error {
+func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) error {
 	hash := tx.Hash().Hex()
 
 	b, err := tx.MarshalBinary()
@@ -49,11 +48,10 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx types.Transaction, s
 	}
 	decoded := string(b)
 
-	receivedAt := time.Now()
 	gasPrice := tx.GasPrice().Uint64()
 	nonce := tx.Nonce()
-	sql := "INSERT INTO pool.txs (hash, encoded, decoded, state, gas_price, nonce, received_at) VALUES($1, $2, $3, $4, $5, $6, $7)"
-	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, state, gasPrice, nonce, receivedAt); err != nil {
+	sql := "INSERT INTO pool.txs (hash, encoded, decoded, state, gas_price, nonce, is_claims, received_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8)"
+	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, tx.State, gasPrice, nonce, tx.IsClaims, tx.ReceivedAt); err != nil {
 		return err
 	}
 	return nil
@@ -62,7 +60,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx types.Transaction, s
 // GetTxsByState returns an array of transactions filtered by state
 // limit parameter is used to limit amount txs from the db,
 // if limit = 0, then there is no limit
-func (p *PostgresPoolStorage) GetTxsByState(ctx context.Context, state pool.TxState, limit uint64) ([]pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTxsByState(ctx context.Context, state pool.TxState, isClaims bool, limit uint64) ([]pool.Transaction, error) {
 	var (
 		rows pgx.Rows
 		err  error
@@ -72,8 +70,8 @@ func (p *PostgresPoolStorage) GetTxsByState(ctx context.Context, state pool.TxSt
 		sql = "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1"
 		rows, err = p.db.Query(ctx, sql, state.String())
 	} else {
-		sql = "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1 LIMIT $2"
-		rows, err = p.db.Query(ctx, sql, state.String(), limit)
+		sql = "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1 AND is_claims = $2 LIMIT $3"
+		rows, err = p.db.Query(ctx, sql, state.String(), isClaims, limit)
 	}
 	if err != nil {
 		return nil, err

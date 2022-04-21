@@ -16,18 +16,9 @@ import (
 )
 
 type testVectorKey struct {
-	LeafType    LeafType `json:"leafType"`
-	EthAddr     string   `json:"ethAddr"`
-	Arity       uint8    `json:"arity"`
-	ExpectedKey string   `json:"expectedKey"`
-}
-
-type testVectorKeyContract struct {
-	LeafType        LeafType `json:"leafType"`
-	EthAddr         string   `json:"ethAddr"`
-	StoragePosition string   `json:"storagePosition"`
-	Arity           uint8    `json:"arity"`
-	ExpectedKey     string   `json:"expectedKey"`
+	EthAddr         string `json:"ethAddr"`
+	StoragePosition string `json:"storagePosition"`
+	ExpectedKey     string `json:"expectedKey"`
 }
 
 func init() {
@@ -41,64 +32,66 @@ func init() {
 	}
 }
 
-func TestMerkleTreeKey(t *testing.T) {
-	var testVectors []testVectorKey
-	for _, file := range []string{
-		"test/vectors/src/merkle-tree/smt-key-eth-balance.json",
-		"test/vectors/src/merkle-tree/smt-key-eth-nonce.json",
-	} {
-		data, err := os.ReadFile(file)
+func Test_CommonKeys(t *testing.T) {
+	tcs := []struct {
+		description    string
+		testVectorFile string
+		keyFunc        func(common.Address) ([]byte, error)
+	}{
+		{
+			description:    "keyEthAddressBalance",
+			testVectorFile: "test/vectors/src/merkle-tree/smt-key-eth-balance.json",
+			keyFunc:        KeyEthAddrBalance,
+		},
+		{
+			description:    "keyEthAddressNonce",
+			testVectorFile: "test/vectors/src/merkle-tree/smt-key-eth-nonce.json",
+			keyFunc:        KeyEthAddrNonce,
+		},
+		{
+			description:    "keyContractCode",
+			testVectorFile: "test/vectors/src/merkle-tree/smt-key-contract-code.json",
+			keyFunc:        KeyContractCode,
+		},
+	}
+	for _, tc := range tcs {
+		tc := tc
+
+		data, err := os.ReadFile(tc.testVectorFile)
 		require.NoError(t, err)
 
-		var fileTestVectors []testVectorKey
-		err = json.Unmarshal(data, &fileTestVectors)
+		var testVectors []testVectorKey
+		err = json.Unmarshal(data, &testVectors)
 		require.NoError(t, err)
-		testVectors = append(testVectors, fileTestVectors...)
+
+		for ti, testVector := range testVectors {
+			t.Run(fmt.Sprintf("%s, test vector %d", tc.description, ti), func(t *testing.T) {
+				key, err := tc.keyFunc(common.HexToAddress(testVector.EthAddr))
+				require.NoError(t, err)
+				require.Equal(t, len(key), maxBigIntLen)
+
+				expected, _ := new(big.Int).SetString(testVector.ExpectedKey, 10)
+				assert.Equal(t, hex.EncodeToString(expected.Bytes()), hex.EncodeToString(key))
+			})
+		}
 	}
+}
+
+func Test_KeyContractStorage(t *testing.T) {
+	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-key-contract-storage.json")
+	require.NoError(t, err)
+
+	var testVectors []testVectorKey
+	err = json.Unmarshal(data, &testVectors)
+	require.NoError(t, err)
 
 	for ti, testVector := range testVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
-			key, err := GetKey(testVector.LeafType, common.HexToAddress(testVector.EthAddr), nil, testVector.Arity, nil)
+			storagePosition, ok := new(big.Int).SetString(testVector.StoragePosition, 10)
+			require.True(t, ok)
+			key, err := KeyContractStorage(common.HexToAddress(testVector.EthAddr), storagePosition.Bytes())
 			require.NoError(t, err)
-			expected, _ := new(big.Int).SetString(testVector.ExpectedKey, 10)
-			assert.Equal(t, hex.EncodeToString(expected.Bytes()), hex.EncodeToString(key))
-		})
-	}
-}
-
-func TestKeyContractCode(t *testing.T) {
-	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-key-contract-code.json")
-	require.NoError(t, err)
-
-	var testVectors []testVectorKeyContract
-	err = json.Unmarshal(data, &testVectors)
-	require.NoError(t, err)
-
-	for i, testVector := range testVectors {
-		testVector := testVector
-		t.Run(fmt.Sprintf("Test vector %d", i), func(t *testing.T) {
-			key, err := GetKey(testVector.LeafType, common.HexToAddress(testVector.EthAddr), nil, testVector.Arity, nil)
-			require.NoError(t, err)
-
-			expected, _ := new(big.Int).SetString(testVector.ExpectedKey, 10)
-			assert.Equal(t, hex.EncodeToString(expected.Bytes()), hex.EncodeToString(key))
-		})
-	}
-}
-
-func TestKeyContractStorage(t *testing.T) {
-	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-key-contract-code.json")
-	require.NoError(t, err)
-
-	var testVectors []testVectorKeyContract
-	err = json.Unmarshal(data, &testVectors)
-	require.NoError(t, err)
-
-	for i, testVector := range testVectors {
-		testVector := testVector
-		t.Run(fmt.Sprintf("Test vector %d", i), func(t *testing.T) {
-			key, err := GetKey(testVector.LeafType, common.HexToAddress(testVector.EthAddr), []byte(testVector.StoragePosition), testVector.Arity, nil)
-			require.NoError(t, err)
+			require.Equal(t, len(key), maxBigIntLen)
 
 			expected, _ := new(big.Int).SetString(testVector.ExpectedKey, 10)
 			assert.Equal(t, hex.EncodeToString(expected.Bytes()), hex.EncodeToString(key))

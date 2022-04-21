@@ -5,13 +5,12 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
 type storage interface {
-	AddTx(ctx context.Context, tx types.Transaction, state TxState) error
-	GetTxsByState(ctx context.Context, state TxState, limit uint64) ([]Transaction, error)
+	AddTx(ctx context.Context, tx Transaction) error
+	GetTxsByState(ctx context.Context, state TxState, isClaims bool, limit uint64) ([]Transaction, error)
 	UpdateTxState(ctx context.Context, hash common.Hash, newState TxState) error
 	UpdateTxsState(ctx context.Context, hashes []common.Hash, newState TxState) error
 	SetGasPrice(ctx context.Context, gasPrice uint64) error

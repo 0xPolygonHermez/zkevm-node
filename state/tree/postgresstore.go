@@ -48,6 +48,11 @@ func NewPostgresSCCodeStore(db *pgxpool.Pool) *PostgresStore {
 	return &PostgresStore{db: db, tableName: scCodeTreeTable, constraintName: scCodeConstraint}
 }
 
+// SupportsDBTransactions indicates whether the store implementation supports DB transactions
+func (p *PostgresStore) SupportsDBTransactions() bool {
+	return true
+}
+
 // BeginDBTransaction starts a transaction block
 func (p *PostgresStore) BeginDBTransaction(ctx context.Context) error {
 	if p.dbTx != nil {
@@ -100,7 +105,7 @@ func (p *PostgresStore) queryRow(ctx context.Context, sql string, args ...interf
 
 // Get gets value of key from the db
 func (p *PostgresStore) Get(ctx context.Context, key []byte) ([]byte, error) {
-	data := []byte{}
+	var data []byte
 	err := p.queryRow(ctx, fmt.Sprintf(getNodeByKeySQL, p.tableName), key).Scan(&data)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

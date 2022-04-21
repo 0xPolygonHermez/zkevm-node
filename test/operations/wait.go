@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hermeznetwork/hermez-core/proverclient"
+	"github.com/hermeznetwork/hermez-core/proverclient/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -172,14 +172,14 @@ func proverUpCondition() (bool, error) {
 		err = conn.Close()
 	}()
 
-	proverClient := proverclient.NewZKProverServiceClient(conn)
-	state, err := proverClient.GetStatus(context.Background(), &proverclient.GetStatusRequest{})
+	proverClient := pb.NewZKProverServiceClient(conn)
+	state, err := proverClient.GetStatus(context.Background(), &pb.GetStatusRequest{})
 	if err != nil {
 		// we allow connection errors to wait for the container up
 		return false, nil
 	}
 
-	done := state.State == proverclient.GetStatusResponse_STATUS_PROVER_IDLE
+	done := state.State == pb.GetStatusResponse_STATUS_PROVER_IDLE
 
 	return done, nil
 }

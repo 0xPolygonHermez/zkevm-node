@@ -37,7 +37,7 @@ type txPoolTransaction struct {
 func (t *TxPool) Content() (interface{}, error) {
 	ctx := context.Background()
 
-	pendingTxs, err := t.pool.GetPendingTxs(ctx, 0)
+	pendingTxs, err := t.pool.GetPendingTxs(ctx, false, 0)
 	if err != nil {
 		return nil, err
 	}

@@ -45,13 +45,13 @@ build-docker: ## Builds a docker image with the core binary
 	docker build -t hezcore -f ./Dockerfile .
 
 .PHONY: test
-test: compile-smart-contracts ## Runs only short tests without checking race conditions
+test: compile-scs ## Runs only short tests without checking race conditions
 	$(STOPDB) || true
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; go test -short -p 1 ./...
 
 .PHONY: test-full
-test-full: build-docker compile-smart-contracts ## Runs all tests checking race conditions
+test-full: build-docker compile-scs ## Runs all tests checking race conditions
 	$(STOPDB) || true
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
@@ -116,7 +116,7 @@ stop-explorer-db: ## Stops the explorer database
 	$(STOPEXPLORERDB)
 
 .PHONY: run
-run: compile-smart-contracts ## Runs all the services
+run: compile-scs ## Runs all the services
 	$(RUNDB)
 	$(RUNEXPLORERDB)
 	$(RUNNETWORK)
@@ -128,10 +128,16 @@ run: compile-smart-contracts ## Runs all the services
 	$(RUNEXPLORER)
 
 .PHONY: init-network
-init-network: ## Inits network and deploys test smart contract
+init-network: ## Initializes the network
 	go run ./scripts/init_network/main.go .
-	sleep 5
+
+.PHONY: deploy-sc
+deploy-sc: ## deploys some examples of transactions and smart contracts
 	go run ./scripts/deploy_sc/main.go .
+
+.PHONY: deploy-uniswap
+deploy-uniswap: ## deploy the uniswap environment to the network
+	go run ./scripts/uniswap/main.go .
 
 .PHONY: stop
 stop: ## Stops all services
@@ -152,11 +158,13 @@ install-git-hooks: ## Moves hook files to the .git/hooks directory
 generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=etherman --dir=sequencer/strategy/txprofitabilitychecker --output=sequencer/strategy/txprofitabilitychecker --outpkg=txprofitabilitychecker_test --filename=etherman-mock_test.go
 	mockery --name=batchProcessor --dir=sequencer/strategy/txselector --output=sequencer/strategy/txselector --outpkg=txselector_test --filename=batchprocessor-mock_test.go
+	mockery --name=etherman --dir=sequencer --output=sequencer --outpkg=sequencer --structname=ethermanMock --filename=etherman-mock_test.go
+	mockery --name=Store --dir=state/tree --output=state/tree --outpkg=tree --structname=storeMock --filename=store-mock_test.go
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files
 	cd proto/src/proto/mt/v1 && protoc --proto_path=. --go_out=../../../../../state/tree/pb --go-grpc_out=../../../../../state/tree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative mt.proto
-	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverclient --go-grpc_out=../../../../../proverclient --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative zk-prover.proto
+	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverclient/pb --go-grpc_out=../../../../../proverclient/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative zk-prover.proto
 	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverservice/pb --go-grpc_out=../../../../../proverservice/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative zk-prover.proto
 
 .PHONY: update-external-dependencies
@@ -167,9 +175,9 @@ update-external-dependencies: ## Updates external dependencies like images, test
 run-benchmarks: run-db ## Runs benchmars
 	go test -bench=. ./state/tree
 
-.PHONY: compile-smart-contracts
-compile-smart-contracts: ## Compiles smart contracts used in tests and local deployments
-	go run ./scripts/cmd/... compilesc --in ./test/contracts
+.PHONY: compile-scs
+compile-scs: ## Compiles smart contracts, configuration in test/contracts/index.yaml
+	go run ./scripts/cmd... compilesc --input ./test/contracts
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted

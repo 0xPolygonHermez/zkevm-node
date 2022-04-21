@@ -21,7 +21,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/proverclient"
+	"github.com/hermeznetwork/hermez-core/proverclient/pb"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
@@ -184,7 +184,7 @@ func (etherMan *Client) sendBatch(ctx context.Context, opts *bind.TransactOpts, 
 }
 
 // ConsolidateBatch function allows the aggregator send the proof for a batch and consolidate it
-func (etherMan *Client) ConsolidateBatch(batchNumber *big.Int, resGetProof *proverclient.GetProofResponse) (*types.Transaction, error) {
+func (etherMan *Client) ConsolidateBatch(batchNumber *big.Int, resGetProof *pb.GetProofResponse) (*types.Transaction, error) {
 	publicInputs := resGetProof.Public.PublicInputs
 	newLocalExitRoot, err := stringToFixedByteArray(publicInputs.NewLocalExitRoot)
 	if err != nil {
@@ -457,6 +457,9 @@ func decodeTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
 		mul2             = 2
 	)
 	txDataLength := len(txsData)
+	if txDataLength == 0 {
+		return txs, txsData, nil
+	}
 	for pos < int64(txDataLength) {
 		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
 		if err != nil {

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package zkprover.v1;
 
-option go_package = "./proverclient";
+option go_package = "./pb";
 
 message Version {
     string v0_0_1 = 1;

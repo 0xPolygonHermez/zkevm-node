@@ -38,17 +38,17 @@ var (
 type State struct {
 	cfg  Config
 	tree merkletree
-	storage
+	*PostgresStorage
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage storage, tree merkletree) *State {
-	return &State{cfg: cfg, tree: tree, storage: storage}
+func NewState(cfg Config, storage *PostgresStorage, tree merkletree) *State {
+	return &State{cfg: cfg, tree: tree, PostgresStorage: storage}
 }
 
 // BeginStateTransaction starts a transaction block
 func (s *State) BeginStateTransaction(ctx context.Context) error {
-	err := s.storage.BeginDBTransaction(ctx)
+	err := s.PostgresStorage.BeginDBTransaction(ctx)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (s *State) BeginStateTransaction(ctx context.Context) error {
 
 // CommitState commits a state into db
 func (s *State) CommitState(ctx context.Context) error {
-	err := s.storage.Commit(ctx)
+	err := s.PostgresStorage.Commit(ctx)
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (s *State) CommitState(ctx context.Context) error {
 
 // RollbackState rollbacks a db state transaction
 func (s *State) RollbackState(ctx context.Context) error {
-	err := s.storage.Rollback(ctx)
+	err := s.PostgresStorage.Rollback(ctx)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func (s *State) RollbackState(ctx context.Context) error {
 }
 
 // NewBatchProcessor creates a new batch processor
-func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*BasicBatchProcessor, error) {
+func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*BatchProcessor, error) {
 	// Get Sequencer's Chain ID
 	chainID := s.cfg.DefaultChainID
 	sq, err := s.GetSequencer(ctx, sequencerAddress)
@@ -82,26 +82,31 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 		chainID = sq.ChainID.Uint64()
 	}
 
-	lastBatch, err := s.GetBatchByStateRoot(ctx, stateRoot)
+	lastBatch, err := s.GetLastBatchByStateRoot(ctx, stateRoot)
 	if err != ErrNotFound && err != nil {
 		return nil, err
 	}
 
-	transactionContext := transactionContext{difficulty: new(big.Int)}
-
-	batchProcessor := &BasicBatchProcessor{State: s, stateRoot: stateRoot, SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, transactionContext: transactionContext}
-	batchProcessor.setRuntime(evm.NewEVM())
+	host := Host{State: s, stateRoot: stateRoot, transactionContext: transactionContext{difficulty: new(big.Int)}}
+	host.setRuntime(evm.NewEVM())
 	blockNumber, err := s.GetLastBlockNumber(ctx)
 	if err != nil {
 		return nil, err
 	}
-	batchProcessor.forks = runtime.AllForksEnabled.At(blockNumber)
+	host.forks = runtime.AllForksEnabled.At(blockNumber)
+
+	batchProcessor := &BatchProcessor{SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, Host: host}
+	batchProcessor.Host.setRuntime(evm.NewEVM())
+
 	return batchProcessor, nil
 }
 
 // NewGenesisBatchProcessor creates a new batch processor
-func (s *State) NewGenesisBatchProcessor(genesisStateRoot []byte) (*BasicBatchProcessor, error) {
-	return &BasicBatchProcessor{State: s, stateRoot: genesisStateRoot}, nil
+func (s *State) NewGenesisBatchProcessor(genesisStateRoot []byte) (*BatchProcessor, error) {
+	host := Host{State: s, stateRoot: genesisStateRoot, transactionContext: transactionContext{difficulty: new(big.Int)}}
+	host.setRuntime(evm.NewEVM())
+	host.forks = runtime.AllForksEnabled.At(0)
+	return &BatchProcessor{Host: host}, nil
 }
 
 // GetStateRoot returns the root of the state tree
@@ -233,10 +238,10 @@ func (s *State) ReplayTransaction(transactionHash common.Hash) *runtime.Executio
 	}
 
 	// Activate EVM Instrumentation
-	bp.runtimes = []runtime.Runtime{}
+	bp.Host.runtimes = []runtime.Runtime{}
 	evm := evm.NewEVM()
 	evm.EnableInstrumentation()
-	bp.setRuntime(evm)
+	bp.Host.setRuntime(evm)
 
 	err = s.BeginStateTransaction(ctx)
 	if err != nil {
@@ -275,33 +280,47 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis) error {
 		newRoot []byte
 	)
 
-	if genesis.Balances != nil { // Genesis Balances
+	if genesis.Balances != nil {
 		for address, balance := range genesis.Balances {
 			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
 			if err != nil {
 				return err
 			}
-			root.SetBytes(newRoot)
 		}
-	} else { // Genesis Smart Contracts
+		root.SetBytes(newRoot)
+	}
+
+	if genesis.SmartContracts != nil {
 		for address, sc := range genesis.SmartContracts {
 			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot)
 			if err != nil {
 				return err
 			}
-			root.SetBytes(newRoot)
 		}
+		root.SetBytes(newRoot)
 	}
 
-	for address, storage := range genesis.Storage {
-		for key, value := range storage {
-			newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
+	if len(genesis.Storage) > 0 {
+		for address, storage := range genesis.Storage {
+			for key, value := range storage {
+				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		root.SetBytes(newRoot)
+	}
+
+	if genesis.Nonces != nil {
+		for address, nonce := range genesis.Nonces {
+			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
 			if err != nil {
 				return err
 			}
 		}
+		root.SetBytes(newRoot)
 	}
-	root.SetBytes(newRoot)
 
 	// Generate Genesis Batch
 	receivedAt := genesis.Block.ReceivedAt
@@ -349,7 +368,7 @@ func (s *State) GetNonce(ctx context.Context, address common.Address, batchNumbe
 }
 
 // GetStorageAt from a given address
-func (s *State) GetStorageAt(ctx context.Context, address common.Address, position common.Hash, batchNumber uint64) (*big.Int, error) {
+func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, batchNumber uint64) (*big.Int, error) {
 	root, err := s.GetStateRootByBatchNumber(ctx, batchNumber)
 	if err != nil {
 		return nil, err

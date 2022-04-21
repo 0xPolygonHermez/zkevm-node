@@ -13,6 +13,7 @@ Name = "test_db"
 Host = "localhost"
 Port = "5432"
 EnableLog = false
+MaxConns = 200
 
 [Etherman]
 URL = "http://localhost"
@@ -22,6 +23,7 @@ PrivateKeyPassword = "testonly"
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
+MaxRequestsPerIPAndSecond = 50
 
 [Synchronizer]
 SyncInterval = "0s"
@@ -31,6 +33,7 @@ SyncChunkSize = 100
 AllowNonRegistered = "false"
 IntervalToProposeBatch = "15s"
 SyncedBlockDif = 1
+InitBatchProcessorIfDiffType = "synced"
     [Sequencer.Strategy]
         [Sequencer.Strategy.TxSelector]
             TxSelectorType = "acceptall"
@@ -39,6 +42,9 @@ SyncedBlockDif = 1
             TxProfitabilityCheckerType = "acceptall"
             MinReward = "1.1"
 			RewardPercentageToAggregator = 50
+	[Sequencer.PriceGetter]
+        Type = "default"
+        DefaultPrice = "2000"
 
 [Aggregator]
 IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"

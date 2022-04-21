@@ -63,15 +63,16 @@ services:
 
     hez-network:
         container_name: hez-network
-        image: hermeznetwork/geth-zkevm-contracts@sha256:036a039a651e6f6e573be94c923a79c091f8a7090fe401c3de341230d62429c8
+        image: hermeznetwork/geth-zkevm-contracts@sha256:a7e54578bb87096f0d46aba47d2ebf3bb439b845bed38817a6c9e5be2129eb45
         ports:
           - 8545:8545
 
     hez-prover:
       container_name: hez-prover
-      image: hermeznetwork/hez-mock-prover@sha256:5eab47124ac1943fa6380035cf87586bd9dfea9d7e53e606e14f7d671e4bdb7f
+      image: hermeznetwork/hez-mock-prover@sha256:b5df709516e7c3375c87eba4b8c3c267f9ba59d3438c83509b42cf8f5b6aeb5a
       ports:
         - 50051:50051
+        - 50052:50052
       environment:
         - POSTGRES_USER=test_user
         - POSTGRES_PASSWORD=test_password

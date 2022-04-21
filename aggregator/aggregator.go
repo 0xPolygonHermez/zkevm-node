@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/proverclient"
+	"github.com/hermeznetwork/hermez-core/proverclient/pb"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/iden3/go-iden3-crypto/keccak256"
 	"google.golang.org/grpc"
@@ -25,7 +25,7 @@ type Aggregator struct {
 
 	State          stateInterface
 	EtherMan       etherman
-	ZkProverClient proverclient.ZKProverServiceClient
+	ZkProverClient pb.ZKProverServiceClient
 
 	ProfitabilityChecker aggregatorTxProfitabilityChecker
 
@@ -38,7 +38,7 @@ func NewAggregator(
 	cfg Config,
 	state stateInterface,
 	ethMan etherman,
-	zkProverClient proverclient.ZKProverServiceClient,
+	zkProverClient pb.ZKProverServiceClient,
 ) (Aggregator, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -139,10 +139,10 @@ func (a *Aggregator) Start() {
 			}
 
 			rawTxs := hex.EncodeToHex(batchToConsolidate.RawTxsData)
-			// TODO: change this, once we have dynamic exit root
-			globalExitRoot := common.HexToHash("0xa116e19a7984f21055d07b606c55628a5ffbf8ae1261c1e9f4e3a61620cf810a")
-			oldLocalExitRoot := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-			newLocalExitRoot := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+			globalExitRoot := batchToConsolidate.GlobalExitRoot
+			oldLocalExitRoot := lastConsolidatedBatch.RollupExitRoot
+			newLocalExitRoot := batchToConsolidate.RollupExitRoot
+			// TODO: change this, once it will be clear, what db means
 			db := map[string]string{
 				"0540ae2a259cb9179561cffe6a0a3852a2c1806ad894ed396a2ef16e1f10e9c7": "0000000000000000000000000000000000000000000000056bc75e2d63100000",
 				"061927dd2a72763869c1d5d9336a42d12a9a2f22809c9cf1feeb2a6d1643d950": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -163,8 +163,8 @@ func (a *Aggregator) Start() {
 			))
 			oldStateRoot := common.BytesToHash(stateRootConsolidated)
 			newStateRoot := common.BytesToHash(stateRootToConsolidate)
-			inputProver := &proverclient.InputProver{
-				PublicInputs: &proverclient.PublicInputs{
+			inputProver := &pb.InputProver{
+				PublicInputs: &pb.PublicInputs{
 					OldStateRoot:     oldStateRoot.String(),
 					OldLocalExitRoot: oldLocalExitRoot.String(),
 					NewStateRoot:     newStateRoot.String(),
@@ -182,7 +182,7 @@ func (a *Aggregator) Start() {
 				ContractsBytecode: db,
 			}
 
-			genProofRequest := proverclient.GenProofRequest{Input: inputProver}
+			genProofRequest := pb.GenProofRequest{Input: inputProver}
 
 			// init connection to the prover
 			var opts []grpc.CallOption
@@ -194,13 +194,13 @@ func (a *Aggregator) Start() {
 
 			log.Debugf("Data sent to the prover: %+v", inputProver)
 			genProofRes := resGenProof.GetResult()
-			if genProofRes != proverclient.GenProofResponse_RESULT_GEN_PROOF_OK {
+			if genProofRes != pb.GenProofResponse_RESULT_GEN_PROOF_OK {
 				log.Warnf("failed to get result from the prover, batchNumber: %d, err: %v", batchToConsolidate.Number().Uint64())
 				continue
 			}
 			genProofID := resGenProof.GetId()
 
-			resGetProof := &proverclient.GetProofResponse{
+			resGetProof := &pb.GetProofResponse{
 				Result: -1,
 			}
 			getProofCtx, getProofCtxCancel = context.WithCancel(a.ctx)
@@ -209,8 +209,8 @@ func (a *Aggregator) Start() {
 				log.Warnf("failed to init getProofClient, batchNumber: %d, err: %v", batchToConsolidate.Number().Uint64(), err)
 				continue
 			}
-			for resGetProof.Result != proverclient.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK {
-				err = getProofClient.Send(&proverclient.GetProofRequest{
+			for resGetProof.Result != pb.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK {
+				err = getProofClient.Send(&pb.GetProofRequest{
 					Id: genProofID,
 				})
 				if err != nil {
@@ -225,21 +225,21 @@ func (a *Aggregator) Start() {
 				}
 
 				resGetProofState := resGetProof.GetResult()
-				if resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_ERROR ||
-					resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_COMPLETED_ERROR {
+				if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_ERROR ||
+					resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_COMPLETED_ERROR {
 					log.Fatalf("failed to get a proof for batch, batch number %d", batchToConsolidate.Number().Uint64())
 				}
-				if resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_INTERNAL_ERROR {
+				if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_INTERNAL_ERROR {
 					log.Warnf("failed to generate proof for batch, batchNumber: %v, ResGetProofState: %v", batchToConsolidate.Number().Uint64(), resGetProofState)
 					break
 				}
 
-				if resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_CANCEL {
+				if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_CANCEL {
 					log.Warnf("proof generation was cancelled, batchNumber: %v", batchToConsolidate.Number().Uint64())
 					break
 				}
 
-				if resGetProofState == proverclient.GetProofResponse_RESULT_GET_PROOF_PENDING {
+				if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_PENDING {
 					// in this case aggregator will wait, to send another request
 					time.Sleep(a.cfg.IntervalFrequencyToGetProofGenerationStateInSeconds.Duration)
 				}
@@ -248,7 +248,7 @@ func (a *Aggregator) Start() {
 			// getProofCtxCancel call closes the connection stream with the prover. This is the only way to close it by client
 			getProofCtxCancel()
 
-			if resGetProof.GetResult() != proverclient.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK {
+			if resGetProof.GetResult() != pb.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK {
 				continue
 			}
 

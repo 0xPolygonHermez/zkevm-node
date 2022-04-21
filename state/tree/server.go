@@ -134,7 +134,7 @@ func (s *Server) GetCodeHash(ctx context.Context, in *pb.CommonGetRequest) (*pb.
 	}
 
 	return &pb.GetCodeHashResponse{
-		Hash: hex.EncodeToString(hash),
+		Hash: fmt.Sprintf("0x%s", hex.EncodeToString(hash)),
 	}, nil
 }
 
@@ -146,7 +146,7 @@ func (s *Server) GetStorageAt(ctx context.Context, in *pb.GetStorageAtRequest) (
 	}
 
 	positionBI := new(big.Int).SetUint64(in.Position)
-	value, err := s.stree.GetStorageAt(ctx, common.HexToAddress(in.EthAddress), common.BigToHash(positionBI), root)
+	value, err := s.stree.GetStorageAt(ctx, common.HexToAddress(in.EthAddress), positionBI, root)
 	if err != nil {
 		return nil, err
 	}

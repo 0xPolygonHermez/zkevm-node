@@ -1,56 +1,177 @@
 package tree
 
 import (
+	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/iden3/go-iden3-crypto/poseidon"
+	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 )
 
 // Key stores key of the leaf
 type Key [32]byte
 
-// GetKey calculates Key for the provided leaf type, address, and in case of LeafTypeStorage also storagePosition.
-// For other leaf types leave storagePosition = nil
-func GetKey(leafType LeafType, address common.Address, storagePosition []byte, arity uint8, hashFunction HashFunction) ([]byte, error) {
-	poseidonInputsNum := 1 << arity
+var (
+	capIn = [4]uint64{}
+)
 
-	addr, err := splitAddress(address)
+// keyEthAddr is the common code for all the keys related to ethereum addresses.
+func keyEthAddr(ethAddr common.Address, leafType leafType, key1 [8]uint64) ([]byte, error) {
+	ethAddrBI := new(big.Int).SetBytes(ethAddr.Bytes())
+	ethAddrArr := scalar2fea(ethAddrBI)
+
+	key0 := [8]uint64{
+		ethAddrArr[0],
+		ethAddrArr[1],
+		ethAddrArr[2],
+		ethAddrArr[3],
+		ethAddrArr[4],
+		0,
+		uint64(leafType),
+		0,
+	}
+	hk0, err := poseidon.Hash(key0, capIn)
 	if err != nil {
 		return nil, err
 	}
-	inputs := make([]*big.Int, poseidonInputsNum)
 
-	// initialize with zeroes
-	for i := 0; i < poseidonInputsNum; i++ {
-		inputs[i] = big.NewInt(0)
+	hk1, err := poseidon.Hash(key1, capIn)
+	if err != nil {
+		return nil, err
+	}
+	result, err := poseidon.Hash([8]uint64{
+		hk0[0],
+		hk0[1],
+		hk0[2],
+		hk0[3],
+		hk1[0],
+		hk1[1],
+		hk1[2],
+		hk1[3],
+	}, capIn)
+	if err != nil {
+		return nil, err
 	}
 
-	inputs[0].SetBytes(addr[0])
-	inputs[1].SetBytes(addr[1])
-	inputs[2].SetBytes(addr[2])
-	inputs[3].SetUint64(uint64(leafType))
+	resultBi := h4ToScalar(result[:])
+	var k [maxBigIntLen]byte
 
-	if leafType == LeafTypeStorage {
-		posBigInt := big.NewInt(0).SetBytes(storagePosition)
-		pos, err := splitValue(posBigInt)
+	return resultBi.FillBytes(k[:]), nil
+}
+
+// KeyEthAddrBalance returns the key of balance leaf:
+//   hk0: H([ethAddr[0:4], ethAddr[4:8], ethAddr[8:12], ethAddr[12:16], ethAddr[16:20], 0, 0, 0])
+//   hk1: H([0, 0, 0, 0, 0, 0, 0, 0])
+//   key = H([...hk0, ...hk1])
+func KeyEthAddrBalance(ethAddr common.Address) ([]byte, error) {
+	return keyEthAddr(ethAddr, leafTypeBalance, [8]uint64{})
+}
+
+// KeyEthAddrNonce returns the key of nonce leaf:
+//   hk0: H([ethAddr[0:4], ethAddr[4:8], ethAddr[8:12], ethAddr[12:16], ethAddr[16:20], 0, 1, 0])
+//   hk1: H([0, 0, 0, 0, 0, 0, 0, 0])
+//   key = H([...hk0, ...hk1])
+func KeyEthAddrNonce(ethAddr common.Address) ([]byte, error) {
+	return keyEthAddr(ethAddr, leafTypeNonce, [8]uint64{})
+}
+
+// KeyContractCode returns the key of contract code leaf:
+//   hk0: H([ethAddr[0:4], ethAddr[4:8], ethAddr[8:12], ethAddr[12:16], ethAddr[16:20], 0, 2, 0])
+//   hk1: H([0, 0, 0, 0, 0, 0, 0, 0])
+//   key = H([...hk0, ...hk1])
+func KeyContractCode(ethAddr common.Address) ([]byte, error) {
+	return keyEthAddr(ethAddr, leafTypeCode, [8]uint64{})
+}
+
+// KeyContractStorage returns the key of contract storage position leaf:
+//   hk0: H([ethAddr[0:4], ethAddr[4:8], ethAddr[8:12], ethAddr[12:16], ethAddr[16:20], 0, 3, 0])
+//   hk1: H([stoPos[0:4], stoPos[4:8], stoPos[8:12], stoPos[12:16], stoPos[16:20], stoPos[20:24], stoPos[24:28], stoPos[28:32])
+//   key = H([...hk0, ...hk1])
+func KeyContractStorage(ethAddr common.Address, storagePos []byte) ([]byte, error) {
+	storageBI := new(big.Int).SetBytes(storagePos)
+
+	storageArr := scalar2fea(storageBI)
+
+	key1 := [8]uint64{
+		storageArr[0],
+		storageArr[1],
+		storageArr[2],
+		storageArr[3],
+		storageArr[4],
+		storageArr[5],
+		storageArr[6],
+		storageArr[7],
+	}
+	return keyEthAddr(ethAddr, leafTypeStorage, key1)
+}
+
+// hashContractBytecode computes the bytecode hash in order to add it to the
+// state-tree
+func hashContractBytecode(code []byte) ([]uint64, error) {
+	const (
+		bytecodeElementsHash = 8
+		bytecodeBytesElement = 7
+
+		maxBytesToAdd = bytecodeElementsHash * bytecodeBytesElement
+	)
+
+	numHashes := int(math.Ceil(float64(len(code)) / float64(maxBytesToAdd)))
+
+	tmpHash := [4]uint64{}
+	var err error
+
+	bytesPointer := 0
+	for i := 0; i < numHashes; i++ {
+		elementsToHash := [12]uint64{}
+
+		if i != 0 {
+			for j := 0; j < 4; j++ {
+				elementsToHash[j] = tmpHash[j]
+			}
+		} else {
+			for j := 0; j < 4; j++ {
+				elementsToHash[j] = 0
+			}
+		}
+		subsetBytecode := code[bytesPointer : int(math.Min(float64(len(code)-1), float64(bytesPointer+maxBytesToAdd)))+1]
+		bytesPointer += maxBytesToAdd
+		tmpElem := [7]byte{}
+		counter := 0
+		index := 4
+		for j := 0; j < maxBytesToAdd; j++ {
+			byteToAdd := []byte{0}
+
+			if j < len(subsetBytecode) {
+				byteToAdd = subsetBytecode[j : j+1]
+			}
+			tmpElem[counter] = byteToAdd[0]
+			counter++
+
+			if counter == bytecodeBytesElement {
+				elementsToHash[index] = new(big.Int).SetBytes(tmpElem[:]).Uint64()
+				index++
+				tmpElem = [7]byte{}
+				counter = 0
+			}
+		}
+		tmpHash, err = poseidon.Hash([8]uint64{
+			elementsToHash[4],
+			elementsToHash[5],
+			elementsToHash[6],
+			elementsToHash[7],
+			elementsToHash[8],
+			elementsToHash[9],
+			elementsToHash[10],
+			elementsToHash[11],
+		}, [4]uint64{
+			elementsToHash[0],
+			elementsToHash[1],
+			elementsToHash[2],
+			elementsToHash[3],
+		})
 		if err != nil {
 			return nil, err
 		}
-		inputs[4].SetBytes(pos[0])
-		inputs[5].SetBytes(pos[1])
-		inputs[6].SetBytes(pos[2])
-		inputs[7].SetBytes(pos[3])
 	}
-
-	if hashFunction == nil {
-		hashFunction = poseidon.Hash
-	}
-
-	hash, err := hashFunction(inputs)
-	if err != nil {
-		return nil, err
-	}
-	hashBytes := hash.Bytes()
-	return hashBytes, nil
+	return tmpHash[:], nil
 }

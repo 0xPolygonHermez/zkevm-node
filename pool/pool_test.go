@@ -22,10 +22,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/pool/pgpoolstorage"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -79,7 +77,7 @@ func Test_AddTx(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st)
+	p := pool.NewPool(s, st, common.Address{})
 
 	txRLPHash := "0xf86e8212658082520894fd8b27a263e19f0e9592180e61f0f8c9dfeb1ff6880de0b6b3a764000080850133333355a01eac4c2defc7ed767ae36bbd02613c581b8fb87d0e4f579c9ee3a7cfdb16faa7a043ce30f43d952b9d034cf8f04fecb631192a5dbc7ee2a47f1f49c0d022a8849d"
 	b, err := hex.DecodeHex(txRLPHash)
@@ -97,6 +95,7 @@ func Test_AddTx(t *testing.T) {
 	}
 
 	rows, err := sqlDB.Query(ctx, "SELECT hash, encoded, decoded, state FROM pool.txs")
+	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
 	}
@@ -152,7 +151,7 @@ func Test_GetPendingTxs(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st)
+	p := pool.NewPool(s, st, common.Address{})
 
 	const txsCount = 10
 	const limit = 5
@@ -175,7 +174,7 @@ func Test_GetPendingTxs(t *testing.T) {
 		}
 	}
 
-	txs, err := p.GetPendingTxs(ctx, limit)
+	txs, err := p.GetPendingTxs(ctx, false, limit)
 	if err != nil {
 		t.Error(err)
 	}
@@ -219,7 +218,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st)
+	p := pool.NewPool(s, st, common.Address{})
 
 	const txsCount = 10
 	const limit = 0
@@ -242,7 +241,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 		}
 	}
 
-	txs, err := p.GetPendingTxs(ctx, limit)
+	txs, err := p.GetPendingTxs(ctx, false, limit)
 	if err != nil {
 		t.Error(err)
 	}
@@ -288,7 +287,7 @@ func Test_UpdateTxsState(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st)
+	p := pool.NewPool(s, st, common.Address{})
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -357,7 +356,7 @@ func Test_UpdateTxState(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st)
+	p := pool.NewPool(s, st, common.Address{})
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -378,10 +377,10 @@ func Test_UpdateTxState(t *testing.T) {
 	}
 
 	rows, err := sqlDB.Query(ctx, "SELECT state FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
+	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
 	}
-	defer rows.Close()
 
 	var state string
 	rows.Next()
@@ -402,7 +401,7 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, nil)
+	p := pool.NewPool(s, nil, common.Address{})
 
 	nBig, err := rand.Int(rand.Reader, big.NewInt(0).SetUint64(math.MaxUint64))
 	if err != nil {
@@ -427,7 +426,7 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 
 func newState(sqlDB *pgxpool.Pool) *state.State {
 	store := tree.NewPostgresStore(sqlDB)
-	mt := tree.NewMerkleTree(store, 4, poseidon.Hash)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
 	tr := tree.NewStateTree(mt, scCodeStore)
 
@@ -436,7 +435,7 @@ func newState(sqlDB *pgxpool.Pool) *state.State {
 		MaxCumulativeGasUsed: 800000,
 	}
 
-	stateDB := pgstatestorage.NewPostgresStorage(sqlDB)
+	stateDB := state.NewPostgresStorage(sqlDB)
 	st := state.NewState(stateCfg, stateDB, tr)
 
 	return st

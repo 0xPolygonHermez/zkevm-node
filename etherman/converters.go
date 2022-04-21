@@ -6,7 +6,7 @@ import (
 
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/proverclient"
+	"github.com/hermeznetwork/hermez-core/proverclient/pb"
 )
 
 const (
@@ -41,7 +41,7 @@ func strSliceToBigIntArray(data []string) ([2]*big.Int, error) {
 	return res, nil
 }
 
-func proofSlcToIntArray(proofs []*proverclient.ProofB) ([2][2]*big.Int, error) {
+func proofSlcToIntArray(proofs []*pb.ProofB) ([2][2]*big.Int, error) {
 	if len(proofs) < minProofLen || len(proofs) > maxProofLen {
 		return [2][2]*big.Int{}, fmt.Errorf("wrong slice length, current %d, expected between %d or %d", len(proofs), minProofLen, maxProofLen)
 	}

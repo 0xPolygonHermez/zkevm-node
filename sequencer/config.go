@@ -3,6 +3,7 @@ package sequencer
 import (
 	"time"
 
+	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
 )
 
@@ -21,6 +22,16 @@ func (d *Duration) UnmarshalText(data []byte) error {
 	return nil
 }
 
+// InitBatchProcessorIfDiffType let sequencer decide, how to init batch processor
+type InitBatchProcessorIfDiffType string
+
+const (
+	// InitBatchProcessorIfDiffTypeSynced init batch processor from previous synced batch root
+	InitBatchProcessorIfDiffTypeSynced InitBatchProcessorIfDiffType = "synced"
+	// InitBatchProcessorIfDiffTypeCalculated init batch processor from previous calculated batch root
+	InitBatchProcessorIfDiffTypeCalculated InitBatchProcessorIfDiffType = "calculated"
+)
+
 // Config represents the configuration of a sequencer
 type Config struct {
 	// IntervalToProposeBatch is the time the sequencer waits until
@@ -37,6 +48,12 @@ type Config struct {
 	// Strategy is the configuration for the strategy
 	Strategy strategy.Strategy `mapstructure:"Strategy"`
 
+	// PriceGetter config for the price getter
+	PriceGetter pricegetter.Config `mapstructure:"PriceGetter"`
+
+	// InitBatchProcessorIfDiffType is for the case, when last synchronized batch num more than latest sent batch
+	// If "synced" init bp by synced batch, if "calculated" init by previous calculated root
+	InitBatchProcessorIfDiffType InitBatchProcessorIfDiffType `mapstructure:"InitBatchProcessorIfDiffType"`
 	// AllowNonRegistered determines if the sequencer will run using the default
 	// chain ID
 	AllowNonRegistered bool `mapstructure:"AllowNonRegistered"`

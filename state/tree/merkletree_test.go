@@ -2,8 +2,6 @@ package tree
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -14,10 +12,12 @@ import (
 	"testing"
 
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
-	"github.com/iden3/go-iden3-crypto/poseidon"
+	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 	"github.com/stretchr/testify/assert"
+	mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,25 +67,22 @@ func TestMerkleTreeRaw(t *testing.T) {
 	for storeName, store := range stores {
 		for ti, testVector := range testVectors {
 			t.Run(fmt.Sprintf("Test vector %d on %s store", ti, storeName), func(t *testing.T) {
-				root := big.NewInt(0)
-				mt := NewMerkleTree(store, testVector.Arity, nil)
+				root := scalarToh4(new(big.Int))
+				mt := NewMerkleTree(store, testVector.Arity)
+				log.Debugf("expectedRoot: %v", testVector.ExpectedRoot)
 				for i := 0; i < len(testVector.Keys); i++ {
-					// convert strings to big.Int
-					k, success := new(big.Int).SetString(testVector.Keys[i], 10)
-					require.True(t, success)
+					k, ok := new(big.Int).SetString(testVector.Keys[i], 10)
+					require.True(t, ok)
+					v, ok := new(big.Int).SetString(testVector.Values[i], 10)
+					require.True(t, ok)
+					vH8 := scalar2fea(v)
 
-					v, success := new(big.Int).SetString(testVector.Values[i], 10)
-					require.True(t, success)
-
-					updateProof, err := mt.Set(ctx, root, k, v)
+					updateProof, err := mt.Set(ctx, root, scalarToh4(k), vH8)
 					require.NoError(t, err)
+
 					root = updateProof.NewRoot
 				}
-				expected, _ := new(big.Int).SetString(testVector.ExpectedRoot, 10)
-
-				r := root.Bytes()
-
-				assert.Equal(t, hex.EncodeToString(expected.Bytes()), hex.EncodeToString(r))
+				assert.Equal(t, testVector.ExpectedRoot, h4ToString(root))
 			})
 		}
 	}
@@ -104,9 +101,9 @@ func TestMerkleTree(t *testing.T) {
 
 	ctx := context.Background()
 
-	root := big.NewInt(0)
+	root := new(big.Int)
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, 4, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 
 	k1, success := new(big.Int).SetString("03ae74d1bbdff41d14f155ec79bb389db716160c1766a49ee9c9707407f80a11", 16)
 	require.True(t, success)
@@ -114,14 +111,17 @@ func TestMerkleTree(t *testing.T) {
 	v1, success := new(big.Int).SetString("200000000000000000000", 10)
 	require.True(t, success)
 
-	updateProof, err := mt.Set(ctx, root, k1, v1)
-	require.NoError(t, err)
-	root = updateProof.NewRoot
+	k1h4 := scalarToh4(k1)
+	v1H8 := scalar2fea(v1)
 
-	v1Proof, err := mt.Get(ctx, root, k1)
+	updateProof, err := mt.Set(ctx, scalarToh4(root), k1h4, v1H8)
+	require.NoError(t, err)
+	root = h4ToScalar(updateProof.NewRoot)
+
+	v1Proof, err := mt.Get(ctx, scalarToh4(root), k1h4)
 	require.NoError(t, err)
 
-	assert.Equal(t, v1, v1Proof.Value)
+	assert.Equal(t, v1, fea2scalar(v1Proof.Value))
 
 	k2, success := new(big.Int).SetString("0540ae2a259cb9179561cffe6a0a3852a2c1806ad894ed396a2ef16e1f10e9c7", 16)
 	require.True(t, success)
@@ -129,19 +129,22 @@ func TestMerkleTree(t *testing.T) {
 	v2, success := new(big.Int).SetString("100000000000000000000", 10)
 	require.True(t, success)
 
-	updateProof, err = mt.Set(ctx, root, k2, v2)
+	k2h4 := scalarToh4(k2)
+	v2H8 := scalar2fea(v2)
+
+	updateProof, err = mt.Set(ctx, scalarToh4(root), k2h4, v2H8)
 	require.NoError(t, err)
-	root = updateProof.NewRoot
+	root = h4ToScalar(updateProof.NewRoot)
 
-	v2Proof, err := mt.Get(ctx, root, k2)
-	require.NoError(t, err)
-
-	assert.Equal(t, v2, v2Proof.Value)
-
-	v1ProofNew, err := mt.Get(ctx, root, k1)
+	v2Proof, err := mt.Get(ctx, scalarToh4(root), k2h4)
 	require.NoError(t, err)
 
-	assert.Equal(t, v1, v1ProofNew.Value)
+	assert.Equal(t, v2, fea2scalar(v2Proof.Value))
+
+	v1ProofNew, err := mt.Get(ctx, scalarToh4(root), k1h4)
+	require.NoError(t, err)
+
+	assert.Equal(t, v1, fea2scalar(v1ProofNew.Value))
 }
 
 func TestHashBytecode(t *testing.T) {
@@ -166,7 +169,7 @@ func TestHashBytecode(t *testing.T) {
 	defer mtDb.Close()
 
 	store := NewPostgresStore(mtDb)
-	mt := NewMerkleTree(store, 4, nil)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 
 	for i, testVector := range testVectors {
 		testVector := testVector
@@ -177,8 +180,8 @@ func TestHashBytecode(t *testing.T) {
 			actual, err := mt.scHashFunction(inputBytes)
 			require.NoError(t, err)
 
-			if hex.EncodeToString(actual.Bytes()) != testVector.ExpectedHash {
-				t.Errorf("Hash bytecode failed, want %q, got %q", testVector.ExpectedHash, actual)
+			if h4ToString(actual[:]) != testVector.ExpectedHash {
+				t.Errorf("Hash bytecode failed, want %q, got %q", testVector.ExpectedHash, h4ToString(actual[:]))
 			}
 		})
 	}
@@ -187,19 +190,156 @@ func TestHashBytecode(t *testing.T) {
 func merkleTreeAddN(b *testing.B, store Store, n int, hashFunction HashFunction) {
 	//b.ResetTimer()
 
-	mt := NewMerkleTree(store, 4, hashFunction)
+	mt := NewMerkleTree(store, DefaultMerkleTreeArity)
 
 	ctx := context.Background()
-	root := big.NewInt(0)
+	root := scalarToh4(new(big.Int))
 
 	for j := 0; j < n; j++ {
-		key := big.NewInt(int64(j))
-		value := big.NewInt(int64(j))
-		proof, err := mt.Set(ctx, root, key, value)
+		key := new(big.Int).SetUint64(uint64(j))
+		value := new(big.Int).SetUint64(uint64(j))
+		keyH4 := scalarToh4(key)
+		valueH8 := scalar2fea(value)
+
+		proof, err := mt.Set(ctx, root, keyH4, valueH8)
 		require.NoError(b, err)
 
 		root = proof.NewRoot
 	}
+}
+
+func TestMTNodeCacheIsNotUsedForWritesOnNonDBTx(t *testing.T) {
+	ctx := context.Background()
+	key := []uint64{1, 1, 1, 1}
+	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
+
+	storeMock := new(storeMock)
+	storeMock.On("Set", ctx, mock.AnythingOfType("[]uint8"), mock.AnythingOfType("[]uint8")).Return(nil, nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	_, err := subject.Set(ctx, nil, key, value)
+	require.NoError(t, err)
+
+	require.Equal(t, len(subject.cache.data), 0)
+	require.False(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertExpectations(t))
+}
+
+func TestMTNodeCacheIsNotUsedForReadsOnNonDBTx(t *testing.T) {
+	ctx := context.Background()
+	key := []uint64{1, 1, 1, 1}
+	root := []uint64{2, 2, 2, 2, 2, 2, 2, 2}
+	node := make([]byte, 96)
+
+	storeMock := new(storeMock)
+	storeMock.On("Get", ctx, mock.AnythingOfType("[]uint8")).Return(node, nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	_, err := subject.Get(ctx, root, key)
+	require.NoError(t, err)
+
+	require.False(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertExpectations(t))
+}
+
+func TestMTNodeCachePreventsDBWritesOnDBTx(t *testing.T) {
+	ctx := context.Background()
+
+	storeMock := new(storeMock)
+	storeMock.On("BeginDBTransaction", ctx).Return(nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	require.NoError(t, subject.BeginDBTransaction(ctx))
+
+	key := []uint64{1, 1, 1, 1}
+	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
+	_, err := subject.Set(ctx, nil, key, value)
+	require.NoError(t, err)
+
+	require.Greater(t, len(subject.cache.data), 0)
+	require.True(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertNotCalled(t, "Set"))
+	require.True(t, storeMock.AssertExpectations(t))
+}
+
+func TestMTNodeCachePreventsDBReadsOnDBTx(t *testing.T) {
+	ctx := context.Background()
+
+	storeMock := new(storeMock)
+	storeMock.On("BeginDBTransaction", ctx).Return(nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	require.NoError(t, subject.BeginDBTransaction(ctx))
+
+	key := []uint64{1, 1, 1, 1}
+	_, err := subject.Get(ctx, nil, key)
+	require.NoError(t, err)
+
+	require.True(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertNotCalled(t, "Get"))
+	require.True(t, storeMock.AssertExpectations(t))
+}
+
+func TestMTNodeCacheFlushesContentsOnDBTxCommit(t *testing.T) {
+	ctx := context.Background()
+
+	storeMock := new(storeMock)
+	storeMock.On("BeginDBTransaction", ctx).Return(nil)
+	storeMock.On("Commit", ctx).Return(nil)
+	storeMock.On("Set", ctx, mock.AnythingOfType("[]uint8"), mock.AnythingOfType("[]uint8")).Return(nil, nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	require.NoError(t, subject.BeginDBTransaction(ctx))
+
+	key := []uint64{1, 1, 1, 1}
+	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
+	_, err := subject.Set(ctx, nil, key, value)
+	require.NoError(t, err)
+
+	require.Greater(t, len(subject.cache.data), 0)
+
+	require.NoError(t, subject.Commit(ctx))
+
+	require.Equal(t, len(subject.cache.data), 0)
+	require.False(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertExpectations(t))
+}
+
+func TestMTNodeCacheResetsOnDBTxRollback(t *testing.T) {
+	ctx := context.Background()
+
+	storeMock := new(storeMock)
+	storeMock.On("BeginDBTransaction", ctx).Return(nil)
+	storeMock.On("Rollback", ctx).Return(nil)
+
+	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
+
+	require.NoError(t, subject.BeginDBTransaction(ctx))
+
+	key := []uint64{1, 1, 1, 1}
+	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
+	_, err := subject.Set(ctx, nil, key, value)
+	require.NoError(t, err)
+
+	require.Greater(t, len(subject.cache.data), 0)
+
+	require.NoError(t, subject.Rollback(ctx))
+
+	require.Equal(t, len(subject.cache.data), 0)
+	require.False(t, subject.cache.isActive())
+
+	require.True(t, storeMock.AssertNotCalled(t, "Set"))
+	require.True(t, storeMock.AssertExpectations(t))
 }
 
 type benchStore interface {
@@ -266,13 +406,8 @@ func BenchmarkMerkleTreeAdd(b *testing.B) {
 	}
 }
 
-func sha256Hash(inputs []*big.Int) (*big.Int, error) {
-	var byte32 [32]byte
-	hash := sha256.New()
-	for _, input := range inputs {
-		hash.Write(input.FillBytes(byte32[:])) //nolint:gosec,errcheck
-	}
-	return new(big.Int).SetBytes(hash.Sum(nil)), nil
+func sha256Hash(inp [poseidon.NROUNDSF]uint64, cap [poseidon.CAPLEN]uint64) ([poseidon.CAPLEN]uint64, error) {
+	return [poseidon.CAPLEN]uint64{}, nil
 }
 
 const (

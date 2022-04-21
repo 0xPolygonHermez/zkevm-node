@@ -23,13 +23,12 @@ import (
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/pool/pgpoolstorage"
 	"github.com/hermeznetwork/hermez-core/proverclient"
+	proverclientpb "github.com/hermeznetwork/hermez-core/proverclient/pb"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
@@ -37,6 +36,7 @@ import (
 )
 
 type mtStore interface {
+	SupportsDBTransactions() bool
 	BeginDBTransaction(ctx context.Context) error
 	Commit(ctx context.Context) error
 	Rollback(ctx context.Context) error
@@ -66,17 +66,18 @@ func start(ctx *cli.Context) error {
 		return err
 	}
 
-	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity, poseidon.Hash)
+	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity)
 	tr := tree.NewStateTree(mt, scCodeStore)
 
 	stateCfg := state.Config{
-		DefaultChainID:                  c.NetworkConfig.L2DefaultChainID,
-		MaxCumulativeGasUsed:            c.NetworkConfig.MaxCumulativeGasUsed,
-		L2GlobalExitRootManagerAddr:     c.NetworkConfig.L2GlobalExitRootManagerAddr,
-		L2GlobalExitRootManagerPosition: c.NetworkConfig.L2GlobalExitRootManagerPosition,
+		DefaultChainID:                c.NetworkConfig.L2DefaultChainID,
+		MaxCumulativeGasUsed:          c.NetworkConfig.MaxCumulativeGasUsed,
+		L2GlobalExitRootManagerAddr:   c.NetworkConfig.L2GlobalExitRootManagerAddr,
+		GlobalExitRootStoragePosition: c.NetworkConfig.GlobalExitRootStoragePosition,
+		LocalExitRootStoragePosition:  c.NetworkConfig.LocalExitRootStoragePosition,
 	}
 
-	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
+	stateDb := state.NewPostgresStorage(sqlDB)
 
 	var (
 		st              *state.State
@@ -111,7 +112,7 @@ func start(ctx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	pool := pool.NewPool(poolDb, st)
+	pool := pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
 	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
 	seq := createSequencer(c.Sequencer, etherman, pool, st)
 
@@ -153,7 +154,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman, nil
 }
 
-func newProverClient(c proverclient.Config) (proverclient.ZKProverServiceClient, *grpc.ClientConn) {
+func newProverClient(c proverclient.Config) (proverclientpb.ZKProverServiceClient, *grpc.ClientConn) {
 	opts := []grpc.DialOption{
 		// TODO: once we have user and password for prover server, change this
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -163,7 +164,7 @@ func newProverClient(c proverclient.Config) (proverclient.ZKProverServiceClient,
 		log.Fatalf("fail to dial: %v", err)
 	}
 
-	proverClient := proverclient.NewZKProverServiceClient(proverConn)
+	proverClient := proverclientpb.NewZKProverServiceClient(proverConn)
 	return proverClient, proverConn
 }
 
@@ -189,9 +190,12 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 		log.Fatal(err)
 	}
 	genesis := state.Genesis{
-		Block:     genesisBlock,
-		Balances:  networkConfig.Balances,
-		L2ChainID: networkConfig.L2DefaultChainID,
+		Block:          genesisBlock,
+		Balances:       networkConfig.Genesis.Balances,
+		SmartContracts: networkConfig.Genesis.SmartContracts,
+		Storage:        networkConfig.Genesis.Storage,
+		Nonces:         networkConfig.Genesis.Nonces,
+		L2ChainID:      networkConfig.L2DefaultChainID,
 	}
 	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, genesis, cfg, gpe)
 	if err != nil {
@@ -224,7 +228,7 @@ func createSequencer(c sequencer.Config, etherman *etherman.Client, pool *pool.P
 	return seq
 }
 
-func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient proverclient.ZKProverServiceClient, state *state.State) {
+func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient proverclientpb.ZKProverServiceClient, state *state.State) {
 	agg, err := aggregator.NewAggregator(c, state, etherman, proverclient)
 	if err != nil {
 		log.Fatal(err)

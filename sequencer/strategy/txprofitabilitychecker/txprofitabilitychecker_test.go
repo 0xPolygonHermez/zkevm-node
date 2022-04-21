@@ -12,9 +12,10 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
+	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -24,12 +25,13 @@ import (
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
 	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
-	NewGenesisBatchProcessor(genesisStateRoot []byte) (*state.BasicBatchProcessor, error)
+	NewGenesisBatchProcessor(genesisStateRoot []byte) (*state.BatchProcessor, error)
 }
 
 var (
-	stateDB   *pgxpool.Pool
-	testState stateInterface
+	stateDB     *pgxpool.Pool
+	testState   stateInterface
+	priceGetter pricegetter.Client
 
 	addr               common.Address = common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
 	consolidatedTxHash common.Hash    = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")
@@ -62,11 +64,21 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDB.Close()
 	store := tree.NewPostgresStore(stateDB)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDB)
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
 	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	txs = []*types.Transaction{tx}
+
+	defaultPrice := new(pricegetter.TokenPrice)
+	_ = defaultPrice.UnmarshalText([]byte("2000"))
+	priceGetter, err = pricegetter.NewClient(pricegetter.Config{
+		Type:         pricegetter.DefaultType,
+		DefaultPrice: *defaultPrice,
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	setUpBlock()
 	setUpBatch()
@@ -136,11 +148,14 @@ func setUpBatch() {
 func TestBase_IsProfitable_FailByMinReward(t *testing.T) {
 	minReward := new(big.Int).Mul(big.NewInt(1000), big.NewInt(encoding.TenToThePowerOf18))
 	ethMan := new(etherman)
-	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(60), 50)
+	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, priceGetter, minReward, time.Duration(60), 50)
 	ctx := context.Background()
 
+	ethMan.On("GetCurrentSequencerCollateral").Return(big.NewInt(1), nil)
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(1), nil)
-	isProfitable, _, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	isProfitable, _, err := txProfitabilityChecker.IsProfitable(ctx, txselector.SelectTxsOutput{
+		SelectedTxs: txs,
+	})
 	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.False(t, isProfitable)
@@ -149,28 +164,33 @@ func TestBase_IsProfitable_FailByMinReward(t *testing.T) {
 func TestBase_IsProfitable_SendBatchAnyway(t *testing.T) {
 	minReward := big.NewInt(0)
 	ethMan := new(etherman)
-	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(1), 50)
+	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, priceGetter, minReward, time.Duration(1), 50)
 
 	ctx := context.Background()
 
-	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(maticAmount, nil)
+	ethMan.On("GetCurrentSequencerCollateral").Return(big.NewInt(1), nil)
 
-	isProfitable, reward, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	isProfitable, reward, err := txProfitabilityChecker.IsProfitable(ctx, txselector.SelectTxsOutput{
+		SelectedTxs: txs,
+	})
 	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
-	assert.Equal(t, 0, reward.Cmp(minReward))
+	assert.Equal(t, 1, reward.Cmp(minReward))
 	assert.True(t, isProfitable)
 }
 
 func TestBase_IsProfitable_GasCostTooBigForSendingTx(t *testing.T) {
 	minReward := big.NewInt(0)
 	ethMan := new(etherman)
-	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, minReward, time.Duration(60), 50)
+	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, priceGetter, minReward, time.Duration(60), 50)
 
 	ctx := context.Background()
 
+	ethMan.On("GetCurrentSequencerCollateral").Return(big.NewInt(1), nil)
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(maticAmount, nil)
-	isProfitable, _, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	isProfitable, _, err := txProfitabilityChecker.IsProfitable(ctx, txselector.SelectTxsOutput{
+		SelectedTxs: txs,
+	})
 	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.False(t, isProfitable)
@@ -178,14 +198,16 @@ func TestBase_IsProfitable_GasCostTooBigForSendingTx(t *testing.T) {
 
 func TestBase_IsProfitable(t *testing.T) {
 	ethMan := new(etherman)
-	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, big.NewInt(0), time.Duration(60), 50)
+	txProfitabilityChecker := txprofitabilitychecker.NewTxProfitabilityCheckerBase(ethMan, testState, priceGetter, big.NewInt(0), time.Duration(60), 50)
 
 	ctx := context.Background()
 
 	ethMan.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
 	ethMan.On("GetCurrentSequencerCollateral").Return(big.NewInt(1), nil)
 
-	isProfitable, reward, err := txProfitabilityChecker.IsProfitable(ctx, txs)
+	isProfitable, reward, err := txProfitabilityChecker.IsProfitable(ctx, txselector.SelectTxsOutput{
+		SelectedTxs: txs,
+	})
 	ethMan.AssertExpectations(t)
 	assert.NoError(t, err)
 	assert.True(t, isProfitable)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math/big"
 	"strconv"
 	"time"
 
@@ -13,8 +12,9 @@ import (
 
 type zkProverServiceServer struct {
 	pb.ZKProverServiceServer
-	id         int
-	idsToState map[string]int
+	id                int
+	idsToState        map[string]int
+	idsToPublicInputs map[string]*pb.PublicInputs
 }
 
 const (
@@ -30,9 +30,11 @@ var mockProof = &pb.Proof{
 
 func NewZkProverServiceServer() *zkProverServiceServer {
 	idsToState := make(map[string]int)
+	idsToPublicInputs := make(map[string]*pb.PublicInputs)
 	return &zkProverServiceServer{
-		id:         0,
-		idsToState: idsToState,
+		id:                0,
+		idsToState:        idsToState,
+		idsToPublicInputs: idsToPublicInputs,
 	}
 }
 
@@ -40,6 +42,7 @@ func (zkp *zkProverServiceServer) GenProof(ctx context.Context, request *pb.GenP
 	zkp.id++
 	idStr := strconv.Itoa(zkp.id)
 	zkp.idsToState[idStr] = 0
+	zkp.idsToPublicInputs[idStr] = request.Input.PublicInputs
 	return &pb.GenProofResponse{
 		Id:     idStr,
 		Result: pb.GenProofResponse_RESULT_GEN_PROOF_OK,
@@ -47,13 +50,6 @@ func (zkp *zkProverServiceServer) GenProof(ctx context.Context, request *pb.GenP
 }
 
 func (zkp *zkProverServiceServer) GetProof(srv pb.ZKProverService_GetProofServer) error {
-	newStateRoot, _ := new(big.Int).SetString("1212121212121212121212121212121212121212121212121212121212121212", 16)
-	newLocalExitRoot, _ := new(big.Int).SetString("1234123412341234123412341234123412341234123412341234123412341234", 16)
-	publicInputs := &pb.PublicInputs{
-		NewStateRoot:     newStateRoot.String(),
-		NewLocalExitRoot: newLocalExitRoot.String(),
-	}
-
 	ctx := srv.Context()
 
 	for {
@@ -73,6 +69,7 @@ func (zkp *zkProverServiceServer) GetProof(srv pb.ZKProverService_GetProofServer
 		}
 		if st, ok := zkp.idsToState[req.Id]; ok {
 			if st == 1 {
+				publicInputs := zkp.idsToPublicInputs[req.Id]
 				resp := &pb.GetProofResponse{
 					Id:     req.Id,
 					Proof:  mockProof,

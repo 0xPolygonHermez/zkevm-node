@@ -10,7 +10,7 @@ import (
 // Host is the execution host
 type Host interface {
 	AccountExists(ctx context.Context, addr common.Address) bool
-	GetStorage(ctx context.Context, addr common.Address, key common.Hash) common.Hash
+	GetStorage(ctx context.Context, addr common.Address, key *big.Int) common.Hash
 	SetStorage(ctx context.Context, addr common.Address, key *big.Int, value *big.Int, config *ForksInTime) StorageStatus
 	GetBalance(ctx context.Context, addr common.Address) *big.Int
 	GetCodeSize(ctx context.Context, addr common.Address) int

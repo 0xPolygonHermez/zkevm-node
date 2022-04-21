@@ -99,7 +99,7 @@ func setUpEnv(b *testing.B) (*state.State, *pool.Pool, *big.Int, *ethclient.Clie
 	st := opsman.State()
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbConfig)
 	require.NoError(b, err)
-	pl := pool.NewPool(s, st)
+	pl := pool.NewPool(s, st, common.Address{})
 	// store current batch number to check later when the state is updated
 	require.NoError(b, opsman.SetGenesis(genesisAccounts))
 	require.NoError(b, opsman.Setup())

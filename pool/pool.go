@@ -2,6 +2,7 @@ package pool
 
 import (
 	"context"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -21,20 +22,25 @@ const (
 	// more expensive to propagate; larger transactions also take more resources
 	// to validate whether they fit into the pool or not.
 	txMaxSize = 4 * txSlotSize // 128KB
+
+	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
+	bridgeClaimMethodSignature = "0x122650ff"
 )
 
 // Pool is an implementation of the Pool interface
 // that uses a postgres database to store the data
 type Pool struct {
-	storage storage
-	state   stateInterface
+	storage                     storage
+	state                       stateInterface
+	l2GlobalExitRootManagerAddr common.Address
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(s storage, st stateInterface) *Pool {
+func NewPool(s storage, st stateInterface, l2GlobalExitRootManagerAddr common.Address) *Pool {
 	return &Pool{
-		storage: s,
-		state:   st,
+		storage:                     s,
+		state:                       st,
+		l2GlobalExitRootManagerAddr: l2GlobalExitRootManagerAddr,
 	}
 }
 
@@ -44,14 +50,23 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 		return err
 	}
 
-	return p.storage.AddTx(ctx, tx, TxStatePending)
+	poolTx := Transaction{
+		Transaction: tx,
+		State:       TxStatePending,
+		IsClaims:    false,
+		ReceivedAt:  time.Now(),
+	}
+
+	poolTx.IsClaims = poolTx.IsClaimTx(p.l2GlobalExitRootManagerAddr)
+
+	return p.storage.AddTx(ctx, poolTx)
 }
 
 // GetPendingTxs from the pool
 // limit parameter is used to limit amount of pending txs from the db,
 // if limit = 0, then there is no limit
-func (p *Pool) GetPendingTxs(ctx context.Context, limit uint64) ([]Transaction, error) {
-	return p.storage.GetTxsByState(ctx, TxStatePending, limit)
+func (p *Pool) GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]Transaction, error) {
+	return p.storage.GetTxsByState(ctx, TxStatePending, isClaims, limit)
 }
 
 // UpdateTxState updates a transaction state accordingly to the

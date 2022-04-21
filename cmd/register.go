@@ -9,9 +9,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/pgstatestorage"
 	"github.com/hermeznetwork/hermez-core/state/tree"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/urfave/cli/v2"
 )
 
@@ -51,25 +49,26 @@ func registerSequencer(ctx *cli.Context) error {
 		return err
 	}
 	store := tree.NewPostgresStore(sqlDB)
-	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity, poseidon.Hash)
+	mt := tree.NewMerkleTree(store, c.NetworkConfig.Arity)
 	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
 	tr := tree.NewStateTree(mt, scCodeStore)
 
 	stateCfg := state.Config{
-		DefaultChainID:                  c.NetworkConfig.L2DefaultChainID,
-		MaxCumulativeGasUsed:            c.NetworkConfig.MaxCumulativeGasUsed,
-		L2GlobalExitRootManagerAddr:     c.NetworkConfig.L2GlobalExitRootManagerAddr,
-		L2GlobalExitRootManagerPosition: c.NetworkConfig.L2GlobalExitRootManagerPosition,
+		DefaultChainID:                c.NetworkConfig.L2DefaultChainID,
+		MaxCumulativeGasUsed:          c.NetworkConfig.MaxCumulativeGasUsed,
+		L2GlobalExitRootManagerAddr:   c.NetworkConfig.L2GlobalExitRootManagerAddr,
+		GlobalExitRootStoragePosition: c.NetworkConfig.GlobalExitRootStoragePosition,
+		LocalExitRootStoragePosition:  c.NetworkConfig.LocalExitRootStoragePosition,
 	}
 
-	stateDb := pgstatestorage.NewPostgresStorage(sqlDB)
+	stateDb := state.NewPostgresStorage(sqlDB)
 	st := state.NewState(stateCfg, stateDb, tr)
 
 	_, err = st.GetSequencer(ctx.Context, etherman.GetAddress())
 	if errors.Is(err, state.ErrNotFound) { //If It doesn't exist, register the sequencer
 		tx, err := etherman.RegisterSequencer(url)
 		if err != nil {
-			log.Error("uff no: ", err)
+			log.Error("failed to register sequencer. Error: ", err)
 			return err
 		}
 		log.Info("Sequencer registered. Check this tx to see the status: ", tx.Hash())

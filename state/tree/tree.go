@@ -7,10 +7,11 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/hex"
 )
 
 // DefaultMerkleTreeArity specifies Merkle Tree arity used by default
-const DefaultMerkleTreeArity = 4
+const DefaultMerkleTreeArity = 1
 
 var (
 	// ErrDBTxsNotSupported indicates db transactions are not supported
@@ -31,6 +32,11 @@ func NewStateTree(mt *MerkleTree, scCodeStore Store) *StateTree {
 	}
 }
 
+// SupportsDBTransactions indicates whether the store implementation supports DB transactions
+func (tree *StateTree) SupportsDBTransactions() bool {
+	return tree.mt.SupportsDBTransactions() && tree.scCodeStore.SupportsDBTransactions()
+}
+
 // BeginDBTransaction starts a transaction block
 func (tree *StateTree) BeginDBTransaction(ctx context.Context) error {
 	err := tree.mt.BeginDBTransaction(ctx)
@@ -42,7 +48,7 @@ func (tree *StateTree) BeginDBTransaction(ctx context.Context) error {
 
 // Commit commits a db transaction
 func (tree *StateTree) Commit(ctx context.Context) error {
-	err := tree.mt.store.Commit(ctx)
+	err := tree.mt.Commit(ctx)
 	if err != nil {
 		return err
 	}
@@ -51,7 +57,7 @@ func (tree *StateTree) Commit(ctx context.Context) error {
 
 // Rollback rollbacks a db transaction
 func (tree *StateTree) Rollback(ctx context.Context) error {
-	err := tree.mt.store.Rollback(ctx)
+	err := tree.mt.Rollback(ctx)
 	if err != nil {
 		return err
 	}
@@ -62,63 +68,63 @@ func (tree *StateTree) Rollback(ctx context.Context) error {
 func (tree *StateTree) GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
 	r := new(big.Int).SetBytes(root)
 
-	key, err := GetKey(LeafTypeBalance, address, nil, tree.mt.arity, nil)
+	key, err := KeyEthAddrBalance(address)
 	if err != nil {
 		return nil, err
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(ctx, r, k)
+	proof, err := tree.mt.Get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
 	}
 	if proof == nil || proof.Value == nil {
 		return big.NewInt(0), nil
 	}
-	return proof.Value, nil
+	return fea2scalar(proof.Value), nil
 }
 
 // GetNonce returns nonce
 func (tree *StateTree) GetNonce(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
 	r := new(big.Int).SetBytes(root)
 
-	key, err := GetKey(LeafTypeNonce, address, nil, tree.mt.arity, nil)
+	key, err := KeyEthAddrNonce(address)
 	if err != nil {
 		return nil, err
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(ctx, r, k)
+	proof, err := tree.mt.Get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
 	}
 	if proof == nil || proof.Value == nil {
 		return big.NewInt(0), nil
 	}
-	return proof.Value, nil
+	return fea2scalar(proof.Value), nil
 }
 
 // GetCodeHash returns code hash
 func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, root []byte) ([]byte, error) {
 	r := new(big.Int).SetBytes(root)
 
-	key, err := GetKey(LeafTypeCode, address, nil, tree.mt.arity, nil)
+	key, err := KeyContractCode(address)
 	if err != nil {
 		return nil, err
 	}
-
 	// this code gets only the hash of the smart contract code from the merkle tree
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(ctx, r, k)
+	proof, err := tree.mt.Get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
 	}
 	if proof.Value == nil {
-		return []byte{}, nil
+		return nil, nil
 	}
 
-	var buf [32]byte
-	return proof.Value.FillBytes(buf[:]), nil
+	valueBi := fea2scalar(proof.Value)
+	var valueBuff [maxBigIntLen]byte
+	return valueBi.FillBytes(valueBuff[:]), nil
 }
 
 // GetCode returns code
@@ -141,23 +147,23 @@ func (tree *StateTree) GetCode(ctx context.Context, address common.Address, root
 }
 
 // GetStorageAt returns Storage Value at specified position
-func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address, position common.Hash, root []byte) (*big.Int, error) {
+func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root []byte) (*big.Int, error) {
 	r := new(big.Int).SetBytes(root)
 
-	key, err := GetKey(LeafTypeStorage, address, position[:], tree.mt.arity, nil)
+	key, err := KeyContractStorage(address, position.Bytes())
 	if err != nil {
 		return nil, err
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(ctx, r, k)
+	proof, err := tree.mt.Get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
 	}
 	if proof == nil || proof.Value == nil {
 		return big.NewInt(0), nil
 	}
-	return proof.Value, nil
+	return fea2scalar(proof.Value), nil
 }
 
 // ReverseHash reverse a hash of an exisiting Merkletree node.
@@ -165,12 +171,12 @@ func (tree *StateTree) ReverseHash(root, hash []byte) ([]byte, error) {
 	hashBI := new(big.Int).SetBytes(hash[:])
 	rootBI := new(big.Int).SetBytes(root[:])
 
-	proof, err := tree.mt.Get(context.Background(), rootBI, hashBI)
+	proof, err := tree.mt.Get(context.Background(), scalarToh4(rootBI), scalarToh4(hashBI))
 	if err != nil {
 		return nil, err
 	}
 
-	return proof.Value.Bytes(), nil
+	return fea2scalar(proof.Value).Bytes(), nil
 }
 
 // SetBalance sets balance
@@ -180,18 +186,21 @@ func (tree *StateTree) SetBalance(ctx context.Context, address common.Address, b
 	}
 
 	r := new(big.Int).SetBytes(root)
-	key, err := GetKey(LeafTypeBalance, address, nil, tree.mt.arity, nil)
+	key, err := KeyEthAddrBalance(address)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(ctx, r, k, balance)
+	k := new(big.Int).SetBytes(key)
+	balanceH8 := scalar2fea(balance)
+
+	updateProof, err := tree.mt.Set(ctx, scalarToh4(r), scalarToh4(k), balanceH8)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return updateProof.NewRoot.Bytes(), updateProof, nil
+	rootBI := h4ToScalar(updateProof.NewRoot)
+	return rootBI.Bytes(), updateProof, nil
 }
 
 // SetNonce sets nonce
@@ -201,35 +210,35 @@ func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, non
 	}
 
 	r := new(big.Int).SetBytes(root)
-	key, err := GetKey(LeafTypeNonce, address, nil, tree.mt.arity, nil)
+	key, err := KeyEthAddrNonce(address)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(ctx, r, k, nonce)
+
+	nonceH8 := scalar2fea(nonce)
+
+	updateProof, err := tree.mt.Set(ctx, scalarToh4(r), scalarToh4(k), nonceH8)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return updateProof.NewRoot.Bytes(), updateProof, nil
+	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
 }
 
 // SetCode sets smart contract code
 func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code []byte, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	// calculating smart contract code hash
-	scCodeHashBI := big.NewInt(0)
-	if len(code) > 0 {
-		scCodeHashBI, err = tree.mt.scHashFunction(code)
-		if err != nil {
-			return nil, nil, err
-		}
+	scCodeHash4, err := tree.mt.scHashFunction(code)
+	if err != nil {
+		return nil, nil, err
 	}
-	// we need to have exactly maxBigIntLen bytes for a key in db for
-	// interoperability with prover/executor code, but big.Int Bytes()
-	// can return less, so we make sure it has the right size with FillBytes.
-	var scCodeHash [maxBigIntLen]byte
-	scCodeHashBI.FillBytes(scCodeHash[:])
+
+	scCodeHash, err := hex.DecodeHex(h4ToString(scCodeHash4))
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// store smart contract code by its hash
 	err = tree.scCodeStore.Set(ctx, scCodeHash[:], code)
@@ -239,47 +248,51 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 
 	// set smart contract code hash as a leaf value in merkle tree
 	r := new(big.Int).SetBytes(root)
-	key, err := GetKey(LeafTypeCode, address, nil, tree.mt.arity, nil)
+	key, err := KeyContractCode(address)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(ctx, r, k, new(big.Int).SetBytes(scCodeHash[:]))
+	scCodeHashBI := new(big.Int).SetBytes(scCodeHash[:])
+	scCodeHashH8 := scalar2fea(scCodeHashBI)
+
+	updateProof, err := tree.mt.Set(ctx, scalarToh4(r), scalarToh4(k), scCodeHashH8)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return updateProof.NewRoot.Bytes(), updateProof, nil
+	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
 }
 
 // SetStorageAt sets storage value at specified position
 func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address, position *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	r := new(big.Int).SetBytes(root)
-	key, err := GetKey(LeafTypeStorage, address, position.Bytes(), tree.mt.arity, nil)
+	key, err := KeyContractStorage(address, position.Bytes())
 	if err != nil {
 		return nil, nil, err
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(ctx, r, k, value)
+	valueH8 := scalar2fea(value)
+	updateProof, err := tree.mt.Set(ctx, scalarToh4(r), scalarToh4(k), valueH8)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return updateProof.NewRoot.Bytes(), updateProof, nil
+	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
 }
 
 // SetHashValue sets value for an specific key.
 func (tree *StateTree) SetHashValue(ctx context.Context, key common.Hash, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	r := new(big.Int).SetBytes(root)
 	k := new(big.Int).SetBytes(key[:])
-	updateProof, err := tree.mt.Set(ctx, r, k, value)
+	valueH8 := scalar2fea(value)
+	updateProof, err := tree.mt.Set(ctx, scalarToh4(r), scalarToh4(k), valueH8)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return updateProof.NewRoot.Bytes(), updateProof, nil
+	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
 }
 
 // SetNodeData sets data for a specific node.
