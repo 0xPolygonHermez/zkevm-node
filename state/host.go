@@ -203,7 +203,7 @@ func (h *Host) Callx(ctx context.Context, contract *runtime.Contract, host runti
 		return h.applyCreate(ctx, contract, host)
 	}
 
-	if contract.Type == runtime.Call {
+	if contract.Type == runtime.Call && contract.Value.Uint64() != 0 {
 		log.Debugf("Callx. New Transfer from %v to %v", contract.Caller, contract.Address)
 		err := h.transfer(ctx, contract.Caller, contract.Address, contract.Value)
 		if err != nil {
