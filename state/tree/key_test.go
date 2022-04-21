@@ -68,6 +68,7 @@ func Test_CommonKeys(t *testing.T) {
 			t.Run(fmt.Sprintf("%s, test vector %d", tc.description, ti), func(t *testing.T) {
 				key, err := tc.keyFunc(common.HexToAddress(testVector.EthAddr))
 				require.NoError(t, err)
+				require.Equal(t, len(key), maxBigIntLen)
 
 				expected, _ := new(big.Int).SetString(testVector.ExpectedKey, 10)
 				assert.Equal(t, hex.EncodeToString(expected.Bytes()), hex.EncodeToString(key))
@@ -90,6 +91,7 @@ func Test_KeyContractStorage(t *testing.T) {
 			require.True(t, ok)
 			key, err := KeyContractStorage(common.HexToAddress(testVector.EthAddr), storagePosition.Bytes())
 			require.NoError(t, err)
+			require.Equal(t, len(key), maxBigIntLen)
 
 			expected, _ := new(big.Int).SetString(testVector.ExpectedKey, 10)
 			assert.Equal(t, hex.EncodeToString(expected.Bytes()), hex.EncodeToString(key))
