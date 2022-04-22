@@ -217,13 +217,13 @@ func GetAuth(privateKeyStr string, chainID *big.Int) (*bind.TransactOpts, error)
 // the manager config.
 func (m *Manager) Setup() error {
 	// Run network container
-	err := m.startNetwork()
+	err := m.StartNetwork()
 	if err != nil {
 		return err
 	}
 
 	// Start prover container
-	err = m.startProver()
+	err = m.StartProver()
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (m *Manager) Setup() error {
 	}
 
 	// Run core container
-	err = m.startCore()
+	err = m.StartCore()
 	if err != nil {
 		return err
 	}
@@ -430,11 +430,31 @@ func (m *Manager) setUpSequencer() error {
 	return nil
 }
 
-func (m *Manager) startNetwork() error {
+func (m *Manager) StartNetwork() error {
 	if err := stopNetwork(); err != nil {
 		return err
 	}
 	cmd := exec.Command(makeCmd, "run-network")
+	err := runCmd(cmd)
+	if err != nil {
+		return err
+	}
+	// Wait network to be ready
+	return m.wait.Poll(defaultInterval, defaultDeadline, networkUpCondition)
+}
+
+func (m *Manager) InitNetwork() error {
+	cmd := exec.Command(makeCmd, "init-network")
+	err := runCmd(cmd)
+	if err != nil {
+		return err
+	}
+	// Wait network to be ready
+	return m.wait.Poll(defaultInterval, defaultDeadline, networkUpCondition)
+}
+
+func (m *Manager) DeployUniswap() error {
+	cmd := exec.Command(makeCmd, "deploy-uniswap")
 	err := runCmd(cmd)
 	if err != nil {
 		return err
@@ -448,7 +468,7 @@ func stopNetwork() error {
 	return runCmd(cmd)
 }
 
-func (m *Manager) startCore() error {
+func (m *Manager) StartCore() error {
 	if err := stopCore(); err != nil {
 		return err
 	}
@@ -466,7 +486,7 @@ func stopCore() error {
 	return runCmd(cmd)
 }
 
-func (m *Manager) startProver() error {
+func (m *Manager) StartProver() error {
 	if err := stopProver(); err != nil {
 		return err
 	}

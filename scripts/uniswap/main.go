@@ -62,6 +62,7 @@ func main() {
 	fmt.Println()
 
 	// Deploy wETH Token, it's required by uniswap to swap ETH by tokens
+	log.Debugf("Deploying wEth SC")
 	wEthAddr, tx, wethSC, err := WETH.DeployWETH(auth, client)
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
@@ -71,6 +72,7 @@ func main() {
 	fmt.Println()
 
 	// Deploy Uniswap Factory
+	log.Debugf("Deploying Uniswap Factory")
 	factoryAddr, tx, factory, err := UniswapV2Factory.DeployUniswapV2Factory(auth, client, auth.From)
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
@@ -80,6 +82,7 @@ func main() {
 	fmt.Println()
 
 	// Deploy Uniswap Router
+	log.Debugf("Deploying Uniswap Router")
 	routerAddr, tx, router, err := UniswapV2Router02.DeployUniswapV2Router02(auth, client, factoryAddr, wEthAddr)
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
@@ -89,6 +92,7 @@ func main() {
 	fmt.Println()
 
 	// Deploy Uniswap Interface Multicall
+	log.Debugf("Deploying Uniswap Multicall")
 	multicallAddr, tx, _, err := UniswapInterfaceMulticall.DeployUniswapInterfaceMulticall(auth, client)
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
@@ -98,6 +102,7 @@ func main() {
 	fmt.Println()
 
 	// Mint balance to tokens
+	log.Debugf("Minting ERC20 Tokens")
 	aMintAmount := "1000000000000000000000"
 	tx = mintERC20(auth, client, aCoin, aMintAmount)
 	log.Debugf("Mint A Coin tx: %v", tx.Hash().Hex())
