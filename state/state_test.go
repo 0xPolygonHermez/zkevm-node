@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1961,4 +1962,39 @@ func TestStorageOnDeploy(t *testing.T) {
 
 	value := bp.Host.GetStorage(ctx, scAddress, new(big.Int).SetInt64(0))
 	assert.Equal(t, expectedStoredValue, value)
+}
+
+func TestConcurrentDBTransactions(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+
+		go func(i int) {
+			defer wg.Done()
+
+			txBundleID, err := st.BeginStateTransaction(ctx)
+			require.NoError(t, err)
+
+			require.NoError(t, st.Commit(ctx, txBundleID))
+		}(i)
+	}
+	wg.Wait()
 }

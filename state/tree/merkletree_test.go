@@ -311,8 +311,7 @@ func TestMTNodeCacheFlushesContentsOnDBTxCommit(t *testing.T) {
 
 	require.NoError(t, subject.Commit(ctx, "txBundleID"))
 
-	require.Equal(t, len(subject.cache["txBundleID"].data), 0)
-	require.False(t, subject.cache["txBundleID"].isActive())
+	require.Nil(t, subject.cache["txBundleID"])
 
 	require.True(t, storeMock.AssertExpectations(t))
 }
@@ -338,8 +337,7 @@ func TestMTNodeCacheResetsOnDBTxRollback(t *testing.T) {
 
 	require.NoError(t, subject.Rollback(ctx, "txBundleID"))
 
-	require.Equal(t, len(subject.cache["txBundleID"].data), 0)
-	require.False(t, subject.cache["txBundleID"].isActive())
+	require.Nil(t, subject.cache["txBundleID"])
 
 	require.True(t, storeMock.AssertNotCalled(t, "Set"))
 	require.True(t, storeMock.AssertExpectations(t))

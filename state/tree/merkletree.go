@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -31,7 +32,9 @@ type MerkleTree struct {
 	hashFunction   HashFunction
 	scHashFunction scHashFunction
 	arity          uint8
-	cache          map[string]*nodeCache
+
+	mu    *sync.Mutex
+	cache map[string]*nodeCache
 }
 
 // UpdateProof is a proof generated on Set operation
@@ -71,6 +74,7 @@ func NewMerkleTree(store Store, arity uint8) *MerkleTree {
 		hashFunction:   poseidon.Hash,
 		scHashFunction: hashContractBytecode,
 
+		mu:    new(sync.Mutex),
 		cache: make(map[string]*nodeCache),
 	}
 }
@@ -82,28 +86,36 @@ func (mt *MerkleTree) SupportsDBTransactions() bool {
 
 // BeginDBTransaction starts a transaction block
 func (mt *MerkleTree) BeginDBTransaction(ctx context.Context, txBundleID string) error {
+	mt.mu.Lock()
 	mt.cache[txBundleID] = newNodeCache()
-
 	mt.cache[txBundleID].init()
+	mt.mu.Unlock()
 
 	return mt.store.BeginDBTransaction(ctx, txBundleID)
 }
 
 // Commit commits a db transaction
 func (mt *MerkleTree) Commit(ctx context.Context, txBundleID string) error {
-	defer mt.cache[txBundleID].teardown()
-
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
 	err := mt.writeCacheContents(ctx, txBundleID)
 	if err != nil {
 		return err
 	}
+
+	mt.cache[txBundleID].teardown()
+	delete(mt.cache, txBundleID)
 
 	return mt.store.Commit(ctx, txBundleID)
 }
 
 // Rollback rollbacks a db transaction
 func (mt *MerkleTree) Rollback(ctx context.Context, txBundleID string) error {
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
+
 	mt.cache[txBundleID].teardown()
+	delete(mt.cache, txBundleID)
 
 	return mt.store.Rollback(ctx, txBundleID)
 }

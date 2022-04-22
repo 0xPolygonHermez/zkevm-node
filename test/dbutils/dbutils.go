@@ -38,7 +38,7 @@ func InitOrReset(cfg db.Config) error {
 // NewConfigFromEnv creates config from standard postgres environment variables,
 // see https://www.postgresql.org/docs/11/libpq-envars.html for details
 func NewConfigFromEnv() db.Config {
-	const maxDBPoolConns = 10
+	const maxDBPoolConns = 50
 
 	return db.Config{
 		User:      getEnv("PGUSER", "test_user"),

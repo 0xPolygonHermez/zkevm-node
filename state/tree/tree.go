@@ -42,10 +42,7 @@ func (tree *StateTree) BeginDBTransaction(ctx context.Context, txBundleID string
 	if err := tree.mt.BeginDBTransaction(ctx, txBundleID); err != nil {
 		return err
 	}
-	if err := tree.scCodeStore.BeginDBTransaction(ctx, txBundleID); err != nil {
-		return err
-	}
-	return nil
+	return tree.scCodeStore.BeginDBTransaction(ctx, txBundleID)
 }
 
 // Commit commits a db transaction
