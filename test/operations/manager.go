@@ -430,6 +430,7 @@ func (m *Manager) setUpSequencer() error {
 	return nil
 }
 
+// StartNetwork starts the L1 network container
 func (m *Manager) StartNetwork() error {
 	if err := stopNetwork(); err != nil {
 		return err
@@ -443,6 +444,7 @@ func (m *Manager) StartNetwork() error {
 	return m.wait.Poll(defaultInterval, defaultDeadline, networkUpCondition)
 }
 
+// InitNetwork Initializes the L2 network registering the sequencer and adding funds via the bridge
 func (m *Manager) InitNetwork() error {
 	cmd := exec.Command(makeCmd, "init-network")
 	err := runCmd(cmd)
@@ -453,6 +455,7 @@ func (m *Manager) InitNetwork() error {
 	return m.wait.Poll(defaultInterval, defaultDeadline, networkUpCondition)
 }
 
+// DeployUniswap deploys a uniswap environment and perform swaps
 func (m *Manager) DeployUniswap() error {
 	cmd := exec.Command(makeCmd, "deploy-uniswap")
 	err := runCmd(cmd)
@@ -468,6 +471,7 @@ func stopNetwork() error {
 	return runCmd(cmd)
 }
 
+// StartCore starts the core container
 func (m *Manager) StartCore() error {
 	if err := stopCore(); err != nil {
 		return err
@@ -486,6 +490,7 @@ func stopCore() error {
 	return runCmd(cmd)
 }
 
+// StartProver starts the prover container
 func (m *Manager) StartProver() error {
 	if err := stopProver(); err != nil {
 		return err

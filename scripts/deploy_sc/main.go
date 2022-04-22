@@ -119,7 +119,8 @@ func main() {
 	balance, err = client.BalanceAt(ctx, auth.From, nil)
 	log.Debugf("ETH Balance for %v: %v", auth.From, balance)
 	chkErr(err)
-	transferAmount = balance.Quo(balance, big.NewInt(2))
+	const halfDivision = 2
+	transferAmount = balance.Quo(balance, big.NewInt(halfDivision))
 	log.Debugf("Transfer Amount: %v", transferAmount)
 
 	log.Debugf("Sending TX to transfer ETH")
