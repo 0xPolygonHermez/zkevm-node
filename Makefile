@@ -46,13 +46,13 @@ build-docker: ## Builds a docker image with the core binary
 
 .PHONY: test
 test: compile-scs ## Runs only short tests without checking race conditions
-	$(STOPDB) || true
+	$(STOPDB)
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; go test -short -p 1 ./...
 
 .PHONY: test-full
 test-full: build-docker compile-scs ## Runs all tests checking race conditions
-	$(STOPDB) || true
+	$(STOPDB)
 	$(RUNDB); sleep 5
 	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
 

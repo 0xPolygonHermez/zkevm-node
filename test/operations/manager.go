@@ -217,24 +217,24 @@ func GetAuth(privateKeyStr string, chainID *big.Int) (*bind.TransactOpts, error)
 // the manager config.
 func (m *Manager) Setup() error {
 	// Run network container
-	err := m.startNetwork()
+	err := m.StartNetwork()
 	if err != nil {
 		return err
 	}
 
 	// Start prover container
-	err = m.startProver()
+	err = m.StartProver()
 	if err != nil {
 		return err
 	}
 
-	err = m.setUpSequencer()
+	err = m.SetUpSequencer()
 	if err != nil {
 		return err
 	}
 
 	// Run core container
-	err = m.startCore()
+	err = m.StartCore()
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,8 @@ func (m *Manager) setSequencerChainID() error {
 	return nil
 }
 
-func (m *Manager) setUpSequencer() error {
+// SetUpSequencer provide ETH, Matic to and register the sequencer
+func (m *Manager) SetUpSequencer() error {
 	// Eth client
 	client, err := ethclient.Dial(l1NetworkURL)
 	if err != nil {
@@ -430,11 +431,34 @@ func (m *Manager) setUpSequencer() error {
 	return nil
 }
 
-func (m *Manager) startNetwork() error {
+// StartNetwork starts the L1 network container
+func (m *Manager) StartNetwork() error {
 	if err := stopNetwork(); err != nil {
 		return err
 	}
 	cmd := exec.Command(makeCmd, "run-network")
+	err := runCmd(cmd)
+	if err != nil {
+		return err
+	}
+	// Wait network to be ready
+	return m.wait.Poll(defaultInterval, defaultDeadline, networkUpCondition)
+}
+
+// InitNetwork Initializes the L2 network registering the sequencer and adding funds via the bridge
+func (m *Manager) InitNetwork() error {
+	cmd := exec.Command(makeCmd, "init-network")
+	err := runCmd(cmd)
+	if err != nil {
+		return err
+	}
+	// Wait network to be ready
+	return m.wait.Poll(defaultInterval, defaultDeadline, networkUpCondition)
+}
+
+// DeployUniswap deploys a uniswap environment and perform swaps
+func (m *Manager) DeployUniswap() error {
+	cmd := exec.Command(makeCmd, "deploy-uniswap")
 	err := runCmd(cmd)
 	if err != nil {
 		return err
@@ -448,7 +472,8 @@ func stopNetwork() error {
 	return runCmd(cmd)
 }
 
-func (m *Manager) startCore() error {
+// StartCore starts the core container
+func (m *Manager) StartCore() error {
 	if err := stopCore(); err != nil {
 		return err
 	}
@@ -466,7 +491,8 @@ func stopCore() error {
 	return runCmd(cmd)
 }
 
-func (m *Manager) startProver() error {
+// StartProver starts the prover container
+func (m *Manager) StartProver() error {
 	if err := stopProver(); err != nil {
 		return err
 	}
