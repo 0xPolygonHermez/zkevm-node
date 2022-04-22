@@ -1870,7 +1870,6 @@ func TestEstimateGas(t *testing.T) {
 	result := st.ReplayTransaction(receipt.TxHash)
 	require.NoError(t, result.Err)
 	assert.Equal(t, "PUSH1", evm.OpCode(result.VMTrace.Operations[0].Instruction).String())
-
 }
 
 func TestStorageOnDeploy(t *testing.T) {
