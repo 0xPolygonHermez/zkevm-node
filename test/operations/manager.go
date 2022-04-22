@@ -228,7 +228,7 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
-	err = m.setUpSequencer()
+	err = m.SetUpSequencer()
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,7 @@ func (m *Manager) setSequencerChainID() error {
 	return nil
 }
 
-func (m *Manager) setUpSequencer() error {
+func (m *Manager) SetUpSequencer() error {
 	// Eth client
 	client, err := ethclient.Dial(l1NetworkURL)
 	if err != nil {
