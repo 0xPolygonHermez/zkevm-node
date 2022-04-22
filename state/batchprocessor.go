@@ -584,26 +584,35 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	log.Debugf("Transaction Data %v", tx.Data())
 	log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
 
-	// Increment sender nonce
-	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot)
-	if err != nil {
-		result.Err = err
-		result.StateRoot = b.Host.stateRoot
-		return result
+	if tx.Value().Uint64() != 0 && !result.Reverted() {
+		log.Debugf("contract execution includes value transfer = %v", tx.Value())
+		// Tansfer the value
+		transferResult := b.transfer(ctx, tx, senderAddress, contract.Address, sequencerAddress)
+		if transferResult.Err != nil {
+			transferResult.StateRoot = b.Host.stateRoot
+			return transferResult
+		}
+	} else {
+		// Increment sender nonce
+		senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot)
+		if err != nil {
+			result.Err = err
+			result.StateRoot = b.Host.stateRoot
+			return result
+		}
+		senderNonce.Add(senderNonce, big.NewInt(1))
+
+		// Store new nonce
+		root, _, err := b.Host.State.tree.SetNonce(ctx, senderAddress, senderNonce, b.Host.stateRoot)
+		if err != nil {
+			result.Err = err
+			result.StateRoot = b.Host.stateRoot
+			return result
+		}
+
+		b.Host.stateRoot = root
 	}
 
-	// Increment nonce of the sender
-	senderNonce.Add(senderNonce, big.NewInt(1))
-
-	// Store new nonce
-	root, _, err := b.Host.State.tree.SetNonce(ctx, senderAddress, senderNonce, b.Host.stateRoot)
-	if err != nil {
-		result.Err = err
-		result.StateRoot = b.Host.stateRoot
-		return result
-	}
-
-	b.Host.stateRoot = root
 	result.StateRoot = b.Host.stateRoot
 
 	return result
