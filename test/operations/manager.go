@@ -306,6 +306,7 @@ func (m *Manager) setSequencerChainID() error {
 	return nil
 }
 
+// SetUpSequencer provide ETH, Matic to and register the sequencer
 func (m *Manager) SetUpSequencer() error {
 	// Eth client
 	client, err := ethclient.Dial(l1NetworkURL)
