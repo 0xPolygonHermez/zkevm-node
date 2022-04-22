@@ -231,6 +231,8 @@ func (s *State) ReplayTransaction(transactionHash common.Hash) *runtime.Executio
 
 	sequencerAddress := batch.Header.Coinbase
 
+	log.Debugf("replay root: %v", common.Bytes2Hex(stateRoot))
+
 	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, stateRoot)
 	if err != nil {
 		log.Errorf("trace transaction: failed to create a new batch processor, err: %v", err)

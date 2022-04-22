@@ -1853,6 +1853,10 @@ func TestEstimateGas(t *testing.T) {
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
+	root, err := st.GetStateRootByBatchNumber(ctx, 0)
+	require.NoError(t, err)
+	log.Debugf("root: %v", common.Bytes2Hex(root))
+
 	// Transfer
 	txTransfer := types.NewTransaction(2, sequencerAddress, new(big.Int).SetInt64(10000), state.TxTransferGas, new(big.Int).SetUint64(1), nil)
 	signedTxTransfer, err := auth.Signer(auth.From, txTransfer)
