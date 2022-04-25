@@ -59,7 +59,7 @@ func (s *ClientSynchronizer) Sync() error {
 		// If there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block
 		// Get the latest synced block. If there is no block on db, use genesis block
 		log.Info("Sync started")
-		lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx)
+		lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx, "")
 		if err != nil {
 			if err == state.ErrStateNotSynchronized {
 				log.Warn("error getting the latest ethereum block. No data stored. Setting genesis block. Error: ", err)
@@ -67,7 +67,7 @@ func (s *ClientSynchronizer) Sync() error {
 					BlockNumber: s.genBlockNumber,
 				}
 				// Set genesis
-				err := s.state.SetGenesis(s.ctx, s.genesis)
+				err := s.state.SetGenesis(s.ctx, s.genesis, "")
 				if err != nil {
 					log.Fatal("error setting genesis: ", err)
 				}
@@ -91,7 +91,7 @@ func (s *ClientSynchronizer) Sync() error {
 					log.Warn("error getting latest proposed batch in the rollup. Error: ", err)
 					continue
 				}
-				err = s.state.SetLastBatchNumberSeenOnEthereum(s.ctx, latestProposedBatchNumber)
+				err = s.state.SetLastBatchNumberSeenOnEthereum(s.ctx, latestProposedBatchNumber, "")
 				if err != nil {
 					log.Warn("error setting latest proposed batch into db. Error: ", err)
 					continue
@@ -103,7 +103,7 @@ func (s *ClientSynchronizer) Sync() error {
 					log.Warn("error getting latest consolidated batch in the rollup. Error: ", err)
 					continue
 				}
-				err = s.state.SetLastBatchNumberConsolidatedOnEthereum(s.ctx, latestConsolidatedBatchNumber)
+				err = s.state.SetLastBatchNumberConsolidatedOnEthereum(s.ctx, latestConsolidatedBatchNumber, "")
 				if err != nil {
 					log.Warn("error setting latest consolidated batch into db. Error: ", err)
 					continue
@@ -115,7 +115,7 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 				if waitDuration != s.cfg.SyncInterval.Duration {
 					// Check latest Synced Batch
-					latestSyncedBatch, err := s.state.GetLastBatchNumber(s.ctx)
+					latestSyncedBatch, err := s.state.GetLastBatchNumber(s.ctx, "")
 					if err != nil {
 						log.Warn("error getting latest batch synced. Error: ", err)
 						continue
@@ -193,18 +193,18 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 	for i := range blocks {
 		ctx := context.Background()
 		// Begin db transaction
-		err := s.state.BeginStateTransaction(ctx)
+		txBundleID, err := s.state.BeginStateTransaction(ctx)
 		if err != nil {
-			log.Fatal("error createing db transaction to store block. BlockNumber: ", blocks[i].BlockNumber)
+			log.Fatalf("error creating db transaction to store block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err)
 		}
 		// Add block information
-		err = s.state.AddBlock(ctx, &blocks[i])
+		err = s.state.AddBlock(ctx, &blocks[i], txBundleID)
 		if err != nil {
-			rollbackErr := s.state.RollbackState(ctx)
+			rollbackErr := s.state.RollbackState(ctx, txBundleID)
 			if rollbackErr != nil {
 				log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blocks[i].BlockNumber, rollbackErr, err))
 			}
-			log.Fatal("error storing block. BlockNumber: ", blocks[i].BlockNumber)
+			log.Fatalf("error storing block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err)
 		}
 		for _, element := range order[blocks[i].BlockHash] {
 			if element.Name == etherman.BatchesOrder {
@@ -213,9 +213,9 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				log.Debug("consolidatedTxHash received: ", batch.ConsolidatedTxHash)
 				if batch.ConsolidatedTxHash.String() != emptyHash.String() {
 					// consolidate batch locally
-					err = s.state.ConsolidateBatch(ctx, batch.Number().Uint64(), batch.ConsolidatedTxHash, *batch.ConsolidatedAt, batch.Aggregator)
+					err = s.state.ConsolidateBatch(ctx, batch.Number().Uint64(), batch.ConsolidatedTxHash, *batch.ConsolidatedAt, batch.Aggregator, txBundleID)
 					if err != nil {
-						rollbackErr := s.state.RollbackState(ctx)
+						rollbackErr := s.state.RollbackState(ctx, txBundleID)
 						if rollbackErr != nil {
 							log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blocks[i].BlockNumber, rollbackErr, err))
 						}
@@ -223,9 +223,9 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					}
 				} else {
 					// Get latest synced batch number
-					latestBatchNumber, err := s.state.GetLastBatchNumber(ctx)
+					latestBatchNumber, err := s.state.GetLastBatchNumber(ctx, txBundleID)
 					if err != nil {
-						rollbackErr := s.state.RollbackState(ctx)
+						rollbackErr := s.state.RollbackState(ctx, txBundleID)
 						if rollbackErr != nil {
 							log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blocks[i].BlockNumber, rollbackErr, err))
 						}
@@ -233,9 +233,9 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					}
 
 					// Get batch header
-					latestBatchHeader, err := s.state.GetBatchHeader(ctx, latestBatchNumber)
+					latestBatchHeader, err := s.state.GetBatchHeader(ctx, latestBatchNumber, txBundleID)
 					if err != nil {
-						rollbackErr := s.state.RollbackState(ctx)
+						rollbackErr := s.state.RollbackState(ctx, txBundleID)
 						if rollbackErr != nil {
 							log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blocks[i].BlockNumber, rollbackErr, err))
 						}
@@ -243,9 +243,9 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					}
 
 					sequencerAddress := batch.Sequencer
-					batchProcessor, err := s.state.NewBatchProcessor(ctx, sequencerAddress, latestBatchHeader.Root[:])
+					batchProcessor, err := s.state.NewBatchProcessor(ctx, sequencerAddress, latestBatchHeader.Root[:], txBundleID)
 					if err != nil {
-						rollbackErr := s.state.RollbackState(ctx)
+						rollbackErr := s.state.RollbackState(ctx, txBundleID)
 						if rollbackErr != nil {
 							log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blocks[i].BlockNumber, rollbackErr, err))
 						}
@@ -254,7 +254,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 					// Add batches
 					err = batchProcessor.ProcessBatch(ctx, batch)
 					if err != nil {
-						rollbackErr := s.state.RollbackState(ctx)
+						rollbackErr := s.state.RollbackState(ctx, txBundleID)
 						if rollbackErr != nil {
 							log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blocks[i].BlockNumber, rollbackErr, err))
 						}
@@ -264,23 +264,23 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 				}
 			} else if element.Name == etherman.NewSequencersOrder {
 				// Add new sequencers
-				err := s.state.AddSequencer(ctx, blocks[i].NewSequencers[element.Pos])
+				err := s.state.AddSequencer(ctx, blocks[i].NewSequencers[element.Pos], txBundleID)
 				if err != nil {
-					rollbackErr := s.state.RollbackState(ctx)
+					rollbackErr := s.state.RollbackState(ctx, txBundleID)
 					if rollbackErr != nil {
 						log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blocks[i].BlockNumber, rollbackErr, err))
 					}
 					log.Fatal("error storing new sequencer in Block: ", blocks[i].BlockNumber, " Sequencer: ", blocks[i].NewSequencers[element.Pos], " err: ", err)
 				}
 			} else {
-				rollbackErr := s.state.RollbackState(ctx)
+				rollbackErr := s.state.RollbackState(ctx, txBundleID)
 				if rollbackErr != nil {
 					log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blocks[i].BlockNumber, rollbackErr, err))
 				}
 				log.Fatal("error: invalid order element")
 			}
 		}
-		err = s.state.CommitState(ctx)
+		err = s.state.CommitState(ctx, txBundleID)
 		if err != nil {
 			log.Fatalf("error committing state to store block. BlockNumber: %v, err: %v", blocks[i].BlockNumber, err)
 		}
@@ -290,14 +290,14 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 // This function allows reset the state until an specific ethereum block
 func (s *ClientSynchronizer) resetState(block *state.Block) error {
 	log.Debug("Reverting synchronization to block: ", block.BlockNumber)
-	err := s.state.BeginStateTransaction(s.ctx)
+	txBundleID, err := s.state.BeginStateTransaction(s.ctx)
 	if err != nil {
 		log.Error("error starting a db transaction to reset the state. Error: ", err)
 		return err
 	}
-	err = s.state.Reset(s.ctx, block)
+	err = s.state.Reset(s.ctx, block, txBundleID)
 	if err != nil {
-		rollbackErr := s.state.RollbackState(s.ctx)
+		rollbackErr := s.state.RollbackState(s.ctx, txBundleID)
 		if rollbackErr != nil {
 			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err)
 			return rollbackErr
@@ -305,9 +305,9 @@ func (s *ClientSynchronizer) resetState(block *state.Block) error {
 		log.Error("error resetting the state. Error: ", err)
 		return err
 	}
-	err = s.state.CommitState(s.ctx)
+	err = s.state.CommitState(s.ctx, txBundleID)
 	if err != nil {
-		rollbackErr := s.state.RollbackState(s.ctx)
+		rollbackErr := s.state.RollbackState(s.ctx, txBundleID)
 		if rollbackErr != nil {
 			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err)
 			return rollbackErr
@@ -356,7 +356,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 			depth++
 			log.Debug("REORG: Looking for the latest correct ethereum block. Depth: ", depth)
 			// Reorg detected. Getting previous block
-			latestBlock, err = s.state.GetPreviousBlock(s.ctx, depth)
+			latestBlock, err = s.state.GetPreviousBlock(s.ctx, depth, "")
 			if errors.Is(err, state.ErrNotFound) {
 				log.Warn("error checking reorg: previous block not found in db: ", err)
 				return nil, nil

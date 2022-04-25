@@ -18,7 +18,7 @@ type etherman interface {
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
+	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
 }
 
 // priceGetter is for getting eth/matic price, used for the base tx profitability checker

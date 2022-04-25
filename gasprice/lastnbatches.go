@@ -36,7 +36,7 @@ func NewEstimatorLastNBatches(cfg Config, state stateInterface) *LastNBatches {
 
 // GetAvgGasPrice calculate avg gas price from last n batches.
 func (g *LastNBatches) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
-	batchNumber, err := g.state.GetLastBatchNumber(ctx)
+	batchNumber, err := g.state.GetLastBatchNumber(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last batch number, err: %v", err)
 	}
@@ -98,7 +98,7 @@ func (g *LastNBatches) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
 
 // getBatchTxsTips calculates batch transaction gas fees.
 func (g *LastNBatches) getBatchTxsTips(ctx context.Context, batchNum uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
-	txs, err := g.state.GetTxsByBatchNum(ctx, batchNum)
+	txs, err := g.state.GetTxsByBatchNum(ctx, batchNum, "")
 	if txs == nil {
 		select {
 		case result <- results{nil, err}:

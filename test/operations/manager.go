@@ -98,7 +98,7 @@ func (m *Manager) State() *state.State {
 // CheckVirtualRoot verifies if the given root is the current root of the
 // merkletree for virtual state.
 func (m *Manager) CheckVirtualRoot(expectedRoot string) error {
-	root, err := m.st.GetStateRoot(m.ctx, true)
+	root, err := m.st.GetStateRoot(m.ctx, true, "")
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (m *Manager) CheckVirtualRoot(expectedRoot string) error {
 // CheckConsolidatedRoot verifies if the given root is the current root of the
 // merkletree for consolidated state.
 func (m *Manager) CheckConsolidatedRoot(expectedRoot string) error {
-	root, err := m.st.GetStateRoot(m.ctx, false)
+	root, err := m.st.GetStateRoot(m.ctx, false, "")
 	if err != nil {
 		return err
 	}
@@ -129,14 +129,14 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 		genesis.Balances[common.HexToAddress(address)] = &balance
 	}
 
-	return m.st.SetGenesis(m.ctx, genesis)
+	return m.st.SetGenesis(m.ctx, genesis, "")
 }
 
 // ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
 // the final state.
 func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot, globalExitRoot string) error {
 	// store current batch number to check later when the state is updated
-	currentBatchNumber, err := m.st.GetLastBatchNumberSeenOnEthereum(m.ctx)
+	currentBatchNumber, err := m.st.GetLastBatchNumberSeenOnEthereum(m.ctx, "")
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot, globa
 	}
 
 	// Create Batch Processor
-	bp, err := m.st.NewBatchProcessor(m.ctx, common.HexToAddress(m.cfg.Sequencer.Address), common.Hex2Bytes(strings.TrimPrefix(initialRoot, "0x")))
+	bp, err := m.st.NewBatchProcessor(m.ctx, common.HexToAddress(m.cfg.Sequencer.Address), common.Hex2Bytes(strings.TrimPrefix(initialRoot, "0x")), "")
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot, globa
 	// Wait for the synchronizer to update state
 	err = m.wait.Poll(defaultInterval, defaultDeadline, func() (bool, error) {
 		// using a closure here to capture st and currentBatchNumber
-		latestBatchNumber, err := m.st.GetLastBatchNumberConsolidatedOnEthereum(m.ctx)
+		latestBatchNumber, err := m.st.GetLastBatchNumberConsolidatedOnEthereum(m.ctx, "")
 		if err != nil {
 			return false, err
 		}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -31,7 +32,9 @@ type MerkleTree struct {
 	hashFunction   HashFunction
 	scHashFunction scHashFunction
 	arity          uint8
-	cache          *nodeCache
+
+	mu    *sync.Mutex
+	cache map[string]*nodeCache
 }
 
 // UpdateProof is a proof generated on Set operation
@@ -70,7 +73,9 @@ func NewMerkleTree(store Store, arity uint8) *MerkleTree {
 		arity:          arity,
 		hashFunction:   poseidon.Hash,
 		scHashFunction: hashContractBytecode,
-		cache:          newNodeCache(),
+
+		mu:    new(sync.Mutex),
+		cache: make(map[string]*nodeCache),
 	}
 }
 
@@ -80,29 +85,39 @@ func (mt *MerkleTree) SupportsDBTransactions() bool {
 }
 
 // BeginDBTransaction starts a transaction block
-func (mt *MerkleTree) BeginDBTransaction(ctx context.Context) error {
-	mt.cache.init()
+func (mt *MerkleTree) BeginDBTransaction(ctx context.Context, txBundleID string) error {
+	mt.mu.Lock()
+	mt.cache[txBundleID] = newNodeCache()
+	mt.cache[txBundleID].init()
+	mt.mu.Unlock()
 
-	return mt.store.BeginDBTransaction(ctx)
+	return mt.store.BeginDBTransaction(ctx, txBundleID)
 }
 
 // Commit commits a db transaction
-func (mt *MerkleTree) Commit(ctx context.Context) error {
-	defer mt.cache.teardown()
-
-	err := mt.writeCacheContents(ctx)
+func (mt *MerkleTree) Commit(ctx context.Context, txBundleID string) error {
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
+	err := mt.writeCacheContents(ctx, txBundleID)
 	if err != nil {
 		return err
 	}
 
-	return mt.store.Commit(ctx)
+	mt.cache[txBundleID].teardown()
+	delete(mt.cache, txBundleID)
+
+	return mt.store.Commit(ctx, txBundleID)
 }
 
 // Rollback rollbacks a db transaction
-func (mt *MerkleTree) Rollback(ctx context.Context) error {
-	mt.cache.teardown()
+func (mt *MerkleTree) Rollback(ctx context.Context, txBundleID string) error {
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
 
-	return mt.store.Rollback(ctx)
+	mt.cache[txBundleID].teardown()
+	delete(mt.cache, txBundleID)
+
+	return mt.store.Rollback(ctx, txBundleID)
 }
 
 // Set method sets value of a leaf at a given location (key) in the tree.
@@ -122,7 +137,7 @@ func (mt *MerkleTree) Rollback(ctx context.Context) error {
 //   * Delete: node value is empty and path exists.
 // * Finally, the tree is traversed backwards from the leaf to the root updating
 //   or creating all the affected branch nodes (including the root itself)
-func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, value []uint64) (*UpdateProof, error) {
+func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, value []uint64, txBundleID string) (*UpdateProof, error) {
 	// exit early if context is cancelled
 	err := ctx.Err()
 	if err != nil {
@@ -151,14 +166,14 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 	// in this loop we iterate through the tree nodes from the root following the
 	// path associated to the given key trying to determine if exists in the tree.
 	for (!nodeIsZero(r)) && (foundKey == nil) {
-		node, err := mt.getNodeData(ctx, r)
+		node, err := mt.getNodeData(ctx, r, txBundleID)
 		if err != nil {
 			return nil, err
 		}
 		siblings[level] = node[:]
 		if isOneSiblings(siblings[level]) {
 			foundOldValH = siblings[level][4:8]
-			foundValA, err := mt.getNodeData(ctx, foundOldValH[:8])
+			foundValA, err := mt.getNodeData(ctx, foundOldValH[:8], txBundleID)
 			if err != nil {
 				return nil, err
 			}
@@ -184,13 +199,15 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 			if nodeIsEq(key[:], foundKey) { // Update, key path exists
 				mode = modeUpdate
 
-				newValH, err := mt.hashSave(ctx, value[:], []uint64{0, 0, 0, 0})
+				newValH, err := mt.hashSave(ctx, value[:], []uint64{0, 0, 0, 0}, txBundleID)
 				if err != nil {
 					return nil, err
 				}
 				newLeafHash, err := mt.hashSave(ctx,
 					[]uint64{foundRKey[0], foundRKey[1], foundRKey[2], foundRKey[3], newValH[0], newValH[1], newValH[2], newValH[3]},
-					[]uint64{1, 0, 0, 0})
+					[]uint64{1, 0, 0, 0},
+					txBundleID,
+				)
 				if err != nil {
 					return nil, err
 				}
@@ -216,6 +233,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 				oldLeafHash, err := mt.hashSave(ctx,
 					[]uint64{oldKey[0], oldKey[1], oldKey[2], oldKey[3], foundOldValH[0], foundOldValH[1], foundOldValH[2], foundOldValH[3]},
 					[]uint64{1, 0, 0, 0},
+					txBundleID,
 				)
 				if err != nil {
 					return nil, err
@@ -226,13 +244,14 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 				isOld0 = false
 
 				newKey := removeKeyBits(key[:], level2+1)
-				newValH, err := mt.hashSave(ctx, value[:], []uint64{0, 0, 0, 0})
+				newValH, err := mt.hashSave(ctx, value[:], []uint64{0, 0, 0, 0}, txBundleID)
 				if err != nil {
 					return nil, err
 				}
 				newLeafHash, err := mt.hashSave(ctx,
 					[]uint64{newKey[0], newKey[1], newKey[2], newKey[3], newValH[0], newValH[1], newValH[2], newValH[3]},
 					[]uint64{1, 0, 0, 0},
+					txBundleID,
 				)
 				if err != nil {
 					return nil, err
@@ -245,7 +264,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 					node[foundKeys[level2]*4+uint(j)] = oldLeafHash[j]
 				}
 
-				r2, err := mt.hashSave(ctx, node, []uint64{0, 0, 0, 0})
+				r2, err := mt.hashSave(ctx, node, []uint64{0, 0, 0, 0}, txBundleID)
 				if err != nil {
 					return nil, err
 				}
@@ -258,7 +277,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 					for j := 0; j < 4; j++ {
 						node[keys[level2]*4+uint(j)] = r2[j]
 					}
-					r2, err = mt.hashSave(ctx, node, []uint64{0, 0, 0, 0})
+					r2, err = mt.hashSave(ctx, node, []uint64{0, 0, 0, 0}, txBundleID)
 					if err != nil {
 						return nil, err
 					}
@@ -276,13 +295,14 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 		} else { // insert without foundKey, key path is not present
 			mode = modeInsertNotFound
 			newKey := removeKeyBits(key[:], level+1)
-			newValH, err := mt.hashSave(ctx, value[:], []uint64{0, 0, 0, 0})
+			newValH, err := mt.hashSave(ctx, value[:], []uint64{0, 0, 0, 0}, txBundleID)
 			if err != nil {
 				return nil, err
 			}
 			newLeafHash, err := mt.hashSave(ctx,
 				[]uint64{newKey[0], newKey[1], newKey[2], newKey[3], newValH[0], newValH[1], newValH[2], newValH[3]},
 				[]uint64{1, 0, 0, 0},
+				txBundleID,
 			)
 			if err != nil {
 				return nil, err
@@ -306,7 +326,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 
 				if uKey >= 0 {
 					mode = modeDeleteFound
-					node, err := mt.getNodeData(ctx, siblings[level][uKey*4:uKey*4+4])
+					node, err := mt.getNodeData(ctx, siblings[level][uKey*4:uKey*4+4], txBundleID)
 					if err != nil {
 						return nil, err
 					}
@@ -314,7 +334,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 
 					if isOneSiblings(siblings[level+1]) {
 						valH := siblings[level+1][4:]
-						valANode, err := mt.getNodeData(ctx, valH)
+						valANode, err := mt.getNodeData(ctx, valH, txBundleID)
 						if err != nil {
 							return nil, err
 						}
@@ -343,6 +363,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 						oldLeafHash, err := mt.hashSave(ctx,
 							[]uint64{oldKey[0], oldKey[1], oldKey[2], oldKey[3], valH[0], valH[1], valH[2], valH[3]},
 							[]uint64{1, 0, 0, 0},
+							txBundleID,
 						)
 						if err != nil {
 							return nil, err
@@ -375,7 +396,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 	// now we traverse the tree backwards from the leaf to the root updating
 	// or creating all the affected branch nodes (including the root itself).
 	for level >= 0 {
-		newRoot, err = mt.hashSave(ctx, siblings[level][:8], siblings[level][8:12])
+		newRoot, err = mt.hashSave(ctx, siblings[level][:8], siblings[level][8:12], txBundleID)
 		if err != nil {
 			return nil, err
 		}
@@ -407,8 +428,8 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 // Get method gets value at a given location in the tree.
 //
 // The algorithm has a single step, we traverse the tree from the root following
-// the path assciated with the given key.
-func (mt *MerkleTree) Get(ctx context.Context, root, key []uint64) (*Proof, error) {
+// the path associated with the given key.
+func (mt *MerkleTree) Get(ctx context.Context, root, key []uint64, txBundleID string) (*Proof, error) {
 	// exit early if context is cancelled
 	err := ctx.Err()
 	if err != nil {
@@ -434,14 +455,14 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key []uint64) (*Proof, erro
 	// this loops iterates the tree nodes from the root following the path
 	// associated with the given key.
 	for (!nodeIsZero(r)) && (foundKey == nil) {
-		node, err := mt.getNodeData(ctx, r)
+		node, err := mt.getNodeData(ctx, r, txBundleID)
 		if err != nil {
 			return nil, err
 		}
 		siblings[level] = node[:]
 
 		if isOneSiblings(siblings[level]) {
-			nodeValA, err := mt.getNodeData(ctx, siblings[level][4:8])
+			nodeValA, err := mt.getNodeData(ctx, siblings[level][4:8], txBundleID)
 			if err != nil {
 				return nil, err
 			}
@@ -508,7 +529,7 @@ func (mt *MerkleTree) getUniqueSibling(a []uint64) int64 {
 	return -1
 }
 
-func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []uint64, cap []uint64) ([]uint64, error) {
+func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []uint64, cap []uint64, txBundleID string) ([]uint64, error) {
 	if len(nodeData) != poseidon.NROUNDSF {
 		return nil, fmt.Errorf("Invalid data length of %v", nodeData)
 	}
@@ -522,7 +543,7 @@ func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []uint64, cap []uin
 		return nil, err
 	}
 
-	err = mt.setNodeData(ctx, hash[:], append(nodeData, cap...))
+	err = mt.setNodeData(ctx, hash[:], append(nodeData, cap...), txBundleID)
 	if err != nil {
 		return nil, err
 	}
@@ -530,33 +551,33 @@ func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []uint64, cap []uin
 	return hash[:], nil
 }
 
-func (mt *MerkleTree) setNodeData(ctx context.Context, key []uint64, data []uint64) error {
-	if !mt.cache.isActive() {
-		return mt.setStoreNodeData(ctx, key, data)
+func (mt *MerkleTree) setNodeData(ctx context.Context, key []uint64, data []uint64, txBundleID string) error {
+	if txBundleID == "" || !mt.cache[txBundleID].isActive() {
+		return mt.setStoreNodeData(ctx, key, data, txBundleID)
 	}
-	err := mt.cache.set(key, data)
+	err := mt.cache[txBundleID].set(key, data)
 	if err != nil {
 		log.Errorf("Error setting data in MT node cache: %v", err)
 	}
 	return nil
 }
 
-func (mt *MerkleTree) setStoreNodeData(ctx context.Context, key []uint64, data []uint64) error {
+func (mt *MerkleTree) setStoreNodeData(ctx context.Context, key []uint64, data []uint64, txBundleID string) error {
 	dataByte, err := uint64ToByte(data)
 	if err != nil {
 		return err
 	}
 
-	return mt.store.Set(ctx, h4ToScalar(key).Bytes(), dataByte)
+	return mt.store.Set(ctx, h4ToScalar(key).Bytes(), dataByte, txBundleID)
 }
 
-func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64) ([]uint64, error) {
+func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64, txBundleID string) ([]uint64, error) {
 	var (
 		dataByte []byte
 		err      error
 	)
-	if mt.cache.isActive() {
-		cachedData, err := mt.cache.get(key)
+	if txBundleID != "" && mt.cache[txBundleID].isActive() {
+		cachedData, err := mt.cache[txBundleID].get(key)
 		if err != nil && !errors.Is(err, errMTNodeCacheItemNotFound) {
 			log.Errorf("Error getting data from MT node cache: %v", err)
 		}
@@ -568,7 +589,7 @@ func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64) ([]uint64, 
 		}
 	}
 	if len(dataByte) == 0 {
-		dataByte, err = mt.store.Get(ctx, h4ToScalar(key).Bytes())
+		dataByte, err = mt.store.Get(ctx, h4ToScalar(key).Bytes(), txBundleID)
 		if err != nil {
 			return nil, err
 		}
@@ -640,13 +661,13 @@ func removeKeyBits(key []uint64, nBits int) []uint64 {
 }
 
 // writeCacheContents writes the contents of the cache to the data store.
-func (mt *MerkleTree) writeCacheContents(ctx context.Context) error {
-	for k, v := range mt.cache.data {
+func (mt *MerkleTree) writeCacheContents(ctx context.Context, txBundleID string) error {
+	for k, v := range mt.cache[txBundleID].data {
 		key, err := stringToh4(k)
 		if err != nil {
 			return err
 		}
-		err = mt.setStoreNodeData(ctx, key, v)
+		err = mt.setStoreNodeData(ctx, key, v, txBundleID)
 		if err != nil {
 			return err
 		}

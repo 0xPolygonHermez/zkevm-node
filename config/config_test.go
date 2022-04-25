@@ -53,7 +53,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "MTServer.Port",
-			expectedValue: 50052,
+			expectedValue: 50060,
 		},
 		{
 			path:          "MTServer.StoreBackend",
@@ -61,7 +61,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "MTClient.URI",
-			expectedValue: "127.0.0.1:50052",
+			expectedValue: "127.0.0.1:50060",
 		},
 		{
 			path:          "Database.MaxConns",

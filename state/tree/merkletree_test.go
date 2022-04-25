@@ -77,7 +77,7 @@ func TestMerkleTreeRaw(t *testing.T) {
 					require.True(t, ok)
 					vH8 := scalar2fea(v)
 
-					updateProof, err := mt.Set(ctx, root, scalarToh4(k), vH8)
+					updateProof, err := mt.Set(ctx, root, scalarToh4(k), vH8, "")
 					require.NoError(t, err)
 
 					root = updateProof.NewRoot
@@ -114,11 +114,11 @@ func TestMerkleTree(t *testing.T) {
 	k1h4 := scalarToh4(k1)
 	v1H8 := scalar2fea(v1)
 
-	updateProof, err := mt.Set(ctx, scalarToh4(root), k1h4, v1H8)
+	updateProof, err := mt.Set(ctx, scalarToh4(root), k1h4, v1H8, "")
 	require.NoError(t, err)
 	root = h4ToScalar(updateProof.NewRoot)
 
-	v1Proof, err := mt.Get(ctx, scalarToh4(root), k1h4)
+	v1Proof, err := mt.Get(ctx, scalarToh4(root), k1h4, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, v1, fea2scalar(v1Proof.Value))
@@ -132,16 +132,16 @@ func TestMerkleTree(t *testing.T) {
 	k2h4 := scalarToh4(k2)
 	v2H8 := scalar2fea(v2)
 
-	updateProof, err = mt.Set(ctx, scalarToh4(root), k2h4, v2H8)
+	updateProof, err = mt.Set(ctx, scalarToh4(root), k2h4, v2H8, "")
 	require.NoError(t, err)
 	root = h4ToScalar(updateProof.NewRoot)
 
-	v2Proof, err := mt.Get(ctx, scalarToh4(root), k2h4)
+	v2Proof, err := mt.Get(ctx, scalarToh4(root), k2h4, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, v2, fea2scalar(v2Proof.Value))
 
-	v1ProofNew, err := mt.Get(ctx, scalarToh4(root), k1h4)
+	v1ProofNew, err := mt.Get(ctx, scalarToh4(root), k1h4, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, v1, fea2scalar(v1ProofNew.Value))
@@ -201,7 +201,7 @@ func merkleTreeAddN(b *testing.B, store Store, n int, hashFunction HashFunction)
 		keyH4 := scalarToh4(key)
 		valueH8 := scalar2fea(value)
 
-		proof, err := mt.Set(ctx, root, keyH4, valueH8)
+		proof, err := mt.Set(ctx, root, keyH4, valueH8, "")
 		require.NoError(b, err)
 
 		root = proof.NewRoot
@@ -214,15 +214,14 @@ func TestMTNodeCacheIsNotUsedForWritesOnNonDBTx(t *testing.T) {
 	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
 
 	storeMock := new(storeMock)
-	storeMock.On("Set", ctx, mock.AnythingOfType("[]uint8"), mock.AnythingOfType("[]uint8")).Return(nil, nil)
+	storeMock.On("Set", ctx, mock.AnythingOfType("[]uint8"), mock.AnythingOfType("[]uint8"), "").Return(nil, nil)
 
 	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
 
-	_, err := subject.Set(ctx, nil, key, value)
+	_, err := subject.Set(ctx, nil, key, value, "")
 	require.NoError(t, err)
 
-	require.Equal(t, len(subject.cache.data), 0)
-	require.False(t, subject.cache.isActive())
+	require.Equal(t, len(subject.cache), 0)
 
 	require.True(t, storeMock.AssertExpectations(t))
 }
@@ -234,14 +233,14 @@ func TestMTNodeCacheIsNotUsedForReadsOnNonDBTx(t *testing.T) {
 	node := make([]byte, 96)
 
 	storeMock := new(storeMock)
-	storeMock.On("Get", ctx, mock.AnythingOfType("[]uint8")).Return(node, nil)
+	storeMock.On("Get", ctx, mock.AnythingOfType("[]uint8"), "").Return(node, nil)
 
 	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
 
-	_, err := subject.Get(ctx, root, key)
+	_, err := subject.Get(ctx, root, key, "")
 	require.NoError(t, err)
 
-	require.False(t, subject.cache.isActive())
+	require.Equal(t, len(subject.cache), 0)
 
 	require.True(t, storeMock.AssertExpectations(t))
 }
@@ -250,19 +249,20 @@ func TestMTNodeCachePreventsDBWritesOnDBTx(t *testing.T) {
 	ctx := context.Background()
 
 	storeMock := new(storeMock)
-	storeMock.On("BeginDBTransaction", ctx).Return(nil)
+	storeMock.On("BeginDBTransaction", ctx, "txBundleID").Return(nil)
 
 	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
 
-	require.NoError(t, subject.BeginDBTransaction(ctx))
+	err := subject.BeginDBTransaction(ctx, "txBundleID")
+	require.NoError(t, err)
 
 	key := []uint64{1, 1, 1, 1}
 	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
-	_, err := subject.Set(ctx, nil, key, value)
+	_, err = subject.Set(ctx, nil, key, value, "txBundleID")
 	require.NoError(t, err)
 
-	require.Greater(t, len(subject.cache.data), 0)
-	require.True(t, subject.cache.isActive())
+	require.Greater(t, len(subject.cache["txBundleID"].data), 0)
+	require.True(t, subject.cache["txBundleID"].isActive())
 
 	require.True(t, storeMock.AssertNotCalled(t, "Set"))
 	require.True(t, storeMock.AssertExpectations(t))
@@ -272,17 +272,18 @@ func TestMTNodeCachePreventsDBReadsOnDBTx(t *testing.T) {
 	ctx := context.Background()
 
 	storeMock := new(storeMock)
-	storeMock.On("BeginDBTransaction", ctx).Return(nil)
+	storeMock.On("BeginDBTransaction", ctx, "txBundleID").Return(nil)
 
 	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
 
-	require.NoError(t, subject.BeginDBTransaction(ctx))
-
-	key := []uint64{1, 1, 1, 1}
-	_, err := subject.Get(ctx, nil, key)
+	err := subject.BeginDBTransaction(ctx, "txBundleID")
 	require.NoError(t, err)
 
-	require.True(t, subject.cache.isActive())
+	key := []uint64{1, 1, 1, 1}
+	_, err = subject.Get(ctx, nil, key, "txBundleID")
+	require.NoError(t, err)
+
+	require.True(t, subject.cache["txBundleID"].isActive())
 
 	require.True(t, storeMock.AssertNotCalled(t, "Get"))
 	require.True(t, storeMock.AssertExpectations(t))
@@ -292,25 +293,25 @@ func TestMTNodeCacheFlushesContentsOnDBTxCommit(t *testing.T) {
 	ctx := context.Background()
 
 	storeMock := new(storeMock)
-	storeMock.On("BeginDBTransaction", ctx).Return(nil)
-	storeMock.On("Commit", ctx).Return(nil)
-	storeMock.On("Set", ctx, mock.AnythingOfType("[]uint8"), mock.AnythingOfType("[]uint8")).Return(nil, nil)
+	storeMock.On("BeginDBTransaction", ctx, "txBundleID").Return(nil)
+	storeMock.On("Commit", ctx, "txBundleID").Return(nil)
+	storeMock.On("Set", ctx, mock.AnythingOfType("[]uint8"), mock.AnythingOfType("[]uint8"), "txBundleID").Return(nil, nil)
 
 	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
 
-	require.NoError(t, subject.BeginDBTransaction(ctx))
+	err := subject.BeginDBTransaction(ctx, "txBundleID")
+	require.NoError(t, err)
 
 	key := []uint64{1, 1, 1, 1}
 	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
-	_, err := subject.Set(ctx, nil, key, value)
+	_, err = subject.Set(ctx, nil, key, value, "txBundleID")
 	require.NoError(t, err)
 
-	require.Greater(t, len(subject.cache.data), 0)
+	require.Greater(t, len(subject.cache["txBundleID"].data), 0)
 
-	require.NoError(t, subject.Commit(ctx))
+	require.NoError(t, subject.Commit(ctx, "txBundleID"))
 
-	require.Equal(t, len(subject.cache.data), 0)
-	require.False(t, subject.cache.isActive())
+	require.Nil(t, subject.cache["txBundleID"])
 
 	require.True(t, storeMock.AssertExpectations(t))
 }
@@ -319,24 +320,24 @@ func TestMTNodeCacheResetsOnDBTxRollback(t *testing.T) {
 	ctx := context.Background()
 
 	storeMock := new(storeMock)
-	storeMock.On("BeginDBTransaction", ctx).Return(nil)
-	storeMock.On("Rollback", ctx).Return(nil)
+	storeMock.On("BeginDBTransaction", ctx, "txBundleID").Return(nil)
+	storeMock.On("Rollback", ctx, "txBundleID").Return(nil)
 
 	subject := NewMerkleTree(storeMock, DefaultMerkleTreeArity)
 
-	require.NoError(t, subject.BeginDBTransaction(ctx))
+	err := subject.BeginDBTransaction(ctx, "txBundleID")
+	require.NoError(t, err)
 
 	key := []uint64{1, 1, 1, 1}
 	value := []uint64{1, 1, 1, 1, 1, 1, 1, 1}
-	_, err := subject.Set(ctx, nil, key, value)
+	_, err = subject.Set(ctx, nil, key, value, "txBundleID")
 	require.NoError(t, err)
 
-	require.Greater(t, len(subject.cache.data), 0)
+	require.Greater(t, len(subject.cache["txBundleID"].data), 0)
 
-	require.NoError(t, subject.Rollback(ctx))
+	require.NoError(t, subject.Rollback(ctx, "txBundleID"))
 
-	require.Equal(t, len(subject.cache.data), 0)
-	require.False(t, subject.cache.isActive())
+	require.Nil(t, subject.cache["txBundleID"])
 
 	require.True(t, storeMock.AssertNotCalled(t, "Set"))
 	require.True(t, storeMock.AssertExpectations(t))
@@ -449,12 +450,12 @@ func BenchmarkMerkleTreeGet(b *testing.B) {
 		b.Run(fmt.Sprintf("store=%s", name), func(b *testing.B) {
 			ctx := context.Background()
 			for i := 0; i < maxBenchmarkItems; i++ {
-				require.NoError(b, store.Set(ctx, toKey(i), toKey(i)))
+				require.NoError(b, store.Set(ctx, toKey(i), toKey(i), ""))
 			}
 			b.ResetTimer()
 			for j := 0; j < b.N; j++ {
 				for i := 0; i < maxBenchmarkItems; i++ {
-					_, err := store.Get(ctx, toKey(i))
+					_, err := store.Get(ctx, toKey(i), "")
 					require.NoError(b, err)
 				}
 			}
