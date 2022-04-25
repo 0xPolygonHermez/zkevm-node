@@ -45,4 +45,5 @@ type stateInterface interface {
 	GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error)
 	GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash) ([]*types.Log, error)
 	ReplayTransaction(transactionHash common.Hash) *runtime.ExecutionResult
+	ReplayBatchTransactions(batchNumber uint64) []*runtime.ExecutionResult
 }

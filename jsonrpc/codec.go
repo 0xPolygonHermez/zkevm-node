@@ -1,6 +1,7 @@
 package jsonrpc
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -133,6 +134,32 @@ func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
 	}
 	*b = num
 	return nil
+}
+
+func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterface) (uint64, error) {
+	if b == nil {
+		return 0, nil
+	}
+
+	bValue := *b
+	switch bValue {
+	case LatestBlockNumber, PendingBlockNumber:
+		lastBatchNumber, err := s.GetLastBatchNumber(ctx)
+		if err != nil {
+			return 0, err
+		}
+
+		return lastBatchNumber, nil
+
+	case EarliestBlockNumber:
+		return 0, nil
+
+	default:
+		if bValue < 0 {
+			return 0, fmt.Errorf("invalid argument 0: block number larger than int64")
+		}
+		return uint64(bValue), nil
+	}
 }
 
 // Index of a item

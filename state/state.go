@@ -261,6 +261,74 @@ func (s *State) ReplayTransaction(transactionHash common.Hash) *runtime.Executio
 	return result
 }
 
+// ReplayTransaction gets trace by rexecuting a transaction
+func (s *State) ReplayBatchTransactions(batchNumber uint64) ([]*runtime.ExecutionResult, error) {
+	ctx := context.Background()
+
+	batch, err := s.GetBatchByNumber(ctx, batchNumber)
+	if err != nil {
+		log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
+		return nil, err
+	}
+
+	var stateRoot []byte
+
+	previousBatch, err := s.GetBatchByHash(ctx, batch.Header.ParentHash)
+	if err == ErrNotFound {
+		previousBatch, err = s.GetLastBatch(ctx, true)
+		if err != nil {
+			log.Errorf("trace transaction: failed to get last batch, err: %v", err)
+			return nil, err
+		}
+	} else if err != nil {
+		log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
+		return nil, err
+	}
+
+	stateRoot = previousBatch.Header.Root.Bytes()
+
+	sequencerAddress := batch.Header.Coinbase
+
+	log.Debugf("replay root: %v", common.Bytes2Hex(stateRoot))
+
+	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, stateRoot)
+	if err != nil {
+		log.Errorf("trace transaction: failed to create a new batch processor, err: %v", err)
+		return nil, err
+	}
+
+	// Activate EVM Instrumentation
+	bp.Host.runtimes = []runtime.Runtime{}
+	evm := evm.NewEVM()
+	evm.EnableInstrumentation()
+	bp.Host.setRuntime(evm)
+
+	err = s.BeginStateTransaction(ctx)
+	if err != nil {
+		log.Errorf("trace transaction: failed to begin db transaction, err: %v", err)
+		return nil, err
+	}
+
+	results := make([]*runtime.ExecutionResult, 0, len(batch.Transactions))
+
+	receiptsMap := make(map[common.Hash]*Receipt, len(batch.Receipts))
+	for _, r := range batch.Receipts {
+		receiptsMap[r.TxHash] = r
+	}
+	for _, tx := range batch.Transactions {
+		receipt := receiptsMap[tx.Hash()]
+		result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress)
+		err = s.RollbackState(ctx)
+		if err != nil {
+			log.Errorf("trace transaction: failed to rollback transaction, err: %v", err)
+			result.Err = err
+			results = append(results, result)
+		}
+	}
+
+	return results, nil
+}
+
 // SetGenesis populates state with genesis information
 func (s *State) SetGenesis(ctx context.Context, genesis Genesis) error {
 	// Generate Genesis Block

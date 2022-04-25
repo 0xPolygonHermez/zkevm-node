@@ -68,7 +68,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 	tx := arg.ToTransaction()
 	ctx := context.Background()
 
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return "0x", nil
 	}
@@ -130,7 +130,7 @@ func (e *Eth) GasPrice() (interface{}, error) {
 // GetBalance returns the account's balance at the referenced block
 func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 		return block, nil
 	}
 
-	batchNumber, err := e.getNumericBlockNumber(ctx, number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -221,12 +221,12 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 	ctx := context.Background()
 
-	fromBlock, err := e.getNumericBlockNumber(ctx, filter.fromBlock)
+	fromBlock, err := filter.fromBlock.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
 
-	toBlock, err := e.getNumericBlockNumber(ctx, filter.toBlock)
+	toBlock, err := filter.toBlock.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +290,7 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +336,7 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 // GetTransactionCount returns account nonce
 func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -381,27 +381,6 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 	log.Debugf("TX added to the pool: %v", tx.Hash().Hex())
 
 	return tx.Hash().Hex(), nil
-}
-
-func (e *Eth) getNumericBlockNumber(ctx context.Context, number BlockNumber) (uint64, error) {
-	switch number {
-	case LatestBlockNumber, PendingBlockNumber:
-		lastBatchNumber, err := e.state.GetLastBatchNumber(ctx)
-		if err != nil {
-			return 0, err
-		}
-
-		return lastBatchNumber, nil
-
-	case EarliestBlockNumber:
-		return 0, nil
-
-	default:
-		if number < 0 {
-			return 0, fmt.Errorf("invalid argument 0: block number larger than int64")
-		}
-		return uint64(number), nil
-	}
 }
 
 func hexToTx(str string) (*types.Transaction, error) {
