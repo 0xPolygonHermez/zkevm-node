@@ -570,6 +570,8 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 		}
 	}
 
+	b.LastBatch = batch
+
 	return nil
 }
 
