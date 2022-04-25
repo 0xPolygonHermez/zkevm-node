@@ -154,7 +154,7 @@ func (h *Host) GetTxContext() runtime.TxContext {
 
 // GetBlockHash gets the hash of a block (batch in L2)
 func (h *Host) GetBlockHash(number int64) common.Hash {
-	batch, err := h.State.GetBatchByNumber(context.Background(), uint64(number))
+	batch, err := h.State.GetBatchByNumber(context.Background(), uint64(number), h.txBundleID)
 
 	if err != nil {
 		log.Errorf("error on GetBlockHash for number %v", number)

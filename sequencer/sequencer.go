@@ -159,12 +159,12 @@ func (s *Sequencer) tryProposeBatch(root []byte) []byte {
 }
 
 func (s *Sequencer) isSynced() bool {
-	lastSyncedBatchNum, err := s.State.GetLastBatchNumber(s.ctx)
+	lastSyncedBatchNum, err := s.State.GetLastBatchNumber(s.ctx, "")
 	if err != nil {
 		log.Errorf("failed to get last synced batch, err: %v", err)
 		return false
 	}
-	lastEthBatchNum, err := s.State.GetLastBatchNumberSeenOnEthereum(s.ctx)
+	lastEthBatchNum, err := s.State.GetLastBatchNumberSeenOnEthereum(s.ctx, "")
 	if err != nil {
 		log.Errorf("failed to get last eth batch, err: %v", err)
 		return false
@@ -204,7 +204,7 @@ func (s *Sequencer) selectTxs(txs, claimsTxs []pool.Transaction, root []byte) (t
 	if err != nil {
 		return txselector.SelectTxsOutput{}, false
 	}
-	bp, err := s.State.NewBatchProcessor(s.ctx, s.Address, root)
+	bp, err := s.State.NewBatchProcessor(s.ctx, s.Address, root, "")
 	if err != nil {
 		log.Errorf("failed to create new batch processor, err: %v", err)
 		return txselector.SelectTxsOutput{}, false
@@ -227,7 +227,7 @@ func (s *Sequencer) selectTxs(txs, claimsTxs []pool.Transaction, root []byte) (t
 
 // chooseRoot the sequencer is deciding how to instantiate the batch processor
 func (s *Sequencer) chooseRoot(prevRoot []byte) ([]byte, uint64, error) {
-	lastVirtualBatch, err := s.State.GetLastBatch(s.ctx, true)
+	lastVirtualBatch, err := s.State.GetLastBatch(s.ctx, true, "")
 	if err != nil {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return nil, 0, err
@@ -245,7 +245,7 @@ func (s *Sequencer) chooseRoot(prevRoot []byte) ([]byte, uint64, error) {
 		// in this case sequencer is trying to get batch by root
 		// if root exist, it means sequencer can use root from the synced batch
 		// if not exist, than batch processor initialization should be decided by param from the config
-		_, err := s.State.GetLastBatchByStateRoot(s.ctx, prevRoot)
+		_, err := s.State.GetLastBatchByStateRoot(s.ctx, prevRoot, "")
 		if err != nil {
 			if errors.Is(err, state.ErrNotFound) {
 				if s.cfg.InitBatchProcessorIfDiffType == InitBatchProcessorIfDiffTypeSynced {
@@ -342,7 +342,7 @@ func getChainID(ctx context.Context, st stateInterface, ethMan etherman, seqAddr
 		err error
 	)
 	for {
-		seq, err = st.GetSequencer(ctx, seqAddress)
+		seq, err = st.GetSequencer(ctx, seqAddress, "")
 		if err == nil && seq != nil {
 			return seq.ChainID.Uint64(), nil
 		}

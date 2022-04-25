@@ -19,7 +19,7 @@ type storage interface {
 }
 
 type stateInterface interface {
-	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
-	GetNonce(ctx context.Context, address common.Address, batchNumber uint64) (uint64, error)
-	GetBalance(ctx context.Context, address common.Address, batchNumber uint64) (*big.Int, error)
+	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
+	GetNonce(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (uint64, error)
+	GetBalance(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (*big.Int, error)
 }

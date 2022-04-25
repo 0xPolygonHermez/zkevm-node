@@ -66,22 +66,22 @@ func TestStateTransition(t *testing.T) {
 			st := opsman.State()
 
 			// Check leafs
-			batchNumber, err := st.GetLastBatchNumber(ctx)
+			batchNumber, err := st.GetLastBatchNumber(ctx, "")
 			require.NoError(t, err)
 			for addrStr, leaf := range testCase.ExpectedNewLeafs {
 				addr := common.HexToAddress(addrStr)
 
-				actualBalance, err := st.GetBalance(ctx, addr, batchNumber)
+				actualBalance, err := st.GetBalance(ctx, addr, batchNumber, "")
 				require.NoError(t, err)
 				require.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("addr: %s expected: %s found: %s", addr.Hex(), leaf.Balance.Text(encoding.Base10), actualBalance.Text(encoding.Base10)))
 
-				actualNonce, err := st.GetNonce(ctx, addr, batchNumber)
+				actualNonce, err := st.GetNonce(ctx, addr, batchNumber, "")
 				require.NoError(t, err)
 				require.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, encoding.Base10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}
 
 			// Check state against the expected state
-			root, err := st.GetStateRoot(ctx, true)
+			root, err := st.GetStateRoot(ctx, true, "")
 			require.NoError(t, err)
 			require.Equal(t, testCase.ExpectedNewRoot, hex.EncodeToHex(root), "Invalid new root")
 
@@ -89,9 +89,9 @@ func TestStateTransition(t *testing.T) {
 			require.NoError(t, opsman.CheckVirtualRoot(testCase.ExpectedNewRoot))
 
 			// Check that last virtual and consolidated batch are the same
-			lastConsolidatedBatchNumber, err := st.GetLastConsolidatedBatchNumber(ctx)
+			lastConsolidatedBatchNumber, err := st.GetLastConsolidatedBatchNumber(ctx, "")
 			require.NoError(t, err)
-			lastVirtualBatchNumber, err := st.GetLastBatchNumber(ctx)
+			lastVirtualBatchNumber, err := st.GetLastBatchNumber(ctx, "")
 			require.NoError(t, err)
 			t.Logf("lastConsolidatedBatchNumber: %d lastVirtualBatchNumber: %d", lastConsolidatedBatchNumber, lastVirtualBatchNumber)
 			require.Equal(t, lastConsolidatedBatchNumber, lastVirtualBatchNumber)

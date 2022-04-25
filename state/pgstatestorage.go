@@ -78,9 +78,9 @@ func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 }
 
 // GetLastBlock gets the latest block
-func (s *PostgresStorage) GetLastBlock(ctx context.Context) (*Block, error) {
+func (s *PostgresStorage) GetLastBlock(ctx context.Context, txBundleID string) (*Block, error) {
 	var block Block
-	err := s.QueryRow(ctx, "", getLastBlockSQL).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
+	err := s.QueryRow(ctx, txBundleID, getLastBlockSQL).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
@@ -92,9 +92,9 @@ func (s *PostgresStorage) GetLastBlock(ctx context.Context) (*Block, error) {
 }
 
 // GetPreviousBlock gets the offset previous block respect to latest
-func (s *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64) (*Block, error) {
+func (s *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64, txBundleID string) (*Block, error) {
 	var block Block
-	err := s.QueryRow(ctx, "", getPreviousBlockSQL, offset).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
+	err := s.QueryRow(ctx, txBundleID, getPreviousBlockSQL, offset).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -106,9 +106,9 @@ func (s *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64) (
 }
 
 // GetBlockByHash gets the block with the required hash
-func (s *PostgresStorage) GetBlockByHash(ctx context.Context, hash common.Hash) (*Block, error) {
+func (s *PostgresStorage) GetBlockByHash(ctx context.Context, hash common.Hash, txBundleID string) (*Block, error) {
 	var block Block
-	err := s.QueryRow(ctx, "", getBlockByHashSQL, hash).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
+	err := s.QueryRow(ctx, txBundleID, getBlockByHashSQL, hash).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -120,9 +120,9 @@ func (s *PostgresStorage) GetBlockByHash(ctx context.Context, hash common.Hash) 
 }
 
 // GetBlockByNumber gets the block with the required number
-func (s *PostgresStorage) GetBlockByNumber(ctx context.Context, blockNumber uint64) (*Block, error) {
+func (s *PostgresStorage) GetBlockByNumber(ctx context.Context, blockNumber uint64, txBundleID string) (*Block, error) {
 	var block Block
-	err := s.QueryRow(ctx, "", getBlockByNumberSQL, blockNumber).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
+	err := s.QueryRow(ctx, txBundleID, getBlockByNumberSQL, blockNumber).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -134,9 +134,9 @@ func (s *PostgresStorage) GetBlockByNumber(ctx context.Context, blockNumber uint
 }
 
 // GetLastBlockNumber gets the latest block number
-func (s *PostgresStorage) GetLastBlockNumber(ctx context.Context) (uint64, error) {
+func (s *PostgresStorage) GetLastBlockNumber(ctx context.Context, txBundleID string) (uint64, error) {
 	var lastBlockNum uint64
-	err := s.QueryRow(ctx, "", getLastBlockNumberSQL).Scan(&lastBlockNum)
+	err := s.QueryRow(ctx, txBundleID, getLastBlockNumberSQL).Scan(&lastBlockNum)
 
 	if reflect.TypeOf(err) == reflect.TypeOf(pgx.ScanArgError{}) {
 		return 0, ErrStateNotSynchronized
@@ -148,7 +148,7 @@ func (s *PostgresStorage) GetLastBlockNumber(ctx context.Context) (uint64, error
 }
 
 // GetLastBatch gets the latest batch
-func (s *PostgresStorage) GetLastBatch(ctx context.Context, isVirtual bool) (*Batch, error) {
+func (s *PostgresStorage) GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*Batch, error) {
 	var (
 		batch           Batch
 		maticCollateral pgtype.Numeric
@@ -158,12 +158,12 @@ func (s *PostgresStorage) GetLastBatch(ctx context.Context, isVirtual bool) (*Ba
 	)
 
 	if isVirtual {
-		err = s.QueryRow(ctx, "", getLastVirtualBatchSQL).Scan(&batch.BlockNumber,
+		err = s.QueryRow(ctx, txBundleID, getLastVirtualBatchSQL).Scan(&batch.BlockNumber,
 			&batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 			&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot, &batch.RollupExitRoot)
 	} else {
-		err = s.QueryRow(ctx, "", getLastConsolidatedBatchSQL, common.Hash{}).Scan(
+		err = s.QueryRow(ctx, txBundleID, getLastConsolidatedBatchSQL, common.Hash{}).Scan(
 			&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 			&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot, &batch.RollupExitRoot)
@@ -182,7 +182,7 @@ func (s *PostgresStorage) GetLastBatch(ctx context.Context, isVirtual bool) (*Ba
 }
 
 // GetPreviousBatch gets the offset previous batch respect to latest
-func (s *PostgresStorage) GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64) (*Batch, error) {
+func (s *PostgresStorage) GetPreviousBatch(ctx context.Context, isVirtual bool, offset uint64, txBundleID string) (*Batch, error) {
 	var (
 		batch           Batch
 		maticCollateral pgtype.Numeric
@@ -192,12 +192,12 @@ func (s *PostgresStorage) GetPreviousBatch(ctx context.Context, isVirtual bool, 
 	)
 
 	if isVirtual {
-		err = s.QueryRow(ctx, "", getPreviousVirtualBatchSQL, offset).Scan(
+		err = s.QueryRow(ctx, txBundleID, getPreviousVirtualBatchSQL, offset).Scan(
 			&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 			&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot, &batch.RollupExitRoot)
 	} else {
-		err = s.QueryRow(ctx, "", getPreviousConsolidatedBatchSQL, common.Hash{}, offset).Scan(
+		err = s.QueryRow(ctx, txBundleID, getPreviousConsolidatedBatchSQL, common.Hash{}, offset).Scan(
 			&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash, &batch.Header,
 			&batch.Uncles, &batch.RawTxsData, &maticCollateral,
 			&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot, &batch.RollupExitRoot)
@@ -215,13 +215,13 @@ func (s *PostgresStorage) GetPreviousBatch(ctx context.Context, isVirtual bool, 
 }
 
 // GetBatchByHash gets the batch with the required hash
-func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash) (*Batch, error) {
+func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash, txBundleID string) (*Batch, error) {
 	var (
 		batch           Batch
 		maticCollateral pgtype.Numeric
 		chain           uint64
 	)
-	err := s.QueryRow(ctx, "", getBatchByHashSQL, hash).Scan(
+	err := s.QueryRow(ctx, txBundleID, getBatchByHashSQL, hash).Scan(
 		&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 		&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot, &batch.GlobalExitRoot)
@@ -233,7 +233,7 @@ func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash) 
 
 	batch.ChainID = new(big.Int).SetUint64(chain)
 	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
-	batch.Transactions, err = s.getBatchTransactions(ctx, batch)
+	batch.Transactions, err = s.getBatchTransactions(ctx, batch, txBundleID)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
@@ -242,13 +242,13 @@ func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash) 
 }
 
 // GetBatchByNumber gets the batch with the required number
-func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64) (*Batch, error) {
-	batch, err := s.getBatchWithoutTxsByNumber(ctx, batchNumber)
+func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (*Batch, error) {
+	batch, err := s.getBatchWithoutTxsByNumber(ctx, batchNumber, txBundleID)
 	if err != nil {
 		return nil, err
 	}
 
-	batch.Transactions, err = s.getBatchTransactions(ctx, *batch)
+	batch.Transactions, err = s.getBatchTransactions(ctx, *batch, txBundleID)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
@@ -257,13 +257,13 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 }
 
 // GetLastBatchByStateRoot gets the last batch with the required state root
-func (s *PostgresStorage) GetLastBatchByStateRoot(ctx context.Context, stateRoot []byte) (*Batch, error) {
-	batch, err := s.getLastBatchWithoutTxsByStateRoot(ctx, stateRoot)
+func (s *PostgresStorage) GetLastBatchByStateRoot(ctx context.Context, stateRoot []byte, txBundleID string) (*Batch, error) {
+	batch, err := s.getLastBatchWithoutTxsByStateRoot(ctx, stateRoot, txBundleID)
 	if err != nil {
 		return nil, err
 	}
 
-	batch.Transactions, err = s.getBatchTransactions(ctx, *batch)
+	batch.Transactions, err = s.getBatchTransactions(ctx, *batch, txBundleID)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
@@ -272,8 +272,8 @@ func (s *PostgresStorage) GetLastBatchByStateRoot(ctx context.Context, stateRoot
 }
 
 // GetBatchHeader gets the batch header with the required number.
-func (s *PostgresStorage) GetBatchHeader(ctx context.Context, batchNumber uint64) (*types.Header, error) {
-	batch, err := s.getBatchWithoutTxsByNumber(ctx, batchNumber)
+func (s *PostgresStorage) GetBatchHeader(ctx context.Context, batchNumber uint64, txBundleID string) (*types.Header, error) {
+	batch, err := s.getBatchWithoutTxsByNumber(ctx, batchNumber, txBundleID)
 	if err != nil {
 		return nil, err
 	}
@@ -281,9 +281,9 @@ func (s *PostgresStorage) GetBatchHeader(ctx context.Context, batchNumber uint64
 }
 
 // GetLastBatchNumber gets the latest batch number
-func (s *PostgresStorage) GetLastBatchNumber(ctx context.Context) (uint64, error) {
+func (s *PostgresStorage) GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error) {
 	var lastBatchNumber uint64
-	err := s.QueryRow(ctx, "", getLastVirtualBatchNumberSQL).Scan(&lastBatchNumber)
+	err := s.QueryRow(ctx, txBundleID, getLastVirtualBatchNumberSQL).Scan(&lastBatchNumber)
 
 	if err != nil {
 		return 0, err
@@ -293,9 +293,9 @@ func (s *PostgresStorage) GetLastBatchNumber(ctx context.Context) (uint64, error
 }
 
 // GetLastConsolidatedBatchNumber gets the latest consolidated batch number
-func (s *PostgresStorage) GetLastConsolidatedBatchNumber(ctx context.Context) (uint64, error) {
+func (s *PostgresStorage) GetLastConsolidatedBatchNumber(ctx context.Context, txBundleID string) (uint64, error) {
 	var lastBatchNumber uint64
-	err := s.QueryRow(ctx, "", getLastConsolidatedBatchNumberSQL, common.Hash{}).Scan(&lastBatchNumber)
+	err := s.QueryRow(ctx, txBundleID, getLastConsolidatedBatchNumberSQL, common.Hash{}).Scan(&lastBatchNumber)
 
 	if err != nil {
 		return 0, err
@@ -305,9 +305,9 @@ func (s *PostgresStorage) GetLastConsolidatedBatchNumber(ctx context.Context) (u
 }
 
 // GetTransactionByBatchHashAndIndex gets a transaction from a batch by index
-func (s *PostgresStorage) GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64) (*types.Transaction, error) {
+func (s *PostgresStorage) GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64, txBundleID string) (*types.Transaction, error) {
 	var encoded string
-	err := s.QueryRow(ctx, "", getTransactionByBatchHashAndIndexSQL, batchHash.Bytes(), index).Scan(&encoded)
+	err := s.QueryRow(ctx, txBundleID, getTransactionByBatchHashAndIndexSQL, batchHash.Bytes(), index).Scan(&encoded)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -329,9 +329,9 @@ func (s *PostgresStorage) GetTransactionByBatchHashAndIndex(ctx context.Context,
 }
 
 // GetTransactionByBatchNumberAndIndex gets a transaction from a batch by index
-func (s *PostgresStorage) GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64) (*types.Transaction, error) {
+func (s *PostgresStorage) GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64, txBundleID string) (*types.Transaction, error) {
 	var encoded string
-	err := s.QueryRow(ctx, "", getTransactionByBatchNumberAndIndexSQL, batchNumber, index).Scan(&encoded)
+	err := s.QueryRow(ctx, txBundleID, getTransactionByBatchNumberAndIndexSQL, batchNumber, index).Scan(&encoded)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -353,9 +353,9 @@ func (s *PostgresStorage) GetTransactionByBatchNumberAndIndex(ctx context.Contex
 }
 
 // GetTransactionByHash gets a transaction by its hash
-func (s *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionHash common.Hash) (*types.Transaction, error) {
+func (s *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionHash common.Hash, txBundleID string) (*types.Transaction, error) {
 	var encoded string
-	err := s.QueryRow(ctx, "", getTransactionByHashSQL, transactionHash).Scan(&encoded)
+	err := s.QueryRow(ctx, txBundleID, getTransactionByHashSQL, transactionHash).Scan(&encoded)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -377,9 +377,9 @@ func (s *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 }
 
 // GetTransactionCount returns the number of transactions sent from an address
-func (s *PostgresStorage) GetTransactionCount(ctx context.Context, fromAddress common.Address) (uint64, error) {
+func (s *PostgresStorage) GetTransactionCount(ctx context.Context, fromAddress common.Address, txBundleID string) (uint64, error) {
 	var count uint64
-	err := s.QueryRow(ctx, "", getTransactionCountSQL, fromAddress).Scan(&count)
+	err := s.QueryRow(ctx, txBundleID, getTransactionCountSQL, fromAddress).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
@@ -387,12 +387,12 @@ func (s *PostgresStorage) GetTransactionCount(ctx context.Context, fromAddress c
 }
 
 // GetTransactionReceipt returns the receipt of a transaction by transaction hash
-func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash) (*Receipt, error) {
+func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, txBundleID string) (*Receipt, error) {
 	var receipt Receipt
 	var batchNumber uint64
 	var to *[]byte
 
-	err := s.QueryRow(ctx, "", getReceiptSQL, transactionHash).Scan(&receipt.Type, &receipt.PostState, &receipt.Status,
+	err := s.QueryRow(ctx, txBundleID, getReceiptSQL, transactionHash).Scan(&receipt.Type, &receipt.PostState, &receipt.Status,
 		&receipt.CumulativeGasUsed, &receipt.GasUsed, &batchNumber, &receipt.BlockHash, &receipt.TxHash, &receipt.TransactionIndex, &receipt.From, &to, &receipt.ContractAddress)
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -408,7 +408,7 @@ func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 
 	receipt.BlockNumber = new(big.Int).SetUint64(batchNumber)
 
-	logs, err := s.getTransactionLogs(ctx, transactionHash)
+	logs, err := s.getTransactionLogs(ctx, transactionHash, txBundleID)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}
@@ -420,8 +420,8 @@ func (s *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 }
 
 // getTransactionLogs returns the logs of a transaction by transaction hash
-func (s *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHash common.Hash) ([]*types.Log, error) {
-	rows, err := s.Query(ctx, "", getTransactionLogsSQL, transactionHash.Bytes())
+func (s *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHash common.Hash, txBundleID string) ([]*types.Log, error) {
+	rows, err := s.Query(ctx, txBundleID, getTransactionLogsSQL, transactionHash.Bytes())
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}
@@ -473,11 +473,11 @@ func (s *PostgresStorage) hashesToBytes(hashes []common.Hash) [][]byte {
 }
 
 // GetLogs returns the logs that match the filter
-func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash) ([]*types.Log, error) {
+func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash, txBundleID string) ([]*types.Log, error) {
 	var err error
 	var rows pgx.Rows
 	if batchHash != nil {
-		rows, err = s.Query(ctx, "", getLogsSQLByBatchHash, batchHash.Bytes())
+		rows, err = s.Query(ctx, txBundleID, getLogsSQLByBatchHash, batchHash.Bytes())
 	} else {
 		args := []interface{}{fromBatch, toBatch}
 
@@ -495,7 +495,7 @@ func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch
 			}
 		}
 
-		rows, err = s.Query(ctx, "", getLogsByFilter, args...)
+		rows, err = s.Query(ctx, txBundleID, getLogsByFilter, args...)
 	}
 
 	if err != nil {
@@ -547,8 +547,8 @@ func (s *PostgresStorage) ConsolidateBatch(ctx context.Context, batchNumber uint
 }
 
 // GetTxsByBatchNum returns all the txs in a given batch
-func (s *PostgresStorage) GetTxsByBatchNum(ctx context.Context, batchNum uint64) ([]*types.Transaction, error) {
-	rows, err := s.Query(ctx, "", getTxsByBatchNumSQL, batchNum)
+func (s *PostgresStorage) GetTxsByBatchNum(ctx context.Context, batchNum uint64, txBundleID string) ([]*types.Transaction, error) {
+	rows, err := s.Query(ctx, txBundleID, getTxsByBatchNumSQL, batchNum)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -592,10 +592,10 @@ func (s *PostgresStorage) AddSequencer(ctx context.Context, seq Sequencer, txBun
 }
 
 // GetSequencer gets a sequencer
-func (s *PostgresStorage) GetSequencer(ctx context.Context, address common.Address) (*Sequencer, error) {
+func (s *PostgresStorage) GetSequencer(ctx context.Context, address common.Address, txBundleID string) (*Sequencer, error) {
 	var seq Sequencer
 	var cID uint64
-	err := s.QueryRow(ctx, "", getSequencerSQL, address.Bytes()).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
+	err := s.QueryRow(ctx, txBundleID, getSequencerSQL, address.Bytes()).Scan(&seq.Address, &seq.URL, &cID, &seq.BlockNumber)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -617,17 +617,17 @@ func (s *PostgresStorage) AddBlock(ctx context.Context, block *Block, txBundleID
 // SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
 // the roll-up in order to allow the components to know if the state
 // is synchronized or not
-func (s *PostgresStorage) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error {
-	_, err := s.Exec(ctx, "", updateLastBatchSeenSQL, batchNumber)
+func (s *PostgresStorage) SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error {
+	_, err := s.Exec(ctx, txBundleID, updateLastBatchSeenSQL, batchNumber)
 	return err
 }
 
 // GetLastBatchNumberSeenOnEthereum returns the last batch number stored
 // in the state that represents the last batch number that affected the
 // roll-up in the Ethereum network.
-func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error) {
+func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, txBundleID string) (uint64, error) {
 	var batchNumber uint64
-	err := s.QueryRow(ctx, "", getLastBatchSeenSQL).Scan(&batchNumber)
+	err := s.QueryRow(ctx, txBundleID, getLastBatchSeenSQL).Scan(&batchNumber)
 
 	if err != nil {
 		return 0, err
@@ -637,15 +637,15 @@ func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context) 
 }
 
 // SetLastBatchNumberConsolidatedOnEthereum sets the last batch number that was consolidated on ethereum
-func (s *PostgresStorage) SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64) error {
-	_, err := s.Exec(ctx, "", updateLastBatchConsolidatedSQL, batchNumber)
+func (s *PostgresStorage) SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error {
+	_, err := s.Exec(ctx, txBundleID, updateLastBatchConsolidatedSQL, batchNumber)
 	return err
 }
 
 // GetLastBatchNumberConsolidatedOnEthereum sets the last batch number that was consolidated on ethereum
-func (s *PostgresStorage) GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error) {
+func (s *PostgresStorage) GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, txBundleID string) (uint64, error) {
 	var batchNumber uint64
-	err := s.QueryRow(ctx, "", getLastBatchConsolidatedSQL).Scan(&batchNumber)
+	err := s.QueryRow(ctx, txBundleID, getLastBatchConsolidatedSQL).Scan(&batchNumber)
 
 	if err != nil {
 		return 0, err
@@ -655,14 +655,14 @@ func (s *PostgresStorage) GetLastBatchNumberConsolidatedOnEthereum(ctx context.C
 }
 
 // AddBatch adds a new batch to the State Store
-func (s *PostgresStorage) AddBatch(ctx context.Context, txBundleID string, batch *Batch) error {
+func (s *PostgresStorage) AddBatch(ctx context.Context, batch *Batch, txBundleID string) error {
 	_, err := s.Exec(ctx, txBundleID, addBatchSQL, batch.Number().Uint64(), batch.Hash(), batch.BlockNumber, batch.Sequencer, batch.Aggregator,
 		batch.ConsolidatedTxHash, batch.Header, batch.Uncles, batch.RawTxsData, batch.MaticCollateral.String(), batch.ReceivedAt, batch.ChainID.String(), batch.GlobalExitRoot, batch.RollupExitRoot)
 	return err
 }
 
 // AddTransaction adds a new transqaction to the State Store
-func (s *PostgresStorage) AddTransaction(ctx context.Context, txBundleID string, tx *types.Transaction, batchNumber uint64, index uint) error {
+func (s *PostgresStorage) AddTransaction(ctx context.Context, tx *types.Transaction, batchNumber uint64, index uint, txBundleID string) error {
 	binary, err := tx.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -680,7 +680,7 @@ func (s *PostgresStorage) AddTransaction(ctx context.Context, txBundleID string,
 }
 
 // AddReceipt adds a new receipt to the State Store
-func (s *PostgresStorage) AddReceipt(ctx context.Context, txBundleID string, receipt *Receipt) error {
+func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *Receipt, txBundleID string) error {
 	var to *[]byte = nil
 	if receipt.To != nil {
 		b := receipt.To.Bytes()
@@ -692,7 +692,7 @@ func (s *PostgresStorage) AddReceipt(ctx context.Context, txBundleID string, rec
 }
 
 // AddLog adds a new log to the State Store
-func (s *PostgresStorage) AddLog(ctx context.Context, txBundleID string, l types.Log) error {
+func (s *PostgresStorage) AddLog(ctx context.Context, l types.Log, txBundleID string) error {
 	var topicsAsBytes [maxTopics]*[]byte
 	for i := 0; i < len(l.Topics); i++ {
 		topicBytes := l.Topics[i].Bytes()
@@ -705,8 +705,8 @@ func (s *PostgresStorage) AddLog(ctx context.Context, txBundleID string, l types
 	return err
 }
 
-func (s *PostgresStorage) getBatchTransactions(ctx context.Context, batch Batch) ([]*types.Transaction, error) {
-	transactions, err := s.GetTxsByBatchNum(ctx, batch.Number().Uint64())
+func (s *PostgresStorage) getBatchTransactions(ctx context.Context, batch Batch, txBundleID string) ([]*types.Transaction, error) {
+	transactions, err := s.GetTxsByBatchNum(ctx, batch.Number().Uint64(), txBundleID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		transactions = []*types.Transaction{}
 	} else if err != nil {
@@ -716,13 +716,13 @@ func (s *PostgresStorage) getBatchTransactions(ctx context.Context, batch Batch)
 	return transactions, nil
 }
 
-func (s *PostgresStorage) getBatchWithoutTxsByNumber(ctx context.Context, batchNumber uint64) (*Batch, error) {
+func (s *PostgresStorage) getBatchWithoutTxsByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (*Batch, error) {
 	var (
 		batch           Batch
 		maticCollateral pgtype.Numeric
 		chain           uint64
 	)
-	err := s.QueryRow(ctx, "", getBatchByNumberSQL, batchNumber).Scan(
+	err := s.QueryRow(ctx, txBundleID, getBatchByNumberSQL, batchNumber).Scan(
 		&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 		&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot, &batch.RollupExitRoot)
@@ -738,13 +738,13 @@ func (s *PostgresStorage) getBatchWithoutTxsByNumber(ctx context.Context, batchN
 	return &batch, nil
 }
 
-func (s *PostgresStorage) getLastBatchWithoutTxsByStateRoot(ctx context.Context, stateRoot []byte) (*Batch, error) {
+func (s *PostgresStorage) getLastBatchWithoutTxsByStateRoot(ctx context.Context, stateRoot []byte, txBundleID string) (*Batch, error) {
 	var (
 		batch           Batch
 		maticCollateral pgtype.Numeric
 		chain           uint64
 	)
-	err := s.QueryRow(ctx, "", getLastBatchByStateRootSQL, hex.EncodeToHex(stateRoot)).Scan(
+	err := s.QueryRow(ctx, txBundleID, getLastBatchByStateRootSQL, hex.EncodeToHex(stateRoot)).Scan(
 		&batch.BlockNumber, &batch.Sequencer, &batch.Aggregator, &batch.ConsolidatedTxHash,
 		&batch.Header, &batch.Uncles, &batch.RawTxsData, &maticCollateral,
 		&batch.ReceivedAt, &batch.ConsolidatedAt, &chain, &batch.GlobalExitRoot, &batch.RollupExitRoot)

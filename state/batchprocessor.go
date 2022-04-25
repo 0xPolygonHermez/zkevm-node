@@ -534,14 +534,14 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 		batch.RollupExitRoot = common.BigToHash(localExitRoot)
 	}
 
-	err := b.Host.State.AddBatch(ctx, b.TxBundleID, batch)
+	err := b.Host.State.AddBatch(ctx, batch, b.TxBundleID)
 	if err != nil {
 		return err
 	}
 
 	// store transactions
 	for i, tx := range batch.Transactions {
-		err := b.Host.State.AddTransaction(ctx, b.TxBundleID, tx, batch.Number().Uint64(), uint(i))
+		err := b.Host.State.AddTransaction(ctx, tx, batch.Number().Uint64(), uint(i), b.TxBundleID)
 		if err != nil {
 			return err
 		}
@@ -552,7 +552,7 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 	// store receipts
 	for _, receipt := range batch.Receipts {
 		receipt.BlockHash = blockHash
-		err := b.Host.State.AddReceipt(ctx, b.TxBundleID, receipt)
+		err := b.Host.State.AddReceipt(ctx, receipt, b.TxBundleID)
 		if err != nil {
 			return err
 		}
@@ -564,7 +564,7 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 			for _, txLog := range txLogs {
 				txLog.BlockHash = blockHash
 				txLog.BlockNumber = batch.Number().Uint64()
-				err := b.Host.State.AddLog(ctx, b.TxBundleID, *txLog)
+				err := b.Host.State.AddLog(ctx, *txLog, b.TxBundleID)
 				if err != nil {
 					return err
 				}
