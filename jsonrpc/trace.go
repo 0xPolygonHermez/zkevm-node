@@ -20,11 +20,12 @@ type replayTransactionResponse struct {
 }
 
 type txTrace struct {
-	TraceAddress []uint64      `json:"traceAddress"`
-	SubTraces    uint64        `json:"subtraces"`
-	Action       txTraceAction `json:"action"`
-	Result       txTraceResult `json:"result"`
-	Type         string        `json:"type"`
+	TraceAddress []uint64       `json:"traceAddress"`
+	SubTraces    uint64         `json:"subtraces"`
+	Action       txTraceAction  `json:"action"`
+	Result       *txTraceResult `json:"result,omitempty"`
+	Error        *string        `json:"error,omitempty"`
+	Type         string         `json:"type"`
 }
 
 type txVMTrace struct {
@@ -59,17 +60,17 @@ type txVMTraceStorageDiff struct {
 }
 
 type txTraceAction struct {
-	CallType string    `json:"callType"`
 	From     string    `json:"from"`
-	Gas      argUint64 `json:"gas"`
-	Input    argUint64 `json:"input"`
 	To       string    `json:"to"`
 	Value    argUint64 `json:"value"`
+	Gas      argUint64 `json:"gas"`
+	Input    argBytes  `json:"input"`
+	CallType string    `json:"callType"`
 }
 
 type txTraceResult struct {
 	GasUsed argUint64 `json:"gasUsed"`
-	Output  argUint64 `json:"output"`
+	Output  argBytes  `json:"output"`
 }
 
 // ReplayTransaction creates a response for trace_replayTransaction request.
@@ -103,16 +104,15 @@ func (d *Trace) ReplayTransaction(hash common.Hash, traceType []string) (interfa
 }
 
 func (d *Trace) executionResultToReplayTransactionResponse(result *runtime.ExecutionResult) replayTransactionResponse {
+	// operations := []txVMTraceOperation{}
+
 	return replayTransactionResponse{
 		// Output: ,
 		// StateDiff: ,
-		// Trace: []txTrace{
-		// 	Action: ,
-		// 	Result: ,
-		// 	SubTraces: ,
-		// 	TraceAddress: ,
-		// 	Type: ,
-		// },
-		// VMTrace: ,
+		// Trace: ,
+		VMTrace: []txVMTrace{
+			// Code:       result.VMTrace.Code,
+			// Operations: operations,
+		},
 	}
 }
