@@ -415,7 +415,7 @@ func opMStore(ctx context.Context, s *state) {
 	if s.instrumented {
 		diff := instrumentation.MemoryDiff{
 			Offset: offset.Uint64(),
-			Data:   val.Uint64(),
+			Data:   val.Bytes(),
 		}
 		s.memDiff = &diff
 	}
@@ -453,7 +453,7 @@ func opMStore8(ctx context.Context, s *state) {
 	if s.instrumented {
 		diff := instrumentation.MemoryDiff{
 			Offset: offset.Uint64(),
-			Data:   val.Uint64(),
+			Data:   val.Bytes(),
 		}
 		s.memDiff = &diff
 	}
@@ -506,7 +506,7 @@ func opSStore(ctx context.Context, s *state) {
 	cost := uint64(0)
 
 	if s.instrumented {
-		s.storeDiff = &instrumentation.StoreDiff{Location: key.Uint64(), Value: uint(val.Uint64())}
+		s.storeDiff = &instrumentation.StoreDiff{Location: key.Uint64(), Value: val.Uint64()}
 	}
 
 	switch status {
@@ -1145,7 +1145,7 @@ func opCall(op OpCode) instruction {
 				if s.instrumented {
 					diff := instrumentation.MemoryDiff{
 						Offset: offset,
-						Data:   new(big.Int).SetBytes(result.ReturnValue).Uint64(),
+						Data:   result.ReturnValue,
 					}
 					s.memDiff = &diff
 				}

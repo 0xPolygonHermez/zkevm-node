@@ -15,7 +15,7 @@ type Trace struct {
 type replayTransactionResponse struct {
 	Output    *argBytes                        `json:"output"`
 	Trace     []txTrace                        `json:"trace"`
-	VMTrace   []txVMTrace                      `json:"vmTrace"`
+	VMTrace   txVMTrace                        `json:"vmTrace"`
 	StateDiff map[common.Address]txAccountDiff `json:"stateDiff"`
 }
 
@@ -29,7 +29,7 @@ type txTrace struct {
 }
 
 type txVMTrace struct {
-	Code       []byte               `json:"code"`
+	Code       argBytes             `json:"code"`
 	Operations []txVMTraceOperation `json:"ops"`
 }
 
@@ -107,15 +107,43 @@ func (d *Trace) ReplayTransaction(hash common.Hash, traceType []string) (interfa
 }
 
 func (d *Trace) executionResultToReplayTransactionResponse(result *runtime.ExecutionResult) replayTransactionResponse {
-	// operations := []txVMTraceOperation{}
+	operations := make([]txVMTraceOperation, 0, len(result.VMTrace.Operations))
+
+	for _, operation := range result.VMTrace.Operations {
+		stackPush := make([]argUint64, 0, len(operation.Executed.StackPush))
+
+		for _, p := range operation.Executed.StackPush {
+			stackPush = append(stackPush, argUint64(p))
+		}
+
+		operations = append(operations, txVMTraceOperation{
+			PC:   operation.Pc,
+			Cost: operation.GasCost,
+			ExecutedOperation: &txVMTraceExecutedOperation{
+				Used: argUint64(operation.Executed.GasUsed),
+				Push: stackPush,
+				MemoryDiff: &txVMTraceMemoryDiff{
+					Off:  argUint64(operation.Executed.MemDiff.Offset),
+					Data: operation.Executed.MemDiff.Data[:],
+				},
+				StorageDiff: &txVMTraceStorageDiff{
+					Key:   argUint64(operation.Executed.StoreDiff.Location),
+					Value: argUint64(operation.Executed.StoreDiff.Value),
+				},
+			},
+
+			// TODO: Check with Toni if we have this value
+			Sub: &txVMTrace{},
+		})
+	}
 
 	return replayTransactionResponse{
 		// Output: ,
 		// StateDiff: ,
 		// Trace: ,
-		VMTrace: []txVMTrace{
-			// Code:       result.VMTrace.Code,
-			// Operations: operations,
+		VMTrace: txVMTrace{
+			Code:       argBytes(result.VMTrace.Code),
+			Operations: operations,
 		},
 	}
 }

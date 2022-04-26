@@ -12,7 +12,7 @@ type Trace struct {
 // VMTrace contains a EVM trace
 type VMTrace struct {
 	ParentStep int           `json:"parentStep"`
-	Code       string        `json:"code"`
+	Code       []byte        `json:"code"`
 	Operations []VMOperation `json:"operations"`
 	Subs       []VMTrace     `json:"subs"`
 }
@@ -36,13 +36,13 @@ type VMExecutedOperation struct {
 // MemoryDiff contains modified memory data
 type MemoryDiff struct {
 	Offset uint64 `json:"offset"`
-	Data   uint64 `json:"data"`
+	Data   []byte `json:"data"`
 }
 
 // StoreDiff contains modified storage data
 type StoreDiff struct {
 	Location uint64 `json:"location"`
-	Value    uint   `json:"value"`
+	Value    uint64 `json:"value"`
 }
 
 /*

@@ -285,7 +285,7 @@ func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, error
 
 		if s.instrumented {
 			vmTrace.ParentStep = s.msg.Depth
-			vmTrace.Code = common.Bytes2Hex(s.code)
+			vmTrace.Code = s.code[:]
 			vmTrace.Subs = []instrumentation.VMTrace{}
 
 			operation := instrumentation.VMOperation{
