@@ -73,7 +73,7 @@ type txTraceResult struct {
 	Output  argBytes  `json:"output"`
 }
 
-// ReplayTransaction creates a response for trace_replayTransaction request.
+// ReplayBlockTransactions creates a response for trace_replayBlockTransactions request.
 // See https://openethereum.github.io/JSONRPC-trace-module#trace_replayblocktransactions
 func (d *Trace) ReplayBlockTransactions(number *BlockNumber, traceType []string) (interface{}, error) {
 	ctx := context.Background()
@@ -83,7 +83,10 @@ func (d *Trace) ReplayBlockTransactions(number *BlockNumber, traceType []string)
 		return nil, err
 	}
 
-	results := d.state.ReplayBatchTransactions(batchNumber)
+	results, err := d.state.ReplayBatchTransactions(batchNumber)
+	if err != nil {
+		return nil, err
+	}
 
 	response := make([]replayTransactionResponse, 0, len(results))
 

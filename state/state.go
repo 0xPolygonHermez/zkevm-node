@@ -261,7 +261,7 @@ func (s *State) ReplayTransaction(transactionHash common.Hash) *runtime.Executio
 	return result
 }
 
-// ReplayTransaction gets trace by rexecuting a transaction
+// ReplayBatchTransactions gets trace by rexecuting all the transactions of a specific batch
 func (s *State) ReplayBatchTransactions(batchNumber uint64) ([]*runtime.ExecutionResult, error) {
 	ctx := context.Background()
 
