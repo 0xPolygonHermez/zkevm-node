@@ -126,9 +126,6 @@ run: compile-scs ## Runs all the services
 	$(RUNCORE)
 	sleep 3
 	$(RUNEXPLORER)
-	sleep 3
-	$(MAKE) init-network
-	sleep 1
 
 .PHONY: init-network
 init-network: ## Initializes the network
