@@ -402,15 +402,15 @@ func (s *State) ReplayBatchTransactions(batchNumber uint64) ([]*runtime.Executio
 		// Trace
 		trace := instrumentation.Trace{}
 
-		senderAddress, err := helper.GetSender(*tx)
-		if err == nil {
-			trace.Action = instrumentation.TraceAction{From: senderAddress.String(), To: tx.To().String(), Value: tx.Value().Uint64(), Gas: tx.Gas(), Input: tx.Data()}
-		}
-
 		if bp.IsContractCreation(tx) {
 			trace.Type = "create"
 		} else if bp.IsSmartContractExecution(ctx, tx) {
 			trace.Type = "call"
+		}
+
+		senderAddress, err := helper.GetSender(*tx)
+		if err == nil {
+			trace.Action = instrumentation.TraceAction{From: senderAddress.String(), To: tx.To().String(), Value: tx.Value().Uint64(), Gas: tx.Gas(), Input: tx.Data(), CallType: trace.Type}
 		}
 
 		if result.Err != nil {
