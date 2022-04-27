@@ -52,7 +52,7 @@ type state struct {
 
 	// Instrumentation
 	instrumented  bool
-	returnVMTrace instrumentation.VMTrace
+	returnVMTrace *instrumentation.VMTrace
 	stackPush     []uint64
 	memDiff       *instrumentation.MemoryDiff
 	storeDiff     *instrumentation.StoreDiff
@@ -284,9 +284,15 @@ func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, error
 		}
 
 		if s.instrumented {
-			vmTrace.ParentStep = s.msg.Depth
+			// vmTrace.ParentStep = s.msg.Depth
 			vmTrace.Code = s.code[:]
-			vmTrace.Subs = []instrumentation.VMTrace{}
+			// vmTrace.Subs = []instrumentation.VMTrace{}
+
+			/*
+				if op == CREATE || op == CREATE2 || op == CALL || op == CALLCODE || op == DELEGATECALL || op == STATICCALL {
+					vmTrace.Subs = append(vmTrace.Subs, s.returnVMTrace)
+				}
+			*/
 
 			operation := instrumentation.VMOperation{
 				Pc:          uint64(s.ip),
@@ -296,6 +302,7 @@ func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, error
 					GasUsed:   s.gas,
 					StackPush: s.stackPush,
 				},
+				Sub: s.returnVMTrace,
 			}
 
 			if s.memDiff != nil {
@@ -307,10 +314,6 @@ func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, error
 			}
 
 			vmTrace.Operations = append(vmTrace.Operations, operation)
-
-			if op == CREATE || op == CREATE2 || op == CALL || op == CALLCODE || op == DELEGATECALL || op == STATICCALL {
-				vmTrace.Subs = append(vmTrace.Subs, s.returnVMTrace)
-			}
 		}
 
 		s.ip++

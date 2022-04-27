@@ -163,13 +163,13 @@ func (b *BatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction)
 
 	cost := uint64(0)
 
-	if b.isContractCreation(tx) {
+	if b.IsContractCreation(tx) {
 		cost += TxSmartContractCreationGas
 	} else {
 		cost += TxTransferGas
 	}
 
-	if !b.isTransfer(ctx, tx) {
+	if !b.IsTransfer(ctx, tx) {
 		payload := tx.Data()
 
 		if len(payload) > 0 {
@@ -204,16 +204,19 @@ func (b *BatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction)
 	return result
 }
 
-func (b *BatchProcessor) isContractCreation(tx *types.Transaction) bool {
+// IsContractCreation checks if the tx is a contract creation
+func (b *BatchProcessor) IsContractCreation(tx *types.Transaction) bool {
 	return tx.To() == nil && len(tx.Data()) > 0
 }
 
-func (b *BatchProcessor) isSmartContractExecution(ctx context.Context, tx *types.Transaction) bool {
+// IsSmartContractExecution checks if the tx is a contract execution
+func (b *BatchProcessor) IsSmartContractExecution(ctx context.Context, tx *types.Transaction) bool {
 	return b.Host.GetCodeHash(ctx, *tx.To()) != EmptyCodeHash
 }
 
-func (b *BatchProcessor) isTransfer(ctx context.Context, tx *types.Transaction) bool {
-	return !b.isContractCreation(tx) && !b.isSmartContractExecution(ctx, tx) && tx.Value().Uint64() != 0
+// IsTransfer checks if the tx is a transfer
+func (b *BatchProcessor) IsTransfer(ctx context.Context, tx *types.Transaction) bool {
+	return !b.IsContractCreation(tx) && !b.IsSmartContractExecution(ctx, tx) && tx.Value().Uint64() != 0
 }
 
 func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
@@ -225,16 +228,16 @@ func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Trans
 	b.Host.transactionContext.coinBase = sequencerAddress
 	receiverAddress := tx.To()
 
-	if b.isContractCreation(tx) {
+	if b.IsContractCreation(tx) {
 		log.Debug("smart contract creation")
 		return b.create(ctx, tx, senderAddress, sequencerAddress)
 	}
 
-	if b.isSmartContractExecution(ctx, tx) {
+	if b.IsSmartContractExecution(ctx, tx) {
 		return b.execute(ctx, tx, senderAddress, *receiverAddress, sequencerAddress)
 	}
 
-	if b.isTransfer(ctx, tx) {
+	if b.IsTransfer(ctx, tx) {
 		return b.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress)
 	}
 

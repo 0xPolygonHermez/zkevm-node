@@ -12,8 +12,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/google/uuid"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 )
 
@@ -313,6 +315,29 @@ func (s *State) ReplayTransaction(transactionHash common.Hash) *runtime.Executio
 		return result
 	}
 
+	// Trace
+	trace := instrumentation.Trace{}
+
+	senderAddress, err := helper.GetSender(*tx)
+	if err == nil {
+		trace.Action = instrumentation.TraceAction{From: senderAddress.String(), To: tx.To().String(), Value: tx.Value().Uint64(), Gas: tx.Gas(), Input: tx.Data()}
+	}
+
+	if bp.IsContractCreation(tx) {
+		trace.Type = "create"
+	} else if bp.IsSmartContractExecution(ctx, tx) {
+		trace.Type = "call"
+	}
+
+	if result.Err != nil {
+		error := result.Err.Error()
+		trace.Error = &error
+	} else {
+		trace.Result = &instrumentation.TraceResult{GasUsed: result.GasUsed, Output: result.ReturnValue}
+	}
+
+	result.Trace = trace
+
 	return result
 }
 
@@ -373,12 +398,37 @@ func (s *State) ReplayBatchTransactions(batchNumber uint64) ([]*runtime.Executio
 	for _, tx := range batch.Transactions {
 		receipt := receiptsMap[tx.Hash()]
 		result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress)
-		err = s.RollbackState(ctx, txBundleID)
-		if err != nil {
-			log.Errorf("trace transaction: failed to rollback transaction, err: %v", err)
-			result.Err = err
-			results = append(results, result)
+
+		// Trace
+		trace := instrumentation.Trace{}
+
+		senderAddress, err := helper.GetSender(*tx)
+		if err == nil {
+			trace.Action = instrumentation.TraceAction{From: senderAddress.String(), To: tx.To().String(), Value: tx.Value().Uint64(), Gas: tx.Gas(), Input: tx.Data()}
 		}
+
+		if bp.IsContractCreation(tx) {
+			trace.Type = "create"
+		} else if bp.IsSmartContractExecution(ctx, tx) {
+			trace.Type = "call"
+		}
+
+		if result.Err != nil {
+			error := result.Err.Error()
+			trace.Error = &error
+		} else {
+			trace.Result = &instrumentation.TraceResult{GasUsed: result.GasUsed, Output: result.ReturnValue}
+		}
+
+		result.Trace = trace
+
+		results = append(results, result)
+	}
+
+	err = s.RollbackState(ctx, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to rollback transaction, err: %v", err)
+		return nil, err
 	}
 
 	return results, nil

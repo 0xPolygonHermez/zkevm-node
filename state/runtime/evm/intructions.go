@@ -1074,7 +1074,7 @@ func opCreate(op OpCode) instruction {
 			s.returnData = append(s.returnData[:0], result.ReturnValue...)
 		}
 
-		s.returnVMTrace = result.VMTrace
+		s.returnVMTrace = &result.VMTrace
 	}
 }
 
@@ -1154,7 +1154,7 @@ func opCall(op OpCode) instruction {
 
 		s.gas += result.GasLeft
 		s.returnData = append(s.returnData[:0], result.ReturnValue...)
-		s.returnVMTrace = result.VMTrace
+		s.returnVMTrace = &result.VMTrace
 	}
 }
 
