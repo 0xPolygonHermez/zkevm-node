@@ -20,6 +20,7 @@ type Host struct {
 	logs               map[common.Hash][]*types.Log
 	forks              runtime.ForksInTime
 	runtimes           []runtime.Runtime
+	txBundleID         string
 }
 
 type transactionContext struct {
@@ -39,7 +40,7 @@ func (h *Host) AccountExists(ctx context.Context, address common.Address) bool {
 
 // GetStorage gets the value stored in a given address and key
 func (h *Host) GetStorage(ctx context.Context, address common.Address, key *big.Int) common.Hash {
-	storage, err := h.State.tree.GetStorageAt(ctx, address, key, h.stateRoot)
+	storage, err := h.State.tree.GetStorageAt(ctx, address, key, h.stateRoot, h.txBundleID)
 
 	if err != nil {
 		log.Errorf("error on GetStorage for address %v", address)
@@ -53,7 +54,7 @@ func (h *Host) GetStorage(ctx context.Context, address common.Address, key *big.
 // SetStorage sets storage for a given address
 func (h *Host) SetStorage(ctx context.Context, address common.Address, key *big.Int, value *big.Int, config *runtime.ForksInTime) runtime.StorageStatus {
 	// TODO: Check if we have to charge here
-	root, _, err := h.State.tree.SetStorageAt(ctx, address, key, value, h.stateRoot)
+	root, _, err := h.State.tree.SetStorageAt(ctx, address, key, value, h.stateRoot, h.txBundleID)
 
 	if err != nil {
 		log.Errorf("error on SetStorage for address %v", address)
@@ -68,7 +69,7 @@ func (h *Host) SetStorage(ctx context.Context, address common.Address, key *big.
 
 // GetBalance gets balance for a given address
 func (h *Host) GetBalance(ctx context.Context, address common.Address) *big.Int {
-	balance, err := h.State.tree.GetBalance(ctx, address, h.stateRoot)
+	balance, err := h.State.tree.GetBalance(ctx, address, h.stateRoot, h.txBundleID)
 
 	if err != nil {
 		log.Errorf("error on GetBalance for address %v", address)
@@ -88,7 +89,7 @@ func (h *Host) GetCodeSize(ctx context.Context, address common.Address) int {
 
 // GetCodeHash gets the hash for the code at a given address
 func (h *Host) GetCodeHash(ctx context.Context, address common.Address) common.Hash {
-	hash, err := h.State.tree.GetCodeHash(ctx, address, h.stateRoot)
+	hash, err := h.State.tree.GetCodeHash(ctx, address, h.stateRoot, h.txBundleID)
 
 	if err != nil {
 		log.Errorf("error on GetCodeHash for address %v, err: %v", address, err)
@@ -100,7 +101,7 @@ func (h *Host) GetCodeHash(ctx context.Context, address common.Address) common.H
 
 // GetCode gets the code stored at a given address
 func (h *Host) GetCode(ctx context.Context, address common.Address) []byte {
-	code, err := h.State.tree.GetCode(ctx, address, h.stateRoot)
+	code, err := h.State.tree.GetCode(ctx, address, h.stateRoot, h.txBundleID)
 
 	if err != nil {
 		log.Errorf("error on GetCode for address %v", address)
@@ -116,18 +117,18 @@ func (h *Host) Selfdestruct(ctx context.Context, address common.Address, benefic
 	if contractBalance.Int64() != 0 {
 		beneficiaryBalance := h.GetBalance(ctx, beneficiary)
 		beneficiaryBalance.Add(beneficiaryBalance, contractBalance)
-		root, _, err := h.State.tree.SetBalance(ctx, beneficiary, beneficiaryBalance, h.stateRoot)
+		root, _, err := h.State.tree.SetBalance(ctx, beneficiary, beneficiaryBalance, h.stateRoot, h.txBundleID)
 		if err != nil {
 			log.Errorf("error on Selfdestuct for address %v", address)
 		}
-		root, _, err = h.State.tree.SetBalance(ctx, beneficiary, big.NewInt(0), root)
+		root, _, err = h.State.tree.SetBalance(ctx, beneficiary, big.NewInt(0), root, h.txBundleID)
 		if err != nil {
 			log.Errorf("error on Selfdestuct for address %v", address)
 		}
 		h.stateRoot = root
 	}
 
-	root, _, err := h.State.tree.SetCode(ctx, address, []byte{}, h.stateRoot)
+	root, _, err := h.State.tree.SetCode(ctx, address, []byte{}, h.stateRoot, h.txBundleID)
 	if err != nil {
 		log.Errorf("error on Selfdestuct for address %v", address)
 	}
@@ -153,7 +154,7 @@ func (h *Host) GetTxContext() runtime.TxContext {
 
 // GetBlockHash gets the hash of a block (batch in L2)
 func (h *Host) GetBlockHash(number int64) common.Hash {
-	batch, err := h.State.GetBatchByNumber(context.Background(), uint64(number))
+	batch, err := h.State.GetBatchByNumber(context.Background(), uint64(number), h.txBundleID)
 
 	if err != nil {
 		log.Errorf("error on GetBlockHash for number %v", number)
@@ -203,7 +204,7 @@ func (h *Host) Callx(ctx context.Context, contract *runtime.Contract, host runti
 		return h.applyCreate(ctx, contract, host)
 	}
 
-	if contract.Type == runtime.Call {
+	if contract.Type == runtime.Call && contract.Value.Uint64() != 0 {
 		log.Debugf("Callx. New Transfer from %v to %v", contract.Caller, contract.Address)
 		err := h.transfer(ctx, contract.Caller, contract.Address, contract.Value)
 		if err != nil {
@@ -231,7 +232,7 @@ func (h *Host) Empty(ctx context.Context, address common.Address) bool {
 
 // GetNonce gets the nonce for an account at a given address
 func (h *Host) GetNonce(ctx context.Context, address common.Address) uint64 {
-	nonce, err := h.State.tree.GetNonce(ctx, address, h.stateRoot)
+	nonce, err := h.State.tree.GetNonce(ctx, address, h.stateRoot, h.txBundleID)
 
 	if err != nil {
 		log.Errorf("error on GetNonce for address %v", address)
@@ -259,7 +260,7 @@ func (h *Host) transfer(ctx context.Context, senderAddress, receiverAddress comm
 
 	// Store new balances
 	for address, balance := range balances {
-		root, _, err = h.State.tree.SetBalance(ctx, address, balance, root)
+		root, _, err = h.State.tree.SetBalance(ctx, address, balance, root, h.txBundleID)
 		if err != nil {
 			return err
 		}
@@ -274,7 +275,7 @@ func (h *Host) applyCreate(ctx context.Context, contract *runtime.Contract, host
 	gasLimit := contract.Gas
 	root := h.stateRoot
 
-	senderNonce, err := h.State.tree.GetNonce(ctx, contract.Caller, root)
+	senderNonce, err := h.State.tree.GetNonce(ctx, contract.Caller, root, h.txBundleID)
 	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft: 0,
@@ -301,7 +302,7 @@ func (h *Host) applyCreate(ctx context.Context, contract *runtime.Contract, host
 	senderNonce.Add(senderNonce, big.NewInt(1))
 
 	// Store new nonce
-	root, _, err = h.State.tree.SetNonce(ctx, contract.Caller, senderNonce, root)
+	root, _, err = h.State.tree.SetNonce(ctx, contract.Caller, senderNonce, root, h.txBundleID)
 	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft: 0,
@@ -343,7 +344,7 @@ func (h *Host) applyCreate(ctx context.Context, contract *runtime.Contract, host
 		}
 	*/
 	result.GasLeft -= gasCost
-	root, _, err = h.State.tree.SetCode(ctx, contract.Address, result.ReturnValue, root)
+	root, _, err = h.State.tree.SetCode(ctx, contract.Address, result.ReturnValue, root, h.txBundleID)
 	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft: gasLimit,

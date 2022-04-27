@@ -77,12 +77,12 @@ func (a *Aggregator) Start() {
 		case <-time.After(a.cfg.IntervalToConsolidateState.Duration):
 
 			// 1. check, if state is synced
-			lastConsolidatedBatch, err := a.State.GetLastBatch(a.ctx, false)
+			lastConsolidatedBatch, err := a.State.GetLastBatch(a.ctx, false, "")
 			if err != nil {
 				log.Warnf("failed to get last consolidated batch, err: %v", err)
 				continue
 			}
-			lastConsolidatedEthBatchNum, err := a.State.GetLastBatchNumberConsolidatedOnEthereum(a.ctx)
+			lastConsolidatedEthBatchNum, err := a.State.GetLastBatchNumberConsolidatedOnEthereum(a.ctx, "")
 			if err != nil {
 				log.Warnf("failed to get last eth batch, err: %v", err)
 				continue
@@ -95,7 +95,7 @@ func (a *Aggregator) Start() {
 			// 2. find next batch to consolidate
 			delete(batchesSent, lastConsolidatedBatch.Number().Uint64())
 
-			batchToConsolidate, err := a.State.GetBatchByNumber(a.ctx, lastConsolidatedBatch.Number().Uint64()+1)
+			batchToConsolidate, err := a.State.GetBatchByNumber(a.ctx, lastConsolidatedBatch.Number().Uint64()+1, "")
 
 			if err != nil {
 				if err == state.ErrNotFound {
@@ -126,13 +126,13 @@ func (a *Aggregator) Start() {
 			}
 
 			// 4. send zki + txs to the prover
-			stateRootConsolidated, err := a.State.GetStateRootByBatchNumber(a.ctx, lastConsolidatedBatch.Number().Uint64())
+			stateRootConsolidated, err := a.State.GetStateRootByBatchNumber(a.ctx, lastConsolidatedBatch.Number().Uint64(), "")
 			if err != nil {
 				log.Warnf("failed to get current state root, err: %v", err)
 				continue
 			}
 
-			stateRootToConsolidate, err := a.State.GetStateRootByBatchNumber(a.ctx, batchToConsolidate.Number().Uint64())
+			stateRootToConsolidate, err := a.State.GetStateRootByBatchNumber(a.ctx, batchToConsolidate.Number().Uint64(), "")
 			if err != nil {
 				log.Warnf("failed to get state root to consolidate, err: %v", err)
 				continue

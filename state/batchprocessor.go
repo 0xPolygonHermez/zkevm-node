@@ -65,6 +65,7 @@ type BatchProcessor struct {
 	CumulativeGasUsed    uint64
 	MaxCumulativeGasUsed uint64
 	Host                 Host
+	TxBundleID           string
 }
 
 // SetSimulationMode allows execution without updating the state
@@ -87,7 +88,7 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 	storagePosition := new(big.Int).SetUint64(b.Host.State.cfg.GlobalExitRootStoragePosition).FillBytes(storagePositionBuf[:])
 	globalExitRootPos := helper.Keccak256(batchNumber, storagePosition)
 
-	root, _, err := b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), b.Host.stateRoot)
+	root, _, err := b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), b.Host.stateRoot, b.TxBundleID)
 	if err != nil {
 		return err
 	}
@@ -317,7 +318,7 @@ func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, se
 	// reset MT currentRoot in case it was modified by failed transaction
 	log.Debugf("processing transfer [%s]: root: %v", tx.Hash().Hex(), new(big.Int).SetBytes(root).String())
 
-	senderBalance, err := b.Host.State.tree.GetBalance(ctx, senderAddress, root)
+	senderBalance, err := b.Host.State.tree.GetBalance(ctx, senderAddress, root, b.TxBundleID)
 	if err != nil {
 		if err == ErrNotFound {
 			senderBalance = big.NewInt(0)
@@ -328,7 +329,7 @@ func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, se
 		}
 	}
 
-	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, root)
+	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, root, b.TxBundleID)
 	if err != nil {
 		if err == ErrNotFound {
 			senderNonce = big.NewInt(0)
@@ -357,7 +358,7 @@ func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, se
 	log.Debugf("processing transfer [%s]: new nonce: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 
 	// Store new nonce
-	root, _, err = b.Host.State.tree.SetNonce(ctx, senderAddress, senderNonce, root)
+	root, _, err = b.Host.State.tree.SetNonce(ctx, senderAddress, senderNonce, root, b.TxBundleID)
 	if err != nil {
 		result.Err = err
 		result.StateRoot = b.Host.stateRoot
@@ -366,7 +367,7 @@ func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, se
 	log.Debugf("processing transfer [%s]: sender nonce set to: %v", tx.Hash().Hex(), senderNonce.Text(encoding.Base10))
 
 	// Get receiver Balance
-	receiverBalance, err := b.Host.State.tree.GetBalance(ctx, receiverAddress, root)
+	receiverBalance, err := b.Host.State.tree.GetBalance(ctx, receiverAddress, root, b.TxBundleID)
 	if err != nil {
 		result.Err = err
 		result.StateRoot = b.Host.stateRoot
@@ -376,7 +377,7 @@ func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, se
 	balances[receiverAddress] = receiverBalance
 
 	// Get sequencer Balance
-	sequencerBalance, err := b.Host.State.tree.GetBalance(ctx, sequencerAddress, root)
+	sequencerBalance, err := b.Host.State.tree.GetBalance(ctx, sequencerAddress, root, b.TxBundleID)
 	if err != nil {
 		result.Err = err
 		result.StateRoot = b.Host.stateRoot
@@ -415,7 +416,7 @@ func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, se
 
 	// Store new balances
 	for address, balance := range balances {
-		root, _, err = b.Host.State.tree.SetBalance(ctx, address, balance, root)
+		root, _, err = b.Host.State.tree.SetBalance(ctx, address, balance, root, b.TxBundleID)
 		if err != nil {
 			result.Err = err
 			result.StateRoot = b.Host.stateRoot
@@ -441,7 +442,7 @@ func (b *BatchProcessor) CheckTransaction(ctx context.Context, tx *types.Transac
 		return err
 	}
 
-	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot)
+	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot, b.TxBundleID)
 	if err != nil {
 		if err == ErrNotFound {
 			senderNonce = big.NewInt(0)
@@ -450,7 +451,7 @@ func (b *BatchProcessor) CheckTransaction(ctx context.Context, tx *types.Transac
 		}
 	}
 
-	senderBalance, err := b.Host.State.tree.GetBalance(ctx, senderAddress, b.Host.stateRoot)
+	senderBalance, err := b.Host.State.tree.GetBalance(ctx, senderAddress, b.Host.stateRoot, b.TxBundleID)
 	if err != nil {
 		if err == ErrNotFound {
 			senderBalance = big.NewInt(0)
@@ -525,21 +526,21 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 
 		// set local exit root
 		key := new(big.Int).SetUint64(b.Host.State.cfg.LocalExitRootStoragePosition)
-		localExitRoot, err := b.Host.State.tree.GetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, key, b.Host.stateRoot)
+		localExitRoot, err := b.Host.State.tree.GetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, key, b.Host.stateRoot, b.TxBundleID)
 		if err != nil {
 			return err
 		}
 		batch.RollupExitRoot = common.BigToHash(localExitRoot)
 	}
 
-	err := b.Host.State.AddBatch(ctx, batch)
+	err := b.Host.State.AddBatch(ctx, batch, b.TxBundleID)
 	if err != nil {
 		return err
 	}
 
 	// store transactions
 	for i, tx := range batch.Transactions {
-		err := b.Host.State.AddTransaction(ctx, tx, batch.Number().Uint64(), uint(i))
+		err := b.Host.State.AddTransaction(ctx, tx, batch.Number().Uint64(), uint(i), b.TxBundleID)
 		if err != nil {
 			return err
 		}
@@ -550,7 +551,7 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 	// store receipts
 	for _, receipt := range batch.Receipts {
 		receipt.BlockHash = blockHash
-		err := b.Host.State.AddReceipt(ctx, receipt)
+		err := b.Host.State.AddReceipt(ctx, receipt, b.TxBundleID)
 		if err != nil {
 			return err
 		}
@@ -562,7 +563,7 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 			for _, txLog := range txLogs {
 				txLog.BlockHash = blockHash
 				txLog.BlockNumber = batch.Number().Uint64()
-				err := b.Host.State.AddLog(ctx, *txLog)
+				err := b.Host.State.AddLog(ctx, *txLog, b.TxBundleID)
 				if err != nil {
 					return err
 				}
@@ -585,26 +586,35 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	log.Debugf("Transaction Data %v", tx.Data())
 	log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
 
-	// Increment sender nonce
-	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot)
-	if err != nil {
-		result.Err = err
-		result.StateRoot = b.Host.stateRoot
-		return result
+	if tx.Value().Uint64() != 0 && !result.Reverted() {
+		log.Debugf("contract execution includes value transfer = %v", tx.Value())
+		// Tansfer the value
+		transferResult := b.transfer(ctx, tx, senderAddress, contract.Address, sequencerAddress)
+		if transferResult.Err != nil {
+			transferResult.StateRoot = b.Host.stateRoot
+			return transferResult
+		}
+	} else {
+		// Increment sender nonce
+		senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot, b.TxBundleID)
+		if err != nil {
+			result.Err = err
+			result.StateRoot = b.Host.stateRoot
+			return result
+		}
+		senderNonce.Add(senderNonce, big.NewInt(1))
+
+		// Store new nonce
+		root, _, err := b.Host.State.tree.SetNonce(ctx, senderAddress, senderNonce, b.Host.stateRoot, b.TxBundleID)
+		if err != nil {
+			result.Err = err
+			result.StateRoot = b.Host.stateRoot
+			return result
+		}
+
+		b.Host.stateRoot = root
 	}
 
-	// Increment nonce of the sender
-	senderNonce.Add(senderNonce, big.NewInt(1))
-
-	// Store new nonce
-	root, _, err := b.Host.State.tree.SetNonce(ctx, senderAddress, senderNonce, b.Host.stateRoot)
-	if err != nil {
-		result.Err = err
-		result.StateRoot = b.Host.stateRoot
-		return result
-	}
-
-	b.Host.stateRoot = root
 	result.StateRoot = b.Host.stateRoot
 
 	return result
@@ -627,7 +637,7 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 
 	gasLimit := contract.Gas
 
-	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, root)
+	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, root, b.TxBundleID)
 	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft:   0,
@@ -678,7 +688,7 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 		senderNonce.Add(senderNonce, big.NewInt(1))
 
 		// Store new nonce
-		root, _, err := b.Host.State.tree.SetNonce(ctx, senderAddress, senderNonce, root)
+		root, _, err := b.Host.State.tree.SetNonce(ctx, senderAddress, senderNonce, root, b.TxBundleID)
 		if err != nil {
 			return &runtime.ExecutionResult{
 				GasLeft:   0,
@@ -723,7 +733,7 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 	}
 
 	result.GasLeft -= gasCost
-	root, _, err = b.Host.State.tree.SetCode(ctx, address, result.ReturnValue, root)
+	root, _, err = b.Host.State.tree.SetCode(ctx, address, result.ReturnValue, root, b.TxBundleID)
 	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft:   gasLimit,

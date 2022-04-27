@@ -144,7 +144,7 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 	bValue := *b
 	switch bValue {
 	case LatestBlockNumber, PendingBlockNumber:
-		lastBatchNumber, err := s.GetLastBatchNumber(ctx)
+		lastBatchNumber, err := s.GetLastBatchNumber(ctx, "")
 		if err != nil {
 			return 0, err
 		}

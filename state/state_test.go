@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -184,7 +185,7 @@ func setUpBatches() {
 
 	batches := []*state.Batch{batch1, batch2, batch3, batch4}
 
-	bp, err := testState.NewGenesisBatchProcessor(nil)
+	bp, err := testState.NewGenesisBatchProcessor(nil, "")
 	if err != nil {
 		panic(err)
 	}
@@ -218,40 +219,40 @@ func setUpTransactions() {
 }
 
 func TestBasicState_GetLastBlock(t *testing.T) {
-	lastBlock, err := testState.GetLastBlock(ctx)
+	lastBlock, err := testState.GetLastBlock(ctx, "")
 	assert.NoError(t, err)
 	assert.Equal(t, block2.BlockNumber, lastBlock.BlockNumber)
 }
 
 func TestBasicState_GetPreviousBlock(t *testing.T) {
-	previousBlock, err := testState.GetPreviousBlock(ctx, 1)
+	previousBlock, err := testState.GetPreviousBlock(ctx, 1, "")
 	assert.NoError(t, err)
 	assert.Equal(t, block1.BlockNumber, previousBlock.BlockNumber)
 }
 
 func TestBasicState_GetBlockByHash(t *testing.T) {
-	block, err := testState.GetBlockByHash(ctx, hash1)
+	block, err := testState.GetBlockByHash(ctx, hash1, "")
 	assert.NoError(t, err)
 	assert.Equal(t, block1.BlockHash, block.BlockHash)
 	assert.Equal(t, block1.BlockNumber, block.BlockNumber)
 }
 
 func TestBasicState_GetBlockByNumber(t *testing.T) {
-	block, err := testState.GetBlockByNumber(ctx, blockNumber2)
+	block, err := testState.GetBlockByNumber(ctx, blockNumber2, "")
 	assert.NoError(t, err)
 	assert.Equal(t, block2.BlockNumber, block.BlockNumber)
 	assert.Equal(t, block2.BlockHash, block.BlockHash)
 }
 
 func TestBasicState_GetLastVirtualBatch(t *testing.T) {
-	lastBatch, err := testState.GetLastBatch(ctx, true)
+	lastBatch, err := testState.GetLastBatch(ctx, true, "")
 	assert.NoError(t, err)
 	assert.Equal(t, batch4.Hash(), lastBatch.Hash())
 	assert.Equal(t, batch4.Number().Uint64(), lastBatch.Number().Uint64())
 }
 
 func TestBasicState_GetLastBatch(t *testing.T) {
-	lastBatch, err := testState.GetLastBatch(ctx, false)
+	lastBatch, err := testState.GetLastBatch(ctx, false, "")
 	assert.NoError(t, err)
 	assert.Equal(t, batch2.Hash(), lastBatch.Hash())
 	assert.Equal(t, batch2.Number().Uint64(), lastBatch.Number().Uint64())
@@ -259,7 +260,7 @@ func TestBasicState_GetLastBatch(t *testing.T) {
 }
 
 func TestBasicState_GetPreviousBatch(t *testing.T) {
-	previousBatch, err := testState.GetPreviousBatch(ctx, false, 1)
+	previousBatch, err := testState.GetPreviousBatch(ctx, false, 1, "")
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.Hash(), previousBatch.Hash())
 	assert.Equal(t, batch1.Number().Uint64(), previousBatch.Number().Uint64())
@@ -267,7 +268,7 @@ func TestBasicState_GetPreviousBatch(t *testing.T) {
 }
 
 func TestBasicState_GetBatchByHash(t *testing.T) {
-	batch, err := testState.GetBatchByHash(ctx, batch1.Hash())
+	batch, err := testState.GetBatchByHash(ctx, batch1.Hash(), "")
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.Hash(), batch.Hash())
 	assert.Equal(t, batch1.Number().Uint64(), batch.Number().Uint64())
@@ -275,14 +276,14 @@ func TestBasicState_GetBatchByHash(t *testing.T) {
 }
 
 func TestBasicState_GetBatchByNumber(t *testing.T) {
-	batch, err := testState.GetBatchByNumber(ctx, batch1.Number().Uint64())
+	batch, err := testState.GetBatchByNumber(ctx, batch1.Number().Uint64(), "")
 	assert.NoError(t, err)
 	assert.Equal(t, batch1.Number().Uint64(), batch.Number().Uint64())
 	assert.Equal(t, batch1.Hash(), batch.Hash())
 }
 
 func TestBasicState_GetLastBatchNumber(t *testing.T) {
-	batchNumber, err := testState.GetLastBatchNumber(ctx)
+	batchNumber, err := testState.GetLastBatchNumber(ctx, "")
 	assert.NoError(t, err)
 	assert.Equal(t, batch4.Number().Uint64(), batchNumber)
 }
@@ -306,22 +307,22 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 		GlobalExitRoot:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 
-	bp, err := testState.NewGenesisBatchProcessor(nil)
+	bp, err := testState.NewGenesisBatchProcessor(nil, "")
 	assert.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
 	assert.NoError(t, err)
 
-	insertedBatch, err := testState.GetBatchByNumber(ctx, batchNumber)
+	insertedBatch, err := testState.GetBatchByNumber(ctx, batchNumber, "")
 	assert.NoError(t, err)
 	assert.Equal(t, common.Hash{}, insertedBatch.ConsolidatedTxHash)
 	assert.Equal(t, big.NewInt(1000), insertedBatch.ChainID)
 	assert.NotEqual(t, common.Hash{}, insertedBatch.GlobalExitRoot)
 
-	err = testState.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash, time.Now(), batch.Aggregator)
+	err = testState.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash, time.Now(), batch.Aggregator, "")
 	assert.NoError(t, err)
 
-	insertedBatch, err = testState.GetBatchByNumber(ctx, batchNumber)
+	insertedBatch, err = testState.GetBatchByNumber(ctx, batchNumber, "")
 	assert.NoError(t, err)
 	assert.Equal(t, consolidatedTxHash, insertedBatch.ConsolidatedTxHash)
 
@@ -330,25 +331,25 @@ func TestBasicState_ConsolidateBatch(t *testing.T) {
 }
 
 func TestBasicState_GetTransactionCount(t *testing.T) {
-	count, err := testState.GetTransactionCount(ctx, addr)
+	count, err := testState.GetTransactionCount(ctx, addr, "")
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), count)
 }
 
 func TestBasicState_GetTxsByBatchNum(t *testing.T) {
-	txs, err := testState.GetTxsByBatchNum(ctx, batchNumber1)
+	txs, err := testState.GetTxsByBatchNum(ctx, batchNumber1, "")
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(txs))
 }
 
 func TestBasicState_GetTransactionByHash(t *testing.T) {
-	tx, err := testState.GetTransactionByHash(ctx, txHash)
+	tx, err := testState.GetTransactionByHash(ctx, txHash, "")
 	assert.NoError(t, err)
 	assert.Equal(t, txHash, tx.Hash())
 }
 
 func TestBasicState_AddBlock(t *testing.T) {
-	lastBN, err := testState.GetLastBlockNumber(ctx)
+	lastBN, err := testState.GetLastBlockNumber(ctx, "")
 	assert.NoError(t, err)
 
 	block1 := &state.Block{
@@ -363,17 +364,17 @@ func TestBasicState_AddBlock(t *testing.T) {
 		ParentHash:  hash1,
 		ReceivedAt:  time.Now(),
 	}
-	err = testState.AddBlock(ctx, block1)
+	err = testState.AddBlock(ctx, block1, "")
 	assert.NoError(t, err)
-	err = testState.AddBlock(ctx, block2)
+	err = testState.AddBlock(ctx, block2, "")
 	assert.NoError(t, err)
 
-	block3, err := testState.GetBlockByNumber(ctx, block1.BlockNumber)
+	block3, err := testState.GetBlockByNumber(ctx, block1.BlockNumber, "")
 	assert.NoError(t, err)
 	assert.Equal(t, block1.BlockHash, block3.BlockHash)
 	assert.Equal(t, block1.ParentHash, block3.ParentHash)
 
-	block4, err := testState.GetBlockByNumber(ctx, block2.BlockNumber)
+	block4, err := testState.GetBlockByNumber(ctx, block2.BlockNumber, "")
 	assert.NoError(t, err)
 	assert.Equal(t, block2.BlockHash, block4.BlockHash)
 	assert.Equal(t, block2.ParentHash, block4.ParentHash)
@@ -385,7 +386,7 @@ func TestBasicState_AddBlock(t *testing.T) {
 }
 
 func TestBasicState_AddSequencer(t *testing.T) {
-	lastBN, err := testState.GetLastBlockNumber(ctx)
+	lastBN, err := testState.GetLastBlockNumber(ctx, "")
 	assert.NoError(t, err)
 	sequencer1 := state.Sequencer{
 		Address:     common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9b"),
@@ -407,25 +408,25 @@ func TestBasicState_AddSequencer(t *testing.T) {
 		BlockNumber: lastBN,
 	}
 
-	err = testState.AddSequencer(ctx, sequencer1)
+	err = testState.AddSequencer(ctx, sequencer1, "")
 	assert.NoError(t, err)
 
-	sequencer3, err := testState.GetSequencer(ctx, sequencer1.Address)
+	sequencer3, err := testState.GetSequencer(ctx, sequencer1.Address, "")
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer1.ChainID, sequencer3.ChainID)
 
-	err = testState.AddSequencer(ctx, sequencer2)
+	err = testState.AddSequencer(ctx, sequencer2, "")
 	assert.NoError(t, err)
 
-	sequencer4, err := testState.GetSequencer(ctx, sequencer2.Address)
+	sequencer4, err := testState.GetSequencer(ctx, sequencer2.Address, "")
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer2, *sequencer4)
 
 	// Update Sequencer
-	err = testState.AddSequencer(ctx, sequencer5)
+	err = testState.AddSequencer(ctx, sequencer5, "")
 	assert.NoError(t, err)
 
-	sequencer6, err := testState.GetSequencer(ctx, sequencer5.Address)
+	sequencer6, err := testState.GetSequencer(ctx, sequencer5.Address, "")
 	assert.NoError(t, err)
 	assert.Equal(t, sequencer5, *sequencer6)
 	assert.Equal(t, sequencer5.URL, sequencer6.URL)
@@ -636,7 +637,7 @@ func TestStateTransitionSC(t *testing.T) {
 				genesis.SmartContracts[common.HexToAddress(gsc.Address)] = []byte(gsc.Code)
 			}
 
-			err = st.SetGenesis(ctx, genesis)
+			err = st.SetGenesis(ctx, genesis, "")
 			require.NoError(t, err)
 		})
 	}
@@ -663,15 +664,15 @@ func TestLastSeenBatch(t *testing.T) {
 		panic(err)
 	}
 
-	err = st.SetLastBatchNumberSeenOnEthereum(ctx, lastBatchNumberSeen)
+	err = st.SetLastBatchNumberSeenOnEthereum(ctx, lastBatchNumberSeen, "")
 	require.NoError(t, err)
-	bn, err := st.GetLastBatchNumberSeenOnEthereum(ctx)
+	bn, err := st.GetLastBatchNumberSeenOnEthereum(ctx, "")
 	require.NoError(t, err)
 	assert.Equal(t, lastBatchNumberSeen, bn)
 
-	err = st.SetLastBatchNumberSeenOnEthereum(ctx, lastBatchNumberSeen+1)
+	err = st.SetLastBatchNumberSeenOnEthereum(ctx, lastBatchNumberSeen+1, "")
 	require.NoError(t, err)
-	bn, err = st.GetLastBatchNumberSeenOnEthereum(ctx)
+	bn, err = st.GetLastBatchNumberSeenOnEthereum(ctx, "")
 	require.NoError(t, err)
 	assert.Equal(t, lastBatchNumberSeen+1, bn)
 }
@@ -866,15 +867,15 @@ func TestLastConsolidatedBatch(t *testing.T) {
 		panic(err)
 	}
 
-	err = st.SetLastBatchNumberConsolidatedOnEthereum(ctx, lastBatchNumberSeen)
+	err = st.SetLastBatchNumberConsolidatedOnEthereum(ctx, lastBatchNumberSeen, "")
 	require.NoError(t, err)
-	bn, err := st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
+	bn, err := st.GetLastBatchNumberConsolidatedOnEthereum(ctx, "")
 	require.NoError(t, err)
 	assert.Equal(t, lastBatchNumberSeen, bn)
 
-	err = st.SetLastBatchNumberConsolidatedOnEthereum(ctx, lastBatchNumberSeen+1)
+	err = st.SetLastBatchNumberConsolidatedOnEthereum(ctx, lastBatchNumberSeen+1, "")
 	require.NoError(t, err)
-	bn, err = st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
+	bn, err = st.GetLastBatchNumberConsolidatedOnEthereum(ctx, "")
 	require.NoError(t, err)
 	assert.Equal(t, lastBatchNumberSeen+1, bn)
 }
@@ -898,73 +899,73 @@ func TestStateErrors(t *testing.T) {
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.block")
 	require.NoError(t, err)
 
-	_, err = st.GetStateRoot(ctx, true)
+	_, err = st.GetStateRoot(ctx, true, "")
 	require.Equal(t, state.ErrStateNotSynchronized, err)
 
-	_, err = st.GetBalance(ctx, addr, 0)
+	_, err = st.GetBalance(ctx, addr, 0, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetNonce(ctx, addr, 0)
+	_, err = st.GetNonce(ctx, addr, 0, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetStateRootByBatchNumber(ctx, 0)
+	_, err = st.GetStateRootByBatchNumber(ctx, 0, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetLastBlock(ctx)
+	_, err = st.GetLastBlock(ctx, "")
 	require.Equal(t, state.ErrStateNotSynchronized, err)
 
-	_, err = st.GetPreviousBlock(ctx, 0)
+	_, err = st.GetPreviousBlock(ctx, 0, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetBlockByHash(ctx, hash1)
+	_, err = st.GetBlockByHash(ctx, hash1, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetBlockByNumber(ctx, 0)
+	_, err = st.GetBlockByNumber(ctx, 0, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetLastBlockNumber(ctx)
+	_, err = st.GetLastBlockNumber(ctx, "")
 	require.NoError(t, err)
 
-	_, err = st.GetLastBatch(ctx, true)
+	_, err = st.GetLastBatch(ctx, true, "")
 	require.Equal(t, state.ErrStateNotSynchronized, err)
 
-	_, err = st.GetPreviousBatch(ctx, true, 0)
+	_, err = st.GetPreviousBatch(ctx, true, 0, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetBatchByHash(ctx, batch1.Hash())
+	_, err = st.GetBatchByHash(ctx, batch1.Hash(), "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetBatchByNumber(ctx, 0)
+	_, err = st.GetBatchByNumber(ctx, 0, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetLastBatchNumber(ctx)
+	_, err = st.GetLastBatchNumber(ctx, "")
 	require.NoError(t, err)
 
-	_, err = st.GetLastConsolidatedBatchNumber(ctx)
+	_, err = st.GetLastConsolidatedBatchNumber(ctx, "")
 	require.NoError(t, err)
 
-	_, err = st.GetTransactionByBatchHashAndIndex(ctx, batch1.Hash(), 0)
+	_, err = st.GetTransactionByBatchHashAndIndex(ctx, batch1.Hash(), 0, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetTransactionByBatchNumberAndIndex(ctx, batch1.Number().Uint64(), 0)
+	_, err = st.GetTransactionByBatchNumberAndIndex(ctx, batch1.Number().Uint64(), 0, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetTransactionByHash(ctx, txHash)
+	_, err = st.GetTransactionByHash(ctx, txHash, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetTransactionReceipt(ctx, txHash)
+	_, err = st.GetTransactionReceipt(ctx, txHash, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetTxsByBatchNum(ctx, batchNumber1)
+	_, err = st.GetTxsByBatchNum(ctx, batchNumber1, "")
 	require.NoError(t, err)
 
-	_, err = st.GetSequencer(ctx, batch1.Sequencer)
+	_, err = st.GetSequencer(ctx, batch1.Sequencer, "")
 	require.Equal(t, state.ErrNotFound, err)
 
-	_, err = st.GetLastBatchNumberSeenOnEthereum(ctx)
+	_, err = st.GetLastBatchNumberSeenOnEthereum(ctx, "")
 	require.NoError(t, err)
 
-	_, err = st.GetLastBatchNumberConsolidatedOnEthereum(ctx)
+	_, err = st.GetLastBatchNumberConsolidatedOnEthereum(ctx, "")
 	require.NoError(t, err)
 }
 
@@ -1000,7 +1001,7 @@ func TestSCExecution(t *testing.T) {
 	}
 
 	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
-	err = st.SetGenesis(ctx, genesis)
+	err = st.SetGenesis(ctx, genesis, "")
 	require.NoError(t, err)
 
 	// Register Sequencer
@@ -1011,7 +1012,7 @@ func TestSCExecution(t *testing.T) {
 		BlockNumber: genesisBlock.Header().Number.Uint64(),
 	}
 
-	err = testState.AddSequencer(ctx, sequencer)
+	err = testState.AddSequencer(ctx, sequencer, "")
 	assert.NoError(t, err)
 
 	var txs []*types.Transaction
@@ -1066,26 +1067,26 @@ func TestSCExecution(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	stateRoot, err := testState.GetStateRoot(ctx, true)
+	stateRoot, err := testState.GetStateRoot(ctx, true, "")
 	require.NoError(t, err)
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, stateRoot)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, stateRoot, "")
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
-	receipt, err := testState.GetTransactionReceipt(ctx, signedTxStoreValue.Hash())
+	receipt, err := testState.GetTransactionReceipt(ctx, signedTxStoreValue.Hash(), "")
 	require.NoError(t, err)
 	assert.Equal(t, uint64(5420), receipt.GasUsed)
 
-	receipt2, err := testState.GetTransactionReceipt(ctx, signedTxRetrieveValue.Hash())
+	receipt2, err := testState.GetTransactionReceipt(ctx, signedTxRetrieveValue.Hash(), "")
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1115), receipt2.GasUsed)
 
 	// Check GetCode
-	lastBatch, err := testState.GetLastBatch(ctx, true)
+	lastBatch, err := testState.GetLastBatch(ctx, true, "")
 	assert.NoError(t, err)
-	code, err := st.GetCode(ctx, scAddress, lastBatch.Number().Uint64())
+	code, err := st.GetCode(ctx, scAddress, lastBatch.Number().Uint64(), "")
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", code)
 }
@@ -1271,11 +1272,11 @@ func TestGenesisStorage(t *testing.T) {
 	}
 
 	genesis.Storage[address] = values
-	err = st.SetGenesis(ctx, genesis)
+	err = st.SetGenesis(ctx, genesis, "")
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
-		value, err := st.GetStorageAt(ctx, address, new(big.Int).SetInt64(int64(i)), 0)
+		value, err := st.GetStorageAt(ctx, address, new(big.Int).SetInt64(int64(i)), 0, "")
 		assert.NoError(t, err)
 		assert.NotEqual(t, int64(i), value)
 	}
@@ -1315,7 +1316,7 @@ func TestSCSelfDestruct(t *testing.T) {
 	}
 
 	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
-	err = st.SetGenesis(ctx, genesis)
+	err = st.SetGenesis(ctx, genesis, "")
 	require.NoError(t, err)
 
 	// Register Sequencer
@@ -1326,7 +1327,7 @@ func TestSCSelfDestruct(t *testing.T) {
 		BlockNumber: genesisBlock.Header().Number.Uint64(),
 	}
 
-	err = st.AddSequencer(ctx, sequencer)
+	err = st.AddSequencer(ctx, sequencer, "")
 	assert.NoError(t, err)
 
 	var txs []*types.Transaction
@@ -1373,14 +1374,14 @@ func TestSCSelfDestruct(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"))
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes("0x"), "")
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
 	// Get SC bytecode
-	code, err := st.GetCode(ctx, scAddress, batch.Number().Uint64())
+	code, err := st.GetCode(ctx, scAddress, batch.Number().Uint64(), "")
 	require.NoError(t, err)
 	assert.Equal(t, []byte{}, code)
 }
@@ -1420,7 +1421,7 @@ func TestEmitLog(t *testing.T) {
 	}
 
 	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
-	err = st.SetGenesis(ctx, genesis)
+	err = st.SetGenesis(ctx, genesis, "")
 	require.NoError(t, err)
 
 	// Register Sequencer
@@ -1431,7 +1432,7 @@ func TestEmitLog(t *testing.T) {
 		BlockNumber: genesisBlock.Header().Number.Uint64(),
 	}
 
-	err = st.AddSequencer(ctx, sequencer)
+	err = st.AddSequencer(ctx, sequencer, "")
 	assert.NoError(t, err)
 
 	var txs []*types.Transaction
@@ -1482,16 +1483,16 @@ func TestEmitLog(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	stateRoot, err := testState.GetStateRoot(ctx, true)
+	stateRoot, err := testState.GetStateRoot(ctx, true, "")
 	require.NoError(t, err)
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, stateRoot)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, stateRoot, "")
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
 	// Check logs
-	receipt, err := st.GetTransactionReceipt(ctx, signedTxCall.Hash())
+	receipt, err := st.GetTransactionReceipt(ctx, signedTxCall.Hash(), "")
 	require.NoError(t, err)
 	require.Equal(t, 10, len(receipt.Logs))
 	for _, l := range receipt.Logs {
@@ -1499,27 +1500,27 @@ func TestEmitLog(t *testing.T) {
 	}
 
 	hash := batch.Hash()
-	logs, err := st.GetLogs(ctx, 0, 0, nil, nil, &hash)
+	logs, err := st.GetLogs(ctx, 0, 0, nil, nil, &hash, "")
 	require.NoError(t, err)
 	require.Equal(t, 10, len(logs))
 	for _, l := range logs {
 		assert.Equal(t, scAddress, l.Address)
 	}
 
-	logs, err = st.GetLogs(ctx, 0, 5, nil, nil, nil)
+	logs, err = st.GetLogs(ctx, 0, 5, nil, nil, nil, "")
 	require.NoError(t, err)
 	require.Equal(t, 10, len(logs))
 	for _, l := range logs {
 		assert.Equal(t, scAddress, l.Address)
 	}
 
-	logs, err = st.GetLogs(ctx, 5, 5, nil, nil, nil)
+	logs, err = st.GetLogs(ctx, 5, 5, nil, nil, nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(logs))
 
 	addresses := []common.Address{}
 	addresses = append(addresses, scAddress)
-	logs, err = st.GetLogs(ctx, 0, 5, addresses, nil, nil)
+	logs, err = st.GetLogs(ctx, 0, 5, addresses, nil, nil, "")
 	require.NoError(t, err)
 	require.Equal(t, 10, len(logs))
 	for _, l := range logs {
@@ -1729,7 +1730,7 @@ func TestEmitLog(t *testing.T) {
 	for i, testCase := range topicsTestCases {
 		name := strconv.Itoa(i)
 		t.Run(name, func(t *testing.T) {
-			logs, err = st.GetLogs(ctx, 0, 5, nil, testCase.topics, nil)
+			logs, err = st.GetLogs(ctx, 0, 5, nil, testCase.topics, nil, "")
 			require.NoError(t, err)
 			require.Equal(t, testCase.expectedLogCount, len(logs))
 			for _, l := range logs {
@@ -1770,7 +1771,7 @@ func TestEstimateGas(t *testing.T) {
 	}
 
 	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
-	err = st.SetGenesis(ctx, genesis)
+	err = st.SetGenesis(ctx, genesis, "")
 	require.NoError(t, err)
 
 	// Register Sequencer
@@ -1781,7 +1782,7 @@ func TestEstimateGas(t *testing.T) {
 		BlockNumber: genesisBlock.Header().Number.Uint64(),
 	}
 
-	err = st.AddSequencer(ctx, sequencer)
+	err = st.AddSequencer(ctx, sequencer, "")
 	assert.NoError(t, err)
 
 	var txs []*types.Transaction
@@ -1806,7 +1807,7 @@ func TestEstimateGas(t *testing.T) {
 	txs = append(txs, signedTxSCDeploy)
 
 	// Estimate Gas
-	gasEstimation, err := st.EstimateGas(signedTxSCDeploy)
+	gasEstimation, err := st.EstimateGas(signedTxSCDeploy, "")
 	require.NoError(t, err)
 	assert.Equal(t, uint64(376040), gasEstimation)
 
@@ -1827,9 +1828,9 @@ func TestEstimateGas(t *testing.T) {
 	}
 
 	// Create Batch Processor
-	stateRoot, err := testState.GetStateRoot(ctx, true)
+	stateRoot, err := testState.GetStateRoot(ctx, true, "")
 	require.NoError(t, err)
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, stateRoot)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, stateRoot, "")
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
@@ -1841,7 +1842,7 @@ func TestEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 
 	// Estimate Gas
-	gasEstimation, err = st.EstimateGas(signedTxStoreValue)
+	gasEstimation, err = st.EstimateGas(signedTxStoreValue, "")
 	require.NoError(t, err)
 	assert.Equal(t, uint64(107320), gasEstimation)
 
@@ -1853,7 +1854,7 @@ func TestEstimateGas(t *testing.T) {
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
-	root, err := st.GetStateRootByBatchNumber(ctx, 0)
+	root, err := st.GetStateRootByBatchNumber(ctx, 0, "")
 	require.NoError(t, err)
 	log.Debugf("root: %v", common.Bytes2Hex(root))
 
@@ -1863,12 +1864,12 @@ func TestEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 
 	// Estimate Gas
-	gasEstimation, err = st.EstimateGas(signedTxTransfer)
+	gasEstimation, err = st.EstimateGas(signedTxTransfer, "")
 	require.NoError(t, err)
 	assert.Equal(t, uint64(state.TxTransferGas), gasEstimation)
 
 	// Execution Trace
-	receipt, err := st.GetTransactionReceipt(ctx, signedTxStoreValue.Hash())
+	receipt, err := st.GetTransactionReceipt(ctx, signedTxStoreValue.Hash(), "")
 	require.NoError(t, err)
 
 	result := st.ReplayTransaction(receipt.TxHash)
@@ -1911,7 +1912,7 @@ func TestStorageOnDeploy(t *testing.T) {
 	}
 
 	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
-	err = st.SetGenesis(ctx, genesis)
+	err = st.SetGenesis(ctx, genesis, "")
 	require.NoError(t, err)
 
 	// Register Sequencer
@@ -1922,7 +1923,7 @@ func TestStorageOnDeploy(t *testing.T) {
 		BlockNumber: genesisBlock.Header().Number.Uint64(),
 	}
 
-	err = st.AddSequencer(ctx, sequencer)
+	err = st.AddSequencer(ctx, sequencer, "")
 	assert.NoError(t, err)
 
 	var txs []*types.Transaction
@@ -1962,11 +1963,11 @@ func TestStorageOnDeploy(t *testing.T) {
 		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 
-	lastBatch, err := st.GetLastBatch(ctx, true)
+	lastBatch, err := st.GetLastBatch(ctx, true, "")
 	require.NoError(t, err)
 
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Header.Root[:])
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Header.Root[:], "")
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
@@ -1974,4 +1975,39 @@ func TestStorageOnDeploy(t *testing.T) {
 
 	value := bp.Host.GetStorage(ctx, scAddress, new(big.Int).SetInt64(0))
 	assert.Equal(t, expectedStoredValue, value)
+}
+
+func TestConcurrentDBTransactions(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+
+		go func(i int) {
+			defer wg.Done()
+
+			txBundleID, err := st.BeginStateTransaction(ctx)
+			require.NoError(t, err)
+
+			require.NoError(t, st.Commit(ctx, txBundleID))
+		}(i)
+	}
+	wg.Wait()
 }

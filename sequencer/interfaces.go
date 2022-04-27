@@ -37,10 +37,10 @@ type txProfitabilityChecker interface {
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
-	GetSequencer(ctx context.Context, address common.Address) (*state.Sequencer, error)
-	GetLastBatchNumber(ctx context.Context) (uint64, error)
-	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
-	GetLastBatchByStateRoot(ctx context.Context, stateRoot []byte) (*state.Batch, error)
-	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte) (*state.BatchProcessor, error)
+	GetLastBatch(ctx context.Context, isVirtual bool, txundleID string) (*state.Batch, error)
+	GetSequencer(ctx context.Context, address common.Address, txundleID string) (*state.Sequencer, error)
+	GetLastBatchNumber(ctx context.Context, txundleID string) (uint64, error)
+	GetLastBatchNumberSeenOnEthereum(ctx context.Context, txundleID string) (uint64, error)
+	GetLastBatchByStateRoot(ctx context.Context, stateRoot []byte, txundleID string) (*state.Batch, error)
+	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte, txundleID string) (*state.BatchProcessor, error)
 }

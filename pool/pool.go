@@ -119,13 +119,13 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return ErrInvalidSender
 	}
 
-	lastBatch, err := p.state.GetLastBatch(ctx, true)
+	lastBatch, err := p.state.GetLastBatch(ctx, true, "")
 	if err != nil {
 		return err
 	}
 	lastBatchNumber := lastBatch.Number().Uint64()
 
-	nonce, err := p.state.GetNonce(ctx, from, lastBatchNumber)
+	nonce, err := p.state.GetNonce(ctx, from, lastBatchNumber, "")
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	balance, err := p.state.GetBalance(ctx, from, lastBatchNumber)
+	balance, err := p.state.GetBalance(ctx, from, lastBatchNumber, "")
 	if err != nil {
 		return err
 	}

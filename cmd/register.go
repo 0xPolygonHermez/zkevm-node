@@ -64,7 +64,7 @@ func registerSequencer(ctx *cli.Context) error {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	st := state.NewState(stateCfg, stateDb, tr)
 
-	_, err = st.GetSequencer(ctx.Context, etherman.GetAddress())
+	_, err = st.GetSequencer(ctx.Context, etherman.GetAddress(), "")
 	if errors.Is(err, state.ErrNotFound) { //If It doesn't exist, register the sequencer
 		tx, err := etherman.RegisterSequencer(url)
 		if err != nil {

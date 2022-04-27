@@ -118,7 +118,7 @@ func setUpEnv(b *testing.B) (*state.State, *pool.Pool, *big.Int, *ethclient.Clie
 }
 
 func tearDownEnv(b *testing.B, st stateInterface) {
-	lastBatchNumber, err := st.GetLastBatchNumber(ctx)
+	lastBatchNumber, err := st.GetLastBatchNumber(ctx, "")
 	require.NoError(b, err)
 	fmt.Printf("lastBatchNumber: %v\n", lastBatchNumber)
 	require.NoError(b, operations.Teardown())

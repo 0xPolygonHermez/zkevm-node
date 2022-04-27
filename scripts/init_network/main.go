@@ -311,10 +311,6 @@ func sendL2Claim(ctx context.Context, auth *bind.TransactOpts, client *ethclient
 	log.Infof("waiting L2 Claim tx to be mined")
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
-
-	log.Infof("wait for the consolidation")
-	const timeToWaitForTheConsolidation = 30 * time.Second
-	time.Sleep(timeToWaitForTheConsolidation)
 }
 
 func chkErr(err error) {

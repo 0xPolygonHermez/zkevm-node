@@ -31,7 +31,7 @@ type blockNumberOrHash struct {
 func (e *Eth) BlockNumber() (interface{}, error) {
 	ctx := context.Background()
 
-	lastBatchNumber, err := e.state.GetLastBatchNumber(ctx)
+	lastBatchNumber, err := e.state.GetLastBatchNumber(ctx, "")
 	if err != nil {
 		return nil, err
 	}
@@ -73,12 +73,12 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 		return "0x", nil
 	}
 
-	batch, err := e.state.GetBatchByNumber(ctx, batchNumber)
+	batch, err := e.state.GetBatchByNumber(ctx, batchNumber, "")
 	if err != nil {
 		return "0x", nil
 	}
 
-	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, batch.Header.Root[:])
+	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, batch.Header.Root[:], "")
 	if err != nil {
 		return "0x", nil
 	}
@@ -110,7 +110,7 @@ func (e *Eth) ChainId() (interface{}, error) { //nolint:golint
 // node performance.
 func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error) {
 	tx := arg.ToTransaction()
-	gasEstimation, err := e.state.EstimateGas(tx)
+	gasEstimation, err := e.state.EstimateGas(tx, "")
 	return hex.EncodeUint64(gasEstimation), err
 }
 
@@ -135,7 +135,7 @@ func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface
 		return nil, err
 	}
 
-	balance, err := e.state.GetBalance(ctx, address, batchNumber)
+	balance, err := e.state.GetBalance(ctx, address, batchNumber, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return hex.EncodeUint64(0), nil
 	} else if err != nil {
@@ -149,7 +149,7 @@ func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface
 func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, error) {
 	ctx := context.Background()
 
-	batch, err := e.state.GetBatchByHash(ctx, hash)
+	batch, err := e.state.GetBatchByHash(ctx, hash, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
@@ -166,7 +166,7 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 	ctx := context.Background()
 
 	if number == PendingBlockNumber {
-		lastBatch, err := e.state.GetLastBatch(context.Background(), true)
+		lastBatch, err := e.state.GetLastBatch(context.Background(), true, "")
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +186,7 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 		return nil, err
 	}
 
-	batch, err := e.state.GetBatchByNumber(ctx, batchNumber)
+	batch, err := e.state.GetBatchByNumber(ctx, batchNumber, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
@@ -207,7 +207,7 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 		return nil, err
 	}
 
-	code, err := e.state.GetCode(ctx, address, batchNumber)
+	code, err := e.state.GetCode(ctx, address, batchNumber, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return "0x", nil
 	} else if err != nil {
@@ -231,7 +231,7 @@ func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 		return nil, err
 	}
 
-	logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash)
+	logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash, "")
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number 
 		return nil, err
 	}
 
-	value, err := e.state.GetStorageAt(ctx, address, position.Big(), batchNumber)
+	value, err := e.state.GetStorageAt(ctx, address, position.Big(), batchNumber, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return argBytesPtr(common.Hash{}.Bytes()), nil
 	} else if err != nil {
@@ -268,14 +268,14 @@ func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number 
 func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (interface{}, error) {
 	ctx := context.Background()
 
-	tx, err := e.state.GetTransactionByBatchHashAndIndex(ctx, hash, uint64(index))
+	tx, err := e.state.GetTransactionByBatchHashAndIndex(ctx, hash, uint64(index), "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
 	}
 
-	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash())
+	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash(), "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
@@ -295,14 +295,14 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 		return nil, err
 	}
 
-	tx, err := e.state.GetTransactionByBatchNumberAndIndex(ctx, batchNumber, uint64(index))
+	tx, err := e.state.GetTransactionByBatchNumberAndIndex(ctx, batchNumber, uint64(index), "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
 	}
 
-	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash())
+	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash(), "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
@@ -316,14 +316,14 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 	ctx := context.Background()
 
-	tx, err := e.state.GetTransactionByHash(ctx, hash)
+	tx, err := e.state.GetTransactionByHash(ctx, hash, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
 		return nil, err
 	}
 
-	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash())
+	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash(), "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
@@ -341,7 +341,7 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 		return nil, err
 	}
 
-	nonce, err := e.state.GetNonce(ctx, address, batchNumber)
+	nonce, err := e.state.GetNonce(ctx, address, batchNumber, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return hex.EncodeUint64(0), nil
 	} else if err != nil {
@@ -355,7 +355,7 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 	ctx := context.Background()
 
-	r, err := e.state.GetTransactionReceipt(ctx, hash)
+	r, err := e.state.GetTransactionReceipt(ctx, hash, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
@@ -410,7 +410,7 @@ func (e *Eth) getHeaderFromBlockNumberOrHash(bnh *blockNumberOrHash) (*types.Hea
 			return nil, fmt.Errorf("failed to get the header of block %d: %w", *bnh.BlockNumber, err)
 		}
 	} else if bnh.BlockHash != nil {
-		block, err := e.state.GetBatchByHash(context.Background(), *bnh.BlockHash)
+		block, err := e.state.GetBatchByHash(context.Background(), *bnh.BlockHash, "")
 		if err != nil {
 			return nil, fmt.Errorf("could not find block referenced by the hash %s, err: %v", bnh.BlockHash.String(), err)
 		}
@@ -424,21 +424,21 @@ func (e *Eth) getHeaderFromBlockNumberOrHash(bnh *blockNumberOrHash) (*types.Hea
 func (e *Eth) getBatchHeader(number BlockNumber) (*types.Header, error) {
 	switch number {
 	case LatestBlockNumber:
-		batch, err := e.state.GetLastBatch(context.Background(), false)
+		batch, err := e.state.GetLastBatch(context.Background(), false, "")
 		if err != nil {
 			return nil, err
 		}
 		return batch.Header, nil
 
 	case EarliestBlockNumber:
-		batch, err := e.state.GetBatchByNumber(context.Background(), 0)
+		batch, err := e.state.GetBatchByNumber(context.Background(), 0, "")
 		if err != nil {
 			return nil, err
 		}
 		return batch.Header, nil
 
 	case PendingBlockNumber:
-		lastBatch, err := e.state.GetLastBatch(context.Background(), true)
+		lastBatch, err := e.state.GetLastBatch(context.Background(), true, "")
 		if err != nil {
 			return nil, err
 		}
@@ -450,6 +450,6 @@ func (e *Eth) getBatchHeader(number BlockNumber) (*types.Header, error) {
 		return header, nil
 
 	default:
-		return e.state.GetBatchHeader(context.Background(), uint64(number))
+		return e.state.GetBatchHeader(context.Background(), uint64(number), "")
 	}
 }

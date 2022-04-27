@@ -31,11 +31,11 @@ import (
 type stateTestInterface interface {
 	stateInterface
 	// following methods used for tests
-	NewGenesisBatchProcessor(genesisStateRoot []byte) (*state.BatchProcessor, error)
-	GetNonce(ctx context.Context, address common.Address, batchNumber uint64) (uint64, error)
-	GetBalance(ctx context.Context, address common.Address, batchNumber uint64) (*big.Int, error)
-	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64) error
-	SetGenesis(ctx context.Context, genesis state.Genesis) error
+	NewGenesisBatchProcessor(genesisStateRoot []byte, txBundleID string) (*state.BatchProcessor, error)
+	GetNonce(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (uint64, error)
+	GetBalance(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (*big.Int, error)
+	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
+	SetGenesis(ctx context.Context, genesis state.Genesis, txBundleID string) error
 }
 
 var (
@@ -96,7 +96,7 @@ func setUpBatch(ctx context.Context, t *testing.T) {
 		ChainID:            big.NewInt(1000),
 		GlobalExitRoot:     common.Hash{},
 	}
-	bp, err := testState.NewGenesisBatchProcessor(nil)
+	bp, err := testState.NewGenesisBatchProcessor(nil, "")
 	if err != nil {
 		require.NoError(t, err)
 	}
@@ -170,7 +170,7 @@ func TestMain(m *testing.M) {
 		DefaultChainID:     1000,
 	}
 
-	err = testState.SetLastBatchNumberSeenOnEthereum(context.Background(), lastBatchNumberSeen)
+	err = testState.SetLastBatchNumberSeenOnEthereum(context.Background(), lastBatchNumberSeen, "")
 	if err != nil {
 		panic(err)
 	}
@@ -190,7 +190,7 @@ func TestMain(m *testing.M) {
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = testState.SetGenesis(ctx, genesis)
+	err = testState.SetGenesis(ctx, genesis, "")
 	if err != nil {
 		panic(err)
 	}
@@ -250,13 +250,13 @@ func TestSequencerIsNotSynced(t *testing.T) {
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
 	require.NoError(t, err)
 
-	err = testState.SetLastBatchNumberSeenOnEthereum(ctx, 5)
+	err = testState.SetLastBatchNumberSeenOnEthereum(ctx, 5, "")
 	require.NoError(t, err)
 
 	synced := seq.isSynced()
 	require.False(t, synced)
 
-	err = testState.SetLastBatchNumberSeenOnEthereum(ctx, lastBatchNumberSeen)
+	err = testState.SetLastBatchNumberSeenOnEthereum(ctx, lastBatchNumberSeen, "")
 	require.NoError(t, err)
 
 	cleanUpBatches(ctx, t)
@@ -432,7 +432,7 @@ func TestSequencerGetRoot(t *testing.T) {
 
 	seq, err := NewSequencer(seqCfg, pl, testState, eth)
 	require.NoError(t, err)
-	batch, err := testState.GetLastBatch(ctx, true)
+	batch, err := testState.GetLastBatch(ctx, true, "")
 	require.NoError(t, err)
 	root, batchNumber, err := seq.chooseRoot(nil)
 	require.NoError(t, err)
@@ -450,7 +450,7 @@ func TestSequencerGetRootNoPrevRootExistingSynced(t *testing.T) {
 
 	prevRoot := common.Hex2Bytes("0xa116e19a7984f21055d07b606c55628a5ffbf8ae1261c1e9f4e3a61620cf810a")
 
-	batch, err := testState.GetLastBatch(ctx, true)
+	batch, err := testState.GetLastBatch(ctx, true, "")
 	require.NoError(t, err)
 
 	root, batchNumber, err := seq.chooseRoot(prevRoot)

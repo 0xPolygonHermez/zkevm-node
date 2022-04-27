@@ -148,7 +148,7 @@ func (pc *AcceptAll) IsProfitable(ctx context.Context, selectionRes txselector.S
 }
 
 func isNewBatchNotAppeared(ctx context.Context, state stateInterface, intervalAfterWhichBatchSentAnyway time.Duration) (bool, error) {
-	batch, err := state.GetLastBatch(ctx, true)
+	batch, err := state.GetLastBatch(ctx, true, "")
 	if err != nil {
 		return false, fmt.Errorf("failed to get last batch, err: %v", err)
 	}

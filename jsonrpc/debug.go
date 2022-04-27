@@ -26,7 +26,7 @@ type traceTransactionResponse struct {
 func (d *Debug) TraceTransaction(hash common.Hash) (interface{}, error) {
 	ctx := context.Background()
 
-	tx, err := d.state.GetTransactionByHash(ctx, hash)
+	tx, err := d.state.GetTransactionByHash(ctx, hash, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return genesisIsNotTraceableError{}, nil
 	}
@@ -36,7 +36,8 @@ func (d *Debug) TraceTransaction(hash common.Hash) (interface{}, error) {
 		return nil, err
 	}
 
-	rcpt, err := d.state.GetTransactionReceipt(ctx, hash)
+	rcpt, err := d.state.GetTransactionReceipt(ctx, hash, "")
+
 	if errors.Is(err, state.ErrNotFound) {
 		return genesisIsNotTraceableError{}, nil
 	}

@@ -26,9 +26,9 @@ type aggregatorTxProfitabilityChecker interface {
 
 // stateInterface gathers the methods to interract with the state.
 type stateInterface interface {
-	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
-	GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context) (uint64, error)
-	GetBatchByNumber(ctx context.Context, batchNumber uint64) (*state.Batch, error)
-	GetStateRootByBatchNumber(ctx context.Context, batchNumber uint64) ([]byte, error)
-	GetSequencer(ctx context.Context, address common.Address) (*state.Sequencer, error)
+	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
+	GetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, txBundleID string) (uint64, error)
+	GetBatchByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (*state.Batch, error)
+	GetStateRootByBatchNumber(ctx context.Context, batchNumber uint64, txBundleID string) ([]byte, error)
+	GetSequencer(ctx context.Context, address common.Address, txBundleID string) (*state.Sequencer, error)
 }

@@ -6,5 +6,5 @@ import "context"
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBatchNumber(ctx context.Context) (uint64, error)
+	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
 }

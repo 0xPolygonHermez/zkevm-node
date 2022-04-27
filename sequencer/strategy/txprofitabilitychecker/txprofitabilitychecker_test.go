@@ -24,8 +24,8 @@ import (
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBatch(ctx context.Context, isVirtual bool) (*state.Batch, error)
-	NewGenesisBatchProcessor(genesisStateRoot []byte) (*state.BatchProcessor, error)
+	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
+	NewGenesisBatchProcessor(genesisStateRoot []byte, txBundleID string) (*state.BatchProcessor, error)
 }
 
 var (
@@ -134,7 +134,7 @@ func setUpBatch() {
 		panic(err)
 	}
 
-	bp, err := testState.NewGenesisBatchProcessor(nil)
+	bp, err := testState.NewGenesisBatchProcessor(nil, "")
 	if err != nil {
 		panic(err)
 	}

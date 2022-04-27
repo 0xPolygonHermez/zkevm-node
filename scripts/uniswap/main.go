@@ -62,6 +62,7 @@ func main() {
 	fmt.Println()
 
 	// Deploy wETH Token, it's required by uniswap to swap ETH by tokens
+	log.Debugf("Deploying wEth SC")
 	wEthAddr, tx, wethSC, err := WETH.DeployWETH(auth, client)
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
@@ -71,6 +72,7 @@ func main() {
 	fmt.Println()
 
 	// Deploy Uniswap Factory
+	log.Debugf("Deploying Uniswap Factory")
 	factoryAddr, tx, factory, err := UniswapV2Factory.DeployUniswapV2Factory(auth, client, auth.From)
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
@@ -80,6 +82,7 @@ func main() {
 	fmt.Println()
 
 	// Deploy Uniswap Router
+	log.Debugf("Deploying Uniswap Router")
 	routerAddr, tx, router, err := UniswapV2Router02.DeployUniswapV2Router02(auth, client, factoryAddr, wEthAddr)
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
@@ -89,6 +92,7 @@ func main() {
 	fmt.Println()
 
 	// Deploy Uniswap Interface Multicall
+	log.Debugf("Deploying Uniswap Multicall")
 	multicallAddr, tx, _, err := UniswapInterfaceMulticall.DeployUniswapInterfaceMulticall(auth, client)
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
@@ -98,6 +102,7 @@ func main() {
 	fmt.Println()
 
 	// Mint balance to tokens
+	log.Debugf("Minting ERC20 Tokens")
 	aMintAmount := "1000000000000000000000"
 	tx = mintERC20(auth, client, aCoin, aMintAmount)
 	log.Debugf("Mint A Coin tx: %v", tx.Hash().Hex())
@@ -112,10 +117,10 @@ func main() {
 	fmt.Println()
 
 	// wrapping eth
-	wethDepositAmount, _ := big.NewInt(0).SetString("20000000000000000", encoding.Base10)
-	log.Debugf("Depositing %v ETH for account %v on token wEth", wethDepositAmount.Text(encoding.Base10), auth.From)
+	wethDepositoAmount := "20000000000000000"
+	log.Debugf("Depositing %v ETH for account %v on token wEth", wethDepositoAmount, auth.From)
 	wAuth := getAuth(ctx, client, pk)
-	wAuth.Value = wethDepositAmount
+	wAuth.Value, _ = big.NewInt(0).SetString(wethDepositoAmount, encoding.Base10)
 	tx, err = wethSC.Deposit(auth)
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
@@ -128,16 +133,12 @@ func main() {
 	fmt.Println()
 	approveERC20(auth, client, cCoin, routerAddr, cMintAmount)
 	fmt.Println()
-	approveERC20(auth, client, wethSC, routerAddr, wethDepositAmount.Text(encoding.Base10))
+	approveERC20(auth, client, wethSC, routerAddr, wethDepositoAmount)
 	fmt.Println()
 
-	const liquidityAmount = "10000000000000000"
+	const liquidityAmount = "10000000000000000000"
 
 	// Add liquidity to the pool
-	tx = addLiquidity(auth, client, router, aCoinAddr, wEthAddr, liquidityAmount)
-	log.Debugf("Add Liquidity to Pair A <-> wEth tx: %v", tx.Hash().Hex())
-	fmt.Println()
-
 	tx = addLiquidity(auth, client, router, aCoinAddr, bCoinAddr, liquidityAmount)
 	log.Debugf("Add Liquidity to Pair A <-> B tx: %v", tx.Hash().Hex())
 	fmt.Println()
@@ -147,75 +148,16 @@ func main() {
 	fmt.Println()
 
 	// Execute swaps
-	const swapExactAmountInNumber = 1000
+	const swapExactAmountInNumber = 1000000000000000000
 	swapExactAmountIn := big.NewInt(swapExactAmountInNumber)
-	ethAuth := getAuth(ctx, client, pk)
-	ethAuth.Value = swapExactAmountIn
-	swapExactETHForTokens(auth, client, factory, router, aCoinAddr)
-	swapExactTokensForETH(auth, client, factory, router, aCoinAddr, swapExactAmountIn)
+
+	log.Debugf("Swaping tokens from A <-> B")
 	swapExactTokensForTokens(auth, client, factory, router, aCoinAddr, bCoinAddr, swapExactAmountIn)
+	fmt.Println()
 
-	// swapETHForExactTokens()
-	// swapTokensForExactETH()
-	// swapTokensForExactTokens()
-}
-
-func swapExactETHForTokens(auth *bind.TransactOpts, client *ethclient.Client,
-	factory *UniswapV2Factory.UniswapV2Factory, router *UniswapV2Router02.UniswapV2Router02,
-	token common.Address) {
-	tokeWeth, err := router.WETH(nil)
-	chkErr(err)
-
-	logPrefix := fmt.Sprintf("swapExactETHForTokens WETH(%v) <-> %v", tokeWeth.Hex(), token.Hex())
-
-	pairAddr, err := factory.GetPair(nil, token, tokeWeth)
-	chkErr(err)
-	log.Debug(logPrefix, " pair: ", pairAddr.Hex())
-
-	pairSC, err := UniswapV2Pair.NewUniswapV2Pair(pairAddr, client)
-	chkErr(err)
-
-	pairReserves, err := pairSC.GetReserves(nil)
-	chkErr(err)
-	log.Debug(logPrefix, " reserves 0: ", pairReserves.Reserve0, " 1: ", pairReserves.Reserve1, " Block Timestamp: ", pairReserves.BlockTimestampLast)
-
-	amountOut, err := router.GetAmountOut(nil, auth.Value, pairReserves.Reserve0, pairReserves.Reserve1)
-	chkErr(err)
-
-	tx, err := router.SwapExactETHForTokens(auth, amountOut, []common.Address{token, tokeWeth}, auth.From, getDeadline())
-	chkErr(err)
-	log.Debug(logPrefix, " tx: ", tx.Hash().Hex())
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
-	chkErr(err)
-}
-
-func swapExactTokensForETH(auth *bind.TransactOpts, client *ethclient.Client,
-	factory *UniswapV2Factory.UniswapV2Factory, router *UniswapV2Router02.UniswapV2Router02,
-	token common.Address, exactAmountIn *big.Int) {
-	tokeWeth, err := router.WETH(nil)
-	chkErr(err)
-
-	logPrefix := fmt.Sprintf("swapExactTokensForETH %v <-> WETH(%v)", token.Hex(), tokeWeth.Hex())
-
-	pairAddr, err := factory.GetPair(nil, token, tokeWeth)
-	chkErr(err)
-	log.Debug(logPrefix, " pair: ", pairAddr.Hex())
-
-	pairSC, err := UniswapV2Pair.NewUniswapV2Pair(pairAddr, client)
-	chkErr(err)
-
-	pairReserves, err := pairSC.GetReserves(nil)
-	chkErr(err)
-	log.Debug(logPrefix, " reserves 0: ", pairReserves.Reserve0, " 1: ", pairReserves.Reserve1, " Block Timestamp: ", pairReserves.BlockTimestampLast)
-
-	amountOut, err := router.GetAmountOut(nil, exactAmountIn, pairReserves.Reserve0, pairReserves.Reserve1)
-	chkErr(err)
-
-	tx, err := router.SwapExactETHForTokens(auth, amountOut, []common.Address{token, tokeWeth}, auth.From, getDeadline())
-	chkErr(err)
-	log.Debug(logPrefix, " tx: ", tx.Hash().Hex())
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
-	chkErr(err)
+	log.Debugf("Swaping tokens from B <-> C")
+	swapExactTokensForTokens(auth, client, factory, router, bCoinAddr, cCoinAddr, swapExactAmountIn)
+	fmt.Println()
 }
 
 func swapExactTokensForTokens(auth *bind.TransactOpts, client *ethclient.Client,
@@ -235,6 +177,7 @@ func swapExactTokensForTokens(auth *bind.TransactOpts, client *ethclient.Client,
 
 	amountOut, err := router.GetAmountOut(nil, exactAmountIn, pairReserves.Reserve0, pairReserves.Reserve1)
 	chkErr(err)
+	log.Debug(logPrefix, " exactAmountIn: ", exactAmountIn, " amountOut: ", amountOut)
 
 	tx, err := router.SwapExactTokensForTokens(auth, exactAmountIn, amountOut, []common.Address{tokenA, tokenB}, auth.From, getDeadline())
 	chkErr(err)

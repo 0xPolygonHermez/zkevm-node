@@ -22,6 +22,12 @@ services:
     hez-postgres:
         container_name: hez-postgres
         image: postgres
+        deploy:
+          resources:
+            limits:
+              memory: 2G
+            reservations:
+              memory: 1G
         ports:
             - 5432:5432
         environment:

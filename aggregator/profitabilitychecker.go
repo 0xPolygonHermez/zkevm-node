@@ -78,7 +78,7 @@ func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx context.Context, mat
 }
 
 func isConsolidatedBatchAppeared(ctx context.Context, state stateInterface, intervalAfterWhichBatchConsolidatedAnyway time.Duration) (bool, error) {
-	batch, err := state.GetLastBatch(ctx, false)
+	batch, err := state.GetLastBatch(ctx, false, "")
 	if err != nil {
 		return false, fmt.Errorf("failed to get last consolidated batch, err: %v", err)
 	}
