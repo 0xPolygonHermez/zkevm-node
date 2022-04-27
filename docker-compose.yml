@@ -69,7 +69,7 @@ services:
 
     hez-network:
         container_name: hez-network
-        image: hermeznetwork/geth-zkevm-contracts@sha256:a7e54578bb87096f0d46aba47d2ebf3bb439b845bed38817a6c9e5be2129eb45
+        image: hermeznetwork/geth-zkevm-contracts@sha256:3474e0715f4d941e83098bb0087cb13a9a94a30080382825167f902b1a38967d
         ports:
           - 8545:8545
 
