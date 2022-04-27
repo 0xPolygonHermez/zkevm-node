@@ -215,12 +215,16 @@ func (h *Host) Callx(ctx context.Context, contract *runtime.Contract, host runti
 		}
 	}
 
-	root := h.stateRoot
-	contract2 := runtime.NewContractCall(contract.Depth+1, contract.Address, contract.Caller, contract.CodeAddress, contract.Value, contract.Gas, contract.Code, contract.Input)
-	result := h.run(ctx, contract2)
-	if result.Reverted() {
-		h.stateRoot = root
+	var contract2 *runtime.Contract
+
+	if contract.Type == runtime.DelegateCall {
+		contract2 = runtime.NewContractCall(contract.Depth+1, contract.Caller, contract.CodeAddress, contract.Address, contract.Value, contract.Gas, contract.Code, contract.Input)
+	} else {
+		contract2 = runtime.NewContractCall(contract.Depth+1, contract.Address, contract.Caller, contract.CodeAddress, contract.Value, contract.Gas, contract.Code, contract.Input)
 	}
+
+	result := h.run(ctx, contract2)
+
 	return result
 }
 
