@@ -57,7 +57,7 @@ If you need sample data already deployed to the network, we have the following s
 To add some examples of transactions and smart contracts:
 
 ```bash
-make deploy-examples
+make deploy-sc
 ```
 
 To deploy a full a uniswap environment:
