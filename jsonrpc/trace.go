@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
 
 // Trace is the trace jsonrpc endpoint
@@ -36,10 +37,10 @@ type txVMTrace struct {
 type txAccountDiff struct{}
 
 type txVMTraceOperation struct {
-	PC                uint64                      `json:"pc"`
-	Cost              uint64                      `json:"cost"`
-	ExecutedOperation *txVMTraceExecutedOperation `json:"ex"`
-	Sub               *txVMTrace                  `json:"sub"`
+	PC                uint64                     `json:"pc"`
+	Cost              uint64                     `json:"cost"`
+	ExecutedOperation txVMTraceExecutedOperation `json:"ex"`
+	Sub               *txVMTrace                 `json:"sub"`
 }
 
 type txVMTraceExecutedOperation struct {
@@ -107,43 +108,79 @@ func (d *Trace) ReplayTransaction(hash common.Hash, traceType []string) (interfa
 }
 
 func (d *Trace) executionResultToReplayTransactionResponse(result *runtime.ExecutionResult) replayTransactionResponse {
-	operations := make([]txVMTraceOperation, 0, len(result.VMTrace.Operations))
+	output := argBytes(result.Trace.Result.Output)
+	return replayTransactionResponse{
+		Output:  &output,
+		Trace:   []txTrace{traceToTxTrace(result.Trace)},
+		VMTrace: vmTraceToTxVMTrace(result.VMTrace),
+		// StateDiff: ,
+	}
+}
 
-	for _, operation := range result.VMTrace.Operations {
-		stackPush := make([]argUint64, 0, len(operation.Executed.StackPush))
+func traceToTxTrace(t instrumentation.Trace) txTrace {
+	txT := txTrace{
+		TraceAddress: t.TraceAddress[:],
+		SubTraces:    t.SubTraces,
+		Action: txTraceAction{
+			From:     t.Action.From,
+			To:       t.Action.To,
+			Value:    argUint64(t.Action.Value),
+			Gas:      argUint64(t.Action.Gas),
+			Input:    t.Action.Input,
+			CallType: t.Action.CallType,
+		},
+		Type: t.Type,
+	}
 
-		for _, p := range operation.Executed.StackPush {
-			stackPush = append(stackPush, argUint64(p))
+	if t.Result != nil {
+		txT.Result = &txTraceResult{
+			GasUsed: argUint64(t.Result.GasUsed),
+			Output:  argBytes(t.Result.Output),
+		}
+	} else {
+		txT.Error = t.Error
+	}
+
+	return txT
+}
+
+func vmTraceToTxVMTrace(vmTrace instrumentation.VMTrace) txVMTrace {
+	operations := make([]txVMTraceOperation, 0, len(vmTrace.Operations))
+
+	for _, op := range vmTrace.Operations {
+
+		stackPush := make([]argUint64, 0, len(op.Executed.StackPush))
+		for _, sp := range op.Executed.StackPush {
+			stackPush = append(stackPush, argUint64(sp))
+		}
+
+		var sub *txVMTrace = nil
+		if op.Sub != nil {
+			s := vmTraceToTxVMTrace(*op.Sub)
+			sub = &s
 		}
 
 		operations = append(operations, txVMTraceOperation{
-			PC:   operation.Pc,
-			Cost: operation.GasCost,
-			ExecutedOperation: &txVMTraceExecutedOperation{
-				Used: argUint64(operation.Executed.GasUsed),
+			PC:   op.Pc,
+			Cost: op.GasCost,
+			ExecutedOperation: txVMTraceExecutedOperation{
+				Used: argUint64(op.Executed.GasUsed),
 				Push: stackPush,
 				MemoryDiff: &txVMTraceMemoryDiff{
-					Off:  argUint64(operation.Executed.MemDiff.Offset),
-					Data: operation.Executed.MemDiff.Data[:],
+					Off:  argUint64(op.Executed.MemDiff.Offset),
+					Data: op.Executed.MemDiff.Data[:],
 				},
 				StorageDiff: &txVMTraceStorageDiff{
-					Key:   argUint64(operation.Executed.StoreDiff.Location),
-					Value: argUint64(operation.Executed.StoreDiff.Value),
+					Key:   argUint64(op.Executed.StoreDiff.Location),
+					Value: argUint64(op.Executed.StoreDiff.Value),
 				},
 			},
-
-			// TODO: Check with Toni if we have this value
-			Sub: &txVMTrace{},
+			Sub: sub,
 		})
 	}
 
-	return replayTransactionResponse{
-		// Output: ,
-		// StateDiff: ,
-		// Trace: ,
-		VMTrace: txVMTrace{
-			Code:       argBytes(result.VMTrace.Code),
-			Operations: operations,
-		},
+	return txVMTrace{
+		Code:       vmTrace.Code,
+		Operations: operations,
 	}
 }
