@@ -391,13 +391,15 @@ func (s *State) ReplayBatchTransactions(batchNumber uint64) ([]*runtime.Executio
 
 	results := make([]*runtime.ExecutionResult, 0, len(batch.Transactions))
 
-	receiptsMap := make(map[common.Hash]*Receipt, len(batch.Receipts))
-	for _, r := range batch.Receipts {
-		receiptsMap[r.TxHash] = r
-	}
 	for _, tx := range batch.Transactions {
-		receipt := receiptsMap[tx.Hash()]
-		result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress)
+		from, err := helper.GetSender(*tx)
+		if err != nil {
+			results = append(results, &runtime.ExecutionResult{
+				Err: err,
+			})
+		}
+
+		result := bp.processTransaction(ctx, tx, from, sequencerAddress)
 
 		// Trace
 		trace := instrumentation.Trace{}
