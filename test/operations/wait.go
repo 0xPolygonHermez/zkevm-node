@@ -3,6 +3,7 @@ package operations
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,9 +22,12 @@ import (
 )
 
 const (
-	defaultInterval        = 2 * time.Second
-	defaultDeadline        = 30 * time.Second
-	defaultTxMinedDeadline = 5 * time.Second
+	// DefaultInterval is a time interval
+	DefaultInterval = 2 * time.Second
+	// DefaultDeadline is a time interval
+	DefaultDeadline = 30 * time.Second
+	// DefaultTxMinedDeadline is a time interval
+	DefaultTxMinedDeadline = 5 * time.Second
 )
 
 // Wait handles polliing until conditions are met.
@@ -36,7 +40,7 @@ func NewWait() *Wait {
 
 // Poll retries the given condition with the given interval until it succeeds
 // or the given deadline expires.
-func (w *Wait) Poll(interval, deadline time.Duration, condition conditionFunc) error {
+func (w *Wait) Poll(interval, deadline time.Duration, condition ConditionFunc) error {
 	timeout := time.After(deadline)
 	tick := time.NewTicker(interval)
 
@@ -59,7 +63,7 @@ func (w *Wait) Poll(interval, deadline time.Duration, condition conditionFunc) e
 // GRPCHealthy waits for a gRPC endpoint to be responding according to the
 // health standard in package grpc.health.v1
 func (w *Wait) GRPCHealthy(address string) error {
-	return w.Poll(defaultInterval, defaultDeadline, func() (bool, error) {
+	return w.Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
 		return grpcHealthyCondition(address)
 	})
 }
@@ -91,7 +95,7 @@ func (w *Wait) TxToBeMined(client *ethclient.Client, hash common.Hash, timeout t
 			}
 
 			if r.Status == types.ReceiptStatusFailed {
-				return fmt.Errorf("transaction has failed: %s", string(r.PostState))
+				return fmt.Errorf("transaction has failed: %s", hex.EncodeToString(r.PostState))
 			}
 
 			return nil
@@ -103,12 +107,13 @@ func (w *Wait) TxToBeMined(client *ethclient.Client, hash common.Hash, timeout t
 // health standard in package grpc.health.v1
 func WaitGRPCHealthy(address string) error {
 	w := NewWait()
-	return w.Poll(defaultInterval, defaultDeadline, func() (bool, error) {
+	return w.Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
 		return grpcHealthyCondition(address)
 	})
 }
 
-func nodeUpCondition(target string) (bool, error) {
+// NodeUpCondition check if the container is up and running
+func NodeUpCondition(target string) (bool, error) {
 	var jsonStr = []byte(`{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}`)
 	req, err := http.NewRequest(
 		"POST", target,
@@ -151,13 +156,15 @@ func nodeUpCondition(target string) (bool, error) {
 	return done, nil
 }
 
-type conditionFunc func() (done bool, err error)
+// ConditionFunc is a generic function
+type ConditionFunc func() (done bool, err error)
 
 func networkUpCondition() (bool, error) {
-	return nodeUpCondition(l1NetworkURL)
+	return NodeUpCondition(l1NetworkURL)
 }
 
-func proverUpCondition() (bool, error) {
+// ProverUpCondition check if the prover is up and running
+func ProverUpCondition() (bool, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
@@ -185,7 +192,7 @@ func proverUpCondition() (bool, error) {
 }
 
 func coreUpCondition() (done bool, err error) {
-	return nodeUpCondition(l2NetworkURL)
+	return NodeUpCondition(l2NetworkURL)
 }
 
 func grpcHealthyCondition(address string) (bool, error) {

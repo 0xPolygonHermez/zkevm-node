@@ -187,7 +187,7 @@ func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot, globa
 
 	// Wait for sequencer to select txs from pool and propose a new batch
 	// Wait for the synchronizer to update state
-	err = m.wait.Poll(defaultInterval, defaultDeadline, func() (bool, error) {
+	err = m.wait.Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
 		// using a closure here to capture st and currentBatchNumber
 		latestBatchNumber, err := m.st.GetLastBatchNumberConsolidatedOnEthereum(m.ctx, "")
 		if err != nil {
@@ -355,7 +355,7 @@ func (m *Manager) SetUpSequencer() error {
 	}
 
 	// Wait eth transfer to be mined
-	err = m.wait.TxToBeMined(client, signedTx.Hash(), defaultTxMinedDeadline)
+	err = m.wait.TxToBeMined(client, signedTx.Hash(), DefaultTxMinedDeadline)
 	if err != nil {
 		return err
 	}
@@ -378,7 +378,7 @@ func (m *Manager) SetUpSequencer() error {
 	}
 
 	// wait matic transfer to be mined
-	err = m.wait.TxToBeMined(client, tx.Hash(), defaultTxMinedDeadline)
+	err = m.wait.TxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
 	if err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func (m *Manager) SetUpSequencer() error {
 		return err
 	}
 
-	err = m.wait.TxToBeMined(client, tx.Hash(), defaultTxMinedDeadline)
+	err = m.wait.TxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
 	if err != nil {
 		return err
 	}
@@ -424,7 +424,7 @@ func (m *Manager) SetUpSequencer() error {
 	}
 
 	// Wait sequencer to be registered
-	err = m.wait.TxToBeMined(client, tx.Hash(), defaultTxMinedDeadline)
+	err = m.wait.TxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
 	if err != nil {
 		return err
 	}
@@ -442,7 +442,7 @@ func (m *Manager) StartNetwork() error {
 		return err
 	}
 	// Wait network to be ready
-	return m.wait.Poll(defaultInterval, defaultDeadline, networkUpCondition)
+	return m.wait.Poll(DefaultInterval, DefaultDeadline, networkUpCondition)
 }
 
 // InitNetwork Initializes the L2 network registering the sequencer and adding funds via the bridge
@@ -453,7 +453,7 @@ func (m *Manager) InitNetwork() error {
 		return err
 	}
 	// Wait network to be ready
-	return m.wait.Poll(defaultInterval, defaultDeadline, networkUpCondition)
+	return m.wait.Poll(DefaultInterval, DefaultDeadline, networkUpCondition)
 }
 
 // DeployUniswap deploys a uniswap environment and perform swaps
@@ -464,7 +464,7 @@ func (m *Manager) DeployUniswap() error {
 		return err
 	}
 	// Wait network to be ready
-	return m.wait.Poll(defaultInterval, defaultDeadline, networkUpCondition)
+	return m.wait.Poll(DefaultInterval, DefaultDeadline, networkUpCondition)
 }
 
 func stopNetwork() error {
@@ -483,7 +483,7 @@ func (m *Manager) StartCore() error {
 		return err
 	}
 	// Wait core to be ready
-	return m.wait.Poll(defaultInterval, defaultDeadline, coreUpCondition)
+	return m.wait.Poll(DefaultInterval, DefaultDeadline, coreUpCondition)
 }
 
 func stopCore() error {
@@ -502,7 +502,7 @@ func (m *Manager) StartProver() error {
 		return err
 	}
 	// Wait prover to be ready
-	return m.wait.Poll(defaultInterval, defaultDeadline, proverUpCondition)
+	return m.wait.Poll(DefaultInterval, DefaultDeadline, ProverUpCondition)
 }
 
 func stopProver() error {
