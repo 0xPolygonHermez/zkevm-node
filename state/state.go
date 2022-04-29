@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/google/uuid"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/tree"
@@ -213,21 +214,198 @@ func (s *State) GetCode(ctx context.Context, address common.Address, batchNumber
 }
 
 // EstimateGas for a transaction
-func (s *State) EstimateGas(transaction *types.Transaction, txBundleID string) (uint64, error) {
+func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
+	var lowEnd uint64
+	var highEnd uint64
 	ctx := context.Background()
 	sequencerAddress := common.Address{}
-	lastBatch, err := s.GetLastBatch(ctx, true, txBundleID)
+	tx := transaction
+
+	lastBatch, err := s.GetLastBatch(ctx, true, "")
 	if err != nil {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return 0, err
 	}
-	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Header.Root[:], txBundleID)
+	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Header.Root[:], "")
 	if err != nil {
 		log.Errorf("failed to get create a new batch processor, err: %v", err)
 		return 0, err
 	}
-	result := bp.estimateGas(ctx, transaction)
-	return result.GasUsed, result.Err
+
+	if bp.isContractCreation(tx) {
+		lowEnd = TxSmartContractCreationGas
+	} else {
+		lowEnd = TxTransferGas
+	}
+
+	if tx.Gas() != 0 && tx.Gas() > lowEnd {
+		highEnd = tx.Gas()
+	} else {
+		highEnd = tx.Gas() * tx.Gas()
+	}
+
+	senderAddress, err := helper.GetSender(*tx)
+	if err != nil {
+		return 0, err
+	}
+
+	var availableBalance *big.Int
+
+	if senderAddress != ZeroAddress {
+		senderBalance, err := bp.Host.State.tree.GetBalance(ctx, senderAddress, bp.Host.stateRoot, bp.TxBundleID)
+		if err != nil {
+			if err == ErrNotFound {
+				senderBalance = big.NewInt(0)
+			} else {
+				return 0, err
+			}
+		}
+
+		availableBalance = new(big.Int).Set(senderBalance)
+
+		if tx.Value() != nil {
+			if tx.Value().Cmp(availableBalance) > 0 {
+				return 0, ErrInsufficientFunds
+			}
+
+			availableBalance.Sub(availableBalance, tx.Value())
+		}
+	}
+
+	// Recalculate the gas ceiling based on the available funds (if any)
+	// and the passed in gas price (if present)
+	if tx.GasPrice().BitLen() != 0 && // Gas price has been set
+		availableBalance != nil && // Available balance is found
+		availableBalance.Cmp(big.NewInt(0)) > 0 { // Available balance > 0
+		gasAllowance := new(big.Int).Div(availableBalance, tx.GasPrice())
+
+		// Check the gas allowance for this account, make sure high end is capped to it
+		if gasAllowance.IsUint64() && highEnd > gasAllowance.Uint64() {
+			log.Debugf("Gas estimation high-end capped by allowance [%d]", gasAllowance.Uint64())
+			highEnd = gasAllowance.Uint64()
+		}
+	}
+
+	// Checks if executor level valid gas errors occurred
+	isGasApplyError := func(err error) bool {
+		return errors.As(err, &ErrNotEnoughIntrinsicGas)
+	}
+
+	// Checks if EVM level valid gas errors occurred
+	isGasEVMError := func(err error) bool {
+		return errors.Is(err, runtime.ErrOutOfGas) ||
+			errors.Is(err, runtime.ErrCodeStoreOutOfGas)
+	}
+
+	// Checks if the EVM reverted during execution
+	isEVMRevertError := func(err error) bool {
+		return errors.Is(err, runtime.ErrExecutionReverted)
+	}
+
+	// Run the transaction with the specified gas value.
+	// Returns a status indicating if the transaction failed and the accompanying error
+	testTransaction := func(gas uint64, shouldOmitErr bool) (bool, error) {
+		var testResult *runtime.ExecutionResult
+		receiverAddress := tx.To()
+
+		txBundleID, err := s.BeginStateTransaction(ctx)
+		if err != nil {
+			log.Errorf("estimate gas: failed to begin db transaction, err: %v", err)
+			return false, err
+		}
+
+		testBp, err := s.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Header.Root[:], txBundleID)
+		if err != nil {
+			log.Errorf("failed to get create a new batch processor, err: %v", err)
+			return false, err
+		}
+		testBp.SetSimulationMode(true)
+
+		testBp.Host.transactionContext.simulationMode = true
+		testBp.Host.transactionContext.currentTransaction = tx
+		testBp.Host.transactionContext.currentOrigin = senderAddress
+		testBp.Host.transactionContext.coinBase = sequencerAddress
+
+		if testBp.isContractCreation(tx) {
+			testResult = testBp.create(ctx, tx, senderAddress, sequencerAddress, gas)
+		} else if testBp.isSmartContractExecution(ctx, tx) {
+			testResult = testBp.execute(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, gas)
+		} else if testBp.isTransfer(ctx, tx) {
+			testResult = testBp.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, gas)
+		}
+
+		err = s.RollbackState(ctx, txBundleID)
+		if err != nil {
+			log.Errorf("trace transaction: failed to rollback transaction, err: %v", err)
+			return false, err
+		}
+
+		if testResult.Err != nil {
+			// Check the application error.
+			// Gas apply errors are valid, and should be ignored
+			if isGasApplyError(testResult.Err) && shouldOmitErr {
+				// Specifying the transaction failed, but not providing an error
+				// is an indication that a valid error occurred due to low gas,
+				// which will increase the lower bound for the search
+				return true, nil
+			}
+
+			return true, testResult.Err
+		}
+
+		// Check if an out of gas error happened during EVM execution
+		if testResult.Failed() {
+			if isGasEVMError(testResult.Err) && shouldOmitErr {
+				// Specifying the transaction failed, but not providing an error
+				// is an indication that a valid error occurred due to low gas,
+				// which will increase the lower bound for the search
+				return true, nil
+			}
+
+			//	if isEVMRevertError(result.Err) {
+			//		// The EVM reverted during execution, attempt to extract the
+			//		// error message and return it
+			//		return true, constructErrorFromRevert(result)
+			//	}
+
+			return true, testResult.Err
+		}
+
+		return false, nil
+	}
+
+	// Start the binary search for the lowest possible gas price
+	for lowEnd < highEnd {
+		mid := (lowEnd + highEnd) / half
+
+		failed, testErr := testTransaction(mid, true)
+		if testErr != nil &&
+			!isEVMRevertError(testErr) {
+			// Reverts are ignored in the binary search, but are checked later on
+			// during the execution for the optimal gas limit found
+			return 0, testErr
+		}
+
+		if failed {
+			// If the transaction failed => increase the gas
+			lowEnd = mid + 1
+		} else {
+			// If the transaction didn't fail => make this ok value the high end
+			highEnd = mid
+		}
+	}
+
+	// Check if the highEnd is a good value to make the transaction pass
+	failed, err := testTransaction(highEnd, false)
+	if failed {
+		// The transaction shouldn't fail, for whatever reason, at highEnd
+		return 0, fmt.Errorf(
+			"unable to apply transaction even for the highest gas limit %d: %w",
+			highEnd,
+			err,
+		)
+	}
+	return highEnd, nil
 }
 
 // SetGenesis populates state with genesis information
