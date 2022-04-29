@@ -76,7 +76,7 @@ func main() {
 	chkErr(err)
 
 	// Hermez client
-	log.Infof("Connecting to l1")
+	log.Infof("Connecting to l2")
 	clientL2, err := ethclient.Dial(l2NetworkURL)
 	chkErr(err)
 

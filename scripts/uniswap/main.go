@@ -15,8 +15,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/scripts"
-	ERC20 "github.com/hermeznetwork/hermez-core/test/contracts/bin/ERC20"
-	WETH "github.com/hermeznetwork/hermez-core/test/contracts/bin/WETH"
+	"github.com/hermeznetwork/hermez-core/test/contracts/bin/ERC20"
+	"github.com/hermeznetwork/hermez-core/test/contracts/bin/WETH"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/core/UniswapV2Factory"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/core/UniswapV2Pair"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/interface/UniswapInterfaceMulticall"
@@ -101,6 +101,10 @@ func main() {
 	log.Debugf("Uniswap Interface Multicall SC addr: %v", multicallAddr.Hex())
 	fmt.Println()
 
+	// USDC
+	_, usdcCoin := deployERC20(auth, client, "USDC//C", "USDC")
+	fmt.Println()
+
 	// Mint balance to tokens
 	log.Debugf("Minting ERC20 Tokens")
 	aMintAmount := "1000000000000000000000"
@@ -115,13 +119,17 @@ func main() {
 	tx = mintERC20(auth, client, cCoin, cMintAmount)
 	log.Debugf("Mint C Coin tx: %v", tx.Hash().Hex())
 	fmt.Println()
+	usdcMintAmount := "10000000000000000000000"
+	tx = mintERC20(auth, client, usdcCoin, usdcMintAmount)
+	log.Debugf("Mint USDC tx: %v", tx.Hash().Hex())
+	fmt.Println()
 
 	// wrapping eth
 	wethDepositoAmount := "20000000000000000"
 	log.Debugf("Depositing %v ETH for account %v on token wEth", wethDepositoAmount, auth.From)
 	wAuth := getAuth(ctx, client, pk)
 	wAuth.Value, _ = big.NewInt(0).SetString(wethDepositoAmount, encoding.Base10)
-	tx, err = wethSC.Deposit(auth)
+	tx, err = wethSC.Deposit(wAuth)
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)

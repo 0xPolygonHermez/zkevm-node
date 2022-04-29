@@ -86,3 +86,9 @@ services:
         - POSTGRES_HOST=hez-postgres
         - POSTGRES_PORT=5432
         - PROOF_TIME=1000
+
+    uniswap-ui:
+        container_name: uniswap-ui
+        image: hermeznetwork/uniswap-ui@sha256:f540da4fa504e23c0301ec780a74ea3deada804353942aa86282c46e23997c38
+        ports:
+          - 3000:8043

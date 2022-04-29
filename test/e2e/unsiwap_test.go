@@ -93,7 +93,7 @@ func TestUniswap(t *testing.T) {
 
 	balance, err = client.BalanceAt(ctx, accountAddr, nil)
 	require.NoError(t, err)
-	assert.Equal(t, balance.String(), "10000000000000000000", "invalid ETH Balance after deployments and swaps")
+	assert.Equal(t, balance.String(), "9979979000000000000", "invalid ETH Balance after deployments and swaps")
 
 	require.NoError(t, operations.Teardown())
 }

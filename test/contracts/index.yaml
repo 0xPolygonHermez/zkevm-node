@@ -48,11 +48,6 @@ compileUnits:
     solcVersion: 0.5.16-alpine
     inputPath: uniswap/v2/
     outputPath: uniswap/v2/core/
-
-  - name: UniswapV2Migrator
-    solcVersion: 0.6.6-alpine
-    inputPath: uniswap/v2/
-    outputPath: uniswap/v2/periphery/
   - name: UniswapV2Router02
     solcVersion: 0.6.6-alpine
     inputPath: uniswap/v2/
