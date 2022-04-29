@@ -347,6 +347,7 @@ func (s *State) ReplayTransaction(transactionHash common.Hash) *runtime.Executio
 	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress)
 
 	// Trace
+	traces := []instrumentation.Trace{}
 	trace := instrumentation.Trace{}
 
 	if bp.IsContractCreation(tx) {
@@ -367,7 +368,8 @@ func (s *State) ReplayTransaction(transactionHash common.Hash) *runtime.Executio
 		trace.Result = &instrumentation.TraceResult{GasUsed: result.GasUsed, Output: result.ReturnValue}
 	}
 
-	result.Trace = trace
+	traces = append(traces, trace)
+	result.Trace = traces
 
 	// Rollback
 	err = s.RollbackState(ctx, txBundleID)
@@ -457,6 +459,7 @@ func (s *State) ReplayBatchTransactions(batchNumber uint64) ([]*runtime.Executio
 		result := bp.processTransaction(ctx, tx, from, sequencerAddress)
 
 		// Trace
+		traces := []instrumentation.Trace{}
 		trace := instrumentation.Trace{}
 
 		if bp.IsContractCreation(tx) {
@@ -477,7 +480,8 @@ func (s *State) ReplayBatchTransactions(batchNumber uint64) ([]*runtime.Executio
 			trace.Result = &instrumentation.TraceResult{GasUsed: result.GasUsed, Output: result.ReturnValue}
 		}
 
-		result.Trace = trace
+		traces = append(traces, trace)
+		result.Trace = traces
 
 		results = append(results, result)
 	}

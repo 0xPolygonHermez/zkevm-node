@@ -108,10 +108,10 @@ func (d *Trace) ReplayTransaction(hash common.Hash, traceType []string) (interfa
 }
 
 func (d *Trace) executionResultToReplayTransactionResponse(result *runtime.ExecutionResult) replayTransactionResponse {
-	output := argBytes(result.Trace.Result.Output)
+	output := argBytes(result.Trace[0].Result.Output)
 	return replayTransactionResponse{
 		Output:  &output,
-		Trace:   []txTrace{traceToTxTrace(result.Trace)},
+		Trace:   []txTrace{traceToTxTrace(result.Trace[0])},
 		VMTrace: vmTraceToTxVMTrace(result.VMTrace),
 		// StateDiff: ,
 	}
@@ -148,7 +148,6 @@ func vmTraceToTxVMTrace(vmTrace instrumentation.VMTrace) txVMTrace {
 	operations := make([]txVMTraceOperation, 0, len(vmTrace.Operations))
 
 	for _, op := range vmTrace.Operations {
-
 		stackPush := make([]argUint64, 0, len(op.Executed.StackPush))
 		for _, sp := range op.Executed.StackPush {
 			stackPush = append(stackPush, argUint64(sp))

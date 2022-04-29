@@ -80,7 +80,7 @@ type ExecutionResult struct {
 	Err           error  // Any error encountered during the execution, listed below
 	CreateAddress common.Address
 	StateRoot     []byte
-	Trace         instrumentation.Trace
+	Trace         []instrumentation.Trace
 	VMTrace       instrumentation.VMTrace
 }
 
