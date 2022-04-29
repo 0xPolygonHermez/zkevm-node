@@ -44,6 +44,6 @@ type stateInterface interface {
 	GetNonce(ctx context.Context, address common.Address, batchNumber uint64, txundleID string) (uint64, error)
 	GetBatchHeader(ctx context.Context, batchNumber uint64, txundleID string) (*types.Header, error)
 	GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash, txundleID string) ([]*types.Log, error)
-	ReplayTransaction(transactionHash common.Hash) *runtime.ExecutionResult
-	ReplayBatchTransactions(batchNumber uint64) ([]*runtime.ExecutionResult, error)
+	ReplayTransaction(transactionHash common.Hash, traceMode []string) *runtime.ExecutionResult
+	ReplayBatchTransactions(batchNumber uint64, traceMode []string) ([]*runtime.ExecutionResult, error)
 }

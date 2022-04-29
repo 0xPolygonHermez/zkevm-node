@@ -233,7 +233,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, txBundleID string) (
 }
 
 // ReplayTransaction gets trace by rexecuting a transaction
-func (s *State) ReplayTransaction(transactionHash common.Hash) *runtime.ExecutionResult {
+func (s *State) ReplayTransaction(transactionHash common.Hash, traceMode []string) *runtime.ExecutionResult {
 	ctx := context.Background()
 
 	txBundleID, err := s.BeginStateTransaction(ctx)
@@ -383,7 +383,7 @@ func (s *State) ReplayTransaction(transactionHash common.Hash) *runtime.Executio
 }
 
 // ReplayBatchTransactions gets trace by rexecuting all the transactions of a specific batch
-func (s *State) ReplayBatchTransactions(batchNumber uint64) ([]*runtime.ExecutionResult, error) {
+func (s *State) ReplayBatchTransactions(batchNumber uint64, traceMode []string) ([]*runtime.ExecutionResult, error) {
 	ctx := context.Background()
 
 	txBundleID, err := s.BeginStateTransaction(ctx)

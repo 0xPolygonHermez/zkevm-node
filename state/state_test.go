@@ -1872,7 +1872,7 @@ func TestEstimateGas(t *testing.T) {
 	receipt, err := st.GetTransactionReceipt(ctx, signedTxStoreValue.Hash(), "")
 	require.NoError(t, err)
 
-	result := st.ReplayTransaction(receipt.TxHash)
+	result := st.ReplayTransaction(receipt.TxHash, []string{"trace", "vmTrace", "statediff"})
 	require.NoError(t, result.Err)
 	assert.Equal(t, "PUSH1", evm.OpCode(result.VMTrace.Operations[0].Instruction).String())
 }

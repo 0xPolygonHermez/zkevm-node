@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
@@ -18,6 +20,18 @@ type replayTransactionResponse struct {
 	Trace     []txTrace                        `json:"trace"`
 	VMTrace   txVMTrace                        `json:"vmTrace"`
 	StateDiff map[common.Address]txAccountDiff `json:"stateDiff"`
+}
+
+type blockResponse struct {
+	Action              txTraceAction `json:"action"`
+	Result              txTraceResult `json:"result"`
+	TraceAddress        []uint64      `json:"traceAddress"`
+	SubTraces           uint64        `json:"subTraces"`
+	TransactionPosition argUint64     `json:"transactionPosition"`
+	TransactionHash     common.Hash   `json:"transactionHash"`
+	BlockNumber         uint64        `json:"blockNumber"`
+	BlockHash           common.Hash   `json:"blockHash"`
+	Type                string        `json:"type"`
 }
 
 type txTrace struct {
@@ -76,15 +90,15 @@ type txTraceResult struct {
 
 // ReplayBlockTransactions creates a response for trace_replayBlockTransactions request.
 // See https://openethereum.github.io/JSONRPC-trace-module#trace_replayblocktransactions
-func (d *Trace) ReplayBlockTransactions(number *BlockNumber, traceType []string) (interface{}, error) {
+func (t *Trace) ReplayBlockTransactions(number *BlockNumber, traceMode []string) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := number.getNumericBlockNumber(ctx, d.state)
+	batchNumber, err := number.getNumericBlockNumber(ctx, t.state)
 	if err != nil {
 		return nil, err
 	}
 
-	results, err := d.state.ReplayBatchTransactions(batchNumber)
+	results, err := t.state.ReplayBatchTransactions(batchNumber, traceMode)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +106,7 @@ func (d *Trace) ReplayBlockTransactions(number *BlockNumber, traceType []string)
 	response := make([]replayTransactionResponse, 0, len(results))
 
 	for _, result := range results {
-		response = append(response, d.executionResultToReplayTransactionResponse(result))
+		response = append(response, t.executionResultToReplayTransactionResponse(result))
 	}
 
 	return response, nil
@@ -100,51 +114,84 @@ func (d *Trace) ReplayBlockTransactions(number *BlockNumber, traceType []string)
 
 // ReplayTransaction creates a response for trace_replayTransaction request.
 // See https://openethereum.github.io/JSONRPC-trace-module#trace_replaytransaction
-func (d *Trace) ReplayTransaction(hash common.Hash, traceType []string) (interface{}, error) {
-	result := d.state.ReplayTransaction(hash)
-	response := d.executionResultToReplayTransactionResponse(result)
+func (t *Trace) ReplayTransaction(hash common.Hash, traceMode []string) (interface{}, error) {
+	result := t.state.ReplayTransaction(hash, traceMode)
+	response := t.executionResultToReplayTransactionResponse(result)
 
 	return response, nil
 }
 
-func (d *Trace) executionResultToReplayTransactionResponse(result *runtime.ExecutionResult) replayTransactionResponse {
-	output := argBytes(result.Trace[0].Result.Output)
+// Block creates a response for trace_block request.
+// See https://openethereum.github.io/JSONRPC-trace-module#trace_block
+func (t *Trace) Block(number *BlockNumber) (interface{}, error) {
+	ctx := context.Background()
+
+	batchNumber, err := number.getNumericBlockNumber(ctx, t.state)
+	if err != nil {
+		return nil, err
+	}
+
+	batch, err := t.state.GetBatchByNumber(ctx, batchNumber, "")
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := t.state.ReplayBatchTransactions(batchNumber, []string{"trace"})
+	if err != nil {
+		return nil, err
+	}
+
+	response := make([]blockResponse, 0, len(results))
+
+	for _, result := range results {
+		response = append(response, t.executionResultToBlockResponse(batch, result)...)
+	}
+
+	return response, nil
+}
+
+func (t *Trace) executionResultToReplayTransactionResponse(result *runtime.ExecutionResult) replayTransactionResponse {
+	trace := make([]txTrace, 0, len(result.Trace))
+	for _, tr := range result.Trace {
+		trace = append(trace, t.traceToTxTrace(tr))
+	}
+
 	return replayTransactionResponse{
-		Output:  &output,
-		Trace:   []txTrace{traceToTxTrace(result.Trace[0])},
-		VMTrace: vmTraceToTxVMTrace(result.VMTrace),
+		// Output:  ,
+		Trace:   trace,
+		VMTrace: t.vmTraceToTxVMTrace(result.VMTrace),
 		// StateDiff: ,
 	}
 }
 
-func traceToTxTrace(t instrumentation.Trace) txTrace {
+func (t *Trace) traceToTxTrace(tr instrumentation.Trace) txTrace {
 	txT := txTrace{
-		TraceAddress: t.TraceAddress[:],
-		SubTraces:    t.SubTraces,
+		TraceAddress: tr.TraceAddress[:],
+		SubTraces:    tr.SubTraces,
 		Action: txTraceAction{
-			From:     t.Action.From,
-			To:       t.Action.To,
-			Value:    argUint64(t.Action.Value),
-			Gas:      argUint64(t.Action.Gas),
-			Input:    t.Action.Input,
-			CallType: t.Action.CallType,
+			From:     tr.Action.From,
+			To:       tr.Action.To,
+			Value:    argUint64(tr.Action.Value),
+			Gas:      argUint64(tr.Action.Gas),
+			Input:    tr.Action.Input,
+			CallType: tr.Action.CallType,
 		},
-		Type: t.Type,
+		Type: tr.Type,
 	}
 
-	if t.Result != nil {
+	if tr.Result != nil {
 		txT.Result = &txTraceResult{
-			GasUsed: argUint64(t.Result.GasUsed),
-			Output:  argBytes(t.Result.Output),
+			GasUsed: argUint64(tr.Result.GasUsed),
+			Output:  argBytes(tr.Result.Output),
 		}
 	} else {
-		txT.Error = t.Error
+		txT.Error = tr.Error
 	}
 
 	return txT
 }
 
-func vmTraceToTxVMTrace(vmTrace instrumentation.VMTrace) txVMTrace {
+func (t *Trace) vmTraceToTxVMTrace(vmTrace instrumentation.VMTrace) txVMTrace {
 	operations := make([]txVMTraceOperation, 0, len(vmTrace.Operations))
 
 	for _, op := range vmTrace.Operations {
@@ -155,7 +202,7 @@ func vmTraceToTxVMTrace(vmTrace instrumentation.VMTrace) txVMTrace {
 
 		var sub *txVMTrace = nil
 		if op.Sub != nil {
-			s := vmTraceToTxVMTrace(*op.Sub)
+			s := t.vmTraceToTxVMTrace(*op.Sub)
 			sub = &s
 		}
 
@@ -182,4 +229,31 @@ func vmTraceToTxVMTrace(vmTrace instrumentation.VMTrace) txVMTrace {
 		Code:       vmTrace.Code,
 		Operations: operations,
 	}
+}
+
+func (t *Trace) executionResultToBlockResponse(b *state.Batch, result *runtime.ExecutionResult) []blockResponse {
+	txMap := make(map[common.Hash]*types.Transaction, len(b.Transactions))
+	for _, tx := range b.Transactions {
+		txMap[tx.Hash()] = tx
+	}
+
+	blockResponses := make([]blockResponse, 0, len(result.Trace))
+
+	for _, tr := range result.Trace {
+		txTrace := t.traceToTxTrace(tr)
+
+		blockResponses = append(blockResponses, blockResponse{
+			Action:       txTrace.Action,
+			Result:       *txTrace.Result,
+			TraceAddress: txTrace.TraceAddress,
+			SubTraces:    txTrace.SubTraces,
+			// TransactionPosition: ,
+			// TransactionHash:     ,
+			BlockNumber: b.Number().Uint64(),
+			BlockHash:   b.Hash(),
+			Type:        txTrace.Type,
+		})
+	}
+
+	return blockResponses
 }

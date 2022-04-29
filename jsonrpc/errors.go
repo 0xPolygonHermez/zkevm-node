@@ -45,16 +45,6 @@ func (e *methodNotFoundError) Code() int {
 	return -32601
 }
 
-type genesisIsNotTraceableError struct{}
-
-func (e *genesisIsNotTraceableError) Error() string {
-	return "genesis is not traceable"
-}
-
-func (e *genesisIsNotTraceableError) Code() int {
-	return -32000
-}
-
 // NewMethodNotFoundError used when the RPC method does not exist or is not available
 func newMethodNotFoundError(method string) *methodNotFoundError {
 	e := &methodNotFoundError{fmt.Sprintf("the method %s does not exist/is not available", method)}
