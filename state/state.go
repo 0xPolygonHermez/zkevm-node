@@ -321,7 +321,6 @@ func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
 		}
 		testBp.SetSimulationMode(true)
 
-		testBp.Host.transactionContext.simulationMode = true
 		testBp.Host.transactionContext.currentTransaction = tx
 		testBp.Host.transactionContext.currentOrigin = senderAddress
 		testBp.Host.transactionContext.coinBase = sequencerAddress
@@ -336,7 +335,7 @@ func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
 
 		err = s.RollbackState(ctx, txBundleID)
 		if err != nil {
-			log.Errorf("trace transaction: failed to rollback transaction, err: %v", err)
+			log.Errorf("estimate gas: failed to rollback transaction, err: %v", err)
 			return false, err
 		}
 
@@ -361,13 +360,6 @@ func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
 				// which will increase the lower bound for the search
 				return true, nil
 			}
-
-			//	if isEVMRevertError(result.Err) {
-			//		// The EVM reverted during execution, attempt to extract the
-			//		// error message and return it
-			//		return true, constructErrorFromRevert(result)
-			//	}
-
 			return true, testResult.Err
 		}
 
