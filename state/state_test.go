@@ -1509,8 +1509,9 @@ func TestEmitLog(t *testing.T) {
 	logs, err = st.GetLogs(ctx, 0, 5, nil, nil, nil, "")
 	require.NoError(t, err)
 	require.Equal(t, 10, len(logs))
-	for _, l := range logs {
+	for i, l := range logs {
 		assert.Equal(t, scAddress, l.Address)
+		assert.Equal(t, uint(i), l.Index)
 	}
 
 	logs, err = st.GetLogs(ctx, 5, 5, nil, nil, nil, "")
