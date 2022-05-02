@@ -340,35 +340,42 @@ func (s *State) ReplayTransaction(transactionHash common.Hash, traceMode []strin
 
 	// Activate EVM Instrumentation
 	bp.Host.runtimes = []runtime.Runtime{}
-	evm := evm.NewEVM()
-	evm.EnableInstrumentation()
-	bp.Host.setRuntime(evm)
+	evmRT := evm.NewEVM()
+	evmRT.EnableInstrumentation()
+	bp.Host.setRuntime(evmRT)
 
 	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress)
 
-	// Trace
+	// Create Trace using VMTrace as data source
 	traces := []instrumentation.Trace{}
 	trace := instrumentation.Trace{}
 
-	if bp.IsContractCreation(tx) {
-		trace.Type = "create"
-	} else if bp.IsSmartContractExecution(ctx, tx) {
-		trace.Type = "call"
+	for _, operation := range result.VMTrace.Operations {
+		if operation.Instruction == evm.CALL || operation.Instruction == evm.CALLCODE || operation.Instruction == evm.DELEGATECALL || operation.Instruction == evm.STATICCALL {
+			trace.Type = "call"
+		} else if operation.Instruction == evm.CREATE || operation.Instruction == evm.CREATE2 {
+			trace.Type = "create"
+		} else if operation.Instruction == evm.SELFDESTRUCT {
+			trace.Type = "suicide"
+		}
+
+		if trace.Type != "" {
+			senderAddress, err := helper.GetSender(*tx)
+			if err == nil {
+				trace.Action = instrumentation.TraceAction{From: senderAddress.String(), To: tx.To().String(), Value: tx.Value().Uint64(), Gas: tx.Gas(), Input: tx.Data(), CallType: trace.Type}
+			}
+
+			if result.Err != nil {
+				error := result.Err.Error()
+				trace.Error = &error
+			} else {
+				trace.Result = &instrumentation.TraceResult{GasUsed: result.GasUsed, Output: result.ReturnValue}
+			}
+
+			traces = append(traces, trace)
+		}
 	}
 
-	senderAddress, err := helper.GetSender(*tx)
-	if err == nil {
-		trace.Action = instrumentation.TraceAction{From: senderAddress.String(), To: tx.To().String(), Value: tx.Value().Uint64(), Gas: tx.Gas(), Input: tx.Data(), CallType: trace.Type}
-	}
-
-	if result.Err != nil {
-		error := result.Err.Error()
-		trace.Error = &error
-	} else {
-		trace.Result = &instrumentation.TraceResult{GasUsed: result.GasUsed, Output: result.ReturnValue}
-	}
-
-	traces = append(traces, trace)
 	result.Trace = traces
 
 	// Rollback
@@ -442,9 +449,9 @@ func (s *State) ReplayBatchTransactions(batchNumber uint64, traceMode []string) 
 
 	// Activate EVM Instrumentation
 	bp.Host.runtimes = []runtime.Runtime{}
-	evm := evm.NewEVM()
-	evm.EnableInstrumentation()
-	bp.Host.setRuntime(evm)
+	evmRT := evm.NewEVM()
+	evmRT.EnableInstrumentation()
+	bp.Host.setRuntime(evmRT)
 
 	results := make([]*runtime.ExecutionResult, 0, len(batch.Transactions))
 
@@ -458,29 +465,36 @@ func (s *State) ReplayBatchTransactions(batchNumber uint64, traceMode []string) 
 
 		result := bp.processTransaction(ctx, tx, from, sequencerAddress)
 
-		// Trace
+		// Create Trace using VMTrace as data source
 		traces := []instrumentation.Trace{}
 		trace := instrumentation.Trace{}
 
-		if bp.IsContractCreation(tx) {
-			trace.Type = "create"
-		} else if bp.IsSmartContractExecution(ctx, tx) {
-			trace.Type = "call"
+		for _, operation := range result.VMTrace.Operations {
+			if operation.Instruction == evm.CALL || operation.Instruction == evm.CALLCODE || operation.Instruction == evm.DELEGATECALL || operation.Instruction == evm.STATICCALL {
+				trace.Type = "call"
+			} else if operation.Instruction == evm.CREATE || operation.Instruction == evm.CREATE2 {
+				trace.Type = "create"
+			} else if operation.Instruction == evm.SELFDESTRUCT {
+				trace.Type = "suicide"
+			}
+
+			if trace.Type != "" {
+				senderAddress, err := helper.GetSender(*tx)
+				if err == nil {
+					trace.Action = instrumentation.TraceAction{From: senderAddress.String(), To: tx.To().String(), Value: tx.Value().Uint64(), Gas: tx.Gas(), Input: tx.Data(), CallType: trace.Type}
+				}
+
+				if result.Err != nil {
+					error := result.Err.Error()
+					trace.Error = &error
+				} else {
+					trace.Result = &instrumentation.TraceResult{GasUsed: result.GasUsed, Output: result.ReturnValue}
+				}
+
+				traces = append(traces, trace)
+			}
 		}
 
-		senderAddress, err := helper.GetSender(*tx)
-		if err == nil {
-			trace.Action = instrumentation.TraceAction{From: senderAddress.String(), To: tx.To().String(), Value: tx.Value().Uint64(), Gas: tx.Gas(), Input: tx.Data(), CallType: trace.Type}
-		}
-
-		if result.Err != nil {
-			error := result.Err.Error()
-			trace.Error = &error
-		} else {
-			trace.Result = &instrumentation.TraceResult{GasUsed: result.GasUsed, Output: result.ReturnValue}
-		}
-
-		traces = append(traces, trace)
 		result.Trace = traces
 
 		results = append(results, result)
