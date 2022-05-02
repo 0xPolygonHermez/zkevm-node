@@ -51,8 +51,6 @@ var (
 	ErrIntrinsicGasOverflow = fmt.Errorf("overflow in intrinsic gas estimation")
 	// ErrInsufficientFunds indicates there is not enough balance to execute the transaction
 	ErrInsufficientFunds = errors.New("insufficient funds for execution")
-	// ErrNotEnoughIntrinsicGas indicates there is not enough balance to pay the gas of the transaction
-	ErrNotEnoughIntrinsicGas = fmt.Errorf("not enough gas supplied for intrinsic gas costs")
 )
 
 // InvalidTxErrors is map to spot invalid txs
