@@ -85,7 +85,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 
 	result := bp.ProcessUnsignedTransaction(ctx, tx, *arg.From, e.sequencerAddress)
 	if result.Failed() {
-		log.Errorf("unable to execute call: %w", result.Err)
+		log.Errorf("unable to execute call: %s", result.Err.Error())
 		return "0x", nil
 	}
 
@@ -428,7 +428,7 @@ func (e *Eth) getHeaderFromBlockNumberOrHash(bnh *blockNumberOrHash) (*types.Hea
 	if bnh.BlockNumber != nil {
 		header, err = e.getBatchHeader(*bnh.BlockNumber)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get the header of block %d: %w", *bnh.BlockNumber, err)
+			return nil, fmt.Errorf("failed to get the header of block %d: %s", *bnh.BlockNumber, err.Error())
 		}
 	} else if bnh.BlockHash != nil {
 		block, err := e.state.GetBatchByHash(context.Background(), *bnh.BlockHash, "")
