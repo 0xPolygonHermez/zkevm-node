@@ -21,6 +21,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/core/UniswapV2Pair"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/interface/UniswapInterfaceMulticall"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/periphery/UniswapV2Router02"
+	"github.com/hermeznetwork/hermez-core/test/contracts/bin/uniswap/v2/swap-router/SwapRouter02"
 )
 
 const (
@@ -99,6 +100,16 @@ func main() {
 	chkErr(err)
 	log.Debugf("Uniswap Interface Multicall SC tx: %v", tx.Hash().Hex())
 	log.Debugf("Uniswap Interface Multicall SC addr: %v", multicallAddr.Hex())
+	fmt.Println()
+
+	// Deploy Swap Router
+	log.Debugf("Deploying Swap Router")
+	swapRouterAddr, tx, _, err := SwapRouter02.DeploySwapRouter02(auth, client, factoryAddr, common.Address{}, common.Address{}, common.Address{})
+	chkErr(err)
+	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	chkErr(err)
+	log.Debugf("Swap Router SC tx: %v", tx.Hash().Hex())
+	log.Debugf("Swap Router SC addr: %v", swapRouterAddr.Hex())
 	fmt.Println()
 
 	// USDC

@@ -52,3 +52,7 @@ compileUnits:
     solcVersion: 0.6.6-alpine
     inputPath: uniswap/v2/
     outputPath: uniswap/v2/periphery/
+  - name: SwapRouter02
+    solcVersion: 0.7.6-alpine
+    inputPath: uniswap/v2/swap-router
+    outputPath: uniswap/v2/swap-router/
