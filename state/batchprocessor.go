@@ -582,7 +582,7 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	result := b.Host.run(ctx, contract)
 	result.GasUsed = tx.Gas() - result.GasLeft
 
-	log.Debugf("Transaction Data %v", tx.Data())
+	log.Debugf("Transaction Data in hex: %s", common.Bytes2Hex(tx.Data()))
 	log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
 
 	if tx.Value().Uint64() != 0 && !result.Reverted() {
