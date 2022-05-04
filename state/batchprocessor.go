@@ -589,7 +589,7 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	result := b.Host.run(ctx, contract)
 	result.GasUsed = txGas - result.GasLeft
 
-	log.Debugf("Transaction Data %v", tx.Data())
+	log.Debugf("Transaction Data in hex: %s", common.Bytes2Hex(tx.Data()))
 	log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
 	log.Debugf("Gas send on transaction: %v", txGas)
 	log.Debugf("Gas left after execution: %v", result.GasLeft)
