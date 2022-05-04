@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/google/uuid"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/tree"
@@ -23,6 +22,7 @@ const (
 	TxTransferGas uint64 = 21000
 	// TxSmartContractCreationGas used for TXs that create a contract
 	TxSmartContractCreationGas uint64 = 53000
+	gasEstimationMargin        uint64 = 5000
 )
 
 var (
@@ -214,7 +214,7 @@ func (s *State) GetCode(ctx context.Context, address common.Address, batchNumber
 }
 
 // EstimateGas for a transaction
-func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
+func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error) {
 	ctx := context.Background()
 	sequencerAddress := common.Address{}
 
@@ -222,39 +222,6 @@ func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
 	if err != nil {
 		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return 0, err
-	}
-	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Header.Root[:], "")
-	if err != nil {
-		log.Errorf("failed to get create a new batch processor, err: %v", err)
-		return 0, err
-	}
-
-	senderAddress, err := helper.GetSender(*transaction)
-	if err != nil {
-		return 0, err
-	}
-
-	var availableBalance *big.Int
-
-	if senderAddress != ZeroAddress {
-		senderBalance, err := bp.Host.State.tree.GetBalance(ctx, senderAddress, bp.Host.stateRoot, bp.TxBundleID)
-		if err != nil {
-			if err == ErrNotFound {
-				senderBalance = big.NewInt(0)
-			} else {
-				return 0, err
-			}
-		}
-
-		availableBalance = new(big.Int).Set(senderBalance)
-
-		if transaction.Value() != nil {
-			if transaction.Value().Cmp(availableBalance) > 0 {
-				return 0, ErrInsufficientFunds
-			}
-
-			availableBalance.Sub(availableBalance, transaction.Value())
-		}
 	}
 
 	var testResult *runtime.ExecutionResult
@@ -277,12 +244,19 @@ func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
 	testBp.Host.transactionContext.currentOrigin = senderAddress
 	testBp.Host.transactionContext.coinBase = sequencerAddress
 
+	gas := transaction.Gas()
+
+	if gas == 0 {
+		gas = s.cfg.MaxCumulativeGasUsed
+	}
+
 	if testBp.isContractCreation(transaction) {
-		testResult = testBp.create(ctx, transaction, senderAddress, sequencerAddress)
+		testResult = testBp.create(ctx, transaction, senderAddress, sequencerAddress, gas)
 	} else if testBp.isSmartContractExecution(ctx, transaction) {
-		testResult = testBp.execute(ctx, transaction, senderAddress, *receiverAddress, sequencerAddress)
+		testResult = testBp.execute(ctx, transaction, senderAddress, *receiverAddress, sequencerAddress, gas)
+		testResult.GasUsed = testResult.GasUsed + gasEstimationMargin
 	} else if testBp.isTransfer(ctx, transaction) {
-		testResult = testBp.transfer(ctx, transaction, senderAddress, *receiverAddress, sequencerAddress)
+		testResult = testBp.transfer(ctx, transaction, senderAddress, *receiverAddress, sequencerAddress, gas)
 	}
 
 	err = s.RollbackState(ctx, txBundleID)
@@ -290,6 +264,13 @@ func (s *State) EstimateGas(transaction *types.Transaction) (uint64, error) {
 		log.Errorf("estimate gas: failed to rollback transaction, err: %v", err)
 		return testResult.GasUsed, err
 	}
+
+	if testResult.Err != nil {
+		return 0, testResult.Err
+	}
+
+	log.Debugf("Gas estimation = %v", testResult.GasUsed)
+
 	return testResult.GasUsed, nil
 }
 

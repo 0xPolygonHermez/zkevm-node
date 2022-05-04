@@ -3,10 +3,12 @@ package helper
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/log"
 )
 
 // GetSender gets the sender from the transaction's signature
 func GetSender(tx types.Transaction) (common.Address, error) {
+	log.Debugf("Tx ChainID = %v", tx.ChainId())
 	signer := types.NewEIP155Signer(tx.ChainId())
 	sender, err := signer.Sender(&tx)
 	if err != nil {

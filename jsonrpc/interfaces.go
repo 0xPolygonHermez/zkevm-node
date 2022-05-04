@@ -32,7 +32,7 @@ type stateInterface interface {
 	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
 	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
 	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte, txBundleID string) (*state.BatchProcessor, error)
-	EstimateGas(transaction *types.Transaction) (uint64, error)
+	EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error)
 	GetBalance(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (*big.Int, error)
 	GetBatchByHash(ctx context.Context, hash common.Hash, txBundleID string) (*state.Batch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (*state.Batch, error)

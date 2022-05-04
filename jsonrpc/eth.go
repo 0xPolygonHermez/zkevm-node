@@ -66,6 +66,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 	}
 
 	tx := arg.ToTransaction()
+
 	ctx := context.Background()
 
 	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
@@ -111,7 +112,12 @@ func (e *Eth) ChainId() (interface{}, error) { //nolint:golint
 func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error) {
 	tx := arg.ToTransaction()
 
-	gasEstimation, err := e.state.EstimateGas(tx)
+	if arg.From == nil {
+		from := state.ZeroAddress
+		arg.From = &from
+	}
+
+	gasEstimation, err := e.state.EstimateGas(tx, *arg.From)
 	return hex.EncodeUint64(gasEstimation), err
 }
 

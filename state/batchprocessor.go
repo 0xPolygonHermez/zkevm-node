@@ -99,6 +99,7 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 
 	for _, tx := range batch.Transactions {
 		senderAddress, err := helper.GetSender(*tx)
+		log.Debugf("Sender Address = %v", senderAddress)
 		if err != nil {
 			return err
 		}
@@ -228,17 +229,21 @@ func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Trans
 	b.Host.transactionContext.coinBase = sequencerAddress
 	receiverAddress := tx.To()
 
+	log.Debugf("processTransaction method. Transaction Gas = %v", tx.Gas())
+
 	if b.isContractCreation(tx) {
 		log.Debug("smart contract creation")
-		return b.create(ctx, tx, senderAddress, sequencerAddress)
+		return b.create(ctx, tx, senderAddress, sequencerAddress, tx.Gas())
 	}
 
 	if b.isSmartContractExecution(ctx, tx) {
-		return b.execute(ctx, tx, senderAddress, *receiverAddress, sequencerAddress)
+		log.Debug("smart contract execution")
+		return b.execute(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas())
 	}
 
 	if b.isTransfer(ctx, tx) {
-		return b.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress)
+		log.Debug("transfer")
+		return b.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas())
 	}
 
 	log.Error("unknown transaction type")
@@ -301,7 +306,7 @@ func (b *BatchProcessor) generateReceipt(batch *Batch, tx *types.Transaction, in
 }
 
 // transfer processes a transfer transaction
-func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address, txGas uint64) *runtime.ExecutionResult {
 	log.Debugf("processing transfer [%s]: start", tx.Hash().Hex())
 	var result *runtime.ExecutionResult = &runtime.ExecutionResult{}
 	var balances = make(map[common.Address]*big.Int)
@@ -391,7 +396,7 @@ func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, se
 	// Calculate Gas
 	usedGas := new(big.Int).SetUint64(TxTransferGas)
 	usedGasValue := new(big.Int).Mul(usedGas, tx.GasPrice())
-	gasLeft := new(big.Int).SetUint64(tx.Gas() - usedGas.Uint64())
+	gasLeft := new(big.Int).SetUint64(txGas - usedGas.Uint64())
 	gasLeftValue := new(big.Int).Mul(gasLeft, tx.GasPrice())
 	log.Debugf("processing transfer [%s]: used gas: %v", tx.Hash().Hex(), usedGas.Text(encoding.Base10))
 	log.Debugf("processing transfer [%s]: remaining gas: %v", tx.Hash().Hex(), gasLeft.Text(encoding.Base10))
@@ -577,20 +582,23 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 	return nil
 }
 
-func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address, txGas uint64) *runtime.ExecutionResult {
 	code := b.Host.GetCode(ctx, receiverAddress)
 	log.Debugf("smart contract execution %v", receiverAddress)
-	contract := runtime.NewContractCall(1, senderAddress, senderAddress, receiverAddress, tx.Value(), tx.Gas(), code, tx.Data())
+	contract := runtime.NewContractCall(1, senderAddress, senderAddress, receiverAddress, tx.Value(), txGas, code, tx.Data())
 	result := b.Host.run(ctx, contract)
-	result.GasUsed = tx.Gas() - result.GasLeft
+	result.GasUsed = txGas - result.GasLeft
 
 	log.Debugf("Transaction Data %v", tx.Data())
 	log.Debugf("Returned value from execution: %v", "0x"+hex.EncodeToString(result.ReturnValue))
+	log.Debugf("Gas send on transaction: %v", txGas)
+	log.Debugf("Gas left after execution: %v", result.GasLeft)
+	log.Debugf("Gas used on execution: %v", result.GasUsed)
 
 	if tx.Value().Uint64() != 0 && !result.Reverted() {
 		log.Debugf("contract execution includes value transfer = %v", tx.Value())
 		// Tansfer the value
-		transferResult := b.transfer(ctx, tx, senderAddress, contract.Address, sequencerAddress)
+		transferResult := b.transfer(ctx, tx, senderAddress, contract.Address, sequencerAddress, txGas)
 		if transferResult.Err != nil {
 			transferResult.StateRoot = b.Host.stateRoot
 			return transferResult
@@ -621,18 +629,18 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	return result
 }
 
-func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
+func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address, txGas uint64) *runtime.ExecutionResult {
 	root := b.Host.stateRoot
 
 	if len(tx.Data()) <= 0 {
 		return &runtime.ExecutionResult{
-			GasLeft: tx.Gas(),
+			GasLeft: txGas,
 			Err:     runtime.ErrCodeNotFound,
 		}
 	}
 
 	address := helper.CreateAddress(senderAddress, tx.Nonce())
-	contract := runtime.NewContractCreation(0, senderAddress, senderAddress, address, tx.Value(), tx.Gas(), tx.Data())
+	contract := runtime.NewContractCreation(0, senderAddress, senderAddress, address, tx.Value(), txGas, tx.Data())
 
 	log.Debugf("new contract address = %v", address)
 
@@ -676,7 +684,7 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 	if tx.Value().Uint64() != 0 {
 		log.Debugf("contract creation includes value transfer = %v", tx.Value())
 		// Tansfer the value
-		transferResult := b.transfer(ctx, tx, senderAddress, contract.Address, sequencerAddress)
+		transferResult := b.transfer(ctx, tx, senderAddress, contract.Address, sequencerAddress, txGas)
 		if transferResult.Err != nil {
 			return &runtime.ExecutionResult{
 				GasLeft:   gasLimit,

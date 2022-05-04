@@ -1806,7 +1806,7 @@ func TestEstimateGas(t *testing.T) {
 	txs = append(txs, signedTxSCDeploy)
 
 	// Estimate Gas
-	gasEstimation, err := st.EstimateGas(signedTxSCDeploy)
+	gasEstimation, err := st.EstimateGas(signedTxSCDeploy, auth.From)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(0x10680), gasEstimation)
 
@@ -1841,9 +1841,9 @@ func TestEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 
 	// Estimate Gas
-	gasEstimation, err = st.EstimateGas(signedTxStoreValue)
+	gasEstimation, err = st.EstimateGas(signedTxStoreValue, auth.From)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(0x152c), gasEstimation)
+	assert.Equal(t, uint64(0x28b4), gasEstimation)
 
 	txs = []*types.Transaction{}
 	txs = append(txs, signedTxStoreValue)
@@ -1859,7 +1859,7 @@ func TestEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 
 	// Estimate Gas
-	gasEstimation, err = st.EstimateGas(signedTxTransfer)
+	gasEstimation, err = st.EstimateGas(signedTxTransfer, auth.From)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(state.TxTransferGas), gasEstimation)
 }
