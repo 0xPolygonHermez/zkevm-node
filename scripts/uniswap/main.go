@@ -26,7 +26,7 @@ import (
 const (
 	networkURL = "http://localhost:8123"
 	pk         = "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
-	txTimeout  = 60 * time.Second
+	txTimeout  = 90 * time.Second
 )
 
 func main() {
