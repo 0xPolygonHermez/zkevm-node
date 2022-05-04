@@ -234,7 +234,7 @@ var (
 				common.HexToAddress("0x61ba0248b0986c2480181c6e76b6adeeaa962483"): bigIntFromBase10String("1"),
 			},
 		},
-		MaxCumulativeGasUsed: 800000,
+		MaxCumulativeGasUsed: 8000000,
 	}
 )
 

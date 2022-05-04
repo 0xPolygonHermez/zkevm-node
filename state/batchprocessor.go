@@ -199,7 +199,6 @@ func (b *BatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction)
 			}
 
 			cost += zeros * zeroCost
-			cost = cost + cost + cost + cost + cost // temporary solution
 		}
 	}
 
@@ -472,26 +471,26 @@ func (b *BatchProcessor) CheckTransaction(ctx context.Context, tx *types.Transac
 }
 
 func (b *BatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
-	// Check balance
-	if senderBalance.Cmp(tx.Cost()) < 0 {
-		log.Debugf("check transaction [%s]: invalid balance, expected: %v, found: %v", tx.Hash().Hex(), tx.Cost().Text(encoding.Base10), senderBalance.Text(encoding.Base10))
-		return ErrInvalidBalance
-	}
-
-	// Check nonce
-	if senderNonce.Uint64() > tx.Nonce() {
-		log.Debugf("check transaction [%s]: invalid nonce, tx nonce is smaller than account nonce, expected: %d, found: %d",
-			tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
-		return ErrNonceIsSmallerThanAccountNonce
-	}
-
-	if senderNonce.Uint64() < tx.Nonce() {
-		log.Debugf("check transaction [%s]: invalid nonce at this moment, tx nonce is bigger than account nonce, expected: %d, found: %d",
-			tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
-		return ErrNonceIsBiggerThanAccountNonce
-	}
-
 	if !b.Host.transactionContext.simulationMode {
+		// Check balance
+		if senderBalance.Cmp(tx.Cost()) < 0 {
+			log.Debugf("check transaction [%s]: invalid balance, expected: %v, found: %v", tx.Hash().Hex(), tx.Cost().Text(encoding.Base10), senderBalance.Text(encoding.Base10))
+			return ErrInvalidBalance
+		}
+
+		// Check nonce
+		if senderNonce.Uint64() > tx.Nonce() {
+			log.Debugf("check transaction [%s]: invalid nonce, tx nonce is smaller than account nonce, expected: %d, found: %d",
+				tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
+			return ErrNonceIsSmallerThanAccountNonce
+		}
+
+		if senderNonce.Uint64() < tx.Nonce() {
+			log.Debugf("check transaction [%s]: invalid nonce at this moment, tx nonce is bigger than account nonce, expected: %d, found: %d",
+				tx.Hash().Hex(), senderNonce.Uint64(), tx.Nonce())
+			return ErrNonceIsBiggerThanAccountNonce
+		}
+
 		// Check ChainID
 		if tx.ChainId().Uint64() != b.SequencerChainID && tx.ChainId().Uint64() != b.Host.State.cfg.DefaultChainID {
 			log.Debugf("Batch ChainID: %v", b.SequencerChainID)
@@ -655,7 +654,16 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 		}
 	}
 
-	err = b.CheckTransaction(ctx, tx)
+	senderBalance, err := b.Host.State.tree.GetBalance(ctx, senderAddress, b.Host.stateRoot, b.TxBundleID)
+	if err != nil {
+		return &runtime.ExecutionResult{
+			GasLeft:   0,
+			Err:       err,
+			StateRoot: b.Host.stateRoot,
+		}
+	}
+
+	err = b.checkTransaction(ctx, tx, senderNonce, senderBalance)
 	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft:   0,
@@ -673,7 +681,7 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 	}
 
 	// Check if there if there is a collision and the address already exists
-	if !b.Host.Empty(ctx, contract.Address) {
+	if !b.Host.Empty(ctx, contract.Address) && !b.Host.transactionContext.simulationMode {
 		return &runtime.ExecutionResult{
 			GasLeft:   0,
 			Err:       runtime.ErrContractAddressCollision,
@@ -742,12 +750,15 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 	}
 
 	result.GasLeft -= gasCost
-	root, _, err = b.Host.State.tree.SetCode(ctx, address, result.ReturnValue, root, b.TxBundleID)
-	if err != nil {
-		return &runtime.ExecutionResult{
-			GasLeft:   gasLimit,
-			Err:       err,
-			StateRoot: b.Host.stateRoot,
+
+	if !b.Host.transactionContext.simulationMode {
+		root, _, err = b.Host.State.tree.SetCode(ctx, address, result.ReturnValue, root, b.TxBundleID)
+		if err != nil {
+			return &runtime.ExecutionResult{
+				GasLeft:   gasLimit,
+				Err:       err,
+				StateRoot: b.Host.stateRoot,
+			}
 		}
 	}
 
