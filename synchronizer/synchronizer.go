@@ -109,6 +109,7 @@ func (s *ClientSynchronizer) Sync() error {
 					continue
 				}
 				if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
+					log.Warn("error syncing blocks: ", err)
 					if s.ctx.Err() != nil {
 						continue
 					}
@@ -157,7 +158,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 
 	header, err := s.etherMan.HeaderByNumber(s.ctx, nil)
 	if err != nil {
-		return nil, err
+		return lastEthBlockSynced, err
 	}
 	lastKnownBlock := header.Number
 
@@ -172,7 +173,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		// array index where this value is.
 		blocks, order, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, fromBlock, &toBlock)
 		if err != nil {
-			return nil, err
+			return lastEthBlockSynced, err
 		}
 		s.processBlockRange(blocks, order)
 		if len(blocks) > 0 {
