@@ -221,7 +221,13 @@ func TestMTNodeCacheIsNotUsedForWritesOnNonDBTx(t *testing.T) {
 	_, err := subject.Set(ctx, nil, key, value, "")
 	require.NoError(t, err)
 
-	require.Equal(t, len(subject.cache), 0)
+	cacheSize := 0
+	subject.cache.Range(func(k, v interface{}) bool {
+		cacheSize++
+		return true
+	})
+
+	require.Equal(t, 0, cacheSize)
 
 	require.True(t, storeMock.AssertExpectations(t))
 }
@@ -240,7 +246,13 @@ func TestMTNodeCacheIsNotUsedForReadsOnNonDBTx(t *testing.T) {
 	_, err := subject.Get(ctx, root, key, "")
 	require.NoError(t, err)
 
-	require.Equal(t, len(subject.cache), 0)
+	cacheSize := 0
+	subject.cache.Range(func(k, v interface{}) bool {
+		cacheSize++
+		return true
+	})
+
+	require.Equal(t, 0, cacheSize)
 
 	require.True(t, storeMock.AssertExpectations(t))
 }
@@ -261,8 +273,13 @@ func TestMTNodeCachePreventsDBWritesOnDBTx(t *testing.T) {
 	_, err = subject.Set(ctx, nil, key, value, "txBundleID")
 	require.NoError(t, err)
 
-	require.Greater(t, len(subject.cache["txBundleID"].data), 0)
-	require.True(t, subject.cache["txBundleID"].isActive())
+	d, ok := subject.cache.Load("txBundleID")
+	require.True(t, ok)
+
+	dInstance := d.(*nodeCache)
+	require.Greater(t, len(dInstance.data), 0)
+
+	require.True(t, dInstance.isActive())
 
 	require.True(t, storeMock.AssertNotCalled(t, "Set"))
 	require.True(t, storeMock.AssertExpectations(t))
@@ -283,7 +300,11 @@ func TestMTNodeCachePreventsDBReadsOnDBTx(t *testing.T) {
 	_, err = subject.Get(ctx, nil, key, "txBundleID")
 	require.NoError(t, err)
 
-	require.True(t, subject.cache["txBundleID"].isActive())
+	d, ok := subject.cache.Load("txBundleID")
+	require.True(t, ok)
+
+	dInstance := d.(*nodeCache)
+	require.True(t, dInstance.isActive())
 
 	require.True(t, storeMock.AssertNotCalled(t, "Get"))
 	require.True(t, storeMock.AssertExpectations(t))
@@ -307,11 +328,17 @@ func TestMTNodeCacheFlushesContentsOnDBTxCommit(t *testing.T) {
 	_, err = subject.Set(ctx, nil, key, value, "txBundleID")
 	require.NoError(t, err)
 
-	require.Greater(t, len(subject.cache["txBundleID"].data), 0)
+	d, ok := subject.cache.Load("txBundleID")
+	require.True(t, ok)
+
+	dInstance := d.(*nodeCache)
+	require.Greater(t, len(dInstance.data), 0)
 
 	require.NoError(t, subject.Commit(ctx, "txBundleID"))
 
-	require.Nil(t, subject.cache["txBundleID"])
+	d, ok = subject.cache.Load("txBundleID")
+	require.False(t, ok)
+	require.Nil(t, d)
 
 	require.True(t, storeMock.AssertExpectations(t))
 }
@@ -333,11 +360,17 @@ func TestMTNodeCacheResetsOnDBTxRollback(t *testing.T) {
 	_, err = subject.Set(ctx, nil, key, value, "txBundleID")
 	require.NoError(t, err)
 
-	require.Greater(t, len(subject.cache["txBundleID"].data), 0)
+	d, ok := subject.cache.Load("txBundleID")
+	require.True(t, ok)
+
+	dInstance := d.(*nodeCache)
+	require.Greater(t, len(dInstance.data), 0)
 
 	require.NoError(t, subject.Rollback(ctx, "txBundleID"))
 
-	require.Nil(t, subject.cache["txBundleID"])
+	d, ok = subject.cache.Load("txBundleID")
+	require.False(t, ok)
+	require.Nil(t, d)
 
 	require.True(t, storeMock.AssertNotCalled(t, "Set"))
 	require.True(t, storeMock.AssertExpectations(t))
