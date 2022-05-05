@@ -568,7 +568,7 @@ func (mt *MerkleTree) setStoreNodeData(ctx context.Context, key []uint64, data [
 		return err
 	}
 
-	return mt.store.Set(ctx, h4ToScalar(key).Bytes(), dataByte, txBundleID)
+	return mt.store.Set(ctx, h4ToFilledByteSlice(key), dataByte, txBundleID)
 }
 
 func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64, txBundleID string) ([]uint64, error) {
@@ -589,7 +589,7 @@ func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64, txBundleID 
 		}
 	}
 	if len(dataByte) == 0 {
-		dataByte, err = mt.store.Get(ctx, h4ToScalar(key).Bytes(), txBundleID)
+		dataByte, err = mt.store.Get(ctx, h4ToFilledByteSlice(key), txBundleID)
 		if err != nil {
 			return nil, err
 		}

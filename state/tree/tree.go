@@ -120,8 +120,7 @@ func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, 
 	}
 
 	valueBi := fea2scalar(proof.Value)
-	var valueBuff [maxBigIntLen]byte
-	return valueBi.FillBytes(valueBuff[:]), nil
+	return ScalarToFilledByteSlice(valueBi), nil
 }
 
 // GetCode returns code
@@ -196,8 +195,7 @@ func (tree *StateTree) SetBalance(ctx context.Context, address common.Address, b
 		return nil, nil, err
 	}
 
-	rootBI := h4ToScalar(updateProof.NewRoot)
-	return rootBI.Bytes(), updateProof, nil
+	return h4ToFilledByteSlice(updateProof.NewRoot), updateProof, nil
 }
 
 // SetNonce sets nonce
@@ -221,7 +219,7 @@ func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, non
 		return nil, nil, err
 	}
 
-	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
+	return h4ToFilledByteSlice(updateProof.NewRoot), updateProof, nil
 }
 
 // SetCode sets smart contract code
@@ -258,7 +256,7 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 		return nil, nil, err
 	}
 
-	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
+	return h4ToFilledByteSlice(updateProof.NewRoot), updateProof, nil
 }
 
 // SetStorageAt sets storage value at specified position
@@ -276,7 +274,7 @@ func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address,
 		return nil, nil, err
 	}
 
-	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
+	return h4ToFilledByteSlice(updateProof.NewRoot), updateProof, nil
 }
 
 // SetHashValue sets value for an specific key.
@@ -289,22 +287,17 @@ func (tree *StateTree) SetHashValue(ctx context.Context, key common.Hash, value 
 		return nil, nil, err
 	}
 
-	return h4ToScalar(updateProof.NewRoot).Bytes(), updateProof, nil
+	return h4ToFilledByteSlice(updateProof.NewRoot), updateProof, nil
 }
 
 // SetNodeData sets data for a specific node.
 func (tree *StateTree) SetNodeData(ctx context.Context, key *big.Int, value *big.Int) (err error) {
-	var k [maxBigIntLen]byte
-	key.FillBytes(k[:])
-
-	return tree.mt.store.Set(ctx, k[:], value.Bytes(), "")
+	return tree.mt.store.Set(ctx, ScalarToFilledByteSlice(key), value.Bytes(), "")
 }
 
 // GetNodeData sets data for a specific node.
 func (tree *StateTree) GetNodeData(ctx context.Context, key *big.Int) (*big.Int, error) {
-	var k [maxBigIntLen]byte
-	key.FillBytes(k[:])
-	data, err := tree.mt.store.Get(ctx, k[:], "")
+	data, err := tree.mt.store.Get(ctx, ScalarToFilledByteSlice(key), "")
 	if err != nil {
 		return nil, err
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
+	"github.com/hermeznetwork/hermez-core/state/tree"
 )
 
 const (
@@ -83,9 +84,8 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 	b.Host.logs = map[common.Hash][]*types.Log{}
 
 	// Set Global Exit Root storage position
-	var batchNumberBuf, storagePositionBuf [32]byte
-	batchNumber := batch.Number().FillBytes(batchNumberBuf[:])
-	storagePosition := new(big.Int).SetUint64(b.Host.State.cfg.GlobalExitRootStoragePosition).FillBytes(storagePositionBuf[:])
+	batchNumber := tree.ScalarToFilledByteSlice(batch.Number())
+	storagePosition := tree.ScalarToFilledByteSlice(new(big.Int).SetUint64(b.Host.State.cfg.GlobalExitRootStoragePosition))
 	globalExitRootPos := helper.Keccak256(batchNumber, storagePosition)
 
 	root, _, err := b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), b.Host.stateRoot, b.TxBundleID)

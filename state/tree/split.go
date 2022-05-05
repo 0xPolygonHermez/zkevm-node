@@ -84,8 +84,7 @@ func stringToh4(str string) ([]uint64, error) {
 
 // scalarToh4 converts a *big.Int into an array of 4 uint64
 func scalarToh4(s *big.Int) []uint64 {
-	buf := make([]byte, maxBigIntLen)
-	b := s.FillBytes(buf)
+	b := ScalarToFilledByteSlice(s)
 
 	r := make([]uint64, 4)
 
@@ -98,4 +97,17 @@ func scalarToh4(s *big.Int) []uint64 {
 	r[0] = binary.BigEndian.Uint64(b[24:]) & fbe
 
 	return r
+}
+
+// ScalarToFilledByteSlice converts a *big.Int into an array of maxBigIntLen
+// bytes.
+func ScalarToFilledByteSlice(s *big.Int) []byte {
+	buf := make([]byte, maxBigIntLen)
+	return s.FillBytes(buf)
+}
+
+// h4ToFilledByteSlice converts an array of 4 uint64 into an array of
+// maxBigIntLen bytes.
+func h4ToFilledByteSlice(h4 []uint64) []byte {
+	return ScalarToFilledByteSlice(h4ToScalar(h4))
 }
