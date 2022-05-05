@@ -175,7 +175,7 @@ func batchToRPCBlock(b *state.Batch, fullTx bool) *rpcBlock {
 	h := b.Header
 
 	n := big.NewInt(0).SetUint64(h.Nonce.Uint64())
-	nonce := common.LeftPadBytes(n.Bytes(), 8)
+	nonce := common.LeftPadBytes(n.Bytes(), 8) //nolint:gomnd
 
 	res := &rpcBlock{
 		ParentHash:      h.ParentHash,
@@ -313,7 +313,7 @@ func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
 		logs = []*types.Log{}
 	}
 
-	var contractAddress *common.Address = nil
+	var contractAddress *common.Address
 	if r.ContractAddress != state.ZeroAddress {
 		ca := r.ContractAddress
 		contractAddress = &ca

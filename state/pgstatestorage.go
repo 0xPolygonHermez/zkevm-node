@@ -681,7 +681,7 @@ func (s *PostgresStorage) AddTransaction(ctx context.Context, tx *types.Transact
 
 // AddReceipt adds a new receipt to the State Store
 func (s *PostgresStorage) AddReceipt(ctx context.Context, receipt *Receipt, txBundleID string) error {
-	var to *[]byte = nil
+	var to *[]byte
 	if receipt.To != nil {
 		b := receipt.To.Bytes()
 		to = &b

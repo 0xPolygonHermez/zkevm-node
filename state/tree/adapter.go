@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 )
@@ -53,7 +54,7 @@ func (m *Adapter) GetBalance(ctx context.Context, address common.Address, root [
 		return nil, err
 	}
 
-	balance, ok := new(big.Int).SetString(result.Balance, 10)
+	balance, ok := new(big.Int).SetString(result.Balance, encoding.Base10)
 	if !ok {
 		return nil, fmt.Errorf("Could not initialize balance from %q", result.Balance)
 	}
@@ -121,9 +122,9 @@ func (m *Adapter) GetStorageAt(ctx context.Context, address common.Address, posi
 		return nil, err
 	}
 
-	value, ok := new(big.Int).SetString(result.Value, 10)
+	value, ok := new(big.Int).SetString(result.Value, encoding.Base10)
 	if !ok {
-		return nil, fmt.Errorf("Could not initialize storage value from %q", result.Value)
+		return nil, fmt.Errorf("could not initialize storage value from %q", result.Value)
 	}
 
 	return value, nil
