@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"time"
 
@@ -23,8 +22,6 @@ const (
 	spuriousDragonMaxCodeSize = 24576
 	maxCallDepth              = 1024
 	contractByteGasCost       = 200
-	nonZeroCost               = 68
-	zeroCost                  = 4
 )
 
 var (
@@ -162,51 +159,7 @@ func (b *BatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx *typ
 	return b.processTransaction(ctx, tx, senderAddress, sequencerAddress)
 }
 
-func (b *BatchProcessor) estimateGas(ctx context.Context, tx *types.Transaction) *runtime.ExecutionResult {
-	result := &runtime.ExecutionResult{Err: nil, GasUsed: 0}
-
-	cost := uint64(0)
-
-	if b.isContractCreation(tx) {
-		cost += TxSmartContractCreationGas
-	} else {
-		cost += TxTransferGas
-	}
-
-	if !b.isTransfer(ctx, tx) {
-		payload := tx.Data()
-
-		if len(payload) > 0 {
-			zeros := uint64(0)
-
-			for i := 0; i < len(payload); i++ {
-				if payload[i] == 0 {
-					zeros++
-				}
-			}
-
-			nonZeros := uint64(len(payload)) - zeros
-
-			if (math.MaxUint64-cost)/nonZeroCost < nonZeros {
-				result.Err = ErrIntrinsicGasOverflow
-				return result
-			}
-
-			cost += nonZeros * nonZeroCost
-
-			if (math.MaxUint64-cost)/4 < zeros {
-				result.Err = ErrIntrinsicGasOverflow
-			}
-
-			cost += zeros * zeroCost
-		}
-	}
-
-	result.GasUsed = cost
-
-	return result
-}
-
+// IsContractCreation checks if the tx is a contract creation
 func (b *BatchProcessor) isContractCreation(tx *types.Transaction) bool {
 	return tx.To() == nil && len(tx.Data()) > 0
 }
@@ -347,7 +300,7 @@ func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, se
 		}
 	}
 
-	err = b.checkTransaction(ctx, tx, senderNonce, senderBalance)
+	err = b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance)
 	if err != nil {
 		result.Err = err
 		result.StateRoot = b.Host.stateRoot
@@ -467,10 +420,10 @@ func (b *BatchProcessor) CheckTransaction(ctx context.Context, tx *types.Transac
 		}
 	}
 
-	return b.checkTransaction(ctx, tx, senderNonce, senderBalance)
+	return b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance)
 }
 
-func (b *BatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderNonce, senderBalance *big.Int) error {
+func (b *BatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, senderNonce, senderBalance *big.Int) error {
 	if !b.Host.transactionContext.simulationMode {
 		// Check balance
 		if senderBalance.Cmp(tx.Cost()) < 0 {
@@ -499,13 +452,13 @@ func (b *BatchProcessor) checkTransaction(ctx context.Context, tx *types.Transac
 		}
 
 		// Check gas
-		result := b.estimateGas(ctx, tx)
-		if result.Err != nil {
+		gasEstimation, err := b.Host.State.EstimateGas(tx, senderAddress)
+		if err != nil {
 			log.Debugf("check transaction [%s]: error estimating gas", tx.Hash().Hex())
 			return ErrInvalidGas
 		}
-		if tx.Gas() < result.GasUsed {
-			log.Debugf("check transaction [%s]: invalid gas, expected: %v, found: %v", tx.Hash().Hex(), tx.Gas(), result.GasUsed)
+		if tx.Gas() < gasEstimation {
+			log.Debugf("check transaction [%s]: invalid gas, expected: %v, found: %v", tx.Hash().Hex(), tx.Gas(), gasEstimation)
 			return ErrInvalidGas
 		}
 	}
@@ -663,7 +616,7 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 		}
 	}
 
-	err = b.checkTransaction(ctx, tx, senderNonce, senderBalance)
+	err = b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance)
 	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft:   0,

@@ -325,7 +325,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			testResult = testBp.create(ctx, transaction, senderAddress, sequencerAddress, gas)
 		} else if testBp.isSmartContractExecution(ctx, transaction) {
 			testResult = testBp.execute(ctx, transaction, senderAddress, *receiverAddress, sequencerAddress, gas)
-		} else if testBp.isTransfer(ctx, transaction) {
+		} else {
 			testResult = testBp.transfer(ctx, transaction, senderAddress, *receiverAddress, sequencerAddress, gas)
 		}
 

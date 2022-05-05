@@ -33,8 +33,7 @@ type MerkleTree struct {
 	scHashFunction scHashFunction
 	arity          uint8
 
-	mu    *sync.Mutex
-	cache map[string]*nodeCache
+	cache sync.Map
 }
 
 // UpdateProof is a proof generated on Set operation
@@ -74,8 +73,7 @@ func NewMerkleTree(store Store, arity uint8) *MerkleTree {
 		hashFunction:   poseidon.Hash,
 		scHashFunction: hashContractBytecode,
 
-		mu:    new(sync.Mutex),
-		cache: make(map[string]*nodeCache),
+		cache: sync.Map{},
 	}
 }
 
@@ -86,36 +84,35 @@ func (mt *MerkleTree) SupportsDBTransactions() bool {
 
 // BeginDBTransaction starts a transaction block
 func (mt *MerkleTree) BeginDBTransaction(ctx context.Context, txBundleID string) error {
-	mt.mu.Lock()
-	mt.cache[txBundleID] = newNodeCache()
-	mt.cache[txBundleID].init()
-	mt.mu.Unlock()
+	mt.cache.Store(txBundleID, newNodeCache())
+	if v, ok := mt.cache.Load(txBundleID); ok {
+		v.(*nodeCache).init()
+	}
 
 	return mt.store.BeginDBTransaction(ctx, txBundleID)
 }
 
 // Commit commits a db transaction
 func (mt *MerkleTree) Commit(ctx context.Context, txBundleID string) error {
-	mt.mu.Lock()
-	defer mt.mu.Unlock()
 	err := mt.writeCacheContents(ctx, txBundleID)
 	if err != nil {
 		return err
 	}
 
-	mt.cache[txBundleID].teardown()
-	delete(mt.cache, txBundleID)
+	if v, ok := mt.cache.Load(txBundleID); ok {
+		v.(*nodeCache).teardown()
+		mt.cache.Delete(txBundleID)
+	}
 
 	return mt.store.Commit(ctx, txBundleID)
 }
 
 // Rollback rollbacks a db transaction
 func (mt *MerkleTree) Rollback(ctx context.Context, txBundleID string) error {
-	mt.mu.Lock()
-	defer mt.mu.Unlock()
-
-	mt.cache[txBundleID].teardown()
-	delete(mt.cache, txBundleID)
+	if v, ok := mt.cache.Load(txBundleID); ok {
+		v.(*nodeCache).teardown()
+		mt.cache.Delete(txBundleID)
+	}
 
 	return mt.store.Rollback(ctx, txBundleID)
 }
@@ -531,10 +528,10 @@ func (mt *MerkleTree) getUniqueSibling(a []uint64) int64 {
 
 func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []uint64, cap []uint64, txBundleID string) ([]uint64, error) {
 	if len(nodeData) != poseidon.NROUNDSF {
-		return nil, fmt.Errorf("Invalid data length of %v", nodeData)
+		return nil, fmt.Errorf("invalid data length of %v", nodeData)
 	}
 	if len(cap) != poseidon.CAPLEN {
-		return nil, fmt.Errorf("Invalid cap length of %v", cap)
+		return nil, fmt.Errorf("invalid cap length of %v", cap)
 	}
 	capIn := [4]uint64{cap[0], cap[1], cap[2], cap[3]}
 	nd := [8]uint64{nodeData[0], nodeData[1], nodeData[2], nodeData[3], nodeData[4], nodeData[5], nodeData[6], nodeData[7]}
@@ -552,13 +549,22 @@ func (mt *MerkleTree) hashSave(ctx context.Context, nodeData []uint64, cap []uin
 }
 
 func (mt *MerkleTree) setNodeData(ctx context.Context, key []uint64, data []uint64, txBundleID string) error {
-	if txBundleID == "" || !mt.cache[txBundleID].isActive() {
+	v, _ := mt.cache.Load(txBundleID)
+
+	var vInstance *nodeCache
+	if v != nil {
+		vInstance = v.(*nodeCache)
+	}
+
+	if txBundleID == "" || !vInstance.isActive() {
 		return mt.setStoreNodeData(ctx, key, data, txBundleID)
 	}
-	err := mt.cache[txBundleID].set(key, data)
+
+	err := vInstance.set(key, data)
 	if err != nil {
 		log.Errorf("Error setting data in MT node cache: %v", err)
 	}
+
 	return nil
 }
 
@@ -576,18 +582,29 @@ func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64, txBundleID 
 		dataByte []byte
 		err      error
 	)
-	if txBundleID != "" && mt.cache[txBundleID].isActive() {
-		cachedData, err := mt.cache[txBundleID].get(key)
-		if err != nil && !errors.Is(err, errMTNodeCacheItemNotFound) {
-			log.Errorf("Error getting data from MT node cache: %v", err)
-		}
-		if cachedData != nil {
-			dataByte, err = uint64ToByte(cachedData)
-			if err != nil {
-				log.Errorf("Error decoding MT node cache data: %v", err)
+
+	if txBundleID != "" {
+		isActive := false
+		v, ok := mt.cache.Load(txBundleID)
+		if ok {
+			vInstance := v.(*nodeCache)
+			isActive = vInstance.isActive()
+
+			if isActive {
+				cachedData, err := vInstance.get(key)
+				if err != nil && !errors.Is(err, errMTNodeCacheItemNotFound) {
+					log.Errorf("Error getting data from MT node cache: %v", err)
+				}
+				if cachedData != nil {
+					dataByte, err = uint64ToByte(cachedData)
+					if err != nil {
+						log.Errorf("Error decoding MT node cache data: %v", err)
+					}
+				}
 			}
 		}
 	}
+
 	if len(dataByte) == 0 {
 		dataByte, err = mt.store.Get(ctx, h4ToFilledByteSlice(key), txBundleID)
 		if err != nil {
@@ -662,14 +679,18 @@ func removeKeyBits(key []uint64, nBits int) []uint64 {
 
 // writeCacheContents writes the contents of the cache to the data store.
 func (mt *MerkleTree) writeCacheContents(ctx context.Context, txBundleID string) error {
-	for k, v := range mt.cache[txBundleID].data {
-		key, err := stringToh4(k)
-		if err != nil {
-			return err
-		}
-		err = mt.setStoreNodeData(ctx, key, v, txBundleID)
-		if err != nil {
-			return err
+	v, ok := mt.cache.Load(txBundleID)
+	if ok {
+		vInstance := v.(*nodeCache)
+		for k, v := range vInstance.data {
+			key, err := stringToh4(k)
+			if err != nil {
+				return err
+			}
+			err = mt.setStoreNodeData(ctx, key, v, txBundleID)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
