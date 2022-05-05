@@ -22,8 +22,6 @@ const (
 	spuriousDragonMaxCodeSize = 24576
 	maxCallDepth              = 1024
 	contractByteGasCost       = 200
-	nonZeroCost               = 68
-	zeroCost                  = 4
 )
 
 var (
