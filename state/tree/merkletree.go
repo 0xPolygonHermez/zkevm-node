@@ -157,7 +157,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 		accKey                  []uint64
 	)
 
-	oldValue := make([]uint64, 8)
+	oldValue := make([]uint64, 8) //nolint:gomnd
 	isOld0 := true
 
 	// in this loop we iterate through the tree nodes from the root following the
@@ -219,7 +219,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 			} else { // insert with foundKey, part of the key path already exists
 				mode = modeInsertFound
 
-				node := make([]uint64, 8)
+				node := make([]uint64, 8) //nolint:gomnd
 				level2 := level + 1
 				foundKeys := mt.splitKey(foundKey)
 				for keys[level2] == foundKeys[level2] {
@@ -339,7 +339,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 						val := fea2scalar(valA)
 						rKey := siblings[level+1][:4]
 
-						auxKey := make([]uint64, 4)
+						auxKey := make([]uint64, 4) //nolint:gomnd
 						for j := 0; j < 4; j++ {
 							if len(accKey) > j {
 								auxKey[j] = accKey[j]
@@ -381,7 +381,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 				}
 			} else {
 				mode = modeDeleteLast
-				newRoot = make([]uint64, 4)
+				newRoot = make([]uint64, 4) //nolint:gomnd
 			}
 		} else { // nothing to do, node value is empty and key path doesn't exists
 			mode = modeZeroToZero
@@ -446,7 +446,7 @@ func (mt *MerkleTree) Get(ctx context.Context, root, key []uint64, txBundleID st
 		accKey             []uint64
 	)
 
-	value := make([]uint64, 8)
+	value := make([]uint64, 8) //nolint:gomnd
 	isOld0 := true
 
 	// this loops iterates the tree nodes from the root following the path
@@ -612,7 +612,7 @@ func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64, txBundleID 
 		}
 	}
 
-	res := make([]uint64, 12)
+	res := make([]uint64, 12) //nolint:gomnd
 	for i := 0; i < 12; i++ {
 		res[i] = binary.BigEndian.Uint64(dataByte[i*8 : (i+1)*8])
 	}
@@ -622,7 +622,7 @@ func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64, txBundleID 
 // splitKey gets the path for a given key.
 func (mt *MerkleTree) splitKey(key []uint64) []uint {
 	var res []uint
-	auxk := make([]uint64, 4)
+	auxk := make([]uint64, 4) //nolint:gomnd
 	copy(auxk, key)
 	for i := 0; i < 64; i++ {
 		for j := 0; j < 4; j++ {
@@ -635,7 +635,7 @@ func (mt *MerkleTree) splitKey(key []uint64) []uint {
 
 // joinKey joins full key from remaining key and path already used.
 func (mt *MerkleTree) joinKey(bits []uint64, k []uint64) []uint64 {
-	n := make([]uint64, 4)
+	n := make([]uint64, 4) //nolint:gomnd
 	accs := ff.NewElement()
 	for i := 0; i < len(bits); i++ {
 		if bits[i] == 1 {
@@ -643,7 +643,7 @@ func (mt *MerkleTree) joinKey(bits []uint64, k []uint64) []uint64 {
 		}
 		n[i%4]++
 	}
-	auxk := make([]uint64, 4)
+	auxk := make([]uint64, 4) //nolint:gomnd
 	for i := 0; i < 4; i++ {
 		auxk[i] = k[i]<<n[i] | accs[i]
 	}
@@ -699,7 +699,7 @@ func (mt *MerkleTree) writeCacheContents(ctx context.Context, txBundleID string)
 func uint64ToByte(data []uint64) ([]byte, error) {
 	var dataByte []byte
 	for i := 0; i < len(data); i++ {
-		e := fmt.Sprintf("%016s", strconv.FormatUint(data[i], 16))
+		e := fmt.Sprintf("%016s", strconv.FormatUint(data[i], 16)) //nolint:gomnd
 		eByte, err := hex.DecodeHex(e)
 		if err != nil {
 			return nil, err

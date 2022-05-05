@@ -8,6 +8,7 @@ import (
 	"net"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 	"google.golang.org/grpc"
@@ -182,7 +183,7 @@ func (s *Server) ReverseHash(ctx context.Context, in *pb.ReverseHashRequest) (*p
 
 // SetBalance sets the balance for an account at a root.
 func (s *Server) SetBalance(ctx context.Context, in *pb.SetBalanceRequest) (*pb.CommonSetResponse, error) {
-	balanceBI, success := new(big.Int).SetString(in.Balance, 10)
+	balanceBI, success := new(big.Int).SetString(in.Balance, encoding.Base10)
 	if !success {
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Balance)
 	}
@@ -248,11 +249,11 @@ func (s *Server) SetCode(ctx context.Context, in *pb.SetCodeRequest) (*pb.Common
 
 // SetStorageAt sets smart contract storage for an account and position at a root.
 func (s *Server) SetStorageAt(ctx context.Context, in *pb.SetStorageAtRequest) (*pb.CommonSetResponse, error) {
-	valueBI, success := new(big.Int).SetString(in.Value, 10)
+	valueBI, success := new(big.Int).SetString(in.Value, encoding.Base10)
 	if !success {
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Value)
 	}
-	positionBI, success := new(big.Int).SetString(in.Position, 10)
+	positionBI, success := new(big.Int).SetString(in.Position, encoding.Base10)
 	if !success {
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Position)
 	}
@@ -275,11 +276,11 @@ func (s *Server) SetStorageAt(ctx context.Context, in *pb.SetStorageAtRequest) (
 
 // SetHashValue set an entry of the reverse hash table.
 func (s *Server) SetHashValue(ctx context.Context, in *pb.HashValuePair) (*pb.SetHashValueResponse, error) {
-	valueBI, success := new(big.Int).SetString(in.Value, 10)
+	valueBI, success := new(big.Int).SetString(in.Value, encoding.Base10)
 	if !success {
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Value)
 	}
-	keyBI, success := new(big.Int).SetString(in.Hash, 10)
+	keyBI, success := new(big.Int).SetString(in.Hash, encoding.Base10)
 	if !success {
 		return nil, fmt.Errorf("Could not transform %q into big.Int", in.Value)
 	}
