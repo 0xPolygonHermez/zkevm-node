@@ -578,7 +578,6 @@ func (mt *MerkleTree) setStoreNodeData(ctx context.Context, key []uint64, data [
 }
 
 func (mt *MerkleTree) getNodeData(ctx context.Context, key []uint64, txBundleID string) ([]uint64, error) {
-
 	var (
 		dataByte []byte
 		err      error
