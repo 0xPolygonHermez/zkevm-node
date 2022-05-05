@@ -125,7 +125,7 @@ func (iu *imageUpdater) updateDigest(imageName, currentDigest, remoteDigest stri
 
 	newContent := strings.ReplaceAll(string(oldContent), oldImageField, newImageField)
 
-	return afero.WriteFile(iu.fs, targetFilePath, []byte(newContent), 0664)
+	return afero.WriteFile(iu.fs, targetFilePath, []byte(newContent), 0664) //nolint:gomnd
 }
 
 func (iu *imageUpdater) dockerLogin() error {

@@ -386,7 +386,7 @@ var bufPool = sync.Pool{
 	New: func() interface{} {
 		// Store pointer to avoid heap allocation in caller
 		// Please check SA6002 in StaticCheck for details
-		buf := make([]byte, 128)
+		buf := make([]byte, 128) //nolint:gomnd
 		return &buf
 	},
 }
@@ -622,7 +622,7 @@ func opCallDataLoad(ctx context.Context, s *state) {
 
 	bufPtr := bufPool.Get().(*[]byte)
 	buf := *bufPtr
-	s.setBytes(buf[:32], s.msg.Input, 32, offset)
+	s.setBytes(buf[:32], s.msg.Input, 32, offset) //nolint:gomnd
 	offset.SetBytes(buf[:32])
 	bufPool.Put(bufPtr)
 }
@@ -1326,8 +1326,10 @@ func opHalt(op OpCode) instruction {
 }
 
 var (
-	tt256   = new(big.Int).Lsh(big.NewInt(1), 256)   // 2 ** 256
-	tt256m1 = new(big.Int).Sub(tt256, big.NewInt(1)) // 2 ** 256 - 1
+	// 2 ** 256
+	tt256 = new(big.Int).Lsh(big.NewInt(1), 256) //nolint:gomnd
+	// 2 ** 256 - 1
+	tt256m1 = new(big.Int).Sub(tt256, big.NewInt(1))
 )
 
 func toU256(x *big.Int) *big.Int {

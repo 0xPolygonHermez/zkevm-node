@@ -37,10 +37,10 @@ func init() {
 	register(SMOD, handler{opSMod, 2, 5})
 	register(EXP, handler{opExp, 2, 10})
 
-	registerRange(PUSH1, PUSH32, opPush, 3)
-	registerRange(DUP1, DUP16, opDup, 3)
-	registerRange(SWAP1, SWAP16, opSwap, 3)
-	registerRange(LOG0, LOG4, opLog, 375)
+	registerRange(PUSH1, PUSH32, opPush, 3) //nolint:gomnd
+	registerRange(DUP1, DUP16, opDup, 3)    //nolint:gomnd
+	registerRange(SWAP1, SWAP16, opSwap, 3) //nolint:gomnd
+	registerRange(LOG0, LOG4, opLog, 375)   //nolint:gomnd
 
 	register(ADDMOD, handler{opAddMod, 3, 8})
 	register(MULMOD, handler{opMulMod, 3, 8})
