@@ -46,7 +46,7 @@ func (b *Batch) Number() *big.Int {
 }
 
 // Size returns the true RLP encoded storage size of the batch, either by encoding
-// and returning it, or returning a previsouly cached value.
+// and returning it, or returning a previously cached value.
 func (b *Batch) Size() common.StorageSize {
 	c := writeCounter(0)
 	err := rlp.Encode(&c, b)
