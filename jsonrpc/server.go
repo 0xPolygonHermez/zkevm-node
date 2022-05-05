@@ -73,15 +73,8 @@ func (s *Server) Start() error {
 	lmt := tollbooth.NewLimiter(s.config.MaxRequestsPerIPAndSecond, nil)
 	mux.Handle("/", tollbooth.LimitFuncHandler(lmt, s.handle))
 
-	// const (
-	//	readHEaderTimeoutMilliseconds = 100
-	//	readTimeoutMilliseconds       = 500
-	// )
 	s.srv = &http.Server{
 		Handler: mux,
-		// Handler:           http.TimeoutHandler(mux, time.Second, "The server took too long to respond, please try again later"),
-		// ReadHeaderTimeout: readHEaderTimeoutMilliseconds * time.Millisecond,
-		// ReadTimeout:       readTimeoutMilliseconds * time.Millisecond,
 	}
 	if err := s.srv.Serve(lis); err != nil {
 		if err == http.ErrServerClosed {
