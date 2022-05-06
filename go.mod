@@ -33,6 +33,8 @@ require (
 	gotest.tools v2.2.0+incompatible
 )
 
+require github.com/valyala/fastjson v1.4.1 // indirect
+
 require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
@@ -108,6 +110,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
+	github.com/umbracle/ethgo v0.1.2
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	go.opencensus.io v0.23.0 // indirect
