@@ -82,7 +82,7 @@ var (
 				common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 			},
 		},
-		MaxCumulativeGasUsed: 5000000,
+		MaxCumulativeGasUsed: 30000000,
 	}
 	testnetConfig = NetworkConfig{
 		Arity:                         4,
@@ -100,7 +100,7 @@ var (
 				common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 			},
 		},
-		MaxCumulativeGasUsed: 5000000,
+		MaxCumulativeGasUsed: 30000000,
 	}
 	internalTestnetConfig = NetworkConfig{
 		Arity:                         4,
@@ -167,7 +167,7 @@ var (
 				common.HexToAddress("0x61ba0248b0986c2480181c6e76b6adeeaa962483"): bigIntFromBase10String("1"),
 			},
 		},
-		MaxCumulativeGasUsed: 5000000,
+		MaxCumulativeGasUsed: 30000000,
 	}
 	localConfig = NetworkConfig{
 		Arity:                         4,
@@ -234,7 +234,7 @@ var (
 				common.HexToAddress("0x61ba0248b0986c2480181c6e76b6adeeaa962483"): bigIntFromBase10String("1"),
 			},
 		},
-		MaxCumulativeGasUsed: 5000000,
+		MaxCumulativeGasUsed: 30000000,
 	}
 )
 
