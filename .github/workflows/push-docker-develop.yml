@@ -31,6 +31,7 @@ jobs:
           tags: |
             hermeznetwork/hermez-node-zkevm:develop
             hermeznetwork/hermez-core:1.5-integration
+            hermeznetwork/hermez-core:1.5-itestnet
 
       - name: Build and push prover mock
         id: docker_build_prover_mock
