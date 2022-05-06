@@ -33,7 +33,7 @@ GOENVVARS := GOBIN=$(GOBIN)
 GOBINARY := hezcore
 GOCMD := $(GOBASE)/cmd
 
-LINT := $$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E gosec -E gci -E misspell -E gomnd -E gofmt -E goimports -E golint --exclude-use-default=false --max-same-issues 0
+LINT := $$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E gosec -E gci -E misspell -E gomnd -E gofmt -E goimports -E revive
 BUILD := $(GOENVVARS) go build $(LDFLAGS) -o $(GOBIN)/$(GOBINARY) $(GOCMD)
 
 .PHONY: build
@@ -58,7 +58,7 @@ test-full: build-docker compile-scs ## Runs all tests checking race conditions
 
 .PHONY: install-linter
 install-linter: ## Installs the linter
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.39.0
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.45.2
 
 .PHONY: lint
 lint: ## Runs the linter

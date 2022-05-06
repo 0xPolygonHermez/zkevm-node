@@ -94,7 +94,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 }
 
 // ChainId returns the chain id of the client
-func (e *Eth) ChainId() (interface{}, error) { //nolint:golint
+func (e *Eth) ChainId() (interface{}, error) { //nolint:revive
 	chainID, err := e.chainIDSelector.getChainID()
 	if err != nil {
 		return nil, err

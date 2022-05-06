@@ -17,6 +17,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/umbracle/ethgo/abi"
 )
 
 const (
@@ -327,7 +328,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			testResult = testBp.create(ctx, transaction, senderAddress, sequencerAddress, gas)
 		} else if testBp.isSmartContractExecution(ctx, transaction) {
 			testResult = testBp.execute(ctx, transaction, senderAddress, *receiverAddress, sequencerAddress, gas)
-		} else if testBp.isTransfer(ctx, transaction) {
+		} else {
 			testResult = testBp.transfer(ctx, transaction, senderAddress, *receiverAddress, sequencerAddress, gas)
 		}
 
@@ -358,6 +359,13 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 				// which will increase the lower bound for the search
 				return true, nil
 			}
+
+			if isEVMRevertError(testResult.Err) {
+				// The EVM reverted during execution, attempt to extract the
+				// error message and return it
+				return true, constructErrorFromRevert(testResult)
+			}
+
 			return true, testResult.Err
 		}
 
@@ -806,4 +814,13 @@ func (s *State) ConsolidateBatch(ctx context.Context, batchNumber uint64, consol
 // ResetDB resets the state to block for the given DB tx bundle.
 func (s *State) ResetDB(ctx context.Context, block *Block, txBundleID string) error {
 	return s.PostgresStorage.Reset(ctx, block, txBundleID)
+}
+
+func constructErrorFromRevert(result *runtime.ExecutionResult) error {
+	revertErrMsg, unpackErr := abi.UnpackRevertError(result.ReturnValue)
+	if unpackErr != nil {
+		return result.Err
+	}
+
+	return fmt.Errorf("%w: %s", result.Err, revertErrMsg)
 }

@@ -32,7 +32,7 @@ type ErrorResponse struct {
 }
 
 // Id returns error response id
-func (e *ErrorResponse) Id() interface{} { //nolint:golint
+func (e *ErrorResponse) Id() interface{} { //nolint:revive
 	return e.ID
 }
 
@@ -59,7 +59,7 @@ type SuccessResponse struct {
 }
 
 // Id returns success response id
-func (s *SuccessResponse) Id() interface{} { //nolint:golint
+func (s *SuccessResponse) Id() interface{} { //nolint:revive
 	return s.ID
 }
 

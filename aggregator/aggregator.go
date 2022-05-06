@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient/pb"
@@ -150,8 +151,8 @@ func (a *Aggregator) Start() {
 				"18d749d7bcc2bc831229c19256f9e933c08b6acdaff4915be158e34cbbc8a8e1": "0000000000000000000000000000000000000000000000000000000000000000",
 			}
 
-			batchChainIDByte := make([]byte, 4)
-			blockTimestampByte := make([]byte, 8)
+			batchChainIDByte := make([]byte, 4)   //nolint:gomnd
+			blockTimestampByte := make([]byte, 8) //nolint:gomnd
 			binary.BigEndian.PutUint32(batchChainIDByte, uint32(batchToConsolidate.ChainID.Uint64()))
 			binary.BigEndian.PutUint64(blockTimestampByte, uint64(batchToConsolidate.ReceivedAt.Unix()))
 			batchHashData := common.BytesToHash(keccak256.Hash(
@@ -253,8 +254,8 @@ func (a *Aggregator) Start() {
 			}
 
 			// Calc inputHash
-			batchNumberByte := make([]byte, 4)
-			blockNumberByte := make([]byte, 4)
+			batchNumberByte := make([]byte, 4) //nolint:gomnd
+			blockNumberByte := make([]byte, 4) //nolint:gomnd
 			binary.BigEndian.PutUint32(batchNumberByte, inputProver.PublicInputs.BatchNum)
 			binary.BigEndian.PutUint32(blockNumberByte, inputProver.PublicInputs.BlockNum)
 			hash := keccak256.Hash(
@@ -269,7 +270,7 @@ func (a *Aggregator) Start() {
 				blockNumberByte[:],
 				blockTimestampByte[:],
 			)
-			frB, _ := new(big.Int).SetString(fr, 10)
+			frB, _ := new(big.Int).SetString(fr, encoding.Base10)
 			inputHashMod := new(big.Int).Mod(new(big.Int).SetBytes(hash), frB)
 			internalInputHash := inputHashMod.Bytes()
 
