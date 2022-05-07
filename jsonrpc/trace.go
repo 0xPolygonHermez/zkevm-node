@@ -200,7 +200,7 @@ func (t *Trace) vmTraceToTxVMTrace(vmTrace instrumentation.VMTrace) txVMTrace {
 			stackPush = append(stackPush, argUint64(sp))
 		}
 
-		var sub *txVMTrace = nil
+		var sub *txVMTrace
 		if op.Sub != nil {
 			s := t.vmTraceToTxVMTrace(*op.Sub)
 			sub = &s

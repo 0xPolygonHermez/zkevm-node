@@ -44,8 +44,9 @@ func NewServer(
 	txPoolEndpoints := &TxPool{pool: p}
 	traceEndpoints := &Trace{state: s}
 	parityEndpoints := &Parity{}
+	debugEndpoints := &Debug{state: s}
 
-	handler := newJSONRpcHandler(ethEndpoints, netEndpoints, hezEndpoints, txPoolEndpoints, traceEndpoints, parityEndpoints)
+	handler := newJSONRpcHandler(ethEndpoints, netEndpoints, hezEndpoints, txPoolEndpoints, traceEndpoints, parityEndpoints, debugEndpoints)
 
 	srv := &Server{
 		config:  config,
