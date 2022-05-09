@@ -537,6 +537,7 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 }
 
 func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address, txGas uint64) *runtime.ExecutionResult {
+	root := b.Host.stateRoot
 	code := b.Host.GetCode(ctx, receiverAddress)
 	log.Debugf("smart contract execution %v", receiverAddress)
 	contract := runtime.NewContractCall(1, senderAddress, senderAddress, receiverAddress, tx.Value(), txGas, code, tx.Data())
@@ -548,6 +549,10 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	log.Debugf("Gas send on transaction: %v", txGas)
 	log.Debugf("Gas left after execution: %v", result.GasLeft)
 	log.Debugf("Gas used on execution: %v", result.GasUsed)
+
+	if result.Reverted() {
+		b.Host.stateRoot = root
+	}
 
 	if tx.Value().Uint64() != 0 && !result.Reverted() {
 		log.Debugf("contract execution includes value transfer = %v", tx.Value())

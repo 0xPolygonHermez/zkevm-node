@@ -21,6 +21,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/hermeznetwork/hermez-core/test/contracts/bin/FailureTest"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
@@ -2011,4 +2012,190 @@ func TestConcurrentDBTransactions(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+func TestSCRevertedTransaction(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 4000000
+	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	genesis := state.Genesis{
+		Block:    genesisBlock,
+		Balances: make(map[common.Address]*big.Int),
+	}
+
+	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
+	err = st.SetGenesis(ctx, genesis, "")
+	require.NoError(t, err)
+
+	// Register Sequencer
+	sequencer := state.Sequencer{
+		Address:     sequencerAddress,
+		URL:         "http://www.address.com",
+		ChainID:     chainIDSequencer,
+		BlockNumber: genesisBlock.Header().Number.Uint64(),
+	}
+
+	err = testState.AddSequencer(ctx, sequencer, "")
+	assert.NoError(t, err)
+
+	var txs []*types.Transaction
+
+	data, err := hex.DecodeHex(FailureTest.FailureTestBin)
+	assert.NoError(t, err)
+
+	txSCDeploy := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     data,
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	signedTxSCDeploy, err := auth.Signer(auth.From, txSCDeploy)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTxSCDeploy)
+
+	// Set stored value to 2
+	storeFnSignature := []byte("store(uint256)")
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(storeFnSignature)
+	methodID := hash.Sum(nil)[:4]
+
+	paddedNumber := common.LeftPadBytes(big.NewInt(2).Bytes(), 32)
+
+	data = []byte{}
+	data = append(data, methodID...)
+	data = append(data, paddedNumber...)
+
+	txStoreValue := types.NewTransaction(1, scAddress, new(big.Int), state.TxTransferGas, new(big.Int).SetUint64(1), data)
+	signedTxStoreValue, err := auth.Signer(auth.From, txStoreValue)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTxStoreValue)
+
+	// Retrieve stored value
+	getNumberFnSignature := []byte("getNumber()")
+	hash = sha3.NewLegacyKeccak256()
+	hash.Write(getNumberFnSignature)
+	methodID = hash.Sum(nil)[:4]
+
+	data = []byte{}
+	data = append(data, methodID...)
+
+	txRetrieveValue := types.NewTransaction(2, scAddress, new(big.Int), state.TxTransferGas, new(big.Int).SetUint64(1), data)
+	signedTxRetrieveValue, err := auth.Signer(auth.From, txRetrieveValue)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTxRetrieveValue)
+
+	// Set stored value to 4
+	storeAndFailFnSignature := []byte("storeAndFail(uint256)")
+
+	hash = sha3.NewLegacyKeccak256()
+	hash.Write(storeAndFailFnSignature)
+	methodID = hash.Sum(nil)[:4]
+
+	paddedNumber = common.LeftPadBytes(big.NewInt(4).Bytes(), 32)
+
+	data = []byte{}
+	data = append(data, methodID...)
+	data = append(data, paddedNumber...)
+
+	txStoreAndFailValue := types.NewTransaction(3, scAddress, new(big.Int), state.TxTransferGas, new(big.Int).SetUint64(1), data)
+	signedTxStoreAndFailValue, err := auth.Signer(auth.From, txStoreAndFailValue)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTxStoreAndFailValue)
+
+	// Retrieve stored value
+	hash = sha3.NewLegacyKeccak256()
+	hash.Write(getNumberFnSignature)
+	methodID = hash.Sum(nil)[:4]
+
+	data = []byte{}
+	data = append(data, methodID...)
+
+	txRetrieveAfterFailValue := types.NewTransaction(3, scAddress, new(big.Int), state.TxTransferGas, new(big.Int).SetUint64(1), data)
+	signedTxRetrieveAfterFailValue, err := auth.Signer(auth.From, txRetrieveAfterFailValue)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTxRetrieveAfterFailValue)
+
+	// Create Batch
+	batch := &state.Batch{
+		BlockNumber:        uint64(0),
+		Sequencer:          sequencerAddress,
+		Aggregator:         sequencerAddress,
+		ConsolidatedTxHash: common.Hash{},
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
+		Uncles:             nil,
+		Transactions:       txs,
+		RawTxsData:         nil,
+		MaticCollateral:    big.NewInt(1),
+		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
+	}
+
+	// Create Batch Processor
+	stateRoot, err := testState.GetStateRoot(ctx, true, "")
+	require.NoError(t, err)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, stateRoot, "")
+	require.NoError(t, err)
+
+	err = bp.ProcessBatch(ctx, batch)
+	require.NoError(t, err)
+
+	receiptStoreValue, err := testState.GetTransactionReceipt(ctx, signedTxStoreValue.Hash(), "")
+	require.NoError(t, err)
+	assert.Equal(t, types.ReceiptStatusSuccessful, receiptStoreValue.Status)
+
+	receiptRetrieveValue, err := testState.GetTransactionReceipt(ctx, signedTxRetrieveValue.Hash(), "")
+	require.NoError(t, err)
+	assert.Equal(t, types.ReceiptStatusSuccessful, receiptRetrieveValue.Status)
+
+	receiptStoreAndFailValue, err := testState.GetTransactionReceipt(ctx, signedTxStoreAndFailValue.Hash(), "")
+	require.NoError(t, err)
+	assert.Equal(t, types.ReceiptStatusFailed, receiptStoreAndFailValue.Status)
+
+	receiptRetrieveAfterFailValue, err := testState.GetTransactionReceipt(ctx, signedTxRetrieveAfterFailValue.Hash(), "")
+	require.NoError(t, err)
+	assert.Equal(t, types.ReceiptStatusSuccessful, receiptRetrieveAfterFailValue.Status)
+
+	storageValue, err := st.GetStorageAt(ctx, scAddress, big.NewInt(0), 1, "")
+	require.NoError(t, err)
+	assert.Equal(t, uint64(2), common.BigToHash(storageValue).Big().Uint64(), "invalid storage value after reverted tx")
+
+	logs, err := st.GetLogs(ctx, 1, 1, []common.Address{scAddress}, [][]common.Hash{}, nil, "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(logs), "invalid number of logs after reverted tx")
 }
