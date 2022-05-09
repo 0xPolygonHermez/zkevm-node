@@ -19,8 +19,10 @@ import (
 
 const (
 	networkURL = "http://localhost:8123"
-	pk         = "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
-	txTimeout  = 60 * time.Second
+	// pk         = "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
+	txTimeout = 60 * time.Second
+	two       = 2
+	four      = 4
 )
 
 func main() {
@@ -57,7 +59,7 @@ func main() {
 	checkValues(ctx, client, failureTestSCAddr, failureTestSC)
 
 	// update number with valid tx
-	tx, err = failureTestSC.Store(auth, big.NewInt(2))
+	tx, err = failureTestSC.Store(auth, big.NewInt(two))
 	chkErr(err)
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
@@ -66,7 +68,7 @@ func main() {
 	checkValues(ctx, client, failureTestSCAddr, failureTestSC)
 
 	// update number with invalid tx
-	_, err = failureTestSC.StoreAndFail(auth, big.NewInt(4))
+	_, err = failureTestSC.StoreAndFail(auth, big.NewInt(four))
 	chkErr(err)
 	// _, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	// chkErr(err)
