@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/stretchr/testify/require"
 )
@@ -218,6 +219,83 @@ func Test_stringToh4(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			actual, err := stringToh4(tc.input)
 			require.NoError(t, testutils.CheckError(err, tc.expectedErr, tc.expectedErrMsg))
+
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func Test_ScalarToFilledByteSlice(t *testing.T) {
+	tcs := []struct {
+		input    string
+		expected string
+	}{
+		{
+			input:    "0",
+			expected: "0x0000000000000000000000000000000000000000000000000000000000000000",
+		},
+		{
+			input:    "256",
+			expected: "0x0000000000000000000000000000000000000000000000000000000000000100",
+		},
+		{
+			input:    "235938498573495379548793890390932048239042839490238",
+			expected: "0x0000000000000000000000a16f882ee8972432c0a71c5e309ad5f7215690aebe",
+		},
+		{
+			input:    "4309593458485959083095843905390485089430985490434080439904305093450934509490",
+			expected: "0x098724b9a1bc97eee674cf5b6b56b8fafd83ac49c3da1f2c87c822548bbfdfb2",
+		},
+		{
+			input:    "98999023430240239049320492430858334093493024832984092384902398409234090932489",
+			expected: "0xdadf762a31e865f150a1456d7db7963c91361b771c8381a3fb879cf5bf91b909",
+		},
+	}
+
+	for i, tc := range tcs {
+		tc := tc
+		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+			input, ok := big.NewInt(0).SetString(tc.input, 10)
+			require.True(t, ok)
+
+			actualSlice := ScalarToFilledByteSlice(input)
+
+			actual := hex.EncodeToHex(actualSlice)
+
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func Test_h4ToFilledByteSlice(t *testing.T) {
+	tcs := []struct {
+		input    []uint64
+		expected string
+	}{
+		{
+			input:    []uint64{0, 0, 0, 0},
+			expected: "0x0000000000000000000000000000000000000000000000000000000000000000",
+		},
+		{
+			input:    []uint64{0, 1, 2, 3},
+			expected: "0x0000000000000003000000000000000200000000000000010000000000000000",
+		},
+		{
+			input:    []uint64{55345354959, 991992992929, 2, 3},
+			expected: "0x00000000000000030000000000000002000000e6f763d4a10000000ce2d718cf",
+		},
+		{
+			input:    []uint64{8398349845894398543, 3485942349435495945, 734034022234249459, 5490434584389534589},
+			expected: "0x4c31f12a390ec37d0a2fd00ddc52d8f330608e18f597e609748ceeb03ffe024f",
+		},
+	}
+
+	for i, tc := range tcs {
+		tc := tc
+		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+			actualSlice := h4ToFilledByteSlice(tc.input)
+
+			actual := hex.EncodeToHex(actualSlice)
 
 			require.Equal(t, tc.expected, actual)
 		})

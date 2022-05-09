@@ -90,7 +90,7 @@ func encode(ctx *cli.Context) error {
 	if _, err := fmt.Scanln(&nonceS); err != nil {
 		return err
 	}
-	nonce, err := strconv.ParseUint(nonceS, 10, 64)
+	nonce, err := strconv.ParseUint(nonceS, encoding.Base10, 64) //nolint:gomnd
 	if err != nil {
 		log.Error("error decoding nonce: ", err)
 		return err
@@ -102,7 +102,7 @@ func encode(ctx *cli.Context) error {
 	if _, err := fmt.Scanln(&gasPriceS); err != nil {
 		return err
 	}
-	gasPrice, _ := new(big.Int).SetString(gasPriceS, 10)
+	gasPrice, _ := new(big.Int).SetString(gasPriceS, encoding.Base10)
 	log.Info("GasPrice: ", gasPrice)
 
 	fmt.Print("Gas : ")
@@ -110,7 +110,7 @@ func encode(ctx *cli.Context) error {
 	if _, err := fmt.Scanln(&gasS); err != nil {
 		return err
 	}
-	gas, err := strconv.ParseUint(gasS, 10, 64)
+	gas, err := strconv.ParseUint(gasS, encoding.Base10, 64) //nolint:gomnd
 	if err != nil {
 		log.Error("error decoding gas: ", err)
 		return err

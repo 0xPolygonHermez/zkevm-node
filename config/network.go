@@ -82,7 +82,7 @@ var (
 				common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 			},
 		},
-		MaxCumulativeGasUsed: 800000,
+		MaxCumulativeGasUsed: 30000000,
 	}
 	testnetConfig = NetworkConfig{
 		Arity:                         4,
@@ -100,13 +100,13 @@ var (
 				common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 			},
 		},
-		MaxCumulativeGasUsed: 800000,
+		MaxCumulativeGasUsed: 30000000,
 	}
 	internalTestnetConfig = NetworkConfig{
 		Arity:                         4,
-		GenBlockNumber:                6753360,
-		PoEAddr:                       common.HexToAddress("0x9a5a6dfD995F53676e41Ea0ec6d77b817C58513E"),
-		MaticAddr:                     common.HexToAddress("0xc07a40e1ec01ACD92FE7F21fDb07C8cDFB670d44"),
+		GenBlockNumber:                6829370,
+		PoEAddr:                       common.HexToAddress("0x083E10Fc0De5a919Dec514CCD9130cD772D38Bfb"),
+		MaticAddr:                     common.HexToAddress("0x7431FD5ba483f826cAf06B68ae95b2aE738D666D"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
@@ -167,7 +167,7 @@ var (
 				common.HexToAddress("0x61ba0248b0986c2480181c6e76b6adeeaa962483"): bigIntFromBase10String("1"),
 			},
 		},
-		MaxCumulativeGasUsed: 800000,
+		MaxCumulativeGasUsed: 30000000,
 	}
 	localConfig = NetworkConfig{
 		Arity:                         4,
@@ -234,7 +234,7 @@ var (
 				common.HexToAddress("0x61ba0248b0986c2480181c6e76b6adeeaa962483"): bigIntFromBase10String("1"),
 			},
 		},
-		MaxCumulativeGasUsed: 800000,
+		MaxCumulativeGasUsed: 30000000,
 	}
 )
 

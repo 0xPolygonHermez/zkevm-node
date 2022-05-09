@@ -189,7 +189,7 @@ func (h *Host) EmitLog(address common.Address, topics []common.Hash, data []byte
 
 func (h *Host) getLogIndex() uint {
 	nextIndex := 0
-	for l := range h.logs {
+	for _, l := range h.logs {
 		nextIndex += len(l)
 	}
 	return uint(nextIndex)

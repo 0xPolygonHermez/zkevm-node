@@ -1510,8 +1510,9 @@ func TestEmitLog(t *testing.T) {
 	logs, err = st.GetLogs(ctx, 0, 5, nil, nil, nil, "")
 	require.NoError(t, err)
 	require.Equal(t, 10, len(logs))
-	for _, l := range logs {
+	for i, l := range logs {
 		assert.Equal(t, scAddress, l.Address)
+		assert.Equal(t, uint(i), l.Index)
 	}
 
 	logs, err = st.GetLogs(ctx, 5, 5, nil, nil, nil, "")
@@ -1807,9 +1808,9 @@ func TestEstimateGas(t *testing.T) {
 	txs = append(txs, signedTxSCDeploy)
 
 	// Estimate Gas
-	gasEstimation, err := st.EstimateGas(signedTxSCDeploy, "")
+	gasEstimation, err := st.EstimateGas(signedTxSCDeploy, auth.From)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(376040), gasEstimation)
+	assert.Equal(t, uint64(0x106f5), gasEstimation)
 
 	// Create Batch
 	batch := &state.Batch{
@@ -1842,9 +1843,9 @@ func TestEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 
 	// Estimate Gas
-	gasEstimation, err = st.EstimateGas(signedTxStoreValue, "")
+	gasEstimation, err = st.EstimateGas(signedTxStoreValue, auth.From)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(107320), gasEstimation)
+	assert.Equal(t, uint64(0x5208), gasEstimation)
 
 	txs = []*types.Transaction{}
 	txs = append(txs, signedTxStoreValue)
@@ -1855,12 +1856,12 @@ func TestEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 
 	// Transfer
-	txTransfer := types.NewTransaction(1, sequencerAddress, new(big.Int).SetInt64(10000), state.TxTransferGas, new(big.Int).SetUint64(1), nil)
+	txTransfer := types.NewTransaction(2, sequencerAddress, new(big.Int).SetInt64(10000), state.TxTransferGas, new(big.Int).SetUint64(1), nil)
 	signedTxTransfer, err := auth.Signer(auth.From, txTransfer)
 	require.NoError(t, err)
 
 	// Estimate Gas
-	gasEstimation, err = st.EstimateGas(signedTxTransfer, "")
+	gasEstimation, err = st.EstimateGas(signedTxTransfer, auth.From)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(state.TxTransferGas), gasEstimation)
 }

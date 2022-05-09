@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -343,13 +344,14 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 		if err != nil {
 			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
 		}
-		batch.ReceivedAt = fullBlock.ReceivedAt
+		t := time.Unix(int64(fullBlock.Time()), 0)
+		batch.ReceivedAt = t
 
 		var block state.Block
 		block.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		block.ParentHash = fullBlock.ParentHash()
-		block.ReceivedAt = fullBlock.ReceivedAt
+		block.ReceivedAt = t
 		block.Batches = append(block.Batches, batch)
 		return &block, nil
 	case consolidateBatchSignatureHash:
@@ -365,13 +367,14 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 		if err != nil {
 			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
 		}
-		batch.ConsolidatedAt = &fullBlock.ReceivedAt
+		t := time.Unix(int64(fullBlock.Time()), 0)
+		batch.ConsolidatedAt = &t
 
 		var block state.Block
 		block.BlockNumber = vLog.BlockNumber
 		block.BlockHash = vLog.BlockHash
 		block.ParentHash = fullBlock.ParentHash()
-		block.ReceivedAt = fullBlock.ReceivedAt
+		block.ReceivedAt = t
 		block.Batches = append(block.Batches, batch)
 
 		log.Debug("Consolidated tx hash: ", vLog.TxHash, batch.ConsolidatedTxHash)
@@ -393,7 +396,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
 		}
 		block.ParentHash = fullBlock.ParentHash()
-		block.ReceivedAt = fullBlock.ReceivedAt
+		block.ReceivedAt = time.Unix(int64(fullBlock.Time()), 0)
 		sequencer.ChainID = new(big.Int).SetUint64(uint64(seq.ChainID))
 		block.NewSequencers = append(block.NewSequencers, sequencer)
 		return &block, nil
