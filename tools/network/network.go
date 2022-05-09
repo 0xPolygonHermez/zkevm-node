@@ -39,6 +39,7 @@ type globalExitRoot struct {
 	ExitRoots         []common.Hash
 }
 
+// InitNetwork initializes the L2 network and moves the L1 funds to L2
 func InitNetwork(
 	ctx context.Context,
 	l1NetworkURL, l2NetworkURL,
@@ -48,7 +49,6 @@ func InitNetwork(
 	bridgeDepositReceiverAddress, bridgeDepositReceiverPrivateKey string,
 	txTimeout time.Duration,
 ) {
-
 	app := cli.NewApp()
 	var n string
 	flag.StringVar(&n, "network", "local", "")

@@ -40,5 +40,4 @@ func main() {
 		bridgeDepositReceiverAddress,
 		bridgeDepositReceiverPrivateKey,
 		txTimeout)
-
 }
