@@ -40,6 +40,7 @@ const (
 	getTransactionByBatchHashAndIndexSQL   = "SELECT transaction.encoded FROM state.transaction inner join state.batch on (state.transaction.batch_num = state.batch.batch_num) WHERE state.batch.batch_hash = $1 and state.transaction.tx_index = $2"
 	getTransactionByBatchNumberAndIndexSQL = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1 AND tx_index = $2"
 	getTransactionCountSQL                 = "SELECT COUNT(*) FROM state.transaction WHERE from_address = $1"
+	getTransactionCountByBatchHashSQL      = "SELECT COUNT(*) FROM state.transaction t, state.batch b WHERE t.batch_num = b.batch_num AND batch_hash = $1"
 	consolidateBatchSQL                    = "UPDATE state.batch SET consolidated_tx_hash = $1, consolidated_at = $3, aggregator = $4 WHERE batch_num = $2"
 	getTxsByBatchNumSQL                    = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
 	addBlockSQL                            = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
@@ -239,6 +240,16 @@ func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash, 
 	}
 
 	return &batch, nil
+}
+
+// GetBatchTransactionCountByHash return the number of trantactions int the batch
+func (s *PostgresStorage) GetBatchTransactionCountByHash(ctx context.Context, hash common.Hash, txBundleID string) (uint64, error) {
+	var count uint64
+	err := s.QueryRow(ctx, txBundleID, getTransactionCountByBatchHashSQL, hash.Bytes()).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // GetBatchByNumber gets the batch with the required number
