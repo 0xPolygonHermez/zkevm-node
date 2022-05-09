@@ -39,15 +39,19 @@ type globalExitRoot struct {
 	ExitRoots         []common.Hash
 }
 
+type InitNetworkConfig struct {
+	L1NetworkURL, L2NetworkURL,
+	L1BridgeAddr, L2BridgeAddr,
+	L1AccHexAddress, L1AccHexPrivateKey,
+	SequencerAddress, SequencerPrivateKey,
+	BridgeDepositReceiverAddress, BridgeDepositReceiverPrivateKey string
+	TxTimeout time.Duration
+}
+
 // InitNetwork initializes the L2 network and moves the L1 funds to L2
 func InitNetwork(
 	ctx context.Context,
-	l1NetworkURL, l2NetworkURL,
-	l1BridgeAddr, l2BridgeAddr,
-	l1AccHexAddress, l1AccHexPrivateKey,
-	sequencerAddress, sequencerPrivateKey,
-	bridgeDepositReceiverAddress, bridgeDepositReceiverPrivateKey string,
-	txTimeout time.Duration,
+	nc InitNetworkConfig,
 ) {
 	app := cli.NewApp()
 	var n string
@@ -59,12 +63,12 @@ func InitNetwork(
 
 	// Eth client
 	log.Infof("Connecting to l1")
-	clientL1, err := ethclient.Dial(l1NetworkURL)
+	clientL1, err := ethclient.Dial(nc.L1NetworkURL)
 	chkErr(err)
 
 	// Hermez client
 	log.Infof("Connecting to l1")
-	clientL2, err := ethclient.Dial(l2NetworkURL)
+	clientL2, err := ethclient.Dial(nc.L2NetworkURL)
 	chkErr(err)
 
 	// Get network chain id
@@ -74,14 +78,14 @@ func InitNetwork(
 
 	// Preparing l1 acc info
 	log.Infof("Creating deployer authorization")
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(l1AccHexPrivateKey, "0x"))
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(nc.L1AccHexPrivateKey, "0x"))
 	chkErr(err)
 	authDeployer, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDL1)
 	chkErr(err)
 
 	// Create sequencer auth
 	log.Infof("Creating sequencer authorization")
-	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(sequencerPrivateKey, "0x"))
+	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(nc.SequencerPrivateKey, "0x"))
 	chkErr(err)
 	authSequencer, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDL1)
 	chkErr(err)
@@ -93,18 +97,18 @@ func InitNetwork(
 
 	// Send some Ether from l1Acc to sequencer acc
 	log.Infof("Transferring ETH to the sequencer")
-	fromAddress := common.HexToAddress(l1AccHexAddress)
+	fromAddress := common.HexToAddress(nc.L1AccHexAddress)
 	nonce, err := clientL1.PendingNonceAt(ctx, fromAddress)
 	chkErr(err)
 	const gasLimit = 21000
-	toAddress := common.HexToAddress(sequencerAddress)
+	toAddress := common.HexToAddress(nc.SequencerAddress)
 	ethAmount, _ := big.NewInt(0).SetString("200000000000000000000", encoding.Base10)
 	tx := types.NewTransaction(nonce, toAddress, ethAmount, gasLimit, gasPrice, nil)
 	signedTx, err := authDeployer.Signer(authDeployer.From, tx)
 	chkErr(err)
 	err = clientL1.SendTransaction(ctx, signedTx)
 	chkErr(err)
-	_, err = scripts.WaitTxToBeMined(clientL1, signedTx.Hash(), txTimeout)
+	_, err = scripts.WaitTxToBeMined(clientL1, signedTx.Hash(), nc.TxTimeout)
 	chkErr(err)
 
 	// Create matic maticTokenSC sc instance
@@ -120,29 +124,29 @@ func InitNetwork(
 	chkErr(err)
 
 	// wait matic transfer to be mined
-	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), txTimeout)
+	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
 	chkErr(err)
 
 	// approve tokens to be used by PoE SC on behalf of the sequencer
 	log.Infof("Approving tokens to be used by PoE on behalf of the sequencer")
 	tx, err = maticTokenSC.Approve(authSequencer, cfg.NetworkConfig.PoEAddr, maticAmount)
 	chkErr(err)
-	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), txTimeout)
+	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
 	chkErr(err)
 
 	// Register the sequencer
 	log.Infof("Registering the sequencer")
 	ethermanConfig := etherman.Config{
-		URL: l1NetworkURL,
+		URL: nc.L1NetworkURL,
 	}
 	etherman, err := etherman.NewClient(ethermanConfig, authSequencer, cfg.NetworkConfig.PoEAddr, cfg.NetworkConfig.MaticAddr)
 	chkErr(err)
-	tx, err = etherman.RegisterSequencer(l2NetworkURL)
+	tx, err = etherman.RegisterSequencer(nc.L2NetworkURL)
 	chkErr(err)
 
 	// Wait sequencer to be registered
 	log.Infof("waiting sequencer to be registered")
-	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), txTimeout)
+	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
 	chkErr(err)
 	log.Infof("sequencer registered")
 
@@ -158,14 +162,14 @@ func InitNetwork(
 	const destNetwork = uint32(1)
 	depositAmount, _ := big.NewInt(0).SetString("10000000000000000000", encoding.Base10)
 	ethAddr := common.Address{}
-	destAddr := common.HexToAddress(bridgeDepositReceiverAddress)
-	sendL1Deposit(ctx, authDeployer, clientL1, ethAddr, depositAmount, destNetwork, &destAddr, l1BridgeAddr, txTimeout)
+	destAddr := common.HexToAddress(nc.BridgeDepositReceiverAddress)
+	sendL1Deposit(ctx, authDeployer, clientL1, ethAddr, depositAmount, destNetwork, &destAddr, nc.L1BridgeAddr, nc.TxTimeout)
 
 	lastBatchNumber, err := clientL2.BlockNumber(ctx)
 	chkErr(err)
 
 	// Proposing empty batch to trigger the l2 synchronization process
-	forceBatchProposal(ctx, authSequencer, clientL1, cfg.NetworkConfig, l1BridgeAddr, txTimeout)
+	forceBatchProposal(ctx, authSequencer, clientL1, cfg.NetworkConfig, nc.L1BridgeAddr, nc.TxTimeout)
 
 	expectedLastBatchNumber := lastBatchNumber + 1
 	for {
@@ -235,12 +239,12 @@ func InitNetwork(
 
 	// Preparing bridge receiver acc info
 	log.Infof("Creating bridge receiver authorization")
-	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(bridgeDepositReceiverPrivateKey, "0x"))
+	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(nc.BridgeDepositReceiverPrivateKey, "0x"))
 	chkErr(err)
 	authBridgeReceiver, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDL2)
 	chkErr(err)
 
-	sendL2Claim(ctx, authBridgeReceiver, clientL2, deposit, smtProof, globalExitRoot, l2BridgeAddr, txTimeout)
+	sendL2Claim(ctx, authBridgeReceiver, clientL2, deposit, smtProof, globalExitRoot, nc.L2BridgeAddr, nc.TxTimeout)
 
 	log.Infof("Network initialized properly")
 }

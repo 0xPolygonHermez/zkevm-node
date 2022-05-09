@@ -29,15 +29,17 @@ const (
 func main() {
 	ctx := context.Background()
 	NW.InitNetwork(ctx,
-		l1NetworkURL,
-		l2NetworkURL,
-		l1BridgeAddr,
-		l2BridgeAddr,
-		l1AccHexAddress,
-		l1AccHexPrivateKey,
-		sequencerAddress,
-		sequencerPrivateKey,
-		bridgeDepositReceiverAddress,
-		bridgeDepositReceiverPrivateKey,
-		txTimeout)
+		NW.InitNetworkConfig{
+			L1NetworkURL:                    l1NetworkURL,
+			L2NetworkURL:                    l2NetworkURL,
+			L1BridgeAddr:                    l1BridgeAddr,
+			L2BridgeAddr:                    l2BridgeAddr,
+			L1AccHexAddress:                 l1AccHexAddress,
+			L1AccHexPrivateKey:              l1AccHexPrivateKey,
+			SequencerAddress:                sequencerAddress,
+			SequencerPrivateKey:             sequencerPrivateKey,
+			BridgeDepositReceiverAddress:    bridgeDepositReceiverAddress,
+			BridgeDepositReceiverPrivateKey: bridgeDepositReceiverPrivateKey,
+			TxTimeout:                       txTimeout,
+		})
 }
