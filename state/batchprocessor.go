@@ -82,12 +82,24 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 	b.CumulativeGasUsed = 0
 	b.Host.logs = map[common.Hash][]*types.Log{}
 
+	oldStateRoot := b.Host.stateRoot
+
+	// Store old state root on System SC
+	batchNumber := tree.ScalarToFilledByteSlice(new(big.Int).Sub(batch.Number(), new(big.Int).SetInt64(1)))
+	storagePosition := tree.ScalarToFilledByteSlice(new(big.Int).SetUint64(b.Host.State.cfg.OldStateRootPosition))
+	oldStateRootPosition := helper.Keccak256(batchNumber, storagePosition)
+
+	root, _, err := b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.SystemSCAddr, new(big.Int).SetBytes(oldStateRootPosition), new(big.Int).SetBytes(oldStateRoot), b.Host.stateRoot, b.TxBundleID)
+	if err != nil {
+		return err
+	}
+
 	// Set Global Exit Root storage position
-	batchNumber := tree.ScalarToFilledByteSlice(batch.Number())
-	storagePosition := tree.ScalarToFilledByteSlice(new(big.Int).SetUint64(b.Host.State.cfg.GlobalExitRootStoragePosition))
+	batchNumber = tree.ScalarToFilledByteSlice(batch.Number())
+	storagePosition = tree.ScalarToFilledByteSlice(new(big.Int).SetUint64(b.Host.State.cfg.GlobalExitRootStoragePosition))
 	globalExitRootPos := helper.Keccak256(batchNumber, storagePosition)
 
-	root, _, err := b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), b.Host.stateRoot, b.TxBundleID)
+	root, _, err = b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), root, b.TxBundleID)
 	if err != nil {
 		return err
 	}
@@ -103,7 +115,7 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 
 		// Set transaction context
 		b.Host.transactionContext.index = index
-		b.Host.transactionContext.difficulty = batch.Header.Difficulty
+		b.Host.transactionContext.batchNumber = batch.Number().Int64()
 
 		result := b.processTransaction(ctx, tx, senderAddress, batch.Sequencer)
 

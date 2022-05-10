@@ -839,13 +839,13 @@ func opBlockHash(ctx context.Context, s *state) {
 	}
 
 	n := num.Int64()
-	lastBlock := s.host.GetTxContext().Number
 
-	if lastBlock-257 < n && n < lastBlock {
-		num.SetBytes(s.host.GetBlockHash(n).Bytes())
-	} else {
+	if n >= s.host.GetTxContext().BatchNumber-1 {
 		num.Set(zero)
+		return
 	}
+
+	num.SetInt64(s.host.GetOldStateRoot(ctx, n))
 }
 
 func opCoinbase(ctx context.Context, s *state) {
@@ -861,7 +861,7 @@ func opNumber(ctx context.Context, s *state) {
 }
 
 func opDifficulty(ctx context.Context, s *state) {
-	s.push1().SetBytes(s.host.GetTxContext().Difficulty.Bytes())
+	s.push1().SetBytes([]byte{0})
 }
 
 func opGasLimit(ctx context.Context, s *state) {
