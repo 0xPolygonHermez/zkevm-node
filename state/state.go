@@ -147,7 +147,7 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 	}
 
 	logs := make(map[common.Hash][]*types.Log)
-	host := Host{State: s, stateRoot: stateRoot, transactionContext: transactionContext{difficulty: new(big.Int)}, txBundleID: txBundleID, logs: logs}
+	host := Host{State: s, stateRoot: stateRoot, txBundleID: txBundleID, logs: logs}
 	host.setRuntime(evm.NewEVM())
 	blockNumber, err := s.GetLastBlockNumber(ctx, txBundleID)
 	if err != nil {
@@ -163,7 +163,7 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 
 // NewGenesisBatchProcessor creates a new batch processor
 func (s *State) NewGenesisBatchProcessor(genesisStateRoot []byte, txBundleID string) (*BatchProcessor, error) {
-	host := Host{State: s, stateRoot: genesisStateRoot, transactionContext: transactionContext{difficulty: new(big.Int)}, txBundleID: txBundleID}
+	host := Host{State: s, stateRoot: genesisStateRoot, txBundleID: txBundleID}
 	host.setRuntime(evm.NewEVM())
 	host.forks = runtime.AllForksEnabled.At(0)
 	return &BatchProcessor{Host: host}, nil

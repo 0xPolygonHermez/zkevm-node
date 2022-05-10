@@ -9,7 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
+	"github.com/hermeznetwork/hermez-core/state/tree"
 )
 
 // Host implements host interface
@@ -29,7 +31,7 @@ type transactionContext struct {
 	currentOrigin      common.Address
 	coinBase           common.Address
 	index              uint
-	difficulty         *big.Int
+	batchNumber        int64
 }
 
 // AccountExists check if the address already exists in the state
@@ -134,21 +136,21 @@ func (h *Host) Selfdestruct(ctx context.Context, address common.Address, benefic
 	}
 	h.stateRoot = root
 
-	// TODO: Destroy Storage
+	// Storage not destroyed as per Protocol definition
 }
 
 // GetTxContext returns metadata related to the Tx Context
 func (h *Host) GetTxContext() runtime.TxContext {
 	return runtime.TxContext{
-		Hash:       h.transactionContext.currentTransaction.Hash(),
-		GasPrice:   common.BigToHash(h.transactionContext.currentTransaction.GasPrice()),
-		Origin:     h.transactionContext.currentOrigin,
-		Coinbase:   h.transactionContext.coinBase,
-		Number:     int64(h.transactionContext.index),
-		Timestamp:  time.Now().Unix(),
-		GasLimit:   int64(h.transactionContext.currentTransaction.Gas()),
-		ChainID:    h.transactionContext.currentTransaction.ChainId().Int64(),
-		Difficulty: common.BigToHash(h.transactionContext.difficulty),
+		Hash:        h.transactionContext.currentTransaction.Hash(),
+		GasPrice:    common.BigToHash(h.transactionContext.currentTransaction.GasPrice()),
+		Origin:      h.transactionContext.currentOrigin,
+		Coinbase:    h.transactionContext.coinBase,
+		Number:      int64(h.transactionContext.index),
+		Timestamp:   time.Now().Unix(),
+		GasLimit:    int64(h.transactionContext.currentTransaction.Gas()),
+		ChainID:     h.transactionContext.currentTransaction.ChainId().Int64(),
+		BatchNumber: h.transactionContext.batchNumber,
 	}
 }
 
@@ -381,4 +383,21 @@ func (h *Host) run(ctx context.Context, contract *runtime.Contract) *runtime.Exe
 	return &runtime.ExecutionResult{
 		Err: fmt.Errorf("not found"),
 	}
+}
+
+// GetOldStateRoot gets an old state root from the System SC
+func (h *Host) GetOldStateRoot(ctx context.Context, batchNumber int64) int64 {
+	// Recover old state root from System SC
+	batchNumberBytes := tree.ScalarToFilledByteSlice(new(big.Int).SetInt64(batchNumber))
+	storagePosition := tree.ScalarToFilledByteSlice(new(big.Int).SetUint64(h.State.cfg.OldStateRootPosition))
+	oldStateRootPosition := helper.Keccak256(batchNumberBytes, storagePosition)
+
+	oldRoot, err := h.State.tree.GetStorageAt(ctx, h.State.cfg.SystemSCAddr, new(big.Int).SetBytes(oldStateRootPosition), h.stateRoot, h.txBundleID)
+	if err != nil {
+		log.Errorf("error on GetOldStateRoot for batchNumber %v", batchNumber)
+	}
+
+	log.Debugf("GetOldStateRoot for bathNumber %v", batchNumber)
+
+	return oldRoot.Int64()
 }
