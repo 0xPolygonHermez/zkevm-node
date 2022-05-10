@@ -29,10 +29,7 @@ func InitOrReset(cfg db.Config) error {
 	}
 
 	// run migrations
-	if err := db.RunMigrations(cfg); err != nil {
-		return err
-	}
-	return nil
+	return db.RunMigrations(cfg)
 }
 
 // NewConfigFromEnv creates config from standard postgres environment variables,
