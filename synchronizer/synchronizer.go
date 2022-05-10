@@ -79,6 +79,10 @@ func (s *ClientSynchronizer) Sync() error {
 				BlockNumber: s.genBlockNumber,
 			}
 		}
+		err = s.state.SetInitSyncBlock(s.ctx, lastEthBlockSynced.BlockNumber, "")
+		if err != nil {
+			log.Fatal("error setting initial Block. Error: ", err)
+		}
 		waitDuration := time.Duration(0)
 		for {
 			select {
