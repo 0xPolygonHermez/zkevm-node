@@ -1456,10 +1456,8 @@ func TestEmitLog(t *testing.T) {
 	require.NoError(t, err)
 
 	// tx to call emitLog
-	hashCall := sha3.NewLegacyKeccak256()
-	_, err = hashCall.Write([]byte("emitLogs()"))
+	dataCall, err := getMethodID("emitLogs()")
 	require.NoError(t, err)
-	dataCall := hashCall.Sum(nil)[:4]
 	txCall := types.NewTransaction(1, scAddress, new(big.Int), uint64(sequencerBalance), new(big.Int).SetUint64(1), dataCall)
 	signedTxCall, err := auth.Signer(auth.From, txCall)
 	require.NoError(t, err)
@@ -2072,10 +2070,8 @@ func TestSCRevertedTransaction(t *testing.T) {
 	txs = append(txs, signedTxSCDeploy)
 
 	// Set stored value to 2
-	storeFnSignature := []byte("store(uint256)")
-	hash := sha3.NewLegacyKeccak256()
-	hash.Write(storeFnSignature)
-	methodID := hash.Sum(nil)[:4]
+	methodID, err := getMethodID("store(uint256)")
+	require.NoError(t, err)
 
 	paddedNumber := common.LeftPadBytes(big.NewInt(2).Bytes(), 32)
 
@@ -2090,10 +2086,9 @@ func TestSCRevertedTransaction(t *testing.T) {
 	txs = append(txs, signedTxStoreValue)
 
 	// Retrieve stored value
-	getNumberFnSignature := []byte("getNumber()")
-	hash = sha3.NewLegacyKeccak256()
-	hash.Write(getNumberFnSignature)
-	methodID = hash.Sum(nil)[:4]
+	getNumberFnSignature := "getNumber()"
+	methodID, err = getMethodID(getNumberFnSignature)
+	require.NoError(t, err)
 
 	data = []byte{}
 	data = append(data, methodID...)
@@ -2105,11 +2100,8 @@ func TestSCRevertedTransaction(t *testing.T) {
 	txs = append(txs, signedTxRetrieveValue)
 
 	// Set stored value to 4
-	storeAndFailFnSignature := []byte("storeAndFail(uint256)")
-
-	hash = sha3.NewLegacyKeccak256()
-	hash.Write(storeAndFailFnSignature)
-	methodID = hash.Sum(nil)[:4]
+	methodID, err = getMethodID("storeAndFail(uint256)")
+	require.NoError(t, err)
 
 	paddedNumber = common.LeftPadBytes(big.NewInt(4).Bytes(), 32)
 
@@ -2124,9 +2116,8 @@ func TestSCRevertedTransaction(t *testing.T) {
 	txs = append(txs, signedTxStoreAndFailValue)
 
 	// Retrieve stored value
-	hash = sha3.NewLegacyKeccak256()
-	hash.Write(getNumberFnSignature)
-	methodID = hash.Sum(nil)[:4]
+	methodID, err = getMethodID(getNumberFnSignature)
+	require.NoError(t, err)
 
 	data = []byte{}
 	data = append(data, methodID...)
@@ -2185,4 +2176,144 @@ func TestSCRevertedTransaction(t *testing.T) {
 	logs, err := st.GetLogs(ctx, 1, 1, []common.Address{scAddress}, [][]common.Hash{}, nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(logs), "invalid number of logs after reverted tx")
+}
+
+func TestDelegatecall(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 80000000
+	var senderSCAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	var receiverSCAddress = common.HexToAddress("0x85e844b762A271022b692CF99cE5c59BA0650Ac8")
+
+	senderSCByteCode, err := testutils.ReadBytecode("DelegatecallSender/DelegatecallSender.bin")
+	require.NoError(t, err)
+	receiverSCByteCode, err := testutils.ReadBytecode("DelegatecallReceiver/DelegatecallReceiver.bin")
+	require.NoError(t, err)
+
+	// Init database instance
+	err = dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	genesis := state.Genesis{
+		Block:    genesisBlock,
+		Balances: make(map[common.Address]*big.Int),
+	}
+
+	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
+	err = st.SetGenesis(ctx, genesis, "")
+	require.NoError(t, err)
+
+	// Register Sequencer
+	sequencer := state.Sequencer{
+		Address:     sequencerAddress,
+		URL:         "http://www.address.com",
+		ChainID:     chainIDSequencer,
+		BlockNumber: genesisBlock.Header().Number.Uint64(),
+	}
+
+	err = st.AddSequencer(ctx, sequencer, "")
+	assert.NoError(t, err)
+
+	var txs []*types.Transaction
+
+	txSenderSCDeploy := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(senderSCByteCode),
+	})
+	txReceiverSCDeploy := types.NewTx(&types.LegacyTx{
+		Nonce:    1,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(receiverSCByteCode),
+	})
+	methodID, err := getMethodID("call(address)")
+	require.NoError(t, err)
+	paddedAddress := common.LeftPadBytes(receiverSCAddress.Bytes(), 32)
+	data := []byte{}
+	data = append(data, methodID...)
+	data = append(data, paddedAddress...)
+
+	txDelegateCall := types.NewTx(&types.LegacyTx{
+		Nonce:    3,
+		To:       &senderSCAddress,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     data,
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	signedTxSenderSCDeploy, err := auth.Signer(auth.From, txSenderSCDeploy)
+	require.NoError(t, err)
+	signedTxReceiverSCDeploy, err := auth.Signer(auth.From, txReceiverSCDeploy)
+	require.NoError(t, err)
+	signedTxDelegateCall, err := auth.Signer(auth.From, txDelegateCall)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTxSenderSCDeploy, signedTxReceiverSCDeploy, signedTxDelegateCall)
+
+	// Create Batch
+	batch := &state.Batch{
+		BlockNumber:        uint64(0),
+		Sequencer:          sequencerAddress,
+		Aggregator:         sequencerAddress,
+		ConsolidatedTxHash: common.Hash{},
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
+		Uncles:             nil,
+		Transactions:       txs,
+		RawTxsData:         nil,
+		MaticCollateral:    big.NewInt(1),
+		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
+	}
+
+	lastBatch, err := st.GetLastBatch(ctx, true, "")
+	require.NoError(t, err)
+
+	// Create Batch Processor and process batch
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Header.Root[:], "")
+	require.NoError(t, err)
+
+	err = bp.ProcessBatch(ctx, batch)
+	require.NoError(t, err)
+
+	receipt, err := testState.GetTransactionReceipt(ctx, signedTxDelegateCall.Hash(), "")
+	require.NoError(t, err)
+	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status)
+}
+
+func getMethodID(signature string) ([]byte, error) {
+	hashCall := sha3.NewLegacyKeccak256()
+	_, err := hashCall.Write([]byte(signature))
+	if err != nil {
+		return nil, err
+	}
+	return hashCall.Sum(nil)[:4], nil
 }

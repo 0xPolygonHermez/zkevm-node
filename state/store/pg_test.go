@@ -117,7 +117,8 @@ func TestPGStoreConcurrentTransactions(t *testing.T) {
 	var wg sync.WaitGroup
 	const valueFmt = "testValue-%03d"
 
-	for i := 0; i < 100; i++ {
+	totalWorkers := 100
+	for i := 0; i < totalWorkers; i++ {
 		wg.Add(1)
 
 		go func(i int) {
@@ -149,4 +150,5 @@ func TestPGStoreConcurrentTransactions(t *testing.T) {
 		require.Equal(t, expectedValue, r.Field)
 		count++
 	}
+	require.Equal(t, totalWorkers, count)
 }

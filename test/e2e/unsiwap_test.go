@@ -16,7 +16,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-// TestStateTransition tests state transitions using the vector
+// TestUniswap tests uniswap contracts deployment and functionality on the core
+// node.
 func TestUniswap(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
