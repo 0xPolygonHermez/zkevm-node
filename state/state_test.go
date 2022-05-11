@@ -2304,13 +2304,9 @@ func TestDelegatecall(t *testing.T) {
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
-	// get actual sender received in the receiver contract and compare with the tx sender
-	storageValue, err := st.GetStorageAt(ctx, receiverSCAddress, big.NewInt(0), 1, "")
+	receipt, err := testState.GetTransactionReceipt(ctx, signedTxDelegateCall.Hash(), "")
 	require.NoError(t, err)
-	buf := make([]byte, 20)
-	expectedSender := auth.From
-	actualSender := common.HexToAddress(hex.EncodeToHex(storageValue.FillBytes(buf)))
-	require.Equal(t, expectedSender, actualSender, "expectedSender != msg.sender")
+	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status)
 }
 
 func getMethodID(signature string) ([]byte, error) {
