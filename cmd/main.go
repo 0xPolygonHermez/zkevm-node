@@ -14,6 +14,7 @@ const (
 	flagNetworkCfg = "network-cfg"
 	flagAmount     = "amount"
 	flagRemoteMT   = "remote-merkletree"
+	flagComponents = "components"
 )
 
 const (
@@ -60,6 +61,13 @@ func main() {
 			Aliases:  []string{"mt"},
 			Usage:    "Connect to merkletree service instead of use local libraries",
 			Required: false,
+		},
+		&cli.StringSliceFlag{
+			Name:     flagComponents,
+			Aliases:  []string{"co"},
+			Usage:    "List of components to run",
+			Required: false,
+			Value:    cli.NewStringSlice("aggregator", "sequencer", "rpc", "synchronizer"),
 		},
 	}
 	app.Commands = []*cli.Command{

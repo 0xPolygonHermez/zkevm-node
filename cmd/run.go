@@ -117,12 +117,27 @@ func start(ctx *cli.Context) error {
 	seq := createSequencer(c.Sequencer, etherman, pool, st)
 
 	gpe := createGasPriceEstimator(c.GasPriceEstimator, st, pool)
-	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
-	go seq.Start()
-	go runJSONRpcServer(*c, pool, st, seq.ChainID, gpe)
 
 	proverClient, proverConn := newProverClient(c.Prover)
-	go runAggregator(c.Aggregator, etherman, proverClient, st)
+
+	for _, item := range ctx.StringSlice(flagComponents) {
+		if item == "aggregator" {
+			log.Info("Running aggregator")
+			go runAggregator(c.Aggregator, etherman, proverClient, st)
+		}
+		if item == "sequencer" {
+			log.Info("Running sequencer")
+			go seq.Start()
+		}
+		if item == "rpc" {
+			log.Info("Running JSON-RPC server")
+			go runJSONRpcServer(*c, pool, st, seq.ChainID, gpe)
+		}
+		if item == "synchronizer" {
+			log.Info("Running synchronizer")
+			go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
+		}
+	}
 
 	grpcClientConns = append(grpcClientConns, proverConn)
 
