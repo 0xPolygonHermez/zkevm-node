@@ -442,18 +442,26 @@ func (e *Eth) Syncing() (interface{}, error) {
 	}, nil
 }
 
+// GetUncleByBlockHashAndIndex returns information about a uncle of a
+// block by hash and uncle index position
 func (e *Eth) GetUncleByBlockHashAndIndex() (interface{}, error) {
 	return nil, nil
 }
 
+// GetUncleByBlockHashAndIndex returns information about a uncle of a
+// block by number and uncle index position
 func (e *Eth) GetUncleByBlockNumberAndIndex() (interface{}, error) {
 	return nil, nil
 }
 
+// GetUncleCountByBlockHash returns the number of uncles in a block
+// matching the given block hash
 func (e *Eth) GetUncleCountByBlockHash() (interface{}, error) {
 	return "0x", nil
 }
 
+// GetUncleCountByBlockNumber returns the number of uncles in a block
+// matching the given block number
 func (e *Eth) GetUncleCountByBlockNumber() (interface{}, error) {
 	return "0x", nil
 }
