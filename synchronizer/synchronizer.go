@@ -79,9 +79,13 @@ func (s *ClientSynchronizer) Sync() error {
 				BlockNumber: s.genBlockNumber,
 			}
 		}
-		err = s.state.SetInitSyncBlock(s.ctx, lastEthBlockSynced.BlockNumber, "")
+		initBatchNumber, err := s.state.GetLastBatchNumber(s.ctx, "")
 		if err != nil {
-			log.Fatal("error setting initial Block. Error: ", err)
+			log.Fatal("error getting latest batchNumber synced. Error: ", err)
+		}
+		err = s.state.SetInitSyncBatch(s.ctx, initBatchNumber, "")
+		if err != nil {
+			log.Fatal("error setting initial batch number. Error: ", err)
 		}
 		waitDuration := time.Duration(0)
 		for {

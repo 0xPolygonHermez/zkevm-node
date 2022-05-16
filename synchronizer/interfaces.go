@@ -33,7 +33,7 @@ type stateInterface interface {
 	SetGenesis(ctx context.Context, genesis state.Genesis, txBundleID string) error
 	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
 	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
-	SetInitSyncBlock(ctx context.Context, blockNumber uint64, txBundleID string) error
+	SetInitSyncBatch(ctx context.Context, batchNumber uint64, txBundleID string) error
 	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
 	GetBatchHeader(ctx context.Context, batchNumber uint64, txBundleID string) (*types.Header, error)
 	GetPreviousBlock(ctx context.Context, offset uint64, txBundleID string) (*state.Block, error)
