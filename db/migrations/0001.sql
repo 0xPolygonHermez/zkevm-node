@@ -86,8 +86,8 @@ CREATE TABLE state.misc
 (
     last_batch_num_seen BIGINT,
     last_batch_num_consolidated BIGINT,
-    init_sync_block BIGINT
+    init_sync_batch BIGINT
 );
 
 -- Insert default values into misc table
-INSERT INTO state.misc (last_batch_num_seen, last_batch_num_consolidated, init_sync_block) VALUES(0, 0, 0);
+INSERT INTO state.misc (last_batch_num_seen, last_batch_num_consolidated, init_sync_batch) VALUES(0, 0, 0);
