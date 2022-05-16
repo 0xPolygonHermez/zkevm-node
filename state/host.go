@@ -208,6 +208,8 @@ func (h *Host) Callx(ctx context.Context, contract *runtime.Contract, host runti
 		return h.applyCreate(ctx, contract, host)
 	}
 
+	root := h.stateRoot
+
 	if contract.Type == runtime.Call && contract.Value.Uint64() != 0 {
 		log.Debugf("Callx. New Transfer from %v to %v", contract.Caller, contract.Address)
 		err := h.transfer(ctx, contract.Caller, contract.Address, contract.Value)
@@ -219,15 +221,11 @@ func (h *Host) Callx(ctx context.Context, contract *runtime.Contract, host runti
 		}
 	}
 
-	var contract2 *runtime.Contract
+	result := h.run(ctx, contract)
 
-	if contract.Type == runtime.DelegateCall {
-		contract2 = runtime.NewContractCall(contract.Depth+1, contract.Caller, contract.CodeAddress, contract.Address, contract.Value, contract.Gas, contract.Code, contract.Input)
-	} else {
-		contract2 = runtime.NewContractCall(contract.Depth+1, contract.Address, contract.Caller, contract.CodeAddress, contract.Value, contract.Gas, contract.Code, contract.Input)
+	if result.Reverted() {
+		h.stateRoot = root
 	}
-
-	result := h.run(ctx, contract2)
 
 	return result
 }

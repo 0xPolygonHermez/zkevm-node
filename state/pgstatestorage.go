@@ -48,6 +48,7 @@ const (
 	updateLastBatchSeenSQL                 = "UPDATE state.misc SET last_batch_num_seen = $1"
 	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
 	updateLastBatchConsolidatedSQL         = "UPDATE state.misc SET last_batch_num_consolidated = $1"
+	updateInitBlockSQL                     = "UPDATE state.misc SET init_sync_block = $1"
 	getLastBatchConsolidatedSQL            = "SELECT last_batch_num_consolidated FROM state.misc LIMIT 1"
 	getSequencerSQL                        = "SELECT * FROM state.sequencer WHERE address = $1"
 	getReceiptSQL                          = "SELECT * FROM state.receipt WHERE tx_hash = $1"
@@ -650,6 +651,12 @@ func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 // SetLastBatchNumberConsolidatedOnEthereum sets the last batch number that was consolidated on ethereum
 func (s *PostgresStorage) SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error {
 	_, err := s.Exec(ctx, txBundleID, updateLastBatchConsolidatedSQL, batchNumber)
+	return err
+}
+
+// SetInitSyncBlock sets the initial block number where the synchronization started
+func (s *PostgresStorage) SetInitSyncBlock(ctx context.Context, blockNumber uint64, txBundleID string) error {
+	_, err := s.Exec(ctx, txBundleID, updateInitBlockSQL, blockNumber)
 	return err
 }
 

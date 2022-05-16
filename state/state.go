@@ -148,7 +148,8 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 		return nil, err
 	}
 
-	host := Host{State: s, stateRoot: stateRoot, transactionContext: transactionContext{difficulty: new(big.Int)}, txBundleID: txBundleID}
+	logs := make(map[common.Hash][]*types.Log)
+	host := Host{State: s, stateRoot: stateRoot, transactionContext: transactionContext{difficulty: new(big.Int)}, txBundleID: txBundleID, logs: logs}
 	host.setRuntime(evm.NewEVM())
 	blockNumber, err := s.GetLastBlockNumber(ctx, txBundleID)
 	if err != nil {
