@@ -390,6 +390,29 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 	return tx.Hash().Hex(), nil
 }
 
+// Syncing returns an object with data about the sync status or false.
+// https://eth.wiki/json-rpc/API#eth_syncing
+func (e *Eth) Syncing() (interface{}, error) {
+	syncInfo, err := e.state.GetSyncingInfo(context.Background(), "")
+	if err != nil {
+		return nil, err
+	}
+
+	if syncInfo.LastBatchNumberSeen != syncInfo.LastBatchNumberConsolidated {
+		return false, nil
+	}
+
+	return struct {
+		S argUint64 `json:"startingBlock"`
+		C argUint64 `json:"currentBlock"`
+		H argUint64 `json:"highestBlock"`
+	}{
+		S: argUint64(syncInfo.InitialSyncingBatch),
+		C: argUint64(syncInfo.LastBatchNumberConsolidated),
+		H: argUint64(syncInfo.LastBatchNumberSeen),
+	}, nil
+}
+
 func hexToTx(str string) (*types.Transaction, error) {
 	tx := new(types.Transaction)
 
