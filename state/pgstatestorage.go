@@ -47,6 +47,7 @@ const (
 	addSequencerSQL                        = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4) ON CONFLICT (chain_id) DO UPDATE SET address = EXCLUDED.address, url = EXCLUDED.url, block_num = EXCLUDED.block_num"
 	updateLastBatchSeenSQL                 = "UPDATE state.misc SET last_batch_num_seen = $1"
 	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
+	getSyncingInfoSQL                      = "SELECT last_batch_num_seen, last_batch_num_consolidated, init_sync_batch FROM state.misc LIMIT 1"
 	updateLastBatchConsolidatedSQL         = "UPDATE state.misc SET last_batch_num_consolidated = $1"
 	updateInitBlockSQL                     = "UPDATE state.misc SET init_sync_block = $1"
 	getLastBatchConsolidatedSQL            = "SELECT last_batch_num_consolidated FROM state.misc LIMIT 1"
@@ -646,6 +647,13 @@ func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 	}
 
 	return batchNumber, nil
+}
+
+// GetSyncingInfo returns information regarding the syncing status of the node
+func (s *PostgresStorage) GetSyncingInfo(ctx context.Context, txBundleID string) (SyncingInfo, error) {
+	var info SyncingInfo
+	err := s.QueryRow(ctx, txBundleID, getSyncingInfoSQL).Scan(&info)
+	return info, err
 }
 
 // SetLastBatchNumberConsolidatedOnEthereum sets the last batch number that was consolidated on ethereum
