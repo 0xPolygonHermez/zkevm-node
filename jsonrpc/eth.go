@@ -358,6 +358,35 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 	return hex.EncodeUint64(nonce), nil
 }
 
+// GetBlockTransactionCountByHash returns the number of transactions in a
+// block from a block matching the given block hash.
+func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, error) {
+	c, err := e.state.GetBatchTransactionCountByHash(context.Background(), hash, "")
+	if err != nil {
+		return err, nil
+	}
+
+	return argUint64(c), nil
+}
+
+// GetBlockTransactionCountByNumber returns the number of transactions in a
+// block from a block matching the given block number.
+func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, error) {
+	ctx := context.Background()
+
+	blockNumber, err := number.getNumericBlockNumber(ctx, e.state)
+	if err != nil {
+		return err, nil
+	}
+
+	c, err := e.state.GetBatchTransactionCountByNumber(ctx, blockNumber, "")
+	if err != nil {
+		return err, nil
+	}
+
+	return argUint64(c), nil
+}
+
 // GetTransactionReceipt returns a transaction receipt by his hash
 func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 	ctx := context.Background()
@@ -398,7 +427,7 @@ func (e *Eth) Syncing() (interface{}, error) {
 		return nil, err
 	}
 
-	if syncInfo.LastBatchNumberSeen != syncInfo.LastBatchNumberConsolidated {
+	if syncInfo.LastBatchNumberSeen == syncInfo.LastBatchNumberConsolidated {
 		return false, nil
 	}
 

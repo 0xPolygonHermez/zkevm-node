@@ -47,4 +47,6 @@ type stateInterface interface {
 	GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash, txBundleID string) ([]*types.Log, error)
 	ReplayTransaction(transactionHash common.Hash, traceMode []string) *runtime.ExecutionResult
 	ReplayBatchTransactions(batchNumber uint64, traceMode []string) ([]*runtime.ExecutionResult, error)
+	GetBatchTransactionCountByHash(ctx context.Context, hash common.Hash, txBundleID string) (uint64, error)
+	GetBatchTransactionCountByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (uint64, error)
 }
