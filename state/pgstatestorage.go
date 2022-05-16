@@ -652,7 +652,7 @@ func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 // GetSyncingInfo returns information regarding the syncing status of the node
 func (s *PostgresStorage) GetSyncingInfo(ctx context.Context, txBundleID string) (SyncingInfo, error) {
 	var info SyncingInfo
-	err := s.QueryRow(ctx, txBundleID, getSyncingInfoSQL).Scan(&info)
+	err := s.QueryRow(ctx, txBundleID, getSyncingInfoSQL).Scan(&info.LastBatchNumberSeen, &info.LastBatchNumberConsolidated, &info.InitialSyncingBatch)
 	return info, err
 }
 
