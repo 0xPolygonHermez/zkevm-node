@@ -442,6 +442,22 @@ func (e *Eth) Syncing() (interface{}, error) {
 	}, nil
 }
 
+func (e *Eth) GetUncleByBlockHashAndIndex() (interface{}, error) {
+	return nil, nil
+}
+
+func (e *Eth) GetUncleByBlockNumberAndIndex() (interface{}, error) {
+	return nil, nil
+}
+
+func (e *Eth) GetUncleCountByBlockHash() (interface{}, error) {
+	return "0x", nil
+}
+
+func (e *Eth) GetUncleCountByBlockNumber() (interface{}, error) {
+	return "0x", nil
+}
+
 func hexToTx(str string) (*types.Transaction, error) {
 	tx := new(types.Transaction)
 
