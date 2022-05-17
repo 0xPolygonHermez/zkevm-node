@@ -100,6 +100,8 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 		if err != nil {
 			return err
 		}
+
+		b.Host.stateRoot = root
 	}
 
 	// Set Global Exit Root storage position
@@ -107,14 +109,12 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 	storagePosition = tree.ScalarToFilledByteSlice(new(big.Int).SetUint64(b.Host.State.cfg.GlobalExitRootStoragePosition))
 	globalExitRootPos := helper.Keccak256(batchNumber, storagePosition)
 
-	root, _, err = b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), root, b.TxBundleID)
+	root, _, err = b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), b.Host.stateRoot, b.TxBundleID)
 	if err != nil {
 		return err
 	}
 
-	if !b.isGenesisBatch(batch) {
-		b.Host.stateRoot = root
-	}
+	b.Host.stateRoot = root
 
 	for _, tx := range batch.Transactions {
 		senderAddress, err := helper.GetSender(*tx)
