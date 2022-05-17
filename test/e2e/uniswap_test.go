@@ -23,10 +23,11 @@ func TestUniswap(t *testing.T) {
 		t.Skip()
 	}
 
-	defer func() {
-		require.NoError(t, operations.Teardown())
-	}()
-
+	/*
+		defer func() {
+			require.NoError(t, operations.Teardown())
+		}()
+	*/
 	ctx := context.Background()
 
 	// load the same config that will be used by the test
@@ -96,5 +97,5 @@ func TestUniswap(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, balance.String(), "10000000000000000000", "invalid ETH Balance after deployments and swaps")
 
-	require.NoError(t, operations.Teardown())
+	//require.NoError(t, operations.Teardown())
 }

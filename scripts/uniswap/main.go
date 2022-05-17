@@ -126,7 +126,26 @@ func main() {
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
 
+	value, err := aCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before allowance aCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = bCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before allowance bCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = cCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before allowance cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+
 	// Add allowance
+	value, err = aCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before adding allowance aCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = bCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before adding allowance swap bCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = cCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before adding allowance cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
 	approveERC20(auth, client, aCoin, routerAddr, aMintAmount)
 	fmt.Println()
 	approveERC20(auth, client, bCoin, routerAddr, bMintAmount)
@@ -138,6 +157,16 @@ func main() {
 
 	const liquidityAmount = "10000000000000000000"
 
+	value, err = aCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before adding liquidity aCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = bCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before adding liquidity swap bCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = cCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before adding liquidity cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+
 	// Add liquidity to the pool
 	tx = addLiquidity(auth, client, router, aCoinAddr, bCoinAddr, liquidityAmount)
 	log.Debugf("Add Liquidity to Pair A <-> B tx: %v", tx.Hash().Hex())
@@ -147,13 +176,33 @@ func main() {
 	log.Debugf("Add Liquidity to Pair B <-> C tx: %v", tx.Hash().Hex())
 	fmt.Println()
 
-	// Execute swaps
+	// Execute swaps                906610893880149131
 	const swapExactAmountInNumber = 1000000000000000000
 	swapExactAmountIn := big.NewInt(swapExactAmountInNumber)
+
+	value, err = aCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before first swap aCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = bCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before first swap bCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = cCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before first swap cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
 
 	log.Debugf("Swaping tokens from A <-> B")
 	swapExactTokensForTokens(auth, client, factory, router, aCoinAddr, bCoinAddr, swapExactAmountIn)
 	fmt.Println()
+
+	value, err = aCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("after first swap aCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = bCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("after first swap bCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = cCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("after first swap cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
 
 	log.Debugf("Swaping tokens from B <-> C")
 	swapExactTokensForTokens(auth, client, factory, router, bCoinAddr, cCoinAddr, swapExactAmountIn)

@@ -89,7 +89,6 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 	b.Host.logs = map[common.Hash][]*types.Log{}
 
 	if !b.isGenesisBatch(batch) {
-		log.Debugf("not genesis batch")
 		oldStateRoot := b.Host.stateRoot
 		// Store old state root on System SC if we are not on a genesis batch
 		batchNumber = tree.ScalarToFilledByteSlice(new(big.Int).Sub(batch.Number(), new(big.Int).SetInt64(1)))
