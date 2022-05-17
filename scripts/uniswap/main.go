@@ -137,15 +137,6 @@ func main() {
 	log.Debugf("before allowance cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
 
 	// Add allowance
-	value, err = aCoin.BalanceOf(&bind.CallOpts{}, auth.From)
-	chkErr(err)
-	log.Debugf("before adding allowance aCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
-	value, err = bCoin.BalanceOf(&bind.CallOpts{}, auth.From)
-	chkErr(err)
-	log.Debugf("before adding allowance swap bCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
-	value, err = cCoin.BalanceOf(&bind.CallOpts{}, auth.From)
-	chkErr(err)
-	log.Debugf("before adding allowance cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
 	approveERC20(auth, client, aCoin, routerAddr, aMintAmount)
 	fmt.Println()
 	approveERC20(auth, client, bCoin, routerAddr, bMintAmount)
@@ -159,24 +150,34 @@ func main() {
 
 	value, err = aCoin.BalanceOf(&bind.CallOpts{}, auth.From)
 	chkErr(err)
-	log.Debugf("before adding liquidity aCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	log.Debugf("before adding liquidity A, B aCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
 	value, err = bCoin.BalanceOf(&bind.CallOpts{}, auth.From)
 	chkErr(err)
-	log.Debugf("before adding liquidity swap bCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	log.Debugf("before adding liquidity A, B bCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
 	value, err = cCoin.BalanceOf(&bind.CallOpts{}, auth.From)
 	chkErr(err)
-	log.Debugf("before adding liquidity cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	log.Debugf("before adding liquidity A, B cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
 
 	// Add liquidity to the pool
 	tx = addLiquidity(auth, client, router, aCoinAddr, bCoinAddr, liquidityAmount)
 	log.Debugf("Add Liquidity to Pair A <-> B tx: %v", tx.Hash().Hex())
 	fmt.Println()
 
+	value, err = aCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before adding liquidity B, C aCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = bCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before adding liquidity B, C bCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+	value, err = cCoin.BalanceOf(&bind.CallOpts{}, auth.From)
+	chkErr(err)
+	log.Debugf("before adding liquidity B, C cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
+
 	tx = addLiquidity(auth, client, router, bCoinAddr, cCoinAddr, liquidityAmount)
 	log.Debugf("Add Liquidity to Pair B <-> C tx: %v", tx.Hash().Hex())
 	fmt.Println()
 
-	// Execute swaps                906610893880149131
+	// Execute swaps
 	const swapExactAmountInNumber = 1000000000000000000
 	swapExactAmountIn := big.NewInt(swapExactAmountInNumber)
 
@@ -204,9 +205,13 @@ func main() {
 	chkErr(err)
 	log.Debugf("after first swap cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
 
-	log.Debugf("Swaping tokens from B <-> C")
-	swapExactTokensForTokens(auth, client, factory, router, bCoinAddr, cCoinAddr, swapExactAmountIn)
-	fmt.Println()
+	/*
+		Disabling second swap until issue https://github.com/hermeznetwork/hermez-core/issues/655 is fixed
+
+		log.Debugf("Swaping tokens from B <-> C")
+		swapExactTokensForTokens(auth, client, factory, router, bCoinAddr, cCoinAddr, swapExactAmountIn)
+		fmt.Println()
+	*/
 }
 
 func swapExactTokensForTokens(auth *bind.TransactOpts, client *ethclient.Client,
