@@ -26,7 +26,7 @@ func keyEthAddr(ethAddr common.Address, leafType leafType, key1Capacity [4]uint6
 		ethAddrArr[2],
 		ethAddrArr[3],
 		ethAddrArr[4],
-		ethAddrArr[5],
+		0,
 		uint64(leafType),
 		0,
 	}
