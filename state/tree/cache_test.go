@@ -1,6 +1,7 @@
 package tree
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/hermeznetwork/hermez-core/test/testutils"
@@ -144,4 +145,36 @@ func TestMTNodeCacheClear(t *testing.T) {
 	subject.clear()
 
 	require.Zero(t, len(subject.data))
+}
+
+func TestConcurrentAccess(t *testing.T) {
+	subject := newNodeCache()
+	var wg sync.WaitGroup
+
+	const totalItems = 10
+	for i := 0; i < totalItems; i++ {
+		wg.Add(1)
+
+		go func(i int) {
+			defer wg.Done()
+
+			err := subject.set([]uint64{1, 1, 1, uint64(i)}, []uint64{uint64(i)})
+			require.NoError(t, err)
+		}(i)
+	}
+	wg.Wait()
+
+	for i := 0; i < totalItems; i++ {
+		wg.Add(1)
+
+		go func(i int) {
+			defer wg.Done()
+
+			value, err := subject.get([]uint64{1, 1, 1, uint64(i)})
+			require.NoError(t, err)
+
+			require.Equal(t, value, []uint64{uint64(i)})
+		}(i)
+	}
+	wg.Wait()
 }

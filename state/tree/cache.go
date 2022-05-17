@@ -55,6 +55,9 @@ func newNodeCache() *nodeCache {
 func (nc *nodeCache) get(key []uint64) ([]uint64, error) {
 	keyStr := h4ToString(key)
 
+	nc.lock.Lock()
+	defer nc.lock.Unlock()
+
 	item, ok := nc.data[keyStr]
 	if !ok {
 		return nil, errMTNodeCacheItemNotFound
@@ -64,13 +67,13 @@ func (nc *nodeCache) get(key []uint64) ([]uint64, error) {
 
 // set inserts a new MT node cache entry.
 func (nc *nodeCache) set(key []uint64, value []uint64) error {
+	nc.lock.Lock()
+	defer nc.lock.Unlock()
+
 	if len(nc.data) >= maxMTNodeCacheEntries {
 		return errors.New("MT node cache is full")
 	}
 	keyStr := h4ToString(key)
-
-	nc.lock.Lock()
-	defer nc.lock.Unlock()
 
 	nc.data[keyStr] = value
 
