@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/test/operations"
 	"github.com/hermeznetwork/hermez-core/test/vectors"
@@ -80,12 +79,7 @@ func TestStateTransition(t *testing.T) {
 				require.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, encoding.Base10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}
 
-			// Check state against the expected state
-			root, err := st.GetStateRoot(ctx, true, "")
-			require.NoError(t, err)
-			require.Equal(t, testCase.ExpectedNewRoot, hex.EncodeToHex(root), "Invalid new root")
-
-			// Check consolidated state against the expected state
+			// Check virtual root against the expected state
 			require.NoError(t, opsman.CheckVirtualRoot(testCase.ExpectedNewRoot))
 
 			// Check that last virtual and consolidated batch are the same

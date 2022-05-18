@@ -23,6 +23,7 @@ type Host interface {
 	Callx(context.Context, *Contract, Host) *ExecutionResult
 	Empty(ctx context.Context, addr common.Address) bool
 	GetNonce(ctx context.Context, addr common.Address) uint64
+	GetOldStateRoot(ctx context.Context, batchNumber int64) int64
 }
 
 // StorageStatus is the status of the storage access

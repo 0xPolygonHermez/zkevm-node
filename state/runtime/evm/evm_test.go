@@ -82,6 +82,10 @@ func (m *mockHost) GetNonce(ctx context.Context, addr common.Address) uint64 {
 	panic("Not implemented in tests")
 }
 
+func (m *mockHost) GetOldStateRoot(ctx context.Context, batchNumber int64) int64 {
+	panic("Not implemented in tests")
+}
+
 func TestRun(t *testing.T) {
 	tests := []struct {
 		name     string

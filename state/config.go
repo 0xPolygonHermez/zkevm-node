@@ -14,4 +14,8 @@ type Config struct {
 	GlobalExitRootStoragePosition uint64
 	// LocalExitRootStoragePosition is the position inside SC's storage to read the new local state root
 	LocalExitRootStoragePosition uint64
+	// SystemSCAddr is the System Smart Contract Address
+	SystemSCAddr common.Address
+	// OldStateRootPosition is the position in SystemSCAddr to store the old root
+	OldStateRootPosition uint64
 }
