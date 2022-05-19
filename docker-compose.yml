@@ -33,7 +33,7 @@ services:
     container_name: hez-core-rpc
     image: hezcore
     ports:
-      - 8123:8123
+      - 8123:8124
     environment:
       - HERMEZCORE_DATABASE_USER=test_user
       - HERMEZCORE_DATABASE_PASSWORD=test_password
@@ -58,7 +58,7 @@ services:
     container_name: hez-core-agg
     image: hezcore
     ports:
-      - 8123:8123
+      - 8123:8125
     environment:
       - HERMEZCORE_DATABASE_USER=test_user
       - HERMEZCORE_DATABASE_PASSWORD=test_password
@@ -83,7 +83,7 @@ services:
     container_name: hez-core-sync
     image: hezcore
     ports:
-      - 8123:8123
+      - 8123:8126
     environment:
       - HERMEZCORE_DATABASE_USER=test_user
       - HERMEZCORE_DATABASE_PASSWORD=test_password

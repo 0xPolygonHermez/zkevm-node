@@ -28,6 +28,13 @@ const (
 	date = ""
 )
 
+const (
+	AGGREGATOR   = "aggregator"
+	SEQUENCER    = "sequencer"
+	RPC          = "rpc"
+	SYNCHRONIZER = "synchronizer"
+)
+
 func main() {
 	app := cli.NewApp()
 	app.Name = appName

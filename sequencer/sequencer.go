@@ -136,21 +136,25 @@ func (s *Sequencer) Stop() {
 
 func (s *Sequencer) tryProposeBatch(root []byte) []byte {
 	// 1. Wait for synchronizer to sync last batch
+	log.Info(":: Wait for synchronizer to sync last batch")
 	if !s.isSynced() {
 		return nil
 	}
 	// 2. get pending txs from the pool
+	log.Info(":: Get pending txs from the pool")
 	txs, claimTxs, ok := s.getPendingTxs()
 	if !ok {
 		return nil
 	}
 
 	// 3. Run selection
+	log.Info(":: Run selection")
 	selectedTxsRes, ok := s.selectTxs(txs, claimTxs, root)
 	if !ok {
 		return nil
 	}
 	// 4. Send batch to ethereum
+	log.Info(":: Send batch to ethereum")
 	ok = s.sendBatchToEthereum(selectedTxsRes)
 	if !ok {
 		return nil
@@ -200,10 +204,13 @@ func (s *Sequencer) getPendingTxs() ([]pool.Transaction, []pool.Transaction, boo
 }
 
 func (s *Sequencer) selectTxs(txs, claimsTxs []pool.Transaction, root []byte) (txselector.SelectTxsOutput, bool) {
+	log.Info(":: 1")
 	root, batchNumber, err := s.chooseRoot(root)
 	if err != nil {
 		return txselector.SelectTxsOutput{}, false
 	}
+	log.Info(":: 2")
+
 	bp, err := s.State.NewBatchProcessor(s.ctx, s.Address, root, "")
 	if err != nil {
 		log.Errorf("failed to create new batch processor, err: %v", err)
@@ -211,12 +218,14 @@ func (s *Sequencer) selectTxs(txs, claimsTxs []pool.Transaction, root []byte) (t
 	}
 
 	// select txs
+	log.Info(":: 3")
 	selectTxsRes, err := s.TxSelector.SelectTxs(s.ctx, txselector.SelectTxsInput{BatchProcessor: bp, PendingTxs: txs, PendingClaimsTxs: claimsTxs, SequencerAddress: s.Address})
 	if err != nil {
 		log.Errorf("failed to select txs, err: %v", err)
 		return txselector.SelectTxsOutput{}, false
 	}
 
+	log.Info(":: 4")
 	if err = s.Pool.UpdateTxsState(s.ctx, selectTxsRes.InvalidTxsHashes, pool.TxStateInvalid); err != nil {
 		log.Errorf("failed to update txs state to invalid, err: %v", err)
 		return txselector.SelectTxsOutput{}, false
@@ -287,6 +296,7 @@ func isDataForEthTxTooBig(err error) bool {
 
 func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput) bool {
 	var isSent bool
+	log.Infof("Start sending batch")
 	for !isSent {
 		isProfitable, aggregatorReward, err := s.TxProfitabilityChecker.IsProfitable(s.ctx, selectionRes)
 		if err != nil {
@@ -322,6 +332,7 @@ func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput)
 			log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
 			isSent = true
 		} else {
+			log.Infof("\nBatch not selected, selected txs: %d ", len(selectionRes.SelectedTxs))
 			return false
 		}
 	}

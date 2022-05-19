@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -84,59 +85,44 @@ func start(ctx *cli.Context) error {
 		grpcClientConns []*grpc.ClientConn
 		cancelFuncs     []context.CancelFunc
 	)
-	if ctx.Bool(flagRemoteMT) {
-		log.Debugf("running with remote MT")
-		srvCfg := &tree.ServerConfig{
-			Host: c.MTServer.Host,
-			Port: c.MTServer.Port,
-		}
-		s := grpc.NewServer()
-		mtSrv := tree.NewServer(srvCfg, tr)
-		go mtSrv.Start()
-		pb.RegisterMTServiceServer(s, mtSrv)
-
-		mtClient, mtConn, mtCancel := newMTClient(c.MTClient)
-		treeAdapter := tree.NewAdapter(mtClient)
-
-		grpcClientConns = append(grpcClientConns, mtConn)
-		cancelFuncs = append(cancelFuncs, mtCancel)
-
-		st = state.NewState(stateCfg, stateDb, treeAdapter)
-	} else {
-		log.Debugf("running with local MT")
-		st = state.NewState(stateCfg, stateDb, tr)
-	}
 
 	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(c.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	pool := pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
-	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
-	seq := createSequencer(c.Sequencer, etherman, pool, st)
-
-	gpe := createGasPriceEstimator(c.GasPriceEstimator, st, pool)
+	log.Debugf("running with local MT")
+	st = state.NewState(stateCfg, stateDb, tr)
 
 	proverClient, proverConn := newProverClient(c.Prover)
 
+	var npool *pool.Pool
+	if strings.Contains(flagComponents, "sequencer") || strings.Contains(flagComponents, "rpc") {
+		npool = pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
+
+	}
+	gpe := createGasPriceEstimator(c.GasPriceEstimator, st, npool)
+
+	fmt.Printf("\nc.Sequencer.DefaultChainID %d", c.Sequencer.DefaultChainID)
 	for _, item := range ctx.StringSlice(flagComponents) {
-		if item == "aggregator" {
+		switch item {
+		case AGGREGATOR:
 			log.Info("Running aggregator")
 			go runAggregator(c.Aggregator, etherman, proverClient, st)
-		}
-		if item == "sequencer" {
+		case SEQUENCER:
 			log.Info("Running sequencer")
+			c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
+			seq := createSequencer(c.Sequencer, etherman, npool, st)
+			fmt.Printf("\nseq.ChainID %d", seq.ChainID)
 			go seq.Start()
-		}
-		if item == "rpc" {
+		case RPC:
 			log.Info("Running JSON-RPC server")
-			go runJSONRpcServer(*c, pool, st, seq.ChainID, gpe)
-		}
-		if item == "synchronizer" {
+			go runJSONRpcServer(*c, npool, st, c.Sequencer.DefaultChainID, gpe)
+		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
 			go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
 		}
+
 	}
 
 	grpcClientConns = append(grpcClientConns, proverConn)
