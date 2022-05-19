@@ -1,4 +1,4 @@
-DOCKERCOMPOSE := docker compose -f docker-compose.yml
+DOCKERCOMPOSE := docker-compose -f docker-compose.yml
 DOCKERCOMPOSEAPP := hez-core
 DOCKERCOMPOSEDB := hez-postgres
 DOCKERCOMPOSENETWORK := hez-network

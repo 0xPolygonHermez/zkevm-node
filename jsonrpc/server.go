@@ -41,7 +41,7 @@ func NewServer(
 	}
 	netEndpoints := &Net{chainIDSelector: chainIDSelector}
 	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
-	txPoolEndpoints := &TxPool{pool: p}
+	txPoolEndpoints := &TxPool{}
 	traceEndpoints := &Trace{state: s}
 	parityEndpoints := &Parity{}
 	debugEndpoints := &Debug{state: s}

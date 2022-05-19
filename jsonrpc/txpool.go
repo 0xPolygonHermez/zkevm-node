@@ -2,13 +2,10 @@ package jsonrpc
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/pool"
 )
 
 // TxPool is the txpool jsonrpc endpoint
-type TxPool struct {
-	pool jsonRPCTxPool
-}
+type TxPool struct{}
 
 type contentResponse struct {
 	Pending map[common.Address]map[uint64]*txPoolTransaction `json:"pending"`
@@ -32,51 +29,10 @@ type txPoolTransaction struct {
 // Content creates a response for txpool_content request.
 // See https://geth.ethereum.org/docs/rpc/ns-txpool#txpool_content.
 func (t *TxPool) Content() (interface{}, error) {
-	// ctx := context.Background()
-
-	pendingTxs := make([]pool.Transaction, 0)
-	// pendingTxs, err := t.pool.GetPendingTxs(ctx, false, 0)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// collect pending
-	pendingRPCTxs := make(map[common.Address]map[uint64]*txPoolTransaction, len(pendingTxs))
-
-	// for _, pendingTx := range pendingTxs {
-	// 	t := pendingTx.Transaction
-	// 	sender, err := helper.GetSender(t)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// 	if _, found := pendingRPCTxs[sender]; !found {
-	// 		pendingRPCTxs[sender] = make(map[uint64]*txPoolTransaction)
-	// 	}
-
-	// 	pendingRPCTxs[sender][pendingTx.Nonce()] = toTxPoolTransaction(sender, &t)
-	// }
-
 	resp := contentResponse{
-		Pending: pendingRPCTxs,
+		Pending: make(map[common.Address]map[uint64]*txPoolTransaction),
 		Queued:  make(map[common.Address]map[uint64]*txPoolTransaction),
 	}
 
 	return resp, nil
 }
-
-// func toTxPoolTransaction(sender common.Address, t *types.Transaction) *txPoolTransaction {
-// 	return &txPoolTransaction{
-// 		Nonce:       argUint64(t.Nonce()),
-// 		GasPrice:    argBig(*t.GasPrice()),
-// 		Gas:         argUint64(t.Gas()),
-// 		To:          t.To(),
-// 		Value:       argBig(*t.Value()),
-// 		Input:       argBytes(t.Data()),
-// 		Hash:        t.Hash(),
-// 		From:        sender,
-// 		BlockHash:   common.Hash{},
-// 		BlockNumber: nil,
-// 		TxIndex:     nil,
-// 	}
-// }
