@@ -74,19 +74,40 @@ func (b *BatchProcessor) SetSimulationMode(active bool) {
 
 // ProcessBatch processes all transactions inside a batch
 func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
-	var receipts []*Receipt
-	var includedTxs []*types.Transaction
-	var index uint
+	var (
+		receipts        []*Receipt
+		includedTxs     []*types.Transaction
+		index           uint
+		root            []byte
+		batchNumber     []byte
+		storagePosition []byte
+		err             error
+	)
 
 	b.CumulativeGasUsed = 0
 	b.Host.logs = map[common.Hash][]*types.Log{}
 
+	if !b.isGenesisBatch(batch) {
+		oldStateRoot := b.Host.stateRoot
+		// Store old state root on System SC if we are not on a genesis batch
+		batchNumber = tree.ScalarToFilledByteSlice(new(big.Int).Sub(batch.Number(), new(big.Int).SetInt64(1)))
+		storagePosition = tree.ScalarToFilledByteSlice(new(big.Int).SetUint64(b.Host.State.cfg.OldStateRootPosition))
+		oldStateRootPosition := helper.Keccak256(batchNumber, storagePosition)
+
+		root, _, err = b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.SystemSCAddr, new(big.Int).SetBytes(oldStateRootPosition), new(big.Int).SetBytes(oldStateRoot), b.Host.stateRoot, b.Host.txBundleID)
+		if err != nil {
+			return err
+		}
+
+		b.Host.stateRoot = root
+	}
+
 	// Set Global Exit Root storage position
-	batchNumber := tree.ScalarToFilledByteSlice(batch.Number())
-	storagePosition := tree.ScalarToFilledByteSlice(new(big.Int).SetUint64(b.Host.State.cfg.GlobalExitRootStoragePosition))
+	batchNumber = tree.ScalarToFilledByteSlice(batch.Number())
+	storagePosition = tree.ScalarToFilledByteSlice(new(big.Int).SetUint64(b.Host.State.cfg.GlobalExitRootStoragePosition))
 	globalExitRootPos := helper.Keccak256(batchNumber, storagePosition)
 
-	root, _, err := b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), b.Host.stateRoot, b.Host.txBundleID)
+	root, _, err = b.Host.State.tree.SetStorageAt(ctx, b.Host.State.cfg.L2GlobalExitRootManagerAddr, new(big.Int).SetBytes(globalExitRootPos), new(big.Int).SetBytes(batch.GlobalExitRoot.Bytes()), b.Host.stateRoot, b.Host.txBundleID)
 	if err != nil {
 		return err
 	}
@@ -102,7 +123,7 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 
 		// Set transaction context
 		b.Host.transactionContext.index = index
-		b.Host.transactionContext.difficulty = batch.Header.Difficulty
+		b.Host.transactionContext.batchNumber = batch.Number().Int64()
 
 		result := b.processTransaction(ctx, tx, senderAddress, batch.Sequencer)
 
@@ -728,4 +749,8 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 	result.StateRoot = root
 
 	return result
+}
+
+func (b *BatchProcessor) isGenesisBatch(batch *Batch) bool {
+	return batch.Header.Number.String() == big.NewInt(0).String()
 }

@@ -20,8 +20,10 @@ type NetworkConfig struct {
 	PoEAddr                       common.Address
 	MaticAddr                     common.Address
 	L2GlobalExitRootManagerAddr   common.Address
+	SystemSCAddr                  common.Address
 	GlobalExitRootStoragePosition uint64
 	LocalExitRootStoragePosition  uint64
+	OldStateRootPosition          uint64
 	L1ChainID                     uint64
 	L2DefaultChainID              uint64
 	Genesis                       Genesis
@@ -42,8 +44,10 @@ type networkConfigFromJSON struct {
 	PoEAddr                       string `json:"poeAddr"`
 	MaticAddr                     string `json:"maticAddr"`
 	L2GlobalExitRootManagerAddr   string `json:"l2globalExitRootManagerAddr"`
+	SystemSCAddr                  string `json:"systemSCAddr"`
 	GlobalExitRootStoragePosition uint64 `json:"globalExitRootStoragePosition"`
 	LocalExitRootStoragePosition  uint64 `json:"localExitRootStoragePosition"`
+	OldStateRootPosition          uint64 `json:"oldStateRootPosition"`
 	L1ChainID                     uint64 `json:"l1ChainID"`
 	L2DefaultChainID              uint64 `json:"l2DefaultChainID"`
 	Genesis                       genesisFromJSON
@@ -72,8 +76,10 @@ var (
 		PoEAddr:                       common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
 		MaticAddr:                     common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
+		OldStateRootPosition:          0,
 		L1ChainID:                     1, //Mainnet
 		L2DefaultChainID:              10000,
 		Genesis: Genesis{
@@ -90,8 +96,10 @@ var (
 		PoEAddr:                       common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
 		MaticAddr:                     common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
+		OldStateRootPosition:          0,
 		L1ChainID:                     4, //Rinkeby
 		L2DefaultChainID:              40000,
 		Genesis: Genesis{
@@ -108,8 +116,10 @@ var (
 		PoEAddr:                       common.HexToAddress("0x083E10Fc0De5a919Dec514CCD9130cD772D38Bfb"),
 		MaticAddr:                     common.HexToAddress("0x7431FD5ba483f826cAf06B68ae95b2aE738D666D"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
+		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
+		OldStateRootPosition:          0,
 		L1ChainID:                     5, //Goerli
 		L2DefaultChainID:              1000,
 		Genesis: Genesis{
@@ -175,8 +185,10 @@ var (
 		PoEAddr:                       common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
 		MaticAddr:                     common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
+		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
+		OldStateRootPosition:          0,
 		L1ChainID:                     1337,
 		L2DefaultChainID:              1000,
 		Genesis: Genesis{
@@ -301,8 +313,10 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfg.PoEAddr = common.HexToAddress(cfgJSON.PoEAddr)
 	cfg.MaticAddr = common.HexToAddress(cfgJSON.MaticAddr)
 	cfg.L2GlobalExitRootManagerAddr = common.HexToAddress(cfgJSON.L2GlobalExitRootManagerAddr)
+	cfg.SystemSCAddr = common.HexToAddress(cfgJSON.SystemSCAddr)
 	cfg.GlobalExitRootStoragePosition = cfgJSON.GlobalExitRootStoragePosition
 	cfg.LocalExitRootStoragePosition = cfgJSON.LocalExitRootStoragePosition
+	cfg.OldStateRootPosition = cfgJSON.OldStateRootPosition
 	cfg.L1ChainID = cfgJSON.L1ChainID
 	cfg.L2DefaultChainID = cfgJSON.L2DefaultChainID
 	cfg.Genesis = Genesis{Balances: make(map[common.Address]*big.Int, len(cfgJSON.Genesis.Balances))}

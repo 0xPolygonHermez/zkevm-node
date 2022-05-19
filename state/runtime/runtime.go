@@ -60,15 +60,16 @@ type Runtime interface {
 
 // TxContext is the context of the transaction
 type TxContext struct {
-	Hash       common.Hash
-	GasPrice   common.Hash
-	Origin     common.Address
-	Coinbase   common.Address
-	Number     int64
-	Timestamp  int64
-	GasLimit   int64
-	ChainID    int64
-	Difficulty common.Hash
+	Hash        common.Hash
+	GasPrice    common.Hash
+	Origin      common.Address
+	Coinbase    common.Address
+	Number      int64
+	Timestamp   int64
+	GasLimit    int64
+	ChainID     int64
+	Difficulty  common.Hash
+	BatchNumber int64
 }
 
 // ExecutionResult includes all output after executing given evm
