@@ -581,7 +581,7 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 			transferResult.StateRoot = b.Host.stateRoot
 			return transferResult
 		}
-	} else {
+	} else if senderAddress != ZeroAddress {
 		// Increment sender nonce
 		senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot, b.TxBundleID)
 		if err != nil {
