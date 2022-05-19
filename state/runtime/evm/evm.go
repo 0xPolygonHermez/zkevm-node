@@ -51,7 +51,7 @@ func (e *EVM) Run(ctx context.Context, c *runtime.Contract, host runtime.Host, c
 
 	contract.bitmap.setCode(c.Code)
 
-	ret, vmTrace, err := contract.Run(ctx)
+	ret, vmTrace, structLogs, err := contract.Run(ctx)
 
 	var returnValue []byte
 	returnValue = append(returnValue[:0], ret...)
@@ -69,5 +69,6 @@ func (e *EVM) Run(ctx context.Context, c *runtime.Contract, host runtime.Host, c
 		GasLeft:     gasLeft,
 		Err:         err,
 		VMTrace:     vmTrace,
+		StructLogs:  structLogs,
 	}
 }

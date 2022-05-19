@@ -82,6 +82,7 @@ type ExecutionResult struct {
 	StateRoot     []byte
 	Trace         []instrumentation.Trace
 	VMTrace       instrumentation.VMTrace
+	StructLogs    []instrumentation.StructLog
 }
 
 // Succeeded indicates the execution was successful
