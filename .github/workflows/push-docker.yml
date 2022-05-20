@@ -32,7 +32,16 @@ jobs:
             hermeznetwork/hermez-node-zkevm:latest
             hermeznetwork/hermez-core:1.5-itestnet
 
-      - name: Build and push prover mock
+      - name: Check changes in mock prover
+        id: prover_changes
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            proverservice:
+              - 'proverservice/**'
+
+      - name: Build and push mock prover
+        if: steps.prover_changes.outputs.proverservice == 'true'
         id: docker_build_prover_mock
         uses: docker/build-push-action@v2
         with:
@@ -41,4 +50,4 @@ jobs:
           push: true
           tags: |
             hermeznetwork/hez-mock-prover:latest
-            hermeznetwork/hez-mock-prover:1.5-itestnet
+            hermeznetwork/hez-mock-prover:1.5-integration
