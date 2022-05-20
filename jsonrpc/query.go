@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/hex"
 )
 
 type Filter struct {
@@ -16,14 +17,22 @@ type Filter struct {
 	LastPoll   time.Time
 }
 
+type LogFilterRequest struct {
+	BlockHash *common.Hash  `json:"blockHash,omitempty"`
+	FromBlock string        `json:"fromBlock,omitempty"`
+	ToBlock   string        `json:"toBlock,omitempty"`
+	Address   interface{}   `json:"address,omitempty"`
+	Topics    []interface{} `json:"topics,omitempty"`
+}
+
 // LogFilter is a filter for logs
 type LogFilter struct {
-	BlockHash *common.Hash     `json:"blockHash"`
-	FromBlock BlockNumber      `json:"fromBlock"`
-	ToBlock   BlockNumber      `json:"toBlock"`
-	Addresses []common.Address `json:"addresses"`
-	Topics    [][]common.Hash  `json:"topics"`
-	Since     *time.Time       `json:"since"`
+	BlockHash *common.Hash
+	FromBlock BlockNumber
+	ToBlock   BlockNumber
+	Addresses []common.Address
+	Topics    [][]common.Hash
+	Since     *time.Time
 }
 
 // addTopic adds specific topics to the log filter topics
@@ -65,15 +74,48 @@ func (f *LogFilter) addAddress(raw string) error {
 	return nil
 }
 
+func (f *LogFilter) MarshalJSON() ([]byte, error) {
+	var obj LogFilterRequest
+
+	obj.BlockHash = f.BlockHash
+
+	if f.FromBlock == LatestBlockNumber {
+		obj.FromBlock = ""
+	} else {
+		obj.FromBlock = hex.EncodeUint64(uint64(f.FromBlock))
+	}
+
+	if f.ToBlock == LatestBlockNumber {
+		obj.ToBlock = ""
+	} else {
+		obj.ToBlock = hex.EncodeUint64(uint64(f.ToBlock))
+	}
+
+	if f.Addresses != nil {
+		address, err := json.Marshal(f.Addresses)
+		if err != nil {
+			return nil, err
+		}
+		obj.Address = string(address)
+	}
+
+	obj.Topics = make([]interface{}, 0, len(f.Topics))
+	for _, topic := range f.Topics {
+		if len(topic) == 0 {
+			obj.Topics = append(obj.Topics, nil)
+		} else if len(topic) == 1 {
+			obj.Topics = append(obj.Topics, topic[0])
+		} else {
+			obj.Topics = append(obj.Topics, topic)
+		}
+	}
+
+	return json.Marshal(obj)
+}
+
 // UnmarshalJSON decodes a json object
 func (f *LogFilter) UnmarshalJSON(data []byte) error {
-	var obj struct {
-		BlockHash *common.Hash  `json:"blockHash"`
-		FromBlock string        `json:"fromBlock"`
-		ToBlock   string        `json:"toBlock"`
-		Address   interface{}   `json:"address"`
-		Topics    []interface{} `json:"topics"`
-	}
+	var obj LogFilterRequest
 
 	err := json.Unmarshal(data, &obj)
 

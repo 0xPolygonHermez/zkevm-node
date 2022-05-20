@@ -737,13 +737,13 @@ func (s *State) GetBatchHashesSince(ctx context.Context, since time.Time, txBund
 	batchHashes := make([]common.Hash, 0, len(rows.RawValues()))
 
 	for rows.Next() {
-		var batchHash common.Hash
+		var batchHash string
 		err := rows.Scan(&batchHash)
 		if err != nil {
 			return nil, err
 		}
 
-		batchHashes = append(batchHashes, batchHash)
+		batchHashes = append(batchHashes, common.HexToHash(batchHash))
 	}
 
 	return batchHashes, nil

@@ -244,25 +244,50 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
 	switch filter.Type {
 	case FilterTypeBlock:
 		{
-			return e.state.GetBatchHashesSince(context.Background(), filter.LastPoll, "")
+			res, err := e.state.GetBatchHashesSince(context.Background(), filter.LastPoll, "")
+			if err != nil {
+				return nil, err
+			}
+			if len(res) == 0 {
+				return nil, nil
+			}
+			return res, nil
 		}
 	case FilterTypePendingTx:
 		{
-			return e.pool.GetPendingTxHashesSince(context.Background(), filter.LastPoll)
+			res, err := e.pool.GetPendingTxHashesSince(context.Background(), filter.LastPoll)
+			if err != nil {
+				return nil, err
+			}
+			if len(res) == 0 {
+				return nil, nil
+			}
+			return res, nil
 		}
 	case FilterTypeLog:
 		{
-			var filterParameters *LogFilter
+			filterParameters := &LogFilter{}
 			err = json.Unmarshal([]byte(filter.Parameters), filterParameters)
 			if err != nil {
 				return nil, err
 			}
 
-			return e.GetLogs(filterParameters)
+			filterParameters.Since = &filter.LastPoll
+
+			resInterface, err := e.GetLogs(filterParameters)
+			if err != nil {
+				return nil, err
+			}
+			res := resInterface.([]rpcLog)
+			if len(res) == 0 {
+				return nil, nil
+			}
+			return res, nil
 		}
 	default:
 		return nil, nil
 	}
+
 }
 
 // GetFilterLogs returns an array of all logs matching filter
@@ -279,13 +304,13 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 		return nil, nil
 	}
 
-	var filterParameters *LogFilter
+	filterParameters := &LogFilter{}
 	err = json.Unmarshal([]byte(filter.Parameters), filterParameters)
 	if err != nil {
 		return nil, err
 	}
 
-	filterParameters.Since = &filter.LastPoll
+	filterParameters.Since = nil
 
 	return e.GetLogs(filterParameters)
 }
@@ -447,7 +472,7 @@ func (e *Eth) NewBlockFilter() (interface{}, error) {
 		return nil, err
 	}
 
-	return id, nil
+	return argUint64(id), nil
 }
 
 // NewFilter creates a filter object, based on filter options,
@@ -459,7 +484,7 @@ func (e *Eth) NewFilter(filter *LogFilter) (interface{}, error) {
 		return nil, err
 	}
 
-	return id, nil
+	return argUint64(id), nil
 }
 
 // NewPendingTransactionFilter creates a filter in the node, to
@@ -471,7 +496,7 @@ func (e *Eth) NewPendingTransactionFilter(filterID argUint64) (interface{}, erro
 		return nil, err
 	}
 
-	return id, nil
+	return argUint64(id), nil
 }
 
 // SendRawTransaction sends a raw transaction
