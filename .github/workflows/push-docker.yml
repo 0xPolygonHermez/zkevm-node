@@ -40,7 +40,7 @@ jobs:
             proverservice:
               - 'proverservice/**'
 
-      - name: Build and push mock prover
+      - name: Build and push prover mock
         if: steps.prover_changes.outputs.proverservice == 'true'
         id: docker_build_prover_mock
         uses: docker/build-push-action@v2
