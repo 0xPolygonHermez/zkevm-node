@@ -51,4 +51,4 @@ jobs:
           push: true
           tags: |
             hermeznetwork/hez-mock-prover:latest
-            hermeznetwork/hez-mock-prover:1.5-itestnet
+            hermeznetwork/hez-mock-prover:1.5-integration
