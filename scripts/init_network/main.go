@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"time"
 
 	NW "github.com/hermeznetwork/hermez-core/tools/network"
@@ -28,7 +29,7 @@ const (
 
 func main() {
 	ctx := context.Background()
-	NW.InitNetwork(ctx,
+	if err := NW.InitNetwork(ctx,
 		NW.InitNetworkConfig{
 			L1NetworkURL:                    l1NetworkURL,
 			L2NetworkURL:                    l2NetworkURL,
@@ -41,5 +42,7 @@ func main() {
 			BridgeDepositReceiverAddress:    bridgeDepositReceiverAddress,
 			BridgeDepositReceiverPrivateKey: bridgeDepositReceiverPrivateKey,
 			TxTimeout:                       txTimeout,
-		})
+		}); err != nil {
+		log.Fatal(err)
+	}
 }

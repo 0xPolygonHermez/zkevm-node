@@ -52,87 +52,123 @@ type InitNetworkConfig struct {
 func InitNetwork(
 	ctx context.Context,
 	nc InitNetworkConfig,
-) {
+) error {
 	app := cli.NewApp()
 	var n string
 	flag.StringVar(&n, "network", "local", "")
 	context := cli.NewContext(app, flag.CommandLine, nil)
 
 	cfg, err := config.Load(context)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Eth client
 	log.Infof("Connecting to l1")
 	clientL1, err := ethclient.Dial(nc.L1NetworkURL)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Hermez client
 	log.Infof("Connecting to l1")
 	clientL2, err := ethclient.Dial(nc.L2NetworkURL)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Get network chain id
 	log.Infof("Getting chainID L1")
 	chainIDL1, err := clientL1.NetworkID(ctx)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Preparing l1 acc info
 	log.Infof("Creating deployer authorization")
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(nc.L1AccHexPrivateKey, "0x"))
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	authDeployer, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDL1)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Create sequencer auth
 	log.Infof("Creating sequencer authorization")
 	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(nc.SequencerPrivateKey, "0x"))
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	authSequencer, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDL1)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Getting l1 info
 	log.Infof("Getting L1 info")
 	gasPrice, err := clientL1.SuggestGasPrice(ctx)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Send some Ether from l1Acc to sequencer acc
 	log.Infof("Transferring ETH to the sequencer")
 	fromAddress := common.HexToAddress(nc.L1AccHexAddress)
 	nonce, err := clientL1.PendingNonceAt(ctx, fromAddress)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	const gasLimit = 21000
 	toAddress := common.HexToAddress(nc.SequencerAddress)
 	ethAmount, _ := big.NewInt(0).SetString("200000000000000000000", encoding.Base10)
 	tx := types.NewTransaction(nonce, toAddress, ethAmount, gasLimit, gasPrice, nil)
 	signedTx, err := authDeployer.Signer(authDeployer.From, tx)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	err = clientL1.SendTransaction(ctx, signedTx)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	_, err = scripts.WaitTxToBeMined(clientL1, signedTx.Hash(), nc.TxTimeout)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Create matic maticTokenSC sc instance
 	log.Infof("Loading Matic token SC instance")
 	log.Infof("Matic add %s", cfg.NetworkConfig.MaticAddr)
 	maticTokenSC, err := matic.NewMatic(cfg.NetworkConfig.MaticAddr, clientL1)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Send matic to sequencer
 	log.Infof("Transferring MATIC tokens to sequencer")
 	maticAmount, _ := big.NewInt(0).SetString("200000000000000000000000", encoding.Base10)
 	tx, err = maticTokenSC.Transfer(authDeployer, toAddress, maticAmount)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// wait matic transfer to be mined
 	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// approve tokens to be used by PoE SC on behalf of the sequencer
 	log.Infof("Approving tokens to be used by PoE on behalf of the sequencer")
 	tx, err = maticTokenSC.Approve(authSequencer, cfg.NetworkConfig.PoEAddr, maticAmount)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Register the sequencer
 	log.Infof("Registering the sequencer")
@@ -140,14 +176,20 @@ func InitNetwork(
 		URL: nc.L1NetworkURL,
 	}
 	etherman, err := etherman.NewClient(ethermanConfig, authSequencer, cfg.NetworkConfig.PoEAddr, cfg.NetworkConfig.MaticAddr)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	tx, err = etherman.RegisterSequencer(nc.L2NetworkURL)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Wait sequencer to be registered
 	log.Infof("waiting sequencer to be registered")
 	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	log.Infof("sequencer registered")
 
 	const intervalToWaitTheSequencerToGetRegistered = 10 * time.Second
@@ -156,25 +198,37 @@ func InitNetwork(
 	// Deposit funds to L2 via bridge
 	log.Infof("Depositing funds to L2 via bridge")
 	balance, err := clientL1.BalanceAt(ctx, authSequencer.From, nil)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	log.Debugf("ETH Balance of %v: %v", authSequencer.From.Hex(), balance.Text(encoding.Base10))
 
 	const destNetwork = uint32(1)
 	depositAmount, _ := big.NewInt(0).SetString("10000000000000000000", encoding.Base10)
 	ethAddr := common.Address{}
 	destAddr := common.HexToAddress(nc.BridgeDepositReceiverAddress)
-	sendL1Deposit(ctx, authDeployer, clientL1, ethAddr, depositAmount, destNetwork, &destAddr, nc.L1BridgeAddr, nc.TxTimeout)
+	err = sendL1Deposit(ctx, authDeployer, clientL1, ethAddr, depositAmount, destNetwork, &destAddr, nc.L1BridgeAddr, nc.TxTimeout)
+	if err != nil {
+		return err
+	}
 
 	lastBatchNumber, err := clientL2.BlockNumber(ctx)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Proposing empty batch to trigger the l2 synchronization process
-	forceBatchProposal(ctx, authSequencer, clientL1, cfg.NetworkConfig, nc.L1BridgeAddr, nc.TxTimeout)
+	err = forceBatchProposal(ctx, authSequencer, clientL1, cfg.NetworkConfig, nc.L1BridgeAddr, nc.TxTimeout)
+	if err != nil {
+		return err
+	}
 
 	expectedLastBatchNumber := lastBatchNumber + 1
 	for {
 		currentLastBatchNumber, err := clientL2.BlockNumber(ctx)
-		chkErr(err)
+		if err != nil {
+			return err
+		}
 		log.Infof("Waiting synchronizer to sync the forced empty batch. Current: %v Expected: %v", currentLastBatchNumber, expectedLastBatchNumber)
 		if currentLastBatchNumber == expectedLastBatchNumber {
 			break
@@ -235,24 +289,34 @@ func InitNetwork(
 
 	log.Infof("Getting chainID L2")
 	chainIDL2, err := clientL2.NetworkID(ctx)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	// Preparing bridge receiver acc info
 	log.Infof("Creating bridge receiver authorization")
 	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(nc.BridgeDepositReceiverPrivateKey, "0x"))
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	authBridgeReceiver, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDL2)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
-	sendL2Claim(ctx, authBridgeReceiver, clientL2, deposit, smtProof, globalExitRoot, nc.L2BridgeAddr, nc.TxTimeout)
+	err = sendL2Claim(ctx, authBridgeReceiver, clientL2, deposit, smtProof, globalExitRoot, nc.L2BridgeAddr, nc.TxTimeout)
+	if err != nil {
+		return err
+	}
 
 	log.Infof("Network initialized properly")
+	return nil
 }
 
 // sendL1Deposit sends a deposit from l1 to l2
 func sendL1Deposit(ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, tokenAddr common.Address, amount *big.Int,
 	destNetwork uint32, destAddr *common.Address, l1BridgeAddr string, txTimeout time.Duration,
-) {
+) error {
 	emptyAddr := common.Address{}
 	if tokenAddr == emptyAddr {
 		auth.Value = amount
@@ -261,52 +325,64 @@ func sendL1Deposit(ctx context.Context, auth *bind.TransactOpts, client *ethclie
 		destAddr = &auth.From
 	}
 	br, err := bridge.NewBridge(common.HexToAddress(l1BridgeAddr), client)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	tx, err := br.Bridge(auth, tokenAddr, amount, destNetwork, *destAddr)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	log.Infof("Waiting L1Deposit to be mined")
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	log.Infof("L1Deposit mined: %v", tx.Hash())
+	return nil
 }
 
-func forceBatchProposal(ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, cfg config.NetworkConfig, l1BridgeAddr string, txTimeout time.Duration) {
+func forceBatchProposal(ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, cfg config.NetworkConfig, l1BridgeAddr string, txTimeout time.Duration) error {
 	log.Infof("Forcing batch proposal")
 
 	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddr, client)
-	chkErr(err)
-
+	if err != nil {
+		return err
+	}
 	maticAmount, err := poe.CalculateSequencerCollateral(&bind.CallOpts{Pending: false})
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 	log.Infof("Collateral: %v", maticAmount.Text(encoding.Base10))
 
 	tx, err := poe.SendBatch(auth, []byte{}, maticAmount)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	log.Infof("Waiting force batch proposal to be mined")
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
-	chkErr(err)
+
+	return err
 }
 
-func sendL2Claim(ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, dep deposit, smtProof [][32]byte, globalExitRoot *globalExitRoot, l2BridgeAddr string, txTimeout time.Duration) {
+func sendL2Claim(ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, dep deposit, smtProof [][32]byte, globalExitRoot *globalExitRoot, l2BridgeAddr string, txTimeout time.Duration) error {
 	auth.GasPrice = big.NewInt(0)
 	br, err := bridge.NewBridge(common.HexToAddress(l2BridgeAddr), client)
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	tx, err := br.Claim(auth, dep.TokenAddr, dep.Amount, dep.OrigNet, dep.DestNet,
 		dep.DestAddr, smtProof, dep.DepositCnt, globalExitRoot.GlobalExitRootNum,
 		globalExitRoot.ExitRoots[0], globalExitRoot.ExitRoots[1])
-	chkErr(err)
+	if err != nil {
+		return err
+	}
 
 	log.Infof("waiting L2 Claim tx to be mined")
 	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
-	chkErr(err)
-}
 
-func chkErr(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
+	return err
 }
