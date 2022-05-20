@@ -1498,14 +1498,14 @@ func TestEmitLog(t *testing.T) {
 	}
 
 	hash := batch.Hash()
-	logs, err := st.GetLogs(ctx, 0, 0, nil, nil, &hash, "")
+	logs, err := st.GetLogs(ctx, 0, 0, nil, nil, &hash, nil, "")
 	require.NoError(t, err)
 	require.Equal(t, 10, len(logs))
 	for _, l := range logs {
 		assert.Equal(t, scAddress, l.Address)
 	}
 
-	logs, err = st.GetLogs(ctx, 0, 5, nil, nil, nil, "")
+	logs, err = st.GetLogs(ctx, 0, 5, nil, nil, nil, nil, "")
 	require.NoError(t, err)
 	require.Equal(t, 10, len(logs))
 	for i, l := range logs {
@@ -1513,13 +1513,13 @@ func TestEmitLog(t *testing.T) {
 		assert.Equal(t, uint(i), l.Index)
 	}
 
-	logs, err = st.GetLogs(ctx, 5, 5, nil, nil, nil, "")
+	logs, err = st.GetLogs(ctx, 5, 5, nil, nil, nil, nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(logs))
 
 	addresses := []common.Address{}
 	addresses = append(addresses, scAddress)
-	logs, err = st.GetLogs(ctx, 0, 5, addresses, nil, nil, "")
+	logs, err = st.GetLogs(ctx, 0, 5, addresses, nil, nil, nil, "")
 	require.NoError(t, err)
 	require.Equal(t, 10, len(logs))
 	for _, l := range logs {
@@ -1729,7 +1729,7 @@ func TestEmitLog(t *testing.T) {
 	for i, testCase := range topicsTestCases {
 		name := strconv.Itoa(i)
 		t.Run(name, func(t *testing.T) {
-			logs, err = st.GetLogs(ctx, 0, 5, nil, testCase.topics, nil, "")
+			logs, err = st.GetLogs(ctx, 0, 5, nil, testCase.topics, nil, nil, "")
 			require.NoError(t, err)
 			require.Equal(t, testCase.expectedLogCount, len(logs))
 			for _, l := range logs {
@@ -2173,7 +2173,7 @@ func TestSCRevertedTransaction(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint64(2), common.BigToHash(storageValue).Big().Uint64(), "invalid storage value after reverted tx")
 
-	logs, err := st.GetLogs(ctx, 1, 1, []common.Address{scAddress}, [][]common.Hash{}, nil, "")
+	logs, err := st.GetLogs(ctx, 1, 1, []common.Address{scAddress}, [][]common.Hash{}, nil, nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(logs), "invalid number of logs after reverted tx")
 }

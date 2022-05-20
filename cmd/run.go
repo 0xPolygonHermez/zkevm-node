@@ -215,7 +215,12 @@ func runJSONRpcServer(c config.Config, pool *pool.Pool, st *state.State, chainID
 
 	seqAddress := key.Address
 
-	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st, chainID, gpe).Start(); err != nil {
+	storage, err := jsonrpc.NewPostgresStorage(c.Database)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st, chainID, gpe, storage).Start(); err != nil {
 		log.Fatal(err)
 	}
 }

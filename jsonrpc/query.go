@@ -3,20 +3,27 @@ package jsonrpc
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+type Filter struct {
+	ID         uint64
+	Type       string
+	Parameters string
+	LastPoll   time.Time
+}
+
 // LogFilter is a filter for logs
 type LogFilter struct {
-	BlockHash *common.Hash
-
-	fromBlock BlockNumber
-	toBlock   BlockNumber
-
-	Addresses []common.Address
-	Topics    [][]common.Hash
+	BlockHash *common.Hash     `json:"blockHash"`
+	FromBlock BlockNumber      `json:"fromBlock"`
+	ToBlock   BlockNumber      `json:"toBlock"`
+	Addresses []common.Address `json:"addresses"`
+	Topics    [][]common.Hash  `json:"topics"`
+	Since     *time.Time       `json:"since"`
 }
 
 // addTopic adds specific topics to the log filter topics
@@ -77,17 +84,17 @@ func (f *LogFilter) UnmarshalJSON(data []byte) error {
 	f.BlockHash = obj.BlockHash
 
 	if obj.FromBlock == "" {
-		f.fromBlock = LatestBlockNumber
+		f.FromBlock = LatestBlockNumber
 	} else {
-		if f.fromBlock, err = stringToBlockNumber(obj.FromBlock); err != nil {
+		if f.FromBlock, err = stringToBlockNumber(obj.FromBlock); err != nil {
 			return err
 		}
 	}
 
 	if obj.ToBlock == "" {
-		f.toBlock = LatestBlockNumber
+		f.ToBlock = LatestBlockNumber
 	} else {
-		if f.toBlock, err = stringToBlockNumber(obj.ToBlock); err != nil {
+		if f.ToBlock, err = stringToBlockNumber(obj.ToBlock); err != nil {
 			return err
 		}
 	}

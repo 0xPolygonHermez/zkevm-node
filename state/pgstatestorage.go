@@ -33,6 +33,7 @@ const (
 	getPreviousConsolidatedBatchSQL        = "SELECT block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at, chain_id, global_exit_root, rollup_exit_root FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
 	getBatchByHashSQL                      = "SELECT block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at, chain_id, global_exit_root, rollup_exit_root FROM state.batch WHERE batch_hash = $1"
 	getBatchByNumberSQL                    = "SELECT block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at, chain_id, global_exit_root, rollup_exit_root FROM state.batch WHERE batch_num = $1"
+	getBatchHashesSinceSQL                 = "SELECT header->>'hash' as hash FROM state.batch WHERE received_at >= $1"
 	getLastBatchByStateRootSQL             = "SELECT block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at, chain_id, global_exit_root, rollup_exit_root FROM state.batch WHERE header->>'stateRoot' = $1 ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchNumberSQL           = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch"
 	getLastConsolidatedBatchNumberSQL      = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch WHERE consolidated_tx_hash != $1"
@@ -59,7 +60,7 @@ const (
 	addLogSQL                              = "INSERT INTO state.log (log_index, transaction_index, transaction_hash, batch_hash, batch_num, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 	getTransactionLogsSQL                  = "SELECT * FROM state.log WHERE transaction_hash = $1"
 	getLogsSQLByBatchHash                  = "SELECT * FROM state.log WHERE batch_hash = $1"
-	getLogsByFilter                        = "SELECT * FROM state.log WHERE batch_num BETWEEN $1 AND $2 AND (address = any($3) OR $3 IS NULL) AND (topic0 = any($4) OR $4 IS NULL) AND (topic1 = any($5) OR $5 IS NULL) AND (topic2 = any($6) OR $6 IS NULL) AND (topic3 = any($7) OR $7 IS NULL)"
+	getLogsByFilter                        = "SELECT state.log.* FROM state.log INNER JOIN state.batch ON state.log.batch_num = state.batch.batch_num WHERE state.log.batch_num BETWEEN $1 AND $2 AND (address = any($3) OR $3 IS NULL) AND (topic0 = any($4) OR $4 IS NULL) AND (topic1 = any($5) OR $5 IS NULL) AND (topic2 = any($6) OR $6 IS NULL) AND (topic3 = any($7) OR $7 IS NULL) AND (state.batch.received_at >= $8 OR $8 IS NULL)"
 )
 
 var (
@@ -474,7 +475,7 @@ func (s *PostgresStorage) hashesToBytes(hashes []common.Hash) [][]byte {
 }
 
 // GetLogs returns the logs that match the filter
-func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash, txBundleID string) ([]*types.Log, error) {
+func (s *State) GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash, since *time.Time, txBundleID string) ([]*types.Log, error) {
 	var err error
 	var rows pgx.Rows
 	if batchHash != nil {
@@ -495,6 +496,8 @@ func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch
 				args = append(args, nil)
 			}
 		}
+
+		args = append(args, since)
 
 		rows, err = s.Query(ctx, txBundleID, getLogsByFilter, args...)
 	}
@@ -721,6 +724,29 @@ func (s *PostgresStorage) getBatchTransactions(ctx context.Context, batch Batch,
 	}
 
 	return transactions, nil
+}
+
+// GetBatchHashesSince get all batch hashes since a timestamp
+func (s *State) GetBatchHashesSince(ctx context.Context, since time.Time, txBundleID string) ([]common.Hash, error) {
+	rows, err := s.Query(ctx, txBundleID, getBatchHashesSinceSQL, since)
+	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	batchHashes := make([]common.Hash, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		var batchHash common.Hash
+		err := rows.Scan(&batchHash)
+		if err != nil {
+			return nil, err
+		}
+
+		batchHashes = append(batchHashes, batchHash)
+	}
+
+	return batchHashes, nil
 }
 
 func (s *PostgresStorage) getBatchWithoutTxsByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (*Batch, error) {
