@@ -71,7 +71,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 
 	ctx := context.Background()
 
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return "0x", nil
 	}
@@ -139,7 +139,7 @@ func (e *Eth) GasPrice() (interface{}, error) {
 // GetBalance returns the account's balance at the referenced block
 func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 		return block, nil
 	}
 
-	batchNumber, err := e.getNumericBlockNumber(ctx, number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +211,7 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -318,12 +318,12 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 	ctx := context.Background()
 
-	fromBlock, err := e.getNumericBlockNumber(ctx, filter.FromBlock)
+	fromBlock, err := filter.FromBlock.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
 
-	toBlock, err := e.getNumericBlockNumber(ctx, filter.ToBlock)
+	toBlock, err := filter.ToBlock.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +345,7 @@ func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +387,7 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, error) {
 	ctx := context.Background()
 
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -433,7 +433,7 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 // GetTransactionCount returns account nonce
 func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
-	batchNumber, err := e.getNumericBlockNumber(ctx, *number)
+	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
@@ -446,6 +446,35 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 	}
 
 	return hex.EncodeUint64(nonce), nil
+}
+
+// GetBlockTransactionCountByHash returns the number of transactions in a
+// block from a block matching the given block hash.
+func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, error) {
+	c, err := e.state.GetBatchTransactionCountByHash(context.Background(), hash, "")
+	if err != nil {
+		return err, nil
+	}
+
+	return argUint64(c), nil
+}
+
+// GetBlockTransactionCountByNumber returns the number of transactions in a
+// block from a block matching the given block number.
+func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, error) {
+	ctx := context.Background()
+
+	blockNumber, err := number.getNumericBlockNumber(ctx, e.state)
+	if err != nil {
+		return err, nil
+	}
+
+	c, err := e.state.GetBatchTransactionCountByNumber(ctx, blockNumber, "")
+	if err != nil {
+		return err, nil
+	}
+
+	return argUint64(c), nil
 }
 
 // GetTransactionReceipt returns a transaction receipt by his hash
@@ -524,25 +553,51 @@ func (e *Eth) UninstallFilter(filterID argUint64) (interface{}, error) {
 	return e.storage.UninstallFilter(uint64(filterID))
 }
 
-func (e *Eth) getNumericBlockNumber(ctx context.Context, number BlockNumber) (uint64, error) {
-	switch number {
-	case LatestBlockNumber, PendingBlockNumber:
-		lastBatchNumber, err := e.state.GetLastBatchNumber(ctx, "")
-		if err != nil {
-			return 0, err
-		}
-
-		return lastBatchNumber, nil
-
-	case EarliestBlockNumber:
-		return 0, nil
-
-	default:
-		if number < 0 {
-			return 0, fmt.Errorf("invalid argument 0: block number larger than int64")
-		}
-		return uint64(number), nil
+// Syncing returns an object with data about the sync status or false.
+// https://eth.wiki/json-rpc/API#eth_syncing
+func (e *Eth) Syncing() (interface{}, error) {
+	syncInfo, err := e.state.GetSyncingInfo(context.Background(), "")
+	if err != nil {
+		return nil, err
 	}
+
+	if syncInfo.LastBatchNumberSeen == syncInfo.LastBatchNumberConsolidated {
+		return false, nil
+	}
+
+	return struct {
+		S argUint64 `json:"startingBlock"`
+		C argUint64 `json:"currentBlock"`
+		H argUint64 `json:"highestBlock"`
+	}{
+		S: argUint64(syncInfo.InitialSyncingBatch),
+		C: argUint64(syncInfo.LastBatchNumberConsolidated),
+		H: argUint64(syncInfo.LastBatchNumberSeen),
+	}, nil
+}
+
+// GetUncleByBlockHashAndIndex returns information about a uncle of a
+// block by hash and uncle index position
+func (e *Eth) GetUncleByBlockHashAndIndex() (interface{}, error) {
+	return nil, nil
+}
+
+// GetUncleByBlockHashAndIndex returns information about a uncle of a
+// block by number and uncle index position
+func (e *Eth) GetUncleByBlockNumberAndIndex() (interface{}, error) {
+	return nil, nil
+}
+
+// GetUncleCountByBlockHash returns the number of uncles in a block
+// matching the given block hash
+func (e *Eth) GetUncleCountByBlockHash() (interface{}, error) {
+	return "0x", nil
+}
+
+// GetUncleCountByBlockNumber returns the number of uncles in a block
+// matching the given block number
+func (e *Eth) GetUncleCountByBlockNumber() (interface{}, error) {
+	return "0x", nil
 }
 
 func hexToTx(str string) (*types.Transaction, error) {
