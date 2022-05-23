@@ -19,6 +19,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/FailureTest"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
@@ -1091,7 +1092,6 @@ func TestSCExecution(t *testing.T) {
 	assert.NotEqual(t, "", code)
 }
 
-/*
 func TestSCCall(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -1103,8 +1103,7 @@ func TestSCCall(t *testing.T) {
 	scInteractionByteCode, err := testutils.ReadBytecode("Interaction/Interaction.bin")
 	require.NoError(t, err)
 	var scInteractionAddress = common.HexToAddress("0x85e844b762A271022b692CF99cE5c59BA0650Ac8")
-	var stateRoot = "0x236a5c853ae354e96f6d52b8b40bf46d4348b1ea10364a9de93b68c7b5e40444"
-	var expectedFinalRoot = "20664951758840745974444121049737642565652818998385629128471095142198722727287"
+	var expectedFinalRoot = "32283567769101672850463952852675360196165454419846649517977258093015136170141"
 
 	// Init database instance
 	err = dbutils.InitOrReset(cfg)
@@ -1131,7 +1130,7 @@ func TestSCCall(t *testing.T) {
 	}
 
 	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
-	err = st.SetGenesis(ctx, genesis)
+	err = st.SetGenesis(ctx, genesis, "")
 	require.NoError(t, err)
 
 	// Register Sequencer
@@ -1142,7 +1141,7 @@ func TestSCCall(t *testing.T) {
 		BlockNumber: genesisBlock.Header().Number.Uint64(),
 	}
 
-	err = st.AddSequencer(ctx, sequencer)
+	err = st.AddSequencer(ctx, sequencer, "")
 	assert.NoError(t, err)
 
 	var txs []*types.Transaction
@@ -1227,18 +1226,30 @@ func TestSCCall(t *testing.T) {
 		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
 
+	lastBatch, err := st.GetLastBatch(ctx, true, "")
+	require.NoError(t, err)
+
 	// Create Batch Processor
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, common.Hex2Bytes(strings.TrimPrefix(stateRoot, "0x")))
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Header.Root[:], "")
 	require.NoError(t, err)
 
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
-	receipt, err := st.GetTransactionReceipt(ctx, signedTx6.Hash())
+	receipt, err := st.GetTransactionReceipt(ctx, signedTx6.Hash(), "")
 	require.NoError(t, err)
 	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
+
+	// Execution Trace
+	receipt, err = st.GetTransactionReceipt(ctx, signedTx4.Hash(), "")
+	require.NoError(t, err)
+
+	result := st.ReplayTransaction(receipt.TxHash, []string{"trace", "vmTrace", "statediff"})
+	require.NoError(t, result.Err)
+	assert.Equal(t, "PUSH1", evm.OpCode(result.VMTrace.Operations[0].Instruction).String())
+	require.Greater(t, len(result.Trace), 0)
 }
-*/
+
 func TestGenesisStorage(t *testing.T) {
 	var address = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	// Init database instance
@@ -1853,6 +1864,10 @@ func TestEstimateGas(t *testing.T) {
 	err = bp.ProcessBatch(ctx, batch)
 	require.NoError(t, err)
 
+	root, err := st.GetStateRootByBatchNumber(ctx, 0, "")
+	require.NoError(t, err)
+	log.Debugf("root: %v", common.Bytes2Hex(root))
+
 	// Transfer
 	txTransfer := types.NewTransaction(2, sequencerAddress, new(big.Int).SetInt64(10000), state.TxTransferGas, new(big.Int).SetUint64(1), nil)
 	signedTxTransfer, err := auth.Signer(auth.From, txTransfer)
@@ -1862,6 +1877,14 @@ func TestEstimateGas(t *testing.T) {
 	gasEstimation, err = st.EstimateGas(signedTxTransfer, auth.From)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(state.TxTransferGas), gasEstimation)
+
+	// Execution Trace
+	receipt, err := st.GetTransactionReceipt(ctx, signedTxStoreValue.Hash(), "")
+	require.NoError(t, err)
+
+	result := st.ReplayTransaction(receipt.TxHash, []string{"trace", "vmTrace", "statediff"})
+	require.NoError(t, result.Err)
+	assert.Equal(t, "PUSH1", evm.OpCode(result.VMTrace.Operations[0].Instruction).String())
 }
 
 func TestStorageOnDeploy(t *testing.T) {

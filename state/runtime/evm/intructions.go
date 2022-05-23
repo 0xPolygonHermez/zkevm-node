@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
 
 type instruction func(ctx context.Context, s *state)
@@ -411,6 +412,14 @@ func opMStore(ctx context.Context, s *state) {
 	offset := s.pop()
 	val := s.pop()
 
+	if s.instrumented {
+		diff := instrumentation.MemoryDiff{
+			Offset: offset.Uint64(),
+			Data:   val.Bytes(),
+		}
+		s.memDiff = &diff
+	}
+
 	if !s.checkMemory(offset, wordSize) {
 		return
 	}
@@ -440,6 +449,14 @@ func opMStore(ctx context.Context, s *state) {
 func opMStore8(ctx context.Context, s *state) {
 	offset := s.pop()
 	val := s.pop()
+
+	if s.instrumented {
+		diff := instrumentation.MemoryDiff{
+			Offset: offset.Uint64(),
+			Data:   val.Bytes(),
+		}
+		s.memDiff = &diff
+	}
 
 	if !s.checkMemory(offset, one) {
 		return
@@ -487,6 +504,10 @@ func opSStore(ctx context.Context, s *state) {
 
 	status := s.host.SetStorage(ctx, s.msg.Address, key, val, s.config)
 	cost := uint64(0)
+
+	if s.instrumented {
+		s.storeDiff = &instrumentation.StoreDiff{Location: key.Uint64(), Value: val.Uint64()}
+	}
 
 	switch status {
 	case runtime.StorageUnchanged:
@@ -1052,6 +1073,8 @@ func opCreate(op OpCode) instruction {
 		if result.Reverted() {
 			s.returnData = append(s.returnData[:0], result.ReturnValue...)
 		}
+
+		s.returnVMTrace = &result.VMTrace
 	}
 }
 
@@ -1119,11 +1142,19 @@ func opCall(op OpCode) instruction {
 		if result.Succeeded() || result.Reverted() {
 			if len(result.ReturnValue) != 0 {
 				copy(s.memory[offset:offset+size], result.ReturnValue)
+				if s.instrumented {
+					diff := instrumentation.MemoryDiff{
+						Offset: offset,
+						Data:   result.ReturnValue,
+					}
+					s.memDiff = &diff
+				}
 			}
 		}
 
 		s.gas += result.GasLeft
 		s.returnData = append(s.returnData[:0], result.ReturnValue...)
+		s.returnVMTrace = &result.VMTrace
 	}
 }
 

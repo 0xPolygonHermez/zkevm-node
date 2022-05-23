@@ -12,8 +12,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/google/uuid"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/umbracle/ethgo/abi"
 )
@@ -83,7 +85,7 @@ func (s *State) BeginStateTransaction(ctx context.Context) (string, error) {
 	s.mu.Unlock()
 
 	if !found {
-		return "", fmt.Errorf("Could not find unused uuid for db tx bundle")
+		return "", fmt.Errorf("could not find unused uuid for db tx bundle")
 	}
 
 	if err := s.PostgresStorage.BeginDBTransaction(ctx, txBundleID); err != nil {
@@ -155,7 +157,7 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 	}
 	host.forks = runtime.AllForksEnabled.At(blockNumber)
 
-	batchProcessor := &BatchProcessor{SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, Host: host, TxBundleID: txBundleID}
+	batchProcessor := &BatchProcessor{SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, Host: host}
 	batchProcessor.Host.setRuntime(evm.NewEVM())
 
 	return batchProcessor, nil
@@ -405,6 +407,283 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	return highEnd, nil
 }
 
+// ReplayTransaction gets trace by rexecuting a transaction
+func (s *State) ReplayTransaction(transactionHash common.Hash, traceMode []string) *runtime.ExecutionResult {
+	ctx := context.Background()
+
+	txBundleID, err := s.BeginStateTransaction(ctx)
+	if err != nil {
+		log.Errorf("trace transaction: failed to begin db transaction, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	tx, err := s.GetTransactionByHash(ctx, transactionHash, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to get transaction by hash, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	receipt, err := s.GetTransactionReceipt(ctx, transactionHash, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to get receipt by tx hash, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	batch, err := s.GetBatchByHash(ctx, receipt.BlockHash, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	var stateRoot []byte
+
+	if receipt.TransactionIndex > 0 {
+		previousTX, err := s.GetTransactionByBatchHashAndIndex(ctx, receipt.BlockHash, uint64(receipt.TransactionIndex-1), txBundleID)
+		if err != nil {
+			log.Errorf("trace transaction: failed to get previous tx, err: %v", err)
+			rbErr := s.RollbackState(ctx, txBundleID)
+			if rbErr != nil {
+				log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			}
+			return &runtime.ExecutionResult{Err: err}
+		}
+
+		previousReceipt, err := s.GetTransactionReceipt(ctx, previousTX.Hash(), txBundleID)
+		if err != nil {
+			log.Errorf("trace transaction: failed to get receipt by previous tx hash, err: %v", err)
+			rbErr := s.RollbackState(ctx, txBundleID)
+			if rbErr != nil {
+				log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			}
+			return &runtime.ExecutionResult{Err: err}
+		}
+
+		stateRoot = previousReceipt.PostState
+	} else {
+		previousBatch, err := s.GetBatchByHash(ctx, batch.Header.ParentHash, txBundleID)
+		if err == ErrNotFound {
+			previousBatch, err = s.GetLastBatch(ctx, true, txBundleID)
+			if err != nil {
+				log.Errorf("trace transaction: failed to get last batch, err: %v", err)
+				rbErr := s.RollbackState(ctx, txBundleID)
+				if rbErr != nil {
+					log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+				}
+				return &runtime.ExecutionResult{Err: err}
+			}
+		} else if err != nil {
+			log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
+			rbErr := s.RollbackState(ctx, txBundleID)
+			if rbErr != nil {
+				log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			}
+			return &runtime.ExecutionResult{Err: err}
+		}
+
+		stateRoot = previousBatch.Header.Root.Bytes()
+	}
+
+	sequencerAddress := batch.Header.Coinbase
+
+	log.Debugf("replay root: %v", common.Bytes2Hex(stateRoot))
+
+	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, stateRoot, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to create a new batch processor, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	// Activate EVM Instrumentation
+	bp.Host.runtimes = []runtime.Runtime{}
+	evmRT := evm.NewEVM()
+	evmRT.EnableInstrumentation()
+	bp.Host.setRuntime(evmRT)
+
+	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress)
+
+	// Create Trace using VMTrace as data source
+	traces := []instrumentation.Trace{}
+	trace := instrumentation.Trace{}
+
+	for _, operation := range result.VMTrace.Operations {
+		if operation.Instruction == evm.CALL || operation.Instruction == evm.CALLCODE || operation.Instruction == evm.DELEGATECALL || operation.Instruction == evm.STATICCALL {
+			trace.Type = "call"
+		} else if operation.Instruction == evm.CREATE || operation.Instruction == evm.CREATE2 {
+			trace.Type = "create"
+		} else if operation.Instruction == evm.SELFDESTRUCT {
+			trace.Type = "suicide"
+		}
+
+		if trace.Type != "" {
+			senderAddress, err := helper.GetSender(*tx)
+			if err == nil {
+				trace.Action = instrumentation.TraceAction{From: senderAddress.String(), To: tx.To().String(), Value: tx.Value().Uint64(), Gas: tx.Gas(), Input: tx.Data(), CallType: trace.Type}
+			}
+
+			if result.Err != nil {
+				error := result.Err.Error()
+				trace.Error = &error
+			} else {
+				trace.Result = &instrumentation.TraceResult{GasUsed: result.GasUsed, Output: result.ReturnValue}
+			}
+
+			traces = append(traces, trace)
+		}
+	}
+
+	result.Trace = traces
+
+	// Rollback
+	err = s.RollbackState(ctx, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to rollback transaction, err: %v", err)
+		result.Err = err
+		return result
+	}
+
+	return result
+}
+
+// ReplayBatchTransactions gets trace by rexecuting all the transactions of a specific batch
+func (s *State) ReplayBatchTransactions(batchNumber uint64, traceMode []string) ([]*runtime.ExecutionResult, error) {
+	ctx := context.Background()
+
+	txBundleID, err := s.BeginStateTransaction(ctx)
+	if err != nil {
+		log.Errorf("trace transaction: failed to begin db transaction, err: %v", err)
+		return nil, err
+	}
+
+	batch, err := s.GetBatchByNumber(ctx, batchNumber, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return nil, err
+	}
+
+	var stateRoot []byte
+
+	previousBatch, err := s.GetBatchByHash(ctx, batch.Header.ParentHash, txBundleID)
+	if err == ErrNotFound {
+		previousBatch, err = s.GetLastBatch(ctx, true, txBundleID)
+		if err != nil {
+			log.Errorf("trace transaction: failed to get last batch, err: %v", err)
+			rbErr := s.RollbackState(ctx, txBundleID)
+			if rbErr != nil {
+				log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			}
+			return nil, err
+		}
+	} else if err != nil {
+		log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return nil, err
+	}
+
+	stateRoot = previousBatch.Header.Root.Bytes()
+
+	sequencerAddress := batch.Header.Coinbase
+
+	log.Debugf("replay root: %v", common.Bytes2Hex(stateRoot))
+
+	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, stateRoot, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to create a new batch processor, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return nil, err
+	}
+
+	// Activate EVM Instrumentation
+	bp.Host.runtimes = []runtime.Runtime{}
+	evmRT := evm.NewEVM()
+	evmRT.EnableInstrumentation()
+	bp.Host.setRuntime(evmRT)
+
+	results := make([]*runtime.ExecutionResult, 0, len(batch.Transactions))
+
+	for _, tx := range batch.Transactions {
+		from, err := helper.GetSender(*tx)
+		if err != nil {
+			results = append(results, &runtime.ExecutionResult{
+				Err: err,
+			})
+		}
+
+		result := bp.processTransaction(ctx, tx, from, sequencerAddress)
+
+		// Create Trace using VMTrace as data source
+		traces := []instrumentation.Trace{}
+		trace := instrumentation.Trace{}
+
+		for _, operation := range result.VMTrace.Operations {
+			if operation.Instruction == evm.CALL || operation.Instruction == evm.CALLCODE || operation.Instruction == evm.DELEGATECALL || operation.Instruction == evm.STATICCALL {
+				trace.Type = "call"
+			} else if operation.Instruction == evm.CREATE || operation.Instruction == evm.CREATE2 {
+				trace.Type = "create"
+			} else if operation.Instruction == evm.SELFDESTRUCT {
+				trace.Type = "suicide"
+			}
+
+			if trace.Type != "" {
+				senderAddress, err := helper.GetSender(*tx)
+				if err == nil {
+					trace.Action = instrumentation.TraceAction{From: senderAddress.String(), To: tx.To().String(), Value: tx.Value().Uint64(), Gas: tx.Gas(), Input: tx.Data(), CallType: trace.Type}
+				}
+
+				if result.Err != nil {
+					error := result.Err.Error()
+					trace.Error = &error
+				} else {
+					trace.Result = &instrumentation.TraceResult{GasUsed: result.GasUsed, Output: result.ReturnValue}
+				}
+
+				traces = append(traces, trace)
+			}
+		}
+
+		result.Trace = traces
+
+		results = append(results, result)
+	}
+
+	err = s.RollbackState(ctx, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to rollback transaction, err: %v", err)
+		return nil, err
+	}
+
+	return results, nil
+}
+
 // SetGenesis populates state with genesis information
 func (s *State) SetGenesis(ctx context.Context, genesis Genesis, txBundleID string) error {
 	// Generate Genesis Block
@@ -503,7 +782,7 @@ func (s *State) GetNonce(ctx context.Context, address common.Address, batchNumbe
 		return 0, err
 	}
 
-	n, err := s.tree.GetNonce(ctx, address, root, "")
+	n, err := s.tree.GetNonce(ctx, address, root, txBundleID)
 	if errors.Is(err, tree.ErrNotFound) {
 		return 0, nil
 	} else if err != nil {

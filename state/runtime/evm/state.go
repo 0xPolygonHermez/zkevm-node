@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
 
 var statePool = sync.Pool{
@@ -48,11 +49,19 @@ type state struct {
 	msg    *runtime.Contract // change with msg
 	config *runtime.ForksInTime
 
-	// memory
+	// Instrumentation
+	instrumented     bool
+	returnVMTrace    *instrumentation.VMTrace
+	stackPush        []uint64
+	memDiff          *instrumentation.MemoryDiff
+	storeDiff        *instrumentation.StoreDiff
+	returnStructLogs []instrumentation.StructLog
+
+	// Memory
 	memory      []byte
 	lastGasCost uint64
 
-	// stack
+	// Stack
 	stack []*big.Int
 	sp    int
 
@@ -127,6 +136,11 @@ func (s *state) push1() *big.Int {
 	v := big.NewInt(0)
 	s.stack = append(s.stack, v)
 	s.sp++
+
+	if s.instrumented {
+		s.stackPush = append(s.stackPush, v.Uint64())
+	}
+
 	return v
 }
 
@@ -222,11 +236,19 @@ func (s *state) checkMemory(offset, size *big.Int) bool {
 }
 
 // Run executes the virtual machine
-func (s *state) Run(ctx context.Context) ([]byte, error) {
+func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, []instrumentation.StructLog, error) {
 	var vmerr error
+	var vmTrace instrumentation.VMTrace
+	var structLogs []instrumentation.StructLog
 
 	codeSize := len(s.code)
 	for !s.stop {
+		if s.instrumented {
+			s.stackPush = []uint64{}
+			s.memDiff = nil
+			s.storeDiff = nil
+		}
+
 		if s.ip >= codeSize {
 			s.halt()
 			break
@@ -259,13 +281,61 @@ func (s *state) Run(ctx context.Context) ([]byte, error) {
 			s.exit(errStackOverflow)
 			break
 		}
+
+		if s.instrumented {
+			// Trace
+			vmTrace.Code = s.code[:]
+			operation := instrumentation.VMOperation{
+				Pc:          uint64(s.ip),
+				Instruction: byte(op),
+				GasCost:     inst.gas,
+				Executed: instrumentation.VMExecutedOperation{
+					GasUsed:   s.gas,
+					StackPush: s.stackPush,
+				},
+				Sub: s.returnVMTrace,
+			}
+
+			if s.memDiff != nil {
+				operation.Executed.MemDiff = *s.memDiff
+			}
+
+			if s.storeDiff != nil {
+				operation.Executed.StoreDiff = *s.storeDiff
+			}
+
+			vmTrace.Operations = append(vmTrace.Operations, operation)
+
+			// Debug
+			structLog := instrumentation.StructLog{
+				Pc:         uint64(s.ip),
+				Op:         op.String(),
+				Gas:        s.gas,
+				GasCost:    inst.gas,
+				Memory:     s.memory,
+				MemorySize: len(s.memory),
+				Stack:      s.stack,
+				ReturnData: s.returnData,
+				Depth:      s.msg.Depth,
+				Err:        s.err,
+			}
+
+			structLogs = append(structLogs, structLog)
+
+			if op == CREATE || op == CREATE2 || op == CALL || op == CALLCODE || op == DELEGATECALL || op == STATICCALL {
+				for i := range s.returnStructLogs {
+					structLogs = append(structLogs, s.returnStructLogs[i])
+				}
+			}
+		}
+
 		s.ip++
 	}
 
 	if err := s.err; err != nil {
 		vmerr = err
 	}
-	return s.ret, vmerr
+	return s.ret, vmTrace, structLogs, vmerr
 }
 
 func extendByteSlice(b []byte, needLen int) []byte {

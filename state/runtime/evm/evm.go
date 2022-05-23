@@ -8,11 +8,22 @@ import (
 
 // EVM is the Ethereum Virtual Machine
 type EVM struct {
+	instrumented bool
 }
 
 // NewEVM creates a new EVM
 func NewEVM() *EVM {
 	return &EVM{}
+}
+
+// EnableInstrumentation enables EVM instrumentation
+func (e *EVM) EnableInstrumentation() {
+	e.instrumented = true
+}
+
+// DisableInstrumentation enables EVM instrumentation
+func (e *EVM) DisableInstrumentation() {
+	e.instrumented = false
 }
 
 // CanRun implements the runtime interface
@@ -36,10 +47,11 @@ func (e *EVM) Run(ctx context.Context, c *runtime.Contract, host runtime.Host, c
 	contract.gas = c.Gas
 	contract.host = host
 	contract.config = config
+	contract.instrumented = e.instrumented
 
 	contract.bitmap.setCode(c.Code)
 
-	ret, err := contract.Run(ctx)
+	ret, vmTrace, structLogs, err := contract.Run(ctx)
 
 	var returnValue []byte
 	returnValue = append(returnValue[:0], ret...)
@@ -56,5 +68,7 @@ func (e *EVM) Run(ctx context.Context, c *runtime.Contract, host runtime.Host, c
 		ReturnValue: returnValue,
 		GasLeft:     gasLeft,
 		Err:         err,
+		VMTrace:     vmTrace,
+		StructLogs:  structLogs,
 	}
 }
