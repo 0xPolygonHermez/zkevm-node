@@ -49,6 +49,9 @@ func (a *Adapter) ProcessBatch(ctx context.Context, batch *state.Batch) error {
 
 	batch.Receipts = receipts
 
+	// Set batch Header
+	a.populateBatchHeader(batch, result)
+
 	return nil
 }
 
@@ -123,7 +126,7 @@ func (a *Adapter) getLogs(txHash common.Hash, response *pb.ProcessBatchResponse)
 	for _, log := range logs {
 		txLog := &types.Log{
 			Address: common.HexToAddress(log.Address),
-			// Topics:  log.Topics,
+			Topics:  a.getTopics(log.Topics),
 			Data:    log.Data,
 			TxHash:  common.BytesToHash(log.TxHash),
 			TxIndex: uint(log.TxIndex),
@@ -135,4 +138,12 @@ func (a *Adapter) getLogs(txHash common.Hash, response *pb.ProcessBatchResponse)
 	}
 
 	return returnedLogs
+}
+
+func (a *Adapter) getTopics(topics [][]byte) []common.Hash {
+	formatedTopics := make([]common.Hash, 0, len(topics))
+	for _, topic := range topics {
+		formatedTopics = append(formatedTopics, common.BytesToHash(topic))
+	}
+	return formatedTopics
 }
