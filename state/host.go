@@ -181,6 +181,10 @@ func (h *Host) EmitLog(address common.Address, topics []common.Hash, data []byte
 			Removed: false,
 		}
 
+		if h.logs == nil {
+			h.logs = make(map[common.Hash][]*types.Log)
+		}
+
 		if _, found := h.logs[h.transactionContext.currentTransaction.Hash()]; !found {
 			h.logs[h.transactionContext.currentTransaction.Hash()] = []*types.Log{}
 		}

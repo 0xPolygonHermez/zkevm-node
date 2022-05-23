@@ -205,13 +205,9 @@ func main() {
 	chkErr(err)
 	log.Debugf("after first swap cCoin.balanceOf[%s]: %d", auth.From.Hex(), value)
 
-	/*
-		Disabling second swap until issue https://github.com/hermeznetwork/hermez-core/issues/655 is fixed
-
-		log.Debugf("Swaping tokens from B <-> C")
-		swapExactTokensForTokens(auth, client, factory, router, bCoinAddr, cCoinAddr, swapExactAmountIn)
-		fmt.Println()
-	*/
+	log.Debugf("Swaping tokens from B <-> C")
+	swapExactTokensForTokens(auth, client, factory, router, bCoinAddr, cCoinAddr, swapExactAmountIn)
+	fmt.Println()
 }
 
 func swapExactTokensForTokens(auth *bind.TransactOpts, client *ethclient.Client,

@@ -318,9 +318,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 				for j := 0; j < 4; j++ {
 					siblings[level][keys[level]*4+uint(j)] = 0
 				}
-
 				uKey := mt.getUniqueSibling(siblings[level])
-
 				if uKey >= 0 {
 					mode = modeDeleteFound
 					node, err := mt.getNodeData(ctx, siblings[level][uKey*4:uKey*4+4], txBundleID)
@@ -339,13 +337,7 @@ func (mt *MerkleTree) Set(ctx context.Context, oldRoot []uint64, key []uint64, v
 						val := fea2scalar(valA)
 						rKey := siblings[level+1][:4]
 
-						auxKey := make([]uint64, 4) //nolint:gomnd
-						for j := 0; j < 4; j++ {
-							if len(accKey) > j {
-								auxKey[j] = accKey[j]
-							}
-						}
-						insKey = mt.joinKey([]uint64{auxKey[0], auxKey[1], auxKey[2], auxKey[3], uint64(uKey)}, rKey)
+						insKey = mt.joinKey(append(accKey, uint64(uKey)), rKey)
 						insValue = scalar2fea(val)
 						isOld0 = false
 

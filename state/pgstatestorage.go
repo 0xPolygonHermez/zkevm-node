@@ -40,12 +40,15 @@ const (
 	getTransactionByBatchHashAndIndexSQL   = "SELECT transaction.encoded FROM state.transaction inner join state.batch on (state.transaction.batch_num = state.batch.batch_num) WHERE state.batch.batch_hash = $1 and state.transaction.tx_index = $2"
 	getTransactionByBatchNumberAndIndexSQL = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1 AND tx_index = $2"
 	getTransactionCountSQL                 = "SELECT COUNT(*) FROM state.transaction WHERE from_address = $1"
+	getTransactionCountByBatchHashSQL      = "SELECT COUNT(*) FROM state.transaction t, state.batch b WHERE t.batch_num = b.batch_num AND batch_hash = $1"
+	getTransactionCountByBatchNumberSQL    = "SELECT COUNT(*) FROM state.transaction WHERE batch_num = $1"
 	consolidateBatchSQL                    = "UPDATE state.batch SET consolidated_tx_hash = $1, consolidated_at = $3, aggregator = $4 WHERE batch_num = $2"
 	getTxsByBatchNumSQL                    = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
 	addBlockSQL                            = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	addSequencerSQL                        = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4) ON CONFLICT (chain_id) DO UPDATE SET address = EXCLUDED.address, url = EXCLUDED.url, block_num = EXCLUDED.block_num"
 	updateLastBatchSeenSQL                 = "UPDATE state.misc SET last_batch_num_seen = $1"
 	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
+	getSyncingInfoSQL                      = "SELECT last_batch_num_seen, last_batch_num_consolidated, init_sync_batch FROM state.misc LIMIT 1"
 	updateLastBatchConsolidatedSQL         = "UPDATE state.misc SET last_batch_num_consolidated = $1"
 	updateInitBatchSQL                     = "UPDATE state.misc SET init_sync_batch = $1"
 	getLastBatchConsolidatedSQL            = "SELECT last_batch_num_consolidated FROM state.misc LIMIT 1"
@@ -240,6 +243,26 @@ func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash, 
 	}
 
 	return &batch, nil
+}
+
+// GetBatchTransactionCountByHash return the number of transactions in the batch
+func (s *PostgresStorage) GetBatchTransactionCountByHash(ctx context.Context, hash common.Hash, txBundleID string) (uint64, error) {
+	var count uint64
+	err := s.QueryRow(ctx, txBundleID, getTransactionCountByBatchHashSQL, hash.Bytes()).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetBatchTransactionCountByNumber return the number of transactions in the batch
+func (s *PostgresStorage) GetBatchTransactionCountByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (uint64, error) {
+	var count uint64
+	err := s.QueryRow(ctx, txBundleID, getTransactionCountByBatchNumberSQL, batchNumber).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // GetBatchByNumber gets the batch with the required number
@@ -635,6 +658,13 @@ func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 	}
 
 	return batchNumber, nil
+}
+
+// GetSyncingInfo returns information regarding the syncing status of the node
+func (s *PostgresStorage) GetSyncingInfo(ctx context.Context, txBundleID string) (SyncingInfo, error) {
+	var info SyncingInfo
+	err := s.QueryRow(ctx, txBundleID, getSyncingInfoSQL).Scan(&info.LastBatchNumberSeen, &info.LastBatchNumberConsolidated, &info.InitialSyncingBatch)
+	return info, err
 }
 
 // SetLastBatchNumberConsolidatedOnEthereum sets the last batch number that was consolidated on ethereum

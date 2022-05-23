@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
 // Consumer interfaces required by the package.
@@ -38,9 +39,14 @@ type stateInterface interface {
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (*state.Batch, error)
 	GetCode(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) ([]byte, error)
 	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, batchNumber uint64, txBundleID string) (*big.Int, error)
+	GetSyncingInfo(ctx context.Context, txBundleID string) (state.SyncingInfo, error)
 	GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64, txBundleID string) (*types.Transaction, error)
 	GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64, txBundleID string) (*types.Transaction, error)
 	GetNonce(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (uint64, error)
 	GetBatchHeader(ctx context.Context, batchNumber uint64, txBundleID string) (*types.Header, error)
 	GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash, txBundleID string) ([]*types.Log, error)
+	ReplayTransaction(transactionHash common.Hash, traceMode []string) *runtime.ExecutionResult
+	ReplayBatchTransactions(batchNumber uint64, traceMode []string) ([]*runtime.ExecutionResult, error)
+	GetBatchTransactionCountByHash(ctx context.Context, hash common.Hash, txBundleID string) (uint64, error)
+	GetBatchTransactionCountByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (uint64, error)
 }
