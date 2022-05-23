@@ -81,6 +81,53 @@ func (a *Adapter) ProcessTransaction(ctx context.Context, tx *types.Transaction)
 	}
 }
 
+// EstimateGas for a transaction
+func (a *Adapter) EstimateGas(ctx context.Context, tx *types.Transaction) (uint64, error) {
+	request := &pb.ProcessTransactionRequest{
+		StateRoot: a.stateRoot,
+		TxL2Data:  tx.Data(),
+	}
+
+	result, err := a.grpcClient.EstimateGas(ctx, request)
+	if err != nil {
+		log.Debugf("Error on ProcessTransaction: %v", err)
+		return 0, err
+	}
+
+	return result.GasUsed, fmt.Errorf(result.Error)
+}
+
+// DebugTransaction generates Geth Style traces
+func (a *Adapter) DebugTransaction(ctx context.Context, tx *types.Transaction, tracer string) {
+	request := &pb.ProcessTransactionRequest{
+		StateRoot: a.stateRoot,
+		TxL2Data:  tx.Data(),
+		Tracer:    tracer,
+	}
+
+	result, err := a.grpcClient.DebugTransaction(ctx, request)
+	if err != nil {
+		log.Debugf("Error on ProcessTransaction: %v", err)
+	}
+
+	log.Debugf("$v", result)
+}
+
+// DebugBatch debugs all transactions inside a batch
+func (a *Adapter) DebugBatch(ctx context.Context, batch *state.Batch) {
+	request := &pb.ProcessBatchRequest{
+		StateRoot:   a.stateRoot,
+		BatchL2Data: batch.RawTxsData,
+	}
+
+	result, err := a.grpcClient.DebugBatch(ctx, request)
+	if err != nil {
+		log.Debugf("Error on DebugBatch: %v", err)
+	}
+
+	log.Debugf("$v", result)
+}
+
 func (a *Adapter) generateReceipt(batch *state.Batch, response *pb.ProcessTransactionResponse, cumulativeGasUsed uint64, index int) *state.Receipt {
 	receipt := &state.Receipt{}
 	receipt.Type = uint8(response.Type)
