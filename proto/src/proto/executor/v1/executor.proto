@@ -98,7 +98,7 @@ message Contract {
 }
 
 message ProcessTransactionRequest {
-    bytes batch_l2_data = 1;
+    bytes tx_l2_data = 1;
     bytes state_root = 2;
     string tracer = 3;
 }

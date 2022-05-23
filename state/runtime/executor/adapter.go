@@ -2,13 +2,16 @@ package executor
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/executor/pb"
 )
 
@@ -53,6 +56,29 @@ func (a *Adapter) ProcessBatch(ctx context.Context, batch *state.Batch) error {
 	a.populateBatchHeader(batch, result)
 
 	return nil
+}
+
+// ProcessTransaction processes a transaction
+func (a *Adapter) ProcessTransaction(ctx context.Context, tx *types.Transaction) *runtime.ExecutionResult {
+	request := &pb.ProcessTransactionRequest{
+		StateRoot: a.stateRoot,
+		TxL2Data:  tx.Data(),
+	}
+
+	result, err := a.grpcClient.ProcessTransaction(ctx, request)
+	if err != nil {
+		log.Debugf("Error on ProcessTransaction: %v", err)
+		return nil
+	}
+
+	return &runtime.ExecutionResult{
+		ReturnValue:   result.ReturnValue,
+		GasLeft:       result.GasLeft,
+		GasUsed:       result.GasUsed,
+		Err:           fmt.Errorf(result.Error),
+		CreateAddress: common.HexToAddress(result.CreateAddress),
+		StateRoot:     result.StateRoot,
+	}
 }
 
 func (a *Adapter) generateReceipt(batch *state.Batch, response *pb.ProcessTransactionResponse, cumulativeGasUsed uint64, index int) *state.Receipt {
