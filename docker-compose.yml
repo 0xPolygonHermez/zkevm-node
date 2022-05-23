@@ -75,7 +75,7 @@ services:
 
     hez-prover:
       container_name: hez-prover
-      image: hermeznetwork/hez-mock-prover@sha256:a376f16790c91165c6d8216007af5d56922a9e3833eec0afb35ba924a2193c59
+      image: hermeznetwork/hez-mock-prover@sha256:dc7faed4babf3b59c2bf6375aae25dff0e5385f7c38aaa3d8e05b523ee762035
       ports:
         - 50051:50051
         - 50052:50052
