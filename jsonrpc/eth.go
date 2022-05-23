@@ -287,7 +287,6 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
 	default:
 		return nil, nil
 	}
-
 }
 
 // GetFilterLogs returns an array of all logs matching filter

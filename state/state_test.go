@@ -2,6 +2,7 @@ package state_test
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"os"
 	"strconv"
@@ -1464,6 +1465,8 @@ func TestEmitLog(t *testing.T) {
 
 	txs = append(txs, signedTx, signedTxCall)
 
+	batchReceivedAt := time.Now()
+
 	// Create Batch
 	batch := &state.Batch{
 		BlockNumber:        uint64(0),
@@ -1475,7 +1478,7 @@ func TestEmitLog(t *testing.T) {
 		Transactions:       txs,
 		RawTxsData:         nil,
 		MaticCollateral:    big.NewInt(1),
-		ReceivedAt:         time.Now(),
+		ReceivedAt:         batchReceivedAt,
 		ChainID:            big.NewInt(1000),
 		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
 	}
@@ -1737,6 +1740,20 @@ func TestEmitLog(t *testing.T) {
 			}
 		})
 	}
+
+	logs, err = st.GetLogs(ctx, 0, 5, addresses, nil, nil, &batchReceivedAt, "")
+	require.NoError(t, err)
+	require.Equal(t, 10, len(logs))
+
+	beforeBatchReceivedAt := batchReceivedAt.Add(-1 * time.Second)
+	logs, err = st.GetLogs(ctx, 0, 5, addresses, nil, nil, &beforeBatchReceivedAt, "")
+	require.NoError(t, err)
+	require.Equal(t, 10, len(logs))
+
+	afterBatchReceivedAt := batchReceivedAt.Add(1 * time.Second)
+	logs, err = st.GetLogs(ctx, 0, 5, addresses, nil, nil, &afterBatchReceivedAt, "")
+	require.NoError(t, err)
+	require.Equal(t, 0, len(logs))
 }
 func TestEstimateGas(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
@@ -2307,6 +2324,152 @@ func TestDelegatecall(t *testing.T) {
 	receipt, err := testState.GetTransactionReceipt(ctx, signedTxDelegateCall.Hash(), "")
 	require.NoError(t, err)
 	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status)
+}
+
+func TestGetBatchHashesSince(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 1200000
+	var toAddress = common.HexToAddress("0xab5801a7d398351b8be11c439e05c5b3259aec9b")
+
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	genesis := state.Genesis{
+		Block:    genesisBlock,
+		Balances: make(map[common.Address]*big.Int),
+	}
+
+	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
+	err = st.SetGenesis(ctx, genesis, "")
+	require.NoError(t, err)
+
+	// Register Sequencer
+	sequencer := state.Sequencer{
+		Address:     sequencerAddress,
+		URL:         "http://www.address.com",
+		ChainID:     chainIDSequencer,
+		BlockNumber: genesisBlock.Header().Number.Uint64(),
+	}
+
+	err = st.AddSequencer(ctx, sequencer, "")
+	assert.NoError(t, err)
+
+	createBatch := func(batchNum, nonce uint64) (*state.Batch, error) {
+		var txs []*types.Transaction
+
+		// Transfer
+		tx := types.NewTx(&types.LegacyTx{
+			Nonce:    nonce,
+			To:       &toAddress,
+			Value:    new(big.Int).SetUint64(1000),
+			Gas:      uint64(sequencerBalance),
+			GasPrice: new(big.Int).SetUint64(1),
+		})
+
+		privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+		if err != nil {
+			return nil, err
+		}
+		auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+		if err != nil {
+			return nil, err
+		}
+
+		signedTx, err := auth.Signer(auth.From, tx)
+		if err != nil {
+			return nil, err
+		}
+
+		txs = append(txs, signedTx)
+
+		// Create Batch
+		return &state.Batch{
+			BlockNumber:        0,
+			Sequencer:          sequencerAddress,
+			Aggregator:         sequencerAddress,
+			ConsolidatedTxHash: common.Hash{},
+			Header:             &types.Header{Number: big.NewInt(0).SetUint64(batchNum)},
+			Uncles:             nil,
+			Transactions:       txs,
+			RawTxsData:         nil,
+			MaticCollateral:    big.NewInt(1),
+			ReceivedAt:         time.Now(),
+			ChainID:            big.NewInt(1000),
+			GlobalExitRoot:     common.HexToHash(fmt.Sprintf("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f%v", batchNum)),
+		}, nil
+	}
+
+	batch1, err := createBatch(1, 1)
+	require.NoError(t, err)
+
+	batch2, err := createBatch(2, 2)
+	require.NoError(t, err)
+
+	batch3, err := createBatch(3, 3)
+	require.NoError(t, err)
+
+	// Create Batch Processor
+	stateRoot, err := testState.GetStateRoot(ctx, true, "")
+	require.NoError(t, err)
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, stateRoot, "")
+	require.NoError(t, err)
+
+	err = bp.ProcessBatch(ctx, batch1)
+	require.NoError(t, err)
+
+	err = bp.ProcessBatch(ctx, batch2)
+	require.NoError(t, err)
+
+	err = bp.ProcessBatch(ctx, batch3)
+	require.NoError(t, err)
+
+	// Check hashes
+	batchHashes, err := testState.GetBatchHashesSince(ctx, batch1.ReceivedAt.Add(-1*time.Millisecond), "")
+	require.NoError(t, err)
+	assert.Equal(t, 3, len(batchHashes))
+	assert.Equal(t, batch1.Hash().Hex(), batchHashes[0].Hex())
+	assert.Equal(t, batch2.Hash().Hex(), batchHashes[1].Hex())
+	assert.Equal(t, batch3.Hash().Hex(), batchHashes[2].Hex())
+
+	batchHashes, err = testState.GetBatchHashesSince(ctx, batch1.ReceivedAt, "")
+	require.NoError(t, err)
+	assert.Equal(t, 3, len(batchHashes))
+	assert.Equal(t, batch1.Hash().Hex(), batchHashes[0].Hex())
+	assert.Equal(t, batch2.Hash().Hex(), batchHashes[1].Hex())
+	assert.Equal(t, batch3.Hash().Hex(), batchHashes[2].Hex())
+
+	batchHashes, err = testState.GetBatchHashesSince(ctx, batch2.ReceivedAt, "")
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(batchHashes))
+	assert.Equal(t, batch2.Hash().Hex(), batchHashes[0].Hex())
+	assert.Equal(t, batch3.Hash().Hex(), batchHashes[1].Hex())
+
+	batchHashes, err = testState.GetBatchHashesSince(ctx, batch3.ReceivedAt, "")
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(batchHashes))
+	assert.Equal(t, batch3.Hash().Hex(), batchHashes[0].Hex())
+
+	batchHashes, err = testState.GetBatchHashesSince(ctx, batch3.ReceivedAt.Add(time.Millisecond), "")
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(batchHashes))
 }
 
 func getMethodID(signature string) ([]byte, error) {
