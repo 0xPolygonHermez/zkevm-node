@@ -226,6 +226,11 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 	return argBytes(code), nil
 }
 
+// GetCompilers eth_getCompilers
+func (e *Eth) GetCompilers() (interface{}, error) {
+	return []interface{}{}, nil
+}
+
 // GetFilterChanges polling method for a filter, which returns
 // an array of logs which occurred since last poll.
 func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
@@ -598,6 +603,11 @@ func (e *Eth) GetUncleCountByBlockHash() (interface{}, error) {
 // matching the given block number
 func (e *Eth) GetUncleCountByBlockNumber() (interface{}, error) {
 	return "0x", nil
+}
+
+// ProtocolVersion
+func (e *Eth) ProtocolVersion() (interface{}, error) {
+	return "0x0", nil
 }
 
 func hexToTx(str string) (*types.Transaction, error) {
