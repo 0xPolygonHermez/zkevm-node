@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/state"
@@ -16,6 +17,7 @@ type storage interface {
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	GetGasPrice(ctx context.Context) (uint64, error)
 	CountTransactionsByState(ctx context.Context, state TxState) (uint64, error)
+	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
 }
 
 type stateInterface interface {
