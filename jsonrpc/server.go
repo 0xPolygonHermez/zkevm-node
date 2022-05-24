@@ -30,7 +30,8 @@ func NewServer(
 	p jsonRPCTxPool,
 	s stateInterface,
 	chainID uint64,
-	gpe gasPriceEstimator) *Server {
+	gpe gasPriceEstimator,
+	storage storageInterface) *Server {
 	chainIDSelector := newChainIDSelector(chainID)
 	ethEndpoints := &Eth{
 		chainIDSelector:  chainIDSelector,
@@ -38,6 +39,7 @@ func NewServer(
 		state:            s,
 		gpe:              gpe,
 		sequencerAddress: sequencerAddress,
+		storage:          storage,
 	}
 	netEndpoints := &Net{chainIDSelector: chainIDSelector}
 	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
