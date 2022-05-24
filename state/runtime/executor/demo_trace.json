@@ -1,0 +1,1122 @@
+{
+  "context": {
+    "type": "CALL",
+    "from": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+    "to": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+    "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000",
+    "gas": "100000",
+    "value": "0",
+    "output": "",
+    "nonce": 0,
+    "gasPrice": "1000000000",
+    "chainId": 1001
+  },
+  "steps": [
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 0,
+      "gas": 78936,
+      "opcode": "PUSH1",
+      "refund": 0,
+      "op": "0x60",
+      "error": "",
+      "storage": {},
+      "step": 725,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0x80"
+      ],
+      "memory": []
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 2,
+      "gas": 78933,
+      "opcode": "PUSH1",
+      "refund": 0,
+      "op": "0x60",
+      "error": "",
+      "storage": {},
+      "step": 749,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0x80",
+        "0x40"
+      ],
+      "memory": []
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 4,
+      "gas": 78930,
+      "opcode": "MSTORE",
+      "refund": 0,
+      "op": "0x52",
+      "error": "",
+      "storage": {},
+      "step": 773,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 12,
+      "stack": [],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 5,
+      "gas": 78918,
+      "opcode": "PUSH1",
+      "refund": 0,
+      "op": "0x60",
+      "error": "",
+      "storage": {},
+      "step": 825,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0x04"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 7,
+      "gas": 78915,
+      "opcode": "CALLDATASIZE",
+      "refund": 0,
+      "op": "0x36",
+      "error": "",
+      "storage": {},
+      "step": 849,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 2,
+      "stack": [
+        "0x04",
+        "0x04"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 8,
+      "gas": 78913,
+      "opcode": "LT",
+      "refund": 0,
+      "op": "0x10",
+      "error": "",
+      "storage": {},
+      "step": 868,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0x00"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 9,
+      "gas": 78910,
+      "opcode": "PUSH2",
+      "refund": 0,
+      "op": "0x61",
+      "error": "",
+      "storage": {},
+      "step": 889,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0x00",
+        "0xa7"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 12,
+      "gas": 78907,
+      "opcode": "JUMPI",
+      "refund": 0,
+      "op": "0x57",
+      "error": "",
+      "storage": {},
+      "step": 913,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 10,
+      "stack": [],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 13,
+      "gas": 78897,
+      "opcode": "PUSH1",
+      "refund": 0,
+      "op": "0x60",
+      "error": "",
+      "storage": {},
+      "step": 934,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0x00"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 15,
+      "gas": 78894,
+      "opcode": "CALLDATALOAD",
+      "refund": 0,
+      "op": "0x35",
+      "error": "",
+      "storage": {},
+      "step": 958,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 16,
+      "gas": 78891,
+      "opcode": "PUSH1",
+      "refund": 0,
+      "op": "0x60",
+      "error": "",
+      "storage": {},
+      "step": 1013,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b000000000000000000000000000000000000000000000000000000000",
+        "0xe0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 18,
+      "gas": 78888,
+      "opcode": "SHR",
+      "refund": 0,
+      "op": "0x1c",
+      "error": "",
+      "storage": {},
+      "step": 1037,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 19,
+      "gas": 78885,
+      "opcode": "DUP1",
+      "refund": 0,
+      "op": "0x80",
+      "error": "",
+      "storage": {},
+      "step": 1085,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 20,
+      "gas": 78882,
+      "opcode": "PUSH4",
+      "refund": 0,
+      "op": "0x63",
+      "error": "",
+      "storage": {},
+      "step": 1105,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0xaaadb2b0",
+        "0x9ee08cf6"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 25,
+      "gas": 78879,
+      "opcode": "GT",
+      "refund": 0,
+      "op": "0x11",
+      "error": "",
+      "storage": {},
+      "step": 1129,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x00"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 26,
+      "gas": 78876,
+      "opcode": "PUSH2",
+      "refund": 0,
+      "op": "0x61",
+      "error": "",
+      "storage": {},
+      "step": 1150,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x00",
+        "0x64"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 29,
+      "gas": 78873,
+      "opcode": "JUMPI",
+      "refund": 0,
+      "op": "0x57",
+      "error": "",
+      "storage": {},
+      "step": 1174,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 10,
+      "stack": [
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 30,
+      "gas": 78863,
+      "opcode": "DUP1",
+      "refund": 0,
+      "op": "0x80",
+      "error": "",
+      "storage": {},
+      "step": 1195,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 31,
+      "gas": 78860,
+      "opcode": "PUSH4",
+      "refund": 0,
+      "op": "0x63",
+      "error": "",
+      "storage": {},
+      "step": 1215,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0xaaadb2b0",
+        "0x9ee08cf6"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 36,
+      "gas": 78857,
+      "opcode": "EQ",
+      "refund": 0,
+      "op": "0x14",
+      "error": "",
+      "storage": {},
+      "step": 1239,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x00"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 37,
+      "gas": 78854,
+      "opcode": "PUSH2",
+      "refund": 0,
+      "op": "0x61",
+      "error": "",
+      "storage": {},
+      "step": 1260,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x00",
+        "0x0109"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 40,
+      "gas": 78851,
+      "opcode": "JUMPI",
+      "refund": 0,
+      "op": "0x57",
+      "error": "",
+      "storage": {},
+      "step": 1284,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 10,
+      "stack": [
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 41,
+      "gas": 78841,
+      "opcode": "DUP1",
+      "refund": 0,
+      "op": "0x80",
+      "error": "",
+      "storage": {},
+      "step": 1305,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 42,
+      "gas": 78838,
+      "opcode": "PUSH4",
+      "refund": 0,
+      "op": "0x63",
+      "error": "",
+      "storage": {},
+      "step": 1325,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0xaaadb2b0",
+        "0xa637e69c"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 47,
+      "gas": 78835,
+      "opcode": "EQ",
+      "refund": 0,
+      "op": "0x14",
+      "error": "",
+      "storage": {},
+      "step": 1349,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x00"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 48,
+      "gas": 78832,
+      "opcode": "PUSH2",
+      "refund": 0,
+      "op": "0x61",
+      "error": "",
+      "storage": {},
+      "step": 1370,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x00",
+        "0x0113"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 51,
+      "gas": 78829,
+      "opcode": "JUMPI",
+      "refund": 0,
+      "op": "0x57",
+      "error": "",
+      "storage": {},
+      "step": 1394,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 10,
+      "stack": [
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 52,
+      "gas": 78819,
+      "opcode": "DUP1",
+      "refund": 0,
+      "op": "0x80",
+      "error": "",
+      "storage": {},
+      "step": 1415,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 53,
+      "gas": 78816,
+      "opcode": "PUSH4",
+      "refund": 0,
+      "op": "0x63",
+      "error": "",
+      "storage": {},
+      "step": 1435,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0xaaadb2b0",
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 58,
+      "gas": 78813,
+      "opcode": "EQ",
+      "refund": 0,
+      "op": "0x14",
+      "error": "",
+      "storage": {},
+      "step": 1459,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x01"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 59,
+      "gas": 78810,
+      "opcode": "PUSH2",
+      "refund": 0,
+      "op": "0x61",
+      "error": "",
+      "storage": {},
+      "step": 1480,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x01",
+        "0x013e"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 62,
+      "gas": 78807,
+      "opcode": "JUMPI",
+      "refund": 0,
+      "op": "0x57",
+      "error": "",
+      "storage": {},
+      "step": 1504,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 10,
+      "stack": [
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 318,
+      "gas": 78797,
+      "opcode": "JUMPDEST",
+      "refund": 0,
+      "op": "0x5b",
+      "error": "",
+      "storage": {},
+      "step": 1529,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 1,
+      "stack": [
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 319,
+      "gas": 78796,
+      "opcode": "PUSH2",
+      "refund": 0,
+      "op": "0x61",
+      "error": "",
+      "storage": {},
+      "step": 1546,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x0146"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 322,
+      "gas": 78793,
+      "opcode": "PUSH2",
+      "refund": 0,
+      "op": "0x61",
+      "error": "",
+      "storage": {},
+      "step": 1570,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x0146",
+        "0x01ae"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 325,
+      "gas": 78790,
+      "opcode": "JUMP",
+      "refund": 0,
+      "op": "0x56",
+      "error": "",
+      "storage": {},
+      "step": 1594,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 8,
+      "stack": [
+        "0xaaadb2b0",
+        "0x0146"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 430,
+      "gas": 78782,
+      "opcode": "JUMPDEST",
+      "refund": 0,
+      "op": "0x5b",
+      "error": "",
+      "storage": {},
+      "step": 1614,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 1,
+      "stack": [
+        "0xaaadb2b0",
+        "0x0146"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 431,
+      "gas": 78781,
+      "opcode": "PUSH1",
+      "refund": 0,
+      "op": "0x60",
+      "error": "",
+      "storage": {},
+      "step": 1631,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x0146",
+        "0x00"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 433,
+      "gas": 78778,
+      "opcode": "PUSH1",
+      "refund": 0,
+      "op": "0x60",
+      "error": "",
+      "storage": {},
+      "step": 1655,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 3,
+      "stack": [
+        "0xaaadb2b0",
+        "0x0146",
+        "0x00",
+        "0x01"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
+      "depth": 1,
+      "pc": 435,
+      "gas": 78775,
+      "opcode": "SSTORE",
+      "refund": 0,
+      "op": "0x55",
+      "error": "",
+      "storage": {},
+      "step": 1679,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 5000,
+      "stack": [
+        "0xaaadb2b0",
+        "0x0146"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x9e52d3ff9f9ccc5745bd9e56aa5e188f87a106d07aa6511a9a0e33225fff332f",
+      "depth": 1,
+      "pc": 436,
+      "gas": 73775,
+      "opcode": "JUMP",
+      "refund": 15000,
+      "op": "0x56",
+      "error": "",
+      "storage": {
+        "0000000000000000000000000000000000000000000000000000000000000001": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "step": 1742,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 8,
+      "stack": [
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x9e52d3ff9f9ccc5745bd9e56aa5e188f87a106d07aa6511a9a0e33225fff332f",
+      "depth": 1,
+      "pc": 326,
+      "gas": 73767,
+      "opcode": "JUMPDEST",
+      "refund": 15000,
+      "op": "0x5b",
+      "error": "",
+      "storage": {
+        "0000000000000000000000000000000000000000000000000000000000000001": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "step": 1762,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasCost": 1,
+      "stack": [
+        "0xaaadb2b0"
+      ],
+      "memory": [
+        "0x80"
+      ]
+    },
+    {
+      "stateRoot": "0x9e52d3ff9f9ccc5745bd9e56aa5e188f87a106d07aa6511a9a0e33225fff332f",
+      "depth": 1,
+      "pc": 327,
+      "gas": 73766,
+      "opcode": "STOP",
+      "refund": 15000,
+      "op": "0x00",
+      "error": "",
+      "storage": {
+        "0000000000000000000000000000000000000000000000000000000000000001": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "step": 1779,
+      "contract": {
+        "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+        "caller": "0x4d5cf5032b2a844602278b01199ed191a86c93ff",
+        "value": "0",
+        "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
+      },
+      "gasPrice": -13117
+    }
+  ]
+}
