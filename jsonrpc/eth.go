@@ -224,6 +224,11 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 	return argBytes(code), nil
 }
 
+// GetCompilers eth_getCompilers
+func (e *Eth) GetCompilers() (interface{}, error) {
+	return []interface{}{}, nil
+}
+
 // GetLogs returns a list of logs accordingly to the provided filter
 func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 	ctx := context.Background()
@@ -464,6 +469,11 @@ func (e *Eth) GetUncleCountByBlockHash() (interface{}, error) {
 // matching the given block number
 func (e *Eth) GetUncleCountByBlockNumber() (interface{}, error) {
 	return "0x", nil
+}
+
+// ProtocolVersion
+func (e *Eth) ProtocolVersion() (interface{}, error) {
+	return "0x0", nil
 }
 
 func hexToTx(str string) (*types.Transaction, error) {
