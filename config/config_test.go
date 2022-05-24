@@ -71,6 +71,14 @@ func Test_Defaults(t *testing.T) {
 			path:          "RPC.MaxRequestsPerIPAndSecond",
 			expectedValue: float64(50),
 		},
+		{
+			path:          "ExecutorServer.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
+			path:          "ExecutorServer.Port",
+			expectedValue: 00000,
+		},
 	}
 
 	ctx := cli.NewContext(cli.NewApp(), flag.NewFlagSet("", flag.PanicOnError), nil)
