@@ -220,7 +220,7 @@ func runJSONRpcServer(c config.Config, pool *pool.Pool, st *state.State, chainID
 		log.Fatal(err)
 	}
 
-	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st, chainID, gpe, storage).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, chainID, seqAddress, pool, st, gpe, storage).Start(); err != nil {
 		log.Fatal(err)
 	}
 }

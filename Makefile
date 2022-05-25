@@ -160,6 +160,10 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=batchProcessor --dir=sequencer/strategy/txselector --output=sequencer/strategy/txselector --outpkg=txselector_test --filename=batchprocessor-mock_test.go
 	mockery --name=etherman --dir=sequencer --output=sequencer --outpkg=sequencer --structname=ethermanMock --filename=etherman-mock_test.go
 	mockery --name=Store --dir=state/tree --output=state/tree --outpkg=tree --structname=storeMock --filename=store-mock_test.go
+	mockery --name=storageInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc_test --structname=storageMock --filename=mock_storage_test.go
+	mockery --name=jsonRPCTxPool --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc_test --structname=poolMock --filename=mock_pool_test.go
+	mockery --name=gasPriceEstimator --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc_test --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
+	mockery --name=stateInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc_test --structname=stateMock --filename=mock_state_test.go
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files

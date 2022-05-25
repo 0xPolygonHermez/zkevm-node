@@ -16,7 +16,7 @@ import (
 
 // Eth contains implementations for the "eth" RPC endpoints
 type Eth struct {
-	chainIDSelector  *chainIDSelector
+	chainID          uint64
 	pool             jsonRPCTxPool
 	state            stateInterface
 	sequencerAddress common.Address
@@ -97,12 +97,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 
 // ChainId returns the chain id of the client
 func (e *Eth) ChainId() (interface{}, error) { //nolint:revive
-	chainID, err := e.chainIDSelector.getChainID()
-	if err != nil {
-		return nil, err
-	}
-
-	return hex.EncodeUint64(chainID), nil
+	return hex.EncodeUint64(e.chainID), nil
 }
 
 // EstimateGas generates and returns an estimate of how much gas is necessary to
