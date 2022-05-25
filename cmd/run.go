@@ -92,7 +92,6 @@ func start(ctx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	log.Debugf("running with local MT")
 	st = state.NewState(stateCfg, stateDb, tr)
 
 	proverClient, proverConn := newProverClient(c.Prover)
