@@ -26,7 +26,6 @@ type Server struct {
 func NewServer(
 	config Config,
 	defaultChainID uint64,
-	sequencerAddress common.Address,
 	p jsonRPCTxPool,
 	s stateInterface,
 	chainID uint64,
@@ -37,7 +36,7 @@ func NewServer(
 		pool:             p,
 		state:            s,
 		gpe:              gpe,
-		sequencerAddress: sequencerAddress,
+		sequencerAddress: common.HexToAddress(config.SequencerAddress),
 	}
 	netEndpoints := &Net{chainIDSelector: chainIDSelector}
 	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}

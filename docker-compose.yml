@@ -6,8 +6,6 @@ services:
   hez-core-sequencer:
     container_name: hez-core-sequencer
     image: hezcore
-    ports:
-      - 8123:8123
     environment:
       - HERMEZCORE_DATABASE_USER=test_user
       - HERMEZCORE_DATABASE_PASSWORD=test_password
@@ -33,15 +31,13 @@ services:
     container_name: hez-core-rpc
     image: hezcore
     ports:
-      - 8123:8124
+      - 8123:8123
     environment:
       - HERMEZCORE_DATABASE_USER=test_user
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
-      - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
-      - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
     command:
       [
@@ -57,8 +53,6 @@ services:
   hez-core-agg:
     container_name: hez-core-agg
     image: hezcore
-    ports:
-      - 8123:8125
     environment:
       - HERMEZCORE_DATABASE_USER=test_user
       - HERMEZCORE_DATABASE_PASSWORD=test_password
@@ -82,8 +76,6 @@ services:
   hez-core-sync:
     container_name: hez-core-sync
     image: hezcore
-    ports:
-      - 8123:8126
     environment:
       - HERMEZCORE_DATABASE_USER=test_user
       - HERMEZCORE_DATABASE_PASSWORD=test_password
@@ -132,7 +124,7 @@ services:
       - SUBNETWORK=Polygon Hermez
       - COIN=ETH
       - ETHEREUM_JSONRPC_VARIANT=geth
-      - ETHEREUM_JSONRPC_HTTP_URL=http://hez-core:8123
+      - ETHEREUM_JSONRPC_HTTP_URL=http://hez-explorer-rpc:8124 #8123 for Windows, 8124 for everything else
       - DATABASE_URL=postgres://test_user:test_password@hez-explorer-postgres:5432/explorer
       - ECTO_USE_SSL=false
       - MIX_ENV=prod
@@ -140,6 +132,30 @@ services:
       - LOGO_FOOTER=/images/blockscout_logo.svg
     command:
       ["/bin/sh", "-c", "mix do ecto.create, ecto.migrate; mix phx.server"]
+
+  hez-explorer-rpc:
+    container_name: hez-explorer-rpc
+    image: hezcore
+    ports:
+      - 8124:8123
+    environment:
+      - HERMEZCORE_DATABASE_USER=test_user
+      - HERMEZCORE_DATABASE_PASSWORD=test_password
+      - HERMEZCORE_DATABASE_NAME=test_db
+      - HERMEZCORE_DATABASE_HOST=hez-postgres
+    volumes:
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      [
+        "./hezcore",
+        "run",
+        "--network",
+        "local",
+        "--cfg",
+        "/app/config.toml",
+        "--components",
+        "rpc",
+      ]
 
   hez-explorer-postgres:
     container_name: hez-explorer-postgres

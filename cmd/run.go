@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"strings"
+	"sort"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -45,6 +45,12 @@ type mtStore interface {
 	Set(ctx context.Context, key []byte, value []byte, txBundleID string) error
 }
 
+// slice contains method
+func contains(s []string, searchterm string) bool {
+	i := sort.SearchStrings(s, searchterm)
+	return i < len(s) && s[i] == searchterm
+}
+
 func start(ctx *cli.Context) error {
 	c, err := config.Load(ctx)
 	if err != nil {
@@ -52,11 +58,6 @@ func start(ctx *cli.Context) error {
 	}
 	setupLog(c.Log)
 	runMigrations(c.Database)
-
-	etherman, err := newEtherman(*c)
-	if err != nil {
-		return err
-	}
 
 	sqlDB, err := db.NewSQLDB(c.Database)
 	if err != nil {
@@ -97,13 +98,19 @@ func start(ctx *cli.Context) error {
 	proverClient, proverConn := newProverClient(c.Prover)
 
 	var npool *pool.Pool
-	if strings.Contains(flagComponents, "sequencer") || strings.Contains(flagComponents, "rpc") {
-		npool = pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
+	var gpe gasPriceEstimator
+	var etherman *etherman.Client
 
+	if contains(ctx.StringSlice(flagComponents), AGGREGATOR) ||
+		contains(ctx.StringSlice(flagComponents), SEQUENCER) ||
+		contains(ctx.StringSlice(flagComponents), SYNCHRONIZER) {
+		var err error
+		etherman, err = newEtherman(*c)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-	gpe := createGasPriceEstimator(c.GasPriceEstimator, st, npool)
 
-	fmt.Printf("\nc.Sequencer.DefaultChainID %d", c.Sequencer.DefaultChainID)
 	for _, item := range ctx.StringSlice(flagComponents) {
 		switch item {
 		case AGGREGATOR:
@@ -111,15 +118,20 @@ func start(ctx *cli.Context) error {
 			go runAggregator(c.Aggregator, etherman, proverClient, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
+			npool = pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
 			c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
 			seq := createSequencer(c.Sequencer, etherman, npool, st)
-			fmt.Printf("\nseq.ChainID %d", seq.ChainID)
+			log.Debugf("\nseq.ChainID %d", seq.ChainID)
 			go seq.Start()
 		case RPC:
 			log.Info("Running JSON-RPC server")
-			go runJSONRpcServer(*c, npool, st, c.Sequencer.DefaultChainID, gpe)
+			npool = pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
+			gpe = createGasPriceEstimator(c.GasPriceEstimator, st, npool)
+			go runJSONRpcServer(*c, npool, st, c.RPC.ChainID, gpe)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
+			npool = pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
+			gpe = createGasPriceEstimator(c.GasPriceEstimator, st, npool)
 			go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
 		}
 
@@ -208,15 +220,8 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 }
 
 func runJSONRpcServer(c config.Config, pool *pool.Pool, st *state.State, chainID uint64, gpe gasPriceEstimator) {
-	var err error
-	key, err := newKeyFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	seqAddress := key.Address
-
-	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, seqAddress, pool, st, chainID, gpe).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, pool, st, chainID, gpe).Start(); err != nil {
 		log.Fatal(err)
 	}
 }
