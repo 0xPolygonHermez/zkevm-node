@@ -68,7 +68,7 @@ func NewAggregator(
 // Start starts the aggregator
 func (a *Aggregator) Start() {
 	// this is a batches, that were sent to ethereum to consolidate
-	batchesSent := make(map[uint64]bool)
+	batchesSent := make(map[uint64]*common.Hash)
 
 	// define those vars here, bcs it can be used in case <-a.ctx.Done()
 	var getProofCtx context.Context
@@ -107,7 +107,27 @@ func (a *Aggregator) Start() {
 				continue
 			}
 
-			if batchesSent[batchToConsolidate.Number().Uint64()] {
+			if h := batchesSent[batchToConsolidate.Number().Uint64()]; h != nil {
+				hash := *h
+				_, isPending, err := a.EtherMan.GetTx(a.ctx, hash)
+				if err != nil {
+					log.Warnf("failed to get tx with hash %s, err %v", hash.Hex(), err)
+					continue
+				}
+				if !isPending {
+					receipt, err := a.EtherMan.GetTxReceipt(a.ctx, hash)
+					if err != nil {
+						log.Warnf("failed to get tx with hash %v, err %v", hash.Hex(), err)
+						continue
+					}
+					// tx is failed, so batch should be sent again
+					if receipt.Status == 0 {
+						delete(batchesSent, batchToConsolidate.Number().Uint64())
+						log.Infow("tx with hash %s failed, batch with number %v should be sent again",
+							hash.Hex(), batchToConsolidate.Number().Uint64())
+						continue
+					}
+				}
 				log.Infof("batch with number %d was already sent, but not yet consolidated by synchronizer",
 					batchToConsolidate.Number().Uint64())
 				continue
@@ -301,9 +321,10 @@ func (a *Aggregator) Start() {
 					batchToConsolidate.Number().Uint64(), err)
 				continue
 			}
-			batchesSent[batchToConsolidate.Number().Uint64()] = true
+			txHash := h.Hash()
+			batchesSent[batchToConsolidate.Number().Uint64()] = &txHash
 
-			log.Infof("Batch %d consolidated: %s", batchToConsolidate.Number().Uint64(), h.Hash())
+			log.Infof("Batch %d consolidated: %s", batchToConsolidate.Number().Uint64(), txHash)
 		case <-a.ctx.Done():
 			getProofCtxCancel()
 			return
