@@ -16,9 +16,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 0,
-      "gas": 78936,
+      "gas": "78936",
       "opcode": "PUSH1",
-      "refund": 0,
+      "refund": "0",
       "op": "0x60",
       "error": "",
       "storage": {},
@@ -29,7 +29,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0x80"
       ],
@@ -39,9 +39,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 2,
-      "gas": 78933,
+      "gas": "78933",
       "opcode": "PUSH1",
-      "refund": 0,
+      "refund": "0",
       "op": "0x60",
       "error": "",
       "storage": {},
@@ -52,7 +52,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0x80",
         "0x40"
@@ -63,9 +63,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 4,
-      "gas": 78930,
+      "gas": "78930",
       "opcode": "MSTORE",
-      "refund": 0,
+      "refund": "0",
       "op": "0x52",
       "error": "",
       "storage": {},
@@ -76,7 +76,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 12,
+      "gasCost": "12",
       "stack": [],
       "memory": [
         "0x80"
@@ -86,9 +86,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 5,
-      "gas": 78918,
+      "gas": "78918",
       "opcode": "PUSH1",
-      "refund": 0,
+      "refund": "0",
       "op": "0x60",
       "error": "",
       "storage": {},
@@ -99,7 +99,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0x04"
       ],
@@ -111,9 +111,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 7,
-      "gas": 78915,
+      "gas": "78915",
       "opcode": "CALLDATASIZE",
-      "refund": 0,
+      "refund": "0",
       "op": "0x36",
       "error": "",
       "storage": {},
@@ -124,7 +124,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 2,
+      "gasCost": "2",
       "stack": [
         "0x04",
         "0x04"
@@ -137,9 +137,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 8,
-      "gas": 78913,
+      "gas": "78913",
       "opcode": "LT",
-      "refund": 0,
+      "refund": "0",
       "op": "0x10",
       "error": "",
       "storage": {},
@@ -150,7 +150,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0x00"
       ],
@@ -162,9 +162,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 9,
-      "gas": 78910,
+      "gas": "78910",
       "opcode": "PUSH2",
-      "refund": 0,
+      "refund": "0",
       "op": "0x61",
       "error": "",
       "storage": {},
@@ -175,7 +175,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0x00",
         "0xa7"
@@ -188,9 +188,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 12,
-      "gas": 78907,
+      "gas": "78907",
       "opcode": "JUMPI",
-      "refund": 0,
+      "refund": "0",
       "op": "0x57",
       "error": "",
       "storage": {},
@@ -201,7 +201,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 10,
+      "gasCost": "10",
       "stack": [],
       "memory": [
         "0x80"
@@ -211,9 +211,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 13,
-      "gas": 78897,
+      "gas": "78897",
       "opcode": "PUSH1",
-      "refund": 0,
+      "refund": "0",
       "op": "0x60",
       "error": "",
       "storage": {},
@@ -224,7 +224,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0x00"
       ],
@@ -236,9 +236,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 15,
-      "gas": 78894,
+      "gas": "78894",
       "opcode": "CALLDATALOAD",
-      "refund": 0,
+      "refund": "0",
       "op": "0x35",
       "error": "",
       "storage": {},
@@ -249,7 +249,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       ],
@@ -261,9 +261,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 16,
-      "gas": 78891,
+      "gas": "78891",
       "opcode": "PUSH1",
-      "refund": 0,
+      "refund": "0",
       "op": "0x60",
       "error": "",
       "storage": {},
@@ -274,7 +274,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b000000000000000000000000000000000000000000000000000000000",
         "0xe0"
@@ -287,9 +287,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 18,
-      "gas": 78888,
+      "gas": "78888",
       "opcode": "SHR",
-      "refund": 0,
+      "refund": "0",
       "op": "0x1c",
       "error": "",
       "storage": {},
@@ -300,7 +300,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0"
       ],
@@ -312,9 +312,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 19,
-      "gas": 78885,
+      "gas": "78885",
       "opcode": "DUP1",
-      "refund": 0,
+      "refund": "0",
       "op": "0x80",
       "error": "",
       "storage": {},
@@ -325,7 +325,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0xaaadb2b0"
@@ -338,9 +338,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 20,
-      "gas": 78882,
+      "gas": "78882",
       "opcode": "PUSH4",
-      "refund": 0,
+      "refund": "0",
       "op": "0x63",
       "error": "",
       "storage": {},
@@ -351,7 +351,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0xaaadb2b0",
@@ -365,9 +365,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 25,
-      "gas": 78879,
+      "gas": "78879",
       "opcode": "GT",
-      "refund": 0,
+      "refund": "0",
       "op": "0x11",
       "error": "",
       "storage": {},
@@ -378,7 +378,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x00"
@@ -391,9 +391,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 26,
-      "gas": 78876,
+      "gas": "78876",
       "opcode": "PUSH2",
-      "refund": 0,
+      "refund": "0",
       "op": "0x61",
       "error": "",
       "storage": {},
@@ -404,7 +404,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x00",
@@ -418,9 +418,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 29,
-      "gas": 78873,
+      "gas": "78873",
       "opcode": "JUMPI",
-      "refund": 0,
+      "refund": "0",
       "op": "0x57",
       "error": "",
       "storage": {},
@@ -431,7 +431,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 10,
+      "gasCost": "10",
       "stack": [
         "0xaaadb2b0"
       ],
@@ -443,9 +443,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 30,
-      "gas": 78863,
+      "gas": "78863",
       "opcode": "DUP1",
-      "refund": 0,
+      "refund": "0",
       "op": "0x80",
       "error": "",
       "storage": {},
@@ -456,7 +456,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0xaaadb2b0"
@@ -469,9 +469,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 31,
-      "gas": 78860,
+      "gas": "78860",
       "opcode": "PUSH4",
-      "refund": 0,
+      "refund": "0",
       "op": "0x63",
       "error": "",
       "storage": {},
@@ -482,7 +482,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0xaaadb2b0",
@@ -496,9 +496,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 36,
-      "gas": 78857,
+      "gas": "78857",
       "opcode": "EQ",
-      "refund": 0,
+      "refund": "0",
       "op": "0x14",
       "error": "",
       "storage": {},
@@ -509,7 +509,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x00"
@@ -522,9 +522,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 37,
-      "gas": 78854,
+      "gas": "78854",
       "opcode": "PUSH2",
-      "refund": 0,
+      "refund": "0",
       "op": "0x61",
       "error": "",
       "storage": {},
@@ -535,7 +535,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x00",
@@ -549,9 +549,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 40,
-      "gas": 78851,
+      "gas": "78851",
       "opcode": "JUMPI",
-      "refund": 0,
+      "refund": "0",
       "op": "0x57",
       "error": "",
       "storage": {},
@@ -562,7 +562,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 10,
+      "gasCost": "10",
       "stack": [
         "0xaaadb2b0"
       ],
@@ -574,9 +574,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 41,
-      "gas": 78841,
+      "gas": "78841",
       "opcode": "DUP1",
-      "refund": 0,
+      "refund": "0",
       "op": "0x80",
       "error": "",
       "storage": {},
@@ -587,7 +587,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0xaaadb2b0"
@@ -600,9 +600,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 42,
-      "gas": 78838,
+      "gas": "78838",
       "opcode": "PUSH4",
-      "refund": 0,
+      "refund": "0",
       "op": "0x63",
       "error": "",
       "storage": {},
@@ -613,7 +613,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0xaaadb2b0",
@@ -627,9 +627,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 47,
-      "gas": 78835,
+      "gas": "78835",
       "opcode": "EQ",
-      "refund": 0,
+      "refund": "0",
       "op": "0x14",
       "error": "",
       "storage": {},
@@ -640,7 +640,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x00"
@@ -653,9 +653,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 48,
-      "gas": 78832,
+      "gas": "78832",
       "opcode": "PUSH2",
-      "refund": 0,
+      "refund": "0",
       "op": "0x61",
       "error": "",
       "storage": {},
@@ -666,7 +666,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x00",
@@ -680,9 +680,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 51,
-      "gas": 78829,
+      "gas": "78829",
       "opcode": "JUMPI",
-      "refund": 0,
+      "refund": "0",
       "op": "0x57",
       "error": "",
       "storage": {},
@@ -693,7 +693,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 10,
+      "gasCost": "10",
       "stack": [
         "0xaaadb2b0"
       ],
@@ -705,9 +705,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 52,
-      "gas": 78819,
+      "gas": "78819",
       "opcode": "DUP1",
-      "refund": 0,
+      "refund": "0",
       "op": "0x80",
       "error": "",
       "storage": {},
@@ -718,7 +718,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0xaaadb2b0"
@@ -731,9 +731,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 53,
-      "gas": 78816,
+      "gas": "78816",
       "opcode": "PUSH4",
-      "refund": 0,
+      "refund": "0",
       "op": "0x63",
       "error": "",
       "storage": {},
@@ -744,7 +744,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0xaaadb2b0",
@@ -758,9 +758,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 58,
-      "gas": 78813,
+      "gas": "78813",
       "opcode": "EQ",
-      "refund": 0,
+      "refund": "0",
       "op": "0x14",
       "error": "",
       "storage": {},
@@ -771,7 +771,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x01"
@@ -784,9 +784,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 59,
-      "gas": 78810,
+      "gas": "78810",
       "opcode": "PUSH2",
-      "refund": 0,
+      "refund": "0",
       "op": "0x61",
       "error": "",
       "storage": {},
@@ -797,7 +797,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x01",
@@ -811,9 +811,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 62,
-      "gas": 78807,
+      "gas": "78807",
       "opcode": "JUMPI",
-      "refund": 0,
+      "refund": "0",
       "op": "0x57",
       "error": "",
       "storage": {},
@@ -824,7 +824,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 10,
+      "gasCost": "10",
       "stack": [
         "0xaaadb2b0"
       ],
@@ -836,9 +836,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 318,
-      "gas": 78797,
+      "gas": "78797",
       "opcode": "JUMPDEST",
-      "refund": 0,
+      "refund": "0",
       "op": "0x5b",
       "error": "",
       "storage": {},
@@ -849,7 +849,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 1,
+      "gasCost": "1",
       "stack": [
         "0xaaadb2b0"
       ],
@@ -861,9 +861,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 319,
-      "gas": 78796,
+      "gas": "78796",
       "opcode": "PUSH2",
-      "refund": 0,
+      "refund": "0",
       "op": "0x61",
       "error": "",
       "storage": {},
@@ -874,7 +874,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x0146"
@@ -887,9 +887,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 322,
-      "gas": 78793,
+      "gas": "78793",
       "opcode": "PUSH2",
-      "refund": 0,
+      "refund": "0",
       "op": "0x61",
       "error": "",
       "storage": {},
@@ -900,7 +900,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x0146",
@@ -914,9 +914,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 325,
-      "gas": 78790,
+      "gas": "78790",
       "opcode": "JUMP",
-      "refund": 0,
+      "refund": "0",
       "op": "0x56",
       "error": "",
       "storage": {},
@@ -927,7 +927,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 8,
+      "gasCost": "8",
       "stack": [
         "0xaaadb2b0",
         "0x0146"
@@ -940,9 +940,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 430,
-      "gas": 78782,
+      "gas": "78782",
       "opcode": "JUMPDEST",
-      "refund": 0,
+      "refund": "0",
       "op": "0x5b",
       "error": "",
       "storage": {},
@@ -953,7 +953,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 1,
+      "gasCost": "1",
       "stack": [
         "0xaaadb2b0",
         "0x0146"
@@ -966,9 +966,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 431,
-      "gas": 78781,
+      "gas": "78781",
       "opcode": "PUSH1",
-      "refund": 0,
+      "refund": "0",
       "op": "0x60",
       "error": "",
       "storage": {},
@@ -979,7 +979,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x0146",
@@ -993,9 +993,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 433,
-      "gas": 78778,
+      "gas": "78778",
       "opcode": "PUSH1",
-      "refund": 0,
+      "refund": "0",
       "op": "0x60",
       "error": "",
       "storage": {},
@@ -1006,7 +1006,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 3,
+      "gasCost": "3",
       "stack": [
         "0xaaadb2b0",
         "0x0146",
@@ -1021,9 +1021,9 @@
       "stateRoot": "0x01ee970f65a1309cad7e2c5cdd2baf909360debd420d469b157e17d0eeff1309",
       "depth": 1,
       "pc": 435,
-      "gas": 78775,
+      "gas": "78775",
       "opcode": "SSTORE",
-      "refund": 0,
+      "refund": "0",
       "op": "0x55",
       "error": "",
       "storage": {},
@@ -1034,7 +1034,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 5000,
+      "gasCost": "5000",
       "stack": [
         "0xaaadb2b0",
         "0x0146"
@@ -1047,9 +1047,9 @@
       "stateRoot": "0x9e52d3ff9f9ccc5745bd9e56aa5e188f87a106d07aa6511a9a0e33225fff332f",
       "depth": 1,
       "pc": 436,
-      "gas": 73775,
+      "gas": "73775",
       "opcode": "JUMP",
-      "refund": 15000,
+      "refund": "15000",
       "op": "0x56",
       "error": "",
       "storage": {
@@ -1062,7 +1062,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 8,
+      "gasCost": "8",
       "stack": [
         "0xaaadb2b0"
       ],
@@ -1074,9 +1074,9 @@
       "stateRoot": "0x9e52d3ff9f9ccc5745bd9e56aa5e188f87a106d07aa6511a9a0e33225fff332f",
       "depth": 1,
       "pc": 326,
-      "gas": 73767,
+      "gas": "73767",
       "opcode": "JUMPDEST",
-      "refund": 15000,
+      "refund": "15000",
       "op": "0x5b",
       "error": "",
       "storage": {
@@ -1089,7 +1089,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasCost": 1,
+      "gasCost": "1",
       "stack": [
         "0xaaadb2b0"
       ],
@@ -1101,9 +1101,9 @@
       "stateRoot": "0x9e52d3ff9f9ccc5745bd9e56aa5e188f87a106d07aa6511a9a0e33225fff332f",
       "depth": 1,
       "pc": 327,
-      "gas": 73766,
+      "gas": "73766",
       "opcode": "STOP",
-      "refund": 15000,
+      "refund": "15000",
       "op": "0x00",
       "error": "",
       "storage": {
@@ -1116,7 +1116,7 @@
         "value": "0",
         "input": "0xaaadb2b000000000000000000000000000000000000000000000000000000000"
       },
-      "gasPrice": -13117
+      "gasCost": "1"
     }
   ]
 }

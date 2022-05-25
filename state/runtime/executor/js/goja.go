@@ -12,8 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/hermeznetwork/hermez-core/state/runtime/executor/fakevm"
 	jsassets "github.com/hermeznetwork/hermez-core/state/runtime/executor/js/internal/tracers"
+	"github.com/hermeznetwork/hermez-core/state/runtime/executor/tracers"
 )
 
 var assetTracers = make(map[string]string)
@@ -75,7 +76,7 @@ func fromBuf(vm *goja.Runtime, bufType goja.Value, buf goja.Value, allowString b
 
 type jsTracer struct {
 	vm                *goja.Runtime
-	env               *vm.EVM
+	env               *fakevm.FakeEVM
 	toBig             toBigFn               // Converts a hex string into a JS bigint
 	toBuf             toBufFn               // Converts a []byte into a JS buffer
 	fromBuf           fromBufFn             // Converts an array, hex string or Uint8Array to a []byte
@@ -171,7 +172,7 @@ func (t *jsTracer) CaptureTxStart(gasLimit uint64) {
 func (t *jsTracer) CaptureTxEnd(restGas uint64) {}
 
 // CaptureStart implements the Tracer interface to initialize the tracing operation.
-func (t *jsTracer) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+func (t *jsTracer) CaptureStart(env *fakevm.FakeEVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	t.env = env
 	db := &dbObj{db: env.StateDB, vm: t.vm, toBig: t.toBig, toBuf: t.toBuf, fromBuf: t.fromBuf}
 	t.dbValue = db.setupObject()
@@ -199,7 +200,7 @@ func (t *jsTracer) CaptureStart(env *vm.EVM, from common.Address, to common.Addr
 }
 
 // CaptureState implements the Tracer interface to trace a single step of VM execution.
-func (t *jsTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, err error) {
+func (t *jsTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *fakevm.ScopeContext, rData []byte, depth int, err error) {
 	if !t.traceStep {
 		return
 	}
@@ -223,7 +224,7 @@ func (t *jsTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope
 }
 
 // CaptureFault implements the Tracer interface to trace an execution fault
-func (t *jsTracer) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, err error) {
+func (t *jsTracer) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *fakevm.ScopeContext, depth int, err error) {
 	if t.err != nil {
 		return
 	}
@@ -489,7 +490,7 @@ func (o *opObj) setupObject() *goja.Object {
 }
 
 type memoryObj struct {
-	memory *vm.Memory
+	memory *fakevm.Memory
 	vm     *goja.Runtime
 	toBig  toBigFn
 	toBuf  toBufFn
@@ -558,7 +559,7 @@ func (m *memoryObj) setupObject() *goja.Object {
 }
 
 type stackObj struct {
-	stack *vm.Stack
+	stack *fakevm.Stack
 	vm    *goja.Runtime
 	toBig toBigFn
 }
@@ -597,7 +598,7 @@ func (s *stackObj) setupObject() *goja.Object {
 }
 
 type dbObj struct {
-	db      vm.StateDB
+	db      fakevm.FakeDB
 	vm      *goja.Runtime
 	toBig   toBigFn
 	toBuf   toBufFn
