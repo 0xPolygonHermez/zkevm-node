@@ -424,6 +424,109 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	assert.Equal(t, expectedGasPrice, gasPrice)
 }
 
+func TestGetPendingTxSince(t *testing.T) {
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+
+	sqlDB, err := db.NewSQLDB(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer sqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(sqlDB)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
+	genesis := state.Genesis{
+		Block: genesisBlock,
+		Balances: map[common.Address]*big.Int{
+			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
+		},
+	}
+	err = st.SetGenesis(context.Background(), genesis, "")
+	if err != nil {
+		t.Error(err)
+	}
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p := pool.NewPool(s, st, common.Address{})
+
+	const txsCount = 10
+
+	ctx := context.Background()
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	require.NoError(t, err)
+
+	txsAddedHashes := []common.Hash{}
+	txsAddedTime := []time.Time{}
+
+	timeBeforeTxs := time.Now()
+	// insert pending transactions
+	for i := 0; i < txsCount; i++ {
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+		signedTx, err := auth.Signer(auth.From, tx)
+		require.NoError(t, err)
+		txsAddedTime = append(txsAddedTime, time.Now())
+		if err := p.AddTx(ctx, *signedTx); err != nil {
+			t.Error(err)
+		}
+		txsAddedHashes = append(txsAddedHashes, signedTx.Hash())
+		time.Sleep(1 * time.Second)
+	}
+
+	txHashes, err := p.GetPendingTxHashesSince(ctx, timeBeforeTxs)
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, txsCount, len(txHashes))
+	for i, txHash := range txHashes {
+		assert.Equal(t, txHash.Hex(), txsAddedHashes[i].Hex())
+	}
+
+	txHashes, err = p.GetPendingTxHashesSince(ctx, txsAddedTime[5])
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, 5, len(txHashes))
+	assert.Equal(t, txHashes[0].Hex(), txsAddedHashes[5].Hex())
+	assert.Equal(t, txHashes[1].Hex(), txsAddedHashes[6].Hex())
+	assert.Equal(t, txHashes[2].Hex(), txsAddedHashes[7].Hex())
+	assert.Equal(t, txHashes[3].Hex(), txsAddedHashes[8].Hex())
+	assert.Equal(t, txHashes[4].Hex(), txsAddedHashes[9].Hex())
+
+	txHashes, err = p.GetPendingTxHashesSince(ctx, txsAddedTime[8])
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, 2, len(txHashes))
+	assert.Equal(t, txHashes[0].Hex(), txsAddedHashes[8].Hex())
+	assert.Equal(t, txHashes[1].Hex(), txsAddedHashes[9].Hex())
+
+	txHashes, err = p.GetPendingTxHashesSince(ctx, txsAddedTime[9])
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, 1, len(txHashes))
+	assert.Equal(t, txHashes[0].Hex(), txsAddedHashes[9].Hex())
+
+	txHashes, err = p.GetPendingTxHashesSince(ctx, txsAddedTime[9].Add(1*time.Second))
+	if err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, 0, len(txHashes))
+}
+
 func newState(sqlDB *pgxpool.Pool) *state.State {
 	store := tree.NewPostgresStore(sqlDB)
 	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)

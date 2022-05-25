@@ -33,6 +33,7 @@ const (
 	getPreviousConsolidatedBatchSQL        = "SELECT block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at, chain_id, global_exit_root, rollup_exit_root FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1 OFFSET $2"
 	getBatchByHashSQL                      = "SELECT block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at, chain_id, global_exit_root, rollup_exit_root FROM state.batch WHERE batch_hash = $1"
 	getBatchByNumberSQL                    = "SELECT block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at, chain_id, global_exit_root, rollup_exit_root FROM state.batch WHERE batch_num = $1"
+	getBatchHashesSinceSQL                 = "SELECT header->>'hash' as hash FROM state.batch WHERE received_at >= $1"
 	getLastBatchByStateRootSQL             = "SELECT block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at, chain_id, global_exit_root, rollup_exit_root FROM state.batch WHERE header->>'stateRoot' = $1 ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchNumberSQL           = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch"
 	getLastConsolidatedBatchNumberSQL      = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch WHERE consolidated_tx_hash != $1"
@@ -40,14 +41,17 @@ const (
 	getTransactionByBatchHashAndIndexSQL   = "SELECT transaction.encoded FROM state.transaction inner join state.batch on (state.transaction.batch_num = state.batch.batch_num) WHERE state.batch.batch_hash = $1 and state.transaction.tx_index = $2"
 	getTransactionByBatchNumberAndIndexSQL = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1 AND tx_index = $2"
 	getTransactionCountSQL                 = "SELECT COUNT(*) FROM state.transaction WHERE from_address = $1"
+	getTransactionCountByBatchHashSQL      = "SELECT COUNT(*) FROM state.transaction t, state.batch b WHERE t.batch_num = b.batch_num AND batch_hash = $1"
+	getTransactionCountByBatchNumberSQL    = "SELECT COUNT(*) FROM state.transaction WHERE batch_num = $1"
 	consolidateBatchSQL                    = "UPDATE state.batch SET consolidated_tx_hash = $1, consolidated_at = $3, aggregator = $4 WHERE batch_num = $2"
 	getTxsByBatchNumSQL                    = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
 	addBlockSQL                            = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	addSequencerSQL                        = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4) ON CONFLICT (chain_id) DO UPDATE SET address = EXCLUDED.address, url = EXCLUDED.url, block_num = EXCLUDED.block_num"
 	updateLastBatchSeenSQL                 = "UPDATE state.misc SET last_batch_num_seen = $1"
 	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
+	getSyncingInfoSQL                      = "SELECT last_batch_num_seen, last_batch_num_consolidated, init_sync_batch FROM state.misc LIMIT 1"
 	updateLastBatchConsolidatedSQL         = "UPDATE state.misc SET last_batch_num_consolidated = $1"
-	updateInitBlockSQL                     = "UPDATE state.misc SET init_sync_block = $1"
+	updateInitBatchSQL                     = "UPDATE state.misc SET init_sync_batch = $1"
 	getLastBatchConsolidatedSQL            = "SELECT last_batch_num_consolidated FROM state.misc LIMIT 1"
 	getSequencerSQL                        = "SELECT * FROM state.sequencer WHERE address = $1"
 	getReceiptSQL                          = "SELECT * FROM state.receipt WHERE tx_hash = $1"
@@ -59,7 +63,7 @@ const (
 	addLogSQL                              = "INSERT INTO state.log (log_index, transaction_index, transaction_hash, batch_hash, batch_num, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"
 	getTransactionLogsSQL                  = "SELECT * FROM state.log WHERE transaction_hash = $1"
 	getLogsSQLByBatchHash                  = "SELECT * FROM state.log WHERE batch_hash = $1"
-	getLogsByFilter                        = "SELECT * FROM state.log WHERE batch_num BETWEEN $1 AND $2 AND (address = any($3) OR $3 IS NULL) AND (topic0 = any($4) OR $4 IS NULL) AND (topic1 = any($5) OR $5 IS NULL) AND (topic2 = any($6) OR $6 IS NULL) AND (topic3 = any($7) OR $7 IS NULL)"
+	getLogsByFilter                        = "SELECT state.log.* FROM state.log INNER JOIN state.batch ON state.log.batch_num = state.batch.batch_num WHERE state.log.batch_num BETWEEN $1 AND $2 AND (address = any($3) OR $3 IS NULL) AND (topic0 = any($4) OR $4 IS NULL) AND (topic1 = any($5) OR $5 IS NULL) AND (topic2 = any($6) OR $6 IS NULL) AND (topic3 = any($7) OR $7 IS NULL) AND (state.batch.received_at >= $8 OR $8 IS NULL)"
 )
 
 var (
@@ -240,6 +244,26 @@ func (s *PostgresStorage) GetBatchByHash(ctx context.Context, hash common.Hash, 
 	}
 
 	return &batch, nil
+}
+
+// GetBatchTransactionCountByHash return the number of transactions in the batch
+func (s *PostgresStorage) GetBatchTransactionCountByHash(ctx context.Context, hash common.Hash, txBundleID string) (uint64, error) {
+	var count uint64
+	err := s.QueryRow(ctx, txBundleID, getTransactionCountByBatchHashSQL, hash.Bytes()).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetBatchTransactionCountByNumber return the number of transactions in the batch
+func (s *PostgresStorage) GetBatchTransactionCountByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (uint64, error) {
+	var count uint64
+	err := s.QueryRow(ctx, txBundleID, getTransactionCountByBatchNumberSQL, batchNumber).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // GetBatchByNumber gets the batch with the required number
@@ -474,7 +498,7 @@ func (s *PostgresStorage) hashesToBytes(hashes []common.Hash) [][]byte {
 }
 
 // GetLogs returns the logs that match the filter
-func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash, txBundleID string) ([]*types.Log, error) {
+func (s *State) GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash, since *time.Time, txBundleID string) ([]*types.Log, error) {
 	var err error
 	var rows pgx.Rows
 	if batchHash != nil {
@@ -495,6 +519,8 @@ func (s *PostgresStorage) GetLogs(ctx context.Context, fromBatch uint64, toBatch
 				args = append(args, nil)
 			}
 		}
+
+		args = append(args, since)
 
 		rows, err = s.Query(ctx, txBundleID, getLogsByFilter, args...)
 	}
@@ -637,15 +663,22 @@ func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 	return batchNumber, nil
 }
 
+// GetSyncingInfo returns information regarding the syncing status of the node
+func (s *PostgresStorage) GetSyncingInfo(ctx context.Context, txBundleID string) (SyncingInfo, error) {
+	var info SyncingInfo
+	err := s.QueryRow(ctx, txBundleID, getSyncingInfoSQL).Scan(&info.LastBatchNumberSeen, &info.LastBatchNumberConsolidated, &info.InitialSyncingBatch)
+	return info, err
+}
+
 // SetLastBatchNumberConsolidatedOnEthereum sets the last batch number that was consolidated on ethereum
 func (s *PostgresStorage) SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error {
 	_, err := s.Exec(ctx, txBundleID, updateLastBatchConsolidatedSQL, batchNumber)
 	return err
 }
 
-// SetInitSyncBlock sets the initial block number where the synchronization started
-func (s *PostgresStorage) SetInitSyncBlock(ctx context.Context, blockNumber uint64, txBundleID string) error {
-	_, err := s.Exec(ctx, txBundleID, updateInitBlockSQL, blockNumber)
+// SetInitSyncBatch sets the initial batch number where the synchronization started
+func (s *PostgresStorage) SetInitSyncBatch(ctx context.Context, batchNumber uint64, txBundleID string) error {
+	_, err := s.Exec(ctx, txBundleID, updateInitBatchSQL, batchNumber)
 	return err
 }
 
@@ -721,6 +754,29 @@ func (s *PostgresStorage) getBatchTransactions(ctx context.Context, batch Batch,
 	}
 
 	return transactions, nil
+}
+
+// GetBatchHashesSince get all batch hashes since a timestamp
+func (s *State) GetBatchHashesSince(ctx context.Context, since time.Time, txBundleID string) ([]common.Hash, error) {
+	rows, err := s.Query(ctx, txBundleID, getBatchHashesSinceSQL, since)
+	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	batchHashes := make([]common.Hash, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		var batchHash string
+		err := rows.Scan(&batchHash)
+		if err != nil {
+			return nil, err
+		}
+
+		batchHashes = append(batchHashes, common.HexToHash(batchHash))
+	}
+
+	return batchHashes, nil
 }
 
 func (s *PostgresStorage) getBatchWithoutTxsByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (*Batch, error) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
 
 var (
@@ -59,15 +60,16 @@ type Runtime interface {
 
 // TxContext is the context of the transaction
 type TxContext struct {
-	Hash       common.Hash
-	GasPrice   common.Hash
-	Origin     common.Address
-	Coinbase   common.Address
-	Number     int64
-	Timestamp  int64
-	GasLimit   int64
-	ChainID    int64
-	Difficulty common.Hash
+	Hash        common.Hash
+	GasPrice    common.Hash
+	Origin      common.Address
+	Coinbase    common.Address
+	Number      int64
+	Timestamp   int64
+	GasLimit    int64
+	ChainID     int64
+	Difficulty  common.Hash
+	BatchNumber int64
 }
 
 // ExecutionResult includes all output after executing given evm
@@ -79,6 +81,9 @@ type ExecutionResult struct {
 	Err           error  // Any error encountered during the execution, listed below
 	CreateAddress common.Address
 	StateRoot     []byte
+	Trace         []instrumentation.Trace
+	VMTrace       instrumentation.VMTrace
+	StructLogs    []instrumentation.StructLog
 }
 
 // Succeeded indicates the execution was successful

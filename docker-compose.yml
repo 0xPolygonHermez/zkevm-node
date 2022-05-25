@@ -171,13 +171,13 @@ services:
 
   hez-network:
     container_name: hez-network
-    image: hermeznetwork/geth-zkevm-contracts@sha256:3474e0715f4d941e83098bb0087cb13a9a94a30080382825167f902b1a38967d
+    image: hermeznetwork/geth-zkevm-contracts@sha256:545ffeaabd3d05d2a3c9a190a34ec4bb9da076bae58b8ada579045353cf2e8ff
     ports:
       - 8545:8545
 
   hez-prover:
     container_name: hez-prover
-    image: hermeznetwork/hez-mock-prover@sha256:b5df709516e7c3375c87eba4b8c3c267f9ba59d3438c83509b42cf8f5b6aeb5a
+    image: hermeznetwork/hez-mock-prover@sha256:dc7faed4babf3b59c2bf6375aae25dff0e5385f7c38aaa3d8e05b523ee762035
     ports:
       - 50051:50051
       - 50052:50052

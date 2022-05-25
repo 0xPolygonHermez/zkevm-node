@@ -37,7 +37,7 @@ var (
 	consolidatedTxHash common.Hash    = common.HexToHash("0x125714bb4db48757007fff2671b37637bbfd6d47b3a4757ebbd0c5222984f905")
 	maticCollateral                   = big.NewInt(1000000000000000000)
 	txs                []*types.Transaction
-	maticAmount        = big.NewInt(1000000000000000001)
+	maticAmount        = new(big.Int).SetUint64(10000000000000000001)
 )
 var dbCfg = dbutils.NewConfigFromEnv()
 

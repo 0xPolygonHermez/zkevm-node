@@ -69,8 +69,8 @@ func (pc *Base) IsProfitable(ctx context.Context, selectionRes txselector.Select
 	// sending amount of txs as matic reward there, bcs to calculate gas cost for tx this value is not important
 	// checker can't get it before, bcs final matic amount is dependent on value from gas estimation
 	// TODO improve the matic amount
-	const maticAmount = 1000000000000000001
-	gasCostForSendingBatch, err := pc.EthMan.EstimateSendBatchCost(ctx, txs, big.NewInt(int64(maticAmount)))
+	const maticAmount uint64 = 10000000000000000001
+	gasCostForSendingBatch, err := pc.EthMan.EstimateSendBatchCost(ctx, txs, new(big.Int).SetUint64(maticAmount))
 	if err != nil {
 		return false, big.NewInt(0), fmt.Errorf("failed to estimate gas for sending batch, err: %v", err)
 	}

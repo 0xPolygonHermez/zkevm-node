@@ -38,12 +38,6 @@ func TestRuntime(t *testing.T) {
 	}
 	defer stateDb.Close()
 
-	// TODO: Improve when state transition is implemented
-
-	// store := tree.NewPostgresStore(stateDb)
-	// mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity, nil)
-	// host := runtime.NewMerkleTreeHost(tree.NewStateTree(mt, nil))
-
 	res := testEvm.Run(context.Background(), contract, nil, config)
 	assert.Equal(t, uint64(4976), res.GasLeft)
 	assert.NoError(t, res.Err)

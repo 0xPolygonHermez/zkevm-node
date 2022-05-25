@@ -27,12 +27,12 @@ func InitOrReset(cfg db.Config) error {
 	if _, err := dbPool.Exec(context.Background(), "DROP SCHEMA IF EXISTS pool CASCADE;"); err != nil {
 		return err
 	}
-
-	// run migrations
-	if err := db.RunMigrations(cfg); err != nil {
+	if _, err := dbPool.Exec(context.Background(), "DROP SCHEMA IF EXISTS rpc CASCADE;"); err != nil {
 		return err
 	}
-	return nil
+
+	// run migrations
+	return db.RunMigrations(cfg)
 }
 
 // NewConfigFromEnv creates config from standard postgres environment variables,

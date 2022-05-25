@@ -69,6 +69,10 @@ func (p *Pool) GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) (
 	return p.storage.GetTxsByState(ctx, TxStatePending, isClaims, limit)
 }
 
+func (p *Pool) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
+	return p.storage.GetPendingTxHashesSince(ctx, since)
+}
+
 // UpdateTxState updates a transaction state accordingly to the
 // provided state and hash
 func (p *Pool) UpdateTxState(ctx context.Context, hash common.Hash, newState TxState) error {
