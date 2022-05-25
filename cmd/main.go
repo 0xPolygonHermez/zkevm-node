@@ -74,7 +74,7 @@ func main() {
 			Aliases:  []string{"co"},
 			Usage:    "List of components to run",
 			Required: false,
-			Value:    cli.NewStringSlice("aggregator", "sequencer", "rpc", "synchronizer"),
+			Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER),
 		},
 	}
 	app.Commands = []*cli.Command{

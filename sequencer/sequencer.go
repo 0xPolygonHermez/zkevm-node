@@ -204,7 +204,6 @@ func (s *Sequencer) selectTxs(txs, claimsTxs []pool.Transaction, root []byte) (t
 	if err != nil {
 		return txselector.SelectTxsOutput{}, false
 	}
-
 	bp, err := s.State.NewBatchProcessor(s.ctx, s.Address, root, "")
 	if err != nil {
 		log.Errorf("failed to create new batch processor, err: %v", err)

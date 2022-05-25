@@ -10,7 +10,6 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -28,7 +27,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
-	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
@@ -133,7 +131,6 @@ func start(ctx *cli.Context) error {
 			gpe = createGasPriceEstimator(c.GasPriceEstimator, st, npool)
 			go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
 		}
-
 	}
 
 	grpcClientConns = append(grpcClientConns, proverConn)
@@ -180,22 +177,6 @@ func newProverClient(c proverclient.Config) (proverclientpb.ZKProverServiceClien
 	return proverClient, proverConn
 }
 
-func newMTClient(c tree.ClientConfig) (pb.MTServiceClient, *grpc.ClientConn, context.CancelFunc) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	mtConn, err := grpc.DialContext(ctx, c.URI, opts...)
-
-	if err != nil {
-		log.Fatalf("fail to dial: %v", err)
-	}
-
-	mtClient := pb.NewMTServiceClient(mtConn)
-
-	return mtClient, mtConn, cancel
-}
-
 func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st *state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
 	genesisBlock, err := etherman.EtherClient.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(networkConfig.GenBlockNumber))
 	if err != nil {
@@ -219,7 +200,6 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 }
 
 func runJSONRpcServer(c config.Config, pool *pool.Pool, st *state.State, chainID uint64, gpe gasPriceEstimator) {
-
 	storage, err := jsonrpc.NewPostgresStorage(c.Database)
 	if err != nil {
 		log.Fatal(err)
