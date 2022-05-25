@@ -16,6 +16,8 @@ import (
 // ethereum.
 type etherman interface {
 	ConsolidateBatch(batchNum *big.Int, proof *pb.GetProofResponse) (*types.Transaction, error)
+	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
+	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 }
 
 // aggregatorTxProfitabilityChecker interface for different profitability
