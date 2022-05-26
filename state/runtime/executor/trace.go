@@ -19,20 +19,20 @@ type Context struct {
 }
 
 type Step struct {
-	StateRoot string `json:"staterRoot"`
-	Depth     int    `json:"depth"`
-	Pc        uint64 `json:"pc"`
-	Gas       string `json:"gas"`
-	OpCode    string `json:"opcode"`
-	Refund    string `json:"refund"`
-	Op        string `json:"op"`
-	Error     string `json:"error"`
-	// Storage   map[common.Hash]common.Hash `json:"storage"`
-	Step     uint32   `json:"step"`
-	Contract Contract `json:"contract"`
-	GasCost  string   `json:"gasCost"`
-	Stack    []string `json:"stack"`
-	Memory   []string `json:"memory"`
+	StateRoot string            `json:"staterRoot"`
+	Depth     int               `json:"depth"`
+	Pc        uint64            `json:"pc"`
+	Gas       string            `json:"gas"`
+	OpCode    string            `json:"opcode"`
+	Refund    string            `json:"refund"`
+	Op        string            `json:"op"`
+	Error     string            `json:"error"`
+	Storage   map[string]string `json:"storage"`
+	Step      uint32            `json:"step"`
+	Contract  Contract          `json:"contract"`
+	GasCost   string            `json:"gasCost"`
+	Stack     []string          `json:"stack"`
+	Memory    []string          `json:"memory"`
 }
 
 type Contract struct {

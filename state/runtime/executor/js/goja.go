@@ -26,7 +26,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	// tracers.RegisterLookup(true, newJsTracer)
+	tracers.RegisterLookup(true, NewJsTracer)
 }
 
 // bigIntProgram is compiled once and the exported function mostly invoked to convert
@@ -107,7 +107,10 @@ type jsTracer struct {
 	frameResultValue goja.Value
 }
 
-func NewJsTracer(code string) (tracers.Tracer, error) {
+func NewJsTracer(code string, ctx *tracers.Context) (tracers.Tracer, error) {
+	if c, ok := assetTracers[code]; ok {
+		code = c
+	}
 	vm := goja.New()
 	// By default field names are exported to JS as is, i.e. capitalized.
 	vm.SetFieldNameMapper(goja.UncapFieldNameMapper())
@@ -115,6 +118,17 @@ func NewJsTracer(code string) (tracers.Tracer, error) {
 		vm:  vm,
 		ctx: make(map[string]goja.Value),
 	}
+	if ctx == nil {
+		ctx = new(tracers.Context)
+	}
+	if ctx.BlockHash != (common.Hash{}) {
+		t.ctx["blockHash"] = vm.ToValue(ctx.BlockHash.Bytes())
+		if ctx.TxHash != (common.Hash{}) {
+			t.ctx["txIndex"] = vm.ToValue(ctx.TxIndex)
+			t.ctx["txHash"] = vm.ToValue(ctx.TxHash.Bytes())
+		}
+	}
+
 	t.setTypeConverters()
 	t.setBuiltinFunctions()
 	ret, err := vm.RunString("(" + code + ")")

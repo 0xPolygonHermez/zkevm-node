@@ -15,22 +15,35 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/runtime/executor/fakevm"
 	"github.com/hermeznetwork/hermez-core/state/runtime/executor/js"
+	"github.com/hermeznetwork/hermez-core/state/runtime/executor/tracers"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
 
-type account struct{}
+type account struct {
+	address common.Address
+}
 
-func (account) SubBalance(amount *big.Int)                          {}
-func (account) AddBalance(amount *big.Int)                          {}
-func (account) SetAddress(common.Address)                           {}
-func (account) Value() *big.Int                                     { return nil }
-func (account) SetBalance(*big.Int)                                 {}
-func (account) SetNonce(uint64)                                     {}
-func (account) Balance() *big.Int                                   { return nil }
-func (account) Address() common.Address                             { return common.Address{} }
-func (account) SetCode(common.Hash, []byte)                         {}
-func (account) ForEachStorage(cb func(key, value common.Hash) bool) {}
+func newAccount(address common.Address) *account {
+	return &account{address: address}
+}
 
+/*
+func (account) SubBalance(amount *big.Int)  { panic("SubBalance NOT IMPLEMENTED") }
+func (account) AddBalance(amount *big.Int)  { panic("AddBalance NOT IMPLEMENTED") }
+func (account) SetAddress(common.Address)   { panic("SetAddress NOT IMPLEMENTED") }
+func (account) Value() *big.Int             { panic("Value NOT IMPLEMENTED") } // { return nil }
+func (account) SetBalance(*big.Int)         { panic("SetBalance NOT IMPLEMENTED") }
+func (account) SetNonce(uint64)             { panic("SetNonce NOT IMPLEMENTED") }
+func (account) Balance() *big.Int           { panic("Balance NOT IMPLEMENTED") } // { return nil }
+*/
+func (a *account) Address() common.Address { return a.address } // { return common.Address{} }
+/*
+func (account) SetCode(common.Hash, []byte) { panic("SetCode NOT IMPLEMENTED") }
+func (account) ForEachStorage(cb func(key, value common.Hash) bool) {
+	panic("ForEachStorage IMPLEMENTED")
+}
+*/
 func Test_Trace(t *testing.T) {
 	var (
 		trace  Trace
@@ -57,7 +70,7 @@ func Test_Trace(t *testing.T) {
 	err = json.Unmarshal(byteCode, &tracer)
 	require.NoError(t, err)
 
-	jsTracer, err := js.NewJsTracer(string(tracer.Code))
+	jsTracer, err := js.NewJsTracer(string(tracer.Code), new(tracers.Context))
 	require.NoError(t, err)
 
 	contextGas, ok := new(big.Int).SetString(trace.Context.Gas, 10)
@@ -75,20 +88,16 @@ func Test_Trace(t *testing.T) {
 
 	log.Debugf("%v Steps", len(trace.Steps))
 
+	stack := fakevm.Newstack()
+	memory := fakevm.NewMemory()
+
 	for _, step := range trace.Steps {
-		// Prepare Scope
-		memory := fakevm.NewMemory()
-		for offset, memoryContent := range step.Memory {
-			memory.Set(uint64(offset), uint64(len(memoryContent)), common.Hex2Bytes(memoryContent))
-		}
-
-		stack := fakevm.Newstack()
-
 		scope := &fakevm.ScopeContext{
-			Contract: vm.NewContract(&account{}, &account{}, big.NewInt(0), 0),
+			Contract: vm.NewContract(newAccount(common.HexToAddress(step.Contract.Caller)), newAccount(common.HexToAddress(step.Contract.Address)), big.NewInt(0), 0),
 			Memory:   memory,
 			Stack:    stack,
 		}
+
 		gas, ok := new(big.Int).SetString(step.Gas, 10)
 		require.Equal(t, true, ok)
 
@@ -104,7 +113,13 @@ func Test_Trace(t *testing.T) {
 		require.Equal(t, true, ok)
 
 		opcode := vm.OpCode(op.Uint64()).String()
-		log.Debugf("OpCode=%v", opcode)
+		// log.Debugf("OpCode=%v", opcode)
+
+		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" {
+			log.Debugf(opcode)
+			jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
+			// jsTracer.CaptureExit([]byte{}, gasCost.Uint64(), fmt.Errorf(step.Error))
+		}
 
 		if step.Error != "" {
 			err := fmt.Errorf(step.Error)
@@ -112,13 +127,32 @@ func Test_Trace(t *testing.T) {
 		} else {
 			if opcode == "CALL" {
 				log.Debugf("THIS IS JUST TO SET A BREAKPOINT")
+				log.Debugf(step.Contract.Input)
 			}
 			jsTracer.CaptureState(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), step.Depth, nil)
 		}
 
+		// Set Memory
+		memory = fakevm.NewMemory()
+		memory.Resize(uint64(32 * len(step.Memory)))
+		// log.Debugf("Memory len = %v", memory.Len())
+		for offset, memoryContent := range step.Memory {
+			// memory.Set32()
+			memory.Set(uint64(offset*32), 1, common.Hex2Bytes(memoryContent))
+		}
+		// Set Stack
+		stack = fakevm.Newstack()
+		for _, stackContent := range step.Stack {
+			// log.Debugf(stackContent)
+			valueBigInt, ok := new(big.Int).SetString(stackContent, 0)
+			require.Equal(t, true, ok)
+			value, _ := uint256.FromBig(valueBigInt)
+			stack.Push(value)
+		}
+
 		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" {
 			log.Debugf(opcode)
-			jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
+			// jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
 			jsTracer.CaptureExit([]byte{}, gasCost.Uint64(), fmt.Errorf(step.Error))
 		}
 	}
