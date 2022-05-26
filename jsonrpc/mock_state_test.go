@@ -8,6 +8,8 @@ import (
 
 	common "github.com/ethereum/go-ethereum/common"
 
+	jsonrpc "github.com/hermeznetwork/hermez-core/jsonrpc"
+
 	mock "github.com/stretchr/testify/mock"
 
 	runtime "github.com/hermeznetwork/hermez-core/state/runtime"
@@ -471,15 +473,15 @@ func (_m *stateMock) GetTransactionReceipt(ctx context.Context, transactionHash 
 }
 
 // NewBatchProcessor provides a mock function with given fields: ctx, sequencerAddress, stateRoot, txBundleID
-func (_m *stateMock) NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte, txBundleID string) (*state.BatchProcessor, error) {
+func (_m *stateMock) NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte, txBundleID string) (jsonrpc.BatchProcessorInterface, error) {
 	ret := _m.Called(ctx, sequencerAddress, stateRoot, txBundleID)
 
-	var r0 *state.BatchProcessor
-	if rf, ok := ret.Get(0).(func(context.Context, common.Address, []byte, string) *state.BatchProcessor); ok {
+	var r0 jsonrpc.BatchProcessorInterface
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address, []byte, string) jsonrpc.BatchProcessorInterface); ok {
 		r0 = rf(ctx, sequencerAddress, stateRoot, txBundleID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*state.BatchProcessor)
+			r0 = ret.Get(0).(jsonrpc.BatchProcessorInterface)
 		}
 	}
 

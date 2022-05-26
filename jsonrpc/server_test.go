@@ -18,14 +18,18 @@ type mockedServer struct {
 	ChainID          uint64
 	SequencerAddress common.Address
 
-	Server            *jsonrpc.Server
+	Server *jsonrpc.Server
+}
+
+type mocks struct {
 	Pool              *poolMock
 	State             *stateMock
+	BatchProcessor    *batchProcessorMock
 	GasPriceEstimator *gasPriceEstimatorMock
 	Storage           *storageMock
 }
 
-func newMockedServer(t *testing.T) (*mockedServer, *ethclient.Client) {
+func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	const (
 		defaultChainID      = 1000
 		chainID             = 1001
@@ -45,6 +49,7 @@ func newMockedServer(t *testing.T) (*mockedServer, *ethclient.Client) {
 	sequencerAddress := common.HexToAddress(sequencerAddressHex)
 	pool := newPoolMock(t)
 	state := newStateMock(t)
+	batchProcessor := newBatchProcessorMock(t)
 	gasPriceEstimator := newGasPriceEstimatorMock(t)
 	storage := newStorageMock(t)
 
@@ -67,17 +72,21 @@ func newMockedServer(t *testing.T) (*mockedServer, *ethclient.Client) {
 	ethClient, err := ethclient.Dial(serverUrl)
 	require.NoError(t, err)
 
-	ms := &mockedServer{
+	msv := &mockedServer{
 		DefaultChainID:   defaultChainID,
 		ChainID:          chainID,
 		SequencerAddress: sequencerAddress,
 
-		Server:            server,
+		Server: server,
+	}
+
+	mks := &mocks{
 		Pool:              pool,
 		State:             state,
+		BatchProcessor:    batchProcessor,
 		GasPriceEstimator: gasPriceEstimator,
 		Storage:           storage,
 	}
 
-	return ms, ethClient
+	return msv, mks, ethClient
 }
