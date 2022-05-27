@@ -519,7 +519,7 @@ func (s *State) ReplayTransaction(transactionHash common.Hash, traceMode []strin
 	evmRT.EnableInstrumentation()
 	bp.Host.setRuntime(evmRT)
 
-	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress)
+	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress, tx.ChainId().Uint64())
 
 	// Create Trace using VMTrace as data source
 	traces := []instrumentation.Trace{}
@@ -638,7 +638,7 @@ func (s *State) ReplayBatchTransactions(batchNumber uint64, traceMode []string) 
 			})
 		}
 
-		result := bp.processTransaction(ctx, tx, from, sequencerAddress)
+		result := bp.processTransaction(ctx, tx, from, sequencerAddress, tx.ChainId().Uint64())
 
 		// Create Trace using VMTrace as data source
 		traces := []instrumentation.Trace{}
