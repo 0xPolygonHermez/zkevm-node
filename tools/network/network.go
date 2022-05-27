@@ -26,8 +26,8 @@ import (
 const (
 	// The account on which we make the deposit needs to be fixed so that the
 	// hardcoded proof used in the claim can work.
-	bridgeDepositReceiverAddress    = "0xc949254d682d8c9ad5682521675b8f43b102aec4"
-	bridgeDepositReceiverPrivateKey = "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
+	BridgeDepositReceiverAddress    = "0xc949254d682d8c9ad5682521675b8f43b102aec4"
+	BridgeDepositReceiverPrivateKey = "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
 )
 
 type deposit struct {
@@ -228,7 +228,7 @@ func InitNetwork(
 
 	const destNetwork = uint32(1)
 	ethAddr := common.Address{}
-	destAddr := common.HexToAddress(bridgeDepositReceiverAddress)
+	destAddr := common.HexToAddress(BridgeDepositReceiverAddress)
 	err = sendL1Deposit(ctx, authDeployer, clientL1, ethAddr, depositAmount, destNetwork, &destAddr, nc.L1BridgeAddr, nc.TxTimeout)
 	if err != nil {
 		return err
@@ -317,7 +317,7 @@ func InitNetwork(
 
 	// Preparing bridge receiver acc info
 	log.Infof("Creating bridge receiver authorization")
-	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(bridgeDepositReceiverPrivateKey, "0x"))
+	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(BridgeDepositReceiverPrivateKey, "0x"))
 	if err != nil {
 		return err
 	}
