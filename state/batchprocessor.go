@@ -558,6 +558,9 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 }
 
 func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address, txGas uint64) *runtime.ExecutionResult {
+	incrementNonce := true
+	senderNonce, _ := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot, b.Host.txBundleID)
+	log.Debugf("Sender Nonce before execution: %v", senderNonce.Uint64())
 	root := b.Host.stateRoot
 	code := b.Host.GetCode(ctx, receiverAddress)
 	log.Debugf("smart contract execution %v", receiverAddress)
@@ -571,6 +574,9 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	log.Debugf("Gas left after execution: %v", result.GasLeft)
 	log.Debugf("Gas used on execution: %v", result.GasUsed)
 
+	senderNonce, _ = b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot, b.Host.txBundleID)
+	log.Debugf("Sender Nonce after execution: %v", senderNonce.Uint64())
+
 	if result.Reverted() {
 		b.Host.stateRoot = root
 	}
@@ -582,10 +588,12 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 		if transferResult.Err != nil {
 			// Revert the whole execution
 			b.Host.stateRoot = root
-			transferResult.StateRoot = root
-			return transferResult
+		} else {
+			incrementNonce = false
 		}
-	} else if senderAddress != ZeroAddress {
+	}
+
+	if incrementNonce && senderAddress != ZeroAddress {
 		// Increment sender nonce
 		senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot, b.Host.txBundleID)
 		if err != nil {
@@ -607,6 +615,9 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	}
 
 	result.StateRoot = b.Host.stateRoot
+
+	senderNonce, _ = b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot, b.Host.txBundleID)
+	log.Debugf("Sender Nonce at the end execution: %v", senderNonce.Uint64())
 
 	return result
 }
