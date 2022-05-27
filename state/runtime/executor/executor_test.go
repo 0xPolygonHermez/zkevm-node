@@ -133,13 +133,16 @@ func Test_Trace(t *testing.T) {
 		}
 
 		// Set Memory
-		memory = fakevm.NewMemory()
-		memory.Resize(uint64(32 * len(step.Memory)))
-		// log.Debugf("Memory len = %v", memory.Len())
-		for offset, memoryContent := range step.Memory {
-			// memory.Set32()
-			memory.Set(uint64(offset*32), 1, common.Hex2Bytes(memoryContent))
+		if len(step.Memory) > 0 {
+			memory = fakevm.NewMemory()
+			memory.Resize(uint64(1024))
+			// log.Debugf("Memory len = %v", memory.Len())
+			for offset, memoryContent := range step.Memory {
+				// memory.Set32()
+				memory.Set(uint64(offset*32), 1, common.Hex2Bytes(memoryContent))
+			}
 		}
+
 		// Set Stack
 		stack = fakevm.Newstack()
 		for _, stackContent := range step.Stack {
@@ -152,6 +155,7 @@ func Test_Trace(t *testing.T) {
 
 		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" {
 			log.Debugf(opcode)
+			memory.Print()
 			// jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
 			jsTracer.CaptureExit([]byte{}, gasCost.Uint64(), fmt.Errorf(step.Error))
 		}
