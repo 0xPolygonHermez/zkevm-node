@@ -35,7 +35,7 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 
 	lastBatchNumber, err := e.state.GetLastBatchNumber(ctx, "")
 	if err != nil {
-		return nil, err
+		return "0x0", nil
 	}
 
 	return hex.EncodeUint64(lastBatchNumber), nil
@@ -62,11 +62,6 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 		arg.Gas = &gas
 	}
 
-	if arg.From == nil {
-		from := state.ZeroAddress
-		arg.From = &from
-	}
-
 	tx := arg.ToTransaction()
 
 	ctx := context.Background()
@@ -86,7 +81,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 		return "0x", nil
 	}
 
-	result := bp.ProcessUnsignedTransaction(ctx, tx, *arg.From, e.sequencerAddress)
+	result := bp.ProcessUnsignedTransaction(ctx, tx, arg.From, e.sequencerAddress)
 	if result.Failed() {
 		log.Errorf("unable to execute call: %s", result.Err.Error())
 		return "0x", nil
@@ -109,12 +104,7 @@ func (e *Eth) ChainId() (interface{}, error) { //nolint:revive
 func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error) {
 	tx := arg.ToTransaction()
 
-	if arg.From == nil {
-		from := state.ZeroAddress
-		arg.From = &from
-	}
-
-	gasEstimation, err := e.state.EstimateGas(tx, *arg.From)
+	gasEstimation, err := e.state.EstimateGas(tx, arg.From)
 	return hex.EncodeUint64(gasEstimation), err
 }
 
@@ -123,7 +113,7 @@ func (e *Eth) GasPrice() (interface{}, error) {
 	ctx := context.Background()
 	gasPrice, err := e.gpe.GetAvgGasPrice(ctx)
 	if err != nil {
-		return nil, err
+		return "0x0", nil
 	}
 	if gasPrice != nil {
 		return hex.EncodeUint64(gasPrice.Uint64()), nil

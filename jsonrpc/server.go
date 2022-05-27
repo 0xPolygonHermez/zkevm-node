@@ -158,10 +158,16 @@ func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte) {
 
 	response := s.handler.Handle(request)
 
-	respBytes, _ := response.Bytes()
+	respBytes, err := json.Marshal(response)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
 	_, err = w.Write(respBytes)
 	if err != nil {
-		log.Error(err)
+		handleError(w, err)
+		return
 	}
 }
 

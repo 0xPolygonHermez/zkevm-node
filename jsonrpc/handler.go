@@ -61,7 +61,7 @@ func (d *Handler) Handle(req Request) Response {
 
 	service, fd, err := d.getFnHandler(req)
 	if err != nil {
-		return NewRPCResponse(req, nil, err)
+		return NewResponse(req, nil, err)
 	}
 
 	inArgs := make([]reflect.Value, fd.inNum)
@@ -76,14 +76,14 @@ func (d *Handler) Handle(req Request) Response {
 
 	if fd.numParams() > 0 {
 		if err := json.Unmarshal(req.Params, &inputs); err != nil {
-			return NewRPCResponse(req, nil, newInvalidParamsError("Invalid Params"))
+			return NewResponse(req, nil, newInvalidParamsError("Invalid Params"))
 		}
 	}
 
 	output := fd.fv.Call(inArgs)
 	if err := getError(output[1]); err != nil {
 		log.Errorf("failed to call method %s: %v. Params: %v", req.Method, err, string(req.Params))
-		return NewRPCResponse(req, nil, newInvalidRequestError(err.Error()))
+		return NewResponse(req, nil, newInvalidRequestError(err.Error()))
 	}
 
 	var data []byte
@@ -92,7 +92,7 @@ func (d *Handler) Handle(req Request) Response {
 		data, _ = json.Marshal(res)
 	}
 
-	return NewRPCResponse(req, data, nil)
+	return NewResponse(req, &data, nil)
 }
 
 func (d *Handler) registerService(serviceName string, service interface{}) {

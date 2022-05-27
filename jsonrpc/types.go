@@ -99,7 +99,7 @@ func encodeToHex(b []byte) []byte {
 
 // txnArgs is the transaction argument for the rpc endpoints
 type txnArgs struct {
-	From     *common.Address
+	From     common.Address
 	To       *common.Address
 	Gas      *argUint64
 	GasPrice *argBytes

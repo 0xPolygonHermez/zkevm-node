@@ -17,63 +17,12 @@ type Request struct {
 	Params  json.RawMessage `json:"params,omitempty"`
 }
 
-// Response is a jsonrpc response interface
-type Response interface {
-	Id() interface{}
-	Data() json.RawMessage
-	Bytes() ([]byte, error)
-}
-
-// ErrorResponse is a jsonrpc error response
-type ErrorResponse struct {
-	JSONRPC string       `json:"jsonrpc"`
-	ID      interface{}  `json:"id,omitempty"`
-	Error   *ErrorObject `json:"error"`
-}
-
-// Id returns error response id
-func (e *ErrorResponse) Id() interface{} { //nolint:revive
-	return e.ID
-}
-
-// Data returns ErrorObject
-func (e *ErrorResponse) Data() json.RawMessage {
-	data, err := json.Marshal(e.Error)
-	if err != nil {
-		return json.RawMessage(err.Error())
-	}
-	return data
-}
-
-// Bytes return the serialized response
-func (e *ErrorResponse) Bytes() ([]byte, error) {
-	return json.Marshal(e)
-}
-
-// SuccessResponse is a jsonrpc  success response
-type SuccessResponse struct {
+// Response is a jsonrpc  success response
+type Response struct {
 	JSONRPC string          `json:"jsonrpc"`
 	ID      interface{}     `json:"id"`
-	Result  json.RawMessage `json:"result"`
+	Result  json.RawMessage `json:"result,omitempty"`
 	Error   *ErrorObject    `json:"error,omitempty"`
-}
-
-// Id returns success response id
-func (s *SuccessResponse) Id() interface{} { //nolint:revive
-	return s.ID
-}
-
-// Data returns the result
-func (s *SuccessResponse) Data() json.RawMessage {
-	if s.Result != nil {
-		return s.Result
-	}
-	return json.RawMessage("No Data")
-}
-
-// Bytes return the serialized response
-func (s *SuccessResponse) Bytes() ([]byte, error) {
-	return json.Marshal(s)
 }
 
 // ErrorObject is a jsonrpc error
@@ -81,15 +30,6 @@ type ErrorObject struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
-}
-
-// Error implements error interface
-func (e *ErrorObject) Error() string {
-	data, err := json.Marshal(e)
-	if err != nil {
-		return fmt.Sprintf("jsonrpc.internal marshal error: %v", err)
-	}
-	return string(data)
 }
 
 const (
@@ -105,18 +45,14 @@ const (
 type BlockNumber int64
 
 func stringToBlockNumber(str string) (BlockNumber, error) {
-	if str == "" {
-		return 0, fmt.Errorf("value is empty")
-	}
-
 	str = strings.Trim(str, "\"")
 	switch str {
-	case "pending":
-		return PendingBlockNumber, nil
-	case "latest":
-		return LatestBlockNumber, nil
 	case "earliest":
 		return EarliestBlockNumber, nil
+	case "pending":
+		return PendingBlockNumber, nil
+	case "latest", "":
+		return LatestBlockNumber, nil
 	}
 
 	n, err := encoding.DecodeUint64orHex(&str)
@@ -176,25 +112,22 @@ func (i *Index) UnmarshalJSON(buffer []byte) error {
 	return nil
 }
 
-// NewRPCErrorResponse is used to create a custom error response
-func NewRPCErrorResponse(req Request, err detailedError) Response {
-	response := &ErrorResponse{
+// NewResponse returns Success/Error response object
+func NewResponse(req Request, reply *[]byte, err detailedError) Response {
+	var result json.RawMessage = nil
+	if reply != nil {
+		result = *reply
+	}
+
+	var errorObj *ErrorObject
+	if err != nil {
+		errorObj = &ErrorObject{err.Code(), err.Error(), nil}
+	}
+
+	return Response{
 		JSONRPC: req.JSONRPC,
 		ID:      req.ID,
-		Error:   &ErrorObject{err.Code(), err.Error(), nil},
+		Result:  result,
+		Error:   errorObj,
 	}
-	return response
-}
-
-// NewRPCResponse returns Success/Error response object
-func NewRPCResponse(req Request, reply []byte, err detailedError) Response {
-	var response Response
-	switch err.(type) {
-	case nil:
-		response = &SuccessResponse{JSONRPC: req.JSONRPC, ID: req.ID, Result: reply}
-	default:
-		response = NewRPCErrorResponse(req, err)
-	}
-
-	return response
 }
