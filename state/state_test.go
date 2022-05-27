@@ -2162,7 +2162,7 @@ func TestSCRevertedTransaction(t *testing.T) {
 	data = []byte{}
 	data = append(data, methodID...)
 
-	txRetrieveAfterFailValue := types.NewTransaction(3, scAddress, new(big.Int), state.TxTransferGas, new(big.Int).SetUint64(1), data)
+	txRetrieveAfterFailValue := types.NewTransaction(4, scAddress, new(big.Int), state.TxTransferGas, new(big.Int).SetUint64(1), data)
 	signedTxRetrieveAfterFailValue, err := auth.Signer(auth.From, txRetrieveAfterFailValue)
 	require.NoError(t, err)
 

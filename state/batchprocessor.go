@@ -211,7 +211,7 @@ func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Trans
 
 	if b.isSmartContractExecution(ctx, tx) {
 		log.Debug("smart contract execution")
-		return b.execute(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas())
+		return b.execute(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas(), chainID)
 	}
 
 	if b.isTransfer(ctx, tx) {
@@ -557,7 +557,7 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 	return nil
 }
 
-func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address, txGas uint64) *runtime.ExecutionResult {
+func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address, txGas uint64, chainID uint64) *runtime.ExecutionResult {
 	var transferResult *runtime.ExecutionResult
 	incrementNonce := true
 
@@ -579,7 +579,7 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 		}
 	}
 
-	err = b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance, tx.ChainId().Uint64())
+	err = b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance, chainID)
 	if err != nil {
 		return &runtime.ExecutionResult{
 			Err:       err,
