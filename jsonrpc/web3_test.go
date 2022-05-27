@@ -21,7 +21,8 @@ func TestSha3(t *testing.T) {
 	web3Endpoints := Web3{}
 
 	helloWorld := argBig{}
-	helloWorld.UnmarshalText([]byte("0x68656c6c6f20776f726c64"))
+	err := helloWorld.UnmarshalText([]byte("0x68656c6c6f20776f726c64"))
+	require.NoError(t, err)
 
 	resultInterface, err := web3Endpoints.Sha3(helloWorld)
 	require.NoError(t, err)

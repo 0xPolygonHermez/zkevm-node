@@ -20,7 +20,7 @@ func TestBlockNumber(t *testing.T) {
 	const expectedBlockNumber = uint64(10)
 
 	server, mocks, ethClient := newMockedServer(t)
-	defer server.Server.Stop()
+	defer server.Stop()
 
 	mocks.State.
 		On("GetLastBatchNumber", context.Background(), "").
@@ -34,7 +34,7 @@ func TestBlockNumber(t *testing.T) {
 
 func TestCall(t *testing.T) {
 	server, mocks, ethClient := newMockedServer(t)
-	defer server.Server.Stop()
+	defer server.Stop()
 
 	testCases := []struct {
 		name     string
@@ -50,20 +50,20 @@ func TestCall(t *testing.T) {
 		{
 			name:           "Transaction with all information",
 			from:           common.HexToAddress("0x1"),
-			to:             ptr(common.HexToAddress("0x2")),
+			to:             addressPtr(common.HexToAddress("0x2")),
 			gas:            uint64(24000),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
-			expectedResult: ptr([]byte("hello world")),
+			expectedResult: bytesPtr([]byte("hello world")),
 		},
 		{
 			name:           "Transaction without from and gas",
-			to:             ptr(common.HexToAddress("0x2")),
+			to:             addressPtr(common.HexToAddress("0x2")),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
-			expectedResult: ptr([]byte("hello world")),
+			expectedResult: bytesPtr([]byte("hello world")),
 		},
 	}
 
@@ -127,12 +127,11 @@ func TestCall(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestChainID(t *testing.T) {
 	server, _, ethClient := newMockedServer(t)
-	defer server.Server.Stop()
+	defer server.Stop()
 
 	chainID, err := ethClient.ChainID(context.Background())
 	require.NoError(t, err)
@@ -140,12 +139,10 @@ func TestChainID(t *testing.T) {
 	assert.Equal(t, server.ChainID, chainID.Uint64())
 }
 
-// ptr returns a pointer to the provided value
-func ptr[T interface{}](i T) *T {
+func addressPtr(i common.Address) *common.Address {
 	return &i
 }
 
-// val return the value from the provided pointer
-func val[T interface{}](i *T) T {
-	return *i
+func bytesPtr(i []byte) *[]byte {
+	return &i
 }

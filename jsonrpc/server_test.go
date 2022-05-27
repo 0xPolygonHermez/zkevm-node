@@ -56,12 +56,17 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	server := jsonrpc.NewServer(cfg, defaultChainID, chainID, sequencerAddress,
 		pool, state, gasPriceEstimator, storage)
 
-	go server.Start()
+	go func() {
+		err := server.Start()
+		if err != nil {
+			panic(err)
+		}
+	}()
 
-	serverUrl := fmt.Sprintf("http://%s:%d", cfg.Host, cfg.Port)
+	serverURL := fmt.Sprintf("http://%s:%d", cfg.Host, cfg.Port)
 	for {
 		log.Debugf("waiting server to get ready...")
-		res, err := http.Get(serverUrl)
+		res, err := http.Get(serverURL) //nolint:gosec
 		if err == nil && res.StatusCode == http.StatusOK {
 			log.Debugf("server ready!")
 			break
@@ -69,7 +74,7 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	ethClient, err := ethclient.Dial(serverUrl)
+	ethClient, err := ethclient.Dial(serverURL)
 	require.NoError(t, err)
 
 	msv := &mockedServer{
@@ -89,4 +94,11 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	}
 
 	return msv, mks, ethClient
+}
+
+func (s *mockedServer) Stop() {
+	err := s.Server.Stop()
+	if err != nil {
+		panic(err)
+	}
 }
