@@ -125,7 +125,7 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 		b.Host.transactionContext.index = index
 		b.Host.transactionContext.batchNumber = batch.Number().Int64()
 
-		result := b.processTransaction(ctx, tx, senderAddress, batch.Sequencer, tx.ChainId().Uint64())
+		result := b.processTransaction(ctx, tx, senderAddress, batch.Sequencer, tx.ChainId())
 
 		if result.Err != nil {
 			log.Warnf("Error processing transaction %s: %v", tx.Hash().String(), result.Err)
@@ -160,7 +160,7 @@ func (b *BatchProcessor) ProcessTransaction(ctx context.Context, tx *types.Trans
 		return &runtime.ExecutionResult{Err: err, StateRoot: b.Host.stateRoot}
 	}
 
-	result := b.processTransaction(ctx, tx, senderAddress, sequencerAddress, tx.ChainId().Uint64())
+	result := b.processTransaction(ctx, tx, senderAddress, sequencerAddress, tx.ChainId())
 
 	if !b.Host.transactionContext.simulationMode {
 		b.CumulativeGasUsed += result.GasUsed
@@ -175,7 +175,7 @@ func (b *BatchProcessor) ProcessTransaction(ctx context.Context, tx *types.Trans
 // ProcessUnsignedTransaction processes an unsigned transaction from the given
 // sender.
 func (b *BatchProcessor) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult {
-	return b.processTransaction(ctx, tx, senderAddress, sequencerAddress, b.Host.State.cfg.DefaultChainID)
+	return b.processTransaction(ctx, tx, senderAddress, sequencerAddress, new(big.Int).SetUint64(b.Host.State.cfg.DefaultChainID))
 }
 
 // IsContractCreation checks if the tx is a contract creation
@@ -193,7 +193,7 @@ func (b *BatchProcessor) isTransfer(ctx context.Context, tx *types.Transaction) 
 	return !b.isContractCreation(tx) && !b.isSmartContractExecution(ctx, tx) && tx.Value().Uint64() != 0
 }
 
-func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address, chainID uint64) *runtime.ExecutionResult {
+func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address, chainID *big.Int) *runtime.ExecutionResult {
 	log.Debugf("Processing tx: %v", tx.Hash())
 
 	// Set transaction context
@@ -321,7 +321,7 @@ func (b *BatchProcessor) transfer(ctx context.Context, tx *types.Transaction, se
 		}
 	}
 
-	err = b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance, tx.ChainId().Uint64())
+	err = b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance, tx.ChainId())
 	if err != nil {
 		result.Err = err
 		result.StateRoot = b.Host.stateRoot
@@ -441,10 +441,10 @@ func (b *BatchProcessor) CheckTransaction(ctx context.Context, tx *types.Transac
 		}
 	}
 
-	return b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance, tx.ChainId().Uint64())
+	return b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance, tx.ChainId())
 }
 
-func (b *BatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, senderNonce, senderBalance *big.Int, chainID uint64) error {
+func (b *BatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, senderNonce, senderBalance *big.Int, chainID *big.Int) error {
 	if !b.Host.transactionContext.simulationMode {
 		// Check balance
 		if senderBalance.Cmp(tx.Cost()) < 0 {
@@ -466,7 +466,7 @@ func (b *BatchProcessor) checkTransaction(ctx context.Context, tx *types.Transac
 		}
 
 		// Check ChainID
-		if chainID != b.SequencerChainID && chainID != b.Host.State.cfg.DefaultChainID {
+		if chainID.Uint64() != b.SequencerChainID && chainID.Uint64() != b.Host.State.cfg.DefaultChainID {
 			log.Debugf("Batch ChainID: %v", b.SequencerChainID)
 			log.Debugf("Transaction ChainID: %v", chainID)
 			return ErrInvalidChainID
@@ -557,7 +557,7 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 	return nil
 }
 
-func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address, txGas uint64, chainID uint64) *runtime.ExecutionResult {
+func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address, txGas uint64, chainID *big.Int) *runtime.ExecutionResult {
 	var transferResult *runtime.ExecutionResult
 	incrementNonce := true
 
@@ -677,7 +677,7 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 		}
 	}
 
-	err = b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance, tx.ChainId().Uint64())
+	err = b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance, tx.ChainId())
 	if err != nil {
 		return &runtime.ExecutionResult{
 			GasLeft:   0,

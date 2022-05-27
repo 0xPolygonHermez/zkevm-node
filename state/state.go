@@ -328,7 +328,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		if testBp.isContractCreation(transaction) {
 			testResult = testBp.create(ctx, transaction, senderAddress, sequencerAddress, gas)
 		} else if testBp.isSmartContractExecution(ctx, transaction) {
-			testResult = testBp.execute(ctx, transaction, senderAddress, *receiverAddress, sequencerAddress, gas, transaction.ChainId().Uint64())
+			testResult = testBp.execute(ctx, transaction, senderAddress, *receiverAddress, sequencerAddress, gas, transaction.ChainId())
 		} else {
 			testResult = testBp.transfer(ctx, transaction, senderAddress, *receiverAddress, sequencerAddress, gas)
 		}
@@ -520,7 +520,7 @@ func (s *State) ReplayTransaction(transactionHash common.Hash, traceMode []strin
 	bp.Host.setRuntime(evmRT)
 	bp.SetSimulationMode(true)
 
-	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress, tx.ChainId().Uint64())
+	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress, tx.ChainId())
 
 	// Create Trace using VMTrace as data source
 	traces := []instrumentation.Trace{}
@@ -639,7 +639,7 @@ func (s *State) ReplayBatchTransactions(batchNumber uint64, traceMode []string) 
 			})
 		}
 
-		result := bp.processTransaction(ctx, tx, from, sequencerAddress, tx.ChainId().Uint64())
+		result := bp.processTransaction(ctx, tx, from, sequencerAddress, tx.ChainId())
 
 		// Create Trace using VMTrace as data source
 		traces := []instrumentation.Trace{}
