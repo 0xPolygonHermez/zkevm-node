@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -20,6 +21,7 @@ type Eth struct {
 	state            stateInterface
 	sequencerAddress common.Address
 	gpe              gasPriceEstimator
+	storage          storageInterface
 }
 
 type blockNumberOrHash struct {
@@ -224,21 +226,114 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 	return argBytes(code), nil
 }
 
+// GetCompilers eth_getCompilers
+func (e *Eth) GetCompilers() (interface{}, error) {
+	return []interface{}{}, nil
+}
+
+// GetFilterChanges polling method for a filter, which returns
+// an array of logs which occurred since last poll.
+func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
+	filter, err := e.storage.GetFilter(uint64(filterID))
+	if errors.Is(err, ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	err = e.storage.UpdateFilterLastPoll(filter.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	switch filter.Type {
+	case FilterTypeBlock:
+		{
+			res, err := e.state.GetBatchHashesSince(context.Background(), filter.LastPoll, "")
+			if err != nil {
+				return nil, err
+			}
+			if len(res) == 0 {
+				return nil, nil
+			}
+			return res, nil
+		}
+	case FilterTypePendingTx:
+		{
+			res, err := e.pool.GetPendingTxHashesSince(context.Background(), filter.LastPoll)
+			if err != nil {
+				return nil, err
+			}
+			if len(res) == 0 {
+				return nil, nil
+			}
+			return res, nil
+		}
+	case FilterTypeLog:
+		{
+			filterParameters := &LogFilter{}
+			err = json.Unmarshal([]byte(filter.Parameters), filterParameters)
+			if err != nil {
+				return nil, err
+			}
+
+			filterParameters.Since = &filter.LastPoll
+
+			resInterface, err := e.GetLogs(filterParameters)
+			if err != nil {
+				return nil, err
+			}
+			res := resInterface.([]rpcLog)
+			if len(res) == 0 {
+				return nil, nil
+			}
+			return res, nil
+		}
+	default:
+		return nil, nil
+	}
+}
+
+// GetFilterLogs returns an array of all logs matching filter
+// with given id.
+func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
+	filter, err := e.storage.GetFilter(uint64(filterID))
+	if errors.Is(err, ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	if filter.Type != FilterTypeLog {
+		return nil, nil
+	}
+
+	filterParameters := &LogFilter{}
+	err = json.Unmarshal([]byte(filter.Parameters), filterParameters)
+	if err != nil {
+		return nil, err
+	}
+
+	filterParameters.Since = nil
+
+	return e.GetLogs(filterParameters)
+}
+
 // GetLogs returns a list of logs accordingly to the provided filter
 func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 	ctx := context.Background()
 
-	fromBlock, err := filter.fromBlock.getNumericBlockNumber(ctx, e.state)
+	fromBlock, err := filter.FromBlock.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
 
-	toBlock, err := filter.toBlock.getNumericBlockNumber(ctx, e.state)
+	toBlock, err := filter.ToBlock.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
 	}
 
-	logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash, "")
+	logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash, filter.Since, "")
 	if err != nil {
 		return nil, err
 	}
@@ -401,6 +496,42 @@ func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 	return stateReceiptToRPCReceipt(r), nil
 }
 
+// NewBlockFilter creates a filter in the node, to notify when
+// a new block arrives. To check if the state has changed,
+// call eth_getFilterChanges.
+func (e *Eth) NewBlockFilter() (interface{}, error) {
+	id, err := e.storage.NewBlockFilter()
+	if err != nil {
+		return nil, err
+	}
+
+	return argUint64(id), nil
+}
+
+// NewFilter creates a filter object, based on filter options,
+// to notify when the state changes (logs). To check if the state
+// has changed, call eth_getFilterChanges.
+func (e *Eth) NewFilter(filter *LogFilter) (interface{}, error) {
+	id, err := e.storage.NewLogFilter(*filter)
+	if err != nil {
+		return nil, err
+	}
+
+	return argUint64(id), nil
+}
+
+// NewPendingTransactionFilter creates a filter in the node, to
+// notify when new pending transactions arrive. To check if the
+// state has changed, call eth_getFilterChanges.
+func (e *Eth) NewPendingTransactionFilter(filterID argUint64) (interface{}, error) {
+	id, err := e.storage.NewPendingTransactionFilter()
+	if err != nil {
+		return nil, err
+	}
+
+	return argUint64(id), nil
+}
+
 // SendRawTransaction sends a raw transaction
 func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 	tx, err := hexToTx(input)
@@ -417,6 +548,14 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 	log.Debugf("TX added to the pool: %v", tx.Hash().Hex())
 
 	return tx.Hash().Hex(), nil
+}
+
+// UninstallFilter uninstalls a filter with given id. Should
+// always be called when watch is no longer needed. Additionally
+// Filters timeout when they aren’t requested with
+// eth_getFilterChanges for a period of time.
+func (e *Eth) UninstallFilter(filterID argUint64) (interface{}, error) {
+	return e.storage.UninstallFilter(uint64(filterID))
 }
 
 // Syncing returns an object with data about the sync status or false.
@@ -464,6 +603,11 @@ func (e *Eth) GetUncleCountByBlockHash() (interface{}, error) {
 // matching the given block number
 func (e *Eth) GetUncleCountByBlockNumber() (interface{}, error) {
 	return "0x", nil
+}
+
+// ProtocolVersion
+func (e *Eth) ProtocolVersion() (interface{}, error) {
+	return "0x0", nil
 }
 
 func hexToTx(str string) (*types.Transaction, error) {

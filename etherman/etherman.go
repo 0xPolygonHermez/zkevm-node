@@ -174,8 +174,8 @@ func (etherMan *Client) sendBatch(ctx context.Context, opts *bind.TransactOpts, 
 	}
 	callData, err := hex.DecodeString(callDataHex)
 	if err != nil {
-		log.Error("error coverting hex string to []byte. Error: ", err)
-		return nil, errors.New("error coverting hex string to []byte. Error: " + err.Error())
+		log.Error("error converting hex string to []byte. Error: ", err)
+		return nil, errors.New("error converting hex string to []byte. Error: " + err.Error())
 	}
 	tx, err := etherMan.PoE.SendBatch(etherMan.auth, callData, maticAmount)
 	if err != nil {
@@ -573,4 +573,14 @@ func (etherMan *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*t
 // GetCurrentSequencerCollateral function allows to retrieve the current sequencer collateral from the smc.
 func (etherMan *Client) GetCurrentSequencerCollateral() (*big.Int, error) {
 	return etherMan.PoE.CalculateSequencerCollateral(&bind.CallOpts{Pending: false})
+}
+
+// GetTxReceipt function gets ethereum tx receipt
+func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	return etherMan.EtherClient.TransactionReceipt(ctx, txHash)
+}
+
+// GetTx function get ethereum tx
+func (etherMan *Client) GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error) {
+	return etherMan.EtherClient.TransactionByHash(ctx, txHash)
 }

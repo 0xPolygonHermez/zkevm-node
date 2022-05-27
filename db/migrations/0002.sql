@@ -10,7 +10,7 @@ CREATE TABLE pool.txs (
     gas_price DECIMAL(78,0),
     nonce     DECIMAL(78,0),
     is_claims BOOLEAN,
-    received_at timestamp
+    received_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE INDEX idx_state_gas_price_nonce ON pool.txs(state, gas_price, nonce);
