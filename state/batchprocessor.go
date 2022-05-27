@@ -558,6 +558,7 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 }
 
 func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address, txGas uint64) *runtime.ExecutionResult {
+	var transferResult *runtime.ExecutionResult
 	incrementNonce := true
 	senderNonce, _ := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot, b.Host.txBundleID)
 	log.Debugf("Sender Nonce before execution: %v", senderNonce.Uint64())
@@ -584,10 +585,11 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	if tx.Value().Uint64() != 0 && !result.Reverted() {
 		log.Debugf("contract execution includes value transfer = %v", tx.Value())
 		// Tansfer the value
-		transferResult := b.transfer(ctx, tx, senderAddress, contract.Address, sequencerAddress, txGas)
+		transferResult = b.transfer(ctx, tx, senderAddress, contract.Address, sequencerAddress, txGas)
 		if transferResult.Err != nil {
 			// Revert the whole execution
 			b.Host.stateRoot = root
+			result.Err = runtime.ErrExecutionReverted
 		} else {
 			incrementNonce = false
 		}
