@@ -13,7 +13,6 @@ const (
 	flagNetwork    = "network"
 	flagNetworkCfg = "network-cfg"
 	flagAmount     = "amount"
-	flagRemoteMT   = "remote-merkletree"
 	flagComponents = "components"
 )
 
@@ -61,12 +60,6 @@ func main() {
 			Name:     flagYes,
 			Aliases:  []string{"y"},
 			Usage:    "Automatically accepts any confirmation to execute the command",
-			Required: false,
-		},
-		&cli.BoolFlag{
-			Name:     flagRemoteMT,
-			Aliases:  []string{"mt"},
-			Usage:    "Connect to merkletree service instead of use local libraries",
 			Required: false,
 		},
 		&cli.StringSliceFlag{

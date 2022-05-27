@@ -16,16 +16,15 @@ services:
       - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
     command:
-      [
-        "./hezcore",
-        "run",
-        "--network",
-        "local",
-        "--cfg",
-        "/app/config.toml",
-        "--components",
-        "sequencer",
-      ]
+      - "./hezcore"
+      - "run"
+      - "--network"
+      - "local"
+      - "--cfg"
+      - "/app/config.toml"
+      - "--components"
+      - "sequencer"
+    
 
   hez-core-rpc:
     container_name: hez-core-rpc
@@ -40,16 +39,15 @@ services:
     volumes:
       - ./config/config.local.toml:/app/config.toml
     command:
-      [
-        "./hezcore",
-        "run",
-        "--network",
-        "local",
-        "--cfg",
-        "/app/config.toml",
-        "--components",
-        "rpc",
-      ]
+      - "./hezcore"
+      - "run"
+      - "--network"
+      - "local"
+      - "--cfg"
+      - "/app/config.toml"
+      - "--components"
+      - "rpc"
+      
   hez-core-agg:
     container_name: hez-core-agg
     image: hezcore
@@ -63,16 +61,15 @@ services:
       - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
     command:
-      [
-        "./hezcore",
-        "run",
-        "--network",
-        "local",
-        "--cfg",
-        "/app/config.toml",
-        "--components",
-        "aggregator",
-      ]
+      - "./hezcore"
+      - "run"
+      - "--network"
+      - "local"
+      - "--cfg"
+      - "/app/config.toml"
+      - "--components"
+      - "aggregator"
+      
   hez-core-sync:
     container_name: hez-core-sync
     image: hezcore
@@ -86,16 +83,15 @@ services:
       - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
     command:
-      [
-        "./hezcore",
-        "run",
-        "--network",
-        "local",
-        "--cfg",
-        "/app/config.toml",
-        "--components",
-        "synchronizer",
-      ]
+      - "./hezcore"
+      - "run"
+      - "--network"
+      - "local"
+      - "--cfg"
+      - "/app/config.toml"
+      - "--components"
+      - "synchronizer"
+      
   hez-postgres:
     container_name: hez-postgres
     image: postgres
