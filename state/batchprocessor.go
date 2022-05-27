@@ -580,7 +580,9 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 		// Tansfer the value
 		transferResult := b.transfer(ctx, tx, senderAddress, contract.Address, sequencerAddress, txGas)
 		if transferResult.Err != nil {
-			transferResult.StateRoot = b.Host.stateRoot
+			// Revert the whole execution
+			b.Host.stateRoot = root
+			transferResult.StateRoot = root
 			return transferResult
 		}
 	} else if senderAddress != ZeroAddress {
