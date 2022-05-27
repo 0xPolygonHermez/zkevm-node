@@ -2296,7 +2296,7 @@ func TestDelegatecall(t *testing.T) {
 	data = append(data, paddedAddress...)
 
 	txDelegateCall := types.NewTx(&types.LegacyTx{
-		Nonce:    3,
+		Nonce:    2,
 		To:       &senderSCAddress,
 		Value:    new(big.Int),
 		Gas:      uint64(sequencerBalance),
