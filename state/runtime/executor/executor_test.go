@@ -46,8 +46,9 @@ func (account) ForEachStorage(cb func(key, value common.Hash) bool) {
 */
 func Test_Trace(t *testing.T) {
 	var (
-		trace  Trace
-		tracer Tracer
+		trace             Trace
+		tracer            Tracer
+		cumulativeGasUsed uint64
 	)
 
 	traceFile, err := os.Open("demo_trace_2.json")
@@ -92,12 +93,6 @@ func Test_Trace(t *testing.T) {
 	memory := fakevm.NewMemory()
 
 	for _, step := range trace.Steps {
-		scope := &fakevm.ScopeContext{
-			Contract: vm.NewContract(newAccount(common.HexToAddress(step.Contract.Caller)), newAccount(common.HexToAddress(step.Contract.Address)), big.NewInt(0), 0),
-			Memory:   memory,
-			Stack:    stack,
-		}
-
 		gas, ok := new(big.Int).SetString(step.Gas, 10)
 		require.Equal(t, true, ok)
 
@@ -107,39 +102,39 @@ func Test_Trace(t *testing.T) {
 		value, ok := new(big.Int).SetString(step.Contract.Value, 10)
 		require.Equal(t, true, ok)
 
-		// log.Debugf("Op=%v", step.Op)
-
 		op, ok := new(big.Int).SetString(step.Op, 0)
 		require.Equal(t, true, ok)
 
-		opcode := vm.OpCode(op.Uint64()).String()
-		// log.Debugf("OpCode=%v", opcode)
-
-		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" {
-			log.Debugf(opcode)
-			jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
-			// jsTracer.CaptureExit([]byte{}, gasCost.Uint64(), fmt.Errorf(step.Error))
+		scope := &fakevm.ScopeContext{
+			Contract: vm.NewContract(newAccount(common.HexToAddress(step.Contract.Caller)), newAccount(common.HexToAddress(step.Contract.Address)), value, gas.Uint64()),
+			Memory:   memory,
+			Stack:    stack,
 		}
+
+		opcode := vm.OpCode(op.Uint64()).String()
 
 		if step.Error != "" {
 			err := fmt.Errorf(step.Error)
 			jsTracer.CaptureFault(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, err)
 		} else {
-			if opcode == "CALL" {
-				log.Debugf("THIS IS JUST TO SET A BREAKPOINT")
-				log.Debugf(step.Contract.Input)
-			}
 			jsTracer.CaptureState(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), step.Depth, nil)
+		}
+
+		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
+			log.Debugf(opcode)
+			log.Debugf("Input=%v", common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")))
+			scope.Memory.Print()
+			scope.Stack.Print()
+			jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
 		}
 
 		// Set Memory
 		if len(step.Memory) > 0 {
 			memory = fakevm.NewMemory()
-			memory.Resize(uint64(1024))
-			// log.Debugf("Memory len = %v", memory.Len())
+			memory.Resize(1024)
+			// memory.Resize(uint64(32 * len(step.Memory)))
 			for offset, memoryContent := range step.Memory {
-				// memory.Set32()
-				memory.Set(uint64(offset*32), 1, common.Hex2Bytes(memoryContent))
+				memory.Set(uint64(offset*32), 32, common.Hex2Bytes(memoryContent))
 			}
 		}
 
@@ -153,15 +148,18 @@ func Test_Trace(t *testing.T) {
 			stack.Push(value)
 		}
 
-		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" {
-			log.Debugf(opcode)
-			memory.Print()
-			// jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
+		// Set StateRoot
+		env.StateDB.StateRoot = []byte(step.StateRoot)
+
+		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
 			jsTracer.CaptureExit([]byte{}, gasCost.Uint64(), fmt.Errorf(step.Error))
 		}
+
+		// Keep track of gas
+		cumulativeGasUsed += gas.Uint64()
 	}
 
-	jsTracer.CaptureEnd([]byte(trace.Context.Output), 0, 1, nil)
+	jsTracer.CaptureEnd([]byte(trace.Context.Output), cumulativeGasUsed, 1, nil)
 	result, err := jsTracer.GetResult()
 	require.NoError(t, err)
 	log.Debugf("%v", string(result))

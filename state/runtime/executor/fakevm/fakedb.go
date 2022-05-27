@@ -8,6 +8,7 @@ import (
 )
 
 type FakeDB struct {
+	StateRoot []byte
 	state.StateDB
 }
 
