@@ -131,62 +131,65 @@ func InitNetwork(
 		return err
 	}
 
-	// Send some Ether from L1 deployer to sequencer acc
-	ethAmount, _ := big.NewInt(0).SetString(nc.L1Deployer.L1ETHAmountToSequencer, encoding.Base10)
-	log.Infof("Transferring %s L1 ETH to sequencer %q from L1 deployer %q", nc.L1Deployer.L1ETHAmountToSequencer, nc.SequencerAddress, nc.L1Deployer.Address)
-	fromAddress := common.HexToAddress(nc.L1Deployer.Address)
-	nonce, err := clientL1.PendingNonceAt(ctx, fromAddress)
-	if err != nil {
-		return err
-	}
-	const gasLimit = 21000
-	toAddress := common.HexToAddress(nc.SequencerAddress)
+	sequencerAddress := common.HexToAddress(nc.SequencerAddress)
+	if nc.L1Deployer.L1ETHAmountToSequencer != "" {
+		// Send some Ether from L1 deployer to sequencer acc
+		ethAmount, _ := big.NewInt(0).SetString(nc.L1Deployer.L1ETHAmountToSequencer, encoding.Base10)
+		log.Infof("Transferring %s L1 ETH to sequencer %q from L1 deployer %q", nc.L1Deployer.L1ETHAmountToSequencer, nc.SequencerAddress, nc.L1Deployer.Address)
+		fromAddress := common.HexToAddress(nc.L1Deployer.Address)
+		nonce, err := clientL1.PendingNonceAt(ctx, fromAddress)
+		if err != nil {
+			return err
+		}
+		const gasLimit = 21000
 
-	tx := types.NewTransaction(nonce, toAddress, ethAmount, gasLimit, gasPrice, nil)
-	signedTx, err := authDeployer.Signer(authDeployer.From, tx)
-	if err != nil {
-		return err
-	}
-	err = clientL1.SendTransaction(ctx, signedTx)
-	if err != nil {
-		return err
-	}
-	_, err = scripts.WaitTxToBeMined(clientL1, signedTx.Hash(), nc.TxTimeout)
-	if err != nil {
-		return err
-	}
-
-	// Create matic maticTokenSC sc instance
-	log.Infof("Loading Matic token SC instance")
-	log.Infof("Matic add %s", cfg.NetworkConfig.MaticAddr)
-	maticTokenSC, err := matic.NewMatic(cfg.NetworkConfig.MaticAddr, clientL1)
-	if err != nil {
-		return err
+		tx := types.NewTransaction(nonce, sequencerAddress, ethAmount, gasLimit, gasPrice, nil)
+		signedTx, err := authDeployer.Signer(authDeployer.From, tx)
+		if err != nil {
+			return err
+		}
+		err = clientL1.SendTransaction(ctx, signedTx)
+		if err != nil {
+			return err
+		}
+		_, err = scripts.WaitTxToBeMined(clientL1, signedTx.Hash(), nc.TxTimeout)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Send matic to sequencer
-	maticAmount, _ := big.NewInt(0).SetString(nc.L1Deployer.L1MaticAmountToSequencer, encoding.Base10)
-	log.Infof("Transferring %s L1 MATIC tokens to sequencer %q from L1 deployer %q", nc.L1Deployer.L1MaticAmountToSequencer, nc.SequencerAddress, nc.L1Deployer.Address)
-	tx, err = maticTokenSC.Transfer(authDeployer, toAddress, maticAmount)
-	if err != nil {
-		return err
-	}
+	if nc.L1Deployer.L1MaticAmountToSequencer != "" {
+		// Create matic maticTokenSC sc instance
+		log.Infof("Loading Matic token SC instance")
+		log.Infof("Matic add %s", cfg.NetworkConfig.MaticAddr)
+		maticTokenSC, err := matic.NewMatic(cfg.NetworkConfig.MaticAddr, clientL1)
+		if err != nil {
+			return err
+		}
+		// Send matic to sequencer
+		maticAmount, _ := big.NewInt(0).SetString(nc.L1Deployer.L1MaticAmountToSequencer, encoding.Base10)
+		log.Infof("Transferring %s L1 MATIC tokens to sequencer %q from L1 deployer %q", nc.L1Deployer.L1MaticAmountToSequencer, nc.SequencerAddress, nc.L1Deployer.Address)
+		tx, err := maticTokenSC.Transfer(authDeployer, sequencerAddress, maticAmount)
+		if err != nil {
+			return err
+		}
 
-	// wait matic transfer to be mined
-	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
-	if err != nil {
-		return err
-	}
+		// wait matic transfer to be mined
+		_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
+		if err != nil {
+			return err
+		}
 
-	// approve tokens to be used by PoE SC on behalf of the sequencer
-	log.Infof("Approving %s L1 MATIC tokens to be used by PoE on behalf of the sequencer %q", maticAmount.String(), nc.SequencerAddress)
-	tx, err = maticTokenSC.Approve(authSequencer, cfg.NetworkConfig.PoEAddr, maticAmount)
-	if err != nil {
-		return err
-	}
-	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
-	if err != nil {
-		return err
+		// approve tokens to be used by PoE SC on behalf of the sequencer
+		log.Infof("Approving %s L1 MATIC tokens to be used by PoE on behalf of the sequencer %q", maticAmount.String(), nc.SequencerAddress)
+		tx, err = maticTokenSC.Approve(authSequencer, cfg.NetworkConfig.PoEAddr, maticAmount)
+		if err != nil {
+			return err
+		}
+		_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Register the sequencer
@@ -198,7 +201,7 @@ func InitNetwork(
 	if err != nil {
 		return err
 	}
-	tx, err = etherman.RegisterSequencer(nc.L2NetworkURL)
+	tx, err := etherman.RegisterSequencer(nc.L2NetworkURL)
 	if err != nil {
 		return err
 	}
