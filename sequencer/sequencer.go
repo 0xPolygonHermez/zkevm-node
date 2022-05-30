@@ -372,18 +372,8 @@ func (s *Sequencer) trackEthSentTransactions() {
 					}
 					// tx is failed, so batch should be sent again
 					if receipt.Status == 0 {
-						if gasLimit == 0 {
-							gasCost, err := s.EthMan.EstimateSendBatchCost(s.ctx, tx.selectedTxs, tx.aggregatorReward)
-							if err != nil {
-								log.Warnf("failed to estimate gas cost for sending a batch, err: %v", err)
-								continue
-							}
-
-							gasLimit = uint64(float64(gasCost.Uint64()) * gasLimitIncrease)
-						} else {
-							log.Warnf("increasing gas limit for the transaction sending, previous failed tx hash %v", hash)
-							gasLimit = uint64(float64(gasLimit) * gasLimitIncrease)
-						}
+						log.Warnf("increasing gas limit for the transaction sending, previous failed tx hash %v", hash)
+						gasLimit = uint64(float64(gasLimit) * gasLimitIncrease)
 
 						sentTx, err := s.EthMan.SendBatch(s.ctx, gasLimit, tx.selectedTxs, tx.aggregatorReward)
 						if err != nil {
