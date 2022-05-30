@@ -34,6 +34,7 @@ AllowNonRegistered = "false"
 IntervalToProposeBatch = "15s"
 SyncedBlockDif = 1
 InitBatchProcessorIfDiffType = "synced"
+MaxSendBatchTxRetries = 5
     [Sequencer.Strategy]
         [Sequencer.Strategy.TxSelector]
             TxSelectorType = "acceptall"

@@ -381,7 +381,9 @@ func TestSequencerSendBatchEthereum(t *testing.T) {
 	eth.On("GetCurrentSequencerCollateral").Return(aggrReward, nil)
 	tx := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(5), uint64(21000), big.NewInt(10), []byte{})
 
-	eth.On("SendBatch", seq.ctx, selTxsRes.SelectedTxs, aggrReward).Return(tx, nil)
+	gasLimit := uint64(12)
+	eth.On("EstimateSendBatchCost", seq.ctx, selTxsRes.SelectedTxs, aggrReward).Return(big.NewInt(10), nil)
+	eth.On("SendBatch", seq.ctx, gasLimit, selTxsRes.SelectedTxs, aggrReward).Return(tx, nil)
 	hash := common.HexToHash("0xed23ebf048144173214817b815f7d11b0b219f4aa37cff00a58f95f0759868cc")
 	eth.On("GetTx", seq.ctx, hash).Return(nil, true, nil)
 	eth.On("GetTxReceipt", seq.ctx, tx.Hash()).Return(&types.Receipt{Status: 1}, hash)
@@ -417,12 +419,17 @@ func TestSequencerSendBatchEthereumCut(t *testing.T) {
 	aggrReward := big.NewInt(1)
 	eth.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
 	eth.On("GetCurrentSequencerCollateral").Return(aggrReward, nil)
-	eth.On("SendBatch", seq.ctx, selTxsRes.SelectedTxs, aggrReward).Return(nil, errors.New("gas required exceeds allowance"))
+
+	eth.On("EstimateSendBatchCost", seq.ctx, selTxsRes.SelectedTxs, aggrReward).Return(big.NewInt(10), nil)
+	gasLimit := uint64(12)
+	eth.On("SendBatch", seq.ctx, gasLimit, selTxsRes.SelectedTxs, aggrReward).Return(nil, errors.New("gas required exceeds allowance"))
 
 	eth.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
 	eth.On("GetCurrentSequencerCollateral").Return(aggrReward, nil)
 	tx := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(5), uint64(21000), big.NewInt(10), []byte{})
-	eth.On("SendBatch", seq.ctx, selTxsRes.SelectedTxs[:3], aggrReward).Return(tx, nil)
+	txsToSend := selTxsRes.SelectedTxs[:3]
+	eth.On("EstimateSendBatchCost", seq.ctx, txsToSend, aggrReward).Return(big.NewInt(10), nil)
+	eth.On("SendBatch", seq.ctx, gasLimit, txsToSend, aggrReward).Return(tx, nil)
 
 	hash := common.HexToHash("0xed23ebf048144173214817b815f7d11b0b219f4aa37cff00a58f95f0759868cc")
 	eth.On("GetTx", seq.ctx, hash).Return(nil, true, nil)

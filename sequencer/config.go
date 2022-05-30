@@ -58,6 +58,8 @@ type Config struct {
 	// chain ID
 	AllowNonRegistered bool `mapstructure:"AllowNonRegistered"`
 
+	// MaxSendBatchTxRetries amount of how much tries for sending sendBatch tx to the ethereum
+	MaxSendBatchTxRetries uint32 `mapstructure:"MaxSendBatchTxRetries"`
 	// DefaultChainID is the common ChainID to all the sequencers
 	DefaultChainID uint64 `mapstructure:"DefaultChainID"`
 }

@@ -136,7 +136,8 @@ func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup.
-func (etherMan *Client) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) SendBatch(ctx context.Context, gasLimit uint64, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
+	etherMan.auth.GasLimit = gasLimit
 	return etherMan.sendBatch(ctx, etherMan.auth, txs, maticAmount)
 }
 

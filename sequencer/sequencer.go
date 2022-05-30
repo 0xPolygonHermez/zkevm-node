@@ -24,6 +24,7 @@ const (
 	amountOfPendingTxsRequested = 30000
 	percentageToCutSelectedTxs  = 80
 	fullPercentage              = 100
+	gasLimitIncrease            = 1.2
 
 	errGasRequiredExceedsAllowance = "gas required exceeds allowance"
 	errContentLengthTooLarge       = "content length too large"
@@ -301,7 +302,13 @@ func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput)
 		if isProfitable && (len(selectionRes.SelectedTxs) > 0 || len(selectionRes.SelectedClaimsTxs) > 0) {
 			// YES: send selection to Ethereum
 			txsToSent := append(selectionRes.SelectedTxs, selectionRes.SelectedClaimsTxs...)
-			sendBatchTx, err := s.EthMan.SendBatch(s.ctx, txsToSent, aggregatorReward)
+			gasCost, err := s.EthMan.EstimateSendBatchCost(s.ctx, txsToSent, aggregatorReward)
+			if err != nil {
+				log.Errorf("failed to estimate gas cost for sending a batch, err: %v", err)
+				return false
+			}
+			gasLimit := uint64(float64(gasCost.Uint64()) * gasLimitIncrease)
+			sendBatchTx, err := s.EthMan.SendBatch(s.ctx, gasLimit, txsToSent, aggregatorReward)
 			if err != nil {
 				if isDataForEthTxTooBig(err) {
 					selectionRes.SelectedTxs, selectionRes.SelectedTxsHashes = cutSelectedTxs(selectionRes.SelectedTxs, selectionRes.SelectedTxsHashes)
@@ -327,7 +334,8 @@ func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput)
 			log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
 			isSent = true
 			// sent to the channel, so sequencer can be sure, that tx is processed and not missed
-			s.sentEthTxsChan <- ethTx{selectedTxs: txsToSent, aggregatorReward: aggregatorReward, hash: sendBatchTx.Hash()}
+			ethTx := ethTx{selectedTxs: txsToSent, aggregatorReward: aggregatorReward, hash: sendBatchTx.Hash(), gasLimit: gasLimit}
+			s.sentEthTxsChan <- ethTx
 		} else {
 			return false
 		}
@@ -339,36 +347,59 @@ type ethTx struct {
 	selectedTxs      []*types.Transaction
 	aggregatorReward *big.Int
 	hash             common.Hash
+	gasLimit         uint64
 }
 
 func (s *Sequencer) trackEthSentTransactions() {
 	for {
 		select {
 		case tx := <-s.sentEthTxsChan:
+			var gasLimit uint64
 			hash := tx.hash
 			isTxSuccessful := false
-			for !isTxSuccessful {
+			counter := s.cfg.MaxSendBatchTxRetries
+			for !isTxSuccessful && counter != 0 {
 				_, isPending, err := s.EthMan.GetTx(s.ctx, hash)
 				if err != nil {
 					log.Warnf("failed to get tx with hash %s, err %v", hash, err)
+					continue
 				}
 				if !isPending {
 					receipt, err := s.EthMan.GetTxReceipt(s.ctx, hash)
 					if err != nil {
 						log.Warnf("failed to get tx with hash %v, err %v", hash.Hex(), err)
+						continue
 					}
 					// tx is failed, so batch should be sent again
 					if receipt.Status == 0 {
-						sentTx, err := s.EthMan.SendBatch(s.ctx, tx.selectedTxs, tx.aggregatorReward)
+						if gasLimit == 0 {
+							gasCost, err := s.EthMan.EstimateSendBatchCost(s.ctx, tx.selectedTxs, tx.aggregatorReward)
+							if err != nil {
+								log.Warnf("failed to estimate gas cost for sending a batch, err: %v", err)
+								continue
+							}
+
+							gasLimit = uint64(float64(gasCost.Uint64()) * gasLimitIncrease)
+						} else {
+							log.Warnf("increasing gas limit for the transaction sending, previous failed tx hash %v", hash)
+							gasLimit = uint64(float64(gasLimit) * gasLimitIncrease)
+						}
+
+						sentTx, err := s.EthMan.SendBatch(s.ctx, gasLimit, tx.selectedTxs, tx.aggregatorReward)
 						if err != nil {
-							log.Errorf("failed to send batch once again, err: %v", err)
+							log.Warnf("failed to send batch once again, err: %v", err)
+							continue
 						}
 						hash = sentTx.Hash()
+						counter--
 					} else {
 						isTxSuccessful = true
 					}
 				}
-
+			}
+			if counter == 0 {
+				log.Fatalf("failed to send txs %v several times, gas limit is too high, first tx hash %s, last tx hash %s",
+					tx.selectedTxs, tx.hash.Hex(), hash.Hex())
 			}
 		case <-s.ctx.Done():
 			return

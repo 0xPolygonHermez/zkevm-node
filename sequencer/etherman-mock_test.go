@@ -156,13 +156,13 @@ func (_m *ethermanMock) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 	return r0, r1
 }
 
-// SendBatch provides a mock function with given fields: ctx, txs, maticAmount
-func (_m *ethermanMock) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
-	ret := _m.Called(ctx, txs, maticAmount)
+// SendBatch provides a mock function with given fields: ctx, gasLimit, txs, maticAmount
+func (_m *ethermanMock) SendBatch(ctx context.Context, gasLimit uint64, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
+	ret := _m.Called(ctx, gasLimit, txs, maticAmount)
 
 	var r0 *types.Transaction
-	if rf, ok := ret.Get(0).(func(context.Context, []*types.Transaction, *big.Int) *types.Transaction); ok {
-		r0 = rf(ctx, txs, maticAmount)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []*types.Transaction, *big.Int) *types.Transaction); ok {
+		r0 = rf(ctx, gasLimit, txs, maticAmount)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*types.Transaction)
@@ -170,8 +170,8 @@ func (_m *ethermanMock) SendBatch(ctx context.Context, txs []*types.Transaction,
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, []*types.Transaction, *big.Int) error); ok {
-		r1 = rf(ctx, txs, maticAmount)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, []*types.Transaction, *big.Int) error); ok {
+		r1 = rf(ctx, gasLimit, txs, maticAmount)
 	} else {
 		r1 = ret.Error(1)
 	}
