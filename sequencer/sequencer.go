@@ -43,6 +43,7 @@ type Sequencer struct {
 	TxProfitabilityChecker txProfitabilityChecker
 
 	lastSentBatchNumber uint64
+	sentEthTxsChan      chan ethTx
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -93,7 +94,7 @@ func NewSequencer(cfg Config, pool txPool, state stateInterface, ethMan etherman
 			return Sequencer{}, fmt.Errorf("failed to get chain id for the sequencer, err: %v", err)
 		}
 	}
-
+	sentEthTxsChan := make(chan ethTx)
 	s := Sequencer{
 		cfg:     cfg,
 		Pool:    pool,
@@ -104,6 +105,8 @@ func NewSequencer(cfg Config, pool txPool, state stateInterface, ethMan etherman
 
 		TxSelector:             txSelector,
 		TxProfitabilityChecker: txProfitabilityChecker,
+
+		sentEthTxsChan: sentEthTxsChan,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -117,6 +120,7 @@ func (s *Sequencer) Start() {
 	ticker := time.NewTicker(s.cfg.IntervalToProposeBatch.Duration)
 	defer ticker.Stop()
 	var root []byte
+	go s.trackEthSentTransactions()
 	// Infinite for loop:
 	for {
 		root = s.tryProposeBatch(root)
@@ -296,7 +300,8 @@ func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput)
 
 		if isProfitable && (len(selectionRes.SelectedTxs) > 0 || len(selectionRes.SelectedClaimsTxs) > 0) {
 			// YES: send selection to Ethereum
-			sendBatchTx, err := s.EthMan.SendBatch(s.ctx, append(selectionRes.SelectedTxs, selectionRes.SelectedClaimsTxs...), aggregatorReward)
+			txsToSent := append(selectionRes.SelectedTxs, selectionRes.SelectedClaimsTxs...)
+			sendBatchTx, err := s.EthMan.SendBatch(s.ctx, txsToSent, aggregatorReward)
 			if err != nil {
 				if isDataForEthTxTooBig(err) {
 					selectionRes.SelectedTxs, selectionRes.SelectedTxsHashes = cutSelectedTxs(selectionRes.SelectedTxs, selectionRes.SelectedTxsHashes)
@@ -321,11 +326,54 @@ func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput)
 			s.lastSentBatchNumber = selectionRes.BatchNumber
 			log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
 			isSent = true
+			// sent to the channel, so sequencer can be sure, that tx is processed and not missed
+			s.sentEthTxsChan <- ethTx{selectedTxs: txsToSent, aggregatorReward: aggregatorReward, hash: sendBatchTx.Hash()}
 		} else {
 			return false
 		}
 	}
 	return true
+}
+
+type ethTx struct {
+	selectedTxs      []*types.Transaction
+	aggregatorReward *big.Int
+	hash             common.Hash
+}
+
+func (s *Sequencer) trackEthSentTransactions() {
+	for {
+		select {
+		case tx := <-s.sentEthTxsChan:
+			hash := tx.hash
+			isTxSuccessful := false
+			for !isTxSuccessful {
+				_, isPending, err := s.EthMan.GetTx(s.ctx, hash)
+				if err != nil {
+					log.Warnf("failed to get tx with hash %s, err %v", hash, err)
+				}
+				if !isPending {
+					receipt, err := s.EthMan.GetTxReceipt(s.ctx, hash)
+					if err != nil {
+						log.Warnf("failed to get tx with hash %v, err %v", hash.Hex(), err)
+					}
+					// tx is failed, so batch should be sent again
+					if receipt.Status == 0 {
+						sentTx, err := s.EthMan.SendBatch(s.ctx, tx.selectedTxs, tx.aggregatorReward)
+						if err != nil {
+							log.Errorf("failed to send batch once again, err: %v", err)
+						}
+						hash = sentTx.Hash()
+					} else {
+						isTxSuccessful = true
+					}
+				}
+
+			}
+		case <-s.ctx.Done():
+			return
+		}
+	}
 }
 
 func cutSelectedTxs(selectedTxs []*types.Transaction, selectedTxsHashes []common.Hash) ([]*types.Transaction, []common.Hash) {

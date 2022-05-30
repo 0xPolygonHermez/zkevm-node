@@ -28,6 +28,8 @@ type etherman interface {
 	EstimateSendBatchCost(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error)
 	GetCustomChainID() (*big.Int, error)
 	GetCurrentSequencerCollateral() (*big.Int, error)
+	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
+	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 }
 
 // txProfitabilityChecker interface for different profitability checkers.

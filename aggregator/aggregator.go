@@ -142,7 +142,7 @@ func (a *Aggregator) Start() {
 			}
 
 			if !isProfitable {
-				log.Info("Batch %d is not profitable, matic collateral %v", batchToConsolidate.Number().Uint64(), batchToConsolidate.MaticCollateral)
+				log.Infof("Batch %d is not profitable, matic collateral %d", batchToConsolidate.Number().Uint64(), batchToConsolidate.MaticCollateral.Uint64())
 				continue
 			}
 

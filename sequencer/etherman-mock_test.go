@@ -103,6 +103,59 @@ func (_m *ethermanMock) GetCustomChainID() (*big.Int, error) {
 	return r0, r1
 }
 
+// GetTx provides a mock function with given fields: ctx, txHash
+func (_m *ethermanMock) GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error) {
+	ret := _m.Called(ctx, txHash)
+
+	var r0 *types.Transaction
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) *types.Transaction); ok {
+		r0 = rf(ctx, txHash)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.Transaction)
+		}
+	}
+
+	var r1 bool
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) bool); ok {
+		r1 = rf(ctx, txHash)
+	} else {
+		r1 = ret.Get(1).(bool)
+	}
+
+	var r2 error
+	if rf, ok := ret.Get(2).(func(context.Context, common.Hash) error); ok {
+		r2 = rf(ctx, txHash)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// GetTxReceipt provides a mock function with given fields: ctx, txHash
+func (_m *ethermanMock) GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	ret := _m.Called(ctx, txHash)
+
+	var r0 *types.Receipt
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) *types.Receipt); ok {
+		r0 = rf(ctx, txHash)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.Receipt)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
+		r1 = rf(ctx, txHash)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // SendBatch provides a mock function with given fields: ctx, txs, maticAmount
 func (_m *ethermanMock) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
 	ret := _m.Called(ctx, txs, maticAmount)
