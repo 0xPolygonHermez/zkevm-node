@@ -193,6 +193,16 @@ func (b *BatchProcessor) isTransfer(ctx context.Context, tx *types.Transaction) 
 	return !b.isContractCreation(tx) && !b.isSmartContractExecution(ctx, tx) && tx.Value().Uint64() != 0
 }
 
+// IsSigned check if a tx is signed
+func (b *BatchProcessor) isSigned(tx *types.Transaction) bool {
+	sender, err := helper.GetSender(*tx)
+	if err != nil && sender == ZeroAddress {
+		log.Debugf("Transaction is not signed")
+		return false
+	}
+	return true
+}
+
 func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address, chainID *big.Int) *runtime.ExecutionResult {
 	log.Debugf("Processing tx: %v", tx.Hash())
 
@@ -568,15 +578,8 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 
 	root := b.Host.stateRoot
 
-	// Check if transaction is signed
-	sender, err := helper.GetSender(*tx)
-	if err != nil {
-		log.Debugf("Transaction is not signed")
-	}
-	log.Debugf("Siganature sender:%v", sender)
-
 	// For unsigned transaction checks are skipped
-	if sender != ZeroAddress {
+	if b.isSigned(tx) {
 		senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, root, b.Host.txBundleID)
 		if err != nil {
 			return &runtime.ExecutionResult{
