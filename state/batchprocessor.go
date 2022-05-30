@@ -616,6 +616,17 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 		}
 	}
 
+	// Pay Gas
+	newBalance := senderBalance.Sub(senderBalance, new(big.Int).SetUint64(result.GasUsed))
+	newRoot, _, err := b.Host.State.tree.SetBalance(ctx, senderAddress, newBalance, b.Host.stateRoot, b.Host.txBundleID)
+	if err != nil {
+		result.Err = err
+		result.StateRoot = b.Host.stateRoot
+		return result
+	}
+
+	b.Host.stateRoot = newRoot
+
 	if incrementNonce && senderAddress != ZeroAddress {
 		// Increment sender nonce
 		senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot, b.Host.txBundleID)
@@ -775,6 +786,17 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 			}
 		}
 	}
+
+	// Pay Gas
+	newBalance := senderBalance.Sub(senderBalance, new(big.Int).SetUint64(gasCost))
+	newRoot, _, err := b.Host.State.tree.SetBalance(ctx, senderAddress, newBalance, b.Host.stateRoot, b.Host.txBundleID)
+	if err != nil {
+		result.Err = err
+		result.StateRoot = b.Host.stateRoot
+		return result
+	}
+
+	b.Host.stateRoot = newRoot
 
 	result.CreateAddress = address
 	result.GasUsed = gasCost
