@@ -603,7 +603,6 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 				StateRoot: b.Host.stateRoot,
 			}
 		}
-
 	}
 	code := b.Host.GetCode(ctx, receiverAddress)
 
