@@ -166,8 +166,9 @@ func TestMain(m *testing.M) {
 				RewardPercentageToAggregator: 50,
 			},
 		},
-		AllowNonRegistered: true,
-		DefaultChainID:     1000,
+		AllowNonRegistered:    true,
+		DefaultChainID:        1000,
+		MaxSendBatchTxRetries: 5,
 	}
 
 	err = testState.SetLastBatchNumberSeenOnEthereum(context.Background(), lastBatchNumberSeen, "")
@@ -382,11 +383,11 @@ func TestSequencerSendBatchEthereum(t *testing.T) {
 	tx := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(5), uint64(21000), big.NewInt(10), []byte{})
 
 	gasLimit := uint64(12)
-	eth.On("EstimateSendBatchCost", seq.ctx, selTxsRes.SelectedTxs, aggrReward).Return(big.NewInt(10), nil)
+	eth.On("EstimateSendBatchGas", seq.ctx, selTxsRes.SelectedTxs, aggrReward).Return(uint64(10), nil)
 	eth.On("SendBatch", seq.ctx, gasLimit, selTxsRes.SelectedTxs, aggrReward).Return(tx, nil)
 	hash := common.HexToHash("0xed23ebf048144173214817b815f7d11b0b219f4aa37cff00a58f95f0759868cc")
-	eth.On("GetTx", seq.ctx, hash).Return(nil, true, nil)
-	eth.On("GetTxReceipt", seq.ctx, tx.Hash()).Return(&types.Receipt{Status: 1}, hash)
+	eth.On("GetTx", seq.ctx, hash).Return(nil, false, nil)
+	eth.On("GetTxReceipt", seq.ctx, tx.Hash()).Return(&types.Receipt{Status: 1}, nil)
 	ok = seq.sendBatchToEthereum(selTxsRes)
 	require.True(t, ok)
 
@@ -420,7 +421,7 @@ func TestSequencerSendBatchEthereumCut(t *testing.T) {
 	eth.On("EstimateSendBatchCost", ctx, txs, maticAmount).Return(big.NewInt(10), nil)
 	eth.On("GetCurrentSequencerCollateral").Return(aggrReward, nil)
 
-	eth.On("EstimateSendBatchCost", seq.ctx, selTxsRes.SelectedTxs, aggrReward).Return(big.NewInt(10), nil)
+	eth.On("EstimateSendBatchGas", seq.ctx, selTxsRes.SelectedTxs, aggrReward).Return(uint64(10), nil)
 	gasLimit := uint64(12)
 	eth.On("SendBatch", seq.ctx, gasLimit, selTxsRes.SelectedTxs, aggrReward).Return(nil, errors.New("gas required exceeds allowance"))
 
@@ -428,12 +429,12 @@ func TestSequencerSendBatchEthereumCut(t *testing.T) {
 	eth.On("GetCurrentSequencerCollateral").Return(aggrReward, nil)
 	tx := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(5), uint64(21000), big.NewInt(10), []byte{})
 	txsToSend := selTxsRes.SelectedTxs[:3]
-	eth.On("EstimateSendBatchCost", seq.ctx, txsToSend, aggrReward).Return(big.NewInt(10), nil)
+	eth.On("EstimateSendBatchGas", seq.ctx, txsToSend, aggrReward).Return(uint64(10), nil)
 	eth.On("SendBatch", seq.ctx, gasLimit, txsToSend, aggrReward).Return(tx, nil)
 
 	hash := common.HexToHash("0xed23ebf048144173214817b815f7d11b0b219f4aa37cff00a58f95f0759868cc")
-	eth.On("GetTx", seq.ctx, hash).Return(nil, true, nil)
-	eth.On("GetTxReceipt", seq.ctx, tx.Hash()).Return(&types.Receipt{Status: 1}, hash)
+	eth.On("GetTx", seq.ctx, hash).Return(nil, false, nil)
+	eth.On("GetTxReceipt", seq.ctx, tx.Hash()).Return(&types.Receipt{Status: 1}, nil)
 
 	ok = seq.sendBatchToEthereum(selTxsRes)
 	require.True(t, ok)

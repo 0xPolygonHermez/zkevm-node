@@ -302,12 +302,12 @@ func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput)
 		if isProfitable && (len(selectionRes.SelectedTxs) > 0 || len(selectionRes.SelectedClaimsTxs) > 0) {
 			// YES: send selection to Ethereum
 			txsToSent := append(selectionRes.SelectedTxs, selectionRes.SelectedClaimsTxs...)
-			gasCost, err := s.EthMan.EstimateSendBatchCost(s.ctx, txsToSent, aggregatorReward)
+			gas, err := s.EthMan.EstimateSendBatchGas(s.ctx, txsToSent, aggregatorReward)
 			if err != nil {
 				log.Errorf("failed to estimate gas cost for sending a batch, err: %v", err)
 				return false
 			}
-			gasLimit := uint64(float64(gasCost.Uint64()) * gasLimitIncrease)
+			gasLimit := uint64(float64(gas) * gasLimitIncrease)
 			sendBatchTx, err := s.EthMan.SendBatch(s.ctx, gasLimit, txsToSent, aggregatorReward)
 			if err != nil {
 				if isDataForEthTxTooBig(err) {
@@ -367,7 +367,7 @@ func (s *Sequencer) trackEthSentTransactions() {
 				if !isPending {
 					receipt, err := s.EthMan.GetTxReceipt(s.ctx, hash)
 					if err != nil {
-						log.Warnf("failed to get tx with hash %v, err %v", hash.Hex(), err)
+						log.Warnf("failed to get tx receipt with hash %v, err %v", hash.Hex(), err)
 						continue
 					}
 					// tx is failed, so batch should be sent again
@@ -388,8 +388,8 @@ func (s *Sequencer) trackEthSentTransactions() {
 				}
 			}
 			if counter == 0 {
-				log.Fatalf("failed to send txs %v several times, gas limit is too high, first tx hash %s, last tx hash %s",
-					tx.selectedTxs, tx.hash.Hex(), hash.Hex())
+				log.Fatalf("failed to send txs %v several times, gas limit %d is too high, first tx hash %s, last tx hash %s",
+					tx.selectedTxs, gasLimit, tx.hash.Hex(), hash.Hex())
 			}
 		case <-s.ctx.Done():
 			return

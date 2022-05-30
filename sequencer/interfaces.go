@@ -26,6 +26,7 @@ type etherman interface {
 	SendBatch(ctx context.Context, gasLimit uint64, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error)
 	GetAddress() common.Address
 	EstimateSendBatchCost(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*big.Int, error)
+	EstimateSendBatchGas(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (uint64, error)
 	GetCustomChainID() (*big.Int, error)
 	GetCurrentSequencerCollateral() (*big.Int, error)
 	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
