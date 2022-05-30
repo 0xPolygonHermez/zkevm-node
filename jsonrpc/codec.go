@@ -92,7 +92,7 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 
 	default:
 		if bValue < 0 {
-			return 0, fmt.Errorf("invalid argument 0: block number larger than int64")
+			return 0, fmt.Errorf("invalid block number: %v", bValue)
 		}
 		return uint64(bValue), nil
 	}

@@ -1,4 +1,4 @@
-package jsonrpc_test
+package jsonrpc
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	jsonrpc "github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +17,7 @@ type mockedServer struct {
 	ChainID          uint64
 	SequencerAddress common.Address
 
-	Server *jsonrpc.Server
+	Server *Server
 }
 
 type mocks struct {
@@ -40,7 +39,7 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 		maxRequestsPerIPAndSecond = 1000
 	)
 
-	cfg := jsonrpc.Config{
+	cfg := Config{
 		Host:                      host,
 		Port:                      port,
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
@@ -53,7 +52,7 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	gasPriceEstimator := newGasPriceEstimatorMock(t)
 	storage := newStorageMock(t)
 
-	server := jsonrpc.NewServer(cfg, defaultChainID, chainID, sequencerAddress,
+	server := NewServer(cfg, defaultChainID, chainID, sequencerAddress,
 		pool, state, gasPriceEstimator, storage)
 
 	go func() {
