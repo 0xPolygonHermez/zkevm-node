@@ -44,7 +44,7 @@ var (
 	// EmptyCodeHash is the hash of empty code
 	EmptyCodeHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 	// ZeroAddress is the address 0x0000000000000000000000000000000000000000
-	ZeroAddress = common.HexToAddress("0x0000000000000000000000000000000000000000")
+	ZeroAddress = common.HexToAddress("0x")
 	// ErrIntrinsicGasOverflow indicates overflow during gas estimation
 	ErrIntrinsicGasOverflow = fmt.Errorf("overflow in intrinsic gas estimation")
 	// ErrInsufficientFunds indicates there is not enough balance to execute the transaction
@@ -558,35 +558,50 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 }
 
 func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, senderAddress, receiverAddress, sequencerAddress common.Address, txGas uint64, chainID *big.Int) *runtime.ExecutionResult {
-	var transferResult *runtime.ExecutionResult
+	var (
+		transferResult *runtime.ExecutionResult
+		senderBalance  *big.Int
+		err            error
+	)
+
 	incrementNonce := true
 
 	root := b.Host.stateRoot
 
-	senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, root, b.Host.txBundleID)
+	// Check if transaction is signed
+	sender, err := helper.GetSender(*tx)
 	if err != nil {
-		return &runtime.ExecutionResult{
-			Err:       err,
-			StateRoot: b.Host.stateRoot,
-		}
+		log.Debugf("Transaction is not signed")
 	}
+	log.Debugf("Siganature sender:%v", sender)
 
-	senderBalance, err := b.Host.State.tree.GetBalance(ctx, senderAddress, b.Host.stateRoot, b.Host.txBundleID)
-	if err != nil {
-		return &runtime.ExecutionResult{
-			Err:       err,
-			StateRoot: b.Host.stateRoot,
+	// For unsigned transaction checks are skipped
+	if sender != ZeroAddress {
+		senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, root, b.Host.txBundleID)
+		if err != nil {
+			return &runtime.ExecutionResult{
+				Err:       err,
+				StateRoot: b.Host.stateRoot,
+			}
 		}
-	}
 
-	err = b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance, chainID)
-	if err != nil {
-		return &runtime.ExecutionResult{
-			Err:       err,
-			StateRoot: b.Host.stateRoot,
+		senderBalance, err := b.Host.State.tree.GetBalance(ctx, senderAddress, b.Host.stateRoot, b.Host.txBundleID)
+		if err != nil {
+			return &runtime.ExecutionResult{
+				Err:       err,
+				StateRoot: b.Host.stateRoot,
+			}
 		}
-	}
 
+		err = b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance, chainID)
+		if err != nil {
+			return &runtime.ExecutionResult{
+				Err:       err,
+				StateRoot: b.Host.stateRoot,
+			}
+		}
+
+	}
 	code := b.Host.GetCode(ctx, receiverAddress)
 
 	contract := runtime.NewContractCall(1, senderAddress, senderAddress, receiverAddress, tx.Value(), txGas, code, tx.Data())
