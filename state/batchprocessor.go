@@ -444,7 +444,7 @@ func (b *BatchProcessor) CheckTransaction(ctx context.Context, tx *types.Transac
 	return b.checkTransaction(ctx, tx, senderAddress, senderNonce, senderBalance, tx.ChainId())
 }
 
-func (b *BatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, senderNonce, senderBalance *big.Int, chainID *big.Int) error {
+func (b *BatchProcessor) checkTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, senderNonce, senderBalance, chainID *big.Int) error {
 	if !b.Host.transactionContext.simulationMode {
 		// Check balance
 		if senderBalance.Cmp(tx.Cost()) < 0 {
@@ -617,15 +617,42 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	}
 
 	// Pay Gas
-	newBalance := senderBalance.Sub(senderBalance, new(big.Int).SetUint64(result.GasUsed))
-	newRoot, _, err := b.Host.State.tree.SetBalance(ctx, senderAddress, newBalance, b.Host.stateRoot, b.Host.txBundleID)
-	if err != nil {
-		result.Err = err
-		result.StateRoot = b.Host.stateRoot
-		return result
-	}
+	if senderAddress != ZeroAddress {
+		senderBalance, err = b.Host.State.tree.GetBalance(ctx, senderAddress, b.Host.stateRoot, b.Host.txBundleID)
+		if err != nil {
+			b.Host.stateRoot = root
+			return &runtime.ExecutionResult{
+				Err:       err,
+				StateRoot: b.Host.stateRoot,
+			}
+		}
 
-	b.Host.stateRoot = newRoot
+		log.Debugf("Sender Address=%v", senderAddress)
+		log.Debugf("Sender Balance before paying gas=%v", senderBalance.Uint64())
+		log.Debugf("Gas to pay=%v", result.GasUsed)
+		log.Debugf("Is gas estimation ? %v", b.Host.transactionContext.simulationMode)
+
+		newBalance := senderBalance.Sub(senderBalance, new(big.Int).SetUint64(result.GasUsed))
+		newRoot, _, err := b.Host.State.tree.SetBalance(ctx, senderAddress, newBalance, b.Host.stateRoot, b.Host.txBundleID)
+		if err != nil {
+			result.Err = err
+			b.Host.stateRoot = root
+			result.StateRoot = b.Host.stateRoot
+			return result
+		}
+
+		senderBalance, err = b.Host.State.tree.GetBalance(ctx, senderAddress, newRoot, b.Host.txBundleID)
+		if err != nil {
+			b.Host.stateRoot = root
+			return &runtime.ExecutionResult{
+				Err:       err,
+				StateRoot: b.Host.stateRoot,
+			}
+		}
+
+		log.Debugf("Sender Balance AFTER paying gas=%v", senderBalance.Uint64())
+		b.Host.stateRoot = newRoot
+	}
 
 	if incrementNonce && senderAddress != ZeroAddress {
 		// Increment sender nonce
