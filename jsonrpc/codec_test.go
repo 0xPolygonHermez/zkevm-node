@@ -109,7 +109,8 @@ func TestGetNumericBlockNumber(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			testCase.setupMocks(s, &testCase)
+			tc := testCase
+			testCase.setupMocks(s, &tc)
 			result, err := testCase.bn.getNumericBlockNumber(context.Background(), s)
 			assert.Equal(t, testCase.expectedBlockNumber, result)
 			assert.Equal(t, testCase.expectedError, err)
@@ -124,7 +125,7 @@ func TestResponseMarshal(t *testing.T) {
 		A string `json:"A"`
 	}{"A"})
 	require.NoError(t, err)
-	errorObjValue := newGenericError("m", 123)
+	errorObjValue := newRPCError(123, "m")
 
 	expectedBytes := []byte(fmt.Sprintf("{\"jsonrpc\":\"%v\",\"id\":%v,\"result\":{\"A\":\"A\"},\"error\":{\"code\":123,\"message\":\"m\"}}", jsonRPCValue, idValue))
 
@@ -141,7 +142,6 @@ func TestResponseMarshal(t *testing.T) {
 }
 
 func TestIndexUnmarshalJSON(t *testing.T) {
-
 	testCases := []struct {
 		input         []byte
 		expectedIndex int64

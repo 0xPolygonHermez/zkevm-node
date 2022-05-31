@@ -113,15 +113,15 @@ func (i *Index) UnmarshalJSON(buffer []byte) error {
 }
 
 // NewResponse returns Success/Error response object
-func NewResponse(req Request, reply *[]byte, err detailedError) Response {
-	var result json.RawMessage = nil
+func NewResponse(req Request, reply *[]byte, err rpcError) Response {
+	var result json.RawMessage
 	if reply != nil {
 		result = *reply
 	}
 
 	var errorObj *ErrorObject
 	if err != nil {
-		errorObj = &ErrorObject{err.Code(), err.Error(), nil}
+		errorObj = &ErrorObject{err.ErrorCode(), err.Error(), nil}
 	}
 
 	return Response{

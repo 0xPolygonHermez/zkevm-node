@@ -76,14 +76,14 @@ func (d *Handler) Handle(req Request) Response {
 
 	if fd.numParams() > 0 {
 		if err := json.Unmarshal(req.Params, &inputs); err != nil {
-			return NewResponse(req, nil, newInvalidParamsError("Invalid Params"))
+			return NewResponse(req, nil, newRPCError(invalidParamsErrorCode, "Invalid Params"))
 		}
 	}
 
 	output := fd.fv.Call(inArgs)
 	if err := getError(output[1]); err != nil {
-		log.Errorf("failed to call method %s: %v. Params: %v", req.Method, err, string(req.Params))
-		return NewResponse(req, nil, newInvalidRequestError(err.Error()))
+		log.Errorf("failed to call method %s: [%v]%v. Params: %v", req.Method, err.ErrorCode(), err.Error(), string(req.Params))
+		return NewResponse(req, nil, err)
 	}
 
 	var data []byte
@@ -134,10 +134,12 @@ func (d *Handler) registerService(serviceName string, service interface{}) {
 	}
 }
 
-func (d *Handler) getFnHandler(req Request) (*serviceData, *funcData, detailedError) {
+func (d *Handler) getFnHandler(req Request) (*serviceData, *funcData, rpcError) {
+	methodNotFoundErrorMessage := fmt.Sprintf("the method %s does not exist/is not available", req.Method)
+
 	callName := strings.SplitN(req.Method, "_", 2) //nolint:gomnd
 	if len(callName) != 2 {                        //nolint:gomnd
-		return nil, nil, newMethodNotFoundError(req.Method)
+		return nil, nil, newRPCError(notFoundErrorCode, methodNotFoundErrorMessage)
 	}
 
 	serviceName, funcName := callName[0], callName[1]
@@ -145,11 +147,11 @@ func (d *Handler) getFnHandler(req Request) (*serviceData, *funcData, detailedEr
 	service, ok := d.serviceMap[serviceName]
 	if !ok {
 		log.Infof("Method %s not found", req.Method)
-		return nil, nil, newMethodNotFoundError(req.Method)
+		return nil, nil, newRPCError(notFoundErrorCode, methodNotFoundErrorMessage)
 	}
 	fd, ok := service.funcMap[funcName]
 	if !ok {
-		return nil, nil, newMethodNotFoundError(req.Method)
+		return nil, nil, newRPCError(notFoundErrorCode, methodNotFoundErrorMessage)
 	}
 	return service, fd, nil
 }
@@ -191,11 +193,19 @@ func isErrorType(t reflect.Type) bool {
 	return t.Implements(errt)
 }
 
-func getError(v reflect.Value) error {
+func getError(v reflect.Value) rpcError {
 	if v.IsNil() {
 		return nil
 	}
-	return v.Interface().(error)
+
+	switch vt := v.Interface().(type) {
+	case *RPCError:
+		return vt
+	case error:
+		return newRPCError(invalidRequestErrorCode, vt.Error())
+	default:
+		return newRPCError(invalidRequestErrorCode, "runtime error")
+	}
 }
 
 func lowerCaseFirst(str string) string {

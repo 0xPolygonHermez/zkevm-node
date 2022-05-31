@@ -126,7 +126,7 @@ func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface
 	ctx := context.Background()
 	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
-		return nil, err
+		return nil, newRPCError(invalidParamsErrorCode, fmt.Sprintf("invalid argument 1: %v", err))
 	}
 
 	balance, err := e.state.GetBalance(ctx, address, batchNumber, "")

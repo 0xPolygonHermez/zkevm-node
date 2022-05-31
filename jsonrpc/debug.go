@@ -46,7 +46,7 @@ func (d *Debug) TraceTransaction(hash common.Hash) (interface{}, error) {
 
 	rcpt, err := d.state.GetTransactionReceipt(ctx, hash, "")
 	if errors.Is(err, state.ErrNotFound) {
-		return newGenericError("transaction receipt not found", -32000), nil
+		return newRPCError(defaultErrorCode, "transaction receipt not found"), nil
 	}
 
 	failed := false

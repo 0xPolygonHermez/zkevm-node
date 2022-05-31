@@ -320,6 +320,92 @@ func TestGasPrice(t *testing.T) {
 	}
 }
 
+func TestGetBalance(t *testing.T) {
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		name            string
+		addr            common.Address
+		balance         *big.Int
+		blockNumber     *big.Int
+		expectedBalance uint64
+		expectedError   *RPCError
+		setupMocks      func(m *mocks, t *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			name:            "get balance but failed to get latest block number",
+			addr:            common.HexToAddress("0x123"),
+			balance:         big.NewInt(1000),
+			blockNumber:     nil,
+			expectedBalance: 0,
+			expectedError:   newRPCError(invalidParamsErrorCode, "invalid argument 1: failed to get last batch number"),
+			setupMocks: func(m *mocks, t *testCase) {
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(uint64(0), errors.New("failed to get last batch number")).
+					Once()
+			},
+		},
+		{
+			name:            "get balance for block nil",
+			addr:            common.HexToAddress("0x123"),
+			balance:         big.NewInt(1000),
+			blockNumber:     nil,
+			expectedBalance: 1000,
+			expectedError:   nil,
+			setupMocks: func(m *mocks, t *testCase) {
+				const lastBlockNumber = uint64(10)
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(lastBlockNumber, nil).
+					Once()
+
+				m.State.
+					On("GetBalance", context.Background(), t.addr, lastBlockNumber, "").
+					Return(t.balance, nil).
+					Once()
+			},
+		},
+		{
+			name:            "get balance for not found result",
+			addr:            common.HexToAddress("0x123"),
+			balance:         big.NewInt(1000),
+			blockNumber:     nil,
+			expectedBalance: 0,
+			expectedError:   nil,
+			setupMocks: func(m *mocks, t *testCase) {
+				const lastBlockNumber = uint64(10)
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(lastBlockNumber, nil).
+					Once()
+
+				m.State.
+					On("GetBalance", context.Background(), t.addr, lastBlockNumber, "").
+					Return(big.NewInt(0), state.ErrNotFound).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			tc := testCase
+			testCase.setupMocks(m, &tc)
+			balance, err := c.BalanceAt(context.Background(), testCase.addr, testCase.blockNumber)
+			assert.Equal(t, testCase.expectedBalance, balance.Uint64())
+			if err != nil || testCase.expectedError != nil {
+				rpcErr := err.(rpcError)
+				assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode())
+				assert.Equal(t, testCase.expectedError.Error(), rpcErr.Error())
+			}
+		})
+	}
+}
+
 func addressPtr(i common.Address) *common.Address {
 	return &i
 }

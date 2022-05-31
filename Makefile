@@ -64,8 +64,11 @@ install-linter: ## Installs the linter
 lint: ## Runs the linter
 	$(LINT)
 
+.PHONY: check
+check: lint build test ## lint, build and unit tests
+
 .PHONY: validate
-validate: lint build test-full ## Validates the whole integrity of the code base
+validate: lint build test-full ## lint, build, unit and e2e tests
 
 .PHONY: run-db
 run-db: ## Runs the node database
