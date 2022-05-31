@@ -44,6 +44,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
 		},
 		{
+			path:          "Sequencer.MaxSendBatchTxRetries",
+			expectedValue: uint32(5),
+		},
+		{
+			path:          "Sequencer.FrequencyForResendingFailedSendBatchesInMilliseconds",
+			expectedValue: 1000,
+		},
+		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",
 			expectedValue: uint64(1000000000),
 		},
