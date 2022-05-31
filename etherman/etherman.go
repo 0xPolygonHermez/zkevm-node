@@ -136,8 +136,11 @@ func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup.
-func (etherMan *Client) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
-	return etherMan.sendBatch(ctx, etherMan.auth, txs, maticAmount)
+func (etherMan *Client) SendBatch(ctx context.Context, gasLimit uint64, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
+	sendBatchOps := etherMan.auth
+	sendBatchOps.GasLimit = gasLimit
+	sendBatchOps.NoSend = false
+	return etherMan.sendBatch(ctx, sendBatchOps, txs, maticAmount)
 }
 
 const (
@@ -177,7 +180,7 @@ func (etherMan *Client) sendBatch(ctx context.Context, opts *bind.TransactOpts, 
 		log.Error("error converting hex string to []byte. Error: ", err)
 		return nil, errors.New("error converting hex string to []byte. Error: " + err.Error())
 	}
-	tx, err := etherMan.PoE.SendBatch(etherMan.auth, callData, maticAmount)
+	tx, err := etherMan.PoE.SendBatch(opts, callData, maticAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -535,6 +538,16 @@ func (etherMan *Client) EstimateSendBatchCost(ctx context.Context, txs []*types.
 		return nil, err
 	}
 	return tx.Cost(), nil
+}
+
+func (etherMan *Client) EstimateSendBatchGas(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (uint64, error) {
+	noSendOpts := etherMan.auth
+	noSendOpts.NoSend = true
+	tx, err := etherMan.sendBatch(ctx, noSendOpts, txs, maticAmount)
+	if err != nil {
+		return 0, err
+	}
+	return tx.Gas(), nil
 }
 
 // GetLatestProposedBatchNumber function allows to retrieve the latest proposed batch in the smc
