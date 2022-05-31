@@ -53,6 +53,8 @@ type L1Deployer struct {
 }
 
 type InitNetworkConfig struct {
+	Network string
+
 	// RPC endpoints
 	L1NetworkURL, L2NetworkURL string
 	// Bridge addresses, defined in the deployment description
@@ -73,7 +75,10 @@ func InitNetwork(
 ) error {
 	app := cli.NewApp()
 	var n string
-	flag.StringVar(&n, "network", "local", "")
+	if nc.Network == "" {
+		nc.Network = "local"
+	}
+	flag.StringVar(&n, "network", nc.Network, "")
 	context := cli.NewContext(app, flag.CommandLine, nil)
 
 	cfg, err := config.Load(context)
