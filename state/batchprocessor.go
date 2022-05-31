@@ -575,11 +575,11 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	)
 
 	incrementNonce := true
-
 	root := b.Host.stateRoot
+	isSigned := b.isSigned(tx)
 
 	// For unsigned transaction checks are skipped
-	if b.isSigned(tx) {
+	if isSigned {
 		senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, root, b.Host.txBundleID)
 		if err != nil {
 			return &runtime.ExecutionResult{
@@ -634,7 +634,7 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 	}
 
 	// Pay Gas
-	if senderAddress != ZeroAddress {
+	if isSigned {
 		senderBalance, err = b.Host.State.tree.GetBalance(ctx, senderAddress, b.Host.stateRoot, b.Host.txBundleID)
 		if err != nil {
 			b.Host.stateRoot = root
@@ -671,7 +671,7 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 		b.Host.stateRoot = newRoot
 	}
 
-	if incrementNonce && senderAddress != ZeroAddress {
+	if incrementNonce && isSigned {
 		// Increment sender nonce
 		senderNonce, err := b.Host.State.tree.GetNonce(ctx, senderAddress, b.Host.stateRoot, b.Host.txBundleID)
 		if err != nil {
