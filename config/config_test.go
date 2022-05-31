@@ -49,7 +49,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.FrequencyForResendingFailedSendBatchesInMilliseconds",
-			expectedValue: 1000,
+			expectedValue: int64(1000),
 		},
 		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",
