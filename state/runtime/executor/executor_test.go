@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -46,9 +47,8 @@ func (account) ForEachStorage(cb func(key, value common.Hash) bool) {
 */
 func Test_Trace(t *testing.T) {
 	var (
-		trace             Trace
-		tracer            Tracer
-		cumulativeGasUsed uint64
+		trace  Trace
+		tracer Tracer
 	)
 
 	traceFile, err := os.Open("demo_trace_2.json")
@@ -83,7 +83,7 @@ func Test_Trace(t *testing.T) {
 	gasPrice, ok := new(big.Int).SetString(trace.Context.GasPrice, 10)
 	require.Equal(t, true, ok)
 
-	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, fakevm.FakeDB{}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
+	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, fakevm.FakeDB{StateRoot: []byte(trace.Context.OldStateRoot)}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
 
 	jsTracer.CaptureStart(env, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
 
@@ -154,12 +154,12 @@ func Test_Trace(t *testing.T) {
 		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
 			jsTracer.CaptureExit([]byte{}, gasCost.Uint64(), fmt.Errorf(step.Error))
 		}
-
-		// Keep track of gas
-		cumulativeGasUsed += gas.Uint64()
 	}
 
-	jsTracer.CaptureEnd([]byte(trace.Context.Output), cumulativeGasUsed, 1, nil)
+	gasUsed, ok := new(big.Int).SetString(trace.Context.GasUsed, 10)
+	require.Equal(t, true, ok)
+
+	jsTracer.CaptureEnd([]byte(trace.Context.Output), gasUsed.Uint64(), time.Duration(trace.Context.Time), nil)
 	result, err := jsTracer.GetResult()
 	require.NoError(t, err)
 	log.Debugf("%v", string(result))

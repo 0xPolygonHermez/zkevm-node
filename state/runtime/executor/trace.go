@@ -6,16 +6,20 @@ type Trace struct {
 }
 
 type Context struct {
-	Type     string `json:"type"`
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Input    string `json:"input"`
-	Gas      string `json:"gas"`
-	Value    string `json:"value"`
-	Output   string `json:"output"`
-	Nonce    uint64 `json:"nonce"`
-	GasPrice string `json:"gasPrice"`
-	ChainID  uint64 `json:"chainId"`
+	Type         string `json:"type"`
+	From         string `json:"from"`
+	To           string `json:"to"`
+	Input        string `json:"input"`
+	Gas          string `json:"gas"`
+	Value        string `json:"value"`
+	Output       string `json:"output"`
+	Nonce        uint64 `json:"nonce"`
+	GasPrice     string `json:"gasPrice"`
+	ChainID      uint64 `json:"chainId"`
+	OldStateRoot string `json:"oldStateRoot"`
+	Time         uint64 `json:"time"`
+	GasUsed      string `json:"gasUsed"`
+	NewStateRoot string `json:"newStateRoot"`
 }
 
 type Step struct {
