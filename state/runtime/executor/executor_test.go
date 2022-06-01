@@ -51,7 +51,7 @@ func Test_Trace(t *testing.T) {
 		tracer Tracer
 	)
 
-	traceFile, err := os.Open("demo_trace_2.json")
+	traceFile, err := os.Open("traces/op-create_1__full_trace_0.json")
 	require.NoError(t, err)
 	defer traceFile.Close()
 
@@ -117,6 +117,9 @@ func Test_Trace(t *testing.T) {
 			err := fmt.Errorf(step.Error)
 			jsTracer.CaptureFault(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, err)
 		} else {
+			if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
+				log.Debug("breakpoint")
+			}
 			jsTracer.CaptureState(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), step.Depth, nil)
 		}
 
@@ -130,11 +133,11 @@ func Test_Trace(t *testing.T) {
 
 		// Set Memory
 		if len(step.Memory) > 0 {
-			memory = fakevm.NewMemory()
-			memory.Resize(1024)
-			// memory.Resize(uint64(32 * len(step.Memory)))
+			// memory = fakevm.NewMemory()
+			// memory.Resize(1024)
+			memory.Resize(uint64(32*len(step.Memory) + 128))
 			for offset, memoryContent := range step.Memory {
-				memory.Set(uint64(offset*32), 32, common.Hex2Bytes(memoryContent))
+				memory.Set(uint64(offset*32)+128, 32, common.Hex2Bytes(memoryContent))
 			}
 		}
 

@@ -19,7 +19,6 @@ type Context struct {
 	OldStateRoot string `json:"oldStateRoot"`
 	Time         uint64 `json:"time"`
 	GasUsed      string `json:"gasUsed"`
-	NewStateRoot string `json:"newStateRoot"`
 }
 
 type Step struct {
