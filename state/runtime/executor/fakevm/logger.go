@@ -30,10 +30,16 @@ import (
 // Note that reference types are actual VM data structures; make copies
 // if you need to retain them beyond the current call.
 type EVMLogger interface {
+	// Transaction level
+	CaptureTxStart(gasLimit uint64)
+	CaptureTxEnd(restGas uint64)
+	// Top call frame
 	CaptureStart(env *FakeEVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int)
 	CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *ScopeContext, rData []byte, depth int, err error)
+	// Rest of call frames
 	CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int)
 	CaptureExit(output []byte, gasUsed uint64, err error)
+	// Opcode level
 	CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *ScopeContext, depth int, err error)
 	CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error)
 }

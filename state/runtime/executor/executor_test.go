@@ -29,29 +29,16 @@ func newAccount(address common.Address) *account {
 	return &account{address: address}
 }
 
-/*
-func (account) SubBalance(amount *big.Int)  { panic("SubBalance NOT IMPLEMENTED") }
-func (account) AddBalance(amount *big.Int)  { panic("AddBalance NOT IMPLEMENTED") }
-func (account) SetAddress(common.Address)   { panic("SetAddress NOT IMPLEMENTED") }
-func (account) Value() *big.Int             { panic("Value NOT IMPLEMENTED") } // { return nil }
-func (account) SetBalance(*big.Int)         { panic("SetBalance NOT IMPLEMENTED") }
-func (account) SetNonce(uint64)             { panic("SetNonce NOT IMPLEMENTED") }
-func (account) Balance() *big.Int           { panic("Balance NOT IMPLEMENTED") } // { return nil }
-*/
 func (a *account) Address() common.Address { return a.address } // { return common.Address{} }
-/*
-func (account) SetCode(common.Hash, []byte) { panic("SetCode NOT IMPLEMENTED") }
-func (account) ForEachStorage(cb func(key, value common.Hash) bool) {
-	panic("ForEachStorage IMPLEMENTED")
-}
-*/
+
 func Test_Trace(t *testing.T) {
 	var (
-		trace  Trace
-		tracer Tracer
+		trace         Trace
+		tracer        Tracer
+		previousDepth int
 	)
 
-	traceFile, err := os.Open("traces/op-create_1__full_trace_0.json")
+	traceFile, err := os.Open("traces/op-call_2__full_trace_0.json")
 	require.NoError(t, err)
 	defer traceFile.Close()
 
@@ -85,6 +72,7 @@ func Test_Trace(t *testing.T) {
 
 	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, fakevm.FakeDB{StateRoot: []byte(trace.Context.OldStateRoot)}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
 
+	jsTracer.CaptureTxStart(contextGas.Uint64())
 	jsTracer.CaptureStart(env, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
 
 	log.Debugf("%v Steps", len(trace.Steps))
@@ -113,28 +101,20 @@ func Test_Trace(t *testing.T) {
 
 		opcode := vm.OpCode(op.Uint64()).String()
 
+		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
+			jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
+		}
+
 		if step.Error != "" {
 			err := fmt.Errorf(step.Error)
 			jsTracer.CaptureFault(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, err)
 		} else {
-			if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
-				log.Debug("breakpoint")
-			}
-			jsTracer.CaptureState(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), step.Depth, nil)
-		}
-
-		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
-			log.Debugf(opcode)
-			log.Debugf("Input=%v", common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")))
-			scope.Memory.Print()
-			scope.Stack.Print()
-			jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
+			// TODO: Add return data when available
+			jsTracer.CaptureState(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, common.Hex2Bytes(strings.TrimLeft(step.ReturnData, "0x")), step.Depth, nil)
 		}
 
 		// Set Memory
 		if len(step.Memory) > 0 {
-			// memory = fakevm.NewMemory()
-			// memory.Resize(1024)
 			memory.Resize(uint64(32*len(step.Memory) + 128))
 			for offset, memoryContent := range step.Memory {
 				memory.Set(uint64(offset*32)+128, 32, common.Hex2Bytes(memoryContent))
@@ -151,17 +131,20 @@ func Test_Trace(t *testing.T) {
 			stack.Push(value)
 		}
 
-		// Set StateRoot
-		env.StateDB.StateRoot = []byte(step.StateRoot)
-
-		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
+		// Returning from a call or create
+		if previousDepth < step.Depth {
 			jsTracer.CaptureExit([]byte{}, gasCost.Uint64(), fmt.Errorf(step.Error))
 		}
+
+		// Set StateRoot
+		env.StateDB.StateRoot = []byte(step.StateRoot)
+		previousDepth = step.Depth
 	}
 
 	gasUsed, ok := new(big.Int).SetString(trace.Context.GasUsed, 10)
 	require.Equal(t, true, ok)
 
+	jsTracer.CaptureTxEnd(gasUsed.Uint64())
 	jsTracer.CaptureEnd([]byte(trace.Context.Output), gasUsed.Uint64(), time.Duration(trace.Context.Time), nil)
 	result, err := jsTracer.GetResult()
 	require.NoError(t, err)

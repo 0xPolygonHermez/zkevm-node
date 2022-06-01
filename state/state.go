@@ -65,6 +65,11 @@ func NewState(cfg Config, storage *PostgresStorage, tree statetree) *State {
 	}
 }
 
+// GetTree returns State inner tree
+func (s *State) GetTree() statetree {
+	return s.tree
+}
+
 // BeginStateTransaction starts a transaction block
 func (s *State) BeginStateTransaction(ctx context.Context) (string, error) {
 	const maxAttempts = 3
