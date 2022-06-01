@@ -24,6 +24,8 @@ const (
 	amountOfPendingTxsRequested = 30000
 	percentageToCutSelectedTxs  = 80
 	fullPercentage              = 100
+	gasLimitIncrease            = 1.2
+	sentEthTxsChanLen           = 100
 
 	errGasRequiredExceedsAllowance = "gas required exceeds allowance"
 	errContentLengthTooLarge       = "content length too large"
@@ -43,6 +45,7 @@ type Sequencer struct {
 	TxProfitabilityChecker txProfitabilityChecker
 
 	lastSentBatchNumber uint64
+	sentEthTxsChan      chan ethSendBatchTx
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -93,7 +96,7 @@ func NewSequencer(cfg Config, pool txPool, state stateInterface, ethMan etherman
 			return Sequencer{}, fmt.Errorf("failed to get chain id for the sequencer, err: %v", err)
 		}
 	}
-
+	sentEthTxsChan := make(chan ethSendBatchTx, sentEthTxsChanLen)
 	s := Sequencer{
 		cfg:     cfg,
 		Pool:    pool,
@@ -104,6 +107,8 @@ func NewSequencer(cfg Config, pool txPool, state stateInterface, ethMan etherman
 
 		TxSelector:             txSelector,
 		TxProfitabilityChecker: txProfitabilityChecker,
+
+		sentEthTxsChan: sentEthTxsChan,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -117,6 +122,7 @@ func (s *Sequencer) Start() {
 	ticker := time.NewTicker(s.cfg.IntervalToProposeBatch.Duration)
 	defer ticker.Stop()
 	var root []byte
+	go s.trackEthSentTransactions()
 	// Infinite for loop:
 	for {
 		root = s.tryProposeBatch(root)
@@ -296,7 +302,14 @@ func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput)
 
 		if isProfitable && (len(selectionRes.SelectedTxs) > 0 || len(selectionRes.SelectedClaimsTxs) > 0) {
 			// YES: send selection to Ethereum
-			sendBatchTx, err := s.EthMan.SendBatch(s.ctx, append(selectionRes.SelectedTxs, selectionRes.SelectedClaimsTxs...), aggregatorReward)
+			txsToSent := append(selectionRes.SelectedTxs, selectionRes.SelectedClaimsTxs...)
+			gas, err := s.EthMan.EstimateSendBatchGas(s.ctx, txsToSent, aggregatorReward)
+			if err != nil {
+				log.Errorf("failed to estimate gas cost for sending a batch, err: %v", err)
+				return false
+			}
+			gasLimit := uint64(float64(gas) * gasLimitIncrease)
+			sendBatchTx, err := s.EthMan.SendBatch(s.ctx, gasLimit, txsToSent, aggregatorReward)
 			if err != nil {
 				if isDataForEthTxTooBig(err) {
 					selectionRes.SelectedTxs, selectionRes.SelectedTxsHashes = cutSelectedTxs(selectionRes.SelectedTxs, selectionRes.SelectedTxsHashes)
@@ -321,11 +334,101 @@ func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput)
 			s.lastSentBatchNumber = selectionRes.BatchNumber
 			log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
 			isSent = true
+			// sent to the channel, so sequencer can be sure, that tx is processed and not missed
+			ethTx := ethSendBatchTx{selectedTxs: txsToSent, aggregatorReward: aggregatorReward, hash: sendBatchTx.Hash(), gasLimit: gasLimit}
+			s.sentEthTxsChan <- ethTx
 		} else {
 			return false
 		}
 	}
 	return true
+}
+
+type ethSendBatchTx struct {
+	selectedTxs      []*types.Transaction
+	aggregatorReward *big.Int
+	hash             common.Hash
+	gasLimit         uint64
+}
+
+func (s *Sequencer) trackEthSentTransactions() {
+	for {
+		select {
+		case tx := <-s.sentEthTxsChan:
+			s.resendTxIfNeeded(tx)
+		case <-s.ctx.Done():
+			return
+		}
+	}
+}
+
+func (s *Sequencer) resendTxIfNeeded(tx ethSendBatchTx) {
+	var (
+		gasLimit       uint64
+		counter        uint32
+		isTxSuccessful bool
+		err            error
+	)
+	hash := tx.hash
+
+	for !isTxSuccessful && counter <= s.cfg.MaxSendBatchTxRetries {
+		time.Sleep(time.Duration(s.cfg.FrequencyForResendingFailedSendBatchesInMilliseconds) * time.Millisecond)
+		receipt := s.getTxReceipt(hash)
+		if receipt == nil {
+			continue
+		}
+		// tx is failed, so batch should be sent again
+		if receipt.Status == 0 {
+			gasLimit, hash, err = s.resendSendBatchTx(gasLimit, tx, hash, counter)
+			if err == nil {
+				counter++
+			}
+			continue
+		}
+
+		log.Infof("sendBatch transaction %s is successful", hash.Hex())
+		isTxSuccessful = true
+	}
+	if counter == s.cfg.MaxSendBatchTxRetries {
+		log.Fatalf("failed to send txs %v several times,"+
+			" gas limit %d is too high, first tx hash %s, last tx hash %s",
+			tx.selectedTxs, gasLimit, tx.hash.Hex(), hash.Hex())
+	}
+}
+
+func (s *Sequencer) getTxReceipt(hash common.Hash) *types.Receipt {
+	_, isPending, err := s.EthMan.GetTx(s.ctx, hash)
+	if err != nil {
+		log.Warnf("failed to get tx with hash %s, err %v", hash, err)
+		return nil
+	}
+	if isPending {
+		log.Debugf("sendBatch transaction %s is pending", hash)
+		return nil
+	}
+
+	receipt, err := s.EthMan.GetTxReceipt(s.ctx, hash)
+	if err != nil {
+		log.Warnf("failed to get tx receipt with hash %v, err %v", hash.Hex(), err)
+		return nil
+	}
+	return receipt
+}
+
+func (s *Sequencer) resendSendBatchTx(gasLimit uint64, tx ethSendBatchTx, hash common.Hash, counter uint32) (uint64, common.Hash, error) {
+	log.Warnf("increasing gas limit for the transaction sending, previous failed tx hash %v", hash)
+
+	gasLimit = uint64(float64(gasLimit) * gasLimitIncrease)
+	sentTx, err := s.EthMan.SendBatch(s.ctx, gasLimit, tx.selectedTxs, tx.aggregatorReward)
+	if err != nil {
+		log.Warnf("failed to send batch once again, err: %v", err)
+		return gasLimit, hash, err
+	}
+	hash = sentTx.Hash()
+	log.Infof("sent sendBatch transaction with hash %s and gas limit %d with try number %d",
+		hash, gasLimit, counter)
+
+	return gasLimit, hash, err
 }
 
 func cutSelectedTxs(selectedTxs []*types.Transaction, selectedTxsHashes []common.Hash) ([]*types.Transaction, []common.Hash) {

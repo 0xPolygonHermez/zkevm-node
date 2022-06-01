@@ -23,6 +23,13 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const (
+	// The account on which we make the deposit needs to be fixed so that the
+	// hardcoded proof used in the claim can work.
+	BridgeDepositReceiverAddress    = "0xc949254d682d8c9ad5682521675b8f43b102aec4"
+	BridgeDepositReceiverPrivateKey = "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
+)
+
 type deposit struct {
 	TokenAddr  common.Address
 	Amount     *big.Int
@@ -39,13 +46,26 @@ type globalExitRoot struct {
 	ExitRoots         []common.Hash
 }
 
+type L1Deployer struct {
+	Address, PrivateKey      string
+	L1ETHAmountToSequencer   string
+	L1MaticAmountToSequencer string
+}
+
 type InitNetworkConfig struct {
-	L1NetworkURL, L2NetworkURL,
-	L1BridgeAddr, L2BridgeAddr,
-	L1AccHexAddress, L1AccHexPrivateKey,
-	SequencerAddress, SequencerPrivateKey,
-	BridgeDepositReceiverAddress, BridgeDepositReceiverPrivateKey string
-	TxTimeout time.Duration
+	Network string
+
+	// RPC endpoints
+	L1NetworkURL, L2NetworkURL string
+	// Bridge addresses, defined in the deployment description
+	L1BridgeAddr, L2BridgeAddr string
+	// Deployer account, needs to have at least 10 L1 ETH for the L2
+	// deposit
+	L1Deployer L1Deployer
+	// Sequencer address, comes from the keystore passed to core
+	// on config
+	SequencerAddress, SequencerPrivateKey string
+	TxTimeout                             time.Duration
 }
 
 // InitNetwork initializes the L2 network and moves the L1 funds to L2
@@ -55,7 +75,10 @@ func InitNetwork(
 ) error {
 	app := cli.NewApp()
 	var n string
-	flag.StringVar(&n, "network", "local", "")
+	if nc.Network == "" {
+		nc.Network = "local"
+	}
+	flag.StringVar(&n, "network", nc.Network, "")
 	context := cli.NewContext(app, flag.CommandLine, nil)
 
 	cfg, err := config.Load(context)
@@ -86,7 +109,7 @@ func InitNetwork(
 
 	// Preparing l1 acc info
 	log.Infof("Creating deployer authorization")
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(nc.L1AccHexPrivateKey, "0x"))
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(nc.L1Deployer.PrivateKey, "0x"))
 	if err != nil {
 		return err
 	}
@@ -113,61 +136,65 @@ func InitNetwork(
 		return err
 	}
 
-	// Send some Ether from l1Acc to sequencer acc
-	log.Infof("Transferring ETH to the sequencer")
-	fromAddress := common.HexToAddress(nc.L1AccHexAddress)
-	nonce, err := clientL1.PendingNonceAt(ctx, fromAddress)
-	if err != nil {
-		return err
-	}
-	const gasLimit = 21000
-	toAddress := common.HexToAddress(nc.SequencerAddress)
-	ethAmount, _ := big.NewInt(0).SetString("200000000000000000000", encoding.Base10)
-	tx := types.NewTransaction(nonce, toAddress, ethAmount, gasLimit, gasPrice, nil)
-	signedTx, err := authDeployer.Signer(authDeployer.From, tx)
-	if err != nil {
-		return err
-	}
-	err = clientL1.SendTransaction(ctx, signedTx)
-	if err != nil {
-		return err
-	}
-	_, err = scripts.WaitTxToBeMined(clientL1, signedTx.Hash(), nc.TxTimeout)
-	if err != nil {
-		return err
+	sequencerAddress := common.HexToAddress(nc.SequencerAddress)
+	if nc.L1Deployer.L1ETHAmountToSequencer != "" {
+		// Send some Ether from L1 deployer to sequencer acc
+		ethAmount, _ := big.NewInt(0).SetString(nc.L1Deployer.L1ETHAmountToSequencer, encoding.Base10)
+		log.Infof("Transferring %s L1 ETH to sequencer %q from L1 deployer %q", nc.L1Deployer.L1ETHAmountToSequencer, nc.SequencerAddress, nc.L1Deployer.Address)
+		fromAddress := common.HexToAddress(nc.L1Deployer.Address)
+		nonce, err := clientL1.PendingNonceAt(ctx, fromAddress)
+		if err != nil {
+			return err
+		}
+		const gasLimit = 21000
+
+		tx := types.NewTransaction(nonce, sequencerAddress, ethAmount, gasLimit, gasPrice, nil)
+		signedTx, err := authDeployer.Signer(authDeployer.From, tx)
+		if err != nil {
+			return err
+		}
+		err = clientL1.SendTransaction(ctx, signedTx)
+		if err != nil {
+			return err
+		}
+		_, err = scripts.WaitTxToBeMined(clientL1, signedTx.Hash(), nc.TxTimeout)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Create matic maticTokenSC sc instance
-	log.Infof("Loading Matic token SC instance")
-	log.Infof("Matic add %s", cfg.NetworkConfig.MaticAddr)
-	maticTokenSC, err := matic.NewMatic(cfg.NetworkConfig.MaticAddr, clientL1)
-	if err != nil {
-		return err
-	}
+	if nc.L1Deployer.L1MaticAmountToSequencer != "" {
+		// Create matic maticTokenSC sc instance
+		log.Infof("Loading Matic token SC instance")
+		log.Infof("Matic add %s", cfg.NetworkConfig.MaticAddr)
+		maticTokenSC, err := matic.NewMatic(cfg.NetworkConfig.MaticAddr, clientL1)
+		if err != nil {
+			return err
+		}
+		// Send matic to sequencer
+		maticAmount, _ := big.NewInt(0).SetString(nc.L1Deployer.L1MaticAmountToSequencer, encoding.Base10)
+		log.Infof("Transferring %s L1 MATIC tokens to sequencer %q from L1 deployer %q", nc.L1Deployer.L1MaticAmountToSequencer, nc.SequencerAddress, nc.L1Deployer.Address)
+		tx, err := maticTokenSC.Transfer(authDeployer, sequencerAddress, maticAmount)
+		if err != nil {
+			return err
+		}
 
-	// Send matic to sequencer
-	log.Infof("Transferring MATIC tokens to sequencer")
-	maticAmount, _ := big.NewInt(0).SetString("200000000000000000000000", encoding.Base10)
-	tx, err = maticTokenSC.Transfer(authDeployer, toAddress, maticAmount)
-	if err != nil {
-		return err
-	}
+		// wait matic transfer to be mined
+		_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
+		if err != nil {
+			return err
+		}
 
-	// wait matic transfer to be mined
-	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
-	if err != nil {
-		return err
-	}
-
-	// approve tokens to be used by PoE SC on behalf of the sequencer
-	log.Infof("Approving tokens to be used by PoE on behalf of the sequencer")
-	tx, err = maticTokenSC.Approve(authSequencer, cfg.NetworkConfig.PoEAddr, maticAmount)
-	if err != nil {
-		return err
-	}
-	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
-	if err != nil {
-		return err
+		// approve tokens to be used by PoE SC on behalf of the sequencer
+		log.Infof("Approving %s L1 MATIC tokens to be used by PoE on behalf of the sequencer %q", maticAmount.String(), nc.SequencerAddress)
+		tx, err = maticTokenSC.Approve(authSequencer, cfg.NetworkConfig.PoEAddr, maticAmount)
+		if err != nil {
+			return err
+		}
+		_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Register the sequencer
@@ -179,7 +206,7 @@ func InitNetwork(
 	if err != nil {
 		return err
 	}
-	tx, err = etherman.RegisterSequencer(nc.L2NetworkURL)
+	tx, err := etherman.RegisterSequencer(nc.L2NetworkURL)
 	if err != nil {
 		return err
 	}
@@ -196,17 +223,17 @@ func InitNetwork(
 	time.Sleep(intervalToWaitTheSequencerToGetRegistered)
 
 	// Deposit funds to L2 via bridge
-	log.Infof("Depositing funds to L2 via bridge")
+	depositAmount, _ := big.NewInt(0).SetString("10000000000000000000", encoding.Base10)
+	log.Infof("Depositing funds to L2 via bridge using %s L1 ETH from L1 deployer %q", depositAmount.String(), nc.L1Deployer.Address)
 	balance, err := clientL1.BalanceAt(ctx, authSequencer.From, nil)
 	if err != nil {
 		return err
 	}
-	log.Debugf("ETH Balance of %v: %v", authSequencer.From.Hex(), balance.Text(encoding.Base10))
+	log.Debugf("ETH Balance of %q: %s", nc.L1Deployer.Address, balance.Text(encoding.Base10))
 
 	const destNetwork = uint32(1)
-	depositAmount, _ := big.NewInt(0).SetString("10000000000000000000", encoding.Base10)
 	ethAddr := common.Address{}
-	destAddr := common.HexToAddress(nc.BridgeDepositReceiverAddress)
+	destAddr := common.HexToAddress(BridgeDepositReceiverAddress)
 	err = sendL1Deposit(ctx, authDeployer, clientL1, ethAddr, depositAmount, destNetwork, &destAddr, nc.L1BridgeAddr, nc.TxTimeout)
 	if err != nil {
 		return err
@@ -295,7 +322,7 @@ func InitNetwork(
 
 	// Preparing bridge receiver acc info
 	log.Infof("Creating bridge receiver authorization")
-	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(nc.BridgeDepositReceiverPrivateKey, "0x"))
+	privateKey, err = crypto.HexToECDSA(strings.TrimPrefix(BridgeDepositReceiverPrivateKey, "0x"))
 	if err != nil {
 		return err
 	}
