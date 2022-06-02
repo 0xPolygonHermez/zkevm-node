@@ -143,11 +143,6 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 		chainID = sq.ChainID.Uint64()
 	}
 
-	lastBatch, err := s.GetLastBatchByStateRoot(ctx, stateRoot, txBundleID)
-	if err != ErrNotFound && err != nil {
-		return nil, err
-	}
-
 	logs := make(map[common.Hash][]*types.Log)
 	host := Host{State: s, stateRoot: stateRoot, txBundleID: txBundleID, logs: logs}
 	host.setRuntime(evm.NewEVM())
@@ -157,7 +152,7 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 	}
 	host.forks = runtime.AllForksEnabled.At(blockNumber)
 
-	batchProcessor := &BatchProcessor{SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, Host: host}
+	batchProcessor := &BatchProcessor{SequencerAddress: sequencerAddress, SequencerChainID: chainID, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, Host: host}
 	batchProcessor.Host.setRuntime(evm.NewEVM())
 
 	return batchProcessor, nil

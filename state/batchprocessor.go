@@ -59,9 +59,9 @@ var InvalidTxErrors = map[string]bool{
 
 // BatchProcessor is used to process a batch of transactions
 type BatchProcessor struct {
-	SequencerAddress     common.Address
-	SequencerChainID     uint64
-	LastBatch            *Batch
+	SequencerAddress common.Address
+	SequencerChainID uint64
+	// LastBatch            *Batch
 	CumulativeGasUsed    uint64
 	MaxCumulativeGasUsed uint64
 	Host                 Host
@@ -235,8 +235,16 @@ func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Trans
 
 func (b *BatchProcessor) populateBatchHeader(batch *Batch) {
 	parentHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
-	if b.LastBatch != nil {
-		parentHash = b.LastBatch.Hash()
+
+	// Get last batch from data base to ensure consistency
+	ctx := context.Background()
+	lastBatch, err := b.Host.State.GetLastBatchByStateRoot(ctx, b.Host.stateRoot, "")
+	if err != nil {
+		log.Errorf("failed to get last batch to populate batch header, err: %v", err)
+	}
+
+	if lastBatch != nil {
+		parentHash = lastBatch.Hash()
 	}
 
 	rr := make([]*types.Receipt, 0, len(batch.Receipts))
@@ -528,6 +536,7 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 	if err != nil {
 		return err
 	}
+	log.Debugf("successfully stored batch %v into data base", batch.Header.Number)
 
 	// store transactions
 	for i, tx := range batch.Transactions {
@@ -561,8 +570,6 @@ func (b *BatchProcessor) commit(ctx context.Context, batch *Batch) error {
 			}
 		}
 	}
-
-	b.LastBatch = batch
 
 	return nil
 }
