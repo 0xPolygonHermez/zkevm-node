@@ -58,9 +58,8 @@ var InvalidTxErrors = map[string]bool{
 
 // BatchProcessor is used to process a batch of transactions
 type BatchProcessor struct {
-	SequencerAddress common.Address
-	SequencerChainID uint64
-	// LastBatch            *Batch
+	SequencerAddress     common.Address
+	SequencerChainID     uint64
 	CumulativeGasUsed    uint64
 	MaxCumulativeGasUsed uint64
 	Host                 Host
