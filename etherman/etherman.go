@@ -322,7 +322,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 		head.Difficulty = big.NewInt(0)
 		head.Number = new(big.Int).SetUint64(uint64(batchEvent.NumBatch))
 		head.Time = fullBlock.Time()
-		
+
 		var batch state.Batch
 		batch.Header = &head
 		batch.Sequencer = batchEvent.Sequencer
