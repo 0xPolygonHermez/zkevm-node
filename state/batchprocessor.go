@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -234,7 +233,7 @@ func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Trans
 }
 
 func (b *BatchProcessor) populateBatchHeader(batch *Batch) {
-	parentHash := common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
+	parentHash := common.Hash{}
 	if b.LastBatch != nil {
 		parentHash = b.LastBatch.Hash()
 	}
@@ -257,7 +256,6 @@ func (b *BatchProcessor) populateBatchHeader(batch *Batch) {
 	batch.Header.Difficulty = new(big.Int).SetUint64(0)
 	batch.Header.GasLimit = 30000000
 	batch.Header.GasUsed = b.CumulativeGasUsed
-	batch.Header.Time = uint64(time.Now().Unix())
 	batch.Header.MixDigest = block.MixDigest()
 	batch.Header.Nonce = block.Header().Nonce
 }

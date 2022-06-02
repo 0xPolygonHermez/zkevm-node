@@ -256,7 +256,7 @@ func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQue
 		block, err := etherMan.processEvent(ctx, vLog)
 		if err != nil {
 			log.Warnf("error processing event. Retrying... Error: %s. vLog: %+v", err.Error(), vLog)
-			break
+			return nil, nil, err
 		}
 		if block == nil {
 			continue
@@ -312,17 +312,22 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 		if err != nil {
 			return nil, err
 		}
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+		}
 		// Indexed parameters using topics
 		var head types.Header
 		head.TxHash = vLog.TxHash
 		head.Difficulty = big.NewInt(0)
 		head.Number = new(big.Int).SetUint64(uint64(batchEvent.NumBatch))
+		head.Time = fullBlock.Time()
 
 		var batch state.Batch
+		batch.Header = &head
 		batch.Sequencer = batchEvent.Sequencer
 		batch.ChainID = new(big.Int).SetUint64(uint64(batchEvent.BatchChainID))
 		batch.GlobalExitRoot = batchEvent.LastGlobalExitRoot
-		batch.Header = &head
 		batch.BlockNumber = vLog.BlockNumber
 		maticCollateral, err := etherMan.GetSequencerCollateralByBatchNumber(batch.Number().Uint64())
 		if err != nil {
@@ -343,10 +348,6 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 				". Error: ", err)
 		}
 		batch.Transactions = txs
-		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
-		if err != nil {
-			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-		}
 		t := time.Unix(int64(fullBlock.Time()), 0)
 		batch.ReceivedAt = t
 
