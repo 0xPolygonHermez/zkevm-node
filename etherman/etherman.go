@@ -256,7 +256,7 @@ func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQue
 		block, err := etherMan.processEvent(ctx, vLog)
 		if err != nil {
 			log.Warnf("error processing event. Retrying... Error: %s. vLog: %+v", err.Error(), vLog)
-			break
+			return nil, nil, err
 		}
 		if block == nil {
 			continue
