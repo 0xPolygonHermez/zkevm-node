@@ -6,10 +6,12 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/imdario/mergo"
 	"github.com/urfave/cli/v2"
 )
 
@@ -39,18 +41,18 @@ type Genesis struct {
 }
 
 type networkConfigFromJSON struct {
-	Arity                         uint8  `json:"arity"`
-	PoEAddr                       string `json:"proofOfEfficiencyAddress"`
-	MaticAddr                     string `json:"maticTokenAddress"`
-	GenBlockNumber                uint64 `json:"deploymentBlockNumber"`
-	SystemSCAddr                  string `json:"systemSCAddr"`
-	GlobalExitRootStoragePosition uint64 `json:"globalExitRootStoragePosition"`
-	LocalExitRootStoragePosition  uint64 `json:"localExitRootStoragePosition"`
-	OldStateRootPosition          uint64 `json:"oldStateRootPosition"`
-	L1ChainID                     uint64 `json:"l1ChainID"`
-	L2DefaultChainID              uint64 `json:"defaultChainID"`
-	Genesis                       []genesisAccountFromJSON
-	MaxCumulativeGasUsed          uint64 `json:"maxCumulativeGasUsed"`
+	Arity                         uint8                    `json:"arity"`
+	PoEAddr                       string                   `json:"proofOfEfficiencyAddress"`
+	MaticAddr                     string                   `json:"maticTokenAddress"`
+	GenBlockNumber                uint64                   `json:"deploymentBlockNumber"`
+	SystemSCAddr                  string                   `json:"systemSCAddr"`
+	GlobalExitRootStoragePosition uint64                   `json:"globalExitRootStoragePosition"`
+	LocalExitRootStoragePosition  uint64                   `json:"localExitRootStoragePosition"`
+	OldStateRootPosition          uint64                   `json:"oldStateRootPosition"`
+	L1ChainID                     uint64                   `json:"l1ChainID"`
+	L2DefaultChainID              uint64                   `json:"defaultChainID"`
+	Genesis                       []genesisAccountFromJSON `json:"genesis"`
+	MaxCumulativeGasUsed          uint64                   `json:"maxCumulativeGasUsed"`
 }
 
 type genesisAccountFromJSON struct {
@@ -66,6 +68,7 @@ const (
 	testnet         = "testnet"
 	internalTestnet = "internaltestnet"
 	local           = "local"
+	merge           = "merge"
 	custom          = "custom"
 )
 
@@ -249,10 +252,16 @@ var (
 		},
 		MaxCumulativeGasUsed: 30000000,
 	}
+
+	networkConfigByName = map[string]NetworkConfig{
+		testnet:         testnetConfig,
+		internalTestnet: internalTestnetConfig,
+		local:           localConfig,
+	}
 )
 
 func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
-	network := ctx.String(flagNetwork)
+	network := ctx.String(FlagNetwork)
 	switch network {
 	case testnet:
 		log.Debug("Testnet network selected")
@@ -269,6 +278,21 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 			log.Fatalf("Failed to load custom network configuration, err:", err)
 		}
 		cfg.NetworkConfig = customNetworkConfig
+	case merge:
+		customNetworkConfig, err := loadCustomNetworkConfig(ctx)
+		if err != nil {
+			log.Fatalf("Failed to load custom network configuration, err:", err)
+		}
+		baseNetworkConfigName := ctx.String(FlagNetworkBase)
+		baseNetworkConfig, ok := networkConfigByName[baseNetworkConfigName]
+		if !ok {
+			log.Fatalf("Base network configuration %q not found:", baseNetworkConfigName)
+		}
+		mergedNetworkConfig, err := mergeNetworkConfigs(customNetworkConfig, baseNetworkConfig)
+		if err != nil {
+			log.Fatalf("Failed to merge network configurations network configuration, err:", err)
+		}
+		cfg.NetworkConfig = mergedNetworkConfig
 	default:
 		log.Debug("Mainnet network selected")
 		cfg.NetworkConfig = mainnetConfig
@@ -284,7 +308,7 @@ func bigIntFromBase10String(s string) *big.Int {
 }
 
 func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
-	cfgPath := ctx.String(flagNetworkCfg)
+	cfgPath := ctx.String(FlagNetworkCfg)
 
 	f, err := os.Open(cfgPath) //nolint:gosec
 	if err != nil {
@@ -363,4 +387,30 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 		cfg.Genesis.Nonces[addr] = nonce
 	}
 	return cfg, nil
+}
+
+type addressTransformer struct{}
+
+func (a addressTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
+	if typ != reflect.TypeOf(common.Address{}) {
+		return nil
+	}
+	return func(dst, src reflect.Value) error {
+		if !dst.CanSet() {
+			return nil
+		}
+		hex := src.MethodByName("Hex")
+		result := hex.Call([]reflect.Value{})
+		if result[0].Interface().(string) != "0x0000000000000000000000000000000000000000" {
+			dst.Set(src)
+		}
+		return nil
+	}
+}
+
+func mergeNetworkConfigs(custom, base NetworkConfig) (NetworkConfig, error) {
+	if err := mergo.MergeWithOverwrite(&base, custom, mergo.WithTransformers(addressTransformer{})); err != nil {
+		return NetworkConfig{}, err
+	}
+	return base, nil
 }

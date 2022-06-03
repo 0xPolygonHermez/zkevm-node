@@ -137,10 +137,10 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 			defer func() {
 				require.NoError(t, os.Remove(file.Name()))
 			}()
-			require.NoError(t, os.WriteFile(file.Name(), []byte(tc.inputConfigStr), 0644))
+			require.NoError(t, os.WriteFile(file.Name(), []byte(tc.inputConfigStr), 0600))
 
 			flagSet := flag.NewFlagSet("test", flag.ExitOnError)
-			flagSet.String(flagNetworkCfg, file.Name(), "")
+			flagSet.String(FlagNetworkCfg, file.Name(), "")
 			ctx := cli.NewContext(nil, flagSet, nil)
 
 			actualConfig, err := loadCustomNetworkConfig(ctx)
@@ -180,6 +180,115 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 					require.True(t, found)
 				}
 			}
+		})
+	}
+}
+
+func TestMergeNetworkConfig(t *testing.T) {
+	tcs := []struct {
+		description          string
+		inputCustomConfig    NetworkConfig
+		inputBaseConfig      NetworkConfig
+		expectedOutputConfig NetworkConfig
+	}{
+		{
+			description:          "empty",
+			inputCustomConfig:    NetworkConfig{},
+			inputBaseConfig:      NetworkConfig{},
+			expectedOutputConfig: NetworkConfig{},
+		},
+		{
+			description: "matching keys",
+			inputCustomConfig: NetworkConfig{
+				GenBlockNumber: 300,
+				PoEAddr:        common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+				MaticAddr:      common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"),
+			},
+			inputBaseConfig: NetworkConfig{
+				GenBlockNumber: 100,
+				PoEAddr:        common.HexToAddress("0xb1Fe4a65D3392df68F96daC8eB4df56B2411afBf"),
+				MaticAddr:      common.HexToAddress("0x6bad17aC92f0E9313E8c7c3B80E902f1c4D5255F"),
+			},
+			expectedOutputConfig: NetworkConfig{
+				GenBlockNumber: 300,
+				PoEAddr:        common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+				MaticAddr:      common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"),
+			},
+		},
+		{
+			description: "non-matching keys",
+			inputCustomConfig: NetworkConfig{
+				GenBlockNumber: 300,
+				PoEAddr:        common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+				MaticAddr:      common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"),
+			},
+			inputBaseConfig: NetworkConfig{
+				PoEAddr:              common.HexToAddress("0xb1Fe4a65D3392df68F96daC8eB4df56B2411afBf"),
+				Arity:                4,
+				L1ChainID:            5,
+				MaxCumulativeGasUsed: 300,
+			},
+			expectedOutputConfig: NetworkConfig{
+				Arity:                4,
+				L1ChainID:            5,
+				MaxCumulativeGasUsed: 300,
+				GenBlockNumber:       300,
+				PoEAddr:              common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+				MaticAddr:            common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"),
+			},
+		},
+		{
+			description: "nested keys",
+			inputCustomConfig: NetworkConfig{
+				GenBlockNumber: 300,
+				Genesis: Genesis{
+					Balances: map[common.Address]*big.Int{
+						common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"): bigIntFromBase10String("100000000000000000000000"),
+						common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"): bigIntFromBase10String("900000000000000000000000"),
+					},
+				},
+			},
+			inputBaseConfig: NetworkConfig{
+				GenBlockNumber: 10,
+				Genesis: Genesis{
+					Balances: map[common.Address]*big.Int{
+						common.HexToAddress("0xb1Fe4a65D3392df68F96daC8eB4df56B2411afBf"): bigIntFromBase10String("200000000000000000000000"),
+						common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"): bigIntFromBase10String("700000000000000000000000"),
+					},
+				},
+			},
+			expectedOutputConfig: NetworkConfig{
+				GenBlockNumber: 300,
+				Genesis: Genesis{
+					Balances: map[common.Address]*big.Int{
+						common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"): bigIntFromBase10String("100000000000000000000000"),
+						common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"): bigIntFromBase10String("900000000000000000000000"),
+						common.HexToAddress("0xb1Fe4a65D3392df68F96daC8eB4df56B2411afBf"): bigIntFromBase10String("200000000000000000000000"),
+					},
+				},
+			},
+		},
+		{
+			description: "zero address doesn't overwrite destination",
+			inputCustomConfig: NetworkConfig{
+				PoEAddr: common.Address{},
+			},
+			inputBaseConfig: NetworkConfig{
+				PoEAddr: common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+			},
+			expectedOutputConfig: NetworkConfig{
+				PoEAddr: common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		tc := tc
+		t.Run(tc.description, func(t *testing.T) {
+			actualOutputConfig, err := mergeNetworkConfigs(tc.inputCustomConfig, tc.inputBaseConfig)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.expectedOutputConfig, actualOutputConfig)
 		})
 	}
 }

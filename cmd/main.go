@@ -3,17 +3,9 @@ package main
 import (
 	"os"
 
+	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/urfave/cli/v2"
-)
-
-const (
-	flagYes        = "yes"
-	flagCfg        = "cfg"
-	flagNetwork    = "network"
-	flagNetworkCfg = "network-cfg"
-	flagAmount     = "amount"
-	flagRemoteMT   = "remote-merkletree"
 )
 
 const (
@@ -33,30 +25,36 @@ func main() {
 	app.Version = version
 	flags := []cli.Flag{
 		&cli.StringFlag{
-			Name:     flagCfg,
+			Name:     config.FlagCfg,
 			Aliases:  []string{"c"},
 			Usage:    "Configuration `FILE`",
 			Required: false,
 		},
 		&cli.StringFlag{
-			Name:     flagNetwork,
+			Name:     config.FlagNetwork,
 			Aliases:  []string{"n"},
-			Usage:    "Network: mainnet, testnet, internaltestnet, local. By default it uses mainnet",
+			Usage:    "Network: mainnet, testnet, internaltestnet, local, custom, merge. By default it uses mainnet",
 			Required: false,
 		},
 		&cli.StringFlag{
-			Name:    flagNetworkCfg,
+			Name:    config.FlagNetworkCfg,
 			Aliases: []string{"nc"},
 			Usage:   "Custom network configuration `FILE` when using --network custom parameter",
 		},
+		&cli.StringFlag{
+			Name:     config.FlagNetworkBase,
+			Aliases:  []string{"nb"},
+			Usage:    "Base existing network configuration to be merged with the custom configuration passed with --network-cfg",
+			Required: false,
+		},
 		&cli.BoolFlag{
-			Name:     flagYes,
+			Name:     config.FlagYes,
 			Aliases:  []string{"y"},
 			Usage:    "Automatically accepts any confirmation to execute the command",
 			Required: false,
 		},
 		&cli.BoolFlag{
-			Name:     flagRemoteMT,
+			Name:     config.FlagRemoteMT,
 			Aliases:  []string{"mt"},
 			Usage:    "Connect to merkletree service instead of use local libraries",
 			Required: false,
@@ -89,7 +87,7 @@ func main() {
 			Usage:   "Approve tokens to be spent by the smart contract",
 			Action:  approveTokens,
 			Flags: append(flags, &cli.StringFlag{
-				Name:     flagAmount,
+				Name:     config.FlagAmount,
 				Aliases:  []string{"am"},
 				Usage:    "Amount that is gonna be approved",
 				Required: true,

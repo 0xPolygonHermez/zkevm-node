@@ -16,7 +16,7 @@ import (
 func registerSequencer(ctx *cli.Context) error {
 	url := ctx.Args().First()
 	var input string
-	if !ctx.Bool(flagYes) {
+	if !ctx.Bool(config.FlagYes) {
 		fmt.Print("*WARNING* Are you sure you want to register " +
 			"the sequencer in the rollup using the domain <" + url + ">? [y/N]: ")
 		if _, err := fmt.Scanln(&input); err != nil {
@@ -78,7 +78,7 @@ func registerSequencer(ctx *cli.Context) error {
 	}
 
 	// If Sequencer exists in the db
-	if !ctx.Bool(flagYes) {
+	if !ctx.Bool(config.FlagYes) {
 		fmt.Print("*WARNING* Sequencer is already registered. Do you want to update " +
 			"the sequencer url in the rollup usign the domain <" + url + ">? [y/N]: ")
 		if _, err := fmt.Scanln(&input); err != nil {
