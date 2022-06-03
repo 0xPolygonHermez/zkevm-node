@@ -380,11 +380,13 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 				cfg.Genesis.Storage[addr][new(big.Int).SetBytes(common.FromHex(storageKey))] = new(big.Int).SetBytes(common.FromHex(storageValue))
 			}
 		}
-		nonce, ok := big.NewInt(0).SetString(account.Nonce, encoding.Base10)
-		if !ok {
-			return NetworkConfig{}, fmt.Errorf("Invalid nonce for account %s", addr)
+		if account.Nonce != "" && account.Nonce != "0" {
+			nonce, ok := big.NewInt(0).SetString(account.Nonce, encoding.Base10)
+			if !ok {
+				return NetworkConfig{}, fmt.Errorf("Invalid nonce for account %s", addr)
+			}
+			cfg.Genesis.Nonces[addr] = nonce
 		}
-		cfg.Genesis.Nonces[addr] = nonce
 	}
 	return cfg, nil
 }
