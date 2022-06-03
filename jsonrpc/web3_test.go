@@ -1,35 +1,107 @@
 package jsonrpc
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"net/http"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestClientVersion(t *testing.T) {
-	web3Endpoints := Web3{}
+	s, _, _ := newMockedServer(t)
+	defer s.Stop()
 
-	result, err := web3Endpoints.ClientVersion()
+	reqBodyObj := Request{
+		JSONRPC: "2.0",
+		ID:      float64(1),
+		Method:  "web3_clientVersion",
+	}
+
+	reqBody, err := json.Marshal(reqBodyObj)
+	require.NoError(t, err)
+
+	reqBodyReader := bytes.NewReader(reqBody)
+	req, err := http.NewRequest(http.MethodPost, s.ServerURL, reqBodyReader)
+	require.NoError(t, err)
+
+	req.Header.Add("Content-type", "application/json")
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	if res.StatusCode != http.StatusOK {
+		log.Error("Invalid status code, expected: %v, found: %v", http.StatusOK, res.StatusCode)
+	}
+
+	resBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	defer res.Body.Close()
+
+	var resBodyObj Response
+	err = json.Unmarshal(resBody, &resBodyObj)
+	require.NoError(t, err)
+
+	assert.Equal(t, reqBodyObj.JSONRPC, resBodyObj.JSONRPC)
+	assert.Equal(t, reqBodyObj.ID, resBodyObj.ID)
+	assert.Nil(t, resBodyObj.Error)
+
+	var result string
+	err = json.Unmarshal(resBodyObj.Result, &result)
 	require.NoError(t, err)
 
 	assert.Equal(t, "Polygon Hermez/v1.5.0", result)
 }
 
 func TestSha3(t *testing.T) {
-	web3Endpoints := Web3{}
+	s, _, _ := newMockedServer(t)
+	defer s.Stop()
 
-	helloWorld := argBig{}
-	err := helloWorld.UnmarshalText([]byte("0x68656c6c6f20776f726c64"))
+	params, err := json.Marshal([]string{"0x68656c6c6f20776f726c64"})
 	require.NoError(t, err)
 
-	resultInterface, err := web3Endpoints.Sha3(helloWorld)
+	reqBodyObj := Request{
+		JSONRPC: "2.0",
+		ID:      float64(1),
+		Method:  "web3_sha3",
+		Params:  params,
+	}
+
+	reqBody, err := json.Marshal(reqBodyObj)
 	require.NoError(t, err)
 
-	resultArgBytes := resultInterface.(argBytes)
-	resultBytes := []byte(resultArgBytes)
+	reqBodyReader := bytes.NewReader(reqBody)
+	req, err := http.NewRequest(http.MethodPost, s.ServerURL, reqBodyReader)
+	require.NoError(t, err)
 
-	resultHex := common.Bytes2Hex(resultBytes)
-	assert.Equal(t, resultHex, "47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad")
+	req.Header.Add("Content-type", "application/json")
+
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+
+	if res.StatusCode != http.StatusOK {
+		log.Error("Invalid status code, expected: %v, found: %v", http.StatusOK, res.StatusCode)
+	}
+
+	resBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	defer res.Body.Close()
+
+	var resBodyObj Response
+	err = json.Unmarshal(resBody, &resBodyObj)
+	require.NoError(t, err)
+
+	assert.Equal(t, reqBodyObj.JSONRPC, resBodyObj.JSONRPC)
+	assert.Equal(t, reqBodyObj.ID, resBodyObj.ID)
+	assert.Nil(t, resBodyObj.Error)
+
+	var result string
+	err = json.Unmarshal(resBodyObj.Result, &result)
+	require.NoError(t, err)
+
+	assert.Equal(t, "0x47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad", result)
 }

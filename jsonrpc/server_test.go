@@ -17,7 +17,8 @@ type mockedServer struct {
 	ChainID          uint64
 	SequencerAddress common.Address
 
-	Server *Server
+	Server    *Server
+	ServerURL string
 }
 
 type mocks struct {
@@ -81,7 +82,8 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 		ChainID:          chainID,
 		SequencerAddress: sequencerAddress,
 
-		Server: server,
+		Server:    server,
+		ServerURL: serverURL,
 	}
 
 	mks := &mocks{
