@@ -223,7 +223,7 @@ func TestSCSendBatchAndVerify(t *testing.T) {
 	if !ok {
 		log.Fatal("error decoding maticAmount")
 	}
-	tx, err := etherman.SendBatch(ctx, txs, matic)
+	tx, err := etherman.SendBatch(ctx, 1000000, txs, matic)
 	require.NoError(t, err)
 	log.Debug("TX: ", tx.Hash())
 

@@ -1104,7 +1104,7 @@ func TestSCCall(t *testing.T) {
 	scInteractionByteCode, err := testutils.ReadBytecode("Interaction/Interaction.bin")
 	require.NoError(t, err)
 	var scInteractionAddress = common.HexToAddress("0x85e844b762A271022b692CF99cE5c59BA0650Ac8")
-	var expectedFinalRoot = "32283567769101672850463952852675360196165454419846649517977258093015136170141"
+	var expectedFinalRoot = "112475504792743399671183524228545390577813291715700260926416920478118349217128"
 
 	// Init database instance
 	err = dbutils.InitOrReset(cfg)
@@ -2162,7 +2162,7 @@ func TestSCRevertedTransaction(t *testing.T) {
 	data = []byte{}
 	data = append(data, methodID...)
 
-	txRetrieveAfterFailValue := types.NewTransaction(3, scAddress, new(big.Int), state.TxTransferGas, new(big.Int).SetUint64(1), data)
+	txRetrieveAfterFailValue := types.NewTransaction(4, scAddress, new(big.Int), state.TxTransferGas, new(big.Int).SetUint64(1), data)
 	signedTxRetrieveAfterFailValue, err := auth.Signer(auth.From, txRetrieveAfterFailValue)
 	require.NoError(t, err)
 
@@ -2296,7 +2296,7 @@ func TestDelegatecall(t *testing.T) {
 	data = append(data, paddedAddress...)
 
 	txDelegateCall := types.NewTx(&types.LegacyTx{
-		Nonce:    3,
+		Nonce:    2,
 		To:       &senderSCAddress,
 		Value:    new(big.Int),
 		Gas:      uint64(sequencerBalance),
