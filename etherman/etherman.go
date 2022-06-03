@@ -136,8 +136,11 @@ func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock
 }
 
 // SendBatch function allows the sequencer send a new batch proposal to the rollup.
-func (etherMan *Client) SendBatch(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
-	return etherMan.sendBatch(ctx, etherMan.auth, txs, maticAmount)
+func (etherMan *Client) SendBatch(ctx context.Context, gasLimit uint64, txs []*types.Transaction, maticAmount *big.Int) (*types.Transaction, error) {
+	sendBatchOps := etherMan.auth
+	sendBatchOps.GasLimit = gasLimit
+	sendBatchOps.NoSend = false
+	return etherMan.sendBatch(ctx, sendBatchOps, txs, maticAmount)
 }
 
 const (
@@ -177,7 +180,7 @@ func (etherMan *Client) sendBatch(ctx context.Context, opts *bind.TransactOpts, 
 		log.Error("error converting hex string to []byte. Error: ", err)
 		return nil, errors.New("error converting hex string to []byte. Error: " + err.Error())
 	}
-	tx, err := etherMan.PoE.SendBatch(etherMan.auth, callData, maticAmount)
+	tx, err := etherMan.PoE.SendBatch(opts, callData, maticAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +256,7 @@ func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQue
 		block, err := etherMan.processEvent(ctx, vLog)
 		if err != nil {
 			log.Warnf("error processing event. Retrying... Error: %s. vLog: %+v", err.Error(), vLog)
-			break
+			return nil, nil, err
 		}
 		if block == nil {
 			continue
@@ -309,17 +312,22 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 		if err != nil {
 			return nil, err
 		}
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+		}
 		// Indexed parameters using topics
 		var head types.Header
 		head.TxHash = vLog.TxHash
 		head.Difficulty = big.NewInt(0)
 		head.Number = new(big.Int).SetUint64(uint64(batchEvent.NumBatch))
+		head.Time = fullBlock.Time()
 
 		var batch state.Batch
+		batch.Header = &head
 		batch.Sequencer = batchEvent.Sequencer
 		batch.ChainID = new(big.Int).SetUint64(uint64(batchEvent.BatchChainID))
 		batch.GlobalExitRoot = batchEvent.LastGlobalExitRoot
-		batch.Header = &head
 		batch.BlockNumber = vLog.BlockNumber
 		maticCollateral, err := etherMan.GetSequencerCollateralByBatchNumber(batch.Number().Uint64())
 		if err != nil {
@@ -340,10 +348,6 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*stat
 				". Error: ", err)
 		}
 		batch.Transactions = txs
-		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
-		if err != nil {
-			return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-		}
 		t := time.Unix(int64(fullBlock.Time()), 0)
 		batch.ReceivedAt = t
 
@@ -535,6 +539,16 @@ func (etherMan *Client) EstimateSendBatchCost(ctx context.Context, txs []*types.
 		return nil, err
 	}
 	return tx.Cost(), nil
+}
+
+func (etherMan *Client) EstimateSendBatchGas(ctx context.Context, txs []*types.Transaction, maticAmount *big.Int) (uint64, error) {
+	noSendOpts := etherMan.auth
+	noSendOpts.NoSend = true
+	tx, err := etherMan.sendBatch(ctx, noSendOpts, txs, maticAmount)
+	if err != nil {
+		return 0, err
+	}
+	return tx.Gas(), nil
 }
 
 // GetLatestProposedBatchNumber function allows to retrieve the latest proposed batch in the smc
