@@ -96,7 +96,10 @@ stop-db: ## Stops the node database
 
 .PHONY: run-core
 run-core: ## Runs the core
-	$(RUNCORE)
+	$(RUNCORESEQ)
+	$(RUNCOREAGG)
+	$(RUNCORERPC)
+	$(RUNCORESYNC)
 
 .PHONY: stop-core
 stop-core: ## Stops the core
