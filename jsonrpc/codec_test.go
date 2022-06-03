@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -119,26 +118,67 @@ func TestGetNumericBlockNumber(t *testing.T) {
 }
 
 func TestResponseMarshal(t *testing.T) {
-	const jsonRPCValue = "jsonrpc"
-	const idValue = 1
-	result, err := json.Marshal(struct {
-		A string `json:"A"`
-	}{"A"})
-	require.NoError(t, err)
-	errorObjValue := newRPCError(123, "m")
+	testCases := []struct {
+		Name    string
+		JSONRPC string
+		ID      interface{}
+		Result  interface{}
+		Error   rpcError
 
-	expectedBytes := []byte(fmt.Sprintf("{\"jsonrpc\":\"%v\",\"id\":%v,\"result\":{\"A\":\"A\"},\"error\":{\"code\":123,\"message\":\"m\"}}", jsonRPCValue, idValue))
+		ExpectedJson string
+	}{
+		{
+			Name:    "Error is nil",
+			JSONRPC: "2.0",
+			ID:      1,
+			Result: struct {
+				A string `json:"A"`
+			}{"A"},
+			Error: nil,
 
-	req := Request{
-		JSONRPC: jsonRPCValue,
-		ID:      idValue,
+			ExpectedJson: "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"A\":\"A\"}}",
+		},
+		{
+			Name:    "Result is nil and Error is not nil",
+			JSONRPC: "2.0",
+			ID:      1,
+			Result:  nil,
+			Error:   newRPCError(123, "m"),
+
+			ExpectedJson: "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":123,\"message\":\"m\"}}",
+		},
+		{
+			Name:    "Result is not nil and Error is not nil",
+			JSONRPC: "2.0",
+			ID:      1,
+			Result: struct {
+				A string `json:"A"`
+			}{"A"},
+			Error: newRPCError(123, "m"),
+
+			ExpectedJson: "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":123,\"message\":\"m\"}}",
+		},
 	}
 
-	resp := NewResponse(req, &result, errorObjValue)
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			req := Request{
+				JSONRPC: testCase.JSONRPC,
+				ID:      testCase.ID,
+			}
+			var result *[]byte
+			if testCase.Result != nil {
+				r, err := json.Marshal(testCase.Result)
+				require.NoError(t, err)
+				result = &r
+			}
 
-	bytes, err := json.Marshal(resp)
-	require.NoError(t, err)
-	assert.Equal(t, hex.EncodeToString(expectedBytes), hex.EncodeToString(bytes), fmt.Sprintf("expected:%v\nfound:%v", string(expectedBytes), string(bytes)))
+			res := NewResponse(req, result, testCase.Error)
+			bytes, err := json.Marshal(res)
+			require.NoError(t, err)
+			assert.Equal(t, string(testCase.ExpectedJson), string(bytes))
+		})
+	}
 }
 
 func TestIndexUnmarshalJSON(t *testing.T) {

@@ -406,6 +406,45 @@ func TestGetBalance(t *testing.T) {
 	}
 }
 
+func TestGetTransactionReceipt(t *testing.T) {
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name string
+		Hash common.Hash
+
+		ExpectedResult *types.Receipt
+		ExpectedError  error
+
+		SetupMocks func(m *mocks, t testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "tx receipt not found",
+			Hash:           common.HexToHash("0x1"),
+			ExpectedResult: nil,
+			ExpectedError:  ethereum.NotFound,
+			SetupMocks: func(m *mocks, t testCase) {
+				m.State.
+					On("GetTransactionReceipt", context.Background(), t.Hash, "").
+					Return(nil, state.ErrNotFound).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			testCase.SetupMocks(m, testCase)
+			r, err := c.TransactionReceipt(context.Background(), testCase.Hash)
+			assert.Equal(t, testCase.ExpectedResult, r)
+			assert.Equal(t, testCase.ExpectedError, err)
+		})
+	}
+}
+
 func addressPtr(i common.Address) *common.Address {
 	return &i
 }

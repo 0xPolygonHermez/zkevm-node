@@ -86,13 +86,14 @@ func (d *Handler) Handle(req Request) Response {
 		return NewResponse(req, nil, err)
 	}
 
-	var data []byte
+	var data *[]byte
 	res := output[0].Interface()
 	if res != nil {
-		data, _ = json.Marshal(res)
+		d, _ := json.Marshal(res)
+		data = &d
 	}
 
-	return NewResponse(req, &data, nil)
+	return NewResponse(req, data, nil)
 }
 
 func (d *Handler) registerService(serviceName string, service interface{}) {
