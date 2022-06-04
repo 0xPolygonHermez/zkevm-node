@@ -287,9 +287,10 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	}
 
 	// Checks if executor level valid gas errors occurred
-	isGasApplyError := func(err error) bool {
-		return errors.As(err, &ErrNotEnoughIntrinsicGas)
-	}
+	/*
+		isGasApplyError := func(err error) bool {
+			return errors.As(err, &ErrNotEnoughIntrinsicGas)
+		}*/
 
 	// Checks if EVM level valid gas errors occurred
 	isGasEVMError := func(err error) bool {
@@ -337,19 +338,6 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		if err != nil {
 			log.Errorf("estimate gas: failed to rollback transaction, err: %v", err)
 			return false, err
-		}
-
-		if testResult.Err != nil {
-			// Check the application error.
-			// Gas apply errors are valid, and should be ignored
-			if isGasApplyError(testResult.Err) && shouldOmitErr {
-				// Specifying the transaction failed, but not providing an error
-				// is an indication that a valid error occurred due to low gas,
-				// which will increase the lower bound for the search
-				return true, nil
-			}
-
-			return true, testResult.Err
 		}
 
 		// Check if an out of gas error happened during EVM execution
