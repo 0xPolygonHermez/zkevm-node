@@ -286,12 +286,6 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 	}
 
-	// Checks if executor level valid gas errors occurred
-	/*
-		isGasApplyError := func(err error) bool {
-			return errors.As(err, &ErrNotEnoughIntrinsicGas)
-		}*/
-
 	// Checks if EVM level valid gas errors occurred
 	isGasEVMError := func(err error) bool {
 		return errors.Is(err, runtime.ErrOutOfGas) ||
