@@ -8,7 +8,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,10 +64,10 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 
 	serverURL := fmt.Sprintf("http://%s:%d", cfg.Host, cfg.Port)
 	for {
-		log.Debugf("waiting server to get ready...")
-		res, err := http.Get(serverURL) //nolint:gosec
+		fmt.Println("waiting server to get ready...") // fmt is used here to avoid race condition with logs
+		res, err := http.Get(serverURL)               //nolint:gosec
 		if err == nil && res.StatusCode == http.StatusOK {
-			log.Debugf("server ready!")
+			fmt.Println("server ready!") // fmt is used here to avoid race condition with logs
 			break
 		}
 		time.Sleep(10 * time.Millisecond)

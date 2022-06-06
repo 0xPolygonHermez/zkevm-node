@@ -48,7 +48,7 @@ build-docker: ## Builds a docker image with the core binary
 test: compile-scs ## Runs only short tests without checking race conditions
 	$(STOPDB)
 	$(RUNDB); sleep 5
-	trap '$(STOPDB)' EXIT; go test -short -count=1 -p 1 ./...
+	trap '$(STOPDB)' EXIT; go test -short -count=1 -race -p 1 ./...
 
 .PHONY: test-full
 test-full: build-docker compile-scs ## Runs all tests checking race conditions
