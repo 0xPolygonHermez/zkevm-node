@@ -117,6 +117,60 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 			},
 		},
 		{
+			description: "imported from network-config.example.json",
+			inputConfigStr: `{
+  "arity":            4,
+  "deploymentBlockNumber":   1,
+  "proofOfEfficiencyAddress":          "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+  "maticTokenAddress":        "0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa",
+  "systemSCAddr": "0x0000000000000000000000000000000000000000",
+  "globalExitRootStoragePosition": 2,
+  "localExitRootStoragePosition": 2,
+  "oldStateRootPosition": 0,
+  "l1ChainID":        1337,
+  "defaultChainID": 1000,
+  "genesis": [
+    {
+      "address": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "balance": "1000000000000000000000"
+    },
+    {
+      "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "balance": "2000000000000000000000"
+    },
+    {
+      "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "balance": "3000000000000000000000"
+    }
+  ],
+  "maxCumulativeGasUsed": 123456
+}`,
+			expectedConfig: NetworkConfig{
+				Arity:          4,
+				GenBlockNumber: 1,
+				PoEAddr:        common.HexToAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
+				MaticAddr:      common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
+
+				SystemSCAddr:                  common.Address{},
+				GlobalExitRootStoragePosition: 2,
+				LocalExitRootStoragePosition:  2,
+				OldStateRootPosition:          0,
+				L1ChainID:                     1337,
+				L2DefaultChainID:              1000,
+				Genesis: Genesis{
+					Balances: map[common.Address]*big.Int{
+						common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"): bigIntFromBase10String("1000000000000000000000"),
+						common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8"): bigIntFromBase10String("2000000000000000000000"),
+						common.HexToAddress("0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"): bigIntFromBase10String("3000000000000000000000"),
+					},
+					SmartContracts: map[common.Address][]byte{},
+					Storage:        map[common.Address]map[*big.Int]*big.Int{},
+					Nonces:         map[common.Address]*big.Int{},
+				},
+				MaxCumulativeGasUsed: 123456,
+			},
+		},
+		{
 			description:      "not valid JSON gives error",
 			inputConfigStr:   "not a valid json",
 			expectedError:    true,
