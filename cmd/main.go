@@ -44,7 +44,8 @@ func main() {
 		&cli.StringFlag{
 			Name:     config.FlagNetworkBase,
 			Aliases:  []string{"nb"},
-			Usage:    "Base existing network configuration to be merged with the custom configuration passed with --network-cfg",
+			Usage:    "Base existing network configuration to be merged with the custom configuration passed with --network-cfg, by default it uses internaltestnet",
+			Value:    "internaltestnet",
 			Required: false,
 		},
 		&cli.BoolFlag{
