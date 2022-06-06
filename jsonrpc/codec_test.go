@@ -125,7 +125,7 @@ func TestResponseMarshal(t *testing.T) {
 		Result  interface{}
 		Error   rpcError
 
-		ExpectedJson string
+		ExpectedJSON string
 	}{
 		{
 			Name:    "Error is nil",
@@ -136,7 +136,7 @@ func TestResponseMarshal(t *testing.T) {
 			}{"A"},
 			Error: nil,
 
-			ExpectedJson: "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"A\":\"A\"}}",
+			ExpectedJSON: "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"A\":\"A\"}}",
 		},
 		{
 			Name:    "Result is nil and Error is not nil",
@@ -145,7 +145,7 @@ func TestResponseMarshal(t *testing.T) {
 			Result:  nil,
 			Error:   newRPCError(123, "m"),
 
-			ExpectedJson: "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":123,\"message\":\"m\"}}",
+			ExpectedJSON: "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":123,\"message\":\"m\"}}",
 		},
 		{
 			Name:    "Result is not nil and Error is not nil",
@@ -156,7 +156,7 @@ func TestResponseMarshal(t *testing.T) {
 			}{"A"},
 			Error: newRPCError(123, "m"),
 
-			ExpectedJson: "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":123,\"message\":\"m\"}}",
+			ExpectedJSON: "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":123,\"message\":\"m\"}}",
 		},
 	}
 
@@ -176,7 +176,7 @@ func TestResponseMarshal(t *testing.T) {
 			res := NewResponse(req, result, testCase.Error)
 			bytes, err := json.Marshal(res)
 			require.NoError(t, err)
-			assert.Equal(t, string(testCase.ExpectedJson), string(bytes))
+			assert.Equal(t, string(testCase.ExpectedJSON), string(bytes))
 		})
 	}
 }
