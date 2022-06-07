@@ -13,8 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hermeznetwork/hermez-core/state/runtime/executor/fakevm"
-	jsassets "github.com/hermeznetwork/hermez-core/state/runtime/executor/js/internal/tracers"
-	"github.com/hermeznetwork/hermez-core/state/runtime/executor/tracers"
+	jsassets "github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/js/internal/tracers"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
 )
 
 var assetTracers = make(map[string]string)

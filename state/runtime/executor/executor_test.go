@@ -15,8 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/runtime/executor/fakevm"
-	"github.com/hermeznetwork/hermez-core/state/runtime/executor/js"
-	"github.com/hermeznetwork/hermez-core/state/runtime/executor/tracers"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/js"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
@@ -38,11 +38,11 @@ func Test_Trace(t *testing.T) {
 		previousDepth int
 	)
 
-	traceFile, err := os.Open("traces/op-call_2__full_trace_0.json")
+	traceFile, err := os.Open("../../../test/traces/op-call_2__full_trace_0.json")
 	require.NoError(t, err)
 	defer traceFile.Close()
 
-	tracerFile, err := os.Open("tracer.json")
+	tracerFile, err := os.Open("../../../test/tracers/tracer.json")
 	require.NoError(t, err)
 	defer tracerFile.Close()
 
