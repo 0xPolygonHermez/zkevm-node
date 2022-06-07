@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
@@ -17,8 +18,11 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Prime field. It is the prime number used as the order in our elliptic curve
-const fr = "21888242871839275222246405745257275088548364400416034343698204186575808495617"
+const (
+	// Prime field. It is the prime number used as the order in our elliptic curve
+	fr                 = "21888242871839275222246405745257275088548364400416034343698204186575808495617"
+	txNotFoundMaxTries = 10
+)
 
 // Aggregator represents an aggregator
 type Aggregator struct {
@@ -29,6 +33,9 @@ type Aggregator struct {
 	ZkProverClient pb.ZKProverServiceClient
 
 	ProfitabilityChecker aggregatorTxProfitabilityChecker
+
+	txNotFoundCounter int
+	batchesSent       map[uint64]*common.Hash
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -50,6 +57,7 @@ func NewAggregator(
 	case ProfitabilityAcceptAll:
 		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration)
 	}
+	batchesSent := make(map[uint64]*common.Hash)
 	a := Aggregator{
 		cfg: cfg,
 
@@ -58,8 +66,9 @@ func NewAggregator(
 		ZkProverClient:       zkProverClient,
 		ProfitabilityChecker: profitabilityChecker,
 
-		ctx:    ctx,
-		cancel: cancel,
+		batchesSent: batchesSent,
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 
 	return a, nil
@@ -68,7 +77,6 @@ func NewAggregator(
 // Start starts the aggregator
 func (a *Aggregator) Start() {
 	// this is a batches, that were sent to ethereum to consolidate
-	batchesSent := make(map[uint64]*common.Hash)
 
 	// define those vars here, bcs it can be used in case <-a.ctx.Done()
 	var getProofCtx context.Context
@@ -76,7 +84,6 @@ func (a *Aggregator) Start() {
 	for {
 		select {
 		case <-time.After(a.cfg.IntervalToConsolidateState.Duration):
-
 			// 1. check, if state is synced
 			lastConsolidatedBatch, err := a.State.GetLastBatch(a.ctx, false, "")
 			if err != nil {
@@ -94,10 +101,10 @@ func (a *Aggregator) Start() {
 			}
 
 			// 2. find next batch to consolidate
-			delete(batchesSent, lastConsolidatedBatch.Number().Uint64())
+			delete(a.batchesSent, lastConsolidatedBatch.Number().Uint64())
 
 			batchToConsolidate, err := a.State.GetBatchByNumber(a.ctx, lastConsolidatedBatch.Number().Uint64()+1, "")
-
+			batchToConsolidateNumber := batchToConsolidate.Number().Uint64()
 			if err != nil {
 				if err == state.ErrNotFound {
 					log.Infof("there are no batches to consolidate")
@@ -107,29 +114,37 @@ func (a *Aggregator) Start() {
 				continue
 			}
 
-			if h := batchesSent[batchToConsolidate.Number().Uint64()]; h != nil {
+			if h := a.batchesSent[batchToConsolidateNumber]; h != nil {
 				hash := *h
 				_, isPending, err := a.EtherMan.GetTx(a.ctx, hash)
 				if err != nil {
+					if err == ethereum.NotFound {
+						a.checkEthTxNotFound(hash, batchToConsolidateNumber)
+						continue
+					}
 					log.Warnf("failed to get tx with hash %s, err %v", hash.Hex(), err)
 					continue
 				}
 				if !isPending {
 					receipt, err := a.EtherMan.GetTxReceipt(a.ctx, hash)
 					if err != nil {
+						if err == ethereum.NotFound {
+							a.checkEthTxNotFound(hash, batchToConsolidateNumber)
+							continue
+						}
 						log.Warnf("failed to get tx with hash %v, err %v", hash.Hex(), err)
 						continue
 					}
 					// tx is failed, so batch should be sent again
 					if receipt.Status == 0 {
-						delete(batchesSent, batchToConsolidate.Number().Uint64())
+						delete(a.batchesSent, batchToConsolidateNumber)
 						log.Infow("tx with hash %s failed, batch with number %v should be sent again",
-							hash.Hex(), batchToConsolidate.Number().Uint64())
+							hash.Hex(), batchToConsolidateNumber)
 						continue
 					}
 				}
 				log.Infof("batch with number %d was already sent, but not yet consolidated by synchronizer",
-					batchToConsolidate.Number().Uint64())
+					batchToConsolidateNumber)
 				continue
 			}
 
@@ -142,7 +157,7 @@ func (a *Aggregator) Start() {
 			}
 
 			if !isProfitable {
-				log.Infof("Batch %d is not profitable, matic collateral %d", batchToConsolidate.Number().Uint64(), batchToConsolidate.MaticCollateral.Uint64())
+				log.Infof("Batch %d is not profitable, matic collateral %d", batchToConsolidateNumber, batchToConsolidate.MaticCollateral.Uint64())
 				continue
 			}
 
@@ -153,7 +168,7 @@ func (a *Aggregator) Start() {
 				continue
 			}
 
-			stateRootToConsolidate, err := a.State.GetStateRootByBatchNumber(a.ctx, batchToConsolidate.Number().Uint64(), "")
+			stateRootToConsolidate, err := a.State.GetStateRootByBatchNumber(a.ctx, batchToConsolidateNumber, "")
 			if err != nil {
 				log.Warnf("failed to get state root to consolidate, err: %v", err)
 				continue
@@ -193,7 +208,7 @@ func (a *Aggregator) Start() {
 					SequencerAddr:    batchToConsolidate.Sequencer.String(),
 					BatchHashData:    batchHashData.String(),
 					ChainId:          uint32(batchToConsolidate.ChainID.Uint64()),
-					BatchNum:         uint32(batchToConsolidate.Number().Uint64()),
+					BatchNum:         uint32(batchToConsolidateNumber),
 					BlockNum:         uint32(batchToConsolidate.BlockNumber),
 					EthTimestamp:     uint64(batchToConsolidate.ReceivedAt.Unix()),
 				},
@@ -216,7 +231,7 @@ func (a *Aggregator) Start() {
 			log.Debugf("Data sent to the prover: %+v", inputProver)
 			genProofRes := resGenProof.GetResult()
 			if genProofRes != pb.GenProofResponse_RESULT_GEN_PROOF_OK {
-				log.Warnf("failed to get result from the prover, batchNumber: %d, err: %v", batchToConsolidate.Number().Uint64())
+				log.Warnf("failed to get result from the prover, batchNumber: %d, err: %v", batchToConsolidateNumber)
 				continue
 			}
 			genProofID := resGenProof.GetId()
@@ -235,28 +250,28 @@ func (a *Aggregator) Start() {
 					Id: genProofID,
 				})
 				if err != nil {
-					log.Warnf("failed to send get proof request to the prover, batchNumber: %d, err: %v", batchToConsolidate.Number().Uint64(), err)
+					log.Warnf("failed to send get proof request to the prover, batchNumber: %d, err: %v", batchToConsolidateNumber, err)
 					break
 				}
 
 				resGetProof, err = getProofClient.Recv()
 				if err != nil {
-					log.Warnf("failed to get proof from the prover, batchNumber: %d, err: %v", batchToConsolidate.Number().Uint64(), err)
+					log.Warnf("failed to get proof from the prover, batchNumber: %d, err: %v", batchToConsolidateNumber, err)
 					break
 				}
 
 				resGetProofState := resGetProof.GetResult()
 				if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_ERROR ||
 					resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_COMPLETED_ERROR {
-					log.Fatalf("failed to get a proof for batch, batch number %d", batchToConsolidate.Number().Uint64())
+					log.Fatalf("failed to get a proof for batch, batch number %d", batchToConsolidateNumber)
 				}
 				if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_INTERNAL_ERROR {
-					log.Warnf("failed to generate proof for batch, batchNumber: %v, ResGetProofState: %v", batchToConsolidate.Number().Uint64(), resGetProofState)
+					log.Warnf("failed to generate proof for batch, batchNumber: %v, ResGetProofState: %v", batchToConsolidateNumber, resGetProofState)
 					break
 				}
 
 				if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_CANCEL {
-					log.Warnf("proof generation was cancelled, batchNumber: %v", batchToConsolidate.Number().Uint64())
+					log.Warnf("proof generation was cancelled, batchNumber: %v", batchToConsolidateNumber)
 					break
 				}
 
@@ -314,21 +329,34 @@ func (a *Aggregator) Start() {
 			}
 
 			// 4. send proof + txs to the SC
-			batchNum := new(big.Int).SetUint64(batchToConsolidate.Number().Uint64())
+			batchNum := batchToConsolidate.Number()
 			h, err := a.EtherMan.ConsolidateBatch(batchNum, resGetProof)
 			if err != nil {
 				log.Warnf("failed to send request to consolidate batch to ethereum, batch number: %d, err: %v",
-					batchToConsolidate.Number().Uint64(), err)
+					batchToConsolidateNumber, err)
 				continue
 			}
 			txHash := h.Hash()
-			batchesSent[batchToConsolidate.Number().Uint64()] = &txHash
+			a.batchesSent[batchToConsolidateNumber] = &txHash
 
-			log.Infof("Batch %d consolidated: %s", batchToConsolidate.Number().Uint64(), txHash)
+			log.Infof("Batch %d consolidated: %s", batchToConsolidateNumber, txHash)
 		case <-a.ctx.Done():
 			getProofCtxCancel()
 			return
 		}
+	}
+}
+
+func (a *Aggregator) checkEthTxNotFound(hash common.Hash, batchToConsolidateNumber uint64) {
+	if a.txNotFoundCounter != txNotFoundMaxTries {
+		log.Warnf("tx with hash %s not found, retry to get it %d times", hash.Hex(), txNotFoundMaxTries)
+		a.txNotFoundCounter++
+	} else {
+		// tx is failed, so batch should be sent again
+		delete(a.batchesSent, batchToConsolidateNumber)
+		a.txNotFoundCounter = 0
+		log.Warnf("tx with hash %s failed, batch with number %v should be sent again",
+			hash.Hex(), batchToConsolidateNumber)
 	}
 }
 
