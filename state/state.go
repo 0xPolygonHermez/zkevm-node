@@ -286,6 +286,11 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 	}
 
+	// Checks if executor level valid gas errors occurred
+	isGasApplyError := func(err error) bool {
+		return errors.As(err, &ErrNotEnoughIntrinsicGas)
+	}
+
 	// Checks if EVM level valid gas errors occurred
 	isGasEVMError := func(err error) bool {
 		return errors.Is(err, runtime.ErrOutOfGas) ||
@@ -336,7 +341,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		// Check if an out of gas error happened during EVM execution
 		if testResult.Failed() {
-			if isGasEVMError(testResult.Err) && shouldOmitErr {
+			if (isGasEVMError(testResult.Err) || isGasApplyError(testResult.Err)) && shouldOmitErr {
 				// Specifying the transaction failed, but not providing an error
 				// is an indication that a valid error occurred due to low gas,
 				// which will increase the lower bound for the search
