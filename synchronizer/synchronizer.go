@@ -52,6 +52,8 @@ func NewSynchronizer(
 	}, nil
 }
 
+var waitDuration = time.Duration(0)
+
 // Sync function will read the last state synced and will continue from that point.
 // Sync() will read blockchain events to detect rollup updates
 func (s *ClientSynchronizer) Sync() error {
@@ -87,7 +89,6 @@ func (s *ClientSynchronizer) Sync() error {
 		if err != nil {
 			log.Fatal("error setting initial batch number. Error: ", err)
 		}
-		waitDuration := time.Duration(0)
 		for {
 			select {
 			case <-s.ctx.Done():
@@ -190,6 +191,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		fromBlock = toBlock + 1
 
 		if lastKnownBlock.Cmp(new(big.Int).SetUint64(fromBlock)) < 1 {
+			waitDuration = s.cfg.SyncInterval.Duration
 			break
 		}
 	}
