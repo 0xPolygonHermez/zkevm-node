@@ -1,0 +1,32 @@
+name: Test non-e2e
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - update-external-dependencies
+  pull_request:
+jobs:
+  test-full-non-e2e:
+    strategy:
+      matrix:
+        go-version: [ 1.17.x ]
+        goarch: [ "amd64" ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Install Go
+      uses: actions/setup-go@v1
+      with:
+        go-version: ${{ matrix.go-version }}
+      env:
+        GOARCH: ${{ matrix.goarch }}
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Test
+      run: make test-full-non-e2e
