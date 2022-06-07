@@ -104,7 +104,6 @@ func (a *Aggregator) Start() {
 			delete(a.batchesSent, lastConsolidatedBatch.Number().Uint64())
 
 			batchToConsolidate, err := a.State.GetBatchByNumber(a.ctx, lastConsolidatedBatch.Number().Uint64()+1, "")
-			batchToConsolidateNumber := batchToConsolidate.Number().Uint64()
 			if err != nil {
 				if err == state.ErrNotFound {
 					log.Infof("there are no batches to consolidate")
@@ -113,6 +112,7 @@ func (a *Aggregator) Start() {
 				log.Warnf("failed to get batch to consolidate, err: %v", err)
 				continue
 			}
+			batchToConsolidateNumber := batchToConsolidate.Number().Uint64()
 
 			if h := a.batchesSent[batchToConsolidateNumber]; h != nil {
 				hash := *h
@@ -313,7 +313,7 @@ func (a *Aggregator) Start() {
 			internalInputHashS := fmt.Sprintf("0x%064s", hex.EncodeToString(internalInputHash))
 			publicInputsExtended := resGetProof.GetPublic()
 			if resGetProof.GetPublic().InputHash != internalInputHashS {
-				log.Error("inputHash received from the prover (", publicInputsExtended.InputHash,
+				log.Warn("inputHash received from the prover (", publicInputsExtended.InputHash,
 					") doesn't match with the internal value: ", internalInputHashS)
 				log.Debug("internalBatchHashData: ", batchHashData, " externalBatchHashData: ", publicInputsExtended.PublicInputs.BatchHashData)
 				log.Debug("inputProver.PublicInputs.OldStateRoot: ", inputProver.PublicInputs.OldStateRoot)
@@ -347,6 +347,8 @@ func (a *Aggregator) Start() {
 	}
 }
 
+// checkEthTxNotFound checks number of tries of getting tx from ethereum. If it tries txNotFoundMaxTries and fails to get
+// then batch should be resent
 func (a *Aggregator) checkEthTxNotFound(hash common.Hash, batchToConsolidateNumber uint64) {
 	if a.txNotFoundCounter != txNotFoundMaxTries {
 		log.Warnf("tx with hash %s not found, retry to get it %d times", hash.Hex(), txNotFoundMaxTries)
