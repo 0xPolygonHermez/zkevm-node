@@ -145,11 +145,12 @@ func (q *PendingTxsQueue) KeepPendingTxsQueue(ctx context.Context) {
 			time.Sleep(q.cfg.GetPendingTxsFrequency.Duration)
 		}
 	}
-	q.pendingTxsMutex.Unlock()
 
 	for _, tx := range q.pendingTxs {
 		q.pendingTxsMap.Set(tx.Hash().Hex(), true)
 	}
+
+	q.pendingTxsMutex.Unlock()
 
 	for {
 		time.Sleep(q.cfg.GetPendingTxsFrequency.Duration)
