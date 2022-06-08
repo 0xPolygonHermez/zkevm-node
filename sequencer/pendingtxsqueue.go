@@ -8,7 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/orcaman/concurrent-map"
+
+	cmap "github.com/orcaman/concurrent-map"
 )
 
 // PendingTxsQueueConfig config for pending tx queue data structure
