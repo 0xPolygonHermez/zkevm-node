@@ -18,6 +18,7 @@ type storage interface {
 	GetGasPrice(ctx context.Context) (uint64, error)
 	CountTransactionsByState(ctx context.Context, state TxState) (uint64, error)
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
+	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 }
 
 type stateInterface interface {

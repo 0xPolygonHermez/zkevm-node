@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	amountOfPendingTxsRequested = 30000
+	amountOfPendingTxsRequested = 1000
 	percentageToCutSelectedTxs  = 80
 	fullPercentage              = 100
 	gasLimitIncrease            = 1.2
@@ -46,6 +46,7 @@ type Sequencer struct {
 
 	lastSentBatchNumber uint64
 	sentEthTxsChan      chan ethSendBatchTx
+	pendingTxsQueue     PendingTxsQueue
 
 	ctx    context.Context
 	cancel context.CancelFunc

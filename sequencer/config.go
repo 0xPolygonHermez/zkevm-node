@@ -22,6 +22,11 @@ func (d *Duration) UnmarshalText(data []byte) error {
 	return nil
 }
 
+// NewDuration returns Duration wrapper
+func NewDuration(duration time.Duration) Duration {
+	return Duration{time.Duration(duration)}
+}
+
 // InitBatchProcessorIfDiffType let sequencer decide, how to init batch processor
 type InitBatchProcessorIfDiffType string
 
@@ -64,4 +69,7 @@ type Config struct {
 	FrequencyForResendingFailedSendBatchesInMilliseconds int64 `mapstructure:"FrequencyForResendingFailedSendBatchesInMilliseconds"`
 	// DefaultChainID is the common ChainID to all the sequencers
 	DefaultChainID uint64 `mapstructure:"DefaultChainID"`
+
+	// PendingTxsQueue config for pending tx queue data structure
+	PendingTxsQueue PendingTxsQueueConfig `mapstructure:"PendingTxsQueue"`
 }
