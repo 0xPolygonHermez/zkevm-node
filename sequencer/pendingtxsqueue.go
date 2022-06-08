@@ -24,7 +24,7 @@ type PendingTxsQueue struct {
 	poppedTxsHashesMap  map[common.Hash]bool
 	pendingTxs          []pool.Transaction
 	pendingTxsMap       map[common.Hash]bool
-	pendingTxsMutex     *sync.RWMutex
+	pendingTxsMutex     sync.RWMutex
 	txPool              txPool
 }
 
