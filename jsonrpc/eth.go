@@ -163,13 +163,15 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 	if number == PendingBlockNumber {
 		lastBatch, err := e.state.GetLastBatch(context.Background(), true, "")
 		if err != nil {
-			return nil, err
+			const errorMessage = "couldn't load last batch from state to compute the pending block"
+			log.Errorf("%v: %v", errorMessage, err)
+			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
-		header := &types.Header{
-			ParentHash: lastBatch.Hash(),
-			Number:     big.NewInt(0).SetUint64(lastBatch.Number().Uint64() + 1),
-			Difficulty: big.NewInt(0),
-		}
+		header := types.CopyHeader(lastBatch.Header)
+		header.ParentHash = lastBatch.Hash()
+		header.Number = big.NewInt(0).SetUint64(lastBatch.Number().Uint64() + 1)
+		header.TxHash = types.EmptyRootHash
+		header.UncleHash = types.EmptyUncleHash
 		batch := &state.Batch{Header: header}
 		block := batchToRPCBlock(batch, fullTx)
 
@@ -178,14 +180,18 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 
 	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
-		return nil, err
+		const errorMessage = "couldn't parse the provided block number"
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	batch, err := e.state.GetBatchByNumber(ctx, batchNumber, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "couldn't load batch from state by number %v"
+		log.Errorf("%v: %v", fmt.Sprintf(errorMessage, batchNumber), err)
+		return nil, newRPCError(defaultErrorCode, fmt.Sprintf(errorMessage, batchNumber))
 	}
 
 	block := batchToRPCBlock(batch, fullTx)

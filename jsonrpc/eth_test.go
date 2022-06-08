@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math/big"
 	"testing"
@@ -462,32 +463,24 @@ func TestGetBlockByHash(t *testing.T) {
 		},
 		{
 			Name: "get block successfully",
-			Hash: common.HexToHash("0x234"),
-			ExpectedResult: types.NewBlock(&types.Header{
-				Number:    big.NewInt(1),
-				UncleHash: types.EmptyUncleHash,
-				Root:      types.EmptyRootHash,
-			}, []*types.Transaction{
-				types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
-			}, nil, []*types.Receipt{
-				types.NewReceipt([]byte{}, false, uint64(0)),
-			}, &trie.StackTrie{}),
+			Hash: common.HexToHash("0x345"),
+			ExpectedResult: types.NewBlock(
+				&types.Header{Number: big.NewInt(1), UncleHash: types.EmptyUncleHash, Root: types.EmptyRootHash},
+				[]*types.Transaction{types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
+				nil,
+				[]*types.Receipt{types.NewReceipt([]byte{}, false, uint64(0))},
+				&trie.StackTrie{},
+			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocks, tc *testCase) {
+				transactions := []*types.Transaction{}
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					transactions = append(transactions, tx)
+				}
+
 				batch := &state.Batch{
-					Header: &types.Header{
-						Number:    big.NewInt(1),
-						UncleHash: types.EmptyUncleHash,
-						Root:      types.EmptyRootHash,
-					},
-					Transactions: []*types.Transaction{
-						types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
-					},
-					Receipts: []*state.Receipt{
-						{
-							Receipt: *types.NewReceipt([]byte{}, false, uint64(0)),
-						},
-					},
+					Header:       types.CopyHeader(tc.ExpectedResult.Header()),
+					Transactions: transactions,
 				}
 
 				m.State.
@@ -510,6 +503,198 @@ func TestGetBlockByHash(t *testing.T) {
 			if result != nil || testCase.ExpectedResult != nil {
 				assert.Equal(t, testCase.ExpectedResult.Number().Uint64(), result.Number().Uint64())
 				assert.Equal(t, len(testCase.ExpectedResult.Transactions()), len(result.Transactions()))
+				assert.Equal(t, testCase.ExpectedResult.Hash(), result.Hash())
+			}
+
+			if err != nil || testCase.ExpectedError != nil {
+				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, testCase.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestGetBlockByNumber(t *testing.T) {
+	type testCase struct {
+		Name           string
+		Number         *big.Int
+		ExpectedResult *types.Block
+		ExpectedError  interface{}
+		SetupMocks     func(*mocks, *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Block not found",
+			Number:         big.NewInt(123),
+			ExpectedResult: nil,
+			ExpectedError:  ethereum.NotFound,
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetBatchByNumber", context.Background(), tc.Number.Uint64(), "").
+					Return(nil, state.ErrNotFound)
+			},
+		},
+		{
+			Name:   "get specific block successfully",
+			Number: big.NewInt(345),
+			ExpectedResult: types.NewBlock(
+				&types.Header{Number: big.NewInt(1), UncleHash: types.EmptyUncleHash, Root: types.EmptyRootHash},
+				[]*types.Transaction{types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
+				nil,
+				[]*types.Receipt{types.NewReceipt([]byte{}, false, uint64(0))},
+				&trie.StackTrie{},
+			),
+			ExpectedError: nil,
+			SetupMocks: func(m *mocks, tc *testCase) {
+				transactions := []*types.Transaction{}
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					transactions = append(transactions, tx)
+				}
+
+				batch := &state.Batch{
+					Header:       types.CopyHeader(tc.ExpectedResult.Header()),
+					Transactions: transactions,
+				}
+
+				m.State.
+					On("GetBatchByNumber", context.Background(), tc.Number.Uint64(), "").
+					Return(batch, nil).
+					Once()
+			},
+		},
+		{
+			Name:   "get latest block successfully",
+			Number: nil,
+			ExpectedResult: types.NewBlock(
+				&types.Header{Number: big.NewInt(2), UncleHash: types.EmptyUncleHash, Root: types.EmptyRootHash},
+				[]*types.Transaction{types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
+				nil,
+				[]*types.Receipt{types.NewReceipt([]byte{}, false, uint64(0))},
+				&trie.StackTrie{},
+			),
+			ExpectedError: nil,
+			SetupMocks: func(m *mocks, tc *testCase) {
+				transactions := []*types.Transaction{}
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					transactions = append(transactions, tx)
+				}
+
+				batch := &state.Batch{
+					Header:       types.CopyHeader(tc.ExpectedResult.Header()),
+					Transactions: transactions,
+				}
+
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(batch.Number().Uint64(), nil).
+					Once()
+
+				m.State.
+					On("GetBatchByNumber", context.Background(), batch.Number().Uint64(), "").
+					Return(batch, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "get latest block fails to compute block number",
+			Number:         nil,
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "couldn't parse the provided block number"),
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(uint64(0), errors.New("failed to get last batch number")).
+					Once()
+			},
+		},
+		{
+			Name:           "get latest block fails to load batch by number",
+			Number:         nil,
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "couldn't load batch from state by number 1"),
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(uint64(1), nil).
+					Once()
+
+				m.State.
+					On("GetBatchByNumber", context.Background(), uint64(1), "").
+					Return(nil, errors.New("failed to load batch by number")).
+					Once()
+			},
+		},
+		{
+			Name:           "get pending block successfully",
+			Number:         big.NewInt(-1),
+			ExpectedResult: types.NewBlock(&types.Header{Number: big.NewInt(2)}, nil, nil, nil, &trie.StackTrie{}),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc *testCase) {
+				transactions := []*types.Transaction{}
+				for _, tx := range tc.ExpectedResult.Transactions() {
+					transactions = append(transactions, tx)
+				}
+
+				lastBatch := &state.Batch{
+					Header:       types.CopyHeader(tc.ExpectedResult.Header()),
+					Transactions: transactions,
+				}
+
+				lastBatch.Header.Number.Sub(lastBatch.Header.Number, big.NewInt(1))
+
+				expectedResultHeader := types.CopyHeader(tc.ExpectedResult.Header())
+				expectedResultHeader.ParentHash = lastBatch.Hash()
+				tc.ExpectedResult = types.NewBlock(expectedResultHeader, nil, nil, nil, &trie.StackTrie{})
+
+				m.State.
+					On("GetLastBatch", context.Background(), true, "").
+					Return(lastBatch, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "get pending block fails",
+			Number:         big.NewInt(-1),
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "couldn't load last batch from state to compute the pending block"),
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetLastBatch", context.Background(), true, "").
+					Return(nil, errors.New("failed to load last batch")).
+					Once()
+			},
+		},
+	}
+
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			testCase.SetupMocks(m, &testCase)
+
+			result, err := c.BlockByNumber(context.Background(), testCase.Number)
+
+			if result != nil || testCase.ExpectedResult != nil {
+				expectedResultJSON, _ := json.Marshal(testCase.ExpectedResult.Header())
+				resultJSON, _ := json.Marshal(result.Header())
+
+				expectedResultJSONStr := string(expectedResultJSON)
+				resultJSONStr := string(resultJSON)
+
+				t.Log(expectedResultJSONStr)
+				t.Log(resultJSONStr)
+
+				assert.JSONEq(t, expectedResultJSONStr, resultJSONStr)
+				assert.Equal(t, testCase.ExpectedResult.Number().Uint64(), result.Number().Uint64())
+				assert.Equal(t, len(testCase.ExpectedResult.Transactions()), len(result.Transactions()))
+				assert.Equal(t, testCase.ExpectedResult.Hash(), result.Hash())
 			}
 
 			if err != nil || testCase.ExpectedError != nil {
