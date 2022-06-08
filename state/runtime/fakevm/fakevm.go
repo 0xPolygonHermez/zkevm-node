@@ -37,16 +37,21 @@ type FakeEVM struct {
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
-func NewFakeEVM(blockCtx vm.BlockContext, txCtx vm.TxContext, statedb FakeDB, chainConfig *params.ChainConfig, config Config) *FakeEVM {
+// func NewFakeEVM(blockCtx vm.BlockContext, txCtx vm.TxContext, statedb runtime.FakeDB, chainConfig *params.ChainConfig, config Config) *FakeEVM {
+func NewFakeEVM(blockCtx vm.BlockContext, txCtx vm.TxContext, chainConfig *params.ChainConfig, config Config) *FakeEVM {
 	evm := &FakeEVM{
-		Context:     blockCtx,
-		TxContext:   txCtx,
-		StateDB:     statedb,
+		Context:   blockCtx,
+		TxContext: txCtx,
+		// StateDB:     statedb,
 		Config:      config,
 		chainConfig: chainConfig,
 		chainRules:  chainConfig.Rules(blockCtx.BlockNumber, blockCtx.Random != nil),
 	}
 	return evm
+}
+
+func (evm *FakeEVM) SetStateDB(stateDB FakeDB) {
+	evm.StateDB = stateDB
 }
 
 // Cancel cancels any running EVM operation. This may be called concurrently and

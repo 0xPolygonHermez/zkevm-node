@@ -2,21 +2,29 @@ package state
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/google/uuid"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
+	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/js"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/holiman/uint256"
 	"github.com/umbracle/ethgo/abi"
 )
 
@@ -41,6 +49,8 @@ var (
 	ErrAlreadyInitializedDBTransaction = errors.New("database transaction already initialized")
 	// ErrNotEnoughIntrinsicGas indicates the gas is not enough to cover the intrinsic gas cost
 	ErrNotEnoughIntrinsicGas = fmt.Errorf("not enough gas supplied for intrinsic gas costs")
+	// ErrParsingExecutorTrace indicates an error ocurred while parsing the executor trace
+	ErrParsingExecutorTrace = fmt.Errorf("error while parsing executor trace")
 )
 
 // State is a implementation of the state
@@ -837,40 +847,40 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 
 	txBundleID, err := s.BeginStateTransaction(ctx)
 	if err != nil {
-		log.Errorf("trace transaction: failed to begin db transaction, err: %v", err)
+		log.Errorf("debug transaction: failed to begin db transaction, err: %v", err)
 		rbErr := s.RollbackState(ctx, txBundleID)
 		if rbErr != nil {
-			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 		}
 		return &runtime.ExecutionResult{Err: err}
 	}
 
 	tx, err := s.GetTransactionByHash(ctx, transactionHash, txBundleID)
 	if err != nil {
-		log.Errorf("trace transaction: failed to get transaction by hash, err: %v", err)
+		log.Errorf("debug transaction: failed to get transaction by hash, err: %v", err)
 		rbErr := s.RollbackState(ctx, txBundleID)
 		if rbErr != nil {
-			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 		}
 		return &runtime.ExecutionResult{Err: err}
 	}
 
 	receipt, err := s.GetTransactionReceipt(ctx, transactionHash, txBundleID)
 	if err != nil {
-		log.Errorf("trace transaction: failed to get receipt by tx hash, err: %v", err)
+		log.Errorf("debug transaction: failed to get receipt by tx hash, err: %v", err)
 		rbErr := s.RollbackState(ctx, txBundleID)
 		if rbErr != nil {
-			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 		}
 		return &runtime.ExecutionResult{Err: err}
 	}
 
 	batch, err := s.GetBatchByHash(ctx, receipt.BlockHash, txBundleID)
 	if err != nil {
-		log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
+		log.Errorf("debug transaction: failed to get batch by hash, err: %v", err)
 		rbErr := s.RollbackState(ctx, txBundleID)
 		if rbErr != nil {
-			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 		}
 		return &runtime.ExecutionResult{Err: err}
 	}
@@ -880,20 +890,20 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 	if receipt.TransactionIndex > 0 {
 		previousTX, err := s.GetTransactionByBatchHashAndIndex(ctx, receipt.BlockHash, uint64(receipt.TransactionIndex-1), txBundleID)
 		if err != nil {
-			log.Errorf("trace transaction: failed to get previous tx, err: %v", err)
+			log.Errorf("debug transaction: failed to get previous tx, err: %v", err)
 			rbErr := s.RollbackState(ctx, txBundleID)
 			if rbErr != nil {
-				log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+				log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 			}
 			return &runtime.ExecutionResult{Err: err}
 		}
 
 		previousReceipt, err := s.GetTransactionReceipt(ctx, previousTX.Hash(), txBundleID)
 		if err != nil {
-			log.Errorf("trace transaction: failed to get receipt by previous tx hash, err: %v", err)
+			log.Errorf("debug transaction: failed to get receipt by previous tx hash, err: %v", err)
 			rbErr := s.RollbackState(ctx, txBundleID)
 			if rbErr != nil {
-				log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+				log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 			}
 			return &runtime.ExecutionResult{Err: err}
 		}
@@ -904,18 +914,18 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 		if err == ErrNotFound {
 			previousBatch, err = s.GetLastBatch(ctx, true, txBundleID)
 			if err != nil {
-				log.Errorf("trace transaction: failed to get last batch, err: %v", err)
+				log.Errorf("debug transaction: failed to get last batch, err: %v", err)
 				rbErr := s.RollbackState(ctx, txBundleID)
 				if rbErr != nil {
-					log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+					log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 				}
 				return &runtime.ExecutionResult{Err: err}
 			}
 		} else if err != nil {
-			log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
+			log.Errorf("debug transaction: failed to get batch by hash, err: %v", err)
 			rbErr := s.RollbackState(ctx, txBundleID)
 			if rbErr != nil {
-				log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+				log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 			}
 			return &runtime.ExecutionResult{Err: err}
 		}
@@ -925,14 +935,14 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 
 	sequencerAddress := batch.Header.Coinbase
 
-	log.Debugf("replay root: %v", common.Bytes2Hex(stateRoot))
+	log.Debugf("debug root: %v", common.Bytes2Hex(stateRoot))
 
 	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, stateRoot, txBundleID)
 	if err != nil {
-		log.Errorf("trace transaction: failed to create a new batch processor, err: %v", err)
+		log.Errorf("debug transaction: failed to create a new batch processor, err: %v", err)
 		rbErr := s.RollbackState(ctx, txBundleID)
 		if rbErr != nil {
-			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 		}
 		return &runtime.ExecutionResult{Err: err}
 	}
@@ -949,24 +959,140 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 	// Rollback
 	err = s.RollbackState(ctx, txBundleID)
 	if err != nil {
-		log.Errorf("trace transaction: failed to rollback transaction, err: %v", err)
+		log.Errorf("debug transaction: failed to rollback transaction, err: %v", err)
 		result.Err = err
 		return result
 	}
 
 	// Parse the executor-like trace using the FakeEVM
-	/*var tracer instrumentation.Tracer
-
-	err = json.Unmarshal([]byte(tracerString), &tracer)
+	jsTracer, err := js.NewJsTracer(tracer, new(tracers.Context))
 	if err != nil {
-		log.Errorf("debug transaction: failed to parse tracer string, err: %v", err)
+		log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
 		result.Err = err
 		return result
-	}*/
+	}
 
-	// jsTracer, err := js.NewJsTracer(tracer, new(tracers.Context))
+	trace := result.ExecutorTrace
 
-	// env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, fakevm.FakeDB{StateRoot: []byte(trace.Context.OldStateRoot)}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
+	gasPrice, ok := new(big.Int).SetString(trace.Context.GasPrice, 10)
+	if !ok {
+		log.Errorf("debug transaction: failed to parse gasPrice")
+		return result
+	}
+
+	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
+	fakeDB := &FakeDB{State: s, stateRoot: []byte(trace.Context.OldStateRoot)}
+	env.SetStateDB(fakeDB)
+
+	s.ParseTheTraceUsingTheTracer(env, trace, jsTracer)
 
 	return result
+}
+
+func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, jsTracer tracers.Tracer) (json.RawMessage, error) {
+	var previousDepth int
+
+	contextGas, ok := new(big.Int).SetString(trace.Context.Gas, 10)
+	if !ok {
+		log.Debugf("error while parsing contextGas")
+		return nil, ErrParsingExecutorTrace
+	}
+	value, ok := new(big.Int).SetString(trace.Context.Value, 10)
+	if !ok {
+		log.Debugf("error while parsing value")
+		return nil, ErrParsingExecutorTrace
+	}
+
+	jsTracer.CaptureTxStart(contextGas.Uint64())
+	jsTracer.CaptureStart(env, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
+
+	stack := fakevm.Newstack()
+	memory := fakevm.NewMemory()
+
+	for _, step := range trace.Steps {
+		gas, ok := new(big.Int).SetString(step.Gas, 10)
+		if !ok {
+			log.Debugf("error while parsing step gas")
+			return nil, ErrParsingExecutorTrace
+		}
+
+		gasCost, ok := new(big.Int).SetString(step.GasCost, 10)
+		if !ok {
+			log.Debugf("error while parsing step gasCost")
+			return nil, ErrParsingExecutorTrace
+		}
+
+		value, ok := new(big.Int).SetString(step.Contract.Value, 10)
+		if !ok {
+			log.Debugf("error while parsing step value")
+			return nil, ErrParsingExecutorTrace
+		}
+
+		op, ok := new(big.Int).SetString(step.Op, 0)
+		if !ok {
+			log.Debugf("error while parsing step op")
+			return nil, ErrParsingExecutorTrace
+		}
+
+		scope := &fakevm.ScopeContext{
+			Contract: vm.NewContract(fakevm.NewAccount(common.HexToAddress(step.Contract.Caller)), fakevm.NewAccount(common.HexToAddress(step.Contract.Address)), value, gas.Uint64()),
+			Memory:   memory,
+			Stack:    stack,
+		}
+
+		opcode := vm.OpCode(op.Uint64()).String()
+
+		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
+			jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
+		}
+
+		if step.Error != "" {
+			err := fmt.Errorf(step.Error)
+			jsTracer.CaptureFault(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, err)
+		} else {
+			// TODO: Add return data when available
+			jsTracer.CaptureState(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, common.Hex2Bytes(strings.TrimLeft(step.ReturnData, "0x")), step.Depth, nil)
+		}
+
+		// Set Memory
+		if len(step.Memory) > 0 {
+			memory.Resize(uint64(32*len(step.Memory) + 128))
+			for offset, memoryContent := range step.Memory {
+				memory.Set(uint64(offset*32)+128, 32, common.Hex2Bytes(memoryContent))
+			}
+		}
+
+		// Set Stack
+		stack = fakevm.Newstack()
+		for _, stackContent := range step.Stack {
+			// log.Debugf(stackContent)
+			valueBigInt, ok := new(big.Int).SetString(stackContent, 0)
+			if !ok {
+				log.Debugf("error while parsing stact valueBigInt")
+				return nil, ErrParsingExecutorTrace
+			}
+			value, _ := uint256.FromBig(valueBigInt)
+			stack.Push(value)
+		}
+
+		// Returning from a call or create
+		if previousDepth < step.Depth {
+			jsTracer.CaptureExit([]byte{}, gasCost.Uint64(), fmt.Errorf(step.Error))
+		}
+
+		// Set StateRoot
+		env.StateDB.SetStateRoot([]byte(step.StateRoot))
+		previousDepth = step.Depth
+	}
+
+	gasUsed, ok := new(big.Int).SetString(trace.Context.GasUsed, 10)
+	if !ok {
+		log.Debugf("error while parsing gasUsed")
+		return nil, ErrParsingExecutorTrace
+	}
+
+	jsTracer.CaptureTxEnd(gasUsed.Uint64())
+	jsTracer.CaptureEnd([]byte(trace.Context.Output), gasUsed.Uint64(), time.Duration(trace.Context.Time), nil)
+
+	return jsTracer.GetResult()
 }

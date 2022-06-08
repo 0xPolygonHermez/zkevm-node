@@ -1,4 +1,4 @@
-package executor
+package executor_test
 
 import (
 	"encoding/json"
@@ -21,16 +21,6 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
 )
-
-type account struct {
-	address common.Address
-}
-
-func newAccount(address common.Address) *account {
-	return &account{address: address}
-}
-
-func (a *account) Address() common.Address { return a.address } // { return common.Address{} }
 
 func Test_Trace(t *testing.T) {
 	var (
@@ -71,7 +61,7 @@ func Test_Trace(t *testing.T) {
 	gasPrice, ok := new(big.Int).SetString(trace.Context.GasPrice, 10)
 	require.Equal(t, true, ok)
 
-	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, fakevm.FakeDB{StateRoot: []byte(trace.Context.OldStateRoot)}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
+	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
 
 	jsTracer.CaptureTxStart(contextGas.Uint64())
 	jsTracer.CaptureStart(env, common.HexToAddress(trace.Context.From), common.HexToAddress(trace.Context.To), trace.Context.Type == "CREATE", common.Hex2Bytes(strings.TrimLeft(trace.Context.Input, "0x")), contextGas.Uint64(), value)
@@ -95,7 +85,7 @@ func Test_Trace(t *testing.T) {
 		require.Equal(t, true, ok)
 
 		scope := &fakevm.ScopeContext{
-			Contract: vm.NewContract(newAccount(common.HexToAddress(step.Contract.Caller)), newAccount(common.HexToAddress(step.Contract.Address)), value, gas.Uint64()),
+			Contract: vm.NewContract(fakevm.NewAccount(common.HexToAddress(step.Contract.Caller)), fakevm.NewAccount(common.HexToAddress(step.Contract.Address)), value, gas.Uint64()),
 			Memory:   memory,
 			Stack:    stack,
 		}
@@ -138,7 +128,7 @@ func Test_Trace(t *testing.T) {
 		}
 
 		// Set StateRoot
-		env.StateDB.StateRoot = []byte(step.StateRoot)
+		// env.StateDB.SetStateRoot([]byte(step.StateRoot))
 		previousDepth = step.Depth
 	}
 

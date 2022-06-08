@@ -2,7 +2,9 @@ package state_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
@@ -14,13 +16,19 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
+	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/js"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/FailureTest"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
@@ -2502,4 +2510,67 @@ func getMethodID(signature string) ([]byte, error) {
 		return nil, err
 	}
 	return hashCall.Sum(nil)[:4], nil
+}
+
+func TestExecutorTrace(t *testing.T) {
+	var (
+		trace          instrumentation.ExecutorTrace
+		tracer         instrumentation.Tracer
+		expectedResult []string
+	)
+
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
+
+	traceFile, err := os.Open("../test/traces/op-call_2__full_trace_0.json")
+	require.NoError(t, err)
+	defer traceFile.Close()
+
+	tracerFile, err := os.Open("../test/tracers/tracer2.json")
+	require.NoError(t, err)
+	defer tracerFile.Close()
+
+	byteValue, err := ioutil.ReadAll(traceFile)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(byteValue, &trace)
+	require.NoError(t, err)
+
+	byteCode, err := ioutil.ReadAll(tracerFile)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(byteCode, &tracer)
+	require.NoError(t, err)
+
+	jsTracer, err := js.NewJsTracer(string(tracer.Code), new(tracers.Context))
+	require.NoError(t, err)
+
+	gasPrice, ok := new(big.Int).SetString(trace.Context.GasPrice, 10)
+	require.Equal(t, true, ok)
+
+	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
+	fakeDB := &state.FakeDB{State: st}
+	fakeDB.SetStateRoot([]byte(trace.Context.OldStateRoot))
+	env.SetStateDB(fakeDB)
+
+	result, err := st.ParseTheTraceUsingTheTracer(env, trace, jsTracer)
+	require.NoError(t, err)
+	err = json.Unmarshal(result, &expectedResult)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(expectedResult))
+	log.Debugf("%v", string(result))
 }
