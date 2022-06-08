@@ -46,7 +46,6 @@ type Sequencer struct {
 
 	lastSentBatchNumber uint64
 	sentEthTxsChan      chan ethSendBatchTx
-	pendingTxsQueue     PendingTxsQueue
 
 	ctx    context.Context
 	cancel context.CancelFunc

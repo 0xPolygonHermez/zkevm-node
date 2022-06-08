@@ -24,7 +24,7 @@ type PendingTxsQueue struct {
 	poppedTxsHashesMap  map[common.Hash]bool
 	pendingTxs          []pool.Transaction
 	pendingTxsMap       map[common.Hash]bool
-	pendingTxsMutex     sync.RWMutex
+	pendingTxsMutex     *sync.RWMutex
 	txPool              txPool
 }
 
@@ -70,7 +70,7 @@ func (q *PendingTxsQueue) findPlaceInSlice(pendingTx pool.Transaction) int {
 	low := 0
 	high := len(q.pendingTxs) - 1
 	for low <= high {
-		median := low + (high-low)/2
+		median := low + (high-low)/2 // nolint:gomnd
 		if q.pendingTxs[median].Gas() == pendingTx.Gas() {
 			return median
 		} else if q.pendingTxs[median].Gas() < pendingTx.Gas() {
