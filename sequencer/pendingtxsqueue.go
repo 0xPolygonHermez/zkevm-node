@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/orcaman/concurrent-map"
 )
 
 // PendingTxsQueueConfig config for pending tx queue data structure
@@ -21,18 +22,19 @@ type PendingTxsQueueConfig struct {
 type PendingTxsQueue struct {
 	cfg                 PendingTxsQueueConfig
 	poppedTxsHashesChan chan common.Hash
-	poppedTxsHashesMap  map[common.Hash]bool
-	pendingTxs          []pool.Transaction
-	pendingTxsMap       map[common.Hash]bool
-	pendingTxsMutex     sync.RWMutex
-	txPool              txPool
+	poppedTxsHashesMap  cmap.ConcurrentMap
+
+	pendingTxs      []pool.Transaction
+	pendingTxsMutex sync.RWMutex
+	pendingTxsMap   cmap.ConcurrentMap
+	txPool          txPool
 }
 
 // NewPendingTxsQueue inits new pending tx queue
 func NewPendingTxsQueue(cfg PendingTxsQueueConfig, pool txPool) *PendingTxsQueue {
 	poppedTxsChan := make(chan common.Hash, amountOfPendingTxsRequested)
-	poppedTxsHashesMap := make(map[common.Hash]bool)
-	pendingTxMap := make(map[common.Hash]bool)
+	poppedTxsHashesMap := cmap.New()
+	pendingTxMap := cmap.New()
 	return &PendingTxsQueue{
 		cfg:                 cfg,
 		txPool:              pool,
@@ -55,9 +57,9 @@ func (q *PendingTxsQueue) PopPendingTx() *pool.Transaction {
 	} else {
 		return nil
 	}
-	txHash := tx.Hash()
-	q.poppedTxsHashesMap[txHash] = true
-	delete(q.pendingTxsMap, txHash)
+	txHash := tx.Hash().Hex()
+	q.poppedTxsHashesMap.Set(txHash, true)
+	q.pendingTxsMap.Remove(txHash)
 	q.poppedTxsHashesChan <- tx.Hash()
 
 	return tx
@@ -111,7 +113,7 @@ func (q *PendingTxsQueue) CleanPendTxsChan(ctx context.Context) {
 				log.Warnf("failed to check if tx is still pending, txHash: %s, err: %v", hash.Hex(), err)
 			}
 			if !isPending {
-				delete(q.poppedTxsHashesMap, hash)
+				q.poppedTxsHashesMap.Remove(hash.Hex())
 			}
 			select {
 			case <-tickerIsTxPending.C:
@@ -142,23 +144,31 @@ func (q *PendingTxsQueue) KeepPendingTxsQueue(ctx context.Context) {
 		time.Sleep(q.cfg.GetPendingTxsFrequency.Duration)
 	}
 	for _, tx := range q.pendingTxs {
-		q.pendingTxsMap[tx.Hash()] = true
+		q.pendingTxsMap.Set(tx.Hash().Hex(), true)
 	}
 	q.pendingTxsMutex.Unlock()
 
 	for {
 		time.Sleep(q.cfg.GetPendingTxsFrequency.Duration)
-		if len(q.pendingTxs) < amountOfPendingTxsRequested {
+		lenPendingTxs := q.GetPendingTxsQueueLength()
+		if lenPendingTxs < amountOfPendingTxsRequested {
 			pendTx, err := q.txPool.GetPendingTxs(ctx, false, 1)
 			if err != nil {
 				log.Errorf("failed to get pending tx, err: %v", err)
 				continue
 			}
-			if len(pendTx) != 0 && (len(q.pendingTxs) == 0 ||
-				(!q.poppedTxsHashesMap[pendTx[0].Hash()] && !q.pendingTxsMap[pendTx[0].Hash()])) {
+			if len(pendTx) != 0 && (lenPendingTxs == 0 ||
+				(!q.poppedTxsHashesMap.Has(pendTx[0].Hash().Hex()) && !q.pendingTxsMap.Has(pendTx[0].Hash().Hex()))) {
 				q.InsertPendingTx(pendTx[0])
-				q.pendingTxsMap[pendTx[0].Hash()] = true
+				q.pendingTxsMap.Set(pendTx[0].Hash().Hex(), true)
 			}
 		}
 	}
+}
+
+// GetPendingTxsQueueLength get length
+func (q *PendingTxsQueue) GetPendingTxsQueueLength() int {
+	q.pendingTxsMutex.RLock()
+	defer q.pendingTxsMutex.RUnlock()
+	return len(q.pendingTxs)
 }

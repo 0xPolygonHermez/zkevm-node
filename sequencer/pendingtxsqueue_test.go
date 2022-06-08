@@ -1,4 +1,4 @@
-package sequencer
+package sequencer_test
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/pool/pgpoolstorage"
+	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
@@ -23,10 +24,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var queueCfg = PendingTxsQueueConfig{
-	TxPendingInQueueCheckingFrequency: NewDuration(1 * time.Second),
-	TxPoppedCheckingFrequency:         NewDuration(1 * time.Second),
-	GetPendingTxsFrequency:            NewDuration(1 * time.Second),
+var senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+
+var dbCfg = dbutils.NewConfigFromEnv()
+
+var queueCfg = sequencer.PendingTxsQueueConfig{
+	TxPendingInQueueCheckingFrequency: sequencer.NewDuration(1 * time.Second),
+	TxPoppedCheckingFrequency:         sequencer.NewDuration(1 * time.Second),
+	GetPendingTxsFrequency:            sequencer.NewDuration(1 * time.Second),
 }
 
 func TestQueue_AddAndPopTx(t *testing.T) {
@@ -77,7 +82,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 		panic(err)
 	}
 
-	pendQueue := NewPendingTxsQueue(queueCfg, p)
+	pendQueue := sequencer.NewPendingTxsQueue(queueCfg, p)
 	go pendQueue.KeepPendingTxsQueue(ctx)
 	go pendQueue.CleanPendTxsChan(ctx)
 	// insert pending transactions
@@ -93,10 +98,10 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 	}
 	tx := pendQueue.PopPendingTx()
 	assert.Equal(t, uint64(19), tx.GasPrice().Uint64())
-	assert.Equal(t, 9, len(pendQueue.pendingTxs))
+	assert.Equal(t, 9, pendQueue.GetPendingTxsQueueLength())
 	tx = pendQueue.PopPendingTx()
 	assert.Equal(t, uint64(18), tx.GasPrice().Uint64())
-	assert.Equal(t, 8, len(pendQueue.pendingTxs))
+	assert.Equal(t, 8, pendQueue.GetPendingTxsQueueLength())
 
 	newTx := types.NewTransaction(uint64(txsCount), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10+int64(txsCount)), []byte{})
 	signedTx, err := auth.Signer(auth.From, newTx)
@@ -108,7 +113,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 	}
 
 	time.Sleep(queueCfg.TxPendingInQueueCheckingFrequency.Duration)
-	assert.Equal(t, 9, len(pendQueue.pendingTxs))
+	assert.Equal(t, 9, pendQueue.GetPendingTxsQueueLength())
 }
 
 func TestQueue_AddOneTx(t *testing.T) {
@@ -159,7 +164,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 		panic(err)
 	}
 
-	pendQueue := NewPendingTxsQueue(queueCfg, p)
+	pendQueue := sequencer.NewPendingTxsQueue(queueCfg, p)
 	go pendQueue.KeepPendingTxsQueue(ctx)
 	go pendQueue.CleanPendTxsChan(ctx)
 	// insert pending transactions
@@ -175,7 +180,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 	}
 	tx := pendQueue.PopPendingTx()
 	assert.Equal(t, uint64(10), tx.GasPrice().Uint64())
-	assert.Equal(t, 0, len(pendQueue.pendingTxs))
+	assert.Equal(t, 0, pendQueue.GetPendingTxsQueueLength())
 	tx = pendQueue.PopPendingTx()
 	assert.Nil(t, tx)
 
@@ -189,7 +194,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 	}
 
 	time.Sleep(queueCfg.TxPendingInQueueCheckingFrequency.Duration)
-	assert.Equal(t, 1, len(pendQueue.pendingTxs))
+	assert.Equal(t, 1, pendQueue.GetPendingTxsQueueLength())
 }
 
 func newState(sqlDB *pgxpool.Pool) *state.State {
