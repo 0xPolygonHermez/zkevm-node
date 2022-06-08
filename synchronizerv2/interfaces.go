@@ -8,7 +8,6 @@ import (
 
 // localEtherman contains the methods required to interact with ethereum.
 type localEtherman interface {
-
 }
 
 // stateInterface gathers the methods required to interact with the state.
