@@ -30,7 +30,6 @@ var dbCfg = dbutils.NewConfigFromEnv()
 
 var queueCfg = sequencer.PendingTxsQueueConfig{
 	TxPendingInQueueCheckingFrequency: sequencer.NewDuration(1 * time.Second),
-	TxPoppedCheckingFrequency:         sequencer.NewDuration(1 * time.Second),
 	GetPendingTxsFrequency:            sequencer.NewDuration(1 * time.Second),
 }
 
@@ -112,7 +111,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 		panic(err)
 	}
 
-	time.Sleep(queueCfg.TxPendingInQueueCheckingFrequency.Duration)
+	time.Sleep(queueCfg.TxPendingInQueueCheckingFrequency.Duration * 2)
 	assert.Equal(t, 9, pendQueue.GetPendingTxsQueueLength())
 }
 
@@ -193,7 +192,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 		panic(err)
 	}
 
-	time.Sleep(queueCfg.TxPendingInQueueCheckingFrequency.Duration)
+	time.Sleep(queueCfg.TxPendingInQueueCheckingFrequency.Duration * 2)
 	assert.Equal(t, 1, pendQueue.GetPendingTxsQueueLength())
 }
 

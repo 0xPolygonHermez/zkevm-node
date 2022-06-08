@@ -57,10 +57,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: sequencer.NewDuration(3 * time.Second),
 		},
 		{
-			path:          "Sequencer.PendingTxsQueue.TxPoppedCheckingFrequency",
-			expectedValue: sequencer.NewDuration(3 * time.Second),
-		},
-		{
 			path:          "Sequencer.PendingTxsQueue.GetPendingTxsFrequency",
 			expectedValue: sequencer.NewDuration(5 * time.Second),
 		},

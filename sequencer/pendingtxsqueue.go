@@ -14,7 +14,6 @@ import (
 // PendingTxsQueueConfig config for pending tx queue data structure
 type PendingTxsQueueConfig struct {
 	TxPendingInQueueCheckingFrequency Duration `mapstructure:"TxPendingInQueueCheckingFrequency"`
-	TxPoppedCheckingFrequency         Duration `mapstructure:"TxPoppedCheckingFrequency"`
 	GetPendingTxsFrequency            Duration `mapstructure:"GetPendingTxsFrequency"`
 }
 
@@ -99,32 +98,33 @@ func (q *PendingTxsQueue) InsertPendingTx(tx pool.Transaction) {
 
 // CleanPendTxsChan cleans pending tx that is already popped from the queue and selected/rejected
 func (q *PendingTxsQueue) CleanPendTxsChan(ctx context.Context) {
-	tickerPoppedTxs := time.NewTicker(q.cfg.TxPoppedCheckingFrequency.Duration)
-	defer tickerPoppedTxs.Stop()
-	tickerIsTxPending := time.NewTicker(q.cfg.TxPendingInQueueCheckingFrequency.Duration)
-	defer tickerIsTxPending.Stop()
-	var err error
 	for {
-		hash := <-q.poppedTxsHashesChan
-		isPending := true
-		for isPending {
-			isPending, err = q.txPool.IsTxPending(ctx, hash)
-			if err != nil {
-				log.Warnf("failed to check if tx is still pending, txHash: %s, err: %v", hash.Hex(), err)
-			}
-			if !isPending {
-				q.poppedTxsHashesMap.Remove(hash.Hex())
-			}
-			select {
-			case <-tickerIsTxPending.C:
-				// nothing
-			case <-ctx.Done():
-				return
-			}
+		select {
+		case hash := <-q.poppedTxsHashesChan:
+			q.waitForTxToBeProcessed(ctx, hash)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// waitForTxToBeProcessed for the tx to change it's status from pending to invalid or selected
+func (q *PendingTxsQueue) waitForTxToBeProcessed(ctx context.Context, hash common.Hash) {
+	var err error
+	tickerIsTxPending := time.NewTicker(q.cfg.TxPendingInQueueCheckingFrequency.Duration)
+	isPending := true
+	for isPending {
+		isPending, err = q.txPool.IsTxPending(ctx, hash)
+		if err != nil {
+			log.Warnf("failed to check if tx is still pending, txHash: %s, err: %v", hash.Hex(), err)
 		}
 
+		if !isPending {
+			q.poppedTxsHashesMap.Remove(hash.Hex())
+			return
+		}
 		select {
-		case <-tickerPoppedTxs.C:
+		case <-tickerIsTxPending.C:
 			// nothing
 		case <-ctx.Done():
 			return
@@ -134,34 +134,38 @@ func (q *PendingTxsQueue) CleanPendTxsChan(ctx context.Context) {
 
 // KeepPendingTxsQueue keeps pending txs queue full
 func (q *PendingTxsQueue) KeepPendingTxsQueue(ctx context.Context) {
+	var err error
 	q.pendingTxsMutex.Lock()
 	for len(q.pendingTxs) == 0 {
-		txs, err := q.txPool.GetPendingTxs(ctx, false, amountOfPendingTxsRequested)
-		q.pendingTxs = txs
+		q.pendingTxs, err = q.txPool.GetPendingTxs(ctx, false, amountOfPendingTxsRequested)
 		if err != nil {
 			log.Errorf("failed to get pending txs, err: %v", err)
 		}
-		time.Sleep(q.cfg.GetPendingTxsFrequency.Duration)
+		if len(q.pendingTxs) == 0 {
+			time.Sleep(q.cfg.GetPendingTxsFrequency.Duration)
+		}
 	}
+	q.pendingTxsMutex.Unlock()
+
 	for _, tx := range q.pendingTxs {
 		q.pendingTxsMap.Set(tx.Hash().Hex(), true)
 	}
-	q.pendingTxsMutex.Unlock()
 
 	for {
 		time.Sleep(q.cfg.GetPendingTxsFrequency.Duration)
 		lenPendingTxs := q.GetPendingTxsQueueLength()
-		if lenPendingTxs < amountOfPendingTxsRequested {
-			pendTx, err := q.txPool.GetPendingTxs(ctx, false, 1)
-			if err != nil {
-				log.Errorf("failed to get pending tx, err: %v", err)
-				continue
-			}
-			if len(pendTx) != 0 && (lenPendingTxs == 0 ||
-				(!q.poppedTxsHashesMap.Has(pendTx[0].Hash().Hex()) && !q.pendingTxsMap.Has(pendTx[0].Hash().Hex()))) {
-				q.InsertPendingTx(pendTx[0])
-				q.pendingTxsMap.Set(pendTx[0].Hash().Hex(), true)
-			}
+		if lenPendingTxs >= amountOfPendingTxsRequested {
+			continue
+		}
+		pendTx, err := q.txPool.GetPendingTxs(ctx, false, 1)
+		if err != nil {
+			log.Errorf("failed to get pending tx, err: %v", err)
+			continue
+		}
+		if len(pendTx) != 0 && (lenPendingTxs == 0 ||
+			(!q.poppedTxsHashesMap.Has(pendTx[0].Hash().Hex()) && !q.pendingTxsMap.Has(pendTx[0].Hash().Hex()))) {
+			q.InsertPendingTx(pendTx[0])
+			q.pendingTxsMap.Set(pendTx[0].Hash().Hex(), true)
 		}
 	}
 }
