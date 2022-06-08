@@ -676,7 +676,7 @@ func TestGetBlockByNumber(t *testing.T) {
 	s, m, c := newMockedServer(t)
 	defer s.Stop()
 
-	for _, testCase := range testCases[5:6] {
+	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tc := testCase
 			testCase.SetupMocks(m, &tc)
