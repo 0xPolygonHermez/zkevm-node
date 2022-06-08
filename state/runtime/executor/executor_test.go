@@ -14,7 +14,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/state/runtime/executor/fakevm"
+	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/js"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
 	"github.com/holiman/uint256"
@@ -33,8 +34,8 @@ func (a *account) Address() common.Address { return a.address } // { return comm
 
 func Test_Trace(t *testing.T) {
 	var (
-		trace         Trace
-		tracer        Tracer
+		trace         instrumentation.ExecutorTrace
+		tracer        instrumentation.Tracer
 		previousDepth int
 	)
 

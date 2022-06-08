@@ -1,6 +1,6 @@
-package executor
+package instrumentation
 
-type Trace struct {
+type ExecutorTrace struct {
 	Context Context `json:"context"`
 	Steps   []Step  `json:"steps"`
 }

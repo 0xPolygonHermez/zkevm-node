@@ -831,3 +831,142 @@ func constructErrorFromRevert(result *runtime.ExecutionResult) error {
 
 	return fmt.Errorf("%w: %s", result.Err, revertErrMsg)
 }
+
+func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *runtime.ExecutionResult {
+	ctx := context.Background()
+
+	txBundleID, err := s.BeginStateTransaction(ctx)
+	if err != nil {
+		log.Errorf("trace transaction: failed to begin db transaction, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	tx, err := s.GetTransactionByHash(ctx, transactionHash, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to get transaction by hash, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	receipt, err := s.GetTransactionReceipt(ctx, transactionHash, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to get receipt by tx hash, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	batch, err := s.GetBatchByHash(ctx, receipt.BlockHash, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	var stateRoot []byte
+
+	if receipt.TransactionIndex > 0 {
+		previousTX, err := s.GetTransactionByBatchHashAndIndex(ctx, receipt.BlockHash, uint64(receipt.TransactionIndex-1), txBundleID)
+		if err != nil {
+			log.Errorf("trace transaction: failed to get previous tx, err: %v", err)
+			rbErr := s.RollbackState(ctx, txBundleID)
+			if rbErr != nil {
+				log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			}
+			return &runtime.ExecutionResult{Err: err}
+		}
+
+		previousReceipt, err := s.GetTransactionReceipt(ctx, previousTX.Hash(), txBundleID)
+		if err != nil {
+			log.Errorf("trace transaction: failed to get receipt by previous tx hash, err: %v", err)
+			rbErr := s.RollbackState(ctx, txBundleID)
+			if rbErr != nil {
+				log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			}
+			return &runtime.ExecutionResult{Err: err}
+		}
+
+		stateRoot = previousReceipt.PostState
+	} else {
+		previousBatch, err := s.GetBatchByHash(ctx, batch.Header.ParentHash, txBundleID)
+		if err == ErrNotFound {
+			previousBatch, err = s.GetLastBatch(ctx, true, txBundleID)
+			if err != nil {
+				log.Errorf("trace transaction: failed to get last batch, err: %v", err)
+				rbErr := s.RollbackState(ctx, txBundleID)
+				if rbErr != nil {
+					log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+				}
+				return &runtime.ExecutionResult{Err: err}
+			}
+		} else if err != nil {
+			log.Errorf("trace transaction: failed to get batch by hash, err: %v", err)
+			rbErr := s.RollbackState(ctx, txBundleID)
+			if rbErr != nil {
+				log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+			}
+			return &runtime.ExecutionResult{Err: err}
+		}
+
+		stateRoot = previousBatch.Header.Root.Bytes()
+	}
+
+	sequencerAddress := batch.Header.Coinbase
+
+	log.Debugf("replay root: %v", common.Bytes2Hex(stateRoot))
+
+	bp, err := s.NewBatchProcessor(ctx, sequencerAddress, stateRoot, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to create a new batch processor, err: %v", err)
+		rbErr := s.RollbackState(ctx, txBundleID)
+		if rbErr != nil {
+			log.Errorf("trace transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
+		}
+		return &runtime.ExecutionResult{Err: err}
+	}
+
+	// Activate EVM Instrumentation
+	bp.Host.runtimes = []runtime.Runtime{}
+	evmRT := evm.NewEVM()
+	evmRT.EnableInstrumentation()
+	bp.Host.setRuntime(evmRT)
+	bp.SetSimulationMode(true)
+
+	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress, tx.ChainId())
+
+	// Rollback
+	err = s.RollbackState(ctx, txBundleID)
+	if err != nil {
+		log.Errorf("trace transaction: failed to rollback transaction, err: %v", err)
+		result.Err = err
+		return result
+	}
+
+	// Parse the executor-like trace using the FakeEVM
+	/*var tracer instrumentation.Tracer
+
+	err = json.Unmarshal([]byte(tracerString), &tracer)
+	if err != nil {
+		log.Errorf("debug transaction: failed to parse tracer string, err: %v", err)
+		result.Err = err
+		return result
+	}*/
+
+	// jsTracer, err := js.NewJsTracer(tracer, new(tracers.Context))
+
+	// env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, fakevm.FakeDB{StateRoot: []byte(trace.Context.OldStateRoot)}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
+
+	return result
+}

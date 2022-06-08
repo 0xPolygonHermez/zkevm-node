@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/hermeznetwork/hermez-core/state/runtime/executor/fakevm"
+	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
 	jsassets "github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/js/internal/tracers"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
 )

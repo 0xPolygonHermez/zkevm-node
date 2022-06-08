@@ -22,7 +22,7 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/state/runtime/executor/fakevm"
+	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
 )
 
 // Context contains some contextual infos for a transaction execution that is not
