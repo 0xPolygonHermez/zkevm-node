@@ -496,7 +496,8 @@ func TestGetBlockByHash(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			testCase.SetupMocks(m, &testCase)
+			tc := testCase
+			testCase.SetupMocks(m, &tc)
 
 			result, err := c.BlockByHash(context.Background(), testCase.Hash)
 
@@ -677,7 +678,8 @@ func TestGetBlockByNumber(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			testCase.SetupMocks(m, &testCase)
+			tc := testCase
+			testCase.SetupMocks(m, &tc)
 
 			result, err := c.BlockByNumber(context.Background(), testCase.Number)
 
