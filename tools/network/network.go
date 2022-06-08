@@ -19,7 +19,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/scripts"
+	"github.com/hermeznetwork/hermez-core/test/operations"
 	"github.com/urfave/cli/v2"
 )
 
@@ -157,7 +157,7 @@ func InitNetwork(
 		if err != nil {
 			return err
 		}
-		_, err = scripts.WaitTxToBeMined(clientL1, signedTx.Hash(), nc.TxTimeout)
+		err = operations.WaitTxToBeMined(clientL1, signedTx.Hash(), nc.TxTimeout)
 		if err != nil {
 			return err
 		}
@@ -180,7 +180,7 @@ func InitNetwork(
 		}
 
 		// wait matic transfer to be mined
-		_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
+		err = operations.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
 		if err != nil {
 			return err
 		}
@@ -191,7 +191,7 @@ func InitNetwork(
 		if err != nil {
 			return err
 		}
-		_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
+		err = operations.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
 		if err != nil {
 			return err
 		}
@@ -213,7 +213,7 @@ func InitNetwork(
 
 	// Wait sequencer to be registered
 	log.Infof("waiting sequencer to be registered")
-	_, err = scripts.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
+	err = operations.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
 	if err != nil {
 		return err
 	}
@@ -362,7 +362,7 @@ func sendL1Deposit(ctx context.Context, auth *bind.TransactOpts, client *ethclie
 	}
 
 	log.Infof("Waiting L1Deposit to be mined")
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	if err != nil {
 		return err
 	}
@@ -389,7 +389,7 @@ func forceBatchProposal(ctx context.Context, auth *bind.TransactOpts, client *et
 	}
 
 	log.Infof("Waiting force batch proposal to be mined")
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 
 	return err
 }
@@ -409,7 +409,7 @@ func sendL2Claim(ctx context.Context, auth *bind.TransactOpts, client *ethclient
 	}
 
 	log.Infof("waiting L2 Claim tx to be mined")
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 
 	return err
 }
