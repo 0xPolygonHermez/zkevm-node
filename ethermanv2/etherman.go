@@ -1,4 +1,4 @@
-package etherman
+package ethermanv2
 
 import (
 	"context"
