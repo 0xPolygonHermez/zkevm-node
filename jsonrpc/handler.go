@@ -203,9 +203,9 @@ func getError(v reflect.Value) rpcError {
 	case *RPCError:
 		return vt
 	case error:
-		return newRPCError(invalidRequestErrorCode, vt.Error())
+		return newRPCError(defaultErrorCode, vt.Error())
 	default:
-		return newRPCError(invalidRequestErrorCode, "runtime error")
+		return newRPCError(defaultErrorCode, "runtime error")
 	}
 }
 

@@ -133,7 +133,8 @@ func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface
 	if errors.Is(err, state.ErrNotFound) {
 		return hex.EncodeUint64(0), nil
 	} else if err != nil {
-		return nil, err
+		log.Errorf("failed to get balance from state: %v", err)
+		return nil, newRPCError(defaultErrorCode, "failed to get balance from state")
 	}
 
 	return hex.EncodeBig(balance), nil

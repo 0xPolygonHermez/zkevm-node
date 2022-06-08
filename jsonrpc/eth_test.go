@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
@@ -389,6 +390,26 @@ func TestGetBalance(t *testing.T) {
 					Once()
 			},
 		},
+		{
+			name:            "get balance with state failure",
+			addr:            common.HexToAddress("0x123"),
+			balance:         big.NewInt(1000),
+			blockNumber:     nil,
+			expectedBalance: 0,
+			expectedError:   newRPCError(defaultErrorCode, "failed to get balance from state"),
+			setupMocks: func(m *mocks, t *testCase) {
+				const lastBlockNumber = uint64(10)
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(lastBlockNumber, nil).
+					Once()
+
+				m.State.
+					On("GetBalance", context.Background(), t.addr, lastBlockNumber, "").
+					Return(nil, errors.New("failed to get balance")).
+					Once()
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -401,6 +422,104 @@ func TestGetBalance(t *testing.T) {
 				rpcErr := err.(rpcError)
 				assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode())
 				assert.Equal(t, testCase.expectedError.Error(), rpcErr.Error())
+			}
+		})
+	}
+}
+
+func TestGetBlockByHash(t *testing.T) {
+	type testCase struct {
+		Name           string
+		Hash           common.Hash
+		ExpectedResult *types.Block
+		ExpectedError  interface{}
+		SetupMocks     func(*mocks, *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Block not found",
+			Hash:           common.HexToHash("0x123"),
+			ExpectedResult: nil,
+			ExpectedError:  ethereum.NotFound,
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetBatchByHash", context.Background(), tc.Hash, "").
+					Return(nil, state.ErrNotFound)
+			},
+		},
+		{
+			Name:           "Failed get block from state",
+			Hash:           common.HexToHash("0x234"),
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get block from state"),
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetBatchByHash", context.Background(), tc.Hash, "").
+					Return(nil, errors.New("failed to get block from state")).
+					Once()
+			},
+		},
+		{
+			Name: "get block successfully",
+			Hash: common.HexToHash("0x234"),
+			ExpectedResult: types.NewBlock(&types.Header{
+				Number:    big.NewInt(1),
+				UncleHash: types.EmptyUncleHash,
+				Root:      types.EmptyRootHash,
+			}, []*types.Transaction{
+				types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
+			}, nil, []*types.Receipt{
+				types.NewReceipt([]byte{}, false, uint64(0)),
+			}, &trie.StackTrie{}),
+			ExpectedError: nil,
+			SetupMocks: func(m *mocks, tc *testCase) {
+				batch := &state.Batch{
+					Header: &types.Header{
+						Number:    big.NewInt(1),
+						UncleHash: types.EmptyUncleHash,
+						Root:      types.EmptyRootHash,
+					},
+					Transactions: []*types.Transaction{
+						types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
+					},
+					Receipts: []*state.Receipt{
+						{
+							Receipt: *types.NewReceipt([]byte{}, false, uint64(0)),
+						},
+					},
+				}
+
+				m.State.
+					On("GetBatchByHash", context.Background(), tc.Hash, "").
+					Return(batch, nil).
+					Once()
+			},
+		},
+	}
+
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			testCase.SetupMocks(m, &testCase)
+
+			result, err := c.BlockByHash(context.Background(), testCase.Hash)
+
+			if result != nil || testCase.ExpectedResult != nil {
+				assert.Equal(t, testCase.ExpectedResult.Number().Uint64(), result.Number().Uint64())
+				assert.Equal(t, len(testCase.ExpectedResult.Transactions()), len(result.Transactions()))
+			}
+
+			if err != nil || testCase.ExpectedError != nil {
+				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, testCase.ExpectedError, err)
+				}
 			}
 		})
 	}
