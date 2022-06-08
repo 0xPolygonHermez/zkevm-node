@@ -345,9 +345,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 	for {
 		block, err := s.etherMan.EthBlockByNumber(s.ctx, latestBlock.BlockNumber)
 		if err != nil {
-			if errors.Is(err, etherman.ErrNotFound) {
-				return nil, nil
-			}
+			log.Errorf("error getting latest block synced from blockchain. Block: %d, error: %s", latestBlock.BlockNumber, err.Error())
 			return nil, err
 		}
 		if block.NumberU64() != latestBlock.BlockNumber {
