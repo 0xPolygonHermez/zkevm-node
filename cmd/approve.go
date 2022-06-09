@@ -11,7 +11,7 @@ import (
 )
 
 func approveTokens(ctx *cli.Context) error {
-	a := ctx.String(flagAmount)
+	a := ctx.String(config.FlagAmount)
 	amount, _ := new(big.Float).SetString(a)
 	if amount == nil {
 		fmt.Println("Please, introduce a valid amount. Use '.' instead of ',' if it is a decimal number")
@@ -22,7 +22,7 @@ func approveTokens(ctx *cli.Context) error {
 		return err
 	}
 
-	if !ctx.Bool(flagYes) {
+	if !ctx.Bool(config.FlagYes) {
 		fmt.Print("*WARNING* Are you sure you want to approve ", amount,
 			" tokens to be spent by the smc <Name: PoE. Address: "+c.NetworkConfig.PoEAddr.String()+">? [y/N]: ")
 		var input string
