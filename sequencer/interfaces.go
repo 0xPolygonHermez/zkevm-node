@@ -19,6 +19,7 @@ type txPool interface {
 	UpdateTxState(ctx context.Context, hash common.Hash, newState pool.TxState) error
 	UpdateTxsState(ctx context.Context, hashes []common.Hash, newState pool.TxState) error
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
+	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 }
 
 // etherman contains the methods required to interact with ethereum.
