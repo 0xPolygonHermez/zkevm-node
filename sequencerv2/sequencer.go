@@ -6,19 +6,10 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/ethermanv2"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 )
-
-// Sequence represents an operation sent to the PoE smart contract to be
-// processed.
-type Sequence struct {
-	globalExitRoot  common.Hash
-	timestamp       uint64
-	forceBatchesNum uint64
-	txs             []types.Transaction
-}
 
 // Sequencer represents a sequencer
 type Sequencer struct {
@@ -30,7 +21,7 @@ type Sequencer struct {
 	txManager txManager
 
 	address  common.Address
-	sequence Sequence
+	sequence ethermanv2.Sequence
 }
 
 func NewSequencer(
@@ -80,13 +71,13 @@ func (s *Sequencer) tryToSendSequenceBatches(ctx context.Context, root []byte) [
 	}
 
 	// 3. Process tx
-	s.sequence.txs = append(s.sequence.txs, tx.Transaction)
+	s.sequence.Txs = append(s.sequence.Txs, tx.Transaction)
 	res := s.state.ProcessSequence(ctx, s.sequence)
 	if res.Err != nil {
 		return nil
 	}
 	// 4. Send sequence to ethereum
-	err = s.txManager.SequenceBatches([]*Sequence{&s.sequence})
+	err = s.txManager.SequenceBatches([]*ethermanv2.Sequence{&s.sequence})
 	if err != nil {
 		return nil
 	}
