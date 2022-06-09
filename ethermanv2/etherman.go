@@ -2,7 +2,9 @@ package ethermanv2
 
 import (
 	"context"
+	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -12,11 +14,16 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
+	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/globalexitrootmanager"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
-var ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+var (
+	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
+)
+
 
 type ethClienter interface {
 	ethereum.ChainReader
@@ -26,16 +33,17 @@ type ethClienter interface {
 
 // Client is a simple implementation of EtherMan.
 type Client struct {
-	EtherClient ethClienter
-	PoE         *proofofefficiency.Proofofefficiency
-	Matic       *matic.Matic
-	SCAddresses []common.Address
+	EtherClient           ethClienter
+	PoE                   *proofofefficiency.Proofofefficiency
+	GlobalExitRootManager *globalexitrootmanager.Globalexitrootmanager
+	Matic                 *matic.Matic
+	SCAddresses           []common.Address
 
 	auth *bind.TransactOpts
 }
 
 // NewClient creates a new etherman.
-func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, maticAddr common.Address) (*Client, error) {
+func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, maticAddr common.Address, globalExitRootManAddr common.Address) (*Client, error) {
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -47,6 +55,10 @@ func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, mati
 	if err != nil {
 		return nil, err
 	}
+	globalExitRoot, err := globalexitrootmanager.NewGlobalexitrootmanager(globalExitRootManAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
 	matic, err := matic.NewMatic(maticAddr, ethClient)
 	if err != nil {
 		return nil, err
@@ -54,7 +66,7 @@ func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, mati
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, PoEAddr)
 
-	return &Client{EtherClient: ethClient, PoE: poe, Matic: matic, SCAddresses: scAddresses, auth: auth}, nil
+	return &Client{EtherClient: ethClient, PoE: poe, Matic: matic, GlobalExitRootManager: globalExitRoot, SCAddresses: scAddresses, auth: auth}, nil
 }
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
@@ -80,33 +92,32 @@ func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQue
 	if err != nil {
 		return []state.Block{}, err
 	}
-	var blockArr []state.Block
+	var blocks []state.Block
 	for _, vLog := range logs {
-		block, err := etherMan.processEvent(ctx, vLog)
+		err := etherMan.processEvent(ctx, vLog, &blocks)
 		if err != nil {
 			log.Warnf("error processing event. Retrying... Error: %s. vLog: %+v", err.Error(), vLog)
 			return nil, err
 		}
-		if block == nil {
-			continue
-		}
 	}
-	return blockArr, nil
+	return blocks, nil
 }
 
-func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*state.Block, error) {
+func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block) error {
 	switch vLog.Topics[0] {
 	case ownershipTransferredSignatureHash:
-		return etherMan.ownershipTransferred(vLog)
+		return etherMan.ownershipTransferredEvent(vLog)
+	case updateGlobalExitRootEventSignatureHash:
+		return etherMan.updateGlobalExitRootEvent(ctx, vLog, blocks)
 	}
 	log.Warn("Event not registered: ", vLog)
-	return nil, nil
+	return nil
 }
 
-func (etherMan *Client) ownershipTransferred(vLog types.Log) (*state.Block, error) {
+func (etherMan *Client) ownershipTransferredEvent(vLog types.Log) error {
 	ownership, err := etherMan.PoE.ParseOwnershipTransferred(vLog)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	emptyAddr := common.Address{}
 	if ownership.PreviousOwner == emptyAddr {
@@ -114,5 +125,35 @@ func (etherMan *Client) ownershipTransferred(vLog types.Log) (*state.Block, erro
 	} else {
 		log.Debug("Rollup smc OwnershipTransferred from account ", ownership.PreviousOwner, " to ", ownership.NewOwner)
 	}
-	return nil, nil
+	return nil
+}
+
+func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block) error {
+	log.Debug("UpdateGlobalExitRoot event detected")
+	globalExitRoot, err := etherMan.GlobalExitRootManager.ParseUpdateGlobalExitRoot(vLog)
+	if err != nil {
+		return err
+	}
+	var gExitRoot state.GlobalExitRoot
+	gExitRoot.MainnetExitRoot = common.BytesToHash(globalExitRoot.MainnetExitRoot[:])
+	gExitRoot.MainnetExitRoot = common.BytesToHash(globalExitRoot.RollupExitRoot[:])
+	gExitRoot.GlobalExitRootNum = globalExitRoot.GlobalExitRootNum
+	gExitRoot.BlockNumber = vLog.BlockNumber
+
+	if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
+		(*blocks)[len(*blocks)-1].GlobalExitRoots = append((*blocks)[len(*blocks)-1].GlobalExitRoots, gExitRoot)
+	} else {
+		var block state.Block
+		block.BlockHash = vLog.BlockHash
+		block.BlockNumber = vLog.BlockNumber
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
+		}
+		block.ParentHash = fullBlock.ParentHash()
+		block.ReceivedAt = time.Unix(int64(fullBlock.Time()), 0)
+		block.GlobalExitRoots = append(block.GlobalExitRoots, gExitRoot)
+		*blocks = append(*blocks, block)
+	}
+	return nil
 }
