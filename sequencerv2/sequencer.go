@@ -6,9 +6,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// sequence represents an operation sent to the PoE smart contract to be
+// Sequence represents an operation sent to the PoE smart contract to be
 // processed.
-type sequence struct {
+type Sequence struct {
 	globalExitRoot  common.Hash
 	timestamp       uint64
 	forceBatchesNum uint64

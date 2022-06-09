@@ -4,11 +4,13 @@ package sequencerv2
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
 // Consumer interfaces required by the package.
@@ -35,14 +37,23 @@ type etherman interface {
 	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
 	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 
-	SequenceBatches(sequences []*sequence) error
+	SequenceBatches(sequences []*Sequence) error
 }
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
+	GetLastBatch(ctx context.Context, txBundleID string) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context, txBundleID string) (uint64, error)
 	GetLastBatchByStateRoot(ctx context.Context, stateRoot []byte, txBundleID string) (*state.Batch, error)
-	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte, txBundleID string) (*state.BatchProcessor, error)
+
+	SetGenesis(ctx context.Context, genesis state.Genesis, txBundleID string) error
+	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
+	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
+	SetInitSyncBatch(ctx context.Context, batchNumber uint64, txBundleID string) error
+
+	AddBlock(ctx context.Context, block *state.Block, txBundleID string) error
+	ConsolidateBatch(ctx context.Context, batchNumber uint64, globalExitRoot common.Hash, timestamp time.Time, txBundleID string) error
+
+	ProcessSequence(ctx context.Context, sequence Sequence) *runtime.ExecutionResult
 }
