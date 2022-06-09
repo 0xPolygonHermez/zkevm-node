@@ -1,3 +1,4 @@
+//nolint
 package sequencerv2
 
 import (
