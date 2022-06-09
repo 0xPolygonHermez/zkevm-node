@@ -163,10 +163,14 @@ func (q *PendingTxsQueue) KeepPendingTxsQueue(ctx context.Context) {
 			log.Errorf("failed to get pending tx, err: %v", err)
 			continue
 		}
-		if len(pendTx) != 0 && (lenPendingTxs == 0 ||
-			(!q.poppedTxsHashesMap.Has(pendTx[0].Hash().Hex()) && !q.pendingTxsMap.Has(pendTx[0].Hash().Hex()))) {
+		if len(pendTx) == 0 {
+			continue
+		}
+		pendTxHash := pendTx[0].Hash().Hex()
+		if lenPendingTxs == 0 ||
+			!(q.poppedTxsHashesMap.Has(pendTxHash) || q.pendingTxsMap.Has(pendTxHash)) {
 			q.InsertPendingTx(pendTx[0])
-			q.pendingTxsMap.Set(pendTx[0].Hash().Hex(), true)
+			q.pendingTxsMap.Set(pendTxHash, true)
 		}
 	}
 }
