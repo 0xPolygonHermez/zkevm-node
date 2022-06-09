@@ -963,13 +963,13 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 	context := instrumentation.Context{}
 
 	// Fill trace context
-	if receipt.From.Hex() == ZeroAddress.Hex() {
+	if tx.To() == nil {
 		context.Type = "CREATE"
 	} else {
 		context.Type = "CALL"
+		context.To = tx.To().Hex()
 	}
 	context.From = receipt.From.Hex()
-	context.To = tx.To().Hex()
 	context.Input = "0x" + hex.EncodeToString(tx.Data())
 	context.Gas = strconv.FormatUint(tx.Gas(), encoding.Base10)
 	context.Value = tx.Value().String()
@@ -989,7 +989,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 	}
 
 	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
-	fakeDB := &FakeDB{State: s, stateRoot: []byte(context.OldStateRoot)}
+	fakeDB := &FakeDB{State: s, stateRoot: common.Hex2Bytes(context.OldStateRoot)}
 	env.SetStateDB(fakeDB)
 
 	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, jsTracer)
@@ -1001,6 +1001,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 
 func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, jsTracer tracers.Tracer) (json.RawMessage, error) {
 	var previousDepth int
+	var stateRoot []byte
 
 	contextGas, ok := new(big.Int).SetString(trace.Context.Gas, encoding.Base10)
 	if !ok {
@@ -1018,6 +1019,8 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 
 	stack := fakevm.Newstack()
 	memory := fakevm.NewMemory()
+
+	stateRoot = common.Hex2Bytes(trace.Context.OldStateRoot)
 
 	for _, step := range trace.Steps {
 		gas, ok := new(big.Int).SetString(step.Gas, encoding.Base10)
@@ -1078,11 +1081,29 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 			// log.Debugf(stackContent)
 			valueBigInt, ok := new(big.Int).SetString(stackContent, 0)
 			if !ok {
-				log.Debugf("error while parsing stact valueBigInt")
+				log.Debugf("error while parsing stack valueBigInt")
 				return nil, ErrParsingExecutorTrace
 			}
 			value, _ := uint256.FromBig(valueBigInt)
 			stack.Push(value)
+		}
+
+		// Set Storage
+		for storageKey, storageValue := range step.Storage {
+			key, ok := new(big.Int).SetString("0x"+storageKey, 0)
+			if !ok {
+				log.Debugf("error while parsing storage key")
+				return nil, ErrParsingExecutorTrace
+			}
+			value, ok := new(big.Int).SetString("0x"+storageValue, 0)
+			if !ok {
+				log.Debugf("error while parsing storage value")
+				return nil, ErrParsingExecutorTrace
+			}
+			_, _, err := s.tree.SetStorageAt(context.Background(), common.HexToAddress(step.Contract.Address), key, value, stateRoot, "")
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// Returning from a call or create
@@ -1091,7 +1112,8 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 		}
 
 		// Set StateRoot
-		env.StateDB.SetStateRoot([]byte(step.StateRoot))
+		stateRoot = common.Hex2Bytes(step.StateRoot)
+		env.StateDB.SetStateRoot(stateRoot)
 		previousDepth = step.Depth
 	}
 

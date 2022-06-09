@@ -2793,7 +2793,7 @@ func TestDebugTransaction(t *testing.T) {
 	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
 
 	// Execution Trace
-	receipt, err = st.GetTransactionReceipt(ctx, signedTx4.Hash(), "")
+	receipt, err = st.GetTransactionReceipt(ctx, signedTx3.Hash(), "")
 	require.NoError(t, err)
 
 	// Read tracer from filesystem
