@@ -12,9 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/matic"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/globalexitrootmanager"
+	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/matic"
+	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
+	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/globalexitrootmanager"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 )
@@ -64,7 +64,7 @@ func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, mati
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, PoEAddr)
+	scAddresses = append(scAddresses, PoEAddr, globalExitRootManAddr)
 
 	return &Client{EtherClient: ethClient, PoE: poe, Matic: matic, GlobalExitRootManager: globalExitRoot, SCAddresses: scAddresses, auth: auth}, nil
 }
@@ -115,7 +115,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 }
 
 func (etherMan *Client) ownershipTransferredEvent(vLog types.Log) error {
-	ownership, err := etherMan.PoE.ParseOwnershipTransferred(vLog)
+	ownership, err := etherMan.GlobalExitRootManager.ParseOwnershipTransferred(vLog)
 	if err != nil {
 		return err
 	}
@@ -136,13 +136,11 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 	}
 	var gExitRoot state.GlobalExitRoot
 	gExitRoot.MainnetExitRoot = common.BytesToHash(globalExitRoot.MainnetExitRoot[:])
-	gExitRoot.MainnetExitRoot = common.BytesToHash(globalExitRoot.RollupExitRoot[:])
+	gExitRoot.RollupExitRoot = common.BytesToHash(globalExitRoot.RollupExitRoot[:])
 	gExitRoot.GlobalExitRootNum = globalExitRoot.GlobalExitRootNum
 	gExitRoot.BlockNumber = vLog.BlockNumber
 
-	if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].GlobalExitRoots = append((*blocks)[len(*blocks)-1].GlobalExitRoots, gExitRoot)
-	} else {
+	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber) {
 		var block state.Block
 		block.BlockHash = vLog.BlockHash
 		block.BlockNumber = vLog.BlockNumber
@@ -154,6 +152,11 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 		block.ReceivedAt = time.Unix(int64(fullBlock.Time()), 0)
 		block.GlobalExitRoots = append(block.GlobalExitRoots, gExitRoot)
 		*blocks = append(*blocks, block)
+	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
+		(*blocks)[len(*blocks)-1].GlobalExitRoots = append((*blocks)[len(*blocks)-1].GlobalExitRoots, gExitRoot)
+	} else {
+		log.Error("Error processing UpdateGlobalExitRoot event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
+		return fmt.Errorf("Error processing UpdateGlobalExitRoot event")
 	}
 	return nil
 }
