@@ -125,7 +125,6 @@ require (
 
 require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/orcaman/concurrent-map v1.0.0
 	github.com/umbracle/ethgo v0.1.2
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	go.uber.org/atomic v1.9.0 // indirect

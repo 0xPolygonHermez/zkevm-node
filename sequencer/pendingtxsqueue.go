@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
-	cmap "github.com/orcaman/concurrent-map"
 )
 
 // PendingTxsQueueConfig config for pending tx queue data structure
@@ -19,21 +18,24 @@ type PendingTxsQueueConfig struct {
 
 // PendingTxsQueue keeps pending tx queue and gives tx with the highest gas price by request
 type PendingTxsQueue struct {
-	cfg                 PendingTxsQueueConfig
-	poppedTxsHashesChan chan common.Hash
-	poppedTxsHashesMap  cmap.ConcurrentMap
+	cfg PendingTxsQueueConfig
+
+	poppedTxsHashesChan  chan common.Hash
+	poppedTxsHashesMap   map[string]bool
+	poppedTxsHashesMutex sync.RWMutex
 
 	pendingTxs      []pool.Transaction
 	pendingTxsMutex sync.RWMutex
-	pendingTxsMap   cmap.ConcurrentMap
-	txPool          txPool
+	pendingTxsMap   map[string]bool
+
+	txPool txPool
 }
 
 // NewPendingTxsQueue inits new pending tx queue
 func NewPendingTxsQueue(cfg PendingTxsQueueConfig, pool txPool) *PendingTxsQueue {
 	poppedTxsChan := make(chan common.Hash, amountOfPendingTxsRequested)
-	poppedTxsHashesMap := cmap.New()
-	pendingTxMap := cmap.New()
+	poppedTxsHashesMap := make(map[string]bool)
+	pendingTxMap := make(map[string]bool)
 	return &PendingTxsQueue{
 		cfg:                 cfg,
 		txPool:              pool,
@@ -46,19 +48,25 @@ func NewPendingTxsQueue(cfg PendingTxsQueueConfig, pool txPool) *PendingTxsQueue
 // PopPendingTx pops top pending tx from the queue
 func (q *PendingTxsQueue) PopPendingTx() *pool.Transaction {
 	var tx *pool.Transaction
+
 	q.pendingTxsMutex.Lock()
-	defer q.pendingTxsMutex.Unlock()
 	if len(q.pendingTxs) > 1 {
 		tx, q.pendingTxs = &q.pendingTxs[0], q.pendingTxs[1:]
 	} else if len(q.pendingTxs) == 1 {
 		tx = &q.pendingTxs[0]
 		q.pendingTxs = []pool.Transaction{}
 	} else {
+		q.pendingTxsMutex.Unlock()
 		return nil
 	}
 	txHash := tx.Hash().Hex()
-	q.poppedTxsHashesMap.Set(txHash, true)
-	q.pendingTxsMap.Remove(txHash)
+	delete(q.pendingTxsMap, txHash)
+	q.pendingTxsMutex.Unlock()
+
+	q.poppedTxsHashesMutex.Lock()
+	q.poppedTxsHashesMap[txHash] = true
+	q.poppedTxsHashesMutex.Unlock()
+
 	q.poppedTxsHashesChan <- tx.Hash()
 
 	return tx
@@ -88,6 +96,7 @@ func (q *PendingTxsQueue) InsertPendingTx(tx pool.Transaction) {
 	index := q.findPlaceInSlice(tx)
 	q.pendingTxsMutex.Lock()
 	defer q.pendingTxsMutex.Unlock()
+	q.pendingTxsMap[tx.Hash().Hex()] = true
 	if index <= 1 {
 		q.pendingTxs = append(q.pendingTxs, tx)
 	} else {
@@ -120,7 +129,9 @@ func (q *PendingTxsQueue) waitForTxToBeProcessed(ctx context.Context, hash commo
 		}
 
 		if !isPending {
-			q.poppedTxsHashesMap.Remove(hash.Hex())
+			q.poppedTxsHashesMutex.Lock()
+			delete(q.poppedTxsHashesMap, hash.Hex())
+			q.poppedTxsHashesMutex.Unlock()
 			return
 		}
 		select {
@@ -147,7 +158,7 @@ func (q *PendingTxsQueue) KeepPendingTxsQueue(ctx context.Context) {
 	}
 
 	for _, tx := range q.pendingTxs {
-		q.pendingTxsMap.Set(tx.Hash().Hex(), true)
+		q.pendingTxsMap[tx.Hash().Hex()] = true
 	}
 
 	q.pendingTxsMutex.Unlock()
@@ -168,9 +179,8 @@ func (q *PendingTxsQueue) KeepPendingTxsQueue(ctx context.Context) {
 		}
 		pendTxHash := pendTx[0].Hash().Hex()
 		if lenPendingTxs == 0 ||
-			!(q.poppedTxsHashesMap.Has(pendTxHash) || q.pendingTxsMap.Has(pendTxHash)) {
+			!(q.isTxPopped(pendTxHash) || q.isTxInPendingQueue(pendTxHash)) {
 			q.InsertPendingTx(pendTx[0])
-			q.pendingTxsMap.Set(pendTxHash, true)
 		}
 	}
 }
@@ -180,4 +190,16 @@ func (q *PendingTxsQueue) GetPendingTxsQueueLength() int {
 	q.pendingTxsMutex.RLock()
 	defer q.pendingTxsMutex.RUnlock()
 	return len(q.pendingTxs)
+}
+
+func (q *PendingTxsQueue) isTxInPendingQueue(txHash string) bool {
+	q.pendingTxsMutex.RLock()
+	defer q.pendingTxsMutex.RUnlock()
+	return q.pendingTxsMap[txHash]
+}
+
+func (q *PendingTxsQueue) isTxPopped(txHash string) bool {
+	q.poppedTxsHashesMutex.RLock()
+	defer q.poppedTxsHashesMutex.RUnlock()
+	return q.poppedTxsHashesMap[txHash]
 }

@@ -191,7 +191,6 @@ func TestQueue_AddOneTx(t *testing.T) {
 	if err := p.AddTx(ctx, *signedTx); err != nil {
 		panic(err)
 	}
-
 	time.Sleep(queueCfg.TxPendingInQueueCheckingFrequency.Duration * 2)
 	assert.Equal(t, 1, pendQueue.GetPendingTxsQueueLength())
 }
