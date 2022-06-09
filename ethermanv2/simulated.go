@@ -13,8 +13,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/bridge"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/globalexitrootmanager"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/matic"
-	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/mockverifier"
+	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
 )
 
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth

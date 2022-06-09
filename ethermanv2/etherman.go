@@ -12,18 +12,17 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/globalexitrootmanager"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
-	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/globalexitrootmanager"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
 )
 
 var (
-	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
 )
-
 
 type ethClienter interface {
 	ethereum.ChainReader
