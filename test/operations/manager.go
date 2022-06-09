@@ -355,7 +355,7 @@ func (m *Manager) SetUpSequencer() error {
 	}
 
 	// Wait eth transfer to be mined
-	err = m.wait.TxToBeMined(client, signedTx.Hash(), DefaultTxMinedDeadline)
+	err = WaitTxToBeMined(client, signedTx.Hash(), DefaultTxMinedDeadline)
 	if err != nil {
 		return err
 	}
@@ -378,7 +378,7 @@ func (m *Manager) SetUpSequencer() error {
 	}
 
 	// wait matic transfer to be mined
-	err = m.wait.TxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
+	err = WaitTxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
 	if err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func (m *Manager) SetUpSequencer() error {
 		return err
 	}
 
-	err = m.wait.TxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
+	err = WaitTxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
 	if err != nil {
 		return err
 	}
@@ -424,7 +424,7 @@ func (m *Manager) SetUpSequencer() error {
 	}
 
 	// Wait sequencer to be registered
-	err = m.wait.TxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
+	err = WaitTxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
 	if err != nil {
 		return err
 	}

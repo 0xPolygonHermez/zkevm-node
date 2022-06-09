@@ -23,9 +23,13 @@ import (
 )
 
 const (
-	flagCfg        = "cfg"
-	flagNetwork    = "network"
-	flagNetworkCfg = "network-cfg"
+	FlagYes         = "yes"
+	FlagCfg         = "cfg"
+	FlagNetwork     = "network"
+	FlagNetworkCfg  = "network-cfg"
+	FlagNetworkBase = "network-base"
+	FlagAmount      = "amount"
+	FlagRemoteMT    = "remote-merkletree"
 )
 
 // Config represents the configuration of the entire Hermez Node
@@ -58,7 +62,7 @@ func Load(ctx *cli.Context) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	configFilePath := ctx.String(flagCfg)
+	configFilePath := ctx.String(FlagCfg)
 	if configFilePath != "" {
 		dirName, fileName := filepath.Split(configFilePath)
 

@@ -15,11 +15,11 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/scripts"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/Counter"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/ERC20"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/EmitLog"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/Storage"
+	"github.com/hermeznetwork/hermez-core/test/operations"
 )
 
 const (
@@ -50,12 +50,12 @@ func main() {
 	log.Debugf("Sending TX to deploy Counter SC")
 	_, tx, counterSC, err := Counter.DeployCounter(auth, client)
 	chkErr(err)
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
 	log.Debugf("Calling Increment method from Counter SC")
 	tx, err = counterSC.Increment(auth)
 	chkErr(err)
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
 	fmt.Println()
 
@@ -63,12 +63,12 @@ func main() {
 	log.Debugf("Sending TX to deploy EmitLog SC")
 	_, tx, emitLogSC, err := EmitLog.DeployEmitLog(auth, client)
 	chkErr(err)
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
 	log.Debugf("Calling EmitLogs method from EmitLog SC")
 	tx, err = emitLogSC.EmitLogs(auth)
 	chkErr(err)
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
 	fmt.Println()
 
@@ -77,12 +77,12 @@ func main() {
 	log.Debugf("Sending TX to deploy ERC20 SC")
 	_, tx, erc20SC, err := ERC20.DeployERC20(auth, client, "Test Coin", "TCO")
 	chkErr(err)
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
 	log.Debugf("Sending TX to do a ERC20 mint")
 	tx, err = erc20SC.Mint(auth, mintAmount)
 	chkErr(err)
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
 	transferAmount, _ := big.NewInt(0).SetString("900000000000000000000", encoding.Base10)
 	log.Debugf("Sending TX to do a ERC20 transfer")
@@ -93,9 +93,9 @@ func main() {
 	invalidTx, err := erc20SC.Transfer(auth, common.HexToAddress(receiverAddr), transferAmount)
 	chkErr(err)
 	log.Debugf("Invalid ERC20 tx hash: %v", invalidTx.Hash())
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
-	_, err = scripts.WaitTxToBeMined(client, invalidTx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, invalidTx.Hash(), txTimeout)
 	chkErr(err)
 	auth.Nonce = nil
 	fmt.Println()
@@ -105,12 +105,12 @@ func main() {
 	log.Debugf("Sending TX to deploy Storage SC")
 	_, tx, storageSC, err := Storage.DeployStorage(auth, client)
 	chkErr(err)
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
 	log.Debugf("Calling Store method from Storage SC")
 	tx, err = storageSC.Store(auth, big.NewInt(numberToStore))
 	chkErr(err)
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
 	fmt.Println()
 
@@ -131,7 +131,7 @@ func main() {
 	log.Debugf("Sending Invalid TX to transfer ETH")
 	nonce := tx.Nonce() + 1
 	ethTransfer(ctx, client, auth, to, transferAmount, &nonce)
-	_, err = scripts.WaitTxToBeMined(client, tx.Hash(), txTimeout)
+	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
 	fmt.Println()
 }

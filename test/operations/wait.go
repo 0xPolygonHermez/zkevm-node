@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -60,47 +59,13 @@ func (w *Wait) Poll(interval, deadline time.Duration, condition ConditionFunc) e
 	}
 }
 
-// GRPCHealthy waits for a gRPC endpoint to be responding according to the
-// health standard in package grpc.health.v1
-func (w *Wait) GRPCHealthy(address string) error {
-	return w.Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
-		return grpcHealthyCondition(address)
-	})
-}
-
-// TxToBeMined waits until a tx has been mined or the given timeout expires.
-func (w *Wait) TxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) error {
-	start := time.Now()
+// WaitTxToBeMined waits until a tx has been mined or the given timeout expires.
+func WaitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) error {
+	w := NewWait()
 	ctx := context.Background()
-	for {
-		if time.Since(start) > timeout {
-			return errors.New("timeout exceed")
-		}
-
-		time.Sleep(1 * time.Second)
-
-		_, isPending, err := client.TransactionByHash(ctx, hash)
-		if err == ethereum.NotFound {
-			continue
-		}
-
-		if err != nil {
-			return err
-		}
-
-		if !isPending {
-			r, err := client.TransactionReceipt(ctx, hash)
-			if err != nil {
-				return err
-			}
-
-			if r.Status == types.ReceiptStatusFailed {
-				return fmt.Errorf("transaction has failed: %s", hex.EncodeToString(r.PostState))
-			}
-
-			return nil
-		}
-	}
+	return w.Poll(DefaultInterval, timeout, func() (bool, error) {
+		return txMinedCondition(ctx, client, hash)
+	})
 }
 
 // WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
@@ -219,5 +184,30 @@ func grpcHealthyCondition(address string) (bool, error) {
 
 	done := state.Status == grpc_health_v1.HealthCheckResponse_SERVING
 
+	return done, nil
+}
+
+// txMinedCondition
+func txMinedCondition(ctx context.Context, client *ethclient.Client, hash common.Hash) (bool, error) {
+	_, isPending, err := client.TransactionByHash(ctx, hash)
+	if err == ethereum.NotFound {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	var done bool
+	if !isPending {
+		r, err := client.TransactionReceipt(ctx, hash)
+		if err != nil {
+			return false, err
+		}
+		if r.Status == types.ReceiptStatusFailed {
+			return false, fmt.Errorf("transaction has failed: %s", hex.EncodeToString(r.PostState))
+		}
+		done = true
+	}
 	return done, nil
 }
