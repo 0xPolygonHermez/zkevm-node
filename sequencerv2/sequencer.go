@@ -1,4 +1,4 @@
-//nolint
+// nolint
 package sequencerv2
 
 import (
@@ -24,6 +24,7 @@ type Sequencer struct {
 	sequence ethermanv2.Sequence
 }
 
+// NewSequencer init sequencer
 func NewSequencer(
 	cfg Config,
 	pool txPool,
