@@ -57,3 +57,7 @@ type stateInterface interface {
 
 	ProcessSequence(ctx context.Context, sequence Sequence) *runtime.ExecutionResult
 }
+
+type txManager interface {
+	SequenceBatches(sequences []*Sequence) error
+}
