@@ -334,22 +334,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			return false, err
 		}
 
-		if testResult.Err != nil {
-			// Check the application error.
-			// Gas apply errors are valid, and should be ignored
-			if isGasApplyError(testResult.Err) && shouldOmitErr {
-				// Specifying the transaction failed, but not providing an error
-				// is an indication that a valid error occurred due to low gas,
-				// which will increase the lower bound for the search
-				return true, nil
-			}
-
-			return true, testResult.Err
-		}
-
 		// Check if an out of gas error happened during EVM execution
 		if testResult.Failed() {
-			if isGasEVMError(testResult.Err) && shouldOmitErr {
+			if (isGasEVMError(testResult.Err) || isGasApplyError(testResult.Err)) && shouldOmitErr {
 				// Specifying the transaction failed, but not providing an error
 				// is an indication that a valid error occurred due to low gas,
 				// which will increase the lower bound for the search
