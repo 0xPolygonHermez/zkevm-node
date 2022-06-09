@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
 	jsassets "github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/js/internal/tracers"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
@@ -129,7 +130,10 @@ func NewJsTracer(code string, ctx *tracers.Context) (tracers.Tracer, error) {
 		}
 	}
 
-	t.setTypeConverters()
+	err := t.setTypeConverters()
+	if err != nil {
+		return nil, err
+	}
 	t.setBuiltinFunctions()
 	ret, err := vm.RunString("(" + code + ")")
 	if err != nil {
@@ -337,7 +341,7 @@ func wrapError(context string, err error) error {
 func (t *jsTracer) setBuiltinFunctions() {
 	vm := t.vm
 	// TODO: load console from goja-nodejs
-	vm.Set("toHex", func(v goja.Value) string {
+	err := vm.Set("toHex", func(v goja.Value) string {
 		b, err := t.fromBuf(vm, v, false)
 		if err != nil {
 			vm.Interrupt(err)
@@ -345,7 +349,10 @@ func (t *jsTracer) setBuiltinFunctions() {
 		}
 		return hexutil.Encode(b)
 	})
-	vm.Set("toWord", func(v goja.Value) goja.Value {
+	if err != nil {
+		log.Error(err)
+	}
+	err = vm.Set("toWord", func(v goja.Value) goja.Value {
 		// TODO: add test with []byte len < 32 or > 32
 		b, err := t.fromBuf(vm, v, true)
 		if err != nil {
@@ -360,7 +367,10 @@ func (t *jsTracer) setBuiltinFunctions() {
 		}
 		return res
 	})
-	vm.Set("toAddress", func(v goja.Value) goja.Value {
+	if err != nil {
+		log.Error(err)
+	}
+	err = vm.Set("toAddress", func(v goja.Value) goja.Value {
 		a, err := t.fromBuf(vm, v, true)
 		if err != nil {
 			vm.Interrupt(err)
@@ -374,7 +384,10 @@ func (t *jsTracer) setBuiltinFunctions() {
 		}
 		return res
 	})
-	vm.Set("toContract", func(from goja.Value, nonce uint) goja.Value {
+	if err != nil {
+		log.Error(err)
+	}
+	err = vm.Set("toContract", func(from goja.Value, nonce uint) goja.Value {
 		a, err := t.fromBuf(vm, from, true)
 		if err != nil {
 			vm.Interrupt(err)
@@ -389,7 +402,10 @@ func (t *jsTracer) setBuiltinFunctions() {
 		}
 		return res
 	})
-	vm.Set("toContract2", func(from goja.Value, salt string, initcode goja.Value) goja.Value {
+	if err != nil {
+		log.Error(err)
+	}
+	err = vm.Set("toContract2", func(from goja.Value, salt string, initcode goja.Value) goja.Value {
 		a, err := t.fromBuf(vm, from, true)
 		if err != nil {
 			vm.Interrupt(err)
@@ -411,7 +427,10 @@ func (t *jsTracer) setBuiltinFunctions() {
 		}
 		return res
 	})
-	vm.Set("isPrecompiled", func(v goja.Value) bool {
+	if err != nil {
+		log.Error(err)
+	}
+	err = vm.Set("isPrecompiled", func(v goja.Value) bool {
 		a, err := t.fromBuf(vm, v, true)
 		if err != nil {
 			vm.Interrupt(err)
@@ -425,7 +444,10 @@ func (t *jsTracer) setBuiltinFunctions() {
 		}
 		return false
 	})
-	vm.Set("slice", func(slice goja.Value, start, end int) goja.Value {
+	if err != nil {
+		log.Error(err)
+	}
+	err = vm.Set("slice", func(slice goja.Value, start, end int) goja.Value {
 		b, err := t.fromBuf(vm, slice, false)
 		if err != nil {
 			vm.Interrupt(err)
@@ -442,6 +464,9 @@ func (t *jsTracer) setBuiltinFunctions() {
 		}
 		return res
 	})
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 // setTypeConverters sets up utilities for converting Go types into those
@@ -497,9 +522,18 @@ func (o *opObj) IsPush() bool {
 
 func (o *opObj) setupObject() *goja.Object {
 	obj := o.vm.NewObject()
-	obj.Set("toNumber", o.vm.ToValue(o.ToNumber))
-	obj.Set("toString", o.vm.ToValue(o.ToString))
-	obj.Set("isPush", o.vm.ToValue(o.IsPush))
+	err := obj.Set("toNumber", o.vm.ToValue(o.ToNumber))
+	if err != nil {
+		log.Error(err)
+	}
+	err = obj.Set("toString", o.vm.ToValue(o.ToString))
+	if err != nil {
+		log.Error(err)
+	}
+	err = obj.Set("isPush", o.vm.ToValue(o.IsPush))
+	if err != nil {
+		log.Error(err)
+	}
 	return obj
 }
 
@@ -555,9 +589,9 @@ func (mo *memoryObj) GetUint(addr int64) goja.Value {
 // getUint returns the 32 bytes at the specified address interpreted as a uint.
 func (mo *memoryObj) getUint(addr int64) (*big.Int, error) {
 	if mo.memory.Len() < int(addr)+32 || addr < 0 {
-		return nil, fmt.Errorf("Tracer accessed out of bound memory: available %d, offset %d, size %d", mo.memory.Len(), addr, 32)
+		return nil, fmt.Errorf("Tracer accessed out of bound memory: available %d, offset %d, size %d", mo.memory.Len(), addr, fakevm.MemoryItemSize)
 	}
-	return new(big.Int).SetBytes(mo.memory.GetPtr(addr, 32)), nil
+	return new(big.Int).SetBytes(mo.memory.GetPtr(addr, int64(fakevm.MemoryItemSize))), nil
 }
 
 func (mo *memoryObj) Length() int {
@@ -566,9 +600,18 @@ func (mo *memoryObj) Length() int {
 
 func (mo *memoryObj) setupObject() *goja.Object {
 	o := mo.vm.NewObject()
-	o.Set("slice", mo.vm.ToValue(mo.Slice))
-	o.Set("getUint", mo.vm.ToValue(mo.GetUint))
-	o.Set("length", mo.vm.ToValue(mo.Length))
+	err := o.Set("slice", mo.vm.ToValue(mo.Slice))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getUint", mo.vm.ToValue(mo.GetUint))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("length", mo.vm.ToValue(mo.Length))
+	if err != nil {
+		log.Error(err)
+	}
 	return o
 }
 
@@ -606,8 +649,14 @@ func (s *stackObj) Length() int {
 
 func (s *stackObj) setupObject() *goja.Object {
 	o := s.vm.NewObject()
-	o.Set("peek", s.vm.ToValue(s.Peek))
-	o.Set("length", s.vm.ToValue(s.Length))
+	err := o.Set("peek", s.vm.ToValue(s.Peek))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("length", s.vm.ToValue(s.Length))
+	if err != nil {
+		log.Error(err)
+	}
 	return o
 }
 
@@ -695,11 +744,26 @@ func (do *dbObj) Exists(addrSlice goja.Value) bool {
 
 func (do *dbObj) setupObject() *goja.Object {
 	o := do.vm.NewObject()
-	o.Set("getBalance", do.vm.ToValue(do.GetBalance))
-	o.Set("getNonce", do.vm.ToValue(do.GetNonce))
-	o.Set("getCode", do.vm.ToValue(do.GetCode))
-	o.Set("getState", do.vm.ToValue(do.GetState))
-	o.Set("exists", do.vm.ToValue(do.Exists))
+	err := o.Set("getBalance", do.vm.ToValue(do.GetBalance))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getNonce", do.vm.ToValue(do.GetNonce))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getCode", do.vm.ToValue(do.GetCode))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getState", do.vm.ToValue(do.GetState))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("exists", do.vm.ToValue(do.Exists))
+	if err != nil {
+		log.Error(err)
+	}
 	return o
 }
 
@@ -752,10 +816,22 @@ func (co *contractObj) GetInput() goja.Value {
 
 func (co *contractObj) setupObject() *goja.Object {
 	o := co.vm.NewObject()
-	o.Set("getCaller", co.vm.ToValue(co.GetCaller))
-	o.Set("getAddress", co.vm.ToValue(co.GetAddress))
-	o.Set("getValue", co.vm.ToValue(co.GetValue))
-	o.Set("getInput", co.vm.ToValue(co.GetInput))
+	err := o.Set("getCaller", co.vm.ToValue(co.GetCaller))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getAddress", co.vm.ToValue(co.GetAddress))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getValue", co.vm.ToValue(co.GetValue))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getInput", co.vm.ToValue(co.GetInput))
+	if err != nil {
+		log.Error(err)
+	}
 	return o
 }
 
@@ -824,12 +900,30 @@ func (f *callframe) GetValue() goja.Value {
 
 func (f *callframe) setupObject() *goja.Object {
 	o := f.vm.NewObject()
-	o.Set("getType", f.vm.ToValue(f.GetType))
-	o.Set("getFrom", f.vm.ToValue(f.GetFrom))
-	o.Set("getTo", f.vm.ToValue(f.GetTo))
-	o.Set("getInput", f.vm.ToValue(f.GetInput))
-	o.Set("getGas", f.vm.ToValue(f.GetGas))
-	o.Set("getValue", f.vm.ToValue(f.GetValue))
+	err := o.Set("getType", f.vm.ToValue(f.GetType))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getFrom", f.vm.ToValue(f.GetFrom))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getTo", f.vm.ToValue(f.GetTo))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getInput", f.vm.ToValue(f.GetInput))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getGas", f.vm.ToValue(f.GetGas))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getValue", f.vm.ToValue(f.GetValue))
+	if err != nil {
+		log.Error(err)
+	}
 	return o
 }
 
@@ -864,9 +958,18 @@ func (r *callframeResult) GetError() goja.Value {
 
 func (r *callframeResult) setupObject() *goja.Object {
 	o := r.vm.NewObject()
-	o.Set("getGasUsed", r.vm.ToValue(r.GetGasUsed))
-	o.Set("getOutput", r.vm.ToValue(r.GetOutput))
-	o.Set("getError", r.vm.ToValue(r.GetError))
+	err := o.Set("getGasUsed", r.vm.ToValue(r.GetGasUsed))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getOutput", r.vm.ToValue(r.GetOutput))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getError", r.vm.ToValue(r.GetError))
+	if err != nil {
+		log.Error(err)
+	}
 	return o
 }
 
@@ -916,16 +1019,46 @@ func (l *steplog) GetError() goja.Value {
 func (l *steplog) setupObject() *goja.Object {
 	o := l.vm.NewObject()
 	// Setup basic fields.
-	o.Set("getPC", l.vm.ToValue(l.GetPC))
-	o.Set("getGas", l.vm.ToValue(l.GetGas))
-	o.Set("getCost", l.vm.ToValue(l.GetCost))
-	o.Set("getDepth", l.vm.ToValue(l.GetDepth))
-	o.Set("getRefund", l.vm.ToValue(l.GetRefund))
-	o.Set("getError", l.vm.ToValue(l.GetError))
+	err := o.Set("getPC", l.vm.ToValue(l.GetPC))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getGas", l.vm.ToValue(l.GetGas))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getCost", l.vm.ToValue(l.GetCost))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getDepth", l.vm.ToValue(l.GetDepth))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getRefund", l.vm.ToValue(l.GetRefund))
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("getError", l.vm.ToValue(l.GetError))
+	if err != nil {
+		log.Error(err)
+	}
 	// Setup nested objects.
-	o.Set("op", l.op.setupObject())
-	o.Set("stack", l.stack.setupObject())
-	o.Set("memory", l.memory.setupObject())
-	o.Set("contract", l.contract.setupObject())
+	err = o.Set("op", l.op.setupObject())
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("stack", l.stack.setupObject())
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("memory", l.memory.setupObject())
+	if err != nil {
+		log.Error(err)
+	}
+	err = o.Set("contract", l.contract.setupObject())
+	if err != nil {
+		log.Error(err)
+	}
 	return o
 }

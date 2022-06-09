@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -75,16 +76,17 @@ type TxContext struct {
 // ExecutionResult includes all output after executing given evm
 // message no matter the execution itself is successful or not.
 type ExecutionResult struct {
-	ReturnValue   []byte // Returned data from the runtime (function result or data supplied with revert opcode)
-	GasLeft       uint64 // Total gas left as result of execution
-	GasUsed       uint64 // Total gas used as result of execution
-	Err           error  // Any error encountered during the execution, listed below
-	CreateAddress common.Address
-	StateRoot     []byte
-	Trace         []instrumentation.Trace
-	VMTrace       instrumentation.VMTrace
-	StructLogs    []instrumentation.StructLog
-	ExecutorTrace instrumentation.ExecutorTrace
+	ReturnValue         []byte // Returned data from the runtime (function result or data supplied with revert opcode)
+	GasLeft             uint64 // Total gas left as result of execution
+	GasUsed             uint64 // Total gas used as result of execution
+	Err                 error  // Any error encountered during the execution, listed below
+	CreateAddress       common.Address
+	StateRoot           []byte
+	Trace               []instrumentation.Trace
+	VMTrace             instrumentation.VMTrace
+	StructLogs          []instrumentation.StructLog
+	ExecutorTrace       instrumentation.ExecutorTrace
+	ExecutorTraceResult json.RawMessage
 }
 
 // Succeeded indicates the execution was successful

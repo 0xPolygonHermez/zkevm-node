@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/google/uuid"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
@@ -34,6 +35,7 @@ const (
 	// TxSmartContractCreationGas used for TXs that create a contract
 	TxSmartContractCreationGas uint64 = 53000
 	half                       uint64 = 2
+	zkEVMReservedMemorySize    int    = 128
 )
 
 var (
@@ -49,7 +51,7 @@ var (
 	ErrAlreadyInitializedDBTransaction = errors.New("database transaction already initialized")
 	// ErrNotEnoughIntrinsicGas indicates the gas is not enough to cover the intrinsic gas cost
 	ErrNotEnoughIntrinsicGas = fmt.Errorf("not enough gas supplied for intrinsic gas costs")
-	// ErrParsingExecutorTrace indicates an error ocurred while parsing the executor trace
+	// ErrParsingExecutorTrace indicates an error occurred while parsing the executor trace
 	ErrParsingExecutorTrace = fmt.Errorf("error while parsing executor trace")
 )
 
@@ -974,7 +976,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 
 	trace := result.ExecutorTrace
 
-	gasPrice, ok := new(big.Int).SetString(trace.Context.GasPrice, 10)
+	gasPrice, ok := new(big.Int).SetString(trace.Context.GasPrice, encoding.Base10)
 	if !ok {
 		log.Errorf("debug transaction: failed to parse gasPrice")
 		return result
@@ -984,7 +986,9 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 	fakeDB := &FakeDB{State: s, stateRoot: []byte(trace.Context.OldStateRoot)}
 	env.SetStateDB(fakeDB)
 
-	s.ParseTheTraceUsingTheTracer(env, trace, jsTracer)
+	traceResult, err := s.ParseTheTraceUsingTheTracer(env, trace, jsTracer)
+	result.Err = err
+	result.ExecutorTraceResult = traceResult
 
 	return result
 }
@@ -992,12 +996,12 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, jsTracer tracers.Tracer) (json.RawMessage, error) {
 	var previousDepth int
 
-	contextGas, ok := new(big.Int).SetString(trace.Context.Gas, 10)
+	contextGas, ok := new(big.Int).SetString(trace.Context.Gas, encoding.Base10)
 	if !ok {
 		log.Debugf("error while parsing contextGas")
 		return nil, ErrParsingExecutorTrace
 	}
-	value, ok := new(big.Int).SetString(trace.Context.Value, 10)
+	value, ok := new(big.Int).SetString(trace.Context.Value, encoding.Base10)
 	if !ok {
 		log.Debugf("error while parsing value")
 		return nil, ErrParsingExecutorTrace
@@ -1010,19 +1014,19 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	memory := fakevm.NewMemory()
 
 	for _, step := range trace.Steps {
-		gas, ok := new(big.Int).SetString(step.Gas, 10)
+		gas, ok := new(big.Int).SetString(step.Gas, encoding.Base10)
 		if !ok {
 			log.Debugf("error while parsing step gas")
 			return nil, ErrParsingExecutorTrace
 		}
 
-		gasCost, ok := new(big.Int).SetString(step.GasCost, 10)
+		gasCost, ok := new(big.Int).SetString(step.GasCost, encoding.Base10)
 		if !ok {
 			log.Debugf("error while parsing step gasCost")
 			return nil, ErrParsingExecutorTrace
 		}
 
-		value, ok := new(big.Int).SetString(step.Contract.Value, 10)
+		value, ok := new(big.Int).SetString(step.Contract.Value, encoding.Base10)
 		if !ok {
 			log.Debugf("error while parsing step value")
 			return nil, ErrParsingExecutorTrace
@@ -1056,9 +1060,9 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 
 		// Set Memory
 		if len(step.Memory) > 0 {
-			memory.Resize(uint64(32*len(step.Memory) + 128))
+			memory.Resize(uint64(fakevm.MemoryItemSize*len(step.Memory) + zkEVMReservedMemorySize))
 			for offset, memoryContent := range step.Memory {
-				memory.Set(uint64(offset*32)+128, 32, common.Hex2Bytes(memoryContent))
+				memory.Set(uint64((offset*fakevm.MemoryItemSize)+zkEVMReservedMemorySize), uint64(fakevm.MemoryItemSize), common.Hex2Bytes(memoryContent))
 			}
 		}
 
@@ -1085,7 +1089,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 		previousDepth = step.Depth
 	}
 
-	gasUsed, ok := new(big.Int).SetString(trace.Context.GasUsed, 10)
+	gasUsed, ok := new(big.Int).SetString(trace.Context.GasUsed, encoding.Base10)
 	if !ok {
 		log.Debugf("error while parsing gasUsed")
 		return nil, ErrParsingExecutorTrace
