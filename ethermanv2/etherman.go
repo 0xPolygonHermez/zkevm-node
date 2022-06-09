@@ -60,7 +60,7 @@ func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, mati
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
 // from block x to block y.
 func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error) {
-	// First filter query
+	// Filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
 		Addresses: etherMan.SCAddresses,
@@ -97,18 +97,22 @@ func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQue
 func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log) (*state.Block, error) {
 	switch vLog.Topics[0] {
 	case ownershipTransferredSignatureHash:
-		ownership, err := etherMan.PoE.ParseOwnershipTransferred(vLog)
-		if err != nil {
-			return nil, err
-		}
-		emptyAddr := common.Address{}
-		if ownership.PreviousOwner == emptyAddr {
-			log.Debug("New rollup smc deployment detected. Deployment account: ", ownership.NewOwner)
-		} else {
-			log.Debug("Rollup smc OwnershipTransferred from account ", ownership.PreviousOwner, " to ", ownership.NewOwner)
-		}
-		return nil, nil
+		return etherMan.ownershipTransferred(vLog)
 	}
 	log.Warn("Event not registered: ", vLog)
+	return nil, nil
+}
+
+func (etherMan *Client) ownershipTransferred(vLog types.Log) (*state.Block, error) {
+	ownership, err := etherMan.PoE.ParseOwnershipTransferred(vLog)
+	if err != nil {
+		return nil, err
+	}
+	emptyAddr := common.Address{}
+	if ownership.PreviousOwner == emptyAddr {
+		log.Debug("New rollup smc deployment detected. Deployment account: ", ownership.NewOwner)
+	} else {
+		log.Debug("Rollup smc OwnershipTransferred from account ", ownership.PreviousOwner, " to ", ownership.NewOwner)
+	}
 	return nil, nil
 }
