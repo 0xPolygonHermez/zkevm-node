@@ -2,8 +2,10 @@ package evm
 
 import (
 	"context"
+	"encoding/hex"
 
 	"github.com/hermeznetwork/hermez-core/state/runtime"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
 
 // EVM is the Ethereum Virtual Machine
@@ -51,7 +53,14 @@ func (e *EVM) Run(ctx context.Context, c *runtime.Contract, host runtime.Host, c
 
 	contract.bitmap.setCode(c.Code)
 
-	ret, vmTrace, structLogs, executorTrace, err := contract.Run(ctx)
+	instrumentationContract := instrumentation.Contract{
+		Address: c.Address.Hex(),
+		Caller:  c.Caller.Hex(),
+		Value:   c.Value.String(),
+		Input:   "0x" + hex.EncodeToString(c.Input),
+	}
+
+	ret, vmTrace, structLogs, executorTrace, err := contract.Run(ctx, instrumentationContract)
 
 	var returnValue []byte
 	returnValue = append(returnValue[:0], ret...)

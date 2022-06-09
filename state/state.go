@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/google/uuid"
 	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
@@ -959,37 +960,39 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 		return result
 	}
 
-	trace := result.ExecutorTrace
+	context := instrumentation.Context{}
 
 	// Fill trace context
 	if receipt.From.Hex() == ZeroAddress.Hex() {
-		trace.Context.Type = "CREATE"
+		context.Type = "CREATE"
 	} else {
-		trace.Context.Type = "CALL"
+		context.Type = "CALL"
 	}
-	trace.Context.From = receipt.From.Hex()
-	trace.Context.To = tx.To().Hex()
-	trace.Context.Input = string(tx.Data())
-	trace.Context.Gas = strconv.FormatUint(tx.Gas(), encoding.Base10)
-	trace.Context.Value = tx.Value().String()
-	trace.Context.Output = string(result.ReturnValue)
-	trace.Context.GasPrice = tx.GasPrice().String()
-	trace.Context.ChainID = tx.ChainId().Uint64()
-	trace.Context.OldStateRoot = string(stateRoot)
-	trace.Context.Time = uint64(endTime.Sub(startTime) * time.Millisecond)
-	trace.Context.GasUsed = strconv.FormatUint(result.GasUsed, encoding.Base10)
+	context.From = receipt.From.Hex()
+	context.To = tx.To().Hex()
+	context.Input = "0x" + hex.EncodeToString(tx.Data())
+	context.Gas = strconv.FormatUint(tx.Gas(), encoding.Base10)
+	context.Value = tx.Value().String()
+	context.Output = "0x" + hex.EncodeToString(result.ReturnValue)
+	context.GasPrice = tx.GasPrice().String()
+	context.ChainID = tx.ChainId().Uint64()
+	context.OldStateRoot = "0x" + hex.EncodeToString(stateRoot)
+	context.Time = uint64(endTime.Sub(startTime))
+	context.GasUsed = strconv.FormatUint(result.GasUsed, encoding.Base10)
 
-	gasPrice, ok := new(big.Int).SetString(trace.Context.GasPrice, encoding.Base10)
+	result.ExecutorTrace.Context = context
+
+	gasPrice, ok := new(big.Int).SetString(context.GasPrice, encoding.Base10)
 	if !ok {
 		log.Errorf("debug transaction: failed to parse gasPrice")
 		return result
 	}
 
 	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
-	fakeDB := &FakeDB{State: s, stateRoot: []byte(trace.Context.OldStateRoot)}
+	fakeDB := &FakeDB{State: s, stateRoot: []byte(context.OldStateRoot)}
 	env.SetStateDB(fakeDB)
 
-	traceResult, err := s.ParseTheTraceUsingTheTracer(env, trace, jsTracer)
+	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, jsTracer)
 	result.Err = err
 	result.ExecutorTraceResult = traceResult
 

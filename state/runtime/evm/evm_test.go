@@ -86,6 +86,10 @@ func (m *mockHost) GetOldStateRoot(ctx context.Context, batchNumber int64) int64
 	panic("Not implemented in tests")
 }
 
+func (m *mockHost) GetStateRoot() []byte {
+	panic("Not implemented in tests")
+}
+
 func TestRun(t *testing.T) {
 	tests := []struct {
 		name     string

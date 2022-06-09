@@ -2,12 +2,15 @@ package evm
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
+	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
 
@@ -236,11 +239,12 @@ func (s *state) checkMemory(offset, size *big.Int) bool {
 }
 
 // Run executes the virtual machine
-func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, []instrumentation.StructLog, instrumentation.ExecutorTrace, error) {
+func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]byte, instrumentation.VMTrace, []instrumentation.StructLog, instrumentation.ExecutorTrace, error) {
 	var vmerr error
 	var vmTrace instrumentation.VMTrace
 	var structLogs []instrumentation.StructLog
 	var executorTrace instrumentation.ExecutorTrace
+	var steps []instrumentation.Step
 
 	codeSize := len(s.code)
 	for !s.stop {
@@ -328,6 +332,29 @@ func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, []ins
 					structLogs = append(structLogs, s.returnStructLogs[i])
 				}
 			}
+
+			// Executor trace
+			step := instrumentation.Step{
+				Contract:   contract,
+				StateRoot:  "0x" + hex.EncodeToString(s.host.GetStateRoot()),
+				Depth:      s.msg.Depth,
+				Pc:         uint64(s.ip),
+				Gas:        fmt.Sprint(s.gas),
+				OpCode:     op.String(),
+				GasCost:    fmt.Sprint(inst.gas),
+				Refund:     "0",
+				Op:         "0x" + hex.EncodeToString([]byte{byte(op)}),
+				Storage:    nil,
+				Stack:      bigArrayToStringArray(s.stack),
+				Memory:     memoryToStringArray(s.memory),
+				ReturnData: "0x" + hex.EncodeToString(s.returnData),
+			}
+
+			if s.err != nil {
+				step.Error = s.err.Error()
+			}
+
+			steps = append(steps, step)
 		}
 
 		s.ip++
@@ -336,6 +363,9 @@ func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, []ins
 	if err := s.err; err != nil {
 		vmerr = err
 	}
+
+	executorTrace.Steps = steps
+
 	return s.ret, vmTrace, structLogs, executorTrace, vmerr
 }
 
@@ -353,6 +383,27 @@ func (s *state) inStaticCall() bool {
 
 func bigToHash(b *big.Int) common.Hash {
 	return common.BytesToHash(b.Bytes())
+}
+
+func bigArrayToStringArray(b []*big.Int) []string {
+	s := []string{}
+
+	for _, bn := range b {
+		s = append(s, fmt.Sprintf("0x%x", bn))
+	}
+
+	return s
+}
+
+func memoryToStringArray(memory []byte) []string {
+	numElements := len(memory) / fakevm.MemoryItemSize
+	s := []string{}
+
+	for x := 0; x < numElements; x++ {
+		s = append(s, hex.EncodeToString(memory[x*fakevm.MemoryItemSize:(x*fakevm.MemoryItemSize)+32]))
+	}
+
+	return s
 }
 
 func (s *state) validJumpdest(dest *big.Int) bool {

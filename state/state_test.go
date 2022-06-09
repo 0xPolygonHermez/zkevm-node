@@ -2809,6 +2809,13 @@ func TestDebugTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 	result := st.DebugTransaction(receipt.TxHash, tracer.Code)
-	log.Debugf("v", result.ExecutorTrace)
-	log.Debugf("v", string(result.ExecutorTraceResult))
+	// log.Debugf("v", result.ExecutorTrace)
+
+	j, err := json.Marshal(result.ExecutorTrace)
+	require.NoError(t, err)
+	log.Debug(string(j))
+
+	j2, err := json.Marshal(result.ExecutorTraceResult)
+	require.NoError(t, err)
+	log.Debug(string(j2))
 }
