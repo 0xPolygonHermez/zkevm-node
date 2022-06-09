@@ -48,7 +48,7 @@ build-docker: ## Builds a docker image with the core binary
 test: compile-scs ## Runs only short tests without checking race conditions
 	$(STOPDB)
 	$(RUNDB); sleep 5
-	trap '$(STOPDB)' EXIT; go test -short -p 1 ./...
+	trap '$(STOPDB)' EXIT; go test -short -race -p 1 ./...
 
 .PHONY: test-full
 test-full: build-docker compile-scs ## Runs all tests checking race conditions
@@ -88,8 +88,11 @@ install-linter: ## Installs the linter
 lint: ## Runs the linter
 	$(LINT)
 
+.PHONY: check
+check: lint build test ## lint, build and unit tests
+
 .PHONY: validate
-validate: lint build test-full ## Validates the whole integrity of the code base
+validate: lint build test-full ## lint, build, unit and e2e tests
 
 .PHONY: run-db
 run-db: ## Runs the node database
@@ -184,6 +187,11 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=batchProcessor --dir=sequencer/strategy/txselector --output=sequencer/strategy/txselector --outpkg=txselector_test --filename=batchprocessor-mock_test.go
 	mockery --name=etherman --dir=sequencer --output=sequencer --outpkg=sequencer --structname=ethermanMock --filename=etherman-mock_test.go
 	mockery --name=Store --dir=state/tree --output=state/tree --outpkg=tree --structname=storeMock --filename=store-mock_test.go
+	mockery --name=storageInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=storageMock --filename=mock_storage_test.go
+	mockery --name=jsonRPCTxPool --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=poolMock --filename=mock_pool_test.go
+	mockery --name=gasPriceEstimator --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
+	mockery --name=stateInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=stateMock --filename=mock_state_test.go
+	mockery --name=BatchProcessorInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=batchProcessorMock --filename=mock_batchProcessor_test.go
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files

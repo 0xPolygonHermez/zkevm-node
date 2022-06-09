@@ -99,7 +99,7 @@ func encodeToHex(b []byte) []byte {
 
 // txnArgs is the transaction argument for the rpc endpoints
 type txnArgs struct {
-	From     *common.Address
+	From     common.Address
 	To       *common.Address
 	Gas      *argUint64
 	GasPrice *argBytes
@@ -177,6 +177,13 @@ func batchToRPCBlock(b *state.Batch, fullTx bool) *rpcBlock {
 	n := big.NewInt(0).SetUint64(h.Nonce.Uint64())
 	nonce := common.LeftPadBytes(n.Bytes(), 8) //nolint:gomnd
 
+	var difficulty uint64
+	if h.Difficulty != nil {
+		difficulty = h.Difficulty.Uint64()
+	} else {
+		difficulty = uint64(0)
+	}
+
 	res := &rpcBlock{
 		ParentHash:      h.ParentHash,
 		Sha3Uncles:      h.UncleHash,
@@ -185,8 +192,8 @@ func batchToRPCBlock(b *state.Batch, fullTx bool) *rpcBlock {
 		TxRoot:          h.TxHash,
 		ReceiptsRoot:    h.ReceiptHash,
 		LogsBloom:       h.Bloom,
-		Difficulty:      argUint64(h.Difficulty.Uint64()),
-		TotalDifficulty: argUint64(h.Difficulty.Uint64()), // not needed for POS
+		Difficulty:      argUint64(difficulty),
+		TotalDifficulty: argUint64(difficulty),
 		Size:            argUint64(b.Size()),
 		Number:          argUint64(b.Number().Uint64()),
 		GasLimit:        argUint64(h.GasLimit),
