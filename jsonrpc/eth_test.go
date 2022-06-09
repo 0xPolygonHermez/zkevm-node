@@ -712,6 +712,78 @@ func TestGetBlockByNumber(t *testing.T) {
 	}
 }
 
+func TestGetUncleByBlockHashAndIndex(t *testing.T) {
+	s, _, _ := newMockedServer(t)
+	defer s.Stop()
+
+	res, err := s.JSONRPCCall("eth_getUncleByBlockHashAndIndex", common.HexToHash("0x123").Hex(), "0x1")
+	require.NoError(t, err)
+
+	assert.Equal(t, float64(1), res.ID)
+	assert.Equal(t, "2.0", res.JSONRPC)
+	assert.Nil(t, res.Error)
+
+	var result interface{}
+	err = json.Unmarshal(res.Result, &result)
+	require.NoError(t, err)
+
+	assert.Nil(t, result)
+}
+
+func TestGetUncleByBlockNumberAndIndex(t *testing.T) {
+	s, _, _ := newMockedServer(t)
+	defer s.Stop()
+
+	res, err := s.JSONRPCCall("eth_getUncleByBlockNumberAndIndex", "0x123", "0x1")
+	require.NoError(t, err)
+
+	assert.Equal(t, float64(1), res.ID)
+	assert.Equal(t, "2.0", res.JSONRPC)
+	assert.Nil(t, res.Error)
+
+	var result interface{}
+	err = json.Unmarshal(res.Result, &result)
+	require.NoError(t, err)
+
+	assert.Nil(t, result)
+}
+
+func TestGetUncleCountByBlockHash(t *testing.T) {
+	s, _, _ := newMockedServer(t)
+	defer s.Stop()
+
+	res, err := s.JSONRPCCall("eth_getUncleCountByBlockHash", common.HexToHash("0x123"))
+	require.NoError(t, err)
+
+	assert.Equal(t, float64(1), res.ID)
+	assert.Equal(t, "2.0", res.JSONRPC)
+	assert.Nil(t, res.Error)
+
+	var result argUint64
+	err = json.Unmarshal(res.Result, &result)
+	require.NoError(t, err)
+
+	assert.Equal(t, uint64(0), uint64(result))
+}
+
+func TestGetUncleCountByBlockNumber(t *testing.T) {
+	s, _, _ := newMockedServer(t)
+	defer s.Stop()
+
+	res, err := s.JSONRPCCall("eth_getUncleCountByBlockNumber", "0x123")
+	require.NoError(t, err)
+
+	assert.Equal(t, float64(1), res.ID)
+	assert.Equal(t, "2.0", res.JSONRPC)
+	assert.Nil(t, res.Error)
+
+	var result argUint64
+	err = json.Unmarshal(res.Result, &result)
+	require.NoError(t, err)
+
+	assert.Equal(t, uint64(0), uint64(result))
+}
+
 func TestGetTransactionReceipt(t *testing.T) {
 	s, m, c := newMockedServer(t)
 	defer s.Stop()

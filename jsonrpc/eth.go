@@ -588,13 +588,13 @@ func (e *Eth) GetUncleByBlockNumberAndIndex() (interface{}, error) {
 // GetUncleCountByBlockHash returns the number of uncles in a block
 // matching the given block hash
 func (e *Eth) GetUncleCountByBlockHash() (interface{}, error) {
-	return "0x", nil
+	return "0x0", nil
 }
 
 // GetUncleCountByBlockNumber returns the number of uncles in a block
 // matching the given block number
 func (e *Eth) GetUncleCountByBlockNumber() (interface{}, error) {
-	return "0x", nil
+	return "0x0", nil
 }
 
 // ProtocolVersion

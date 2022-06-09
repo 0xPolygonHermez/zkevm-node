@@ -1,7 +1,10 @@
 package jsonrpc
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -101,4 +104,54 @@ func (s *mockedServer) Stop() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (s *mockedServer) JSONRPCCall(method string, parameters ...interface{}) (Response, error) {
+	params, err := json.Marshal(parameters)
+	if err != nil {
+		return Response{}, err
+	}
+
+	req := Request{
+		JSONRPC: "2.0",
+		ID:      float64(1),
+		Method:  method,
+		Params:  params,
+	}
+
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		return Response{}, err
+	}
+
+	reqBodyReader := bytes.NewReader(reqBody)
+	httpReq, err := http.NewRequest(http.MethodPost, s.ServerURL, reqBodyReader)
+	if err != nil {
+		return Response{}, err
+	}
+
+	httpReq.Header.Add("Content-type", "application/json")
+
+	httpRes, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return Response{}, err
+	}
+
+	if httpRes.StatusCode != http.StatusOK {
+		return Response{}, fmt.Errorf("Invalid status code, expected: %v, found: %v", http.StatusOK, httpRes.StatusCode)
+	}
+
+	resBody, err := io.ReadAll(httpRes.Body)
+	if err != nil {
+		return Response{}, err
+	}
+	defer httpRes.Body.Close()
+
+	var res Response
+	err = json.Unmarshal(resBody, &res)
+	if err != nil {
+		return Response{}, err
+	}
+
+	return res, nil
 }
