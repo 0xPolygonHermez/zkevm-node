@@ -335,7 +335,7 @@ func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput)
 			log.Infof("batch proposal sent successfully: %s", sendBatchTx.Hash().Hex())
 			isSent = true
 			// sent to the channel, so sequencer can be sure, that tx is processed and not missed
-			ethTx := ethSendBatchTx{selectedTxs: txsToSent, aggregatorReward: aggregatorReward, hash: sendBatchTx.Hash(), gasLimit: gasLimit}
+			ethTx := ethSendBatchTx{selectedTxs: txsToSent, selectedTxsHashes: selectedTxsHashes, aggregatorReward: aggregatorReward, hash: sendBatchTx.Hash(), gasLimit: gasLimit}
 			s.sentEthTxsChan <- ethTx
 		} else {
 			return false
@@ -345,10 +345,11 @@ func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput)
 }
 
 type ethSendBatchTx struct {
-	selectedTxs      []*types.Transaction
-	aggregatorReward *big.Int
-	hash             common.Hash
-	gasLimit         uint64
+	selectedTxs       []*types.Transaction
+	selectedTxsHashes []common.Hash
+	aggregatorReward  *big.Int
+	hash              common.Hash
+	gasLimit          uint64
 }
 
 func (s *Sequencer) trackEthSentTransactions() {
@@ -362,6 +363,7 @@ func (s *Sequencer) trackEthSentTransactions() {
 	}
 }
 
+// resendTxIfNeeded resends higher gas limit transaction, if it's failed.
 func (s *Sequencer) resendTxIfNeeded(tx ethSendBatchTx) {
 	var (
 		gasLimit       uint64
@@ -380,9 +382,18 @@ func (s *Sequencer) resendTxIfNeeded(tx ethSendBatchTx) {
 		// tx is failed, so batch should be sent again
 		if receipt.Status == 0 {
 			gasLimit, hash, err = s.resendSendBatchTx(gasLimit, tx, hash, counter)
-			if err == nil {
-				counter++
+			// if tx is failed to send to ethereum, then return txs state from selected to pending
+			if err != nil {
+				log.Errorf("failed to resend batch to the ethereum, err: %v", err)
+				s.lastSentBatchNumber = s.lastSentBatchNumber - 1
+				err = s.Pool.UpdateTxsState(s.ctx, tx.selectedTxsHashes, pool.TxStatePending)
+				if err != nil {
+					// in this case transactions have to be updated manually, bcs otherwise they will be missed
+					log.Fatalf("failed to set selected transactions to pending state, txs: %v, err: %v", tx.selectedTxsHashes, err)
+				}
+				return
 			}
+			counter++
 			continue
 		}
 
@@ -428,7 +439,7 @@ func (s *Sequencer) resendSendBatchTx(gasLimit uint64, tx ethSendBatchTx, hash c
 	log.Infof("sent sendBatch transaction with hash %s and gas limit %d with try number %d",
 		hash, gasLimit, counter)
 
-	return gasLimit, hash, err
+	return gasLimit, hash, nil
 }
 
 func cutSelectedTxs(selectedTxs []*types.Transaction, selectedTxsHashes []common.Hash) ([]*types.Transaction, []common.Hash) {
