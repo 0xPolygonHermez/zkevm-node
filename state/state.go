@@ -143,11 +143,6 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 		chainID = sq.ChainID.Uint64()
 	}
 
-	lastBatch, err := s.GetLastBatchByStateRoot(ctx, stateRoot, txBundleID)
-	if err != ErrNotFound && err != nil {
-		return nil, err
-	}
-
 	logs := make(map[common.Hash][]*types.Log)
 	host := Host{State: s, stateRoot: stateRoot, txBundleID: txBundleID, logs: logs}
 	host.setRuntime(evm.NewEVM())
@@ -157,7 +152,7 @@ func (s *State) NewBatchProcessor(ctx context.Context, sequencerAddress common.A
 	}
 	host.forks = runtime.AllForksEnabled.At(blockNumber)
 
-	batchProcessor := &BatchProcessor{SequencerAddress: sequencerAddress, SequencerChainID: chainID, LastBatch: lastBatch, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, Host: host}
+	batchProcessor := &BatchProcessor{SequencerAddress: sequencerAddress, SequencerChainID: chainID, MaxCumulativeGasUsed: s.cfg.MaxCumulativeGasUsed, Host: host}
 	batchProcessor.Host.setRuntime(evm.NewEVM())
 
 	return batchProcessor, nil
@@ -339,22 +334,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			return false, err
 		}
 
-		if testResult.Err != nil {
-			// Check the application error.
-			// Gas apply errors are valid, and should be ignored
-			if isGasApplyError(testResult.Err) && shouldOmitErr {
-				// Specifying the transaction failed, but not providing an error
-				// is an indication that a valid error occurred due to low gas,
-				// which will increase the lower bound for the search
-				return true, nil
-			}
-
-			return true, testResult.Err
-		}
-
 		// Check if an out of gas error happened during EVM execution
 		if testResult.Failed() {
-			if isGasEVMError(testResult.Err) && shouldOmitErr {
+			if (isGasEVMError(testResult.Err) || isGasApplyError(testResult.Err)) && shouldOmitErr {
 				// Specifying the transaction failed, but not providing an error
 				// is an indication that a valid error occurred due to low gas,
 				// which will increase the lower bound for the search

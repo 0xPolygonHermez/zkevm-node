@@ -6,10 +6,12 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/imdario/mergo"
 	"github.com/urfave/cli/v2"
 )
 
@@ -39,32 +41,34 @@ type Genesis struct {
 }
 
 type networkConfigFromJSON struct {
-	Arity                         uint8  `json:"arity"`
-	GenBlockNumber                uint64 `json:"genBlockNumber"`
-	PoEAddr                       string `json:"poeAddr"`
-	MaticAddr                     string `json:"maticAddr"`
-	L2GlobalExitRootManagerAddr   string `json:"l2globalExitRootManagerAddr"`
-	SystemSCAddr                  string `json:"systemSCAddr"`
-	GlobalExitRootStoragePosition uint64 `json:"globalExitRootStoragePosition"`
-	LocalExitRootStoragePosition  uint64 `json:"localExitRootStoragePosition"`
-	OldStateRootPosition          uint64 `json:"oldStateRootPosition"`
-	L1ChainID                     uint64 `json:"l1ChainID"`
-	L2DefaultChainID              uint64 `json:"l2DefaultChainID"`
-	Genesis                       genesisFromJSON
-	MaxCumulativeGasUsed          uint64 `json:"maxCumulativeGasUsed"`
+	Arity                         uint8                    `json:"arity"`
+	PoEAddr                       string                   `json:"proofOfEfficiencyAddress"`
+	MaticAddr                     string                   `json:"maticTokenAddress"`
+	GenBlockNumber                uint64                   `json:"deploymentBlockNumber"`
+	SystemSCAddr                  string                   `json:"systemSCAddr"`
+	GlobalExitRootStoragePosition uint64                   `json:"globalExitRootStoragePosition"`
+	LocalExitRootStoragePosition  uint64                   `json:"localExitRootStoragePosition"`
+	OldStateRootPosition          uint64                   `json:"oldStateRootPosition"`
+	L1ChainID                     uint64                   `json:"l1ChainID"`
+	L2DefaultChainID              uint64                   `json:"defaultChainID"`
+	Genesis                       []genesisAccountFromJSON `json:"genesis"`
+	MaxCumulativeGasUsed          uint64                   `json:"maxCumulativeGasUsed"`
 }
 
-type genesisFromJSON struct {
-	Balances       map[string]string            `json:"balances"`
-	SmartContracts map[string][]byte            `json:"smartContracts"`
-	Storage        map[string]map[string]string `json:"storage"`
-	Nonces         map[string]*string           `json:"nonces"`
+type genesisAccountFromJSON struct {
+	Balance      string            `json:"balance"`
+	Nonce        string            `json:"nonce"`
+	Address      string            `json:"address"`
+	Bytecode     string            `json:"bytecode"`
+	Storage      map[string]string `json:"storage"`
+	ContractName string            `json:"contractName"`
 }
 
 const (
 	testnet         = "testnet"
 	internalTestnet = "internaltestnet"
 	local           = "local"
+	merge           = "merge"
 	custom          = "custom"
 )
 
@@ -248,10 +252,16 @@ var (
 		},
 		MaxCumulativeGasUsed: 30000000,
 	}
+
+	networkConfigByName = map[string]NetworkConfig{
+		testnet:         testnetConfig,
+		internalTestnet: internalTestnetConfig,
+		local:           localConfig,
+	}
 )
 
 func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
-	network := ctx.String(flagNetwork)
+	network := ctx.String(FlagNetwork)
 	switch network {
 	case testnet:
 		log.Debug("Testnet network selected")
@@ -268,6 +278,21 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 			log.Fatalf("Failed to load custom network configuration, err:", err)
 		}
 		cfg.NetworkConfig = customNetworkConfig
+	case merge:
+		customNetworkConfig, err := loadCustomNetworkConfig(ctx)
+		if err != nil {
+			log.Fatalf("Failed to load custom network configuration, err:", err)
+		}
+		baseNetworkConfigName := ctx.String(FlagNetworkBase)
+		baseNetworkConfig, ok := networkConfigByName[baseNetworkConfigName]
+		if !ok {
+			log.Fatalf("Base network configuration %q not found:", baseNetworkConfigName)
+		}
+		mergedNetworkConfig, err := mergeNetworkConfigs(customNetworkConfig, baseNetworkConfig)
+		if err != nil {
+			log.Fatalf("Failed to merge network configurations network configuration, err:", err)
+		}
+		cfg.NetworkConfig = mergedNetworkConfig
 	default:
 		log.Debug("Mainnet network selected")
 		cfg.NetworkConfig = mainnetConfig
@@ -283,7 +308,7 @@ func bigIntFromBase10String(s string) *big.Int {
 }
 
 func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
-	cfgPath := ctx.String(flagNetworkCfg)
+	cfgPath := ctx.String(FlagNetworkCfg)
 
 	f, err := os.Open(cfgPath) //nolint:gosec
 	if err != nil {
@@ -312,24 +337,82 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfg.GenBlockNumber = cfgJSON.GenBlockNumber
 	cfg.PoEAddr = common.HexToAddress(cfgJSON.PoEAddr)
 	cfg.MaticAddr = common.HexToAddress(cfgJSON.MaticAddr)
-	cfg.L2GlobalExitRootManagerAddr = common.HexToAddress(cfgJSON.L2GlobalExitRootManagerAddr)
 	cfg.SystemSCAddr = common.HexToAddress(cfgJSON.SystemSCAddr)
 	cfg.GlobalExitRootStoragePosition = cfgJSON.GlobalExitRootStoragePosition
 	cfg.LocalExitRootStoragePosition = cfgJSON.LocalExitRootStoragePosition
 	cfg.OldStateRootPosition = cfgJSON.OldStateRootPosition
 	cfg.L1ChainID = cfgJSON.L1ChainID
 	cfg.L2DefaultChainID = cfgJSON.L2DefaultChainID
-	cfg.Genesis = Genesis{Balances: make(map[common.Address]*big.Int, len(cfgJSON.Genesis.Balances))}
 	cfg.MaxCumulativeGasUsed = cfgJSON.MaxCumulativeGasUsed
 
-	for k, v := range cfgJSON.Genesis.Balances {
-		addr := common.HexToAddress(k)
-		balance, ok := big.NewInt(0).SetString(v, encoding.Base10)
-		if !ok {
-			return NetworkConfig{}, fmt.Errorf("Invalid balance for account %s", addr)
-		}
-		cfg.Genesis.Balances[addr] = balance
+	if len(cfgJSON.Genesis) == 0 {
+		return cfg, nil
 	}
 
+	cfg.Genesis = Genesis{
+		Balances:       make(map[common.Address]*big.Int, len(cfgJSON.Genesis)),
+		SmartContracts: make(map[common.Address][]byte, len(cfgJSON.Genesis)),
+		Storage:        make(map[common.Address]map[*big.Int]*big.Int, len(cfgJSON.Genesis)),
+		Nonces:         make(map[common.Address]*big.Int, len(cfgJSON.Genesis)),
+	}
+
+	const l2GlobalExitRootManagerSCName = "GlobalExitRootManagerL2"
+
+	for _, account := range cfgJSON.Genesis {
+		addr := common.HexToAddress(account.Address)
+		if account.ContractName == l2GlobalExitRootManagerSCName {
+			cfg.L2GlobalExitRootManagerAddr = common.HexToAddress(account.Address)
+		}
+
+		if account.Balance != "" && account.Balance != "0" {
+			balance, ok := big.NewInt(0).SetString(account.Balance, encoding.Base10)
+			if !ok {
+				return NetworkConfig{}, fmt.Errorf("Invalid balance for account %s", addr)
+			}
+			cfg.Genesis.Balances[addr] = balance
+		}
+		if account.Bytecode != "" {
+			cfg.Genesis.SmartContracts[addr] = common.FromHex(account.Bytecode)
+		}
+		if len(account.Storage) > 0 {
+			cfg.Genesis.Storage[addr] = make(map[*big.Int]*big.Int, len(account.Storage))
+			for storageKey, storageValue := range account.Storage {
+				cfg.Genesis.Storage[addr][new(big.Int).SetBytes(common.FromHex(storageKey))] = new(big.Int).SetBytes(common.FromHex(storageValue))
+			}
+		}
+		if account.Nonce != "" && account.Nonce != "0" {
+			nonce, ok := big.NewInt(0).SetString(account.Nonce, encoding.Base10)
+			if !ok {
+				return NetworkConfig{}, fmt.Errorf("Invalid nonce for account %s", addr)
+			}
+			cfg.Genesis.Nonces[addr] = nonce
+		}
+	}
 	return cfg, nil
+}
+
+type addressTransformer struct{}
+
+func (a addressTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
+	if typ != reflect.TypeOf(common.Address{}) {
+		return nil
+	}
+	return func(dst, src reflect.Value) error {
+		if !dst.CanSet() {
+			return nil
+		}
+		hex := src.MethodByName("Hex")
+		result := hex.Call([]reflect.Value{})
+		if result[0].Interface().(string) != "0x0000000000000000000000000000000000000000" {
+			dst.Set(src)
+		}
+		return nil
+	}
+}
+
+func mergeNetworkConfigs(custom, base NetworkConfig) (NetworkConfig, error) {
+	if err := mergo.MergeWithOverwrite(&base, custom, mergo.WithTransformers(addressTransformer{})); err != nil {
+		return NetworkConfig{}, err
+	}
+	return base, nil
 }

@@ -84,7 +84,7 @@ func start(ctx *cli.Context) error {
 		grpcClientConns []*grpc.ClientConn
 		cancelFuncs     []context.CancelFunc
 	)
-	if ctx.Bool(flagRemoteMT) {
+	if ctx.Bool(config.FlagRemoteMT) {
 		log.Debugf("running with remote MT")
 		srvCfg := &tree.ServerConfig{
 			Host: c.MTServer.Host,
