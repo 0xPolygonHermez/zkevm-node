@@ -236,10 +236,11 @@ func (s *state) checkMemory(offset, size *big.Int) bool {
 }
 
 // Run executes the virtual machine
-func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, []instrumentation.StructLog, error) {
+func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, []instrumentation.StructLog, instrumentation.ExecutorTrace, error) {
 	var vmerr error
 	var vmTrace instrumentation.VMTrace
 	var structLogs []instrumentation.StructLog
+	var executorTrace instrumentation.ExecutorTrace
 
 	codeSize := len(s.code)
 	for !s.stop {
@@ -335,7 +336,7 @@ func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, []ins
 	if err := s.err; err != nil {
 		vmerr = err
 	}
-	return s.ret, vmTrace, structLogs, vmerr
+	return s.ret, vmTrace, structLogs, executorTrace, vmerr
 }
 
 func extendByteSlice(b []byte, needLen int) []byte {

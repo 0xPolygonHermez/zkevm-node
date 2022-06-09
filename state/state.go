@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -938,7 +939,9 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 	bp.Host.setRuntime(evmRT)
 	bp.SetSimulationMode(true)
 
+	startTime := time.Now()
 	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress, tx.ChainId())
+	endTime := time.Now()
 
 	// Rollback
 	err = s.RollbackState(ctx, txBundleID)
@@ -957,6 +960,24 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 	}
 
 	trace := result.ExecutorTrace
+
+	// Fill trace context
+	if receipt.From.Hex() == ZeroAddress.Hex() {
+		trace.Context.Type = "CREATE"
+	} else {
+		trace.Context.Type = "CALL"
+	}
+	trace.Context.From = receipt.From.Hex()
+	trace.Context.To = tx.To().Hex()
+	trace.Context.Input = string(tx.Data())
+	trace.Context.Gas = strconv.FormatUint(tx.Gas(), encoding.Base10)
+	trace.Context.Value = tx.Value().String()
+	trace.Context.Output = string(result.ReturnValue)
+	trace.Context.GasPrice = tx.GasPrice().String()
+	trace.Context.ChainID = tx.ChainId().Uint64()
+	trace.Context.OldStateRoot = string(stateRoot)
+	trace.Context.Time = uint64(endTime.Sub(startTime) * time.Millisecond)
+	trace.Context.GasUsed = strconv.FormatUint(result.GasUsed, encoding.Base10)
 
 	gasPrice, ok := new(big.Int).SetString(trace.Context.GasPrice, encoding.Base10)
 	if !ok {

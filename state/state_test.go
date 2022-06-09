@@ -2643,3 +2643,172 @@ func TestExecutorTrace(t *testing.T) {
 	require.Equal(t, 2, len(expectedResult))
 	log.Debugf("%v", string(result))
 }
+
+func TestDebugTransaction(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 4000000
+	scCounterByteCode, err := testutils.ReadBytecode("Counter/Counter.bin")
+	require.NoError(t, err)
+	var scCounterAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	scInteractionByteCode, err := testutils.ReadBytecode("Interaction/Interaction.bin")
+	require.NoError(t, err)
+	var scInteractionAddress = common.HexToAddress("0x85e844b762A271022b692CF99cE5c59BA0650Ac8")
+	var expectedFinalRoot = "112475504792743399671183524228545390577813291715700260926416920478118349217128"
+
+	// Init database instance
+	err = dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	genesis := state.Genesis{
+		Block:    genesisBlock,
+		Balances: make(map[common.Address]*big.Int),
+	}
+
+	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
+	err = st.SetGenesis(ctx, genesis, "")
+	require.NoError(t, err)
+
+	// Register Sequencer
+	sequencer := state.Sequencer{
+		Address:     sequencerAddress,
+		URL:         "http://www.address.com",
+		ChainID:     chainIDSequencer,
+		BlockNumber: genesisBlock.Header().Number.Uint64(),
+	}
+
+	err = st.AddSequencer(ctx, sequencer, "")
+	assert.NoError(t, err)
+
+	var txs []*types.Transaction
+
+	// Deploy counter.sol
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scCounterByteCode),
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	txs = append(txs, signedTx)
+
+	// Deploy interaction.sol
+	tx1 := types.NewTx(&types.LegacyTx{
+		Nonce:    1,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scInteractionByteCode),
+	})
+
+	signedTx1, err := auth.Signer(auth.From, tx1)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTx1)
+
+	// Call setCounterAddr method from Interaction SC to set Counter SC Address
+	tx2 := types.NewTransaction(2, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("ec39b429000000000000000000000000"+strings.TrimPrefix(scCounterAddress.String(), "0x")))
+	signedTx2, err := auth.Signer(auth.From, tx2)
+	require.NoError(t, err)
+	txs = append(txs, signedTx2)
+
+	// Increment Counter calling Counter SC
+	tx3 := types.NewTransaction(3, scCounterAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("d09de08a"))
+	signedTx3, err := auth.Signer(auth.From, tx3)
+	require.NoError(t, err)
+	txs = append(txs, signedTx3)
+
+	// Retrieve counter value calling Interaction SC (this is the real test as Interaction SC will call Counter SC)
+	tx4 := types.NewTransaction(4, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("a87d942c"))
+	signedTx4, err := auth.Signer(auth.From, tx4)
+	require.NoError(t, err)
+	txs = append(txs, signedTx4)
+
+	// Increment Counter calling again
+	tx5 := types.NewTransaction(5, scCounterAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("d09de08a"))
+	signedTx5, err := auth.Signer(auth.From, tx5)
+	require.NoError(t, err)
+	txs = append(txs, signedTx5)
+
+	// Retrieve counter value again
+	tx6 := types.NewTransaction(6, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("a87d942c"))
+	signedTx6, err := auth.Signer(auth.From, tx6)
+	require.NoError(t, err)
+	txs = append(txs, signedTx6)
+
+	// Create Batch
+	batch := &state.Batch{
+		BlockNumber:        uint64(0),
+		Sequencer:          sequencerAddress,
+		Aggregator:         sequencerAddress,
+		ConsolidatedTxHash: common.Hash{},
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
+		Uncles:             nil,
+		Transactions:       txs,
+		RawTxsData:         nil,
+		MaticCollateral:    big.NewInt(1),
+		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
+	}
+
+	lastBatch, err := st.GetLastBatch(ctx, true, "")
+	require.NoError(t, err)
+
+	// Create Batch Processor
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Header.Root[:], "")
+	require.NoError(t, err)
+
+	err = bp.ProcessBatch(ctx, batch)
+	require.NoError(t, err)
+
+	receipt, err := st.GetTransactionReceipt(ctx, signedTx6.Hash(), "")
+	require.NoError(t, err)
+	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
+
+	// Execution Trace
+	receipt, err = st.GetTransactionReceipt(ctx, signedTx4.Hash(), "")
+	require.NoError(t, err)
+
+	// Read tracer from filesystem
+	var tracer instrumentation.Tracer
+	tracerFile, err := os.Open("../test/tracers/tracer.json")
+	require.NoError(t, err)
+	defer tracerFile.Close()
+
+	byteCode, err := ioutil.ReadAll(tracerFile)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(byteCode, &tracer)
+	require.NoError(t, err)
+
+	result := st.DebugTransaction(receipt.TxHash, tracer.Code)
+	log.Debugf("v", result.ExecutorTrace)
+	log.Debugf("v", string(result.ExecutorTraceResult))
+}
