@@ -95,8 +95,7 @@ func main() {
 	log.Debugf("Invalid ERC20 tx hash: %v", invalidTx.Hash())
 	err = operations.WaitTxToBeMined(client, tx.Hash(), txTimeout)
 	chkErr(err)
-	err = operations.WaitTxToBeMined(client, invalidTx.Hash(), txTimeout)
-	chkErr(err)
+	operations.WaitTxToBeMined(client, invalidTx.Hash(), txTimeout)
 	auth.Nonce = nil
 	fmt.Println()
 
