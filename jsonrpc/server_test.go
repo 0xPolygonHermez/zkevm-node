@@ -47,7 +47,6 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 		ChainID:                   1001,
 	}
 	sequencerAddress := common.HexToAddress(sequencerAddressHex)
-
 	pool := newPoolMock(t)
 	state := newStateMock(t)
 	batchProcessor := newBatchProcessorMock(t)
