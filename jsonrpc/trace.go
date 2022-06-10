@@ -93,6 +93,7 @@ type txTraceResult struct {
 func (t *Trace) ReplayBlockTransactions(number *BlockNumber, traceMode []string) (interface{}, error) {
 	ctx := context.Background()
 
+	var err error
 	batchNumber, err := number.getNumericBlockNumber(ctx, t.state)
 	if err != nil {
 		return nil, err
@@ -126,6 +127,7 @@ func (t *Trace) ReplayTransaction(hash common.Hash, traceMode []string) (interfa
 func (t *Trace) Block(number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
 
+	var err error
 	batchNumber, err := number.getNumericBlockNumber(ctx, t.state)
 	if err != nil {
 		return nil, err

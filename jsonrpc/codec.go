@@ -3,7 +3,6 @@ package jsonrpc
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/hermeznetwork/hermez-core/encoding"
@@ -98,7 +97,7 @@ func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
 	return nil
 }
 
-func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterface) (uint64, error) {
+func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterface) (uint64, rpcError) {
 	if b == nil {
 		return 0, nil
 	}
@@ -108,7 +107,7 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 	case LatestBlockNumber, PendingBlockNumber:
 		lastBatchNumber, err := s.GetLastBatchNumber(ctx, "")
 		if err != nil {
-			return 0, err
+			return 0, newRPCError(defaultErrorCode, "failed to get the last batch number from state")
 		}
 
 		return lastBatchNumber, nil
@@ -118,7 +117,7 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 
 	default:
 		if bValue < 0 {
-			return 0, fmt.Errorf("invalid block number: %v", bValue)
+			return 0, newRPCError(invalidParamsErrorCode, "invalid block number: %v", bValue)
 		}
 		return uint64(bValue), nil
 	}

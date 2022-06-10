@@ -61,6 +61,7 @@ func TestCall(t *testing.T) {
 		value          *big.Int
 		data           []byte
 		expectedResult []byte
+		expectedError  interface{}
 		setupMocks     func(*mocks, *testCase)
 	}
 
@@ -74,6 +75,7 @@ func TestCall(t *testing.T) {
 			value:          big.NewInt(2),
 			data:           []byte("data"),
 			expectedResult: []byte("hello world"),
+			expectedError:  nil,
 			setupMocks: func(m *mocks, testCase *testCase) {
 				batchNumber := uint64(1)
 				txBundleID := ""
@@ -99,6 +101,7 @@ func TestCall(t *testing.T) {
 			value:          big.NewInt(2),
 			data:           []byte("data"),
 			expectedResult: []byte("hello world"),
+			expectedError:  nil,
 			setupMocks: func(m *mocks, testCase *testCase) {
 				batchNumber := uint64(1)
 				txBundleID := ""
@@ -124,7 +127,8 @@ func TestCall(t *testing.T) {
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
-			expectedResult: []byte{},
+			expectedResult: nil,
+			expectedError:  newRPCError(defaultErrorCode, "failed to get header from block hash or block number"),
 			setupMocks: func(m *mocks, testCase *testCase) {
 				txBundleID := ""
 				m.State.On("GetLastBatch", context.Background(), false, txBundleID).Return(nil, errors.New("failed to get last batch")).Once()
@@ -138,7 +142,8 @@ func TestCall(t *testing.T) {
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
-			expectedResult: []byte{},
+			expectedResult: nil,
+			expectedError:  newRPCError(defaultErrorCode, "failed to get the last batch number from state"),
 			setupMocks: func(m *mocks, testCase *testCase) {
 				txBundleID := ""
 				m.State.On("GetLastBatchNumber", context.Background(), txBundleID).Return(uint64(0), errors.New("failed to get last batch number")).Once()
@@ -152,7 +157,8 @@ func TestCall(t *testing.T) {
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
-			expectedResult: []byte{},
+			expectedResult: nil,
+			expectedError:  newRPCError(defaultErrorCode, "failed to get batch by number: 1"),
 			setupMocks: func(m *mocks, testCase *testCase) {
 				batchNumber := uint64(1)
 				txBundleID := ""
@@ -168,7 +174,8 @@ func TestCall(t *testing.T) {
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
-			expectedResult: []byte{},
+			expectedResult: nil,
+			expectedError:  newRPCError(defaultErrorCode, "failed to load batch processor"),
 			setupMocks: func(m *mocks, testCase *testCase) {
 				batchNumber := uint64(1)
 				txBundleID := ""
@@ -186,7 +193,8 @@ func TestCall(t *testing.T) {
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
-			expectedResult: []byte{},
+			expectedResult: nil,
+			expectedError:  newRPCError(defaultErrorCode, "failed to execute call: failed to process unsigned transaction"),
 			setupMocks: func(m *mocks, testCase *testCase) {
 				batchNumber := uint64(1)
 				txBundleID := ""
@@ -214,8 +222,16 @@ func TestCall(t *testing.T) {
 			testCase.setupMocks(m, testCase)
 
 			result, err := c.CallContract(context.Background(), msg, nil)
-			require.NoError(t, err)
 			assert.Equal(t, testCase.expectedResult, result)
+			if err != nil || testCase.expectedError != nil {
+				if expectedErr, ok := testCase.expectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, testCase.expectedError, err)
+				}
+			}
 		})
 	}
 }
@@ -343,7 +359,7 @@ func TestGetBalance(t *testing.T) {
 			balance:         big.NewInt(1000),
 			blockNumber:     nil,
 			expectedBalance: 0,
-			expectedError:   newRPCError(invalidParamsErrorCode, "invalid argument 1: failed to get last batch number"),
+			expectedError:   newRPCError(defaultErrorCode, "failed to get the last batch number from state"),
 			setupMocks: func(m *mocks, t *testCase) {
 				m.State.
 					On("GetLastBatchNumber", context.Background(), "").
@@ -606,7 +622,7 @@ func TestGetBlockByNumber(t *testing.T) {
 			Name:           "get latest block fails to compute block number",
 			Number:         nil,
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "couldn't parse the provided block number"),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last batch number from state"),
 			SetupMocks: func(m *mocks, tc *testCase) {
 				m.State.
 					On("GetLastBatchNumber", context.Background(), "").
@@ -689,9 +705,6 @@ func TestGetBlockByNumber(t *testing.T) {
 
 				expectedResultJSONStr := string(expectedResultJSON)
 				resultJSONStr := string(resultJSON)
-
-				t.Log(expectedResultJSONStr)
-				t.Log(resultJSONStr)
 
 				assert.JSONEq(t, expectedResultJSONStr, resultJSONStr)
 				assert.Equal(t, tc.ExpectedResult.Number().Uint64(), result.Number().Uint64())
@@ -821,6 +834,304 @@ func TestGetTransactionReceipt(t *testing.T) {
 			assert.Equal(t, testCase.ExpectedError, err)
 		})
 	}
+}
+
+func TestGetCode(t *testing.T) {
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		Addr           common.Address
+		BlockNumber    *big.Int
+		ExpectedResult []byte
+		ExpectedError  interface{}
+
+		SetupMocks func(m *mocks, tc *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "failed to identify the block",
+			Addr:           common.HexToAddress("0x123"),
+			BlockNumber:    nil,
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last batch number from state"),
+
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(uint64(0), errors.New("failed to get last batch number")).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to get code",
+			Addr:           common.HexToAddress("0x123"),
+			BlockNumber:    big.NewInt(1),
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get code"),
+
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetCode", context.Background(), tc.Addr, tc.BlockNumber.Uint64(), "").
+					Return(nil, errors.New("failed to get code")).
+					Once()
+			},
+		},
+		{
+			Name:           "code not found",
+			Addr:           common.HexToAddress("0x123"),
+			BlockNumber:    big.NewInt(1),
+			ExpectedResult: []byte{},
+			ExpectedError:  nil,
+
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetCode", context.Background(), tc.Addr, tc.BlockNumber.Uint64(), "").
+					Return(nil, state.ErrNotFound).
+					Once()
+			},
+		},
+		{
+			Name:           "get code successfully",
+			Addr:           common.HexToAddress("0x123"),
+			BlockNumber:    big.NewInt(1),
+			ExpectedResult: []byte{1, 2, 3},
+			ExpectedError:  nil,
+
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetCode", context.Background(), tc.Addr, tc.BlockNumber.Uint64(), "").
+					Return(tc.ExpectedResult, nil).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, &tc)
+			result, err := c.CodeAt(context.Background(), tc.Addr, tc.BlockNumber)
+			assert.Equal(t, tc.ExpectedResult, result)
+
+			if err != nil || tc.ExpectedError != nil {
+				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, tc.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestGetStorageAt(t *testing.T) {
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		Addr           common.Address
+		Key            common.Hash
+		BlockNumber    *big.Int
+		ExpectedResult []byte
+		ExpectedError  interface{}
+
+		SetupMocks func(m *mocks, tc *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "failed to identify the block",
+			Addr:           common.HexToAddress("0x123"),
+			Key:            common.HexToHash("0x123"),
+			BlockNumber:    nil,
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last batch number from state"),
+
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(uint64(0), errors.New("failed to get last batch number")).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to get code",
+			Addr:           common.HexToAddress("0x123"),
+			Key:            common.HexToHash("0x123"),
+			BlockNumber:    big.NewInt(1),
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get code"),
+
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetStorageAt", context.Background(), tc.Addr, tc.Key.Big(), tc.BlockNumber.Uint64(), "").
+					Return(nil, errors.New("failed to get code")).
+					Once()
+			},
+		},
+		{
+			Name:           "code not found",
+			Addr:           common.HexToAddress("0x123"),
+			Key:            common.HexToHash("0x123"),
+			BlockNumber:    big.NewInt(1),
+			ExpectedResult: common.Hash{}.Bytes(),
+			ExpectedError:  nil,
+
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetStorageAt", context.Background(), tc.Addr, tc.Key.Big(), tc.BlockNumber.Uint64(), "").
+					Return(nil, state.ErrNotFound).
+					Once()
+			},
+		},
+		{
+			Name:           "get code successfully",
+			Addr:           common.HexToAddress("0x123"),
+			Key:            common.HexToHash("0x123"),
+			BlockNumber:    big.NewInt(1),
+			ExpectedResult: common.BigToHash(big.NewInt(123)).Bytes(),
+			ExpectedError:  nil,
+
+			SetupMocks: func(m *mocks, tc *testCase) {
+				m.State.
+					On("GetStorageAt", context.Background(), tc.Addr, tc.Key.Big(), tc.BlockNumber.Uint64(), "").
+					Return(big.NewInt(123), nil).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, &tc)
+			result, err := c.StorageAt(context.Background(), tc.Addr, tc.Key, tc.BlockNumber)
+			assert.Equal(t, tc.ExpectedResult, result)
+
+			if err != nil || tc.ExpectedError != nil {
+				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, tc.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestGetCompilers(t *testing.T) {
+	s, _, _ := newMockedServer(t)
+	defer s.Stop()
+
+	res, err := s.JSONRPCCall("eth_getCompilers")
+	require.NoError(t, err)
+
+	assert.Equal(t, float64(1), res.ID)
+	assert.Equal(t, "2.0", res.JSONRPC)
+	assert.Nil(t, res.Error)
+
+	var result []interface{}
+	err = json.Unmarshal(res.Result, &result)
+	require.NoError(t, err)
+
+	assert.Equal(t, 0, len(result))
+}
+
+func TestSyncing(t *testing.T) {
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		ExpectedResult *ethereum.SyncProgress
+		ExpectedError  rpcError
+		SetupMocks     func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "failed to get syncing information",
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get syncing info from state"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetSyncingInfo", context.Background(), "").
+					Return(state.SyncingInfo{}, errors.New("failed to get syncing info from state")).
+					Once()
+			},
+		},
+		{
+			Name:           "get syncing information successfully while syncing",
+			ExpectedResult: &ethereum.SyncProgress{StartingBlock: 1, CurrentBlock: 2, HighestBlock: 3},
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetSyncingInfo", context.Background(), "").
+					Return(state.SyncingInfo{InitialSyncingBatch: 1, LastBatchNumberConsolidated: 2, LastBatchNumberSeen: 3}, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "get syncing information successfully when synced",
+			ExpectedResult: nil,
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetSyncingInfo", context.Background(), "").
+					Return(state.SyncingInfo{InitialSyncingBatch: 1, LastBatchNumberConsolidated: 1, LastBatchNumberSeen: 1}, nil).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			testCase.SetupMocks(m, testCase)
+			result, err := c.SyncProgress(context.Background())
+
+			if result != nil || testCase.ExpectedResult != nil {
+				assert.Equal(t, testCase.ExpectedResult.StartingBlock, result.StartingBlock)
+				assert.Equal(t, testCase.ExpectedResult.CurrentBlock, result.CurrentBlock)
+				assert.Equal(t, testCase.ExpectedResult.HighestBlock, result.HighestBlock)
+			}
+
+			if err != nil || testCase.ExpectedError != nil {
+				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, testCase.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestProtocolVersion(t *testing.T) {
+	s, _, _ := newMockedServer(t)
+	defer s.Stop()
+
+	res, err := s.JSONRPCCall("eth_protocolVersion")
+	require.NoError(t, err)
+
+	assert.Equal(t, float64(1), res.ID)
+	assert.Equal(t, "2.0", res.JSONRPC)
+	assert.Nil(t, res.Error)
+
+	var result string
+	err = json.Unmarshal(res.Result, &result)
+	require.NoError(t, err)
+
+	assert.Equal(t, "0x0", result)
 }
 
 func addressPtr(i common.Address) *common.Address {
