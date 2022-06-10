@@ -808,3 +808,11 @@ func constructErrorFromRevert(result *runtime.ExecutionResult) error {
 
 	return fmt.Errorf("%w: %s", result.Err, revertErrMsg)
 }
+
+func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txBundleID string) error {
+	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, txBundleID)
+}
+
+func (s *State) GetLatestGlobalExitRoot(ctx context.Context, txBundleID string) (*GlobalExitRoot, error) {
+	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, txBundleID)
+}
