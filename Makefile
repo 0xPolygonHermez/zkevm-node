@@ -79,25 +79,25 @@ test-full: build-docker compile-scs ## Runs all tests checking race conditions
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
 	$(STOPDB)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
+	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 1200s ./...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking race conditions
 	$(STOPDB)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group1/...
+	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s ./ci/e2e-group1/...
 
 .PHONY: test-e2e-group-2
 test-e2e-group-2: build-docker compile-scs ## Runs group 2 e2e tests checking race conditions
 	$(STOPDB)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group2/...
+	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s ./ci/e2e-group2/...
 
 .PHONY: test-e2e-group-3
 test-e2e-group-3: build-docker compile-scs ## Runs group 3 e2e tests checking race conditions
 	$(STOPDB)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group3/...
+	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s ./ci/e2e-group3/...
 
 .PHONY: install-linter
 install-linter: ## Installs the linter
