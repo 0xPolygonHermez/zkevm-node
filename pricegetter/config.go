@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/hermeznetwork/hermez-core/config"
+	"github.com/hermeznetwork/hermez-core/config/types"
 	"github.com/hermeznetwork/hermez-core/pricegetter/priceprovider"
 )
 
@@ -45,7 +45,7 @@ type Config struct {
 	PriceProvider priceprovider.Config `mapstructure:"PriceProvider"`
 
 	// UpdateFrequency is price updating frequency, used only for the async type
-	UpdateFrequency config.Duration `mapstructure:"UpdateFrequency"`
+	UpdateFrequency types.Duration `mapstructure:"UpdateFrequency"`
 
 	// DefaultPrice is used only for the default type
 	DefaultPrice TokenPrice `mapstructure:"DefaultPrice"`

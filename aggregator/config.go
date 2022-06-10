@@ -2,9 +2,10 @@ package aggregator
 
 import (
 	"fmt"
-	"github.com/hermeznetwork/hermez-core/config"
-	"github.com/hermeznetwork/hermez-core/encoding"
 	"math/big"
+
+	"github.com/hermeznetwork/hermez-core/config/types"
+	"github.com/hermeznetwork/hermez-core/encoding"
 )
 
 // TokenAmountWithDecimals is a wrapper type that parses token amount with decimals to big int
@@ -31,11 +32,11 @@ func (t *TokenAmountWithDecimals) UnmarshalText(data []byte) error {
 type Config struct {
 	// IntervalToConsolidateState is the time the aggregator waits until
 	// trying to consolidate a new state
-	IntervalToConsolidateState config.Duration `mapstructure:"IntervalToConsolidateState"`
+	IntervalToConsolidateState types.Duration `mapstructure:"IntervalToConsolidateState"`
 
 	// IntervalFrequencyToGetProofGenerationStateInSeconds is the time the aggregator waits until
 	// trying to get proof generation status, in case prover client returns PENDING state
-	IntervalFrequencyToGetProofGenerationStateInSeconds config.Duration `mapstructure:"IntervalFrequencyToGetProofGenerationStateInSeconds"`
+	IntervalFrequencyToGetProofGenerationStateInSeconds types.Duration `mapstructure:"IntervalFrequencyToGetProofGenerationStateInSeconds"`
 
 	// TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
 	// possible values: base/acceptall
@@ -46,5 +47,5 @@ type Config struct {
 	TxProfitabilityMinReward TokenAmountWithDecimals `mapstructure:"TxProfitabilityMinReward"`
 
 	// IntervalAfterWhichBatchConsolidateAnyway this is interval for the main sequencer, that will check if there is no transactions
-	IntervalAfterWhichBatchConsolidateAnyway config.Duration `mapstructure:"IntervalAfterWhichBatchConsolidateAnyway"`
+	IntervalAfterWhichBatchConsolidateAnyway types.Duration `mapstructure:"IntervalAfterWhichBatchConsolidateAnyway"`
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hermeznetwork/hermez-core/config"
+	"github.com/hermeznetwork/hermez-core/config/types"
 	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state/tree"
@@ -51,11 +52,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.PendingTxsQueue.TxPendingInQueueCheckingFrequency",
-			expectedValue: config.NewDuration(3 * time.Second),
+			expectedValue: types.NewDuration(3 * time.Second),
 		},
 		{
 			path:          "Sequencer.PendingTxsQueue.GetPendingTxsFrequency",
-			expectedValue: config.NewDuration(5 * time.Second),
+			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",

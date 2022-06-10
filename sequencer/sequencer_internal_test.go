@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/hermeznetwork/hermez-core/config"
+	cfgTypes "github.com/hermeznetwork/hermez-core/config/types"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -140,9 +140,9 @@ func TestMain(m *testing.M) {
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDB)
 	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
 
-	intervalToProposeBatch := new(config.Duration)
+	intervalToProposeBatch := new(cfgTypes.Duration)
 	_ = intervalToProposeBatch.UnmarshalText([]byte("5s"))
-	intervalAfterWhichBatchSentAnyway := new(config.Duration)
+	intervalAfterWhichBatchSentAnyway := new(cfgTypes.Duration)
 	_ = intervalAfterWhichBatchSentAnyway.UnmarshalText([]byte("60s"))
 	minReward := new(txprofitabilitychecker.TokenAmountWithDecimals)
 	_ = minReward.UnmarshalText([]byte("1.1"))

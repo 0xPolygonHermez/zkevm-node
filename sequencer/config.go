@@ -1,7 +1,7 @@
 package sequencer
 
 import (
-	"github.com/hermeznetwork/hermez-core/config"
+	"github.com/hermeznetwork/hermez-core/config/types"
 	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
 )
@@ -20,14 +20,14 @@ const (
 type Config struct {
 	// IntervalToProposeBatch is the time the sequencer waits until
 	// trying to propose a batch
-	IntervalToProposeBatch config.Duration `mapstructure:"IntervalToProposeBatch"`
+	IntervalToProposeBatch types.Duration `mapstructure:"IntervalToProposeBatch"`
 
 	// SyncedBlockDif is the difference, how many block left to sync. So if sequencer see, that
 	// X amount of blocks are left to sync, it will start to select txs
 	SyncedBlockDif uint64 `mapstructure:"SyncedBlockDif"`
 
 	// IntervalAfterWhichBatchSentAnyway this is interval for the main sequencer, that will check if there is no transactions
-	IntervalAfterWhichBatchSentAnyway config.Duration `mapstructure:"IntervalAfterWhichBatchSentAnyway"`
+	IntervalAfterWhichBatchSentAnyway types.Duration `mapstructure:"IntervalAfterWhichBatchSentAnyway"`
 
 	// Strategy is the configuration for the strategy
 	Strategy strategy.Strategy `mapstructure:"Strategy"`
