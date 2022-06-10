@@ -3,6 +3,7 @@ package sequencerv2
 
 import (
 	"context"
+	"github.com/hermeznetwork/hermez-core/ethermanv2"
 	"math/big"
 	"time"
 
@@ -37,7 +38,7 @@ type etherman interface {
 	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
 	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 
-	SequenceBatches(sequences []*Sequence) error
+	SequenceBatches(sequences []*ethermanv2.Sequence) error
 }
 
 // stateInterface gathers the methods required to interact with the state.
@@ -55,9 +56,9 @@ type stateInterface interface {
 	AddBlock(ctx context.Context, block *state.Block, txBundleID string) error
 	ConsolidateBatch(ctx context.Context, batchNumber uint64, globalExitRoot common.Hash, timestamp time.Time, txBundleID string) error
 
-	ProcessSequence(ctx context.Context, sequence Sequence) *runtime.ExecutionResult
+	ProcessSequence(ctx context.Context, inProgressSequence ethermanv2.Sequence) *runtime.ExecutionResult
 }
 
 type txManager interface {
-	SequenceBatches(sequences []*Sequence) error
+	SequenceBatches(sequences []*ethermanv2.Sequence) error
 }

@@ -3,6 +3,7 @@ package sequencer
 import (
 	"context"
 	"errors"
+	"github.com/hermeznetwork/hermez-core/config"
 	"math/big"
 	"os"
 	"strings"
@@ -139,9 +140,9 @@ func TestMain(m *testing.M) {
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDB)
 	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
 
-	intervalToProposeBatch := new(Duration)
+	intervalToProposeBatch := new(config.Duration)
 	_ = intervalToProposeBatch.UnmarshalText([]byte("5s"))
-	intervalAfterWhichBatchSentAnyway := new(Duration)
+	intervalAfterWhichBatchSentAnyway := new(config.Duration)
 	_ = intervalAfterWhichBatchSentAnyway.UnmarshalText([]byte("60s"))
 	minReward := new(txprofitabilitychecker.TokenAmountWithDecimals)
 	_ = minReward.UnmarshalText([]byte("1.1"))

@@ -51,11 +51,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.PendingTxsQueue.TxPendingInQueueCheckingFrequency",
-			expectedValue: sequencer.NewDuration(3 * time.Second),
+			expectedValue: config.NewDuration(3 * time.Second),
 		},
 		{
 			path:          "Sequencer.PendingTxsQueue.GetPendingTxsFrequency",
-			expectedValue: sequencer.NewDuration(5 * time.Second),
+			expectedValue: config.NewDuration(5 * time.Second),
 		},
 		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",

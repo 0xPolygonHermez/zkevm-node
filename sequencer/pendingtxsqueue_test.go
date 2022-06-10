@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/pool"
@@ -29,8 +30,8 @@ var senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec89308
 var dbCfg = dbutils.NewConfigFromEnv()
 
 var queueCfg = sequencer.PendingTxsQueueConfig{
-	TxPendingInQueueCheckingFrequency: sequencer.NewDuration(1 * time.Second),
-	GetPendingTxsFrequency:            sequencer.NewDuration(1 * time.Second),
+	TxPendingInQueueCheckingFrequency: config.NewDuration(1 * time.Second),
+	GetPendingTxsFrequency:            config.NewDuration(1 * time.Second),
 }
 
 func TestQueue_AddAndPopTx(t *testing.T) {

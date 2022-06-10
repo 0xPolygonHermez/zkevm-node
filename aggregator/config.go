@@ -2,26 +2,10 @@ package aggregator
 
 import (
 	"fmt"
-	"math/big"
-	"time"
-
+	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/encoding"
+	"math/big"
 )
-
-// Duration is a wrapper type that parses time duration from text.
-type Duration struct {
-	time.Duration `validate:"required"`
-}
-
-// UnmarshalText unmarshalls time duration from text.
-func (d *Duration) UnmarshalText(data []byte) error {
-	duration, err := time.ParseDuration(string(data))
-	if err != nil {
-		return err
-	}
-	d.Duration = duration
-	return nil
-}
 
 // TokenAmountWithDecimals is a wrapper type that parses token amount with decimals to big int
 type TokenAmountWithDecimals struct {
@@ -47,11 +31,11 @@ func (t *TokenAmountWithDecimals) UnmarshalText(data []byte) error {
 type Config struct {
 	// IntervalToConsolidateState is the time the aggregator waits until
 	// trying to consolidate a new state
-	IntervalToConsolidateState Duration `mapstructure:"IntervalToConsolidateState"`
+	IntervalToConsolidateState config.Duration `mapstructure:"IntervalToConsolidateState"`
 
 	// IntervalFrequencyToGetProofGenerationStateInSeconds is the time the aggregator waits until
 	// trying to get proof generation status, in case prover client returns PENDING state
-	IntervalFrequencyToGetProofGenerationStateInSeconds Duration `mapstructure:"IntervalFrequencyToGetProofGenerationStateInSeconds"`
+	IntervalFrequencyToGetProofGenerationStateInSeconds config.Duration `mapstructure:"IntervalFrequencyToGetProofGenerationStateInSeconds"`
 
 	// TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
 	// possible values: base/acceptall
@@ -62,5 +46,5 @@ type Config struct {
 	TxProfitabilityMinReward TokenAmountWithDecimals `mapstructure:"TxProfitabilityMinReward"`
 
 	// IntervalAfterWhichBatchConsolidateAnyway this is interval for the main sequencer, that will check if there is no transactions
-	IntervalAfterWhichBatchConsolidateAnyway Duration `mapstructure:"IntervalAfterWhichBatchConsolidateAnyway"`
+	IntervalAfterWhichBatchConsolidateAnyway config.Duration `mapstructure:"IntervalAfterWhichBatchConsolidateAnyway"`
 }
