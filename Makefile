@@ -73,7 +73,7 @@ test: compile-scs ## Runs only short tests without checking race conditions
 test-full: build-docker compile-scs ## Runs all tests checking race conditions
 	$(STOPDB)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./...
+	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s ./...
 
 .PHONY: install-linter
 install-linter: ## Installs the linter
