@@ -2,6 +2,7 @@ package pgpoolstorage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -67,10 +68,10 @@ func (p *PostgresPoolStorage) GetTxsByState(ctx context.Context, state pool.TxSt
 		sql  string
 	)
 	if limit == 0 {
-		sql = "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1"
+		sql = "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1 ORDER BY gas_price DESC"
 		rows, err = p.db.Query(ctx, sql, state.String())
 	} else {
-		sql = "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1 AND is_claims = $2 LIMIT $3"
+		sql = "SELECT encoded, state, received_at FROM pool.txs WHERE state = $1 AND is_claims = $2 ORDER BY gas_price DESC LIMIT $3"
 		rows, err = p.db.Query(ctx, sql, state.String(), isClaims, limit)
 	}
 	if err != nil {
@@ -195,4 +196,15 @@ func (p *PostgresPoolStorage) GetGasPrice(ctx context.Context) (uint64, error) {
 	}
 
 	return gasPrice, nil
+}
+
+func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) {
+	var exists bool
+	req := "SELECT exists (SELECT 1 FROM pool.txs WHERE hash = $1 AND state = $2)"
+	err := p.db.QueryRow(ctx, req, hash.Hex(), pool.TxStatePending).Scan(&exists)
+	if err != nil && err != sql.ErrNoRows {
+		return false, err
+	}
+
+	return exists, nil
 }

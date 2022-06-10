@@ -49,6 +49,9 @@ FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
 	[Sequencer.PriceGetter]
         Type = "default"
         DefaultPrice = "2000"
+	[Sequencer.PendingTxsQueue]
+		TxPendingInQueueCheckingFrequency = "3s"
+		GetPendingTxsFrequency = "5s"
 
 [Aggregator]
 IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"

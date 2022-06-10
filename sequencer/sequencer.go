@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	amountOfPendingTxsRequested = 30000
+	amountOfPendingTxsRequested = 1000
 	percentageToCutSelectedTxs  = 80
 	fullPercentage              = 100
 	gasLimitIncrease            = 1.2

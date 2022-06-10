@@ -100,6 +100,11 @@ func (p *Pool) CountPendingTransactions(ctx context.Context) (uint64, error) {
 	return p.storage.CountTransactionsByState(ctx, TxStatePending)
 }
 
+// IsTxPending check if tx is still pending
+func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) {
+	return p.storage.IsTxPending(ctx, hash)
+}
+
 func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	// Accept only legacy transactions until EIP-2718/2930 activates.
 	if tx.Type() != types.LegacyTxType {
