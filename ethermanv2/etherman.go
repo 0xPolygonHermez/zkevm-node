@@ -24,6 +24,15 @@ type ethClienter interface {
 	ethereum.TransactionReader
 }
 
+// Sequence represents an operation sent to the PoE smart contract to be
+// processed.
+type Sequence struct {
+	GlobalExitRoot  common.Hash
+	Timestamp       uint64
+	ForceBatchesNum uint64
+	Txs             []types.Transaction
+}
+
 // Client is a simple implementation of EtherMan.
 type Client struct {
 	EtherClient ethClienter
