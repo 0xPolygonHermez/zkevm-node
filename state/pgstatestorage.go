@@ -834,8 +834,8 @@ func (s *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *Globa
 // GetLatestExitRoot get the latest ExitRoot from L1.
 func (s *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, txBundleID string) (*GlobalExitRoot, error) {
 	var (
-		exitRoot        GlobalExitRoot
-		globalNum       uint64
+		exitRoot  GlobalExitRoot
+		globalNum uint64
 	)
 	err := s.QueryRow(ctx, txBundleID, getLatestExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot)
 	if errors.Is(err, pgx.ErrNoRows) {

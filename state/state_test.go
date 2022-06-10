@@ -2584,10 +2584,10 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	err := testState.AddBlock(ctx, block, "")
 	assert.NoError(t, err)
 	globalExitRoot := state.GlobalExitRoot{
-		BlockNumber: 1,
+		BlockNumber:       1,
 		GlobalExitRootNum: big.NewInt(2),
-		MainnetExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		RollupExitRoot: common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+		MainnetExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		RollupExitRoot:    common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 	}
 	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, "")
 	require.NoError(t, err)
