@@ -14,8 +14,8 @@ type Client struct {
 }
 
 // New creates new eth tx manager
-func New(cfg Config) {
-
+func New(cfg Config) *Client {
+	return &Client{cfg: cfg}
 }
 
 // SequenceBatches send request to ethereum

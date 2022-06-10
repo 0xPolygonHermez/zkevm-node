@@ -34,7 +34,6 @@ func New(
 	state stateInterface,
 	ethMan etherman,
 	manager txManager) (Sequencer, error) {
-
 	return Sequencer{
 		cfg:       cfg,
 		pool:      pool,
