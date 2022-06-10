@@ -33,7 +33,7 @@ type stateInterface interface {
 	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, txBundleID string) (*state.Receipt, error)
 	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
 	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
-	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte, txBundleID string) (*state.BatchProcessor, error)
+	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte, txBundleID string) (BatchProcessorInterface, error)
 	EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error)
 	GetBalance(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (*big.Int, error)
 	GetBatchByHash(ctx context.Context, hash common.Hash, txBundleID string) (*state.Batch, error)
@@ -58,4 +58,8 @@ type storageInterface interface {
 	GetFilter(filterID uint64) (*Filter, error)
 	UpdateFilterLastPoll(filterID uint64) error
 	UninstallFilter(filterID uint64) (bool, error)
+}
+
+type BatchProcessorInterface interface {
+	ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult
 }

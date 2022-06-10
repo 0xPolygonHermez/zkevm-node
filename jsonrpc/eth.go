@@ -16,7 +16,7 @@ import (
 
 // Eth contains implementations for the "eth" RPC endpoints
 type Eth struct {
-	chainIDSelector  *chainIDSelector
+	chainID          uint64
 	pool             jsonRPCTxPool
 	state            stateInterface
 	sequencerAddress common.Address
@@ -35,7 +35,7 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 
 	lastBatchNumber, err := e.state.GetLastBatchNumber(ctx, "")
 	if err != nil {
-		return nil, err
+		return "0x0", nil
 	}
 
 	return hex.EncodeUint64(lastBatchNumber), nil
@@ -62,11 +62,6 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 		arg.Gas = &gas
 	}
 
-	if arg.From == nil {
-		from := state.ZeroAddress
-		arg.From = &from
-	}
-
 	tx := arg.ToTransaction()
 
 	ctx := context.Background()
@@ -86,7 +81,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 		return "0x", nil
 	}
 
-	result := bp.ProcessUnsignedTransaction(ctx, tx, *arg.From, e.sequencerAddress)
+	result := bp.ProcessUnsignedTransaction(ctx, tx, arg.From, e.sequencerAddress)
 	if result.Failed() {
 		log.Errorf("unable to execute call: %s", result.Err.Error())
 		return "0x", nil
@@ -97,12 +92,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 
 // ChainId returns the chain id of the client
 func (e *Eth) ChainId() (interface{}, error) { //nolint:revive
-	chainID, err := e.chainIDSelector.getChainID()
-	if err != nil {
-		return nil, err
-	}
-
-	return hex.EncodeUint64(chainID), nil
+	return hex.EncodeUint64(e.chainID), nil
 }
 
 // EstimateGas generates and returns an estimate of how much gas is necessary to
@@ -114,12 +104,7 @@ func (e *Eth) ChainId() (interface{}, error) { //nolint:revive
 func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error) {
 	tx := arg.ToTransaction()
 
-	if arg.From == nil {
-		from := state.ZeroAddress
-		arg.From = &from
-	}
-
-	gasEstimation, err := e.state.EstimateGas(tx, *arg.From)
+	gasEstimation, err := e.state.EstimateGas(tx, arg.From)
 	return hex.EncodeUint64(gasEstimation), err
 }
 
@@ -128,7 +113,7 @@ func (e *Eth) GasPrice() (interface{}, error) {
 	ctx := context.Background()
 	gasPrice, err := e.gpe.GetAvgGasPrice(ctx)
 	if err != nil {
-		return nil, err
+		return "0x0", nil
 	}
 	if gasPrice != nil {
 		return hex.EncodeUint64(gasPrice.Uint64()), nil
@@ -141,14 +126,15 @@ func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface
 	ctx := context.Background()
 	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
-		return nil, err
+		return nil, newRPCError(invalidParamsErrorCode, fmt.Sprintf("invalid argument 1: %v", err))
 	}
 
 	balance, err := e.state.GetBalance(ctx, address, batchNumber, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return hex.EncodeUint64(0), nil
 	} else if err != nil {
-		return nil, err
+		log.Errorf("failed to get balance from state: %v", err)
+		return nil, newRPCError(defaultErrorCode, "failed to get balance from state")
 	}
 
 	return hex.EncodeBig(balance), nil
@@ -177,13 +163,15 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 	if number == PendingBlockNumber {
 		lastBatch, err := e.state.GetLastBatch(context.Background(), true, "")
 		if err != nil {
-			return nil, err
+			const errorMessage = "couldn't load last batch from state to compute the pending block"
+			log.Errorf("%v: %v", errorMessage, err)
+			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
-		header := &types.Header{
-			ParentHash: lastBatch.Hash(),
-			Number:     big.NewInt(0).SetUint64(lastBatch.Number().Uint64() + 1),
-			Difficulty: big.NewInt(0),
-		}
+		header := types.CopyHeader(lastBatch.Header)
+		header.ParentHash = lastBatch.Hash()
+		header.Number = big.NewInt(0).SetUint64(lastBatch.Number().Uint64() + 1)
+		header.TxHash = types.EmptyRootHash
+		header.UncleHash = types.EmptyUncleHash
 		batch := &state.Batch{Header: header}
 		block := batchToRPCBlock(batch, fullTx)
 
@@ -192,14 +180,18 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 
 	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
-		return nil, err
+		const errorMessage = "couldn't parse the provided block number"
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	batch, err := e.state.GetBatchByNumber(ctx, batchNumber, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "couldn't load batch from state by number %v"
+		log.Errorf("%v: %v", fmt.Sprintf(errorMessage, batchNumber), err)
+		return nil, newRPCError(defaultErrorCode, fmt.Sprintf(errorMessage, batchNumber))
 	}
 
 	block := batchToRPCBlock(batch, fullTx)

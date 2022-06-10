@@ -23,25 +23,10 @@ type Server struct {
 }
 
 // NewServer returns the JsonRPC server
-func NewServer(
-	config Config,
-	defaultChainID uint64,
-	sequencerAddress common.Address,
-	p jsonRPCTxPool,
-	s stateInterface,
-	chainID uint64,
-	gpe gasPriceEstimator,
-	storage storageInterface) *Server {
-	chainIDSelector := newChainIDSelector(chainID)
-	ethEndpoints := &Eth{
-		chainIDSelector:  chainIDSelector,
-		pool:             p,
-		state:            s,
-		gpe:              gpe,
-		sequencerAddress: sequencerAddress,
-		storage:          storage,
-	}
-	netEndpoints := &Net{chainIDSelector: chainIDSelector}
+func NewServer(config Config, defaultChainID uint64, chainID uint64, sequencerAddress common.Address,
+	p jsonRPCTxPool, s stateInterface, gpe gasPriceEstimator, storage storageInterface) *Server {
+	ethEndpoints := &Eth{chainID: chainID, pool: p, state: s, gpe: gpe, sequencerAddress: sequencerAddress, storage: storage}
+	netEndpoints := &Net{chainID: chainID}
 	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
 	txPoolEndpoints := &TxPool{}
 	debugEndpoints := &Debug{state: s}
@@ -152,11 +137,11 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *Server) isSingleRequest(data []byte) (bool, detailedError) {
+func (s *Server) isSingleRequest(data []byte) (bool, rpcError) {
 	x := bytes.TrimLeft(data, " \t\r\n")
 
 	if len(x) == 0 {
-		return false, newInvalidRequestError("Invalid json request")
+		return false, newRPCError(invalidRequestErrorCode, "Invalid json request")
 	}
 
 	return x[0] == '{', nil
@@ -171,10 +156,16 @@ func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte) {
 
 	response := s.handler.Handle(request)
 
-	respBytes, _ := response.Bytes()
+	respBytes, err := json.Marshal(response)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
 	_, err = w.Write(respBytes)
 	if err != nil {
-		log.Error(err)
+		handleError(w, err)
+		return
 	}
 }
 
@@ -203,7 +194,7 @@ func (s *Server) parseRequest(data []byte) (Request, error) {
 	var req Request
 
 	if err := json.Unmarshal(data, &req); err != nil {
-		return Request{}, newInvalidRequestError("Invalid json request")
+		return Request{}, newRPCError(invalidRequestErrorCode, "Invalid json request")
 	}
 
 	return req, nil
@@ -213,7 +204,7 @@ func (s *Server) parseRequests(data []byte) ([]Request, error) {
 	var requests []Request
 
 	if err := json.Unmarshal(data, &requests); err != nil {
-		return nil, newInvalidRequestError("Invalid json request")
+		return nil, newRPCError(invalidRequestErrorCode, "Invalid json request")
 	}
 
 	return requests, nil

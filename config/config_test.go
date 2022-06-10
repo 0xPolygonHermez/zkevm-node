@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/pricegetter"
@@ -47,6 +48,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.FrequencyForResendingFailedSendBatchesInMilliseconds",
 			expectedValue: int64(1000),
+		},
+		{
+			path:          "Sequencer.PendingTxsQueue.TxPendingInQueueCheckingFrequency",
+			expectedValue: sequencer.NewDuration(3 * time.Second),
+		},
+		{
+			path:          "Sequencer.PendingTxsQueue.GetPendingTxsFrequency",
+			expectedValue: sequencer.NewDuration(5 * time.Second),
 		},
 		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",
