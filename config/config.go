@@ -29,6 +29,7 @@ const (
 	FlagNetworkBase = "network-base"
 	FlagAmount      = "amount"
 	FlagRemoteMT    = "remote-merkletree"
+	FlagComponents  = "components"
 )
 
 // Config represents the configuration of the entire Hermez Node

@@ -98,9 +98,9 @@ func start(ctx *cli.Context) error {
 	var gpe gasPriceEstimator
 	var etherman *etherman.Client
 
-	if contains(ctx.StringSlice(flagComponents), AGGREGATOR) ||
-		contains(ctx.StringSlice(flagComponents), SEQUENCER) ||
-		contains(ctx.StringSlice(flagComponents), SYNCHRONIZER) {
+	if contains(ctx.StringSlice(config.FlagComponents), AGGREGATOR) ||
+		contains(ctx.StringSlice(config.FlagComponents), SEQUENCER) ||
+		contains(ctx.StringSlice(config.FlagComponents), SYNCHRONIZER) {
 		var err error
 		etherman, err = newEtherman(*c)
 		if err != nil {
@@ -108,7 +108,7 @@ func start(ctx *cli.Context) error {
 		}
 	}
 
-	for _, item := range ctx.StringSlice(flagComponents) {
+	for _, item := range ctx.StringSlice(config.FlagComponents) {
 		switch item {
 		case AGGREGATOR:
 			log.Info("Running aggregator")

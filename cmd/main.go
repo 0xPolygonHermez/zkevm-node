@@ -9,15 +9,6 @@ import (
 )
 
 const (
-	flagYes        = "yes"
-	flagCfg        = "cfg"
-	flagNetwork    = "network"
-	flagNetworkCfg = "network-cfg"
-	flagAmount     = "amount"
-	flagComponents = "components"
-)
-
-const (
 	// App name
 	appName = "hermez-node"
 	// version represents the program based on the git tag
@@ -71,7 +62,7 @@ func main() {
 			Required: false,
 		},
 		&cli.StringSliceFlag{
-			Name:     flagComponents,
+			Name:     config.FlagComponents,
 			Aliases:  []string{"co"},
 			Usage:    "List of components to run",
 			Required: false,
