@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 	"errors"
-	"github.com/hermeznetwork/hermez-core/config"
 	"math/big"
 	"os"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/hermeznetwork/hermez-core/config"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/pool"
