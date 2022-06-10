@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
@@ -54,9 +56,6 @@ type state struct {
 
 	// Instrumentation
 	instrumented     bool
-	returnVMTrace    *instrumentation.VMTrace
-	stackPush        []uint64
-	memDiff          *instrumentation.MemoryDiff
 	storeDiff        *instrumentation.StoreDiff
 	returnStructLogs []instrumentation.StructLog
 
@@ -139,10 +138,6 @@ func (s *state) push1() *big.Int {
 	v := big.NewInt(0)
 	s.stack = append(s.stack, v)
 	s.sp++
-
-	if s.instrumented {
-		s.stackPush = append(s.stackPush, v.Uint64())
-	}
 
 	return v
 }
@@ -239,21 +234,17 @@ func (s *state) checkMemory(offset, size *big.Int) bool {
 }
 
 // Run executes the virtual machine
-func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]byte, instrumentation.VMTrace, []instrumentation.StructLog, instrumentation.ExecutorTrace, error) {
+func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]byte, []instrumentation.StructLog, instrumentation.ExecutorTrace, error) {
 	var vmerr error
-	var vmTrace instrumentation.VMTrace
 	var structLogs []instrumentation.StructLog
 	var executorTrace instrumentation.ExecutorTrace
 	var steps []instrumentation.Step
+	storage := map[string]string{}
+	stack := []string{}
+	memory := []string{}
 
 	codeSize := len(s.code)
 	for !s.stop {
-		if s.instrumented {
-			s.stackPush = []uint64{}
-			s.memDiff = nil
-			s.storeDiff = nil
-		}
-
 		if s.ip >= codeSize {
 			s.halt()
 			break
@@ -288,29 +279,6 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 		}
 
 		if s.instrumented {
-			// Trace
-			vmTrace.Code = s.code[:]
-			operation := instrumentation.VMOperation{
-				Pc:          uint64(s.ip),
-				Instruction: byte(op),
-				GasCost:     inst.gas,
-				Executed: instrumentation.VMExecutedOperation{
-					GasUsed:   s.gas,
-					StackPush: s.stackPush,
-				},
-				Sub: s.returnVMTrace,
-			}
-
-			if s.memDiff != nil {
-				operation.Executed.MemDiff = *s.memDiff
-			}
-
-			if s.storeDiff != nil {
-				operation.Executed.StoreDiff = *s.storeDiff
-			}
-
-			vmTrace.Operations = append(vmTrace.Operations, operation)
-
 			// Debug
 			structLog := instrumentation.StructLog{
 				Pc:         uint64(s.ip),
@@ -344,9 +312,9 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 				GasCost:    fmt.Sprint(inst.gas),
 				Refund:     "0",
 				Op:         "0x" + hex.EncodeToString([]byte{byte(op)}),
-				Storage:    nil,
-				Stack:      bigArrayToStringArray(s.stack),
-				Memory:     memoryToStringArray(s.memory),
+				Storage:    storage,
+				Stack:      stack,
+				Memory:     memory,
 				ReturnData: "0x" + hex.EncodeToString(s.returnData),
 			}
 
@@ -355,6 +323,16 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 			}
 
 			steps = append(steps, step)
+
+			// Values for next iteration
+			if s.storeDiff != nil {
+				storage[strconv.FormatUint(s.storeDiff.Location, encoding.Base16)] = strconv.FormatUint(s.storeDiff.Value, encoding.Base16)
+			} else {
+				storage = map[string]string{}
+			}
+
+			stack = bigArrayToStringArray(s.stack)
+			memory = memoryToStringArray(s.memory)
 		}
 
 		s.ip++
@@ -366,7 +344,19 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 
 	executorTrace.Steps = steps
 
-	return s.ret, vmTrace, structLogs, executorTrace, vmerr
+	return s.ret, structLogs, executorTrace, vmerr
+}
+
+func (s *state) inStaticCall() bool {
+	return s.msg.Static
+}
+
+func (s *state) validJumpdest(dest *big.Int) bool {
+	udest := dest.Uint64()
+	if dest.BitLen() >= 63 || udest >= uint64(len(s.code)) {
+		return false
+	}
+	return s.bitmap.isSet(uint(udest))
 }
 
 func extendByteSlice(b []byte, needLen int) []byte {
@@ -375,10 +365,6 @@ func extendByteSlice(b []byte, needLen int) []byte {
 		b = append(b, make([]byte, n)...)
 	}
 	return b[:needLen]
-}
-
-func (s *state) inStaticCall() bool {
-	return s.msg.Static
 }
 
 func bigToHash(b *big.Int) common.Hash {
@@ -404,12 +390,4 @@ func memoryToStringArray(memory []byte) []string {
 	}
 
 	return s
-}
-
-func (s *state) validJumpdest(dest *big.Int) bool {
-	udest := dest.Uint64()
-	if dest.BitLen() >= 63 || udest >= uint64(len(s.code)) {
-		return false
-	}
-	return s.bitmap.isSet(uint(udest))
 }

@@ -60,7 +60,7 @@ func (e *EVM) Run(ctx context.Context, c *runtime.Contract, host runtime.Host, c
 		Input:   "0x" + hex.EncodeToString(c.Input),
 	}
 
-	ret, vmTrace, structLogs, executorTrace, err := contract.Run(ctx, instrumentationContract)
+	ret, structLogs, executorTrace, err := contract.Run(ctx, instrumentationContract)
 
 	var returnValue []byte
 	returnValue = append(returnValue[:0], ret...)
@@ -77,7 +77,6 @@ func (e *EVM) Run(ctx context.Context, c *runtime.Contract, host runtime.Host, c
 		ReturnValue:   returnValue,
 		GasLeft:       gasLeft,
 		Err:           err,
-		VMTrace:       vmTrace,
 		StructLogs:    structLogs,
 		ExecutorTrace: executorTrace,
 	}

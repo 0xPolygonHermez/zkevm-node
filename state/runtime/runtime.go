@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -82,11 +81,9 @@ type ExecutionResult struct {
 	Err                 error  // Any error encountered during the execution, listed below
 	CreateAddress       common.Address
 	StateRoot           []byte
-	Trace               []instrumentation.Trace
-	VMTrace             instrumentation.VMTrace
 	StructLogs          []instrumentation.StructLog
 	ExecutorTrace       instrumentation.ExecutorTrace
-	ExecutorTraceResult json.RawMessage
+	ExecutorTraceResult string
 }
 
 // Succeeded indicates the execution was successful

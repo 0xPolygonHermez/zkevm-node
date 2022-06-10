@@ -24,7 +24,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
 	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/js"
@@ -1248,15 +1247,6 @@ func TestSCCall(t *testing.T) {
 	receipt, err := st.GetTransactionReceipt(ctx, signedTx6.Hash(), "")
 	require.NoError(t, err)
 	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
-
-	// Execution Trace
-	receipt, err = st.GetTransactionReceipt(ctx, signedTx4.Hash(), "")
-	require.NoError(t, err)
-
-	result := st.ReplayTransaction(receipt.TxHash, []string{"trace", "vmTrace", "statediff"})
-	require.NoError(t, result.Err)
-	assert.Equal(t, "PUSH1", evm.OpCode(result.VMTrace.Operations[0].Instruction).String())
-	require.Greater(t, len(result.Trace), 0)
 }
 
 func TestGenesisStorage(t *testing.T) {
@@ -1902,14 +1892,6 @@ func TestEstimateGas(t *testing.T) {
 	gasEstimation, err = st.EstimateGas(signedTxTransfer, auth.From)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(state.TxTransferGas), gasEstimation)
-
-	// Execution Trace
-	receipt, err := st.GetTransactionReceipt(ctx, signedTxStoreValue.Hash(), "")
-	require.NoError(t, err)
-
-	result := st.ReplayTransaction(receipt.TxHash, []string{"trace", "vmTrace", "statediff"})
-	require.NoError(t, result.Err)
-	assert.Equal(t, "PUSH1", evm.OpCode(result.VMTrace.Operations[0].Instruction).String())
 }
 
 func TestStorageOnDeploy(t *testing.T) {
@@ -2793,7 +2775,7 @@ func TestDebugTransaction(t *testing.T) {
 	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
 
 	// Execution Trace
-	receipt, err = st.GetTransactionReceipt(ctx, signedTx3.Hash(), "")
+	receipt, err = st.GetTransactionReceipt(ctx, signedTx2.Hash(), "")
 	require.NoError(t, err)
 
 	// Read tracer from filesystem
@@ -2809,13 +2791,10 @@ func TestDebugTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 	result := st.DebugTransaction(receipt.TxHash, tracer.Code)
-	// log.Debugf("v", result.ExecutorTrace)
 
 	j, err := json.Marshal(result.ExecutorTrace)
 	require.NoError(t, err)
 	log.Debug(string(j))
 
-	j2, err := json.Marshal(result.ExecutorTraceResult)
-	require.NoError(t, err)
-	log.Debug(string(j2))
+	log.Debug(result.ExecutorTraceResult)
 }
