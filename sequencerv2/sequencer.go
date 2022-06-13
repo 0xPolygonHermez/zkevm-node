@@ -22,8 +22,8 @@ type Sequencer struct {
 	state     stateInterface
 	txManager txManager
 
-	sequencesInProgress []types.Sequence
-	sequenceInProgress  types.Sequence
+	closedSequences    []types.Sequence
+	sequenceInProgress types.Sequence
 }
 
 // New init sequencer
@@ -58,14 +58,14 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	// 2. Check if current sequence should be closed
 	if s.isSequenceInProgressShouldBeClosed() {
-		s.sequencesInProgress = append(s.sequencesInProgress, s.sequenceInProgress)
+		s.closedSequences = append(s.closedSequences, s.sequenceInProgress)
 		s.sequenceInProgress = s.newSequence()
 	}
 
 	// 3. Check if current sequence should be sent
-	if s.isSequencesInProgressShouldBeSent() {
-		_ = s.txManager.SequenceBatches(s.sequencesInProgress)
-		s.sequencesInProgress = []types.Sequence{}
+	if s.isClosedSequencesShouldBeSent() {
+		_ = s.txManager.SequenceBatches(s.closedSequences)
+		s.closedSequences = []types.Sequence{}
 	}
 
 	// 4. get pending tx from the pool
@@ -82,7 +82,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	// 5. Process tx
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	res := s.state.ProcessSequence(ctx, s.sequenceInProgress)
+	res := s.state.ProcessBatchAndStoreLatestTx(ctx, s.sequenceInProgress.Txs)
 	if res.Err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		log.Errorf("failed to process tx, hash: %s, err: %v", tx.Hash(), res.Err)
@@ -123,8 +123,8 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	return true
 }
 
-func (s *Sequencer) isSequencesInProgressShouldBeSent() bool {
-	return len(s.sequencesInProgress) >= maxSequencesLength
+func (s *Sequencer) isClosedSequencesShouldBeSent() bool {
+	return len(s.closedSequences) >= maxSequencesLength
 }
 
 func (s *Sequencer) isSequenceInProgressShouldBeClosed() bool {

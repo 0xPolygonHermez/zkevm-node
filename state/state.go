@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/google/uuid"
-	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
@@ -798,7 +797,7 @@ func (s *State) ConsolidateBatch(ctx context.Context, batchNumber uint64, consol
 
 // ProcessSequence process sequence of the txs
 // TODO: implement function
-func (s *State) ProcessSequence(ctx context.Context, inProgressSequence ethmanTypes.Sequence) *runtime.ExecutionResult {
+func (s *State) ProcessBatchAndStoreLatestTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult {
 	return &runtime.ExecutionResult{}
 }
 

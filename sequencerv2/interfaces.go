@@ -54,7 +54,7 @@ type stateInterface interface {
 
 	AddBlock(ctx context.Context, block *state.Block, txBundleID string) error
 
-	ProcessSequence(ctx context.Context, inProgressSequence ethmanTypes.Sequence) *runtime.ExecutionResult
+	ProcessBatchAndStoreLatestTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult
 }
 
 type txManager interface {

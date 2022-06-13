@@ -217,15 +217,15 @@ func TestSequencerBaseFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 20, len(pendTxs))
 	require.Equal(t, maxTxsInSequence, len(seq.sequenceInProgress.Txs))
-	require.Equal(t, 0, len(seq.sequencesInProgress))
+	require.Equal(t, 0, len(seq.closedSequences))
 
 	seq.tryToProcessTx(ctx, ticker)
 	pendTxs, err = pl.GetPendingTxs(ctx, false, 30)
 	require.NoError(t, err)
 	require.Equal(t, 19, len(pendTxs))
 	require.Equal(t, 1, len(seq.sequenceInProgress.Txs))
-	require.Equal(t, 1, len(seq.sequencesInProgress))
-	require.Equal(t, maxTxsInSequence, len(seq.sequencesInProgress[0].Txs))
+	require.Equal(t, 1, len(seq.closedSequences))
+	require.Equal(t, maxTxsInSequence, len(seq.closedSequences[0].Txs))
 
 	for i := 0; i < 20; i++ {
 		seq.tryToProcessTx(ctx, ticker)
@@ -234,7 +234,7 @@ func TestSequencerBaseFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pendTxs))
 	require.Equal(t, 0, len(seq.sequenceInProgress.Txs))
-	require.Equal(t, 0, len(seq.sequencesInProgress))
+	require.Equal(t, 0, len(seq.closedSequences))
 
 	txManager.AssertNumberOfCalls(t, "SequenceBatches", 1)
 	cleanUpBatches(ctx, t)
