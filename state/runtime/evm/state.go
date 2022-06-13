@@ -240,8 +240,6 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 	var executorTrace instrumentation.ExecutorTrace
 	var steps []instrumentation.Step
 	storage := map[string]string{}
-	stack := []string{}
-	memory := []string{}
 
 	codeSize := len(s.code)
 	for !s.stop {
@@ -302,6 +300,15 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 			}
 
 			// Executor trace
+			if s.storeDiff != nil {
+				storage[strconv.FormatUint(s.storeDiff.Location, encoding.Base16)] = strconv.FormatUint(s.storeDiff.Value, encoding.Base16)
+			} else {
+				storage = map[string]string{}
+			}
+
+			stack := bigArrayToStringArray(s.stack)
+			memory := memoryToStringArray(s.memory)
+
 			step := instrumentation.Step{
 				Contract:   contract,
 				StateRoot:  "0x" + hex.EncodeToString(s.host.GetStateRoot()),
@@ -323,16 +330,6 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 			}
 
 			steps = append(steps, step)
-
-			// Values for next iteration
-			if s.storeDiff != nil {
-				storage[strconv.FormatUint(s.storeDiff.Location, encoding.Base16)] = strconv.FormatUint(s.storeDiff.Value, encoding.Base16)
-			} else {
-				storage = map[string]string{}
-			}
-
-			stack = bigArrayToStringArray(s.stack)
-			memory = memoryToStringArray(s.memory)
 		}
 
 		s.ip++
