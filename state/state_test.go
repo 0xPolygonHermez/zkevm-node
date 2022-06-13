@@ -388,7 +388,7 @@ func TestBasicState_AddBlock(t *testing.T) {
 }
 
 func TestBasicState_AddL2Block(t *testing.T) {
-	lastBN, err := testState.GetLastL2BlockNumber(ctx, "")
+	lastBlock, err := testState.GetLastL2Block(ctx, "")
 	assert.NoError(t, err)
 
 	tx1 := types.NewTransaction(0, common.Address{}, big.NewInt(0), 100, big.NewInt(1), nil)
@@ -399,12 +399,12 @@ func TestBasicState_AddL2Block(t *testing.T) {
 	err = testState.AddL2Block(ctx, tx2.Hash(), tx1.Hash(), time.Now(), "")
 	assert.NoError(t, err)
 
-	block1, err := testState.GetL2BlockByNumber(ctx, lastBN+1, "")
+	block1, err := testState.GetL2BlockByNumber(ctx, lastBlock.BlockNumber+1, "")
 	assert.NoError(t, err)
 	assert.Equal(t, block1.TxHash, tx1.Hash())
 	assert.Equal(t, block1.ParentTxHash, common.Hash{})
 
-	block2, err := testState.GetL2BlockByNumber(ctx, lastBN+2, "")
+	block2, err := testState.GetL2BlockByNumber(ctx, lastBlock.BlockNumber+2, "")
 	assert.NoError(t, err)
 	assert.Equal(t, block2.TxHash, tx2.Hash())
 	assert.Equal(t, block2.ParentTxHash, tx1.Hash())

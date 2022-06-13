@@ -45,10 +45,11 @@ func (s *Sequencer) Start(ctx context.Context) {
 	ticker := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	defer ticker.Stop()
 
-	parentTxHash, err := s.state.GetLastL2BlockHash(ctx)
+	parentBlock, err := s.state.GetLastL2Block(ctx)
 	if err != nil {
 		log.Errorf("failed to get latest block hash tx, err: %v", err)
 	}
+	parentTxHash := parentBlock.TxHash
 	for {
 		// 1. Wait for synchronizer to sync last batch
 		if !s.isSynced(ctx) {

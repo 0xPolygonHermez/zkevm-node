@@ -23,6 +23,7 @@ const (
 
 const (
 	getLastBlockSQL                        = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1"
+	getLastL2BlockSQL                      = "SELECT * FROM state.l2block ORDER BY block_num DESC LIMIT 1"
 	getPreviousBlockSQL                    = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
 	getBlockByHashSQL                      = "SELECT * FROM state.block WHERE block_hash = $1"
 	getBlockByNumberSQL                    = "SELECT * FROM state.block WHERE block_num = $1"
@@ -92,6 +93,21 @@ func (s *PostgresStorage) GetLastBlock(ctx context.Context, txBundleID string) (
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &block, nil
+}
+
+// GetLastL2Block gets the latest block
+func (s *PostgresStorage) GetLastL2Block(ctx context.Context, txBundleID string) (*L2Block, error) {
+	var block L2Block
+	err := s.QueryRow(ctx, txBundleID, getLastL2BlockSQL).Scan(&block.BlockNumber, &block.TxHash, &block.ParentTxHash, &block.ReceivedAt)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		// L2 genesis
+		return &L2Block{}, nil
 	} else if err != nil {
 		return nil, err
 	}
