@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/google/uuid"
+	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state/helper"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
@@ -793,6 +794,12 @@ func (s *State) AddBlock(ctx context.Context, block *Block, txBundleID string) e
 // ConsolidateBatch consolidates a batch for the given DB tx bundle.
 func (s *State) ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time, aggregator common.Address, txBundleID string) error {
 	return s.PostgresStorage.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash, consolidatedAt, aggregator, txBundleID)
+}
+
+// ProcessSequence process sequence of the txs
+// TODO: implement function
+func (s *State) ProcessSequence(ctx context.Context, inProgressSequence ethmanTypes.Sequence) *runtime.ExecutionResult {
+	return &runtime.ExecutionResult{}
 }
 
 // ResetDB resets the state to block for the given DB tx bundle.

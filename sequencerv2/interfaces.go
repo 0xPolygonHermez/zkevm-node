@@ -4,11 +4,10 @@ package sequencerv2
 import (
 	"context"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/ethermanv2"
+	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
@@ -38,12 +37,12 @@ type etherman interface {
 	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
 	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 
-	SequenceBatches(sequences []*ethermanv2.Sequence) error
+	SequenceBatches(sequences []ethmanTypes.Sequence) error
 }
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBatch(ctx context.Context, txBundleID string) (*state.Batch, error)
+	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context, txBundleID string) (uint64, error)
 	GetLastBatchByStateRoot(ctx context.Context, stateRoot []byte, txBundleID string) (*state.Batch, error)
@@ -54,11 +53,10 @@ type stateInterface interface {
 	SetInitSyncBatch(ctx context.Context, batchNumber uint64, txBundleID string) error
 
 	AddBlock(ctx context.Context, block *state.Block, txBundleID string) error
-	ConsolidateBatch(ctx context.Context, batchNumber uint64, globalExitRoot common.Hash, timestamp time.Time, txBundleID string) error
 
-	ProcessSequence(ctx context.Context, inProgressSequence ethermanv2.Sequence) *runtime.ExecutionResult
+	ProcessSequence(ctx context.Context, inProgressSequence ethmanTypes.Sequence) *runtime.ExecutionResult
 }
 
 type txManager interface {
-	SequenceBatches(sequences []*ethermanv2.Sequence) error
+	SequenceBatches(sequences []ethmanTypes.Sequence) error
 }
