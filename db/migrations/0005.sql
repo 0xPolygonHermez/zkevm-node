@@ -18,7 +18,7 @@ CREATE TABLE statev2.batch (
 
 CREATE TABLE statev2.sequenced_batch (
     batch_num BIGINT PRIMARY KEY,
-    force_batch_num BIGINT,
+    force_batches_num BIGINT,
     sequencer BYTEA,
     sequenced_at TIMESTAMP WITH TIME ZONE NOT NULL,
     block_num BIGINT NOT NULL REFERENCES statev2.block (block_num) ON DELETE CASCADE,
