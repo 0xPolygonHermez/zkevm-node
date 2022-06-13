@@ -378,14 +378,18 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get transaction"
+		log.Error("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash(), "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get transaction receipt"
+		log.Error("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return toRPCTransaction(tx, receipt.BlockNumber, receipt.BlockHash, uint64(receipt.TransactionIndex)), nil
@@ -406,14 +410,18 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get transaction"
+		log.Error("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash(), "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get transaction receipt"
+		log.Error("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return toRPCTransaction(tx, receipt.BlockNumber, receipt.BlockHash, uint64(receipt.TransactionIndex)), nil
