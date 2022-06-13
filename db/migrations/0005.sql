@@ -41,11 +41,6 @@ CREATE TABLE statev2.forced_batch (
 );
 
 -- All txs must be stored here. We only will manage the relationship between transactions and batches regarding the reorg.
-CREATE TABLE statev2.tx_batch_relationship (
-    tx_id BIGINT NOT NULL REFERENCES statev2.transaction (id) ON DELETE CASCADE,
-    batch_id BIGINT NOT NULL REFERENCES statev2.batch (id) ON DELETE CASCADE
-);
-
 CREATE TABLE statev2.transaction (  --transaction abstraction
     id SERIAL PRIMARY KEY,
     tx_hash VARCHAR,
@@ -53,6 +48,11 @@ CREATE TABLE statev2.transaction (  --transaction abstraction
     encoded VARCHAR,
     decoded jsonb,
     received_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE TABLE statev2.tx_batch_relationship (
+    tx_id BIGINT NOT NULL REFERENCES statev2.transaction (id) ON DELETE CASCADE,
+    batch_id BIGINT NOT NULL REFERENCES statev2.batch (id) ON DELETE CASCADE
 );
 
 CREATE TABLE statev2.ts_transaction (  --transaction in the trusted sequencer
