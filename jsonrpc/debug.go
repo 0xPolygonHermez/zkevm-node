@@ -19,7 +19,7 @@ type traceConfig struct {
 type traceTransactionResponse struct {
 	Gas         uint64         `json:"gas"`
 	Failed      bool           `json:"failed"`
-	ReturnValue string         `json:"returnValue"`
+	ReturnValue argBytes       `json:"returnValue"`
 	StructLogs  []StructLogRes `json:"structLogs"`
 }
 
@@ -53,12 +53,11 @@ func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{
 		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
-	failed := result.Failed()
-	returnValue := ""
-	if tracer != "" {
-		returnValue = result.ExecutorTraceResult
+	if tracer != "" && len(result.ExecutorTraceResult) > 0 {
+		return result.ExecutorTraceResult, nil
 	}
 
+	failed := result.Failed()
 	structLogs := make([]StructLogRes, 0, len(result.StructLogs))
 	for _, structLog := range result.StructLogs {
 		var stackRes *[]argBig
@@ -112,7 +111,7 @@ func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{
 	resp := traceTransactionResponse{
 		Gas:         result.GasUsed,
 		Failed:      failed,
-		ReturnValue: returnValue,
+		ReturnValue: result.ReturnValue,
 		StructLogs:  structLogs,
 	}
 

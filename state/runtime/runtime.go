@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -83,7 +84,7 @@ type ExecutionResult struct {
 	StateRoot           []byte
 	StructLogs          []instrumentation.StructLog
 	ExecutorTrace       instrumentation.ExecutorTrace
-	ExecutorTraceResult string
+	ExecutorTraceResult json.RawMessage
 }
 
 // Succeeded indicates the execution was successful

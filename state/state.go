@@ -670,6 +670,10 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
+	if tracer == "" {
+		return result, nil
+	}
+
 	// Parse the executor-like trace using the FakeEVM
 	jsTracer, err := js.NewJsTracer(tracer, new(tracers.Context))
 	if err != nil {
@@ -715,13 +719,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return result, nil
 	}
 
-	json, err := json.Marshal(traceResult)
-	if err != nil {
-		log.Errorf("debug transaction: failed to marshal executorTraceResult")
-		return nil, err
-	}
-
-	result.ExecutorTraceResult = string(json)
+	result.ExecutorTraceResult = traceResult
 
 	return result, nil
 }
