@@ -797,7 +797,7 @@ func (s *State) ConsolidateBatch(ctx context.Context, batchNumber uint64, consol
 
 // ProcessSequence process sequence of the txs
 // TODO: implement function
-func (s *State) ProcessBatchAndStoreLatestTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult {
+func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult {
 	return &runtime.ExecutionResult{}
 }
 

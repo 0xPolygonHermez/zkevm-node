@@ -54,7 +54,7 @@ type stateInterface interface {
 
 	AddBlock(ctx context.Context, block *state.Block, txBundleID string) error
 
-	ProcessBatchAndStoreLatestTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult
+	ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult
 }
 
 type txManager interface {

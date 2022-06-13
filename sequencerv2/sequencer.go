@@ -82,7 +82,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	// 5. Process tx
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	res := s.state.ProcessBatchAndStoreLatestTx(ctx, s.sequenceInProgress.Txs)
+	res := s.state.ProcessBatchAndStoreLastTx(ctx, s.sequenceInProgress.Txs)
 	if res.Err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		log.Errorf("failed to process tx, hash: %s, err: %v", tx.Hash(), res.Err)
