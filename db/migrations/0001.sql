@@ -82,6 +82,14 @@ CREATE TABLE state.log
     topic3 BYTEA
 );
 
+CREATE TABLE state.exit_root
+(
+    block_num               BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE,
+    global_exit_root_num    BIGINT PRIMARY KEY,
+    mainnet_exit_root       BYTEA,
+    rollup_exit_root        BYTEA
+);
+
 CREATE TABLE state.misc
 (
     last_batch_num_seen BIGINT,
