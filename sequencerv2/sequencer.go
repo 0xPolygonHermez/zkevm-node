@@ -20,7 +20,6 @@ type Sequencer struct {
 
 	pool      txPool
 	state     stateInterface
-	ethMan    etherman
 	txManager txManager
 
 	sequencesInProgress []*ethermanv2.Sequence
@@ -32,13 +31,11 @@ func New(
 	cfg Config,
 	pool txPool,
 	state stateInterface,
-	ethMan etherman,
 	manager txManager) (Sequencer, error) {
 	return Sequencer{
 		cfg:       cfg,
 		pool:      pool,
 		state:     state,
-		ethMan:    ethMan,
 		txManager: manager,
 	}, nil
 }
@@ -47,6 +44,11 @@ func New(
 func (s *Sequencer) Start(ctx context.Context) {
 	ticker := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	defer ticker.Stop()
+
+	parentTxHash, err := s.state.GetLastL2BlockHash(ctx)
+	if err != nil {
+		log.Errorf("failed to get latest block hash tx, err: %v", err)
+	}
 	for {
 		// 1. Wait for synchronizer to sync last batch
 		if !s.isSynced(ctx) {
@@ -103,7 +105,14 @@ func (s *Sequencer) Start(ctx context.Context) {
 		// TODO: add correct handling in case update didn't go through
 		_ = s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected)
 
-		// 7. broadcast tx in a new l2 block
+		// 7. create new l2 block
+		err = s.state.AddL2Block(ctx, tx.Hash(), parentTxHash, tx.ReceivedAt, "")
+		if err != nil {
+			log.Fatalf("failed to add L2 block for tx hash %q, err: %v", tx.Hash(), err)
+		}
+		parentTxHash = tx.Hash()
+
+		// 8. TODO: broadcast tx
 	}
 }
 

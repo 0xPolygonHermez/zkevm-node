@@ -21,3 +21,17 @@ type Block struct {
 func NewBlock(blockNumber uint64) *Block {
 	return &Block{BlockNumber: blockNumber}
 }
+
+// L2Block struct
+type L2Block struct {
+	BlockNumber  uint64
+	TxHash       common.Hash
+	ParentTxHash common.Hash
+
+	ReceivedAt time.Time
+}
+
+// NewL2Block creates a L2 block with the given data.
+func NewL2Block(blockNumber uint64) *L2Block {
+	return &L2Block{BlockNumber: blockNumber}
+}

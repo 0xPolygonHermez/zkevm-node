@@ -26,7 +26,9 @@ const (
 	getPreviousBlockSQL                    = "SELECT * FROM state.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
 	getBlockByHashSQL                      = "SELECT * FROM state.block WHERE block_hash = $1"
 	getBlockByNumberSQL                    = "SELECT * FROM state.block WHERE block_num = $1"
+	getL2BlockByNumberSQL                  = "SELECT * FROM state.l2block WHERE block_num = $1"
 	getLastBlockNumberSQL                  = "SELECT COALESCE(MAX(block_num), 0) FROM state.block"
+	getLastL2BlockNumberSQL                = "SELECT COALESCE(MAX(block_num), 0) FROM state.l2block"
 	getLastVirtualBatchSQL                 = "SELECT block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at, chain_id, global_exit_root, rollup_exit_root FROM state.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastConsolidatedBatchSQL            = "SELECT block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at, chain_id, global_exit_root, rollup_exit_root FROM state.batch WHERE consolidated_tx_hash != $1 ORDER BY batch_num DESC LIMIT 1"
 	getPreviousVirtualBatchSQL             = "SELECT block_num, sequencer, aggregator, consolidated_tx_hash, header, uncles, raw_txs_data, matic_collateral, received_at, consolidated_at, chain_id, global_exit_root, rollup_exit_root FROM state.batch ORDER BY batch_num DESC LIMIT 1 OFFSET $1"
@@ -46,6 +48,7 @@ const (
 	consolidateBatchSQL                    = "UPDATE state.batch SET consolidated_tx_hash = $1, consolidated_at = $3, aggregator = $4 WHERE batch_num = $2"
 	getTxsByBatchNumSQL                    = "SELECT transaction.encoded FROM state.transaction WHERE batch_num = $1"
 	addBlockSQL                            = "INSERT INTO state.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
+	addL2BlockSQL                          = "INSERT INTO state.l2block (tx_hash, parent_tx_hash, received_at) VALUES ($1, $2, $3)"
 	addSequencerSQL                        = "INSERT INTO state.sequencer (address, url, chain_id, block_num) VALUES ($1, $2, $3, $4) ON CONFLICT (chain_id) DO UPDATE SET address = EXCLUDED.address, url = EXCLUDED.url, block_num = EXCLUDED.block_num"
 	updateLastBatchSeenSQL                 = "UPDATE state.misc SET last_batch_num_seen = $1"
 	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM state.misc LIMIT 1"
@@ -138,10 +141,38 @@ func (s *PostgresStorage) GetBlockByNumber(ctx context.Context, blockNumber uint
 	return &block, nil
 }
 
+// GetL2BlockByNumber gets the L2 block with the required number
+func (s *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber uint64, txBundleID string) (*L2Block, error) {
+	var block L2Block
+	err := s.QueryRow(ctx, txBundleID, getL2BlockByNumberSQL, blockNumber).Scan(&block.BlockNumber, &block.TxHash, &block.ParentTxHash, &block.ReceivedAt)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &block, nil
+}
+
 // GetLastBlockNumber gets the latest block number
 func (s *PostgresStorage) GetLastBlockNumber(ctx context.Context, txBundleID string) (uint64, error) {
 	var lastBlockNum uint64
 	err := s.QueryRow(ctx, txBundleID, getLastBlockNumberSQL).Scan(&lastBlockNum)
+
+	if reflect.TypeOf(err) == reflect.TypeOf(pgx.ScanArgError{}) {
+		return 0, ErrStateNotSynchronized
+	} else if err != nil {
+		return 0, err
+	}
+
+	return lastBlockNum, nil
+}
+
+// GetLastL2BlockNumber gets the latest block number
+func (s *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, txBundleID string) (uint64, error) {
+	var lastBlockNum uint64
+	err := s.QueryRow(ctx, txBundleID, getLastL2BlockNumberSQL).Scan(&lastBlockNum)
 
 	if reflect.TypeOf(err) == reflect.TypeOf(pgx.ScanArgError{}) {
 		return 0, ErrStateNotSynchronized
@@ -638,6 +669,12 @@ func (s *PostgresStorage) GetSequencer(ctx context.Context, address common.Addre
 // AddBlock adds a new block to the State Store
 func (s *PostgresStorage) AddBlock(ctx context.Context, block *Block, txBundleID string) error {
 	_, err := s.Exec(ctx, txBundleID, addBlockSQL, block.BlockNumber, block.BlockHash.Bytes(), block.ParentHash.Bytes(), block.ReceivedAt)
+	return err
+}
+
+// AddL2Block adds a new block to the State Store
+func (s *PostgresStorage) AddL2Block(ctx context.Context, txHash common.Hash, parentTxHash common.Hash, txReceivedAt time.Time, txBundleID string) error {
+	_, err := s.Exec(ctx, txBundleID, addL2BlockSQL, txHash.Bytes(), parentTxHash.Bytes(), txReceivedAt)
 	return err
 }
 

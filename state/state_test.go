@@ -387,6 +387,35 @@ func TestBasicState_AddBlock(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestBasicState_AddL2Block(t *testing.T) {
+	lastBN, err := testState.GetLastL2BlockNumber(ctx, "")
+	assert.NoError(t, err)
+
+	tx1 := types.NewTransaction(0, common.Address{}, big.NewInt(0), 100, big.NewInt(1), nil)
+	tx2 := types.NewTransaction(1, common.Address{}, big.NewInt(1), 100, big.NewInt(1), nil)
+
+	err = testState.AddL2Block(ctx, tx1.Hash(), common.Hash{}, time.Now(), "")
+	assert.NoError(t, err)
+	err = testState.AddL2Block(ctx, tx2.Hash(), tx1.Hash(), time.Now(), "")
+	assert.NoError(t, err)
+
+	block1, err := testState.GetL2BlockByNumber(ctx, lastBN+1, "")
+	assert.NoError(t, err)
+	assert.Equal(t, block1.TxHash, tx1.Hash())
+	assert.Equal(t, block1.ParentTxHash, common.Hash{})
+
+	block2, err := testState.GetL2BlockByNumber(ctx, lastBN+2, "")
+	assert.NoError(t, err)
+	assert.Equal(t, block2.TxHash, tx2.Hash())
+	assert.Equal(t, block2.ParentTxHash, tx1.Hash())
+
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.l2block WHERE block_num = $1", block1.BlockNumber)
+	assert.NoError(t, err)
+
+	_, err = stateDb.Exec(ctx, "DELETE FROM state.l2block WHERE block_num = $1", block2.BlockNumber)
+	assert.NoError(t, err)
+}
+
 func TestBasicState_AddSequencer(t *testing.T) {
 	lastBN, err := testState.GetLastBlockNumber(ctx, "")
 	assert.NoError(t, err)
