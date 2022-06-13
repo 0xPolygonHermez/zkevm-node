@@ -549,9 +549,7 @@ func constructErrorFromRevert(result *runtime.ExecutionResult) error {
 	return fmt.Errorf("%w: %s", result.Err, revertErrMsg)
 }
 
-func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *runtime.ExecutionResult {
-	ctx := context.Background()
-
+func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error) {
 	txBundleID, err := s.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("debug transaction: failed to begin db transaction, err: %v", err)
@@ -559,7 +557,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 		if rbErr != nil {
 			log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 		}
-		return &runtime.ExecutionResult{Err: err}
+		return nil, err
 	}
 
 	tx, err := s.GetTransactionByHash(ctx, transactionHash, txBundleID)
@@ -569,7 +567,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 		if rbErr != nil {
 			log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 		}
-		return &runtime.ExecutionResult{Err: err}
+		return nil, err
 	}
 
 	receipt, err := s.GetTransactionReceipt(ctx, transactionHash, txBundleID)
@@ -579,7 +577,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 		if rbErr != nil {
 			log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 		}
-		return &runtime.ExecutionResult{Err: err}
+		return nil, err
 	}
 
 	batch, err := s.GetBatchByHash(ctx, receipt.BlockHash, txBundleID)
@@ -589,7 +587,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 		if rbErr != nil {
 			log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 		}
-		return &runtime.ExecutionResult{Err: err}
+		return nil, err
 	}
 
 	var stateRoot []byte
@@ -602,7 +600,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 			if rbErr != nil {
 				log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 			}
-			return &runtime.ExecutionResult{Err: err}
+			return nil, err
 		}
 
 		previousReceipt, err := s.GetTransactionReceipt(ctx, previousTX.Hash(), txBundleID)
@@ -612,7 +610,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 			if rbErr != nil {
 				log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 			}
-			return &runtime.ExecutionResult{Err: err}
+			return nil, err
 		}
 
 		stateRoot = previousReceipt.PostState
@@ -626,7 +624,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 				if rbErr != nil {
 					log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 				}
-				return &runtime.ExecutionResult{Err: err}
+				return nil, err
 			}
 		} else if err != nil {
 			log.Errorf("debug transaction: failed to get batch by hash, err: %v", err)
@@ -634,7 +632,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 			if rbErr != nil {
 				log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 			}
-			return &runtime.ExecutionResult{Err: err}
+			return nil, err
 		}
 
 		stateRoot = previousBatch.Header.Root.Bytes()
@@ -651,7 +649,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 		if rbErr != nil {
 			log.Errorf("debug transaction: failed to rollback db transaction on error, err: %v, rollback err: %v", err, rbErr)
 		}
-		return &runtime.ExecutionResult{Err: err}
+		return nil, err
 	}
 
 	// Activate EVM Instrumentation
@@ -669,16 +667,14 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 	err = s.RollbackState(ctx, txBundleID)
 	if err != nil {
 		log.Errorf("debug transaction: failed to rollback transaction, err: %v", err)
-		result.Err = err
-		return result
+		return nil, err
 	}
 
 	// Parse the executor-like trace using the FakeEVM
 	jsTracer, err := js.NewJsTracer(tracer, new(tracers.Context))
 	if err != nil {
 		log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
-		result.Err = err
-		return result
+		return nil, err
 	}
 
 	context := instrumentation.Context{}
@@ -706,7 +702,7 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 	gasPrice, ok := new(big.Int).SetString(context.GasPrice, encoding.Base10)
 	if !ok {
 		log.Errorf("debug transaction: failed to parse gasPrice")
-		return result
+		return result, nil
 	}
 
 	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
@@ -714,17 +710,20 @@ func (s *State) DebugTransaction(transactionHash common.Hash, tracer string) *ru
 	env.SetStateDB(fakeDB)
 
 	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, jsTracer)
-	result.Err = err
+	if err != nil {
+		log.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
+		return result, nil
+	}
 
 	json, err := json.Marshal(traceResult)
 	if err != nil {
 		log.Errorf("debug transaction: failed to marshal executorTraceResult")
-		return result
+		return nil, err
 	}
 
 	result.ExecutorTraceResult = string(json)
 
-	return result
+	return result, nil
 }
 
 func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, jsTracer tracers.Tracer) (json.RawMessage, error) {

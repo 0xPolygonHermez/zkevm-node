@@ -1,0 +1,380 @@
+warning: variable "description" does not exist and is being expanded to "description()", please use parentheses to remove the ambiguity or change the variable name
+  /src/deps/mix_erlang_tasks/mix.exs:9: MixErlangTasks.Mixfile.project/0
+
+warning: variable "package" does not exist and is being expanded to "package()", please use parentheses to remove the ambiguity or change the variable name
+  /src/deps/mix_erlang_tasks/mix.exs:10: MixErlangTasks.Mixfile.project/0
+
+==> mix_erlang_tasks
+Compiling 4 files (.ex)
+warning: :ct.run_test/1 defined in application :common_test is used by the current application but the current application does not depend on :common_test. To fix this, you must do one of:
+
+  1. If :common_test is part of Erlang/Elixir, you must include it under :extra_applications inside "def application" in your mix.exs
+
+  2. If :common_test is a dependency, make sure it is listed under "def deps" in your mix.exs
+
+  3. In case you don't want to add a requirement to :common_test, you may optionally skip this warning by adding [xref: [exclude: [:ct]]] to your "def project" in mix.exs
+
+  lib/mix/tasks/ct.ex:30: Mix.Tasks.Ct.run/1
+
+warning: :edoc.application/3 defined in application :edoc is used by the current application but the current application does not depend on :edoc. To fix this, you must do one of:
+
+  1. If :edoc is part of Erlang/Elixir, you must include it under :extra_applications inside "def application" in your mix.exs
+
+  2. If :edoc is a dependency, make sure it is listed under "def deps" in your mix.exs
+
+  3. In case you don't want to add a requirement to :edoc, you may optionally skip this warning by adding [xref: [exclude: [:edoc]]] to your "def project" in mix.exs
+
+  lib/mix/tasks/edoc.ex:8: Mix.Tasks.Edoc.run/1
+
+warning: :eunit.test/2 defined in application :eunit is used by the current application but the current application does not depend on :eunit. To fix this, you must do one of:
+
+  1. If :eunit is part of Erlang/Elixir, you must include it under :extra_applications inside "def application" in your mix.exs
+
+  2. If :eunit is a dependency, make sure it is listed under "def deps" in your mix.exs
+
+  3. In case you don't want to add a requirement to :eunit, you may optionally skip this warning by adding [xref: [exclude: [:eunit]]] to your "def project" in mix.exs
+
+  lib/mix/tasks/eunit.ex:32: Mix.Tasks.Eunit.run/1
+
+warning: String.to_char_list/1 is deprecated. Use String.to_charlist/1 instead
+Found at 2 locations:
+  lib/util.ex:13: MixErlangTasks.Util.compile_files/2
+  lib/util.ex:14: MixErlangTasks.Util.compile_files/2
+
+warning: String.to_char_list/1 is deprecated. Use String.to_charlist/1 instead
+Found at 2 locations:
+  lib/mix/tasks/ct.ex:31: Mix.Tasks.Ct.run/1
+  lib/mix/tasks/ct.ex:32: Mix.Tasks.Ct.run/1
+
+Generated mix_erlang_tasks app
+===> Analyzing applications...
+===> Compiling parse_trans
+==> logger_file_backend
+Compiling 1 file (.ex)
+Generated logger_file_backend app
+===> Analyzing applications...
+===> Compiling websocket_client
+===> "/src/deps/websocket_client/ebin/websocket_client.app" is missing kernel from applications list
+===> "/src/deps/websocket_client/ebin/websocket_client.app" is missing stdlib from applications list
+==> con_cache
+Compiling 8 files (.ex)
+Generated con_cache app
+==> optimal
+Compiling 5 files (.ex)
+Generated optimal app
+===> Analyzing applications...
+===> Compiling mimerl
+==> connection
+Compiling 1 file (.ex)
+Generated connection app
+make: Nothing to be done for 'all'.
+==> libsecp256k1
+Compiling 1 file (.erl)
+src/libsecp256k1.erl:146:1: Warning: function not_loaded/1 is unused
+%  146| not_loaded(Line) ->
+%     | ^
+
+Generated libsecp256k1 app
+==> decorator
+Compiling 2 files (.ex)
+Generated decorator app
+==> nimble_parsec
+Compiling 4 files (.ex)
+Generated nimble_parsec app
+===> Analyzing applications...
+===> Compiling metrics
+===> Analyzing applications...
+===> Compiling unicode_util_compat
+===> Analyzing applications...
+===> Compiling idna
+==> gettext
+Compiling 1 file (.erl)
+Compiling 20 files (.ex)
+Generated gettext app
+==> gen_stage
+Compiling 10 files (.ex)
+Generated gen_stage app
+==> nimble_csv
+Compiling 1 file (.ex)
+Generated nimble_csv app
+===> Analyzing applications...
+===> Compiling ranch
+===> Analyzing applications...
+===> Compiling poolboy
+==> hammer
+Compiling 6 files (.ex)
+Generated hammer app
+===> Analyzing applications...
+===> Compiling telemetry
+==> briefly
+Compiling 4 files (.ex)
+Generated briefly app
+==> decimal
+Compiling 4 files (.ex)
+Generated decimal app
+==> number
+Compiling 10 files (.ex)
+warning: Decimal.compare/2 is deprecated. Use Decimal.cmp/2 instead. This function will be re-introduced in Decimal v2.0 with new return value
+  lib/number/decimal.ex:11: Number.Decimal.compare/2
+
+Generated number app
+==> jason
+Compiling 10 files (.ex)
+Generated jason app
+==> poison
+Compiling 4 files (.ex)
+Generated poison app
+==> ssl_verify_fun
+Compiling 7 files (.erl)
+Generated ssl_verify_fun app
+==> memento
+Compiling 13 files (.ex)
+Generated memento app
+===> Analyzing applications...
+===> Compiling quantile_estimator
+==> html_entities
+Compiling 2 files (.ex)
+Generated html_entities app
+==> floki
+Compiling 2 files (.erl)
+Compiling 24 files (.ex)
+Generated floki app
+==> prometheus
+Compiling 30 files (.erl)
+Generated prometheus app
+==> prometheus_ex
+Compiling 19 files (.ex)
+warning: :mnesia.system_info/1 defined in application :mnesia is used by the current application but the current application does not depend on :mnesia. To fix this, you must do one of:
+
+  1. If :mnesia is part of Erlang/Elixir, you must include it under :extra_applications inside "def application" in your mix.exs
+
+  2. If :mnesia is a dependency, make sure it is listed under "def deps" in your mix.exs
+
+  3. In case you don't want to add a requirement to :mnesia, you may optionally skip this warning by adding [xref: [exclude: [:mnesia]]] to your "def project" in mix.exs
+
+  lib/prometheus/contrib/mnesia.ex:22: Prometheus.Contrib.Mnesia.table_disk_size/2
+
+Generated prometheus_ex app
+make: Entering directory '/src/deps/prometheus_process_collector/c_src'
+make: '/src/deps/prometheus_process_collector/c_src/../priv/prometheus_process_collector.so' is up to date.
+make: Leaving directory '/src/deps/prometheus_process_collector/c_src'
+===> Analyzing applications...
+===> Compiling prometheus_process_collector
+==> combine
+Compiling 6 files (.ex)
+Generated combine app
+==> qrcode
+Compiling 8 files (.erl)
+src/bits.erl:18:2: Warning: export_all flag enabled - all functions will be exported
+%   18| -compile(export_all).
+%     |  ^
+
+src/qrcode_erl_png.erl:44:2: Warning: export_all flag enabled - all functions will be exported
+%   44| -compile(export_all).
+%     |  ^
+
+src/qrcode_erl_png.erl:111:7: Warning: crypto:hmac/3 is removed; use crypto:mac/4 instead
+%  111| 	HS = crypto:hmac(sha, Key, <<Count:64>>),
+%     | 	     ^
+
+Compiling 1 file (.ex)
+Generated qrcode app
+==> elixir_make
+Compiling 1 file (.ex)
+Generated elixir_make app
+==> bcrypt_elixir
+make: Nothing to be done for 'all'.
+Compiling 3 files (.ex)
+Generated bcrypt_elixir app
+==> comeonin
+Compiling 2 files (.ex)
+Generated comeonin app
+==> flow
+Compiling 9 files (.ex)
+Generated flow app
+==> math
+Compiling 2 files (.ex)
+Generated math app
+===> Analyzing applications...
+===> Compiling certifi
+===> Analyzing applications...
+===> Compiling hackney
+==> tzdata
+Compiling 17 files (.ex)
+warning: :random.uniform/1 is deprecated. Use the 'rand' module instead
+  lib/tzdata/data_loader.ex:17: Tzdata.DataLoader.download_new/1
+
+Generated tzdata app
+==> timex
+Compiling 60 files (.ex)
+Generated timex app
+==> cldr_utils
+Compiling 12 files (.ex)
+Generated cldr_utils app
+==> db_connection
+Compiling 14 files (.ex)
+Generated db_connection app
+==> httpoison
+Compiling 3 files (.ex)
+Generated httpoison app
+==> ecto
+Compiling 56 files (.ex)
+warning: Decimal.compare/2 is deprecated. Use Decimal.cmp/2 instead. This function will be re-introduced in Decimal v2.0 with new return value
+  lib/ecto/changeset.ex:2218: Ecto.Changeset.validate_number/6
+
+Generated ecto app
+==> dataloader
+Compiling 4 files (.ex)
+Generated dataloader app
+==> absinthe
+Compiling 1 file (.erl)
+Compiling 251 files (.ex)
+Generated absinthe app
+==> absinthe_relay
+Compiling 19 files (.ex)
+Generated absinthe_relay app
+==> ex_rlp
+Compiling 6 files (.ex)
+Generated ex_rlp app
+==> ex_json_schema
+Compiling 12 files (.ex)
+Generated ex_json_schema app
+==> phoenix_pubsub
+Compiling 11 files (.ex)
+Generated phoenix_pubsub app
+==> mimetype_parser
+Compiling 3 files (.erl)
+Compiling 1 file (.ex)
+Generated mimetype_parser app
+==> file_info
+Compiling 2 files (.ex)
+Generated file_info app
+===> Analyzing applications...
+===> Compiling cowlib
+===> Analyzing applications...
+===> Compiling cowboy
+===> Analyzing applications...
+===> Compiling cowboy_telemetry
+==> ex_utils
+Compiling 5 files (.ex)
+Generated ex_utils app
+===> Analyzing applications...
+===> Compiling accept
+==> mime
+Compiling 2 files (.ex)
+Generated mime app
+==> tesla
+Compiling 26 files (.ex)
+warning: :hackney.body/1 defined in application :hackney is used by the current application but the current application does not depend on :hackney. To fix this, you must do one of:
+
+  1. If :hackney is part of Erlang/Elixir, you must include it under :extra_applications inside "def application" in your mix.exs
+
+  2. If :hackney is a dependency, make sure it is listed under "def deps" in your mix.exs
+
+  3. In case you don't want to add a requirement to :hackney, you may optionally skip this warning by adding [xref: [exclude: [:hackney]]] to your "def project" in mix.exs
+
+  lib/tesla/adapter/hackney.ex:91: Tesla.Adapter.Hackney.handle/1
+
+warning: :hackney.request/5 defined in application :hackney is used by the current application but the current application does not depend on :hackney. To fix this, you must do one of:
+
+  1. If :hackney is part of Erlang/Elixir, you must include it under :extra_applications inside "def application" in your mix.exs
+
+  2. If :hackney is a dependency, make sure it is listed under "def deps" in your mix.exs
+
+  3. In case you don't want to add a requirement to :hackney, you may optionally skip this warning by adding [xref: [exclude: [:hackney]]] to your "def project" in mix.exs
+
+Found at 2 locations:
+  lib/tesla/adapter/hackney.ex:71: Tesla.Adapter.Hackney.request/5
+  lib/tesla/adapter/hackney.ex:75: Tesla.Adapter.Hackney.request_stream/5
+
+warning: :hackney.send_body/2 defined in application :hackney is used by the current application but the current application does not depend on :hackney. To fix this, you must do one of:
+
+  1. If :hackney is part of Erlang/Elixir, you must include it under :extra_applications inside "def application" in your mix.exs
+
+  2. If :hackney is a dependency, make sure it is listed under "def deps" in your mix.exs
+
+  3. In case you don't want to add a requirement to :hackney, you may optionally skip this warning by adding [xref: [exclude: [:hackney]]] to your "def project" in mix.exs
+
+  lib/tesla/adapter/hackney.ex:76: Tesla.Adapter.Hackney.request_stream/5
+
+warning: :hackney.start_response/1 defined in application :hackney is used by the current application but the current application does not depend on :hackney. To fix this, you must do one of:
+
+  1. If :hackney is part of Erlang/Elixir, you must include it under :extra_applications inside "def application" in your mix.exs
+
+  2. If :hackney is a dependency, make sure it is listed under "def deps" in your mix.exs
+
+  3. In case you don't want to add a requirement to :hackney, you may optionally skip this warning by adding [xref: [exclude: [:hackney]]] to your "def project" in mix.exs
+
+  lib/tesla/adapter/hackney.ex:77: Tesla.Adapter.Hackney.request_stream/5
+
+warning: MIME.from_path/1 defined in application :mime is used by the current application but the current application does not depend on :mime. To fix this, you must do one of:
+
+  1. If :mime is part of Erlang/Elixir, you must include it under :extra_applications inside "def application" in your mix.exs
+
+  2. If :mime is a dependency, make sure it is listed under "def deps" in your mix.exs
+
+  3. In case you don't want to add a requirement to :mime, you may optionally skip this warning by adding [xref: [exclude: [MIME]]] to your "def project" in mix.exs
+
+  lib/tesla/multipart.ex:102: Tesla.Multipart.add_file/3
+
+warning: :telemetry.execute/3 defined in application :telemetry is used by the current application but the current application does not depend on :telemetry. To fix this, you must do one of:
+
+  1. If :telemetry is part of Erlang/Elixir, you must include it under :extra_applications inside "def application" in your mix.exs
+
+  2. If :telemetry is a dependency, make sure it is listed under "def deps" in your mix.exs
+
+  3. In case you don't want to add a requirement to :telemetry, you may optionally skip this warning by adding [xref: [exclude: [:telemetry]]] to your "def project" in mix.exs
+
+Found at 4 locations:
+  lib/tesla/middleware/telemetry.ex:85: Tesla.Middleware.Telemetry.emit_start/1
+  lib/tesla/middleware/telemetry.ex:93: Tesla.Middleware.Telemetry.emit_stop/2
+  lib/tesla/middleware/telemetry.ex:102: Tesla.Middleware.Telemetry.emit_legacy_event/2
+  lib/tesla/middleware/telemetry.ex:111: Tesla.Middleware.Telemetry.emit_exception/2
+
+Generated tesla app
+==> que
+Compiling 13 files (.ex)
+warning: Supervisor.Spec.supervise/2 is deprecated. Use the new child specifications outlined in the Supervisor module instead
+  lib/que/supervisor.ex:35: Que.Supervisor.init/1
+
+warning: Supervisor.Spec.supervise/2 is deprecated. Use the new child specifications outlined in the Supervisor module instead
+  lib/que/server_supervisor.ex:63: Que.ServerSupervisor.init/1
+
+warning: Supervisor.Spec.worker/2 is deprecated. Use the new child specifications outlined in the Supervisor module instead
+  lib/que/server_supervisor.ex:60: Que.ServerSupervisor.init/1
+
+warning: Supervisor.Spec.supervisor/2 is deprecated. Use the new child specifications outlined in the Supervisor module instead
+Found at 2 locations:
+  lib/que/supervisor.ex:31: Que.Supervisor.init/1
+  lib/que/supervisor.ex:32: Que.Supervisor.init/1
+
+Generated que app
+==> postgrex
+Compiling 61 files (.ex)
+Generated postgrex app
+==> ecto_sql
+Compiling 26 files (.ex)
+Generated ecto_sql app
+==> toml
+Compiling 10 files (.ex)
+Generated toml app
+==> rustler
+Compiling 7 files (.ex)
+Generated rustler app
+==> ex_keccak
+Compiling 1 file (.ex)
+Compiling crate exkeccak in release mode (native/exkeccak)
+   Compiling proc-macro2 v1.0.34
+   Compiling unicode-xid v0.2.2
+   Compiling syn v1.0.83
+   Compiling void v1.0.2
+   Compiling unicode-segmentation v1.8.0
+   Compiling crunchy v0.2.2
+   Compiling rustler_sys v2.1.1
+   Compiling rustler v0.23.0
+   Compiling tiny-keccak v2.0.2
+   Compiling lazy_static v1.4.0
+   Compiling unreachable v1.0.0
+   Compiling heck v0.3.3
+   Compiling quote v1.0.10
+   Compiling rustler_codegen v0.23.0

@@ -2790,7 +2790,8 @@ func TestDebugTransaction(t *testing.T) {
 	err = json.Unmarshal(byteCode, &tracer)
 	require.NoError(t, err)
 
-	result := st.DebugTransaction(receipt.TxHash, tracer.Code)
+	result, err := st.DebugTransaction(context.Background(), receipt.TxHash, tracer.Code)
+	require.NoError(t, err)
 
 	j, err := json.Marshal(result.ExecutorTrace)
 	require.NoError(t, err)

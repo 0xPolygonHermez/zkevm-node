@@ -50,6 +50,7 @@ type stateInterface interface {
 	GetBatchTransactionCountByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (uint64, error)
 	GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash, since *time.Time, txBundleID string) ([]*types.Log, error)
 	GetBatchHashesSince(ctx context.Context, since time.Time, txBundleID string) ([]common.Hash, error)
+	DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error)
 }
 
 type storageInterface interface {

@@ -85,6 +85,11 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 	b.CumulativeGasUsed = 0
 	b.Host.logs = map[common.Hash][]*types.Log{}
 
+	lastBatch, err := b.Host.State.GetLastBatchByStateRoot(ctx, b.Host.stateRoot, "")
+	if err != nil {
+		log.Errorf("failed to get last batch to populate batch header, err: %v", err)
+	}
+
 	if !b.isGenesisBatch(batch) {
 		oldStateRoot := b.Host.stateRoot
 		// Store old state root on System SC if we are not on a genesis batch
@@ -145,7 +150,7 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 	batch.Receipts = receipts
 
 	// Set batch Header
-	b.populateBatchHeader(batch)
+	b.populateBatchHeader(batch, lastBatch)
 
 	// Store batch
 	return b.commit(ctx, batch)
@@ -231,16 +236,10 @@ func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Trans
 	return &runtime.ExecutionResult{Err: ErrInvalidTxType, StateRoot: b.Host.stateRoot}
 }
 
-func (b *BatchProcessor) populateBatchHeader(batch *Batch) {
+func (b *BatchProcessor) populateBatchHeader(batch, lastBatch *Batch) {
 	parentHash := common.Hash{}
 
 	// Get last batch from data base to ensure consistency
-	ctx := context.Background()
-	lastBatch, err := b.Host.State.GetLastBatchByStateRoot(ctx, b.Host.stateRoot, "")
-	if err != nil {
-		log.Errorf("failed to get last batch to populate batch header, err: %v", err)
-	}
-
 	if lastBatch != nil {
 		parentHash = lastBatch.Hash()
 	}
