@@ -59,7 +59,7 @@
     "expectedNewRoot": "0x1cdd3725cacd4817720aee2688e97c11b63df891e17c8c0d82dfb39d76accad1",
     "expectedNewLeafs": {
       "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D": {
-        "balance": "99900000000000000000",
+        "balance": "99900000000000000000", 
         "nonce": "1"
       },
       "0x4d5Cf5032B2a844602278b01199ED191A86c93ff": {

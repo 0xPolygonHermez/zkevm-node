@@ -3,25 +3,10 @@ package pricegetter
 import (
 	"fmt"
 	"math/big"
-	"time"
 
+	"github.com/hermeznetwork/hermez-core/config/types"
 	"github.com/hermeznetwork/hermez-core/pricegetter/priceprovider"
 )
-
-// Duration is a wrapper type that parses time duration from text.
-type Duration struct {
-	time.Duration `validate:"required"`
-}
-
-// UnmarshalText unmarshalls time duration from text.
-func (d *Duration) UnmarshalText(data []byte) error {
-	duration, err := time.ParseDuration(string(data))
-	if err != nil {
-		return err
-	}
-	d.Duration = duration
-	return nil
-}
 
 // TokenPrice is a wrapper type that parses token amount to big float
 type TokenPrice struct {
@@ -60,7 +45,7 @@ type Config struct {
 	PriceProvider priceprovider.Config `mapstructure:"PriceProvider"`
 
 	// UpdateFrequency is price updating frequency, used only for the async type
-	UpdateFrequency Duration `mapstructure:"UpdateFrequency"`
+	UpdateFrequency types.Duration `mapstructure:"UpdateFrequency"`
 
 	// DefaultPrice is used only for the default type
 	DefaultPrice TokenPrice `mapstructure:"DefaultPrice"`
