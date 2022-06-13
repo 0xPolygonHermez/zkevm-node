@@ -3,7 +3,6 @@ package sequencerv2
 
 import (
 	"context"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/ethermanv2"
@@ -26,7 +25,7 @@ type stateInterface interface {
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context, txBundleID string) (uint64, error)
 
 	GetLastL2Block(ctx context.Context) (*state.L2Block, error)
-	AddL2Block(ctx context.Context, txHash common.Hash, parentTxHash common.Hash, txReceivedAt time.Time, txBundleID string) error
+	AddL2Block(ctx context.Context, block *state.L2Block, txBundleID string) error
 
 	ProcessSequence(ctx context.Context, inProgressSequence ethermanv2.Sequence) *runtime.ExecutionResult
 }

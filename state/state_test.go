@@ -394,20 +394,30 @@ func TestBasicState_AddL2Block(t *testing.T) {
 	tx1 := types.NewTransaction(0, common.Address{}, big.NewInt(0), 100, big.NewInt(1), nil)
 	tx2 := types.NewTransaction(1, common.Address{}, big.NewInt(1), 100, big.NewInt(1), nil)
 
-	err = testState.AddL2Block(ctx, tx1.Hash(), lastBlock.TxHash, time.Now(), "")
+	block1 := &state.L2Block{
+		TxHash:       tx1.Hash(),
+		ParentTxHash: lastBlock.TxHash,
+		ReceivedAt:   time.Now(),
+	}
+	block2 := &state.L2Block{
+		TxHash:       tx2.Hash(),
+		ParentTxHash: tx1.Hash(),
+		ReceivedAt:   time.Now(),
+	}
+	err = testState.AddL2Block(ctx, block1, "")
 	assert.NoError(t, err)
-	err = testState.AddL2Block(ctx, tx2.Hash(), tx1.Hash(), time.Now(), "")
+	err = testState.AddL2Block(ctx, block2, "")
 	assert.NoError(t, err)
 
-	block1, err := testState.GetL2BlockByNumber(ctx, lastBlock.BlockNumber+1, "")
+	block3, err := testState.GetL2BlockByNumber(ctx, lastBlock.BlockNumber+1, "")
 	assert.NoError(t, err)
-	assert.Equal(t, block1.TxHash, tx1.Hash())
-	assert.Equal(t, block1.ParentTxHash, common.Hash{})
+	assert.Equal(t, block3.TxHash, tx1.Hash())
+	assert.Equal(t, block3.ParentTxHash, common.Hash{})
 
-	block2, err := testState.GetL2BlockByNumber(ctx, lastBlock.BlockNumber+2, "")
+	block4, err := testState.GetL2BlockByNumber(ctx, lastBlock.BlockNumber+2, "")
 	assert.NoError(t, err)
-	assert.Equal(t, block2.TxHash, tx2.Hash())
-	assert.Equal(t, block2.ParentTxHash, tx1.Hash())
+	assert.Equal(t, block4.TxHash, tx2.Hash())
+	assert.Equal(t, block4.ParentTxHash, tx1.Hash())
 
 	_, err = stateDb.Exec(ctx, "DELETE FROM state.l2block WHERE block_num = $1", block1.BlockNumber)
 	assert.NoError(t, err)

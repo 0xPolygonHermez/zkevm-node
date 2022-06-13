@@ -7,6 +7,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/ethermanv2"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/state"
 )
 
 const (
@@ -107,7 +108,12 @@ func (s *Sequencer) Start(ctx context.Context) {
 		_ = s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected)
 
 		// 7. create new l2 block
-		err = s.state.AddL2Block(ctx, tx.Hash(), parentTxHash, tx.ReceivedAt, "")
+		block := &state.L2Block{
+			TxHash:       tx.Hash(),
+			ParentTxHash: parentTxHash,
+			ReceivedAt:   tx.ReceivedAt,
+		}
+		err = s.state.AddL2Block(ctx, block, "")
 		if err != nil {
 			log.Fatalf("failed to add L2 block for tx hash %q, err: %v", tx.Hash(), err)
 		}

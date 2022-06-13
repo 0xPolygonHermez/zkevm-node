@@ -689,8 +689,8 @@ func (s *PostgresStorage) AddBlock(ctx context.Context, block *Block, txBundleID
 }
 
 // AddL2Block adds a new block to the State Store
-func (s *PostgresStorage) AddL2Block(ctx context.Context, txHash common.Hash, parentTxHash common.Hash, txReceivedAt time.Time, txBundleID string) error {
-	_, err := s.Exec(ctx, txBundleID, addL2BlockSQL, txHash.Bytes(), parentTxHash.Bytes(), txReceivedAt)
+func (s *PostgresStorage) AddL2Block(ctx context.Context, block *L2Block, txBundleID string) error {
+	_, err := s.Exec(ctx, txBundleID, addL2BlockSQL, block.TxHash.Bytes(), block.ParentTxHash.Bytes(), block.ReceivedAt)
 	return err
 }
 
