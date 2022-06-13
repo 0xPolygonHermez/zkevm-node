@@ -49,4 +49,4 @@ CREATE TABLE statev2.transaction (
     header jsonb,
     uncles jsonb,
     batch_id BIGINT NOT NULL REFERENCES statev2.batch (id) ON DELETE CASCADE
-)
+);
