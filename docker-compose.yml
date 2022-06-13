@@ -1,88 +1,186 @@
-version: '3.5'
+version: "3.5"
 networks:
-    default:
-        name: hermez
+  default:
+    name: hermez
 services:
-    hez-core:
-        container_name: hez-core
-        image: hezcore
-        ports:
-            - 8123:8123
-        environment:
-          - HERMEZCORE_DATABASE_USER=test_user
-          - HERMEZCORE_DATABASE_PASSWORD=test_password
-          - HERMEZCORE_DATABASE_NAME=test_db
-          - HERMEZCORE_DATABASE_HOST=hez-postgres
-          - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
-        volumes:
-          - ./test/test.keystore:/pk/keystore
-          - ./config/config.local.toml:/app/config.toml
-        command: ["./hezcore", "run", "--network", "local", "--cfg", "/app/config.toml"]
+  hez-core-sequencer:
+    container_name: hez-core-sequencer
+    image: hezcore
+    environment:
+      - HERMEZCORE_DATABASE_USER=test_user
+      - HERMEZCORE_DATABASE_PASSWORD=test_password
+      - HERMEZCORE_DATABASE_NAME=test_db
+      - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+    volumes:
+      - ./test/test.keystore:/pk/keystore
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "./hezcore"
+      - "run"
+      - "--network"
+      - "local"
+      - "--cfg"
+      - "/app/config.toml"
+      - "--components"
+      - "sequencer"
+    
 
-    hez-postgres:
-        container_name: hez-postgres
-        image: postgres
-        deploy:
-          resources:
-            limits:
-              memory: 2G
-            reservations:
-              memory: 1G
-        ports:
-            - 5432:5432
-        environment:
-            # In order to update this values, you may need to run: docker rm -f -v postgres
-            - POSTGRES_USER=test_user
-            - POSTGRES_PASSWORD=test_password
-            - POSTGRES_DB=test_db
-        command: ["postgres", "-N", "500"]
+  hez-core-rpc:
+    container_name: hez-core-rpc
+    image: hezcore
+    ports:
+      - 8123:8123
+    environment:
+      - HERMEZCORE_DATABASE_USER=test_user
+      - HERMEZCORE_DATABASE_PASSWORD=test_password
+      - HERMEZCORE_DATABASE_NAME=test_db
+      - HERMEZCORE_DATABASE_HOST=hez-postgres
+    volumes:
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "./hezcore"
+      - "run"
+      - "--network"
+      - "local"
+      - "--cfg"
+      - "/app/config.toml"
+      - "--components"
+      - "rpc"
+      
+  hez-core-agg:
+    container_name: hez-core-agg
+    image: hezcore
+    environment:
+      - HERMEZCORE_DATABASE_USER=test_user
+      - HERMEZCORE_DATABASE_PASSWORD=test_password
+      - HERMEZCORE_DATABASE_NAME=test_db
+      - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+    volumes:
+      - ./test/test.keystore:/pk/keystore
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "./hezcore"
+      - "run"
+      - "--network"
+      - "local"
+      - "--cfg"
+      - "/app/config.toml"
+      - "--components"
+      - "aggregator"
+      
+  hez-core-sync:
+    container_name: hez-core-sync
+    image: hezcore
+    environment:
+      - HERMEZCORE_DATABASE_USER=test_user
+      - HERMEZCORE_DATABASE_PASSWORD=test_password
+      - HERMEZCORE_DATABASE_NAME=test_db
+      - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+    volumes:
+      - ./test/test.keystore:/pk/keystore
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "./hezcore"
+      - "run"
+      - "--network"
+      - "local"
+      - "--cfg"
+      - "/app/config.toml"
+      - "--components"
+      - "synchronizer"
+      
+  hez-postgres:
+    container_name: hez-postgres
+    image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5432:5432
+    environment:
+      # In order to update this values, you may need to run: docker rm -f -v postgres
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_DB=test_db
+    command: ["postgres", "-N", "500"]
 
-    hez-explorer:
-        container_name: hez-explorer
-        image: hermeznetwork/hermez-node-blockscout:latest
-        ports:
-            - 4000:4000
-        environment:
-            - NETWORK=POE
-            - SUBNETWORK=Polygon Hermez
-            - COIN=ETH
-            - ETHEREUM_JSONRPC_VARIANT=geth
-            - ETHEREUM_JSONRPC_HTTP_URL=http://hez-core:8123
-            - DATABASE_URL=postgres://test_user:test_password@hez-explorer-postgres:5432/explorer
-            - ECTO_USE_SSL=false
-            - MIX_ENV=prod
-            - LOGO=/images/blockscout_logo.svg
-            - LOGO_FOOTER=/images/blockscout_logo.svg
-        command: ["/bin/sh", "-c", "mix do ecto.create, ecto.migrate; mix phx.server"]
+  hez-explorer:
+    container_name: hez-explorer
+    image: hermeznetwork/hermez-node-blockscout:latest
+    ports:
+      - 4000:4000
+    environment:
+      - NETWORK=POE
+      - SUBNETWORK=Polygon Hermez
+      - COIN=ETH
+      - ETHEREUM_JSONRPC_VARIANT=geth
+      - ETHEREUM_JSONRPC_HTTP_URL=http://hez-explorer-rpc:8124 #8123 for Windows, 8124 for everything else
+      - DATABASE_URL=postgres://test_user:test_password@hez-explorer-postgres:5432/explorer
+      - ECTO_USE_SSL=false
+      - MIX_ENV=prod
+      - LOGO=/images/blockscout_logo.svg
+      - LOGO_FOOTER=/images/blockscout_logo.svg
+    command:
+      ["/bin/sh", "-c", "mix do ecto.create, ecto.migrate; mix phx.server"]
 
-    hez-explorer-postgres:
-        container_name: hez-explorer-postgres
-        image: postgres
-        ports:
-            - 5433:5432
-        environment:
-            # In order to update this values, you may need to run: docker rm -f -v postgres
-            - POSTGRES_USER=test_user
-            - POSTGRES_PASSWORD=test_password
-            - POSTGRES_DB=explorer
-        command: ["postgres", "-N", "500"]
+  hez-explorer-rpc:
+    container_name: hez-explorer-rpc
+    image: hezcore
+    ports:
+      - 8124:8123
+    environment:
+      - HERMEZCORE_DATABASE_USER=test_user
+      - HERMEZCORE_DATABASE_PASSWORD=test_password
+      - HERMEZCORE_DATABASE_NAME=test_db
+      - HERMEZCORE_DATABASE_HOST=hez-postgres
+    volumes:
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      [
+        "./hezcore",
+        "run",
+        "--network",
+        "local",
+        "--cfg",
+        "/app/config.toml",
+        "--components",
+        "rpc",
+      ]
 
-    hez-network:
-        container_name: hez-network
-        image: hermeznetwork/geth-zkevm-contracts@sha256:52dfda8b09130485f40fe3ee26d0f6bf2b61d551e1b1481dae63e915168c0876
-        ports:
-          - 8545:8545
+  hez-explorer-postgres:
+    container_name: hez-explorer-postgres
+    image: postgres
+    ports:
+      - 5433:5432
+    environment:
+      # In order to update this values, you may need to run: docker rm -f -v postgres
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_DB=explorer
+    command: ["postgres", "-N", "500"]
 
-    hez-prover:
-      container_name: hez-prover
-      image: hermeznetwork/hez-mock-prover@sha256:dc7faed4babf3b59c2bf6375aae25dff0e5385f7c38aaa3d8e05b523ee762035
-      ports:
-        - 50051:50051
-        - 50052:50052
-      environment:
-        - POSTGRES_USER=test_user
-        - POSTGRES_PASSWORD=test_password
-        - POSTGRES_DB=test_db
-        - POSTGRES_HOST=hez-postgres
-        - POSTGRES_PORT=5432
-        - PROOF_TIME=1000
+  hez-network:
+    container_name: hez-network
+    image: hermeznetwork/geth-zkevm-contracts@sha256:52dfda8b09130485f40fe3ee26d0f6bf2b61d551e1b1481dae63e915168c0876
+    ports:
+      - 8545:8545
+
+  hez-prover:
+    container_name: hez-prover
+    image: hermeznetwork/hez-mock-prover@sha256:dc7faed4babf3b59c2bf6375aae25dff0e5385f7c38aaa3d8e05b523ee762035
+    ports:
+      - 50051:50051
+      - 50052:50052
+    environment:
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_DB=test_db
+      - POSTGRES_HOST=hez-postgres
+      - POSTGRES_PORT=5432
+      - PROOF_TIME=1000

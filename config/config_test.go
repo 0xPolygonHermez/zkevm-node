@@ -86,6 +86,14 @@ func Test_Defaults(t *testing.T) {
 			path:          "RPC.MaxRequestsPerIPAndSecond",
 			expectedValue: float64(50),
 		},
+		{
+			path:          "RPC.ChainID",
+			expectedValue: uint64(1001),
+		},
+		{
+			path:          "RPC.SequencerAddress",
+			expectedValue: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+		},
 	}
 
 	ctx := cli.NewContext(cli.NewApp(), flag.NewFlagSet("", flag.PanicOnError), nil)
