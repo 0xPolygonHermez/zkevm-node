@@ -5,7 +5,7 @@
 package ethtxmanager
 
 import (
-	"github.com/hermeznetwork/hermez-core/ethermanv2"
+	"github.com/hermeznetwork/hermez-core/ethermanv2/types"
 )
 
 // Client for eth tx manager
@@ -19,6 +19,6 @@ func New(cfg Config) *Client {
 }
 
 // SequenceBatches send request to ethereum
-func (c *Client) SequenceBatches(sequences []*ethermanv2.Sequence) error {
+func (c *Client) SequenceBatches(sequences []types.Sequence) error {
 	return nil
 }
