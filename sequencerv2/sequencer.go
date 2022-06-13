@@ -57,19 +57,19 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	// 2. Check if current sequence should be closed
-	if s.isSequenceInProgressShouldBeClosed() {
+	if s.shouldCloseSequenceInProgress() {
 		s.closedSequences = append(s.closedSequences, s.sequenceInProgress)
 		s.sequenceInProgress = s.newSequence()
 	}
 
 	// 3. Check if current sequence should be sent
-	if s.isClosedSequencesShouldBeSent() {
+	if s.shouldSendSequences() {
 		_ = s.txManager.SequenceBatches(s.closedSequences)
 		s.closedSequences = []types.Sequence{}
 	}
 
 	// 4. get pending tx from the pool
-	tx, ok := s.getPendingTx(ctx)
+	tx, ok := s.getMostProfitablePendingTx(ctx)
 	if !ok {
 		return
 	}
@@ -85,7 +85,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	res := s.state.ProcessBatchAndStoreLastTx(ctx, s.sequenceInProgress.Txs)
 	if res.Err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
-		log.Errorf("failed to process tx, hash: %s, err: %v", tx.Hash(), res.Err)
+		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), res.Err)
 		return
 	}
 
@@ -123,15 +123,15 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	return true
 }
 
-func (s *Sequencer) isClosedSequencesShouldBeSent() bool {
+func (s *Sequencer) shouldSendSequences() bool {
 	return len(s.closedSequences) >= maxSequencesLength
 }
 
-func (s *Sequencer) isSequenceInProgressShouldBeClosed() bool {
+func (s *Sequencer) shouldCloseSequenceInProgress() bool {
 	return len(s.sequenceInProgress.Txs) >= maxTxsInSequence
 }
 
-func (s *Sequencer) getPendingTx(ctx context.Context) (*pool.Transaction, bool) {
+func (s *Sequencer) getMostProfitablePendingTx(ctx context.Context) (*pool.Transaction, bool) {
 	tx, err := s.pool.GetPendingTxs(ctx, false, 1)
 	if err != nil {
 		log.Errorf("failed to get pending tx, err: %v", err)
