@@ -394,7 +394,7 @@ func TestBasicState_AddL2Block(t *testing.T) {
 	tx1 := types.NewTransaction(0, common.Address{}, big.NewInt(0), 100, big.NewInt(1), nil)
 	tx2 := types.NewTransaction(1, common.Address{}, big.NewInt(1), 100, big.NewInt(1), nil)
 
-	err = testState.AddL2Block(ctx, tx1.Hash(), common.Hash{}, time.Now(), "")
+	err = testState.AddL2Block(ctx, tx1.Hash(), lastBlock.TxHash, time.Now(), "")
 	assert.NoError(t, err)
 	err = testState.AddL2Block(ctx, tx2.Hash(), tx1.Hash(), time.Now(), "")
 	assert.NoError(t, err)
