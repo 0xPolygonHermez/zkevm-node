@@ -188,6 +188,8 @@ func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blo
 		block.BlockHash = vLog.BlockHash
 		block.ParentHash = fullBlock.ParentHash()
 		block.ReceivedAt = t
+		block.ForcedBatches = append(block.ForcedBatches, forcedBatch)
+		*blocks = append(*blocks, block)
 	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
 		(*blocks)[len(*blocks)-1].ForcedBatches = append((*blocks)[len(*blocks)-1].ForcedBatches, forcedBatch)
 	} else {
