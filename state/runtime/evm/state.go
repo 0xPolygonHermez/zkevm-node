@@ -301,18 +301,19 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 			memory := memoryToStringArray(s.memory)
 
 			step := instrumentation.Step{
-				Contract:   contract,
-				StateRoot:  "0x" + hex.EncodeToString(s.host.GetStateRoot(ctx)),
-				Depth:      s.msg.Depth,
-				Pc:         uint64(s.ip),
-				Gas:        fmt.Sprint(s.gas),
-				OpCode:     op.String(),
-				GasCost:    fmt.Sprint(inst.gas),
-				Refund:     "0",
-				Op:         "0x" + hex.EncodeToString([]byte{byte(op)}),
-				Stack:      stack,
-				Memory:     memory,
-				ReturnData: "0x" + hex.EncodeToString(s.ret),
+				Contract:    contract,
+				StateRoot:   "0x" + hex.EncodeToString(s.host.GetStateRoot(ctx)),
+				Depth:       s.msg.Depth,
+				Pc:          uint64(s.ip),
+				Gas:         fmt.Sprint(s.gas),
+				OpCode:      op.String(),
+				GasCost:     fmt.Sprint(inst.gas),
+				Refund:      "0",
+				Op:          "0x" + hex.EncodeToString([]byte{byte(op)}),
+				Stack:       stack,
+				Memory:      memory,
+				MemoryBytes: s.memory,
+				ReturnData:  "0x" + hex.EncodeToString(s.ret),
 			}
 
 			if s.err != nil {

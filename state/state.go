@@ -796,7 +796,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 
 		opcode := vm.OpCode(op.Uint64()).String()
 
-		if trace.Context.Type == "CREATE" || opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
+		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
 			jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
 		}
 
@@ -813,12 +813,18 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 			for offset, memoryContent := range step.Memory {
 				memory.Set(uint64((offset*fakevm.MemoryItemSize)+zkEVMReservedMemorySize), uint64(fakevm.MemoryItemSize), common.Hex2Bytes(memoryContent))
 			}
+		} else {
+			memory = fakevm.NewMemory()
+		}
+
+		if len(step.MemoryBytes) > 0 {
+			memory.Resize(uint64(len(step.MemoryBytes)))
+			memory.Set(0, uint64(len(step.MemoryBytes)), step.MemoryBytes)
 		}
 
 		// Set Stack
 		stack = fakevm.Newstack()
 		for _, stackContent := range step.Stack {
-			// log.Debugf(stackContent)
 			valueBigInt, ok := new(big.Int).SetString(stackContent, 0)
 			if !ok {
 				log.Debugf("error while parsing stack valueBigInt")
