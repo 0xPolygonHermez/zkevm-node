@@ -2598,3 +2598,38 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	assert.Equal(t, globalExitRoot.MainnetExitRoot, exit.MainnetExitRoot)
 	assert.Equal(t, globalExitRoot.RollupExitRoot, exit.RollupExitRoot)
 }
+
+
+func TestAddForcedBatch(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   hash2,
+		ParentHash:  hash1,
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlockV2(ctx, block, "")
+	assert.NoError(t, err)
+	b, err := hex.DecodeHex("0x617b3a3528F9")
+	assert.NoError(t, err)
+	forcedBatch := state.ForcedBatch{
+		BlockNumber:       1,
+		ForcedBatchNumber: 2,
+		GlobalExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		Sequencer:        common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+		RawTxsData:       b,
+		ForceAt:          time.Now(),
+	}
+	err = testState.AddForcedBatch(ctx, &forcedBatch, "")
+	require.NoError(t, err)
+	fb, err := testState.GetForcedBatch(ctx, "", 2)
+	require.NoError(t, err)
+	assert.Equal(t, forcedBatch.BlockNumber, fb.BlockNumber)
+	assert.Equal(t, forcedBatch.ForcedBatchNumber, fb.ForcedBatchNumber)
+	assert.NotEqual(t, time.Time{}, fb.ForceAt)
+	assert.Equal(t, forcedBatch.GlobalExitRoot, fb.GlobalExitRoot)
+	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
+}
