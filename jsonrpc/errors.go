@@ -1,5 +1,7 @@
 package jsonrpc
 
+import "fmt"
+
 const (
 	defaultErrorCode        = -32000
 	invalidRequestErrorCode = -32600
@@ -18,8 +20,9 @@ type RPCError struct {
 	code int
 }
 
-func newRPCError(code int, err string) *RPCError {
-	return &RPCError{code: code, err: err}
+func newRPCError(code int, err string, args ...interface{}) *RPCError {
+	errMessage := fmt.Sprintf(err, args...)
+	return &RPCError{code: code, err: errMessage}
 }
 
 func (e *RPCError) Error() string {

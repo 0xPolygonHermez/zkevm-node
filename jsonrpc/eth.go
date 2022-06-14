@@ -54,8 +54,9 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 
 		header, err := e.getHeaderFromBlockNumberOrHash(&filter)
 		if err != nil {
-			log.Errorf("failed to get header from block hash or block number")
-			return "0x", nil
+			const errorMessage = "failed to get header from block hash or block number"
+			log.Errorf("%v: %v", errorMessage, err)
+			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
 		gas := argUint64(header.GasLimit)
@@ -66,25 +67,31 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 
 	ctx := context.Background()
 
+	var err error
 	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
-		return "0x", nil
+		return nil, err
 	}
 
 	batch, err := e.state.GetBatchByNumber(ctx, batchNumber, "")
 	if err != nil {
-		return "0x", nil
+		errorMessage := fmt.Sprintf("failed to get batch by number: %v", batchNumber)
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	bp, err := e.state.NewBatchProcessor(ctx, e.sequencerAddress, batch.Header.Root[:], "")
 	if err != nil {
-		return "0x", nil
+		const errorMessage = "failed to load batch processor"
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	result := bp.ProcessUnsignedTransaction(ctx, tx, arg.From, e.sequencerAddress)
 	if result.Failed() {
-		log.Errorf("unable to execute call: %s", result.Err.Error())
-		return "0x", nil
+		errorMessage := fmt.Sprintf("failed to execute call: %v", result.Err)
+		log.Errorf("%v", errorMessage)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argBytesPtr(result.ReturnValue), nil
@@ -124,9 +131,11 @@ func (e *Eth) GasPrice() (interface{}, error) {
 // GetBalance returns the account's balance at the referenced block
 func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
+
+	var err error
 	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
-		return nil, newRPCError(invalidParamsErrorCode, fmt.Sprintf("invalid argument 1: %v", err))
+		return nil, err
 	}
 
 	balance, err := e.state.GetBalance(ctx, address, batchNumber, "")
@@ -177,12 +186,10 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 
 		return block, nil
 	}
-
+	var err error
 	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
-		const errorMessage = "couldn't parse the provided block number"
-		log.Errorf("%v: %v", errorMessage, err)
-		return nil, newRPCError(defaultErrorCode, errorMessage)
+		return nil, err
 	}
 
 	batch, err := e.state.GetBatchByNumber(ctx, batchNumber, "")
@@ -203,6 +210,7 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, er
 func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
 
+	var err error
 	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
@@ -212,7 +220,9 @@ func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{},
 	if errors.Is(err, state.ErrNotFound) {
 		return "0x", nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get code"
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argBytes(code), nil
@@ -315,6 +325,7 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 	ctx := context.Background()
 
+	var err error
 	fromBlock, err := filter.FromBlock.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
@@ -342,6 +353,7 @@ func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
 
+	var err error
 	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
@@ -366,14 +378,18 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get transaction"
+		log.Error("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash(), "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get transaction receipt"
+		log.Error("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return toRPCTransaction(tx, receipt.BlockNumber, receipt.BlockHash, uint64(receipt.TransactionIndex)), nil
@@ -384,6 +400,7 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, error) {
 	ctx := context.Background()
 
+	var err error
 	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
@@ -393,14 +410,18 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get transaction"
+		log.Error("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash(), "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get transaction receipt"
+		log.Error("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return toRPCTransaction(tx, receipt.BlockNumber, receipt.BlockHash, uint64(receipt.TransactionIndex)), nil
@@ -430,6 +451,8 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 // GetTransactionCount returns account nonce
 func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
+
+	var err error
 	batchNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return nil, err
@@ -461,6 +484,7 @@ func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, err
 func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, error) {
 	ctx := context.Background()
 
+	var err error
 	blockNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
 		return err, nil
@@ -588,13 +612,13 @@ func (e *Eth) GetUncleByBlockNumberAndIndex() (interface{}, error) {
 // GetUncleCountByBlockHash returns the number of uncles in a block
 // matching the given block hash
 func (e *Eth) GetUncleCountByBlockHash() (interface{}, error) {
-	return "0x", nil
+	return "0x0", nil
 }
 
 // GetUncleCountByBlockNumber returns the number of uncles in a block
 // matching the given block number
 func (e *Eth) GetUncleCountByBlockNumber() (interface{}, error) {
-	return "0x", nil
+	return "0x0", nil
 }
 
 // ProtocolVersion
