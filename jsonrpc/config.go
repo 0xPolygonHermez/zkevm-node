@@ -6,4 +6,6 @@ type Config struct {
 	Port int    `mapstructure:"Port"`
 
 	MaxRequestsPerIPAndSecond float64 `mapstructure:"MaxRequestsPerIPAndSecond"`
+	ChainID                   uint64  `mapstructure:"ChainID"`
+	SequencerAddress          string  `mapstructure:"SequencerAddress"`
 }

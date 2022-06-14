@@ -19,6 +19,13 @@ const (
 	date = ""
 )
 
+const (
+	AGGREGATOR   = "aggregator"
+	SEQUENCER    = "sequencer"
+	RPC          = "rpc"
+	SYNCHRONIZER = "synchronizer"
+)
+
 func main() {
 	app := cli.NewApp()
 	app.Name = appName
@@ -54,11 +61,12 @@ func main() {
 			Usage:    "Automatically accepts any confirmation to execute the command",
 			Required: false,
 		},
-		&cli.BoolFlag{
-			Name:     config.FlagRemoteMT,
-			Aliases:  []string{"mt"},
-			Usage:    "Connect to merkletree service instead of use local libraries",
+		&cli.StringSliceFlag{
+			Name:     config.FlagComponents,
+			Aliases:  []string{"co"},
+			Usage:    "List of components to run",
 			Required: false,
+			Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER),
 		},
 	}
 	app.Commands = []*cli.Command{
