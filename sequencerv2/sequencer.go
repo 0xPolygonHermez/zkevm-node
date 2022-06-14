@@ -4,14 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/hermeznetwork/hermez-core/ethermanv2"
+	"github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 )
 
 const (
-	maxSequencesLength = 10
-	maxTxsInSequence   = 10
+	maxSequencesLength = 5
+	maxTxsInSequence   = 5
 )
 
 // Sequencer represents a sequencer
@@ -20,11 +20,10 @@ type Sequencer struct {
 
 	pool      txPool
 	state     stateInterface
-	ethMan    etherman
 	txManager txManager
 
-	sequencesInProgress []*ethermanv2.Sequence
-	sequenceInProgress  ethermanv2.Sequence
+	closedSequences    []types.Sequence
+	sequenceInProgress types.Sequence
 }
 
 // New init sequencer
@@ -32,13 +31,11 @@ func New(
 	cfg Config,
 	pool txPool,
 	state stateInterface,
-	ethMan etherman,
 	manager txManager) (Sequencer, error) {
 	return Sequencer{
 		cfg:       cfg,
 		pool:      pool,
 		state:     state,
-		ethMan:    ethMan,
 		txManager: manager,
 	}, nil
 }
@@ -48,62 +45,63 @@ func (s *Sequencer) Start(ctx context.Context) {
 	ticker := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	defer ticker.Stop()
 	for {
-		// 1. Wait for synchronizer to sync last batch
-		if !s.isSynced(ctx) {
-			select {
-			case <-ticker.C:
-				// nothing
-			case <-ctx.Done():
-				return
-			}
-			continue
-		}
+		s.tryToProcessTx(ctx, ticker)
+	}
+}
 
-		// 2. Check if current sequence should be sent
-		if s.isSequencesInProgressShouldBeSent() {
-			_ = s.txManager.SequenceBatches(s.sequencesInProgress)
-			s.sequenceInProgress = s.newSequence()
-			s.sequencesInProgress = []*ethermanv2.Sequence{}
-		}
+func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
+	// 1. Wait for synchronizer to sync last batch
+	if !s.isSynced(ctx) {
+		waitTick(ctx, ticker)
+		return
+	}
 
-		// 3. Check if current sequence should be closed
-		if s.isSequenceInProgressShouldBeClosed() {
-			s.sequencesInProgress = append(s.sequencesInProgress, &s.sequenceInProgress)
-			s.sequenceInProgress = s.newSequence()
-		}
+	// 2. Check if current sequence should be closed
+	if s.shouldCloseSequenceInProgress() {
+		s.closedSequences = append(s.closedSequences, s.sequenceInProgress)
+		s.sequenceInProgress = s.newSequence()
+	}
 
-		// 4. get pending tx from the pool
-		tx, err := s.getPendingTx(ctx)
-		if err != nil {
-			log.Errorf("failed to get pending tx, err: %v", err)
-			continue
-		}
+	// 3. Check if current sequence should be sent
+	if s.shouldSendSequences() {
+		_ = s.txManager.SequenceBatches(s.closedSequences)
+		s.closedSequences = []types.Sequence{}
+	}
 
-		if tx == nil {
-			log.Infof("waiting for pending txs...")
-			select {
-			case <-ticker.C:
-				// nothing
-			case <-ctx.Done():
-				return
-			}
-			continue
-		}
+	// 4. get pending tx from the pool
+	tx, ok := s.getMostProfitablePendingTx(ctx)
+	if !ok {
+		return
+	}
 
-		// 5. Process tx
-		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-		res := s.state.ProcessSequence(ctx, s.sequenceInProgress)
-		if res.Err != nil {
-			s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
-			log.Errorf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
-			continue
-		}
+	if tx == nil {
+		log.Infof("waiting for pending txs...")
+		waitTick(ctx, ticker)
+		return
+	}
 
-		// 6. Mark tx as selected in the pool
-		// TODO: add correct handling in case update didn't go through
-		_ = s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected)
+	// 5. Process tx
+	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
+	res := s.state.ProcessBatchAndStoreLastTx(ctx, s.sequenceInProgress.Txs)
+	if res.Err != nil {
+		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), res.Err)
+		return
+	}
 
-		// 7. broadcast tx in a new l2 block
+	// 6. Mark tx as selected in the pool
+	// TODO: add correct handling in case update didn't go through
+	_ = s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected)
+
+	// 7. broadcast tx in a new l2 block
+}
+
+func waitTick(ctx context.Context, ticker *time.Ticker) {
+	select {
+	case <-ticker.C:
+		// nothing
+	case <-ctx.Done():
+		return
 	}
 }
 
@@ -125,18 +123,27 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	return true
 }
 
-func (s *Sequencer) isSequencesInProgressShouldBeSent() bool {
-	return len(s.sequencesInProgress) >= maxSequencesLength
+func (s *Sequencer) shouldSendSequences() bool {
+	return len(s.closedSequences) >= maxSequencesLength
 }
 
-func (s *Sequencer) isSequenceInProgressShouldBeClosed() bool {
+func (s *Sequencer) shouldCloseSequenceInProgress() bool {
 	return len(s.sequenceInProgress.Txs) >= maxTxsInSequence
 }
 
-func (s *Sequencer) getPendingTx(ctx context.Context) (*pool.Transaction, error) {
-	return nil, nil
+func (s *Sequencer) getMostProfitablePendingTx(ctx context.Context) (*pool.Transaction, bool) {
+	tx, err := s.pool.GetPendingTxs(ctx, false, 1)
+	if err != nil {
+		log.Errorf("failed to get pending tx, err: %v", err)
+		return nil, false
+	}
+	if len(tx) == 0 {
+		log.Infof("waiting for pending tx to appear...")
+		return nil, false
+	}
+	return &tx[0], true
 }
 
-func (s *Sequencer) newSequence() ethermanv2.Sequence {
-	return ethermanv2.Sequence{}
+func (s *Sequencer) newSequence() types.Sequence {
+	return types.Sequence{}
 }
