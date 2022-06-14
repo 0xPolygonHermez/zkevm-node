@@ -24,6 +24,9 @@ func InitOrReset(cfg db.Config) error {
 	if _, err := dbPool.Exec(context.Background(), "DROP SCHEMA IF EXISTS state CASCADE;"); err != nil {
 		return err
 	}
+	if _, err := dbPool.Exec(context.Background(), "DROP SCHEMA IF EXISTS statev2 CASCADE;"); err != nil {
+		return err
+	}
 	if _, err := dbPool.Exec(context.Background(), "DROP SCHEMA IF EXISTS pool CASCADE;"); err != nil {
 		return err
 	}
