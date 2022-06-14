@@ -6,11 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strconv"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
@@ -239,7 +237,6 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 	var structLogs []instrumentation.StructLog
 	var executorTrace instrumentation.ExecutorTrace
 	var steps []instrumentation.Step
-	storage := map[string]string{}
 
 	codeSize := len(s.code)
 	for !s.stop {
@@ -300,12 +297,6 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 			}
 
 			// Executor trace
-			if s.storeDiff != nil {
-				storage[strconv.FormatUint(s.storeDiff.Location, encoding.Base16)] = strconv.FormatUint(s.storeDiff.Value, encoding.Base16)
-			} else {
-				storage = map[string]string{}
-			}
-
 			stack := bigArrayToStringArray(s.stack)
 			memory := memoryToStringArray(s.memory)
 
@@ -319,10 +310,9 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 				GasCost:    fmt.Sprint(inst.gas),
 				Refund:     "0",
 				Op:         "0x" + hex.EncodeToString([]byte{byte(op)}),
-				Storage:    storage,
 				Stack:      stack,
 				Memory:     memory,
-				ReturnData: "0x" + hex.EncodeToString(s.returnData),
+				ReturnData: "0x" + hex.EncodeToString(s.ret),
 			}
 
 			if s.err != nil {

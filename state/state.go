@@ -663,13 +663,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	result := bp.processTransaction(ctx, tx, receipt.From, sequencerAddress, tx.ChainId())
 	endTime := time.Now()
 
-	// Rollback
-	err = s.RollbackState(ctx, txBundleID)
-	if err != nil {
-		log.Errorf("debug transaction: failed to rollback transaction, err: %v", err)
-		return nil, err
-	}
-
 	if tracer == "" {
 		return result, nil
 	}
@@ -721,6 +714,13 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 	result.ExecutorTraceResult = traceResult
 
+	// Rollback
+	err = s.RollbackState(ctx, txBundleID)
+	if err != nil {
+		log.Errorf("debug transaction: failed to rollback transaction, err: %v", err)
+		return nil, err
+	}
+
 	return result, nil
 }
 
@@ -746,6 +746,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	memory := fakevm.NewMemory()
 
 	stateRoot = common.Hex2Bytes(trace.Context.OldStateRoot)
+	env.StateDB.SetStateRoot(stateRoot)
 
 	for _, step := range trace.Steps {
 		gas, ok := new(big.Int).SetString(step.Gas, encoding.Base10)
@@ -778,9 +779,12 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 			Stack:    stack,
 		}
 
+		codeAddr := common.HexToAddress(step.Contract.Address)
+		scope.Contract.CodeAddr = &codeAddr
+
 		opcode := vm.OpCode(op.Uint64()).String()
 
-		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
+		if trace.Context.Type == "CREATE" || opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
 			jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
 		}
 
@@ -812,27 +816,9 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 			stack.Push(value)
 		}
 
-		// Set Storage
-		for storageKey, storageValue := range step.Storage {
-			key, ok := new(big.Int).SetString("0x"+storageKey, 0)
-			if !ok {
-				log.Debugf("error while parsing storage key")
-				return nil, ErrParsingExecutorTrace
-			}
-			value, ok := new(big.Int).SetString("0x"+storageValue, 0)
-			if !ok {
-				log.Debugf("error while parsing storage value")
-				return nil, ErrParsingExecutorTrace
-			}
-			_, _, err := s.tree.SetStorageAt(context.Background(), common.HexToAddress(step.Contract.Address), key, value, stateRoot, "")
-			if err != nil {
-				return nil, err
-			}
-		}
-
 		// Returning from a call or create
 		if previousDepth > step.Depth {
-			jsTracer.CaptureExit([]byte{}, gasCost.Uint64(), fmt.Errorf(step.Error))
+			jsTracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
 		}
 
 		// Set StateRoot
@@ -848,7 +834,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	}
 
 	jsTracer.CaptureTxEnd(gasUsed.Uint64())
-	jsTracer.CaptureEnd([]byte(trace.Context.Output), gasUsed.Uint64(), time.Duration(trace.Context.Time), nil)
+	jsTracer.CaptureEnd(common.Hex2Bytes(trace.Context.Output), gasUsed.Uint64(), time.Duration(trace.Context.Time), nil)
 
 	return jsTracer.GetResult()
 }

@@ -3,7 +3,9 @@ package evm
 import (
 	"context"
 	"encoding/hex"
+	"strconv"
 
+	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
@@ -58,6 +60,7 @@ func (e *EVM) Run(ctx context.Context, c *runtime.Contract, host runtime.Host, c
 		Caller:  c.Caller.Hex(),
 		Value:   c.Value.String(),
 		Input:   "0x" + hex.EncodeToString(c.Input),
+		Gas:     strconv.FormatUint(c.Gas, encoding.Base10),
 	}
 
 	ret, structLogs, executorTrace, err := contract.Run(ctx, instrumentationContract)

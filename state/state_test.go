@@ -2797,5 +2797,5 @@ func TestDebugTransaction(t *testing.T) {
 	require.NoError(t, err)
 	log.Debug(string(j))
 
-	log.Debug(result.ExecutorTraceResult)
+	log.Debug(string(result.ExecutorTraceResult))
 }

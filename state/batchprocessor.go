@@ -711,7 +711,7 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 	}
 
 	address := helper.CreateAddress(senderAddress, tx.Nonce())
-	contract := runtime.NewContractCreation(0, senderAddress, senderAddress, address, tx.Value(), txGas, tx.Data())
+	contract := runtime.NewContractCreation(1, senderAddress, senderAddress, address, tx.Value(), txGas, tx.Data())
 
 	log.Debugf("new contract address = %v", address)
 
