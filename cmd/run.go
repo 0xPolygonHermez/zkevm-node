@@ -145,7 +145,7 @@ func setupLog(c log.Config) {
 }
 
 func runMigrations(c db.Config) {
-	err := db.RunMigrations(c)
+	err := db.RunMigrationsUp(c)
 	if err != nil {
 		log.Fatal(err)
 	}
