@@ -17,14 +17,14 @@ CREATE TABLE statev2.batch (  --batch abstraction: will be created through trust
 );
 
 CREATE TABLE statev2.virtual_batch (  --virtual state
-    batch_num BIGINT PRIMARY KEY REFERENCES statev2.batch (batch_num),
+    batch_num BIGINT PRIMARY KEY REFERENCES statev2.batch (batch_num) ON DELETE CASCADE,
     tx_hash VARCHAR,
     sequencer VARCHAR,
     block_num BIGINT NOT NULL REFERENCES statev2.block (block_num) ON DELETE CASCADE
 );
 
 CREATE TABLE statev2.verified_batch (  --consolidated state
-    batch_num BIGINT PRIMARY KEY REFERENCES statev2.batch (batch_num),
+    batch_num BIGINT PRIMARY KEY REFERENCES statev2.batch (batch_num) ON DELETE CASCADE,
     tx_hash VARCHAR,
     aggregator VARCHAR,
     block_num BIGINT NOT NULL REFERENCES statev2.block (block_num) ON DELETE CASCADE
@@ -47,5 +47,5 @@ CREATE TABLE statev2.transaction (  --transaction abstraction. transaction == L2
     header jsonb,
     uncles jsonb,
     received_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    batch_num BIGINT NOT NULL REFERENCES statev2.batch (batch_num)
+    batch_num BIGINT NOT NULL REFERENCES statev2.batch (batch_num) ON DELETE CASCADE
 );
