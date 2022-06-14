@@ -17,7 +17,7 @@ jobs:
         uses: docker/setup-buildx-action@v1
 
       - name: Login to DockerHub
-        uses: docker/login-action@v1 
+        uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -30,8 +30,7 @@ jobs:
           push: true
           tags: |
             hermeznetwork/hermez-node-zkevm:develop
-            hermeznetwork/hermez-core:1.5-integration
-            hermeznetwork/hermez-core:1.5-itestnet
+            hermeznetwork/hermez-core:develop
 
       - name: Check changes in prover
         id: prover_changes
@@ -51,4 +50,3 @@ jobs:
           push: true
           tags: |
             hermeznetwork/hez-mock-prover:latest
-            hermeznetwork/hez-mock-prover:1.5-integration
