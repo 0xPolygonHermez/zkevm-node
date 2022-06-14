@@ -679,6 +679,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	// Fill trace context
 	if tx.To() == nil {
 		context.Type = "CREATE"
+		context.To = result.CreateAddress.Hex()
 	} else {
 		context.Type = "CALL"
 		context.To = tx.To().Hex()
@@ -703,7 +704,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
-	fakeDB := &FakeDB{State: s, stateRoot: common.Hex2Bytes(context.OldStateRoot)}
+	fakeDB := &FakeDB{State: s, txBundleID: txBundleID}
 	env.SetStateDB(fakeDB)
 
 	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, jsTracer)
@@ -745,7 +746,12 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	stack := fakevm.Newstack()
 	memory := fakevm.NewMemory()
 
-	stateRoot = common.Hex2Bytes(trace.Context.OldStateRoot)
+	bigStateRoot, ok := new(big.Int).SetString(trace.Context.OldStateRoot, 0)
+	if !ok {
+		log.Debugf("error while parsing context oldStateRoot")
+		return nil, ErrParsingExecutorTrace
+	}
+	stateRoot = bigStateRoot.Bytes()
 	env.StateDB.SetStateRoot(stateRoot)
 
 	for _, step := range trace.Steps {
@@ -822,7 +828,13 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 		}
 
 		// Set StateRoot
-		stateRoot = common.Hex2Bytes(step.StateRoot)
+		bigStateRoot, ok := new(big.Int).SetString(step.StateRoot, 0)
+		if !ok {
+			log.Debugf("error while parsing step stateRoot")
+			return nil, ErrParsingExecutorTrace
+		}
+
+		stateRoot = bigStateRoot.Bytes()
 		env.StateDB.SetStateRoot(stateRoot)
 		previousDepth = step.Depth
 	}

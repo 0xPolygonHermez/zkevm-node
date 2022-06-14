@@ -302,7 +302,7 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 
 			step := instrumentation.Step{
 				Contract:   contract,
-				StateRoot:  "0x" + hex.EncodeToString(s.host.GetStateRoot()),
+				StateRoot:  "0x" + hex.EncodeToString(s.host.GetStateRoot(ctx)),
 				Depth:      s.msg.Depth,
 				Pc:         uint64(s.ip),
 				Gas:        fmt.Sprint(s.gas),
