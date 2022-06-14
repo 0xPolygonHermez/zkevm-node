@@ -535,6 +535,12 @@ func (s *State) ConsolidateBatch(ctx context.Context, batchNumber uint64, consol
 	return s.PostgresStorage.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash, consolidatedAt, aggregator, txBundleID)
 }
 
+// ProcessSequence process sequence of the txs
+// TODO: implement function
+func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult {
+	return &runtime.ExecutionResult{}
+}
+
 // ResetDB resets the state to block for the given DB tx bundle.
 func (s *State) ResetDB(ctx context.Context, block *Block, txBundleID string) error {
 	return s.PostgresStorage.Reset(ctx, block, txBundleID)
@@ -849,4 +855,12 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	jsTracer.CaptureEnd(common.Hex2Bytes(trace.Context.Output), gasUsed.Uint64(), time.Duration(trace.Context.Time), nil)
 
 	return jsTracer.GetResult()
+}
+
+func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txBundleID string) error {
+	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, txBundleID)
+}
+
+func (s *State) GetLatestGlobalExitRoot(ctx context.Context, txBundleID string) (*GlobalExitRoot, error) {
+	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, txBundleID)
 }

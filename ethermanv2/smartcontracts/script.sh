@@ -12,3 +12,4 @@ gen proofofefficiency
 gen bridge
 gen matic
 gen globalexitrootmanager
+gen mockverifier

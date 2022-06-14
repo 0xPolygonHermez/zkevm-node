@@ -92,7 +92,15 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "ExecutorServer.Port",
-			expectedValue: 00000,
+			expectedValue: 0,
+		},
+		{
+			path:          "RPC.ChainID",
+			expectedValue: uint64(1001),
+		},
+		{
+			path:          "RPC.SequencerAddress",
+			expectedValue: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 		},
 	}
 

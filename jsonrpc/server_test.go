@@ -43,8 +43,9 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 		Host:                      host,
 		Port:                      port,
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
+		SequencerAddress:          sequencerAddressHex,
+		ChainID:                   1001,
 	}
-
 	sequencerAddress := common.HexToAddress(sequencerAddressHex)
 	pool := newPoolMock(t)
 	state := newStateMock(t)
@@ -52,7 +53,7 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	gasPriceEstimator := newGasPriceEstimatorMock(t)
 	storage := newStorageMock(t)
 
-	server := NewServer(cfg, defaultChainID, chainID, sequencerAddress,
+	server := NewServer(cfg, defaultChainID, chainID,
 		pool, state, gasPriceEstimator, storage)
 
 	go func() {

@@ -2799,3 +2799,29 @@ func TestDebugTransaction(t *testing.T) {
 
 	log.Debug(string(result.ExecutorTraceResult))
 }
+
+func TestAddGlobalExitRoot(t *testing.T) {
+	ctx := context.Background()
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   hash2,
+		ParentHash:  hash1,
+		ReceivedAt:  time.Now(),
+	}
+	err := testState.AddBlock(ctx, block, "")
+	assert.NoError(t, err)
+	globalExitRoot := state.GlobalExitRoot{
+		BlockNumber:       1,
+		GlobalExitRootNum: big.NewInt(2),
+		MainnetExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		RollupExitRoot:    common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+	}
+	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, "")
+	require.NoError(t, err)
+	exit, err := testState.GetLatestGlobalExitRoot(ctx, "")
+	require.NoError(t, err)
+	assert.Equal(t, globalExitRoot.BlockNumber, exit.BlockNumber)
+	assert.Equal(t, globalExitRoot.GlobalExitRootNum, exit.GlobalExitRootNum)
+	assert.Equal(t, globalExitRoot.MainnetExitRoot, exit.MainnetExitRoot)
+	assert.Equal(t, globalExitRoot.RollupExitRoot, exit.RollupExitRoot)
+}
