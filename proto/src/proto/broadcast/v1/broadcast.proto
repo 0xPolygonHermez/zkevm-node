@@ -28,10 +28,7 @@ message GetBatchResponse {
 
 // Common
 message Transaction {
-  string hash = 1;
-  string from_address = 2;
-  string encoded = 3;
-  Timestamp received_at = 7;
+  string encoded = 1;
 }
 
 // from https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/empty.proto
