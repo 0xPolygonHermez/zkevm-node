@@ -22,7 +22,7 @@ var (
 	testState    *state.State
 	hash1, hash2 common.Hash
 	stateDb      *pgxpool.Pool
-	err error
+	err          error
 )
 
 var cfg = dbutils.NewConfigFromEnv()

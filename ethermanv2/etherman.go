@@ -181,10 +181,10 @@ func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blo
 		return fmt.Errorf("error: tx is still pending. TxHash: %s", tx.Hash().String())
 	}
 	msg, err := tx.AsMessage(types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
-    if err != nil {
+	if err != nil {
 		log.Error(err)
-        return err
-    }
+		return err
+	}
 	if fb.Sequencer == msg.From() {
 		forcedBatch.RawTxsData = tx.Data()
 	} else {
@@ -211,7 +211,7 @@ func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blo
 	return nil
 }
 
-func prepareBlock(vLog types.Log, t time.Time, fullBlock *types.Block) state.Block{
+func prepareBlock(vLog types.Log, t time.Time, fullBlock *types.Block) state.Block {
 	var block state.Block
 	block.BlockNumber = vLog.BlockNumber
 	block.BlockHash = vLog.BlockHash
