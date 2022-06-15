@@ -30,9 +30,18 @@ func NewSQLDB(cfg Config) (*pgxpool.Pool, error) {
 	return conn, nil
 }
 
-// RunMigrations will execute pending migrations if needed to keep
-// the database updated with the latest changes
-func RunMigrations(cfg Config) error {
+func RunMigrationsUp(cfg Config) error {
+	return runMigrations(cfg, migrate.Up)
+}
+
+func RunMigrationsDown(cfg Config) error {
+	return runMigrations(cfg, migrate.Down)
+}
+
+// runMigrations will execute pending migrations if needed to keep
+// the database updated with the latest changes in either direction,
+// up or down.
+func runMigrations(cfg Config, direction migrate.MigrationDirection) error {
 	c, err := pgx.ParseConfig(fmt.Sprintf("postgres://%s:%s@%s:%s/%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name))
 	if err != nil {
 		return err
@@ -40,11 +49,11 @@ func RunMigrations(cfg Config) error {
 	db := stdlib.OpenDB(*c)
 
 	var migrations = &migrate.PackrMigrationSource{Box: packr.New("hermez-db-migrations", "./migrations")}
-	nMigrations, err := migrate.Exec(db, "postgres", migrations, migrate.Up)
+	nMigrations, err := migrate.Exec(db, "postgres", migrations, direction)
 	if err != nil {
 		return err
 	}
 
-	log.Info("successfully ran ", nMigrations, " migrations Up")
+	log.Info("successfully ran ", nMigrations, " migrations")
 	return nil
 }

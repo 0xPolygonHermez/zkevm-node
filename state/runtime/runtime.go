@@ -99,5 +99,5 @@ func (r *ExecutionResult) Failed() bool {
 
 // Reverted indicates the execution was reverted
 func (r *ExecutionResult) Reverted() bool {
-	return r.Err == ErrExecutionReverted
+	return errors.Is(r.Err, ErrExecutionReverted)
 }
