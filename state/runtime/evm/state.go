@@ -240,7 +240,6 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 	var structLogs []instrumentation.StructLog
 	var executorTrace instrumentation.ExecutorTrace
 	var steps []instrumentation.Step
-	var pc uint64
 
 	codeSize := len(s.code)
 	for !s.stop {
@@ -280,7 +279,7 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 		if s.instrumented {
 			// Debug
 			structLog := instrumentation.StructLog{
-				Pc:         pc,
+				Pc:         uint64(s.ip),
 				Op:         op.String(),
 				Gas:        s.gas,
 				GasCost:    inst.gas,
@@ -302,7 +301,7 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 				Contract:   contract,
 				StateRoot:  "0x" + hex.EncodeToString(s.host.GetStateRoot(ctx)),
 				Depth:      s.msg.Depth,
-				Pc:         pc,
+				Pc:         uint64(s.ip),
 				Gas:        fmt.Sprint(s.gas),
 				OpCode:     op.String(),
 				GasCost:    fmt.Sprint(inst.gas),
@@ -326,7 +325,6 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 		}
 
 		s.ip++
-		pc++
 	}
 
 	if err := s.err; err != nil {
@@ -366,7 +364,11 @@ func bigArrayToStringArray(b []*big.Int) []string {
 	s := []string{}
 
 	for _, bn := range b {
-		s = append(s, fmt.Sprintf("0x%x", bn))
+		sbn := fmt.Sprintf("%x", bn)
+		if len(sbn)%2 != 0 {
+			sbn = "0" + sbn
+		}
+		s = append(s, "0x"+sbn)
 	}
 
 	return s

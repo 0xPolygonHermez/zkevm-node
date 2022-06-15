@@ -208,7 +208,7 @@ func (b *BatchProcessor) isSigned(tx *types.Transaction) bool {
 
 func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address, chainID *big.Int) *runtime.ExecutionResult {
 	log.Debugf("Processing tx: %v", tx.Hash())
-
+	var result *runtime.ExecutionResult
 	// Set transaction context
 	b.Host.transactionContext.currentTransaction = tx
 	b.Host.transactionContext.currentOrigin = senderAddress
@@ -219,21 +219,23 @@ func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Trans
 
 	if b.isContractCreation(tx) {
 		log.Debug("smart contract creation")
-		return b.create(ctx, tx, senderAddress, sequencerAddress, tx.Gas())
-	}
-
-	if b.isSmartContractExecution(ctx, tx) {
+		result = b.create(ctx, tx, senderAddress, sequencerAddress, tx.Gas())
+	} else if b.isSmartContractExecution(ctx, tx) {
 		log.Debug("smart contract execution")
-		return b.execute(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas(), chainID)
-	}
-
-	if b.isTransfer(ctx, tx) {
+		result = b.execute(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas(), chainID)
+	} else if b.isTransfer(ctx, tx) {
 		log.Debug("transfer")
-		return b.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas())
+		result = b.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas())
+	} else {
+		log.Error("unknown transaction type")
+		return &runtime.ExecutionResult{Err: ErrInvalidTxType, StateRoot: b.Host.stateRoot}
 	}
 
-	log.Error("unknown transaction type")
-	return &runtime.ExecutionResult{Err: ErrInvalidTxType, StateRoot: b.Host.stateRoot}
+	if result.Reverted() {
+		result.Err = constructErrorFromRevert(result)
+	}
+
+	return result
 }
 
 func (b *BatchProcessor) populateBatchHeader(batch, lastBatch *Batch) {

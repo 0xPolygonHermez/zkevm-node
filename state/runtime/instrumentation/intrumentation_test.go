@@ -87,9 +87,9 @@ func TestSCTxs(t *testing.T) {
 	// require.NoError(t, err)
 	// log.Debug(string(j))
 
-	// file, _ := json.MarshalIndent(result.ExecutorTrace, "", " ")
-	// err = ioutil.WriteFile("trace.json", file, 0644)
-	// require.NoError(t, err)
+	file, _ := json.MarshalIndent(result.ExecutorTrace, "", " ")
+	err = ioutil.WriteFile("trace.json", file, 0644)
+	require.NoError(t, err)
 
 	log.Debug(string(result.ExecutorTraceResult))
 }

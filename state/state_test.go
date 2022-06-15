@@ -2587,7 +2587,7 @@ func TestExecutorTrace(t *testing.T) {
 	// Create state
 	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
 
-	traceFile, err := os.Open("../test/traces/op-call_2__full_trace_0.json")
+	traceFile, err := os.Open("../test/traces/op-call_1__full_trace_0.json")
 	require.NoError(t, err)
 	defer traceFile.Close()
 
@@ -2622,8 +2622,8 @@ func TestExecutorTrace(t *testing.T) {
 	require.NoError(t, err)
 	err = json.Unmarshal(result, &expectedResult)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(expectedResult))
 	log.Debugf("%v", string(result))
+	require.Equal(t, 2, len(expectedResult))
 }
 
 func TestDebugTransaction(t *testing.T) {
