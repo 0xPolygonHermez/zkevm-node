@@ -3,10 +3,12 @@ package statev2_test
 import (
 	"context"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
@@ -21,15 +23,34 @@ var (
 
 var cfg = dbutils.NewConfigFromEnv()
 
+var stateCfg = state.Config{}
+
+func TestMain(m *testing.M) {
+	stateDb, err := db.NewSQLDB(cfg)
+	if err != nil {
+		panic(err)
+	}
+	defer stateDb.Close()
+	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
+	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb))
+
+	result := m.Run()
+
+	os.Exit(result)
+}
 func TestAddGlobalExitRoot(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
 	ctx := context.Background()
 	block := &state.Block{
 		BlockNumber: 1,
-		BlockHash:   hash2,
-		ParentHash:  hash1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		ReceivedAt:  time.Now(),
 	}
-	err := testState.AddBlock(ctx, block, "")
+	err = testState.AddBlock(ctx, block, "")
 	assert.NoError(t, err)
 	globalExitRoot := state.GlobalExitRoot{
 		BlockNumber:       1,
@@ -54,8 +75,8 @@ func TestAddForcedBatch(t *testing.T) {
 	ctx := context.Background()
 	block := &state.Block{
 		BlockNumber: 1,
-		BlockHash:   hash2,
-		ParentHash:  hash1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		ReceivedAt:  time.Now(),
 	}
 	err = testState.AddBlock(ctx, block, "")

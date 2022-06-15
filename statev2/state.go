@@ -5,10 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/google/uuid"
-	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
 const (
@@ -35,8 +31,7 @@ var (
 
 // State is a implementation of the state
 type State struct {
-	cfg  Config
-	tree statetree
+	cfg Config
 	*PostgresStorage
 
 	mu    *sync.Mutex
@@ -44,90 +39,14 @@ type State struct {
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage, tree statetree) *State {
+func NewState(cfg Config, storage *PostgresStorage) *State {
 	return &State{
 		cfg:             cfg,
-		tree:            tree,
 		PostgresStorage: storage,
 
 		mu:    new(sync.Mutex),
 		dbTxs: make(map[string]bool),
 	}
-}
-
-// BeginStateTransaction starts a transaction block
-func (s *State) BeginStateTransaction(ctx context.Context) (string, error) {
-	const maxAttempts = 3
-	var (
-		txBundleID string
-		found      bool
-	)
-
-	s.mu.Lock()
-	for i := 0; i < maxAttempts; i++ {
-		txBundleID = uuid.NewString()
-		_, idExists := s.dbTxs[txBundleID]
-		if !idExists {
-			found = true
-			break
-		}
-	}
-	s.mu.Unlock()
-
-	if !found {
-		return "", fmt.Errorf("could not find unused uuid for db tx bundle")
-	}
-
-	if err := s.PostgresStorage.BeginDBTransaction(ctx, txBundleID); err != nil {
-		return "", err
-	}
-	if err := s.tree.BeginDBTransaction(ctx, txBundleID); err != nil {
-		return "", err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.dbTxs[txBundleID] = true
-
-	return txBundleID, nil
-}
-
-// CommitState commits a state into db
-func (s *State) CommitState(ctx context.Context, txBundleID string) error {
-	if err := s.tree.Commit(ctx, txBundleID); err != nil {
-		return err
-	}
-
-	if err := s.PostgresStorage.Commit(ctx, txBundleID); err != nil {
-		return err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.dbTxs, txBundleID)
-	return nil
-}
-
-// RollbackState rollbacks a db state transaction
-func (s *State) RollbackState(ctx context.Context, txBundleID string) error {
-	if err := s.tree.Rollback(ctx, txBundleID); err != nil {
-		return err
-	}
-
-	if err := s.PostgresStorage.Rollback(ctx, txBundleID); err != nil {
-		return err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.dbTxs, txBundleID)
-	return nil
-}
-
-// ProcessSequence process sequence of the txs
-// TODO: implement function
-func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult {
-	return &runtime.ExecutionResult{}
 }
 
 // ResetDB resets the state to block for the given DB tx bundle.
