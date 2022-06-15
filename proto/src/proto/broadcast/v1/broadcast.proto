@@ -25,11 +25,13 @@ message GetLastBatchNumberResponse {
 }
 
 message GetTransactionsPerBatchResponse {
-  repeated Transaction transactions = 1;
+  uint64 batch_number = 1;
+  repeated Transaction transactions = 2;
 }
 
 message GetLastBatchTransactionsResponse {
-  repeated Transaction transactions = 1;
+  uint64 batch_number = 1;
+  repeated Transaction transactions = 2;
 }
 
 // Common
@@ -41,7 +43,6 @@ message Transaction {
   string header = 5;
   string uncles = 6;
   Timestamp received_at = 7;
-  uint64 batch_number = 8;
 }
 
 // from https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/empty.proto
