@@ -29,12 +29,10 @@ func NewServer(config Config, defaultChainID uint64, chainID uint64,
 	netEndpoints := &Net{chainID: chainID}
 	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
 	txPoolEndpoints := &TxPool{}
-	traceEndpoints := &Trace{state: s}
-	parityEndpoints := &Parity{}
 	debugEndpoints := &Debug{state: s}
 	web3Endpoints := &Web3{}
 
-	handler := newJSONRpcHandler(ethEndpoints, netEndpoints, hezEndpoints, txPoolEndpoints, traceEndpoints, parityEndpoints, debugEndpoints, web3Endpoints)
+	handler := newJSONRpcHandler(ethEndpoints, netEndpoints, hezEndpoints, txPoolEndpoints, debugEndpoints, web3Endpoints)
 
 	srv := &Server{
 		config:  config,

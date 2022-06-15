@@ -2,7 +2,9 @@ package state_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
@@ -14,13 +16,18 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
+	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/js"
+	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/contracts/bin/FailureTest"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
@@ -1240,15 +1247,6 @@ func TestSCCall(t *testing.T) {
 	receipt, err := st.GetTransactionReceipt(ctx, signedTx6.Hash(), "")
 	require.NoError(t, err)
 	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
-
-	// Execution Trace
-	receipt, err = st.GetTransactionReceipt(ctx, signedTx4.Hash(), "")
-	require.NoError(t, err)
-
-	result := st.ReplayTransaction(receipt.TxHash, []string{"trace", "vmTrace", "statediff"})
-	require.NoError(t, result.Err)
-	assert.Equal(t, "PUSH1", evm.OpCode(result.VMTrace.Operations[0].Instruction).String())
-	require.Greater(t, len(result.Trace), 0)
 }
 
 func TestGenesisStorage(t *testing.T) {
@@ -1894,14 +1892,6 @@ func TestEstimateGas(t *testing.T) {
 	gasEstimation, err = st.EstimateGas(signedTxTransfer, auth.From)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(state.TxTransferGas), gasEstimation)
-
-	// Execution Trace
-	receipt, err := st.GetTransactionReceipt(ctx, signedTxStoreValue.Hash(), "")
-	require.NoError(t, err)
-
-	result := st.ReplayTransaction(receipt.TxHash, []string{"trace", "vmTrace", "statediff"})
-	require.NoError(t, result.Err)
-	assert.Equal(t, "PUSH1", evm.OpCode(result.VMTrace.Operations[0].Instruction).String())
 }
 
 func TestStorageOnDeploy(t *testing.T) {
@@ -2571,6 +2561,243 @@ func TestRevertMessage(t *testing.T) {
 	gas, err := st.EstimateGas(signedTx, sequencerAddress)
 	assert.Equal(t, uint64(0x0), gas)
 	assert.Contains(t, err.Error(), "juernes")
+}
+
+func TestExecutorTrace(t *testing.T) {
+	var (
+		trace          instrumentation.ExecutorTrace
+		tracer         instrumentation.Tracer
+		expectedResult []string
+	)
+
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
+
+	traceFile, err := os.Open("../test/traces/op-call_1__full_trace_0.json")
+	require.NoError(t, err)
+	defer traceFile.Close()
+
+	tracerFile, err := os.Open("../test/tracers/tracer2.json")
+	require.NoError(t, err)
+	defer tracerFile.Close()
+
+	byteValue, err := ioutil.ReadAll(traceFile)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(byteValue, &trace)
+	require.NoError(t, err)
+
+	byteCode, err := ioutil.ReadAll(tracerFile)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(byteCode, &tracer)
+	require.NoError(t, err)
+
+	jsTracer, err := js.NewJsTracer(string(tracer.Code), new(tracers.Context))
+	require.NoError(t, err)
+
+	gasPrice, ok := new(big.Int).SetString(trace.Context.GasPrice, 10)
+	require.Equal(t, true, ok)
+
+	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
+	fakeDB := &state.FakeDB{State: st}
+	fakeDB.SetStateRoot([]byte(trace.Context.OldStateRoot))
+	env.SetStateDB(fakeDB)
+
+	result, err := st.ParseTheTraceUsingTheTracer(env, trace, jsTracer)
+	require.NoError(t, err)
+	err = json.Unmarshal(result, &expectedResult)
+	require.NoError(t, err)
+	log.Debugf("%v", string(result))
+	require.Equal(t, 2, len(expectedResult))
+}
+
+func TestDebugTransaction(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 4000000
+	scCounterByteCode, err := testutils.ReadBytecode("Counter/Counter.bin")
+	require.NoError(t, err)
+	var scCounterAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	scInteractionByteCode, err := testutils.ReadBytecode("Interaction/Interaction.bin")
+	require.NoError(t, err)
+	var scInteractionAddress = common.HexToAddress("0x85e844b762A271022b692CF99cE5c59BA0650Ac8")
+	var expectedFinalRoot = "112475504792743399671183524228545390577813291715700260926416920478118349217128"
+
+	// Init database instance
+	err = dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+
+	// Create State db
+	stateDb, err = db.NewSQLDB(cfg)
+	require.NoError(t, err)
+
+	// Create State tree
+	store := tree.NewPostgresStore(stateDb)
+	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
+	scCodeStore := tree.NewPostgresSCCodeStore(stateDb)
+	stateTree := tree.NewStateTree(mt, scCodeStore)
+
+	// Create state
+	st := state.NewState(stateCfg, state.NewPostgresStorage(stateDb), stateTree)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	genesis := state.Genesis{
+		Block:    genesisBlock,
+		Balances: make(map[common.Address]*big.Int),
+	}
+
+	genesis.Balances[sequencerAddress] = new(big.Int).SetInt64(int64(sequencerBalance))
+	err = st.SetGenesis(ctx, genesis, "")
+	require.NoError(t, err)
+
+	// Register Sequencer
+	sequencer := state.Sequencer{
+		Address:     sequencerAddress,
+		URL:         "http://www.address.com",
+		ChainID:     chainIDSequencer,
+		BlockNumber: genesisBlock.Header().Number.Uint64(),
+	}
+
+	err = st.AddSequencer(ctx, sequencer, "")
+	assert.NoError(t, err)
+
+	var txs []*types.Transaction
+
+	// Deploy counter.sol
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scCounterByteCode),
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	txs = append(txs, signedTx)
+
+	// Deploy interaction.sol
+	tx1 := types.NewTx(&types.LegacyTx{
+		Nonce:    1,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scInteractionByteCode),
+	})
+
+	signedTx1, err := auth.Signer(auth.From, tx1)
+	require.NoError(t, err)
+
+	txs = append(txs, signedTx1)
+
+	// Call setCounterAddr method from Interaction SC to set Counter SC Address
+	tx2 := types.NewTransaction(2, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("ec39b429000000000000000000000000"+strings.TrimPrefix(scCounterAddress.String(), "0x")))
+	signedTx2, err := auth.Signer(auth.From, tx2)
+	require.NoError(t, err)
+	txs = append(txs, signedTx2)
+
+	// Increment Counter calling Counter SC
+	tx3 := types.NewTransaction(3, scCounterAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("d09de08a"))
+	signedTx3, err := auth.Signer(auth.From, tx3)
+	require.NoError(t, err)
+	txs = append(txs, signedTx3)
+
+	// Retrieve counter value calling Interaction SC (this is the real test as Interaction SC will call Counter SC)
+	tx4 := types.NewTransaction(4, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("a87d942c"))
+	signedTx4, err := auth.Signer(auth.From, tx4)
+	require.NoError(t, err)
+	txs = append(txs, signedTx4)
+
+	// Increment Counter calling again
+	tx5 := types.NewTransaction(5, scCounterAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("d09de08a"))
+	signedTx5, err := auth.Signer(auth.From, tx5)
+	require.NoError(t, err)
+	txs = append(txs, signedTx5)
+
+	// Retrieve counter value again
+	tx6 := types.NewTransaction(6, scInteractionAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("a87d942c"))
+	signedTx6, err := auth.Signer(auth.From, tx6)
+	require.NoError(t, err)
+	txs = append(txs, signedTx6)
+
+	// Create Batch
+	batch := &state.Batch{
+		BlockNumber:        uint64(0),
+		Sequencer:          sequencerAddress,
+		Aggregator:         sequencerAddress,
+		ConsolidatedTxHash: common.Hash{},
+		Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
+		Uncles:             nil,
+		Transactions:       txs,
+		RawTxsData:         nil,
+		MaticCollateral:    big.NewInt(1),
+		ReceivedAt:         time.Now(),
+		ChainID:            big.NewInt(1000),
+		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
+	}
+
+	lastBatch, err := st.GetLastBatch(ctx, true, "")
+	require.NoError(t, err)
+
+	// Create Batch Processor
+	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, lastBatch.Header.Root[:], "")
+	require.NoError(t, err)
+
+	err = bp.ProcessBatch(ctx, batch)
+	require.NoError(t, err)
+
+	receipt, err := st.GetTransactionReceipt(ctx, signedTx6.Hash(), "")
+	require.NoError(t, err)
+	assert.Equal(t, expectedFinalRoot, new(big.Int).SetBytes(receipt.PostState).String())
+
+	// Execution Trace
+	receipt, err = st.GetTransactionReceipt(ctx, signedTx.Hash(), "")
+	require.NoError(t, err)
+
+	// Read tracer from filesystem
+	var tracer instrumentation.Tracer
+	tracerFile, err := os.Open("../test/tracers/tracer.json")
+	require.NoError(t, err)
+	defer tracerFile.Close()
+
+	byteCode, err := ioutil.ReadAll(tracerFile)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(byteCode, &tracer)
+	require.NoError(t, err)
+
+	result, err := st.DebugTransaction(context.Background(), receipt.TxHash, tracer.Code)
+	require.NoError(t, err)
+
+	j, err := json.Marshal(result.ExecutorTrace)
+	require.NoError(t, err)
+	log.Debug(string(j))
+
+	log.Debug(string(result.ExecutorTraceResult))
 }
 
 func TestAddGlobalExitRoot(t *testing.T) {

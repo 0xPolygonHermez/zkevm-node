@@ -87,6 +87,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: float64(50),
 		},
 		{
+			path:          "ExecutorServer.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
+			path:          "ExecutorServer.Port",
+			expectedValue: 0,
+		},
+		{
 			path:          "RPC.ChainID",
 			expectedValue: uint64(1001),
 		},

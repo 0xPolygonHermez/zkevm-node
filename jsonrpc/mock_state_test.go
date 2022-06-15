@@ -24,6 +24,29 @@ type stateMock struct {
 	mock.Mock
 }
 
+// DebugTransaction provides a mock function with given fields: ctx, transactionHash, tracer
+func (_m *stateMock) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error) {
+	ret := _m.Called(ctx, transactionHash, tracer)
+
+	var r0 *runtime.ExecutionResult
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, string) *runtime.ExecutionResult); ok {
+		r0 = rf(ctx, transactionHash, tracer)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*runtime.ExecutionResult)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, string) error); ok {
+		r1 = rf(ctx, transactionHash, tracer)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // EstimateGas provides a mock function with given fields: transaction, senderAddress
 func (_m *stateMock) EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error) {
 	ret := _m.Called(transaction, senderAddress)
@@ -491,45 +514,6 @@ func (_m *stateMock) NewBatchProcessor(ctx context.Context, sequencerAddress com
 	}
 
 	return r0, r1
-}
-
-// ReplayBatchTransactions provides a mock function with given fields: batchNumber, traceMode
-func (_m *stateMock) ReplayBatchTransactions(batchNumber uint64, traceMode []string) ([]*runtime.ExecutionResult, error) {
-	ret := _m.Called(batchNumber, traceMode)
-
-	var r0 []*runtime.ExecutionResult
-	if rf, ok := ret.Get(0).(func(uint64, []string) []*runtime.ExecutionResult); ok {
-		r0 = rf(batchNumber, traceMode)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*runtime.ExecutionResult)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(uint64, []string) error); ok {
-		r1 = rf(batchNumber, traceMode)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ReplayTransaction provides a mock function with given fields: transactionHash, traceMode
-func (_m *stateMock) ReplayTransaction(transactionHash common.Hash, traceMode []string) *runtime.ExecutionResult {
-	ret := _m.Called(transactionHash, traceMode)
-
-	var r0 *runtime.ExecutionResult
-	if rf, ok := ret.Get(0).(func(common.Hash, []string) *runtime.ExecutionResult); ok {
-		r0 = rf(transactionHash, traceMode)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*runtime.ExecutionResult)
-		}
-	}
-
-	return r0
 }
 
 type newStateMockT interface {
