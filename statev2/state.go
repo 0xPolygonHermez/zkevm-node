@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+
+	"github.com/jackc/pgx/v4"
 )
 
 const (
@@ -47,28 +49,28 @@ func NewState(storage *PostgresStorage) *State {
 	}
 }
 
-// ResetDB resets the state to block for the given DB tx bundle.
-func (s *State) ResetDB(ctx context.Context, block *Block, txBundleID string) error {
-	return s.PostgresStorage.Reset(ctx, block, txBundleID)
+// ResetDB resets the state to block for the given DB tx .
+func (s *State) ResetDB(ctx context.Context, block *Block, txID pgx.Tx) error {
+	return s.PostgresStorage.Reset(ctx, block, txID)
 }
 
-func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txBundleID string) error {
-	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, txBundleID)
+func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txID pgx.Tx) error {
+	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, txID)
 }
 
-func (s *State) GetLatestGlobalExitRoot(ctx context.Context, txBundleID string) (*GlobalExitRoot, error) {
-	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, txBundleID)
+func (s *State) GetLatestGlobalExitRoot(ctx context.Context, txID pgx.Tx) (*GlobalExitRoot, error) {
+	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, txID)
 }
 
-func (s *State) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, txBundleID string) error {
-	return s.PostgresStorage.AddForcedBatch(ctx, forcedBatch, txBundleID)
+func (s *State) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, txID pgx.Tx) error {
+	return s.PostgresStorage.AddForcedBatch(ctx, forcedBatch, txID)
 }
 
-func (s *State) GetForcedBatch(ctx context.Context, txBundleID string, forcedBatchNumber uint64) (*ForcedBatch, error) {
-	return s.PostgresStorage.GetForcedBatch(ctx, txBundleID, forcedBatchNumber)
+func (s *State) GetForcedBatch(ctx context.Context, txID pgx.Tx, forcedBatchNumber uint64) (*ForcedBatch, error) {
+	return s.PostgresStorage.GetForcedBatch(ctx, txID, forcedBatchNumber)
 }
 
 // AddBlock adds a new block to the State Store.
-func (s *State) AddBlock(ctx context.Context, block *Block, txBundleID string) error {
-	return s.PostgresStorage.AddBlock(ctx, block, txBundleID)
+func (s *State) AddBlock(ctx context.Context, block *Block, txID pgx.Tx) error {
+	return s.PostgresStorage.AddBlock(ctx, block, txID)
 }

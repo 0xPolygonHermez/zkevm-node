@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/statev2/store"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -23,19 +22,19 @@ const (
 
 // PostgresStorage implements the Storage interface
 type PostgresStorage struct {
-	*store.Pg
+	*pgxpool.Pool
 }
 
 // NewPostgresStorage creates a new StateDB
 func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 	return &PostgresStorage{
-		Pg: store.NewPg(db),
+		db,
 	}
 }
 
 // Reset resets the state to a block
-func (s *PostgresStorage) Reset(ctx context.Context, block *Block, txBundleID string) error {
-	if _, err := s.Exec(ctx, txBundleID, resetSQL, block.BlockNumber); err != nil {
+func (s *PostgresStorage) Reset(ctx context.Context, block *Block, txID pgx.Tx) error {
+	if _, err := txID.Exec(ctx, resetSQL, block.BlockNumber); err != nil {
 		return err
 	}
 	//Remove consolidations
@@ -44,24 +43,24 @@ func (s *PostgresStorage) Reset(ctx context.Context, block *Block, txBundleID st
 }
 
 // AddBlock adds a new block to the State Store
-func (s *PostgresStorage) AddBlock(ctx context.Context, block *Block, txBundleID string) error {
-	_, err := s.Exec(ctx, txBundleID, addBlockSQL, block.BlockNumber, block.BlockHash.String(), block.ParentHash.String(), block.ReceivedAt)
+func (s *PostgresStorage) AddBlock(ctx context.Context, block *Block, txID pgx.Tx) error {
+	_, err := txID.Exec(ctx, addBlockSQL, block.BlockNumber, block.BlockHash.String(), block.ParentHash.String(), block.ReceivedAt)
 	return err
 }
 
 // AddGlobalExitRoot adds a new ExitRoot to the db
-func (s *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txBundleID string) error {
-	_, err := s.Exec(ctx, txBundleID, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.GlobalExitRootNum.String(), exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot)
+func (s *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txID pgx.Tx) error {
+	_, err := txID.Exec(ctx, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.GlobalExitRootNum.String(), exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot)
 	return err
 }
 
 // GetLatestExitRoot get the latest ExitRoot synced.
-func (s *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, txBundleID string) (*GlobalExitRoot, error) {
+func (s *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, txID pgx.Tx) (*GlobalExitRoot, error) {
 	var (
 		exitRoot  GlobalExitRoot
 		globalNum uint64
 	)
-	err := s.QueryRow(ctx, txBundleID, getLatestExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot)
+	err := txID.QueryRow(ctx, getLatestExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -72,20 +71,20 @@ func (s *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, txBundleI
 }
 
 // AddForcedBatch adds a new ForcedBatch to the db
-func (s *PostgresStorage) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, txBundleID string) error {
-	_, err := s.Exec(ctx, txBundleID, addForcedBatchSQL, forcedBatch.BlockNumber, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForcedAt, hex.EncodeToString(forcedBatch.RawTxsData), forcedBatch.Sequencer.String())
+func (s *PostgresStorage) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, txID pgx.Tx) error {
+	_, err := txID.Exec(ctx, addForcedBatchSQL, forcedBatch.BlockNumber, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForcedAt, hex.EncodeToString(forcedBatch.RawTxsData), forcedBatch.Sequencer.String())
 	return err
 }
 
 // GetForcedBatch get an L1 forcedBatch.
-func (s *PostgresStorage) GetForcedBatch(ctx context.Context, txBundleID string, forcedBatchNumber uint64) (*ForcedBatch, error) {
+func (s *PostgresStorage) GetForcedBatch(ctx context.Context, txID pgx.Tx, forcedBatchNumber uint64) (*ForcedBatch, error) {
 	var (
 		forcedBatch    ForcedBatch
 		globalExitRoot string
 		rawTxs         string
 		seq            string
 	)
-	err := s.QueryRow(ctx, txBundleID, getForcedBatchSQL, forcedBatchNumber).Scan(&forcedBatch.BlockNumber, &forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForcedAt, &rawTxs, &seq)
+	err := txID.QueryRow(ctx, getForcedBatchSQL, forcedBatchNumber).Scan(&forcedBatch.BlockNumber, &forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForcedAt, &rawTxs, &seq)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
