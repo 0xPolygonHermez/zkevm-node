@@ -183,11 +183,7 @@ func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blo
 	forcedBatch.ForcedAt = t
 
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
-		var block state.Block
-		block.BlockNumber = vLog.BlockNumber
-		block.BlockHash = vLog.BlockHash
-		block.ParentHash = fullBlock.ParentHash()
-		block.ReceivedAt = t
+		block := prepareBlock(vLog, t, fullBlock)
 		block.ForcedBatches = append(block.ForcedBatches, forcedBatch)
 		*blocks = append(*blocks, block)
 	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
@@ -197,4 +193,13 @@ func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blo
 		return fmt.Errorf("Error processing UpdateGlobalExitRoot event")
 	}
 	return nil
+}
+
+func prepareBlock(vLog types.Log, t time.Time, fullBlock *types.Block) state.Block{
+	var block state.Block
+	block.BlockNumber = vLog.BlockNumber
+	block.BlockHash = vLog.BlockHash
+	block.ParentHash = fullBlock.ParentHash()
+	block.ReceivedAt = t
+	return block
 }

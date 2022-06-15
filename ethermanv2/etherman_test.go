@@ -93,6 +93,7 @@ func TestForcedBatchEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
+	assert.Equal(t, uint64(2), blocks[0].BlockNumber)
 	assert.Equal(t, uint64(2), blocks[0].ForcedBatches[0].BlockNumber)
 	assert.NotEqual(t, common.Hash{}, blocks[0].ForcedBatches[0].GlobalExitRoot)
 	assert.NotEqual(t, time.Time{}, blocks[0].ForcedBatches[0].ForcedAt)
