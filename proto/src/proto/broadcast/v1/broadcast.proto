@@ -21,7 +21,9 @@ message GetBatchRequest {
 // Responses
 message GetBatchResponse {
   uint64 batch_number = 1;
-  repeated Transaction transactions = 2;
+  string global_exit_root = 2;
+  Timestamp timestamp = 3;
+  repeated Transaction transactions = 4;
 }
 
 // Common
