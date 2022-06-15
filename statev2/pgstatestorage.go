@@ -73,7 +73,7 @@ func (s *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, txBundleI
 
 // AddForcedBatch adds a new ForcedBatch to the db
 func (s *PostgresStorage) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, txBundleID string) error {
-	_, err := s.Exec(ctx, txBundleID, addForcedBatchSQL, forcedBatch.BlockNumber, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForceAt, hex.EncodeToString(forcedBatch.RawTxsData), forcedBatch.Sequencer.String())
+	_, err := s.Exec(ctx, txBundleID, addForcedBatchSQL, forcedBatch.BlockNumber, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForcedAt, hex.EncodeToString(forcedBatch.RawTxsData), forcedBatch.Sequencer.String())
 	return err
 }
 
@@ -85,7 +85,7 @@ func (s *PostgresStorage) GetForcedBatch(ctx context.Context, txBundleID string,
 		rawTxs         string
 		seq            string
 	)
-	err := s.QueryRow(ctx, txBundleID, getForcedBatchSQL, forcedBatchNumber).Scan(&forcedBatch.BlockNumber, &forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForceAt, &rawTxs, &seq)
+	err := s.QueryRow(ctx, txBundleID, getForcedBatchSQL, forcedBatchNumber).Scan(&forcedBatch.BlockNumber, &forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForcedAt, &rawTxs, &seq)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {

@@ -180,7 +180,7 @@ func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blo
 		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
 	}
 	t := time.Unix(int64(fullBlock.Time()), 0)
-	forcedBatch.ForceAt = t
+	forcedBatch.ForcedAt = t
 
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
 		var block state.Block

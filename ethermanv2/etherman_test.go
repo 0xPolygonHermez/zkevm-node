@@ -95,7 +95,7 @@ func TestForcedBatchEvent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint64(2), blocks[0].ForcedBatches[0].BlockNumber)
 	assert.NotEqual(t, common.Hash{}, blocks[0].ForcedBatches[0].GlobalExitRoot)
-	assert.NotEqual(t, time.Time{}, blocks[0].ForcedBatches[0].ForceAt)
+	assert.NotEqual(t, time.Time{}, blocks[0].ForcedBatches[0].ForcedAt)
 	assert.Equal(t, uint64(1), blocks[0].ForcedBatches[0].ForcedBatchNumber)
 	assert.Equal(t, []byte{}, blocks[0].ForcedBatches[0].RawTxsData)
 	assert.Equal(t, etherman.auth.From, blocks[0].ForcedBatches[0].Sequencer)

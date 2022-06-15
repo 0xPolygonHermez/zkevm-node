@@ -62,13 +62,3 @@ func (c *writeCounter) Write(b []byte) (int, error) {
 	*c += writeCounter(len(b))
 	return len(b), nil
 }
-
-// ForcedBatch represents a ForcedBatch
-type ForcedBatch struct {
-	BlockNumber       uint64
-	ForcedBatchNumber uint64
-	Sequencer         common.Address
-	GlobalExitRoot    common.Hash
-	RawTxsData        []byte
-	ForceAt           time.Time
-}
