@@ -21,7 +21,6 @@ type ClientSynchronizer struct {
 	ctx            context.Context
 	cancelCtx      context.CancelFunc
 	genBlockNumber uint64
-	genesis        state.Genesis
 	cfg            Config
 }
 
@@ -30,7 +29,6 @@ func NewSynchronizer(
 	ethMan ethermanInterface,
 	st stateInterface,
 	genBlockNumber uint64,
-	genesis state.Genesis,
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
@@ -39,7 +37,6 @@ func NewSynchronizer(
 		ctx:            ctx,
 		cancelCtx:      cancel,
 		genBlockNumber: genBlockNumber,
-		genesis:        genesis,
 		cfg:            cfg,
 	}, nil
 }
@@ -58,11 +55,6 @@ func (s *ClientSynchronizer) Sync() error {
 			log.Warn("error getting the latest ethereum block. No data stored. Setting genesis block. Error: ", err)
 			lastEthBlockSynced = &state.Block{
 				BlockNumber: s.genBlockNumber,
-			}
-			// Set genesis
-			err := s.state.SetGenesis(s.ctx, s.genesis, "")
-			if err != nil {
-				log.Fatal("error setting genesis: ", err)
 			}
 		} else {
 			log.Fatal("unexpected error getting the latest ethereum block. Setting genesis block. Error: ", err)

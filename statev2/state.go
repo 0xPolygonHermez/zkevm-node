@@ -31,7 +31,6 @@ var (
 
 // State is a implementation of the state
 type State struct {
-	cfg Config
 	*PostgresStorage
 
 	mu    *sync.Mutex
@@ -39,9 +38,8 @@ type State struct {
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage) *State {
+func NewState(storage *PostgresStorage) *State {
 	return &State{
-		cfg:             cfg,
 		PostgresStorage: storage,
 
 		mu:    new(sync.Mutex),

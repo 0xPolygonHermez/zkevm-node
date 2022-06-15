@@ -23,8 +23,6 @@ var (
 
 var cfg = dbutils.NewConfigFromEnv()
 
-var stateCfg = state.Config{}
-
 func TestMain(m *testing.M) {
 	stateDb, err := db.NewSQLDB(cfg)
 	if err != nil {
@@ -33,7 +31,7 @@ func TestMain(m *testing.M) {
 	defer stateDb.Close()
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb))
+	testState = state.NewState(state.NewPostgresStorage(stateDb))
 
 	result := m.Run()
 
