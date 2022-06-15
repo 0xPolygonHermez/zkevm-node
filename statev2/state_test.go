@@ -62,6 +62,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 		GlobalExitRootNum: big.NewInt(2),
 		MainnetExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		RollupExitRoot:    common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 	}
 	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, txID)
 	require.NoError(t, err)
@@ -73,6 +74,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	assert.Equal(t, globalExitRoot.GlobalExitRootNum, exit.GlobalExitRootNum)
 	assert.Equal(t, globalExitRoot.MainnetExitRoot, exit.MainnetExitRoot)
 	assert.Equal(t, globalExitRoot.RollupExitRoot, exit.RollupExitRoot)
+	assert.Equal(t, globalExitRoot.GlobalExitRoot, exit.GlobalExitRoot)
 }
 
 func TestAddForcedBatch(t *testing.T) {

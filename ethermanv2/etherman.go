@@ -17,6 +17,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
 	state "github.com/hermeznetwork/hermez-core/statev2"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -141,6 +142,7 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 	gExitRoot.RollupExitRoot = common.BytesToHash(globalExitRoot.RollupExitRoot[:])
 	gExitRoot.GlobalExitRootNum = globalExitRoot.GlobalExitRootNum
 	gExitRoot.BlockNumber = vLog.BlockNumber
+	gExitRoot.GlobalExitRoot = hash(globalExitRoot.MainnetExitRoot, globalExitRoot.RollupExitRoot)
 
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
 		var block state.Block
@@ -218,4 +220,14 @@ func prepareBlock(vLog types.Log, t time.Time, fullBlock *types.Block) state.Blo
 	block.ParentHash = fullBlock.ParentHash()
 	block.ReceivedAt = t
 	return block
+}
+
+func hash(data ...[32]byte) [32]byte {
+	var res [32]byte
+	hash := sha3.NewLegacyKeccak256()
+	for _, d := range data {
+		hash.Write(d[:]) //nolint:errcheck,gosec
+	}
+	copy(res[:], hash.Sum(nil))
+	return res
 }

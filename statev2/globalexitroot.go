@@ -12,4 +12,5 @@ type GlobalExitRoot struct {
 	GlobalExitRootNum *big.Int
 	MainnetExitRoot   common.Hash
 	RollupExitRoot    common.Hash
+	GlobalExitRoot    common.Hash
 }

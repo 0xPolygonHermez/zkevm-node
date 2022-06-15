@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	addGlobalExitRootSQL = "INSERT INTO statev2.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root) VALUES ($1, $2, $3, $4)"
-	getLatestExitRootSQL = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root FROM statev2.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
+	addGlobalExitRootSQL = "INSERT INTO statev2.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root) VALUES ($1, $2, $3, $4, $5)"
+	getLatestExitRootSQL = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM statev2.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
 	addForcedBatchSQL    = "INSERT INTO statev2.forced_batch (block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer) VALUES ($1, $2, $3, $4, $5, $6)"
 	getForcedBatchSQL    = "SELECT block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer FROM statev2.forced_batch WHERE forced_batch_num = $1"
 	addBlockSQL          = "INSERT INTO statev2.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
@@ -50,7 +50,7 @@ func (s *PostgresStorage) AddBlock(ctx context.Context, block *Block, txID pgx.T
 
 // AddGlobalExitRoot adds a new ExitRoot to the db
 func (s *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txID pgx.Tx) error {
-	_, err := txID.Exec(ctx, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.GlobalExitRootNum.String(), exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot)
+	_, err := txID.Exec(ctx, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.GlobalExitRootNum.String(), exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot, exitRoot.GlobalExitRoot)
 	return err
 }
 
@@ -60,7 +60,7 @@ func (s *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, txID pgx.
 		exitRoot  GlobalExitRoot
 		globalNum uint64
 	)
-	err := txID.QueryRow(ctx, getLatestExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot)
+	err := txID.QueryRow(ctx, getLatestExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot, &exitRoot.GlobalExitRoot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {

@@ -58,5 +58,6 @@ CREATE TABLE statev2.exit_root
     block_num               BIGINT NOT NULL REFERENCES statev2.block (block_num) ON DELETE CASCADE,
     global_exit_root_num    BIGINT PRIMARY KEY,
     mainnet_exit_root       BYTEA,
-    rollup_exit_root        BYTEA
+    rollup_exit_root        BYTEA,
+    global_exit_root        BYTEA
 );
