@@ -3,7 +3,7 @@ package synchronizerv2
 import (
 	"context"
 
-	"github.com/hermeznetwork/hermez-core/state"
+	state "github.com/hermeznetwork/hermez-core/statev2"
 )
 
 // ethermanInterface contains the methods required to interact with ethereum.

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/state"
+	state "github.com/hermeznetwork/hermez-core/statev2"
 )
 
 // Synchronizer connects L1 and L2

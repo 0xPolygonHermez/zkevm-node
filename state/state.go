@@ -814,24 +814,3 @@ func constructErrorFromRevert(result *runtime.ExecutionResult) error {
 
 	return fmt.Errorf("%w: %s", result.Err, revertErrMsg)
 }
-
-func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txBundleID string) error {
-	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, txBundleID)
-}
-
-func (s *State) GetLatestGlobalExitRoot(ctx context.Context, txBundleID string) (*GlobalExitRoot, error) {
-	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, txBundleID)
-}
-
-func (s *State) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, txBundleID string) error {
-	return s.PostgresStorage.AddForcedBatch(ctx, forcedBatch, txBundleID)
-}
-
-func (s *State) GetForcedBatch(ctx context.Context, txBundleID string, forcedBatchNumber uint64) (*ForcedBatch, error) {
-	return s.PostgresStorage.GetForcedBatch(ctx, txBundleID, forcedBatchNumber)
-}
-
-// AddBlockV2 adds a new block to the State Store.
-func (s *State) AddBlockV2(ctx context.Context, block *Block, txBundleID string) error {
-	return s.PostgresStorage.AddBlockV2(ctx, block, txBundleID)
-}

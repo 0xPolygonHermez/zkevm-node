@@ -16,7 +16,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/state"
+	state "github.com/hermeznetwork/hermez-core/statev2"
 )
 
 var (

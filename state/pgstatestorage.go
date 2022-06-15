@@ -64,11 +64,6 @@ const (
 	getTransactionLogsSQL                  = "SELECT * FROM state.log WHERE transaction_hash = $1"
 	getLogsSQLByBatchHash                  = "SELECT * FROM state.log WHERE batch_hash = $1"
 	getLogsByFilter                        = "SELECT state.log.* FROM state.log INNER JOIN state.batch ON state.log.batch_num = state.batch.batch_num WHERE state.log.batch_num BETWEEN $1 AND $2 AND (address = any($3) OR $3 IS NULL) AND (topic0 = any($4) OR $4 IS NULL) AND (topic1 = any($5) OR $5 IS NULL) AND (topic2 = any($6) OR $6 IS NULL) AND (topic3 = any($7) OR $7 IS NULL) AND (state.batch.received_at >= $8 OR $8 IS NULL)"
-	addGlobalExitRootSQL                   = "INSERT INTO statev2.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root) VALUES ($1, $2, $3, $4)"
-	getLatestExitRootSQL                   = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root FROM statev2.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
-	addForcedBatchSQL                      = "INSERT INTO statev2.forced_batch (block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer) VALUES ($1, $2, $3, $4, $5, $6)"
-	getForcedBatchSQL                      = "SELECT block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer FROM statev2.forced_batch WHERE forced_batch_num = $1"
-	addBlockV2SQL                          = "INSERT INTO statev2.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 )
 
 var (
@@ -646,12 +641,6 @@ func (s *PostgresStorage) AddBlock(ctx context.Context, block *Block, txBundleID
 	return err
 }
 
-// AddBlockV2 adds a new block to the State Store
-func (s *PostgresStorage) AddBlockV2(ctx context.Context, block *Block, txBundleID string) error {
-	_, err := s.Exec(ctx, txBundleID, addBlockV2SQL, block.BlockNumber, block.BlockHash.String(), block.ParentHash.String(), block.ReceivedAt)
-	return err
-}
-
 // SetLastBatchNumberSeenOnEthereum sets the last batch number that affected
 // the roll-up in order to allow the components to know if the state
 // is synchronized or not
@@ -832,55 +821,4 @@ func (s *PostgresStorage) getLastBatchWithoutTxsByStateRoot(ctx context.Context,
 	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
 
 	return &batch, nil
-}
-
-// AddGlobalExitRoot adds a new ExitRoot to the db
-func (s *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txBundleID string) error {
-	_, err := s.Exec(ctx, txBundleID, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.GlobalExitRootNum.String(), exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot)
-	return err
-}
-
-// GetLatestExitRoot get the latest ExitRoot synced.
-func (s *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, txBundleID string) (*GlobalExitRoot, error) {
-	var (
-		exitRoot  GlobalExitRoot
-		globalNum uint64
-	)
-	err := s.QueryRow(ctx, txBundleID, getLatestExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
-	}
-	exitRoot.GlobalExitRootNum = new(big.Int).SetUint64(globalNum)
-	return &exitRoot, nil
-}
-
-// AddForcedBatch adds a new ForcedBatch to the db
-func (s *PostgresStorage) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, txBundleID string) error {
-	_, err := s.Exec(ctx, txBundleID, addForcedBatchSQL, forcedBatch.BlockNumber, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForceAt, hex.EncodeToString(forcedBatch.RawTxsData), forcedBatch.Sequencer.String())
-	return err
-}
-
-// GetForcedBatch get an L1 forcedBatch.
-func (s *PostgresStorage) GetForcedBatch(ctx context.Context, txBundleID string, forcedBatchNumber uint64) (*ForcedBatch, error) {
-	var (
-		forcedBatch    ForcedBatch
-		globalExitRoot string
-		rawTxs         string
-		seq            string
-	)
-	err := s.QueryRow(ctx, txBundleID, getForcedBatchSQL, forcedBatchNumber).Scan(&forcedBatch.BlockNumber, &forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForceAt, &rawTxs, &seq)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
-	}
-	forcedBatch.RawTxsData, err = hex.DecodeString(rawTxs)
-	if err != nil {
-		return nil, err
-	}
-	forcedBatch.Sequencer = common.HexToAddress(seq)
-	forcedBatch.GlobalExitRoot = common.HexToHash(globalExitRoot)
-	return &forcedBatch, nil
 }
