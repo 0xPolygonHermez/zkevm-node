@@ -14,7 +14,7 @@ type Block struct {
 	Batches         []Batch
 	NewSequencers   []Sequencer
 	GlobalExitRoots []GlobalExitRoot
-	ForcedBatches    []ForcedBatch
+	ForcedBatches   []ForcedBatch
 
 	ReceivedAt time.Time
 }

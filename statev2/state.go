@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/google/uuid"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
-	"github.com/umbracle/ethgo/abi"
 )
 
 const (
@@ -17,7 +16,6 @@ const (
 	TxTransferGas uint64 = 21000
 	// TxSmartContractCreationGas used for TXs that create a contract
 	TxSmartContractCreationGas uint64 = 53000
-	half                       uint64 = 2
 )
 
 var (
@@ -135,15 +133,6 @@ func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Tran
 // ResetDB resets the state to block for the given DB tx bundle.
 func (s *State) ResetDB(ctx context.Context, block *Block, txBundleID string) error {
 	return s.PostgresStorage.Reset(ctx, block, txBundleID)
-}
-
-func constructErrorFromRevert(result *runtime.ExecutionResult) error {
-	revertErrMsg, unpackErr := abi.UnpackRevertError(result.ReturnValue)
-	if unpackErr != nil {
-		return result.Err
-	}
-
-	return fmt.Errorf("%w: %s", result.Err, revertErrMsg)
 }
 
 func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txBundleID string) error {

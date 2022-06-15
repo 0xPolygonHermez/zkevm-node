@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/state/store"
 	"github.com/jackc/pgx/v4"
@@ -14,20 +13,12 @@ import (
 )
 
 const (
-	maxTopics = 4
-)
-
-const (
-	addGlobalExitRootSQL                   = "INSERT INTO statev2.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root) VALUES ($1, $2, $3, $4)"
-	getLatestExitRootSQL                   = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root FROM statev2.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
-	addForcedBatchSQL                      = "INSERT INTO statev2.forced_batch (block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer) VALUES ($1, $2, $3, $4, $5, $6)"
-	getForcedBatchSQL                      = "SELECT block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer FROM statev2.forced_batch WHERE forced_batch_num = $1"
-	addBlockSQL                          = "INSERT INTO statev2.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
-	resetSQL                               = "DELETE FROM statev2.block WHERE block_num > $1"
-)
-
-var (
-	ten = big.NewInt(encoding.Base10)
+	addGlobalExitRootSQL = "INSERT INTO statev2.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root) VALUES ($1, $2, $3, $4)"
+	getLatestExitRootSQL = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root FROM statev2.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
+	addForcedBatchSQL    = "INSERT INTO statev2.forced_batch (block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer) VALUES ($1, $2, $3, $4, $5, $6)"
+	getForcedBatchSQL    = "SELECT block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer FROM statev2.forced_batch WHERE forced_batch_num = $1"
+	addBlockSQL          = "INSERT INTO statev2.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
+	resetSQL             = "DELETE FROM statev2.block WHERE block_num > $1"
 )
 
 // PostgresStorage implements the Storage interface
@@ -41,29 +32,6 @@ func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 		Pg: store.NewPg(db),
 	}
 }
-
-
-
-func (s *PostgresStorage) addressesToBytes(addresses []common.Address) [][]byte {
-	converted := make([][]byte, 0, len(addresses))
-
-	for _, address := range addresses {
-		converted = append(converted, address.Bytes())
-	}
-
-	return converted
-}
-
-func (s *PostgresStorage) hashesToBytes(hashes []common.Hash) [][]byte {
-	converted := make([][]byte, 0, len(hashes))
-
-	for _, hash := range hashes {
-		converted = append(converted, hash.Bytes())
-	}
-
-	return converted
-}
-
 
 // Reset resets the state to a block
 func (s *PostgresStorage) Reset(ctx context.Context, block *Block, txBundleID string) error {
