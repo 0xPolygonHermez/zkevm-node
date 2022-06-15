@@ -1,0 +1,62 @@
+/**
+* Broadcast service.
+**/
+
+syntax = "proto3";
+
+package broadcast.v1;
+
+option go_package = "github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb";
+
+service BroadcastService {
+  rpc GetLastBatchNumber(Empty) returns (GetLastBatchNumberResponse);
+  rpc GetTransactionsPerBatch(GetTransactionsPerBatchRequest) returns (GetTransactionsPerBatchResponse);
+  rpc GetLastBatchTransactions(Empty) returns (GetLastBatchTransactionsResponse);
+}
+
+// Requests
+message GetTransactionsPerBatchRequest {
+  uint64 batch_number = 1;
+}
+
+// Responses
+message GetLastBatchNumberResponse {
+  uint64 batch_number = 1;
+}
+
+message GetTransactionsPerBatchResponse {
+  repeated Transaction transactions = 1;
+}
+
+message GetLastBatchTransactionsResponse {
+  repeated Transaction transactions = 1;
+}
+
+// Common
+message Transaction {
+  string hash = 1;
+  string from_address = 2;
+  string encoded = 3;
+  string decoded = 4;
+  string header = 5;
+  string uncles = 6;
+  Timestamp received_at = 7;
+  uint64 batch_number = 8;
+}
+
+// from https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/empty.proto
+message Empty{}
+
+// from https://github.com/protocolbuffers/protobuf/blob/main/src/google/protobuf/timestamp.proto
+message Timestamp {
+  // Represents seconds of UTC time since Unix epoch
+  // 1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to
+  // 9999-12-31T23:59:59Z inclusive.
+  int64 seconds = 1;
+
+  // Non-negative fractions of a second at nanosecond resolution. Negative
+  // second values with fractions must still have non-negative nanos values
+  // that count forward in time. Must be from 0 to 999,999,999
+  // inclusive.
+  int32 nanos = 2;
+}
