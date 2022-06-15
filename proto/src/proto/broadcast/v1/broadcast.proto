@@ -9,27 +9,17 @@ package broadcast.v1;
 option go_package = "github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb";
 
 service BroadcastService {
-  rpc GetLastBatchNumber(Empty) returns (GetLastBatchNumberResponse);
-  rpc GetTransactionsPerBatch(GetTransactionsPerBatchRequest) returns (GetTransactionsPerBatchResponse);
-  rpc GetLastBatchTransactions(Empty) returns (GetLastBatchTransactionsResponse);
+  rpc GetLastBatch(Empty) returns (GetBatchResponse);
+  rpc GetBatch(GetBatchRequest) returns (GetBatchResponse);
 }
 
 // Requests
-message GetTransactionsPerBatchRequest {
+message GetBatchRequest {
   uint64 batch_number = 1;
 }
 
 // Responses
-message GetLastBatchNumberResponse {
-  uint64 batch_number = 1;
-}
-
-message GetTransactionsPerBatchResponse {
-  uint64 batch_number = 1;
-  repeated Transaction transactions = 2;
-}
-
-message GetLastBatchTransactionsResponse {
+message GetBatchResponse {
   uint64 batch_number = 1;
   repeated Transaction transactions = 2;
 }
@@ -39,9 +29,6 @@ message Transaction {
   string hash = 1;
   string from_address = 2;
   string encoded = 3;
-  string decoded = 4;
-  string header = 5;
-  string uncles = 6;
   Timestamp received_at = 7;
 }
 
