@@ -733,6 +733,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, jsTracer tracers.Tracer) (json.RawMessage, error) {
 	var previousDepth int
+	var previousOpcode string
 	var stateRoot []byte
 
 	contextGas, ok := new(big.Int).SetString(trace.Context.Gas, encoding.Base10)
@@ -798,13 +799,16 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 
 		if opcode == "CREATE" || opcode == "CREATE2" || opcode == "CALL" || opcode == "CALLCODE" || opcode == "DELEGATECALL" || opcode == "STATICCALL" || opcode == "SELFDESTRUCT" {
 			jsTracer.CaptureEnter(vm.OpCode(op.Uint64()), common.HexToAddress(step.Contract.Caller), common.HexToAddress(step.Contract.Address), common.Hex2Bytes(strings.TrimLeft(step.Contract.Input, "0x")), gas.Uint64(), value)
-		}
-
-		if step.Error != "" {
-			err := fmt.Errorf(step.Error)
-			jsTracer.CaptureFault(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, err)
-		} else {
-			jsTracer.CaptureState(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, common.Hex2Bytes(strings.TrimLeft(step.ReturnData, "0x")), step.Depth, nil)
+			if (previousOpcode == "CALL" && step.Pc != 0) || step.OpCode == "SELFDESTRUCT" {
+				jsTracer.CaptureExit(common.Hex2Bytes(step.ReturnData), gasCost.Uint64(), fmt.Errorf(step.Error))
+			}
+		} else if previousDepth == step.Depth {
+			if step.Error != "" {
+				err := fmt.Errorf(step.Error)
+				jsTracer.CaptureFault(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, step.Depth, err)
+			} else {
+				jsTracer.CaptureState(step.Pc, vm.OpCode(op.Uint64()), gas.Uint64(), gasCost.Uint64(), scope, common.Hex2Bytes(strings.TrimLeft(step.ReturnData, "0x")), step.Depth, nil)
+			}
 		}
 
 		// Set Memory
@@ -815,11 +819,6 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 			}
 		} else {
 			memory = fakevm.NewMemory()
-		}
-
-		if len(step.MemoryBytes) > 0 {
-			memory.Resize(uint64(len(step.MemoryBytes)))
-			memory.Set(0, uint64(len(step.MemoryBytes)), step.MemoryBytes)
 		}
 
 		// Set Stack
@@ -849,6 +848,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 		stateRoot = bigStateRoot.Bytes()
 		env.StateDB.SetStateRoot(stateRoot)
 		previousDepth = step.Depth
+		previousOpcode = step.OpCode
 	}
 
 	gasUsed, ok := new(big.Int).SetString(trace.Context.GasUsed, encoding.Base10)

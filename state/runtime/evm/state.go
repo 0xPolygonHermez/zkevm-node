@@ -56,6 +56,7 @@ type state struct {
 	instrumented     bool
 	storeDiff        *instrumentation.StoreDiff
 	returnStructLogs []instrumentation.StructLog
+	returnSteps      []instrumentation.Step
 
 	// Memory
 	memory      []byte
@@ -104,6 +105,8 @@ func (s *state) reset() {
 
 func (s *state) resetReturnData() {
 	s.returnData = s.returnData[:0]
+	s.returnSteps = s.returnSteps[:0]
+	s.returnStructLogs = s.returnStructLogs[:0]
 }
 
 func (s *state) halt() {
@@ -237,6 +240,7 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 	var structLogs []instrumentation.StructLog
 	var executorTrace instrumentation.ExecutorTrace
 	var steps []instrumentation.Step
+	var pc uint64
 
 	codeSize := len(s.code)
 	for !s.stop {
@@ -276,7 +280,7 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 		if s.instrumented {
 			// Debug
 			structLog := instrumentation.StructLog{
-				Pc:         uint64(s.ip),
+				Pc:         pc,
 				Op:         op.String(),
 				Gas:        s.gas,
 				GasCost:    inst.gas,
@@ -290,30 +294,23 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 
 			structLogs = append(structLogs, structLog)
 
-			if op == CREATE || op == CREATE2 || op == CALL || op == CALLCODE || op == DELEGATECALL || op == STATICCALL {
-				for i := range s.returnStructLogs {
-					structLogs = append(structLogs, s.returnStructLogs[i])
-				}
-			}
-
 			// Executor trace
 			stack := bigArrayToStringArray(s.stack)
 			memory := memoryToStringArray(s.memory)
 
 			step := instrumentation.Step{
-				Contract:    contract,
-				StateRoot:   "0x" + hex.EncodeToString(s.host.GetStateRoot(ctx)),
-				Depth:       s.msg.Depth,
-				Pc:          uint64(s.ip),
-				Gas:         fmt.Sprint(s.gas),
-				OpCode:      op.String(),
-				GasCost:     fmt.Sprint(inst.gas),
-				Refund:      "0",
-				Op:          "0x" + hex.EncodeToString([]byte{byte(op)}),
-				Stack:       stack,
-				Memory:      memory,
-				MemoryBytes: s.memory,
-				ReturnData:  "0x" + hex.EncodeToString(s.ret),
+				Contract:   contract,
+				StateRoot:  "0x" + hex.EncodeToString(s.host.GetStateRoot(ctx)),
+				Depth:      s.msg.Depth,
+				Pc:         pc,
+				Gas:        fmt.Sprint(s.gas),
+				OpCode:     op.String(),
+				GasCost:    fmt.Sprint(inst.gas),
+				Refund:     "0",
+				Op:         "0x" + hex.EncodeToString([]byte{byte(op)}),
+				Stack:      stack,
+				Memory:     memory,
+				ReturnData: "0x" + hex.EncodeToString(s.ret),
 			}
 
 			if s.err != nil {
@@ -321,9 +318,15 @@ func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]b
 			}
 
 			steps = append(steps, step)
+
+			if op == CREATE || op == CREATE2 || op == CALL || op == CALLCODE || op == DELEGATECALL || op == STATICCALL {
+				structLogs = append(structLogs, s.returnStructLogs...)
+				steps = append(steps, s.returnSteps...)
+			}
 		}
 
 		s.ip++
+		pc++
 	}
 
 	if err := s.err; err != nil {

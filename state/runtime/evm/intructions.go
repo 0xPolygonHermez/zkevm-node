@@ -1129,6 +1129,7 @@ func opCall(op OpCode) instruction {
 
 		s.gas += result.GasLeft
 		s.returnData = append(s.returnData[:0], result.ReturnValue...)
+		s.returnSteps = append(s.returnSteps, result.ExecutorTrace.Steps...)
 	}
 }
 
