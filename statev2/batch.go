@@ -13,5 +13,5 @@ type ForcedBatch struct {
 	Sequencer         common.Address
 	GlobalExitRoot    common.Hash
 	RawTxsData        []byte
-	ForcedAt           time.Time
+	ForcedAt          time.Time
 }
