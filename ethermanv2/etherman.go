@@ -173,7 +173,23 @@ func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blo
 	forcedBatch.BlockNumber = vLog.BlockNumber
 	forcedBatch.ForcedBatchNumber = fb.NumBatch
 	forcedBatch.GlobalExitRoot = fb.LastGlobalExitRoot
-	forcedBatch.RawTxsData = fb.Transactions
+	// Read the tx for this batch.
+	tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, vLog.TxHash)
+	if err != nil {
+		return err
+	} else if isPending {
+		return fmt.Errorf("error: tx is still pending. TxHash: %s", tx.Hash().String())
+	}
+	msg, err := tx.AsMessage(types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
+    if err != nil {
+		log.Error(err)
+        return err
+    }
+	if fb.Sequencer == msg.From() {
+		forcedBatch.RawTxsData = tx.Data()
+	} else {
+		forcedBatch.RawTxsData = fb.Transactions
+	}
 	forcedBatch.Sequencer = fb.Sequencer
 	fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
 	if err != nil {
