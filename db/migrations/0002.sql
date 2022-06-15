@@ -1,3 +1,6 @@
+-- +migrate Down
+DROP SCHEMA IF EXISTS statev2 CASCADE;
+
 -- +migrate Up
 CREATE SCHEMA statev2
 

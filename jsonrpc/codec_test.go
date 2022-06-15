@@ -3,7 +3,6 @@ package jsonrpc
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -47,7 +46,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		name                string
 		bn                  *BlockNumber
 		expectedBlockNumber uint64
-		expectedError       error
+		expectedError       rpcError
 		setupMocks          func(s *stateMock, t *testCase)
 	}
 
@@ -101,7 +100,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			name:                "BlockNumber Negative Number <= -4",
 			bn:                  bnPtr(BlockNumber(int64(-4))),
 			expectedBlockNumber: 0,
-			expectedError:       fmt.Errorf("invalid block number: -4"),
+			expectedError:       newRPCError(invalidParamsErrorCode, "invalid block number: -4"),
 			setupMocks:          func(s *stateMock, t *testCase) {},
 		},
 	}
@@ -112,7 +111,10 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			testCase.setupMocks(s, &tc)
 			result, err := testCase.bn.getNumericBlockNumber(context.Background(), s)
 			assert.Equal(t, testCase.expectedBlockNumber, result)
-			assert.Equal(t, testCase.expectedError, err)
+			if err != nil || testCase.expectedError != nil {
+				assert.Equal(t, testCase.expectedError.ErrorCode(), err.ErrorCode())
+				assert.Equal(t, testCase.expectedError.Error(), err.Error())
+			}
 		})
 	}
 }

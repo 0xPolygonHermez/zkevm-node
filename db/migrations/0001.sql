@@ -1,3 +1,8 @@
+-- +migrate Down
+DROP SCHEMA IF EXISTS state CASCADE;
+DROP SCHEMA IF EXISTS pool CASCADE;
+DROP SCHEMA IF EXISTS rpc CASCADE;
+
 -- +migrate Up
 CREATE SCHEMA state
 
