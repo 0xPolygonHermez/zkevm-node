@@ -1407,6 +1407,69 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 	}
 }
 
+func TestGetTransactionByHash(t *testing.T) {
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name            string
+		ExpectedPending bool
+		ExpectedResult  *types.Transaction
+		ExpectedError   interface{}
+		SetupMocks      func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Get TX Successfully",
+			ExpectedResult: types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				tx := tc.ExpectedResult
+
+				m.State.
+					On("GetTransactionByHash", context.Background(), tx.Hash(), "").
+					Return(tc.ExpectedResult, nil).
+					Once()
+
+				receipt := types.NewReceipt([]byte{}, false, 0)
+				receipt.BlockHash = common.Hash{}
+				receipt.BlockNumber = big.NewInt(1)
+				stateReceipt := &state.Receipt{Receipt: *receipt}
+
+				m.State.
+					On("GetTransactionReceipt", context.Background(), tx.Hash(), "").
+					Return(stateReceipt, nil).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+
+			result, pending, err := c.TransactionByHash(context.Background(), testCase.ExpectedResult.Hash())
+			assert.Equal(t, testCase.ExpectedPending, pending)
+
+			if result != nil || testCase.ExpectedResult != nil {
+				assert.Equal(t, testCase.ExpectedResult.Hash(), result.Hash())
+			}
+
+			if err != nil || testCase.ExpectedError != nil {
+				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, testCase.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
 func TestProtocolVersion(t *testing.T) {
 	s, _, _ := newMockedServer(t)
 	defer s.Stop()
