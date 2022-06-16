@@ -23,7 +23,8 @@ import (
 var (
 	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
-	forceBatchSignatureHash                = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
+	forcedBatchSignatureHash               = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
+	verifyBatchSignatureHash               = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
 )
 
 type ethClienter interface {
@@ -110,8 +111,10 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		return etherMan.ownershipTransferredEvent(vLog)
 	case updateGlobalExitRootEventSignatureHash:
 		return etherMan.updateGlobalExitRootEvent(ctx, vLog, blocks)
-	case forceBatchSignatureHash:
-		return etherMan.forceBatchEvent(ctx, vLog, blocks)
+	case forcedBatchSignatureHash:
+		return etherMan.forcedBatchEvent(ctx, vLog, blocks)
+	case verifyBatchSignatureHash:
+		return etherMan.verifyBatchEvent(ctx, vLog, blocks)
 	}
 	log.Warn("Event not registered: ", vLog)
 	return nil
@@ -165,7 +168,7 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 	return nil
 }
 
-func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block) error {
+func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block) error {
 	log.Debug("ForceBatch event detected")
 	fb, err := etherMan.PoE.ParseForceBatch(vLog)
 	if err != nil {
@@ -207,8 +210,41 @@ func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blo
 	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
 		(*blocks)[len(*blocks)-1].ForcedBatches = append((*blocks)[len(*blocks)-1].ForcedBatches, forcedBatch)
 	} else {
-		log.Error("Error processing UpdateGlobalExitRoot event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("Error processing UpdateGlobalExitRoot event")
+		log.Error("Error processing ForceBatch event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
+		return fmt.Errorf("Error processing ForceBatch event")
+	}
+	return nil
+}
+
+func (etherMan *Client) verifyBatchEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block) error {
+	log.Debug("VerifyBatch event detected")
+	vb, err := etherMan.PoE.ParseVerifyBatch(vLog)
+	if err != nil {
+		return err
+	}
+	var verifyBatch state.VerifyBatch
+	verifyBatch.BlockNumber = vLog.BlockNumber
+	verifyBatch.BatchNumber = vb.NumBatch
+	verifyBatch.TxHash = vLog.TxHash
+	verifyBatch.Aggregator = vb.Aggregator
+
+	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
+		var block state.Block
+		block.BlockHash = vLog.BlockHash
+		block.BlockNumber = vLog.BlockNumber
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
+		}
+		block.ParentHash = fullBlock.ParentHash()
+		block.ReceivedAt = time.Unix(int64(fullBlock.Time()), 0)
+		block.VerifyBatch = append(block.VerifyBatch, verifyBatch)
+		*blocks = append(*blocks, block)
+	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
+		(*blocks)[len(*blocks)-1].VerifyBatch = append((*blocks)[len(*blocks)-1].VerifyBatch, verifyBatch)
+	} else {
+		log.Error("Error processing VerifyBatch event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
+		return fmt.Errorf("Error processing VerifyBatch event")
 	}
 	return nil
 }
