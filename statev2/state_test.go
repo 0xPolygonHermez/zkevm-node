@@ -47,7 +47,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	require.NoError(t, err)
 	ctx := context.Background()
 	fmt.Println("db: ", stateDb)
-	txID, err := stateDb.Begin(ctx)
+	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	block := &state.Block{
 		BlockNumber: 1,
@@ -55,7 +55,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		ReceivedAt:  time.Now(),
 	}
-	err = testState.AddBlock(ctx, block, txID)
+	err = testState.AddBlock(ctx, block, tx)
 	assert.NoError(t, err)
 	globalExitRoot := state.GlobalExitRoot{
 		BlockNumber:       1,
@@ -64,11 +64,11 @@ func TestAddGlobalExitRoot(t *testing.T) {
 		RollupExitRoot:    common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 	}
-	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, txID)
+	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, tx)
 	require.NoError(t, err)
-	exit, err := testState.GetLatestGlobalExitRoot(ctx, txID)
+	exit, err := testState.GetLatestGlobalExitRoot(ctx, tx)
 	require.NoError(t, err)
-	err = txID.Commit(ctx)
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, globalExitRoot.BlockNumber, exit.BlockNumber)
 	assert.Equal(t, globalExitRoot.GlobalExitRootNum, exit.GlobalExitRootNum)
@@ -82,7 +82,7 @@ func TestAddForcedBatch(t *testing.T) {
 	err := dbutils.InitOrReset(cfg)
 	require.NoError(t, err)
 	ctx := context.Background()
-	txID, err := stateDb.Begin(ctx)
+	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	block := &state.Block{
 		BlockNumber: 1,
@@ -90,7 +90,7 @@ func TestAddForcedBatch(t *testing.T) {
 		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		ReceivedAt:  time.Now(),
 	}
-	err = testState.AddBlock(ctx, block, txID)
+	err = testState.AddBlock(ctx, block, tx)
 	assert.NoError(t, err)
 	b, err := hex.DecodeHex("0x617b3a3528F9")
 	assert.NoError(t, err)
@@ -102,11 +102,11 @@ func TestAddForcedBatch(t *testing.T) {
 		RawTxsData:        b,
 		ForcedAt:          time.Now(),
 	}
-	err = testState.AddForcedBatch(ctx, &forcedBatch, txID)
+	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
 	require.NoError(t, err)
-	fb, err := testState.GetForcedBatch(ctx, txID, 2)
+	fb, err := testState.GetForcedBatch(ctx, tx, 2)
 	require.NoError(t, err)
-	err = txID.Commit(ctx)
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, forcedBatch.BlockNumber, fb.BlockNumber)
 	assert.Equal(t, forcedBatch.ForcedBatchNumber, fb.ForcedBatchNumber)

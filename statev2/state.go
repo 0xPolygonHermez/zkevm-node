@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/jackc/pgx/v4"
 )
@@ -34,43 +33,58 @@ var (
 // State is a implementation of the state
 type State struct {
 	*PostgresStorage
-
-	mu    *sync.Mutex
-	dbTxs map[string]bool
 }
 
 // NewState creates a new State
 func NewState(storage *PostgresStorage) *State {
 	return &State{
 		PostgresStorage: storage,
-
-		mu:    new(sync.Mutex),
-		dbTxs: make(map[string]bool),
 	}
 }
 
+// BeginDBTransaction starts a state transaction
+func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
+	tx, err := s.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
+}
+
+// Commit commits a state transaction
+func (s *State) CommitStateTransaction(ctx context.Context, tx pgx.Tx) error {
+	err := tx.Commit(ctx)
+	return err
+}
+
+// Rollback rollbacks a state transaction
+func (s *State) RollbackStateTransaction(ctx context.Context, tx pgx.Tx) error {
+	err := tx.Rollback(ctx)
+	return err
+}
+
 // ResetDB resets the state to block for the given DB tx .
-func (s *State) ResetDB(ctx context.Context, block *Block, txID pgx.Tx) error {
-	return s.PostgresStorage.Reset(ctx, block, txID)
+func (s *State) ResetDB(ctx context.Context, block *Block, tx pgx.Tx) error {
+	return s.PostgresStorage.Reset(ctx, block, tx)
 }
 
-func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txID pgx.Tx) error {
-	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, txID)
+func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, tx pgx.Tx) error {
+	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, tx)
 }
 
-func (s *State) GetLatestGlobalExitRoot(ctx context.Context, txID pgx.Tx) (*GlobalExitRoot, error) {
-	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, txID)
+func (s *State) GetLatestGlobalExitRoot(ctx context.Context, tx pgx.Tx) (*GlobalExitRoot, error) {
+	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, tx)
 }
 
-func (s *State) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, txID pgx.Tx) error {
-	return s.PostgresStorage.AddForcedBatch(ctx, forcedBatch, txID)
+func (s *State) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, tx pgx.Tx) error {
+	return s.PostgresStorage.AddForcedBatch(ctx, forcedBatch, tx)
 }
 
-func (s *State) GetForcedBatch(ctx context.Context, txID pgx.Tx, forcedBatchNumber uint64) (*ForcedBatch, error) {
-	return s.PostgresStorage.GetForcedBatch(ctx, txID, forcedBatchNumber)
+func (s *State) GetForcedBatch(ctx context.Context, tx pgx.Tx, forcedBatchNumber uint64) (*ForcedBatch, error) {
+	return s.PostgresStorage.GetForcedBatch(ctx, tx, forcedBatchNumber)
 }
 
 // AddBlock adds a new block to the State Store.
-func (s *State) AddBlock(ctx context.Context, block *Block, txID pgx.Tx) error {
-	return s.PostgresStorage.AddBlock(ctx, block, txID)
+func (s *State) AddBlock(ctx context.Context, block *Block, tx pgx.Tx) error {
+	return s.PostgresStorage.AddBlock(ctx, block, tx)
 }
