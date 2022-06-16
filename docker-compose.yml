@@ -120,7 +120,7 @@ services:
       - SUBNETWORK=Polygon Hermez
       - COIN=ETH
       - ETHEREUM_JSONRPC_VARIANT=geth
-      - ETHEREUM_JSONRPC_HTTP_URL=http://hez-explorer-rpc:8124 #8123 for Windows, 8124 for everything else
+      - ETHEREUM_JSONRPC_HTTP_URL=http://hez-explorer-rpc:8124
       - DATABASE_URL=postgres://test_user:test_password@hez-explorer-postgres:5432/explorer
       - ECTO_USE_SSL=false
       - MIX_ENV=prod
@@ -133,12 +133,13 @@ services:
     container_name: hez-explorer-rpc
     image: hezcore
     ports:
-      - 8124:8123
+      - 8124:8124
     environment:
       - HERMEZCORE_DATABASE_USER=test_user
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_RPC_PORT=8124
     volumes:
       - ./config/config.local.toml:/app/config.toml
     command:

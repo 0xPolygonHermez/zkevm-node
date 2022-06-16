@@ -12,3 +12,4 @@
 /test/contracts/bin/**/*.bin
 /test/contracts/bin/**/*.abi
 
+**/.DS_Store

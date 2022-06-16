@@ -1,0 +1,1 @@
+{"tracer":"{data: [], fault: function(log) {}, step: function(log) { if(log.op.toString() == 'CALL') this.data.push(log.stack.peek(0)); }, result: function() { return this.data; }}"}

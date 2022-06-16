@@ -405,3 +405,14 @@ func (h *Host) GetOldStateRoot(ctx context.Context, batchNumber int64) int64 {
 
 	return oldRoot.Int64()
 }
+
+// GetStateRoot returns current stateRoot
+func (h *Host) GetStateRoot(ctx context.Context) []byte {
+	root, err := h.State.GetStateRoot(ctx, true, h.txBundleID)
+
+	if err != nil {
+		log.Errorf("error on GetStateRoot")
+	}
+
+	return root
+}
