@@ -152,6 +152,8 @@ services:
         "/app/config.toml",
         "--components",
         "rpc",
+        "--http.api",
+        "eth,net,debug,hez,txpool,web3"
       ]
 
   hez-explorer-postgres:
