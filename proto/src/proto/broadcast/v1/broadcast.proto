@@ -22,7 +22,7 @@ message GetBatchRequest {
 message GetBatchResponse {
   uint64 batch_number = 1;
   string global_exit_root = 2;
-  Timestamp timestamp = 3;
+  uint64 timestamp = 3;
   repeated Transaction transactions = 4;
 }
 
