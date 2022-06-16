@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"time"
+	"sort"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -27,7 +27,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
-	"github.com/hermeznetwork/hermez-core/state/tree/pb"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
@@ -44,6 +43,12 @@ type mtStore interface {
 	Set(ctx context.Context, key []byte, value []byte, txBundleID string) error
 }
 
+// slice contains method
+func contains(s []string, searchterm string) bool {
+	i := sort.SearchStrings(s, searchterm)
+	return i < len(s) && s[i] == searchterm
+}
+
 func start(ctx *cli.Context) error {
 	c, err := config.Load(ctx)
 	if err != nil {
@@ -51,11 +56,6 @@ func start(ctx *cli.Context) error {
 	}
 	setupLog(c.Log)
 	runMigrations(c.Database)
-
-	etherman, err := newEtherman(*c)
-	if err != nil {
-		return err
-	}
 
 	sqlDB, err := db.NewSQLDB(c.Database)
 	if err != nil {
@@ -84,45 +84,54 @@ func start(ctx *cli.Context) error {
 		grpcClientConns []*grpc.ClientConn
 		cancelFuncs     []context.CancelFunc
 	)
-	if ctx.Bool(config.FlagRemoteMT) {
-		log.Debugf("running with remote MT")
-		srvCfg := &tree.ServerConfig{
-			Host: c.MTServer.Host,
-			Port: c.MTServer.Port,
-		}
-		s := grpc.NewServer()
-		mtSrv := tree.NewServer(srvCfg, tr)
-		go mtSrv.Start()
-		pb.RegisterMTServiceServer(s, mtSrv)
-
-		mtClient, mtConn, mtCancel := newMTClient(c.MTClient)
-		treeAdapter := tree.NewAdapter(mtClient)
-
-		grpcClientConns = append(grpcClientConns, mtConn)
-		cancelFuncs = append(cancelFuncs, mtCancel)
-
-		st = state.NewState(stateCfg, stateDb, treeAdapter)
-	} else {
-		log.Debugf("running with local MT")
-		st = state.NewState(stateCfg, stateDb, tr)
-	}
 
 	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(c.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	pool := pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
-	c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
-	seq := createSequencer(c.Sequencer, etherman, pool, st)
-
-	gpe := createGasPriceEstimator(c.GasPriceEstimator, st, pool)
-	go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
-	go seq.Start()
-	go runJSONRpcServer(*c, pool, st, seq.ChainID, gpe)
+	st = state.NewState(stateCfg, stateDb, tr)
 
 	proverClient, proverConn := newProverClient(c.Prover)
-	go runAggregator(c.Aggregator, etherman, proverClient, st)
+
+	var npool *pool.Pool
+	var gpe gasPriceEstimator
+	var etherman *etherman.Client
+
+	if contains(ctx.StringSlice(config.FlagComponents), AGGREGATOR) ||
+		contains(ctx.StringSlice(config.FlagComponents), SEQUENCER) ||
+		contains(ctx.StringSlice(config.FlagComponents), SYNCHRONIZER) {
+		var err error
+		etherman, err = newEtherman(*c)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	for _, item := range ctx.StringSlice(config.FlagComponents) {
+		switch item {
+		case AGGREGATOR:
+			log.Info("Running aggregator")
+			go runAggregator(c.Aggregator, etherman, proverClient, st)
+		case SEQUENCER:
+			log.Info("Running sequencer")
+			npool = pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
+			c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
+			seq := createSequencer(c.Sequencer, etherman, npool, st)
+			log.Debugf("\nseq.ChainID %d", seq.ChainID)
+			go seq.Start()
+		case RPC:
+			log.Info("Running JSON-RPC server")
+			npool = pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
+			gpe = createGasPriceEstimator(c.GasPriceEstimator, st, npool)
+			go runJSONRpcServer(*c, npool, st, c.RPC.ChainID, gpe)
+		case SYNCHRONIZER:
+			log.Info("Running synchronizer")
+			npool = pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
+			gpe = createGasPriceEstimator(c.GasPriceEstimator, st, npool)
+			go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
+		}
+	}
 
 	grpcClientConns = append(grpcClientConns, proverConn)
 
@@ -136,7 +145,7 @@ func setupLog(c log.Config) {
 }
 
 func runMigrations(c db.Config) {
-	err := db.RunMigrations(c)
+	err := db.RunMigrationsUp(c)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -168,22 +177,6 @@ func newProverClient(c proverclient.Config) (proverclientpb.ZKProverServiceClien
 	return proverClient, proverConn
 }
 
-func newMTClient(c tree.ClientConfig) (pb.MTServiceClient, *grpc.ClientConn, context.CancelFunc) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	mtConn, err := grpc.DialContext(ctx, c.URI, opts...)
-
-	if err != nil {
-		log.Fatalf("fail to dial: %v", err)
-	}
-
-	mtClient := pb.NewMTServiceClient(mtConn)
-
-	return mtClient, mtConn, cancel
-}
-
 func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st *state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
 	genesisBlock, err := etherman.EtherClient.BlockByNumber(context.Background(), big.NewInt(0).SetUint64(networkConfig.GenBlockNumber))
 	if err != nil {
@@ -207,21 +200,13 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 }
 
 func runJSONRpcServer(c config.Config, pool *pool.Pool, st *state.State, chainID uint64, gpe gasPriceEstimator) {
-	var err error
-	key, err := newKeyFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	seqAddress := key.Address
-
 	storage, err := jsonrpc.NewPostgresStorage(c.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	stW := &jsonrpc.StateWrapper{State: st}
-	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, chainID, seqAddress, pool, stW, gpe, storage).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, chainID, pool, stW, gpe, storage).Start(); err != nil {
 		log.Fatal(err)
 	}
 }

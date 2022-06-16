@@ -2,12 +2,15 @@ package evm
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
+	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
 
@@ -51,11 +54,9 @@ type state struct {
 
 	// Instrumentation
 	instrumented     bool
-	returnVMTrace    *instrumentation.VMTrace
-	stackPush        []uint64
-	memDiff          *instrumentation.MemoryDiff
 	storeDiff        *instrumentation.StoreDiff
 	returnStructLogs []instrumentation.StructLog
+	returnSteps      []instrumentation.Step
 
 	// Memory
 	memory      []byte
@@ -104,6 +105,8 @@ func (s *state) reset() {
 
 func (s *state) resetReturnData() {
 	s.returnData = s.returnData[:0]
+	s.returnSteps = s.returnSteps[:0]
+	s.returnStructLogs = s.returnStructLogs[:0]
 }
 
 func (s *state) halt() {
@@ -136,10 +139,6 @@ func (s *state) push1() *big.Int {
 	v := big.NewInt(0)
 	s.stack = append(s.stack, v)
 	s.sp++
-
-	if s.instrumented {
-		s.stackPush = append(s.stackPush, v.Uint64())
-	}
 
 	return v
 }
@@ -236,19 +235,14 @@ func (s *state) checkMemory(offset, size *big.Int) bool {
 }
 
 // Run executes the virtual machine
-func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, []instrumentation.StructLog, error) {
+func (s *state) Run(ctx context.Context, contract instrumentation.Contract) ([]byte, []instrumentation.StructLog, instrumentation.ExecutorTrace, error) {
 	var vmerr error
-	var vmTrace instrumentation.VMTrace
 	var structLogs []instrumentation.StructLog
+	var executorTrace instrumentation.ExecutorTrace
+	var steps []instrumentation.Step
 
 	codeSize := len(s.code)
 	for !s.stop {
-		if s.instrumented {
-			s.stackPush = []uint64{}
-			s.memDiff = nil
-			s.storeDiff = nil
-		}
-
 		if s.ip >= codeSize {
 			s.halt()
 			break
@@ -283,29 +277,6 @@ func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, []ins
 		}
 
 		if s.instrumented {
-			// Trace
-			vmTrace.Code = s.code[:]
-			operation := instrumentation.VMOperation{
-				Pc:          uint64(s.ip),
-				Instruction: byte(op),
-				GasCost:     inst.gas,
-				Executed: instrumentation.VMExecutedOperation{
-					GasUsed:   s.gas,
-					StackPush: s.stackPush,
-				},
-				Sub: s.returnVMTrace,
-			}
-
-			if s.memDiff != nil {
-				operation.Executed.MemDiff = *s.memDiff
-			}
-
-			if s.storeDiff != nil {
-				operation.Executed.StoreDiff = *s.storeDiff
-			}
-
-			vmTrace.Operations = append(vmTrace.Operations, operation)
-
 			// Debug
 			structLog := instrumentation.StructLog{
 				Pc:         uint64(s.ip),
@@ -322,10 +293,34 @@ func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, []ins
 
 			structLogs = append(structLogs, structLog)
 
+			// Executor trace
+			stack := bigArrayToStringArray(s.stack)
+			memory := memoryToStringArray(s.memory)
+
+			step := instrumentation.Step{
+				Contract:   contract,
+				StateRoot:  "0x" + hex.EncodeToString(s.host.GetStateRoot(ctx)),
+				Depth:      s.msg.Depth,
+				Pc:         uint64(s.ip),
+				Gas:        fmt.Sprint(s.gas),
+				OpCode:     op.String(),
+				GasCost:    fmt.Sprint(inst.gas),
+				Refund:     "0",
+				Op:         "0x" + hex.EncodeToString([]byte{byte(op)}),
+				Stack:      stack,
+				Memory:     memory,
+				ReturnData: "0x" + hex.EncodeToString(s.ret),
+			}
+
+			if s.err != nil {
+				step.Error = s.err.Error()
+			}
+
+			steps = append(steps, step)
+
 			if op == CREATE || op == CREATE2 || op == CALL || op == CALLCODE || op == DELEGATECALL || op == STATICCALL {
-				for i := range s.returnStructLogs {
-					structLogs = append(structLogs, s.returnStructLogs[i])
-				}
+				structLogs = append(structLogs, s.returnStructLogs...)
+				steps = append(steps, s.returnSteps...)
 			}
 		}
 
@@ -335,7 +330,22 @@ func (s *state) Run(ctx context.Context) ([]byte, instrumentation.VMTrace, []ins
 	if err := s.err; err != nil {
 		vmerr = err
 	}
-	return s.ret, vmTrace, structLogs, vmerr
+
+	executorTrace.Steps = steps
+
+	return s.ret, structLogs, executorTrace, vmerr
+}
+
+func (s *state) inStaticCall() bool {
+	return s.msg.Static
+}
+
+func (s *state) validJumpdest(dest *big.Int) bool {
+	udest := dest.Uint64()
+	if dest.BitLen() >= 63 || udest >= uint64(len(s.code)) {
+		return false
+	}
+	return s.bitmap.isSet(uint(udest))
 }
 
 func extendByteSlice(b []byte, needLen int) []byte {
@@ -346,18 +356,31 @@ func extendByteSlice(b []byte, needLen int) []byte {
 	return b[:needLen]
 }
 
-func (s *state) inStaticCall() bool {
-	return s.msg.Static
-}
-
 func bigToHash(b *big.Int) common.Hash {
 	return common.BytesToHash(b.Bytes())
 }
 
-func (s *state) validJumpdest(dest *big.Int) bool {
-	udest := dest.Uint64()
-	if dest.BitLen() >= 63 || udest >= uint64(len(s.code)) {
-		return false
+func bigArrayToStringArray(b []*big.Int) []string {
+	s := []string{}
+
+	for _, bn := range b {
+		sbn := fmt.Sprintf("%x", bn)
+		if len(sbn)%2 != 0 {
+			sbn = "0" + sbn
+		}
+		s = append(s, "0x"+sbn)
 	}
-	return s.bitmap.isSet(uint(udest))
+
+	return s
+}
+
+func memoryToStringArray(memory []byte) []string {
+	numElements := len(memory) / fakevm.MemoryItemSize
+	s := []string{}
+
+	for x := 0; x < numElements; x++ {
+		s = append(s, hex.EncodeToString(memory[x*fakevm.MemoryItemSize:(x*fakevm.MemoryItemSize)+32]))
+	}
+
+	return s
 }

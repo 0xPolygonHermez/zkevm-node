@@ -412,14 +412,6 @@ func opMStore(ctx context.Context, s *state) {
 	offset := s.pop()
 	val := s.pop()
 
-	if s.instrumented {
-		diff := instrumentation.MemoryDiff{
-			Offset: offset.Uint64(),
-			Data:   val.Bytes(),
-		}
-		s.memDiff = &diff
-	}
-
 	if !s.checkMemory(offset, wordSize) {
 		return
 	}
@@ -449,14 +441,6 @@ func opMStore(ctx context.Context, s *state) {
 func opMStore8(ctx context.Context, s *state) {
 	offset := s.pop()
 	val := s.pop()
-
-	if s.instrumented {
-		diff := instrumentation.MemoryDiff{
-			Offset: offset.Uint64(),
-			Data:   val.Bytes(),
-		}
-		s.memDiff = &diff
-	}
 
 	if !s.checkMemory(offset, one) {
 		return
@@ -1073,8 +1057,6 @@ func opCreate(op OpCode) instruction {
 		if result.Reverted() {
 			s.returnData = append(s.returnData[:0], result.ReturnValue...)
 		}
-
-		s.returnVMTrace = &result.VMTrace
 	}
 }
 
@@ -1142,19 +1124,12 @@ func opCall(op OpCode) instruction {
 		if result.Succeeded() || result.Reverted() {
 			if len(result.ReturnValue) != 0 {
 				copy(s.memory[offset:offset+size], result.ReturnValue)
-				if s.instrumented {
-					diff := instrumentation.MemoryDiff{
-						Offset: offset,
-						Data:   result.ReturnValue,
-					}
-					s.memDiff = &diff
-				}
 			}
 		}
 
 		s.gas += result.GasLeft
 		s.returnData = append(s.returnData[:0], result.ReturnValue...)
-		s.returnVMTrace = &result.VMTrace
+		s.returnSteps = append(s.returnSteps, result.ExecutorTrace.Steps...)
 	}
 }
 

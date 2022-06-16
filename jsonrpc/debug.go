@@ -2,11 +2,9 @@ package jsonrpc
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/hermeznetwork/hermez-core/log"
 )
 
 // Debug is the debug jsonrpc endpoint
@@ -14,10 +12,14 @@ type Debug struct {
 	state stateInterface
 }
 
+type traceConfig struct {
+	Tracer *string `json:"tracer"`
+}
+
 type traceTransactionResponse struct {
 	Gas         uint64         `json:"gas"`
 	Failed      bool           `json:"failed"`
-	ReturnValue string         `json:"returnValue"`
+	ReturnValue argBytes       `json:"returnValue"`
 	StructLogs  []StructLogRes `json:"structLogs"`
 }
 
@@ -28,47 +30,89 @@ type StructLogRes struct {
 	GasCost       uint64             `json:"gasCost"`
 	Depth         int                `json:"depth"`
 	Error         string             `json:"error,omitempty"`
-	Stack         *[]string          `json:"stack,omitempty"`
-	Memory        *[]string          `json:"memory,omitempty"`
+	Stack         *[]argBig          `json:"stack,omitempty"`
+	Memory        *argBytes          `json:"memory,omitempty"`
 	Storage       *map[string]string `json:"storage,omitempty"`
 	RefundCounter uint64             `json:"refund,omitempty"`
 }
 
 // TraceTransaction creates a response for debug_traceTransaction request.
 // See https://geth.ethereum.org/docs/rpc/ns-debug#debug_tracetransaction
-func (d *Debug) TraceTransaction(hash common.Hash) (interface{}, error) {
+func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{}, error) {
 	ctx := context.Background()
 
-	// tx, err := d.state.GetTransactionByHash(ctx, hash, "")
-	// if errors.Is(err, state.ErrNotFound) {
-	// 	return newGenericError("transaction not found", -32000), nil
-	// }
-
-	rcpt, err := d.state.GetTransactionReceipt(ctx, hash, "")
-	if errors.Is(err, state.ErrNotFound) {
-		return newRPCError(defaultErrorCode, "transaction receipt not found"), nil
+	tracer := ""
+	if cfg != nil && cfg.Tracer != nil {
+		tracer = *cfg.Tracer
 	}
 
-	failed := false
-	returnValue := ""
-	if rcpt.Status == types.ReceiptStatusFailed {
-		failed = true
-		// this is supposed to be an object value that will be parsed by blockscout
-		// to identify the details of the transaction execution.
-		// When this field is different from nil, it make the blockscout UI to show
-		// the transaction as Failed, but as long as we don't know exactly the object
-		// we need to return here, this is causing parsing errors on blockscout, which
-		// is causing a side effect to send multiple requests to the core, retrying to
-		// get this information.
-		// TODO: we need to figure out what to return here based on geth code.
-		returnValue = "{}"
+	result, err := d.state.DebugTransaction(ctx, hash, tracer)
+	if err != nil {
+		const errorMessage = "failed to debug trace the transaction"
+		log.Debugf("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
+	}
+
+	if tracer != "" && len(result.ExecutorTraceResult) > 0 {
+		return result.ExecutorTraceResult, nil
+	}
+
+	failed := result.Failed()
+	structLogs := make([]StructLogRes, 0, len(result.StructLogs))
+	for _, structLog := range result.StructLogs {
+		var stackRes *[]argBig
+		if len(structLog.Stack) > 0 {
+			stack := make([]argBig, 0, len(structLog.Stack))
+			for _, stackItem := range structLog.Stack {
+				if stackItem != nil {
+					stack = append(stack, argBig(*stackItem))
+				}
+			}
+			stackRes = &stack
+		}
+
+		var memoryRes *argBytes
+		if len(structLog.Memory) > 0 {
+			memory := make(argBytes, 0, len(structLog.Memory))
+			for _, memoryItem := range structLog.Memory {
+				memory = append(memory, memoryItem)
+			}
+			memoryRes = &memory
+		}
+
+		var storageRes *map[string]string
+		if len(structLog.Storage) > 0 {
+			storage := make(map[string]string, len(structLog.Storage))
+			for storageKey, storageValue := range structLog.Storage {
+				storage[storageKey.Hex()] = storageValue.Hex()
+			}
+			storageRes = &storage
+		}
+
+		errRes := ""
+		if structLog.Err != nil {
+			errRes = structLog.Err.Error()
+		}
+
+		structLogs = append(structLogs, StructLogRes{
+			Pc:            structLog.Pc,
+			Op:            structLog.Op,
+			Gas:           structLog.Gas,
+			GasCost:       structLog.GasCost,
+			Depth:         structLog.Depth,
+			Error:         errRes,
+			Stack:         stackRes,
+			Memory:        memoryRes,
+			Storage:       storageRes,
+			RefundCounter: structLog.RefundCounter,
+		})
 	}
 
 	resp := traceTransactionResponse{
-		Gas:         rcpt.GasUsed,
+		Gas:         result.GasUsed,
 		Failed:      failed,
-		ReturnValue: returnValue,
-		StructLogs:  []StructLogRes{},
+		ReturnValue: result.ReturnValue,
+		StructLogs:  structLogs,
 	}
 
 	return resp, nil

@@ -1,3 +1,8 @@
+-- +migrate Down
+DROP SCHEMA IF EXISTS state CASCADE;
+DROP SCHEMA IF EXISTS pool CASCADE;
+DROP SCHEMA IF EXISTS rpc CASCADE;
+
 -- +migrate Up
 CREATE SCHEMA state
 
@@ -91,3 +96,47 @@ CREATE TABLE state.misc
 
 -- Insert default values into misc table
 INSERT INTO state.misc (last_batch_num_seen, last_batch_num_consolidated, init_sync_batch) VALUES(0, 0, 0);
+
+CREATE SCHEMA pool
+
+CREATE TABLE pool.txs (
+    hash      VARCHAR PRIMARY KEY,
+    encoded   VARCHAR,
+    decoded   jsonb,
+    state     varchar(15),
+    gas_price DECIMAL(78,0),
+    nonce     DECIMAL(78,0),
+    is_claims BOOLEAN,
+    received_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE INDEX idx_state_gas_price_nonce ON pool.txs(state, gas_price, nonce);
+
+CREATE TABLE pool.gas_price (
+    item_id SERIAL PRIMARY KEY,
+    price DECIMAL(78,0),
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+-- Table that stores all MerkleTree nodes
+CREATE TABLE state.merkletree
+(
+    hash BYTEA PRIMARY KEY,
+    data BYTEA NOT NULL
+);
+
+-- Table that stores all smart contract code
+CREATE TABLE state.sc_code
+(
+    hash BYTEA PRIMARY KEY,
+    data BYTEA
+);
+
+CREATE SCHEMA rpc
+
+CREATE TABLE rpc.filters (
+    id          SERIAL PRIMARY KEY,
+    filter_type VARCHAR(15) NOT NULL,
+    parameters  JSONB NOT NULL,
+    last_poll   TIMESTAMP NOT NULL
+);

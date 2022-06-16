@@ -1,7 +1,6 @@
 package dbutils
 
 import (
-	"context"
 	"os"
 
 	"github.com/hermeznetwork/hermez-core/db"
@@ -17,22 +16,11 @@ func InitOrReset(cfg db.Config) error {
 	}
 	defer dbPool.Close()
 
-	// reset db droping migrations table and schemas
-	if _, err := dbPool.Exec(context.Background(), "DROP TABLE IF EXISTS gorp_migrations CASCADE;"); err != nil {
-		return err
-	}
-	if _, err := dbPool.Exec(context.Background(), "DROP SCHEMA IF EXISTS state CASCADE;"); err != nil {
-		return err
-	}
-	if _, err := dbPool.Exec(context.Background(), "DROP SCHEMA IF EXISTS pool CASCADE;"); err != nil {
-		return err
-	}
-	if _, err := dbPool.Exec(context.Background(), "DROP SCHEMA IF EXISTS rpc CASCADE;"); err != nil {
-		return err
-	}
-
 	// run migrations
-	return db.RunMigrations(cfg)
+	if err := db.RunMigrationsDown(cfg); err != nil {
+		return err
+	}
+	return db.RunMigrationsUp(cfg)
 }
 
 // NewConfigFromEnv creates config from standard postgres environment variables,

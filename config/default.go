@@ -24,6 +24,8 @@ PrivateKeyPassword = "testonly"
 Host = "0.0.0.0"
 Port = 8123
 MaxRequestsPerIPAndSecond = 50
+ChainID = 1001
+SequencerAddress = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
 
 [Synchronizer]
 SyncInterval = "0s"
@@ -71,4 +73,8 @@ StoreBackend = "PostgreSQL"
 
 [MTClient]
 URI = "127.0.0.1:50060"
+
+[ExecutorServer]
+Host = "0.0.0.0"
+Port = 0
 `

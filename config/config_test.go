@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hermeznetwork/hermez-core/config"
+	"github.com/hermeznetwork/hermez-core/config/types"
 	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/state/tree"
@@ -51,11 +52,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.PendingTxsQueue.TxPendingInQueueCheckingFrequency",
-			expectedValue: sequencer.NewDuration(3 * time.Second),
+			expectedValue: types.NewDuration(3 * time.Second),
 		},
 		{
 			path:          "Sequencer.PendingTxsQueue.GetPendingTxsFrequency",
-			expectedValue: sequencer.NewDuration(5 * time.Second),
+			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",
@@ -84,6 +85,22 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "RPC.MaxRequestsPerIPAndSecond",
 			expectedValue: float64(50),
+		},
+		{
+			path:          "ExecutorServer.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
+			path:          "ExecutorServer.Port",
+			expectedValue: 0,
+		},
+		{
+			path:          "RPC.ChainID",
+			expectedValue: uint64(1001),
+		},
+		{
+			path:          "RPC.SequencerAddress",
+			expectedValue: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 		},
 	}
 

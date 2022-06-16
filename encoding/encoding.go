@@ -12,6 +12,8 @@ import (
 const (
 	// Base10 decimal base
 	Base10 = 10
+	// Base16 hexadecimal base
+	Base16 = 16
 	// BitSize64 64 bits
 	BitSize64 = 64
 	// TenToThePowerOf18 represents 1000000000000000000

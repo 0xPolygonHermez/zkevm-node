@@ -1,25 +1,40 @@
 DOCKERCOMPOSE := docker-compose -f docker-compose.yml
-DOCKERCOMPOSEAPP := hez-core
+DOCKERCOMPOSEAPPSEQ := hez-core-sequencer
+DOCKERCOMPOSEAPPAGG := hez-core-agg
+DOCKERCOMPOSEAPPRPC := hez-core-rpc
+DOCKERCOMPOSEAPPSYNC := hez-core-sync
 DOCKERCOMPOSEDB := hez-postgres
 DOCKERCOMPOSENETWORK := hez-network
 DOCKERCOMPOSEPROVER := hez-prover
 DOCKERCOMPOSEEXPLORER := hez-explorer
 DOCKERCOMPOSEEXPLORERDB := hez-explorer-postgres
+DOCKERCOMPOSEEXPLORERRPC := hez-explorer-rpc
 
 RUNDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDB)
-RUNCORE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPP)
+RUNCORESEQ := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
+RUNCOREAGG := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
+RUNCORERPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
+RUNCORESYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
+
 RUNNETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
 RUNPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPROVER)
 RUNEXPLORER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORER)
 RUNEXPLORERDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERDB)
+RUNEXPLORERRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERRPC)
 RUN := $(DOCKERCOMPOSE) up -d
 
 STOPDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEDB)
-STOPCORE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPP) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPP)
+STOPCORESEQ := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQ)
+STOPCOREAGG := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
+STOPCORERPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
+STOPCORESYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSYNC)
+
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
 STOPPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPROVER)
 STOPEXPLORER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORER)
 STOPEXPLORERDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERDB)
+STOPEXPLORERRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERRPC)
+
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
 VERSION := $(shell git describe --tags --always)
@@ -44,6 +59,10 @@ build: ## Builds the binary locally into ./dist
 build-docker: ## Builds a docker image with the core binary
 	docker build -t hezcore -f ./Dockerfile .
 
+.PHONY: build-docker-nc
+build-docker-nc: ## Builds a docker image with the core binary - but without build cache
+	docker build --no-cache=true -t hezcore -f ./Dockerfile .
+
 .PHONY: test
 test: compile-scs ## Runs only short tests without checking race conditions
 	$(STOPDB)
@@ -54,7 +73,7 @@ test: compile-scs ## Runs only short tests without checking race conditions
 test-full: build-docker compile-scs ## Runs all tests checking race conditions
 	$(STOPDB)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s `go list ./... | grep -v \/ci\/e2e-group`
+	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
 
 .PHONY: test-full-non-e2e
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
@@ -104,11 +123,17 @@ stop-db: ## Stops the node database
 
 .PHONY: run-core
 run-core: ## Runs the core
-	$(RUNCORE)
+	$(RUNCORESEQ)
+	$(RUNCOREAGG)
+	$(RUNCORERPC)
+	$(RUNCORESYNC)
 
 .PHONY: stop-core
 stop-core: ## Stops the core
-	$(STOPCORE)
+	$(STOPCORESEQ)
+	$(STOPCORERPC)
+	$(STOPCOREAGG)
+	$(STOPCORESYNC)
 
 .PHONY: run-network
 run-network: ## Runs the l1 network
@@ -146,12 +171,15 @@ stop-explorer-db: ## Stops the explorer database
 run: compile-scs ## Runs all the services
 	$(RUNDB)
 	$(RUNEXPLORERDB)
+	$(RUNEXPLORERRPC)
 	$(RUNNETWORK)
 	sleep 5
 	$(RUNPROVER)
 	sleep 2
-	$(RUNCORE)
-	sleep 3
+	$(RUNCORESEQ)
+	$(RUNCOREAGG)
+	$(RUNCORERPC)
+	$(RUNCORESYNC)
 	$(RUNEXPLORER)
 
 .PHONY: init-network
@@ -192,12 +220,15 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=gasPriceEstimator --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
 	mockery --name=stateInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=stateMock --filename=mock_state_test.go
 	mockery --name=BatchProcessorInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=batchProcessorMock --filename=mock_batchProcessor_test.go
+	mockery --name=txManager --dir=sequencerv2 --output=sequencerv2 --outpkg=sequencerv2 --structname=txmanagerMock --filename=txmanager-mock_test.go
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files
 	cd proto/src/proto/mt/v1 && protoc --proto_path=. --go_out=../../../../../state/tree/pb --go-grpc_out=../../../../../state/tree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative mt.proto
 	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverclient/pb --go-grpc_out=../../../../../proverclient/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative zk-prover.proto
 	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverservice/pb --go-grpc_out=../../../../../proverservice/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative zk-prover.proto
+	cd proto/src/proto/executor/v1 && protoc --proto_path=. --go_out=../../../../../state/runtime/executor/pb --go-grpc_out=../../../../../state/runtime/executor/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative executor.proto
+	cd proto/src/proto/broadcast/v1 && protoc --proto_path=. --go_out=../../../../../sequencerv2/broadcast/pb --go-grpc_out=../../../../../sequencerv2/broadcast/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative broadcast.proto
 
 .PHONY: update-external-dependencies
 update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files

@@ -85,6 +85,11 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 	b.CumulativeGasUsed = 0
 	b.Host.logs = map[common.Hash][]*types.Log{}
 
+	lastBatch, err := b.Host.State.GetLastBatchByStateRoot(ctx, b.Host.stateRoot, "")
+	if err != nil {
+		log.Errorf("failed to get last batch to populate batch header, err: %v", err)
+	}
+
 	if !b.isGenesisBatch(batch) {
 		oldStateRoot := b.Host.stateRoot
 		// Store old state root on System SC if we are not on a genesis batch
@@ -145,7 +150,7 @@ func (b *BatchProcessor) ProcessBatch(ctx context.Context, batch *Batch) error {
 	batch.Receipts = receipts
 
 	// Set batch Header
-	b.populateBatchHeader(batch)
+	b.populateBatchHeader(batch, lastBatch)
 
 	// Store batch
 	return b.commit(ctx, batch)
@@ -203,7 +208,7 @@ func (b *BatchProcessor) isSigned(tx *types.Transaction) bool {
 
 func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address, chainID *big.Int) *runtime.ExecutionResult {
 	log.Debugf("Processing tx: %v", tx.Hash())
-
+	var result *runtime.ExecutionResult
 	// Set transaction context
 	b.Host.transactionContext.currentTransaction = tx
 	b.Host.transactionContext.currentOrigin = senderAddress
@@ -214,33 +219,29 @@ func (b *BatchProcessor) processTransaction(ctx context.Context, tx *types.Trans
 
 	if b.isContractCreation(tx) {
 		log.Debug("smart contract creation")
-		return b.create(ctx, tx, senderAddress, sequencerAddress, tx.Gas())
-	}
-
-	if b.isSmartContractExecution(ctx, tx) {
+		result = b.create(ctx, tx, senderAddress, sequencerAddress, tx.Gas())
+	} else if b.isSmartContractExecution(ctx, tx) {
 		log.Debug("smart contract execution")
-		return b.execute(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas(), chainID)
-	}
-
-	if b.isTransfer(ctx, tx) {
+		result = b.execute(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas(), chainID)
+	} else if b.isTransfer(ctx, tx) {
 		log.Debug("transfer")
-		return b.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas())
+		result = b.transfer(ctx, tx, senderAddress, *receiverAddress, sequencerAddress, tx.Gas())
+	} else {
+		log.Error("unknown transaction type")
+		return &runtime.ExecutionResult{Err: ErrInvalidTxType, StateRoot: b.Host.stateRoot}
 	}
 
-	log.Error("unknown transaction type")
-	return &runtime.ExecutionResult{Err: ErrInvalidTxType, StateRoot: b.Host.stateRoot}
+	if result.Reverted() {
+		result.Err = constructErrorFromRevert(result)
+	}
+
+	return result
 }
 
-func (b *BatchProcessor) populateBatchHeader(batch *Batch) {
+func (b *BatchProcessor) populateBatchHeader(batch, lastBatch *Batch) {
 	parentHash := common.Hash{}
 
 	// Get last batch from data base to ensure consistency
-	ctx := context.Background()
-	lastBatch, err := b.Host.State.GetLastBatchByStateRoot(ctx, b.Host.stateRoot, "")
-	if err != nil {
-		log.Errorf("failed to get last batch to populate batch header, err: %v", err)
-	}
-
 	if lastBatch != nil {
 		parentHash = lastBatch.Hash()
 	}
@@ -712,7 +713,7 @@ func (b *BatchProcessor) create(ctx context.Context, tx *types.Transaction, send
 	}
 
 	address := helper.CreateAddress(senderAddress, tx.Nonce())
-	contract := runtime.NewContractCreation(0, senderAddress, senderAddress, address, tx.Value(), txGas, tx.Data())
+	contract := runtime.NewContractCreation(1, senderAddress, senderAddress, address, tx.Value(), txGas, tx.Data())
 
 	log.Debugf("new contract address = %v", address)
 

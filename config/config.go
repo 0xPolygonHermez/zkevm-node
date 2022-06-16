@@ -14,6 +14,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
+	"github.com/hermeznetwork/hermez-core/state/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/mitchellh/mapstructure"
@@ -29,6 +30,7 @@ const (
 	FlagNetworkBase = "network-base"
 	FlagAmount      = "amount"
 	FlagRemoteMT    = "remote-merkletree"
+	FlagComponents  = "components"
 )
 
 // Config represents the configuration of the entire Hermez Node
@@ -45,6 +47,7 @@ type Config struct {
 	GasPriceEstimator gasprice.Config
 	MTServer          tree.ServerConfig
 	MTClient          tree.ClientConfig
+	ExecutorServer    executor.ServerConfig
 }
 
 // Load loads the configuration

@@ -6,14 +6,15 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/config/types"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 )
 
 // PendingTxsQueueConfig config for pending tx queue data structure
 type PendingTxsQueueConfig struct {
-	TxPendingInQueueCheckingFrequency Duration `mapstructure:"TxPendingInQueueCheckingFrequency"`
-	GetPendingTxsFrequency            Duration `mapstructure:"GetPendingTxsFrequency"`
+	TxPendingInQueueCheckingFrequency types.Duration `mapstructure:"TxPendingInQueueCheckingFrequency"`
+	GetPendingTxsFrequency            types.Duration `mapstructure:"GetPendingTxsFrequency"`
 }
 
 // PendingTxsQueue keeps pending tx queue and gives tx with the highest gas price by request
