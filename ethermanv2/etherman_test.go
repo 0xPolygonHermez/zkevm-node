@@ -118,7 +118,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
-	tx := proofofefficiency.ProofOfEfficiencySequence {
+	tx := proofofefficiency.ProofOfEfficiencySequence{
 		GlobalExitRoot:  common.Hash{},
 		Timestamp:       initBlock.Time(),
 		ForceBatchesNum: 0,
@@ -132,16 +132,16 @@ func TestVerifyBatchEvent(t *testing.T) {
 	commit()
 
 	var (
-		proofA           = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
-		proofC           = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
-		proofB           = [2][2]*big.Int{proofC, proofC}
+		proofA = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
+		proofC = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
+		proofB = [2][2]*big.Int{proofC, proofC}
 	)
 	_, err = etherman.PoE.VerifyBatch(etherman.auth, common.Hash{}, common.Hash{}, 1, proofA, proofB, proofC)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
 	commit()
-	
+
 	// Now read the event
 	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)

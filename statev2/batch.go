@@ -6,8 +6,8 @@ import (
 
 // VerifyBatch represents a VerifyBatch
 type VerifyBatch struct {
-	BlockNumber       uint64
-	BatchNumber       uint64
-	Aggregator        common.Address
-	TxHash            common.Hash
+	BlockNumber uint64
+	BatchNumber uint64
+	Aggregator  common.Address
+	TxHash      common.Hash
 }
