@@ -12,6 +12,8 @@ import (
 )
 
 const (
+	addTransactionSQL    = "INSERT INTO statev2.transaction (hash, from_address, encoded, decoded, header, uncles, batch_num) VALUES($1, $2, $3, $4, $5, $6, $7)"
+	addBatchSQL          = "INSERT INTO statev2.batch (batch_num, global_exit_root, timestamp, raw_txs_data) VALUES ($1, $2, $3, $4)"
 	addGlobalExitRootSQL = "INSERT INTO statev2.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root) VALUES ($1, $2, $3, $4, $5)"
 	getLatestExitRootSQL = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM statev2.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
 	addForcedBatchSQL    = "INSERT INTO statev2.forced_batch (block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer) VALUES ($1, $2, $3, $4, $5, $6)"
@@ -40,6 +42,30 @@ func (s *PostgresStorage) Reset(ctx context.Context, block *Block, tx pgx.Tx) er
 	//Remove consolidations
 	//TODO
 	return nil
+}
+
+// AddBatch adds a new trusted batch to the State Store.
+func (s *PostgresStorage) AddBatch(ctx context.Context, batch *Batch) error {
+	_, err := s.Exec(ctx, addBatchSQL, batch.BatchNumber, batch.GlobalExitRoot, batch.Timestamp, hex.EncodeToString(batch.RawTxsData))
+	return err
+}
+
+// AddTransaction adds a new transqaction to the State Store.
+func (s *PostgresStorage) AddTransaction(ctx context.Context, tx *Transaction) error {
+	binary, err := tx.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	encoded := hex.EncodeToHex(binary)
+
+	binary, err = tx.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	decoded := string(binary)
+
+	_, err = s.Exec(ctx, addTransactionSQL, tx.Hash().Bytes(), "", encoded, decoded, tx.Header, tx.Uncles, tx.BatchNumber)
+	return err
 }
 
 // AddBlock adds a new block to the State Store
