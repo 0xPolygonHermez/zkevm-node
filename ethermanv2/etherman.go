@@ -251,7 +251,7 @@ func (etherMan *Client) verifyBatchEvent(ctx context.Context, vLog types.Log, bl
 	if err != nil {
 		return err
 	}
-	var verifyBatch state.VerifyBatch
+	var verifyBatch state.VerifiedBatch
 	verifyBatch.BlockNumber = vLog.BlockNumber
 	verifyBatch.BatchNumber = vb.NumBatch
 	verifyBatch.TxHash = vLog.TxHash
@@ -267,17 +267,17 @@ func (etherMan *Client) verifyBatchEvent(ctx context.Context, vLog types.Log, bl
 		}
 		block.ParentHash = fullBlock.ParentHash()
 		block.ReceivedAt = time.Unix(int64(fullBlock.Time()), 0)
-		block.VerifyBatch = append(block.VerifyBatch, verifyBatch)
+		block.VerifiedBatch = append(block.VerifiedBatch, verifyBatch)
 		*blocks = append(*blocks, block)
 	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].VerifyBatch = append((*blocks)[len(*blocks)-1].VerifyBatch, verifyBatch)
+		(*blocks)[len(*blocks)-1].VerifiedBatch = append((*blocks)[len(*blocks)-1].VerifiedBatch, verifyBatch)
 	} else {
 		log.Error("Error processing VerifyBatch event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
 		return fmt.Errorf("Error processing VerifyBatch event")
 	}
 	or := Order{
 		Name: VerifyBatchOrder,
-		Pos:  len((*blocks)[len(*blocks)-1].VerifyBatch) - 1,
+		Pos:  len((*blocks)[len(*blocks)-1].VerifiedBatch) - 1,
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
 	return nil

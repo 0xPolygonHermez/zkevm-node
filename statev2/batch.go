@@ -5,7 +5,7 @@ import (
 )
 
 // VerifyBatch represents a VerifyBatch
-type VerifyBatch struct {
+type VerifiedBatch struct {
 	BlockNumber uint64
 	BatchNumber uint64
 	Aggregator  common.Address

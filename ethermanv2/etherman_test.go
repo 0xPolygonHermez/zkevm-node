@@ -150,9 +150,9 @@ func TestVerifyBatchEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, uint64(3), blocks[0].BlockNumber)
-	assert.Equal(t, uint64(1), blocks[0].VerifyBatch[0].BatchNumber)
-	assert.NotEqual(t, common.Address{}, blocks[0].VerifyBatch[0].Aggregator)
-	assert.NotEqual(t, common.Hash{}, blocks[0].VerifyBatch[0].TxHash)
+	assert.Equal(t, uint64(1), blocks[0].VerifiedBatch[0].BatchNumber)
+	assert.NotEqual(t, common.Address{}, blocks[0].VerifiedBatch[0].Aggregator)
+	assert.NotEqual(t, common.Hash{}, blocks[0].VerifiedBatch[0].TxHash)
 	assert.Equal(t, GlobalExitRootsOrder, order[blocks[0].BlockHash][0].Name)
 	assert.Equal(t, VerifyBatchOrder, order[blocks[0].BlockHash][1].Name)
 	assert.Equal(t, 0, order[blocks[0].BlockHash][0].Pos)
