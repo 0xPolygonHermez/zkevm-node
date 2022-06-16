@@ -35,19 +35,10 @@ type Handler struct {
 	serviceMap map[string]*serviceData
 }
 
-func newJSONRpcHandler(ethEndpoints *Eth, netEndpoints *Net,
-	hezEndpoints *Hez, txPoolEndpoints *TxPool, debugEndpoints *Debug, web3Endpoints *Web3) *Handler {
+func newJSONRpcHandler() *Handler {
 	handler := &Handler{
 		serviceMap: map[string]*serviceData{},
 	}
-
-	handler.registerService("eth", ethEndpoints)
-	handler.registerService("net", netEndpoints)
-	handler.registerService("hez", hezEndpoints)
-	handler.registerService("txpool", txPoolEndpoints)
-	handler.registerService("debug", debugEndpoints)
-	handler.registerService("web3", web3Endpoints)
-
 	return handler
 }
 

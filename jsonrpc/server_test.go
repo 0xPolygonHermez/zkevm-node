@@ -55,9 +55,17 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	batchProcessor := newBatchProcessorMock(t)
 	gasPriceEstimator := newGasPriceEstimatorMock(t)
 	storage := newStorageMock(t)
+	apis := map[string]bool{
+		APIEth:    true,
+		APINet:    true,
+		APIDebug:  true,
+		APIHez:    true,
+		APITxPool: true,
+		APIWeb3:   true,
+	}
 
 	server := NewServer(cfg, defaultChainID, chainID,
-		pool, state, gasPriceEstimator, storage)
+		pool, state, gasPriceEstimator, storage, apis)
 
 	go func() {
 		err := server.Start()
