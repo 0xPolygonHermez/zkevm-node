@@ -2,8 +2,10 @@ package ethermanv2
 
 import (
 	"context"
+	"encoding/hex"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -38,7 +40,7 @@ func newTestingEnv() (ethman *Client, commit func(), maticAddr common.Address, b
 	return ethman, commit, maticAddr, br
 }
 
-func TestSequencedBatchesEvent(t *testing.T) {
+func TestGEREvent(t *testing.T) {
 	// Set up testing environment
 	etherman, commit, _, br := newTestingEnv()
 
@@ -67,4 +69,40 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	assert.Equal(t, big.NewInt(1), blocks[0].GlobalExitRoots[0].GlobalExitRootNum)
 	assert.NotEqual(t, common.Hash{}, blocks[0].GlobalExitRoots[0].MainnetExitRoot)
 	assert.Equal(t, common.Hash{}, blocks[0].GlobalExitRoots[0].RollupExitRoot)
+}
+
+func TestForcedBatchEvent(t *testing.T) {
+	// Set up testing environment
+	etherman, commit, _, _ := newTestingEnv()
+
+	// Read currentBlock
+	ctx := context.Background()
+	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+
+	amount, err := etherman.PoE.CalculateForceProverFee(&bind.CallOpts{Pending: false})
+	require.NoError(t, err)
+	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
+	data, err := hex.DecodeString(rawTxs)
+	require.NoError(t, err)
+	_, err = etherman.PoE.ForceBatch(etherman.auth, data, amount)
+	require.NoError(t, err)
+
+	// Mine the tx in a block
+	commit()
+
+	// Now read the event
+	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+	finalBlockNumber := finalBlock.NumberU64()
+	blocks, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(2), blocks[0].BlockNumber)
+	assert.Equal(t, uint64(2), blocks[0].ForcedBatches[0].BlockNumber)
+	assert.NotEqual(t, common.Hash{}, blocks[0].ForcedBatches[0].GlobalExitRoot)
+	assert.NotEqual(t, time.Time{}, blocks[0].ForcedBatches[0].ForcedAt)
+	assert.Equal(t, uint64(1), blocks[0].ForcedBatches[0].ForcedBatchNumber)
+	dataFromSmc := "eaeb077b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000de0b6b3a7640000000000000000000000000000000000000000000000000000000000000000008cf84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c0000000000000000000000000000000000000000"
+	assert.Equal(t, dataFromSmc, hex.EncodeToString(blocks[0].ForcedBatches[0].RawTxsData))
+	assert.Equal(t, etherman.auth.From, blocks[0].ForcedBatches[0].Sequencer)
 }

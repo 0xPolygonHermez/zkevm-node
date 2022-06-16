@@ -64,8 +64,6 @@ const (
 	getTransactionLogsSQL                  = "SELECT * FROM state.log WHERE transaction_hash = $1"
 	getLogsSQLByBatchHash                  = "SELECT * FROM state.log WHERE batch_hash = $1"
 	getLogsByFilter                        = "SELECT state.log.* FROM state.log INNER JOIN state.batch ON state.log.batch_num = state.batch.batch_num WHERE state.log.batch_num BETWEEN $1 AND $2 AND (address = any($3) OR $3 IS NULL) AND (topic0 = any($4) OR $4 IS NULL) AND (topic1 = any($5) OR $5 IS NULL) AND (topic2 = any($6) OR $6 IS NULL) AND (topic3 = any($7) OR $7 IS NULL) AND (state.batch.received_at >= $8 OR $8 IS NULL)"
-	addGlobalExitRootSQL                   = "INSERT INTO state.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root) VALUES ($1, $2, $3, $4)"
-	getLatestExitRootSQL                   = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root FROM state.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
 )
 
 var (
@@ -823,26 +821,4 @@ func (s *PostgresStorage) getLastBatchWithoutTxsByStateRoot(ctx context.Context,
 	batch.MaticCollateral = new(big.Int).Mul(maticCollateral.Int, big.NewInt(0).Exp(ten, big.NewInt(int64(maticCollateral.Exp)), nil))
 
 	return &batch, nil
-}
-
-// AddExitRoot adds a new ExitRoot to the db
-func (s *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txBundleID string) error {
-	_, err := s.Exec(ctx, txBundleID, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.GlobalExitRootNum.String(), exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot)
-	return err
-}
-
-// GetLatestExitRoot get the latest ExitRoot from L1.
-func (s *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, txBundleID string) (*GlobalExitRoot, error) {
-	var (
-		exitRoot  GlobalExitRoot
-		globalNum uint64
-	)
-	err := s.QueryRow(ctx, txBundleID, getLatestExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
-	}
-	exitRoot.GlobalExitRootNum = new(big.Int).SetUint64(globalNum)
-	return &exitRoot, nil
 }

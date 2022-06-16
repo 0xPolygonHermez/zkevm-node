@@ -868,11 +868,3 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 
 	return jsTracer.GetResult()
 }
-
-func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, txBundleID string) error {
-	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, txBundleID)
-}
-
-func (s *State) GetLatestGlobalExitRoot(ctx context.Context, txBundleID string) (*GlobalExitRoot, error) {
-	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, txBundleID)
-}
