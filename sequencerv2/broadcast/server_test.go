@@ -1,4 +1,4 @@
-package broadcast
+package broadcast_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	broadcast "github.com/hermeznetwork/hermez-core/sequencerv2/broadcast"
 	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb"
 	"github.com/hermeznetwork/hermez-core/test/operations"
 	"github.com/hermeznetwork/hermez-core/test/testutils"
@@ -27,7 +28,7 @@ const (
 
 var (
 	address      = fmt.Sprintf("%s:%d", host, port)
-	broadcastSrv *Server
+	broadcastSrv *broadcast.Server
 	conn         *grpc.ClientConn
 	cancel       context.CancelFunc
 	err          error
@@ -81,15 +82,15 @@ func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
 	return conn, cancel, err
 }
 
-func initBroadcastServer() *Server {
+func initBroadcastServer() *broadcast.Server {
 	s := grpc.NewServer()
 	st := new(stateMock)
-	cfg := &ServerConfig{
+	cfg := &broadcast.ServerConfig{
 		Host: host,
 		Port: port,
 	}
 
-	broadcastSrv = NewServer(cfg, st)
+	broadcastSrv = broadcast.NewServer(cfg, st)
 	pb.RegisterBroadcastServiceServer(s, broadcastSrv)
 
 	return broadcastSrv
@@ -99,7 +100,7 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 	tcs := []struct {
 		description        string
 		inputBatchNumber   uint64
-		expectedBatch      *Batch
+		expectedBatch      *broadcast.Batch
 		expectedEncodedTxs []string
 		expectedErr        bool
 		expectedErrMsg     string
@@ -107,7 +108,7 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 		{
 			description:      "happy path",
 			inputBatchNumber: 14,
-			expectedBatch: &Batch{
+			expectedBatch: &broadcast.Batch{
 				BatchNumber:    14,
 				GlobalExitRoot: common.Hash{},
 				Timestamp:      time.Now(),
@@ -157,14 +158,14 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 func TestBroadcastServerGetLastBatch(t *testing.T) {
 	tcs := []struct {
 		description        string
-		expectedBatch      *Batch
+		expectedBatch      *broadcast.Batch
 		expectedEncodedTxs []string
 		expectedErr        bool
 		expectedErrMsg     string
 	}{
 		{
 			description: "happy path",
-			expectedBatch: &Batch{
+			expectedBatch: &broadcast.Batch{
 				BatchNumber:    14,
 				GlobalExitRoot: common.Hash{},
 				Timestamp:      time.Now(),
