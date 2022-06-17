@@ -2,6 +2,7 @@ package ethermanv2
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -23,7 +24,11 @@ import (
 var (
 	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
-	forceBatchSignatureHash                = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
+	forcedBatchSignatureHash               = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
+	verifyBatchSignatureHash               = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
+
+	// ErrNotFound is used when the object is not found
+	ErrNotFound = errors.New("Not found")
 )
 
 type ethClienter interface {
@@ -230,4 +235,22 @@ func hash(data ...[32]byte) [32]byte {
 	}
 	copy(res[:], hash.Sum(nil))
 	return res
+}
+
+// HeaderByNumber returns a block header from the current canonical chain. If number is
+// nil, the latest known header is returned.
+func (etherMan *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	return etherMan.EtherClient.HeaderByNumber(ctx, number)
+}
+
+// EthBlockByNumber function retrieves the ethereum block information by ethereum block number.
+func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
+	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+	if err != nil {
+		if errors.Is(err, ethereum.NotFound) || err.Error() == "block does not exist in blockchain" {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return block, nil
 }

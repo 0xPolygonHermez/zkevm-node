@@ -2,17 +2,32 @@ package synchronizerv2
 
 import (
 	"context"
+	"math/big"
 
 	state "github.com/hermeznetwork/hermez-core/statev2"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	etherman "github.com/hermeznetwork/hermez-core/ethermanv2"
+	"github.com/jackc/pgx/v4"
 )
 
 // ethermanInterface contains the methods required to interact with ethereum.
 type ethermanInterface interface {
+	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]etherman.Order, error)
+	EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBlock(ctx context.Context, txBundleID string) (*state.Block, error)
-	AddGlobalExitRoot(ctx context.Context, exitRoot *state.GlobalExitRoot, txBundleID string) error
-	AddForcedBatch(ctx context.Context, forcedBatch *state.ForcedBatch, txBundleID string) error
+	GetLastBlock(ctx context.Context) (*state.Block, error)
+	AddGlobalExitRoot(ctx context.Context, exitRoot *state.GlobalExitRoot, tx pgx.Tx) error
+	AddForcedBatch(ctx context.Context, forcedBatch *state.ForcedBatch, tx pgx.Tx) error
+	AddBlock(ctx context.Context, block *state.Block, tx pgx.Tx) error
+	Reset(ctx context.Context, block *state.Block, tx pgx.Tx) error
+	GetPreviousBlock(ctx context.Context, offset uint64) (*state.Block, error)
+
+	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
+	RollbackState(ctx context.Context, tx pgx.Tx) error
+	CommitState(ctx context.Context, tx pgx.Tx) error
 }
