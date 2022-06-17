@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
 )
 
 // Block struct
@@ -13,8 +14,8 @@ type Block struct {
 	ParentHash      common.Hash
 	GlobalExitRoots []GlobalExitRoot
 	ForcedBatches   []ForcedBatch
-
-	ReceivedAt time.Time
+	Sequences       []proofofefficiency.ProofOfEfficiencySequence
+	ReceivedAt      time.Time
 }
 
 // NewBlock creates a block with the given data.

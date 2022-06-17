@@ -2,11 +2,14 @@ package ethermanv2
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -21,6 +24,7 @@ import (
 )
 
 var (
+	sequencedBatchesEventSignatureHash     = crypto.Keccak256Hash([]byte("SequencedBatches(uint64)"))
 	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
 	forceBatchSignatureHash                = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
@@ -106,6 +110,8 @@ func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQue
 
 func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block) error {
 	switch vLog.Topics[0] {
+	case sequencedBatchesEventSignatureHash:
+		return etherMan.sequencedBatchesEvent(ctx, vLog, blocks)
 	case ownershipTransferredSignatureHash:
 		return etherMan.ownershipTransferredEvent(vLog)
 	case updateGlobalExitRootEventSignatureHash:
@@ -160,7 +166,7 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 		(*blocks)[len(*blocks)-1].GlobalExitRoots = append((*blocks)[len(*blocks)-1].GlobalExitRoots, gExitRoot)
 	} else {
 		log.Error("Error processing UpdateGlobalExitRoot event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("Error processing UpdateGlobalExitRoot event")
+		return fmt.Errorf("error processing UpdateGlobalExitRoot event")
 	}
 	return nil
 }
@@ -207,10 +213,78 @@ func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blo
 	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
 		(*blocks)[len(*blocks)-1].ForcedBatches = append((*blocks)[len(*blocks)-1].ForcedBatches, forcedBatch)
 	} else {
-		log.Error("Error processing UpdateGlobalExitRoot event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("Error processing UpdateGlobalExitRoot event")
+		log.Error("Error processing ForceBatch event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
+		return fmt.Errorf("error processing ForceBatch event")
 	}
 	return nil
+}
+
+func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block) error {
+	log.Debug("SequencedBatches event detected")
+	_, err := etherMan.PoE.ParseSequencedBatches(vLog)
+	if err != nil {
+		return err
+	}
+	// Read the tx for this event.
+	tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, vLog.TxHash)
+	if err != nil {
+		return err
+	} else if isPending {
+		return fmt.Errorf("error tx is still pending. TxHash: %s", tx.Hash().String())
+	}
+	sequences, err := decodeSequences(tx.Data())
+	if err != nil {
+		return fmt.Errorf("error decoding the sequences: %v", err)
+	}
+
+	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+		}
+		t := time.Unix(int64(fullBlock.Time()), 0)
+		block := prepareBlock(vLog, t, fullBlock)
+		block.Sequences = append(block.Sequences, sequences...)
+		*blocks = append(*blocks, block)
+	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
+		(*blocks)[len(*blocks)-1].Sequences = append((*blocks)[len(*blocks)-1].Sequences, sequences...)
+	} else {
+		log.Error("Error processing SequencedBatches event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
+		return fmt.Errorf("error processing SequencedBatches event")
+	}
+	return nil
+}
+
+func decodeSequences(txData []byte) ([]proofofefficiency.ProofOfEfficiencySequence, error) {
+	// Extract coded txs.
+	// Load contract ABI
+	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
+	if err != nil {
+		return nil, err
+	}
+
+	// Recover Method from signature and ABI
+	method, err := abi.MethodById(txData[:4])
+	if err != nil {
+		return nil, err
+	}
+
+	// Unpack method inputs
+	data, err := method.Inputs.Unpack(txData[4:])
+	if err != nil {
+		return nil, err
+	}
+	var sequences []proofofefficiency.ProofOfEfficiencySequence
+	bytedata, err := json.Marshal(data[0])
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(bytedata, &sequences)
+	if err != nil {
+		return nil, err
+	}
+
+	return sequences, nil
 }
 
 func prepareBlock(vLog types.Log, t time.Time, fullBlock *types.Block) state.Block {
