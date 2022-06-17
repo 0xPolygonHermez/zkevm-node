@@ -21,10 +21,10 @@ import (
 )
 
 var (
-	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+	ownershipTransferredSignatureHash = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 	updateGlobalExitRootSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
-	forcedBatchSignatureHash               = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
-	verifyBatchSignatureHash               = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
+	forcedBatchSignatureHash          = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
+	verifyBatchSignatureHash          = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
 )
 
 // EventOrder is the the type used to identify the events order
