@@ -1,0 +1,34 @@
+/**
+* Broadcast service.
+**/
+
+syntax = "proto3";
+
+package broadcast.v1;
+
+option go_package = "github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb";
+
+service BroadcastService {
+  rpc GetLastBatch(Empty) returns (GetBatchResponse);
+  rpc GetBatch(GetBatchRequest) returns (GetBatchResponse);
+}
+
+// Requests
+message GetBatchRequest {
+  uint64 batch_number = 1;
+}
+
+// Responses
+message GetBatchResponse {
+  uint64 batch_number = 1;
+  string global_exit_root = 2;
+  uint64 timestamp = 3;
+  repeated Transaction transactions = 4;
+}
+
+// Common
+message Transaction {
+  string encoded = 1;
+}
+
+message Empty{}
