@@ -146,7 +146,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	_, err = etherman.PoE.SequenceBatches(etherman.auth, sequences)
 	require.NoError(t, err)
 
-	// Mine the tx in a blockb
+	// Mine the tx in a block
 	commit()
 
 	// Now read the event

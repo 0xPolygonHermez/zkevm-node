@@ -230,11 +230,11 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 	if err != nil {
 		return err
 	} else if isPending {
-		return fmt.Errorf("error tx is still bcpending. TxHash: %s", tx.Hash().String())
+		return fmt.Errorf("error tx is still pending. TxHash: %s", tx.Hash().String())
 	}
-	sequences, err := decodeBatches(tx.Data())
+	sequences, err := decodeSequences(tx.Data())
 	if err != nil {
-		return nil
+		return fmt.Errorf("error decoding the sequences: %v", err)
 	}
 
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
@@ -255,33 +255,33 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 	return nil
 }
 
-func decodeBatches(txData []byte) ([]proofofefficiency.ProofOfEfficiencySequence, error) {
+func decodeSequences(txData []byte) ([]proofofefficiency.ProofOfEfficiencySequence, error) {
 	// Extract coded txs.
 	// Load contract ABI
 	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
 	if err != nil {
-		log.Fatal("error reading smart contract abi: ", err)
+		return nil, err
 	}
 
 	// Recover Method from signature and ABI
 	method, err := abi.MethodById(txData[:4])
 	if err != nil {
-		log.Fatal("error getting abi method: ", err)
+		return nil, err
 	}
 
 	// Unpack method inputs
 	data, err := method.Inputs.Unpack(txData[4:])
 	if err != nil {
-		log.Fatal("error reading call data: ", err)
+		return nil, err
 	}
 	var sequences []proofofefficiency.ProofOfEfficiencySequence
 	bytedata, err := json.Marshal(data[0])
 	if err != nil {
-		log.Fatal("error json packing call data: ", err)
+		return nil, err
 	}
 	err = json.Unmarshal(bytedata, &sequences)
 	if err != nil {
-		log.Fatal("error json unpacking call data: ", err)
+		return nil, err
 	}
 
 	return sequences, nil
