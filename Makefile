@@ -153,11 +153,13 @@ stop-prover: ## Stops the zk prover
 
 .PHONY: run-explorer
 run-explorer: ## Runs the explorer
+	$(RUNEXPLORERRPC)
 	$(RUNEXPLORER)
 
 .PHONY: stop-explorer
 stop-explorer: ## Stops the explorer
 	$(STOPEXPLORER)
+	$(STOPEXPLORERRPC)
 
 .PHONY: run-explorer-db
 run-explorer-db: ## Runs the explorer database
@@ -171,7 +173,6 @@ stop-explorer-db: ## Stops the explorer database
 run: compile-scs ## Runs all the services
 	$(RUNDB)
 	$(RUNEXPLORERDB)
-	$(RUNEXPLORERRPC)
 	$(RUNNETWORK)
 	sleep 5
 	$(RUNPROVER)
@@ -179,6 +180,7 @@ run: compile-scs ## Runs all the services
 	$(RUNCORESEQ)
 	$(RUNCOREAGG)
 	$(RUNCORERPC)
+	$(RUNEXPLORERRPC)
 	$(RUNCORESYNC)
 	$(RUNEXPLORER)
 
