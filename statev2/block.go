@@ -13,7 +13,7 @@ type Block struct {
 	ParentHash      common.Hash
 	GlobalExitRoots []GlobalExitRoot
 	ForcedBatches   []ForcedBatch
-	VerifiedBatch   []VerifiedBatch
+	VerifiedBatches []VerifiedBatch
 
 	ReceivedAt time.Time
 }
