@@ -20,7 +20,6 @@ const (
 	resetSQL             = "DELETE FROM statev2.block WHERE block_num > $1"
 	addVerifiedBatchSQL  = "INSERT INTO statev2.verified_batch (block_num, batch_num, tx_hash, aggregator) VALUES ($1, $2, $3, $4)"
 	getVerifiedBatchSQL  = "SELECT block_num, batch_num, tx_hash, aggregator FROM statev2.verified_batch WHERE batch_num = $1"
-
 )
 
 // PostgresStorage implements the Storage interface
@@ -111,9 +110,9 @@ func (s *PostgresStorage) AddVerifiedBatch(ctx context.Context, verifiedBatch *V
 // GetVerifiedBatch get an L1 verifiedBatch.
 func (s *PostgresStorage) GetVerifiedBatch(ctx context.Context, tx pgx.Tx, batchNumber uint64) (*VerifiedBatch, error) {
 	var (
-		verifiedBatch    VerifiedBatch
-		txHash         string
-		agg            string
+		verifiedBatch VerifiedBatch
+		txHash        string
+		agg           string
 	)
 	err := tx.QueryRow(ctx, getVerifiedBatchSQL, batchNumber).Scan(&verifiedBatch.BlockNumber, &verifiedBatch.BatchNumber, &txHash, &agg)
 	if errors.Is(err, pgx.ErrNoRows) {
