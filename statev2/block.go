@@ -15,6 +15,7 @@ type Block struct {
 	GlobalExitRoots []GlobalExitRoot
 	ForcedBatches   []ForcedBatch
 	Sequences       []proofofefficiency.ProofOfEfficiencySequence
+	VerifiedBatches []VerifiedBatch
 	ReceivedAt      time.Time
 }
 

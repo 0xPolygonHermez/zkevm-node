@@ -24,10 +24,23 @@ import (
 )
 
 var (
-	sequencedBatchesEventSignatureHash     = crypto.Keccak256Hash([]byte("SequencedBatches(uint64)"))
-	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
-	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
-	forceBatchSignatureHash                = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
+	ownershipTransferredSignatureHash  = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+	updateGlobalExitRootSignatureHash  = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
+	forcedBatchSignatureHash           = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
+	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequencedBatches(uint64)"))
+	verifyBatchSignatureHash           = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
+)
+
+// EventOrder is the the type used to identify the events order
+type EventOrder string
+
+const (
+	// GlobalExitRootsOrder identifies a GlobalExitRoot event
+	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
+	//ForcedBatchesOrder identifies a ForcedBatches event
+	ForcedBatchesOrder EventOrder = "ForcedBatches"
+	//VerifyBatchOrder identifies a VerifyBatch event
+	VerifyBatchOrder EventOrder = "VerifyBatch"
 )
 
 type ethClienter interface {
@@ -76,7 +89,7 @@ func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, mati
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
 // from block x to block y.
-func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, error) {
+func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]Order, error) {
 	// Filter query
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
@@ -85,39 +98,48 @@ func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock
 	if toBlock != nil {
 		query.ToBlock = new(big.Int).SetUint64(*toBlock)
 	}
-	blocks, err := etherMan.readEvents(ctx, query)
+	blocks, blocksOrder, err := etherMan.readEvents(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return blocks, nil
+	return blocks, blocksOrder, nil
 }
 
-func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, error) {
+// Order contains the event order to let the synchronizer store the information following this order.
+type Order struct {
+	Name EventOrder
+	Pos  int
+}
+
+func (etherMan *Client) readEvents(ctx context.Context, query ethereum.FilterQuery) ([]state.Block, map[common.Hash][]Order, error) {
 	logs, err := etherMan.EtherClient.FilterLogs(ctx, query)
 	if err != nil {
-		return []state.Block{}, err
+		return nil, nil, err
 	}
 	var blocks []state.Block
+	blocksOrder := make(map[common.Hash][]Order)
 	for _, vLog := range logs {
-		err := etherMan.processEvent(ctx, vLog, &blocks)
+		err := etherMan.processEvent(ctx, vLog, &blocks, &blocksOrder)
 		if err != nil {
 			log.Warnf("error processing event. Retrying... Error: %s. vLog: %+v", err.Error(), vLog)
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	return blocks, nil
+	return blocks, blocksOrder, nil
 }
 
-func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block) error {
+func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block, blocksOrder *map[common.Hash][]Order) error {
 	switch vLog.Topics[0] {
 	case sequencedBatchesEventSignatureHash:
 		return etherMan.sequencedBatchesEvent(ctx, vLog, blocks)
 	case ownershipTransferredSignatureHash:
 		return etherMan.ownershipTransferredEvent(vLog)
-	case updateGlobalExitRootEventSignatureHash:
-		return etherMan.updateGlobalExitRootEvent(ctx, vLog, blocks)
-	case forceBatchSignatureHash:
-		return etherMan.forceBatchEvent(ctx, vLog, blocks)
+	case updateGlobalExitRootSignatureHash:
+		return etherMan.updateGlobalExitRootEvent(ctx, vLog, blocks, blocksOrder)
+	case forcedBatchSignatureHash:
+		return etherMan.forcedBatchEvent(ctx, vLog, blocks, blocksOrder)
+	case verifyBatchSignatureHash:
+		return etherMan.verifyBatchEvent(ctx, vLog, blocks, blocksOrder)
 	}
 	log.Warn("Event not registered: ", vLog)
 	return nil
@@ -137,7 +159,7 @@ func (etherMan *Client) ownershipTransferredEvent(vLog types.Log) error {
 	return nil
 }
 
-func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block) error {
+func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("UpdateGlobalExitRoot event detected")
 	globalExitRoot, err := etherMan.GlobalExitRootManager.ParseUpdateGlobalExitRoot(vLog)
 	if err != nil {
@@ -168,10 +190,15 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 		log.Error("Error processing UpdateGlobalExitRoot event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
 		return fmt.Errorf("error processing UpdateGlobalExitRoot event")
 	}
+	or := Order{
+		Name: GlobalExitRootsOrder,
+		Pos:  len((*blocks)[len(*blocks)-1].GlobalExitRoots) - 1,
+	}
+	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
 	return nil
 }
 
-func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block) error {
+func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("ForceBatch event detected")
 	fb, err := etherMan.PoE.ParseForceBatch(vLog)
 	if err != nil {
@@ -214,8 +241,13 @@ func (etherMan *Client) forceBatchEvent(ctx context.Context, vLog types.Log, blo
 		(*blocks)[len(*blocks)-1].ForcedBatches = append((*blocks)[len(*blocks)-1].ForcedBatches, forcedBatch)
 	} else {
 		log.Error("Error processing ForceBatch event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("error processing ForceBatch event")
+		return fmt.Errorf("Error processing ForceBatch event")
 	}
+	or := Order{
+		Name: ForcedBatchesOrder,
+		Pos:  len((*blocks)[len(*blocks)-1].ForcedBatches) - 1,
+	}
+	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
 	return nil
 }
 
@@ -285,6 +317,44 @@ func decodeSequences(txData []byte) ([]proofofefficiency.ProofOfEfficiencySequen
 	}
 
 	return sequences, nil
+}
+
+func (etherMan *Client) verifyBatchEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block, blocksOrder *map[common.Hash][]Order) error {
+	log.Debug("VerifyBatch event detected")
+	vb, err := etherMan.PoE.ParseVerifyBatch(vLog)
+	if err != nil {
+		return err
+	}
+	var verifyBatch state.VerifiedBatch
+	verifyBatch.BlockNumber = vLog.BlockNumber
+	verifyBatch.BatchNumber = vb.NumBatch
+	verifyBatch.TxHash = vLog.TxHash
+	verifyBatch.Aggregator = vb.Aggregator
+
+	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
+		var block state.Block
+		block.BlockHash = vLog.BlockHash
+		block.BlockNumber = vLog.BlockNumber
+		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+		if err != nil {
+			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", block.BlockNumber, err)
+		}
+		block.ParentHash = fullBlock.ParentHash()
+		block.ReceivedAt = time.Unix(int64(fullBlock.Time()), 0)
+		block.VerifiedBatches = append(block.VerifiedBatches, verifyBatch)
+		*blocks = append(*blocks, block)
+	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
+		(*blocks)[len(*blocks)-1].VerifiedBatches = append((*blocks)[len(*blocks)-1].VerifiedBatches, verifyBatch)
+	} else {
+		log.Error("Error processing VerifyBatch event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
+		return fmt.Errorf("Error processing VerifyBatch event")
+	}
+	or := Order{
+		Name: VerifyBatchOrder,
+		Pos:  len((*blocks)[len(*blocks)-1].VerifiedBatches) - 1,
+	}
+	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
+	return nil
 }
 
 func prepareBlock(vLog types.Log, t time.Time, fullBlock *types.Block) state.Block {
