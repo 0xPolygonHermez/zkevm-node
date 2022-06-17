@@ -22,7 +22,7 @@ import (
 
 var (
 	ownershipTransferredSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
-	updateGlobalExitRootEventSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
+	updateGlobalExitRootSignatureHash = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
 	forcedBatchSignatureHash               = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
 	verifyBatchSignatureHash               = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
 )
@@ -128,7 +128,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	switch vLog.Topics[0] {
 	case ownershipTransferredSignatureHash:
 		return etherMan.ownershipTransferredEvent(vLog)
-	case updateGlobalExitRootEventSignatureHash:
+	case updateGlobalExitRootSignatureHash:
 		return etherMan.updateGlobalExitRootEvent(ctx, vLog, blocks, blocksOrder)
 	case forcedBatchSignatureHash:
 		return etherMan.forcedBatchEvent(ctx, vLog, blocks, blocksOrder)
