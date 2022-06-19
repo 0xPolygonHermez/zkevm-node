@@ -435,14 +435,18 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to load transaction by hash from state"
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
-	receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash(), "")
+	receipt, err := e.state.GetTransactionReceipt(ctx, hash, "")
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to load transaction receipt from state"
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return toRPCTransaction(tx, receipt.BlockNumber, receipt.BlockHash, uint64(receipt.TransactionIndex)), nil
@@ -473,7 +477,7 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, error) {
 	c, err := e.state.GetBatchTransactionCountByHash(context.Background(), hash, "")
 	if err != nil {
-		return err, nil
+		return nil, newRPCError(defaultErrorCode, "failed to count transactions")
 	}
 
 	return argUint64(c), nil
@@ -506,7 +510,9 @@ func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get tx receipt from state"
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return stateReceiptToRPCReceipt(r), nil
