@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hermeznetwork/hermez-core/ethermanv2"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -64,7 +65,7 @@ func (s *State) RollbackStateTransaction(ctx context.Context, tx pgx.Tx) error {
 }
 
 // ResetDB resets the state to block for the given DB tx .
-func (s *State) ResetDB(ctx context.Context, block *Block, tx pgx.Tx) error {
+func (s *State) ResetDB(ctx context.Context, block *ethermanv2.Block, tx pgx.Tx) error {
 	return s.PostgresStorage.Reset(ctx, block, tx)
 }
 
@@ -85,7 +86,7 @@ func (s *State) GetForcedBatch(ctx context.Context, tx pgx.Tx, forcedBatchNumber
 }
 
 // AddBlock adds a new block to the State Store.
-func (s *State) AddBlock(ctx context.Context, block *Block, tx pgx.Tx) error {
+func (s *State) AddBlock(ctx context.Context, block *ethermanv2.Block, tx pgx.Tx) error {
 	return s.PostgresStorage.AddBlock(ctx, block, tx)
 }
 

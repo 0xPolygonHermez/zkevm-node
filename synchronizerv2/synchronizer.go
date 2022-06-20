@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/hermeznetwork/hermez-core/ethermanv2"
 	"github.com/hermeznetwork/hermez-core/log"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 )
@@ -53,14 +54,14 @@ func (s *ClientSynchronizer) Sync() error {
 	if err != nil {
 		if err == state.ErrStateNotSynchronized {
 			log.Warn("error getting the latest ethereum block. No data stored. Setting genesis block. Error: ", err)
-			lastEthBlockSynced = &state.Block{
+			lastEthBlockSynced = &ethermanv2.Block{
 				BlockNumber: s.genBlockNumber,
 			}
 		} else {
 			log.Fatal("unexpected error getting the latest ethereum block. Setting genesis block. Error: ", err)
 		}
 	} else if lastEthBlockSynced.BlockNumber == 0 {
-		lastEthBlockSynced = &state.Block{
+		lastEthBlockSynced = &ethermanv2.Block{
 			BlockNumber: s.genBlockNumber,
 		}
 	}
