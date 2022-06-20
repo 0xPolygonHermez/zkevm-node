@@ -46,11 +46,7 @@ func NewSynchronizer(
 	}, nil
 }
 
-var (
-	waitDuration = time.Duration(0)
-
-	prevInitEthBlockNumber uint64
-)
+var waitDuration = time.Duration(0)
 
 // Sync function will read the last state synced and will continue from that point.
 // Sync() will read blockchain events to detect rollup updates
@@ -111,8 +107,6 @@ func (s *ClientSynchronizer) Sync() error {
 	}
 }
 
-const saveReorgInterval = 50
-
 // This function syncs the node from a specific block to the latest
 func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
@@ -139,11 +133,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	var fromBlock uint64
 	if lastEthBlockSynced.BlockNumber > 0 {
 		fromBlock = lastEthBlockSynced.BlockNumber + 1
-		if (lastKnownBlock.Uint64()-lastEthBlockSynced.BlockNumber) > saveReorgInterval && prevInitEthBlockNumber == lastEthBlockSynced.BlockNumber { //If it needs to sync more than saveReorgInterval ethBlocks and already tried it
-			fromBlock = lastKnownBlock.Uint64() - saveReorgInterval
-		}
 	}
-	prevInitEthBlockNumber = lastEthBlockSynced.BlockNumber
 
 	for {
 		toBlock := fromBlock + s.cfg.SyncChunkSize
@@ -170,6 +160,24 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		if lastKnownBlock.Cmp(new(big.Int).SetUint64(fromBlock)) < 1 {
 			waitDuration = s.cfg.SyncInterval.Duration
 			break
+		}
+		if len(blocks) == 0 { // If there is no events in the checked blocks range and lastKnownBlock > fromBlock.
+			// Store the latest block of the block range. Get block info and process the block
+			fb, err := s.etherMan.EthBlockByNumber(s.ctx, toBlock)
+			if err != nil {
+				return lastEthBlockSynced, err
+			}
+			b := state.Block {
+				BlockNumber: fb.NumberU64(),
+				BlockHash: fb.Hash(),
+				ParentHash: fb.ParentHash(),
+				ReceivedAt: time.Unix(int64(fb.Time()), 0),
+			}
+			s.processBlockRange([]state.Block{b}, order)
+			lastEthBlockSynced = &b
+			for i := range blocks {
+				log.Debug("Position: ", i, ". BlockNumber: ", blocks[i].BlockNumber, ". BlockHash: ", blocks[i].BlockHash)
+			}
 		}
 	}
 
