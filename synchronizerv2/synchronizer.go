@@ -80,10 +80,10 @@ func (s *ClientSynchronizer) Sync() error {
 			return nil
 		case <-time.After(waitDuration):
 			latestsequencedBatchNumber, err := s.etherMan.GetLatestBatchNumber()
-				if err != nil {
-					log.Warn("error getting latest sequenced batch in the rollup. Error: ", err)
-					continue
-				}
+			if err != nil {
+				log.Warn("error getting latest sequenced batch in the rollup. Error: ", err)
+				continue
+			}
 			//Sync L1Blocks
 			if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
 				log.Warn("error syncing blocks: ", err)
@@ -107,10 +107,11 @@ func (s *ClientSynchronizer) Sync() error {
 			}
 			// Sync L2Blocks
 			// TODO
-
 		}
 	}
 }
+
+const saveReorgInterval = 50
 
 // This function syncs the node from a specific block to the latest
 func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
@@ -138,8 +139,8 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	var fromBlock uint64
 	if lastEthBlockSynced.BlockNumber > 0 {
 		fromBlock = lastEthBlockSynced.BlockNumber + 1
-		if (lastKnownBlock.Uint64() - lastEthBlockSynced.BlockNumber) > 50 && prevInitEthBlockNumber == lastEthBlockSynced.BlockNumber { //If it needs to sync more than 50 ethBlocks and already tried it
-			fromBlock = lastKnownBlock.Uint64() - 50
+		if (lastKnownBlock.Uint64()-lastEthBlockSynced.BlockNumber) > saveReorgInterval && prevInitEthBlockNumber == lastEthBlockSynced.BlockNumber { //If it needs to sync more than saveReorgInterval ethBlocks and already tried it
+			fromBlock = lastKnownBlock.Uint64() - saveReorgInterval
 		}
 	}
 	prevInitEthBlockNumber = lastEthBlockSynced.BlockNumber
