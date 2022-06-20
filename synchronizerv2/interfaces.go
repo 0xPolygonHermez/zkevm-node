@@ -4,10 +4,10 @@ import (
 	"context"
 	"math/big"
 
-	state "github.com/hermeznetwork/hermez-core/statev2"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	etherman "github.com/hermeznetwork/hermez-core/ethermanv2"
+	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/jackc/pgx/v4"
 )
 

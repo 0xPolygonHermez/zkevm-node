@@ -27,7 +27,7 @@ CREATE TABLE statev2.virtual_batch (  --virtual state
 );
 
 CREATE TABLE statev2.verified_batch (  --consolidated state
-    batch_num BIGINT PRIMARY KEY REFERENCES statev2.batch (batch_num) ON DELETE CASCADE,
+    batch_num BIGINT PRIMARY KEY REFERENCES statev2.virtual_batch (batch_num) ON DELETE CASCADE,
     tx_hash VARCHAR,
     aggregator VARCHAR,
     block_num BIGINT NOT NULL REFERENCES statev2.block (block_num) ON DELETE CASCADE

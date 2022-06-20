@@ -7,10 +7,10 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/hermeznetwork/hermez-core/log"
-	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/ethereum/go-ethereum/common"
 	etherman "github.com/hermeznetwork/hermez-core/ethermanv2"
+	"github.com/hermeznetwork/hermez-core/log"
+	state "github.com/hermeznetwork/hermez-core/statev2"
 )
 
 // Synchronizer connects L1 and L2
@@ -87,6 +87,7 @@ func (s *ClientSynchronizer) Sync() error {
 		}
 	}
 }
+
 // This function syncs the node from a specific block to the latest
 func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
