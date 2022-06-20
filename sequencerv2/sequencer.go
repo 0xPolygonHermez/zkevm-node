@@ -153,6 +153,8 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 		return false, false
 	}
 
+	// todo: checkAgainstForcedBatchQueueTimeout
+
 	// checkAgainstForcedBatchQueueTimeout
 	lastL1TimeInteraction, err := s.state.GetLastL1InteractionTime(ctx)
 	if err != nil {
