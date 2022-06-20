@@ -34,7 +34,7 @@ func Test_IsSequenceProfitable(t *testing.T) {
 	}
 	ctx := context.Background()
 	isProfitable, err := pc.IsSequenceProfitable(ctx, sequence)
-
+	require.NoError(t, err)
 	require.True(t, isProfitable)
 }
 
@@ -59,7 +59,7 @@ func Test_IsSequenceProfitableFalse(t *testing.T) {
 	}
 	ctx := context.Background()
 	isProfitable, err := pc.IsSequenceProfitable(ctx, sequence)
-
+	require.NoError(t, err)
 	require.False(t, isProfitable)
 }
 

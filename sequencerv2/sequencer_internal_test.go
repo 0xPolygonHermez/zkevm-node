@@ -202,7 +202,7 @@ func TestSequencerBaseFlow(t *testing.T) {
 	ethMan.On("GetFee").Return(gasCostMax, nil)
 
 	pendTxs, err := pl.GetPendingTxs(ctx, false, 30)
-
+	require.NoError(t, err)
 	sequencesToSent := make([]ethmanTypes.Sequence, 5)
 	for i := 0; i < 2; i++ {
 		for k := maxTxsInSequence * i; k < maxTxsInSequence*(i+1); k++ {
@@ -217,10 +217,9 @@ func TestSequencerBaseFlow(t *testing.T) {
 	require.NoError(t, err)
 	seq, err := New(seqCfg, pl, testState, ethMan, pg, txManager)
 	require.NoError(t, err)
-	ticker := time.NewTicker(seqCfg.WaitPeriodPoolIsEmpty.Duration)
-
-	require.NoError(t, err)
 	require.Equal(t, 10, len(pendTxs))
+
+	ticker := time.NewTicker(seqCfg.WaitPeriodPoolIsEmpty.Duration)
 	for i := 0; i < maxTxsInSequence; i++ {
 		seq.tryToProcessTx(ctx, ticker)
 	}

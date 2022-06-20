@@ -40,7 +40,6 @@ func New(
 	etherman etherman,
 	priceGetter priceGetter,
 	manager txManager) (Sequencer, error) {
-
 	checker := profitabilitychecker.New(etherman, priceGetter)
 	return Sequencer{
 		cfg:       cfg,
