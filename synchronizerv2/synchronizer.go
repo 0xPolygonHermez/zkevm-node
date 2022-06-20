@@ -168,11 +168,11 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 			if err != nil {
 				return lastEthBlockSynced, err
 			}
-			b := state.Block {
+			b := state.Block{
 				BlockNumber: fb.NumberU64(),
-				BlockHash: fb.Hash(),
-				ParentHash: fb.ParentHash(),
-				ReceivedAt: time.Unix(int64(fb.Time()), 0),
+				BlockHash:   fb.Hash(),
+				ParentHash:  fb.ParentHash(),
+				ReceivedAt:  time.Unix(int64(fb.Time()), 0),
 			}
 			s.processBlockRange([]state.Block{b}, order)
 			lastEthBlockSynced = &b
