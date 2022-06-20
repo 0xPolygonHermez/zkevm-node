@@ -46,7 +46,11 @@ func NewSynchronizer(
 	}, nil
 }
 
-var waitDuration = time.Duration(0)
+var (
+	waitDuration = time.Duration(0)
+
+	prevInitEthBlockNumber uint64
+)
 
 // Sync function will read the last state synced and will continue from that point.
 // Sync() will read blockchain events to detect rollup updates
@@ -61,6 +65,7 @@ func (s *ClientSynchronizer) Sync() error {
 			lastEthBlockSynced = &state.Block{
 				BlockNumber: s.genBlockNumber,
 			}
+			// TODO Set Genesis if needed
 		} else {
 			log.Fatal("unexpected error getting the latest ethereum block. Setting genesis block. Error: ", err)
 		}
@@ -74,9 +79,11 @@ func (s *ClientSynchronizer) Sync() error {
 		case <-s.ctx.Done():
 			return nil
 		case <-time.After(waitDuration):
-			// Sync L2Blocks
-			// TODO
-
+			latestsequencedBatchNumber, err := s.etherMan.GetLatestBatchNumber()
+				if err != nil {
+					log.Warn("error getting latest sequenced batch in the rollup. Error: ", err)
+					continue
+				}
 			//Sync L1Blocks
 			if lastEthBlockSynced, err = s.syncBlocks(lastEthBlockSynced); err != nil {
 				log.Warn("error syncing blocks: ", err)
@@ -84,6 +91,23 @@ func (s *ClientSynchronizer) Sync() error {
 					continue
 				}
 			}
+			if waitDuration != s.cfg.SyncInterval.Duration {
+				// Check latest Synced Batch
+				latestSyncedBatch, err := s.state.GetLastBatchNumber(s.ctx)
+				if err != nil {
+					log.Warn("error getting latest batch synced. Error: ", err)
+					continue
+				}
+				if latestSyncedBatch == latestsequencedBatchNumber {
+					waitDuration = s.cfg.SyncInterval.Duration
+				}
+				if latestSyncedBatch > latestsequencedBatchNumber {
+					log.Fatal("error: latest Synced BatchNumber is higher than the latest Proposed BatchNumber in the rollup")
+				}
+			}
+			// Sync L2Blocks
+			// TODO
+
 		}
 	}
 }
@@ -105,16 +129,20 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	}
 
 	// Call the blockchain to retrieve data
-	var fromBlock uint64
-	if lastEthBlockSynced.BlockNumber > 0 {
-		fromBlock = lastEthBlockSynced.BlockNumber + 1
-	}
-
 	header, err := s.etherMan.HeaderByNumber(s.ctx, nil)
 	if err != nil {
 		return lastEthBlockSynced, err
 	}
 	lastKnownBlock := header.Number
+
+	var fromBlock uint64
+	if lastEthBlockSynced.BlockNumber > 0 {
+		fromBlock = lastEthBlockSynced.BlockNumber + 1
+		if (lastKnownBlock.Uint64() - lastEthBlockSynced.BlockNumber) > 50 && prevInitEthBlockNumber == lastEthBlockSynced.BlockNumber { //If it needs to sync more than 50 ethBlocks and already tried it
+			fromBlock = lastKnownBlock.Uint64() - 50
+		}
+	}
+	prevInitEthBlockNumber = lastEthBlockSynced.BlockNumber
 
 	for {
 		toBlock := fromBlock + s.cfg.SyncChunkSize
@@ -132,6 +160,9 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		s.processBlockRange(blocks, order)
 		if len(blocks) > 0 {
 			lastEthBlockSynced = &blocks[len(blocks)-1]
+			for i := range blocks {
+				log.Debug("Position: ", i, ". BlockNumber: ", blocks[i].BlockNumber, ". BlockHash: ", blocks[i].BlockHash)
+			}
 		}
 		fromBlock = toBlock + 1
 
@@ -163,7 +194,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 			log.Fatalf("error storing block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err)
 		}
 		for _, element := range order[blocks[i].BlockHash] {
-			// TODO
+			// TODO Implement the store methods for each event
 			log.Debug(element)
 		}
 		err = s.state.CommitState(ctx, txDB)
