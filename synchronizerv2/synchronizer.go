@@ -114,7 +114,8 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	if err != nil {
 		log.Errorf("error checking reorgs. Retrying... Err: %s", err.Error())
 		return lastEthBlockSynced, fmt.Errorf("error checking reorgs")
-	} else if block != nil {
+	}
+	if block != nil {
 		err = s.resetState(block)
 		if err != nil {
 			log.Errorf("error resetting the state to a previous block. Err: %s, Retrying...", err.Error())
@@ -138,7 +139,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 	for {
 		toBlock := fromBlock + s.cfg.SyncChunkSize
 
-		log.Debugf("Getting rollup info from block %d to block %d", fromBlock, toBlock)
+		log.Infof("Getting rollup info from block %d to block %d", fromBlock, toBlock)
 		// This function returns the rollup information contained in the ethereum blocks and an extra param called order.
 		// Order param is a map that contains the event order to allow the synchronizer store the info in the same order that is readed.
 		// Name can be defferent in the order struct. For instance: Batches or Name:NewSequencers. This name is an identifier to check
@@ -175,9 +176,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 			}
 			s.processBlockRange([]state.Block{b}, order)
 			lastEthBlockSynced = &b
-			for i := range blocks {
-				log.Debug("Position: ", i, ". BlockNumber: ", blocks[i].BlockNumber, ". BlockHash: ", blocks[i].BlockHash)
-			}
+			log.Debug("Storing empty block. BlockNumber: ", b.BlockNumber, ". BlockHash: ", b.BlockHash)
 		}
 	}
 
