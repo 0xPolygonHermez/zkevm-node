@@ -19,6 +19,7 @@ import (
 	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/pool/pgpoolstorage"
+	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
@@ -26,6 +27,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+const maxTxsInSequence = 5
 
 type stateTestInterface interface {
 	stateInterface
@@ -121,7 +124,13 @@ func TestMain(m *testing.M) {
 	scCodeStore := tree.NewPostgresSCCodeStore(stateDB)
 	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDB), tree.NewStateTree(mt, scCodeStore))
 
-	seqCfg = Config{WaitPeriodPoolIsEmpty: cfgTypes.NewDuration(time.Second)}
+	seqCfg = Config{
+		WaitPeriodPoolIsEmpty:              cfgTypes.NewDuration(time.Second),
+		LastL1InteractionTimeMaxWaitPeriod: cfgTypes.NewDuration(60 * time.Second),
+		LastTimeGERUpdatedMaxWaitPeriod:    cfgTypes.NewDuration(60 * time.Second),
+		LastTimeDepositMaxWaitPeriod:       cfgTypes.NewDuration(60 * time.Second),
+		LastTimeBatchMaxWaitPeriod:         cfgTypes.NewDuration(60 * time.Second),
+	}
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
@@ -164,7 +173,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	for i := 0; i < 25; i++ {
+	for i := 0; i < 10; i++ {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(21000), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		if err != nil {
@@ -187,23 +196,35 @@ func TestSequencerBaseFlow(t *testing.T) {
 	ctx := context.Background()
 	setUpBlock(ctx, t)
 	setUpBatch(ctx, t)
-
-	seq, err := New(seqCfg, pl, testState, txManager)
-	require.NoError(t, err)
-	ticker := time.NewTicker(seqCfg.WaitPeriodPoolIsEmpty.Duration)
+	ethMan := new(ethermanMock)
+	gasCostMax, _ := new(big.Int).SetString("1000000000000000000", 10)
+	ethMan.On("EstimateGasSequenceBatches", mock.Anything).Return(gasCostMax, nil)
+	ethMan.On("GetFee").Return(gasCostMax, nil)
 
 	pendTxs, err := pl.GetPendingTxs(ctx, false, 30)
-	require.NoError(t, err)
-	require.Equal(t, 25, len(pendTxs))
-	for i := 0; i < maxTxsInSequence; i++ {
-		seq.tryToProcessTx(ctx, ticker)
-	}
+
 	sequencesToSent := make([]ethmanTypes.Sequence, 5)
-	for i := 0; i < maxSequencesLength; i++ {
-		for k := maxSequencesLength * i; k < maxSequencesLength*(i+1); k++ {
+	for i := 0; i < 2; i++ {
+		for k := maxTxsInSequence * i; k < maxTxsInSequence*(i+1); k++ {
 			sequencesToSent[i].Txs = append(sequencesToSent[i].Txs, pendTxs[k].Transaction)
 		}
 	}
+
+	pg, err := pricegetter.NewClient(pricegetter.Config{
+		Type:         pricegetter.DefaultType,
+		DefaultPrice: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
+	})
+	require.NoError(t, err)
+	seq, err := New(seqCfg, pl, testState, ethMan, pg, txManager)
+	require.NoError(t, err)
+	ticker := time.NewTicker(seqCfg.WaitPeriodPoolIsEmpty.Duration)
+
+	require.NoError(t, err)
+	require.Equal(t, 10, len(pendTxs))
+	for i := 0; i < maxTxsInSequence; i++ {
+		seq.tryToProcessTx(ctx, ticker)
+	}
+
 	txManager.On("SequenceBatches", mock.MatchedBy(func(sequences []ethmanTypes.Sequence) bool {
 		res := true
 		for i := 0; i < len(sequences); i++ {
@@ -215,21 +236,27 @@ func TestSequencerBaseFlow(t *testing.T) {
 	})).Return(nil, nil)
 	pendTxs, err = pl.GetPendingTxs(ctx, false, 30)
 	require.NoError(t, err)
-	require.Equal(t, 20, len(pendTxs))
+	require.Equal(t, 5, len(pendTxs))
 	require.Equal(t, maxTxsInSequence, len(seq.sequenceInProgress.Txs))
 	require.Equal(t, 0, len(seq.closedSequences))
-
+	seq.cfg.LastTimeGERUpdatedMaxWaitPeriod = cfgTypes.NewDuration(0)
 	seq.tryToProcessTx(ctx, ticker)
 	pendTxs, err = pl.GetPendingTxs(ctx, false, 30)
 	require.NoError(t, err)
-	require.Equal(t, 19, len(pendTxs))
+	require.Equal(t, 4, len(pendTxs))
 	require.Equal(t, 1, len(seq.sequenceInProgress.Txs))
 	require.Equal(t, 1, len(seq.closedSequences))
 	require.Equal(t, maxTxsInSequence, len(seq.closedSequences[0].Txs))
 
-	for i := 0; i < 20; i++ {
+	seq.cfg.LastTimeGERUpdatedMaxWaitPeriod = cfgTypes.NewDuration(10 * time.Second)
+
+	for i := 0; i < 4; i++ {
 		seq.tryToProcessTx(ctx, ticker)
 	}
+	seq.cfg.LastL1InteractionTimeMaxWaitPeriod = cfgTypes.NewDuration(0)
+	seq.cfg.LastTimeGERUpdatedMaxWaitPeriod = cfgTypes.NewDuration(0)
+	seq.tryToProcessTx(ctx, ticker)
+
 	pendTxs, err = pl.GetPendingTxs(ctx, false, 30)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pendTxs))
