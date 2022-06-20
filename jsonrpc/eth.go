@@ -466,7 +466,9 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 	if errors.Is(err, state.ErrNotFound) {
 		return hex.EncodeUint64(0), nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to count transactions"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return hex.EncodeUint64(nonce), nil
@@ -477,7 +479,9 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, error) {
 	c, err := e.state.GetBatchTransactionCountByHash(context.Background(), hash, "")
 	if err != nil {
-		return nil, newRPCError(defaultErrorCode, "failed to count transactions")
+		const errorMessage = "failed to count transactions"
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argUint64(c), nil
@@ -491,12 +495,14 @@ func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}
 	var err error
 	blockNumber, err := number.getNumericBlockNumber(ctx, e.state)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	c, err := e.state.GetBatchTransactionCountByNumber(ctx, blockNumber, "")
 	if err != nil {
-		return err, nil
+		const errorMessage = "failed to count transactions"
+		log.Errorf("%v: %v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argUint64(c), nil
@@ -558,16 +564,18 @@ func (e *Eth) NewPendingTransactionFilter(filterID argUint64) (interface{}, erro
 func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 	tx, err := hexToTx(input)
 	if err != nil {
-		log.Warnf("Invalid tx: %v", err)
-		return nil, err
+		const errorMessage = "invalid tx input"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(invalidParamsErrorCode, errorMessage)
 	}
 
 	log.Debugf("adding TX to the pool: %v", tx.Hash().Hex())
 	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
-		log.Warnf("Failed to add TX to the pool[%v]: %v", tx.Hash().Hex(), err)
-		return nil, err
+		const errorMessage = "failed to add TX to the pool"
+		log.Errorf("%v[%v]:%v", errorMessage, tx.Hash().Hex(), err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
-	log.Debugf("TX added to the pool: %v", tx.Hash().Hex())
+	log.Infof("TX added to the pool: %v", tx.Hash().Hex())
 
 	return tx.Hash().Hex(), nil
 }
