@@ -2,7 +2,6 @@ package sequencerv2
 
 import (
 	"context"
-	"github.com/hermeznetwork/hermez-core/sequencerv2/profitabilitychecker"
 	"math/big"
 	"os"
 	"strings"
@@ -21,6 +20,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/pool/pgpoolstorage"
 	"github.com/hermeznetwork/hermez-core/pricegetter"
+	"github.com/hermeznetwork/hermez-core/sequencerv2/profitabilitychecker"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
