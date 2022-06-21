@@ -48,7 +48,7 @@ type Config struct {
 	GasPriceEstimator gasprice.Config
 	MTServer          tree.ServerConfig
 	MTClient          tree.ClientConfig
-	ExecutorServer    executor.ServerConfig
+	Executor          executor.Config
 }
 
 // Load loads the configuration

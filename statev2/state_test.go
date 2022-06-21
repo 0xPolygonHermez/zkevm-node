@@ -5,18 +5,30 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/log"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	ether155V = 27
 )
 
 var (
@@ -24,13 +36,13 @@ var (
 	hash1, hash2 common.Hash
 	stateDb      *pgxpool.Pool
 	err          error
+	cfg          = dbutils.NewConfigFromEnv()
+	ctx          = context.Background()
+	stateCfg     = state.Config{
+		MaxCumulativeGasUsed: 800000,
+		ExecutorServerConfig: executor.Config{URI: "51.210.116.237:50071"},
+	}
 )
-
-var cfg = dbutils.NewConfigFromEnv()
-var stateCfg = state.Config{
-	MaxCumulativeGasUsed: 800000,
-	ExecutorServerConfig: executor.ServerConfig{Host: "51.210.116.237", Port: 50071},
-}
 
 func TestMain(m *testing.M) {
 	stateDb, err = db.NewSQLDB(cfg)
@@ -118,4 +130,78 @@ func TestAddForcedBatch(t *testing.T) {
 	assert.NotEqual(t, time.Time{}, fb.ForcedAt)
 	assert.Equal(t, forcedBatch.GlobalExitRoot, fb.GlobalExitRoot)
 	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
+}
+
+func TestExecuteTransaction(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 4000000
+	scCounterByteCode, err := testutils.ReadBytecode("Counter/Counter.bin")
+	require.NoError(t, err)
+
+	// Deploy counter.sol
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     common.Hex2Bytes(scCounterByteCode),
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	// Encode transaction
+	v, r, s := signedTx.RawSignatureValues()
+	sign := 1 - (v.Uint64() & 1)
+
+	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
+		signedTx.Nonce(),
+		signedTx.GasPrice(),
+		signedTx.Gas(),
+		signedTx.To(),
+		signedTx.Value(),
+		signedTx.Data(),
+		signedTx.ChainId(), uint(0), uint(0),
+	})
+	require.NoError(t, err)
+
+	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
+	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
+	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
+	batchL2Data, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
+	require.NoError(t, err)
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:             0,
+		Coinbase:             sequencerAddress.String(),
+		BatchL2Data:          batchL2Data,
+		OldStateRoot:         common.Hex2Bytes("0xa2d5489990c3debb5fb909340557e96bf78cff87050541ad9dc6e1f5d5817296"),
+		GlobalExitRoot:       common.Hex2Bytes("0x"),
+		OldLocalExitRoot:     common.Hex2Bytes("0x"),
+		EthTimestamp:         uint64(time.Now().Unix()),
+		UpdateMerkleTree:     false,
+		GenerateExecuteTrace: false,
+		GenerateCallTrace:    false,
+	}
+
+	// Create client
+	executorClient, clientConn := executor.NewExecutorClient(stateCfg.ExecutorServerConfig)
+
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+
+	log.Debugf("%v", processBatchResponse)
+
+	err = clientConn.Close()
+	require.NoError(t, err)
 }

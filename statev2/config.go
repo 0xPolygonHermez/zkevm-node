@@ -7,5 +7,5 @@ type Config struct {
 	// MaxCumulativeGasUsed is the max gas allowed per batch
 	MaxCumulativeGasUsed uint64
 	// Executor configuration
-	ExecutorServerConfig executor.ServerConfig
+	ExecutorServerConfig executor.Config
 }

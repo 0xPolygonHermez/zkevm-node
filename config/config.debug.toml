@@ -67,6 +67,5 @@ StoreBackend = "PostgreSQL"
 [MTClient]
 URI = "127.0.0.1:50060"
 
-[ExecutorServer]
-Host = "51.210.116.237"
-Port = 50071
+[Executor]
+ExecutorURI = "51.210.116.237:50071"

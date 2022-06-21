@@ -142,13 +142,13 @@ func (s *State) StoreBatchHeader(ctx context.Context, batch Batch) error {
 }
 
 // ProcessBatch is used by the Trusted Sequencer to add transactions to the batch
-func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction) (*pb.ProcessBatchResponse, error) {
+func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction) (*ProcessBatchResponse, error) {
 	// check batchNumber is the latest in db
 	return nil, nil
 }
 
 // StoreTransactions is used by the Trusted Sequencer to add processed transactions into the data base
-func (s *State) StoreTransactions(batchNum uint64, processedTxs []*pb.ProcessTransactionResponse) error {
+func (s *State) StoreTransactions(batchNum uint64, processedTxs []*ProcessTransactionResponse) error {
 	return nil
 }
 
