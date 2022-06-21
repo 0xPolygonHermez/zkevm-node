@@ -798,45 +798,6 @@ func TestGetUncleCountByBlockNumber(t *testing.T) {
 	assert.Equal(t, uint64(0), uint64(result))
 }
 
-func TestGetTransactionReceipt(t *testing.T) {
-	s, m, c := newMockedServer(t)
-	defer s.Stop()
-
-	type testCase struct {
-		Name string
-		Hash common.Hash
-
-		ExpectedResult *types.Receipt
-		ExpectedError  error
-
-		SetupMocks func(m *mocks, t testCase)
-	}
-
-	testCases := []testCase{
-		{
-			Name:           "tx receipt not found",
-			Hash:           common.HexToHash("0x1"),
-			ExpectedResult: nil,
-			ExpectedError:  ethereum.NotFound,
-			SetupMocks: func(m *mocks, t testCase) {
-				m.State.
-					On("GetTransactionReceipt", context.Background(), t.Hash, "").
-					Return(nil, state.ErrNotFound).
-					Once()
-			},
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.Name, func(t *testing.T) {
-			testCase.SetupMocks(m, testCase)
-			r, err := c.TransactionReceipt(context.Background(), testCase.Hash)
-			assert.Equal(t, testCase.ExpectedResult, r)
-			assert.Equal(t, testCase.ExpectedError, err)
-		})
-	}
-}
-
 func TestGetCode(t *testing.T) {
 	s, m, c := newMockedServer(t)
 	defer s.Stop()
@@ -1407,6 +1368,637 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 	}
 }
 
+func TestGetTransactionByHash(t *testing.T) {
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name            string
+		Hash            common.Hash
+		ExpectedPending bool
+		ExpectedResult  *types.Transaction
+		ExpectedError   interface{}
+		SetupMocks      func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:            "Get TX Successfully",
+			Hash:            common.HexToHash("0x123"),
+			ExpectedPending: false,
+			ExpectedResult:  types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
+			ExpectedError:   nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, "").
+					Return(tc.ExpectedResult, nil).
+					Once()
+
+				receipt := types.NewReceipt([]byte{}, false, 0)
+				receipt.BlockHash = common.Hash{}
+				receipt.BlockNumber = big.NewInt(1)
+				stateReceipt := &state.Receipt{Receipt: *receipt}
+
+				m.State.
+					On("GetTransactionReceipt", context.Background(), tc.Hash, "").
+					Return(stateReceipt, nil).
+					Once()
+			},
+		},
+		{
+			Name:            "TX Not Found",
+			Hash:            common.HexToHash("0x123"),
+			ExpectedPending: false,
+			ExpectedResult:  nil,
+			ExpectedError:   ethereum.NotFound,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, "").
+					Return(nil, state.ErrNotFound).
+					Once()
+			},
+		},
+		{
+			Name:            "TX failed to load",
+			Hash:            common.HexToHash("0x123"),
+			ExpectedPending: false,
+			ExpectedResult:  nil,
+			ExpectedError:   newRPCError(defaultErrorCode, "failed to load transaction by hash from state"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, "").
+					Return(nil, errors.New("failed to load transaction by hash from state")).
+					Once()
+			},
+		},
+		{
+			Name:            "TX receipt Not Found",
+			Hash:            common.HexToHash("0x123"),
+			ExpectedPending: false,
+			ExpectedResult:  nil,
+			ExpectedError:   ethereum.NotFound,
+			SetupMocks: func(m *mocks, tc testCase) {
+				var tx *types.Transaction
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, "").
+					Return(tx, nil).
+					Once()
+
+				m.State.
+					On("GetTransactionReceipt", context.Background(), tc.Hash, "").
+					Return(nil, state.ErrNotFound).
+					Once()
+			},
+		},
+		{
+			Name:            "TX receipt failed to load",
+			Hash:            common.HexToHash("0x123"),
+			ExpectedPending: false,
+			ExpectedResult:  nil,
+			ExpectedError:   newRPCError(defaultErrorCode, "failed to load transaction receipt from state"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				var tx *types.Transaction
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, "").
+					Return(tx, nil).
+					Once()
+
+				m.State.
+					On("GetTransactionReceipt", context.Background(), tc.Hash, "").
+					Return(nil, errors.New("failed to load transaction receipt from state")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+
+			result, pending, err := c.TransactionByHash(context.Background(), testCase.Hash)
+			assert.Equal(t, testCase.ExpectedPending, pending)
+
+			if result != nil || testCase.ExpectedResult != nil {
+				assert.Equal(t, testCase.ExpectedResult.Hash(), result.Hash())
+			}
+
+			if err != nil || testCase.ExpectedError != nil {
+				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, testCase.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestGetBlockTransactionCountByHash(t *testing.T) {
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		BlockHash      common.Hash
+		ExpectedResult uint
+		ExpectedError  interface{}
+		SetupMocks     func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Count txs successfully",
+			BlockHash:      common.HexToHash("0x123"),
+			ExpectedResult: uint(10),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetBatchTransactionCountByHash", context.Background(), tc.BlockHash, "").
+					Return(uint64(10), nil).
+					Once()
+			},
+		},
+		{
+			Name:           "Failed to count txs by hash",
+			BlockHash:      common.HexToHash("0x123"),
+			ExpectedResult: 0,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to count transactions"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetBatchTransactionCountByHash", context.Background(), tc.BlockHash, "").
+					Return(uint64(0), errors.New("failed to count txs")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+			result, err := c.TransactionCount(context.Background(), tc.BlockHash)
+
+			assert.Equal(t, testCase.ExpectedResult, result)
+
+			if err != nil || testCase.ExpectedError != nil {
+				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, testCase.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestGetBlockTransactionCountByNumber(t *testing.T) {
+	s, m, _ := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		BlockNumber    string
+		ExpectedResult uint
+		ExpectedError  rpcError
+		SetupMocks     func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Count txs successfully",
+			BlockNumber:    "latest",
+			ExpectedResult: uint(10),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				blockNumber := uint64(10)
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(blockNumber, nil).
+					Once()
+
+				m.State.
+					On("GetBatchTransactionCountByNumber", context.Background(), blockNumber, "").
+					Return(uint64(10), nil).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to get last batch number",
+			BlockNumber:    "latest",
+			ExpectedResult: 0,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last batch number from state"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(uint64(0), errors.New("failed to get last batch number")).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to count tx",
+			BlockNumber:    "latest",
+			ExpectedResult: 0,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to count transactions"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				blockNumber := uint64(10)
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(blockNumber, nil).
+					Once()
+
+				m.State.
+					On("GetBatchTransactionCountByNumber", context.Background(), blockNumber, "").
+					Return(uint64(0), errors.New("failed to count")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+			res, err := s.JSONRPCCall("eth_getBlockTransactionCountByNumber", tc.BlockNumber)
+
+			require.NoError(t, err)
+			assert.Equal(t, float64(1), res.ID)
+			assert.Equal(t, "2.0", res.JSONRPC)
+
+			if res.Result != nil {
+				var result argUint64
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+				assert.Equal(t, testCase.ExpectedResult, uint(result))
+			}
+
+			if res.Error != nil || testCase.ExpectedError != nil {
+				assert.Equal(t, testCase.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, testCase.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
+func TestGetTransactionCount(t *testing.T) {
+	s, m, _ := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		Address        string
+		BlockNumber    string
+		ExpectedResult uint
+		ExpectedError  rpcError
+		SetupMocks     func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Count txs successfully",
+			Address:        common.HexToAddress("0x123").Hex(),
+			BlockNumber:    "latest",
+			ExpectedResult: uint(10),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				blockNumber := uint64(10)
+				address := common.HexToAddress(tc.Address)
+
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(blockNumber, nil).
+					Once()
+
+				m.State.
+					On("GetNonce", context.Background(), address, blockNumber, "").
+					Return(uint64(10), nil).
+					Once()
+			},
+		},
+		{
+			Name:           "Count txs nonce not found",
+			Address:        common.HexToAddress("0x123").Hex(),
+			BlockNumber:    "latest",
+			ExpectedResult: 0,
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				blockNumber := uint64(10)
+				address := common.HexToAddress(tc.Address)
+
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(blockNumber, nil).
+					Once()
+
+				m.State.
+					On("GetNonce", context.Background(), address, blockNumber, "").
+					Return(uint64(0), state.ErrNotFound).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to get last batch number",
+			Address:        common.HexToAddress("0x123").Hex(),
+			BlockNumber:    "latest",
+			ExpectedResult: 0,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last batch number from state"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(uint64(0), errors.New("failed to get last batch number")).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to get nonce",
+			Address:        common.HexToAddress("0x123").Hex(),
+			BlockNumber:    "latest",
+			ExpectedResult: 0,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to count transactions"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				blockNumber := uint64(10)
+				address := common.HexToAddress(tc.Address)
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(blockNumber, nil).
+					Once()
+
+				m.State.
+					On("GetNonce", context.Background(), address, blockNumber, "").
+					Return(uint64(0), errors.New("failed to get nonce")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+			res, err := s.JSONRPCCall("eth_getTransactionCount", tc.Address, tc.BlockNumber)
+
+			require.NoError(t, err)
+			assert.Equal(t, float64(1), res.ID)
+			assert.Equal(t, "2.0", res.JSONRPC)
+
+			if res.Result != nil {
+				var result argUint64
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+				assert.Equal(t, testCase.ExpectedResult, uint(result))
+			}
+
+			if res.Error != nil || testCase.ExpectedError != nil {
+				assert.Equal(t, testCase.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, testCase.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
+func TestGetTransactionReceipt(t *testing.T) {
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		Hash           common.Hash
+		ExpectedResult *types.Receipt
+		ExpectedError  interface{}
+		SetupMocks     func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Get TX receipt Successfully",
+			Hash:           common.HexToHash("0x123"),
+			ExpectedResult: types.NewReceipt([]byte{}, false, 0),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				r := &state.Receipt{Receipt: *tc.ExpectedResult}
+				m.State.
+					On("GetTransactionReceipt", context.Background(), tc.Hash, "").
+					Return(r, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "TX receipt Not Found",
+			Hash:           common.HexToHash("0x123"),
+			ExpectedResult: nil,
+			ExpectedError:  ethereum.NotFound,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetTransactionReceipt", context.Background(), tc.Hash, "").
+					Return(nil, state.ErrNotFound).
+					Once()
+			},
+		},
+		{
+			Name:           "TX receipt failed to load",
+			Hash:           common.HexToHash("0x123"),
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get tx receipt from state"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetTransactionReceipt", context.Background(), tc.Hash, "").
+					Return(nil, errors.New("failed to get tx receipt from state")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+
+			result, err := c.TransactionReceipt(context.Background(), testCase.Hash)
+
+			if result != nil || testCase.ExpectedResult != nil {
+				assert.Equal(t, testCase.ExpectedResult.TxHash, result.TxHash)
+			}
+
+			if err != nil || testCase.ExpectedError != nil {
+				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, testCase.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestSendRawTransactionViaGeth(t *testing.T) {
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name          string
+		Tx            *types.Transaction
+		ExpectedError interface{}
+		SetupMocks    func(t *testing.T, m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:          "Send TX successfully",
+			Tx:            types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
+			ExpectedError: nil,
+			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				txMatchByHash := mock.MatchedBy(func(tx types.Transaction) bool {
+					h1 := tx.Hash().Hex()
+					h2 := tc.Tx.Hash().Hex()
+					return h1 == h2
+				})
+
+				m.Pool.
+					On("AddTx", context.Background(), txMatchByHash).
+					Return(nil).
+					Once()
+			},
+		},
+		{
+			Name:          "Send TX failed to add to the pool",
+			Tx:            types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
+			ExpectedError: newRPCError(defaultErrorCode, "failed to add TX to the pool"),
+			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				txMatchByHash := mock.MatchedBy(func(tx types.Transaction) bool {
+					h1 := tx.Hash().Hex()
+					h2 := tc.Tx.Hash().Hex()
+					return h1 == h2
+				})
+
+				m.Pool.
+					On("AddTx", context.Background(), txMatchByHash).
+					Return(errors.New("failed to add to the pool")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(t, m, tc)
+
+			err := c.SendTransaction(context.Background(), tc.Tx)
+
+			if err != nil || testCase.ExpectedError != nil {
+				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, testCase.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestSendRawTransactionJSONRPCCall(t *testing.T) {
+	s, m, _ := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		Input          string
+		ExpectedResult *common.Hash
+		ExpectedError  rpcError
+		Prepare        func(t *testing.T, tc *testCase)
+		SetupMocks     func(t *testing.T, m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name: "Send TX successfully",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tx := types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
+
+				txBinary, err := tx.MarshalBinary()
+				require.NoError(t, err)
+
+				rawTx := hex.EncodeToHex(txBinary)
+				require.NoError(t, err)
+
+				tc.Input = rawTx
+				tc.ExpectedResult = hashPtr(tx.Hash())
+				tc.ExpectedError = nil
+			},
+			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				m.Pool.
+					On("AddTx", context.Background(), mock.IsType(types.Transaction{})).
+					Return(nil).
+					Once()
+			},
+		},
+		{
+			Name: "Send TX failed to add to the pool",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tx := types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
+
+				txBinary, err := tx.MarshalBinary()
+				require.NoError(t, err)
+
+				rawTx := hex.EncodeToHex(txBinary)
+				require.NoError(t, err)
+
+				tc.Input = rawTx
+				tc.ExpectedResult = nil
+				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to add TX to the pool")
+			},
+			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				m.Pool.
+					On("AddTx", context.Background(), mock.IsType(types.Transaction{})).
+					Return(errors.New("failed to add to the pool")).
+					Once()
+			},
+		},
+		{
+			Name: "Send invalid tx input",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Input = "0x1234"
+				tc.ExpectedResult = nil
+				tc.ExpectedError = newRPCError(invalidParamsErrorCode, "invalid tx input")
+			},
+			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.Prepare(t, &tc)
+			tc.SetupMocks(t, m, tc)
+
+			res, err := s.JSONRPCCall("eth_sendRawTransaction", tc.Input)
+			require.NoError(t, err)
+
+			assert.Equal(t, float64(1), res.ID)
+			assert.Equal(t, "2.0", res.JSONRPC)
+
+			if res.Result != nil || tc.ExpectedResult != nil {
+				var result common.Hash
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+				assert.Equal(t, *tc.ExpectedResult, result)
+			}
+			if res.Error != nil || tc.ExpectedError != nil {
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
 func TestProtocolVersion(t *testing.T) {
 	s, _, _ := newMockedServer(t)
 	defer s.Stop()
@@ -1427,4 +2019,8 @@ func TestProtocolVersion(t *testing.T) {
 
 func addressPtr(i common.Address) *common.Address {
 	return &i
+}
+
+func hashPtr(h common.Hash) *common.Hash {
+	return &h
 }
