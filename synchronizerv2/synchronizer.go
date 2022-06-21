@@ -158,7 +158,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		}
 		fromBlock = toBlock + 1
 
-		if lastKnownBlock.Cmp(new(big.Int).SetUint64(fromBlock)) < 1 {
+		if lastKnownBlock.Cmp(new(big.Int).SetUint64(toBlock)) < 1 {
 			waitDuration = s.cfg.SyncInterval.Duration
 			break
 		}
