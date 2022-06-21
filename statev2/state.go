@@ -380,3 +380,15 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 
 	return jsTracer.GetResult()
 }
+
+func (s *State) GetLastBatch(ctx context.Context, tx pgx.Tx) (*Batch, error) {
+	return s.PostgresStorage.GetLastBatch(ctx, tx)
+}
+
+func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
+	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, tx)
+}
+
+func (s *State) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) ([]string, error) {
+	return s.PostgresStorage.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, tx)
+}
