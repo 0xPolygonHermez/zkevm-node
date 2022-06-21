@@ -116,7 +116,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 		return lastEthBlockSynced, fmt.Errorf("error checking reorgs")
 	}
 	if block != nil {
-		err = s.resetState(block)
+		err = s.resetState(block.BlockNumber)
 		if err != nil {
 			log.Errorf("error resetting the state to a previous block. Err: %s, Retrying...", err.Error())
 			return lastEthBlockSynced, fmt.Errorf("error resetting the state to a previous block")
@@ -213,18 +213,18 @@ func (s *ClientSynchronizer) processBlockRange(blocks []state.Block, order map[c
 }
 
 // This function allows reset the state until an specific ethereum block
-func (s *ClientSynchronizer) resetState(block *state.Block) error {
-	log.Debug("Reverting synchronization to block: ", block.BlockNumber)
+func (s *ClientSynchronizer) resetState(blockNumber uint64) error {
+	log.Debug("Reverting synchronization to block: ", blockNumber)
 	txDB, err := s.state.BeginStateTransaction(s.ctx)
 	if err != nil {
 		log.Error("error starting a db transaction to reset the state. Error: ", err)
 		return err
 	}
-	err = s.state.Reset(s.ctx, block, txDB)
+	err = s.state.Reset(s.ctx, blockNumber, txDB)
 	if err != nil {
 		rollbackErr := s.state.RollbackState(s.ctx, txDB)
 		if rollbackErr != nil {
-			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err)
+			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blockNumber, rollbackErr, err)
 			return rollbackErr
 		}
 		log.Error("error resetting the state. Error: ", err)
@@ -234,7 +234,7 @@ func (s *ClientSynchronizer) resetState(block *state.Block) error {
 	if err != nil {
 		rollbackErr := s.state.RollbackState(s.ctx, txDB)
 		if rollbackErr != nil {
-			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", block.BlockNumber, rollbackErr, err)
+			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blockNumber, rollbackErr, err)
 			return rollbackErr
 		}
 		log.Error("error committing the resetted state. Error: ", err)
@@ -263,10 +263,10 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 			return nil, err
 		}
 		if block.NumberU64() != latestBlock.BlockNumber {
-			log.Error("Wrong ethereum block retrieved from blockchain. Block numbers don't match. BlockNumber stored: ",
-				latestBlock.BlockNumber, ". BlockNumber retrieved: ", block.NumberU64())
-			return nil, fmt.Errorf("Wrong ethereum block retrieved from blockchain. Block numbers don't match. BlockNumber stored: %d. BlockNumber retrieved: %d",
+			err = fmt.Errorf("Wrong ethereum block retrieved from blockchain. Block numbers don't match. BlockNumber stored: %d. BlockNumber retrieved: %d",
 				latestBlock.BlockNumber, block.NumberU64())
+			log.Error("error: ", err)
+			return nil, err
 		}
 		// Compare hashes
 		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > s.genBlockNumber {
