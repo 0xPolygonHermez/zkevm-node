@@ -3,6 +3,7 @@ package ethermanv2
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -27,8 +28,11 @@ var (
 	updateGlobalExitRootSignatureHash  = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
 	forcedBatchSignatureHash           = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
 	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequencedBatches(uint64)"))
-	verifyBatchSignatureHash           = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
 	forceSequencedBatchesSignatureHash = crypto.Keccak256Hash([]byte("ForceSequencedBatches(uint64)"))
+	verifiedBatchSignatureHash         = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
+
+	// ErrNotFound is used when the object is not found
+	ErrNotFound = errors.New("Not found")
 )
 
 // EventOrder is the the type used to identify the events order
@@ -142,7 +146,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		return etherMan.updateGlobalExitRootEvent(ctx, vLog, blocks, blocksOrder)
 	case forcedBatchSignatureHash:
 		return etherMan.forcedBatchEvent(ctx, vLog, blocks, blocksOrder)
-	case verifyBatchSignatureHash:
+	case verifiedBatchSignatureHash:
 		return etherMan.verifyBatchEvent(ctx, vLog, blocks, blocksOrder)
 	case forceSequencedBatchesSignatureHash:
 		return etherMan.forceSequencedBatchesEvent(ctx, vLog, blocks, blocksOrder)
@@ -427,4 +431,28 @@ func hash(data ...[32]byte) [32]byte {
 	}
 	copy(res[:], hash.Sum(nil))
 	return res
+}
+
+// HeaderByNumber returns a block header from the current canonical chain. If number is
+// nil, the latest known header is returned.
+func (etherMan *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	return etherMan.EtherClient.HeaderByNumber(ctx, number)
+}
+
+// EthBlockByNumber function retrieves the ethereum block information by ethereum block number.
+func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error) {
+	block, err := etherMan.EtherClient.BlockByNumber(ctx, new(big.Int).SetUint64(blockNumber))
+	if err != nil {
+		if errors.Is(err, ethereum.NotFound) || err.Error() == "block does not exist in blockchain" {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return block, nil
+}
+
+// GetLatestBatchNumber function allows to retrieve the latest proposed batch in the smc
+func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
+	latestBatch, err := etherMan.PoE.LastBatchSequenced(&bind.CallOpts{Pending: false})
+	return uint64(latestBatch), err
 }
