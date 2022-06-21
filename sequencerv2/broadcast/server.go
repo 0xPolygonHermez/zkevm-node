@@ -7,11 +7,12 @@ import (
 
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb"
+	"github.com/hermeznetwork/hermez-core/statev2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
-// Server provides the functionality of the MerkleTree service.
+// Server provides the functionality of the Broadcast service.
 type Server struct {
 	cfg *ServerConfig
 
@@ -20,7 +21,7 @@ type Server struct {
 	state stateInterface
 }
 
-// NewServer is the MT server constructor.
+// NewServer is the Broadcast server constructor.
 func NewServer(cfg *ServerConfig, state stateInterface) *Server {
 	return &Server{
 		cfg:   cfg,
@@ -75,7 +76,7 @@ func (s *Server) GetLastBatch(ctx context.Context, empty *pb.Empty) (*pb.GetBatc
 	return s.genericGetBatch(ctx, batch)
 }
 
-func (s *Server) genericGetBatch(ctx context.Context, batch *Batch) (*pb.GetBatchResponse, error) {
+func (s *Server) genericGetBatch(ctx context.Context, batch *statev2.Batch) (*pb.GetBatchResponse, error) {
 	txs, err := s.state.GetEncodedTransactionsByBatchNumber(ctx, batch.BatchNumber, nil)
 	if err != nil {
 		return nil, err

@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	broadcast "github.com/hermeznetwork/hermez-core/sequencerv2/broadcast"
 	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb"
+	"github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/test/operations"
 	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/stretchr/testify/mock"
@@ -100,7 +101,7 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 	tcs := []struct {
 		description        string
 		inputBatchNumber   uint64
-		expectedBatch      *broadcast.Batch
+		expectedBatch      *statev2.Batch
 		expectedEncodedTxs []string
 		expectedErr        bool
 		expectedErrMsg     string
@@ -108,7 +109,7 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 		{
 			description:      "happy path",
 			inputBatchNumber: 14,
-			expectedBatch: &broadcast.Batch{
+			expectedBatch: &statev2.Batch{
 				BatchNumber:    14,
 				GlobalExitRoot: common.Hash{},
 				Timestamp:      time.Now(),
@@ -158,14 +159,14 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 func TestBroadcastServerGetLastBatch(t *testing.T) {
 	tcs := []struct {
 		description        string
-		expectedBatch      *broadcast.Batch
+		expectedBatch      *statev2.Batch
 		expectedEncodedTxs []string
 		expectedErr        bool
 		expectedErrMsg     string
 	}{
 		{
 			description: "happy path",
-			expectedBatch: &broadcast.Batch{
+			expectedBatch: &statev2.Batch{
 				BatchNumber:    14,
 				GlobalExitRoot: common.Hash{},
 				Timestamp:      time.Now(),
