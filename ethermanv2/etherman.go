@@ -259,7 +259,7 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 
 func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("SequencedBatches event detected")
-	_, err := etherMan.PoE.ParseSequencedBatches(vLog)
+	sb, err := etherMan.PoE.ParseSequencedBatches(vLog)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 	} else if isPending {
 		return fmt.Errorf("error tx is still pending. TxHash: %s", tx.Hash().String())
 	}
-	sequences, err := decodeSequences(tx.Data())
+	sequences, err := decodeSequences(tx.Data(), sb.NumBatch)
 	if err != nil {
 		return fmt.Errorf("error decoding the sequences: %v", err)
 	}
@@ -281,23 +281,23 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
 		}
 		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
-		block.Sequences = append(block.Sequences, sequences...)
+		block.SequencedBatches = append(block.SequencedBatches, sequences...)
 		*blocks = append(*blocks, block)
 	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].Sequences = append((*blocks)[len(*blocks)-1].Sequences, sequences...)
+		(*blocks)[len(*blocks)-1].SequencedBatches = append((*blocks)[len(*blocks)-1].SequencedBatches, sequences...)
 	} else {
 		log.Error("Error processing SequencedBatches event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
 		return fmt.Errorf("error processing SequencedBatches event")
 	}
 	or := Order{
 		Name: SequencedBatchesOrder,
-		Pos:  len((*blocks)[len(*blocks)-1].Sequences) - 1,
+		Pos:  len((*blocks)[len(*blocks)-1].SequencedBatches) - 1,
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
 	return nil
 }
 
-func decodeSequences(txData []byte) ([]proofofefficiency.ProofOfEfficiencySequence, error) {
+func decodeSequences(txData []byte, lastBatchNumber uint64) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
 	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
@@ -326,7 +326,17 @@ func decodeSequences(txData []byte) ([]proofofefficiency.ProofOfEfficiencySequen
 		return nil, err
 	}
 
-	return sequences, nil
+	sequencedBatches := make([]SequencedBatch, len(sequences))
+	for i := len(sequences) - 1; i >= 0; i-- {
+		lastBatchNumber -= sequences[i].ForceBatchesNum
+		sequencedBatches[i] = SequencedBatch{
+			BatchNumber:               lastBatchNumber,
+			ProofOfEfficiencySequence: sequences[i],
+		}
+		lastBatchNumber--
+	}
+
+	return sequencedBatches, nil
 }
 
 func (etherMan *Client) verifyBatchEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
@@ -373,7 +383,6 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 
 	var sequencedForceBatch SequencedForceBatch
 	sequencedForceBatch.LastBatchSequenced = fsb.NumBatch
-	sequencedForceBatch.LastForceBatchSequenced, err = etherMan.PoE.LastForceBatchSequenced(nil)
 	if err != nil {
 		return err
 	}
@@ -390,6 +399,10 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 		return err
 	}
 	sequencedForceBatch.Sequencer = msg.From()
+	sequencedForceBatch.ForceBatchNumber, err = decodeForceBatchNumber(tx.Data())
+	if err != nil {
+		return err
+	}
 
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
 		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
@@ -412,6 +425,29 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
 
 	return nil
+}
+
+func decodeForceBatchNumber(txData []byte) (uint64, error) {
+	// Extract coded txs.
+	// Load contract ABI
+	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
+	if err != nil {
+		return 0, err
+	}
+
+	// Recover Method from signature and ABI
+	method, err := abi.MethodById(txData[:4])
+	if err != nil {
+		return 0, err
+	}
+
+	// Unpack method inputs
+	data, err := method.Inputs.Unpack(txData[4:])
+	if err != nil {
+		return 0, err
+	}
+
+	return data[0].(uint64), nil
 }
 
 func prepareBlock(vLog types.Log, t time.Time, fullBlock *types.Block) Block {

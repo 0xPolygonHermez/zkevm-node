@@ -15,7 +15,7 @@ type Block struct {
 	ParentHash            common.Hash
 	GlobalExitRoots       []GlobalExitRoot
 	ForcedBatches         []ForcedBatch
-	Sequences             []proofofefficiency.ProofOfEfficiencySequence
+	SequencedBatches      []SequencedBatch
 	VerifiedBatches       []VerifiedBatch
 	SequencedForceBatches []SequencedForceBatch
 	ReceivedAt            time.Time
@@ -28,6 +28,12 @@ type GlobalExitRoot struct {
 	MainnetExitRoot   common.Hash
 	RollupExitRoot    common.Hash
 	GlobalExitRoot    common.Hash
+}
+
+// SequencedBatches represents virtual batches
+type SequencedBatch struct {
+	BatchNumber uint64
+	proofofefficiency.ProofOfEfficiencySequence
 }
 
 // ForcedBatch represents a ForcedBatch
@@ -50,7 +56,7 @@ type VerifiedBatch struct {
 
 // SequencedForceBatch is a sturct to track the ForceSequencedBatches event.
 type SequencedForceBatch struct {
-	LastBatchSequenced      uint64
-	LastForceBatchSequenced uint64
-	Sequencer               common.Address
+	LastBatchSequenced uint64
+	ForceBatchNumber   uint64
+	Sequencer          common.Address
 }
