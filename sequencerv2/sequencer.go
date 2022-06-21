@@ -39,9 +39,9 @@ func New(
 	state stateInterface,
 	etherman etherman,
 	priceGetter priceGetter,
-	manager txManager) (Sequencer, error) {
+	manager txManager) (*Sequencer, error) {
 	checker := profitabilitychecker.New(etherman, priceGetter)
-	return Sequencer{
+	return &Sequencer{
 		cfg:       cfg,
 		pool:      pool,
 		state:     state,
@@ -141,6 +141,9 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	return true
 }
 
+// shouldSendSequences check if sequencer should send sequencer. Returns two bool vars -
+// first bool is for should sequencer send sequences or not
+// second bool is for should sequencer cut last sequences from sequences slice bcs data to send is too big
 func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 	estimatedGas, err := s.etherman.EstimateGasSequenceBatches(s.closedSequences)
 	if err != nil && isDataForEthTxTooBig(err) {
@@ -152,9 +155,8 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 		return false, false
 	}
 
-	// todo: checkAgainstForcedBatchQueueTimeout
+	// TODO: checkAgainstForcedBatchQueueTimeout
 
-	// checkAgainstForcedBatchQueueTimeout
 	lastL1TimeInteraction, err := s.state.GetLastL1InteractionTime(ctx)
 	if err != nil {
 		log.Errorf("failed to get last l1 interaction time, err: %v", err)
@@ -173,23 +175,16 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 	return false, false
 }
 
+// shouldCloseSequenceInProgress checks if sequence should be closed or not
+// in case it's enough blocks since last GER update, long time since last batch and sequence is profitable
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
-	lastTimeGERUpdated, err := s.state.GetLastTimeGERUpdated(ctx)
+	numberOfBlocks, err := s.state.GetNumberOfBlocksSinceLastGERUpdate(ctx)
 	if err != nil {
 		log.Errorf("failed to get last time GER updated, err: %v", err)
 		return false
 	}
-	if lastTimeGERUpdated.Before(time.Now().Add(-s.cfg.LastTimeGERUpdatedMaxWaitPeriod.Duration)) {
-		return true
-	}
-
-	lastTimeDeposit, err := s.state.GetLastTimeDeposit(ctx)
-	if err != nil {
-		log.Errorf("failed to get last time deposit, err: %v", err)
-		return false
-	}
-	if lastTimeDeposit.Before(time.Now().Add(-s.cfg.LastTimeDepositMaxWaitPeriod.Duration)) {
-		return true
+	if numberOfBlocks >= s.cfg.WaitBlocksToUpdateGER {
+		return s.isSequenceProfitable(ctx)
 	}
 
 	lastBatchTime, err := s.state.GetLastBatchTime(ctx)
@@ -198,9 +193,13 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 		return false
 	}
 	if lastBatchTime.Before(time.Now().Add(-s.cfg.LastTimeBatchMaxWaitPeriod.Duration)) {
-		return true
+		return s.isSequenceProfitable(ctx)
 	}
 
+	return false
+}
+
+func (s *Sequencer) isSequenceProfitable(ctx context.Context) bool {
 	isProfitable, err := s.checker.IsSequenceProfitable(ctx, s.sequenceInProgress)
 	if err != nil {
 		log.Errorf("failed to check is sequence profitable, err: %v", err)

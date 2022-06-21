@@ -28,10 +28,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const maxTxsInSequence = 5
+const (
+	getPendingTxsLimit = 30
+	maxTxsInSequence   = 5
+)
 
 type stateTestInterface interface {
 	stateInterface
+	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
 	GetNonce(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (uint64, error)
 	GetBalance(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (*big.Int, error)
 	NewGenesisBatchProcessor(genesisStateRoot []byte, txBundleID string) (*state.BatchProcessor, error)
@@ -127,8 +131,7 @@ func TestMain(m *testing.M) {
 	seqCfg = Config{
 		WaitPeriodPoolIsEmpty:              cfgTypes.NewDuration(time.Second),
 		LastL1InteractionTimeMaxWaitPeriod: cfgTypes.NewDuration(60 * time.Second),
-		LastTimeGERUpdatedMaxWaitPeriod:    cfgTypes.NewDuration(60 * time.Second),
-		LastTimeDepositMaxWaitPeriod:       cfgTypes.NewDuration(60 * time.Second),
+		WaitBlocksToUpdateGER:              10,
 		LastTimeBatchMaxWaitPeriod:         cfgTypes.NewDuration(60 * time.Second),
 	}
 
@@ -191,37 +194,25 @@ func TestMain(m *testing.M) {
 }
 
 func TestSequencerBaseFlow(t *testing.T) {
+	// set up prerequisites
 	txManager := new(txmanagerMock)
-
 	ctx := context.Background()
 	setUpBlock(ctx, t)
 	setUpBatch(ctx, t)
 	ethMan := new(ethermanMock)
+	gasCostMin := big.NewInt(0)
 	gasCostMax, _ := new(big.Int).SetString("1000000000000000000", 10)
 	ethMan.On("EstimateGasSequenceBatches", mock.Anything).Return(gasCostMax, nil)
-	ethMan.On("GetFee").Return(gasCostMax, nil)
+	ethMan.On("GetFee").Return(gasCostMin, nil)
 
-	pendTxs, err := pl.GetPendingTxs(ctx, false, 30)
+	// get pending txs to build sequences to send, so test could check if variables are equal
+	pendTxs, err := pl.GetPendingTxs(ctx, false, getPendingTxsLimit)
 	require.NoError(t, err)
 	sequencesToSent := make([]ethmanTypes.Sequence, 5)
 	for i := 0; i < 2; i++ {
 		for k := maxTxsInSequence * i; k < maxTxsInSequence*(i+1); k++ {
 			sequencesToSent[i].Txs = append(sequencesToSent[i].Txs, pendTxs[k].Transaction)
 		}
-	}
-
-	pg, err := pricegetter.NewClient(pricegetter.Config{
-		Type:         pricegetter.DefaultType,
-		DefaultPrice: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
-	})
-	require.NoError(t, err)
-	seq, err := New(seqCfg, pl, testState, ethMan, pg, txManager)
-	require.NoError(t, err)
-	require.Equal(t, 10, len(pendTxs))
-
-	ticker := time.NewTicker(seqCfg.WaitPeriodPoolIsEmpty.Duration)
-	for i := 0; i < maxTxsInSequence; i++ {
-		seq.tryToProcessTx(ctx, ticker)
 	}
 
 	txManager.On("SequenceBatches", mock.MatchedBy(func(sequences []ethmanTypes.Sequence) bool {
@@ -233,30 +224,57 @@ func TestSequencerBaseFlow(t *testing.T) {
 		}
 		return res
 	})).Return(nil, nil)
-	pendTxs, err = pl.GetPendingTxs(ctx, false, 30)
+
+	pg, err := pricegetter.NewClient(pricegetter.Config{
+		Type:         pricegetter.DefaultType,
+		DefaultPrice: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
+	})
+	require.NoError(t, err)
+	seq, err := New(seqCfg, pl, testState, ethMan, pg, txManager)
+	require.NoError(t, err)
+	require.Equal(t, 10, len(pendTxs))
+
+	// try to process transactions that should fit in one sequence
+	ticker := time.NewTicker(seqCfg.WaitPeriodPoolIsEmpty.Duration)
+	for i := 0; i < maxTxsInSequence; i++ {
+		seq.tryToProcessTx(ctx, ticker)
+	}
+
+	// check, that all requested txs are selected and there are 5 txs in sequence in progress
+	pendTxs, err = pl.GetPendingTxs(ctx, false, getPendingTxsLimit)
 	require.NoError(t, err)
 	require.Equal(t, 5, len(pendTxs))
 	require.Equal(t, maxTxsInSequence, len(seq.sequenceInProgress.Txs))
 	require.Equal(t, 0, len(seq.closedSequences))
-	seq.cfg.LastTimeGERUpdatedMaxWaitPeriod = cfgTypes.NewDuration(0)
+
+	// checks that if seq meets WaitBlocksToUpdateGER condition, it will close a sequence
+	seq.cfg.LastTimeBatchMaxWaitPeriod = cfgTypes.NewDuration(0)
 	seq.tryToProcessTx(ctx, ticker)
-	pendTxs, err = pl.GetPendingTxs(ctx, false, 30)
+	pendTxs, err = pl.GetPendingTxs(ctx, false, getPendingTxsLimit)
 	require.NoError(t, err)
+
+	// check, that after processing one tx, only 4 pending txs left in the pool,
+	// seq have 1 tx in sequence in progress and 1 closed sequence
 	require.Equal(t, 4, len(pendTxs))
 	require.Equal(t, 1, len(seq.sequenceInProgress.Txs))
 	require.Equal(t, 1, len(seq.closedSequences))
 	require.Equal(t, maxTxsInSequence, len(seq.closedSequences[0].Txs))
 
-	seq.cfg.LastTimeGERUpdatedMaxWaitPeriod = cfgTypes.NewDuration(10 * time.Second)
+	// return config param back
+	seq.cfg.LastTimeBatchMaxWaitPeriod = cfgTypes.NewDuration(10 * time.Second)
 
 	for i := 0; i < 4; i++ {
 		seq.tryToProcessTx(ctx, ticker)
 	}
+
+	// set config params that way, that txs will be selected and sent to ethereum
 	seq.cfg.LastL1InteractionTimeMaxWaitPeriod = cfgTypes.NewDuration(0)
-	seq.cfg.LastTimeGERUpdatedMaxWaitPeriod = cfgTypes.NewDuration(0)
+	seq.cfg.LastTimeBatchMaxWaitPeriod = cfgTypes.NewDuration(0)
 	seq.tryToProcessTx(ctx, ticker)
 
-	pendTxs, err = pl.GetPendingTxs(ctx, false, 30)
+	// checks, that after processing there is no pending txs left, no txs in sequence in progress
+	// and no pending closed sequences
+	pendTxs, err = pl.GetPendingTxs(ctx, false, getPendingTxsLimit)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pendTxs))
 	require.Equal(t, 0, len(seq.sequenceInProgress.Txs))

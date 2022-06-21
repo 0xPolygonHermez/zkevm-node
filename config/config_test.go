@@ -59,6 +59,30 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
+			path:          "Sequencerv2.WaitPeriodPoolIsEmpty",
+			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
+			path:          "Sequencerv2.LastL1InteractionTimeMaxWaitPeriod",
+			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
+			path:          "Sequencerv2.WaitBlocksToUpdateGER",
+			expectedValue: uint32(10),
+		},
+		{
+			path:          "Sequencerv2.LastTimeBatchMaxWaitPeriod",
+			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
+			path:          "PriceGetter.Type",
+			expectedValue: pricegetter.DefaultType,
+		},
+		{
+			path:          "PriceGetter.DefaultPrice",
+			expectedValue: pricegetter.TokenPrice{Float: big.NewFloat(1000)},
+		},
+		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",
 			expectedValue: uint64(1000000000),
 		},

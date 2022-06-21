@@ -3,6 +3,7 @@ package sequencerv2
 
 import (
 	"context"
+	"github.com/hermeznetwork/hermez-core/state"
 	"math/big"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
@@ -33,10 +33,8 @@ type etherman interface {
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context, txBundleID string) (uint64, error)
-	GetLastBatchByStateRoot(ctx context.Context, stateRoot []byte, txBundleID string) (*state.Batch, error)
 
 	SetGenesis(ctx context.Context, genesis state.Genesis, txBundleID string) error
 	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
@@ -47,8 +45,7 @@ type stateInterface interface {
 
 	ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult
 	GetLastL1InteractionTime(ctx context.Context) (time.Time, error)
-	GetLastTimeGERUpdated(ctx context.Context) (time.Time, error)
-	GetLastTimeDeposit(ctx context.Context) (time.Time, error)
+	GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint32, error)
 	GetLastBatchTime(ctx context.Context) (time.Time, error)
 }
 

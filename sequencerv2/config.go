@@ -13,12 +13,9 @@ type Config struct {
 	// LastL1InteractionTimeWaitPeriod is time since sequences should be sent
 	LastL1InteractionTimeMaxWaitPeriod types.Duration `mapstructure:"LastL1InteractionTimeMaxWaitPeriod"`
 
-	// LastTimeGERUpdatedMaxWaitPeriod is possible wait time since last GER was updated
-	LastTimeGERUpdatedMaxWaitPeriod types.Duration `mapstructure:"LastTimeGERUpdatedMaxWaitPeriod"`
+	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
+	WaitBlocksToUpdateGER uint32 `mapstructure:"WaitBlocksToUpdateGER"`
 
-	// LastTimeDepositMaxWaitPeriod is possible wait time since last deposit happened
-	LastTimeDepositMaxWaitPeriod types.Duration `mapstructure:"LastTimeDepositMaxWaitPeriod"`
-
-	// LastTimeBatchMaxWaitPeriod is time after which new batch should be sent
+	// LastTimeBatchMaxWaitPeriod is time after which new batch should be closed
 	LastTimeBatchMaxWaitPeriod types.Duration `mapstructure:"LastTimeBatchMaxWaitPeriod"`
 }

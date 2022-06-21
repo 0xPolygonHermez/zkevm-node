@@ -24,23 +24,27 @@ func New(
 	}
 }
 
-// IsSequenceProfitable check is sequence profitable by comparing tx gas cost with fee
+// IsSequenceProfitable check if sequence is profitable by comparing L1 tx gas cost and collateral with fee rewards
 func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Sequence) (bool, error) {
+	// fee - it's collateral for batch, get from SC in matic
 	fee, err := c.EthMan.GetFee()
 	if err != nil {
 		return false, err
 	}
 
+	// this reward is in ethereum wei
 	reward := big.NewInt(0)
 	for _, tx := range sequence.Txs {
-		reward.Add(reward, tx.Cost())
+		reward.Add(reward, new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas())))
 	}
 
+	// get price of matic (1 eth = x matic)
 	price, err := c.PriceGetter.GetPrice(ctx)
 	if err != nil {
 		return false, err
 	}
 
+	// convert reward in eth to reward in matic
 	priceInt := new(big.Int)
 	price.Int(priceInt)
 	reward.Mul(reward, priceInt)
@@ -57,7 +61,7 @@ func (c *Checker) IsSendSequencesProfitable(estimatedGas *big.Int, sequences []t
 	gasCostSequences := big.NewInt(0)
 	for _, seq := range sequences {
 		for _, tx := range seq.Txs {
-			gasCostSequences.Add(gasCostSequences, tx.Cost())
+			gasCostSequences.Add(gasCostSequences, new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas())))
 			if gasCostSequences.Cmp(estimatedGas) > 0 {
 				return true
 			}

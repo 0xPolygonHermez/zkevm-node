@@ -542,21 +542,19 @@ func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Tran
 }
 
 // GetLastL1InteractionTime get time from last l1 interaction time
+// TODO: implement function
 func (s *State) GetLastL1InteractionTime(ctx context.Context) (time.Time, error) {
 	return time.Now(), nil
 }
 
-// GetLastTimeGERUpdated get time from last time get
-func (s *State) GetLastTimeGERUpdated(ctx context.Context) (time.Time, error) {
-	return time.Now(), nil
-}
-
-// GetLastTimeDeposit get time from last deposit
-func (s *State) GetLastTimeDeposit(ctx context.Context) (time.Time, error) {
-	return time.Now(), nil
+// GetNumberOfBlocksSinceLastGERUpdate get time from last time get
+// TODO: implement function
+func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint32, error) {
+	return 0, nil
 }
 
 // GetLastBatchTime get last batch time
+// TODO: implement function
 func (s *State) GetLastBatchTime(ctx context.Context) (time.Time, error) {
 	return time.Now(), nil
 }
