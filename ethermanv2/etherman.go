@@ -19,6 +19,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/globalexitrootmanager"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
+	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/log"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"golang.org/x/crypto/sha3"
@@ -200,6 +201,17 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
 	return nil
+}
+
+// EstimateGasSequenceBatches estimates gas for sending batches
+// TODO implement this func
+func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*big.Int, error) {
+	return big.NewInt(0), nil
+}
+
+// GetSendSequenceFee get super/trusted sequencer fee
+func (etherMan *Client) GetSendSequenceFee() (*big.Int, error) {
+	return etherMan.PoE.SUPERSEQUENCERFEE(&bind.CallOpts{Pending: false})
 }
 
 func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, blocks *[]state.Block, blocksOrder *map[common.Hash][]Order) error {

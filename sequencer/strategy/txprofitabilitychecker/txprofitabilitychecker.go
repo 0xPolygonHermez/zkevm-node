@@ -104,7 +104,7 @@ func (pc *Base) IsProfitable(ctx context.Context, selectionRes txselector.Select
 		return true, collateral, nil
 	}
 	// get price from the price updater
-	price, err := pc.PriceGetter.GetPrice(ctx)
+	price, err := pc.PriceGetter.GetEthToMaticPrice(ctx)
 	if err != nil {
 		return false, big.NewInt(0), err
 	}

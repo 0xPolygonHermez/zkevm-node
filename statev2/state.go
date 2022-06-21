@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -87,6 +90,30 @@ func (s *State) GetForcedBatch(ctx context.Context, tx pgx.Tx, forcedBatchNumber
 // AddBlock adds a new block to the State Store.
 func (s *State) AddBlock(ctx context.Context, block *Block, tx pgx.Tx) error {
 	return s.PostgresStorage.AddBlock(ctx, block, tx)
+}
+
+// ProcessSequence process sequence of the txs
+// TODO: implement function
+func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult {
+	return &runtime.ExecutionResult{}
+}
+
+// GetLastSendSequenceTime get time from last l1 interaction time
+// TODO: implement function
+func (s *State) GetLastSendSequenceTime(ctx context.Context) (time.Time, error) {
+	return time.Now(), nil
+}
+
+// GetNumberOfBlocksSinceLastGERUpdate get time from last time get
+// TODO: implement function
+func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint32, error) {
+	return 0, nil
+}
+
+// GetLastBatchTime get last batch time
+// TODO: implement function
+func (s *State) GetLastBatchTime(ctx context.Context) (time.Time, error) {
+	return time.Now(), nil
 }
 
 // AddVerifiedBatch adds a new VerifiedBatch to the db
