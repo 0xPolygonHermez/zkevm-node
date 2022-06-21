@@ -343,3 +343,13 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 
 	return jsTracer.GetResult()
 }
+
+// AddVerifiedBatch adds a new VerifiedBatch to the db
+func (s *State) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBatch, tx pgx.Tx) error {
+	return s.PostgresStorage.AddVerifiedBatch(ctx, verifiedBatch, tx)
+}
+
+// GetVerifiedBatch get an L1 verifiedBatch.
+func (s *State) GetVerifiedBatch(ctx context.Context, tx pgx.Tx, batchNumber uint64) (*VerifiedBatch, error) {
+	return s.PostgresStorage.GetVerifiedBatch(ctx, tx, batchNumber)
+}

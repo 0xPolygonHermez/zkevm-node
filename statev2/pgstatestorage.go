@@ -18,6 +18,8 @@ const (
 	getForcedBatchSQL    = "SELECT block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer FROM statev2.forced_batch WHERE forced_batch_num = $1"
 	addBlockSQL          = "INSERT INTO statev2.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	resetSQL             = "DELETE FROM statev2.block WHERE block_num > $1"
+	addVerifiedBatchSQL  = "INSERT INTO statev2.verified_batch (block_num, batch_num, tx_hash, aggregator) VALUES ($1, $2, $3, $4)"
+	getVerifiedBatchSQL  = "SELECT block_num, batch_num, tx_hash, aggregator FROM statev2.verified_batch WHERE batch_num = $1"
 )
 
 // PostgresStorage implements the Storage interface
@@ -97,4 +99,28 @@ func (s *PostgresStorage) GetForcedBatch(ctx context.Context, tx pgx.Tx, forcedB
 	forcedBatch.Sequencer = common.HexToAddress(seq)
 	forcedBatch.GlobalExitRoot = common.HexToHash(globalExitRoot)
 	return &forcedBatch, nil
+}
+
+// AddVerifiedBatch adds a new VerifiedBatch to the db
+func (s *PostgresStorage) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBatch, tx pgx.Tx) error {
+	_, err := tx.Exec(ctx, addVerifiedBatchSQL, verifiedBatch.BlockNumber, verifiedBatch.BatchNumber, verifiedBatch.TxHash.String(), verifiedBatch.Aggregator.String())
+	return err
+}
+
+// GetVerifiedBatch get an L1 verifiedBatch.
+func (s *PostgresStorage) GetVerifiedBatch(ctx context.Context, tx pgx.Tx, batchNumber uint64) (*VerifiedBatch, error) {
+	var (
+		verifiedBatch VerifiedBatch
+		txHash        string
+		agg           string
+	)
+	err := tx.QueryRow(ctx, getVerifiedBatchSQL, batchNumber).Scan(&verifiedBatch.BlockNumber, &verifiedBatch.BatchNumber, &txHash, &agg)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	verifiedBatch.Aggregator = common.HexToAddress(agg)
+	verifiedBatch.TxHash = common.HexToHash(txHash)
+	return &verifiedBatch, nil
 }
