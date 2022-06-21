@@ -5,23 +5,16 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/log"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
-	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -139,6 +132,7 @@ func TestAddForcedBatch(t *testing.T) {
 	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
 }
 
+/*
 func TestExecuteTransaction(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -211,3 +205,4 @@ func TestExecuteTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 }
+*/
