@@ -530,7 +530,9 @@ func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 func (e *Eth) NewBlockFilter() (interface{}, error) {
 	id, err := e.storage.NewBlockFilter()
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to create new block filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argUint64(id), nil
@@ -542,7 +544,9 @@ func (e *Eth) NewBlockFilter() (interface{}, error) {
 func (e *Eth) NewFilter(filter *LogFilter) (interface{}, error) {
 	id, err := e.storage.NewLogFilter(*filter)
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to create new log filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argUint64(id), nil
@@ -554,7 +558,9 @@ func (e *Eth) NewFilter(filter *LogFilter) (interface{}, error) {
 func (e *Eth) NewPendingTransactionFilter(filterID argUint64) (interface{}, error) {
 	id, err := e.storage.NewPendingTransactionFilter()
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to create new pending transaction filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argUint64(id), nil
@@ -585,7 +591,14 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 // Filters timeout when they aren’t requested with
 // eth_getFilterChanges for a period of time.
 func (e *Eth) UninstallFilter(filterID argUint64) (interface{}, error) {
-	return e.storage.UninstallFilter(uint64(filterID))
+	uninstalled, err := e.storage.UninstallFilter(uint64(filterID))
+	if err != nil {
+		const errorMessage = "failed to uninstall filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
+	}
+
+	return uninstalled, nil
 }
 
 // Syncing returns an object with data about the sync status or false.

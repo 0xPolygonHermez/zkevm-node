@@ -2017,6 +2017,272 @@ func TestProtocolVersion(t *testing.T) {
 	assert.Equal(t, "0x0", result)
 }
 
+func TestNewFilter(t *testing.T) {
+	s, m, _ := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		LogFilter      *LogFilter
+		ExpectedResult argUint64
+		ExpectedError  rpcError
+		SetupMocks     func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "New filter created successfully",
+			LogFilter:      &LogFilter{},
+			ExpectedResult: argUint64(1),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.Storage.
+					On("NewLogFilter", *tc.LogFilter).
+					Return(uint64(1), nil).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to create new filter",
+			LogFilter:      &LogFilter{},
+			ExpectedResult: argUint64(0),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to create new log filter"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.Storage.
+					On("NewLogFilter", *tc.LogFilter).
+					Return(uint64(0), errors.New("failed to add new filter")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+
+			res, err := s.JSONRPCCall("eth_newFilter", tc.LogFilter)
+			require.NoError(t, err)
+
+			assert.Equal(t, float64(1), res.ID)
+			assert.Equal(t, "2.0", res.JSONRPC)
+
+			if res.Result != nil {
+				var result argUint64
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedResult, result)
+			}
+
+			if res.Error != nil || tc.ExpectedError != nil {
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
+func TestNewBlockFilter(t *testing.T) {
+	s, m, _ := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		ExpectedResult argUint64
+		ExpectedError  rpcError
+		SetupMocks     func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "New block filter created successfully",
+			ExpectedResult: argUint64(1),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.Storage.
+					On("NewBlockFilter").
+					Return(uint64(1), nil).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to create new block filter",
+			ExpectedResult: argUint64(0),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to create new block filter"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.Storage.
+					On("NewBlockFilter").
+					Return(uint64(0), errors.New("failed to add new block filter")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+
+			res, err := s.JSONRPCCall("eth_newBlockFilter")
+			require.NoError(t, err)
+
+			assert.Equal(t, float64(1), res.ID)
+			assert.Equal(t, "2.0", res.JSONRPC)
+
+			if res.Result != nil {
+				var result argUint64
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedResult, result)
+			}
+
+			if res.Error != nil || tc.ExpectedError != nil {
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
+func TestNewPendingTransactionFilter(t *testing.T) {
+	s, m, _ := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		ExpectedResult argUint64
+		ExpectedError  rpcError
+		SetupMocks     func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "New pending transaction filter created successfully",
+			ExpectedResult: argUint64(1),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.Storage.
+					On("NewPendingTransactionFilter").
+					Return(uint64(1), nil).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to create new pending transaction filter",
+			ExpectedResult: argUint64(0),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to create new pending transaction filter"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.Storage.
+					On("NewPendingTransactionFilter").
+					Return(uint64(0), errors.New("failed to add new pending transaction filter")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+
+			res, err := s.JSONRPCCall("eth_newPendingTransactionFilter")
+			require.NoError(t, err)
+
+			assert.Equal(t, float64(1), res.ID)
+			assert.Equal(t, "2.0", res.JSONRPC)
+
+			if res.Result != nil {
+				var result argUint64
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedResult, result)
+			}
+
+			if res.Error != nil || tc.ExpectedError != nil {
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
+func TestUninstallFilter(t *testing.T) {
+	s, m, _ := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		FilterID       argUint64
+		ExpectedResult bool
+		ExpectedError  rpcError
+		SetupMocks     func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Uninstalls filter successfully",
+			FilterID:       argUint64(1),
+			ExpectedResult: true,
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.Storage.
+					On("UninstallFilter", uint64(tc.FilterID)).
+					Return(true, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "filter already uninstalled",
+			FilterID:       argUint64(1),
+			ExpectedResult: false,
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.Storage.
+					On("UninstallFilter", uint64(tc.FilterID)).
+					Return(false, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to uninstall filter",
+			FilterID:       argUint64(1),
+			ExpectedResult: false,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to uninstall filter"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.Storage.
+					On("UninstallFilter", uint64(tc.FilterID)).
+					Return(false, errors.New("failed to uninstall filter")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+
+			res, err := s.JSONRPCCall("eth_uninstallFilter", tc.FilterID)
+			require.NoError(t, err)
+
+			assert.Equal(t, float64(1), res.ID)
+			assert.Equal(t, "2.0", res.JSONRPC)
+
+			if res.Result != nil {
+				var result bool
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedResult, result)
+			}
+
+			if res.Error != nil || tc.ExpectedError != nil {
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
 func addressPtr(i common.Address) *common.Address {
 	return &i
 }
