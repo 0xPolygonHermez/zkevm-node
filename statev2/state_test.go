@@ -40,8 +40,9 @@ var (
 	ctx          = context.Background()
 	stateCfg     = state.Config{
 		MaxCumulativeGasUsed: 800000,
-		ExecutorServerConfig: executor.Config{URI: "51.210.116.237:50071"},
 	}
+	executorServerConfig = executor.Config{URI: "51.210.116.237:50071"}
+	executorClient       pb.ExecutorServiceClient
 )
 
 func TestMain(m *testing.M) {
@@ -50,9 +51,13 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	defer stateDb.Close()
+
+	executorClient, clientConn := executor.NewExecutorClient(executorServerConfig)
+	defer clientConn.Close()
+
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb))
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), &executorClient)
 
 	result := m.Run()
 
@@ -146,7 +151,7 @@ func TestExecuteTransaction(t *testing.T) {
 		To:       nil,
 		Value:    new(big.Int),
 		Gas:      uint64(sequencerBalance),
-		GasPrice: new(big.Int).SetUint64(1),
+		GasPrice: new(big.Int).SetUint64(0),
 		Data:     common.Hex2Bytes(scCounterByteCode),
 	})
 
@@ -185,7 +190,7 @@ func TestExecuteTransaction(t *testing.T) {
 		BatchNum:             0,
 		Coinbase:             sequencerAddress.String(),
 		BatchL2Data:          batchL2Data,
-		OldStateRoot:         common.Hex2Bytes("0xa2d5489990c3debb5fb909340557e96bf78cff87050541ad9dc6e1f5d5817296"),
+		OldStateRoot:         common.Hex2Bytes("0x"),
 		GlobalExitRoot:       common.Hex2Bytes("0x"),
 		OldLocalExitRoot:     common.Hex2Bytes("0x"),
 		EthTimestamp:         uint64(time.Now().Unix()),
@@ -194,14 +199,12 @@ func TestExecuteTransaction(t *testing.T) {
 		GenerateCallTrace:    false,
 	}
 
-	// Create client
-	executorClient, clientConn := executor.NewExecutorClient(stateCfg.ExecutorServerConfig)
+	log.Debugf("%v", processBatchRequest)
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 
 	log.Debugf("%v", processBatchResponse)
 
-	err = clientConn.Close()
 	require.NoError(t, err)
 }

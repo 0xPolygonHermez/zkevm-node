@@ -18,7 +18,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/holiman/uint256"
 	"github.com/jackc/pgx/v4"
@@ -54,13 +53,15 @@ var (
 type State struct {
 	cfg Config
 	*PostgresStorage
+	executorClient *pb.ExecutorServiceClient
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage) *State {
+func NewState(cfg Config, storage *PostgresStorage, executorClient *pb.ExecutorServiceClient) *State {
 	return &State{
 		cfg:             cfg,
 		PostgresStorage: storage,
+		executorClient:  executorClient,
 	}
 }
 
@@ -74,133 +75,130 @@ func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 }
 
 // Commit commits a state transaction
-func (s *State) CommitStateTransaction(ctx context.Context, tx pgx.Tx) error {
-	err := tx.Commit(ctx)
+func (s *State) CommitStateTransaction(ctx context.Context, dbTx pgx.Tx) error {
+	err := dbTx.Commit(ctx)
 	return err
 }
 
 // Rollback rollbacks a state transaction
-func (s *State) RollbackStateTransaction(ctx context.Context, tx pgx.Tx) error {
-	err := tx.Rollback(ctx)
+func (s *State) RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error {
+	err := dbTx.Rollback(ctx)
 	return err
 }
 
 // ResetDB resets the state to block for the given DB tx .
-func (s *State) ResetDB(ctx context.Context, block *Block, tx pgx.Tx) error {
-	return s.PostgresStorage.Reset(ctx, block, tx)
+func (s *State) ResetDB(ctx context.Context, block *Block, dbTx pgx.Tx) error {
+	return s.PostgresStorage.Reset(ctx, block, dbTx)
 }
 
-func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, tx pgx.Tx) error {
-	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, tx)
+func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, dbTx pgx.Tx) error {
+	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, dbTx)
 }
 
-func (s *State) GetLatestGlobalExitRoot(ctx context.Context, tx pgx.Tx) (*GlobalExitRoot, error) {
-	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, tx)
+func (s *State) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*GlobalExitRoot, error) {
+	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, dbTx)
 }
 
-func (s *State) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, tx pgx.Tx) error {
-	return s.PostgresStorage.AddForcedBatch(ctx, forcedBatch, tx)
+func (s *State) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, dbTx pgx.Tx) error {
+	return s.PostgresStorage.AddForcedBatch(ctx, forcedBatch, dbTx)
 }
 
-func (s *State) GetForcedBatch(ctx context.Context, tx pgx.Tx, forcedBatchNumber uint64) (*ForcedBatch, error) {
-	return s.PostgresStorage.GetForcedBatch(ctx, tx, forcedBatchNumber)
+func (s *State) GetForcedBatch(ctx context.Context, dbTx pgx.Tx, forcedBatchNumber uint64) (*ForcedBatch, error) {
+	return s.PostgresStorage.GetForcedBatch(ctx, dbTx, forcedBatchNumber)
 }
 
 // AddBlock adds a new block to the State Store.
-func (s *State) AddBlock(ctx context.Context, block *Block, tx pgx.Tx) error {
-	return s.PostgresStorage.AddBlock(ctx, block, tx)
+func (s *State) AddBlock(ctx context.Context, block *Block, dbTx pgx.Tx) error {
+	return s.PostgresStorage.AddBlock(ctx, block, dbTx)
 }
 
 // GetBalance from a given address
-func (s *State) GetBalance(ctx context.Context, address common.Address, blockNumber uint64, txBundleID string) (*big.Int, error) {
+func (s *State) GetBalance(ctx context.Context, address common.Address, blockNumber uint64, dbdbTx pgx.Tx) (*big.Int, error) {
+	// TODO: implement
 	return nil, nil
 }
 
 // GetCode from a given address
-func (s *State) GetCode(ctx context.Context, address common.Address, blockNumber uint64, txBundleID string) ([]byte, error) {
+func (s *State) GetCode(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) ([]byte, error) {
+	// TODO: implement
 	return nil, nil
 }
 
 // EstimateGas for a transaction
 func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error) {
+	// TODO: implement
 	return 0, nil
 }
 
 // GetNonce returns the nonce of the given account at the given block number
-func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumber uint64, txBundleID string) (uint64, error) {
+func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	// TODO: implement
 	return 0, nil
 }
 
 // GetStorageAt from a given address
-func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, batchNumber uint64, txBundleID string) (*big.Int, error) {
+func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, batchNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
+	// TODO: implement
 	return new(big.Int), nil
 }
 
 // StoreBatchHeader is used by the Trusted Sequencer to create a new batch
 func (s *State) StoreBatchHeader(ctx context.Context, batch Batch) error {
+	// TODO: implement
 	return nil
 }
 
 // ProcessBatch is used by the Trusted Sequencer to add transactions to the batch
 func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction) (*ProcessBatchResponse, error) {
+	// TODO: implement
 	// check batchNumber is the latest in db
 	return nil, nil
 }
 
 // StoreTransactions is used by the Trusted Sequencer to add processed transactions into the data base
 func (s *State) StoreTransactions(batchNum uint64, processedTxs []*ProcessTransactionResponse) error {
+	// TODO: implement
 	return nil
 }
 
 // ProcessAndStoreWIPBatch is used by the Synchronizer to add a work-in-progress batch into the data base
 func (s *State) ProcessAndStoreWIPBatch(ctx context.Context, batch Batch) error {
+	// TODO: implement
 	return nil
 }
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to a add closed batch into the data base
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, batch Batch) error {
-	processBatchRequest := &pb.ProcessBatchRequest{
-		BatchNum: uint32(batch.BatchNum),
-		Coinbase: batch.Coinbase.Hex(),
-		// BatchL2Data:
-		// OldStateRoot:
-		GlobalExitRoot:       batch.GlobalExitRootNum.Bytes(),
-		OldLocalExitRoot:     batch.OldLocalExitRoot.Bytes(),
-		EthTimestamp:         uint64(batch.EthTimestamp.Unix()),
-		UpdateMerkleTree:     true,
-		GenerateExecuteTrace: false,
-		GenerateCallTrace:    false,
-	}
-
-	// Create client
-	executorClient, _ := executor.NewExecutorClient(s.cfg.ExecutorServerConfig)
-
-	_, err := executorClient.ProcessBatch(ctx, processBatchRequest)
-	if err != nil {
-		return err
-	}
-
-	// Store Batch into data base
-
+	// TODO: implement
 	return nil
 }
 
 // SetGenesis
-// CondolidateBatch
+// ConsolidateBatch
 /*
-GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
-GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
-GetLastBatchNumberSeenOnEthereum(ctx context.Context, txBundleID string) (uint64, error)
-GetLastBatchByStateRoot(ctx context.Context, stateRoot []byte, txBundleID string) (*state.Batch, error)
-SetGenesis(ctx context.Context, genesis state.Genesis, txBundleID string) error
-SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
-SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
-SetInitSyncBatch(ctx context.Context, batchNumber uint64, txBundleID string) error
-AddBlock(ctx context.Context, block *state.Block, txBundleID string) error
+GetLastBatch(ctx context.Context, isVirtual bool, dbTx pgx.Tx) (*state.Batch, error)
+GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+GetLastBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+GetLastBatchByStateRoot(ctx context.Context, stateRoot []byte, dbTx pgx.Tx) (*state.Batch, error)
+SetGenesis(ctx context.Context, genesis state.Genesis, dbTx pgx.Tx) error
+SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+SetInitSyncBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+AddBlock(ctx context.Context, block *state.Block, dbTx pgx.Tx) error
 CreateBatch(ctx context.Context, batch *statev2.Batch) error
 ProcessBatch(ctx context.Context, txs []types.Transaction) ProcessBatchResponse
 AddTransactionsToBatch(ctx context.Context, batchNumber uint64, txs []ProcessTransactionResponse) error
 */
+
+// AddVerifiedBatch adds a new VerifiedBatch to the db
+func (s *State) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBatch, dbTx pgx.Tx) error {
+	return s.PostgresStorage.AddVerifiedBatch(ctx, verifiedBatch, dbTx)
+}
+
+// GetVerifiedBatch get an L1 verifiedBatch.
+func (s *State) GetVerifiedBatch(ctx context.Context, dbTx pgx.Tx, batchNumber uint64) (*VerifiedBatch, error) {
+	return s.PostgresStorage.GetVerifiedBatch(ctx, dbTx, batchNumber)
+}
 
 func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error) {
 	return new(runtime.ExecutionResult), nil
@@ -342,14 +340,4 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	jsTracer.CaptureEnd(common.Hex2Bytes(trace.Context.Output), gasUsed.Uint64(), time.Duration(trace.Context.Time), nil)
 
 	return jsTracer.GetResult()
-}
-
-// AddVerifiedBatch adds a new VerifiedBatch to the db
-func (s *State) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBatch, tx pgx.Tx) error {
-	return s.PostgresStorage.AddVerifiedBatch(ctx, verifiedBatch, tx)
-}
-
-// GetVerifiedBatch get an L1 verifiedBatch.
-func (s *State) GetVerifiedBatch(ctx context.Context, tx pgx.Tx, batchNumber uint64) (*VerifiedBatch, error) {
-	return s.PostgresStorage.GetVerifiedBatch(ctx, tx, batchNumber)
 }
