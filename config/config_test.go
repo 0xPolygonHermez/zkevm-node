@@ -80,7 +80,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "PriceGetter.DefaultPrice",
-			expectedValue: pricegetter.TokenPrice{Float: big.NewFloat(1000)},
+			expectedValue: pricegetter.TokenPrice{Float: big.NewFloat(2000)},
 		},
 		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",
