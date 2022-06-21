@@ -53,7 +53,7 @@ type ProcessTransactionResponse struct {
 	CreateAddress common.Address
 	// State Root
 	StateRoot common.Hash
-	// Logs emited by LOG opcode
+	// Logs emitted by LOG opcode
 	Logs []types.Log
 	// Indicates if this tx didn't fit into the batch
 	UnprocessedTransaction bool
