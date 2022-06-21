@@ -25,6 +25,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -43,6 +44,7 @@ var (
 	}
 	executorServerConfig = executor.Config{URI: "51.210.116.237:50071"}
 	executorClient       pb.ExecutorServiceClient
+	clientConn           *grpc.ClientConn
 )
 
 func TestMain(m *testing.M) {
@@ -52,7 +54,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	executorClient, clientConn := executor.NewExecutorClient(executorServerConfig)
+	executorClient, clientConn = executor.NewExecutorClient(executorServerConfig)
 	defer clientConn.Close()
 
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
@@ -187,12 +189,12 @@ func TestExecuteTransaction(t *testing.T) {
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		BatchNum:             0,
+		BatchNum:             1,
 		Coinbase:             sequencerAddress.String(),
 		BatchL2Data:          batchL2Data,
-		OldStateRoot:         common.Hex2Bytes("0x"),
-		GlobalExitRoot:       common.Hex2Bytes("0x"),
-		OldLocalExitRoot:     common.Hex2Bytes("0x"),
+		OldStateRoot:         common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:         uint64(time.Now().Unix()),
 		UpdateMerkleTree:     false,
 		GenerateExecuteTrace: false,
@@ -207,4 +209,5 @@ func TestExecuteTransaction(t *testing.T) {
 	log.Debugf("%v", processBatchResponse)
 
 	require.NoError(t, err)
+
 }

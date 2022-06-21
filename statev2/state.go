@@ -173,34 +173,37 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, batch Batch) err
 	return nil
 }
 
-// SetGenesis
-// ConsolidateBatch
-/*
-GetLastBatch(ctx context.Context, isVirtual bool, dbTx pgx.Tx) (*state.Batch, error)
-GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-GetLastBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-GetLastBatchByStateRoot(ctx context.Context, stateRoot []byte, dbTx pgx.Tx) (*state.Batch, error)
-SetGenesis(ctx context.Context, genesis state.Genesis, dbTx pgx.Tx) error
-SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
-SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
-SetInitSyncBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
-AddBlock(ctx context.Context, block *state.Block, dbTx pgx.Tx) error
-CreateBatch(ctx context.Context, batch *statev2.Batch) error
-ProcessBatch(ctx context.Context, txs []types.Transaction) ProcessBatchResponse
-AddTransactionsToBatch(ctx context.Context, batchNumber uint64, txs []ProcessTransactionResponse) error
-*/
+// GetLastBatch gets latest batch (closed or not) on the data base
+func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// GetBatchByNumber gets a batch from data base by its number
+func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// GetEncodedTransactionsByBatchNumber gets the txs for a given batch in encoded form
+func (s *State) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (encoded []string, err error) {
+	// TODO: implement
+	return nil, nil
+}
 
 // AddVerifiedBatch adds a new VerifiedBatch to the db
 func (s *State) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBatch, dbTx pgx.Tx) error {
 	return s.PostgresStorage.AddVerifiedBatch(ctx, verifiedBatch, dbTx)
 }
 
-// GetVerifiedBatch get an L1 verifiedBatch.
+// GetVerifiedBatch get an L1 verifiedBatch
 func (s *State) GetVerifiedBatch(ctx context.Context, dbTx pgx.Tx, batchNumber uint64) (*VerifiedBatch, error) {
 	return s.PostgresStorage.GetVerifiedBatch(ctx, dbTx, batchNumber)
 }
 
+// DebugTransaction reexecutes a tx to generate its trace
 func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error) {
+	// TODO: Implement
 	return new(runtime.ExecutionResult), nil
 }
 
