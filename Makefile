@@ -191,7 +191,7 @@ run: compile-scs ## Runs all the services
 run-broadcast: ## Runs the broadcast service
 	$(RUNCOREBROADCAST)
 
-.PHONY: stop-network
+.PHONY: stop-broadcast
 stop-broadcast: ## Stops the broadcast service
 	$(STOPCOREBROADCAST)
 

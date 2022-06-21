@@ -20,9 +20,9 @@ const (
 	resetSQL                               = "DELETE FROM statev2.block WHERE block_num > $1"
 	addVerifiedBatchSQL                    = "INSERT INTO statev2.verified_batch (block_num, batch_num, tx_hash, aggregator) VALUES ($1, $2, $3, $4)"
 	getVerifiedBatchSQL                    = "SELECT block_num, batch_num, tx_hash, aggregator FROM statev2.verified_batch WHERE batch_num = $1"
-	getLastBatchSQL                        = "SELECT batch_num, global_exit_root, timestamp from statev2 ORDER BY batch_num DESC LIMIT 1"
-	getBatchByNumberSQL                    = "SELECT batch_num, global_exit_root, timestamp from statev2 WHERE batch_num = $1"
-	getEncodedTransactionsByBatchNumberSQL = "SELECT encoded from transaction where batch_number = $1"
+	getLastBatchSQL                        = "SELECT batch_num, global_exit_root, timestamp from statev2.batch ORDER BY batch_num DESC LIMIT 1"
+	getBatchByNumberSQL                    = "SELECT batch_num, global_exit_root, timestamp from statev2.batch WHERE batch_num = $1"
+	getEncodedTransactionsByBatchNumberSQL = "SELECT encoded from statev2.transaction where batch_num = $1"
 )
 
 // PostgresStorage implements the Storage interface
@@ -129,8 +129,11 @@ func (s *PostgresStorage) GetVerifiedBatch(ctx context.Context, tx pgx.Tx, batch
 }
 
 func (s *PostgresStorage) GetLastBatch(ctx context.Context, tx pgx.Tx) (*Batch, error) {
-	var batch Batch
-	err := tx.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNumber, &batch.GlobalExitRoot, &batch.Timestamp)
+	var (
+		batch  Batch
+		gerStr string
+	)
+	err := s.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
@@ -138,24 +141,28 @@ func (s *PostgresStorage) GetLastBatch(ctx context.Context, tx pgx.Tx) (*Batch, 
 		return nil, err
 	}
 
+	batch.GlobalExitRoot = common.HexToHash(gerStr)
 	return &batch, nil
 }
 
 func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
-	var batch Batch
-	err := tx.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &batch.GlobalExitRoot, &batch.Timestamp)
+	var (
+		batch  Batch
+		gerStr string
+	)
+	err := s.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
 	} else if err != nil {
 		return nil, err
 	}
-
+	batch.GlobalExitRoot = common.HexToHash(gerStr)
 	return &batch, nil
 }
 
 func (s *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (encoded []string, err error) {
-	rows, err := tx.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
+	rows, err := s.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}
