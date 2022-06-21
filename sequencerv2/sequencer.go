@@ -172,12 +172,10 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 	}
 
 	if lastL1TimeInteraction.Before(time.Now().Add(-s.cfg.LastL1InteractionTimeMaxWaitPeriod.Duration)) {
-		return true, false
-	}
-
-	// check profitability
-	if s.checker.IsSendSequencesProfitable(estimatedGas, s.closedSequences) {
-		return true, false
+		// check profitability
+		if s.checker.IsSendSequencesProfitable(estimatedGas, s.closedSequences) {
+			return true, false
+		}
 	}
 
 	return false, false

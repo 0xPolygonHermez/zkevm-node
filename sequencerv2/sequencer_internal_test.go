@@ -2,6 +2,7 @@ package sequencerv2
 
 import (
 	"context"
+	"github.com/hermeznetwork/hermez-core/sequencerv2/profitabilitychecker"
 	"math/big"
 	"os"
 	"strings"
@@ -133,6 +134,7 @@ func TestMain(m *testing.M) {
 		LastL1InteractionTimeMaxWaitPeriod: cfgTypes.NewDuration(60 * time.Second),
 		WaitBlocksToUpdateGER:              10,
 		LastTimeBatchMaxWaitPeriod:         cfgTypes.NewDuration(60 * time.Second),
+		ProfitabilityChecker:               profitabilitychecker.Config{SendBatchesEvenWhenNotProfitable: true},
 	}
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)

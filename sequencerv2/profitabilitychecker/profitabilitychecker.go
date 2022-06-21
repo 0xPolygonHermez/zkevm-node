@@ -10,6 +10,7 @@ import (
 
 // Checker checks profitability to send sequences
 type Checker struct {
+	Config      Config
 	EthMan      etherman
 	PriceGetter pricegetter.Client
 }
@@ -20,6 +21,7 @@ func New(
 	etherMan etherman,
 	priceGetter priceGetter) *Checker {
 	return &Checker{
+		Config:      cfg,
 		EthMan:      etherMan,
 		PriceGetter: priceGetter,
 	}
@@ -27,6 +29,9 @@ func New(
 
 // IsSequenceProfitable check if sequence is profitable by comparing L1 tx gas cost and collateral with fee rewards
 func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Sequence) (bool, error) {
+	if c.Config.SendBatchesEvenWhenNotProfitable {
+		return true, nil
+	}
 	// fee - it's collateral for batch, get from SC in matic
 	fee, err := c.EthMan.GetSendSequenceFee()
 	if err != nil {
@@ -59,6 +64,10 @@ func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Seque
 
 // IsSendSequencesProfitable checks profitability to send sequences to the ethereum
 func (c *Checker) IsSendSequencesProfitable(estimatedGas *big.Int, sequences []types.Sequence) bool {
+	if c.Config.SendBatchesEvenWhenNotProfitable {
+		return true
+	}
+
 	gasCostSequences := big.NewInt(0)
 	for _, seq := range sequences {
 		for _, tx := range seq.Txs {
