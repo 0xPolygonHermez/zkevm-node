@@ -326,6 +326,11 @@ func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
 		contractAddress = &ca
 	}
 
+	blockNumber := argUint64(0)
+	if r.BlockNumber != nil {
+		blockNumber = argUint64(r.BlockNumber.Uint64())
+	}
+
 	return rpcReceipt{
 		Root:              common.BytesToHash(r.Receipt.PostState),
 		CumulativeGasUsed: argUint64(r.CumulativeGasUsed),
@@ -335,7 +340,7 @@ func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
 		TxHash:            r.TxHash,
 		TxIndex:           argUint64(r.TransactionIndex),
 		BlockHash:         r.BlockHash,
-		BlockNumber:       argUint64(r.BlockNumber.Uint64()),
+		BlockNumber:       blockNumber,
 		GasUsed:           argUint64(r.GasUsed),
 		ContractAddress:   contractAddress,
 		FromAddr:          r.From,
