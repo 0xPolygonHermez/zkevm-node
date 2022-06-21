@@ -26,6 +26,7 @@ const (
 	SEQUENCER    = "sequencer"
 	RPC          = "rpc"
 	SYNCHRONIZER = "synchronizer"
+	BROADCAST    = "broadcast"
 )
 
 func main() {

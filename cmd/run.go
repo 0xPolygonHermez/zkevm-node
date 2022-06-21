@@ -25,8 +25,11 @@ import (
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	proverclientpb "github.com/hermeznetwork/hermez-core/proverclient/pb"
 	"github.com/hermeznetwork/hermez-core/sequencer"
+	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast"
+	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb"
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
@@ -134,6 +137,11 @@ func start(ctx *cli.Context) error {
 			npool = pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
 			gpe = createGasPriceEstimator(c.GasPriceEstimator, st, npool)
 			go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, gpe)
+		case BROADCAST:
+			log.Info("Running broadcast service")
+			stateDb := statev2.NewPostgresStorage(sqlDB)
+			st := statev2.NewState(stateDb)
+			go runBroadcastServer(c.BroadcastServer, st)
 		}
 	}
 
@@ -229,6 +237,15 @@ func runAggregator(c aggregator.Config, etherman *etherman.Client, proverclient 
 		log.Fatal(err)
 	}
 	agg.Start()
+}
+
+func runBroadcastServer(c broadcast.ServerConfig, st *statev2.State) {
+	s := grpc.NewServer()
+
+	broadcastSrv := broadcast.NewServer(&c, st)
+	pb.RegisterBroadcastServiceServer(s, broadcastSrv)
+
+	broadcastSrv.Start()
 }
 
 // gasPriceEstimator interface for gas price estimator.
