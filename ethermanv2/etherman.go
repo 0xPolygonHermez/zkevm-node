@@ -41,14 +41,14 @@ type EventOrder string
 const (
 	// GlobalExitRootsOrder identifies a GlobalExitRoot event
 	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
-	// SequenceBatchesOrder identifies a VerifyBatch event
-	SequenceBatchesOrder EventOrder = "SequenceBatches"
+	// SequencedBatchesOrder identifies a VerifyBatch event
+	SequencedBatchesOrder EventOrder = "SequenceBatches"
 	// ForcedBatchesOrder identifies a ForcedBatches event
 	ForcedBatchesOrder EventOrder = "ForcedBatches"
 	// VerifyBatchOrder identifies a VerifyBatch event
 	VerifyBatchOrder EventOrder = "VerifyBatch"
-	// SequenceForceBatchesOrder identifies a SequenceForceBatches event
-	SequenceForceBatchesOrder EventOrder = "SequenceForceBatches"
+	// ForceSequencedBatchesOrder identifies a SequenceForceBatches event
+	ForceSequencedBatchesOrder EventOrder = "SequenceForceBatches"
 )
 
 type ethClienter interface {
@@ -290,7 +290,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 		return fmt.Errorf("error processing SequencedBatches event")
 	}
 	or := Order{
-		Name: SequenceBatchesOrder,
+		Name: SequencedBatchesOrder,
 		Pos:  len((*blocks)[len(*blocks)-1].Sequences) - 1,
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
@@ -406,7 +406,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 		return fmt.Errorf("error processing ForceSequencedBatches event")
 	}
 	or := Order{
-		Name: SequenceForceBatchesOrder,
+		Name: ForceSequencedBatchesOrder,
 		Pos:  len((*blocks)[len(*blocks)-1].SequencedForceBatches) - 1,
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)

@@ -10,7 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
-	"github.com/hermeznetwork/hermez-core/ethermanv2"
+	etherman "github.com/hermeznetwork/hermez-core/ethermanv2"
 	"github.com/hermeznetwork/hermez-core/hex"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
@@ -50,7 +50,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	fmt.Println("db: ", stateDb)
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	block := &ethermanv2.Block{
+	block := &etherman.Block{
 		BlockNumber: 1,
 		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
@@ -85,7 +85,7 @@ func TestAddForcedBatch(t *testing.T) {
 	ctx := context.Background()
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	block := &ethermanv2.Block{
+	block := &etherman.Block{
 		BlockNumber: 1,
 		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
