@@ -68,5 +68,5 @@ StoreBackend = "PostgreSQL"
 URI = "127.0.0.1:50060"
 
 [ExecutorServer]
-Host = "0.0.0.0"
-Port = 0
+Host = "51.210.116.237"
+Port = 50071

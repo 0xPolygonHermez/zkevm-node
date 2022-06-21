@@ -12,6 +12,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	state "github.com/hermeznetwork/hermez-core/statev2"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -26,6 +27,10 @@ var (
 )
 
 var cfg = dbutils.NewConfigFromEnv()
+var stateCfg = state.Config{
+	MaxCumulativeGasUsed: 800000,
+	ExecutorServerConfig: executor.ServerConfig{Host: "51.210.116.237", Port: 50071},
+}
 
 func TestMain(m *testing.M) {
 	stateDb, err = db.NewSQLDB(cfg)
@@ -35,7 +40,7 @@ func TestMain(m *testing.M) {
 	defer stateDb.Close()
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
-	testState = state.NewState(state.NewPostgresStorage(stateDb))
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb))
 
 	result := m.Run()
 
