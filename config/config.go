@@ -31,6 +31,7 @@ const (
 	FlagAmount      = "amount"
 	FlagRemoteMT    = "remote-merkletree"
 	FlagComponents  = "components"
+	FlagHTTPAPI     = "http.api"
 )
 
 // Config represents the configuration of the entire Hermez Node

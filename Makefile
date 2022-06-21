@@ -223,6 +223,7 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=stateInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=stateMock --filename=mock_state_test.go
 	mockery --name=BatchProcessorInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=batchProcessorMock --filename=mock_batchProcessor_test.go
 	mockery --name=txManager --dir=sequencerv2 --output=sequencerv2 --outpkg=sequencerv2 --structname=txmanagerMock --filename=txmanager-mock_test.go
+	mockery --name=stateInterface --dir=sequencerv2/broadcast --output=sequencerv2/broadcast --outpkg=broadcast_test --structname=stateMock --filename=state-mock_test.go
 	mockery --name=etherman --dir=sequencerv2 --output=sequencerv2 --outpkg=sequencerv2 --structname=ethermanMock --filename=etherman-mock_test.go
 	mockery --name=etherman --dir=sequencerv2/profitabilitychecker --output=sequencerv2/profitabilitychecker --outpkg=profitabilitychecker_test --structname=ethermanMock --filename=etherman-mock_test.go
 
