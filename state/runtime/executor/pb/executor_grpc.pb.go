@@ -22,18 +22,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ExecutorServiceClient interface {
-	/// Processes a batch and updates Merkle Tree
+	/// Processes a batch
 	ProcessBatch(ctx context.Context, in *ProcessBatchRequest, opts ...grpc.CallOption) (*ProcessBatchResponse, error)
-	/// Processes a transaction and updates Merkle Tree
-	ProcessTransaction(ctx context.Context, in *ProcessTransactionRequest, opts ...grpc.CallOption) (*ProcessTransactionResponse, error)
-	/// Estimates gas to needed to process a transaction without updating the Merkle Tree
-	EstimateGas(ctx context.Context, in *ProcessTransactionRequest, opts ...grpc.CallOption) (*ProcessTransactionResponse, error)
-	/// Debugs a batch to get its trace following Geth's debug_traceBlockByNumber specification
-	/// It dos NOT update Merkle Tree
-	DebugBatch(ctx context.Context, in *ProcessBatchRequest, opts ...grpc.CallOption) (*DebugBatchResponse, error)
-	/// Debugs a transaction to get its trace followin Geth's debug_traceTransaction specification
-	/// It dos NOT update Merkle Tree
-	DebugTransaction(ctx context.Context, in *ProcessTransactionRequest, opts ...grpc.CallOption) (*DebugTransactionResponse, error)
 }
 
 type executorServiceClient struct {
@@ -53,58 +43,12 @@ func (c *executorServiceClient) ProcessBatch(ctx context.Context, in *ProcessBat
 	return out, nil
 }
 
-func (c *executorServiceClient) ProcessTransaction(ctx context.Context, in *ProcessTransactionRequest, opts ...grpc.CallOption) (*ProcessTransactionResponse, error) {
-	out := new(ProcessTransactionResponse)
-	err := c.cc.Invoke(ctx, "/executor.v1.ExecutorService/ProcessTransaction", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *executorServiceClient) EstimateGas(ctx context.Context, in *ProcessTransactionRequest, opts ...grpc.CallOption) (*ProcessTransactionResponse, error) {
-	out := new(ProcessTransactionResponse)
-	err := c.cc.Invoke(ctx, "/executor.v1.ExecutorService/EstimateGas", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *executorServiceClient) DebugBatch(ctx context.Context, in *ProcessBatchRequest, opts ...grpc.CallOption) (*DebugBatchResponse, error) {
-	out := new(DebugBatchResponse)
-	err := c.cc.Invoke(ctx, "/executor.v1.ExecutorService/DebugBatch", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *executorServiceClient) DebugTransaction(ctx context.Context, in *ProcessTransactionRequest, opts ...grpc.CallOption) (*DebugTransactionResponse, error) {
-	out := new(DebugTransactionResponse)
-	err := c.cc.Invoke(ctx, "/executor.v1.ExecutorService/DebugTransaction", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ExecutorServiceServer is the server API for ExecutorService service.
 // All implementations must embed UnimplementedExecutorServiceServer
 // for forward compatibility
 type ExecutorServiceServer interface {
-	/// Processes a batch and updates Merkle Tree
+	/// Processes a batch
 	ProcessBatch(context.Context, *ProcessBatchRequest) (*ProcessBatchResponse, error)
-	/// Processes a transaction and updates Merkle Tree
-	ProcessTransaction(context.Context, *ProcessTransactionRequest) (*ProcessTransactionResponse, error)
-	/// Estimates gas to needed to process a transaction without updating the Merkle Tree
-	EstimateGas(context.Context, *ProcessTransactionRequest) (*ProcessTransactionResponse, error)
-	/// Debugs a batch to get its trace following Geth's debug_traceBlockByNumber specification
-	/// It dos NOT update Merkle Tree
-	DebugBatch(context.Context, *ProcessBatchRequest) (*DebugBatchResponse, error)
-	/// Debugs a transaction to get its trace followin Geth's debug_traceTransaction specification
-	/// It dos NOT update Merkle Tree
-	DebugTransaction(context.Context, *ProcessTransactionRequest) (*DebugTransactionResponse, error)
 	mustEmbedUnimplementedExecutorServiceServer()
 }
 
@@ -114,18 +58,6 @@ type UnimplementedExecutorServiceServer struct {
 
 func (UnimplementedExecutorServiceServer) ProcessBatch(context.Context, *ProcessBatchRequest) (*ProcessBatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProcessBatch not implemented")
-}
-func (UnimplementedExecutorServiceServer) ProcessTransaction(context.Context, *ProcessTransactionRequest) (*ProcessTransactionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ProcessTransaction not implemented")
-}
-func (UnimplementedExecutorServiceServer) EstimateGas(context.Context, *ProcessTransactionRequest) (*ProcessTransactionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method EstimateGas not implemented")
-}
-func (UnimplementedExecutorServiceServer) DebugBatch(context.Context, *ProcessBatchRequest) (*DebugBatchResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DebugBatch not implemented")
-}
-func (UnimplementedExecutorServiceServer) DebugTransaction(context.Context, *ProcessTransactionRequest) (*DebugTransactionResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DebugTransaction not implemented")
 }
 func (UnimplementedExecutorServiceServer) mustEmbedUnimplementedExecutorServiceServer() {}
 
@@ -158,78 +90,6 @@ func _ExecutorService_ProcessBatch_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ExecutorService_ProcessTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ProcessTransactionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExecutorServiceServer).ProcessTransaction(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/executor.v1.ExecutorService/ProcessTransaction",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExecutorServiceServer).ProcessTransaction(ctx, req.(*ProcessTransactionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ExecutorService_EstimateGas_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ProcessTransactionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExecutorServiceServer).EstimateGas(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/executor.v1.ExecutorService/EstimateGas",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExecutorServiceServer).EstimateGas(ctx, req.(*ProcessTransactionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ExecutorService_DebugBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ProcessBatchRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExecutorServiceServer).DebugBatch(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/executor.v1.ExecutorService/DebugBatch",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExecutorServiceServer).DebugBatch(ctx, req.(*ProcessBatchRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ExecutorService_DebugTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ProcessTransactionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExecutorServiceServer).DebugTransaction(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/executor.v1.ExecutorService/DebugTransaction",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExecutorServiceServer).DebugTransaction(ctx, req.(*ProcessTransactionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ExecutorService_ServiceDesc is the grpc.ServiceDesc for ExecutorService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -240,22 +100,6 @@ var ExecutorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ProcessBatch",
 			Handler:    _ExecutorService_ProcessBatch_Handler,
-		},
-		{
-			MethodName: "ProcessTransaction",
-			Handler:    _ExecutorService_ProcessTransaction_Handler,
-		},
-		{
-			MethodName: "EstimateGas",
-			Handler:    _ExecutorService_EstimateGas_Handler,
-		},
-		{
-			MethodName: "DebugBatch",
-			Handler:    _ExecutorService_DebugBatch_Handler,
-		},
-		{
-			MethodName: "DebugTransaction",
-			Handler:    _ExecutorService_DebugTransaction_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
