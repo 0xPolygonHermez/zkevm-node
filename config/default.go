@@ -58,6 +58,8 @@ WaitPeriodPoolIsEmpty = "15s"
 LastL1InteractionTimeMaxWaitPeriod = "15s"
 WaitBlocksToUpdateGER = 10
 LastTimeBatchMaxWaitPeriod = "15s"
+	[Sequencerv2.ProfitabilityChecker]
+		SendBatchesEvenWhenNotProfitable = "true"
 
 [PriceGetter]
 Type = "default"

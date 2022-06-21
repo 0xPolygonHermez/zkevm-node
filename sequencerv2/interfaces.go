@@ -44,7 +44,7 @@ type stateInterface interface {
 	AddBlock(ctx context.Context, block *state.Block, txBundleID string) error
 
 	ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult
-	GetLastL1InteractionTime(ctx context.Context) (time.Time, error)
+	GetLastSendSequenceTime(ctx context.Context) (time.Time, error)
 	GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint32, error)
 	GetLastBatchTime(ctx context.Context) (time.Time, error)
 }
@@ -56,5 +56,5 @@ type txManager interface {
 // priceGetter is for getting eth/matic price, used for the tx profitability checker
 type priceGetter interface {
 	Start(ctx context.Context)
-	GetPrice(ctx context.Context) (*big.Float, error)
+	GetEthToMaticPrice(ctx context.Context) (*big.Float, error)
 }

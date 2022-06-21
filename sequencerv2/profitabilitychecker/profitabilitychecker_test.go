@@ -23,7 +23,7 @@ func Test_IsSequenceProfitable(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	pc := profitabilitychecker.New(ethman, pg)
+	pc := profitabilitychecker.New(profitabilitychecker.Config{SendBatchesEvenWhenNotProfitable: false}, ethman, pg)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
@@ -48,7 +48,7 @@ func Test_IsSequenceProfitableFalse(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	pc := profitabilitychecker.New(ethman, pg)
+	pc := profitabilitychecker.New(profitabilitychecker.Config{SendBatchesEvenWhenNotProfitable: false}, ethman, pg)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
@@ -72,7 +72,7 @@ func Test_IsSendSequencesProfitable(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	pc := profitabilitychecker.New(ethman, pg)
+	pc := profitabilitychecker.New(profitabilitychecker.Config{SendBatchesEvenWhenNotProfitable: false}, ethman, pg)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(1000), []byte{})
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(1000), []byte{})
@@ -97,7 +97,7 @@ func Test_IsSendSequencesFalse(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	pc := profitabilitychecker.New(ethman, pg)
+	pc := profitabilitychecker.New(profitabilitychecker.Config{SendBatchesEvenWhenNotProfitable: false}, ethman, pg)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})

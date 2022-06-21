@@ -40,7 +40,7 @@ func New(
 	etherman etherman,
 	priceGetter priceGetter,
 	manager txManager) (*Sequencer, error) {
-	checker := profitabilitychecker.New(etherman, priceGetter)
+	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
 	return &Sequencer{
 		cfg:       cfg,
 		pool:      pool,
@@ -165,7 +165,7 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 
 	// TODO: checkAgainstForcedBatchQueueTimeout
 
-	lastL1TimeInteraction, err := s.state.GetLastL1InteractionTime(ctx)
+	lastL1TimeInteraction, err := s.state.GetLastSendSequenceTime(ctx)
 	if err != nil {
 		log.Errorf("failed to get last l1 interaction time, err: %v", err)
 		return false, false

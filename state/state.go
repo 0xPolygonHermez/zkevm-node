@@ -541,9 +541,9 @@ func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Tran
 	return &runtime.ExecutionResult{}
 }
 
-// GetLastL1InteractionTime get time from last l1 interaction time
+// GetLastSendSequenceTime get time from last l1 interaction time
 // TODO: implement function
-func (s *State) GetLastL1InteractionTime(ctx context.Context) (time.Time, error) {
+func (s *State) GetLastSendSequenceTime(ctx context.Context) (time.Time, error) {
 	return time.Now(), nil
 }
 

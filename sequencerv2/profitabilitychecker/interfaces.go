@@ -15,5 +15,5 @@ type etherman interface {
 // priceGetter is for getting eth/matic price, used for the base tx profitability checker
 type priceGetter interface {
 	Start(ctx context.Context)
-	GetPrice(ctx context.Context) (*big.Float, error)
+	GetEthToMaticPrice(ctx context.Context) (*big.Float, error)
 }

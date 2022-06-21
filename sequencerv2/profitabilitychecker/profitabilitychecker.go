@@ -16,6 +16,7 @@ type Checker struct {
 
 // New creates new profitability checker
 func New(
+	cfg Config,
 	etherMan etherman,
 	priceGetter priceGetter) *Checker {
 	return &Checker{
@@ -39,7 +40,7 @@ func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Seque
 	}
 
 	// get price of matic (1 eth = x matic)
-	price, err := c.PriceGetter.GetPrice(ctx)
+	price, err := c.PriceGetter.GetEthToMaticPrice(ctx)
 	if err != nil {
 		return false, err
 	}

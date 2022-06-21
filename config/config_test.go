@@ -75,6 +75,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
+			path:          "Sequencerv2.ProfitabilityChecker.SendBatchesEvenWhenNotProfitable",
+			expectedValue: true,
+		},
+		{
 			path:          "PriceGetter.Type",
 			expectedValue: pricegetter.DefaultType,
 		},

@@ -2,6 +2,7 @@ package sequencerv2
 
 import (
 	"github.com/hermeznetwork/hermez-core/config/types"
+	"github.com/hermeznetwork/hermez-core/sequencerv2/profitabilitychecker"
 )
 
 // Config represents the configuration of a sequencer
@@ -18,4 +19,7 @@ type Config struct {
 
 	// LastTimeBatchMaxWaitPeriod is time after which new batch should be closed
 	LastTimeBatchMaxWaitPeriod types.Duration `mapstructure:"LastTimeBatchMaxWaitPeriod"`
+
+	// ProfitabilityChecker configuration
+	ProfitabilityChecker profitabilitychecker.Config `mapstructure:"ProfitabilityChecker"`
 }
