@@ -15,7 +15,7 @@ import (
 
 func Test_IsSequenceProfitable(t *testing.T) {
 	ethman := new(ethermanMock)
-	ethman.On("GetFee").Return(big.NewInt(0), nil)
+	ethman.On("GetSendSequenceFee").Return(big.NewInt(0), nil)
 
 	pg, err := pricegetter.NewClient(pricegetter.Config{
 		Type:         "default",
@@ -40,7 +40,7 @@ func Test_IsSequenceProfitable(t *testing.T) {
 
 func Test_IsSequenceProfitableFalse(t *testing.T) {
 	ethman := new(ethermanMock)
-	ethman.On("GetFee").Return(big.NewInt(10000000), nil)
+	ethman.On("GetSendSequenceFee").Return(big.NewInt(10000000), nil)
 
 	pg, err := pricegetter.NewClient(pricegetter.Config{
 		Type:         "default",

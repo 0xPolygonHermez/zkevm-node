@@ -3,7 +3,6 @@ package sequencerv2
 
 import (
 	"context"
-	"github.com/hermeznetwork/hermez-core/state"
 	"math/big"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 

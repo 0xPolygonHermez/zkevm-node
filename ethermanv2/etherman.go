@@ -209,8 +209,8 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 	return big.NewInt(0), nil
 }
 
-// GetFee get super/trusted sequencer fee
-func (etherMan *Client) GetFee() (*big.Int, error) {
+// GetSendSequenceFee get super/trusted sequencer fee
+func (etherMan *Client) GetSendSequenceFee() (*big.Int, error) {
 	return etherMan.PoE.SUPERSEQUENCERFEE(&bind.CallOpts{Pending: false})
 }
 

@@ -235,10 +235,7 @@ func (s *Sequencer) newSequence() types.Sequence {
 }
 
 func isDataForEthTxTooBig(err error) bool {
-	if strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
+	return strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
 		errors.As(err, &core.ErrOversizedData) ||
-		strings.Contains(err.Error(), errContentLengthTooLarge) {
-		return true
-	}
-	return false
+		strings.Contains(err.Error(), errContentLengthTooLarge)
 }

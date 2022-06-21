@@ -203,7 +203,7 @@ func TestSequencerBaseFlow(t *testing.T) {
 	gasCostMin := big.NewInt(0)
 	gasCostMax, _ := new(big.Int).SetString("1000000000000000000", 10)
 	ethMan.On("EstimateGasSequenceBatches", mock.Anything).Return(gasCostMax, nil)
-	ethMan.On("GetFee").Return(gasCostMin, nil)
+	ethMan.On("GetSendSequenceFee").Return(gasCostMin, nil)
 
 	// get pending txs to build sequences to send, so test could check if variables are equal
 	pendTxs, err := pl.GetPendingTxs(ctx, false, getPendingTxsLimit)
