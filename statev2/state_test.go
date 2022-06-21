@@ -21,9 +21,11 @@ import (
 	"google.golang.org/grpc"
 )
 
+/*
 const (
 	ether155V = 27
 )
+*/
 
 var (
 	testState    *state.State
@@ -31,8 +33,8 @@ var (
 	stateDb      *pgxpool.Pool
 	err          error
 	cfg          = dbutils.NewConfigFromEnv()
-	ctx          = context.Background()
-	stateCfg     = state.Config{
+	// ctx          = context.Background()
+	stateCfg = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
 	executorServerConfig = executor.Config{URI: "51.210.116.237:50071"}
