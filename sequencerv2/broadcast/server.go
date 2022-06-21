@@ -48,6 +48,7 @@ func (s *Server) Start() {
 	healthService := newHealthChecker()
 	grpc_health_v1.RegisterHealthServer(s.srv, healthService)
 
+	log.Infof("Server listening in %q", address)
 	if err := s.srv.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
