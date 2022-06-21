@@ -68,4 +68,4 @@ StoreBackend = "PostgreSQL"
 URI = "127.0.0.1:50060"
 
 [Executor]
-ExecutorURI = "51.210.116.237:50071"
+URI = "51.210.116.237:50071"
