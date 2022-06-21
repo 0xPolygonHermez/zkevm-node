@@ -38,8 +38,8 @@ func (_m *ethermanMock) EstimateGasSequenceBatches(sequences []types.Sequence) (
 	return r0, r1
 }
 
-// GetFee provides a mock function with given fields:
-func (_m *ethermanMock) GetFee() (*big.Int, error) {
+// GetSendSequenceFee provides a mock function with given fields:
+func (_m *ethermanMock) GetSendSequenceFee() (*big.Int, error) {
 	ret := _m.Called()
 
 	var r0 *big.Int

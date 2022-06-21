@@ -28,7 +28,7 @@ type txPool interface {
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
 	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*big.Int, error)
-	GetFee() (*big.Int, error)
+	GetSendSequenceFee() (*big.Int, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.

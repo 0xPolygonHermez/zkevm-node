@@ -27,7 +27,7 @@ func New(
 // IsSequenceProfitable check if sequence is profitable by comparing L1 tx gas cost and collateral with fee rewards
 func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Sequence) (bool, error) {
 	// fee - it's collateral for batch, get from SC in matic
-	fee, err := c.EthMan.GetFee()
+	fee, err := c.EthMan.GetSendSequenceFee()
 	if err != nil {
 		return false, err
 	}

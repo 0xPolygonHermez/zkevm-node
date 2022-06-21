@@ -13,8 +13,8 @@ type ethermanMock struct {
 	mock.Mock
 }
 
-// GetFee provides a mock function with given fields:
-func (_m *ethermanMock) GetFee() (*big.Int, error) {
+// GetSendSequenceFee provides a mock function with given fields:
+func (_m *ethermanMock) GetSendSequenceFee() (*big.Int, error) {
 	ret := _m.Called()
 
 	var r0 *big.Int
