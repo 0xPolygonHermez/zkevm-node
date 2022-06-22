@@ -303,7 +303,9 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 	if errors.Is(err, ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get filter from storage"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	if filter.Type != FilterTypeLog {
@@ -313,7 +315,9 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 	filterParameters := &LogFilter{}
 	err = json.Unmarshal([]byte(filter.Parameters), filterParameters)
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to read filter parameters"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	filterParameters.Since = nil

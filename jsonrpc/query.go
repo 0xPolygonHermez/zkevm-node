@@ -92,11 +92,11 @@ func (f *LogFilter) MarshalJSON() ([]byte, error) {
 	}
 
 	if f.Addresses != nil {
-		address, err := json.Marshal(f.Addresses)
-		if err != nil {
-			return nil, err
+		if len(f.Addresses) == 1 {
+			obj.Address = f.Addresses[0].Hex()
+		} else {
+			obj.Address = f.Addresses
 		}
-		obj.Address = string(address)
 	}
 
 	obj.Topics = make([]interface{}, 0, len(f.Topics))

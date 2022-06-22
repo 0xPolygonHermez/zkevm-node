@@ -2409,6 +2409,172 @@ func TestGetLogs(t *testing.T) {
 	}
 }
 
+func TestGetFilterLogs(t *testing.T) {
+	s, m, _ := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		FilterID       argUint64
+		ExpectedResult []types.Log
+		ExpectedError  rpcError
+		Prepare        func(t *testing.T, tc *testCase)
+		SetupMocks     func(t *testing.T, m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name: "Get filter logs successfully",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.FilterID = argUint64(1)
+				tc.ExpectedResult = []types.Log{{
+					Address: common.Address{}, Topics: []common.Hash{}, Data: []byte{},
+					BlockNumber: uint64(1), TxHash: common.Hash{}, TxIndex: uint(1),
+					BlockHash: common.Hash{}, Index: uint(1), Removed: false,
+				}}
+				tc.ExpectedError = nil
+			},
+			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				var since *time.Time = nil
+				logs := make([]*types.Log, 0, len(tc.ExpectedResult))
+				for _, log := range tc.ExpectedResult {
+					l := log
+					logs = append(logs, &l)
+				}
+
+				logFilter := LogFilter{
+					FromBlock: BlockNumber(1), ToBlock: BlockNumber(2),
+					Addresses: []common.Address{common.HexToAddress("0x111")},
+					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
+				}
+
+				logFilterJson, err := json.Marshal(&logFilter)
+				require.NoError(t, err)
+
+				parameters := string(logFilterJson)
+
+				filter := &Filter{
+					ID:         uint64(tc.FilterID),
+					Type:       FilterTypeLog,
+					LastPoll:   time.Now(),
+					Parameters: parameters,
+				}
+
+				m.Storage.
+					On("GetFilter", uint64(tc.FilterID)).
+					Return(filter, nil).
+					Once()
+
+				m.State.
+					On("GetLogs", context.Background(), uint64(logFilter.FromBlock), uint64(logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, since, "").
+					Return(logs, nil).
+					Once()
+			},
+		},
+		{
+			Name: "Get filter logs filter not found",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.FilterID = argUint64(1)
+				tc.ExpectedResult = nil
+				tc.ExpectedError = nil
+			},
+			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				m.Storage.
+					On("GetFilter", uint64(tc.FilterID)).
+					Return(nil, ErrNotFound).
+					Once()
+			},
+		},
+		{
+			Name: "Get filter logs failed to get filter",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.FilterID = argUint64(1)
+				tc.ExpectedResult = nil
+				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to get filter from storage")
+			},
+			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				m.Storage.
+					On("GetFilter", uint64(tc.FilterID)).
+					Return(nil, errors.New("failed to get filter")).
+					Once()
+			},
+		},
+		{
+			Name: "Get filter logs is a valid filter but its not a log filter",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.FilterID = argUint64(1)
+				tc.ExpectedResult = nil
+				tc.ExpectedError = nil
+			},
+			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				filter := &Filter{
+					ID:         uint64(tc.FilterID),
+					Type:       FilterTypeBlock,
+					LastPoll:   time.Now(),
+					Parameters: "",
+				}
+
+				m.Storage.
+					On("GetFilter", uint64(tc.FilterID)).
+					Return(filter, nil).
+					Once()
+			},
+		},
+		{
+			Name: "Get filter logs failed to parse filter parameters",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.FilterID = argUint64(1)
+				tc.ExpectedResult = nil
+				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to read filter parameters")
+			},
+			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				filter := &Filter{
+					ID:         uint64(tc.FilterID),
+					Type:       FilterTypeLog,
+					LastPoll:   time.Now(),
+					Parameters: "invalid parameters",
+				}
+
+				m.Storage.
+					On("GetFilter", uint64(tc.FilterID)).
+					Return(filter, nil).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.Prepare(t, &tc)
+			tc.SetupMocks(t, m, tc)
+
+			res, err := s.JSONRPCCall("eth_getFilterLogs", hex.EncodeUint64(uint64(tc.FilterID)))
+			require.NoError(t, err)
+			assert.Equal(t, float64(1), res.ID)
+			assert.Equal(t, "2.0", res.JSONRPC)
+
+			if res.Result != nil {
+				var result interface{}
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+
+				if result != nil || tc.ExpectedResult != nil {
+					var logs []types.Log
+					err = json.Unmarshal(res.Result, &logs)
+					require.NoError(t, err)
+					assert.ElementsMatch(t, tc.ExpectedResult, logs)
+				}
+			}
+
+			if res.Error != nil || tc.ExpectedError != nil {
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
 func addressPtr(i common.Address) *common.Address {
 	return &i
 }
