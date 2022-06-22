@@ -759,7 +759,9 @@ func (s *PostgresStorage) getBatchTransactions(ctx context.Context, batch Batch,
 // GetBatchHashesSince get all batch hashes since a timestamp
 func (s *State) GetBatchHashesSince(ctx context.Context, since time.Time, txBundleID string) ([]common.Hash, error) {
 	rows, err := s.Query(ctx, txBundleID, getBatchHashesSinceSQL, since)
-	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return []common.Hash{}, nil
+	} else if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
