@@ -16,8 +16,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/sequencerv2"
-	"github.com/hermeznetwork/hermez-core/state/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
@@ -52,7 +52,7 @@ type Config struct {
 	GasPriceEstimator gasprice.Config
 	MTServer          tree.ServerConfig
 	MTClient          tree.ClientConfig
-	ExecutorServer    executor.ServerConfig
+	Executor          executor.Config
 }
 
 // Load loads the configuration
