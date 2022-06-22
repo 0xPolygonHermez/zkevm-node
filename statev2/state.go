@@ -20,6 +20,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/holiman/uint256"
+
 	"github.com/jackc/pgx/v4"
 )
 
@@ -189,6 +190,30 @@ func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx
 func (s *State) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (encoded []string, err error) {
 	// TODO: implement
 	return nil, nil
+}
+
+// ProcessSequence process sequence of the txs
+// TODO: implement function
+func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult {
+	return &runtime.ExecutionResult{}
+}
+
+// GetLastSendSequenceTime get time from last l1 interaction time
+// TODO: implement function
+func (s *State) GetLastSendSequenceTime(ctx context.Context) (time.Time, error) {
+	return time.Now(), nil
+}
+
+// GetNumberOfBlocksSinceLastGERUpdate get time from last time get
+// TODO: implement function
+func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint32, error) {
+	return 0, nil
+}
+
+// GetLastBatchTime get last batch time
+// TODO: implement function
+func (s *State) GetLastBatchTime(ctx context.Context) (time.Time, error) {
+	return time.Now(), nil
 }
 
 // AddVerifiedBatch adds a new VerifiedBatch to the db

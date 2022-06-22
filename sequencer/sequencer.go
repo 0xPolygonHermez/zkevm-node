@@ -283,12 +283,9 @@ func (s *Sequencer) chooseRoot(prevRoot []byte) ([]byte, uint64, error) {
 }
 
 func isDataForEthTxTooBig(err error) bool {
-	if strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
+	return strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
 		errors.As(err, &core.ErrOversizedData) ||
-		strings.Contains(err.Error(), errContentLengthTooLarge) {
-		return true
-	}
-	return false
+		strings.Contains(err.Error(), errContentLengthTooLarge)
 }
 
 func (s *Sequencer) sendBatchToEthereum(selectionRes txselector.SelectTxsOutput) bool {

@@ -7,6 +7,6 @@ import (
 
 // PriceProvider get price from different data sources
 type PriceProvider interface {
-	// GetPrice getting price from the specified provider
-	GetPrice(ctx context.Context) (*big.Float, error)
+	// GetEthToMaticPrice getting price from the specified provider
+	GetEthToMaticPrice(ctx context.Context) (*big.Float, error)
 }
