@@ -26,7 +26,7 @@ const (
 	SEQUENCER    = "sequencer"
 	RPC          = "rpc"
 	SYNCHRONIZER = "synchronizer"
-	BROADCAST    = "broadcast"
+	BROADCAST    = "broadcast-trusted-state"
 )
 
 func main() {

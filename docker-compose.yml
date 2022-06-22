@@ -86,7 +86,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/hezcore run --network local --cfg /app/config.toml --components broadcast"
+      - "/app/hezcore run --network local --cfg /app/config.toml --components broadcast-trusted-state"
 
   hez-postgres:
     container_name: hez-postgres
