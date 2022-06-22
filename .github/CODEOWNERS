@@ -1,12 +1,16 @@
 *.md                    @arnaubennassar
 aggregator/             @Mikelle @ARR552
-cmd/                 
+cmd/                    @tclemos @fgimenez
 db/                     @Mikelle @tclemos
-etherman/               @ARR552 @tclemos
-jsonrpc/                @tclemos @arnaubennassar
-mocks/                  @tclemos
+docs/                   @arnaubennassar
+etherman/               @ARR552 @cool-develope
+ethermanv2/             @ARR552 @cool-develope
+jsonrpc/                @tclemos @ToniRamirezM
 pool/                   @Mikelle @tclemos
 sequencer/              @Mikelle @arnaubennassar
-state/                  @ToniRamirezM @OBrezhniev
-synchronizer/           @ARR552 @tclemos
-test/                   @arnaubennassar @tclemos
+sequencerv2/            @Mikelle @fgimenez
+state/                  @ToniRamirezM @tclemos
+statev2/                @ToniRamirezM @tclemos
+synchronizer/           @ARR552 @cool-develope
+synchronizerv2/         @ARR552 @cool-develope
+test/                   @tclemos @fgimenez

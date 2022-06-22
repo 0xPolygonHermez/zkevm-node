@@ -59,6 +59,34 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
+			path:          "Sequencerv2.WaitPeriodPoolIsEmpty",
+			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
+			path:          "Sequencerv2.LastL1InteractionTimeMaxWaitPeriod",
+			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
+			path:          "Sequencerv2.WaitBlocksToUpdateGER",
+			expectedValue: uint32(10),
+		},
+		{
+			path:          "Sequencerv2.LastTimeBatchMaxWaitPeriod",
+			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
+			path:          "Sequencerv2.ProfitabilityChecker.SendBatchesEvenWhenNotProfitable",
+			expectedValue: true,
+		},
+		{
+			path:          "PriceGetter.Type",
+			expectedValue: pricegetter.DefaultType,
+		},
+		{
+			path:          "PriceGetter.DefaultPrice",
+			expectedValue: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
+		},
+		{
 			path:          "GasPriceEstimator.DefaultGasPriceWei",
 			expectedValue: uint64(1000000000),
 		},
@@ -87,12 +115,8 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: float64(50),
 		},
 		{
-			path:          "ExecutorServer.Host",
-			expectedValue: "0.0.0.0",
-		},
-		{
-			path:          "ExecutorServer.Port",
-			expectedValue: 0,
+			path:          "Executor.URI",
+			expectedValue: "51.210.116.237:50071",
 		},
 		{
 			path:          "RPC.ChainID",

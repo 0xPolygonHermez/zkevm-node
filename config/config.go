@@ -12,10 +12,12 @@ import (
 	"github.com/hermeznetwork/hermez-core/gasprice"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
-	"github.com/hermeznetwork/hermez-core/state/runtime/executor"
+	"github.com/hermeznetwork/hermez-core/sequencerv2"
 	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
@@ -31,6 +33,7 @@ const (
 	FlagAmount      = "amount"
 	FlagRemoteMT    = "remote-merkletree"
 	FlagComponents  = "components"
+	FlagHTTPAPI     = "http.api"
 )
 
 // Config represents the configuration of the entire Hermez Node
@@ -41,13 +44,15 @@ type Config struct {
 	RPC               jsonrpc.Config
 	Synchronizer      synchronizer.Config
 	Sequencer         sequencer.Config
+	Sequencerv2       sequencerv2.Config
+	PriceGetter       pricegetter.Config
 	Aggregator        aggregator.Config
 	Prover            proverclient.Config
 	NetworkConfig     NetworkConfig
 	GasPriceEstimator gasprice.Config
 	MTServer          tree.ServerConfig
 	MTClient          tree.ClientConfig
-	ExecutorServer    executor.ServerConfig
+	Executor          executor.Config
 }
 
 // Load loads the configuration

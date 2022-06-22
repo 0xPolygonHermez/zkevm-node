@@ -15,6 +15,15 @@ import (
 	"github.com/hermeznetwork/hermez-core/log"
 )
 
+const (
+	APIEth    = "eth"
+	APINet    = "net"
+	APIDebug  = "debug"
+	APIHez    = "hez"
+	APITxPool = "txpool"
+	APIWeb3   = "web3"
+)
+
 // Server is an API backend to handle RPC requests
 type Server struct {
 	config  Config
@@ -23,19 +32,43 @@ type Server struct {
 }
 
 // NewServer returns the JsonRPC server
-func NewServer(config Config, defaultChainID uint64, chainID uint64,
-	p jsonRPCTxPool, s stateInterface, gpe gasPriceEstimator, storage storageInterface) *Server {
-	ethEndpoints := &Eth{chainID: chainID, pool: p, state: s, gpe: gpe, sequencerAddress: common.HexToAddress(config.SequencerAddress), storage: storage}
-	netEndpoints := &Net{chainID: chainID}
-	hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
-	txPoolEndpoints := &TxPool{}
-	debugEndpoints := &Debug{state: s}
-	web3Endpoints := &Web3{}
+func NewServer(cfg Config, defaultChainID uint64, chainID uint64,
+	p jsonRPCTxPool, s stateInterface, gpe gasPriceEstimator, storage storageInterface,
+	apis map[string]bool) *Server {
+	handler := newJSONRpcHandler()
 
-	handler := newJSONRpcHandler(ethEndpoints, netEndpoints, hezEndpoints, txPoolEndpoints, debugEndpoints, web3Endpoints)
+	if _, ok := apis[APIEth]; ok {
+		ethEndpoints := &Eth{chainID: chainID, pool: p, state: s, gpe: gpe, sequencerAddress: common.HexToAddress(cfg.SequencerAddress), storage: storage}
+		handler.registerService(APIEth, ethEndpoints)
+	}
+
+	if _, ok := apis[APINet]; ok {
+		netEndpoints := &Net{chainID: chainID}
+		handler.registerService("net", netEndpoints)
+	}
+
+	if _, ok := apis[APIHez]; ok {
+		hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
+		handler.registerService("hez", hezEndpoints)
+	}
+
+	if _, ok := apis[APITxPool]; ok {
+		txPoolEndpoints := &TxPool{}
+		handler.registerService("txpool", txPoolEndpoints)
+	}
+
+	if _, ok := apis[APIDebug]; ok {
+		debugEndpoints := &Debug{state: s}
+		handler.registerService("debug", debugEndpoints)
+	}
+
+	if _, ok := apis[APIWeb3]; ok {
+		web3Endpoints := &Web3{}
+		handler.registerService("web3", web3Endpoints)
+	}
 
 	srv := &Server{
-		config:  config,
+		config:  cfg,
 		handler: handler,
 	}
 	return srv

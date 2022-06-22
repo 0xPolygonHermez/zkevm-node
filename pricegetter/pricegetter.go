@@ -15,8 +15,8 @@ import (
 type Client interface {
 	// Start price getter client
 	Start(ctx context.Context)
-	// GetPrice getting eth to matic price
-	GetPrice(ctx context.Context) (*big.Float, error)
+	// GetEthToMaticPrice getting eth to matic price
+	GetEthToMaticPrice(ctx context.Context) (*big.Float, error)
 }
 
 // NewClient inits price getter client
@@ -53,8 +53,8 @@ type defaultClient struct {
 	defaultPrice *big.Float
 }
 
-// GetPrice getting default price
-func (c *defaultClient) GetPrice(ctx context.Context) (*big.Float, error) {
+// GetEthToMaticPrice getting default price
+func (c *defaultClient) GetEthToMaticPrice(ctx context.Context) (*big.Float, error) {
 	return c.defaultPrice, nil
 }
 
@@ -66,9 +66,9 @@ type syncClient struct {
 	priceProvider priceprovider.PriceProvider
 }
 
-// GetPrice getting price from the price provider
-func (c *syncClient) GetPrice(ctx context.Context) (*big.Float, error) {
-	return c.priceProvider.GetPrice(ctx)
+// GetEthToMaticPrice getting price from the price provider
+func (c *syncClient) GetEthToMaticPrice(ctx context.Context) (*big.Float, error) {
+	return c.priceProvider.GetEthToMaticPrice(ctx)
 }
 
 // Start starting sync client
@@ -88,7 +88,7 @@ func (c *asyncClient) syncPrice(ctx context.Context) {
 	defer ticker.Stop()
 	var err error
 	for {
-		c.price, err = c.priceProvider.GetPrice(ctx)
+		c.price, err = c.priceProvider.GetEthToMaticPrice(ctx)
 		if err != nil {
 			log.Errorf("failed to get price matic price, err: %v", err)
 		} else {
@@ -103,8 +103,8 @@ func (c *asyncClient) syncPrice(ctx context.Context) {
 	}
 }
 
-// GetPrice get price, that is syncing every n second
-func (c *asyncClient) GetPrice(ctx context.Context) (*big.Float, error) {
+// GetEthToMaticPrice get price, that is syncing every n second
+func (c *asyncClient) GetEthToMaticPrice(ctx context.Context) (*big.Float, error) {
 	return c.price, nil
 }
 

@@ -16,15 +16,9 @@ services:
       - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
     command:
-      - "./hezcore"
-      - "run"
-      - "--network"
-      - "local"
-      - "--cfg"
-      - "/app/config.toml"
-      - "--components"
-      - "sequencer"
-    
+      - "/bin/sh"
+      - "-c"
+      - "/app/hezcore run --network local --cfg /app/config.toml --components sequencer"    
 
   hez-core-rpc:
     container_name: hez-core-rpc
@@ -39,14 +33,9 @@ services:
     volumes:
       - ./config/config.local.toml:/app/config.toml
     command:
-      - "./hezcore"
-      - "run"
-      - "--network"
-      - "local"
-      - "--cfg"
-      - "/app/config.toml"
-      - "--components"
-      - "rpc"
+      - "/bin/sh"
+      - "-c"
+      - "/app/hezcore run --network local --cfg /app/config.toml --components rpc"
       
   hez-core-agg:
     container_name: hez-core-agg
@@ -61,14 +50,9 @@ services:
       - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
     command:
-      - "./hezcore"
-      - "run"
-      - "--network"
-      - "local"
-      - "--cfg"
-      - "/app/config.toml"
-      - "--components"
-      - "aggregator"
+      - "/bin/sh"
+      - "-c"
+      - "/app/hezcore run --network local --cfg /app/config.toml --components aggregator"
       
   hez-core-sync:
     container_name: hez-core-sync
@@ -83,14 +67,9 @@ services:
       - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
     command:
-      - "./hezcore"
-      - "run"
-      - "--network"
-      - "local"
-      - "--cfg"
-      - "/app/config.toml"
-      - "--components"
-      - "synchronizer"
+      - "/bin/sh"
+      - "-c"
+      - "/app/hezcore run --network local --cfg /app/config.toml --components synchronizer"
       
   hez-postgres:
     container_name: hez-postgres
@@ -143,16 +122,9 @@ services:
     volumes:
       - ./config/config.local.toml:/app/config.toml
     command:
-      [
-        "./hezcore",
-        "run",
-        "--network",
-        "local",
-        "--cfg",
-        "/app/config.toml",
-        "--components",
-        "rpc",
-      ]
+      - "/bin/sh"
+      - "-c"
+      - "/app/hezcore run --network local --cfg /app/config.toml --components rpc --http.api eth,net,debug,hez,txpool,web3"
 
   hez-explorer-postgres:
     container_name: hez-explorer-postgres

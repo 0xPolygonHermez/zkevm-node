@@ -153,11 +153,13 @@ stop-prover: ## Stops the zk prover
 
 .PHONY: run-explorer
 run-explorer: ## Runs the explorer
+	$(RUNEXPLORERRPC)
 	$(RUNEXPLORER)
 
 .PHONY: stop-explorer
 stop-explorer: ## Stops the explorer
 	$(STOPEXPLORER)
+	$(STOPEXPLORERRPC)
 
 .PHONY: run-explorer-db
 run-explorer-db: ## Runs the explorer database
@@ -171,7 +173,6 @@ stop-explorer-db: ## Stops the explorer database
 run: compile-scs ## Runs all the services
 	$(RUNDB)
 	$(RUNEXPLORERDB)
-	$(RUNEXPLORERRPC)
 	$(RUNNETWORK)
 	sleep 5
 	$(RUNPROVER)
@@ -179,6 +180,7 @@ run: compile-scs ## Runs all the services
 	$(RUNCORESEQ)
 	$(RUNCOREAGG)
 	$(RUNCORERPC)
+	$(RUNEXPLORERRPC)
 	$(RUNCORESYNC)
 	$(RUNEXPLORER)
 
@@ -221,13 +223,16 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=stateInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=stateMock --filename=mock_state_test.go
 	mockery --name=BatchProcessorInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=batchProcessorMock --filename=mock_batchProcessor_test.go
 	mockery --name=txManager --dir=sequencerv2 --output=sequencerv2 --outpkg=sequencerv2 --structname=txmanagerMock --filename=txmanager-mock_test.go
+	mockery --name=stateInterface --dir=sequencerv2/broadcast --output=sequencerv2/broadcast --outpkg=broadcast_test --structname=stateMock --filename=state-mock_test.go
+	mockery --name=etherman --dir=sequencerv2 --output=sequencerv2 --outpkg=sequencerv2 --structname=ethermanMock --filename=etherman-mock_test.go
+	mockery --name=etherman --dir=sequencerv2/profitabilitychecker --output=sequencerv2/profitabilitychecker --outpkg=profitabilitychecker_test --structname=ethermanMock --filename=etherman-mock_test.go
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files
 	cd proto/src/proto/mt/v1 && protoc --proto_path=. --go_out=../../../../../state/tree/pb --go-grpc_out=../../../../../state/tree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative mt.proto
 	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverclient/pb --go-grpc_out=../../../../../proverclient/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative zk-prover.proto
 	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverservice/pb --go-grpc_out=../../../../../proverservice/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative zk-prover.proto
-	cd proto/src/proto/executor/v1 && protoc --proto_path=. --go_out=../../../../../state/runtime/executor/pb --go-grpc_out=../../../../../state/runtime/executor/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative executor.proto
+	cd proto/src/proto/executor/v1 && protoc --proto_path=. --go_out=../../../../../statev2/runtime/executor/pb --go-grpc_out=../../../../../statev2/runtime/executor/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative executor.proto
 	cd proto/src/proto/broadcast/v1 && protoc --proto_path=. --go_out=../../../../../sequencerv2/broadcast/pb --go-grpc_out=../../../../../sequencerv2/broadcast/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative broadcast.proto
 
 .PHONY: update-external-dependencies

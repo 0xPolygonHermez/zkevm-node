@@ -122,9 +122,13 @@ func start(ctx *cli.Context) error {
 			go seq.Start()
 		case RPC:
 			log.Info("Running JSON-RPC server")
+			apis := map[string]bool{}
+			for _, a := range ctx.StringSlice(config.FlagHTTPAPI) {
+				apis[a] = true
+			}
 			npool = pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
 			gpe = createGasPriceEstimator(c.GasPriceEstimator, st, npool)
-			go runJSONRpcServer(*c, npool, st, c.RPC.ChainID, gpe)
+			go runJSONRpcServer(*c, npool, st, c.RPC.ChainID, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
 			npool = pool.NewPool(poolDb, st, stateCfg.L2GlobalExitRootManagerAddr)
@@ -199,14 +203,14 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 	}
 }
 
-func runJSONRpcServer(c config.Config, pool *pool.Pool, st *state.State, chainID uint64, gpe gasPriceEstimator) {
+func runJSONRpcServer(c config.Config, pool *pool.Pool, st *state.State, chainID uint64, gpe gasPriceEstimator, apis map[string]bool) {
 	storage, err := jsonrpc.NewPostgresStorage(c.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	stW := &jsonrpc.StateWrapper{State: st}
-	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, chainID, pool, stW, gpe, storage).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, c.NetworkConfig.L2DefaultChainID, chainID, pool, stW, gpe, storage, apis).Start(); err != nil {
 		log.Fatal(err)
 	}
 }

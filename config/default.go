@@ -53,6 +53,18 @@ FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
 		TxPendingInQueueCheckingFrequency = "3s"
 		GetPendingTxsFrequency = "5s"
 
+[Sequencerv2]
+WaitPeriodPoolIsEmpty = "15s"
+LastL1InteractionTimeMaxWaitPeriod = "15s"
+WaitBlocksToUpdateGER = 10
+LastTimeBatchMaxWaitPeriod = "15s"
+	[Sequencerv2.ProfitabilityChecker]
+		SendBatchesEvenWhenNotProfitable = "true"
+
+[PriceGetter]
+Type = "default"
+DefaultPrice = "2000"
+
 [Aggregator]
 IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"
 IntervalToConsolidateState = "3s"
@@ -74,7 +86,6 @@ StoreBackend = "PostgreSQL"
 [MTClient]
 URI = "127.0.0.1:50060"
 
-[ExecutorServer]
-Host = "0.0.0.0"
-Port = 0
+[Executor]
+URI = "51.210.116.237:50071"
 `

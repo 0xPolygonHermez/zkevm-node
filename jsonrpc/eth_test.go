@@ -1092,7 +1092,7 @@ func TestSyncing(t *testing.T) {
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.State.
 					On("GetSyncingInfo", context.Background(), "").
-					Return(state.SyncingInfo{InitialSyncingBatch: 1, LastBatchNumberConsolidated: 2, LastBatchNumberSeen: 3}, nil).
+					Return(state.SyncingInfo{InitialSyncingBatch: 1, CurrentBatchNumber: 2, LastBatchNumberSeen: 3, LastBatchNumberConsolidated: 3}, nil).
 					Once()
 			},
 		},
@@ -1103,7 +1103,7 @@ func TestSyncing(t *testing.T) {
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.State.
 					On("GetSyncingInfo", context.Background(), "").
-					Return(state.SyncingInfo{InitialSyncingBatch: 1, LastBatchNumberConsolidated: 1, LastBatchNumberSeen: 1}, nil).
+					Return(state.SyncingInfo{InitialSyncingBatch: 1, CurrentBatchNumber: 1, LastBatchNumberSeen: 1, LastBatchNumberConsolidated: 1}, nil).
 					Once()
 			},
 		},

@@ -621,7 +621,7 @@ func (e *Eth) Syncing() (interface{}, error) {
 		return nil, err
 	}
 
-	if syncInfo.LastBatchNumberSeen == syncInfo.LastBatchNumberConsolidated {
+	if syncInfo.CurrentBatchNumber == syncInfo.LastBatchNumberSeen {
 		return false, nil
 	}
 
@@ -631,7 +631,7 @@ func (e *Eth) Syncing() (interface{}, error) {
 		H argUint64 `json:"highestBlock"`
 	}{
 		S: argUint64(syncInfo.InitialSyncingBatch),
-		C: argUint64(syncInfo.LastBatchNumberConsolidated),
+		C: argUint64(syncInfo.CurrentBatchNumber),
 		H: argUint64(syncInfo.LastBatchNumberSeen),
 	}, nil
 }
