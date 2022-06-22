@@ -46,8 +46,8 @@ func sqrtPriceX96ToPrice(sqrtPriceX96 *big.Int) (price *big.Float) {
 	return
 }
 
-// GetPrice price from the uniswap pool contract
-func (c *PriceProvider) GetPrice(ctx context.Context) (*big.Float, error) {
+// GetEthToMaticPrice price from the uniswap pool contract
+func (c *PriceProvider) GetEthToMaticPrice(ctx context.Context) (*big.Float, error) {
 	slot, err := c.Uni.Slot0(&bind.CallOpts{Context: ctx})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get matic price from uniswap: %v", err)

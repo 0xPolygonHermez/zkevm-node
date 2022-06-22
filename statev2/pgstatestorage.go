@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	etherman "github.com/hermeznetwork/hermez-core/ethermanv2"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -36,7 +35,7 @@ func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 }
 
 // Reset resets the state to a block
-func (s *PostgresStorage) Reset(ctx context.Context, block *etherman.Block, tx pgx.Tx) error {
+func (s *PostgresStorage) Reset(ctx context.Context, block *Block, tx pgx.Tx) error {
 	if _, err := tx.Exec(ctx, resetSQL, block.BlockNumber); err != nil {
 		return err
 	}
@@ -46,7 +45,7 @@ func (s *PostgresStorage) Reset(ctx context.Context, block *etherman.Block, tx p
 }
 
 // AddBlock adds a new block to the State Store
-func (s *PostgresStorage) AddBlock(ctx context.Context, block *etherman.Block, tx pgx.Tx) error {
+func (s *PostgresStorage) AddBlock(ctx context.Context, block *Block, tx pgx.Tx) error {
 	_, err := tx.Exec(ctx, addBlockSQL, block.BlockNumber, block.BlockHash.String(), block.ParentHash.String(), block.ReceivedAt)
 	return err
 }

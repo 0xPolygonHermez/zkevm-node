@@ -10,23 +10,37 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
-	etherman "github.com/hermeznetwork/hermez-core/ethermanv2"
 	"github.com/hermeznetwork/hermez-core/hex"
 	state "github.com/hermeznetwork/hermez-core/statev2"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
+
+/*
+const (
+	ether155V = 27
+)
+*/
 
 var (
 	testState    *state.State
 	hash1, hash2 common.Hash
 	stateDb      *pgxpool.Pool
 	err          error
+	cfg          = dbutils.NewConfigFromEnv()
+	// ctx          = context.Background()
+	stateCfg = state.Config{
+		MaxCumulativeGasUsed: 800000,
+	}
+	executorServerConfig = executor.Config{URI: "51.210.116.237:50071"}
+	executorClient       pb.ExecutorServiceClient
+	clientConn           *grpc.ClientConn
 )
-
-var cfg = dbutils.NewConfigFromEnv()
 
 func TestMain(m *testing.M) {
 	stateDb, err = db.NewSQLDB(cfg)
@@ -34,9 +48,13 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	defer stateDb.Close()
+
+	executorClient, clientConn = executor.NewExecutorClient(executorServerConfig)
+	defer clientConn.Close()
+
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
-	testState = state.NewState(state.NewPostgresStorage(stateDb))
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), &executorClient)
 
 	result := m.Run()
 
@@ -50,7 +68,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	fmt.Println("db: ", stateDb)
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	block := &etherman.Block{
+	block := &state.Block{
 		BlockNumber: 1,
 		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
@@ -85,7 +103,7 @@ func TestAddForcedBatch(t *testing.T) {
 	ctx := context.Background()
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	block := &etherman.Block{
+	block := &state.Block{
 		BlockNumber: 1,
 		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
@@ -115,3 +133,78 @@ func TestAddForcedBatch(t *testing.T) {
 	assert.Equal(t, forcedBatch.GlobalExitRoot, fb.GlobalExitRoot)
 	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
 }
+
+/*
+func TestExecuteTransaction(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 4000000
+	scCounterByteCode, err := testutils.ReadBytecode("Counter/Counter.bin")
+	require.NoError(t, err)
+
+	// Deploy counter.sol
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(0),
+		Data:     common.Hex2Bytes(scCounterByteCode),
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	// Encode transaction
+	v, r, s := signedTx.RawSignatureValues()
+	sign := 1 - (v.Uint64() & 1)
+
+	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
+		signedTx.Nonce(),
+		signedTx.GasPrice(),
+		signedTx.Gas(),
+		signedTx.To(),
+		signedTx.Value(),
+		signedTx.Data(),
+		signedTx.ChainId(), uint(0), uint(0),
+	})
+	require.NoError(t, err)
+
+	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
+	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
+	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
+	batchL2Data, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
+	require.NoError(t, err)
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:             1,
+		Coinbase:             sequencerAddress.String(),
+		BatchL2Data:          batchL2Data,
+		OldStateRoot:         common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		EthTimestamp:         uint64(time.Now().Unix()),
+		UpdateMerkleTree:     false,
+		GenerateExecuteTrace: false,
+		GenerateCallTrace:    false,
+	}
+
+	log.Debugf("%v", processBatchRequest)
+
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+
+	log.Debugf("%v", processBatchResponse)
+
+	require.NoError(t, err)
+
+}
+*/

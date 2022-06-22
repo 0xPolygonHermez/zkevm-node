@@ -535,10 +535,28 @@ func (s *State) ConsolidateBatch(ctx context.Context, batchNumber uint64, consol
 	return s.PostgresStorage.ConsolidateBatch(ctx, batchNumber, consolidatedTxHash, consolidatedAt, aggregator, txBundleID)
 }
 
-// ProcessSequence process sequence of the txs
+// ProcessBatchAndStoreLastTx process sequence of the txs
 // TODO: implement function
 func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult {
 	return &runtime.ExecutionResult{}
+}
+
+// GetLastSendSequenceTime get time from last l1 interaction time
+// TODO: implement function
+func (s *State) GetLastSendSequenceTime(ctx context.Context) (time.Time, error) {
+	return time.Now(), nil
+}
+
+// GetNumberOfBlocksSinceLastGERUpdate get time from last time get
+// TODO: implement function
+func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint32, error) {
+	return 0, nil
+}
+
+// GetLastBatchTime get last batch time
+// TODO: implement function
+func (s *State) GetLastBatchTime(ctx context.Context) (time.Time, error) {
+	return time.Now(), nil
 }
 
 // ResetDB resets the state to block for the given DB tx bundle.

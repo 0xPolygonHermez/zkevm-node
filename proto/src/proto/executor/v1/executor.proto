@@ -5,40 +5,42 @@ package executor.v1;
 option go_package = "github.com/hermeznetwork/hermez-core/state/runtime/executor/pb";
 
 service ExecutorService {
-    /// Processes a batch and updates Merkle Tree
+    /// Processes a batch
     rpc ProcessBatch(ProcessBatchRequest) returns (ProcessBatchResponse) {}
-    /// Processes a transaction and updates Merkle Tree
-    rpc ProcessTransaction(ProcessTransactionRequest) returns (ProcessTransactionResponse) {}
-    /// Estimates gas to needed to process a transaction without updating the Merkle Tree
-    rpc EstimateGas(ProcessTransactionRequest) returns (ProcessTransactionResponse) {}
-    /// Debugs a batch to get its trace following Geth's debug_traceBlockByNumber specification
-    /// It dos NOT update Merkle Tree
-    rpc DebugBatch(ProcessBatchRequest) returns (DebugBatchResponse) {}
-    /// Debugs a transaction to get its trace followin Geth's debug_traceTransaction specification
-    /// It dos NOT update Merkle Tree
-    rpc DebugTransaction(ProcessTransactionRequest) returns (DebugTransactionResponse) {}
 }   
 
 message ProcessBatchRequest {
-    bytes batch_l2_data = 1;
-    bytes state_root = 2;
+    uint32 batch_num = 1;
+    string coinbase = 2;
+    bytes batch_l2_data = 3;
+    bytes old_state_root = 4;
+    bytes global_exit_root = 5;
+    bytes old_local_exit_root = 6;
+    uint64 eth_timestamp = 7;
+    bool update_merkle_tree = 8;
+    bool generate_execute_trace = 9;
+    bool generate_call_trace = 10;
+    // For testing purposes only
+    map<string, string> db = 11; 
 }
 
 message ProcessBatchResponse {
     uint64 cumulative_gas_used = 1;
     repeated ProcessTransactionResponse responses = 2;
+    bytes new_state_root = 3;
+    bytes new_local_exit_root = 4;
+    uint32 cnt_keccak_hashes = 5;
+    uint32 cnt_poseidon_hashes = 6;
+    uint32 cnt_poseidon_paddings = 7;
+    uint32 cnt_mem_aligns = 8;
+    uint32 cnt_arithmetics = 9;
+    uint32 cnt_binaries = 10;
+    uint32 cnt_steps = 11;
 }
 
-message DebugBatchResponse {
-    uint64 gas = 1;
-    bytes return_value = 2;
-    // Geth Style Traces
-    repeated StructLog struct_logs = 3;
-}
-
-message DebugTransactionResponse {
-    TransactionContext context = 1;
-    repeated TransactionStep steps = 2;
+message CallTrace {
+    TransactionContext context = 2;
+    repeated TransactionStep steps = 3;
 }
 
 message TransactionContext {
@@ -48,8 +50,8 @@ message TransactionContext {
     string from = 2;
     // Target of the transaction
     string to = 3;
-    // Input of the transaction
-    bytes input = 4;
+    // Input data of the transaction
+    bytes data = 4;
     // Gas of the transaction
     uint64 gas = 5;
     // Value of the transaction
@@ -62,6 +64,8 @@ message TransactionContext {
     uint64 gas_used = 9;
     // Execution Time
     uint32 execution_time = 10;
+    // Starting state root
+    bytes old_state_root = 11;
 }
 
 message TransactionStep {
@@ -75,15 +79,15 @@ message TransactionStep {
     // Gas cost of the operation
     uint64 gas_cost = 5;
     // Gas refunded during the operation
-    uint64 refund = 6;
+    uint64 gas_refund = 6;
     // Opcode
     uint32 op = 7;
     // Content of the stack
     repeated uint64 stack = 8;
     // Content of the memory
     bytes memory = 9;
-    // Content of the storage
-    map<string, string> storage = 10;
+    // Return Data
+    bytes return_data = 10;
     // Contract information
     Contract contract = 11;
     // Error
@@ -94,19 +98,14 @@ message Contract {
     string address = 1;
     string caller = 2;
     uint64 value = 3;
-    bytes input = 4;
-}
-
-message ProcessTransactionRequest {
-    bytes tx_l2_data = 1;
-    bytes state_root = 2;
-    string tracer = 3;
+    bytes data = 4;
 }
 
 message ProcessTransactionResponse {
     // Hash of the transaction
     bytes tx_hash = 1;
-    // Type
+    // Type indicates legacy transaction
+    // It will be always 0 (legacy) in the executor
     uint32 type = 2;
     // Returned data from the runtime (function result or data supplied with revert opcode)
     bytes return_value = 3;
@@ -124,8 +123,11 @@ message ProcessTransactionResponse {
     bytes state_root = 9;
     // Logs emited by LOG opcode
     repeated Log logs = 10;
-    // Geth Style Traces
-    repeated StructLog struct_logs = 11;
+    // Indicates if this tx didn't fit into the batch 
+    bool unprocessed_transaction = 11;
+    // Trace
+    repeated ExecutionTraceStep execution_trace = 12;
+    CallTrace call_trace = 13;
 }
 
 message Log {
@@ -135,28 +137,25 @@ message Log {
     repeated bytes topics = 2;
     // Supplied by the contract, usually ABI-encoded
     bytes data = 3;
-    // Block in which the transaction was included
-    uint64 block_number = 4;
+    // Batch in which the transaction was included
+    uint64 batch_number = 4;
     // Hash of the transaction
     bytes tx_hash = 5;
     // Index of the transaction in the block
     uint32 tx_index = 6;
-    // Hash of the block in which the transaction was included
-    bytes block_hash = 7;
+    // Hash of the batch in which the transaction was included
+    bytes batch_hash = 7;
     // Index of the log in the block
     uint32 index = 8;
-    // The Removed field is true if this log was reverted due to a chain reorganisation.
-    // You must pay attention to this field if you receive logs through a filter query.
-    bool removed = 9;
 }
 
-message StructLog {
+message ExecutionTraceStep {
     // Program Counter
     uint64 pc = 1;
     // OpCode
     string op = 2;
     // Remaining gas
-    uint64 gas = 3;
+    uint64 remaining_gas = 3;
     // Gas cost of the operation
     uint64 gas_cost = 4;
     // Content of memory
@@ -171,8 +170,8 @@ message StructLog {
     map<string, string> storage = 9;
     // Call depth
     uint32 depth = 10;
-    // Number of refunds
-    uint64 refund_counter = 11;
+    // Gas refund
+    uint64 gas_refund = 11;
     // Error
     string error = 12;
 }
