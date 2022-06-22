@@ -151,18 +151,18 @@ func TestSequencedBatchesEvent(t *testing.T) {
 
 	b, _ := etherman.PoE.ForcedBatches(nil, 1)
 	fmt.Printf("%+v\n", b)
-	var sequences []proofofefficiency.ProofOfEfficiencySequence
-	sequences = append(sequences, proofofefficiency.ProofOfEfficiencySequence{
-		GlobalExitRoot:  ger,
-		Timestamp:       currentBlock.Time() - 1,
-		ForceBatchesNum: 1,
-		Transactions:    common.Hex2Bytes(rawTxs),
+	var sequences []proofofefficiency.ProofOfEfficiencyBatchData
+	sequences = append(sequences, proofofefficiency.ProofOfEfficiencyBatchData{
+		GlobalExitRoot:        ger,
+		Timestamp:             currentBlock.Time() - 1,
+		ForceBatchesTimestamp: 1,
+		Transactions:          common.Hex2Bytes(rawTxs),
 	})
-	sequences = append(sequences, proofofefficiency.ProofOfEfficiencySequence{
-		GlobalExitRoot:  ger,
-		Timestamp:       currentBlock.Time() + 21,
-		ForceBatchesNum: 0,
-		Transactions:    common.Hex2Bytes(rawTxs),
+	sequences = append(sequences, proofofefficiency.ProofOfEfficiencyBatchData{
+		GlobalExitRoot:        ger,
+		Timestamp:             currentBlock.Time() + 21,
+		ForceBatchesTimestamp: []uint64{},
+		Transactions:          common.Hex2Bytes(rawTxs),
 	})
 	currentBlock, _ = etherman.EtherClient.BlockByNumber(ctx, nil)
 	fmt.Println(currentBlock.Time())
@@ -183,7 +183,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[1].SequencedBatches[1].Transactions)
 	assert.Equal(t, initBlock.Time(), blocks[1].SequencedBatches[0].Timestamp)
 	assert.Equal(t, ger, blocks[1].SequencedBatches[0].GlobalExitRoot)
-	assert.Equal(t, uint64(0), blocks[1].SequencedBatches[1].ForceBatchesNum)
+	assert.Equal(t, uint64(0), blocks[1].SequencedBatches[1].ForceBatchesTimestamp)
 	assert.Equal(t, 1, order[blocks[1].BlockHash][0].Pos)
 }
 
@@ -197,14 +197,14 @@ func TestVerifyBatchEvent(t *testing.T) {
 	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
-	tx := proofofefficiency.ProofOfEfficiencySequence{
-		GlobalExitRoot:  common.Hash{},
-		Timestamp:       initBlock.Time(),
-		ForceBatchesNum: 0,
-		Transactions:    []byte{},
+	tx := proofofefficiency.ProofOfEfficiencyBatchData{
+		GlobalExitRoot:        common.Hash{},
+		Timestamp:             initBlock.Time(),
+		ForceBatchesTimestamp: []uint64{},
+		Transactions:          []byte{},
 	}
 	require.NoError(t, err)
-	_, err = etherman.PoE.SequenceBatches(etherman.auth, []proofofefficiency.ProofOfEfficiencySequence{tx})
+	_, err = etherman.PoE.SequenceBatches(etherman.auth, []proofofefficiency.ProofOfEfficiencyBatchData{tx})
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -215,7 +215,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 		proofC = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
 		proofB = [2][2]*big.Int{proofC, proofC}
 	)
-	_, err = etherman.PoE.VerifyBatch(etherman.auth, common.Hash{}, common.Hash{}, 1, proofA, proofB, proofC)
+	_, err = etherman.PoE.VerifyBatch(etherman.auth, common.Hash{}, common.Hash{}, 0, proofA, proofB, proofC)
 	require.NoError(t, err)
 
 	// Mine the tx in a block

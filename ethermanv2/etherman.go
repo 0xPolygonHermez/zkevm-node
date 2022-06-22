@@ -27,8 +27,8 @@ var (
 	ownershipTransferredSignatureHash  = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 	updateGlobalExitRootSignatureHash  = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
 	forcedBatchSignatureHash           = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
-	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequencedBatches(uint64)"))
-	forceSequencedBatchesSignatureHash = crypto.Keccak256Hash([]byte("ForceSequencedBatches(uint64)"))
+	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
+	forceSequencedBatchesSignatureHash = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))
 	verifiedBatchSignatureHash         = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
 
 	// ErrNotFound is used when the object is not found
@@ -43,8 +43,8 @@ const (
 	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
 	// SequencedBatchesOrder identifies a VerifyBatch event
 	SequencedBatchesOrder EventOrder = "SequenceBatches"
-	// ForcedBatchesOrder identifies a ForcedBatches event
-	ForcedBatchesOrder EventOrder = "ForcedBatches"
+	// ForcedBatchesOrder identifies a ForceBatches event
+	ForceBatchesOrder EventOrder = "ForceBatches"
 	// VerifyBatchOrder identifies a VerifyBatch event
 	VerifyBatchOrder EventOrder = "VerifyBatch"
 	// ForceSequencedBatchesOrder identifies a SequenceForceBatches event
@@ -212,7 +212,7 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 	}
 	var forcedBatch ForcedBatch
 	forcedBatch.BlockNumber = vLog.BlockNumber
-	forcedBatch.ForcedBatchNumber = fb.NumBatch
+	forcedBatch.ForcedBatchNumber = fb.ForceBatchNum
 	forcedBatch.GlobalExitRoot = fb.LastGlobalExitRoot
 	// Read the tx for this batch.
 	tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, vLog.TxHash)
@@ -250,7 +250,7 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 		return fmt.Errorf("error processing ForceBatch event")
 	}
 	or := Order{
-		Name: ForcedBatchesOrder,
+		Name: ForceBatchesOrder,
 		Pos:  len((*blocks)[len(*blocks)-1].ForcedBatches) - 1,
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
@@ -258,8 +258,8 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 }
 
 func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("SequencedBatches event detected")
-	sb, err := etherMan.PoE.ParseSequencedBatches(vLog)
+	log.Debug("SequenceBatches event detected")
+	_, err := etherMan.PoE.ParseSequenceBatches(vLog)
 	if err != nil {
 		return err
 	}
@@ -316,7 +316,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64) ([]SequencedBatch, e
 	if err != nil {
 		return nil, err
 	}
-	var sequences []proofofefficiency.ProofOfEfficiencySequence
+	var sequences []proofofefficiency.ProofOfEfficiencyBatchData
 	bytedata, err := json.Marshal(data[0])
 	if err != nil {
 		return nil, err
@@ -375,8 +375,8 @@ func (etherMan *Client) verifyBatchEvent(ctx context.Context, vLog types.Log, bl
 }
 
 func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("ForceSequencedBatches event detect")
-	fsb, err := etherMan.PoE.ParseForceSequencedBatches(vLog)
+	log.Debug("SequenceForceBatches event detect")
+	fsb, err := etherMan.PoE.ParseSequenceForceBatches(vLog)
 	if err != nil {
 		return err
 	}

@@ -33,7 +33,7 @@ type GlobalExitRoot struct {
 // SequencedBatches represents virtual batches
 type SequencedBatch struct {
 	BatchNumber uint64
-	proofofefficiency.ProofOfEfficiencySequence
+	proofofefficiency.ProofOfEfficiencyBatchData
 }
 
 // ForcedBatch represents a ForcedBatch
