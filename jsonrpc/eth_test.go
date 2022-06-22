@@ -62,6 +62,7 @@ func TestCall(t *testing.T) {
 		gasPrice       *big.Int
 		value          *big.Int
 		data           []byte
+		blockNumber    *big.Int
 		expectedResult []byte
 		expectedError  interface{}
 		setupMocks     func(*mocks, *testCase)
@@ -93,11 +94,14 @@ func TestCall(t *testing.T) {
 						tx.Value().Uint64() == testCase.value.Uint64() &&
 						hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
 				})
-				m.BatchProcessor.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, s.SequencerAddress).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+				m.BatchProcessor.
+					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, s.SequencerAddress).
+					Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).
+					Once()
 			},
 		},
 		{
-			name:           "Transaction without from and gas",
+			name:           "Transaction without from and gas from latest block",
 			to:             addressPtr(common.HexToAddress("0x2")),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
@@ -107,33 +111,83 @@ func TestCall(t *testing.T) {
 			setupMocks: func(m *mocks, testCase *testCase) {
 				batchNumber := uint64(1)
 				txBundleID := ""
-				batch := &state.Batch{Header: &types.Header{Root: common.Hash{}, GasLimit: 123456}}
+				batch := &state.Batch{Header: &types.Header{Number: big.NewInt(1), Root: common.Hash{}, GasLimit: 123456}}
 				m.State.On("GetLastBatchNumber", context.Background(), txBundleID).Return(batchNumber, nil).Once()
 				m.State.On("GetBatchByNumber", context.Background(), batchNumber, txBundleID).Return(batch, nil).Once()
 				m.State.On("NewBatchProcessor", context.Background(), s.SequencerAddress, batch.Header.Root[:], txBundleID).Return(m.BatchProcessor, nil).Once()
 				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
-					return tx != nil &&
-						tx.Gas() == batch.Header.GasLimit &&
-						tx.To().Hex() == testCase.to.Hex() &&
-						tx.GasPrice().Uint64() == testCase.gasPrice.Uint64() &&
-						tx.Value().Uint64() == testCase.value.Uint64() &&
-						hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
+					hasTx := tx != nil
+					gasMatch := tx.Gas() == batch.Header.GasLimit
+					toMatch := tx.To().Hex() == testCase.to.Hex()
+					gasPriceMatch := tx.GasPrice().Uint64() == testCase.gasPrice.Uint64()
+					valueMatch := tx.Value().Uint64() == testCase.value.Uint64()
+					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
+					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
 				m.BatchProcessor.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, s.SequencerAddress).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
-				m.State.On("GetLastBatch", context.Background(), false, txBundleID).Return(batch, nil).Once()
+				m.State.On("GetLastBatch", context.Background(), true, txBundleID).Return(batch, nil).Once()
 			},
 		},
 		{
-			name:           "Transaction without from and gas and failed to get last batch",
+			name:           "Transaction without from and gas from pending block",
+			to:             addressPtr(common.HexToAddress("0x2")),
+			gasPrice:       big.NewInt(1),
+			value:          big.NewInt(2),
+			data:           []byte("data"),
+			blockNumber:    big.NewInt(-1),
+			expectedResult: []byte("hello world"),
+			expectedError:  nil,
+			setupMocks: func(m *mocks, testCase *testCase) {
+				batchNumber := uint64(1)
+				txBundleID := ""
+				batch := &state.Batch{Header: &types.Header{Number: big.NewInt(1), Root: common.Hash{}, GasLimit: 123456}}
+				m.State.On("GetLastBatchNumber", context.Background(), txBundleID).Return(batchNumber, nil).Once()
+				m.State.On("GetBatchByNumber", context.Background(), batchNumber, txBundleID).Return(batch, nil).Once()
+				m.State.On("NewBatchProcessor", context.Background(), s.SequencerAddress, batch.Header.Root[:], txBundleID).Return(m.BatchProcessor, nil).Once()
+				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
+					hasTx := tx != nil
+					gasMatch := tx.Gas() == batch.Header.GasLimit
+					toMatch := tx.To().Hex() == testCase.to.Hex()
+					gasPriceMatch := tx.GasPrice().Uint64() == testCase.gasPrice.Uint64()
+					valueMatch := tx.Value().Uint64() == testCase.value.Uint64()
+					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
+					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
+				})
+				m.BatchProcessor.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, s.SequencerAddress).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+				m.State.On("GetLastBatch", context.Background(), true, txBundleID).Return(batch, nil).Once()
+			},
+		},
+		{
+			name:           "Transaction without from and gas and failed to get latest batch header",
 			to:             addressPtr(common.HexToAddress("0x2")),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
 			expectedResult: nil,
-			expectedError:  newRPCError(defaultErrorCode, "failed to get header from block hash or block number"),
+			expectedError:  newRPCError(defaultErrorCode, "failed to get block header"),
 			setupMocks: func(m *mocks, testCase *testCase) {
 				txBundleID := ""
-				m.State.On("GetLastBatch", context.Background(), false, txBundleID).Return(nil, errors.New("failed to get last batch")).Once()
+				m.State.
+					On("GetLastBatch", context.Background(), true, txBundleID).
+					Return(nil, errors.New("failed to get last batch")).
+					Once()
+			},
+		},
+		{
+			name:           "Transaction without from and gas and failed to get pending batch header",
+			to:             addressPtr(common.HexToAddress("0x2")),
+			gasPrice:       big.NewInt(1),
+			value:          big.NewInt(2),
+			data:           []byte("data"),
+			blockNumber:    big.NewInt(-1),
+			expectedResult: nil,
+			expectedError:  newRPCError(defaultErrorCode, "failed to get block header"),
+			setupMocks: func(m *mocks, testCase *testCase) {
+				txBundleID := ""
+				m.State.
+					On("GetLastBatch", context.Background(), true, txBundleID).
+					Return(nil, errors.New("failed to get last batch")).
+					Once()
 			},
 		},
 		{
@@ -223,7 +277,7 @@ func TestCall(t *testing.T) {
 
 			testCase.setupMocks(m, testCase)
 
-			result, err := c.CallContract(context.Background(), msg, nil)
+			result, err := c.CallContract(context.Background(), msg, testCase.blockNumber)
 			assert.Equal(t, testCase.expectedResult, result)
 			if err != nil || testCase.expectedError != nil {
 				if expectedErr, ok := testCase.expectedError.(*RPCError); ok {

@@ -48,13 +48,9 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 	// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
 	if arg.Gas == nil || *arg.Gas == argUint64(0) {
-		filter := blockNumberOrHash{
-			BlockNumber: number,
-		}
-
-		header, err := e.getHeaderFromBlockNumberOrHash(&filter)
+		header, err := e.getBatchHeader(*number)
 		if err != nil {
-			const errorMessage = "failed to get header from block hash or block number"
+			const errorMessage = "failed to get block header"
 			log.Errorf("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
@@ -674,33 +670,10 @@ func hexToTx(str string) (*types.Transaction, error) {
 	return tx, nil
 }
 
-func (e *Eth) getHeaderFromBlockNumberOrHash(bnh *blockNumberOrHash) (*types.Header, error) {
-	var (
-		header *types.Header
-		err    error
-	)
-
-	if bnh.BlockNumber != nil {
-		header, err = e.getBatchHeader(*bnh.BlockNumber)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get the header of block %d: %s", *bnh.BlockNumber, err.Error())
-		}
-	} else if bnh.BlockHash != nil {
-		block, err := e.state.GetBatchByHash(context.Background(), *bnh.BlockHash, "")
-		if err != nil {
-			return nil, fmt.Errorf("could not find block referenced by the hash %s, err: %v", bnh.BlockHash.String(), err)
-		}
-
-		header = block.Header
-	}
-
-	return header, nil
-}
-
 func (e *Eth) getBatchHeader(number BlockNumber) (*types.Header, error) {
 	switch number {
 	case LatestBlockNumber:
-		batch, err := e.state.GetLastBatch(context.Background(), false, "")
+		batch, err := e.state.GetLastBatch(context.Background(), true, "")
 		if err != nil {
 			return nil, err
 		}
@@ -718,10 +691,14 @@ func (e *Eth) getBatchHeader(number BlockNumber) (*types.Header, error) {
 		if err != nil {
 			return nil, err
 		}
+		parentHash := lastBatch.Hash()
+		number := lastBatch.Number().Uint64() + 1
+
 		header := &types.Header{
-			ParentHash: lastBatch.Hash(),
-			Number:     big.NewInt(0).SetUint64(lastBatch.Number().Uint64() + 1),
+			ParentHash: parentHash,
+			Number:     big.NewInt(0).SetUint64(number),
 			Difficulty: big.NewInt(0),
+			GasLimit:   lastBatch.Header.GasLimit,
 		}
 		return header, nil
 
