@@ -24,11 +24,6 @@ type Eth struct {
 	storage          storageInterface
 }
 
-type blockNumberOrHash struct {
-	BlockNumber *BlockNumber `json:"blockNumber,omitempty"`
-	BlockHash   *common.Hash `json:"blockHash,omitempty"`
-}
-
 // BlockNumber returns current block number
 func (e *Eth) BlockNumber() (interface{}, error) {
 	ctx := context.Background()

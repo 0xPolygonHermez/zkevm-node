@@ -2368,7 +2368,7 @@ func TestGetLogs(t *testing.T) {
 				tc.ExpectedError = nil
 			},
 			SetupMocks: func(m *mocks, tc testCase) {
-				var since *time.Time = nil
+				var since *time.Time
 				logs := make([]*types.Log, 0, len(tc.ExpectedResult))
 				for _, log := range tc.ExpectedResult {
 					l := log
@@ -2393,7 +2393,7 @@ func TestGetLogs(t *testing.T) {
 				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to get logs from state")
 			},
 			SetupMocks: func(m *mocks, tc testCase) {
-				var since *time.Time = nil
+				var since *time.Time
 				m.State.
 					On("GetLogs", context.Background(), tc.Filter.FromBlock.Uint64(), tc.Filter.ToBlock.Uint64(), tc.Filter.Addresses, tc.Filter.Topics, tc.Filter.BlockHash, since, "").
 					Return(nil, errors.New("failed to get logs from state")).
@@ -2489,7 +2489,7 @@ func TestGetFilterLogs(t *testing.T) {
 				tc.ExpectedError = nil
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
-				var since *time.Time = nil
+				var since *time.Time
 				logs := make([]*types.Log, 0, len(tc.ExpectedResult))
 				for _, log := range tc.ExpectedResult {
 					l := log
@@ -2502,10 +2502,10 @@ func TestGetFilterLogs(t *testing.T) {
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
 
-				logFilterJson, err := json.Marshal(&logFilter)
+				logFilterJSON, err := json.Marshal(&logFilter)
 				require.NoError(t, err)
 
-				parameters := string(logFilterJson)
+				parameters := string(logFilterJSON)
 
 				filter := &Filter{
 					ID:         uint64(tc.FilterID),
@@ -2716,11 +2716,9 @@ func TestGetFilterChanges(t *testing.T) {
 									On("UpdateFilterLastPoll", uint64(tc.FilterID)).
 									Return(nil).
 									Once()
-
 							}).
 							Return(nil).
 							Once()
-
 					}).
 					Return(nil).
 					Once()
@@ -2799,11 +2797,9 @@ func TestGetFilterChanges(t *testing.T) {
 									On("UpdateFilterLastPoll", uint64(tc.FilterID)).
 									Return(nil).
 									Once()
-
 							}).
 							Return(nil).
 							Once()
-
 					}).
 					Return(nil).
 					Once()
@@ -2844,10 +2840,10 @@ func TestGetFilterChanges(t *testing.T) {
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
 
-				logFilterJson, err := json.Marshal(&logFilter)
+				logFilterJSON, err := json.Marshal(&logFilter)
 				require.NoError(t, err)
 
-				parameters := string(logFilterJson)
+				parameters := string(logFilterJSON)
 
 				filter := &Filter{
 					ID:         uint64(tc.FilterID),
@@ -2914,11 +2910,9 @@ func TestGetFilterChanges(t *testing.T) {
 									On("UpdateFilterLastPoll", uint64(tc.FilterID)).
 									Return(nil).
 									Once()
-
 							}).
 							Return(nil).
 							Once()
-
 					}).
 					Return(nil).
 					Once()
@@ -3104,10 +3098,10 @@ func TestGetFilterChanges(t *testing.T) {
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
 
-				logFilterJson, err := json.Marshal(&logFilter)
+				logFilterJSON, err := json.Marshal(&logFilter)
 				require.NoError(t, err)
 
-				parameters := string(logFilterJson)
+				parameters := string(logFilterJSON)
 
 				filter := &Filter{
 					ID:         uint64(tc.FilterID),
@@ -3141,10 +3135,10 @@ func TestGetFilterChanges(t *testing.T) {
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
 
-				logFilterJson, err := json.Marshal(&logFilter)
+				logFilterJSON, err := json.Marshal(&logFilter)
 				require.NoError(t, err)
 
-				parameters := string(logFilterJson)
+				parameters := string(logFilterJSON)
 
 				filter := &Filter{
 					ID:         uint64(tc.FilterID),
