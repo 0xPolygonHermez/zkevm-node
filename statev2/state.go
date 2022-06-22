@@ -86,9 +86,16 @@ func (s *State) RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error
 	return err
 }
 
-// ResetDB resets the state to block for the given DB tx .
+// ResetDB resets the state to a block for the given DB tx
 func (s *State) ResetDB(ctx context.Context, block *Block, dbTx pgx.Tx) error {
 	return s.PostgresStorage.Reset(ctx, block, dbTx)
+}
+
+// ResetTrustedState resets the state db to a batch by its number
+func (s *State) ResetTrustedState(ctx context.Context, batchNum uint64, dbTx pgx.Tx) error {
+	// TODO: Implement
+	// This method will need to update a field in the forced_batch table
+	return nil
 }
 
 func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, dbTx pgx.Tx) error {
@@ -181,6 +188,11 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 
 // GetBatchByNumber gets a batch from data base by its number
 func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+func (s *State) GetTrustedBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
 	// TODO: implement
 	return nil, nil
 }
