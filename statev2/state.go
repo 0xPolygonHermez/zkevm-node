@@ -182,14 +182,12 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, batch Batch) err
 
 // GetLastBatch gets latest batch (closed or not) on the data base
 func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
-	// TODO: implement
-	return nil, nil
+	return s.PostgresStorage.GetLastBatch(ctx, dbTx)
 }
 
 // GetBatchByNumber gets a batch from data base by its number
 func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
-	// TODO: implement
-	return nil, nil
+	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, tx)
 }
 
 func (s *State) GetTrustedBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
@@ -199,8 +197,7 @@ func (s *State) GetTrustedBatchByNumber(ctx context.Context, batchNumber uint64,
 
 // GetEncodedTransactionsByBatchNumber gets the txs for a given batch in encoded form
 func (s *State) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (encoded []string, err error) {
-	// TODO: implement
-	return nil, nil
+	return s.PostgresStorage.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, tx)
 }
 
 // ProcessSequence process sequence of the txs
@@ -379,16 +376,4 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	jsTracer.CaptureEnd(common.Hex2Bytes(trace.Context.Output), gasUsed.Uint64(), time.Duration(trace.Context.Time), nil)
 
 	return jsTracer.GetResult()
-}
-
-func (s *State) GetLastBatch(ctx context.Context, tx pgx.Tx) (*Batch, error) {
-	return s.PostgresStorage.GetLastBatch(ctx, tx)
-}
-
-func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
-	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, tx)
-}
-
-func (s *State) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) ([]string, error) {
-	return s.PostgresStorage.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, tx)
 }

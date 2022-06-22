@@ -133,15 +133,14 @@ func (s *PostgresStorage) GetLastBatch(ctx context.Context, tx pgx.Tx) (*Batch, 
 		batch  Batch
 		gerStr string
 	)
-	err := s.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
+	err := s.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNum, &gerStr, &batch.EthTimestamp)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
 	} else if err != nil {
 		return nil, err
 	}
-
-	batch.GlobalExitRoot = common.HexToHash(gerStr)
+	batch.GlobalExitRootNum = new(big.Int).SetBytes(common.FromHex(gerStr))
 	return &batch, nil
 }
 
@@ -150,14 +149,14 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 		batch  Batch
 		gerStr string
 	)
-	err := s.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
+	err := s.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNum, &gerStr, &batch.EthTimestamp)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
 	} else if err != nil {
 		return nil, err
 	}
-	batch.GlobalExitRoot = common.HexToHash(gerStr)
+	batch.GlobalExitRootNum = new(big.Int).SetBytes(common.FromHex(gerStr))
 	return &batch, nil
 }
 

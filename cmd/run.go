@@ -30,6 +30,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/state"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/statev2"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
+	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
@@ -140,7 +142,8 @@ func start(ctx *cli.Context) error {
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			stateDb := statev2.NewPostgresStorage(sqlDB)
-			st := statev2.NewState(stateDb)
+			executorClient, _ := newExecutorClient(c.Executor)
+			st := statev2.NewState(statev2.Config{}, stateDb, &executorClient)
 			go runBroadcastServer(c.BroadcastServer, st)
 		}
 	}
@@ -187,6 +190,19 @@ func newProverClient(c proverclient.Config) (proverclientpb.ZKProverServiceClien
 
 	proverClient := proverclientpb.NewZKProverServiceClient(proverConn)
 	return proverClient, proverConn
+}
+
+func newExecutorClient(c executor.Config) (executorclientpb.ExecutorServiceClient, *grpc.ClientConn) {
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	executorConn, err := grpc.Dial(c.URI, opts...)
+	if err != nil {
+		log.Fatalf("fail to dial: %v", err)
+	}
+
+	executorClient := executorclientpb.NewExecutorServiceClient(executorConn)
+	return executorClient, executorConn
 }
 
 func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st *state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {

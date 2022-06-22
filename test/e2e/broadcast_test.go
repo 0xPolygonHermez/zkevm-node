@@ -12,6 +12,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb"
 	"github.com/hermeznetwork/hermez-core/statev2"
+	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/operations"
 	"github.com/stretchr/testify/require"
@@ -84,7 +85,12 @@ func initState() (*statev2.State, error) {
 		return nil, err
 	}
 	stateDb := statev2.NewPostgresStorage(sqlDB)
-	return statev2.NewState(stateDb), nil
+
+	executorClient, _, err := newExecutorClient()
+	if err != nil {
+		return nil, err
+	}
+	return statev2.NewState(statev2.Config{}, stateDb, &executorClient), nil
 }
 
 func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
@@ -135,4 +141,17 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 		}
 	}
 	return nil
+}
+
+func newExecutorClient() (executorclientpb.ExecutorServiceClient, *grpc.ClientConn, error) {
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	executorConn, err := grpc.Dial("localhost:8080", opts...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fail to dial: %v", err)
+	}
+
+	executorClient := executorclientpb.NewExecutorServiceClient(executorConn)
+	return executorClient, executorConn, nil
 }
