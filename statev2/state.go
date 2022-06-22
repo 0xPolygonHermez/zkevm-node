@@ -20,7 +20,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/holiman/uint256"
-
 	"github.com/jackc/pgx/v4"
 )
 
