@@ -259,7 +259,7 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 
 func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("SequenceBatches event detected")
-	_, err := etherMan.PoE.ParseSequenceBatches(vLog)
+	sb, err := etherMan.PoE.ParseSequenceBatches(vLog)
 	if err != nil {
 		return err
 	}
@@ -328,10 +328,10 @@ func decodeSequences(txData []byte, lastBatchNumber uint64) ([]SequencedBatch, e
 
 	sequencedBatches := make([]SequencedBatch, len(sequences))
 	for i := len(sequences) - 1; i >= 0; i-- {
-		lastBatchNumber -= sequences[i].ForceBatchesNum
+		lastBatchNumber -= uint64(len(sequences[i].ForceBatchesTimestamp))
 		sequencedBatches[i] = SequencedBatch{
-			BatchNumber:               lastBatchNumber,
-			ProofOfEfficiencySequence: sequences[i],
+			BatchNumber:                lastBatchNumber,
+			ProofOfEfficiencyBatchData: sequences[i],
 		}
 		lastBatchNumber--
 	}
