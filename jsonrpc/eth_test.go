@@ -6,6 +6,7 @@ import (
 	"errors"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -2278,6 +2279,131 @@ func TestUninstallFilter(t *testing.T) {
 			if res.Error != nil || tc.ExpectedError != nil {
 				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
 				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
+func TestGetLogs(t *testing.T) {
+	s, m, c := newMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		Filter         ethereum.FilterQuery
+		ExpectedResult []types.Log
+		ExpectedError  interface{}
+		Prepare        func(t *testing.T, tc *testCase)
+		SetupMocks     func(m *mocks, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name: "Get logs successfully",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					FromBlock: big.NewInt(1), ToBlock: big.NewInt(2),
+					Addresses: []common.Address{common.HexToAddress("0x111")},
+					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
+				}
+				tc.ExpectedResult = []types.Log{{
+					Address: common.Address{}, Topics: []common.Hash{}, Data: []byte{},
+					BlockNumber: uint64(1), TxHash: common.Hash{}, TxIndex: uint(1),
+					BlockHash: common.Hash{}, Index: uint(1), Removed: false,
+				}}
+				tc.ExpectedError = nil
+			},
+			SetupMocks: func(m *mocks, tc testCase) {
+				var since *time.Time = nil
+				logs := make([]*types.Log, 0, len(tc.ExpectedResult))
+				for _, log := range tc.ExpectedResult {
+					l := log
+					logs = append(logs, &l)
+				}
+
+				m.State.
+					On("GetLogs", context.Background(), tc.Filter.FromBlock.Uint64(), tc.Filter.ToBlock.Uint64(), tc.Filter.Addresses, tc.Filter.Topics, tc.Filter.BlockHash, since, "").
+					Return(logs, nil).
+					Once()
+			},
+		},
+		{
+			Name: "Get logs fails to get logs from state",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					FromBlock: big.NewInt(1), ToBlock: big.NewInt(2),
+					Addresses: []common.Address{common.HexToAddress("0x111")},
+					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
+				}
+				tc.ExpectedResult = nil
+				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to get logs from state")
+			},
+			SetupMocks: func(m *mocks, tc testCase) {
+				var since *time.Time = nil
+				m.State.
+					On("GetLogs", context.Background(), tc.Filter.FromBlock.Uint64(), tc.Filter.ToBlock.Uint64(), tc.Filter.Addresses, tc.Filter.Topics, tc.Filter.BlockHash, since, "").
+					Return(nil, errors.New("failed to get logs from state")).
+					Once()
+			},
+		},
+		{
+			Name: "Get logs fails to identify from block",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					FromBlock: big.NewInt(-1), ToBlock: big.NewInt(2),
+					Addresses: []common.Address{common.HexToAddress("0x111")},
+					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
+				}
+				tc.ExpectedResult = nil
+				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to get the last batch number from state")
+			},
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(uint64(0), errors.New("failed to get last batch number from state")).
+					Once()
+			},
+		},
+		{
+			Name: "Get logs fails to identify to block",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					FromBlock: big.NewInt(1), ToBlock: big.NewInt(-1),
+					Addresses: []common.Address{common.HexToAddress("0x111")},
+					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
+				}
+				tc.ExpectedResult = nil
+				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to get the last batch number from state")
+			},
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.State.
+					On("GetLastBatchNumber", context.Background(), "").
+					Return(uint64(0), errors.New("failed to get last batch number from state")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.Prepare(t, &tc)
+			tc.SetupMocks(m, tc)
+
+			result, err := c.FilterLogs(context.Background(), tc.Filter)
+
+			if result != nil || tc.ExpectedResult != nil {
+				assert.ElementsMatch(t, tc.ExpectedResult, result)
+			}
+
+			if err != nil || tc.ExpectedError != nil {
+				if expectedErr, ok := tc.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, tc.ExpectedError, err)
+				}
 			}
 		})
 	}

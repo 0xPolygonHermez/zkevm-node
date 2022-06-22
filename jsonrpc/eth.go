@@ -338,7 +338,9 @@ func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 
 	logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash, filter.Since, "")
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to get logs from state"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	result := make([]rpcLog, 0, len(logs))
