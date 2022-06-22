@@ -193,8 +193,10 @@ func newProverClient(c proverclient.Config) (proverclientpb.ZKProverServiceClien
 }
 
 func newExecutorClient(c executor.Config) (executorclientpb.ExecutorServiceClient, *grpc.ClientConn) {
+	const maxMsgSize = 100000000
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgSize)),
 	}
 	executorConn, err := grpc.Dial(c.URI, opts...)
 	if err != nil {
