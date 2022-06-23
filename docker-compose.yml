@@ -18,7 +18,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/hezcore run --network local --cfg /app/config.toml --components sequencer"    
+      - "/app/hezcore run --network local --cfg /app/config.toml --components sequencer"
 
   hez-core-rpc:
     container_name: hez-core-rpc
@@ -36,7 +36,7 @@ services:
       - "/bin/sh"
       - "-c"
       - "/app/hezcore run --network local --cfg /app/config.toml --components rpc"
-      
+
   hez-core-agg:
     container_name: hez-core-agg
     image: hezcore
@@ -53,7 +53,7 @@ services:
       - "/bin/sh"
       - "-c"
       - "/app/hezcore run --network local --cfg /app/config.toml --components aggregator"
-      
+
   hez-core-sync:
     container_name: hez-core-sync
     image: hezcore
@@ -70,7 +70,24 @@ services:
       - "/bin/sh"
       - "-c"
       - "/app/hezcore run --network local --cfg /app/config.toml --components synchronizer"
-      
+
+  hez-core-broadcast:
+    container_name: hez-core-broadcast
+    image: hezcore
+    environment:
+      - HERMEZCORE_DATABASE_USER=test_user
+      - HERMEZCORE_DATABASE_PASSWORD=test_password
+      - HERMEZCORE_DATABASE_NAME=test_db
+      - HERMEZCORE_DATABASE_HOST=hez-postgres
+    ports:
+      - 61090:61090
+    volumes:
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/hezcore run --network local --cfg /app/config.toml --components broadcast-trusted-state"
+
   hez-postgres:
     container_name: hez-postgres
     image: postgres

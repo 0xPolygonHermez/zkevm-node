@@ -71,3 +71,10 @@ URI  = "127.0.0.1:50060"
 
 [Executor]
 URI = "51.210.116.237:50071"
+
+[BroadcastServer]
+Host = "0.0.0.0"
+Port = 61090
+
+[BroadcastClient]
+URI = "127.0.0.1:61090"
