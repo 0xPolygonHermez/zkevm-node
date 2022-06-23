@@ -2,9 +2,7 @@ package statev2_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"strings"
@@ -205,12 +203,10 @@ func TestExecuteTransaction(t *testing.T) {
 
 	log.Debugf("%v", processBatchRequest)
 
-	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	_, err = executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 
-	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	err = ioutil.WriteFile("trace.json", file, 0644)
-	require.NoError(t, err)
-
-	require.NoError(t, err)
+	// file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	// err = ioutil.WriteFile("trace.json", file, 0644)
+	// require.NoError(t, err)
 }
