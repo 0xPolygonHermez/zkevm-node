@@ -23,8 +23,13 @@
 			},
 			{
 				"internalType": "address",
-				"name": "_superSequencerAddress",
+				"name": "_trustedSequencer",
 				"type": "address"
+			},
+			{
+				"internalType": "bool",
+				"name": "_forceBatchAllowed",
+				"type": "bool"
 			}
 		],
 		"stateMutability": "nonpayable",
@@ -36,7 +41,7 @@
 			{
 				"indexed": true,
 				"internalType": "uint64",
-				"name": "numBatch",
+				"name": "forceBatchNum",
 				"type": "uint64"
 			},
 			{
@@ -71,7 +76,7 @@
 				"type": "uint64"
 			}
 		],
-		"name": "ForceSequencedBatches",
+		"name": "SequenceBatches",
 		"type": "event"
 	},
 	{
@@ -84,7 +89,7 @@
 				"type": "uint64"
 			}
 		],
-		"name": "SequencedBatches",
+		"name": "SequenceForceBatches",
 		"type": "event"
 	},
 	{
@@ -134,7 +139,7 @@
 	},
 	{
 		"inputs": [],
-		"name": "SUPER_SEQUENCER_FEE",
+		"name": "TRUSTED_SEQUENCER_FEE",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -203,6 +208,19 @@
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "forceBatchAllowed",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "uint64",
@@ -224,7 +242,7 @@
 			},
 			{
 				"internalType": "uint64",
-				"name": "timestamp",
+				"name": "minTimestamp",
 				"type": "uint64"
 			}
 		],
@@ -340,6 +358,11 @@
 			{
 				"components": [
 					{
+						"internalType": "bytes",
+						"name": "transactions",
+						"type": "bytes"
+					},
+					{
 						"internalType": "bytes32",
 						"name": "globalExitRoot",
 						"type": "bytes32"
@@ -350,18 +373,13 @@
 						"type": "uint64"
 					},
 					{
-						"internalType": "uint64",
-						"name": "forceBatchesNum",
-						"type": "uint64"
-					},
-					{
-						"internalType": "bytes",
-						"name": "transactions",
-						"type": "bytes"
+						"internalType": "uint64[]",
+						"name": "forceBatchesTimestamp",
+						"type": "uint64[]"
 					}
 				],
-				"internalType": "struct ProofOfEfficiency.Sequence[]",
-				"name": "sequences",
+				"internalType": "struct ProofOfEfficiency.BatchData[]",
+				"name": "batches",
 				"type": "tuple[]"
 			}
 		],
@@ -374,7 +392,7 @@
 		"inputs": [
 			{
 				"internalType": "uint64",
-				"name": "numForcedBatch",
+				"name": "numForcedBatches",
 				"type": "uint64"
 			}
 		],
@@ -395,8 +413,13 @@
 		"outputs": [
 			{
 				"internalType": "bytes32",
-				"name": "",
+				"name": "batchHashData",
 				"type": "bytes32"
+			},
+			{
+				"internalType": "uint64",
+				"name": "timestamp",
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -405,19 +428,32 @@
 	{
 		"inputs": [
 			{
+				"internalType": "bool",
+				"name": "_forceBatchAllowed",
+				"type": "bool"
+			}
+		],
+		"name": "setForceBatchAllowed",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "address",
-				"name": "newSuperSequencer",
+				"name": "newTrustedSequencer",
 				"type": "address"
 			}
 		],
-		"name": "setSuperSequencer",
+		"name": "setTrustedSequencer",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
 		"inputs": [],
-		"name": "superSequencerAddress",
+		"name": "trustedSequencer",
 		"outputs": [
 			{
 				"internalType": "address",
