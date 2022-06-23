@@ -47,17 +47,19 @@ var (
 	ErrNotEnoughIntrinsicGas = fmt.Errorf("not enough gas supplied for intrinsic gas costs")
 	// ErrParsingExecutorTrace indicates an error occurred while parsing the executor trace
 	ErrParsingExecutorTrace = fmt.Errorf("error while parsing executor trace")
+	// ErrInvalidBatchNumber indicates the provided batch number is not the latest in db
+	ErrInvalidBatchNumber = errors.New("provided batch number is not latest")
 )
 
 // State is a implementation of the state
 type State struct {
 	cfg Config
 	*PostgresStorage
-	executorClient *pb.ExecutorServiceClient
+	executorClient pb.ExecutorServiceClient
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage, executorClient *pb.ExecutorServiceClient) *State {
+func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient) *State {
 	return &State{
 		cfg:             cfg,
 		PostgresStorage: storage,
@@ -93,23 +95,26 @@ func (s *State) ResetDB(ctx context.Context, block *Block, dbTx pgx.Tx) error {
 
 // ResetTrustedState resets the state db to a batch by its number
 func (s *State) ResetTrustedState(ctx context.Context, batchNum uint64, dbTx pgx.Tx) error {
-	// TODO: Implement
-	// This method will need to update a field in the forced_batch table
-	return nil
+	// TODO: This method will need to update a field in the forced_batch table
+	return s.PostgresStorage.ResetTrustedState(ctx, batchNum, dbTx)
 }
 
+// AddGlobalExitRoot add a global exit root into the state data base
 func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, dbTx pgx.Tx) error {
 	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, dbTx)
 }
 
+// GetLatestGlobalExitRoot gets the most recent global exit root from the state data base
 func (s *State) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*GlobalExitRoot, error) {
 	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, dbTx)
 }
 
+// AddForcedBatch adds a forced bath to the state data base
 func (s *State) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, dbTx pgx.Tx) error {
 	return s.PostgresStorage.AddForcedBatch(ctx, forcedBatch, dbTx)
 }
 
+// GetForcedBath retrieves a forced batch from the state data base
 func (s *State) GetForcedBatch(ctx context.Context, dbTx pgx.Tx, forcedBatchNumber uint64) (*ForcedBatch, error) {
 	return s.PostgresStorage.GetForcedBatch(ctx, dbTx, forcedBatchNumber)
 }
@@ -156,10 +161,40 @@ func (s *State) StoreBatchHeader(ctx context.Context, batch Batch) error {
 }
 
 // ProcessBatch is used by the Trusted Sequencer to add transactions to the batch
-func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction) (*ProcessBatchResponse, error) {
+func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	// TODO: implement
-	// check batchNumber is the latest in db
-	return nil, nil
+	lastBatch, err := s.GetLastBatch(ctx, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check provided batch number is the latest in db
+	if lastBatch.BatchNum != batchNumber {
+		return nil, ErrInvalidBatchNumber
+	}
+
+	batchL2Data, err := encondeTransactions(txs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:             lastBatch.BatchNum,
+		Coinbase:             lastBatch.Coinbase.String(),
+		BatchL2Data:          batchL2Data,
+		OldStateRoot:         lastBatch.OldStateRoot.Bytes(),
+		GlobalExitRoot:       lastBatch.GlobalExitRootNum.Bytes(),
+		OldLocalExitRoot:     lastBatch.OldLocalExitRoot.Bytes(),
+		EthTimestamp:         uint64(lastBatch.EthTimestamp.Unix()),
+		UpdateMerkleTree:     true,
+		GenerateExecuteTrace: false,
+		GenerateCallTrace:    false,
+	}
+
+	// Send Bath to the Executor
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	return convertToProcessBatchResponse(processBatchResponse), err
 }
 
 // StoreTransactions is used by the Trusted Sequencer to add processed transactions into the data base

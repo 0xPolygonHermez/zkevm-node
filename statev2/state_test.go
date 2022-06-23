@@ -2,30 +2,37 @@ package statev2_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/log"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
 
-/*
 const (
 	ether155V = 27
 )
-*/
 
 var (
 	testState    *state.State
@@ -33,11 +40,11 @@ var (
 	stateDb      *pgxpool.Pool
 	err          error
 	cfg          = dbutils.NewConfigFromEnv()
-	// ctx          = context.Background()
-	stateCfg = state.Config{
+	ctx          = context.Background()
+	stateCfg     = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
-	executorServerConfig = executor.Config{URI: "51.210.116.237:50071"}
+	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
 	executorClient       pb.ExecutorServiceClient
 	clientConn           *grpc.ClientConn
 )
@@ -54,7 +61,7 @@ func TestMain(m *testing.M) {
 
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), &executorClient)
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient)
 
 	result := m.Run()
 
@@ -134,7 +141,6 @@ func TestAddForcedBatch(t *testing.T) {
 	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
 }
 
-/*
 func TestExecuteTransaction(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -202,9 +208,9 @@ func TestExecuteTransaction(t *testing.T) {
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 
-	log.Debugf("%v", processBatchResponse)
-
+	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	err = ioutil.WriteFile("trace.json", file, 0644)
 	require.NoError(t, err)
 
+	require.NoError(t, err)
 }
-*/
