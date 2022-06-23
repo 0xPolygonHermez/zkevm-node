@@ -16,6 +16,7 @@ CREATE TABLE statev2.batch (  --batch abstraction: will be created through trust
     batch_num BIGINT PRIMARY KEY,
     global_exit_root VARCHAR,
     timestamp TIMESTAMP,
+    sequencer VARCHAR,
     raw_txs_data VARCHAR
 );
 
@@ -39,6 +40,7 @@ CREATE TABLE statev2.forced_batch (
     timestamp TIMESTAMP,
     raw_txs_data VARCHAR,
     sequencer VARCHAR,
+    batch_num BIGINT, -- It can be null if the batch state is not trusted
     block_num BIGINT NOT NULL REFERENCES statev2.block (block_num) ON DELETE CASCADE
 );
 

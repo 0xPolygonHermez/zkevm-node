@@ -27,3 +27,18 @@ type VerifiedBatch struct {
 	Aggregator  common.Address
 	TxHash      common.Hash
 }
+
+type TrustedBatch struct {
+	BatchNumber    uint64
+	GlobalExitRoot common.Hash
+	Timestamp      time.Time
+	Sequencer      common.Address
+	RawTxs         string
+}
+
+type VirtualBatch struct {
+	BatchNumber uint64
+	TxHash      common.Hash
+	Sequencer   common.Address
+	BlockNumber uint64
+}

@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	etherman "github.com/hermeznetwork/hermez-core/ethermanv2"
 	"github.com/jackc/pgx/v4"
+	state "github.com/hermeznetwork/hermez-core/statev2"
 )
 
 // ethermanInterface contains the methods required to interact with ethereum.
@@ -27,6 +28,12 @@ type stateInterface interface {
 	Reset(ctx context.Context, blockNumber uint64, tx pgx.Tx) error
 	GetPreviousBlock(ctx context.Context, offset uint64) (*etherman.Block, error)
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
+	GetTrustedBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*state.TrustedBatch, error)
+	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+	AddVirtualBatch(ctx context.Context, virtualBatch state.VirtualBatch, tx pgx.Tx) error
+	AddTrustedBatch(ctx context.Context, trustedBatch state.TrustedBatch, tx pgx.Tx) error
+	// GetNextForcedBatches returns the next forcedBatches in FIFO order
+	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) (*[]state.ForcedBatch, error)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	RollbackState(ctx context.Context, tx pgx.Tx) error

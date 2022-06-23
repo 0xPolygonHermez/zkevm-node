@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -74,7 +73,7 @@ func (s *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, tx pgx.Tx
 
 // AddForcedBatch adds a new ForcedBatch to the db
 func (s *PostgresStorage) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, tx pgx.Tx) error {
-	_, err := tx.Exec(ctx, addForcedBatchSQL, forcedBatch.BlockNumber, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForcedAt, hex.EncodeToString(forcedBatch.RawTxsData), forcedBatch.Sequencer.String())
+	_, err := tx.Exec(ctx, addForcedBatchSQL, forcedBatch.BlockNumber, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForcedAt, forcedBatch.RawTxsData, forcedBatch.Sequencer.String())
 	return err
 }
 
@@ -92,7 +91,7 @@ func (s *PostgresStorage) GetForcedBatch(ctx context.Context, tx pgx.Tx, forcedB
 	} else if err != nil {
 		return nil, err
 	}
-	forcedBatch.RawTxsData, err = hex.DecodeString(rawTxs)
+	forcedBatch.RawTxsData = rawTxs
 	if err != nil {
 		return nil, err
 	}
