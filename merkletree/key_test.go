@@ -25,7 +25,7 @@ func init() {
 	// Change dir to project root
 	// This is important because we have relative paths to files containing test vectors
 	_, filename, _, _ := runtime.Caller(0)
-	dir := path.Join(path.Dir(filename), "../../")
+	dir := path.Join(path.Dir(filename), "../")
 	err := os.Chdir(dir)
 	if err != nil {
 		panic(err)
