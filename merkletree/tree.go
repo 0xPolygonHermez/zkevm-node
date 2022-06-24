@@ -20,7 +20,7 @@ func NewStateTree(mt *MerkleTree) *StateTree {
 }
 
 // GetBalance returns balance
-func (tree *StateTree) GetBalance(ctx context.Context, address common.Address, root []byte, txBundleID string) (*big.Int, error) {
+func (tree *StateTree) GetBalance(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
 	r := new(big.Int).SetBytes(root)
 
 	key, err := KeyEthAddrBalance(address)
@@ -40,7 +40,7 @@ func (tree *StateTree) GetBalance(ctx context.Context, address common.Address, r
 }
 
 // GetNonce returns nonce
-func (tree *StateTree) GetNonce(ctx context.Context, address common.Address, root []byte, txBundleID string) (*big.Int, error) {
+func (tree *StateTree) GetNonce(ctx context.Context, address common.Address, root []byte) (*big.Int, error) {
 	r := new(big.Int).SetBytes(root)
 
 	key, err := KeyEthAddrNonce(address)
@@ -60,7 +60,7 @@ func (tree *StateTree) GetNonce(ctx context.Context, address common.Address, roo
 }
 
 // GetCodeHash returns code hash
-func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, root []byte, txBundleID string) ([]byte, error) {
+func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, root []byte) ([]byte, error) {
 	r := new(big.Int).SetBytes(root)
 
 	key, err := KeyContractCode(address)
@@ -82,8 +82,8 @@ func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, 
 }
 
 // GetCode returns code
-func (tree *StateTree) GetCode(ctx context.Context, address common.Address, root []byte, txBundleID string) ([]byte, error) {
-	scCodeHash, err := tree.GetCodeHash(ctx, address, root, txBundleID)
+func (tree *StateTree) GetCode(ctx context.Context, address common.Address, root []byte) ([]byte, error) {
+	scCodeHash, err := tree.GetCodeHash(ctx, address, root)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (tree *StateTree) GetCode(ctx context.Context, address common.Address, root
 }
 
 // GetStorageAt returns Storage Value at specified position
-func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root []byte, txBundleID string) (*big.Int, error) {
+func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root []byte) (*big.Int, error) {
 	r := new(big.Int).SetBytes(root)
 
 	key, err := KeyContractStorage(address, position.Bytes())
