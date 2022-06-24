@@ -5,17 +5,18 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/merkletree/pb"
 )
 
 // StateTree provides methods to access and modify state in merkletree
 type StateTree struct {
-	mt *MerkleTree
+	grpcClient pb.StateDBServiceClient
 }
 
 // NewStateTree creates new StateTree.
-func NewStateTree(mt *MerkleTree) *StateTree {
+func NewStateTree(client pb.StateDBServiceClient) *StateTree {
 	return &StateTree{
-		mt: mt,
+		grpcClient: client,
 	}
 }
 
@@ -29,7 +30,7 @@ func (tree *StateTree) GetBalance(ctx context.Context, address common.Address, r
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(ctx, scalarToh4(r), scalarToh4(k))
+	proof, err := tree.get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +50,7 @@ func (tree *StateTree) GetNonce(ctx context.Context, address common.Address, roo
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(ctx, scalarToh4(r), scalarToh4(k))
+	proof, err := tree.get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +70,7 @@ func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, 
 	}
 	// this code gets only the hash of the smart contract code from the merkle tree
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(ctx, scalarToh4(r), scalarToh4(k))
+	proof, err := tree.get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +90,7 @@ func (tree *StateTree) GetCode(ctx context.Context, address common.Address, root
 	}
 
 	// this code gets actual smart contract code from sc code storage
-	scCode, err := tree.mt.GetProgram(ctx, common.Bytes2Hex(scCodeHash))
+	scCode, err := tree.getProgram(ctx, common.Bytes2Hex(scCodeHash))
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +108,7 @@ func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address,
 	}
 
 	k := new(big.Int).SetBytes(key[:])
-	proof, err := tree.mt.Get(ctx, scalarToh4(r), scalarToh4(k))
+	proof, err := tree.get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
 	}
@@ -115,4 +116,38 @@ func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address,
 		return big.NewInt(0), nil
 	}
 	return fea2scalar(proof.Value), nil
+}
+
+func (tree *StateTree) get(ctx context.Context, root, key []uint64) (*Proof, error) {
+	result, err := tree.grpcClient.Get(ctx, &pb.GetRequest{
+		Root:    &pb.Fea{Fe0: root[0], Fe1: root[1], Fe2: root[2], Fe3: root[3]},
+		Key:     &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
+		Details: false,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	value, err := stringToh4(result.Value)
+	if err != nil {
+		return nil, err
+	}
+	return &Proof{
+		Root:  []uint64{result.Root.Fe0, result.Root.Fe1, result.Root.Fe2, result.Root.Fe3},
+		Key:   key,
+		Value: value,
+	}, nil
+}
+
+func (tree *StateTree) getProgram(ctx context.Context, hash string) (*ProgramProof, error) {
+	result, err := tree.grpcClient.GetProgram(ctx, &pb.GetProgramRequest{
+		Hash: hash,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &ProgramProof{
+		Data: result.Data,
+	}, nil
 }
