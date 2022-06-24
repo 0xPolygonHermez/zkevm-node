@@ -1,141 +1,190 @@
-/**
-* Merkletree service.
-**/
-
-
 syntax = "proto3";
+
+import "google/protobuf/empty.proto";
 
 package mt.v1;
 
-option go_package = "github.com/hermeznetwork/hermez-core/state/tree/pb";
+option go_package = "github.com/hermeznetwork/hermez-core/merkletree/pb";
 
-service MTService {
-    // Getters
-    /// Get balance for a given address at a given root
-    rpc GetBalance(CommonGetRequest) returns (GetBalanceResponse);
-    /// Get nonce for a given address at a given root
-    rpc GetNonce(CommonGetRequest) returns (GetNonceResponse);
-    /// Get code for a given address at a given root
-    rpc GetCode(CommonGetRequest) returns (GetCodeResponse);
-    /// Get code hash for a given address at a given root
-    rpc GetCodeHash(CommonGetRequest) returns (GetCodeHashResponse);
-    /// Get smart contract storage for a given address and position at a given root
-    rpc GetStorageAt(GetStorageAtRequest) returns (GetStorageAtResponse);
-    /// Get set of reads and writes that updated the state at a given root
-    rpc GetStateTransitionNodes(GetStateTransitionNodesRequest) returns (GetStateTransitionNodesResponse);
-    /// Reverse a hash of an exisiting Merkletree node
-    rpc ReverseHash(ReverseHashRequest) returns (ReverseHashResponse);
-
-    // Setters
-    /// Set the balance for an account at a root
-    rpc SetBalance(SetBalanceRequest) returns (CommonSetResponse);
-    /// Set the nonce of an account at a root
-    rpc SetNonce(SetNonceRequest) returns (CommonSetResponse);
-    /// Set the code for an account at a root
-    rpc SetCode(SetCodeRequest) returns (CommonSetResponse);
-    /// Set smart contract storage for an account and position at a root
-    rpc SetStorageAt(SetStorageAtRequest) returns (CommonSetResponse);
-    /// Set an entry of the reverse hash table
-    rpc SetHashValue(HashValuePair) returns (SetHashValueResponse);
-    /// Set many entries of the reverse hash table
-    rpc SetStateTransitionNodes(SetStateTransitionNodesRequest) returns (SetStateTransitionNodesResponse);
+message Version {
+    string v0_0_1 = 1;
 }
 
-// Messages common to Get and set requests
-message HashValuePair {
-    string hash = 1;
-    string value = 2;
+// timestamps are represented in unix time in seconds
+
+/**
+ * Define all methods implementes by the gRPC
+ * Get: get the value for a specific key
+ * Set: set the value for a specific key
+ * SetProgram: set the byte data for a specific hash
+ * GetProgram: get the byte data for a specific hash
+ * Flush: wait for all the pendings writes to the DB are done
+ */
+service StateDBService {
+    rpc Set(SetRequest) returns (SetResponse) {}
+    rpc Get(GetRequest) returns (GetResponse) {}
+    rpc SetProgram(SetProgramRequest) returns (SetProgramResponse) {}
+    rpc GetProgram(GetProgramRequest) returns (GetProgramResponse) {}
+    rpc Flush (google.protobuf.Empty) returns (google.protobuf.Empty) {}
 }
 
-// Get requests
+///////////////////
+// Request messages
+///////////////////
 
-message CommonGetRequest {
-    string eth_address = 1;
-    string root = 2;
-}
-message GetStorageAtRequest {
-    string eth_address = 1;
-    uint64 position = 2;
-    string root = 3;
-}
-message GetStateTransitionNodesRequest {
-    string root = 1;
-}
-message ReverseHashRequest {
-    string hash = 1;
-    string root = 2;
-}
-
-// Set requests
-
-message SetBalanceRequest {
-    string eth_address = 1;
-    string balance = 2;
-    string root = 3;
-}
-message SetNonceRequest {
-    string eth_address = 1;
-    uint64 nonce = 2;
-    string root = 3;
-}
-message SetCodeRequest {
-    string eth_address = 1;
-    string code = 2;
-    string root = 3;
-}
-message SetCodeHashRequest {
-    string eth_address = 1;
-    string code_hash = 2;
-    string root = 3;
-}
-message SetStorageAtRequest {
-    string eth_address = 1;
-    string position = 2;
+/**
+ * @dev SetRequest
+ * @param {old_root} - merkle-tree root
+ * @param {key} - key to set
+ * @param {value} - scalar value to set (HEX string format)
+ * @param {persistent} - indicates if it should be stored in the database (true) or only in the memory cache (false)
+ * @param {details} - indicates if it should return all response parameters (true) or just the new root (false)
+ */
+message SetRequest {
+    Fea old_root = 1;
+    Fea key = 2;
     string value = 3;
-    string root = 4;
-}
-message SetStateTransitionNodesRequest {
-    repeated HashValuePair write_hash_values = 1;
-    repeated HashValuePair read_hash_values = 2;
+    bool persistent = 4;
+    bool details = 5;
 }
 
-// Get responses
+/**
+ * @dev GetRequest
+ * @param {root} - merkle-tree root
+ * @param {key} - key to look for
+ * @param {details} - indicates if it should return all response parameters (true) or just the new root (false)
+ */
+message GetRequest {
+    Fea root = 1;
+    Fea key = 2;
+    bool details = 3;
+}
 
-message GetBalanceResponse {
-    string balance = 1;
+/**
+ * @dev SetProgramRequest
+ * @param {hash} - hash to set
+ * @param {data} - Program data to store
+ * @param {persistent} - indicates if it should be stored in the database (true) or only in the memory cache (false)
+ */
+message SetProgramRequest {
+    string hash = 1;
+    bytes data = 2;
+    bool persistent = 3;
 }
-message GetNonceResponse {
-    uint64 nonce = 1;
-}
-message GetCodeResponse {
-    string code = 1;
-}
-message GetCodeHashResponse {
+
+/**
+ * @dev GetProgramRequest
+ * @param {hash} - hash to get program data
+ */
+message GetProgramRequest {
     string hash = 1;
 }
-message GetStorageAtResponse {
-    string value = 1;
-}
-message GetStateTransitionNodesResponse {
-    repeated HashValuePair write_hash_values = 1;
-    repeated HashValuePair read_hash_values = 2;
-}
-message ReverseHashResponse {
-    string mt_node_value = 1;
+
+/////////////////////
+// Responses messages
+/////////////////////
+
+/**
+ * @dev SetResponse
+ * @param {old_root} - merkle-tree root
+ * @param {new_root} - merkle-tree new root
+ * @param {key} - key to look for
+ * @param {siblings} - array of siblings
+ * @param {ins_key} - key found
+ * @param {ins_value} - value found (HEX string format)
+ * @param {is_old0} - is new insert or delete
+ * @param {old_value} - old value (HEX string format)
+ * @param {new_value} - new value (HEX string format)
+ * @param {mode}
+ * @param {result} - result code
+ */
+message SetResponse {
+    Fea old_root = 1;
+    Fea new_root = 2;
+    Fea key = 3;
+    map<uint64, SiblingList> siblings = 4;
+    Fea ins_key = 5;
+    string ins_value = 6;
+    bool is_old0 = 7;
+    string old_value = 8;
+    string new_value = 9;
+    string mode = 10;
+    ResultCode result = 11;
 }
 
-// Set responses
+/**
+ * @dev GetResponse
+ * @param {root} - merkle-tree root
+ * @param {key} - key to look for
+ * @param {siblings} - array of siblings
+ * @param {ins_key} - key found
+ * @param {ins_value} - value found (HEX string format)
+ * @param {is_old0} - is new insert or delete
+ * @param {value} - value retrieved (HEX string format)
+ * @param {result} - result code
+ */
+message GetResponse {
+    Fea root = 1;
+    Fea key = 2;
+    map<uint64, SiblingList> siblings = 3;
+    Fea ins_key = 4;
+    string ins_value = 5;
+    bool is_old0 = 6;
+    string value = 7;
+    ResultCode result = 8;
+}
 
-message CommonSetResponse {
-    bool success = 1;
-    string new_root = 2;
-    string error_description = 3;
+/**
+ * @dev SetProgramResponse
+ * @param {result} - result code
+ */
+message SetProgramResponse {
+    ResultCode result = 1;
 }
-message SetHashValueResponse {
-    bool success = 1;
-    string error_description = 2;
+
+/**
+ * @dev GetProgramResponse
+ * @param {data} - program data retrieved
+ * @param {result} - result code
+ */
+message GetProgramResponse {
+    bytes data = 1;
+    ResultCode result = 2;
 }
-message SetStateTransitionNodesResponse {
-    bool success = 1;
-    string error_description = 2;
+
+/**
+ * @dev Array of 4 FE
+ * @param {fe0} - Field Element value for pos 0
+ * @param {fe1} - Field Element value for pos 1
+ * @param {fe2} - Field Element value for pos 2
+ * @param {fe3} - Field Element value for pos 3
+*/
+message Fea {
+    uint64 fe0 = 1;
+    uint64 fe1 = 2;
+    uint64 fe2 = 3;
+    uint64 fe3 = 4;
+}
+
+/**
+ * @dev Siblings List
+ * @param {sibling} - sibling
+*/
+message SiblingList {
+    repeated uint64 sibling = 1;
+}
+
+/**
+ * @dev Result code
+ * @param {code} - result code
+*/
+message ResultCode {
+    enum Code {
+        CODE_UNSPECIFIED = 0;
+        CODE_SUCCESS = 1;
+        CODE_KEY_NOT_FOUND = 2;
+        CODE_DB_ERROR = 3;
+        CODE_INTERNAL_ERROR = 4;
+    }
+    Code code = 1;
 }
