@@ -90,7 +90,7 @@ func initState() (*statev2.State, error) {
 	if err != nil {
 		return nil, err
 	}
-	return statev2.NewState(statev2.Config{}, stateDb, &executorClient), nil
+	return statev2.NewState(statev2.Config{}, stateDb, executorClient), nil
 }
 
 func initConn() (*grpc.ClientConn, context.CancelFunc, error) {

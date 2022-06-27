@@ -143,7 +143,7 @@ func start(ctx *cli.Context) error {
 			log.Info("Running broadcast service")
 			stateDb := statev2.NewPostgresStorage(sqlDB)
 			executorClient, _ := newExecutorClient(c.Executor)
-			st := statev2.NewState(statev2.Config{}, stateDb, &executorClient)
+			st := statev2.NewState(statev2.Config{}, stateDb, executorClient)
 			go runBroadcastServer(c.BroadcastServer, st)
 		}
 	}

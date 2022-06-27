@@ -33,20 +33,6 @@ var (
 	ErrCodeStoreOutOfGas = errors.New("contract creation code storage out of gas")
 )
 
-// TxContext is the context of the transaction
-type TxContext struct {
-	Hash        common.Hash
-	GasPrice    common.Hash
-	Origin      common.Address
-	Coinbase    common.Address
-	Number      int64
-	Timestamp   int64
-	GasLimit    int64
-	ChainID     int64
-	Difficulty  common.Hash
-	BatchNumber int64
-}
-
 // ExecutionResult includes all output after executing given evm
 // message no matter the execution itself is successful or not.
 type ExecutionResult struct {

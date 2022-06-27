@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/merkletree"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/fakevm"
@@ -49,6 +50,8 @@ var (
 	ErrParsingExecutorTrace = fmt.Errorf("error while parsing executor trace")
 	// ErrInvalidBatchNumber indicates the provided batch number is not the latest in db
 	ErrInvalidBatchNumber = errors.New("provided batch number is not latest")
+	// EmptyCodeHash is the hash of empty code in the MT
+	EmptyCodeHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 )
 
 // State is a implementation of the state
@@ -56,14 +59,16 @@ type State struct {
 	cfg Config
 	*PostgresStorage
 	executorClient pb.ExecutorServiceClient
+	tree           *merkletree.StateTree
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient) *State {
+func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree) *State {
 	return &State{
 		cfg:             cfg,
 		PostgresStorage: storage,
 		executorClient:  executorClient,
+		tree:            stateTree,
 	}
 }
 
@@ -107,11 +112,6 @@ func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot,
 // GetLatestGlobalExitRoot gets the most recent global exit root from the state data base
 func (s *State) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*GlobalExitRoot, error) {
 	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, dbTx)
-}
-
-// AddForcedBatch adds a forced bath to the state data base
-func (s *State) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, dbTx pgx.Tx) error {
-	return s.PostgresStorage.AddForcedBatch(ctx, forcedBatch, dbTx)
 }
 
 // GetForcedBath retrieves a forced batch from the state data base
@@ -210,12 +210,6 @@ func (s *State) StoreTransactions(batchNum uint64, processedTxs []*ProcessTransa
 	return nil
 }
 
-// ProcessAndStoreWIPBatch is used by the Synchronizer to add a work-in-progress batch into the data base
-func (s *State) ProcessAndStoreWIPBatch(ctx context.Context, batch Batch) error {
-	// TODO: implement
-	return nil
-}
-
 // ProcessAndStoreClosedBatch is used by the Synchronizer to a add closed batch into the data base
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, batch Batch) error {
 	// TODO: implement
@@ -236,11 +230,6 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 // GetBatchByNumber gets a batch from data base by its number
 func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
 	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, tx)
-}
-
-func (s *State) GetTrustedBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
-	// TODO: implement
-	return nil, nil
 }
 
 // GetEncodedTransactionsByBatchNumber gets the txs for a given batch in encoded form

@@ -146,6 +146,7 @@ func (s *PostgresStorage) GetLastSendSequenceTime(ctx context.Context) (time.Tim
 }
 
 // AddForcedBatch adds a new ForcedBatch to the db
+// TODO: DELETE THIS METHOD
 func (p *PostgresStorage) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, dbTx pgx.Tx) error {
 	_, err := dbTx.Exec(ctx, addForcedBatchSQL, forcedBatch.BlockNumber, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForcedAt, hex.EncodeToString(forcedBatch.RawTxsData), forcedBatch.Sequencer.String())
 	return err
