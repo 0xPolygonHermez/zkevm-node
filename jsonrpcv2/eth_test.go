@@ -510,8 +510,18 @@ func TestGetBlockByHash(t *testing.T) {
 			ExpectedResult: nil,
 			ExpectedError:  ethereum.NotFound,
 			SetupMocks: func(m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
 				m.State.
-					On("GetBlockByHash", context.Background(), tc.Hash, "").
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetBlockByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(nil, state.ErrNotFound)
 			},
 		},
@@ -521,8 +531,18 @@ func TestGetBlockByHash(t *testing.T) {
 			ExpectedResult: nil,
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get block from state"),
 			SetupMocks: func(m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
 				m.State.
-					On("GetBlockByHash", context.Background(), tc.Hash, "").
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetBlockByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(nil, errors.New("failed to get block from state")).
 					Once()
 			},
@@ -549,8 +569,18 @@ func TestGetBlockByHash(t *testing.T) {
 					Transactions: transactions,
 				}
 
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
 				m.State.
-					On("GetBlockByHash", context.Background(), tc.Hash, "").
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetBlockByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(block, nil).
 					Once()
 			},
