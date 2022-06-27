@@ -60,7 +60,7 @@ func (s *ClientSynchronizer) Sync() error {
 	if err != nil {
 		if err == state.ErrStateNotSynchronized {
 			log.Warn("error getting the latest ethereum block. No data stored. Setting genesis block. Error: ", err)
-			lastEthBlockSynced = &etherman.Block{
+			lastEthBlockSynced = &state.Block{
 				BlockNumber: s.genBlockNumber,
 			}
 			// TODO Set Genesis if needed
@@ -68,7 +68,7 @@ func (s *ClientSynchronizer) Sync() error {
 			log.Fatal("unexpected error getting the latest ethereum block. Setting genesis block. Error: ", err)
 		}
 	} else if lastEthBlockSynced.BlockNumber == 0 {
-		lastEthBlockSynced = &etherman.Block{
+		lastEthBlockSynced = &state.Block{
 			BlockNumber: s.genBlockNumber,
 		}
 	}
@@ -110,7 +110,7 @@ func (s *ClientSynchronizer) Sync() error {
 }
 
 // This function syncs the node from a specific block to the latest
-func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *etherman.Block) (*etherman.Block, error) {
+func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
 	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {
@@ -153,7 +153,12 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *etherman.Block) (*et
 		}
 		s.processBlockRange(blocks, order)
 		if len(blocks) > 0 {
-			lastEthBlockSynced = &blocks[len(blocks)-1]
+			lastEthBlockSynced = &state.Block{
+				BlockNumber: blocks[len(blocks)-1].BlockNumber,
+				BlockHash:   blocks[len(blocks)-1].BlockHash,
+				ParentHash:  blocks[len(blocks)-1].ParentHash,
+				ReceivedAt:  blocks[len(blocks)-1].ReceivedAt,
+			}
 			for i := range blocks {
 				log.Debug("Position: ", i, ". BlockNumber: ", blocks[i].BlockNumber, ". BlockHash: ", blocks[i].BlockHash)
 			}
@@ -177,7 +182,13 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *etherman.Block) (*et
 				ReceivedAt:  time.Unix(int64(fb.Time()), 0),
 			}
 			s.processBlockRange([]etherman.Block{b}, order)
-			lastEthBlockSynced = &b
+			block := state.Block{
+				BlockNumber: fb.NumberU64(),
+				BlockHash:   fb.Hash(),
+				ParentHash:  fb.ParentHash(),
+				ReceivedAt:  time.Unix(int64(fb.Time()), 0),
+			}
+			lastEthBlockSynced = &block
 			log.Debug("Storing empty block. BlockNumber: ", b.BlockNumber, ". BlockHash: ", b.BlockHash)
 		}
 	}
@@ -193,8 +204,14 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 		if err != nil {
 			log.Fatalf("error creating db transaction to store block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err)
 		}
+		b := state.Block{
+			BlockNumber: blocks[i].BlockNumber,
+			BlockHash:   blocks[i].BlockHash,
+			ParentHash:  blocks[i].ParentHash,
+			ReceivedAt:  blocks[i].ReceivedAt,
+		}
 		// Add block information
-		err = s.state.AddBlock(s.ctx, &blocks[i], txDB)
+		err = s.state.AddBlock(s.ctx, &b, txDB)
 		if err != nil {
 			rollbackErr := s.state.RollbackState(s.ctx, txDB)
 			if rollbackErr != nil {
@@ -255,7 +272,7 @@ If hash or hash parent don't match, reorg detected and the function will return 
 must be reverted. Then, check the previous ethereum block synced, get block info from the blockchain and check
 hash and has parent. This operation has to be done until a match is found.
 */
-func (s *ClientSynchronizer) checkReorg(latestBlock *etherman.Block) (*etherman.Block, error) {
+func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block, error) {
 	// This function only needs to worry about reorgs if some of the reorganized blocks contained rollup info.
 	latestEthBlockSynced := *latestBlock
 	var depth uint64
@@ -285,7 +302,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *etherman.Block) (*etherman.
 			latestBlock, err = s.state.GetPreviousBlock(s.ctx, depth)
 			if errors.Is(err, state.ErrNotFound) {
 				log.Warn("error checking reorg: previous block not found in db: ", err)
-				return &etherman.Block{}, nil
+				return &state.Block{}, nil
 			} else if err != nil {
 				return nil, err
 			}
