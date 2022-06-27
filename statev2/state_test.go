@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/hex"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
@@ -110,7 +111,7 @@ func TestAddForcedBatch(t *testing.T) {
 	}
 	err = testState.AddBlock(ctx, block, tx)
 	assert.NoError(t, err)
-	b := "0x617b3a3528F9"
+	b, err := hex.DecodeString("0x617b3a3528F9")
 	assert.NoError(t, err)
 	var bN uint64 = 3
 	forcedBatch := state.ForcedBatch{

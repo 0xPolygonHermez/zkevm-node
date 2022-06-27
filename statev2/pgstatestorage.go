@@ -2,6 +2,7 @@ package statev2
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"math/big"
 
@@ -94,7 +95,7 @@ func (s *PostgresStorage) GetForcedBatch(ctx context.Context, tx pgx.Tx, forcedB
 	} else if err != nil {
 		return nil, err
 	}
-	forcedBatch.RawTxsData = rawTxs
+	forcedBatch.RawTxsData, err = hex.DecodeString(rawTxs)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +133,7 @@ func (s *PostgresStorage) GetLastBatch(ctx context.Context, tx pgx.Tx) (*Batch, 
 		batch  Batch
 		gerStr string
 	)
-	err := s.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNum, &gerStr, &batch.EthTimestamp)
+	err := s.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
@@ -148,7 +149,7 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 		batch  Batch
 		gerStr string
 	)
-	err := s.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNum, &gerStr, &batch.EthTimestamp)
+	err := s.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized

@@ -13,6 +13,6 @@ type ForcedBatch struct {
 	ForcedBatchNumber uint64
 	Sequencer         common.Address
 	GlobalExitRoot    common.Hash
-	RawTxsData        string
+	RawTxsData        []byte
 	ForcedAt          time.Time
 }

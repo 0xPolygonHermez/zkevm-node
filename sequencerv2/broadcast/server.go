@@ -78,7 +78,7 @@ func (s *Server) GetLastBatch(ctx context.Context, empty *pb.Empty) (*pb.GetBatc
 }
 
 func (s *Server) genericGetBatch(ctx context.Context, batch *statev2.Batch) (*pb.GetBatchResponse, error) {
-	txs, err := s.state.GetEncodedTransactionsByBatchNumber(ctx, batch.BatchNum, nil)
+	txs, err := s.state.GetEncodedTransactionsByBatchNumber(ctx, batch.BatchNumber, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -90,9 +90,9 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *statev2.Batch) (*pb
 	}
 
 	return &pb.GetBatchResponse{
-		BatchNumber:    batch.BatchNum,
+		BatchNumber:    batch.BatchNumber,
 		GlobalExitRoot: batch.GlobalExitRootNum.String(),
-		Timestamp:      uint64(batch.EthTimestamp.Unix()),
+		Timestamp:      uint64(batch.Timestamp.Unix()),
 		Transactions:   transactions,
 	}, nil
 }

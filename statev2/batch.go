@@ -10,14 +10,15 @@ import (
 
 // Batch struct
 type Batch struct {
-	BatchNum          uint64
+	BatchNumber       uint64
 	Coinbase          common.Address
 	BatchL2Data       []byte
 	OldStateRoot      common.Hash
 	GlobalExitRootNum *big.Int
 	OldLocalExitRoot  common.Hash
-	EthTimestamp      time.Time
+	Timestamp         time.Time
 	Transactions      []types.Transaction
+	GlobalExitRoot    common.Hash
 }
 
 // VerifyBatch represents a VerifyBatch
@@ -26,14 +27,6 @@ type VerifiedBatch struct {
 	BatchNumber uint64
 	Aggregator  common.Address
 	TxHash      common.Hash
-}
-
-type TrustedBatch struct {
-	BatchNumber    uint64
-	GlobalExitRoot common.Hash
-	Timestamp      time.Time
-	Sequencer      common.Address
-	RawTxs         string
 }
 
 type VirtualBatch struct {
