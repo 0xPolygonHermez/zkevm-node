@@ -68,7 +68,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencerv2.WaitBlocksToUpdateGER",
-			expectedValue: uint32(10),
+			expectedValue: uint64(10),
 		},
 		{
 			path:          "Sequencerv2.LastTimeBatchMaxWaitPeriod",

@@ -24,11 +24,6 @@ type Eth struct {
 	storage          storageInterface
 }
 
-type blockNumberOrHash struct {
-	BlockNumber *BlockNumber `json:"blockNumber,omitempty"`
-	BlockHash   *common.Hash `json:"blockHash,omitempty"`
-}
-
 // BlockNumber returns current block number
 func (e *Eth) BlockNumber() (interface{}, error) {
 	ctx := context.Background()
@@ -48,13 +43,9 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 	// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
 	if arg.Gas == nil || *arg.Gas == argUint64(0) {
-		filter := blockNumberOrHash{
-			BlockNumber: number,
-		}
-
-		header, err := e.getHeaderFromBlockNumberOrHash(&filter)
+		header, err := e.getBatchHeader(*number)
 		if err != nil {
-			const errorMessage = "failed to get header from block hash or block number"
+			const errorMessage = "failed to get block header"
 			log.Errorf("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
@@ -240,18 +231,21 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
 	if errors.Is(err, ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
-	}
-
-	err = e.storage.UpdateFilterLastPoll(filter.ID)
-	if err != nil {
-		return nil, err
+		const errorMessage = "failed to get filter from storage"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	switch filter.Type {
 	case FilterTypeBlock:
 		{
 			res, err := e.state.GetBatchHashesSince(context.Background(), filter.LastPoll, "")
+			if err != nil {
+				const errorMessage = "failed to get block hashes"
+				log.Errorf("%v:%v", errorMessage, err)
+				return nil, newRPCError(defaultErrorCode, errorMessage)
+			}
+			err = e.updateFilterLastPoll(filter.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -263,6 +257,12 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
 	case FilterTypePendingTx:
 		{
 			res, err := e.pool.GetPendingTxHashesSince(context.Background(), filter.LastPoll)
+			if err != nil {
+				const errorMessage = "failed to get pending transaction hashes"
+				log.Errorf("%v:%v", errorMessage, err)
+				return nil, newRPCError(defaultErrorCode, errorMessage)
+			}
+			err = e.updateFilterLastPoll(filter.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -276,12 +276,18 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
 			filterParameters := &LogFilter{}
 			err = json.Unmarshal([]byte(filter.Parameters), filterParameters)
 			if err != nil {
-				return nil, err
+				const errorMessage = "failed to read filter parameters"
+				log.Errorf("%v:%v", errorMessage, err)
+				return nil, newRPCError(defaultErrorCode, errorMessage)
 			}
 
 			filterParameters.Since = &filter.LastPoll
 
 			resInterface, err := e.GetLogs(filterParameters)
+			if err != nil {
+				return nil, err
+			}
+			err = e.updateFilterLastPoll(filter.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -303,7 +309,9 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 	if errors.Is(err, ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get filter from storage"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	if filter.Type != FilterTypeLog {
@@ -313,7 +321,9 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 	filterParameters := &LogFilter{}
 	err = json.Unmarshal([]byte(filter.Parameters), filterParameters)
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to read filter parameters"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	filterParameters.Since = nil
@@ -338,7 +348,9 @@ func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 
 	logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash, filter.Since, "")
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to get logs from state"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	result := make([]rpcLog, 0, len(logs))
@@ -530,7 +542,9 @@ func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 func (e *Eth) NewBlockFilter() (interface{}, error) {
 	id, err := e.storage.NewBlockFilter()
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to create new block filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argUint64(id), nil
@@ -542,7 +556,9 @@ func (e *Eth) NewBlockFilter() (interface{}, error) {
 func (e *Eth) NewFilter(filter *LogFilter) (interface{}, error) {
 	id, err := e.storage.NewLogFilter(*filter)
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to create new log filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argUint64(id), nil
@@ -554,7 +570,9 @@ func (e *Eth) NewFilter(filter *LogFilter) (interface{}, error) {
 func (e *Eth) NewPendingTransactionFilter(filterID argUint64) (interface{}, error) {
 	id, err := e.storage.NewPendingTransactionFilter()
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to create new pending transaction filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argUint64(id), nil
@@ -585,7 +603,14 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 // Filters timeout when they aren’t requested with
 // eth_getFilterChanges for a period of time.
 func (e *Eth) UninstallFilter(filterID argUint64) (interface{}, error) {
-	return e.storage.UninstallFilter(uint64(filterID))
+	uninstalled, err := e.storage.UninstallFilter(uint64(filterID))
+	if err != nil {
+		const errorMessage = "failed to uninstall filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
+	}
+
+	return uninstalled, nil
 }
 
 // Syncing returns an object with data about the sync status or false.
@@ -655,33 +680,10 @@ func hexToTx(str string) (*types.Transaction, error) {
 	return tx, nil
 }
 
-func (e *Eth) getHeaderFromBlockNumberOrHash(bnh *blockNumberOrHash) (*types.Header, error) {
-	var (
-		header *types.Header
-		err    error
-	)
-
-	if bnh.BlockNumber != nil {
-		header, err = e.getBatchHeader(*bnh.BlockNumber)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get the header of block %d: %s", *bnh.BlockNumber, err.Error())
-		}
-	} else if bnh.BlockHash != nil {
-		block, err := e.state.GetBatchByHash(context.Background(), *bnh.BlockHash, "")
-		if err != nil {
-			return nil, fmt.Errorf("could not find block referenced by the hash %s, err: %v", bnh.BlockHash.String(), err)
-		}
-
-		header = block.Header
-	}
-
-	return header, nil
-}
-
 func (e *Eth) getBatchHeader(number BlockNumber) (*types.Header, error) {
 	switch number {
 	case LatestBlockNumber:
-		batch, err := e.state.GetLastBatch(context.Background(), false, "")
+		batch, err := e.state.GetLastBatch(context.Background(), true, "")
 		if err != nil {
 			return nil, err
 		}
@@ -699,14 +701,28 @@ func (e *Eth) getBatchHeader(number BlockNumber) (*types.Header, error) {
 		if err != nil {
 			return nil, err
 		}
+		parentHash := lastBatch.Hash()
+		number := lastBatch.Number().Uint64() + 1
+
 		header := &types.Header{
-			ParentHash: lastBatch.Hash(),
-			Number:     big.NewInt(0).SetUint64(lastBatch.Number().Uint64() + 1),
+			ParentHash: parentHash,
+			Number:     big.NewInt(0).SetUint64(number),
 			Difficulty: big.NewInt(0),
+			GasLimit:   lastBatch.Header.GasLimit,
 		}
 		return header, nil
 
 	default:
 		return e.state.GetBatchHeader(context.Background(), uint64(number), "")
 	}
+}
+
+func (e *Eth) updateFilterLastPoll(filterID uint64) rpcError {
+	err := e.storage.UpdateFilterLastPoll(filterID)
+	if err != nil {
+		const errorMessage = "failed to update last time the filter changes were requested"
+		log.Errorf("%v:%v", errorMessage, err)
+		return newRPCError(defaultErrorCode, errorMessage)
+	}
+	return nil
 }

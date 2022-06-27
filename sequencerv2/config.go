@@ -15,7 +15,7 @@ type Config struct {
 	LastL1InteractionTimeMaxWaitPeriod types.Duration `mapstructure:"LastL1InteractionTimeMaxWaitPeriod"`
 
 	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
-	WaitBlocksToUpdateGER uint32 `mapstructure:"WaitBlocksToUpdateGER"`
+	WaitBlocksToUpdateGER uint64 `mapstructure:"WaitBlocksToUpdateGER"`
 
 	// LastTimeBatchMaxWaitPeriod is time after which new batch should be closed
 	LastTimeBatchMaxWaitPeriod types.Duration `mapstructure:"LastTimeBatchMaxWaitPeriod"`
