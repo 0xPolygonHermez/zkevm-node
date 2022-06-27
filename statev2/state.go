@@ -192,7 +192,8 @@ func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx
 	return nil, nil
 }
 
-func (s *State) GetTrustedBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
+// GetTrustedBatchByNumber gets a trusted batch from database by its number
+func (s *State) GetTrustedBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*TrustedBatch, error) {
 	// TODO: implement
 	return nil, nil
 }
@@ -379,4 +380,22 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	jsTracer.CaptureEnd(common.Hex2Bytes(trace.Context.Output), gasUsed.Uint64(), time.Duration(trace.Context.Time), nil)
 
 	return jsTracer.GetResult()
+}
+
+// AddVirtualBatch adds a virtual batch to the database
+func (s *State) AddVirtualBatch(ctx context.Context, virtualBatch VirtualBatch, tx pgx.Tx) error {
+	// TODO: implement
+	return nil
+}
+
+// AddTrustedBatch adds a trusted batch to the database
+func (s *State) AddTrustedBatch(ctx context.Context, trustedBatch TrustedBatch, tx pgx.Tx) error {
+	// TODO: implement
+	return nil
+}
+
+	// GetNextForcedBatches returns the next forcedBatches in FIFO order
+func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) (*[]ForcedBatch, error) {
+	// TODO: implement
+	return nil, nil
 }
