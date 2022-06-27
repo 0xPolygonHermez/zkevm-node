@@ -23,7 +23,7 @@ type Eth struct {
 	sequencerAddress common.Address
 	gpe              gasPriceEstimator
 	storage          storageInterface
-	txMan            txManager
+	txMan            dbTxManager
 }
 
 type blockNumberOrHash struct {
@@ -33,13 +33,13 @@ type blockNumberOrHash struct {
 
 // BlockNumber returns current block number
 func (e *Eth) BlockNumber() (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
-		lastBatchNumber, err := e.state.GetLastBatchNumber(ctx, dbTx)
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+		lastBlockNumber, err := e.state.GetLastBlockNumber(ctx, dbTx)
 		if err != nil {
 			return "0x0", nil
 		}
 
-		return hex.EncodeUint64(lastBatchNumber), nil
+		return hex.EncodeUint64(lastBlockNumber), nil
 	})
 }
 
@@ -48,7 +48,7 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 // Note, this function doesn't make any changes in the state/blockchain and is
 // useful to execute view/pure methods and retrieve values.
 func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
 		if arg.Gas == nil || *arg.Gas == argUint64(0) {
 			filter := blockNumberOrHash{
@@ -69,19 +69,12 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 		tx := arg.ToTransaction()
 
 		var err error
-		batchNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		blockNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
 			return nil, err
 		}
 
-		batch, err := e.state.GetBatchByNumber(ctx, batchNumber, dbTx)
-		if err != nil {
-			errorMessage := fmt.Sprintf("failed to get batch by number: %v", batchNumber)
-			log.Errorf("%v: %v", errorMessage, err)
-			return nil, newRPCError(defaultErrorCode, errorMessage)
-		}
-
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, arg.From, e.sequencerAddress, batch.Header.Root[:], dbTx)
+		result := e.state.ProcessUnsignedTransaction(ctx, tx, arg.From, e.sequencerAddress, blockNumber, dbTx)
 		if result.Failed() {
 			errorMessage := fmt.Sprintf("failed to execute call: %v", result.Err)
 			log.Errorf("%v", errorMessage)
@@ -125,14 +118,14 @@ func (e *Eth) GasPrice() (interface{}, error) {
 
 // GetBalance returns the account's balance at the referenced block
 func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		var err error
-		batchNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		blockNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
 			return nil, err
 		}
 
-		balance, err := e.state.GetBalance(ctx, address, batchNumber, dbTx)
+		balance, err := e.state.GetBalance(ctx, address, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return hex.EncodeUint64(0), nil
 		} else if err != nil {
@@ -146,71 +139,71 @@ func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface
 
 // GetBlockByHash returns information about a block by hash
 func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
-		batch, err := e.state.GetBatchByHash(ctx, hash, dbTx)
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+		block, err := e.state.GetBlockByHash(ctx, hash, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
 			return nil, err
 		}
 
-		block := batchToRPCBlock(batch, fullTx)
+		rpcBlock := l2BlockToRPCBlock(block, fullTx)
 
-		return block, nil
+		return rpcBlock, nil
 	})
 }
 
 // GetBlockByNumber returns information about a block by block number
 func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		if number == PendingBlockNumber {
-			lastBatch, err := e.state.GetLastBatch(ctx, true, dbTx)
+			lastBlock, err := e.state.GetLastBlock(ctx, dbTx)
 			if err != nil {
-				const errorMessage = "couldn't load last batch from state to compute the pending block"
+				const errorMessage = "couldn't load last block from state to compute the pending block"
 				log.Errorf("%v: %v", errorMessage, err)
 				return nil, newRPCError(defaultErrorCode, errorMessage)
 			}
-			header := types.CopyHeader(lastBatch.Header)
-			header.ParentHash = lastBatch.Hash()
-			header.Number = big.NewInt(0).SetUint64(lastBatch.Number().Uint64() + 1)
+			header := types.CopyHeader(lastBlock.Header)
+			header.ParentHash = lastBlock.Hash()
+			header.Number = big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1)
 			header.TxHash = types.EmptyRootHash
 			header.UncleHash = types.EmptyUncleHash
-			batch := &state.Batch{Header: header}
-			block := batchToRPCBlock(batch, fullTx)
+			block := &state.L2Block{Header: header}
+			rpcBlock := l2BlockToRPCBlock(block, fullTx)
 
-			return block, nil
+			return rpcBlock, nil
 		}
 		var err error
-		batchNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		blockNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
 			return nil, err
 		}
 
-		batch, err := e.state.GetBatchByNumber(ctx, batchNumber, dbTx)
+		block, err := e.state.GetBlockByNumber(ctx, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
-			const errorMessage = "couldn't load batch from state by number %v"
-			log.Errorf("%v: %v", fmt.Sprintf(errorMessage, batchNumber), err)
-			return nil, newRPCError(defaultErrorCode, fmt.Sprintf(errorMessage, batchNumber))
+			const errorMessage = "couldn't load block from state by number %v"
+			log.Errorf("%v: %v", fmt.Sprintf(errorMessage, blockNumber), err)
+			return nil, newRPCError(defaultErrorCode, fmt.Sprintf(errorMessage, blockNumber))
 		}
 
-		block := batchToRPCBlock(batch, fullTx)
+		rpcBlock := l2BlockToRPCBlock(block, fullTx)
 
-		return block, nil
+		return rpcBlock, nil
 	})
 }
 
 // GetCode returns account code at given block number
 func (e *Eth) GetCode(address common.Address, number *BlockNumber) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		var err error
-		batchNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		blockNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
 			return nil, err
 		}
 
-		code, err := e.state.GetCode(ctx, address, batchNumber, dbTx)
+		code, err := e.state.GetCode(ctx, address, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return "0x", nil
 		} else if err != nil {
@@ -231,7 +224,7 @@ func (e *Eth) GetCompilers() (interface{}, error) {
 // GetFilterChanges polling method for a filter, which returns
 // an array of logs which occurred since last poll.
 func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		filter, err := e.storage.GetFilter(uint64(filterID))
 		if errors.Is(err, ErrNotFound) {
 			return nil, nil
@@ -247,7 +240,7 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
 		switch filter.Type {
 		case FilterTypeBlock:
 			{
-				res, err := e.state.GetBatchHashesSince(ctx, filter.LastPoll, dbTx)
+				res, err := e.state.GetBlockHashesSince(ctx, filter.LastPoll, dbTx)
 				if err != nil {
 					return nil, err
 				}
@@ -293,7 +286,7 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
 	})
 }
 
-// GetFilterLogs returns an array of all logs matching filter
+// GetFilterLogs returns an array of all logs mlocking filter
 // with given id.
 func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 	filter, err := e.storage.GetFilter(uint64(filterID))
@@ -320,7 +313,7 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 
 // GetLogs returns a list of logs accordingly to the provided filter
 func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		var err error
 		fromBlock, err := filter.FromBlock.getNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
@@ -348,14 +341,14 @@ func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 
 // GetStorageAt gets the value stored for an specific address and position
 func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number *BlockNumber) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		var err error
-		batchNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		blockNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
 			return nil, err
 		}
 
-		value, err := e.state.GetStorageAt(ctx, address, position.Big(), batchNumber, dbTx)
+		value, err := e.state.GetStorageAt(ctx, address, position.Big(), blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return argBytesPtr(common.Hash{}.Bytes()), nil
 		} else if err != nil {
@@ -369,8 +362,8 @@ func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number 
 // GetTransactionByBlockHashAndIndex returns information about a transaction by
 // block hash and transaction index position.
 func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
-		tx, err := e.state.GetTransactionByBatchHashAndIndex(ctx, hash, uint64(index), dbTx)
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+		tx, err := e.state.GetTransactionByBlockHashAndIndex(ctx, hash, uint64(index), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
@@ -395,14 +388,14 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 // GetTransactionByBlockNumberAndIndex returns information about a transaction by
 // block number and transaction index position.
 func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		var err error
-		batchNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		blockNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
 			return nil, err
 		}
 
-		tx, err := e.state.GetTransactionByBatchNumberAndIndex(ctx, batchNumber, uint64(index), dbTx)
+		tx, err := e.state.GetTransactionByBlockNumberAndIndex(ctx, blockNumber, uint64(index), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
@@ -426,7 +419,7 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 
 // GetTransactionByHash returns a transaction by his hash
 func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		tx, err := e.state.GetTransactionByHash(ctx, hash, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
@@ -451,14 +444,14 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, error) {
 
 // GetTransactionCount returns account nonce
 func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		var err error
-		batchNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		blockNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
 			return nil, err
 		}
 
-		nonce, err := e.state.GetNonce(ctx, address, batchNumber, dbTx)
+		nonce, err := e.state.GetNonce(ctx, address, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return hex.EncodeUint64(0), nil
 		} else if err != nil {
@@ -472,10 +465,10 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 }
 
 // GetBlockTransactionCountByHash returns the number of transactions in a
-// block from a block matching the given block hash.
+// block from a block mlocking the given block hash.
 func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
-		c, err := e.state.GetBatchTransactionCountByHash(ctx, hash, dbTx)
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+		c, err := e.state.GetBlockTransactionCountByHash(ctx, hash, dbTx)
 		if err != nil {
 			const errorMessage = "failed to count transactions"
 			log.Errorf("%v: %v", errorMessage, err)
@@ -487,16 +480,16 @@ func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, err
 }
 
 // GetBlockTransactionCountByNumber returns the number of transactions in a
-// block from a block matching the given block number.
+// block from a block mlocking the given block number.
 func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		var err error
 		blockNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
 			return nil, err
 		}
 
-		c, err := e.state.GetBatchTransactionCountByNumber(ctx, blockNumber, dbTx)
+		c, err := e.state.GetBlockTransactionCountByNumber(ctx, blockNumber, dbTx)
 		if err != nil {
 			const errorMessage = "failed to count transactions"
 			log.Errorf("%v: %v", errorMessage, err)
@@ -509,7 +502,16 @@ func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}
 
 // GetTransactionReceipt returns a transaction receipt by his hash
 func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+		tx, err := e.state.GetTransactionByHash(ctx, hash, dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
+			const errorMessage = "failed to get tx from state"
+			log.Errorf("%v: %v", errorMessage, err)
+			return nil, newRPCError(defaultErrorCode, errorMessage)
+		}
+
 		r, err := e.state.GetTransactionReceipt(ctx, hash, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
@@ -519,7 +521,14 @@ func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
-		return stateReceiptToRPCReceipt(r), nil
+		receipt, err := receiptToRPCReceipt(*tx, r)
+		if err != nil {
+			const errorMessage = "failed to build the receipt response"
+			log.Errorf("%v: %v", errorMessage, err)
+			return nil, newRPCError(defaultErrorCode, errorMessage)
+		}
+
+		return receipt, nil
 	})
 }
 
@@ -580,7 +589,7 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 }
 
 // UninstallFilter uninstalls a filter with given id. Should
-// always be called when watch is no longer needed. Additionally
+// always be called when wlock is no longer needed. Additionally
 // Filters timeout when they aren’t requested with
 // eth_getFilterChanges for a period of time.
 func (e *Eth) UninstallFilter(filterID argUint64) (interface{}, error) {
@@ -590,13 +599,13 @@ func (e *Eth) UninstallFilter(filterID argUint64) (interface{}, error) {
 // Syncing returns an object with data about the sync status or false.
 // https://eth.wiki/json-rpc/API#eth_syncing
 func (e *Eth) Syncing() (interface{}, error) {
-	return e.txMan.NewTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		syncInfo, err := e.state.GetSyncingInfo(ctx, dbTx)
 		if err != nil {
 			return nil, err
 		}
 
-		if syncInfo.CurrentBatchNumber == syncInfo.LastBatchNumberSeen {
+		if syncInfo.CurrentBlockNumber == syncInfo.LastBlockNumberSeen {
 			return false, nil
 		}
 
@@ -605,9 +614,9 @@ func (e *Eth) Syncing() (interface{}, error) {
 			C argUint64 `json:"currentBlock"`
 			H argUint64 `json:"highestBlock"`
 		}{
-			S: argUint64(syncInfo.InitialSyncingBatch),
-			C: argUint64(syncInfo.CurrentBatchNumber),
-			H: argUint64(syncInfo.LastBatchNumberSeen),
+			S: argUint64(syncInfo.InitialSyncingBlock),
+			C: argUint64(syncInfo.CurrentBlockNumber),
+			H: argUint64(syncInfo.LastBlockNumberSeen),
 		}, nil
 	})
 }
@@ -625,13 +634,13 @@ func (e *Eth) GetUncleByBlockNumberAndIndex() (interface{}, error) {
 }
 
 // GetUncleCountByBlockHash returns the number of uncles in a block
-// matching the given block hash
+// mlocking the given block hash
 func (e *Eth) GetUncleCountByBlockHash() (interface{}, error) {
 	return "0x0", nil
 }
 
 // GetUncleCountByBlockNumber returns the number of uncles in a block
-// matching the given block number
+// mlocking the given block number
 func (e *Eth) GetUncleCountByBlockNumber() (interface{}, error) {
 	return "0x0", nil
 }
@@ -663,12 +672,12 @@ func (e *Eth) getHeaderFromBlockNumberOrHash(ctx context.Context, bnh *blockNumb
 	)
 
 	if bnh.BlockNumber != nil {
-		header, err = e.getBatchHeader(ctx, *bnh.BlockNumber, dbTx)
+		header, err = e.getBlockHeader(ctx, *bnh.BlockNumber, dbTx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get the header of block %d: %s", *bnh.BlockNumber, err.Error())
 		}
 	} else if bnh.BlockHash != nil {
-		block, err := e.state.GetBatchByHash(context.Background(), *bnh.BlockHash, dbTx)
+		block, err := e.state.GetBlockByHash(context.Background(), *bnh.BlockHash, dbTx)
 		if err != nil {
 			return nil, fmt.Errorf("could not find block referenced by the hash %s, err: %v", bnh.BlockHash.String(), err)
 		}
@@ -679,35 +688,35 @@ func (e *Eth) getHeaderFromBlockNumberOrHash(ctx context.Context, bnh *blockNumb
 	return header, nil
 }
 
-func (e *Eth) getBatchHeader(ctx context.Context, number BlockNumber, dbTx pgx.Tx) (*types.Header, error) {
+func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.Tx) (*types.Header, error) {
 	switch number {
 	case LatestBlockNumber:
-		batch, err := e.state.GetLastBatch(ctx, false, dbTx)
+		block, err := e.state.GetLastBlock(ctx, dbTx)
 		if err != nil {
 			return nil, err
 		}
-		return batch.Header, nil
+		return block.Header, nil
 
 	case EarliestBlockNumber:
-		batch, err := e.state.GetBatchByNumber(ctx, 0, dbTx)
+		block, err := e.state.GetBlockByNumber(ctx, 0, dbTx)
 		if err != nil {
 			return nil, err
 		}
-		return batch.Header, nil
+		return block.Header, nil
 
 	case PendingBlockNumber:
-		lastBatch, err := e.state.GetLastBatch(ctx, true, dbTx)
+		lastBlock, err := e.state.GetLastBlock(ctx, dbTx)
 		if err != nil {
 			return nil, err
 		}
 		header := &types.Header{
-			ParentHash: lastBatch.Hash(),
-			Number:     big.NewInt(0).SetUint64(lastBatch.Number().Uint64() + 1),
+			ParentHash: lastBlock.Hash(),
+			Number:     big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1),
 			Difficulty: big.NewInt(0),
 		}
 		return header, nil
 
 	default:
-		return e.state.GetBatchHeader(ctx, uint64(number), dbTx)
+		return e.state.GetBlockHeader(ctx, uint64(number), dbTx)
 	}
 }

@@ -106,12 +106,12 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 	bValue := *b
 	switch bValue {
 	case LatestBlockNumber, PendingBlockNumber:
-		lastBatchNumber, err := s.GetLastBatchNumber(ctx, dbTx)
+		lastBlockNumber, err := s.GetLastBlockNumber(ctx, dbTx)
 		if err != nil {
-			return 0, newRPCError(defaultErrorCode, "failed to get the last batch number from state")
+			return 0, newRPCError(defaultErrorCode, "failed to get the last block number from state")
 		}
 
-		return lastBatchNumber, nil
+		return lastBlockNumber, nil
 
 	case EarliestBlockNumber:
 		return 0, nil

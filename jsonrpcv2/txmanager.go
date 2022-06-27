@@ -7,13 +7,13 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type txManager struct{}
+type dbTxManager struct{}
 
-func (f *txManager) NewTxScope(st stateInterface, scopedFn func(ctx context.Context, dbTx pgx.Tx) (interface{}, error)) (interface{}, error) {
+func (f *dbTxManager) NewDbTxScope(st stateInterface, scopedFn func(ctx context.Context, dbTx pgx.Tx) (interface{}, error)) (interface{}, error) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	if err != nil {
-		return nil, newRPCError(defaultErrorCode, "failed to connect do state")
+		return nil, newRPCError(defaultErrorCode, "failed to connect to the state")
 	}
 
 	v, err := scopedFn(ctx, dbTx)
@@ -24,7 +24,7 @@ func (f *txManager) NewTxScope(st stateInterface, scopedFn func(ctx context.Cont
 	}
 
 	if txErr := dbTx.Commit(context.Background()); err != nil {
-		log.Errorf("failed to roll back tx: %v", txErr)
+		log.Errorf("failed to commit tx: %v", txErr)
 	}
 	return v, err
 }

@@ -48,7 +48,7 @@ func NewServer(cfg Config, defaultChainID uint64, chainID uint64,
 	}
 
 	if _, ok := apis[APIHez]; ok {
-		hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
+		hezEndpoints := &Hez{state: s}
 		handler.registerService("hez", hezEndpoints)
 	}
 

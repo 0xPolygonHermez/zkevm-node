@@ -8,8 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/state/runtime"
 	state "github.com/hermeznetwork/hermez-core/statev2"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -32,28 +32,28 @@ type stateInterface interface {
 	RollbackState(ctx context.Context, tx pgx.Tx) error
 	CommitState(ctx context.Context, tx pgx.Tx) error
 
-	// GetLastConsolidatedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	// GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
-	// GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*state.Receipt, error)
-	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
+	GetLastConsolidatedBlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
+	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error)
+	GetLastBlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.L2Block, error)
 	EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error)
-	GetBalance(ctx context.Context, address common.Address, batchNumber uint64, dbTx pgx.Tx) (*big.Int, error)
-	// GetBatchByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*state.Batch, error)
-	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
-	GetCode(ctx context.Context, address common.Address, batchNumber uint64, dbTx pgx.Tx) ([]byte, error)
-	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, batchNumber uint64, dbTx pgx.Tx) (*big.Int, error)
-	// GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (state.SyncingInfo, error)
-	// GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error)
-	// GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64, dbTx pgx.Tx) (*types.Transaction, error)
+	GetBalance(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error)
+	GetBlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*state.L2Block, error)
+	GetBlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*state.L2Block, error)
+	GetCode(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) ([]byte, error)
+	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error)
+	GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (state.SyncingInfo, error)
+	GetTransactionByBlockHashAndIndex(ctx context.Context, blockHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error)
+	GetTransactionByBlockNumberAndIndex(ctx context.Context, blockNumber uint64, index uint64, dbTx pgx.Tx) (*types.Transaction, error)
 	GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
-	// GetBatchHeader(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*types.Header, error)
-	// GetBatchTransactionCountByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (uint64, error)
-	// GetBatchTransactionCountByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (uint64, error)
-	// GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error)
-	// GetBatchHashesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]common.Hash, error)
+	GetBlockHeader(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error)
+	GetBlockTransactionCountByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (uint64, error)
+	GetBlockTransactionCountByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error)
+	GetBlockHashesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]common.Hash, error)
 	DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error)
-	// ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address, stateRoot []byte, dbTx pgx.Tx) *runtime.ExecutionResult
+	ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult
 }
 
 type storageInterface interface {

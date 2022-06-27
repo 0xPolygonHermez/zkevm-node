@@ -65,7 +65,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			expectedError:       nil,
 			setupMocks: func(s *stateMock, t *testCase) {
 				s.
-					On("GetLastBatchNumber", context.Background(), "").
+					On("GetLastBlockNumber", context.Background(), "").
 					Return(uint64(50), nil).
 					Once()
 			},
@@ -77,7 +77,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			expectedError:       nil,
 			setupMocks: func(s *stateMock, t *testCase) {
 				s.
-					On("GetLastBatchNumber", context.Background(), "").
+					On("GetLastBlockNumber", context.Background(), "").
 					Return(uint64(30), nil).
 					Once()
 			},
