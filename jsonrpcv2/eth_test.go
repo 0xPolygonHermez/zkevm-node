@@ -2008,6 +2008,16 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocks, tc testCase) {
 				blockNumber := uint64(10)
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(blockNumber, nil).
@@ -2025,6 +2035,16 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 			ExpectedResult: 0,
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
@@ -2038,6 +2058,16 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to count transactions"),
 			SetupMocks: func(m *mocks, tc testCase) {
 				blockNumber := uint64(10)
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(blockNumber, nil).
