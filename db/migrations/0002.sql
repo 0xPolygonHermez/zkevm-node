@@ -64,13 +64,13 @@ CREATE TABLE statev2.exit_root
     global_exit_root        BYTEA
 );
 
-CREATE TABLE statev2.misc
+CREATE TABLE statev2.sync_info
 (
     last_batch_num_seen BIGINT,
     last_batch_num_consolidated BIGINT,
     init_sync_batch BIGINT
 );
 
--- Insert default values into misc table
-INSERT INTO statev2.misc (last_batch_num_seen, last_batch_num_consolidated, init_sync_batch) VALUES(0, 0, 0);
+-- Insert default values into sync_info table
+INSERT INTO statev2.sync_info (last_batch_num_seen, last_batch_num_consolidated, init_sync_batch)VALUES (0, 0, 0);
 

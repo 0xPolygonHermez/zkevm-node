@@ -30,8 +30,8 @@ const (
 	getBlockTimeByNumSQL                   = "SELECT received_at FROM statev2.block WHERE block_num = $1"
 	getBatchByNumberSQL                    = "SELECT batch_num, global_exit_root, timestamp from statev2.batch WHERE batch_num = $1"
 	getEncodedTransactionsByBatchNumberSQL = "SELECT encoded from statev2.transaction where batch_num = $1"
-	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM statev2.misc LIMIT 1"
-	updateLastBatchSeenSQL                 = "UPDATE statev2.misc SET last_batch_num_seen = $1"
+	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM statev2.sync_info LIMIT 1"
+	updateLastBatchSeenSQL                 = "UPDATE statev2.sync_info SET last_batch_num_seen = $1"
 )
 
 // PostgresStorage implements the Storage interface
