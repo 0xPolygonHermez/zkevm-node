@@ -17,12 +17,16 @@ const (
 	getLatestExitRootSQL                   = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM statev2.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
 	getLatestExitRootBlockNumSQL           = "SELECT block_num FROM statev2.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
 	addForcedBatchSQL                      = "INSERT INTO statev2.forced_batch (block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer) VALUES ($1, $2, $3, $4, $5, $6)"
+	addVirtualBatchSQL                     = "INSERT INTO statev2.virtual_batch (batch_num, tx_hash, sequencer, block_num) VALUES ($1, $2, $3, $4)"
 	getForcedBatchSQL                      = "SELECT block_num, forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer FROM statev2.forced_batch WHERE forced_batch_num = $1"
 	addBlockSQL                            = "INSERT INTO statev2.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
+	getLastBlockSQL                        = "SELECT * FROM statev2.block ORDER BY block_num DESC LIMIT 1"
+	getPreviousBlockSQL                    = "SELECT * FROM statev2.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
 	resetSQL                               = "DELETE FROM statev2.block WHERE block_num > $1"
 	addVerifiedBatchSQL                    = "INSERT INTO statev2.verified_batch (block_num, batch_num, tx_hash, aggregator) VALUES ($1, $2, $3, $4)"
 	getVerifiedBatchSQL                    = "SELECT block_num, batch_num, tx_hash, aggregator FROM statev2.verified_batch WHERE batch_num = $1"
 	getLastBatchSQL                        = "SELECT batch_num, global_exit_root, timestamp from statev2.batch ORDER BY batch_num DESC LIMIT 1"
+	getLastBatchNumberSQL                  = "SELECT COALESCE(MAX(batch_num), 0) FROM statev2.batch"
 	getLastBatchTimeSQL                    = "SELECT timestamp FROM statev2.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchNumSQL              = "SELECT batch_num FROM statev2.virtual_batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchBlockNumSQL         = "SELECT block_num FROM statev2.virtual_batch ORDER BY batch_num DESC LIMIT 1"
@@ -32,6 +36,7 @@ const (
 	getEncodedTransactionsByBatchNumberSQL = "SELECT encoded from statev2.transaction where batch_num = $1"
 	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM statev2.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                 = "UPDATE statev2.sync_info SET last_batch_num_seen = $1"
+	resetTrustedBatchSQL                   = "DELETE FROM statev2.batch WHERE batch_num > $1"
 )
 
 // PostgresStorage implements the Storage interface
@@ -60,6 +65,26 @@ func (s *PostgresStorage) Reset(ctx context.Context, block *Block, tx pgx.Tx) er
 func (s *PostgresStorage) AddBlock(ctx context.Context, block *Block, tx pgx.Tx) error {
 	_, err := tx.Exec(ctx, addBlockSQL, block.BlockNumber, block.BlockHash.String(), block.ParentHash.String(), block.ReceivedAt)
 	return err
+}
+
+// GetLastBlock returns the last L1 block.
+func (s *PostgresStorage) GetLastBlock(ctx context.Context) (*Block, error) {
+	var block Block
+	err := s.QueryRow(ctx, getLastBlockSQL).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	}
+	return &block, err
+}
+
+// GetPreviousBlock gets the offset previous L1 block respect to latest.
+func (s *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64) (*Block, error) {
+	var block Block
+	err := s.QueryRow(ctx, getPreviousBlockSQL, offset).Scan(&block.BlockNumber, &block.BlockHash, &block.ParentHash, &block.ReceivedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return &block, err
 }
 
 // AddGlobalExitRoot adds a new ExitRoot to the db
@@ -206,6 +231,16 @@ func (s *PostgresStorage) GetLastBatch(ctx context.Context, tx pgx.Tx) (*Batch, 
 	return &batch, nil
 }
 
+// 	GetLastBatchNumber(ctx context.Context) (uint64, error)
+func (s *PostgresStorage) GetLastBatchNumber(ctx context.Context) (uint64, error) {
+	var batchNumber uint64
+	err := s.QueryRow(ctx, getLastBatchNumberSQL).Scan(&batchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrStateNotSynchronized
+	}
+	return batchNumber, err
+}
+
 // GetLastBatchTime gets last trusted batch time
 func (s *PostgresStorage) GetLastBatchTime(ctx context.Context) (time.Time, error) {
 	var timestamp time.Time
@@ -289,4 +324,16 @@ func (s *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Contex
 		txs = append(txs, encoded)
 	}
 	return txs, nil
+}
+
+// ResetTrustedState resets the batches which the batch number is highter than the input.
+func (s *PostgresStorage) ResetTrustedBatch(ctx context.Context, batchNumber uint64, tx pgx.Tx) error {
+	_, err := tx.Exec(ctx, resetTrustedBatchSQL, batchNumber)
+	return err
+}
+
+// AddVirtualBatch adds a new virtual batch to the storage.
+func (s *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch, tx pgx.Tx) error {
+	_, err := tx.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Sequencer.String(), virtualBatch.BlockNumber)
+	return err
 }

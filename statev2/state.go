@@ -91,11 +91,14 @@ func (s *State) ResetDB(ctx context.Context, block *Block, dbTx pgx.Tx) error {
 	return s.PostgresStorage.Reset(ctx, block, dbTx)
 }
 
-// ResetTrustedState resets the state db to a batch by its number
+// ResetTrustedState resets the trusted batches which is higher than input.
 func (s *State) ResetTrustedState(ctx context.Context, batchNum uint64, dbTx pgx.Tx) error {
-	// TODO: Implement
-	// This method will need to update a field in the forced_batch table
-	return nil
+	return s.PostgresStorage.ResetTrustedBatch(ctx, batchNum, dbTx)
+}
+
+// AddVirtualBatch add a new virtual batch to the state.
+func (s *State) AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch, dbTx pgx.Tx) error {
+	return s.PostgresStorage.AddVirtualBatch(ctx, virtualBatch, dbTx)
 }
 
 func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, dbTx pgx.Tx) error {
@@ -117,6 +120,16 @@ func (s *State) GetForcedBatch(ctx context.Context, dbTx pgx.Tx, forcedBatchNumb
 // AddBlock adds a new block to the State Store.
 func (s *State) AddBlock(ctx context.Context, block *Block, dbTx pgx.Tx) error {
 	return s.PostgresStorage.AddBlock(ctx, block, dbTx)
+}
+
+// GetLastBlock gets the last L1 block.
+func (s *State) GetLastBlock(ctx context.Context) (*Block, error) {
+	return s.PostgresStorage.GetLastBlock(ctx)
+}
+
+// GetPreviousBlock gets the offset previous L1 block respect to latest.
+func (s *State) GetPreviousBlock(ctx context.Context, offset uint64) (*Block, error) {
+	return s.PostgresStorage.GetPreviousBlock(ctx, offset)
 }
 
 // GetBalance from a given address
@@ -153,6 +166,12 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 func (s *State) StoreBatchHeader(ctx context.Context, batch Batch) error {
 	// TODO: implement
 	return nil
+}
+
+// GetNextForcedBatches returns the next forced batches by nextForcedBatches
+func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) (*[]ForcedBatch, error) {
+	// TODO: implement
+	return nil, nil
 }
 
 // ProcessBatch is used by the Trusted Sequencer to add transactions to the last batch
@@ -192,14 +211,14 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 	return s.PostgresStorage.GetLastBatch(ctx, dbTx)
 }
 
+// GetLastBatchNumber gets the last batch number.
+func (s *State) GetLastBatchNumber(ctx context.Context) (uint64, error) {
+	return s.PostgresStorage.GetLastBatchNumber(ctx)
+}
+
 // GetBatchByNumber gets a batch from data base by its number
 func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
 	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, tx)
-}
-
-func (s *State) GetTrustedBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
-	// TODO: implement
-	return nil, nil
 }
 
 // GetEncodedTransactionsByBatchNumber gets the txs for a given batch in encoded form
