@@ -15,6 +15,8 @@ CREATE TABLE statev2.block ( --L1 block
 CREATE TABLE statev2.batch (  --batch abstraction: will be created through trusted state
     batch_num BIGINT PRIMARY KEY,
     global_exit_root VARCHAR,
+    local_exit_root VARCHAR,
+    state_root VARCHAR,
     timestamp TIMESTAMP,
     raw_txs_data VARCHAR
 );
@@ -61,3 +63,14 @@ CREATE TABLE statev2.exit_root
     rollup_exit_root        BYTEA,
     global_exit_root        BYTEA
 );
+
+CREATE TABLE statev2.sync_info
+(
+    last_batch_num_seen BIGINT,
+    last_batch_num_consolidated BIGINT,
+    init_sync_batch BIGINT
+);
+
+-- Insert default values into sync_info table
+INSERT INTO statev2.sync_info (last_batch_num_seen, last_batch_num_consolidated, init_sync_batch)VALUES (0, 0, 0);
+

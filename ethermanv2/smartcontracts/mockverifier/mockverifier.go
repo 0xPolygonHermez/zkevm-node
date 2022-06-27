@@ -30,8 +30,8 @@ var (
 
 // MockverifierMetaData contains all meta data concerning the Mockverifier contract.
 var MockverifierMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"uint256[2]\",\"name\":\"a\",\"type\":\"uint256[2]\"},{\"internalType\":\"uint256[2][2]\",\"name\":\"b\",\"type\":\"uint256[2][2]\"},{\"internalType\":\"uint256[2]\",\"name\":\"c\",\"type\":\"uint256[2]\"},{\"internalType\":\"uint256[1]\",\"name\":\"input\",\"type\":\"uint256[1]\"}],\"name\":\"verifyProof\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
-	Bin: "0x608060405234801561001057600080fd5b506101b3806100206000396000f3fe608060405234801561001057600080fd5b506004361061002b5760003560e01c806343753b4d14610030575b600080fd5b61004a600480360381019061004591906100de565b610060565b6040516100579190610162565b60405180910390f35b600060019050949350505050565b600080fd5b600080fd5b60008190508260206002028201111561009457610093610073565b5b92915050565b6000819050826040600202820111156100b6576100b5610073565b5b92915050565b6000819050826020600102820111156100d8576100d7610073565b5b92915050565b60008060008061012085870312156100f9576100f861006e565b5b600061010787828801610078565b94505060406101188782880161009a565b93505060c061012987828801610078565b92505061010061013b878288016100bc565b91505092959194509250565b60008115159050919050565b61015c81610147565b82525050565b60006020820190506101776000830184610153565b9291505056fea264697066735822122098f126bb690706949ce56f0ca2e0c79284ab1509c1da7d5ee099f04437178e3064736f6c63430008090033",
+	ABI: "[{\"inputs\":[{\"internalType\":\"uint256[2]\",\"name\":\"a\",\"type\":\"uint256[2]\"},{\"internalType\":\"uint256[2][2]\",\"name\":\"b\",\"type\":\"uint256[2][2]\"},{\"internalType\":\"uint256[2]\",\"name\":\"c\",\"type\":\"uint256[2]\"},{\"internalType\":\"uint256[2]\",\"name\":\"input\",\"type\":\"uint256[2]\"}],\"name\":\"verifyProof\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b50610191806100206000396000f3fe608060405234801561001057600080fd5b506004361061002b5760003560e01c8063f5c9d69e14610030575b600080fd5b61004a600480360381019061004591906100bc565b610060565b6040516100579190610140565b60405180910390f35b600060019050949350505050565b600080fd5b600080fd5b60008190508260206002028201111561009457610093610073565b5b92915050565b6000819050826040600202820111156100b6576100b5610073565b5b92915050565b60008060008061014085870312156100d7576100d661006e565b5b60006100e587828801610078565b94505060406100f68782880161009a565b93505060c061010787828801610078565b92505061010061011987828801610078565b91505092959194509250565b60008115159050919050565b61013a81610125565b82525050565b60006020820190506101556000830184610131565b9291505056fea2646970667358221220a11b4eb2852bd551fa329eff8f810d21cbd86471fe731f5dd0e11f58e11f6be964736f6c63430008090033",
 }
 
 // MockverifierABI is the input ABI used to generate the binding from.
@@ -201,10 +201,10 @@ func (_Mockverifier *MockverifierTransactorRaw) Transact(opts *bind.TransactOpts
 	return _Mockverifier.Contract.contract.Transact(opts, method, params...)
 }
 
-// VerifyProof is a free data retrieval call binding the contract method 0x43753b4d.
+// VerifyProof is a free data retrieval call binding the contract method 0xf5c9d69e.
 //
-// Solidity: function verifyProof(uint256[2] a, uint256[2][2] b, uint256[2] c, uint256[1] input) view returns(bool)
-func (_Mockverifier *MockverifierCaller) VerifyProof(opts *bind.CallOpts, a [2]*big.Int, b [2][2]*big.Int, c [2]*big.Int, input [1]*big.Int) (bool, error) {
+// Solidity: function verifyProof(uint256[2] a, uint256[2][2] b, uint256[2] c, uint256[2] input) view returns(bool)
+func (_Mockverifier *MockverifierCaller) VerifyProof(opts *bind.CallOpts, a [2]*big.Int, b [2][2]*big.Int, c [2]*big.Int, input [2]*big.Int) (bool, error) {
 	var out []interface{}
 	err := _Mockverifier.contract.Call(opts, &out, "verifyProof", a, b, c, input)
 
@@ -218,16 +218,16 @@ func (_Mockverifier *MockverifierCaller) VerifyProof(opts *bind.CallOpts, a [2]*
 
 }
 
-// VerifyProof is a free data retrieval call binding the contract method 0x43753b4d.
+// VerifyProof is a free data retrieval call binding the contract method 0xf5c9d69e.
 //
-// Solidity: function verifyProof(uint256[2] a, uint256[2][2] b, uint256[2] c, uint256[1] input) view returns(bool)
-func (_Mockverifier *MockverifierSession) VerifyProof(a [2]*big.Int, b [2][2]*big.Int, c [2]*big.Int, input [1]*big.Int) (bool, error) {
+// Solidity: function verifyProof(uint256[2] a, uint256[2][2] b, uint256[2] c, uint256[2] input) view returns(bool)
+func (_Mockverifier *MockverifierSession) VerifyProof(a [2]*big.Int, b [2][2]*big.Int, c [2]*big.Int, input [2]*big.Int) (bool, error) {
 	return _Mockverifier.Contract.VerifyProof(&_Mockverifier.CallOpts, a, b, c, input)
 }
 
-// VerifyProof is a free data retrieval call binding the contract method 0x43753b4d.
+// VerifyProof is a free data retrieval call binding the contract method 0xf5c9d69e.
 //
-// Solidity: function verifyProof(uint256[2] a, uint256[2][2] b, uint256[2] c, uint256[1] input) view returns(bool)
-func (_Mockverifier *MockverifierCallerSession) VerifyProof(a [2]*big.Int, b [2][2]*big.Int, c [2]*big.Int, input [1]*big.Int) (bool, error) {
+// Solidity: function verifyProof(uint256[2] a, uint256[2][2] b, uint256[2] c, uint256[2] input) view returns(bool)
+func (_Mockverifier *MockverifierCallerSession) VerifyProof(a [2]*big.Int, b [2][2]*big.Int, c [2]*big.Int, input [2]*big.Int) (bool, error) {
 	return _Mockverifier.Contract.VerifyProof(&_Mockverifier.CallOpts, a, b, c, input)
 }

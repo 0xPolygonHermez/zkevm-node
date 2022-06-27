@@ -3,6 +3,7 @@ DOCKERCOMPOSEAPPSEQ := hez-core-sequencer
 DOCKERCOMPOSEAPPAGG := hez-core-agg
 DOCKERCOMPOSEAPPRPC := hez-core-rpc
 DOCKERCOMPOSEAPPSYNC := hez-core-sync
+DOCKERCOMPOSEAPPBROADCAST := hez-core-broadcast
 DOCKERCOMPOSEDB := hez-postgres
 DOCKERCOMPOSENETWORK := hez-network
 DOCKERCOMPOSEPROVER := hez-prover
@@ -15,6 +16,7 @@ RUNCORESEQ := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
 RUNCOREAGG := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
 RUNCORERPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
 RUNCORESYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
+RUNCOREBROADCAST := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPBROADCAST)
 
 RUNNETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
 RUNPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPROVER)
@@ -28,6 +30,7 @@ STOPCORESEQ := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) 
 STOPCOREAGG := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
 STOPCORERPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
 STOPCORESYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSYNC)
+STOPCOREBROADCAST := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPBROADCAST) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPBROADCAST)
 
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
 STOPPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPROVER)
@@ -184,6 +187,14 @@ run: compile-scs ## Runs all the services
 	$(RUNCORESYNC)
 	$(RUNEXPLORER)
 
+.PHONY: run-broadcast
+run-broadcast: ## Runs the broadcast service
+	$(RUNCOREBROADCAST)
+
+.PHONY: stop-broadcast
+stop-broadcast: ## Stops the broadcast service
+	$(STOPCOREBROADCAST)
+
 .PHONY: init-network
 init-network: ## Initializes the network
 	go run ./scripts/init_network/main.go .
@@ -229,7 +240,7 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files
-	cd proto/src/proto/mt/v1 && protoc --proto_path=. --go_out=../../../../../state/tree/pb --go-grpc_out=../../../../../state/tree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative mt.proto
+	cd proto/src/proto/mt/v1 && protoc --proto_path=. --proto_path=../../../../include --go_out=../../../../../merkletree/pb --go-grpc_out=../../../../../merkletree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative mt.proto
 	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverclient/pb --go-grpc_out=../../../../../proverclient/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative zk-prover.proto
 	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverservice/pb --go-grpc_out=../../../../../proverservice/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative zk-prover.proto
 	cd proto/src/proto/executor/v1 && protoc --proto_path=. --go_out=../../../../../statev2/runtime/executor/pb --go-grpc_out=../../../../../statev2/runtime/executor/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative executor.proto

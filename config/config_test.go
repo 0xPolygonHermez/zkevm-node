@@ -68,7 +68,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencerv2.WaitBlocksToUpdateGER",
-			expectedValue: uint32(10),
+			expectedValue: uint64(10),
 		},
 		{
 			path:          "Sequencerv2.LastTimeBatchMaxWaitPeriod",
@@ -125,6 +125,18 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "RPC.SequencerAddress",
 			expectedValue: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+		},
+		{
+			path:          "BroadcastServer.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
+			path:          "BroadcastServer.Port",
+			expectedValue: 61090,
+		},
+		{
+			path:          "BroadcastClient.URI",
+			expectedValue: "127.0.0.1:61090",
 		},
 	}
 

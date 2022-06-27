@@ -199,7 +199,7 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 		GenerateCallTrace:    false,
 	}
 
-	// Send Bath to the Executor
+	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	return convertToProcessBatchResponse(processBatchResponse), err
 }
@@ -222,16 +222,20 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, batch Batch) err
 	return nil
 }
 
+// GetLastTrustedBatchNumber get last trusted batch number
+func (s *State) GetLastTrustedBatchNumber(ctx context.Context) (uint64, error) {
+	// TODO: implement
+	return 0, nil
+}
+
 // GetLastBatch gets latest batch (closed or not) on the data base
 func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
-	// TODO: implement
-	return nil, nil
+	return s.PostgresStorage.GetLastBatch(ctx, dbTx)
 }
 
 // GetBatchByNumber gets a batch from data base by its number
 func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
-	// TODO: implement
-	return nil, nil
+	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, tx)
 }
 
 func (s *State) GetTrustedBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
@@ -241,8 +245,7 @@ func (s *State) GetTrustedBatchByNumber(ctx context.Context, batchNumber uint64,
 
 // GetEncodedTransactionsByBatchNumber gets the txs for a given batch in encoded form
 func (s *State) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (encoded []string, err error) {
-	// TODO: implement
-	return nil, nil
+	return s.PostgresStorage.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, tx)
 }
 
 // ProcessSequence process sequence of the txs
@@ -251,22 +254,9 @@ func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Tran
 	return &runtime.ExecutionResult{}
 }
 
-// GetLastSendSequenceTime get time from last l1 interaction time
-// TODO: implement function
-func (s *State) GetLastSendSequenceTime(ctx context.Context) (time.Time, error) {
-	return time.Now(), nil
-}
-
-// GetNumberOfBlocksSinceLastGERUpdate get time from last time get
-// TODO: implement function
-func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint32, error) {
-	return 0, nil
-}
-
-// GetLastBatchTime get last batch time
-// TODO: implement function
-func (s *State) GetLastBatchTime(ctx context.Context) (time.Time, error) {
-	return time.Now(), nil
+// GetNumberOfBlocksSinceLastGERUpdate get number of blocks since last global exit root updated
+func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint64, error) {
+	return s.PostgresStorage.GetNumberOfBlocksSinceLastGERUpdate(ctx)
 }
 
 // AddVerifiedBatch adds a new VerifiedBatch to the db
