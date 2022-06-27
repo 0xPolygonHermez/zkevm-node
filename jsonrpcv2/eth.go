@@ -26,11 +26,6 @@ type Eth struct {
 	txMan            dbTxManager
 }
 
-type blockNumberOrHash struct {
-	BlockNumber *BlockNumber `json:"blockNumber,omitempty"`
-	BlockHash   *common.Hash `json:"blockHash,omitempty"`
-}
-
 // BlockNumber returns current block number
 func (e *Eth) BlockNumber() (interface{}, error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
@@ -51,13 +46,9 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
 		if arg.Gas == nil || *arg.Gas == argUint64(0) {
-			filter := blockNumberOrHash{
-				BlockNumber: number,
-			}
-
-			header, err := e.getHeaderFromBlockNumberOrHash(ctx, &filter, dbTx)
+			header, err := e.getBlockHeader(ctx, *number, dbTx)
 			if err != nil {
-				const errorMessage = "failed to get header from block hash or block number"
+				const errorMessage = "failed to get block header"
 				log.Errorf("%v: %v", errorMessage, err)
 				return nil, newRPCError(defaultErrorCode, errorMessage)
 			}
@@ -663,29 +654,6 @@ func hexToTx(str string) (*types.Transaction, error) {
 	}
 
 	return tx, nil
-}
-
-func (e *Eth) getHeaderFromBlockNumberOrHash(ctx context.Context, bnh *blockNumberOrHash, dbTx pgx.Tx) (*types.Header, error) {
-	var (
-		header *types.Header
-		err    error
-	)
-
-	if bnh.BlockNumber != nil {
-		header, err = e.getBlockHeader(ctx, *bnh.BlockNumber, dbTx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get the header of block %d: %s", *bnh.BlockNumber, err.Error())
-		}
-	} else if bnh.BlockHash != nil {
-		block, err := e.state.GetBlockByHash(context.Background(), *bnh.BlockHash, dbTx)
-		if err != nil {
-			return nil, fmt.Errorf("could not find block referenced by the hash %s, err: %v", bnh.BlockHash.String(), err)
-		}
-
-		header = block.Header
-	}
-
-	return header, nil
 }
 
 func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.Tx) (*types.Header, error) {
