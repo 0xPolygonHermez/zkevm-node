@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math/big"
-	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum"
@@ -229,9 +227,6 @@ func TestCall(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			fmt.Println("******************************************************************************************")
-			fmt.Println(strings.ToUpper(testCase.name))
-			fmt.Println("******************************************************************************************")
 			msg := ethereum.CallMsg{From: testCase.from, To: testCase.to, Gas: testCase.gas, GasPrice: testCase.gasPrice, Value: testCase.value, Data: testCase.data}
 
 			testCase.setupMocks(m, testCase)
@@ -376,8 +371,18 @@ func TestGetBalance(t *testing.T) {
 			expectedBalance: 0,
 			expectedError:   newRPCError(defaultErrorCode, "failed to get the last block number from state"),
 			setupMocks: func(m *mocks, t *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
 				m.State.
-					On("GetLastBlockNumber", context.Background(), "").
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
 					Once()
 			},
@@ -391,13 +396,23 @@ func TestGetBalance(t *testing.T) {
 			expectedError:   nil,
 			setupMocks: func(m *mocks, t *testCase) {
 				const lastBlockNumber = uint64(10)
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
 				m.State.
-					On("GetLastBlockNumber", context.Background(), "").
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(lastBlockNumber, nil).
 					Once()
 
 				m.State.
-					On("GetBalance", context.Background(), t.addr, lastBlockNumber, "").
+					On("GetBalance", context.Background(), t.addr, lastBlockNumber, m.DbTx).
 					Return(t.balance, nil).
 					Once()
 			},
@@ -411,13 +426,23 @@ func TestGetBalance(t *testing.T) {
 			expectedError:   nil,
 			setupMocks: func(m *mocks, t *testCase) {
 				const lastBlockNumber = uint64(10)
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
 				m.State.
-					On("GetLastBlockNumber", context.Background(), "").
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(lastBlockNumber, nil).
 					Once()
 
 				m.State.
-					On("GetBalance", context.Background(), t.addr, lastBlockNumber, "").
+					On("GetBalance", context.Background(), t.addr, lastBlockNumber, m.DbTx).
 					Return(big.NewInt(0), state.ErrNotFound).
 					Once()
 			},
@@ -431,13 +456,23 @@ func TestGetBalance(t *testing.T) {
 			expectedError:   newRPCError(defaultErrorCode, "failed to get balance from state"),
 			setupMocks: func(m *mocks, t *testCase) {
 				const lastBlockNumber = uint64(10)
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
 				m.State.
-					On("GetLastBlockNumber", context.Background(), "").
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(lastBlockNumber, nil).
 					Once()
 
 				m.State.
-					On("GetBalance", context.Background(), t.addr, lastBlockNumber, "").
+					On("GetBalance", context.Background(), t.addr, lastBlockNumber, m.DbTx).
 					Return(nil, errors.New("failed to get balance")).
 					Once()
 			},
