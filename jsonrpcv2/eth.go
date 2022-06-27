@@ -111,12 +111,12 @@ func (e *Eth) GasPrice() (interface{}, error) {
 func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface{}, error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		var err error
-		blockNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		batchNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
 			return nil, err
 		}
 
-		balance, err := e.state.GetBalance(ctx, address, blockNumber, dbTx)
+		balance, err := e.state.GetBalance(ctx, address, batchNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return hex.EncodeUint64(0), nil
 		} else if err != nil {
@@ -215,23 +215,26 @@ func (e *Eth) GetCompilers() (interface{}, error) {
 // GetFilterChanges polling method for a filter, which returns
 // an array of logs which occurred since last poll.
 func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
-	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
-		filter, err := e.storage.GetFilter(uint64(filterID))
-		if errors.Is(err, ErrNotFound) {
-			return nil, nil
-		} else if err != nil {
-			return nil, err
-		}
+	filter, err := e.storage.GetFilter(uint64(filterID))
+	if errors.Is(err, ErrNotFound) {
+		return nil, nil
+	} else if err != nil {
+		const errorMessage = "failed to get filter from storage"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
+	}
 
-		err = e.storage.UpdateFilterLastPoll(filter.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		switch filter.Type {
-		case FilterTypeBlock:
-			{
-				res, err := e.state.GetBlockHashesSince(ctx, filter.LastPoll, dbTx)
+	switch filter.Type {
+	case FilterTypeBlock:
+		{
+			return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
+				res, err := e.state.GetBlockHashesSince(context.Background(), filter.LastPoll, dbTx)
+				if err != nil {
+					const errorMessage = "failed to get block hashes"
+					log.Errorf("%v:%v", errorMessage, err)
+					return nil, newRPCError(defaultErrorCode, errorMessage)
+				}
+				err = e.updateFilterLastPoll(filter.ID)
 				if err != nil {
 					return nil, err
 				}
@@ -239,29 +242,43 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
 					return nil, nil
 				}
 				return res, nil
+			})
+		}
+	case FilterTypePendingTx:
+		{
+			res, err := e.pool.GetPendingTxHashesSince(context.Background(), filter.LastPoll)
+			if err != nil {
+				const errorMessage = "failed to get pending transaction hashes"
+				log.Errorf("%v:%v", errorMessage, err)
+				return nil, newRPCError(defaultErrorCode, errorMessage)
 			}
-		case FilterTypePendingTx:
-			{
-				res, err := e.pool.GetPendingTxHashesSince(ctx, filter.LastPoll)
-				if err != nil {
-					return nil, err
-				}
-				if len(res) == 0 {
-					return nil, nil
-				}
-				return res, nil
+			err = e.updateFilterLastPoll(filter.ID)
+			if err != nil {
+				return nil, err
 			}
-		case FilterTypeLog:
-			{
+			if len(res) == 0 {
+				return nil, nil
+			}
+			return res, nil
+		}
+	case FilterTypeLog:
+		{
+			return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 				filterParameters := &LogFilter{}
 				err = json.Unmarshal([]byte(filter.Parameters), filterParameters)
 				if err != nil {
-					return nil, err
+					const errorMessage = "failed to read filter parameters"
+					log.Errorf("%v:%v", errorMessage, err)
+					return nil, newRPCError(defaultErrorCode, errorMessage)
 				}
 
 				filterParameters.Since = &filter.LastPoll
 
-				resInterface, err := e.GetLogs(filterParameters)
+				resInterface, err := e.internalGetLogs(ctx, dbTx, filterParameters)
+				if err != nil {
+					return nil, err
+				}
+				err = e.updateFilterLastPoll(filter.ID)
 				if err != nil {
 					return nil, err
 				}
@@ -270,11 +287,11 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, error) {
 					return nil, nil
 				}
 				return res, nil
-			}
-		default:
-			return nil, nil
+			})
 		}
-	})
+	default:
+		return nil, nil
+	}
 }
 
 // GetFilterLogs returns an array of all logs mlocking filter
@@ -284,7 +301,9 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 	if errors.Is(err, ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
-		return nil, err
+		const errorMessage = "failed to get filter from storage"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	if filter.Type != FilterTypeLog {
@@ -294,7 +313,9 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 	filterParameters := &LogFilter{}
 	err = json.Unmarshal([]byte(filter.Parameters), filterParameters)
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to read filter parameters"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	filterParameters.Since = nil
@@ -305,41 +326,47 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, error) {
 // GetLogs returns a list of logs accordingly to the provided filter
 func (e *Eth) GetLogs(filter *LogFilter) (interface{}, error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
-		var err error
-		fromBlock, err := filter.FromBlock.getNumericBlockNumber(ctx, e.state, dbTx)
-		if err != nil {
-			return nil, err
-		}
-
-		toBlock, err := filter.ToBlock.getNumericBlockNumber(ctx, e.state, dbTx)
-		if err != nil {
-			return nil, err
-		}
-
-		logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash, filter.Since, dbTx)
-		if err != nil {
-			return nil, err
-		}
-
-		result := make([]rpcLog, 0, len(logs))
-		for _, l := range logs {
-			result = append(result, logToRPCLog(*l))
-		}
-
-		return result, nil
+		return e.internalGetLogs(ctx, dbTx, filter)
 	})
+}
+
+func (e *Eth) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter *LogFilter) (interface{}, error) {
+	var err error
+	fromBlock, err := filter.FromBlock.getNumericBlockNumber(ctx, e.state, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	toBlock, err := filter.ToBlock.getNumericBlockNumber(ctx, e.state, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	logs, err := e.state.GetLogs(ctx, fromBlock, toBlock, filter.Addresses, filter.Topics, filter.BlockHash, filter.Since, dbTx)
+	if err != nil {
+		const errorMessage = "failed to get logs from state"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
+	}
+
+	result := make([]rpcLog, 0, len(logs))
+	for _, l := range logs {
+		result = append(result, logToRPCLog(*l))
+	}
+
+	return result, nil
 }
 
 // GetStorageAt gets the value stored for an specific address and position
 func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number *BlockNumber) (interface{}, error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		var err error
-		blockNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		batchNumber, err := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if err != nil {
 			return nil, err
 		}
 
-		value, err := e.state.GetStorageAt(ctx, address, position.Big(), blockNumber, dbTx)
+		value, err := e.state.GetStorageAt(ctx, address, position.Big(), batchNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return argBytesPtr(common.Hash{}.Bytes()), nil
 		} else if err != nil {
@@ -529,7 +556,9 @@ func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, error) {
 func (e *Eth) NewBlockFilter() (interface{}, error) {
 	id, err := e.storage.NewBlockFilter()
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to create new block filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argUint64(id), nil
@@ -541,7 +570,9 @@ func (e *Eth) NewBlockFilter() (interface{}, error) {
 func (e *Eth) NewFilter(filter *LogFilter) (interface{}, error) {
 	id, err := e.storage.NewLogFilter(*filter)
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to create new log filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argUint64(id), nil
@@ -553,7 +584,9 @@ func (e *Eth) NewFilter(filter *LogFilter) (interface{}, error) {
 func (e *Eth) NewPendingTransactionFilter(filterID argUint64) (interface{}, error) {
 	id, err := e.storage.NewPendingTransactionFilter()
 	if err != nil {
-		return nil, err
+		const errorMessage = "failed to create new pending transaction filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
 	}
 
 	return argUint64(id), nil
@@ -584,7 +617,14 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, error) {
 // Filters timeout when they aren’t requested with
 // eth_getFilterChanges for a period of time.
 func (e *Eth) UninstallFilter(filterID argUint64) (interface{}, error) {
-	return e.storage.UninstallFilter(uint64(filterID))
+	uninstalled, err := e.storage.UninstallFilter(uint64(filterID))
+	if err != nil {
+		const errorMessage = "failed to uninstall filter"
+		log.Errorf("%v:%v", errorMessage, err)
+		return nil, newRPCError(defaultErrorCode, errorMessage)
+	}
+
+	return uninstalled, nil
 }
 
 // Syncing returns an object with data about the sync status or false.
@@ -687,4 +727,14 @@ func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.T
 	default:
 		return e.state.GetBlockHeader(ctx, uint64(number), dbTx)
 	}
+}
+
+func (e *Eth) updateFilterLastPoll(filterID uint64) rpcError {
+	err := e.storage.UpdateFilterLastPoll(filterID)
+	if err != nil {
+		const errorMessage = "failed to update last time the filter changes were requested"
+		log.Errorf("%v:%v", errorMessage, err)
+		return newRPCError(defaultErrorCode, errorMessage)
+	}
+	return nil
 }
