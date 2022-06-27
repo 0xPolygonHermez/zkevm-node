@@ -1752,6 +1752,16 @@ func TestGetTransactionByHash(t *testing.T) {
 			ExpectedResult:  types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
 			ExpectedError:   nil,
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(tc.ExpectedResult, nil).
@@ -1774,6 +1784,16 @@ func TestGetTransactionByHash(t *testing.T) {
 			ExpectedResult:  nil,
 			ExpectedError:   ethereum.NotFound,
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(nil, state.ErrNotFound).
@@ -1787,6 +1807,16 @@ func TestGetTransactionByHash(t *testing.T) {
 			ExpectedResult:  nil,
 			ExpectedError:   newRPCError(defaultErrorCode, "failed to load transaction by hash from state"),
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(nil, errors.New("failed to load transaction by hash from state")).
@@ -1801,6 +1831,16 @@ func TestGetTransactionByHash(t *testing.T) {
 			ExpectedError:   ethereum.NotFound,
 			SetupMocks: func(m *mocks, tc testCase) {
 				var tx *types.Transaction
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(tx, nil).
@@ -1820,6 +1860,16 @@ func TestGetTransactionByHash(t *testing.T) {
 			ExpectedError:   newRPCError(defaultErrorCode, "failed to load transaction receipt from state"),
 			SetupMocks: func(m *mocks, tc testCase) {
 				var tx *types.Transaction
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(tx, nil).
