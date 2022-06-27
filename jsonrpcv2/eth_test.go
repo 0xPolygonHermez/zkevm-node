@@ -1105,6 +1105,16 @@ func TestGetStorageAt(t *testing.T) {
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
 
 			SetupMocks: func(m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
@@ -1120,6 +1130,16 @@ func TestGetStorageAt(t *testing.T) {
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get code"),
 
 			SetupMocks: func(m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetStorageAt", context.Background(), tc.Addr, tc.Key.Big(), tc.BlockNumber.Uint64(), m.DbTx).
 					Return(nil, errors.New("failed to get code")).
@@ -1135,6 +1155,16 @@ func TestGetStorageAt(t *testing.T) {
 			ExpectedError:  nil,
 
 			SetupMocks: func(m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetStorageAt", context.Background(), tc.Addr, tc.Key.Big(), tc.BlockNumber.Uint64(), m.DbTx).
 					Return(nil, state.ErrNotFound).
@@ -1150,6 +1180,16 @@ func TestGetStorageAt(t *testing.T) {
 			ExpectedError:  nil,
 
 			SetupMocks: func(m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetStorageAt", context.Background(), tc.Addr, tc.Key.Big(), tc.BlockNumber.Uint64(), m.DbTx).
 					Return(big.NewInt(123), nil).
