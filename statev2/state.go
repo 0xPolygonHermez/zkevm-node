@@ -155,10 +155,11 @@ func (s *State) StoreBatchHeader(ctx context.Context, batch Batch) error {
 	return nil
 }
 
-// ProcessBatch is used by the Trusted Sequencer to add transactions to the batch
-func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction) (*ProcessBatchResponse, error) {
+// ProcessBatch is used by the Trusted Sequencer to add transactions to the last batch
+func (s *State) ProcessBatch(ctx context.Context, txs []types.Transaction) (*ProcessBatchResponse, error) {
 	// TODO: implement
-	// check batchNumber is the latest in db
+	// get latest batch from the database to get GER and Timestamp
+	// get batch before latest to get state root and local exit root
 	return nil, nil
 }
 
@@ -178,6 +179,12 @@ func (s *State) ProcessAndStoreWIPBatch(ctx context.Context, batch Batch) error 
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, batch Batch) error {
 	// TODO: implement
 	return nil
+}
+
+// GetLastTrustedBatchNumber get last trusted batch number
+func (s *State) GetLastTrustedBatchNumber(ctx context.Context) (uint64, error) {
+	// TODO: implement
+	return 0, nil
 }
 
 // GetLastBatch gets latest batch (closed or not) on the data base
@@ -206,22 +213,9 @@ func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Tran
 	return &runtime.ExecutionResult{}
 }
 
-// GetLastSendSequenceTime get time from last l1 interaction time
-// TODO: implement function
-func (s *State) GetLastSendSequenceTime(ctx context.Context) (time.Time, error) {
-	return time.Now(), nil
-}
-
-// GetNumberOfBlocksSinceLastGERUpdate get time from last time get
-// TODO: implement function
-func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint32, error) {
-	return 0, nil
-}
-
-// GetLastBatchTime get last batch time
-// TODO: implement function
-func (s *State) GetLastBatchTime(ctx context.Context) (time.Time, error) {
-	return time.Now(), nil
+// GetNumberOfBlocksSinceLastGERUpdate get number of blocks since last global exit root updated
+func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint64, error) {
+	return s.PostgresStorage.GetNumberOfBlocksSinceLastGERUpdate(ctx)
 }
 
 // AddVerifiedBatch adds a new VerifiedBatch to the db

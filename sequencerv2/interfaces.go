@@ -10,8 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/runtime"
+	"github.com/hermeznetwork/hermez-core/statev2"
+	"github.com/jackc/pgx/v4"
 )
 
 // Consumer interfaces required by the package.
@@ -33,19 +33,13 @@ type etherman interface {
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
-	GetLastBatchNumberSeenOnEthereum(ctx context.Context, txBundleID string) (uint64, error)
+	GetLastVirtualBatchNum(ctx context.Context) (uint64, error)
+	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
+	GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*statev2.GlobalExitRoot, error)
 
-	SetGenesis(ctx context.Context, genesis state.Genesis, txBundleID string) error
-	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
-	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
-	SetInitSyncBatch(ctx context.Context, batchNumber uint64, txBundleID string) error
-
-	AddBlock(ctx context.Context, block *state.Block, txBundleID string) error
-
-	ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult
+	ProcessBatch(ctx context.Context, txs []types.Transaction) (*statev2.ProcessBatchResponse, error)
 	GetLastSendSequenceTime(ctx context.Context) (time.Time, error)
-	GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint32, error)
+	GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint64, error)
 	GetLastBatchTime(ctx context.Context) (time.Time, error)
 }
 
