@@ -1360,6 +1360,15 @@ func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocks, tc testCase) {
 				tx := tc.ExpectedResult
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
 
 				m.State.
 					On("GetTransactionByBlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
@@ -1373,7 +1382,7 @@ func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
 
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
-					Return(*receipt, nil).
+					Return(receipt, nil).
 					Once()
 			},
 		},
@@ -1384,6 +1393,16 @@ func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
 			ExpectedResult: nil,
 			ExpectedError:  ethereum.NotFound,
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByBlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
 					Return(nil, state.ErrNotFound).
@@ -1397,6 +1416,16 @@ func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
 			ExpectedResult: nil,
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get transaction"),
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByBlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
 					Return(nil, errors.New("failed to get transaction by block and index from state")).
@@ -1411,6 +1440,15 @@ func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
 			ExpectedError:  ethereum.NotFound,
 			SetupMocks: func(m *mocks, tc testCase) {
 				tx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
 
 				m.State.
 					On("GetTransactionByBlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
@@ -1431,6 +1469,15 @@ func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get transaction receipt"),
 			SetupMocks: func(m *mocks, tc testCase) {
 				tx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
 
 				m.State.
 					On("GetTransactionByBlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
@@ -1504,7 +1551,7 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 				receipt.TransactionIndex = tc.Index
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
-					Return(*receipt, nil).
+					Return(receipt, nil).
 					Once()
 			},
 		},
@@ -1656,7 +1703,7 @@ func TestGetTransactionByHash(t *testing.T) {
 
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
-					Return(*receipt, nil).
+					Return(receipt, nil).
 					Once()
 			},
 		},

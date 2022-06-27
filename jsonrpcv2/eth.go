@@ -359,7 +359,7 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 			return nil, nil
 		} else if err != nil {
 			const errorMessage = "failed to get transaction"
-			log.Error("%v: %v", errorMessage, err)
+			log.Errorf("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
@@ -368,7 +368,7 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 			return nil, nil
 		} else if err != nil {
 			const errorMessage = "failed to get transaction receipt"
-			log.Error("%v: %v", errorMessage, err)
+			log.Errorf("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
@@ -391,7 +391,7 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 			return nil, nil
 		} else if err != nil {
 			const errorMessage = "failed to get transaction"
-			log.Error("%v: %v", errorMessage, err)
+			log.Errorf("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
@@ -400,7 +400,7 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 			return nil, nil
 		} else if err != nil {
 			const errorMessage = "failed to get transaction receipt"
-			log.Error("%v: %v", errorMessage, err)
+			log.Errorf("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
