@@ -1927,6 +1927,16 @@ func TestGetBlockTransactionCountByHash(t *testing.T) {
 			ExpectedResult: uint(10),
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetBlockTransactionCountByHash", context.Background(), tc.BlockHash, m.DbTx).
 					Return(uint64(10), nil).
@@ -1939,6 +1949,16 @@ func TestGetBlockTransactionCountByHash(t *testing.T) {
 			ExpectedResult: 0,
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to count transactions"),
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetBlockTransactionCountByHash", context.Background(), tc.BlockHash, m.DbTx).
 					Return(uint64(0), errors.New("failed to count txs")).
