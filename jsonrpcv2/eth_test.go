@@ -1540,6 +1540,16 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 			SetupMocks: func(m *mocks, tc testCase) {
 				tx := tc.ExpectedResult
 				blockNumber, _ := encoding.DecodeUint64orHex(&tc.BlockNumber)
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByBlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
 					Return(tx, nil).
@@ -1562,6 +1572,16 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 			ExpectedResult: nil,
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
@@ -1576,6 +1596,16 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocks, tc testCase) {
 				blockNumber, _ := encoding.DecodeUint64orHex(&tc.BlockNumber)
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByBlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
 					Return(nil, state.ErrNotFound).
@@ -1590,6 +1620,16 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get transaction"),
 			SetupMocks: func(m *mocks, tc testCase) {
 				blockNumber, _ := encoding.DecodeUint64orHex(&tc.BlockNumber)
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByBlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
 					Return(nil, errors.New("failed to get transaction by block and index from state")).
@@ -1606,6 +1646,16 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 				tx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
 
 				blockNumber, _ := encoding.DecodeUint64orHex(&tc.BlockNumber)
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByBlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
 					Return(tx, nil).
@@ -1627,6 +1677,16 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 				tx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte{})
 
 				blockNumber, _ := encoding.DecodeUint64orHex(&tc.BlockNumber)
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionByBlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
 					Return(tx, nil).
