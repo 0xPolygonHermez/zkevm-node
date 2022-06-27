@@ -419,6 +419,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 	}
 	sequencedForceBatch.Sequencer = msg.From()
 	sequencedForceBatch.ForceBatchNumber, err = decodeForceBatchNumber(tx.Data())
+	sequencedForceBatch.TxHash = vLog.TxHash
 	if err != nil {
 		return err
 	}

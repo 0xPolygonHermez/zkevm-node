@@ -223,6 +223,14 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			// TODO Implement the store methods for each event
 			if element.Name == etherman.SequenceBatchesOrder {
 				s.processSequenceBatches(blocks[i].SequencedBatches[element.Pos], blocks[i].BlockNumber, txDB)
+			} else if element.Name == etherman.ForceBatchesOrder {
+				// TODO
+			} else if element.Name == etherman.GlobalExitRootsOrder {
+				// TODO
+			} else if element.Name == etherman.SequenceForceBatchesOrder {
+				s.processSequenceForceBatches(blocks[i].SequencedForceBatches[element.Pos], blocks[i].BlockNumber, txDB)
+			} else if element.Name == etherman.VerifyBatchOrder {
+				// TODO
 			}
 		}
 		err = s.state.CommitState(s.ctx, txDB)
@@ -339,24 +347,24 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, txDB pgx.Tx) (
 }
 
 func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.SequencedBatch, blockNumber uint64, txDB pgx.Tx) {
-	for _, batch := range sequencedBatches {
+	for _, sbatch := range sequencedBatches {
 		vb := state.VirtualBatch{
-			BatchNumber: batch.BatchNumber,
-			TxHash:      batch.TxHash,
-			Sequencer:   batch.Sequencer,
+			BatchNumber: sbatch.BatchNumber,
+			TxHash:      sbatch.TxHash,
+			Sequencer:   sbatch.Sequencer,
 			BlockNumber: blockNumber,
 		}
 		virtualBatches := []state.VirtualBatch{vb}
 		b := state.Batch{
-			BatchNumber:    batch.BatchNumber,
-			GlobalExitRoot: batch.GlobalExitRoot,
-			Timestamp:      time.Unix(int64(batch.Timestamp), 0),
-			Coinbase:       batch.Sequencer,
-			BatchL2Data:    batch.Transactions,
+			BatchNumber:    sbatch.BatchNumber,
+			GlobalExitRoot: sbatch.GlobalExitRoot,
+			Timestamp:      time.Unix(int64(sbatch.Timestamp), 0),
+			Coinbase:       sbatch.Sequencer,
+			BatchL2Data:    sbatch.Transactions,
 		}
 		batches := []state.Batch{b}
 		// ForcedBatchesmust be processed after the batch.
-		numForcedBatches := len(batch.ForceBatchesTimestamp)
+		numForcedBatches := len(sbatch.ForceBatchesTimestamp)
 		if numForcedBatches > 0 {
 			// Read forcedBatches from db
 			forcedBatches, err := s.state.GetNextForcedBatches(s.ctx, numForcedBatches, txDB)
@@ -373,16 +381,16 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			}
 			for i, forcedBatch := range *forcedBatches {
 				vb := state.VirtualBatch{
-					BatchNumber: batch.BatchNumber + uint64(i),
-					TxHash:      batch.TxHash,
-					Sequencer:   batch.Sequencer,
+					BatchNumber: sbatch.BatchNumber + uint64(i),
+					TxHash:      sbatch.TxHash,
+					Sequencer:   sbatch.Sequencer,
 					BlockNumber: blockNumber,
 				}
 				virtualBatches = append(virtualBatches, vb)
 				tb := state.Batch{
-					BatchNumber:    batch.BatchNumber + uint64(i), // First process the batch and then the forcedBatches
+					BatchNumber:    sbatch.BatchNumber + uint64(i), // First process the batch and then the forcedBatches
 					GlobalExitRoot: forcedBatch.GlobalExitRoot,
-					Timestamp:      time.Unix(int64(batch.ForceBatchesTimestamp[i]), 0), // ForceBatchesTimestamp instead of forcedAt because it is the timestamp selected by the sequencer, not when the forced batch was sent. This forcedAt is the min timestamp allowed.
+					Timestamp:      time.Unix(int64(sbatch.ForceBatchesTimestamp[i]), 0), // ForceBatchesTimestamp instead of forcedAt because it is the timestamp selected by the sequencer, not when the forced batch was sent. This forcedAt is the min timestamp allowed.
 					Coinbase:       forcedBatch.Sequencer,
 					BatchL2Data:    forcedBatch.RawTxsData,
 				}
@@ -404,6 +412,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 					// If it is not found, store batch
 					err = s.state.StoreBatchHeader(s.ctx, batch, txDB)
 					if err != nil {
+						log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 						rollbackErr := s.state.RollbackState(s.ctx, txDB)
 						if rollbackErr != nil {
 							log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", batch.BatchNumber, blockNumber, rollbackErr, err))
@@ -419,6 +428,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				// Reset trusted state
 				err := s.state.ResetTrustedState(s.ctx, batch.BatchNumber, txDB) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
 				if err != nil {
+					log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 					rollbackErr := s.state.RollbackState(s.ctx, txDB)
 					if rollbackErr != nil {
 						log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", batch.BatchNumber, blockNumber, rollbackErr, err))
@@ -427,6 +437,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				}
 				err = s.state.StoreBatchHeader(s.ctx, batch, txDB)
 				if err != nil {
+					log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 					rollbackErr := s.state.RollbackState(s.ctx, txDB)
 					if rollbackErr != nil {
 						log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", batch.BatchNumber, blockNumber, rollbackErr, err))
@@ -437,12 +448,83 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			// Store virtualBatch
 			err = s.state.AddVirtualBatch(s.ctx, virtualBatches[i], txDB)
 			if err != nil {
+				log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatches[i].BatchNumber, blockNumber, err)
 				rollbackErr := s.state.RollbackState(s.ctx, txDB)
 				if rollbackErr != nil {
 					log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", virtualBatches[i].BatchNumber, blockNumber, rollbackErr, err))
 				}
 				log.Fatalf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatches[i].BatchNumber, blockNumber, err)
 			}
+		}
+	}
+}
+
+func (s *ClientSynchronizer) processSequenceForceBatches(sequenceForceBatch etherman.SequencedForceBatch, blockNumber uint64, txDB pgx.Tx) {
+	// First, reset trusted state
+	lastVirtualizedBatchNumber := sequenceForceBatch.LastBatchSequenced-sequenceForceBatch.ForceBatchNumber
+	err := s.state.ResetTrustedState(s.ctx, lastVirtualizedBatchNumber, txDB) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
+	if err != nil {
+		log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", lastVirtualizedBatchNumber, blockNumber, err)
+		rollbackErr := s.state.RollbackState(s.ctx, txDB)
+		if rollbackErr != nil {
+			log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", lastVirtualizedBatchNumber, blockNumber, rollbackErr, err))
+		}
+		log.Fatalf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", lastVirtualizedBatchNumber, blockNumber, err)
+	}
+	// Read forcedBatches from db
+	forcedBatches, err := s.state.GetNextForcedBatches(s.ctx, int(sequenceForceBatch.ForceBatchNumber), txDB)
+	if err != nil {
+		log.Errorf("error getting forcedBatches in processSequenceForceBatches. BlockNumber: %d", blockNumber)
+		rollbackErr := s.state.RollbackState(s.ctx, txDB)
+		if rollbackErr != nil {
+			log.Fatal(fmt.Sprintf("error rolling back state. BlockNumber: %d, rollbackErr: %v, error : %v", blockNumber, rollbackErr, err))
+		}
+		log.Fatalf("error getting forcedBatches in processSequenceForceBatches. BlockNumber: %d, error: %v", blockNumber, err)
+	}
+
+	for i, fbatch := range *forcedBatches {
+		vb := state.VirtualBatch {
+			BatchNumber: sequenceForceBatch.LastBatchSequenced-sequenceForceBatch.ForceBatchNumber+uint64(i),
+			TxHash:      sequenceForceBatch.TxHash,
+			Sequencer:   sequenceForceBatch.Sequencer,
+			BlockNumber: blockNumber,
+		}
+		b := state.Batch {
+			BatchNumber:    sequenceForceBatch.LastBatchSequenced-sequenceForceBatch.ForceBatchNumber+uint64(i),
+			GlobalExitRoot: fbatch.GlobalExitRoot,
+			Timestamp:      fbatch.ForcedAt,
+			Coinbase:       fbatch.Sequencer,
+			BatchL2Data:    fbatch.RawTxsData,
+		}
+		// Process batch
+		err := s.state.ProcessAndStoreClosedBatch(s.ctx, b, txDB)
+		if err != nil {
+			log.Errorf("error processing batch in processSequenceForceBatches. BatchNumber: %d, BlockNumber: %d, error: %v", b.BatchNumber, blockNumber, err)
+			rollbackErr := s.state.RollbackState(s.ctx, txDB)
+			if rollbackErr != nil {
+				log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", b.BatchNumber, blockNumber, rollbackErr, err))
+			}
+			log.Fatalf("error processing batch in processSequenceForceBatches. BatchNumber: %d, BlockNumber: %d, error: %v", b.BatchNumber, blockNumber, err)
+		}
+		// Store virtualBatch
+		err = s.state.AddVirtualBatch(s.ctx, vb, txDB)
+		if err != nil {
+			log.Errorf("error storing virtualBatch in processSequenceForceBatches. BatchNumber: %d, BlockNumber: %d, error: %v", vb.BatchNumber, blockNumber, err)
+			rollbackErr := s.state.RollbackState(s.ctx, txDB)
+			if rollbackErr != nil {
+				log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", vb.BatchNumber, blockNumber, rollbackErr, err))
+			}
+			log.Fatalf("error storing virtualBatch in processSequenceForceBatches. BatchNumber: %d, BlockNumber: %d, error: %v", vb.BatchNumber, blockNumber, err)
+		}
+		// Store batchNumber in forced_batch table
+		err = s.state.AddBatchNumberInForcedBatch(s.ctx, sequenceForceBatch.ForceBatchNumber, vb.BatchNumber, txDB)
+		if err != nil {
+			log.Errorf("error adding the batchNumber to forcedBatch in processSequenceForceBatches. BlockNumber: %d", blockNumber)
+			rollbackErr := s.state.RollbackState(s.ctx, txDB)
+			if rollbackErr != nil {
+				log.Fatal(fmt.Sprintf("error rolling back state. BlockNumber: %d, rollbackErr: %v, error : %v", blockNumber, rollbackErr, err))
+			}
+			log.Fatalf("error adding the batchNumber to forcedBatch in processSequenceForceBatches. BlockNumber: %d, error: %v", blockNumber, err)
 		}
 	}
 }
