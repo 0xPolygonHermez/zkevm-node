@@ -239,6 +239,7 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=jsonRPCTxPool --dir=jsonrpcv2 --output=jsonrpcv2 --outpkg=jsonrpcv2 --inpackage --structname=poolMock --filename=mock_pool_test.go
 	mockery --name=gasPriceEstimator --dir=jsonrpcv2 --output=jsonrpcv2 --outpkg=jsonrpcv2 --inpackage --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
 	mockery --name=stateInterface --dir=jsonrpcv2 --output=jsonrpcv2 --outpkg=jsonrpcv2 --inpackage --structname=stateMock --filename=mock_state_test.go
+	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=jsonrpcv2 --outpkg=jsonrpcv2 --structname=dbTxMock --filename=mock_dbtx_test.go
 	
 	mockery --name=txManager --dir=sequencerv2 --output=sequencerv2 --outpkg=sequencerv2 --structname=txmanagerMock --filename=txmanager-mock_test.go
 	mockery --name=etherman --dir=sequencerv2 --output=sequencerv2 --outpkg=sequencerv2 --structname=ethermanMock --filename=etherman-mock_test.go

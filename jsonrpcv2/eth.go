@@ -36,7 +36,7 @@ func (e *Eth) BlockNumber() (interface{}, error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
 		lastBlockNumber, err := e.state.GetLastBlockNumber(ctx, dbTx)
 		if err != nil {
-			return "0x0", nil
+			return "0x0", newRPCError(defaultErrorCode, "failed to get the last block number from state")
 		}
 
 		return hex.EncodeUint64(lastBlockNumber), nil

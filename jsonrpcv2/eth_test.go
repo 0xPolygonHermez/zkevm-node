@@ -24,27 +24,75 @@ func TestBlockNumber(t *testing.T) {
 	s, m, c := newMockedServer(t)
 	defer s.Stop()
 
-	testCases := []struct {
-		name                string
-		blockNumber         uint64
-		error               error
-		expectedBlockNumber uint64
-	}{
-		{"block number is zero", 0, nil, 0},
-		{"block number is not zero", 5, nil, 5},
-		{"failed to get block number", 5, errors.New("failed to get block number"), 0},
+	type testCase struct {
+		Name           string
+		ExpectedResult uint64
+		ExpectedError  interface{}
+		SetupMocks     func(m *mocks)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "get block number successfully",
+			ExpectedError:  nil,
+			ExpectedResult: 10,
+			SetupMocks: func(m *mocks) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					Return(uint64(10), nil).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to get block number",
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
+			ExpectedResult: 0,
+			SetupMocks: func(m *mocks) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					Return(uint64(0), errors.New("failed to get last block number")).
+					Once()
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			m.State.
-				On("GetLastBlockNumber", context.Background(), "").
-				Return(testCase.blockNumber, testCase.error).
-				Once()
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m)
 
-			bn, err := c.BlockNumber(context.Background())
-			require.NoError(t, err)
-			assert.Equal(t, testCase.expectedBlockNumber, bn)
+			result, err := c.BlockNumber(context.Background())
+			assert.Equal(t, testCase.ExpectedResult, result)
+
+			if err != nil || testCase.ExpectedError != nil {
+				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
+					rpcErr := err.(rpcError)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, testCase.ExpectedError, err)
+				}
+			}
 		})
 	}
 }

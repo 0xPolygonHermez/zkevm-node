@@ -21,6 +21,7 @@ func (f *dbTxManager) NewDbTxScope(st stateInterface, scopedFn func(ctx context.
 		if txErr := dbTx.Rollback(context.Background()); err != nil {
 			log.Errorf("failed to roll back tx: %v", txErr)
 		}
+		return v, err
 	}
 
 	if txErr := dbTx.Commit(context.Background()); err != nil {
