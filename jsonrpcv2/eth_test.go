@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/hex"
@@ -2279,9 +2282,77 @@ func TestGetTransactionReceipt(t *testing.T) {
 			ExpectedResult: types.NewReceipt([]byte{}, false, 0),
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
+				privateKey, err := crypto.HexToECDSA(strings.TrimPrefix("0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e", "0x"))
+				require.NoError(t, err)
+				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
+				require.NoError(t, err)
+
+				signedTx, err := auth.Signer(auth.From, tx)
+				require.NoError(t, err)
+
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
+					Return(signedTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
-					Return(*tc.ExpectedResult, nil).
+					Return(tc.ExpectedResult, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "Get TX receipt but tx not found",
+			Hash:           common.HexToHash("0x123"),
+			ExpectedResult: nil,
+			ExpectedError:  ethereum.NotFound,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
+					Return(nil, state.ErrNotFound).
+					Once()
+			},
+		},
+		{
+			Name:           "Get TX receipt but failed to get tx",
+			Hash:           common.HexToHash("0x123"),
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get tx from state"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
+					Return(nil, errors.New("failed to get tx")).
 					Once()
 			},
 		},
@@ -2291,6 +2362,30 @@ func TestGetTransactionReceipt(t *testing.T) {
 			ExpectedResult: nil,
 			ExpectedError:  ethereum.NotFound,
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
+				privateKey, err := crypto.HexToECDSA(strings.TrimPrefix("0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e", "0x"))
+				require.NoError(t, err)
+				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
+				require.NoError(t, err)
+
+				signedTx, err := auth.Signer(auth.From, tx)
+				require.NoError(t, err)
+
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
+					Return(signedTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
 					Return(nil, state.ErrNotFound).
@@ -2303,9 +2398,62 @@ func TestGetTransactionReceipt(t *testing.T) {
 			ExpectedResult: nil,
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get tx receipt from state"),
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
+				privateKey, err := crypto.HexToECDSA(strings.TrimPrefix("0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e", "0x"))
+				require.NoError(t, err)
+				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
+				require.NoError(t, err)
+
+				signedTx, err := auth.Signer(auth.From, tx)
+				require.NoError(t, err)
+
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
+					Return(signedTx, nil).
+					Once()
+
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
 					Return(nil, errors.New("failed to get tx receipt from state")).
+					Once()
+			},
+		},
+		{
+			Name:           "Get TX but failed to build response Successfully",
+			Hash:           common.HexToHash("0x123"),
+			ExpectedResult: nil,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to build the receipt response"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				tx := types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
+
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
+					Return(tx, nil).
+					Once()
+
+				m.State.
+					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
+					Return(types.NewReceipt([]byte{}, false, 0), nil).
 					Once()
 			},
 		},
