@@ -970,6 +970,16 @@ func TestGetCode(t *testing.T) {
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
 
 			SetupMocks: func(m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
@@ -984,6 +994,16 @@ func TestGetCode(t *testing.T) {
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get code"),
 
 			SetupMocks: func(m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetCode", context.Background(), tc.Addr, tc.BlockNumber.Uint64(), m.DbTx).
 					Return(nil, errors.New("failed to get code")).
@@ -998,6 +1018,16 @@ func TestGetCode(t *testing.T) {
 			ExpectedError:  nil,
 
 			SetupMocks: func(m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetCode", context.Background(), tc.Addr, tc.BlockNumber.Uint64(), m.DbTx).
 					Return(nil, state.ErrNotFound).
@@ -1012,6 +1042,16 @@ func TestGetCode(t *testing.T) {
 			ExpectedError:  nil,
 
 			SetupMocks: func(m *mocks, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetCode", context.Background(), tc.Addr, tc.BlockNumber.Uint64(), m.DbTx).
 					Return(tc.ExpectedResult, nil).
