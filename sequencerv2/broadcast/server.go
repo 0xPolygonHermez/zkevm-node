@@ -7,11 +7,12 @@ import (
 
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb"
+	"github.com/hermeznetwork/hermez-core/statev2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
-// Server provides the functionality of the MerkleTree service.
+// Server provides the functionality of the Broadcast service.
 type Server struct {
 	cfg *ServerConfig
 
@@ -20,7 +21,7 @@ type Server struct {
 	state stateInterface
 }
 
-// NewServer is the MT server constructor.
+// NewServer is the Broadcast server constructor.
 func NewServer(cfg *ServerConfig, state stateInterface) *Server {
 	return &Server{
 		cfg:   cfg,
@@ -47,6 +48,7 @@ func (s *Server) Start() {
 	healthService := newHealthChecker()
 	grpc_health_v1.RegisterHealthServer(s.srv, healthService)
 
+	log.Infof("Server listening in %q", address)
 	if err := s.srv.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
@@ -75,8 +77,8 @@ func (s *Server) GetLastBatch(ctx context.Context, empty *pb.Empty) (*pb.GetBatc
 	return s.genericGetBatch(ctx, batch)
 }
 
-func (s *Server) genericGetBatch(ctx context.Context, batch *Batch) (*pb.GetBatchResponse, error) {
-	txs, err := s.state.GetEncodedTransactionsByBatchNumber(ctx, batch.BatchNumber, nil)
+func (s *Server) genericGetBatch(ctx context.Context, batch *statev2.Batch) (*pb.GetBatchResponse, error) {
+	txs, err := s.state.GetEncodedTransactionsByBatchNumber(ctx, batch.BatchNum, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -88,9 +90,9 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *Batch) (*pb.GetBatc
 	}
 
 	return &pb.GetBatchResponse{
-		BatchNumber:    batch.BatchNumber,
-		GlobalExitRoot: batch.GlobalExitRoot.String(),
-		Timestamp:      uint64(batch.Timestamp.Unix()),
+		BatchNumber:    batch.BatchNum,
+		GlobalExitRoot: batch.GlobalExitRootNum.String(),
+		Timestamp:      uint64(batch.EthTimestamp.Unix()),
 		Transactions:   transactions,
 	}, nil
 }

@@ -19,6 +19,9 @@ const (
 	resetSQL             = "DELETE FROM statev2.block WHERE block_num > $1"
 	addVerifiedBatchSQL  = "INSERT INTO statev2.verified_batch (block_num, batch_num, tx_hash, aggregator) VALUES ($1, $2, $3, $4)"
 	getVerifiedBatchSQL  = "SELECT block_num, batch_num, tx_hash, aggregator FROM statev2.verified_batch WHERE batch_num = $1"
+	getLastBatchSQL                        = "SELECT batch_num, global_exit_root, timestamp from statev2.batch ORDER BY batch_num DESC LIMIT 1"
+	getBatchByNumberSQL                    = "SELECT batch_num, global_exit_root, timestamp from statev2.batch WHERE batch_num = $1"
+	getEncodedTransactionsByBatchNumberSQL = "SELECT encoded from statev2.transaction where batch_num = $1"
 )
 
 // PostgresStorage implements the Storage interface
@@ -122,4 +125,57 @@ func (s *PostgresStorage) GetVerifiedBatch(ctx context.Context, tx pgx.Tx, batch
 	verifiedBatch.Aggregator = common.HexToAddress(agg)
 	verifiedBatch.TxHash = common.HexToHash(txHash)
 	return &verifiedBatch, nil
+}
+
+func (s *PostgresStorage) GetLastBatch(ctx context.Context, tx pgx.Tx) (*Batch, error) {
+	var (
+		batch  Batch
+		gerStr string
+	)
+	err := s.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNum, &gerStr, &batch.EthTimestamp)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+	batch.GlobalExitRootNum = new(big.Int).SetBytes(common.FromHex(gerStr))
+	return &batch, nil
+}
+
+func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
+	var (
+		batch  Batch
+		gerStr string
+	)
+	err := s.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNum, &gerStr, &batch.EthTimestamp)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+	batch.GlobalExitRootNum = new(big.Int).SetBytes(common.FromHex(gerStr))
+	return &batch, nil
+}
+
+func (s *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (encoded []string, err error) {
+	rows, err := s.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
+	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	txs := make([]string, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		var encoded string
+		err := rows.Scan(&encoded)
+		if err != nil {
+			return nil, err
+		}
+
+		txs = append(txs, encoded)
+	}
+	return txs, nil
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/proverclient"
 	"github.com/hermeznetwork/hermez-core/sequencer"
 	"github.com/hermeznetwork/hermez-core/sequencerv2"
+	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast"
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
@@ -53,6 +54,8 @@ type Config struct {
 	MTServer          tree.ServerConfig
 	MTClient          tree.ClientConfig
 	Executor          executor.Config
+	BroadcastServer   broadcast.ServerConfig
+	BroadcastClient   broadcast.ClientConfig
 }
 
 // Load loads the configuration
