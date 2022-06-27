@@ -9,7 +9,7 @@ import (
 // processed.
 type Sequence struct {
 	GlobalExitRoot  common.Hash
-	Timestamp       uint64
+	Timestamp       int64
 	ForceBatchesNum uint64
 	Txs             []types.Transaction
 }

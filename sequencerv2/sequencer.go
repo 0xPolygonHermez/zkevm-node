@@ -70,7 +70,13 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	// 2. Check if current sequence should be closed
 	if s.shouldCloseSequenceInProgress(ctx) {
 		s.closedSequences = append(s.closedSequences, s.sequenceInProgress)
-		s.sequenceInProgress = s.newSequence()
+		newSequence, err := s.newSequence(ctx)
+		if err != nil {
+			log.Errorf("failed to create new sequence, err: %v", err)
+			s.closedSequences = s.closedSequences[:len(s.closedSequences)-1]
+			return
+		}
+		s.sequenceInProgress = newSequence
 	}
 
 	// 3. Check if current sequence should be sent
@@ -108,10 +114,10 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	// 5. Process tx
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	res := s.state.ProcessBatchAndStoreLastTx(ctx, s.sequenceInProgress.Txs)
-	if res.Err != nil {
+	_, err := s.state.ProcessBatch(ctx, s.sequenceInProgress.Txs)
+	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
-		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), res.Err)
+		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
 		return
 	}
 
@@ -132,12 +138,12 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 }
 
 func (s *Sequencer) isSynced(ctx context.Context) bool {
-	lastSyncedBatchNum, err := s.state.GetLastBatchNumber(ctx, "")
+	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx)
 	if err != nil {
 		log.Errorf("failed to get last synced batch, err: %v", err)
 		return false
 	}
-	lastEthBatchNum, err := s.state.GetLastBatchNumberSeenOnEthereum(ctx, "")
+	lastEthBatchNum, err := s.state.GetLastBatchNumberSeenOnEthereum(ctx)
 	if err != nil {
 		log.Errorf("failed to get last eth batch, err: %v", err)
 		return false
@@ -228,8 +234,18 @@ func (s *Sequencer) getMostProfitablePendingTx(ctx context.Context) (*pool.Trans
 	return &tx[0], true
 }
 
-func (s *Sequencer) newSequence() types.Sequence {
-	return types.Sequence{}
+func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
+	root, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
+	if err != nil {
+		return types.Sequence{}, err
+	}
+
+	return types.Sequence{
+		GlobalExitRoot:  root.GlobalExitRoot,
+		Timestamp:       time.Now().Unix(),
+		ForceBatchesNum: 0,
+		Txs:             nil,
+	}, nil
 }
 
 func isDataForEthTxTooBig(err error) bool {
