@@ -2129,6 +2129,15 @@ func TestGetTransactionCount(t *testing.T) {
 			SetupMocks: func(m *mocks, tc testCase) {
 				blockNumber := uint64(10)
 				address := common.HexToAddress(tc.Address)
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
 
 				m.State.
 					On("GetLastBlockNumber", context.Background(), m.DbTx).
@@ -2150,6 +2159,15 @@ func TestGetTransactionCount(t *testing.T) {
 			SetupMocks: func(m *mocks, tc testCase) {
 				blockNumber := uint64(10)
 				address := common.HexToAddress(tc.Address)
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
 
 				m.State.
 					On("GetLastBlockNumber", context.Background(), m.DbTx).
@@ -2169,6 +2187,16 @@ func TestGetTransactionCount(t *testing.T) {
 			ExpectedResult: 0,
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to get the last block number from state"),
 			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
@@ -2184,6 +2212,16 @@ func TestGetTransactionCount(t *testing.T) {
 			SetupMocks: func(m *mocks, tc testCase) {
 				blockNumber := uint64(10)
 				address := common.HexToAddress(tc.Address)
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.State.
 					On("GetLastBlockNumber", context.Background(), m.DbTx).
 					Return(blockNumber, nil).
