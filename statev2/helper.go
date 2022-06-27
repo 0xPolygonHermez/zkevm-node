@@ -8,9 +8,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/state/runtime/evm"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/fakevm"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/instrumentation"
 )
 
 const ether155V = 27
@@ -192,7 +192,7 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) []instrument
 		step.Depth = int(response.Depth)
 		step.Pc = response.Pc
 		step.Gas = fmt.Sprint(response.Gas)
-		step.OpCode = evm.OpCode(response.Op).String()
+		step.OpCode = fakevm.OpCode(response.Op).String()
 		step.Refund = fmt.Sprint(response.GasRefund)
 		step.Op = fmt.Sprint(response.Op)
 		step.Error = response.Error

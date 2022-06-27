@@ -14,11 +14,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/state/runtime"
-	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/fakevm"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/instrumentation"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/instrumentation/tracers"
 	"github.com/holiman/uint256"
 	"github.com/jackc/pgx/v4"
 )
@@ -125,7 +125,7 @@ func (s *State) AddBlock(ctx context.Context, block *Block, dbTx pgx.Tx) error {
 }
 
 // GetBalance from a given address
-func (s *State) GetBalance(ctx context.Context, address common.Address, blockNumber uint64, dbdbTx pgx.Tx) (*big.Int, error) {
+func (s *State) GetBalance(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
 	// TODO: implement
 	return nil, nil
 }
@@ -134,12 +134,6 @@ func (s *State) GetBalance(ctx context.Context, address common.Address, blockNum
 func (s *State) GetCode(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) ([]byte, error) {
 	// TODO: implement
 	return nil, nil
-}
-
-// EstimateGas for a transaction
-func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error) {
-	// TODO: implement
-	return 0, nil
 }
 
 // GetNonce returns the nonce of the given account at the given block number
@@ -154,6 +148,12 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 	return new(big.Int), nil
 }
 
+// EstimateGas for a transaction
+func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error) {
+	// TODO: implement
+	return 0, nil
+}
+
 // StoreBatchHeader is used by the Trusted Sequencer to create a new batch
 func (s *State) StoreBatchHeader(ctx context.Context, batch Batch) error {
 	// TODO: implement
@@ -163,6 +163,7 @@ func (s *State) StoreBatchHeader(ctx context.Context, batch Batch) error {
 // ProcessBatch is used by the Trusted Sequencer to add transactions to the batch
 func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	// TODO: implement
+	// Get latest batch from the database to get GER and Timestamp
 	lastBatch, err := s.GetLastBatch(ctx, dbTx)
 	if err != nil {
 		return nil, err
@@ -171,6 +172,12 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 	// Check provided batch number is the latest in db
 	if lastBatch.BatchNum != batchNumber {
 		return nil, ErrInvalidBatchNumber
+	}
+
+	// Get batch before latest to get state root and local exit root
+	previousBatch, err := s.GetBatchByNumber(ctx, batchNumber-1, dbTx)
+	if err != nil {
+		return nil, err
 	}
 
 	batchL2Data, err := encondeTransactions(txs)
@@ -183,9 +190,9 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 		BatchNum:             lastBatch.BatchNum,
 		Coinbase:             lastBatch.Coinbase.String(),
 		BatchL2Data:          batchL2Data,
-		OldStateRoot:         lastBatch.OldStateRoot.Bytes(),
+		OldStateRoot:         previousBatch.OldStateRoot.Bytes(),
 		GlobalExitRoot:       lastBatch.GlobalExitRootNum.Bytes(),
-		OldLocalExitRoot:     lastBatch.OldLocalExitRoot.Bytes(),
+		OldLocalExitRoot:     previousBatch.OldLocalExitRoot.Bytes(),
 		EthTimestamp:         uint64(lastBatch.EthTimestamp.Unix()),
 		UpdateMerkleTree:     true,
 		GenerateExecuteTrace: false,
