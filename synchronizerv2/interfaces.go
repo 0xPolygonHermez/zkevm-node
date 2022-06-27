@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	etherman "github.com/hermeznetwork/hermez-core/ethermanv2"
-	"github.com/jackc/pgx/v4"
 	state "github.com/hermeznetwork/hermez-core/statev2"
+	"github.com/jackc/pgx/v4"
 )
 
 // ethermanInterface contains the methods required to interact with ethereum.

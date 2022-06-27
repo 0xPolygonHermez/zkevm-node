@@ -394,7 +394,7 @@ func (s *State) AddTrustedBatch(ctx context.Context, trustedBatch TrustedBatch, 
 	return nil
 }
 
-	// GetNextForcedBatches returns the next forcedBatches in FIFO order
+// GetNextForcedBatches returns the next forcedBatches in FIFO order
 func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) (*[]ForcedBatch, error) {
 	// TODO: implement
 	return nil, nil

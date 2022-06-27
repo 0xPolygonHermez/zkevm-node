@@ -313,9 +313,9 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.TrustedBatch, txDB pg
 	}
 	//Compare virtual state with trusted state
 	if batch.RawTxs == tBatch.RawTxs &&
-	   batch.GlobalExitRoot == tBatch.GlobalExitRoot &&
-	   batch.Timestamp == tBatch.Timestamp &&
-	   batch.Sequencer == tBatch.Sequencer {
+		batch.GlobalExitRoot == tBatch.GlobalExitRoot &&
+		batch.Timestamp == tBatch.Timestamp &&
+		batch.Sequencer == tBatch.Sequencer {
 		return true, nil
 	}
 	return false, nil
@@ -323,19 +323,19 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.TrustedBatch, txDB pg
 
 func (s *ClientSynchronizer) processSequenceBatches(batches []etherman.SequencedBatch, blockNumber uint64, txDB pgx.Tx) {
 	for _, batch := range batches {
-		vb := state.VirtualBatch {
+		vb := state.VirtualBatch{
 			BatchNumber: batch.BatchNumber,
-			TxHash: batch.TxHash,
-			Sequencer: batch.Sequencer,
+			TxHash:      batch.TxHash,
+			Sequencer:   batch.Sequencer,
 			BlockNumber: blockNumber,
 		}
 		virtualBatches := []state.VirtualBatch{vb}
-		tb := state.TrustedBatch {
-			BatchNumber: batch.BatchNumber,
+		tb := state.TrustedBatch{
+			BatchNumber:    batch.BatchNumber,
 			GlobalExitRoot: batch.GlobalExitRoot,
-			Timestamp: time.Unix(int64(batch.Timestamp), 0),
-			Sequencer: batch.Sequencer,
-			RawTxs: hex.EncodeToString(batch.Transactions),
+			Timestamp:      time.Unix(int64(batch.Timestamp), 0),
+			Sequencer:      batch.Sequencer,
+			RawTxs:         hex.EncodeToString(batch.Transactions),
 		}
 		trustedBatches := []state.TrustedBatch{tb}
 		// ForcedBatchesmust be processed after the trusted batch.
@@ -355,25 +355,25 @@ func (s *ClientSynchronizer) processSequenceBatches(batches []etherman.Sequenced
 				log.Fatal("error number of forced batches doesn't match")
 			}
 			for i, forcedBatch := range *forcedBatches {
-				vb := state.VirtualBatch {
-					BatchNumber: batch.BatchNumber+uint64(i),
-					TxHash: batch.TxHash,
-					Sequencer: batch.Sequencer,
+				vb := state.VirtualBatch{
+					BatchNumber: batch.BatchNumber + uint64(i),
+					TxHash:      batch.TxHash,
+					Sequencer:   batch.Sequencer,
 					BlockNumber: blockNumber,
 				}
 				virtualBatches = append(virtualBatches, vb)
-				tb := state.TrustedBatch {
-					BatchNumber: batch.BatchNumber+uint64(i), // First process the trusted and then the forcedBatches
+				tb := state.TrustedBatch{
+					BatchNumber:    batch.BatchNumber + uint64(i), // First process the trusted and then the forcedBatches
 					GlobalExitRoot: forcedBatch.GlobalExitRoot,
-					Timestamp: time.Unix(int64(batch.ForceBatchesTimestamp[i]), 0), // ForceBatchesTimestamp instead of forcedAt because it is the timestamp selected by the sequencer, not when the forced batch was sent. This forcedAt is the min timestamp allowed.
-					Sequencer: forcedBatch.Sequencer,
-					RawTxs: forcedBatch.RawTxsData,
+					Timestamp:      time.Unix(int64(batch.ForceBatchesTimestamp[i]), 0), // ForceBatchesTimestamp instead of forcedAt because it is the timestamp selected by the sequencer, not when the forced batch was sent. This forcedAt is the min timestamp allowed.
+					Sequencer:      forcedBatch.Sequencer,
+					RawTxs:         forcedBatch.RawTxsData,
 				}
 				trustedBatches = append(trustedBatches, tb)
 			}
 		}
 
-		if len(virtualBatches) != len(trustedBatches){
+		if len(virtualBatches) != len(trustedBatches) {
 			log.Fatal("error: length of trustedBatches and virtualBatches don't match.\nvirtualBatches: %+v \ntrustedBatches: %+v", virtualBatches, trustedBatches)
 		}
 
