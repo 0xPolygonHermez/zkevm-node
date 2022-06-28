@@ -65,14 +65,14 @@ func (c *Client) TrackEthSentTransactions(ctx context.Context) {
 	for {
 		select {
 		case tx := <-c.sequenceBatchesTxsChan:
-			c.resendTxIfNeeded(tx)
+			c.resendTxIfNeeded(ctx, tx)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (c *Client) resendTxIfNeeded(tx sequenceBatchesTx) {
+func (c *Client) resendTxIfNeeded(ctx context.Context, tx sequenceBatchesTx) {
 	var (
 		gasLimit       uint64
 		counter        uint32
@@ -80,7 +80,6 @@ func (c *Client) resendTxIfNeeded(tx sequenceBatchesTx) {
 		err            error
 	)
 	hash := tx.hash
-	ctx := context.Background()
 	for !isTxSuccessful && counter <= c.cfg.MaxSendBatchTxRetries {
 		time.Sleep(time.Duration(c.cfg.FrequencyForResendingFailedSendBatchesInMilliseconds) * time.Millisecond)
 		receipt := c.getTxReceipt(ctx, hash)
