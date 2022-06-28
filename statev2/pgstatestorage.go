@@ -48,6 +48,14 @@ func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 	}
 }
 
+// getQuerier determines which queryer to use, dbTx or the main pgxpool.
+func (p *PostgresStorage) getQuerier(dbTx pgx.Tx) querier {
+	if dbTx != nil {
+		return dbTx
+	}
+	return p
+}
+
 // Reset resets the state to a block
 func (p *PostgresStorage) Reset(ctx context.Context, block *Block, dbTx pgx.Tx) error {
 	if _, err := dbTx.Exec(ctx, resetSQL, block.BlockNumber); err != nil {
@@ -198,7 +206,9 @@ func (p *PostgresStorage) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch
 		batch  Batch
 		gerStr string
 	)
-	err := p.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
+	q := p.getQuerier(dbTx)
+
+	err := q.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
@@ -262,7 +272,9 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 		batch  Batch
 		gerStr string
 	)
-	err := p.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
+	q := p.getQuerier(dbTx)
+
+	err := q.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
@@ -274,7 +286,9 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 }
 
 func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []string, err error) {
-	rows, err := p.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
+	q := p.getQuerier(dbTx)
+
+	rows, err := q.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}

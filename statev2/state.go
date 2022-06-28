@@ -253,13 +253,13 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 }
 
 // GetBatchByNumber gets a batch from data base by its number
-func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
-	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, tx)
+func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
 }
 
 // GetEncodedTransactionsByBatchNumber gets the txs for a given batch in encoded form
-func (s *State) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (encoded []string, err error) {
-	return s.PostgresStorage.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, tx)
+func (s *State) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []string, err error) {
+	return s.PostgresStorage.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 }
 
 // GetNumberOfBlocksSinceLastGERUpdate get number of blocks since last global exit root updated
