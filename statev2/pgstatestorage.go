@@ -46,6 +46,22 @@ func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 	}
 }
 
+// getQueryer determines which queryer to use, dbTx or the main pgxpool.
+func (s *PostgresStorage) getQueryer(dbTx pgx.Tx) queryer {
+	if dbTx != nil {
+		return dbTx
+	}
+	return s
+}
+
+// getQueryer determines which queryRower to use, dbTx or the main pgxpool.
+func (s *PostgresStorage) getQueryRower(dbTx pgx.Tx) queryRower {
+	if dbTx != nil {
+		return dbTx
+	}
+	return s
+}
+
 // Reset resets the state to a block
 func (s *PostgresStorage) Reset(ctx context.Context, block *Block, tx pgx.Tx) error {
 	if _, err := tx.Exec(ctx, resetSQL, block.BlockNumber); err != nil {
