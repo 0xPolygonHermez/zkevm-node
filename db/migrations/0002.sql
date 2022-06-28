@@ -52,7 +52,8 @@ CREATE TABLE statev2.transaction (  --transaction abstraction. transaction == L2
     header jsonb,
     uncles jsonb,
     received_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    batch_num BIGINT NOT NULL REFERENCES statev2.batch (batch_num) ON DELETE CASCADE
+    batch_num BIGINT NOT NULL REFERENCES statev2.batch (batch_num) ON DELETE CASCADE,
+    l2_block_num BIGINT
 );
 
 CREATE TABLE statev2.exit_root

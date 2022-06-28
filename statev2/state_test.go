@@ -17,9 +17,10 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/merkletree"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
+	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -43,8 +44,9 @@ var (
 		MaxCumulativeGasUsed: 800000,
 	}
 	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
-	executorClient       pb.ExecutorServiceClient
+	executorClient       executorclientpb.ExecutorServiceClient
 	clientConn           *grpc.ClientConn
+	stateDBServerConfig  = merkletree.Config{URI: "54.170.178.97:50061"}
 )
 
 func TestMain(m *testing.M) {
@@ -57,9 +59,14 @@ func TestMain(m *testing.M) {
 	executorClient, clientConn = executor.NewExecutorClient(executorServerConfig)
 	defer clientConn.Close()
 
+	stateDbServiceClient, stateClientConn := merkletree.NewStateDBServiceClient(stateDBServerConfig)
+	defer stateClientConn.Close()
+
+	stateTree := merkletree.NewStateTree(stateDbServiceClient)
+
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient)
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
 
 	result := m.Run()
 
@@ -188,7 +195,7 @@ func TestExecuteTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create Batch
-	processBatchRequest := &pb.ProcessBatchRequest{
+	processBatchRequest := &executorclientpb.ProcessBatchRequest{
 		BatchNum:             1,
 		Coinbase:             sequencerAddress.String(),
 		BatchL2Data:          batchL2Data,

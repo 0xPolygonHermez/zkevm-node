@@ -110,9 +110,9 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 			description:      "happy path",
 			inputBatchNumber: 14,
 			expectedBatch: &statev2.Batch{
-				BatchNum:          14,
+				BatchNumber:       14,
 				GlobalExitRootNum: new(big.Int),
-				EthTimestamp:      time.Now(),
+				Timestamp:         time.Now(),
 			},
 			expectedEncodedTxs: []string{"tx1", "tx2", "tx3"},
 		},
@@ -144,9 +144,9 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 			require.NoError(t, testutils.CheckError(err, tc.expectedErr, fmt.Sprintf("rpc error: code = Unknown desc = %s", tc.expectedErrMsg)))
 
 			if err == nil {
-				require.Equal(t, tc.expectedBatch.BatchNum, actualBatch.BatchNumber)
+				require.Equal(t, tc.expectedBatch.BatchNumber, actualBatch.BatchNumber)
 				require.Equal(t, tc.expectedBatch.GlobalExitRootNum.String(), actualBatch.GlobalExitRoot)
-				require.Equal(t, uint64(tc.expectedBatch.EthTimestamp.Unix()), actualBatch.Timestamp)
+				require.Equal(t, uint64(tc.expectedBatch.Timestamp.Unix()), actualBatch.Timestamp)
 				for i, encoded := range tc.expectedEncodedTxs {
 					require.Equal(t, encoded, actualBatch.Transactions[i].Encoded)
 				}
@@ -167,9 +167,9 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 		{
 			description: "happy path",
 			expectedBatch: &statev2.Batch{
-				BatchNum:          14,
+				BatchNumber:       14,
 				GlobalExitRootNum: new(big.Int),
-				EthTimestamp:      time.Now(),
+				Timestamp:         time.Now(),
 			},
 			expectedEncodedTxs: []string{"tx1", "tx2", "tx3"},
 		},
@@ -190,7 +190,7 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 			}
 			st.On("GetLastBatch", mock.AnythingOfType("*context.valueCtx"), nil).Return(tc.expectedBatch, err)
 			if tc.expectedBatch != nil {
-				st.On("GetEncodedTransactionsByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.BatchNum, nil).Return(tc.expectedEncodedTxs, err)
+				st.On("GetEncodedTransactionsByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.BatchNumber, nil).Return(tc.expectedEncodedTxs, err)
 			}
 
 			broadcastSrv.SetState(st)
@@ -200,9 +200,9 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 			require.NoError(t, testutils.CheckError(err, tc.expectedErr, fmt.Sprintf("rpc error: code = Unknown desc = %s", tc.expectedErrMsg)))
 
 			if err == nil {
-				require.Equal(t, tc.expectedBatch.BatchNum, actualBatch.BatchNumber)
+				require.Equal(t, tc.expectedBatch.BatchNumber, actualBatch.BatchNumber)
 				require.Equal(t, tc.expectedBatch.GlobalExitRootNum.String(), actualBatch.GlobalExitRoot)
-				require.Equal(t, uint64(tc.expectedBatch.EthTimestamp.Unix()), actualBatch.Timestamp)
+				require.Equal(t, uint64(tc.expectedBatch.Timestamp.Unix()), actualBatch.Timestamp)
 				for i, encoded := range tc.expectedEncodedTxs {
 					require.Equal(t, encoded, actualBatch.Transactions[i].Encoded)
 				}
