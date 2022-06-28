@@ -54,14 +54,6 @@ func (s *PostgresStorage) getQuerier(dbTx pgx.Tx) querier {
 	return s
 }
 
-// getRowQuerier determines which rowQuerier to use, dbTx or the main pgxpool.
-func (s *PostgresStorage) getRowQuerier(dbTx pgx.Tx) rowQuerier {
-	if dbTx != nil {
-		return dbTx
-	}
-	return s
-}
-
 // Reset resets the state to a block
 func (s *PostgresStorage) Reset(ctx context.Context, block *Block, tx pgx.Tx) error {
 	if _, err := tx.Exec(ctx, resetSQL, block.BlockNumber); err != nil {
@@ -211,7 +203,7 @@ func (s *PostgresStorage) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch
 		batch  Batch
 		gerStr string
 	)
-	q := s.getRowQuerier(dbTx)
+	q := s.getQuerier(dbTx)
 
 	err := q.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
 
@@ -277,7 +269,7 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 		batch  Batch
 		gerStr string
 	)
-	q := s.getRowQuerier(dbTx)
+	q := s.getQuerier(dbTx)
 
 	err := q.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
 
