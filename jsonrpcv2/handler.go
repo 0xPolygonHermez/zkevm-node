@@ -164,7 +164,7 @@ func validateFunc(funcName string, fv reflect.Value, isMethod bool) (inNum int, 
 		err = fmt.Errorf("unexpected number of output arguments in the function '%s': %d. Expected 2", funcName, outNum)
 		return
 	}
-	if !isRpcErrorType(ft.Out(1)) {
+	if !isRPCErrorType(ft.Out(1)) {
 		err = fmt.Errorf("unexpected type for the second return value of the function '%s': '%s'. Expected '%s'", funcName, ft.Out(1), rpcErrType)
 		return
 	}
@@ -178,7 +178,7 @@ func validateFunc(funcName string, fv reflect.Value, isMethod bool) (inNum int, 
 
 var rpcErrType = reflect.TypeOf((*rpcError)(nil)).Elem()
 
-func isRpcErrorType(t reflect.Type) bool {
+func isRPCErrorType(t reflect.Type) bool {
 	return t.Implements(rpcErrType)
 }
 

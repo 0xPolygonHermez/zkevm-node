@@ -113,6 +113,7 @@ func TestCall(t *testing.T) {
 		gasPrice       *big.Int
 		value          *big.Int
 		data           []byte
+		blockNumber    *big.Int
 		expectedResult []byte
 		expectedError  interface{}
 		setupMocks     func(*mocks, *testCase)
@@ -146,7 +147,7 @@ func TestCall(t *testing.T) {
 			},
 		},
 		{
-			name:           "Transaction without from and gas",
+			name:           "Transaction without from and gas from latest block",
 			to:             addressPtr(common.HexToAddress("0x2")),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
@@ -172,11 +173,54 @@ func TestCall(t *testing.T) {
 			},
 		},
 		{
-			name:           "Transaction without from and gas and failed to get last block",
+			name:           "Transaction without from and gas from pending block",
 			to:             addressPtr(common.HexToAddress("0x2")),
 			gasPrice:       big.NewInt(1),
 			value:          big.NewInt(2),
 			data:           []byte("data"),
+			blockNumber:    big.NewInt(-1),
+			expectedResult: []byte("hello world"),
+			expectedError:  nil,
+			setupMocks: func(m *mocks, testCase *testCase) {
+				blockNumber := uint64(1)
+				block := &state.L2Block{Header: &types.Header{Number: big.NewInt(1), Root: common.Hash{}, GasLimit: 123456}}
+				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
+				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
+				m.State.On("GetLastBlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				m.State.On("GetLastBlock", context.Background(), m.DbTx).Return(block, nil).Once()
+				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
+					hasTx := tx != nil
+					gasMatch := tx.Gas() == block.Header.GasLimit
+					toMatch := tx.To().Hex() == testCase.to.Hex()
+					gasPriceMatch := tx.GasPrice().Uint64() == testCase.gasPrice.Uint64()
+					valueMatch := tx.Value().Uint64() == testCase.value.Uint64()
+					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
+					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
+				})
+				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, s.SequencerAddress, blockNumber, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
+			},
+		},
+		{
+			name:           "Transaction without from and gas and failed to get latest block header",
+			to:             addressPtr(common.HexToAddress("0x2")),
+			gasPrice:       big.NewInt(1),
+			value:          big.NewInt(2),
+			data:           []byte("data"),
+			expectedResult: nil,
+			expectedError:  newRPCError(defaultErrorCode, "failed to get block header"),
+			setupMocks: func(m *mocks, testCase *testCase) {
+				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
+				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
+				m.State.On("GetLastBlock", context.Background(), m.DbTx).Return(nil, errors.New("failed to get last block")).Once()
+			},
+		},
+		{
+			name:           "Transaction without from and gas and failed to get pending block header",
+			to:             addressPtr(common.HexToAddress("0x2")),
+			gasPrice:       big.NewInt(1),
+			value:          big.NewInt(2),
+			data:           []byte("data"),
+			blockNumber:    big.NewInt(-1),
 			expectedResult: nil,
 			expectedError:  newRPCError(defaultErrorCode, "failed to get block header"),
 			setupMocks: func(m *mocks, testCase *testCase) {
@@ -235,7 +279,7 @@ func TestCall(t *testing.T) {
 
 			testCase.setupMocks(m, testCase)
 
-			result, err := c.CallContract(context.Background(), msg, nil)
+			result, err := c.CallContract(context.Background(), msg, testCase.blockNumber)
 			assert.Equal(t, testCase.expectedResult, result)
 			if err != nil || testCase.expectedError != nil {
 				if expectedErr, ok := testCase.expectedError.(*RPCError); ok {

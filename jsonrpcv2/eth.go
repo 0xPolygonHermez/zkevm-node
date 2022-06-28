@@ -108,12 +108,12 @@ func (e *Eth) GasPrice() (interface{}, rpcError) {
 // GetBalance returns the account's balance at the referenced block
 func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		batchNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
 
-		balance, err := e.state.GetBalance(ctx, address, batchNumber, dbTx)
+		balance, err := e.state.GetBalance(ctx, address, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return hex.EncodeUint64(0), nil
 		} else if err != nil {
@@ -216,7 +216,7 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, rpcError) {
 	case FilterTypeBlock:
 		{
 			return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-				res, err := e.state.GetBlockHashesSince(context.Background(), filter.LastPoll, dbTx)
+				res, err := e.state.GetBlockHashesSince(ctx, filter.LastPoll, dbTx)
 				if err != nil {
 					return rpcErrorResponse(defaultErrorCode, "failed to get block hashes", err)
 				}
@@ -337,12 +337,12 @@ func (e *Eth) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter *LogFilte
 func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		var err error
-		batchNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
 
-		value, err := e.state.GetStorageAt(ctx, address, position.Big(), batchNumber, dbTx)
+		value, err := e.state.GetStorageAt(ctx, address, position.Big(), blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return argBytesPtr(common.Hash{}.Bytes()), nil
 		} else if err != nil {
@@ -657,10 +657,14 @@ func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.T
 		if err != nil {
 			return nil, err
 		}
+		parentHash := lastBlock.Hash()
+		number := lastBlock.Number().Uint64() + 1
+
 		header := &types.Header{
-			ParentHash: lastBlock.Hash(),
-			Number:     big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1),
+			ParentHash: parentHash,
+			Number:     big.NewInt(0).SetUint64(number),
 			Difficulty: big.NewInt(0),
+			GasLimit:   lastBlock.Header.GasLimit,
 		}
 		return header, nil
 
