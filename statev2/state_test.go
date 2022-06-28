@@ -5,42 +5,36 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
-	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
 
+/*
 const (
 	ether155V = 27
 )
-
+*/
 var (
 	testState    *state.State
 	hash1, hash2 common.Hash
 	stateDb      *pgxpool.Pool
 	err          error
 	cfg          = dbutils.NewConfigFromEnv()
-	ctx          = context.Background()
-	stateCfg     = state.Config{
+	// ctx          = context.Background()
+	stateCfg = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
 	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
@@ -146,6 +140,7 @@ func TestAddForcedBatch(t *testing.T) {
 	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
 }
 
+/*
 func TestExecuteTransaction(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -217,3 +212,4 @@ func TestExecuteTransaction(t *testing.T) {
 	// err = ioutil.WriteFile("trace.json", file, 0644)
 	// require.NoError(t, err)
 }
+*/
