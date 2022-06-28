@@ -46,16 +46,16 @@ func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 	}
 }
 
-// getQueryer determines which queryer to use, dbTx or the main pgxpool.
-func (s *PostgresStorage) getQueryer(dbTx pgx.Tx) queryer {
+// getQuerier determines which queryer to use, dbTx or the main pgxpool.
+func (s *PostgresStorage) getQuerier(dbTx pgx.Tx) querier {
 	if dbTx != nil {
 		return dbTx
 	}
 	return s
 }
 
-// getQueryer determines which queryRower to use, dbTx or the main pgxpool.
-func (s *PostgresStorage) getQueryRower(dbTx pgx.Tx) queryRower {
+// getRowQuerier determines which rowQuerier to use, dbTx or the main pgxpool.
+func (s *PostgresStorage) getRowQuerier(dbTx pgx.Tx) rowQuerier {
 	if dbTx != nil {
 		return dbTx
 	}

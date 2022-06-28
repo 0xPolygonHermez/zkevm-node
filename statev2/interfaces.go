@@ -6,10 +6,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type queryer interface {
+type querier interface {
 	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
 }
 
-type queryRower interface {
+type rowQuerier interface {
 	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
 }
