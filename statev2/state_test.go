@@ -10,7 +10,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
-	"github.com/hermeznetwork/hermez-core/hex"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
@@ -111,11 +110,13 @@ func TestAddForcedBatch(t *testing.T) {
 	}
 	err = testState.AddBlock(ctx, block, tx)
 	assert.NoError(t, err)
-	b, err := hex.DecodeHex("0x617b3a3528F9")
+	b := common.Hex2Bytes("0x617b3a3528F9")
 	assert.NoError(t, err)
+	var bN uint64 = 3
 	forcedBatch := state.ForcedBatch{
 		BlockNumber:       1,
 		ForcedBatchNumber: 2,
+		BatchNumber:       &bN,
 		GlobalExitRoot:    common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		Sequencer:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 		RawTxsData:        b,
@@ -128,6 +129,7 @@ func TestAddForcedBatch(t *testing.T) {
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, forcedBatch.BlockNumber, fb.BlockNumber)
+	assert.Equal(t, forcedBatch.BatchNumber, fb.BatchNumber)
 	assert.Equal(t, forcedBatch.ForcedBatchNumber, fb.ForcedBatchNumber)
 	assert.NotEqual(t, time.Time{}, fb.ForcedAt)
 	assert.Equal(t, forcedBatch.GlobalExitRoot, fb.GlobalExitRoot)
