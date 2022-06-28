@@ -48,14 +48,14 @@ type EventOrder string
 const (
 	// GlobalExitRootsOrder identifies a GlobalExitRoot event
 	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
-	// SequencedBatchesOrder identifies a VerifyBatch event
-	SequencedBatchesOrder EventOrder = "SequenceBatches"
+	// SequenceBatchesOrder identifies a VerifyBatch event
+	SequenceBatchesOrder EventOrder = "SequenceBatches"
 	// ForcedBatchesOrder identifies a ForceBatches event
 	ForceBatchesOrder EventOrder = "ForceBatches"
 	// VerifyBatchOrder identifies a VerifyBatch event
 	VerifyBatchOrder EventOrder = "VerifyBatch"
-	// ForceSequencedBatchesOrder identifies a SequenceForceBatches event
-	ForceSequencedBatchesOrder EventOrder = "SequenceForceBatches"
+	// SequenceForceBatchesOrder identifies a SequenceForceBatches event
+	SequenceForceBatchesOrder EventOrder = "SequenceForceBatches"
 )
 
 type ethClienter interface {
@@ -354,7 +354,12 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 	} else if isPending {
 		return fmt.Errorf("error tx is still pending. TxHash: %s", tx.Hash().String())
 	}
-	sequences, err := decodeSequences(tx.Data(), sb.NumBatch)
+	msg, err := tx.AsMessage(types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	sequences, err := decodeSequences(tx.Data(), sb.NumBatch, msg.From(), vLog.TxHash)
 	if err != nil {
 		return fmt.Errorf("error decoding the sequences: %v", err)
 	}
@@ -365,23 +370,23 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
 		}
 		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
-		block.SequencedBatches = append(block.SequencedBatches, sequences...)
+		block.SequencedBatches = append(block.SequencedBatches, sequences)
 		*blocks = append(*blocks, block)
 	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].SequencedBatches = append((*blocks)[len(*blocks)-1].SequencedBatches, sequences...)
+		(*blocks)[len(*blocks)-1].SequencedBatches = append((*blocks)[len(*blocks)-1].SequencedBatches, sequences)
 	} else {
 		log.Error("Error processing SequencedBatches event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
 		return fmt.Errorf("error processing SequencedBatches event")
 	}
 	or := Order{
-		Name: SequencedBatchesOrder,
+		Name: SequenceBatchesOrder,
 		Pos:  len((*blocks)[len(*blocks)-1].SequencedBatches) - 1,
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
 	return nil
 }
 
-func decodeSequences(txData []byte, lastBatchNumber uint64) ([]SequencedBatch, error) {
+func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
 	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
@@ -415,6 +420,8 @@ func decodeSequences(txData []byte, lastBatchNumber uint64) ([]SequencedBatch, e
 		lastBatchNumber -= uint64(len(sequences[i].ForceBatchesTimestamp))
 		sequencedBatches[i] = SequencedBatch{
 			BatchNumber:                lastBatchNumber,
+			Sequencer:                  sequencer,
+			TxHash:                     txHash,
 			ProofOfEfficiencyBatchData: sequences[i],
 		}
 		lastBatchNumber--
@@ -503,7 +510,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 		return fmt.Errorf("error processing ForceSequencedBatches event")
 	}
 	or := Order{
-		Name: ForceSequencedBatchesOrder,
+		Name: SequenceForceBatchesOrder,
 		Pos:  len((*blocks)[len(*blocks)-1].SequencedForceBatches) - 1,
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)

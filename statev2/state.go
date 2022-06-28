@@ -150,7 +150,7 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 }
 
 // StoreBatchHeader is used by the Trusted Sequencer to create a new batch
-func (s *State) StoreBatchHeader(ctx context.Context, batch Batch) error {
+func (s *State) StoreBatchHeader(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
 	// TODO: implement
 	return nil
 }
@@ -195,11 +195,6 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 // GetBatchByNumber gets a batch from data base by its number
 func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
 	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, tx)
-}
-
-func (s *State) GetTrustedBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
-	// TODO: implement
-	return nil, nil
 }
 
 // GetEncodedTransactionsByBatchNumber gets the txs for a given batch in encoded form
@@ -370,4 +365,16 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	jsTracer.CaptureEnd(common.Hex2Bytes(trace.Context.Output), gasUsed.Uint64(), time.Duration(trace.Context.Time), nil)
 
 	return jsTracer.GetResult()
+}
+
+// AddVirtualBatch adds a virtual batch to the database
+func (s *State) AddVirtualBatch(ctx context.Context, virtualBatch VirtualBatch, tx pgx.Tx) error {
+	// TODO: implement
+	return nil
+}
+
+// GetNextForcedBatches returns the next forcedBatches in FIFO order
+func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) (*[]ForcedBatch, error) {
+	// TODO: implement
+	return nil, nil
 }

@@ -171,12 +171,12 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(blocks))
-	assert.Equal(t, 2, len(blocks[2].SequencedBatches))
-	assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[2].SequencedBatches[1].Transactions)
-	assert.Equal(t, currentBlock.Time()-1, blocks[2].SequencedBatches[0].Timestamp)
-	assert.Equal(t, ger, blocks[2].SequencedBatches[0].GlobalExitRoot)
-	assert.Equal(t, []uint64{currentBlock.Time()}, blocks[2].SequencedBatches[0].ForceBatchesTimestamp)
-	assert.Equal(t, 1, order[blocks[2].BlockHash][0].Pos)
+	assert.Equal(t, 1, len(blocks[2].SequencedBatches))
+	assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[2].SequencedBatches[0][1].Transactions)
+	assert.Equal(t, currentBlock.Time()-1, blocks[2].SequencedBatches[0][0].Timestamp)
+	assert.Equal(t, ger, blocks[2].SequencedBatches[0][0].GlobalExitRoot)
+	assert.Equal(t, []uint64{currentBlock.Time()}, blocks[2].SequencedBatches[0][0].ForceBatchesTimestamp)
+	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
 }
 
 func TestVerifyBatchEvent(t *testing.T) {
