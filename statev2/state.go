@@ -180,7 +180,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 }
 
 // StoreBatchHeader is used by the Trusted Sequencer to create a new batch
-func (s *State) StoreBatchHeader(ctx context.Context, batch Batch) error {
+func (s *State) StoreBatchHeader(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
 	// TODO: implement
 	return nil
 }
@@ -253,8 +253,8 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 }
 
 // GetBatchByNumber gets a batch from data base by its number
-func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
-	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
+func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
+	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, tx)
 }
 
 // GetEncodedTransactionsByBatchNumber gets the txs for a given batch in encoded form
@@ -488,4 +488,16 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 // GetTree returns State inner tree
 func (s *State) GetTree() *merkletree.StateTree {
 	return s.tree
+}
+
+// AddVirtualBatch adds a virtual batch to the database
+func (s *State) AddVirtualBatch(ctx context.Context, virtualBatch VirtualBatch, tx pgx.Tx) error {
+	// TODO: implement
+	return nil
+}
+
+// GetNextForcedBatches returns the next forcedBatches in FIFO order
+func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) (*[]ForcedBatch, error) {
+	// TODO: implement
+	return nil, nil
 }

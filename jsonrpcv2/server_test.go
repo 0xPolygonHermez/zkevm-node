@@ -28,6 +28,7 @@ type mocks struct {
 	State             *stateMock
 	GasPriceEstimator *gasPriceEstimatorMock
 	Storage           *storageMock
+	DbTx              *dbTxMock
 }
 
 func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
@@ -53,6 +54,7 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	state := newStateMock(t)
 	gasPriceEstimator := newGasPriceEstimatorMock(t)
 	storage := newStorageMock(t)
+	dbTx := newDbTxMock(t)
 	apis := map[string]bool{
 		APIEth:    true,
 		APINet:    true,
@@ -100,6 +102,7 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 		State:             state,
 		GasPriceEstimator: gasPriceEstimator,
 		Storage:           storage,
+		DbTx:              dbTx,
 	}
 
 	return msv, mks, ethClient

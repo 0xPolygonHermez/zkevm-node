@@ -16,6 +16,10 @@ const (
 	LatestBlockNumber = BlockNumber(-2)
 	// EarliestBlockNumber represents the earliest block number
 	EarliestBlockNumber = BlockNumber(-1)
+
+	Earliest = "earliest"
+	Latest   = "latest"
+	Pending  = "pending"
 )
 
 // Request is a jsonrpc request
@@ -127,11 +131,11 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 func stringToBlockNumber(str string) (BlockNumber, error) {
 	str = strings.Trim(str, "\"")
 	switch str {
-	case "earliest":
+	case Earliest:
 		return EarliestBlockNumber, nil
-	case "pending":
+	case Pending:
 		return PendingBlockNumber, nil
-	case "latest", "":
+	case Latest, "":
 		return LatestBlockNumber, nil
 	}
 

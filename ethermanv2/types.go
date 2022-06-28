@@ -15,7 +15,7 @@ type Block struct {
 	ParentHash            common.Hash
 	GlobalExitRoots       []GlobalExitRoot
 	ForcedBatches         []ForcedBatch
-	SequencedBatches      []SequencedBatch
+	SequencedBatches      [][]SequencedBatch
 	VerifiedBatches       []VerifiedBatch
 	SequencedForceBatches []SequencedForceBatch
 	ReceivedAt            time.Time
@@ -33,6 +33,8 @@ type GlobalExitRoot struct {
 // SequencedBatches represents virtual batches
 type SequencedBatch struct {
 	BatchNumber uint64
+	Sequencer   common.Address
+	TxHash      common.Hash
 	proofofefficiency.ProofOfEfficiencyBatchData
 }
 

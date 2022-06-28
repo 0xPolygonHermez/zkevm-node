@@ -10,7 +10,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
-	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
@@ -100,44 +99,6 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	assert.Equal(t, globalExitRoot.MainnetExitRoot, exit.MainnetExitRoot)
 	assert.Equal(t, globalExitRoot.RollupExitRoot, exit.RollupExitRoot)
 	assert.Equal(t, globalExitRoot.GlobalExitRoot, exit.GlobalExitRoot)
-}
-
-func TestAddForcedBatch(t *testing.T) {
-	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
-	ctx := context.Background()
-	tx, err := testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	block := &state.Block{
-		BlockNumber: 1,
-		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ReceivedAt:  time.Now(),
-	}
-	err = testState.AddBlock(ctx, block, tx)
-	assert.NoError(t, err)
-	b, err := hex.DecodeHex("0x617b3a3528F9")
-	assert.NoError(t, err)
-	forcedBatch := state.ForcedBatch{
-		BlockNumber:       1,
-		ForcedBatchNumber: 2,
-		GlobalExitRoot:    common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		Sequencer:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
-		RawTxsData:        b,
-		ForcedAt:          time.Now(),
-	}
-	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
-	require.NoError(t, err)
-	fb, err := testState.GetForcedBatch(ctx, tx, 2)
-	require.NoError(t, err)
-	err = tx.Commit(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, forcedBatch.BlockNumber, fb.BlockNumber)
-	assert.Equal(t, forcedBatch.ForcedBatchNumber, fb.ForcedBatchNumber)
-	assert.NotEqual(t, time.Time{}, fb.ForcedAt)
-	assert.Equal(t, forcedBatch.GlobalExitRoot, fb.GlobalExitRoot)
-	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
 }
 
 /*

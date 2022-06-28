@@ -2,6 +2,7 @@ package synchronizerv2
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -11,6 +12,7 @@ import (
 	etherman "github.com/hermeznetwork/hermez-core/ethermanv2"
 	"github.com/hermeznetwork/hermez-core/log"
 	state "github.com/hermeznetwork/hermez-core/statev2"
+	"github.com/jackc/pgx/v4"
 )
 
 // Synchronizer connects L1 and L2
@@ -58,7 +60,7 @@ func (s *ClientSynchronizer) Sync() error {
 	if err != nil {
 		if err == state.ErrStateNotSynchronized {
 			log.Warn("error getting the latest ethereum block. No data stored. Setting genesis block. Error: ", err)
-			lastEthBlockSynced = &etherman.Block{
+			lastEthBlockSynced = &state.Block{
 				BlockNumber: s.genBlockNumber,
 			}
 			// TODO Set Genesis if needed
@@ -66,7 +68,7 @@ func (s *ClientSynchronizer) Sync() error {
 			log.Fatal("unexpected error getting the latest ethereum block. Setting genesis block. Error: ", err)
 		}
 	} else if lastEthBlockSynced.BlockNumber == 0 {
-		lastEthBlockSynced = &etherman.Block{
+		lastEthBlockSynced = &state.Block{
 			BlockNumber: s.genBlockNumber,
 		}
 	}
@@ -108,7 +110,7 @@ func (s *ClientSynchronizer) Sync() error {
 }
 
 // This function syncs the node from a specific block to the latest
-func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *etherman.Block) (*etherman.Block, error) {
+func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	// This function will read events fromBlockNum to latestEthBlock. Check reorg to be sure that everything is ok.
 	block, err := s.checkReorg(lastEthBlockSynced)
 	if err != nil {
@@ -151,7 +153,12 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *etherman.Block) (*et
 		}
 		s.processBlockRange(blocks, order)
 		if len(blocks) > 0 {
-			lastEthBlockSynced = &blocks[len(blocks)-1]
+			lastEthBlockSynced = &state.Block{
+				BlockNumber: blocks[len(blocks)-1].BlockNumber,
+				BlockHash:   blocks[len(blocks)-1].BlockHash,
+				ParentHash:  blocks[len(blocks)-1].ParentHash,
+				ReceivedAt:  blocks[len(blocks)-1].ReceivedAt,
+			}
 			for i := range blocks {
 				log.Debug("Position: ", i, ". BlockNumber: ", blocks[i].BlockNumber, ". BlockHash: ", blocks[i].BlockHash)
 			}
@@ -175,7 +182,13 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *etherman.Block) (*et
 				ReceivedAt:  time.Unix(int64(fb.Time()), 0),
 			}
 			s.processBlockRange([]etherman.Block{b}, order)
-			lastEthBlockSynced = &b
+			block := state.Block{
+				BlockNumber: fb.NumberU64(),
+				BlockHash:   fb.Hash(),
+				ParentHash:  fb.ParentHash(),
+				ReceivedAt:  time.Unix(int64(fb.Time()), 0),
+			}
+			lastEthBlockSynced = &block
 			log.Debug("Storing empty block. BlockNumber: ", b.BlockNumber, ". BlockHash: ", b.BlockHash)
 		}
 	}
@@ -186,16 +199,21 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *etherman.Block) (*et
 func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order map[common.Hash][]etherman.Order) {
 	// New info has to be included into the db using the state
 	for i := range blocks {
-		ctx := context.Background()
 		// Begin db transaction
-		txDB, err := s.state.BeginStateTransaction(ctx)
+		txDB, err := s.state.BeginStateTransaction(s.ctx)
 		if err != nil {
 			log.Fatalf("error creating db transaction to store block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err)
 		}
+		b := state.Block{
+			BlockNumber: blocks[i].BlockNumber,
+			BlockHash:   blocks[i].BlockHash,
+			ParentHash:  blocks[i].ParentHash,
+			ReceivedAt:  blocks[i].ReceivedAt,
+		}
 		// Add block information
-		err = s.state.AddBlock(ctx, &blocks[i], txDB)
+		err = s.state.AddBlock(s.ctx, &b, txDB)
 		if err != nil {
-			rollbackErr := s.state.RollbackState(ctx, txDB)
+			rollbackErr := s.state.RollbackState(s.ctx, txDB)
 			if rollbackErr != nil {
 				log.Fatal(fmt.Sprintf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %v, error : %v", blocks[i].BlockNumber, rollbackErr, err))
 			}
@@ -203,9 +221,11 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 		}
 		for _, element := range order[blocks[i].BlockHash] {
 			// TODO Implement the store methods for each event
-			log.Debug(element)
+			if element.Name == etherman.SequenceBatchesOrder {
+				s.processSequenceBatches(blocks[i].SequencedBatches[element.Pos], blocks[i].BlockNumber, txDB)
+			}
 		}
-		err = s.state.CommitState(ctx, txDB)
+		err = s.state.CommitState(s.ctx, txDB)
 		if err != nil {
 			log.Fatalf("error committing state to store block. BlockNumber: %v, err: %v", blocks[i].BlockNumber, err)
 		}
@@ -252,7 +272,7 @@ If hash or hash parent don't match, reorg detected and the function will return 
 must be reverted. Then, check the previous ethereum block synced, get block info from the blockchain and check
 hash and has parent. This operation has to be done until a match is found.
 */
-func (s *ClientSynchronizer) checkReorg(latestBlock *etherman.Block) (*etherman.Block, error) {
+func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block, error) {
 	// This function only needs to worry about reorgs if some of the reorganized blocks contained rollup info.
 	latestEthBlockSynced := *latestBlock
 	var depth uint64
@@ -282,7 +302,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *etherman.Block) (*etherman.
 			latestBlock, err = s.state.GetPreviousBlock(s.ctx, depth)
 			if errors.Is(err, state.ErrNotFound) {
 				log.Warn("error checking reorg: previous block not found in db: ", err)
-				return &etherman.Block{}, nil
+				return &state.Block{}, nil
 			} else if err != nil {
 				return nil, err
 			}
@@ -300,4 +320,129 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *etherman.Block) (*etherman.
 // Stop function stops the synchronizer
 func (s *ClientSynchronizer) Stop() {
 	s.cancelCtx()
+}
+
+func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, txDB pgx.Tx) (bool, error) {
+	// First get trusted batch from db
+	tBatch, err := s.state.GetBatchByNumber(s.ctx, batch.BatchNumber, txDB)
+	if err != nil {
+		return false, err
+	}
+	//Compare virtual state with trusted state
+	if hex.EncodeToString(batch.BatchL2Data) == hex.EncodeToString(tBatch.BatchL2Data) &&
+		batch.GlobalExitRoot == tBatch.GlobalExitRoot &&
+		batch.Timestamp == tBatch.Timestamp &&
+		batch.Coinbase == tBatch.Coinbase {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.SequencedBatch, blockNumber uint64, txDB pgx.Tx) {
+	for _, batch := range sequencedBatches {
+		vb := state.VirtualBatch{
+			BatchNumber: batch.BatchNumber,
+			TxHash:      batch.TxHash,
+			Sequencer:   batch.Sequencer,
+			BlockNumber: blockNumber,
+		}
+		virtualBatches := []state.VirtualBatch{vb}
+		b := state.Batch{
+			BatchNumber:    batch.BatchNumber,
+			GlobalExitRoot: batch.GlobalExitRoot,
+			Timestamp:      time.Unix(int64(batch.Timestamp), 0),
+			Coinbase:       batch.Sequencer,
+			BatchL2Data:    batch.Transactions,
+		}
+		batches := []state.Batch{b}
+		// ForcedBatchesmust be processed after the batch.
+		numForcedBatches := len(batch.ForceBatchesTimestamp)
+		if numForcedBatches > 0 {
+			// Read forcedBatches from db
+			forcedBatches, err := s.state.GetNextForcedBatches(s.ctx, numForcedBatches, txDB)
+			if err != nil {
+				log.Errorf("error getting forcedBatches. BatchNumber: %d", vb.BatchNumber)
+				rollbackErr := s.state.RollbackState(s.ctx, txDB)
+				if rollbackErr != nil {
+					log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", vb.BatchNumber, blockNumber, rollbackErr, err))
+				}
+				log.Fatalf("error getting forcedBatches. BatchNumber: %d, BlockNumber: %d, error: %v", vb.BatchNumber, blockNumber, err)
+			}
+			if numForcedBatches != len(*forcedBatches) {
+				log.Fatal("error number of forced batches doesn't match")
+			}
+			for i, forcedBatch := range *forcedBatches {
+				vb := state.VirtualBatch{
+					BatchNumber: batch.BatchNumber + uint64(i),
+					TxHash:      batch.TxHash,
+					Sequencer:   batch.Sequencer,
+					BlockNumber: blockNumber,
+				}
+				virtualBatches = append(virtualBatches, vb)
+				tb := state.Batch{
+					BatchNumber:    batch.BatchNumber + uint64(i), // First process the batch and then the forcedBatches
+					GlobalExitRoot: forcedBatch.GlobalExitRoot,
+					Timestamp:      time.Unix(int64(batch.ForceBatchesTimestamp[i]), 0), // ForceBatchesTimestamp instead of forcedAt because it is the timestamp selected by the sequencer, not when the forced batch was sent. This forcedAt is the min timestamp allowed.
+					Coinbase:       forcedBatch.Sequencer,
+					BatchL2Data:    forcedBatch.RawTxsData,
+				}
+				batches = append(batches, tb)
+			}
+		}
+
+		if len(virtualBatches) != len(batches) {
+			log.Fatal("error: length of batches and virtualBatches don't match.\nvirtualBatches: %+v \nbatches: %+v", virtualBatches, batches)
+		}
+
+		// Now we need to check all the batches. ForcedBatches should be already stored in the batch table because this is done by the sequencer
+		for i, batch := range batches {
+			// Call the check trusted state method to compare trusted and virtual state
+			status, err := s.checkTrustedState(batch, txDB)
+			if err != nil {
+				if errors.Is(err, state.ErrNotFound) {
+					log.Debugf("BatchNumber: %d, not found in trusted state. Storing it...", batch.BatchNumber)
+					// If it is not found, store batch
+					err = s.state.StoreBatchHeader(s.ctx, batch, txDB)
+					if err != nil {
+						rollbackErr := s.state.RollbackState(s.ctx, txDB)
+						if rollbackErr != nil {
+							log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", batch.BatchNumber, blockNumber, rollbackErr, err))
+						}
+						log.Fatalf("error storing batch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
+					}
+					status = true
+				} else {
+					log.Fatal("error checking trusted state: ", err)
+				}
+			}
+			if !status {
+				// Reset trusted state
+				err := s.state.ResetTrustedState(s.ctx, batch.BatchNumber, txDB) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
+				if err != nil {
+					rollbackErr := s.state.RollbackState(s.ctx, txDB)
+					if rollbackErr != nil {
+						log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", batch.BatchNumber, blockNumber, rollbackErr, err))
+					}
+					log.Fatalf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
+				}
+				err = s.state.StoreBatchHeader(s.ctx, batch, txDB)
+				if err != nil {
+					rollbackErr := s.state.RollbackState(s.ctx, txDB)
+					if rollbackErr != nil {
+						log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", batch.BatchNumber, blockNumber, rollbackErr, err))
+					}
+					log.Fatalf("error storing batch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
+				}
+			}
+			// Store virtualBatch
+			err = s.state.AddVirtualBatch(s.ctx, virtualBatches[i], txDB)
+			if err != nil {
+				rollbackErr := s.state.RollbackState(s.ctx, txDB)
+				if rollbackErr != nil {
+					log.Fatal(fmt.Sprintf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %v, error : %v", virtualBatches[i].BatchNumber, blockNumber, rollbackErr, err))
+				}
+				log.Fatalf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatches[i].BatchNumber, blockNumber, err)
+			}
+		}
+	}
 }

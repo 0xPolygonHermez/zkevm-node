@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -13,14 +14,16 @@ type Hez struct {
 	txMan dbTxManager
 }
 
-// ConsolidatedBlockNumber returns current block number for consolidated batches
-func (h *Hez) ConsolidatedBlockNumber() (interface{}, error) {
-	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, error) {
-		lastBatchNumber, err := h.state.GetLastConsolidatedBlockNumber(ctx, dbTx)
+// ConsolidatedBlockNumber returns current block number for consolidated blocks
+func (h *Hez) ConsolidatedBlockNumber() (interface{}, rpcError) {
+	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		lastBlockNumber, err := h.state.GetLastConsolidatedBlockNumber(ctx, dbTx)
 		if err != nil {
-			return nil, err
+			const errorMessage = "failed to get last consolidated block number from state"
+			log.Errorf("%v:%v", errorMessage, err)
+			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
-		return hex.EncodeUint64(lastBatchNumber), nil
+		return hex.EncodeUint64(lastBlockNumber), nil
 	})
 }
