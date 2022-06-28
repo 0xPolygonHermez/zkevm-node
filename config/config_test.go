@@ -79,6 +79,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
+			path:          "EthTxManager.MaxSendBatchTxRetries",
+			expectedValue: uint32(10),
+		},
+		{
+			path:          "EthTxManager.FrequencyForResendingFailedSendBatchesInMilliseconds",
+			expectedValue: int64(1000),
+		},
+		{
 			path:          "PriceGetter.Type",
 			expectedValue: pricegetter.DefaultType,
 		},

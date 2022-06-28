@@ -81,8 +81,8 @@ func (c *Client) resendTxIfNeeded(tx sequenceBatchesTx) {
 	)
 	hash := tx.hash
 	ctx := context.Background()
-	for !isTxSuccessful && counter <= c.cfg.MaxSendTxRetries {
-		time.Sleep(time.Duration(c.cfg.FrequencyForResendingFailedTxs) * time.Millisecond)
+	for !isTxSuccessful && counter <= c.cfg.MaxSendBatchTxRetries {
+		time.Sleep(time.Duration(c.cfg.FrequencyForResendingFailedSendBatchesInMilliseconds) * time.Millisecond)
 		receipt := c.getTxReceipt(ctx, hash)
 		if receipt == nil {
 			continue
@@ -100,7 +100,7 @@ func (c *Client) resendTxIfNeeded(tx sequenceBatchesTx) {
 		log.Infof("sendBatch transaction %s is successful", hash.Hex())
 		isTxSuccessful = true
 	}
-	if counter == c.cfg.MaxSendTxRetries {
+	if counter == c.cfg.MaxSendBatchTxRetries {
 		log.Fatalf("failed to send txs %v several times,"+
 			" gas limit %d is too high, first tx hash %s, last tx hash %s",
 			tx.sequences, gasLimit, tx.hash.Hex(), hash.Hex())

@@ -229,6 +229,7 @@ func (etherMan *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLim
 	sendSequencesOpts.NoSend = false
 	return etherMan.sequenceBatches(sendSequencesOpts, sequences)
 }
+
 func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
 	var batches []proofofefficiency.ProofOfEfficiencyBatchData
 	for _, seq := range sequences {
