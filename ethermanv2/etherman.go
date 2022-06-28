@@ -213,9 +213,9 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 
 // EstimateGasSequenceBatches estimates gas for sending batches
 func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error) {
-	noSendOpts := etherMan.auth
+	noSendOpts := *etherMan.auth
 	noSendOpts.NoSend = true
-	tx, err := etherMan.sequenceBatches(noSendOpts, sequences)
+	tx, err := etherMan.sequenceBatches(&noSendOpts, sequences)
 	if err != nil {
 		return 0, err
 	}
@@ -224,10 +224,9 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 
 // SequenceBatches send sequences of batches to the ethereum
 func (etherMan *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64) (*types.Transaction, error) {
-	sendSequencesOpts := etherMan.auth
+	sendSequencesOpts := *etherMan.auth
 	sendSequencesOpts.GasLimit = gasLimit
-	sendSequencesOpts.NoSend = false
-	return etherMan.sequenceBatches(sendSequencesOpts, sequences)
+	return etherMan.sequenceBatches(&sendSequencesOpts, sequences)
 }
 
 func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
