@@ -38,7 +38,7 @@ type StructLogRes struct {
 
 // TraceTransaction creates a response for debug_traceTransaction request.
 // See https://geth.ethereum.org/docs/rpc/ns-debug#debug_tracetransaction
-func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{}, error) {
+func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{}, rpcError) {
 	ctx := context.Background()
 
 	tracer := ""

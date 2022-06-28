@@ -12,6 +12,6 @@ type Net struct {
 }
 
 // Version returns the current network id
-func (n *Net) Version() (interface{}, error) {
+func (n *Net) Version() (interface{}, rpcError) {
 	return strconv.FormatUint(n.chainID, encoding.Base10), nil
 }

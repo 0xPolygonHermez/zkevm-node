@@ -3,29 +3,30 @@ package jsonrpcv2
 import (
 	"context"
 
-	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/jackc/pgx/v4"
 )
 
 type dbTxManager struct{}
 
-func (f *dbTxManager) NewDbTxScope(st stateInterface, scopedFn func(ctx context.Context, dbTx pgx.Tx) (interface{}, error)) (interface{}, error) {
+type dbTxScopedFn func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError)
+
+func (f *dbTxManager) NewDbTxScope(st stateInterface, scopedFn dbTxScopedFn) (interface{}, rpcError) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	if err != nil {
-		return nil, newRPCError(defaultErrorCode, "failed to connect to the state")
+		return rpcErrorResponse(defaultErrorCode, "failed to connect to the state", err)
 	}
 
-	v, err := scopedFn(ctx, dbTx)
-	if err != nil {
+	v, rpcErr := scopedFn(ctx, dbTx)
+	if rpcErr != nil {
 		if txErr := dbTx.Rollback(context.Background()); txErr != nil {
-			log.Errorf("failed to roll back tx: %v", txErr)
+			return rpcErrorResponse(defaultErrorCode, "failed to rollback db transaction", txErr)
 		}
-		return v, err
+		return v, rpcErr
 	}
 
 	if txErr := dbTx.Commit(context.Background()); txErr != nil {
-		log.Errorf("failed to commit tx: %v", txErr)
+		return rpcErrorResponse(defaultErrorCode, "failed to commit db transaction", txErr)
 	}
-	return v, err
+	return v, rpcErr
 }

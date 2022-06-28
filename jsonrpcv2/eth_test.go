@@ -210,7 +210,7 @@ func TestCall(t *testing.T) {
 			value:          big.NewInt(2),
 			data:           []byte("data"),
 			expectedResult: nil,
-			expectedError:  newRPCError(defaultErrorCode, "failed to execute call: failed to process unsigned transaction"),
+			expectedError:  newRPCError(defaultErrorCode, "failed to execute call"),
 			setupMocks: func(m *mocks, testCase *testCase) {
 				blockNumber := uint64(1)
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
@@ -533,7 +533,7 @@ func TestGetBlockByHash(t *testing.T) {
 			Name:           "Failed get block from state",
 			Hash:           common.HexToHash("0x234"),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get block from state"),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get block by hash from state"),
 			SetupMocks: func(m *mocks, tc *testCase) {
 				m.DbTx.
 					On("Rollback", context.Background()).
@@ -1126,12 +1126,12 @@ func TestGetStorageAt(t *testing.T) {
 			},
 		},
 		{
-			Name:           "failed to get code",
+			Name:           "failed to get storage at",
 			Addr:           common.HexToAddress("0x123"),
 			Key:            common.HexToHash("0x123"),
 			BlockNumber:    big.NewInt(1),
 			ExpectedResult: nil,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get code"),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get storage value from state"),
 
 			SetupMocks: func(m *mocks, tc *testCase) {
 				m.DbTx.
@@ -1146,7 +1146,7 @@ func TestGetStorageAt(t *testing.T) {
 
 				m.State.
 					On("GetStorageAt", context.Background(), tc.Addr, tc.Key.Big(), tc.BlockNumber.Uint64(), m.DbTx).
-					Return(nil, errors.New("failed to get code")).
+					Return(nil, errors.New("failed to get storage at")).
 					Once()
 			},
 		},
