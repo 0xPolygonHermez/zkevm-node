@@ -104,7 +104,7 @@ test-e2e-group-3: build-docker compile-scs ## Runs group 3 e2e tests checking ra
 
 .PHONY: install-linter
 install-linter: ## Installs the linter
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.45.2
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.46.2
 
 .PHONY: lint
 lint: ## Runs the linter
