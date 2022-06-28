@@ -3,6 +3,9 @@ package sequencerv2
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/hermeznetwork/hermez-core/statev2"
 	"strings"
 	"time"
 
@@ -114,13 +117,23 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	// 5. Process tx
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	_, err := s.state.ProcessBatch(ctx, s.sequenceInProgress.Txs)
+	processBatchResp, err := s.state.ProcessBatch(ctx, s.sequenceInProgress.Txs)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
 		return
 	}
 
+	lastBatchNumber, err := s.state.GetLastBatchNumber(ctx)
+	if err != nil {
+		log.Errorf("failed to get last batch number, err: %v", err)
+		return
+	}
+	err = s.state.StoreTransactions(lastBatchNumber, processBatchResp.Responses)
+	if err != nil {
+		log.Errorf("failed to store transactions, err: %v", err)
+		return
+	}
 	// 6. Mark tx as selected in the pool
 	// TODO: add correct handling in case update didn't go through
 	_ = s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected)
@@ -237,7 +250,25 @@ func (s *Sequencer) getMostProfitablePendingTx(ctx context.Context) (*pool.Trans
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	root, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
 	if err != nil {
-		return types.Sequence{}, err
+		return types.Sequence{}, fmt.Errorf("failed to get latest global exit root, err: %v", err)
+	}
+
+	lastBatchNumber, err := s.state.GetLastBatchNumber(ctx)
+	if err != nil {
+		return types.Sequence{}, fmt.Errorf("failed to get last batch number, err: %v", err)
+	}
+
+	// TODO: are those fields enough for header
+	batchHeader := statev2.Batch{
+		BatchNumber: lastBatchNumber + 1,
+		Coinbase:    common.Address{}, // TODO: what is this?
+		//OldStateRoot:      lastBatch.StateRoot, TODO: where to get it?
+		//OldLocalExitRoot:  lastBatch.ExitRoot, TODO: where to get it?
+		Timestamp: time.Now(),
+	}
+	err = s.state.StoreBatchHeader(ctx, batchHeader, nil)
+	if err != nil {
+		return types.Sequence{}, fmt.Errorf("failed to store batch header, err: %v", err)
 	}
 
 	return types.Sequence{
