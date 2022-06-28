@@ -312,8 +312,8 @@ func TestSendSequences(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(blocks))
 	assert.Equal(t, 1, len(blocks[1].SequencedBatches))
-	assert.Equal(t, currentBlock.Time()-1, blocks[1].SequencedBatches[0].Timestamp)
-	assert.Equal(t, ger, blocks[1].SequencedBatches[0].GlobalExitRoot)
-	assert.Equal(t, []uint64{}, blocks[1].SequencedBatches[0].ForceBatchesTimestamp)
+	assert.Equal(t, currentBlock.Time()-1, blocks[1].SequencedBatches[0][0].Timestamp)
+	assert.Equal(t, ger, blocks[1].SequencedBatches[0][0].GlobalExitRoot)
+	assert.Equal(t, []uint64{}, blocks[1].SequencedBatches[0][0].ForceBatchesTimestamp)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
