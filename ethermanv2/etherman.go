@@ -45,7 +45,7 @@ const (
 	// SequenceBatchesOrder identifies a VerifyBatch event
 	SequenceBatchesOrder EventOrder = "SequenceBatches"
 	// ForcedBatchesOrder identifies a ForcedBatches event
-	ForcedBatchesOrder EventOrder = "ForcdeBatches"
+	ForcedBatchesOrder EventOrder = "ForcedBatches"
 	// VerifyBatchOrder identifies a VerifyBatch event
 	VerifyBatchOrder EventOrder = "VerifyBatch"
 	// SequenceForceBatchesOrder identifies a SequenceForceBatches event

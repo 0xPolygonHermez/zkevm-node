@@ -220,7 +220,6 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			log.Fatalf("error storing block. BlockNumber: %d, error: %v", blocks[i].BlockNumber, err)
 		}
 		for _, element := range order[blocks[i].BlockHash] {
-			// TODO Implement the store methods for each event
 			if element.Name == etherman.SequenceBatchesOrder {
 				s.processSequenceBatches(blocks[i].SequencedBatches[element.Pos], blocks[i].BlockNumber, txDB)
 			} else if element.Name == etherman.ForcedBatchesOrder {
@@ -230,7 +229,7 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			} else if element.Name == etherman.SequenceForceBatchesOrder {
 				s.processSequenceForceBatch(blocks[i].SequencedForceBatches[element.Pos], blocks[i].BlockNumber, txDB)
 			} else if element.Name == etherman.VerifyBatchOrder {
-				// TODO
+				s.processVerifiedBatch(blocks[i].VerifiedBatches[element.Pos], txDB)
 			}
 		}
 		err = s.state.CommitState(s.ctx, txDB)
@@ -568,5 +567,23 @@ func (s *ClientSynchronizer) processGlobalExitRoot(globalExitRoot etherman.Globa
 			log.Fatal(fmt.Sprintf("error rolling back state. BlockNumber: %d, rollbackErr: %v, error : %v", globalExitRoot.BlockNumber, rollbackErr, err))
 		}
 		log.Fatalf("error storing the GlobalExitRoot in processGlobalExitRoot. BlockNumber: %d, error: %v", globalExitRoot.BlockNumber, err)
+	}
+}
+
+func (s *ClientSynchronizer) processVerifiedBatch(verifiedBatch etherman.VerifiedBatch, txDB pgx.Tx) {
+	verifiedB := state.VerifiedBatch {
+		BlockNumber: verifiedBatch.BlockNumber,
+		BatchNumber: verifiedBatch.BatchNumber,
+		Aggregator: verifiedBatch.Aggregator,
+		TxHash: verifiedBatch.TxHash,
+	}
+	err := s.state.AddVerifiedBatch(s.ctx, &verifiedB, txDB)
+	if err != nil {
+		log.Errorf("error storing the verifiedBatch in processVerifiedBatch. BlockNumber: %d", verifiedBatch.BlockNumber)
+		rollbackErr := s.state.RollbackState(s.ctx, txDB)
+		if rollbackErr != nil {
+			log.Fatal(fmt.Sprintf("error rolling back state. BlockNumber: %d, rollbackErr: %v, error : %v", verifiedBatch.BlockNumber, rollbackErr, err))
+		}
+		log.Fatalf("error storing the verifiedBatch in processVerifiedBatch. BlockNumber: %d, error: %v", verifiedBatch.BlockNumber, err)
 	}
 }

@@ -35,6 +35,7 @@ type stateInterface interface {
 	// GetNextForcedBatches returns the next forcedBatches in FIFO order
 	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) (*[]state.ForcedBatch, error)
 	AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, tx pgx.Tx) error
+	AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx pgx.Tx) error
 
 	ProcessAndStoreClosedBatch(ctx context.Context, batch state.Batch, tx pgx.Tx) error
 
