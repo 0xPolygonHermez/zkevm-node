@@ -29,13 +29,13 @@ type stateInterface interface {
 	GetPreviousBlock(ctx context.Context, offset uint64) (*state.Block, error)
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*state.Batch, error)
-	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+	ResetTrustedState(ctx context.Context, batchNumber uint64, tx pgx.Tx) error
 	AddVirtualBatch(ctx context.Context, virtualBatch state.VirtualBatch, tx pgx.Tx) error
 	StoreBatchHeader(ctx context.Context, batch state.Batch, tx pgx.Tx) error
 	// GetNextForcedBatches returns the next forcedBatches in FIFO order
 	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) (*[]state.ForcedBatch, error)
 	AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, tx pgx.Tx) error
-	AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx pgx.Tx) error
+	AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, tx pgx.Tx) error
 
 	ProcessAndStoreClosedBatch(ctx context.Context, batch state.Batch, tx pgx.Tx) error
 
