@@ -10,9 +10,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/bridge"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
+	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -263,5 +265,55 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	assert.Equal(t, uint64(4), blocks[1].BlockNumber)
 	assert.Equal(t, uint64(1), blocks[1].SequencedForceBatches[0].LastBatchSequenced)
 	assert.Equal(t, uint64(1), blocks[1].SequencedForceBatches[0].ForceBatchNumber)
+	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
+}
+
+func TestSendSequences(t *testing.T) {
+	// Set up testing environment
+	etherman, ethBackend, _, br := newTestingEnv()
+
+	// Read currentBlock
+	ctx := context.Background()
+	initBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+
+	// Make a bridge tx
+	a := etherman.auth
+	a.Value = big.NewInt(1000000000000000)
+	_, err = br.Bridge(a, common.Address{}, a.Value, 1, a.From)
+	require.NoError(t, err)
+	ethBackend.Commit()
+	a.Value = big.NewInt(0)
+
+	// Get the last ger
+	ger, err := etherman.GlobalExitRootManager.GetLastGlobalExitRoot(nil)
+	require.NoError(t, err)
+
+	currentBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+
+	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	sequence := ethmanTypes.Sequence{
+		GlobalExitRoot:  ger,
+		Timestamp:       int64(currentBlock.Time() - 1),
+		ForceBatchesNum: 0,
+		Txs:             []types.Transaction{*tx1},
+	}
+	tx, err := etherman.sequenceBatches(etherman.auth, []ethmanTypes.Sequence{sequence})
+	require.NoError(t, err)
+	log.Debug("TX: ", tx.Hash())
+	ethBackend.Commit()
+
+	// Now read the event
+	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+	finalBlockNumber := finalBlock.NumberU64()
+	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(blocks))
+	assert.Equal(t, 1, len(blocks[1].SequencedBatches))
+	assert.Equal(t, currentBlock.Time()-1, blocks[1].SequencedBatches[0].Timestamp)
+	assert.Equal(t, ger, blocks[1].SequencedBatches[0].GlobalExitRoot)
+	assert.Equal(t, []uint64{}, blocks[1].SequencedBatches[0].ForceBatchesTimestamp)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
