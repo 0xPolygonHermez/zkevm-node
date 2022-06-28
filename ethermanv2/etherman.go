@@ -44,8 +44,8 @@ const (
 	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
 	// SequenceBatchesOrder identifies a VerifyBatch event
 	SequenceBatchesOrder EventOrder = "SequenceBatches"
-	// ForcedBatchesOrder identifies a ForceBatches event
-	ForceBatchesOrder EventOrder = "ForceBatches"
+	// ForcedBatchesOrder identifies a ForcedBatches event
+	ForcedBatchesOrder EventOrder = "ForcdeBatches"
 	// VerifyBatchOrder identifies a VerifyBatch event
 	VerifyBatchOrder EventOrder = "VerifyBatch"
 	// SequenceForceBatchesOrder identifies a SequenceForceBatches event
@@ -262,7 +262,7 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 		return fmt.Errorf("error processing ForceBatch event")
 	}
 	or := Order{
-		Name: ForceBatchesOrder,
+		Name: ForcedBatchesOrder,
 		Pos:  len((*blocks)[len(*blocks)-1].ForcedBatches) - 1,
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
