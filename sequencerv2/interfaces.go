@@ -40,7 +40,8 @@ type stateInterface interface {
 	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*statev2.Batch, error)
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
 	StoreBatchHeader(ctx context.Context, batch statev2.Batch, dbTx pgx.Tx) error
-	StoreTransactions(batchNum uint64, processedTxs []*statev2.ProcessTransactionResponse) error
+	StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*statev2.ProcessTransactionResponse) error
+	CloseBatch(ctx context.Context, batchNum uint64, stateRoot, localExitRoot common.Hash) error
 	ProcessBatch(ctx context.Context, txs []types.Transaction) (*statev2.ProcessBatchResponse, error)
 	GetLastSendSequenceTime(ctx context.Context) (time.Time, error)
 	GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint64, error)
