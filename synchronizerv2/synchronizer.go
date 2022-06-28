@@ -460,7 +460,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 
 func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch etherman.SequencedForceBatch, blockNumber uint64, txDB pgx.Tx) {
 	// First, reset trusted state
-	lastVirtualizedBatchNumber := sequenceForceBatch.LastBatchSequenced-sequenceForceBatch.ForceBatchNumber
+	lastVirtualizedBatchNumber := sequenceForceBatch.LastBatchSequenced - sequenceForceBatch.ForceBatchNumber
 	err := s.state.ResetTrustedState(s.ctx, lastVirtualizedBatchNumber, txDB) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
 	if err != nil {
 		log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %v", lastVirtualizedBatchNumber, blockNumber, err)
@@ -482,14 +482,14 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch etherm
 	}
 
 	for i, fbatch := range *forcedBatches {
-		vb := state.VirtualBatch {
-			BatchNumber: sequenceForceBatch.LastBatchSequenced-sequenceForceBatch.ForceBatchNumber+uint64(i),
+		vb := state.VirtualBatch{
+			BatchNumber: sequenceForceBatch.LastBatchSequenced - sequenceForceBatch.ForceBatchNumber + uint64(i),
 			TxHash:      sequenceForceBatch.TxHash,
 			Sequencer:   sequenceForceBatch.Sequencer,
 			BlockNumber: blockNumber,
 		}
-		b := state.Batch {
-			BatchNumber:    sequenceForceBatch.LastBatchSequenced-sequenceForceBatch.ForceBatchNumber+uint64(i),
+		b := state.Batch{
+			BatchNumber:    sequenceForceBatch.LastBatchSequenced - sequenceForceBatch.ForceBatchNumber + uint64(i),
 			GlobalExitRoot: fbatch.GlobalExitRoot,
 			Timestamp:      fbatch.ForcedAt,
 			Coinbase:       fbatch.Sequencer,
@@ -530,14 +530,14 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch etherm
 
 func (s *ClientSynchronizer) processForcedBatch(forcedBatch etherman.ForcedBatch, txDB pgx.Tx) {
 	// Store forced batch into the db
-	forcedB := state.ForcedBatch {
-		BlockNumber: forcedBatch.BlockNumber,
-		BatchNumber: nil,
+	forcedB := state.ForcedBatch{
+		BlockNumber:       forcedBatch.BlockNumber,
+		BatchNumber:       nil,
 		ForcedBatchNumber: forcedBatch.ForcedBatchNumber,
-		Sequencer: forcedBatch.Sequencer,
-		GlobalExitRoot: forcedBatch.GlobalExitRoot,
-		RawTxsData: forcedBatch.RawTxsData,
-		ForcedAt: forcedBatch.ForcedAt,
+		Sequencer:         forcedBatch.Sequencer,
+		GlobalExitRoot:    forcedBatch.GlobalExitRoot,
+		RawTxsData:        forcedBatch.RawTxsData,
+		ForcedAt:          forcedBatch.ForcedAt,
 	}
 	err := s.state.AddForcedBatch(s.ctx, &forcedB, txDB)
 	if err != nil {
@@ -552,12 +552,12 @@ func (s *ClientSynchronizer) processForcedBatch(forcedBatch etherman.ForcedBatch
 
 func (s *ClientSynchronizer) processGlobalExitRoot(globalExitRoot etherman.GlobalExitRoot, txDB pgx.Tx) {
 	// Store GlobalExitRoot
-	ger := state.GlobalExitRoot {
-		BlockNumber: globalExitRoot.BlockNumber,
+	ger := state.GlobalExitRoot{
+		BlockNumber:       globalExitRoot.BlockNumber,
 		GlobalExitRootNum: globalExitRoot.GlobalExitRootNum,
-		MainnetExitRoot: globalExitRoot.MainnetExitRoot,
-		RollupExitRoot: globalExitRoot.RollupExitRoot,
-		GlobalExitRoot: globalExitRoot.GlobalExitRoot,
+		MainnetExitRoot:   globalExitRoot.MainnetExitRoot,
+		RollupExitRoot:    globalExitRoot.RollupExitRoot,
+		GlobalExitRoot:    globalExitRoot.GlobalExitRoot,
 	}
 	err := s.state.AddGlobalExitRoot(s.ctx, &ger, txDB)
 	if err != nil {
@@ -571,11 +571,11 @@ func (s *ClientSynchronizer) processGlobalExitRoot(globalExitRoot etherman.Globa
 }
 
 func (s *ClientSynchronizer) processVerifiedBatch(verifiedBatch etherman.VerifiedBatch, txDB pgx.Tx) {
-	verifiedB := state.VerifiedBatch {
+	verifiedB := state.VerifiedBatch{
 		BlockNumber: verifiedBatch.BlockNumber,
 		BatchNumber: verifiedBatch.BatchNumber,
-		Aggregator: verifiedBatch.Aggregator,
-		TxHash: verifiedBatch.TxHash,
+		Aggregator:  verifiedBatch.Aggregator,
+		TxHash:      verifiedBatch.TxHash,
 	}
 	err := s.state.AddVerifiedBatch(s.ctx, &verifiedB, txDB)
 	if err != nil {
