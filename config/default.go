@@ -44,10 +44,10 @@ MaxSendBatchTxRetries = 5
 FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
     [Sequencer.Strategy]
         [Sequencer.Strategy.TxSelector]
-            TxSelectorType = "acceptall"
+            Type = "base"
             TxSorterType = "bycostandnonce"
         [Sequencer.Strategy.TxProfitabilityChecker]
-            TxProfitabilityCheckerType = "acceptall"
+            Type = "acceptall"
             MinReward = "1.1"
 			RewardPercentageToAggregator = 50
 	[Sequencer.PriceGetter]

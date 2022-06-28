@@ -104,7 +104,7 @@ test-e2e-group-3: build-docker compile-scs ## Runs group 3 e2e tests checking ra
 
 .PHONY: install-linter
 install-linter: ## Installs the linter
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.45.2
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.46.2
 
 .PHONY: lint
 lint: ## Runs the linter
@@ -228,15 +228,24 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=batchProcessor --dir=sequencer/strategy/txselector --output=sequencer/strategy/txselector --outpkg=txselector_test --filename=batchprocessor-mock_test.go
 	mockery --name=etherman --dir=sequencer --output=sequencer --outpkg=sequencer --structname=ethermanMock --filename=etherman-mock_test.go
 	mockery --name=Store --dir=state/tree --output=state/tree --outpkg=tree --structname=storeMock --filename=store-mock_test.go
+
 	mockery --name=storageInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=storageMock --filename=mock_storage_test.go
 	mockery --name=jsonRPCTxPool --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=poolMock --filename=mock_pool_test.go
 	mockery --name=gasPriceEstimator --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
 	mockery --name=stateInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=stateMock --filename=mock_state_test.go
 	mockery --name=BatchProcessorInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=batchProcessorMock --filename=mock_batchProcessor_test.go
+
+	mockery --name=storageInterface --dir=jsonrpcv2 --output=jsonrpcv2 --outpkg=jsonrpcv2 --inpackage --structname=storageMock --filename=mock_storage_test.go
+	mockery --name=jsonRPCTxPool --dir=jsonrpcv2 --output=jsonrpcv2 --outpkg=jsonrpcv2 --inpackage --structname=poolMock --filename=mock_pool_test.go
+	mockery --name=gasPriceEstimator --dir=jsonrpcv2 --output=jsonrpcv2 --outpkg=jsonrpcv2 --inpackage --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
+	mockery --name=stateInterface --dir=jsonrpcv2 --output=jsonrpcv2 --outpkg=jsonrpcv2 --inpackage --structname=stateMock --filename=mock_state_test.go
+	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=jsonrpcv2 --outpkg=jsonrpcv2 --structname=dbTxMock --filename=mock_dbtx_test.go
+	
 	mockery --name=txManager --dir=sequencerv2 --output=sequencerv2 --outpkg=sequencerv2 --structname=txmanagerMock --filename=txmanager-mock_test.go
-	mockery --name=stateInterface --dir=sequencerv2/broadcast --output=sequencerv2/broadcast --outpkg=broadcast_test --structname=stateMock --filename=state-mock_test.go
 	mockery --name=etherman --dir=sequencerv2 --output=sequencerv2 --outpkg=sequencerv2 --structname=ethermanMock --filename=etherman-mock_test.go
 	mockery --name=etherman --dir=sequencerv2/profitabilitychecker --output=sequencerv2/profitabilitychecker --outpkg=profitabilitychecker_test --structname=ethermanMock --filename=etherman-mock_test.go
+	mockery --name=stateInterface --dir=sequencerv2/broadcast --output=sequencerv2/broadcast --outpkg=broadcast_test --structname=stateMock --filename=state-mock_test.go
+	
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files
