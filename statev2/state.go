@@ -86,9 +86,9 @@ func (s *State) RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error
 	return err
 }
 
-// ResetDB resets the state to a block for the given DB tx
-func (s *State) ResetDB(ctx context.Context, block *Block, dbTx pgx.Tx) error {
-	return s.PostgresStorage.Reset(ctx, block, dbTx)
+// Reset resets the state to a block for the given DB tx
+func (s *State) Reset(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
+	return s.PostgresStorage.Reset(ctx, blockNumber, dbTx)
 }
 
 // ResetTrustedState resets the trusted batches which is higher than input.
@@ -163,15 +163,13 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 }
 
 // StoreBatchHeader is used by the Trusted Sequencer to create a new batch
-func (s *State) StoreBatchHeader(ctx context.Context, batch Batch) error {
-	// TODO: implement
-	return nil
+func (s *State) StoreBatchHeader(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
+	return s.PostgresStorage.StoreBatchHeader(ctx, batch, dbTx)
 }
 
 // GetNextForcedBatches returns the next forced batches by nextForcedBatches
-func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) (*[]ForcedBatch, error) {
-	// TODO: implement
-	return nil, nil
+func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) ([]ForcedBatch, error) {
+	return s.PostgresStorage.GetNextForcedBatches(ctx, nextForcedBatches, tx)
 }
 
 // ProcessBatch is used by the Trusted Sequencer to add transactions to the last batch

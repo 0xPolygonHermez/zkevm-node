@@ -7,8 +7,8 @@ CREATE SCHEMA statev2
 -- History
 CREATE TABLE statev2.block ( --L1 block
     block_num BIGINT PRIMARY KEY,
-    block_hash VARCHAR NOT NULL,
-    parent_hash VARCHAR,
+    block_hash BYTEA NOT NULL,
+    parent_hash BYTEA,
     received_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
@@ -18,6 +18,7 @@ CREATE TABLE statev2.batch (  --batch abstraction: will be created through trust
     local_exit_root VARCHAR,
     state_root VARCHAR,
     timestamp TIMESTAMP,
+    sequencer VARCHAR,
     raw_txs_data VARCHAR
 );
 
@@ -41,6 +42,7 @@ CREATE TABLE statev2.forced_batch (
     timestamp TIMESTAMP,
     raw_txs_data VARCHAR,
     sequencer VARCHAR,
+    batch_num BIGINT, -- It can be null if the batch state is not trusted
     block_num BIGINT NOT NULL REFERENCES statev2.block (block_num) ON DELETE CASCADE
 );
 
@@ -68,9 +70,10 @@ CREATE TABLE statev2.sync_info
 (
     last_batch_num_seen BIGINT,
     last_batch_num_consolidated BIGINT,
+    last_forced_batch_num_sequenced BIGINT,
     init_sync_batch BIGINT
 );
 
 -- Insert default values into sync_info table
-INSERT INTO statev2.sync_info (last_batch_num_seen, last_batch_num_consolidated, init_sync_batch)VALUES (0, 0, 0);
+INSERT INTO statev2.sync_info (last_batch_num_seen, last_batch_num_consolidated, last_forced_batch_num_sequenced, init_sync_batch)VALUES (0, 0, 0, 0);
 
