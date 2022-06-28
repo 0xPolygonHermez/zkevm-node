@@ -492,6 +492,7 @@ func (b *BatchProcessor) checkTransaction(ctx context.Context, tx *types.Transac
 		gasEstimation, err := b.Host.State.EstimateGas(tx, senderAddress)
 		if err != nil {
 			log.Debugf("check transaction [%s]: error estimating gas", tx.Hash().Hex())
+			log.Errorf("\nError: %s", err.Error())
 			return ErrInvalidGas
 		}
 		if tx.Gas() < gasEstimation {
@@ -654,7 +655,8 @@ func (b *BatchProcessor) execute(ctx context.Context, tx *types.Transaction, sen
 		log.Debugf("Gas to pay=%v", result.GasUsed)
 		log.Debugf("Is gas estimation ? %v", b.Host.transactionContext.simulationMode)
 
-		newBalance := senderBalance.Sub(senderBalance, new(big.Int).SetUint64(result.GasUsed))
+		gasCost := new(big.Int).Mul(new(big.Int).SetUint64(result.GasUsed), tx.GasPrice())
+		newBalance := senderBalance.Sub(senderBalance, gasCost)
 		newRoot, _, err := b.Host.State.tree.SetBalance(ctx, senderAddress, newBalance, b.Host.stateRoot, b.Host.txBundleID)
 		if err != nil {
 			result.Err = err

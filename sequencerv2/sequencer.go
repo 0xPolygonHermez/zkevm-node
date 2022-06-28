@@ -67,14 +67,15 @@ func (s *Sequencer) Start(ctx context.Context) {
 }
 
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
-	// 1. Wait for synchronizer to sync last batch
 	if !s.isSynced(ctx) {
+		log.Infof("wait for synchronizer to sync last batch")
 		waitTick(ctx, ticker)
 		return
 	}
 
-	// 2. Check if current sequence should be closed
+	log.Infof("synchronizer has synced last batch, checking if current sequence should be closed")
 	if s.shouldCloseSequenceInProgress(ctx) {
+		log.Infof("current sequence should be closed")
 		s.closedSequences = append(s.closedSequences, s.sequenceInProgress)
 		newSequence, err := s.newSequence(ctx)
 		if err != nil {
@@ -85,10 +86,12 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		s.sequenceInProgress = newSequence
 	}
 
-	// 3. Check if current sequence should be sent
+	log.Infof("checking if current sequence should be sent")
 	shouldSent, shouldCut := s.shouldSendSequences(ctx)
 	if shouldSent {
+		log.Infof("current sequence should be sent")
 		if shouldCut {
+			log.Infof("current sequence should be cut")
 			cutSequence := s.closedSequences[len(s.closedSequences)-1]
 			err := s.txManager.SequenceBatches(s.closedSequences)
 			if err != nil {
@@ -106,7 +109,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		}
 	}
 
-	// 4. get pending tx from the pool
+	log.Infof("getting pending tx from the pool")
 	tx, ok := s.getMostProfitablePendingTx(ctx)
 	if !ok {
 		return
@@ -118,7 +121,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	// 5. Process tx
+	log.Infof("processing tx")
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
 	processBatchResp, err := s.state.ProcessBatch(ctx, s.sequenceInProgress.Txs)
 	if err != nil {
@@ -137,11 +140,11 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	// 6. Mark tx as selected in the pool
+	log.Infof("marking tx as selected in the pool")
 	// TODO: add correct handling in case update didn't go through
 	_ = s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected)
 
-	// 7. broadcast tx in a new l2 block
+	log.Infof("TODO: broadcast tx in a new l2 block")
 }
 
 func waitTick(ctx context.Context, ticker *time.Ticker) {

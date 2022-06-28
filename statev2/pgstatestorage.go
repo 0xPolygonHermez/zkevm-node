@@ -46,6 +46,14 @@ func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 	}
 }
 
+// getQuerier determines which queryer to use, dbTx or the main pgxpool.
+func (s *PostgresStorage) getQuerier(dbTx pgx.Tx) querier {
+	if dbTx != nil {
+		return dbTx
+	}
+	return s
+}
+
 // Reset resets the state to a block
 func (s *PostgresStorage) Reset(ctx context.Context, block *Block, tx pgx.Tx) error {
 	if _, err := tx.Exec(ctx, resetSQL, block.BlockNumber); err != nil {
@@ -190,12 +198,14 @@ func (s *PostgresStorage) GetVerifiedBatch(ctx context.Context, tx pgx.Tx, batch
 	return &verifiedBatch, nil
 }
 
-func (s *PostgresStorage) GetLastBatch(ctx context.Context, tx pgx.Tx) (*Batch, error) {
+func (s *PostgresStorage) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 	var (
 		batch  Batch
 		gerStr string
 	)
-	err := s.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
+	q := s.getQuerier(dbTx)
+
+	err := q.QueryRow(ctx, getLastBatchSQL).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
@@ -254,12 +264,14 @@ func (s *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context) 
 	return batchNumber, nil
 }
 
-func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*Batch, error) {
+func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
 	var (
 		batch  Batch
 		gerStr string
 	)
-	err := s.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
+	q := s.getQuerier(dbTx)
+
+	err := q.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
@@ -270,8 +282,10 @@ func (s *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	return &batch, nil
 }
 
-func (s *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (encoded []string, err error) {
-	rows, err := s.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
+func (s *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []string, err error) {
+	q := s.getQuerier(dbTx)
+
+	rows, err := q.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}
