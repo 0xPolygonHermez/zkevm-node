@@ -200,6 +200,7 @@ func TestAddForcedBatch(t *testing.T) {
 	fb, err = testState.GetForcedBatch(ctx, tx, 3)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(2), *fb.BatchNumber)
+	require.NoError(t, tx.Commit(ctx))
 }
 
 func TestAddVirtualBatch(t *testing.T) {
