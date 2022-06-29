@@ -4,12 +4,14 @@
 
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
+
 package broadcast.v1;
 
 option go_package = "github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb";
 
 service BroadcastService {
-  rpc GetLastBatch(Empty) returns (GetBatchResponse);
+  rpc GetLastBatch(google.protobuf.Empty) returns (GetBatchResponse);
   rpc GetBatch(GetBatchRequest) returns (GetBatchResponse);
 }
 
@@ -23,12 +25,12 @@ message GetBatchResponse {
   uint64 batch_number = 1;
   string global_exit_root = 2;
   uint64 timestamp = 3;
-  repeated Transaction transactions = 4;
+  string sequencer = 4;
+  uint64 forced_batch_number = 5;
+  repeated Transaction transactions = 6;
 }
 
 // Common
 message Transaction {
   string encoded = 1;
 }
-
-message Empty{}

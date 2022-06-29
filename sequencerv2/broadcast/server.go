@@ -10,6 +10,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/statev2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // Server provides the functionality of the Broadcast service.
@@ -69,7 +70,7 @@ func (s *Server) GetBatch(ctx context.Context, in *pb.GetBatchRequest) (*pb.GetB
 	return s.genericGetBatch(ctx, batch)
 }
 
-func (s *Server) GetLastBatch(ctx context.Context, empty *pb.Empty) (*pb.GetBatchResponse, error) {
+func (s *Server) GetLastBatch(ctx context.Context, empty *emptypb.Empty) (*pb.GetBatchResponse, error) {
 	batch, err := s.state.GetLastBatch(ctx, nil)
 	if err != nil {
 		return nil, err
