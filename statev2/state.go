@@ -14,11 +14,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/state/runtime"
-	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
+	"github.com/hermeznetwork/hermez-core/merkletree"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/fakevm"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/instrumentation"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/instrumentation/tracers"
 	"github.com/holiman/uint256"
 	"github.com/jackc/pgx/v4"
 )
@@ -29,7 +30,8 @@ const (
 	// TxSmartContractCreationGas used for TXs that create a contract
 	TxSmartContractCreationGas uint64 = 53000
 	// Size of the memory in bytes reserved by the zkEVM
-	zkEVMReservedMemorySize int = 128
+	zkEVMReservedMemorySize int  = 128
+	two                     uint = 2
 )
 
 var (
@@ -47,6 +49,8 @@ var (
 	ErrNotEnoughIntrinsicGas = fmt.Errorf("not enough gas supplied for intrinsic gas costs")
 	// ErrParsingExecutorTrace indicates an error occurred while parsing the executor trace
 	ErrParsingExecutorTrace = fmt.Errorf("error while parsing executor trace")
+	// ErrInvalidBatchNumber indicates the provided batch number is not the latest in db
+	ErrInvalidBatchNumber = errors.New("provided batch number is not latest")
 )
 
 var (
@@ -60,15 +64,17 @@ var (
 type State struct {
 	cfg Config
 	*PostgresStorage
-	executorClient *pb.ExecutorServiceClient
+	executorClient pb.ExecutorServiceClient
+	tree           *merkletree.StateTree
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage, executorClient *pb.ExecutorServiceClient) *State {
+func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree) *State {
 	return &State{
 		cfg:             cfg,
 		PostgresStorage: storage,
 		executorClient:  executorClient,
+		tree:            stateTree,
 	}
 }
 
@@ -108,20 +114,19 @@ func (s *State) AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch,
 	return s.PostgresStorage.AddVirtualBatch(ctx, virtualBatch, dbTx)
 }
 
+// AddGlobalExitRoot add a global exit root into the state data base
 func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, dbTx pgx.Tx) error {
 	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, dbTx)
 }
 
+// GetLatestGlobalExitRoot gets the most recent global exit root from the state data base
 func (s *State) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*GlobalExitRoot, error) {
 	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, dbTx)
 }
 
-func (s *State) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, dbTx pgx.Tx) error {
-	return s.PostgresStorage.AddForcedBatch(ctx, forcedBatch, dbTx)
-}
-
+// GetForcedBath retrieves a forced batch from the state data base
 func (s *State) GetForcedBatch(ctx context.Context, dbTx pgx.Tx, forcedBatchNumber uint64) (*ForcedBatch, error) {
-	return s.PostgresStorage.GetForcedBatch(ctx, dbTx, forcedBatchNumber)
+	return s.PostgresStorage.GetForcedBatch(ctx, forcedBatchNumber, dbTx)
 }
 
 // AddBlock adds a new block to the State Store.
@@ -141,32 +146,50 @@ func (s *State) GetPreviousBlock(ctx context.Context, offset uint64, dbTx pgx.Tx
 
 // GetBalance from a given address
 func (s *State) GetBalance(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
-	// TODO: implement
-	return nil, nil
+	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.tree.GetBalance(ctx, address, l2Block.Header.Root.Bytes())
 }
 
 // GetCode from a given address
 func (s *State) GetCode(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) ([]byte, error) {
-	// TODO: implement
-	return nil, nil
+	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.tree.GetCode(ctx, address, l2Block.Header.Root.Bytes())
+}
+
+// GetNonce returns the nonce of the given account at the given block number
+func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
+	if err != nil {
+		return 0, err
+	}
+
+	nonce, err := s.tree.GetNonce(ctx, address, l2Block.Header.Root.Bytes())
+
+	return nonce.Uint64(), err
+}
+
+// GetStorageAt from a given address
+func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
+	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.tree.GetStorageAt(ctx, address, position, l2Block.Header.Root.Bytes())
 }
 
 // EstimateGas for a transaction
 func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error) {
 	// TODO: implement
 	return 0, nil
-}
-
-// GetNonce returns the nonce of the given account at the given block number
-func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	// TODO: implement
-	return 0, nil
-}
-
-// GetStorageAt from a given address
-func (s *State) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, batchNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
-	// TODO: implement
-	return new(big.Int), nil
 }
 
 // StoreBatchHeader is used by the Trusted Sequencer to create a new batch
@@ -179,22 +202,49 @@ func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int,
 	return s.PostgresStorage.GetNextForcedBatches(ctx, nextForcedBatches, dbTx)
 }
 
-// ProcessBatch is used by the Trusted Sequencer to add transactions to the last batch
-func (s *State) ProcessBatch(ctx context.Context, txs []types.Transaction) (*ProcessBatchResponse, error) {
-	// TODO: implement
-	// get latest batch from the database to get GER and Timestamp
-	// get batch before latest to get state root and local exit root
-	return nil, nil
+// ProcessBatch is used by the Trusted Sequencer to add transactions to the batch
+func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	lastBatches, err := s.PostgresStorage.GetLastNBatches(ctx, two, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get latest batch from the database to get GER and Timestamp
+	lastBatch := lastBatches[0]
+	// Get batch before latest to get state root and local exit root
+	previousBatch := lastBatches[1]
+
+	// Check provided batch number is the latest in db
+	if lastBatch.BatchNumber != batchNumber {
+		return nil, ErrInvalidBatchNumber
+	}
+
+	batchL2Data, err := encondeTransactions(txs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:             lastBatch.BatchNumber,
+		Coinbase:             lastBatch.Coinbase.String(),
+		BatchL2Data:          batchL2Data,
+		OldStateRoot:         previousBatch.OldStateRoot.Bytes(),
+		GlobalExitRoot:       lastBatch.GlobalExitRootNum.Bytes(),
+		OldLocalExitRoot:     previousBatch.OldLocalExitRoot.Bytes(),
+		EthTimestamp:         uint64(lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree:     true,
+		GenerateExecuteTrace: false,
+		GenerateCallTrace:    false,
+	}
+
+	// Send Batch to the Executor
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	return convertToProcessBatchResponse(processBatchResponse), err
 }
 
 // StoreTransactions is used by the Trusted Sequencer to add processed transactions into the data base
 func (s *State) StoreTransactions(batchNum uint64, processedTxs []*ProcessTransactionResponse) error {
-	// TODO: implement
-	return nil
-}
-
-// ProcessAndStoreWIPBatch is used by the Synchronizer to add a work-in-progress batch into the data base
-func (s *State) ProcessAndStoreWIPBatch(ctx context.Context, batch Batch) error {
 	// TODO: implement
 	return nil
 }
@@ -213,7 +263,11 @@ func (s *State) GetLastTrustedBatchNumber(ctx context.Context) (uint64, error) {
 
 // GetLastBatch gets latest batch (closed or not) on the data base
 func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
-	return s.PostgresStorage.GetLastBatch(ctx, dbTx)
+	batches, err := s.PostgresStorage.GetLastNBatches(ctx, 1, dbTx)
+	if err != nil {
+		return nil, err
+	}
+	return batches[0], nil
 }
 
 // GetLastBatchNumber gets the last batch number.
@@ -231,15 +285,9 @@ func (s *State) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNu
 	return s.PostgresStorage.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 }
 
-// ProcessSequence process sequence of the txs
-// TODO: implement function
-func (s *State) ProcessBatchAndStoreLastTx(ctx context.Context, txs []types.Transaction) *runtime.ExecutionResult {
-	return &runtime.ExecutionResult{}
-}
-
 // GetNumberOfBlocksSinceLastGERUpdate get number of blocks since last global exit root updated
-func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint64, error) {
-	return s.PostgresStorage.GetNumberOfBlocksSinceLastGERUpdate(ctx)
+func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetNumberOfBlocksSinceLastGERUpdate(ctx, dbTx)
 }
 
 // AddVerifiedBatch adds a new VerifiedBatch to the db
@@ -249,7 +297,7 @@ func (s *State) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBat
 
 // GetVerifiedBatch get an L1 verifiedBatch
 func (s *State) GetVerifiedBatch(ctx context.Context, dbTx pgx.Tx, batchNumber uint64) (*VerifiedBatch, error) {
-	return s.PostgresStorage.GetVerifiedBatch(ctx, dbTx, batchNumber)
+	return s.PostgresStorage.GetVerifiedBatch(ctx, batchNumber, dbTx)
 }
 
 // DebugTransaction reexecutes a tx to generate its trace
@@ -417,7 +465,7 @@ func (s *State) GetBlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.T
 }
 
 func (s *State) GetBlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*L2Block, error) {
-	panic("not implemented yet")
+	return s.PostgresStorage.GetL2BlockByNumber(ctx, blockNumber, dbTx)
 }
 
 func (s *State) GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (SyncingInfo, error) {
@@ -459,4 +507,9 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 // AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber.
 func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, dbTx pgx.Tx) error {
 	return s.PostgresStorage.AddBatchNumberInForcedBatch(ctx, forceBatchNumber, batchNumber, dbTx)
+}
+
+// GetTree returns State inner tree
+func (s *State) GetTree() *merkletree.StateTree {
+	return s.tree
 }
