@@ -27,7 +27,6 @@ const (
 	resetTrustedStateSQL                   = "DELETE FROM statev2.batch WHERE batch_num > $1"
 	addVerifiedBatchSQL                    = "INSERT INTO statev2.verified_batch (block_num, batch_num, tx_hash, aggregator) VALUES ($1, $2, $3, $4)"
 	getVerifiedBatchSQL                    = "SELECT block_num, batch_num, tx_hash, aggregator FROM statev2.verified_batch WHERE batch_num = $1"
-	getLastBatchSQL                        = "SELECT batch_num, global_exit_root, timestamp from statev2.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastBatchNumberSQL                  = "SELECT COALESCE(MAX(batch_num), 0) FROM statev2.batch"
 	getLastNBatchesSQL                     = "SELECT batch_num, global_exit_root, timestamp from statev2.batch ORDER BY batch_num DESC LIMIT $1"
 	getLastBatchTimeSQL                    = "SELECT timestamp FROM statev2.batch ORDER BY batch_num DESC LIMIT 1"
@@ -67,8 +66,8 @@ func (p *PostgresStorage) getExecQuerier(dbTx pgx.Tx) execQuerier {
 }
 
 // Reset resets the state to a block
-func (s *PostgresStorage) Reset(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
-	e := s.getExecQuerier(dbTx)
+func (p *PostgresStorage) Reset(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
 	if _, err := e.Exec(ctx, resetSQL, blockNumber); err != nil {
 		return err
 	}
@@ -93,13 +92,13 @@ func (p *PostgresStorage) AddBlock(ctx context.Context, block *Block, dbTx pgx.T
 }
 
 // GetLastBlock returns the last L1 block.
-func (s *PostgresStorage) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*Block, error) {
+func (p *PostgresStorage) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*Block, error) {
 	var (
 		blockHash  string
 		parentHash string
 		block      Block
 	)
-	q := s.getExecQuerier(dbTx)
+	q := p.getExecQuerier(dbTx)
 
 	err := q.QueryRow(ctx, getLastBlockSQL).Scan(&block.BlockNumber, &blockHash, &parentHash, &block.ReceivedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -111,13 +110,13 @@ func (s *PostgresStorage) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*Block
 }
 
 // GetPreviousBlock gets the offset previous L1 block respect to latest.
-func (s *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64, dbTx pgx.Tx) (*Block, error) {
+func (p *PostgresStorage) GetPreviousBlock(ctx context.Context, offset uint64, dbTx pgx.Tx) (*Block, error) {
 	var (
 		blockHash  string
 		parentHash string
 		block      Block
 	)
-	q := s.getExecQuerier(dbTx)
+	q := p.getExecQuerier(dbTx)
 
 	err := q.QueryRow(ctx, getPreviousBlockSQL, offset).Scan(&block.BlockNumber, &blockHash, &parentHash, &block.ReceivedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -206,7 +205,7 @@ func (p *PostgresStorage) GetLastSendSequenceTime(ctx context.Context, dbTx pgx.
 }
 
 // AddForcedBatch adds a new ForcedBatch to the db
-func (s *PostgresStorage) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, tx pgx.Tx) error {
+func (p *PostgresStorage) AddForcedBatch(ctx context.Context, forcedBatch *ForcedBatch, tx pgx.Tx) error {
 	_, err := tx.Exec(ctx, addForcedBatchSQL, forcedBatch.ForcedBatchNumber, forcedBatch.GlobalExitRoot.String(), forcedBatch.ForcedAt, forcedBatch.RawTxsData, forcedBatch.Sequencer.String(), forcedBatch.BatchNumber, forcedBatch.BlockNumber)
 	return err
 }
@@ -291,9 +290,9 @@ func (p *PostgresStorage) GetLastNBatches(ctx context.Context, numBatches uint, 
 }
 
 // 	GetLastBatchNumber(ctx context.Context) (uint64, error)
-func (s *PostgresStorage) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+func (p *PostgresStorage) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	var batchNumber uint64
-	q := s.getExecQuerier(dbTx)
+	q := p.getExecQuerier(dbTx)
 
 	err := q.QueryRow(ctx, getLastBatchNumberSQL).Scan(&batchNumber)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -394,29 +393,29 @@ func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Contex
 }
 
 // ResetTrustedState resets the batches which the batch number is highter than the input.
-func (s *PostgresStorage) ResetTrustedBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	e := s.getExecQuerier(dbTx)
+func (p *PostgresStorage) ResetTrustedBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, resetTrustedBatchSQL, batchNumber)
 	return err
 }
 
 // AddVirtualBatch adds a new virtual batch to the storage.
-func (s *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch, dbTx pgx.Tx) error {
-	e := s.getExecQuerier(dbTx)
+func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Sequencer.String(), virtualBatch.BlockNumber)
 	return err
 }
 
 // StoreBatchHeader adds a new trusted batch header to the storage.
-func (s *PostgresStorage) StoreBatchHeader(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
-	e := s.getExecQuerier(dbTx)
+func (p *PostgresStorage) StoreBatchHeader(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, storeBatchHeaderSQL, batch.BatchNumber, batch.GlobalExitRoot.String(), batch.Timestamp, batch.Coinbase.String(), batch.BatchL2Data)
 	return err
 }
 
 // GetNextForcedBatches gets the next forced batches from the queue.
-func (s *PostgresStorage) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]ForcedBatch, error) {
-	q := s.getExecQuerier(dbTx)
+func (p *PostgresStorage) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]ForcedBatch, error) {
+	q := p.getExecQuerier(dbTx)
 	// Get the next forced batches
 	rows, err := q.Query(ctx, getNextForcedBatchesSQL, nextForcedBatches)
 
@@ -453,8 +452,8 @@ func (s *PostgresStorage) GetNextForcedBatches(ctx context.Context, nextForcedBa
 }
 
 // AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber.
-func (s *PostgresStorage) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, dbTx pgx.Tx) error {
-	e := s.getExecQuerier(dbTx)
+func (p *PostgresStorage) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addBatchNumberInForcedBatchSQL, forceBatchNumber, batchNumber)
 	return err
 }
