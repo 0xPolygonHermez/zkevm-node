@@ -13,6 +13,8 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
+const maxLogTopics = 4
+
 const (
 	addGlobalExitRootSQL                   = "INSERT INTO statev2.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root) VALUES ($1, $2, $3, $4, $5)"
 	getLatestExitRootSQL                   = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM statev2.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
@@ -343,7 +345,261 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 
 	block.Transactions = make([]*types.Transaction, 1)
 
-	b, err := hex.DecodeHex(encoded)
+	tx, err := decodeTx(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	block.Transactions[0] = tx
+
+	return &block, nil
+}
+
+func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error) {
+	const getTransactionByHashSQL = `
+		SELECT transaction.encoded 
+		  FROM statev2.transaction
+		 WHERE hash = $1
+	`
+
+	var encoded string
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&encoded)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	tx, err := decodeTx(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
+func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
+	const getReceiptSQL = `
+		SELECT r.tx_hash
+			 , r.type
+			 , r.post_state
+			 , r.status
+			 , r.cumulative_gas_used
+			 , r.gas_used
+			 , r.contract_address
+			 , t.encoded
+			 , t.l2_block_num
+			 , b.block_hash
+		  FROM statev2.receipt r
+		 INNER JOIN statev2.transaction t
+		    ON t.hash = r.tx_hash
+		 INNER JOIN statev2.l2block b
+			ON b.block_num = t.l2_block_num
+		 WHERE r.tx_hash = $1
+	`
+
+	var encodedTx string
+	var l2BlockNum uint64
+	var l2BlockHash string
+
+	receipt := types.Receipt{}
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getReceiptSQL, transactionHash).
+		Scan(&receipt.TxHash,
+			&receipt.Type,
+			&receipt.PostState,
+			&receipt.Status,
+			&receipt.CumulativeGasUsed,
+			&receipt.GasUsed,
+			&receipt.ContractAddress,
+			&encodedTx,
+			&l2BlockNum,
+			&l2BlockHash,
+		)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	logs, err := p.getTransactionLogs(ctx, transactionHash, dbTx)
+	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
+		return nil, err
+	}
+
+	receipt.BlockNumber = big.NewInt(0).SetUint64(l2BlockNum)
+	receipt.BlockHash = common.HexToHash(l2BlockHash)
+	receipt.TransactionIndex = 0
+
+	receipt.Logs = logs
+	receipt.Bloom = types.CreateBloom(types.Receipts{&receipt})
+
+	return &receipt, nil
+}
+
+func (p *PostgresStorage) GetTransactionByBlockHashAndIndex(ctx context.Context, blockHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
+	const query = `
+		SELECT t.encoded
+		  FROM statev2.transaction t
+		 INNER JOIN statev2.l2block b
+		    ON t.l2_block_num = b.batch_num
+		 WHERE b.block_hash = $1
+		   AND 0 = $2
+	`
+
+	var encoded string
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, blockHash.Hex(), index).Scan(&encoded)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	tx, err := decodeTx(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
+func (p *PostgresStorage) GetTransactionByBlockNumberAndIndex(ctx context.Context, blockNumber uint64, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
+	const query = `
+		SELECT t.encoded
+		  FROM statev2.transaction t
+		 WHERE t.l2_block_num = $1
+		   AND 0 = $2
+	`
+
+	var encoded string
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, blockNumber, index).Scan(&encoded)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	tx, err := decodeTx(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
+func (p *PostgresStorage) GetBlockTransactionCountByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (uint64, error) {
+	const query = `
+		SELECT COUNT(*)
+		  FROM statev2.transaction t
+		 INNER JOIN statev2.l2block b
+			ON b.block_num = t.l2_block_num
+		 WHERE b.block_hash = $1
+	`
+
+	var count uint64
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, hash.Hex()).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (p *PostgresStorage) GetBlockTransactionCountByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	const query = `
+		SELECT COUNT(*)
+		  FROM state.transaction t
+		 WHERE t.l2_block_num = $1
+	`
+	var count uint64
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, blockNumber).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// getTransactionLogs returns the logs of a transaction by transaction hash
+func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) ([]*types.Log, error) {
+	const query = `
+		SELECT t.l2_block_num
+			 , b.block_hash
+			 , l.tx_hash
+			 , l.log_index
+			 , l.address
+			 , l.data
+			 , l.topic0
+			 , l.topic1
+			 , l.topic2
+			 , l.topic3
+		  FROM state.log l
+		 INNER JOIN statev2.transaction t
+			ON t.hash = l.tx_hash
+		 INNER JOIN statev2.l2block b
+			ON b.block_num = t.l2_block_num
+		 WHERE transaction_hash = $1
+	`
+	q := p.getExecQuerier(dbTx)
+	rows, err := q.Query(ctx, query, transactionHash)
+	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	logs := make([]*types.Log, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		var log types.Log
+		var txHash, logAddress, logData, topic0 string
+		var topic1, topic2, topic3 *string
+
+		err := rows.Scan(
+			&log.BlockNumber,
+			&log.BlockHash,
+			&txHash,
+			&log.Index,
+			&logAddress,
+			&logData,
+			&topic0,
+			&topic1,
+			&topic2,
+			&topic3)
+		if err != nil {
+			return nil, err
+		}
+
+		log.TxHash = common.HexToHash(txHash)
+		log.Address = common.HexToAddress(logAddress)
+		log.TxIndex = uint(0)
+		log.Data = []byte(logData)
+
+		log.Topics = []common.Hash{common.HexToHash(topic0)}
+		if topic1 != nil {
+			log.Topics = append(log.Topics, common.HexToHash(*topic1))
+		}
+
+		if topic2 != nil {
+			log.Topics = append(log.Topics, common.HexToHash(*topic2))
+		}
+
+		if topic3 != nil {
+			log.Topics = append(log.Topics, common.HexToHash(*topic3))
+		}
+
+		logs = append(logs, &log)
+	}
+
+	return logs, nil
+}
+
+func decodeTx(encodedTx string) (*types.Transaction, error) {
+	b, err := hex.DecodeHex(encodedTx)
 	if err != nil {
 		return nil, err
 	}
@@ -352,8 +608,5 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 	if err := tx.UnmarshalBinary(b); err != nil {
 		return nil, err
 	}
-
-	block.Transactions[0] = tx
-
-	return &block, nil
+	return tx, nil
 }

@@ -77,3 +77,25 @@ CREATE TABLE statev2.sync_info
 -- Insert default values into sync_info table
 INSERT INTO statev2.sync_info (last_batch_num_seen, last_batch_num_consolidated, init_sync_batch)VALUES (0, 0, 0);
 
+CREATE TABLE statev2.receipt
+(
+    tx_hash VARCHAR NOT NULL PRIMARY KEY REFERENCES statev2.transaction (hash) ON DELETE CASCADE,
+    type integer,
+    post_state VARCHAR,
+    status BIGINT,
+    cumulative_gas_used BIGINT,
+    gas_used BIGINT,
+    contract_address VARCHAR
+);
+
+CREATE TABLE statev2.log
+(
+    tx_hash VARCHAR NOT NULL PRIMARY KEY REFERENCES state.transaction (hash) ON DELETE CASCADE,
+    log_index integer,
+    address VARCHAR NOT NULL,
+    data VARCHAR,
+    topic0 VARCHAR NOT NULL,
+    topic1 VARCHAR,
+    topic2 VARCHAR,
+    topic3 VARCHAR
+);
