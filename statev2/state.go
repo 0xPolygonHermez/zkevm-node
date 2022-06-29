@@ -507,3 +507,93 @@ func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumbe
 	// TODO: implement
 	return nil
 }
+
+// SetGenesis populates state with genesis information
+func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) error {
+	// Generate Genesis Block
+	header := types.Header{}
+	l2block := &L2Block{
+		BlockNumber: genesis.Block.NumberU64(),
+		Header:      &header,
+	}
+
+	// Add Block
+	err := s.PostgresStorage.AddL2Block(ctx, l2block, dbTx)
+	if err != nil {
+		return err
+	}
+
+	var (
+		root    common.Hash
+		newRoot []byte
+	)
+
+	if genesis.Balances != nil {
+		for address, balance := range genesis.Balances {
+			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot, txBundleID)
+			if err != nil {
+				return err
+			}
+		}
+		root.SetBytes(newRoot)
+	}
+
+	if genesis.SmartContracts != nil {
+		for address, sc := range genesis.SmartContracts {
+			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot, txBundleID)
+			if err != nil {
+				return err
+			}
+		}
+		root.SetBytes(newRoot)
+	}
+
+	if len(genesis.Storage) > 0 {
+		for address, storage := range genesis.Storage {
+			for key, value := range storage {
+				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot, txBundleID)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		root.SetBytes(newRoot)
+	}
+
+	if genesis.Nonces != nil {
+		for address, nonce := range genesis.Nonces {
+			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot, txBundleID)
+			if err != nil {
+				return err
+			}
+		}
+		root.SetBytes(newRoot)
+	}
+
+	// Generate Genesis Batch
+	receivedAt := genesis.Block.ReceivedAt
+	batch := &Batch{
+		Header: &types.Header{
+			Number: big.NewInt(0),
+		},
+		BlockNumber:        genesis.Block.NumberU64(),
+		ConsolidatedTxHash: common.HexToHash("0x1"),
+		ConsolidatedAt:     &receivedAt,
+		MaticCollateral:    big.NewInt(0),
+		ReceivedAt:         time.Now(),
+		ChainID:            new(big.Int).SetUint64(genesis.L2ChainID),
+		GlobalExitRoot:     common.Hash{},
+	}
+
+	// Store batch into db
+	bp, err := s.NewGenesisBatchProcessor(root[:], txBundleID)
+	if err != nil {
+		return err
+	}
+	err = bp.ProcessBatch(ctx, batch)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
