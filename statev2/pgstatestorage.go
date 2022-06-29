@@ -48,16 +48,8 @@ func NewPostgresStorage(db *pgxpool.Pool) *PostgresStorage {
 	}
 }
 
-// getQuerier determines which querier to use, dbTx or the main pgxpool
-func (p *PostgresStorage) getQuerier(dbTx pgx.Tx) querier {
-	if dbTx != nil {
-		return dbTx
-	}
-	return p
-}
-
-// getExecer determines which execer to use, dbTx or the main pgxpool
-func (p *PostgresStorage) getExecer(dbTx pgx.Tx) execer {
+// getExecQuerier determines which execQuerier to use, dbTx or the main pgxpool
+func (p *PostgresStorage) getExecQuerier(dbTx pgx.Tx) execQuerier {
 	if dbTx != nil {
 		return dbTx
 	}
@@ -66,7 +58,7 @@ func (p *PostgresStorage) getExecer(dbTx pgx.Tx) execer {
 
 // Reset resets the state to a block
 func (p *PostgresStorage) Reset(ctx context.Context, block *Block, dbTx pgx.Tx) error {
-	e := p.getExecer(dbTx)
+	e := p.getExecQuerier(dbTx)
 	if _, err := e.Exec(ctx, resetSQL, block.BlockNumber); err != nil {
 		return err
 	}
@@ -75,7 +67,7 @@ func (p *PostgresStorage) Reset(ctx context.Context, block *Block, dbTx pgx.Tx) 
 }
 
 func (p *PostgresStorage) ResetTrustedState(ctx context.Context, batchNum uint64, dbTx pgx.Tx) error {
-	e := p.getExecer(dbTx)
+	e := p.getExecQuerier(dbTx)
 	if _, err := e.Exec(ctx, resetTrustedStateSQL, batchNum); err != nil {
 		return err
 	}
@@ -85,14 +77,14 @@ func (p *PostgresStorage) ResetTrustedState(ctx context.Context, batchNum uint64
 
 // AddBlock adds a new block to the State Store
 func (p *PostgresStorage) AddBlock(ctx context.Context, block *Block, dbTx pgx.Tx) error {
-	e := p.getExecer(dbTx)
+	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addBlockSQL, block.BlockNumber, block.BlockHash.String(), block.ParentHash.String(), block.ReceivedAt)
 	return err
 }
 
 // AddGlobalExitRoot adds a new ExitRoot to the db
 func (p *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, dbTx pgx.Tx) error {
-	e := p.getExecer(dbTx)
+	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.GlobalExitRootNum.String(), exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot, exitRoot.GlobalExitRoot)
 	return err
 }
@@ -105,8 +97,8 @@ func (p *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.
 		err       error
 	)
 
-	q := p.getQuerier(dbTx)
-	err = q.QueryRow(ctx, getLatestExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot, &exitRoot.GlobalExitRoot)
+	e := p.getExecQuerier(dbTx)
+	err = e.QueryRow(ctx, getLatestExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot, &exitRoot.GlobalExitRoot)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -173,8 +165,8 @@ func (p *PostgresStorage) GetForcedBatch(ctx context.Context, dbTx pgx.Tx, force
 		rawTxs         string
 		seq            string
 	)
-	q := p.getQuerier(dbTx)
-	err := q.QueryRow(ctx, getForcedBatchSQL, forcedBatchNumber).Scan(&forcedBatch.BlockNumber, &forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForcedAt, &rawTxs, &seq)
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getForcedBatchSQL, forcedBatchNumber).Scan(&forcedBatch.BlockNumber, &forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForcedAt, &rawTxs, &seq)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -191,7 +183,7 @@ func (p *PostgresStorage) GetForcedBatch(ctx context.Context, dbTx pgx.Tx, force
 
 // AddVerifiedBatch adds a new VerifiedBatch to the db
 func (p *PostgresStorage) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBatch, dbTx pgx.Tx) error {
-	e := p.getExecer(dbTx)
+	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addVerifiedBatchSQL, verifiedBatch.BlockNumber, verifiedBatch.BatchNumber, verifiedBatch.TxHash.String(), verifiedBatch.Aggregator.String())
 	return err
 }
@@ -203,8 +195,8 @@ func (p *PostgresStorage) GetVerifiedBatch(ctx context.Context, dbTx pgx.Tx, bat
 		txHash        string
 		agg           string
 	)
-	q := p.getQuerier(dbTx)
-	err := q.QueryRow(ctx, getVerifiedBatchSQL, batchNumber).Scan(&verifiedBatch.BlockNumber, &verifiedBatch.BatchNumber, &txHash, &agg)
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getVerifiedBatchSQL, batchNumber).Scan(&verifiedBatch.BlockNumber, &verifiedBatch.BatchNumber, &txHash, &agg)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -216,8 +208,8 @@ func (p *PostgresStorage) GetVerifiedBatch(ctx context.Context, dbTx pgx.Tx, bat
 }
 
 func (p *PostgresStorage) GetLastNBatches(ctx context.Context, numBatches uint, dbTx pgx.Tx) ([]*Batch, error) {
-	q := p.getQuerier(dbTx)
-	rows, err := q.Query(ctx, getLastNBatchesSQL, numBatches)
+	e := p.getExecQuerier(dbTx)
+	rows, err := e.Query(ctx, getLastNBatchesSQL, numBatches)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
 	} else if err != nil {
@@ -297,8 +289,8 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 		batch  Batch
 		gerStr string
 	)
-	q := p.getQuerier(dbTx)
-	err := q.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
@@ -310,8 +302,8 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 }
 
 func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []string, err error) {
-	q := p.getQuerier(dbTx)
-	rows, err := q.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
+	e := p.getExecQuerier(dbTx)
+	rows, err := e.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}
@@ -334,8 +326,8 @@ func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Contex
 func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*L2Block, error) {
 	var block L2Block
 	var encoded string
-	q := p.getQuerier(dbTx)
-	err := q.QueryRow(ctx, getL2BlockByNumberSQL, blockNumber).Scan(&block.BlockNumber, &encoded, &block.Header, &block.Uncles, &block.ReceivedAt)
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getL2BlockByNumberSQL, blockNumber).Scan(&block.BlockNumber, &encoded, &block.Header, &block.Uncles, &block.ReceivedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
