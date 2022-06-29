@@ -183,7 +183,7 @@ func (s *State) ProcessAndStoreWIPBatch(ctx context.Context, batch Batch) error 
 }
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to a add closed batch into the data base
-func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, batch Batch) error {
+func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
 	// TODO: implement
 	return nil
 }
@@ -448,4 +448,10 @@ func (s *State) AddVirtualBatch(ctx context.Context, virtualBatch VirtualBatch, 
 func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) (*[]ForcedBatch, error) {
 	// TODO: implement
 	return nil, nil
+}
+
+// AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber
+func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, tx pgx.Tx) error {
+	// TODO: implement
+	return nil
 }
