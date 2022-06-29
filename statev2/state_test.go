@@ -83,13 +83,13 @@ func TestAddBlock(t *testing.T) {
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
 	// Get the last block
-	lastBlock, err := testState.GetLastBlock(ctx)
+	lastBlock, err := testState.GetLastBlock(ctx, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(2), lastBlock.BlockNumber)
 	assert.Equal(t, block.BlockHash, lastBlock.BlockHash)
 	assert.Equal(t, block.ParentHash, lastBlock.ParentHash)
 	// Get the previous block
-	prevBlock, err := testState.GetPreviousBlock(ctx, 1)
+	prevBlock, err := testState.GetPreviousBlock(ctx, 1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), prevBlock.BlockNumber)
 }
@@ -175,7 +175,7 @@ func TestAddForcedBatch(t *testing.T) {
 	forcedBatch = state.ForcedBatch{
 		BlockNumber:       1,
 		ForcedBatchNumber: 3,
-		BatchNumber:       &bN,
+		BatchNumber:       nil,
 		GlobalExitRoot:    common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		Sequencer:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 		RawTxsData:        b,
@@ -187,11 +187,19 @@ func TestAddForcedBatch(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit(ctx))
 	assert.Equal(t, forcedBatch.BlockNumber, batches[0].BlockNumber)
-	assert.Equal(t, forcedBatch.BatchNumber, fb.BatchNumber)
-	assert.Equal(t, uint64(2), batches[0].ForcedBatchNumber)
+	assert.Equal(t, forcedBatch.BatchNumber, batches[0].BatchNumber)
+	assert.Equal(t, forcedBatch.ForcedBatchNumber, batches[0].ForcedBatchNumber)
 	assert.NotEqual(t, time.Time{}, batches[0].ForcedAt)
 	assert.Equal(t, forcedBatch.GlobalExitRoot, batches[0].GlobalExitRoot)
 	assert.Equal(t, forcedBatch.RawTxsData, batches[0].RawTxsData)
+	// Test AddBatchNumberInForcedBatch
+	tx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = testState.AddBatchNumberInForcedBatch(ctx, 3, 2, tx)
+	require.NoError(t, err)
+	fb, err = testState.GetForcedBatch(ctx, tx, 3)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(2), *fb.BatchNumber)
 }
 
 func TestAddVirtualBatch(t *testing.T) {

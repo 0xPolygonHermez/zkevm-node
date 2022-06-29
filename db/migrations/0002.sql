@@ -7,8 +7,8 @@ CREATE SCHEMA statev2
 -- History
 CREATE TABLE statev2.block ( --L1 block
     block_num BIGINT PRIMARY KEY,
-    block_hash BYTEA NOT NULL,
-    parent_hash BYTEA,
+    block_hash VARCHAR NOT NULL,
+    parent_hash VARCHAR,
     received_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
@@ -70,10 +70,8 @@ CREATE TABLE statev2.sync_info
 (
     last_batch_num_seen BIGINT,
     last_batch_num_consolidated BIGINT,
-    last_forced_batch_num_sequenced BIGINT,
     init_sync_batch BIGINT
 );
 
 -- Insert default values into sync_info table
-INSERT INTO statev2.sync_info (last_batch_num_seen, last_batch_num_consolidated, last_forced_batch_num_sequenced, init_sync_batch)VALUES (0, 0, 0, 0);
-
+INSERT INTO statev2.sync_info (last_batch_num_seen, last_batch_num_consolidated, init_sync_batch)VALUES (0, 0, 0);
