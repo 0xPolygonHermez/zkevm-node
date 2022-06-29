@@ -30,7 +30,8 @@ const (
 	// TxSmartContractCreationGas used for TXs that create a contract
 	TxSmartContractCreationGas uint64 = 53000
 	// Size of the memory in bytes reserved by the zkEVM
-	zkEVMReservedMemorySize int = 128
+	zkEVMReservedMemorySize int  = 128
+	two                     uint = 2
 )
 
 var (
@@ -50,8 +51,6 @@ var (
 	ErrParsingExecutorTrace = fmt.Errorf("error while parsing executor trace")
 	// ErrInvalidBatchNumber indicates the provided batch number is not the latest in db
 	ErrInvalidBatchNumber = errors.New("provided batch number is not latest")
-	// EmptyCodeHash is the hash of empty code in the MT
-	EmptyCodeHash = common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000")
 )
 
 var (
@@ -187,22 +186,19 @@ func (s *State) StoreBatchHeader(ctx context.Context, batch Batch, dbTx pgx.Tx) 
 
 // ProcessBatch is used by the Trusted Sequencer to add transactions to the batch
 func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
-	// TODO: implement
-	// Get latest batch from the database to get GER and Timestamp
-	lastBatch, err := s.GetLastBatch(ctx, dbTx)
+	lastBatches, err := s.PostgresStorage.GetLastNBatches(ctx, two, dbTx)
 	if err != nil {
 		return nil, err
 	}
+
+	// Get latest batch from the database to get GER and Timestamp
+	lastBatch := lastBatches[0]
+	// Get batch before latest to get state root and local exit root
+	previousBatch := lastBatches[1]
 
 	// Check provided batch number is the latest in db
 	if lastBatch.BatchNumber != batchNumber {
 		return nil, ErrInvalidBatchNumber
-	}
-
-	// Get batch before latest to get state root and local exit root
-	previousBatch, err := s.GetBatchByNumber(ctx, batchNumber-1, dbTx)
-	if err != nil {
-		return nil, err
 	}
 
 	batchL2Data, err := encondeTransactions(txs)
@@ -249,7 +245,11 @@ func (s *State) GetLastTrustedBatchNumber(ctx context.Context) (uint64, error) {
 
 // GetLastBatch gets latest batch (closed or not) on the data base
 func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
-	return s.PostgresStorage.GetLastBatch(ctx, dbTx)
+	batches, err := s.PostgresStorage.GetLastNBatches(ctx, 1, dbTx)
+	if err != nil {
+		return nil, err
+	}
+	return batches[0], nil
 }
 
 // GetBatchByNumber gets a batch from data base by its number

@@ -70,7 +70,7 @@ func (f *FakeDB) GetState(address common.Address, hash common.Hash) common.Hash 
 }
 
 func (f *FakeDB) Exist(address common.Address) bool {
-	return !(f.GetNonce(address) == 0 && f.GetBalance(address).Int64() == 0 && f.GetCodeHash(address) == EmptyCodeHash)
+	return !(f.GetNonce(address) == 0 && f.GetBalance(address).Int64() == 0 && f.GetCodeHash(address) == ZeroHash)
 }
 
 // GetCodeHash gets the hash for the code at a given address
