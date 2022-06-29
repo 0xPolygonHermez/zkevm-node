@@ -90,7 +90,7 @@ CREATE TABLE statev2.receipt
 
 CREATE TABLE statev2.log
 (
-    tx_hash VARCHAR NOT NULL PRIMARY KEY REFERENCES state.transaction (hash) ON DELETE CASCADE,
+    tx_hash VARCHAR NOT NULL PRIMARY KEY REFERENCES statev2.transaction (hash) ON DELETE CASCADE,
     log_index integer,
     address VARCHAR NOT NULL,
     data VARCHAR,
