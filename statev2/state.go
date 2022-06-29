@@ -122,7 +122,7 @@ func (s *State) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*Glob
 
 // GetForcedBath retrieves a forced batch from the state data base
 func (s *State) GetForcedBatch(ctx context.Context, dbTx pgx.Tx, forcedBatchNumber uint64) (*ForcedBatch, error) {
-	return s.PostgresStorage.GetForcedBatch(ctx, dbTx, forcedBatchNumber)
+	return s.PostgresStorage.GetForcedBatch(ctx, forcedBatchNumber, dbTx)
 }
 
 // AddBlock adds a new block to the State Store.
@@ -263,8 +263,8 @@ func (s *State) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNu
 }
 
 // GetNumberOfBlocksSinceLastGERUpdate get number of blocks since last global exit root updated
-func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint64, error) {
-	return s.PostgresStorage.GetNumberOfBlocksSinceLastGERUpdate(ctx)
+func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetNumberOfBlocksSinceLastGERUpdate(ctx, dbTx)
 }
 
 // AddVerifiedBatch adds a new VerifiedBatch to the db
@@ -274,7 +274,7 @@ func (s *State) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBat
 
 // GetVerifiedBatch get an L1 verifiedBatch
 func (s *State) GetVerifiedBatch(ctx context.Context, dbTx pgx.Tx, batchNumber uint64) (*VerifiedBatch, error) {
-	return s.PostgresStorage.GetVerifiedBatch(ctx, dbTx, batchNumber)
+	return s.PostgresStorage.GetVerifiedBatch(ctx, batchNumber, dbTx)
 }
 
 // DebugTransaction reexecutes a tx to generate its trace
@@ -491,13 +491,13 @@ func (s *State) GetTree() *merkletree.StateTree {
 }
 
 // AddVirtualBatch adds a virtual batch to the database
-func (s *State) AddVirtualBatch(ctx context.Context, virtualBatch VirtualBatch, tx pgx.Tx) error {
+func (s *State) AddVirtualBatch(ctx context.Context, virtualBatch VirtualBatch, dbTx pgx.Tx) error {
 	// TODO: implement
 	return nil
 }
 
 // GetNextForcedBatches returns the next forcedBatches in FIFO order
-func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, tx pgx.Tx) (*[]ForcedBatch, error) {
+func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dBTx pgx.Tx) (*[]ForcedBatch, error) {
 	// TODO: implement
 	return nil, nil
 }
