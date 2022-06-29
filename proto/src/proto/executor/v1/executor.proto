@@ -10,7 +10,7 @@ service ExecutorService {
 }   
 
 message ProcessBatchRequest {
-    uint32 batch_num = 1;
+    uint64 batch_num = 1;
     string coinbase = 2;
     bytes batch_l2_data = 3;
     bytes old_state_root = 4;
@@ -62,10 +62,12 @@ message TransactionContext {
     bytes output = 8;
     // Total gas used as result of execution
     uint64 gas_used = 9;
+    // Gas Price
+    uint64 gas_price = 10;
     // Execution Time
-    uint32 execution_time = 10;
+    uint32 execution_time = 11;
     // Starting state root
-    bytes old_state_root = 11;
+    bytes old_state_root = 12;
 }
 
 message TransactionStep {
@@ -99,6 +101,7 @@ message Contract {
     string caller = 2;
     uint64 value = 3;
     bytes data = 4;
+    uint64 gas = 5;
 }
 
 message ProcessTransactionResponse {

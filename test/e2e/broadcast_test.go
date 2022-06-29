@@ -10,6 +10,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/merkletree"
+	statedbclientpb "github.com/hermeznetwork/hermez-core/merkletree/pb"
 	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb"
 	"github.com/hermeznetwork/hermez-core/statev2"
 	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
@@ -90,7 +92,13 @@ func initState() (*statev2.State, error) {
 	if err != nil {
 		return nil, err
 	}
-	return statev2.NewState(statev2.Config{}, stateDb, &executorClient), nil
+
+	stateDBClient, _, err := newStateDBClient()
+	if err != nil {
+		return nil, err
+	}
+	stateTree := merkletree.NewStateTree(stateDBClient)
+	return statev2.NewState(statev2.Config{}, stateDb, executorClient, stateTree), nil
 }
 
 func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
@@ -154,4 +162,17 @@ func newExecutorClient() (executorclientpb.ExecutorServiceClient, *grpc.ClientCo
 
 	executorClient := executorclientpb.NewExecutorServiceClient(executorConn)
 	return executorClient, executorConn, nil
+}
+
+func newStateDBClient() (statedbclientpb.StateDBServiceClient, *grpc.ClientConn, error) {
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	stateDBConn, err := grpc.Dial("localhost:8080", opts...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fail to dial: %v", err)
+	}
+
+	stateDBClient := statedbclientpb.NewStateDBServiceClient(stateDBConn)
+	return stateDBClient, stateDBConn, nil
 }

@@ -10,9 +10,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/merkletree"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
+	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,6 @@ const (
 	ether155V = 27
 )
 */
-
 var (
 	testState    *state.State
 	hash1, hash2 common.Hash
@@ -36,9 +36,10 @@ var (
 	stateCfg = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
-	executorServerConfig = executor.Config{URI: "51.210.116.237:50071"}
-	executorClient       pb.ExecutorServiceClient
+	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
+	executorClient       executorclientpb.ExecutorServiceClient
 	clientConn           *grpc.ClientConn
+	stateDBServerConfig  = merkletree.Config{URI: "54.170.178.97:50061"}
 )
 
 func TestMain(m *testing.M) {
@@ -51,9 +52,14 @@ func TestMain(m *testing.M) {
 	executorClient, clientConn = executor.NewExecutorClient(executorServerConfig)
 	defer clientConn.Close()
 
+	stateDbServiceClient, stateClientConn := merkletree.NewStateDBServiceClient(stateDBServerConfig)
+	defer stateClientConn.Close()
+
+	stateTree := merkletree.NewStateTree(stateDbServiceClient)
+
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), &executorClient)
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
 
 	result := m.Run()
 
@@ -93,47 +99,6 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	assert.Equal(t, globalExitRoot.MainnetExitRoot, exit.MainnetExitRoot)
 	assert.Equal(t, globalExitRoot.RollupExitRoot, exit.RollupExitRoot)
 	assert.Equal(t, globalExitRoot.GlobalExitRoot, exit.GlobalExitRoot)
-}
-
-func TestAddForcedBatch(t *testing.T) {
-	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
-	ctx := context.Background()
-	tx, err := testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	block := &state.Block{
-		BlockNumber: 1,
-		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ReceivedAt:  time.Now(),
-	}
-	err = testState.AddBlock(ctx, block, tx)
-	assert.NoError(t, err)
-	b := common.Hex2Bytes("0x617b3a3528F9")
-	assert.NoError(t, err)
-	var bN uint64 = 3
-	forcedBatch := state.ForcedBatch{
-		BlockNumber:       1,
-		ForcedBatchNumber: 2,
-		BatchNumber:       &bN,
-		GlobalExitRoot:    common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		Sequencer:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
-		RawTxsData:        b,
-		ForcedAt:          time.Now(),
-	}
-	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
-	require.NoError(t, err)
-	fb, err := testState.GetForcedBatch(ctx, tx, 2)
-	require.NoError(t, err)
-	err = tx.Commit(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, forcedBatch.BlockNumber, fb.BlockNumber)
-	assert.Equal(t, forcedBatch.BatchNumber, fb.BatchNumber)
-	assert.Equal(t, forcedBatch.ForcedBatchNumber, fb.ForcedBatchNumber)
-	assert.NotEqual(t, time.Time{}, fb.ForcedAt)
-	assert.Equal(t, forcedBatch.GlobalExitRoot, fb.GlobalExitRoot)
-	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
 }
 
 /*
@@ -186,7 +151,7 @@ func TestExecuteTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create Batch
-	processBatchRequest := &pb.ProcessBatchRequest{
+	processBatchRequest := &executorclientpb.ProcessBatchRequest{
 		BatchNum:             1,
 		Coinbase:             sequencerAddress.String(),
 		BatchL2Data:          batchL2Data,
@@ -201,12 +166,11 @@ func TestExecuteTransaction(t *testing.T) {
 
 	log.Debugf("%v", processBatchRequest)
 
-	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	_, err = executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 
-	log.Debugf("%v", processBatchResponse)
-
-	require.NoError(t, err)
-
+	// file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	// err = ioutil.WriteFile("trace.json", file, 0644)
+	// require.NoError(t, err)
 }
 */

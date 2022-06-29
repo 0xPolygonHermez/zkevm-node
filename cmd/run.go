@@ -20,6 +20,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/gasprice"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/merkletree"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/pool/pgpoolstorage"
 	"github.com/hermeznetwork/hermez-core/proverclient"
@@ -31,7 +32,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
-	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
@@ -142,8 +142,10 @@ func start(ctx *cli.Context) error {
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			stateDb := statev2.NewPostgresStorage(sqlDB)
-			executorClient, _ := newExecutorClient(c.Executor)
-			st := statev2.NewState(statev2.Config{}, stateDb, &executorClient)
+			executorClient, _ := executor.NewExecutorClient(c.Executor)
+			stateDBClient, _ := merkletree.NewStateDBServiceClient(merkletree.Config(c.MTClient))
+			stateTree := merkletree.NewStateTree(stateDBClient)
+			st := statev2.NewState(statev2.Config{}, stateDb, executorClient, stateTree)
 			go runBroadcastServer(c.BroadcastServer, st)
 		}
 	}
@@ -190,21 +192,6 @@ func newProverClient(c proverclient.Config) (proverclientpb.ZKProverServiceClien
 
 	proverClient := proverclientpb.NewZKProverServiceClient(proverConn)
 	return proverClient, proverConn
-}
-
-func newExecutorClient(c executor.Config) (executorclientpb.ExecutorServiceClient, *grpc.ClientConn) {
-	const maxMsgSize = 100000000
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgSize)),
-	}
-	executorConn, err := grpc.Dial(c.URI, opts...)
-	if err != nil {
-		log.Fatalf("fail to dial: %v", err)
-	}
-
-	executorClient := executorclientpb.NewExecutorServiceClient(executorConn)
-	return executorClient, executorConn
 }
 
 func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st *state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
