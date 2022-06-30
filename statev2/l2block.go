@@ -12,21 +12,13 @@ import (
 
 // L2Block represents a block on L2
 type L2Block struct {
-	BlockNumber uint64
-	// Sequencer          common.Address
-	// Aggregator         common.Address
-	// ConsolidatedTxHash common.Hash
-	// ChainID            *big.Int
-	// GlobalExitRoot     common.Hash
-	// RollupExitRoot     common.Hash
+	BlockNumber  uint64
 	Header       *types.Header
 	Uncles       []*types.Header
 	Transactions []*types.Transaction
 	RawTxsData   []byte
 	Receipts     []*types.Receipt
-	// MaticCollateral    *big.Int
-	ReceivedAt time.Time
-	// ConsolidatedAt     *time.Time
+	ReceivedAt   time.Time
 }
 
 // NewL2BlockWithHeader creates a L2 block with the given header data.

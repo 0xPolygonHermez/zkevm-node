@@ -160,11 +160,12 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 		header := new(types.Header)
 		header.ParentHash = parentHash
 
-		l2Block := new(state.L2Block)
-		l2Block.Header = header
-		l2Block.BlockNumber = uint64(i - 1)
+		l2Block := state.L2Block{
+			Header:      header,
+			BlockNumber: uint64(i - 1),
+		}
 
-		if err := st.PostgresStorage.AddL2Block(ctx, l2Block, nil); err != nil {
+		if err := st.PostgresStorage.AddL2Block(ctx, uint64(i), l2Block, nil); err != nil {
 			return err
 		}
 

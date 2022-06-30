@@ -568,16 +568,36 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 
 	root.SetBytes(newRoot)
 
+	receivedAt := time.Now()
+
+	// Store Genesis Batch
+	batch := Batch{
+		BatchNumber:       0,
+		Coinbase:          ZeroAddress,
+		BatchL2Data:       nil,
+		OldStateRoot:      ZeroHash,
+		GlobalExitRootNum: big.NewInt(0),
+		OldLocalExitRoot:  ZeroHash,
+		Timestamp:         receivedAt,
+		Transactions:      []types.Transaction{},
+		GlobalExitRoot:    ZeroHash,
+	}
+
+	err = s.PostgresStorage.StoreBatchHeader(ctx, batch, dbTx)
+	if err != nil {
+		return err
+	}
+
 	// Store L2 Genesis Block
-	header := &types.Header{
-		ParentHash: ZeroHash,
-		Root:       root,
+	block := L2Block{
+		BlockNumber:  0,
+		Header:       &types.Header{ParentHash: ZeroHash, Root: root},
+		Uncles:       nil,
+		Transactions: []*types.Transaction{},
+		RawTxsData:   nil,
+		Receipts:     []*types.Receipt{},
+		ReceivedAt:   receivedAt,
 	}
 
-	l2Block := &L2Block{
-		Header:      header,
-		BlockNumber: 0,
-	}
-
-	return s.PostgresStorage.AddL2Block(ctx, l2Block, dbTx)
+	return s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, block, dbTx)
 }
