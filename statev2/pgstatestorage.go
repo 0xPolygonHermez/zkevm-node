@@ -43,6 +43,7 @@ const (
 	getNextForcedBatchesSQL                = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer, batch_num, block_num FROM statev2.forced_batch WHERE batch_num IS NULL LIMIT $1"
 	addBatchNumberInForcedBatchSQL         = "UPDATE statev2.forced_batch SET batch_num = $2 WHERE forced_batch_num = $1"
 	getL2BlockByNumberSQL                  = "SELECT l2_block_num, encoded, header, uncles, received_at from statev2.transaction WHERE batch_num = $1"
+	addL2BlockSQL                          = "INSERT INTO statev2.l2block (block_num, block_hash, parent_hash, state_root, received_at) VALUES ($1, $2, $3, $4, $5)"
 )
 
 // PostgresStorage implements the Storage interface
@@ -485,4 +486,11 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 	block.Transactions[0] = tx
 
 	return &block, nil
+}
+
+// AddL2Block adds a new L2 block to the State Store
+func (p *PostgresStorage) AddL2Block(ctx context.Context, l2block *L2Block, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addL2BlockSQL, l2block.BlockNumber, l2block.Hash().String(), l2block.Header.ParentHash.String(), l2block.Header.Root.String(), l2block.ReceivedAt)
+	return err
 }

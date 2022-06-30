@@ -519,3 +519,65 @@ func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumbe
 func (s *State) GetTree() *merkletree.StateTree {
 	return s.tree
 }
+
+// SetGenesis populates state with genesis information
+func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) error {
+	var (
+		root    common.Hash
+		newRoot []byte
+		err     error
+	)
+
+	if genesis.Balances != nil {
+		for address, balance := range genesis.Balances {
+			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if genesis.SmartContracts != nil {
+		for address, sc := range genesis.SmartContracts {
+			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(genesis.Storage) > 0 {
+		for address, storage := range genesis.Storage {
+			for key, value := range storage {
+				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if genesis.Nonces != nil {
+		for address, nonce := range genesis.Nonces {
+			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	root.SetBytes(newRoot)
+
+	// Store L2 Genesis Block
+	header := &types.Header{
+		ParentHash: ZeroHash,
+		Root:       root,
+	}
+
+	l2Block := &L2Block{
+		Header:      header,
+		BlockNumber: 0,
+	}
+
+	return s.PostgresStorage.AddL2Block(ctx, l2Block, dbTx)
+}
