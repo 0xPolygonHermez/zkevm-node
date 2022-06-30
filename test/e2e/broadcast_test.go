@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -34,6 +33,7 @@ const (
 	totalBatches      = 2
 	totalTxsLastBatch = 5
 	encodedFmt        = "encoded-%d"
+	forcedBatchNumber = 18
 )
 
 var (
@@ -86,6 +86,7 @@ func TestBroadcast(t *testing.T) {
 	for i, tx := range batch.Transactions {
 		require.Equal(t, fmt.Sprintf(encodedFmt, i+1), tx.Encoded)
 	}
+	require.EqualValues(t, forcedBatchNumber, batch.ForcedBatchNumber)
 }
 
 func initState() (*statev2.State, error) {
@@ -150,6 +151,10 @@ func runCmd(c *exec.Cmd) error {
 func populateDB(ctx context.Context, st *statev2.State) error {
 	const addBatch = "INSERT INTO statev2.batch (batch_num, global_exit_root, timestamp, sequencer, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
 	const addTransaction = "INSERT INTO statev2.transaction (batch_num, encoded, hash, received_at, l2_block_num) VALUES ($1, $2, $3, $4, $5)"
+	const addForcedBatch = "INSERT INTO statev2.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, sequencer, timestamp, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	const addBlock = "INSERT INTO statev2.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
+	const blockNumber = 1
+
 	var parentHash common.Hash
 	var l2Block types.Block
 
@@ -181,7 +186,11 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 			return err
 		}
 	}
-	return nil
+	if _, err := st.PostgresStorage.Exec(ctx, addBlock, blockNumber, time.Now(), ""); err != nil {
+		return err
+	}
+	_, err := st.PostgresStorage.Exec(ctx, addForcedBatch, forcedBatchNumber, common.Hash{}.String(), "", common.HexToAddress("").String(), time.Now(), totalBatches, blockNumber)
+	return err
 }
 
 func newExecutorClient() (executorclientpb.ExecutorServiceClient, *grpc.ClientConn, error) {
