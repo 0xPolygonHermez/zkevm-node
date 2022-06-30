@@ -16,13 +16,13 @@ type stateMock struct {
 	mock.Mock
 }
 
-// GetBatchByNumber provides a mock function with given fields: ctx, batchNumber, tx
-func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) (*statev2.Batch, error) {
-	ret := _m.Called(ctx, batchNumber, tx)
+// GetBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*statev2.Batch, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
 
 	var r0 *statev2.Batch
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *statev2.Batch); ok {
-		r0 = rf(ctx, batchNumber, tx)
+		r0 = rf(ctx, batchNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*statev2.Batch)
@@ -31,7 +31,7 @@ func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, t
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, tx)
+		r1 = rf(ctx, batchNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -39,13 +39,13 @@ func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, t
 	return r0, r1
 }
 
-// GetEncodedTransactionsByBatchNumber provides a mock function with given fields: ctx, batchNumber, tx
-func (_m *stateMock) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, tx pgx.Tx) ([]string, error) {
-	ret := _m.Called(ctx, batchNumber, tx)
+// GetEncodedTransactionsByBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]string, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
 
 	var r0 []string
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []string); ok {
-		r0 = rf(ctx, batchNumber, tx)
+		r0 = rf(ctx, batchNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
@@ -54,7 +54,7 @@ func (_m *stateMock) GetEncodedTransactionsByBatchNumber(ctx context.Context, ba
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, tx)
+		r1 = rf(ctx, batchNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -62,13 +62,13 @@ func (_m *stateMock) GetEncodedTransactionsByBatchNumber(ctx context.Context, ba
 	return r0, r1
 }
 
-// GetLastBatch provides a mock function with given fields: ctx, tx
-func (_m *stateMock) GetLastBatch(ctx context.Context, tx pgx.Tx) (*statev2.Batch, error) {
-	ret := _m.Called(ctx, tx)
+// GetLastBatch provides a mock function with given fields: ctx, dbTx
+func (_m *stateMock) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*statev2.Batch, error) {
+	ret := _m.Called(ctx, dbTx)
 
 	var r0 *statev2.Batch
 	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *statev2.Batch); ok {
-		r0 = rf(ctx, tx)
+		r0 = rf(ctx, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*statev2.Batch)
@@ -77,7 +77,7 @@ func (_m *stateMock) GetLastBatch(ctx context.Context, tx pgx.Tx) (*statev2.Batc
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
-		r1 = rf(ctx, tx)
+		r1 = rf(ctx, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"os"
 	"os/exec"
 	"testing"
@@ -141,7 +142,7 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 	const addBatch = "INSERT INTO statev2.batch (batch_num, global_exit_root, timestamp) VALUES ($1, $2, $3)"
 	const addTransaction = "INSERT INTO statev2.transaction (batch_num, encoded, hash, received_at, l2_block_num) VALUES ($1, $2, $3, $4, $5)"
 	var parentHash common.Hash
-	var l2Block state.L2Block
+	var l2Block types.Block
 
 	for i := 1; i <= totalBatches; i++ {
 		if _, err := st.PostgresStorage.Exec(ctx, addBatch, i, common.Hash{}.String(), time.Now()); err != nil {
@@ -158,18 +159,15 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 
 		// Store L2 Genesis Block
 		header := new(types.Header)
+		header.Number = big.NewInt(int64(i) - int64(1))
 		header.ParentHash = parentHash
-
-		l2Block := state.L2Block{
-			Header:      header,
-			BlockNumber: uint64(i - 1),
-		}
+		l2Block := types.NewBlockWithHeader(header)
 
 		if err := st.PostgresStorage.AddL2Block(ctx, uint64(i), l2Block, nil); err != nil {
 			return err
 		}
 
-		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, totalBatches, fmt.Sprintf(encodedFmt, i), fmt.Sprintf("hash-%d", i), time.Now(), l2Block.BlockNumber); err != nil {
+		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, totalBatches, fmt.Sprintf(encodedFmt, i), fmt.Sprintf("hash-%d", i), time.Now(), l2Block.Number()); err != nil {
 			return err
 		}
 	}

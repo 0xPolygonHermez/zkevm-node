@@ -37,7 +37,7 @@ func TestConsolidatedBlockNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastConsolidatedBlockNumber", context.Background(), m.DbTx).
+					On("GetLastConsolidatedL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(10), nil).
 					Once()
 			},
@@ -58,7 +58,7 @@ func TestConsolidatedBlockNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastConsolidatedBlockNumber", context.Background(), m.DbTx).
+					On("GetLastConsolidatedL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last consolidated block number")).
 					Once()
 			},

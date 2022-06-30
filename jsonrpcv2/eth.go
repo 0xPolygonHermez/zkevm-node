@@ -29,7 +29,7 @@ type Eth struct {
 // BlockNumber returns current block number
 func (e *Eth) BlockNumber() (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		lastBlockNumber, err := e.state.GetLastBlockNumber(ctx, dbTx)
+		lastBlockNumber, err := e.state.GetLastL2BlockNumber(ctx, dbTx)
 		if err != nil {
 			return "0x0", newRPCError(defaultErrorCode, "failed to get the last block number from state")
 		}
@@ -127,7 +127,7 @@ func (e *Eth) GetBalance(address common.Address, number *BlockNumber) (interface
 // GetBlockByHash returns information about a block by hash
 func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		block, err := e.state.GetBlockByHash(ctx, hash, dbTx)
+		block, err := e.state.GetL2BlockByHash(ctx, hash, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
@@ -144,16 +144,16 @@ func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, rpcErr
 func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		if number == PendingBlockNumber {
-			lastBlock, err := e.state.GetLastBlock(ctx, dbTx)
+			lastBlock, err := e.state.GetLastL2Block(ctx, dbTx)
 			if err != nil {
 				return rpcErrorResponse(defaultErrorCode, "couldn't load last block from state to compute the pending block", err)
 			}
-			header := types.CopyHeader(lastBlock.Header)
+			header := types.CopyHeader(lastBlock.Header())
 			header.ParentHash = lastBlock.Hash()
 			header.Number = big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1)
 			header.TxHash = types.EmptyRootHash
 			header.UncleHash = types.EmptyUncleHash
-			block := &state.L2Block{Header: header}
+			block := types.NewBlockWithHeader(header)
 			rpcBlock := l2BlockToRPCBlock(block, fullTx)
 
 			return rpcBlock, nil
@@ -164,7 +164,7 @@ func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, rp
 			return nil, rpcErr
 		}
 
-		block, err := e.state.GetBlockByNumber(ctx, blockNumber, dbTx)
+		block, err := e.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
@@ -216,7 +216,7 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, rpcError) {
 	case FilterTypeBlock:
 		{
 			return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-				res, err := e.state.GetBlockHashesSince(ctx, filter.LastPoll, dbTx)
+				res, err := e.state.GetL2BlockHashesSince(ctx, filter.LastPoll, dbTx)
 				if err != nil {
 					return rpcErrorResponse(defaultErrorCode, "failed to get block hashes", err)
 				}
@@ -357,7 +357,7 @@ func (e *Eth) GetStorageAt(address common.Address, position common.Hash, number 
 // block hash and transaction index position.
 func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		tx, err := e.state.GetTransactionByBlockHashAndIndex(ctx, hash, uint64(index), dbTx)
+		tx, err := e.state.GetTransactionByL2BlockHashAndIndex(ctx, hash, uint64(index), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
@@ -385,7 +385,7 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 			return nil, rpcErr
 		}
 
-		tx, err := e.state.GetTransactionByBlockNumberAndIndex(ctx, blockNumber, uint64(index), dbTx)
+		tx, err := e.state.GetTransactionByL2BlockNumberAndIndex(ctx, blockNumber, uint64(index), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
@@ -448,7 +448,7 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 // block from a block mlocking the given block hash.
 func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		c, err := e.state.GetBlockTransactionCountByHash(ctx, hash, dbTx)
+		c, err := e.state.GetL2BlockTransactionCountByHash(ctx, hash, dbTx)
 		if err != nil {
 			return rpcErrorResponse(defaultErrorCode, "failed to count transactions", err)
 		}
@@ -467,7 +467,7 @@ func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}
 			return nil, rpcErr
 		}
 
-		c, err := e.state.GetBlockTransactionCountByNumber(ctx, blockNumber, dbTx)
+		c, err := e.state.GetL2BlockTransactionCountByNumber(ctx, blockNumber, dbTx)
 		if err != nil {
 			return rpcErrorResponse(defaultErrorCode, "failed to count transactions", err)
 		}
@@ -639,21 +639,21 @@ func hexToTx(str string) (*types.Transaction, error) {
 func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.Tx) (*types.Header, error) {
 	switch number {
 	case LatestBlockNumber:
-		block, err := e.state.GetLastBlock(ctx, dbTx)
+		block, err := e.state.GetLastL2Block(ctx, dbTx)
 		if err != nil {
 			return nil, err
 		}
-		return block.Header, nil
+		return block.Header(), nil
 
 	case EarliestBlockNumber:
-		block, err := e.state.GetBlockByNumber(ctx, 0, dbTx)
+		header, err := e.state.GetL2BlockHeader(ctx, uint64(0), dbTx)
 		if err != nil {
 			return nil, err
 		}
-		return block.Header, nil
+		return header, nil
 
 	case PendingBlockNumber:
-		lastBlock, err := e.state.GetLastBlock(ctx, dbTx)
+		lastBlock, err := e.state.GetLastL2Block(ctx, dbTx)
 		if err != nil {
 			return nil, err
 		}
@@ -664,12 +664,12 @@ func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.T
 			ParentHash: parentHash,
 			Number:     big.NewInt(0).SetUint64(number),
 			Difficulty: big.NewInt(0),
-			GasLimit:   lastBlock.Header.GasLimit,
+			GasLimit:   lastBlock.Header().GasLimit,
 		}
 		return header, nil
 
 	default:
-		return e.state.GetBlockHeader(ctx, uint64(number), dbTx)
+		return e.state.GetL2BlockHeader(ctx, uint64(number), dbTx)
 	}
 }
 

@@ -52,7 +52,7 @@ func TestBlockNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(10), nil).
 					Once()
 			},
@@ -73,7 +73,7 @@ func TestBlockNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
 					Once()
 			},
@@ -134,7 +134,7 @@ func TestCall(t *testing.T) {
 				blockNumber := uint64(1)
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				m.State.On("GetLastBlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
 				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
 					return tx != nil &&
 						tx.Gas() == testCase.gas &&
@@ -156,14 +156,14 @@ func TestCall(t *testing.T) {
 			expectedError:  nil,
 			setupMocks: func(m *mocks, testCase *testCase) {
 				blockNumber := uint64(1)
-				block := &state.L2Block{Header: &types.Header{Root: common.Hash{}, GasLimit: 123456}}
+				block := types.NewBlockWithHeader(&types.Header{Root: common.Hash{}, GasLimit: 123456})
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				m.State.On("GetLastBlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
-				m.State.On("GetLastBlock", context.Background(), m.DbTx).Return(block, nil).Once()
+				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
 				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
 					return tx != nil &&
-						tx.Gas() == block.Header.GasLimit &&
+						tx.Gas() == block.Header().GasLimit &&
 						tx.To().Hex() == testCase.to.Hex() &&
 						tx.GasPrice().Uint64() == testCase.gasPrice.Uint64() &&
 						tx.Value().Uint64() == testCase.value.Uint64() &&
@@ -183,14 +183,14 @@ func TestCall(t *testing.T) {
 			expectedError:  nil,
 			setupMocks: func(m *mocks, testCase *testCase) {
 				blockNumber := uint64(1)
-				block := &state.L2Block{Header: &types.Header{Number: big.NewInt(1), Root: common.Hash{}, GasLimit: 123456}}
+				block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(1), Root: common.Hash{}, GasLimit: 123456})
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				m.State.On("GetLastBlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
-				m.State.On("GetLastBlock", context.Background(), m.DbTx).Return(block, nil).Once()
+				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
 				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
 					hasTx := tx != nil
-					gasMatch := tx.Gas() == block.Header.GasLimit
+					gasMatch := tx.Gas() == block.Header().GasLimit
 					toMatch := tx.To().Hex() == testCase.to.Hex()
 					gasPriceMatch := tx.GasPrice().Uint64() == testCase.gasPrice.Uint64()
 					valueMatch := tx.Value().Uint64() == testCase.value.Uint64()
@@ -211,7 +211,7 @@ func TestCall(t *testing.T) {
 			setupMocks: func(m *mocks, testCase *testCase) {
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				m.State.On("GetLastBlock", context.Background(), m.DbTx).Return(nil, errors.New("failed to get last block")).Once()
+				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(nil, errors.New("failed to get last block")).Once()
 			},
 		},
 		{
@@ -226,7 +226,7 @@ func TestCall(t *testing.T) {
 			setupMocks: func(m *mocks, testCase *testCase) {
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				m.State.On("GetLastBlock", context.Background(), m.DbTx).Return(nil, errors.New("failed to get last block")).Once()
+				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(nil, errors.New("failed to get last block")).Once()
 			},
 		},
 		{
@@ -242,7 +242,7 @@ func TestCall(t *testing.T) {
 			setupMocks: func(m *mocks, testCase *testCase) {
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				m.State.On("GetLastBlockNumber", context.Background(), m.DbTx).Return(uint64(0), errors.New("failed to get last block number")).Once()
+				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(uint64(0), errors.New("failed to get last block number")).Once()
 			},
 		},
 		{
@@ -259,7 +259,7 @@ func TestCall(t *testing.T) {
 				blockNumber := uint64(1)
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				m.State.On("GetLastBlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
+				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumber, nil).Once()
 				txMatchBy := mock.MatchedBy(func(tx *types.Transaction) bool {
 					return tx != nil &&
 						tx.Gas() == testCase.gas &&
@@ -430,7 +430,7 @@ func TestGetBalance(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
 					Once()
 			},
@@ -455,7 +455,7 @@ func TestGetBalance(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(lastBlockNumber, nil).
 					Once()
 
@@ -485,7 +485,7 @@ func TestGetBalance(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(lastBlockNumber, nil).
 					Once()
 
@@ -515,7 +515,7 @@ func TestGetBalance(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(lastBlockNumber, nil).
 					Once()
 
@@ -542,7 +542,7 @@ func TestGetBalance(t *testing.T) {
 	}
 }
 
-func TestGetBlockByHash(t *testing.T) {
+func TestGetL2BlockByHash(t *testing.T) {
 	type testCase struct {
 		Name           string
 		Hash           common.Hash
@@ -569,7 +569,7 @@ func TestGetBlockByHash(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBlockByHash", context.Background(), tc.Hash, m.DbTx).
+					On("GetL2BlockByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(nil, state.ErrNotFound)
 			},
 		},
@@ -590,7 +590,7 @@ func TestGetBlockByHash(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBlockByHash", context.Background(), tc.Hash, m.DbTx).
+					On("GetL2BlockByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(nil, errors.New("failed to get block from state")).
 					Once()
 			},
@@ -607,15 +607,7 @@ func TestGetBlockByHash(t *testing.T) {
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocks, tc *testCase) {
-				transactions := []*types.Transaction{}
-				for _, tx := range tc.ExpectedResult.Transactions() {
-					transactions = append(transactions, tx)
-				}
-
-				block := &state.L2Block{
-					Header:       types.CopyHeader(tc.ExpectedResult.Header()),
-					Transactions: transactions,
-				}
+				block := types.NewBlock(types.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), tc.ExpectedResult.Uncles(), []*types.Receipt{types.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -628,7 +620,7 @@ func TestGetBlockByHash(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBlockByHash", context.Background(), tc.Hash, m.DbTx).
+					On("GetL2BlockByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(block, nil).
 					Once()
 			},
@@ -664,7 +656,7 @@ func TestGetBlockByHash(t *testing.T) {
 	}
 }
 
-func TestGetBlockByNumber(t *testing.T) {
+func TestGetL2BlockByNumber(t *testing.T) {
 	type testCase struct {
 		Name           string
 		Number         *big.Int
@@ -691,7 +683,7 @@ func TestGetBlockByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBlockByNumber", context.Background(), tc.Number.Uint64(), m.DbTx).
+					On("GetL2BlockByNumber", context.Background(), tc.Number.Uint64(), m.DbTx).
 					Return(nil, state.ErrNotFound)
 			},
 		},
@@ -707,15 +699,8 @@ func TestGetBlockByNumber(t *testing.T) {
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocks, tc *testCase) {
-				transactions := []*types.Transaction{}
-				for _, tx := range tc.ExpectedResult.Transactions() {
-					transactions = append(transactions, tx)
-				}
-
-				block := &state.L2Block{
-					Header:       types.CopyHeader(tc.ExpectedResult.Header()),
-					Transactions: transactions,
-				}
+				block := types.NewBlock(types.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(),
+					tc.ExpectedResult.Uncles(), []*types.Receipt{types.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -728,7 +713,7 @@ func TestGetBlockByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBlockByNumber", context.Background(), tc.Number.Uint64(), m.DbTx).
+					On("GetL2BlockByNumber", context.Background(), tc.Number.Uint64(), m.DbTx).
 					Return(block, nil).
 					Once()
 			},
@@ -745,16 +730,6 @@ func TestGetBlockByNumber(t *testing.T) {
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocks, tc *testCase) {
-				transactions := []*types.Transaction{}
-				for _, tx := range tc.ExpectedResult.Transactions() {
-					transactions = append(transactions, tx)
-				}
-
-				block := &state.L2Block{
-					Header:       types.CopyHeader(tc.ExpectedResult.Header()),
-					Transactions: transactions,
-				}
-
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -766,13 +741,13 @@ func TestGetBlockByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
-					Return(block.Number().Uint64(), nil).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
+					Return(tc.ExpectedResult.Number().Uint64(), nil).
 					Once()
 
 				m.State.
-					On("GetBlockByNumber", context.Background(), block.Number().Uint64(), m.DbTx).
-					Return(block, nil).
+					On("GetL2BlockByNumber", context.Background(), tc.ExpectedResult.Number().Uint64(), m.DbTx).
+					Return(tc.ExpectedResult, nil).
 					Once()
 			},
 		},
@@ -793,7 +768,7 @@ func TestGetBlockByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
 					Once()
 			},
@@ -815,12 +790,12 @@ func TestGetBlockByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(1), nil).
 					Once()
 
 				m.State.
-					On("GetBlockByNumber", context.Background(), uint64(1), m.DbTx).
+					On("GetL2BlockByNumber", context.Background(), uint64(1), m.DbTx).
 					Return(nil, errors.New("failed to load block by number")).
 					Once()
 			},
@@ -831,17 +806,9 @@ func TestGetBlockByNumber(t *testing.T) {
 			ExpectedResult: types.NewBlock(&types.Header{Number: big.NewInt(2)}, nil, nil, nil, &trie.StackTrie{}),
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocks, tc *testCase) {
-				transactions := []*types.Transaction{}
-				for _, tx := range tc.ExpectedResult.Transactions() {
-					transactions = append(transactions, tx)
-				}
-
-				lastBlock := &state.L2Block{
-					Header:       types.CopyHeader(tc.ExpectedResult.Header()),
-					Transactions: transactions,
-				}
-
-				lastBlock.Header.Number.Sub(lastBlock.Header.Number, big.NewInt(1))
+				lastBlockHeader := types.CopyHeader(tc.ExpectedResult.Header())
+				lastBlockHeader.Number.Sub(lastBlockHeader.Number, big.NewInt(1))
+				lastBlock := types.NewBlock(lastBlockHeader, nil, nil, nil, &trie.StackTrie{})
 
 				expectedResultHeader := types.CopyHeader(tc.ExpectedResult.Header())
 				expectedResultHeader.ParentHash = lastBlock.Hash()
@@ -858,7 +825,7 @@ func TestGetBlockByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlock", context.Background(), m.DbTx).
+					On("GetLastL2Block", context.Background(), m.DbTx).
 					Return(lastBlock, nil).
 					Once()
 			},
@@ -880,7 +847,7 @@ func TestGetBlockByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlock", context.Background(), m.DbTx).
+					On("GetLastL2Block", context.Background(), m.DbTx).
 					Return(nil, errors.New("failed to load last block")).
 					Once()
 			},
@@ -1029,7 +996,7 @@ func TestGetCode(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
 					Once()
 			},
@@ -1164,7 +1131,7 @@ func TestGetStorageAt(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
 					Once()
 			},
@@ -1385,7 +1352,7 @@ func TestSyncing(t *testing.T) {
 	}
 }
 
-func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
+func TestGetTransactiL2onByBlockHashAndIndex(t *testing.T) {
 	s, m, c := newMockedServer(t)
 	defer s.Stop()
 
@@ -1419,7 +1386,7 @@ func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetTransactionByBlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
+					On("GetTransactionByL2BlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
 					Return(tx, nil).
 					Once()
 
@@ -1452,7 +1419,7 @@ func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetTransactionByBlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
+					On("GetTransactionByL2BlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
 					Return(nil, state.ErrNotFound).
 					Once()
 			},
@@ -1475,7 +1442,7 @@ func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetTransactionByBlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
+					On("GetTransactionByL2BlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
 					Return(nil, errors.New("failed to get transaction by block and index from state")).
 					Once()
 			},
@@ -1499,7 +1466,7 @@ func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetTransactionByBlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
+					On("GetTransactionByL2BlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
 					Return(tx, nil).
 					Once()
 
@@ -1528,7 +1495,7 @@ func TestGetTransactionByBlockHashAndIndex(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetTransactionByBlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
+					On("GetTransactionByL2BlockHashAndIndex", context.Background(), tc.Hash, uint64(tc.Index), m.DbTx).
 					Return(tx, nil).
 					Once()
 
@@ -1599,7 +1566,7 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetTransactionByBlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
+					On("GetTransactionByL2BlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
 					Return(tx, nil).
 					Once()
 
@@ -1631,7 +1598,7 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
 					Once()
 			},
@@ -1655,7 +1622,7 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetTransactionByBlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
+					On("GetTransactionByL2BlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
 					Return(nil, state.ErrNotFound).
 					Once()
 			},
@@ -1679,7 +1646,7 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetTransactionByBlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
+					On("GetTransactionByL2BlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
 					Return(nil, errors.New("failed to get transaction by block and index from state")).
 					Once()
 			},
@@ -1705,7 +1672,7 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetTransactionByBlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
+					On("GetTransactionByL2BlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
 					Return(tx, nil).
 					Once()
 
@@ -1736,7 +1703,7 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetTransactionByBlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
+					On("GetTransactionByL2BlockNumberAndIndex", context.Background(), blockNumber, uint64(tc.Index), m.DbTx).
 					Return(tx, nil).
 					Once()
 
@@ -1986,7 +1953,7 @@ func TestGetBlockTransactionCountByHash(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBlockTransactionCountByHash", context.Background(), tc.BlockHash, m.DbTx).
+					On("GetL2BlockTransactionCountByHash", context.Background(), tc.BlockHash, m.DbTx).
 					Return(uint64(10), nil).
 					Once()
 			},
@@ -2008,7 +1975,7 @@ func TestGetBlockTransactionCountByHash(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBlockTransactionCountByHash", context.Background(), tc.BlockHash, m.DbTx).
+					On("GetL2BlockTransactionCountByHash", context.Background(), tc.BlockHash, m.DbTx).
 					Return(uint64(0), errors.New("failed to count txs")).
 					Once()
 			},
@@ -2067,12 +2034,12 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(blockNumber, nil).
 					Once()
 
 				m.State.
-					On("GetBlockTransactionCountByNumber", context.Background(), blockNumber, m.DbTx).
+					On("GetL2BlockTransactionCountByNumber", context.Background(), blockNumber, m.DbTx).
 					Return(uint64(10), nil).
 					Once()
 			},
@@ -2094,7 +2061,7 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
 					Once()
 			},
@@ -2117,12 +2084,12 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(blockNumber, nil).
 					Once()
 
 				m.State.
-					On("GetBlockTransactionCountByNumber", context.Background(), blockNumber, m.DbTx).
+					On("GetL2BlockTransactionCountByNumber", context.Background(), blockNumber, m.DbTx).
 					Return(uint64(0), errors.New("failed to count")).
 					Once()
 			},
@@ -2188,7 +2155,7 @@ func TestGetTransactionCount(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(blockNumber, nil).
 					Once()
 
@@ -2218,7 +2185,7 @@ func TestGetTransactionCount(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(blockNumber, nil).
 					Once()
 
@@ -2246,7 +2213,7 @@ func TestGetTransactionCount(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number")).
 					Once()
 			},
@@ -2271,7 +2238,7 @@ func TestGetTransactionCount(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(blockNumber, nil).
 					Once()
 
@@ -3080,7 +3047,7 @@ func TestGetLogs(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number from state")).
 					Once()
 			},
@@ -3108,7 +3075,7 @@ func TestGetLogs(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBlockNumber", context.Background(), m.DbTx).
+					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number from state")).
 					Once()
 			},
@@ -3374,7 +3341,7 @@ func TestGetFilterChanges(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
+					On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
 					Return(tc.ExpectedResults[0].([]common.Hash), nil).
 					Once()
 
@@ -3399,7 +3366,7 @@ func TestGetFilterChanges(t *testing.T) {
 							Once()
 
 						m.State.
-							On("GetBlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
+							On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
 							Return(tc.ExpectedResults[1].([]common.Hash), nil).
 							Once()
 
@@ -3424,7 +3391,7 @@ func TestGetFilterChanges(t *testing.T) {
 									Once()
 
 								m.State.
-									On("GetBlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
+									On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
 									Return(tc.ExpectedResults[2].([]common.Hash), nil).
 									Once()
 
@@ -3754,7 +3721,7 @@ func TestGetFilterChanges(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
+					On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
 					Return([]common.Hash{}, errors.New("failed to get hashes")).
 					Once()
 			},
@@ -3790,7 +3757,7 @@ func TestGetFilterChanges(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetBlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
+					On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
 					Return([]common.Hash{}, nil).
 					Once()
 
