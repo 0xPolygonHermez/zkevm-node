@@ -75,6 +75,7 @@ func (s *Server) GetLastBatch(ctx context.Context, empty *emptypb.Empty) (*pb.Ge
 	if err != nil {
 		return nil, err
 	}
+	log.Infof("in server GetLastBatch, batch number: %d", batch.BatchNumber)
 	return s.genericGetBatch(ctx, batch)
 }
 
@@ -93,6 +94,9 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *statev2.Batch) (*pb
 	return &pb.GetBatchResponse{
 		BatchNumber:    batch.BatchNumber,
 		GlobalExitRoot: batch.GlobalExitRootNum.String(),
+		Sequencer:      batch.Coinbase.String(),
+		LocalExitRoot:  batch.LocalExitRoot.String(),
+		StateRoot:      batch.StateRoot.String(),
 		Timestamp:      uint64(batch.Timestamp.Unix()),
 		Transactions:   transactions,
 	}, nil

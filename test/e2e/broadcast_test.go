@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -56,7 +57,6 @@ func TestBroadcast(t *testing.T) {
 	defer func() {
 		require.NoError(t, stopBroadcast())
 	}()
-
 	st, err := initState()
 	require.NoError(t, err)
 
@@ -148,13 +148,13 @@ func runCmd(c *exec.Cmd) error {
 }
 
 func populateDB(ctx context.Context, st *statev2.State) error {
-	const addBatch = "INSERT INTO statev2.batch (batch_num, global_exit_root, timestamp) VALUES ($1, $2, $3)"
+	const addBatch = "INSERT INTO statev2.batch (batch_num, global_exit_root, timestamp, sequencer, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
 	const addTransaction = "INSERT INTO statev2.transaction (batch_num, encoded, hash, received_at, l2_block_num) VALUES ($1, $2, $3, $4, $5)"
 	var parentHash common.Hash
 	var l2Block types.Block
 
 	for i := 1; i <= totalBatches; i++ {
-		if _, err := st.PostgresStorage.Exec(ctx, addBatch, i, common.Hash{}.String(), time.Now()); err != nil {
+		if _, err := st.PostgresStorage.Exec(ctx, addBatch, i, common.Hash{}.String(), time.Now(), common.HexToAddress("").String(), common.Hash{}.String(), common.Hash{}.String()); err != nil {
 			return err
 		}
 	}

@@ -32,13 +32,13 @@ const (
 	addVerifiedBatchSQL                      = "INSERT INTO statev2.verified_batch (block_num, batch_num, tx_hash, aggregator) VALUES ($1, $2, $3, $4)"
 	getVerifiedBatchSQL                      = "SELECT block_num, batch_num, tx_hash, aggregator FROM statev2.verified_batch WHERE batch_num = $1"
 	getLastBatchNumberSQL                    = "SELECT COALESCE(MAX(batch_num), 0) FROM statev2.batch"
-	getLastNBatchesSQL                       = "SELECT batch_num, global_exit_root, timestamp from statev2.batch ORDER BY batch_num DESC LIMIT $1"
+	getLastNBatchesSQL                       = "SELECT batch_num, global_exit_root, timestamp, local_exit_root, state_root from statev2.batch ORDER BY batch_num DESC LIMIT $1"
 	getLastBatchTimeSQL                      = "SELECT timestamp FROM statev2.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchNumSQL                = "SELECT batch_num FROM statev2.virtual_batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchBlockNumSQL           = "SELECT block_num FROM statev2.virtual_batch ORDER BY batch_num DESC LIMIT 1"
 	getLastBlockNumSQL                       = "SELECT block_num FROM statev2.block ORDER BY block_num DESC LIMIT 1"
 	getBlockTimeByNumSQL                     = "SELECT received_at FROM statev2.block WHERE block_num = $1"
-	getBatchByNumberSQL                      = "SELECT batch_num, global_exit_root, timestamp from statev2.batch WHERE batch_num = $1"
+	getBatchByNumberSQL                      = "SELECT batch_num, global_exit_root, timestamp, local_exit_root, state_root from statev2.batch WHERE batch_num = $1"
 	getEncodedTransactionsByBatchNumberSQL   = "SELECT encoded from statev2.transaction WHERE batch_num = $1"
 	getLastBatchSeenSQL                      = "SELECT last_batch_num_seen FROM statev2.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                   = "UPDATE statev2.sync_info SET last_batch_num_seen = $1"
@@ -295,15 +295,22 @@ func (p *PostgresStorage) GetLastNBatches(ctx context.Context, numBatches uint, 
 
 	for rows.Next() {
 		var (
-			batch  Batch
-			gerStr string
+			batch            Batch
+			gerStr           string
+			sequencerStr     string
+			localExitRootStr string
+			stateRootStr     string
 		)
-		err := rows.Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
+		err := rows.Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp, &sequencerStr, &localExitRootStr, &stateRootStr)
 		if err != nil {
 			return nil, err
 		}
 
 		batch.GlobalExitRootNum = new(big.Int).SetBytes(common.FromHex(gerStr))
+		batch.Coinbase = common.HexToAddress(sequencerStr)
+		batch.LocalExitRoot = common.HexToHash(localExitRootStr)
+		batch.StateRoot = common.HexToHash(stateRootStr)
+
 		batches = append(batches, &batch)
 	}
 
@@ -376,11 +383,14 @@ func (p *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 
 func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
 	var (
-		batch  Batch
-		gerStr string
+		batch            Batch
+		gerStr           string
+		sequencerStr     string
+		localExitRootStr string
+		stateRootStr     string
 	)
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp)
+	err := e.QueryRow(ctx, getBatchByNumberSQL, batchNumber).Scan(&batch.BatchNumber, &gerStr, &batch.Timestamp, &sequencerStr, &localExitRootStr, &stateRootStr)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrStateNotSynchronized
@@ -388,6 +398,9 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 		return nil, err
 	}
 	batch.GlobalExitRootNum = new(big.Int).SetBytes(common.FromHex(gerStr))
+	batch.Coinbase = common.HexToAddress(sequencerStr)
+	batch.LocalExitRoot = common.HexToHash(localExitRootStr)
+	batch.StateRoot = common.HexToHash(stateRootStr)
 	return &batch, nil
 }
 
