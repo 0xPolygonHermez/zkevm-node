@@ -714,7 +714,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	context.Value = tx.Value().String()
 	context.Output = "0x" + hex.EncodeToString(result.ReturnValue)
 	context.GasPrice = tx.GasPrice().String()
-	context.ChainID = tx.ChainId().Uint64()
 	context.OldStateRoot = "0x" + hex.EncodeToString(stateRoot)
 	context.Time = uint64(endTime.Sub(startTime))
 	context.GasUsed = strconv.FormatUint(result.GasUsed, encoding.Base10)
