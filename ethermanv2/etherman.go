@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hermeznetwork/hermez-core/statev2"
 	"math/big"
 	"strings"
 	"time"
@@ -16,12 +17,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/globalexitrootmanager"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/matic"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
 	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
-	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"golang.org/x/crypto/sha3"
 )
@@ -232,39 +231,12 @@ func (etherMan *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLim
 func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
 	var batches []proofofefficiency.ProofOfEfficiencyBatchData
 	for _, seq := range sequences {
-		var callDataHex string
-		for _, tx := range seq.Txs {
-			v, r, s := tx.RawSignatureValues()
-			sign := 1 - (v.Uint64() & 1)
-
-			txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
-				tx.Nonce(),
-				tx.GasPrice(),
-				tx.Gas(),
-				tx.To(),
-				tx.Value(),
-				tx.Data(),
-				tx.ChainId(), uint(0), uint(0),
-			})
-
-			if err != nil {
-				log.Error("error encoding rlp tx: ", err)
-				return nil, errors.New("error encoding rlp tx: " + err.Error())
-			}
-			newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
-			newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
-			newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
-			newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
-			callDataHex = callDataHex + hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded
-		}
-		callData, err := hex.DecodeString(callDataHex)
+		batchL2Data, err := statev2.EncodeTransactions(seq.Txs)
 		if err != nil {
-			log.Error("error converting hex string to []byte. Error: ", err)
-			return nil, errors.New("error converting hex string to []byte. Error: " + err.Error())
+			return nil, fmt.Errorf("failed to encode transactions, err: %v", err)
 		}
-
 		batch := proofofefficiency.ProofOfEfficiencyBatchData{
-			Transactions:          callData,
+			Transactions:          batchL2Data,
 			GlobalExitRoot:        seq.GlobalExitRoot,
 			Timestamp:             uint64(seq.Timestamp),
 			ForceBatchesTimestamp: nil,
