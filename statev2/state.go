@@ -244,13 +244,13 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 }
 
 // StoreTransactions is used by the Trusted Sequencer to add processed transactions into the data base
-func (s *State) StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*ProcessTransactionResponse) error {
+func (s *State) StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
 	// TODO: implement
 	return nil
 }
 
 // CloseBatch is used by the Trusted Sequencer to close batch
-func (s *State) CloseBatch(ctx context.Context, batchNum uint64, stateRoot, localExitRoot common.Hash) error {
+func (s *State) CloseBatch(ctx context.Context, batchNum uint64, stateRoot, localExitRoot common.Hash, dbTx pgx.Tx) error {
 	// TODO: implement
 	return nil
 }

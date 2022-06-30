@@ -179,7 +179,7 @@ func (p *PostgresStorage) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Contex
 	return lastBlockNum - lastExitRootBlockNum, nil
 }
 
-func (p *PostgresStorage) GetLastSendSequenceTime(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
+func (p *PostgresStorage) GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
 	var (
 		blockNum  uint64
 		timestamp time.Time

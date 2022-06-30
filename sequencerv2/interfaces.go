@@ -34,19 +34,19 @@ type etherman interface {
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastVirtualBatchNum(ctx context.Context) (uint64, error)
-	GetLastBatchNumberSeenOnEthereum(ctx context.Context) (uint64, error)
+	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetLastBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*statev2.GlobalExitRoot, error)
 
 	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*statev2.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	StoreBatchHeader(ctx context.Context, batch statev2.Batch, dbTx pgx.Tx) error
-	StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*statev2.ProcessTransactionResponse) error
-	CloseBatch(ctx context.Context, batchNum uint64, stateRoot, localExitRoot common.Hash) error
-	ProcessBatch(ctx context.Context, txs []types.Transaction) (*statev2.ProcessBatchResponse, error)
-	GetLastSendSequenceTime(ctx context.Context) (time.Time, error)
-	GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context) (uint64, error)
-	GetLastBatchTime(ctx context.Context) (time.Time, error)
+	StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*statev2.ProcessTransactionResponse, dbTx pgx.Tx) error
+	CloseBatch(ctx context.Context, batchNum uint64, stateRoot, localExitRoot common.Hash, dbTx pgx.Tx) error
+	ProcessBatch(ctx context.Context, txs []types.Transaction, dbTx pgx.Tx) (*statev2.ProcessBatchResponse, error)
+	GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
+	GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetLastBatchTime(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 }
 
 type txManager interface {

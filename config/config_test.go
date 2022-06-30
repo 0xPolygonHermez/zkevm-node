@@ -63,7 +63,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
-			path:          "Sequencerv2.LastL1InteractionTimeMaxWaitPeriod",
+			path:          "Sequencerv2.LastBatchVirtualizationTimeMaxWaitPeriod",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
