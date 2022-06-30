@@ -219,7 +219,7 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 		return nil, ErrInvalidBatchNumber
 	}
 
-	batchL2Data, err := encondeTransactions(txs)
+	batchL2Data, err := EncodeTransactions(txs)
 	if err != nil {
 		return nil, err
 	}

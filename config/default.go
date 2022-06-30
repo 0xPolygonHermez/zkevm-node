@@ -20,6 +20,10 @@ URL = "http://localhost"
 PrivateKeyPath = "./test/test.keystore"
 PrivateKeyPassword = "testonly"
 
+[EthTxManager]
+MaxSendBatchTxRetries = 10
+FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
+
 [RPC]
 Host = "0.0.0.0"
 Port = 8123

@@ -21,6 +21,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
 	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/statev2"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -206,9 +207,47 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 }
 
 // EstimateGasSequenceBatches estimates gas for sending batches
-// TODO implement this func
-func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*big.Int, error) {
-	return big.NewInt(0), nil
+func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error) {
+	noSendOpts := *etherMan.auth
+	noSendOpts.NoSend = true
+	tx, err := etherMan.sequenceBatches(&noSendOpts, sequences)
+	if err != nil {
+		return 0, err
+	}
+	return tx.Gas(), nil
+}
+
+// SequenceBatches send sequences of batches to the ethereum
+func (etherMan *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64) (*types.Transaction, error) {
+	sendSequencesOpts := *etherMan.auth
+	sendSequencesOpts.GasLimit = gasLimit
+	return etherMan.sequenceBatches(&sendSequencesOpts, sequences)
+}
+
+func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
+	var batches []proofofefficiency.ProofOfEfficiencyBatchData
+	for _, seq := range sequences {
+		batchL2Data, err := statev2.EncodeTransactions(seq.Txs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode transactions, err: %v", err)
+		}
+		batch := proofofefficiency.ProofOfEfficiencyBatchData{
+			Transactions:          batchL2Data,
+			GlobalExitRoot:        seq.GlobalExitRoot,
+			Timestamp:             uint64(seq.Timestamp),
+			ForceBatchesTimestamp: nil,
+		}
+
+		batches = append(batches, batch)
+	}
+
+	tx, err := etherMan.PoE.SequenceBatches(opts, batches)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
 }
 
 // GetSendSequenceFee get super/trusted sequencer fee
@@ -511,4 +550,14 @@ func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64
 func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
 	latestBatch, err := etherMan.PoE.LastBatchSequenced(&bind.CallOpts{Pending: false})
 	return uint64(latestBatch), err
+}
+
+// GetTx function get ethereum tx
+func (etherMan *Client) GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error) {
+	return etherMan.EtherClient.TransactionByHash(ctx, txHash)
+}
+
+// GetTxReceipt function gets ethereum tx receipt
+func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	return etherMan.EtherClient.TransactionReceipt(ctx, txHash)
 }
