@@ -20,6 +20,10 @@ URL = "http://localhost"
 PrivateKeyPath = "./test/test.keystore"
 PrivateKeyPassword = "testonly"
 
+[EthTxManager]
+MaxSendBatchTxRetries = 10
+FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
+
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
@@ -55,7 +59,7 @@ FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
 
 [Sequencerv2]
 WaitPeriodPoolIsEmpty = "15s"
-LastL1InteractionTimeMaxWaitPeriod = "15s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "15s"
 WaitBlocksToUpdateGER = 10
 LastTimeBatchMaxWaitPeriod = "15s"
 	[Sequencerv2.ProfitabilityChecker]

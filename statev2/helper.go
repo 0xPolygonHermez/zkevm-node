@@ -15,7 +15,7 @@ import (
 
 const ether155V = 27
 
-func encondeTransactions(txs []types.Transaction) ([]byte, error) {
+func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	var batchL2Data []byte
 
 	// TODO: Check how to encode unsigned transactions

@@ -65,6 +65,41 @@ func TestMain(m *testing.M) {
 
 	os.Exit(result)
 }
+
+func TestAddBlock(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	fmt.Println("db: ", stateDb)
+	tx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, tx)
+	assert.NoError(t, err)
+	// Add the second block
+	block.BlockNumber = 2
+	err = testState.AddBlock(ctx, block, tx)
+	assert.NoError(t, err)
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+	// Get the last block
+	lastBlock, err := testState.GetLastBlock(ctx, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(2), lastBlock.BlockNumber)
+	assert.Equal(t, block.BlockHash, lastBlock.BlockHash)
+	assert.Equal(t, block.ParentHash, lastBlock.ParentHash)
+	// Get the previous block
+	prevBlock, err := testState.GetPreviousBlock(ctx, 1, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1), prevBlock.BlockNumber)
+}
+
 func TestAddGlobalExitRoot(t *testing.T) {
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
@@ -99,6 +134,114 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	assert.Equal(t, globalExitRoot.MainnetExitRoot, exit.MainnetExitRoot)
 	assert.Equal(t, globalExitRoot.RollupExitRoot, exit.RollupExitRoot)
 	assert.Equal(t, globalExitRoot.GlobalExitRoot, exit.GlobalExitRoot)
+}
+
+func TestAddForcedBatch(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	tx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, tx)
+	assert.NoError(t, err)
+	b := common.Hex2Bytes("0x617b3a3528F9")
+	assert.NoError(t, err)
+	var bN uint64 = 3
+	forcedBatch := state.ForcedBatch{
+		BlockNumber:       1,
+		ForcedBatchNumber: 2,
+		BatchNumber:       &bN,
+		GlobalExitRoot:    common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		Sequencer:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+		RawTxsData:        b,
+		ForcedAt:          time.Now(),
+	}
+	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
+	require.NoError(t, err)
+	fb, err := testState.GetForcedBatch(ctx, tx, 2)
+	require.NoError(t, err)
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, forcedBatch.BlockNumber, fb.BlockNumber)
+	assert.Equal(t, forcedBatch.BatchNumber, fb.BatchNumber)
+	assert.Equal(t, forcedBatch.ForcedBatchNumber, fb.ForcedBatchNumber)
+	assert.NotEqual(t, time.Time{}, fb.ForcedAt)
+	assert.Equal(t, forcedBatch.GlobalExitRoot, fb.GlobalExitRoot)
+	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
+	// Test GetNextForcedBatches
+	tx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	forcedBatch = state.ForcedBatch{
+		BlockNumber:       1,
+		ForcedBatchNumber: 3,
+		BatchNumber:       nil,
+		GlobalExitRoot:    common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		Sequencer:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+		RawTxsData:        b,
+		ForcedAt:          time.Now(),
+	}
+	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
+	require.NoError(t, err)
+	batches, err := testState.GetNextForcedBatches(ctx, 1, tx)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit(ctx))
+	assert.Equal(t, forcedBatch.BlockNumber, batches[0].BlockNumber)
+	assert.Equal(t, forcedBatch.BatchNumber, batches[0].BatchNumber)
+	assert.Equal(t, forcedBatch.ForcedBatchNumber, batches[0].ForcedBatchNumber)
+	assert.NotEqual(t, time.Time{}, batches[0].ForcedAt)
+	assert.Equal(t, forcedBatch.GlobalExitRoot, batches[0].GlobalExitRoot)
+	assert.Equal(t, forcedBatch.RawTxsData, batches[0].RawTxsData)
+	// Test AddBatchNumberInForcedBatch
+	tx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = testState.AddBatchNumberInForcedBatch(ctx, 3, 2, tx)
+	require.NoError(t, err)
+	fb, err = testState.GetForcedBatch(ctx, tx, 3)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(2), *fb.BatchNumber)
+	require.NoError(t, tx.Commit(ctx))
+}
+
+func TestAddVirtualBatch(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	tx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, tx)
+	assert.NoError(t, err)
+	batch := state.Batch{
+		BatchNumber:    1,
+		GlobalExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		Coinbase:       common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+		Timestamp:      time.Now(),
+		BatchL2Data:    common.Hex2Bytes("0x617b3a3528F9"),
+	}
+	err = testState.StoreBatchHeader(ctx, batch, tx)
+	require.NoError(t, err)
+	virtualBatch := state.VirtualBatch{
+		BlockNumber: 1,
+		BatchNumber: 1,
+		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		Sequencer:   common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+	}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch, tx)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit(ctx))
 }
 
 /*
