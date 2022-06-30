@@ -451,8 +451,8 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	return jsTracer.GetResult()
 }
 
-func (s *State) GetLastConsolidatedBlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
-	return s.PostgresStorage.GetLastConsolidatedBlockNumber(ctx, dbTx)
+func (s *State) GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetLastConsolidatedL2BlockNumber(ctx, dbTx)
 }
 
 func (s *State) GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error) {
@@ -463,8 +463,8 @@ func (s *State) GetTransactionReceipt(ctx context.Context, transactionHash commo
 	return s.PostgresStorage.GetTransactionReceipt(ctx, transactionHash, dbTx)
 }
 
-func (s *State) GetLastBlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
-	return s.PostgresStorage.GetLastBlockNumber(ctx, dbTx)
+func (s *State) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
 }
 
 func (s *State) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Block, error) {

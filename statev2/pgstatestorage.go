@@ -717,7 +717,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	return err
 }
 
-func (p *PostgresStorage) GetLastConsolidatedBlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+func (p *PostgresStorage) GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	var lastConsolidatedBlockNumber uint64
 	q := p.getExecQuerier(dbTx)
 	err := q.QueryRow(ctx, getLastConsolidatedBlockNumberSQL, common.Hash{}).Scan(&lastConsolidatedBlockNumber)
@@ -731,7 +731,7 @@ func (p *PostgresStorage) GetLastConsolidatedBlockNumber(ctx context.Context, db
 	return lastConsolidatedBlockNumber, nil
 }
 
-func (p *PostgresStorage) GetLastBlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	var lastBlockNumber uint64
 	q := p.getExecQuerier(dbTx)
 	err := q.QueryRow(ctx, getLastVirtualBlockNumberSQL).Scan(&lastBlockNumber)
