@@ -61,4 +61,5 @@ type SequencedForceBatch struct {
 	LastBatchSequenced uint64
 	ForceBatchNumber   uint64
 	Sequencer          common.Address
+	TxHash             common.Hash
 }

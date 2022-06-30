@@ -3,7 +3,7 @@ package statev2
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/instrumentation"
 )
 
 type ProcessBatchRequest struct {
