@@ -63,7 +63,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
-			path:          "Sequencerv2.LastL1InteractionTimeMaxWaitPeriod",
+			path:          "Sequencerv2.LastBatchVirtualizationTimeMaxWaitPeriod",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
@@ -77,6 +77,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencerv2.ProfitabilityChecker.SendBatchesEvenWhenNotProfitable",
 			expectedValue: true,
+		},
+		{
+			path:          "EthTxManager.MaxSendBatchTxRetries",
+			expectedValue: uint32(10),
+		},
+		{
+			path:          "EthTxManager.FrequencyForResendingFailedSendBatchesInMilliseconds",
+			expectedValue: int64(1000),
 		},
 		{
 			path:          "PriceGetter.Type",

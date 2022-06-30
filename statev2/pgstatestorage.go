@@ -180,7 +180,7 @@ func (p *PostgresStorage) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Contex
 	return lastBlockNum - lastExitRootBlockNum, nil
 }
 
-func (p *PostgresStorage) GetLastSendSequenceTime(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
+func (p *PostgresStorage) GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
 	var (
 		blockNum  uint64
 		timestamp time.Time
@@ -290,7 +290,7 @@ func (p *PostgresStorage) GetLastNBatches(ctx context.Context, numBatches uint, 
 	return batches, nil
 }
 
-// 	GetLastBatchNumber(ctx context.Context) (uint64, error)
+// GetLastBatchNumber get last trusted batch number
 func (p *PostgresStorage) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	var batchNumber uint64
 	q := p.getExecQuerier(dbTx)
