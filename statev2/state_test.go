@@ -32,8 +32,8 @@ var (
 	stateDb      *pgxpool.Pool
 	err          error
 	cfg          = dbutils.NewConfigFromEnv()
-	ctx          = context.Background()
-	stateCfg     = state.Config{
+	// ctx          = context.Background()
+	stateCfg = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
 	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
