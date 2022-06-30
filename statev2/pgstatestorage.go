@@ -34,6 +34,13 @@ const (
 	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM statev2.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                 = "UPDATE statev2.sync_info SET last_batch_num_seen = $1"
 	getL2BlockByNumberSQL                  = "SELECT l2_block_num, encoded, header, uncles, received_at from statev2.transaction WHERE batch_num = $1"
+	getTransactionByHashSQL                = "SELECT transaction.encoded FROM statev2.transaction WHERE hash = $1"
+	getReceiptSQL                          = "SELECT r.tx_hash, r.type, r.post_state, r.status, r.cumulative_gas_used, r.gas_used, r.contract_address, t.encoded, t.l2_block_num, b.block_hash FROM statev2.receipt r INNER JOIN statev2.transaction t ON t.hash = r.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE r.tx_hash = $1"
+	getTransactionByBlockHashAndIndexSQL   = "SELECT t.encoded FROM statev2.transaction t INNER JOIN statev2.l2block b ON t.l2_block_num = b.batch_num WHERE b.block_hash = $1 AND 0 = $2"
+	getTransactionByBlockNumberAndIndexSQL = "SELECT t.encoded FROM statev2.transaction t WHERE t.l2_block_num = $1 AND 0 = $2"
+	getBlockTransactionCountByHashSQL      = "SELECT COUNT(*) FROM statev2.transaction t INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
+	getBlockTransactionCountByNumberSQL    = "SELECT COUNT(*) FROM state.transaction t WHERE t.l2_block_num = $1"
+	getTransactionLogsSQL                  = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM state.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE transaction_hash = $1"
 )
 
 // PostgresStorage implements the Storage interface
@@ -353,13 +360,8 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 	return &block, nil
 }
 
+// GetTransactionByHash gets a transaction accordingly to the provided transaction hash
 func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error) {
-	const getTransactionByHashSQL = `
-		SELECT transaction.encoded 
-		  FROM statev2.transaction
-		 WHERE hash = $1
-	`
-
 	var encoded string
 	q := p.getExecQuerier(dbTx)
 	err := q.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&encoded)
@@ -378,26 +380,8 @@ func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 	return tx, nil
 }
 
+// GetTransactionReceipt gets a transaction receipt accordingly to the provided transaction hash
 func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
-	const getReceiptSQL = `
-		SELECT r.tx_hash
-			 , r.type
-			 , r.post_state
-			 , r.status
-			 , r.cumulative_gas_used
-			 , r.gas_used
-			 , r.contract_address
-			 , t.encoded
-			 , t.l2_block_num
-			 , b.block_hash
-		  FROM statev2.receipt r
-		 INNER JOIN statev2.transaction t
-		    ON t.hash = r.tx_hash
-		 INNER JOIN statev2.l2block b
-			ON b.block_num = t.l2_block_num
-		 WHERE r.tx_hash = $1
-	`
-
 	var encodedTx string
 	var l2BlockNum uint64
 	var l2BlockHash string
@@ -438,19 +422,12 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 	return &receipt, nil
 }
 
+// GetTransactionByBlockHashAndIndex gets a transaction accordingly to the block hash and transaction index provided.
+// since we only have a single transaction per l2 block, any index different from 0 will return a not found result
 func (p *PostgresStorage) GetTransactionByBlockHashAndIndex(ctx context.Context, blockHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
-	const query = `
-		SELECT t.encoded
-		  FROM statev2.transaction t
-		 INNER JOIN statev2.l2block b
-		    ON t.l2_block_num = b.batch_num
-		 WHERE b.block_hash = $1
-		   AND 0 = $2
-	`
-
 	var encoded string
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, query, blockHash.Hex(), index).Scan(&encoded)
+	err := q.QueryRow(ctx, getTransactionByBlockHashAndIndexSQL, blockHash.Hex(), index).Scan(&encoded)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -465,17 +442,12 @@ func (p *PostgresStorage) GetTransactionByBlockHashAndIndex(ctx context.Context,
 	return tx, nil
 }
 
+// GetTransactionByBlockNumberAndIndex gets a transaction accordingly to the block number and transaction index provided.
+// since we only have a single transaction per l2 block, any index different from 0 will return a not found result
 func (p *PostgresStorage) GetTransactionByBlockNumberAndIndex(ctx context.Context, blockNumber uint64, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
-	const query = `
-		SELECT t.encoded
-		  FROM statev2.transaction t
-		 WHERE t.l2_block_num = $1
-		   AND 0 = $2
-	`
-
 	var encoded string
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, query, blockNumber, index).Scan(&encoded)
+	err := q.QueryRow(ctx, getTransactionByBlockNumberAndIndexSQL, blockNumber, index).Scan(&encoded)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -490,33 +462,22 @@ func (p *PostgresStorage) GetTransactionByBlockNumberAndIndex(ctx context.Contex
 	return tx, nil
 }
 
-func (p *PostgresStorage) GetBlockTransactionCountByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (uint64, error) {
-	const query = `
-		SELECT COUNT(*)
-		  FROM statev2.transaction t
-		 INNER JOIN statev2.l2block b
-			ON b.block_num = t.l2_block_num
-		 WHERE b.block_hash = $1
-	`
-
+// GetBlockTransactionCountByHash returns the number of transactions related to the provided block hash
+func (p *PostgresStorage) GetBlockTransactionCountByHash(ctx context.Context, blockHash common.Hash, dbTx pgx.Tx) (uint64, error) {
 	var count uint64
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, query, hash.Hex()).Scan(&count)
+	err := q.QueryRow(ctx, getBlockTransactionCountByHashSQL, blockHash.Hex()).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
+// GetBlockTransactionCountByNumber returns the number of transactions related to the provided block number
 func (p *PostgresStorage) GetBlockTransactionCountByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	const query = `
-		SELECT COUNT(*)
-		  FROM state.transaction t
-		 WHERE t.l2_block_num = $1
-	`
 	var count uint64
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, query, blockNumber).Scan(&count)
+	err := q.QueryRow(ctx, getBlockTransactionCountByNumberSQL, blockNumber).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
@@ -525,26 +486,8 @@ func (p *PostgresStorage) GetBlockTransactionCountByNumber(ctx context.Context, 
 
 // getTransactionLogs returns the logs of a transaction by transaction hash
 func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) ([]*types.Log, error) {
-	const query = `
-		SELECT t.l2_block_num
-			 , b.block_hash
-			 , l.tx_hash
-			 , l.log_index
-			 , l.address
-			 , l.data
-			 , l.topic0
-			 , l.topic1
-			 , l.topic2
-			 , l.topic3
-		  FROM state.log l
-		 INNER JOIN statev2.transaction t
-			ON t.hash = l.tx_hash
-		 INNER JOIN statev2.l2block b
-			ON b.block_num = t.l2_block_num
-		 WHERE transaction_hash = $1
-	`
 	q := p.getExecQuerier(dbTx)
-	rows, err := q.Query(ctx, query, transactionHash)
+	rows, err := q.Query(ctx, getTransactionLogsSQL, transactionHash)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}
@@ -596,6 +539,7 @@ func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHas
 	return logs, nil
 }
 
+// decodeTx decodes a string rlp tx representation into a types.Transaction instance
 func decodeTx(encodedTx string) (*types.Transaction, error) {
 	b, err := hex.DecodeHex(encodedTx)
 	if err != nil {
