@@ -529,7 +529,6 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 				return err
 			}
 		}
-		root.SetBytes(newRoot)
 	}
 
 	if genesis.SmartContracts != nil {
@@ -539,7 +538,6 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 				return err
 			}
 		}
-		root.SetBytes(newRoot)
 	}
 
 	if len(genesis.Storage) > 0 {
@@ -551,7 +549,6 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 				}
 			}
 		}
-		root.SetBytes(newRoot)
 	}
 
 	if genesis.Nonces != nil {
@@ -561,8 +558,9 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 				return err
 			}
 		}
-		root.SetBytes(newRoot)
 	}
+
+	root.SetBytes(newRoot)
 
 	// Store L2 Genesis Block
 	header := &types.Header{
