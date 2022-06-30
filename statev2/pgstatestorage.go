@@ -34,6 +34,7 @@ const (
 	getLastBatchSeenSQL                    = "SELECT last_batch_num_seen FROM statev2.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                 = "UPDATE statev2.sync_info SET last_batch_num_seen = $1"
 	getL2BlockByNumberSQL                  = "SELECT l2_block_num, encoded, header, uncles, received_at from statev2.transaction WHERE batch_num = $1"
+	addL2BlockSQL                          = "INSERT INTO statev2.l2block (block_num, block_hash, parent_hash, state_root, received_at) VALUES ($1, $2, $3, $4, $5)"
 )
 
 // PostgresStorage implements the Storage interface
@@ -356,4 +357,11 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 	block.Transactions[0] = tx
 
 	return &block, nil
+}
+
+// AddL2Block adds a new L2 block to the State Store
+func (p *PostgresStorage) AddL2Block(ctx context.Context, l2block *L2Block, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addL2BlockSQL, l2block.BlockNumber, l2block.Hash().String(), l2block.Header.ParentHash.String(), l2block.Header.Root.String(), l2block.ReceivedAt)
+	return err
 }

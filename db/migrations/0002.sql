@@ -46,6 +46,14 @@ CREATE TABLE statev2.forced_batch (
     block_num BIGINT NOT NULL REFERENCES statev2.block (block_num) ON DELETE CASCADE
 );
 
+CREATE TABLE statev2.l2block (
+    block_num BIGINT PRIMARY KEY,
+    block_hash VARCHAR NOT NULL,
+    parent_hash VARCHAR,
+    state_root VARCHAR,
+    received_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
 CREATE TABLE statev2.transaction (  --transaction abstraction. transaction == L2 block
     hash VARCHAR PRIMARY KEY,
     from_address VARCHAR,
@@ -55,7 +63,7 @@ CREATE TABLE statev2.transaction (  --transaction abstraction. transaction == L2
     uncles jsonb,
     received_at TIMESTAMP WITH TIME ZONE NOT NULL,
     batch_num BIGINT NOT NULL REFERENCES statev2.batch (batch_num) ON DELETE CASCADE,
-    l2_block_num BIGINT
+    l2_block_num BIGINT NOT NULL REFERENCES statev2.l2block (block_num) ON DELETE CASCADE
 );
 
 CREATE TABLE statev2.exit_root

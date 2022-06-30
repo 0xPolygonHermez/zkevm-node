@@ -201,7 +201,7 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 		return nil, ErrInvalidBatchNumber
 	}
 
-	batchL2Data, err := encondeTransactions(txs)
+	batchL2Data, err := encodeTransactions(txs)
 	if err != nil {
 		return nil, err
 	}
@@ -510,27 +510,15 @@ func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumbe
 
 // SetGenesis populates state with genesis information
 func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) error {
-	// Generate Genesis Block
-	header := types.Header{}
-	l2block := &L2Block{
-		BlockNumber: genesis.Block.NumberU64(),
-		Header:      &header,
-	}
-
-	// Add Block
-	err := s.PostgresStorage.AddL2Block(ctx, l2block, dbTx)
-	if err != nil {
-		return err
-	}
-
 	var (
 		root    common.Hash
 		newRoot []byte
+		err     error
 	)
 
 	if genesis.Balances != nil {
 		for address, balance := range genesis.Balances {
-			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot, txBundleID)
+			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
 			if err != nil {
 				return err
 			}
@@ -540,7 +528,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 
 	if genesis.SmartContracts != nil {
 		for address, sc := range genesis.SmartContracts {
-			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot, txBundleID)
+			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot)
 			if err != nil {
 				return err
 			}
@@ -551,7 +539,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 	if len(genesis.Storage) > 0 {
 		for address, storage := range genesis.Storage {
 			for key, value := range storage {
-				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot, txBundleID)
+				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
 				if err != nil {
 					return err
 				}
@@ -562,7 +550,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 
 	if genesis.Nonces != nil {
 		for address, nonce := range genesis.Nonces {
-			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot, txBundleID)
+			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
 			if err != nil {
 				return err
 			}
@@ -570,30 +558,16 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 		root.SetBytes(newRoot)
 	}
 
-	// Generate Genesis Batch
-	receivedAt := genesis.Block.ReceivedAt
-	batch := &Batch{
-		Header: &types.Header{
-			Number: big.NewInt(0),
-		},
-		BlockNumber:        genesis.Block.NumberU64(),
-		ConsolidatedTxHash: common.HexToHash("0x1"),
-		ConsolidatedAt:     &receivedAt,
-		MaticCollateral:    big.NewInt(0),
-		ReceivedAt:         time.Now(),
-		ChainID:            new(big.Int).SetUint64(genesis.L2ChainID),
-		GlobalExitRoot:     common.Hash{},
+	// Store L2 Genesis Block
+	header := &types.Header{
+		ParentHash: ZeroHash,
+		Root:       root,
 	}
 
-	// Store batch into db
-	bp, err := s.NewGenesisBatchProcessor(root[:], txBundleID)
-	if err != nil {
-		return err
-	}
-	err = bp.ProcessBatch(ctx, batch)
-	if err != nil {
-		return err
+	l2Block := &L2Block{
+		Header:      header,
+		BlockNumber: 0,
 	}
 
-	return nil
+	return s.PostgresStorage.AddL2Block(ctx, l2Block, dbTx)
 }
