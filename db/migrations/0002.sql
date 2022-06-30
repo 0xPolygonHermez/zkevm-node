@@ -76,4 +76,3 @@ CREATE TABLE statev2.sync_info
 
 -- Insert default values into sync_info table
 INSERT INTO statev2.sync_info (last_batch_num_seen, last_batch_num_consolidated, init_sync_batch)VALUES (0, 0, 0);
-
