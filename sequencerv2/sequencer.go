@@ -3,14 +3,17 @@ package sequencerv2
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencerv2/profitabilitychecker"
+	"github.com/hermeznetwork/hermez-core/statev2"
 )
 
 const (
@@ -28,6 +31,10 @@ type Sequencer struct {
 	etherman  etherman
 	checker   *profitabilitychecker.Checker
 
+	address                          common.Address
+	lastBatchNum                     uint64
+	lastStateRoot, lastLocalExitRoot common.Hash
+
 	closedSequences    []types.Sequence
 	sequenceInProgress types.Sequence
 }
@@ -41,6 +48,11 @@ func New(
 	priceGetter priceGetter,
 	manager txManager) (*Sequencer, error) {
 	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
+
+	addr, err := etherman.TrustedSequencer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
+	}
 	return &Sequencer{
 		cfg:       cfg,
 		pool:      pool,
@@ -48,6 +60,7 @@ func New(
 		etherman:  etherman,
 		checker:   checker,
 		txManager: manager,
+		address:   addr,
 	}, nil
 }
 
@@ -117,10 +130,20 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	log.Infof("processing tx")
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	_, err := s.state.ProcessBatch(ctx, s.sequenceInProgress.Txs)
+	processBatchResp, err := s.state.ProcessBatch(ctx, s.sequenceInProgress.Txs, nil)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
+		return
+	}
+
+	s.lastStateRoot = processBatchResp.NewStateRoot
+	s.lastLocalExitRoot = processBatchResp.NewLocalExitRoot
+
+	// TODO: add logic based on this response to decide which txs we include on the DB
+	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processBatchResp.Responses, nil)
+	if err != nil {
+		log.Errorf("failed to store transactions, err: %v", err)
 		return
 	}
 
@@ -141,12 +164,12 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 }
 
 func (s *Sequencer) isSynced(ctx context.Context) bool {
-	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx)
+	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
 		log.Errorf("failed to get last synced batch, err: %v", err)
 		return false
 	}
-	lastEthBatchNum, err := s.state.GetLastBatchNumberSeenOnEthereum(ctx)
+	lastEthBatchNum, err := s.state.GetLastBatchNumberSeenOnEthereum(ctx, nil)
 	if err != nil {
 		log.Errorf("failed to get last eth batch, err: %v", err)
 		return false
@@ -174,13 +197,13 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 
 	// TODO: checkAgainstForcedBatchQueueTimeout
 
-	lastL1TimeInteraction, err := s.state.GetLastSendSequenceTime(ctx)
+	lastBatchVirtualizationTime, err := s.state.GetTimeForLatestBatchVirtualization(ctx, nil)
 	if err != nil {
 		log.Errorf("failed to get last l1 interaction time, err: %v", err)
 		return false, false
 	}
 
-	if lastL1TimeInteraction.Before(time.Now().Add(-s.cfg.LastL1InteractionTimeMaxWaitPeriod.Duration)) {
+	if lastBatchVirtualizationTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
 		// check profitability
 		if s.checker.IsSendSequencesProfitable(estimatedGas, s.closedSequences) {
 			return true, false
@@ -193,7 +216,7 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 // shouldCloseSequenceInProgress checks if sequence should be closed or not
 // in case it's enough blocks since last GER update, long time since last batch and sequence is profitable
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
-	numberOfBlocks, err := s.state.GetNumberOfBlocksSinceLastGERUpdate(ctx)
+	numberOfBlocks, err := s.state.GetNumberOfBlocksSinceLastGERUpdate(ctx, nil)
 	if err != nil {
 		log.Errorf("failed to get last time GER updated, err: %v", err)
 		return false
@@ -202,7 +225,7 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 		return s.isSequenceProfitable(ctx)
 	}
 
-	lastBatchTime, err := s.state.GetLastBatchTime(ctx)
+	lastBatchTime, err := s.state.GetLastBatchTime(ctx, nil)
 	if err != nil {
 		log.Errorf("failed to get last batch time, err: %v", err)
 		return false
@@ -238,9 +261,37 @@ func (s *Sequencer) getMostProfitablePendingTx(ctx context.Context) (*pool.Trans
 }
 
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
+	// close current batch
+	if s.lastStateRoot.String() != "" || s.lastLocalExitRoot.String() != "" {
+		err := s.state.CloseBatch(ctx, s.lastBatchNum, s.lastStateRoot, s.lastLocalExitRoot, nil)
+		if err != nil {
+			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %v", err)
+		}
+	} else {
+		return types.Sequence{}, errors.New("lastStateRoot and lastLocalExitRoot are empty, impossible to close a batch")
+	}
+
 	root, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
 	if err != nil {
-		return types.Sequence{}, err
+		return types.Sequence{}, fmt.Errorf("failed to get latest global exit root, err: %v", err)
+	}
+
+	s.lastBatchNum, err = s.state.GetLastBatchNumber(ctx, nil)
+	if err != nil {
+		return types.Sequence{}, fmt.Errorf("failed to get last batch number, err: %v", err)
+	}
+	s.lastBatchNum = s.lastBatchNum + 1
+
+	batchHeader := statev2.Batch{
+		BatchNumber:       s.lastBatchNum,
+		Timestamp:         time.Now(),
+		GlobalExitRoot:    root.GlobalExitRoot,
+		GlobalExitRootNum: root.GlobalExitRootNum,
+		Coinbase:          s.address,
+	}
+	err = s.state.StoreBatchHeader(ctx, batchHeader, nil)
+	if err != nil {
+		return types.Sequence{}, fmt.Errorf("failed to store batch header, err: %v", err)
 	}
 
 	return types.Sequence{

@@ -11,8 +11,8 @@ type Config struct {
 	// trying to propose a batch
 	WaitPeriodPoolIsEmpty types.Duration `mapstructure:"WaitPeriodPoolIsEmpty"`
 
-	// LastL1InteractionTimeWaitPeriod is time since sequences should be sent
-	LastL1InteractionTimeMaxWaitPeriod types.Duration `mapstructure:"LastL1InteractionTimeMaxWaitPeriod"`
+	// LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
+	LastBatchVirtualizationTimeMaxWaitPeriod types.Duration `mapstructure:"LastBatchVirtualizationTimeMaxWaitPeriod"`
 
 	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
 	WaitBlocksToUpdateGER uint64 `mapstructure:"WaitBlocksToUpdateGER"`

@@ -59,7 +59,7 @@ FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
 
 [Sequencerv2]
 WaitPeriodPoolIsEmpty = "15s"
-LastL1InteractionTimeMaxWaitPeriod = "15s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "15s"
 WaitBlocksToUpdateGER = 10
 LastTimeBatchMaxWaitPeriod = "15s"
 	[Sequencerv2.ProfitabilityChecker]
