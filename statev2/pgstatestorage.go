@@ -50,6 +50,7 @@ const (
 	getBlockTransactionCountByHashSQL      = "SELECT COUNT(*) FROM statev2.transaction t INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
 	getBlockTransactionCountByNumberSQL    = "SELECT COUNT(*) FROM state.transaction t WHERE t.l2_block_num = $1"
 	getTransactionLogsSQL                  = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM state.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE transaction_hash = $1"
+	addL2BlockSQL                          = "INSERT INTO statev2.l2block (block_num, block_hash, parent_hash, state_root, received_at) VALUES ($1, $2, $3, $4, $5)"
 )
 
 // PostgresStorage implements the Storage interface
@@ -680,4 +681,11 @@ func decodeTx(encodedTx string) (*types.Transaction, error) {
 		return nil, err
 	}
 	return tx, nil
+}
+
+// AddL2Block adds a new L2 block to the State Store
+func (p *PostgresStorage) AddL2Block(ctx context.Context, l2block *L2Block, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addL2BlockSQL, l2block.BlockNumber, l2block.Hash().String(), l2block.Header.ParentHash.String(), l2block.Header.Root.String(), l2block.ReceivedAt)
+	return err
 }

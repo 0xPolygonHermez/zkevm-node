@@ -206,7 +206,7 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 }
 
 // SetStorageAt sets storage value at specified position.
-func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address, position *big.Int, value *big.Int, root []byte, txBundleID string) (newRoot []byte, proof *UpdateProof, err error) {
+func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address, position *big.Int, value *big.Int, root []byte) (newRoot []byte, proof *UpdateProof, err error) {
 	r := new(big.Int).SetBytes(root)
 	key, err := KeyContractStorage(address, position.Bytes())
 	if err != nil {
