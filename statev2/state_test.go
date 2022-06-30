@@ -179,6 +179,7 @@ func TestExecuteTransaction(t *testing.T) {
 }
 */
 
+/*
 func TestGenesis(t *testing.T) {
 	balances := map[common.Address]*big.Int{
 		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
@@ -207,3 +208,4 @@ func TestGenesis(t *testing.T) {
 	err := testState.SetGenesis(ctx, genesis, nil)
 	require.NoError(t, err)
 }
+*/
