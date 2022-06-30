@@ -99,15 +99,19 @@ func (s *State) RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error
 	return err
 }
 
-// ResetDB resets the state to a block for the given DB tx
-func (s *State) ResetDB(ctx context.Context, block *Block, dbTx pgx.Tx) error {
-	return s.PostgresStorage.Reset(ctx, block, dbTx)
+// Reset resets the state to a block for the given DB tx
+func (s *State) Reset(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
+	return s.PostgresStorage.Reset(ctx, blockNumber, dbTx)
 }
 
-// ResetTrustedState resets the state db to a batch by its number
+// ResetTrustedState resets the trusted batches which is higher than input.
 func (s *State) ResetTrustedState(ctx context.Context, batchNum uint64, dbTx pgx.Tx) error {
-	// TODO: This method will need to update a field in the forced_batch table
-	return s.PostgresStorage.ResetTrustedState(ctx, batchNum, dbTx)
+	return s.PostgresStorage.ResetTrustedBatch(ctx, batchNum, dbTx)
+}
+
+// AddVirtualBatch add a new virtual batch to the state.
+func (s *State) AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch, dbTx pgx.Tx) error {
+	return s.PostgresStorage.AddVirtualBatch(ctx, virtualBatch, dbTx)
 }
 
 // AddGlobalExitRoot add a global exit root into the state data base
@@ -128,6 +132,16 @@ func (s *State) GetForcedBatch(ctx context.Context, dbTx pgx.Tx, forcedBatchNumb
 // AddBlock adds a new block to the State Store.
 func (s *State) AddBlock(ctx context.Context, block *Block, dbTx pgx.Tx) error {
 	return s.PostgresStorage.AddBlock(ctx, block, dbTx)
+}
+
+// GetLastBlock gets the last L1 block.
+func (s *State) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*Block, error) {
+	return s.PostgresStorage.GetLastBlock(ctx, dbTx)
+}
+
+// GetPreviousBlock gets the offset previous L1 block respect to latest.
+func (s *State) GetPreviousBlock(ctx context.Context, offset uint64, dbTx pgx.Tx) (*Block, error) {
+	return s.PostgresStorage.GetPreviousBlock(ctx, offset, dbTx)
 }
 
 // GetBalance from a given address
@@ -180,8 +194,12 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 // StoreBatchHeader is used by the Trusted Sequencer to create a new batch
 func (s *State) StoreBatchHeader(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
-	// TODO: implement
-	return nil
+	return s.PostgresStorage.StoreBatchHeader(ctx, batch, dbTx)
+}
+
+// GetNextForcedBatches returns the next forced batches by nextForcedBatches
+func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]ForcedBatch, error) {
+	return s.PostgresStorage.GetNextForcedBatches(ctx, nextForcedBatches, dbTx)
 }
 
 // ProcessBatch is used by the Trusted Sequencer to add transactions to the batch
@@ -250,6 +268,11 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 		return nil, err
 	}
 	return batches[0], nil
+}
+
+// GetLastBatchNumber gets the last batch number.
+func (s *State) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetLastBatchNumber(ctx, dbTx)
 }
 
 // GetBatchByNumber gets a batch from data base by its number
@@ -437,10 +460,6 @@ func (s *State) GetLastBlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, er
 	panic("not implemented yet")
 }
 
-func (s *State) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*L2Block, error) {
-	panic("not implemented yet")
-}
-
 func (s *State) GetBlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*L2Block, error) {
 	panic("not implemented yet")
 }
@@ -485,25 +504,12 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	panic("not implemented yet")
 }
 
+// AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber.
+func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, dbTx pgx.Tx) error {
+	return s.PostgresStorage.AddBatchNumberInForcedBatch(ctx, forceBatchNumber, batchNumber, dbTx)
+}
+
 // GetTree returns State inner tree
 func (s *State) GetTree() *merkletree.StateTree {
 	return s.tree
-}
-
-// AddVirtualBatch adds a virtual batch to the database
-func (s *State) AddVirtualBatch(ctx context.Context, virtualBatch VirtualBatch, dbTx pgx.Tx) error {
-	// TODO: implement
-	return nil
-}
-
-// GetNextForcedBatches returns the next forcedBatches in FIFO order
-func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dBTx pgx.Tx) (*[]ForcedBatch, error) {
-	// TODO: implement
-	return nil, nil
-}
-
-// AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber
-func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, tx pgx.Tx) error {
-	// TODO: implement
-	return nil
 }
