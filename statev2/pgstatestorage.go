@@ -255,6 +255,30 @@ func (p *PostgresStorage) GetForcedBatch(ctx context.Context, forcedBatchNumber 
 	return &forcedBatch, nil
 }
 
+// GetForcedBatchByBatchNumber gets an L1 forcedBatch by batch number.
+func (p *PostgresStorage) GetForcedBatchByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*ForcedBatch, error) {
+	var (
+		forcedBatch    ForcedBatch
+		globalExitRoot string
+		rawTxs         string
+		seq            string
+	)
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getForcedBatchByBatchNumSQL, batchNumber).Scan(&forcedBatch.ForcedBatchNumber, &globalExitRoot, &forcedBatch.ForcedAt, &rawTxs, &seq, &forcedBatch.BatchNumber, &forcedBatch.BlockNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	forcedBatch.RawTxsData, err = hex.DecodeString(rawTxs)
+	if err != nil {
+		return nil, err
+	}
+	forcedBatch.Sequencer = common.HexToAddress(seq)
+	forcedBatch.GlobalExitRoot = common.HexToHash(globalExitRoot)
+	return &forcedBatch, nil
+}
+
 // AddVerifiedBatch adds a new VerifiedBatch to the db
 func (p *PostgresStorage) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBatch, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)

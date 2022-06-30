@@ -75,7 +75,6 @@ func (s *Server) GetLastBatch(ctx context.Context, empty *emptypb.Empty) (*pb.Ge
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("in server GetLastBatch, batch number: %d", batch.BatchNumber)
 	return s.genericGetBatch(ctx, batch)
 }
 
@@ -91,14 +90,23 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *statev2.Batch) (*pb
 		}
 	}
 
+	var forcedBatchNum uint64
+	forcedBatch, err := s.state.GetForcedBatchByBatchNumber(ctx, batch.BatchNumber, nil)
+	if err == nil {
+		forcedBatchNum = forcedBatch.ForcedBatchNumber
+	} else if err != statev2.ErrNotFound {
+		return nil, err
+	}
+
 	return &pb.GetBatchResponse{
-		BatchNumber:    batch.BatchNumber,
-		GlobalExitRoot: batch.GlobalExitRootNum.String(),
-		Sequencer:      batch.Coinbase.String(),
-		LocalExitRoot:  batch.LocalExitRoot.String(),
-		StateRoot:      batch.StateRoot.String(),
-		Timestamp:      uint64(batch.Timestamp.Unix()),
-		Transactions:   transactions,
+		BatchNumber:       batch.BatchNumber,
+		GlobalExitRoot:    batch.GlobalExitRootNum.String(),
+		Sequencer:         batch.Coinbase.String(),
+		LocalExitRoot:     batch.LocalExitRoot.String(),
+		StateRoot:         batch.StateRoot.String(),
+		Timestamp:         uint64(batch.Timestamp.Unix()),
+		Transactions:      transactions,
+		ForcedBatchNumber: forcedBatchNum,
 	}, nil
 }
 
