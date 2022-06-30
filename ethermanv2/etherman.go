@@ -216,6 +216,11 @@ func (etherMan *Client) GetSendSequenceFee() (*big.Int, error) {
 	return etherMan.PoE.TRUSTEDSEQUENCERFEE(&bind.CallOpts{Pending: false})
 }
 
+// TrustedSequencer gets trusted sequencer address
+func (etherMan *Client) TrustedSequencer() (common.Address, error) {
+	return etherMan.PoE.TrustedSequencer(&bind.CallOpts{Pending: false})
+}
+
 func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("ForceBatch event detected")
 	fb, err := etherMan.PoE.ParseForceBatch(vLog)

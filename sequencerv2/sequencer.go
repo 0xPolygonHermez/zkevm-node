@@ -31,6 +31,7 @@ type Sequencer struct {
 	etherman  etherman
 	checker   *profitabilitychecker.Checker
 
+	address                          common.Address
 	lastBatchNum                     uint64
 	lastStateRoot, lastLocalExitRoot common.Hash
 
@@ -47,6 +48,11 @@ func New(
 	priceGetter priceGetter,
 	manager txManager) (*Sequencer, error) {
 	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
+
+	addr, err := etherman.TrustedSequencer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
+	}
 	return &Sequencer{
 		cfg:       cfg,
 		pool:      pool,
@@ -54,6 +60,7 @@ func New(
 		etherman:  etherman,
 		checker:   checker,
 		txManager: manager,
+		address:   addr,
 	}, nil
 }
 
@@ -260,6 +267,8 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		if err != nil {
 			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %v", err)
 		}
+	} else {
+		return types.Sequence{}, errors.New("lastStateRoot and lastLocalExitRoot are empty, impossible to close a batch")
 	}
 
 	root, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
@@ -267,18 +276,18 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		return types.Sequence{}, fmt.Errorf("failed to get latest global exit root, err: %v", err)
 	}
 
-	if s.lastBatchNum == 0 {
-		s.lastBatchNum, err = s.state.GetLastBatchNumber(ctx)
-		if err != nil {
-			return types.Sequence{}, fmt.Errorf("failed to get last batch number, err: %v", err)
-		}
-	} else {
-		s.lastBatchNum = s.lastBatchNum + 1
+	s.lastBatchNum, err = s.state.GetLastBatchNumber(ctx, nil)
+	if err != nil {
+		return types.Sequence{}, fmt.Errorf("failed to get last batch number, err: %v", err)
 	}
+	s.lastBatchNum = s.lastBatchNum + 1
 
 	batchHeader := statev2.Batch{
-		BatchNumber: s.lastBatchNum,
-		Timestamp:   time.Now(),
+		BatchNumber:       s.lastBatchNum,
+		Timestamp:         time.Now(),
+		GlobalExitRoot:    root.GlobalExitRoot,
+		GlobalExitRootNum: root.GlobalExitRootNum,
+		Coinbase:          s.address,
 	}
 	err = s.state.StoreBatchHeader(ctx, batchHeader, nil)
 	if err != nil {

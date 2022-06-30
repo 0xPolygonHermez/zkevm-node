@@ -26,6 +26,7 @@ const (
 	getLastNBatchesSQL                     = "SELECT batch_num, global_exit_root, timestamp from statev2.batch ORDER BY batch_num DESC LIMIT $1"
 	getLastBatchTimeSQL                    = "SELECT timestamp FROM statev2.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchNumSQL              = "SELECT batch_num FROM statev2.virtual_batch ORDER BY batch_num DESC LIMIT 1"
+	getLastBatchNumSQL                     = "SELECT batch_num FROM statev2.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchBlockNumSQL         = "SELECT block_num FROM statev2.virtual_batch ORDER BY batch_num DESC LIMIT 1"
 	getLastBlockNumSQL                     = "SELECT block_num FROM statev2.block ORDER BY block_num DESC LIMIT 1"
 	getBlockTimeByNumSQL                   = "SELECT received_at FROM statev2.block WHERE block_num = $1"
@@ -258,6 +259,19 @@ func (p *PostgresStorage) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.T
 	e := p.getExecQuerier(dbTx)
 	err := e.QueryRow(ctx, getLastVirtualBatchNumSQL).Scan(&batchNum)
 
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+	return batchNum, nil
+}
+
+// GetLastBatchNumber get last trusted batch number
+func (p *PostgresStorage) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	var batchNum uint64
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getLastBatchNumSQL).Scan(&batchNum)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrNotFound
 	} else if err != nil {

@@ -29,6 +29,7 @@ type txPool interface {
 type etherman interface {
 	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*big.Int, error)
 	GetSendSequenceFee() (*big.Int, error)
+	TrustedSequencer() (common.Address, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.
@@ -38,7 +39,7 @@ type stateInterface interface {
 	GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*statev2.GlobalExitRoot, error)
 
 	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*statev2.Batch, error)
-	GetLastBatchNumber(ctx context.Context) (uint64, error)
+	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	StoreBatchHeader(ctx context.Context, batch statev2.Batch, dbTx pgx.Tx) error
 	StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*statev2.ProcessTransactionResponse) error
 	CloseBatch(ctx context.Context, batchNum uint64, stateRoot, localExitRoot common.Hash) error
