@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hermeznetwork/hermez-core/statev2"
 	"math/big"
 	"strings"
 	"time"
@@ -22,11 +21,8 @@ import (
 	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
 	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/hermeznetwork/hermez-core/statev2"
 	"golang.org/x/crypto/sha3"
-)
-
-const (
-	ether155V = 27
 )
 
 var (
