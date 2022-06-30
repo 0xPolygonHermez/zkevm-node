@@ -455,11 +455,11 @@ func (s *State) GetLastConsolidatedBlockNumber(ctx context.Context, dbTx pgx.Tx)
 }
 
 func (s *State) GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error) {
-	panic("not implemented yet")
+	return s.PostgresStorage.GetTransactionByHash(ctx, transactionHash, dbTx)
 }
 
 func (s *State) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
-	panic("not implemented yet")
+	return s.PostgresStorage.GetTransactionReceipt(ctx, transactionHash, dbTx)
 }
 
 func (s *State) GetLastBlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
@@ -479,11 +479,11 @@ func (s *State) GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (SyncingInfo, e
 }
 
 func (s *State) GetTransactionByBlockHashAndIndex(ctx context.Context, blockHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
-	panic("not implemented yet")
+	return s.PostgresStorage.GetTransactionByBlockHashAndIndex(ctx, blockHash, index, dbTx)
 }
 
 func (s *State) GetTransactionByBlockNumberAndIndex(ctx context.Context, blockNumber uint64, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
-	panic("not implemented yet")
+	return s.PostgresStorage.GetTransactionByBlockNumberAndIndex(ctx, blockNumber, index, dbTx)
 }
 
 func (s *State) GetBlockHeader(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error) {
@@ -491,11 +491,11 @@ func (s *State) GetBlockHeader(ctx context.Context, blockNumber uint64, dbTx pgx
 }
 
 func (s *State) GetBlockTransactionCountByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (uint64, error) {
-	panic("not implemented yet")
+	return s.PostgresStorage.GetBlockTransactionCountByHash(ctx, hash, dbTx)
 }
 
 func (s *State) GetBlockTransactionCountByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	panic("not implemented yet")
+	return s.PostgresStorage.GetBlockTransactionCountByNumber(ctx, blockNumber, dbTx)
 }
 
 func (s *State) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error) {
