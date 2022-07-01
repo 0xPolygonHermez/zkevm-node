@@ -325,6 +325,7 @@ func TestExecuteTransaction(t *testing.T) {
 	require.NoError(t, err)
 }
 */
+
 func TestGenesis(t *testing.T) {
 	balances := map[common.Address]*big.Int{
 		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
