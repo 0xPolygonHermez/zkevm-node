@@ -346,9 +346,11 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit(ctx))
 
+	_, err = testState.Exec(ctx, "INSERT INTO statev2.l2block (block_num, block_hash, received_at, batch_num) VALUES ($1, $2, $3, $4)", 1, "0x423", time.Now(), 1)
+	require.NoError(t, err)
 	l2Tx := types.NewTransaction(1, common.Address{}, big.NewInt(10), 21000, big.NewInt(1), []byte{})
-	_, err = testState.Exec(ctx, "INSERT INTO statev2.transaction (batch_num, encoded, hash, received_at) VALUES ($1, $2, $3, $4)",
-		virtualBatch1.BatchNumber, fmt.Sprintf("encoded-%d", virtualBatch1.BatchNumber), l2Tx.Hash().Hex(), time.Now())
+	_, err = testState.Exec(ctx, "INSERT INTO statev2.transaction (l2_block_num, encoded, hash) VALUES ($1, $2, $3)",
+		virtualBatch1.BatchNumber, fmt.Sprintf("encoded-%d", virtualBatch1.BatchNumber), l2Tx.Hash().Hex())
 	require.NoError(t, err)
 
 	txHashes, err := testState.GetTxsHashesFromBlockNum(ctx, block.BlockNumber, nil)
