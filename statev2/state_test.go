@@ -3,13 +3,13 @@ package statev2_test
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	state "github.com/hermeznetwork/hermez-core/statev2"
@@ -333,7 +333,7 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	}
 
 	err = testState.StoreBatchHeader(ctx, batch2, tx)
-
+	require.NoError(t, err)
 	virtualBatch2 := state.VirtualBatch{
 		BlockNumber: 1,
 		BatchNumber: 2,
