@@ -170,8 +170,8 @@ type rpcBlock struct {
 	Uncles          []common.Hash          `json:"uncles"`
 }
 
-func l2BlockToRPCBlock(b *state.L2Block, fullTx bool) *rpcBlock {
-	h := b.Header
+func l2BlockToRPCBlock(b *types.Block, fullTx bool) *rpcBlock {
+	h := b.Header()
 
 	n := big.NewInt(0).SetUint64(h.Nonce.Uint64())
 	nonce := common.LeftPadBytes(n.Bytes(), 8) //nolint:gomnd
@@ -206,7 +206,7 @@ func l2BlockToRPCBlock(b *state.L2Block, fullTx bool) *rpcBlock {
 		Uncles:          []common.Hash{},
 	}
 
-	for idx, txn := range b.Transactions {
+	for idx, txn := range b.Transactions() {
 		if fullTx {
 			tx := toRPCTransaction(txn, b.Number(), b.Hash(), uint64(idx))
 			res.Transactions = append(
@@ -221,7 +221,7 @@ func l2BlockToRPCBlock(b *state.L2Block, fullTx bool) *rpcBlock {
 		}
 	}
 
-	for _, uncle := range b.Uncles {
+	for _, uncle := range b.Uncles() {
 		res.Uncles = append(res.Uncles, uncle.Hash())
 	}
 
