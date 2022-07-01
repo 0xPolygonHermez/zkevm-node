@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -66,12 +67,10 @@ func TestMain(m *testing.M) {
 	log.Infof("executorClientConn state: %s", s.String())
 	defer executorClientConn.Close()
 
-	stateDbServiceClient, stateClientConn := merkletree.NewStateDBServiceClient(stateDBServerConfig)
-	s = stateClientConn.GetState()
-	log.Infof("stateClientConn state: %s", s.String())
-
-	defer stateClientConn.Close()
->>>>>>> b35f858 (initial changes to test genesis)
+	stateDbServiceClient, stateDbClientConn := merkletree.NewStateDBServiceClient(stateDBServerConfig)
+	s = stateDbClientConn.GetState()
+	log.Infof("stateDbClientConn state: %s", s.String())
+	defer stateDbClientConn.Close()
 
 	stateDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, stateDBServerConfig)
