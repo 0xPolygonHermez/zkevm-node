@@ -10,12 +10,13 @@ import (
 func NewStateDBServiceClient(c Config) (pb.StateDBServiceClient, *grpc.ClientConn) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
 	}
-	executorConn, err := grpc.Dial(c.URI, opts...)
+	stateDBConn, err := grpc.Dial(c.URI, opts...)
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
 	}
 
-	executorClient := pb.NewStateDBServiceClient(executorConn)
-	return executorClient, executorConn
+	stateDBClient := pb.NewStateDBServiceClient(stateDBConn)
+	return stateDBClient, stateDBConn
 }

@@ -13,6 +13,7 @@ func NewExecutorClient(c Config) (pb.ExecutorServiceClient, *grpc.ClientConn) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgSize)),
+		grpc.WithBlock(),
 	}
 	executorConn, err := grpc.Dial(c.URI, opts...)
 	if err != nil {
