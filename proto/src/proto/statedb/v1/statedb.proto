@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "google/protobuf/empty.proto";
 
-package mt.v1;
+package statedb.v1;
 
 option go_package = "github.com/hermeznetwork/hermez-core/merkletree/pb";
 

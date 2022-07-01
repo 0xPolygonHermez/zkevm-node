@@ -240,16 +240,16 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=gasPriceEstimator --dir=jsonrpcv2 --output=jsonrpcv2 --outpkg=jsonrpcv2 --inpackage --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
 	mockery --name=stateInterface --dir=jsonrpcv2 --output=jsonrpcv2 --outpkg=jsonrpcv2 --inpackage --structname=stateMock --filename=mock_state_test.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=jsonrpcv2 --outpkg=jsonrpcv2 --structname=dbTxMock --filename=mock_dbtx_test.go
-	
+
 	mockery --name=txManager --dir=sequencerv2 --output=sequencerv2 --outpkg=sequencerv2 --structname=txmanagerMock --filename=txmanager-mock_test.go
 	mockery --name=etherman --dir=sequencerv2 --output=sequencerv2 --outpkg=sequencerv2 --structname=ethermanMock --filename=etherman-mock_test.go
 	mockery --name=etherman --dir=sequencerv2/profitabilitychecker --output=sequencerv2/profitabilitychecker --outpkg=profitabilitychecker_test --structname=ethermanMock --filename=etherman-mock_test.go
 	mockery --name=stateInterface --dir=sequencerv2/broadcast --output=sequencerv2/broadcast --outpkg=broadcast_test --structname=stateMock --filename=state-mock_test.go
-	
+
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files
-	cd proto/src/proto/mt/v1 && protoc --proto_path=. --proto_path=../../../../include --go_out=../../../../../merkletree/pb --go-grpc_out=../../../../../merkletree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative mt.proto
+	cd proto/src/proto/statedb/v1 && protoc --proto_path=. --proto_path=../../../../include --go_out=../../../../../merkletree/pb --go-grpc_out=../../../../../merkletree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative statedb.proto
 	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverclient/pb --go-grpc_out=../../../../../proverclient/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative zk-prover.proto
 	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverservice/pb --go-grpc_out=../../../../../proverservice/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative zk-prover.proto
 	cd proto/src/proto/executor/v1 && protoc --proto_path=. --go_out=../../../../../statev2/runtime/executor/pb --go-grpc_out=../../../../../statev2/runtime/executor/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative executor.proto
