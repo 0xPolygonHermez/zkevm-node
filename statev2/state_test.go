@@ -14,10 +14,12 @@ import (
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
+	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -35,6 +37,8 @@ var (
 		MaxCumulativeGasUsed: 800000,
 	}
 	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
+	executorClient       executorclientpb.ExecutorServiceClient
+	executorClientConn   *grpc.ClientConn
 	stateDBServerConfig  = merkletree.Config{URI: "54.170.178.97:50061"}
 )
 
@@ -49,7 +53,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	executorClient, executorClientConn := executor.NewExecutorClient(executorServerConfig)
+	executorClient, executorClientConn = executor.NewExecutorClient(executorServerConfig)
 	s := executorClientConn.GetState()
 	log.Infof("executorClientConn state: %s", s.String())
 	defer executorClientConn.Close()
