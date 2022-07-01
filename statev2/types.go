@@ -57,6 +57,8 @@ type ProcessTransactionResponse struct {
 	Logs []types.Log
 	// Indicates if this tx didn't fit into the batch
 	UnprocessedTransaction bool
+	// Transaction
+	Tx types.Transaction
 	// Traces
 	ExecutionTrace []instrumentation.StructLog
 	CallTrace      instrumentation.ExecutorTrace

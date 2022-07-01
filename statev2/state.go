@@ -241,12 +241,40 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-	return convertToProcessBatchResponse(processBatchResponse), err
+	return convertToProcessBatchResponse(txs, processBatchResponse), err
 }
 
 // StoreTransactions is used by the Trusted Sequencer to add processed transactions into the data base
-func (s *State) StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
-	// TODO: implement
+func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
+	batch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+
+	for _, processedTx := range processedTxs {
+		lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
+		if err != nil {
+			return err
+		}
+
+		header := &types.Header{
+			Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
+			ParentHash: lastL2Block.Hash(),
+			Coinbase:   batch.Coinbase,
+			Root:       processedTx.StateRoot,
+		}
+
+		transactions := []*types.Transaction{}
+		transactions = append(transactions, &processedTx.Tx)
+
+		block := types.NewBlock(header, transactions, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+		block.ReceivedAt = batch.Timestamp
+
+		err = s.PostgresStorage.AddL2Block(ctx, batchNumber, block, dbTx)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

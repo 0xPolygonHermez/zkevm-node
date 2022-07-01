@@ -53,10 +53,10 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	return batchL2Data, nil
 }
 
-func convertToProcessBatchResponse(response *pb.ProcessBatchResponse) *ProcessBatchResponse {
+func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) *ProcessBatchResponse {
 	return &ProcessBatchResponse{
 		CumulativeGasUsed:   response.CumulativeGasUsed,
-		Responses:           convertToProcessTransactionResponse(response.Responses),
+		Responses:           convertToProcessTransactionResponse(txs, response.Responses),
 		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
 		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
 		CntKeccakHashes:     response.CntKeccakHashes,
@@ -69,10 +69,10 @@ func convertToProcessBatchResponse(response *pb.ProcessBatchResponse) *ProcessBa
 	}
 }
 
-func convertToProcessTransactionResponse(responses []*pb.ProcessTransactionResponse) []*ProcessTransactionResponse {
+func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) []*ProcessTransactionResponse {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 
-	for _, response := range responses {
+	for i, response := range responses {
 		result := new(ProcessTransactionResponse)
 		result.TxHash = common.BytesToHash(response.TxHash)
 		result.Type = response.Type
@@ -87,6 +87,7 @@ func convertToProcessTransactionResponse(responses []*pb.ProcessTransactionRespo
 		result.UnprocessedTransaction = response.UnprocessedTransaction
 		result.ExecutionTrace = convertToStrucLogArray(response.ExecutionTrace)
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
+		result.Tx = txs[i]
 		results = append(results, result)
 	}
 
