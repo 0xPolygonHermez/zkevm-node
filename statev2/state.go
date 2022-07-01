@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/encoding"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/merkletree"
@@ -151,7 +152,7 @@ func (s *State) GetBalance(ctx context.Context, address common.Address, blockNum
 		return nil, err
 	}
 
-	return s.tree.GetBalance(ctx, address, l2Block.Header.Root.Bytes())
+	return s.tree.GetBalance(ctx, address, l2Block.Root().Bytes())
 }
 
 // GetCode from a given address
@@ -161,7 +162,7 @@ func (s *State) GetCode(ctx context.Context, address common.Address, blockNumber
 		return nil, err
 	}
 
-	return s.tree.GetCode(ctx, address, l2Block.Header.Root.Bytes())
+	return s.tree.GetCode(ctx, address, l2Block.Root().Bytes())
 }
 
 // GetNonce returns the nonce of the given account at the given block number
@@ -171,7 +172,7 @@ func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumbe
 		return 0, err
 	}
 
-	nonce, err := s.tree.GetNonce(ctx, address, l2Block.Header.Root.Bytes())
+	nonce, err := s.tree.GetNonce(ctx, address, l2Block.Root().Bytes())
 
 	return nonce.Uint64(), err
 }
@@ -183,7 +184,7 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 		return nil, err
 	}
 
-	return s.tree.GetStorageAt(ctx, address, position, l2Block.Header.Root.Bytes())
+	return s.tree.GetStorageAt(ctx, address, position, l2Block.Root().Bytes())
 }
 
 // EstimateGas for a transaction
@@ -450,27 +451,27 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	return jsTracer.GetResult()
 }
 
-func (s *State) GetLastConsolidatedBlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
-	panic("not implemented yet")
+func (s *State) GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetLastConsolidatedL2BlockNumber(ctx, dbTx)
 }
 
 func (s *State) GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error) {
-	panic("not implemented yet")
+	return s.PostgresStorage.GetTransactionByHash(ctx, transactionHash, dbTx)
 }
 
 func (s *State) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
-	panic("not implemented yet")
+	return s.PostgresStorage.GetTransactionReceipt(ctx, transactionHash, dbTx)
 }
 
-func (s *State) GetLastBlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
-	panic("not implemented yet")
+func (s *State) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
 }
 
-func (s *State) GetBlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*L2Block, error) {
-	panic("not implemented yet")
+func (s *State) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Block, error) {
+	return s.PostgresStorage.GetL2BlockByHash(ctx, hash, dbTx)
 }
 
-func (s *State) GetBlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*L2Block, error) {
+func (s *State) GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Block, error) {
 	return s.PostgresStorage.GetL2BlockByNumber(ctx, blockNumber, dbTx)
 }
 
@@ -478,32 +479,32 @@ func (s *State) GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (SyncingInfo, e
 	panic("not implemented yet")
 }
 
-func (s *State) GetTransactionByBlockHashAndIndex(ctx context.Context, blockHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
-	panic("not implemented yet")
+func (s *State) GetTransactionByL2BlockHashAndIndex(ctx context.Context, blockHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
+	return s.PostgresStorage.GetTransactionByL2BlockHashAndIndex(ctx, blockHash, index, dbTx)
 }
 
-func (s *State) GetTransactionByBlockNumberAndIndex(ctx context.Context, blockNumber uint64, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
-	panic("not implemented yet")
+func (s *State) GetTransactionByL2BlockNumberAndIndex(ctx context.Context, blockNumber uint64, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
+	return s.PostgresStorage.GetTransactionByL2BlockNumberAndIndex(ctx, blockNumber, index, dbTx)
 }
 
-func (s *State) GetBlockHeader(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error) {
-	panic("not implemented yet")
+func (s *State) GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error) {
+	return s.PostgresStorage.GetL2BlockHeaderByNumber(ctx, blockNumber, dbTx)
 }
 
-func (s *State) GetBlockTransactionCountByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (uint64, error) {
-	panic("not implemented yet")
+func (s *State) GetL2BlockTransactionCountByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetL2BlockTransactionCountByHash(ctx, hash, dbTx)
 }
 
-func (s *State) GetBlockTransactionCountByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	panic("not implemented yet")
+func (s *State) GetL2BlockTransactionCountByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetL2BlockTransactionCountByNumber(ctx, blockNumber, dbTx)
 }
 
 func (s *State) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error) {
-	panic("not implemented yet")
+	return s.PostgresStorage.GetLogs(ctx, fromBlock, toBlock, addresses, topics, blockHash, since, dbTx)
 }
 
-func (s *State) GetBlockHashesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]common.Hash, error) {
-	panic("not implemented yet")
+func (s *State) GetL2BlockHashesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]common.Hash, error) {
+	return s.PostgresStorage.GetL2BlockHashesSince(ctx, since, dbTx)
 }
 
 func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
@@ -518,4 +519,85 @@ func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumbe
 // GetTree returns State inner tree
 func (s *State) GetTree() *merkletree.StateTree {
 	return s.tree
+}
+
+// SetGenesis populates state with genesis information
+func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) error {
+	var (
+		root    common.Hash
+		newRoot []byte
+		err     error
+	)
+
+	if genesis.Balances != nil {
+		for address, balance := range genesis.Balances {
+			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if genesis.SmartContracts != nil {
+		for address, sc := range genesis.SmartContracts {
+			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(genesis.Storage) > 0 {
+		for address, storage := range genesis.Storage {
+			for key, value := range storage {
+				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if genesis.Nonces != nil {
+		for address, nonce := range genesis.Nonces {
+			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	root.SetBytes(newRoot)
+
+	receivedAt := time.Now()
+
+	// Store Genesis Batch
+	batch := Batch{
+		BatchNumber:       0,
+		Coinbase:          ZeroAddress,
+		BatchL2Data:       nil,
+		OldStateRoot:      ZeroHash,
+		GlobalExitRootNum: big.NewInt(0),
+		OldLocalExitRoot:  ZeroHash,
+		Timestamp:         receivedAt,
+		Transactions:      []types.Transaction{},
+		GlobalExitRoot:    ZeroHash,
+	}
+
+	err = s.PostgresStorage.StoreBatchHeader(ctx, batch, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// Store L2 Genesis Block
+	header := &types.Header{
+		Number:     big.NewInt(0),
+		ParentHash: ZeroHash,
+		Coinbase:   ZeroAddress,
+		Root:       root,
+	}
+	block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	block.ReceivedAt = receivedAt
+
+	return s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, block, dbTx)
 }

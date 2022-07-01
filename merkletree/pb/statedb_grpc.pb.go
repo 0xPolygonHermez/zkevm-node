@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.21.1
-// source: mt.proto
+// source: statedb.proto
 
 package pb
 
@@ -40,7 +40,7 @@ func NewStateDBServiceClient(cc grpc.ClientConnInterface) StateDBServiceClient {
 
 func (c *stateDBServiceClient) Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*SetResponse, error) {
 	out := new(SetResponse)
-	err := c.cc.Invoke(ctx, "/mt.v1.StateDBService/Set", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/statedb.v1.StateDBService/Set", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (c *stateDBServiceClient) Set(ctx context.Context, in *SetRequest, opts ...
 
 func (c *stateDBServiceClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
 	out := new(GetResponse)
-	err := c.cc.Invoke(ctx, "/mt.v1.StateDBService/Get", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/statedb.v1.StateDBService/Get", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (c *stateDBServiceClient) Get(ctx context.Context, in *GetRequest, opts ...
 
 func (c *stateDBServiceClient) SetProgram(ctx context.Context, in *SetProgramRequest, opts ...grpc.CallOption) (*SetProgramResponse, error) {
 	out := new(SetProgramResponse)
-	err := c.cc.Invoke(ctx, "/mt.v1.StateDBService/SetProgram", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/statedb.v1.StateDBService/SetProgram", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (c *stateDBServiceClient) SetProgram(ctx context.Context, in *SetProgramReq
 
 func (c *stateDBServiceClient) GetProgram(ctx context.Context, in *GetProgramRequest, opts ...grpc.CallOption) (*GetProgramResponse, error) {
 	out := new(GetProgramResponse)
-	err := c.cc.Invoke(ctx, "/mt.v1.StateDBService/GetProgram", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/statedb.v1.StateDBService/GetProgram", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (c *stateDBServiceClient) GetProgram(ctx context.Context, in *GetProgramReq
 
 func (c *stateDBServiceClient) Flush(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/mt.v1.StateDBService/Flush", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/statedb.v1.StateDBService/Flush", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func _StateDBService_Set_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mt.v1.StateDBService/Set",
+		FullMethod: "/statedb.v1.StateDBService/Set",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StateDBServiceServer).Set(ctx, req.(*SetRequest))
@@ -155,7 +155,7 @@ func _StateDBService_Get_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mt.v1.StateDBService/Get",
+		FullMethod: "/statedb.v1.StateDBService/Get",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StateDBServiceServer).Get(ctx, req.(*GetRequest))
@@ -173,7 +173,7 @@ func _StateDBService_SetProgram_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mt.v1.StateDBService/SetProgram",
+		FullMethod: "/statedb.v1.StateDBService/SetProgram",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StateDBServiceServer).SetProgram(ctx, req.(*SetProgramRequest))
@@ -191,7 +191,7 @@ func _StateDBService_GetProgram_Handler(srv interface{}, ctx context.Context, de
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mt.v1.StateDBService/GetProgram",
+		FullMethod: "/statedb.v1.StateDBService/GetProgram",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StateDBServiceServer).GetProgram(ctx, req.(*GetProgramRequest))
@@ -209,7 +209,7 @@ func _StateDBService_Flush_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/mt.v1.StateDBService/Flush",
+		FullMethod: "/statedb.v1.StateDBService/Flush",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StateDBServiceServer).Flush(ctx, req.(*emptypb.Empty))
@@ -221,7 +221,7 @@ func _StateDBService_Flush_Handler(srv interface{}, ctx context.Context, dec fun
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var StateDBService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "mt.v1.StateDBService",
+	ServiceName: "statedb.v1.StateDBService",
 	HandlerType: (*StateDBServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -246,5 +246,5 @@ var StateDBService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "mt.proto",
+	Metadata: "statedb.proto",
 }

@@ -5,6 +5,7 @@ package sequencerv2
 import (
 	big "math/big"
 
+	common "github.com/ethereum/go-ethereum/common"
 	mock "github.com/stretchr/testify/mock"
 
 	types "github.com/hermeznetwork/hermez-core/ethermanv2/types"
@@ -48,6 +49,29 @@ func (_m *ethermanMock) GetSendSequenceFee() (*big.Int, error) {
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*big.Int)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// TrustedSequencer provides a mock function with given fields:
+func (_m *ethermanMock) TrustedSequencer() (common.Address, error) {
+	ret := _m.Called()
+
+	var r0 common.Address
+	if rf, ok := ret.Get(0).(func() common.Address); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Address)
 		}
 	}
 

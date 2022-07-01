@@ -44,6 +44,10 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+
 	stateDb, err = db.NewSQLDB(cfg)
 	if err != nil {
 		panic(err)
@@ -423,5 +427,36 @@ func TestExecuteTransaction(t *testing.T) {
 	// file, _ := json.MarshalIndent(processBatchResponse, "", " ")
 	// err = ioutil.WriteFile("trace.json", file, 0644)
 	// require.NoError(t, err)
+}
+*/
+
+/*
+func TestGenesis(t *testing.T) {
+	balances := map[common.Address]*big.Int{
+		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
+		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
+	}
+
+	nonces := map[common.Address]*big.Int{
+		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1),
+		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(1),
+	}
+
+	smartContracts := map[common.Address][]byte{
+		common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"): common.Hex2Bytes("608060405234801561001057600080fd5b50600436106100675760003560e01c806333d6247d1161005057806333d6247d146100a85780633ed691ef146100bd578063a3c573eb146100d257600080fd5b806301fd90441461006c5780633381fe9014610088575b600080fd5b61007560015481565b6040519081526020015b60405180910390f35b6100756100963660046101c7565b60006020819052908152604090205481565b6100bb6100b63660046101c7565b610117565b005b43600090815260208190526040902054610075565b6002546100f29073ffffffffffffffffffffffffffffffffffffffff1681565b60405173ffffffffffffffffffffffffffffffffffffffff909116815260200161007f565b60025473ffffffffffffffffffffffffffffffffffffffff1633146101c2576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152603460248201527f476c6f62616c45786974526f6f744d616e616765724c323a3a7570646174654560448201527f786974526f6f743a204f4e4c595f425249444745000000000000000000000000606482015260840160405180910390fd5b600155565b6000602082840312156101d957600080fd5b503591905056fea2646970667358221220d6ed73b81f538d38669b0b750b93be08ca365978fae900eedc9ca93131c97ca664736f6c63430008090033"),
+	}
+
+	storage := map[common.Address]map[*big.Int]*big.Int{
+		common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"): {new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")): new(big.Int).SetBytes(common.Hex2Bytes("9d98deabc42dd696deb9e40b4f1cab7ddbf55988"))},
+	}
+
+	genesis := state.Genesis{
+		Balances:       balances,
+		Nonces:         nonces,
+		SmartContracts: smartContracts,
+		Storage:        storage,
+	}
+	err := testState.SetGenesis(ctx, genesis, nil)
+	require.NoError(t, err)
 }
 */

@@ -110,7 +110,7 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 	bValue := *b
 	switch bValue {
 	case LatestBlockNumber, PendingBlockNumber:
-		lastBlockNumber, err := s.GetLastBlockNumber(ctx, dbTx)
+		lastBlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
 		if err != nil {
 			return 0, newRPCError(defaultErrorCode, "failed to get the last block number from state")
 		}
