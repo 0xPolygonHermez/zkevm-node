@@ -55,11 +55,10 @@ func TestMain(m *testing.M) {
 	log.Infof("executorClientConn state: %s", s.String())
 	defer executorClientConn.Close()
 
-	stateDbServiceClient, stateClientConn := merkletree.NewStateDBServiceClient(stateDBServerConfig)
-	s = stateClientConn.GetState()
-	log.Infof("stateClientConn state: %s", s.String())
-
-	defer stateClientConn.Close()
+	stateDbServiceClient, stateDbClientConn := merkletree.NewStateDBServiceClient(stateDBServerConfig)
+	s = stateDbClientConn.GetState()
+	log.Infof("stateDbClientConn state: %s", s.String())
+	defer stateDbClientConn.Close()
 
 	stateTree := merkletree.NewStateTree(stateDbServiceClient)
 
