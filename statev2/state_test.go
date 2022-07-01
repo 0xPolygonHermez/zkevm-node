@@ -10,15 +10,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
-	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 /*
@@ -32,13 +31,11 @@ var (
 	stateDb      *pgxpool.Pool
 	err          error
 	cfg          = dbutils.NewConfigFromEnv()
-	// ctx          = context.Background()
-	stateCfg = state.Config{
+	ctx          = context.Background()
+	stateCfg     = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
 	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
-	executorClient       executorclientpb.ExecutorServiceClient
-	clientConn           *grpc.ClientConn
 	stateDBServerConfig  = merkletree.Config{URI: "54.170.178.97:50061"}
 )
 
@@ -53,10 +50,15 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	executorClient, clientConn = executor.NewExecutorClient(executorServerConfig)
-	defer clientConn.Close()
+	executorClient, executorClientConn := executor.NewExecutorClient(executorServerConfig)
+	s := executorClientConn.GetState()
+	log.Infof("executorClientConn state: %s", s.String())
+	defer executorClientConn.Close()
 
 	stateDbServiceClient, stateClientConn := merkletree.NewStateDBServiceClient(stateDBServerConfig)
+	s = stateClientConn.GetState()
+	log.Infof("stateClientConn state: %s", s.String())
+
 	defer stateClientConn.Close()
 
 	stateTree := merkletree.NewStateTree(stateDbServiceClient)
@@ -322,7 +324,6 @@ func TestExecuteTransaction(t *testing.T) {
 }
 */
 
-/*
 func TestGenesis(t *testing.T) {
 	balances := map[common.Address]*big.Int{
 		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
@@ -351,4 +352,3 @@ func TestGenesis(t *testing.T) {
 	err := testState.SetGenesis(ctx, genesis, nil)
 	require.NoError(t, err)
 }
-*/
