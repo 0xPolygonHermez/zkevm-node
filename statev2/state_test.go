@@ -14,6 +14,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
+	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -62,15 +63,6 @@ func TestMain(m *testing.M) {
 		executorCancel()
 		executorClientConn.Close()
 	}()
-	executorClient, executorClientConn := executor.NewExecutorClient(executorServerConfig)
-	s := executorClientConn.GetState()
-	log.Infof("executorClientConn state: %s", s.String())
-	defer executorClientConn.Close()
-
-	stateDbServiceClient, stateDbClientConn := merkletree.NewStateDBServiceClient(stateDBServerConfig)
-	s = stateDbClientConn.GetState()
-	log.Infof("stateDbClientConn state: %s", s.String())
-	defer stateDbClientConn.Close()
 
 	stateDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, stateDBServerConfig)
