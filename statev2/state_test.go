@@ -169,7 +169,7 @@ func TestAddForcedBatch(t *testing.T) {
 	}
 	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
 	require.NoError(t, err)
-	fb, err := testState.GetForcedBatch(ctx, tx, 2)
+	fb, err := testState.GetForcedBatch(ctx, 2, tx)
 	require.NoError(t, err)
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
@@ -207,7 +207,7 @@ func TestAddForcedBatch(t *testing.T) {
 	require.NoError(t, err)
 	err = testState.AddBatchNumberInForcedBatch(ctx, 3, 2, tx)
 	require.NoError(t, err)
-	fb, err = testState.GetForcedBatch(ctx, tx, 3)
+	fb, err = testState.GetForcedBatch(ctx, 3, tx)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(2), *fb.BatchNumber)
 	require.NoError(t, tx.Commit(ctx))
