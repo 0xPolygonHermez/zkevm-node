@@ -100,12 +100,13 @@ func initBroadcastServer() *broadcast.Server {
 
 func TestBroadcastServerGetBatch(t *testing.T) {
 	tcs := []struct {
-		description        string
-		inputBatchNumber   uint64
-		expectedBatch      *statev2.Batch
-		expectedEncodedTxs []string
-		expectedErr        bool
-		expectedErrMsg     string
+		description         string
+		inputBatchNumber    uint64
+		expectedBatch       *statev2.Batch
+		expectedForcedBatch *statev2.ForcedBatch
+		expectedEncodedTxs  []string
+		expectedErr         bool
+		expectedErrMsg      string
 	}{
 		{
 			description:      "happy path",
@@ -114,6 +115,9 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 				BatchNumber:       14,
 				GlobalExitRootNum: new(big.Int),
 				Timestamp:         time.Now(),
+			},
+			expectedForcedBatch: &statev2.ForcedBatch{
+				ForcedBatchNumber: 1,
 			},
 			expectedEncodedTxs: []string{"tx1", "tx2", "tx3"},
 		},
@@ -135,6 +139,7 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 			}
 			st.On("GetBatchByNumber", mock.AnythingOfType("*context.valueCtx"), tc.inputBatchNumber, nil).Return(tc.expectedBatch, err)
 			st.On("GetEncodedTransactionsByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.inputBatchNumber, nil).Return(tc.expectedEncodedTxs, err)
+			st.On("GetForcedBatchByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.inputBatchNumber, nil).Return(tc.expectedForcedBatch, err)
 
 			broadcastSrv.SetState(st)
 
@@ -159,11 +164,12 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 
 func TestBroadcastServerGetLastBatch(t *testing.T) {
 	tcs := []struct {
-		description        string
-		expectedBatch      *statev2.Batch
-		expectedEncodedTxs []string
-		expectedErr        bool
-		expectedErrMsg     string
+		description         string
+		expectedBatch       *statev2.Batch
+		expectedForcedBatch *statev2.ForcedBatch
+		expectedEncodedTxs  []string
+		expectedErr         bool
+		expectedErrMsg      string
 	}{
 		{
 			description: "happy path",
@@ -171,6 +177,9 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 				BatchNumber:       14,
 				GlobalExitRootNum: new(big.Int),
 				Timestamp:         time.Now(),
+			},
+			expectedForcedBatch: &statev2.ForcedBatch{
+				ForcedBatchNumber: 1,
 			},
 			expectedEncodedTxs: []string{"tx1", "tx2", "tx3"},
 		},
@@ -192,6 +201,7 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 			st.On("GetLastBatch", mock.AnythingOfType("*context.valueCtx"), nil).Return(tc.expectedBatch, err)
 			if tc.expectedBatch != nil {
 				st.On("GetEncodedTransactionsByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.BatchNumber, nil).Return(tc.expectedEncodedTxs, err)
+				st.On("GetForcedBatchByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.BatchNumber, nil).Return(tc.expectedForcedBatch, err)
 			}
 
 			broadcastSrv.SetState(st)
