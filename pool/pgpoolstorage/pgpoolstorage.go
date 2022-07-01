@@ -165,6 +165,20 @@ func (p *PostgresPoolStorage) UpdateTxsState(ctx context.Context, hashes []commo
 	return nil
 }
 
+// DeleteTxsByHashes deletes txs by their hashes
+func (p *PostgresPoolStorage) DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error {
+	hh := make([]string, 0, len(hashes))
+	for _, h := range hashes {
+		hh = append(hh, h.Hex())
+	}
+
+	query := "DELETE FROM pool.txs WHERE hash = ANY ($1)"
+	if _, err := p.db.Exec(ctx, query, hh); err != nil {
+		return err
+	}
+	return nil
+}
+
 // SetGasPrice allows an external component to define the gas price
 func (p *PostgresPoolStorage) SetGasPrice(ctx context.Context, gasPrice uint64) error {
 	sql := "INSERT INTO pool.gas_price (price, timestamp) VALUES ($1, $2)"

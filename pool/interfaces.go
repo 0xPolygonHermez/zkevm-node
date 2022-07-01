@@ -19,6 +19,7 @@ type storage interface {
 	CountTransactionsByState(ctx context.Context, state TxState) (uint64, error)
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
+	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 }
 
 type stateInterface interface {

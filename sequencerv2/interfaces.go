@@ -23,6 +23,7 @@ type txPool interface {
 	UpdateTxsState(ctx context.Context, hashes []common.Hash, newState pool.TxState) error
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
+	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 }
 
 // etherman contains the methods required to interact with ethereum.
@@ -47,6 +48,9 @@ type stateInterface interface {
 	GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLastBatchTime(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
+
+	GetTxsHashesFromBatchNum(ctx context.Context, batchNum uint64, dbTx pgx.Tx) ([]common.Hash, error)
+	GetTxsHashesToDelete(ctx context.Context, blockNumDiff uint64, dbTx pgx.Tx) ([]common.Hash, error)
 }
 
 type txManager interface {

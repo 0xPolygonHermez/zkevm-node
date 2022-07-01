@@ -73,6 +73,11 @@ func (p *Pool) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]
 	return p.storage.GetPendingTxHashesSince(ctx, since)
 }
 
+// DeleteTxsByHashes delete txs by hashes
+func (p *Pool) DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error {
+	return p.storage.DeleteTxsByHashes(ctx, hashes)
+}
+
 // UpdateTxState updates a transaction state accordingly to the
 // provided state and hash
 func (p *Pool) UpdateTxState(ctx context.Context, hash common.Hash, newState TxState) error {

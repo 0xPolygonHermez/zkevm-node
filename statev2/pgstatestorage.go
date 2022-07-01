@@ -43,6 +43,9 @@ const (
 	getNextForcedBatchesSQL                = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer, batch_num, block_num FROM statev2.forced_batch WHERE batch_num IS NULL LIMIT $1"
 	addBatchNumberInForcedBatchSQL         = "UPDATE statev2.forced_batch SET batch_num = $2 WHERE forced_batch_num = $1"
 	getL2BlockByNumberSQL                  = "SELECT l2_block_num, encoded, header, uncles, received_at from statev2.transaction WHERE batch_num = $1"
+	getBatchNumByBlockNum                  = "SELECT batch_num FROM statev2.virtual_batch WHERE block_num = $1 ORDER BY batch_num ASC LIMIT 1"
+	getTxsHashesFromBatchNum               = "SELECT hash FROM statev2.transaction WHERE batch_num >= $1"
+	getTxsHashesBeforeBatchNum             = "SELECT hash FROM statev2.transaction WHERE batch_num < $1"
 )
 
 // PostgresStorage implements the Storage interface
@@ -89,6 +92,80 @@ func (p *PostgresStorage) AddBlock(ctx context.Context, block *Block, dbTx pgx.T
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addBlockSQL, block.BlockNumber, block.BlockHash.String(), block.ParentHash.String(), block.ReceivedAt)
 	return err
+}
+
+// GetTxsHashesFromBlockNum get tx hashes with batch num > x
+func (p *PostgresStorage) GetTxsHashesFromBlockNum(ctx context.Context, blockNum uint64, dbTx pgx.Tx) ([]common.Hash, error) {
+	var batchNum uint64
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getBatchNumByBlockNum, blockNum).Scan(&batchNum)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	rows, err := e.Query(ctx, getTxsHashesFromBatchNum, batchNum)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	hashes := make([]common.Hash, 0, len(rows.RawValues()))
+	for rows.Next() {
+		var hash string
+		err := rows.Scan(&hash)
+		if err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, common.HexToHash(hash))
+	}
+
+	return hashes, nil
+}
+
+// GetTxsHashesToDelete get txs hashes to delete from tx pool
+func (p *PostgresStorage) GetTxsHashesToDelete(ctx context.Context, blockNumDiff uint64, dbTx pgx.Tx) ([]common.Hash, error) {
+	var batchNum, blockNum uint64
+	e := p.getExecQuerier(dbTx)
+
+	err := e.QueryRow(ctx, getLastBlockNumSQL).Scan(&blockNum)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	blockNum = blockNum - blockNumDiff
+	if blockNum <= 0 {
+		return nil, errors.New("blockNumDiff is too big, there is no txs to delete")
+	}
+
+	err = e.QueryRow(ctx, getBatchNumByBlockNum, blockNum).Scan(&batchNum)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	rows, err := e.Query(ctx, getTxsHashesBeforeBatchNum, batchNum)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	hashes := make([]common.Hash, 0, len(rows.RawValues()))
+	for rows.Next() {
+		var hash string
+		err := rows.Scan(&hash)
+		if err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, common.HexToHash(hash))
+	}
+
+	return hashes, nil
 }
 
 // GetLastBlock returns the last L1 block.
