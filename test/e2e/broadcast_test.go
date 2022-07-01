@@ -36,7 +36,15 @@ const (
 
 var (
 	ctx = context.Background()
+	cfg = dbutils.NewConfigFromEnv()
 )
+
+func TestMain(m *testing.M) {
+	// Force schema recreation
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+}
 
 func TestBroadcast(t *testing.T) {
 	if testing.Short() {
@@ -159,9 +167,10 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 
 		// Store L2 Genesis Block
 		header := new(types.Header)
-		header.Number = big.NewInt(int64(i) - int64(1))
+		header.Number = new(big.Int).SetUint64(uint64(i - 1))
 		header.ParentHash = parentHash
 		l2Block := types.NewBlockWithHeader(header)
+		l2Block.ReceivedAt = time.Now()
 
 		if err := st.PostgresStorage.AddL2Block(ctx, uint64(i), l2Block, nil); err != nil {
 			return err

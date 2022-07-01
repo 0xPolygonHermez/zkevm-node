@@ -54,7 +54,7 @@ const (
 	getTransactionByL2BlockNumberAndIndexSQL = "SELECT t.encoded FROM statev2.transaction t WHERE t.l2_block_num = $1 AND 0 = $2"
 	getL2BlockTransactionCountByHashSQL      = "SELECT COUNT(*) FROM statev2.transaction t INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
 	getL2BlockTransactionCountByNumberSQL    = "SELECT COUNT(*) FROM statev2.transaction t WHERE t.l2_block_num = $1"
-	addL2BlockSQL                            = "INSERT INTO statev2.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+	addL2BlockSQL                            = "INSERT INTO statev2.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num) VALUES ($1::BIGINT, $2::VARCHAR, $3::JSONB, $4::JSONB, $5::VARCHAR, $6::VARCHAR, $7, $8::BIGINT)"
 	getLastConsolidatedBlockNumberSQL        = "SELECT b.block_num FROM statev2.l2block b INNER JOIN statev2.verified_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
 	getLastVirtualBlockNumberSQL             = "SELECT b.block_num FROM statev2.l2block b INNER JOIN statev2.virtual_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockByHashSQL                      = "SELECT header, uncles, received_at FROM statev2.l2block b WHERE b.block_hash = $1"
@@ -692,26 +692,26 @@ func decodeTx(encodedTx string) (*types.Transaction, error) {
 func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
-	var header *string
+	var header = "{}"
 	if l2Block.Header() != nil {
 		headerBytes, err := json.Marshal(l2Block.Header())
 		if err != nil {
 			return err
 		}
-		*header = string(headerBytes)
+		header = string(headerBytes)
 	}
 
-	var uncles *string
+	var uncles = "{}"
 	if l2Block.Uncles() != nil {
 		unclesBytes, err := json.Marshal(l2Block.Uncles())
 		if err != nil {
 			return err
 		}
-		*uncles = string(unclesBytes)
+		uncles = string(unclesBytes)
 	}
 
 	_, err := e.Exec(ctx, addL2BlockSQL,
-		l2Block.Number(), l2Block.Hash().String(), header, uncles,
+		l2Block.Number().Uint64(), l2Block.Hash().String(), header, uncles,
 		l2Block.ParentHash().String(), l2Block.Root().String(),
 		l2Block.ReceivedAt, batchNumber)
 	return err
