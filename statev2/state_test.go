@@ -285,7 +285,7 @@ func TestGetTxsHashesFromBlockNum(t *testing.T) {
 
 	l2Tx := types.NewTransaction(1, common.Address{}, big.NewInt(10), 21000, big.NewInt(1), []byte{})
 	_, err = testState.Exec(ctx, "INSERT INTO statev2.transaction (l2_block_num, encoded, hash) VALUES ($1, $2, $3)",
-		virtualBatch.BatchNumber, fmt.Sprintf("encoded-%d", virtualBatch.BatchNumber), l2Tx.Hash().Hex(), time.Now())
+		virtualBatch.BatchNumber, fmt.Sprintf("encoded-%d", virtualBatch.BatchNumber), l2Tx.Hash().Hex())
 	require.NoError(t, err)
 
 	txHashes, err := testState.GetTxsHashesFromBlockNum(ctx, block.BlockNumber, nil)
