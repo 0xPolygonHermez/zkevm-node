@@ -99,6 +99,7 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *statev2.Batch) (*pb
 	}
 
 	return &pb.GetBatchResponse{
+<<<<<<< HEAD
 		BatchNumber:       batch.BatchNumber,
 		GlobalExitRoot:    batch.GlobalExitRootNum.String(),
 		Sequencer:         batch.Coinbase.String(),
@@ -107,6 +108,12 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *statev2.Batch) (*pb
 		Timestamp:         uint64(batch.Timestamp.Unix()),
 		Transactions:      transactions,
 		ForcedBatchNumber: forcedBatchNum,
+=======
+		BatchNumber:    batch.BatchNumber,
+		GlobalExitRoot: batch.GlobalExitRoot.String(),
+		Timestamp:      uint64(batch.Timestamp.Unix()),
+		Transactions:   transactions,
+>>>>>>> 01258e8 (Changes batch interfaces)
 	}, nil
 }
 

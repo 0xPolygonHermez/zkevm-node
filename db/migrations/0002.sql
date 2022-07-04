@@ -60,7 +60,7 @@ CREATE TABLE statev2.l2block (
 CREATE TABLE statev2.transaction (
     hash VARCHAR PRIMARY KEY,
     from_address VARCHAR,
-    encoded VARCHAR,
+    encoded VARCHAR NOT NULL,
     decoded jsonb,
     l2_block_num BIGINT NOT NULL REFERENCES statev2.l2block (block_num) ON DELETE CASCADE
 );

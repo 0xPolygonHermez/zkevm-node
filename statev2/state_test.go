@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -101,6 +102,125 @@ func TestAddBlock(t *testing.T) {
 	prevBlock, err := testState.GetPreviousBlock(ctx, 1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), prevBlock.BlockNumber)
+}
+
+func TestOpenCloseBatch(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	// Set genesis batch
+	expectedBatch := state.Batch{
+		BatchNumber:    0,
+		Coinbase:       common.HexToAddress("1111"),
+		BatchL2Data:    []byte("2222"),
+		LocalExitRoot:  common.HexToHash("3333"),
+		Timestamp:      time.Now().UTC(),
+		GlobalExitRoot: common.HexToHash("4444"),
+	}
+	err = testState.StoreGenesisBatch(ctx, expectedBatch, nil)
+	require.NoError(t, err)
+	// Open batch #1
+	processingCtx1 := state.ProcessingContext{
+		BatchNumber:    1,
+		Coinbase:       common.HexToAddress("1"),
+		Timestamp:      time.Now().UTC(),
+		GlobalExitRoot: common.HexToHash("a"),
+	}
+	err = testState.OpenBatch(ctx, processingCtx1, nil)
+	require.NoError(t, err)
+	// Fail opening batch #2 (#1 is still open)
+	processingCtx2 := state.ProcessingContext{
+		BatchNumber:    2,
+		Coinbase:       common.HexToAddress("2"),
+		Timestamp:      time.Now().UTC(),
+		GlobalExitRoot: common.HexToHash("b"),
+	}
+	err = testState.OpenBatch(ctx, processingCtx2, nil)
+	assert.Equal(t, state.ErrLastBatchShouldBeClosed, err)
+	// Fail closing batch #1 (it has no txs yet)
+	receipt1 := state.ProcessingReceipt{
+		BatchNumber:   1,
+		StateRoot:     common.HexToHash("1"),
+		LocalExitRoot: common.HexToHash("1"),
+	}
+	err = testState.CloseBatch(ctx, receipt1, nil)
+	require.Equal(t, state.ErrClosingBatchWithoutTxs, err)
+	// Add txs to batch #1
+	txsBatch1 := []*state.ProcessTransactionResponse{
+		{
+			TxHash: common.HexToHash("101"),
+		},
+		{
+			TxHash: common.HexToHash("102"),
+		},
+	}
+	err = testState.StoreTransactions(ctx, 1, txsBatch1, nil)
+	require.NoError(t, err)
+	// Close batch #1
+	err = testState.CloseBatch(ctx, receipt1, nil)
+	require.NoError(t, err)
+	// Fail opening batch #3 (should open batch #2)
+	processingCtx3 := state.ProcessingContext{
+		BatchNumber:    3,
+		Coinbase:       common.HexToAddress("3"),
+		Timestamp:      time.Now().UTC(),
+		GlobalExitRoot: common.HexToHash("c"),
+	}
+	err = testState.OpenBatch(ctx, processingCtx3, nil)
+	require.True(t, strings.Contains(err.Error(), "unexpected batch"))
+	// Fail opening batch #2 (invalid timestamp)
+	processingCtx2.Timestamp = processingCtx1.Timestamp.Add(-1 * time.Second)
+	err = testState.OpenBatch(ctx, processingCtx2, nil)
+	require.Equal(t, state.ErrTimestampGE, err)
+	processingCtx2.Timestamp = time.Now()
+	// Open batch #2
+	err = testState.OpenBatch(ctx, processingCtx2, nil)
+	require.NoError(t, err)
+	// Get batch #1 from DB and compare with on memory batch
+	actualBatch, err := testState.GetBatchByNumber(ctx, 1, nil)
+	require.NoError(t, err)
+	assertBatch(t, state.Batch{
+		BatchNumber:    1,
+		Coinbase:       processingCtx1.Coinbase,
+		BatchL2Data:    []byte("foofoo"),
+		StateRoot:      receipt1.StateRoot,
+		LocalExitRoot:  receipt1.LocalExitRoot,
+		Timestamp:      processingCtx1.Timestamp,
+		GlobalExitRoot: processingCtx1.GlobalExitRoot,
+	}, *actualBatch)
+}
+
+func TestStoreGenesisBatch(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	// Store genesis batch
+	expectedBatch := state.Batch{
+		BatchNumber:    0,
+		Coinbase:       common.HexToAddress("1111"),
+		BatchL2Data:    []byte("2222"),
+		LocalExitRoot:  common.HexToHash("3333"),
+		Timestamp:      time.Now().UTC(),
+		GlobalExitRoot: common.HexToHash("4444"),
+	}
+	err = testState.StoreGenesisBatch(ctx, expectedBatch, nil)
+	require.NoError(t, err)
+	// Get genesis batch from DB and compare with on memory batch
+	actualBatch, err := testState.GetBatchByNumber(ctx, 0, nil)
+	require.NoError(t, err)
+	assertBatch(t, expectedBatch, *actualBatch)
+	// Try to insert a batch that is not the genesis
+	nonGenesisBatch := state.Batch{BatchNumber: 1}
+	err = testState.StoreGenesisBatch(ctx, nonGenesisBatch, nil)
+	require.True(t, strings.Contains(err.Error(), "unexpected batch"))
+}
+
+func assertBatch(t *testing.T, expected, actual state.Batch) {
+	assert.Equal(t, expected.Timestamp.Unix(), actual.Timestamp.Unix())
+	actual.Timestamp = expected.Timestamp
+	assert.Equal(t, expected, actual)
 }
 
 func TestAddGlobalExitRoot(t *testing.T) {
@@ -227,15 +347,8 @@ func TestAddVirtualBatch(t *testing.T) {
 	}
 	err = testState.AddBlock(ctx, block, tx)
 	assert.NoError(t, err)
-	batch := state.Batch{
-		BatchNumber:    1,
-		GlobalExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		Coinbase:       common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
-		Timestamp:      time.Now(),
-		BatchL2Data:    common.Hex2Bytes("0x617b3a3528F9"),
-	}
-	err = testState.StoreBatchHeader(ctx, batch, tx)
-	require.NoError(t, err)
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO statev2.batch (batch_num) VALUES (1)")
+	assert.NoError(t, err)
 	virtualBatch := state.VirtualBatch{
 		BlockNumber: 1,
 		BatchNumber: 1,
