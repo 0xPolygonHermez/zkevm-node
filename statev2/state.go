@@ -246,12 +246,37 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 
 // StoreTransactions is used by the Trusted Sequencer to add processed transactions into the data base
 func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
+	foundPosition := -1
+
 	batch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
 	if err != nil {
 		return err
 	}
 
-	for _, processedTx := range processedTxs {
+	lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// Look for the transaction that matches latest state root in data base
+	// in case we already have l2blocks for that batch
+	// to just store new transactions
+	if lastL2Block.Header().Number.Uint64() == batchNumber {
+		stateRoot := lastL2Block.Header().Root
+
+		for i, processedTx := range processedTxs {
+			if processedTx.StateRoot == stateRoot {
+				foundPosition = i
+				break
+			}
+		}
+	}
+
+	foundPosition++
+
+	for i := foundPosition; i < len(processedTxs); i++ {
+		processedTx := processedTxs[i]
+
 		lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
 		if err != nil {
 			return err
