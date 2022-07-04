@@ -64,8 +64,8 @@ func TestMain(m *testing.M) {
 		executorClientConn.Close()
 	}()
 
-	stateDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
-	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, stateDBServerConfig)
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	s = mtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())
 	defer func() {

@@ -11,6 +11,7 @@ services:
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_DATABASE_PORT=5434
       - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
@@ -30,6 +31,7 @@ services:
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_DATABASE_PORT=5434
     volumes:
       - ./config/config.local.toml:/app/config.toml
     command:
@@ -45,6 +47,7 @@ services:
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_DATABASE_PORT=5434
       - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
@@ -62,6 +65,7 @@ services:
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_DATABASE_PORT=5434
       - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
@@ -79,6 +83,7 @@ services:
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_DATABASE_PORT=5434
     ports:
       - 61090:61090
     volumes:
