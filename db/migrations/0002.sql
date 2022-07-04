@@ -93,7 +93,6 @@ CREATE TABLE statev2.receipt
     cumulative_gas_used BIGINT,
     gas_used BIGINT,
     block_num BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
-    block_hash BYTEA NOT NULL,
     tx_index integer,
     contract_address VARCHAR
 );
