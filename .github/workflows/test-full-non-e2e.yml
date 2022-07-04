@@ -29,6 +29,6 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Test
-      environment:
+      env:
         ZKPROVER_URI: zkprover
       run: make test-full-non-e2e
