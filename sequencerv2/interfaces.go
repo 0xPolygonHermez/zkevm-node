@@ -24,6 +24,7 @@ type txPool interface {
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
+	GetTxsHashesNotExistingInState(ctx context.Context) ([]common.Hash, error)
 }
 
 // etherman contains the methods required to interact with ethereum.

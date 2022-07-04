@@ -30,7 +30,7 @@ type Sequencer struct {
 	txManager         txManager
 	etherman          etherman
 	checker           *profitabilitychecker.Checker
-	reorgBlockNumChan chan uint64
+	reorgBlockNumChan chan struct{}
 
 	address                          common.Address
 	lastBatchNum                     uint64
@@ -47,7 +47,7 @@ func New(
 	state stateInterface,
 	etherman etherman,
 	priceGetter priceGetter,
-	reorgBlockNumChan chan uint64,
+	reorgBlockNumChan chan struct{},
 	manager txManager) (*Sequencer, error) {
 	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
 
@@ -81,21 +81,21 @@ func (s *Sequencer) Start(ctx context.Context) {
 func (s *Sequencer) trackReorg(ctx context.Context) {
 	for {
 		select {
-		case batchNum := <-s.reorgBlockNumChan:
+		case <-s.reorgBlockNumChan:
 			var (
 				txHashes []common.Hash
 				err      error
 				waitTime = 5 * time.Second
 			)
-			txHashes, err = s.state.GetTxsHashesFromBatchNum(ctx, batchNum, nil)
 
+			txSelectedHashes, err := s.pool.GetTxsHashesNotExistingInState(ctx)
 			for err != nil {
 				time.Sleep(waitTime)
-				log.Errorf("failed to get txHashes from state, err: %v", err)
-				txHashes, err = s.state.GetTxsHashesFromBatchNum(ctx, batchNum, nil)
+				log.Errorf("failed to get txHashes from pool that are not existing on the state, err: %v", err)
+				txSelectedHashes, err = s.pool.GetTxsHashesNotExistingInState(ctx)
 			}
 
-			err = s.pool.UpdateTxsState(ctx, txHashes, pool.TxStatePending)
+			err = s.pool.UpdateTxsState(ctx, txSelectedHashes, pool.TxStatePending)
 			for err != nil {
 				time.Sleep(waitTime)
 				log.Errorf("failed to update txs state")

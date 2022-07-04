@@ -65,7 +65,6 @@ const (
 	getLogsByBlockHashSQL                    = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
 	getLogsByFilter                          = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE l.batch_num BETWEEN $1 AND $2 AND (l.address = any($3) OR $3 IS NULL) AND (l.topic0 = any($4) OR $4 IS NULL) AND (l.topic1 = any($5) OR $5 IS NULL) AND (l.topic2 = any($6) OR $6 IS NULL) AND (l.topic3 = any($7) OR $7 IS NULL) AND (b.received_at >= $8 OR $8 IS NULL)"
 	getBatchNumByBlockNum                    = "SELECT batch_num FROM statev2.virtual_batch WHERE block_num = $1 ORDER BY batch_num ASC LIMIT 1"
-	getTxsHashesFromBatchNum                 = "SELECT hash FROM statev2.transaction JOIN statev2.l2block ON statev2.transaction.l2_block_num = statev2.l2block.block_num AND statev2.l2block.batch_num >= $1"
 	getTxsHashesBeforeBatchNum               = "SELECT hash FROM statev2.transaction JOIN statev2.l2block ON statev2.transaction.l2_block_num = statev2.l2block.block_num AND statev2.l2block.batch_num < $1"
 )
 
@@ -113,37 +112,6 @@ func (p *PostgresStorage) AddBlock(ctx context.Context, block *Block, dbTx pgx.T
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addBlockSQL, block.BlockNumber, block.BlockHash.String(), block.ParentHash.String(), block.ReceivedAt)
 	return err
-}
-
-// GetTxsHashesFromBlockNum get tx hashes with batch num > x
-func (p *PostgresStorage) GetTxsHashesFromBlockNum(ctx context.Context, blockNum uint64, dbTx pgx.Tx) ([]common.Hash, error) {
-	var batchNum uint64
-	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getBatchNumByBlockNum, blockNum).Scan(&batchNum)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
-	}
-
-	rows, err := e.Query(ctx, getTxsHashesFromBatchNum, batchNum)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
-	}
-
-	hashes := make([]common.Hash, 0, len(rows.RawValues()))
-	for rows.Next() {
-		var hash string
-		err := rows.Scan(&hash)
-		if err != nil {
-			return nil, err
-		}
-		hashes = append(hashes, common.HexToHash(hash))
-	}
-
-	return hashes, nil
 }
 
 // GetTxsHashesToDelete get txs hashes to delete from tx pool

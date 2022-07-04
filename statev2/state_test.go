@@ -249,52 +249,6 @@ func TestAddVirtualBatch(t *testing.T) {
 	require.NoError(t, tx.Commit(ctx))
 }
 
-func TestGetTxsHashesFromBlockNum(t *testing.T) {
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
-	ctx := context.Background()
-	tx, err := testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	block := &state.Block{
-		BlockNumber: 1,
-		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ReceivedAt:  time.Now(),
-	}
-	err = testState.AddBlock(ctx, block, tx)
-	assert.NoError(t, err)
-	batch := state.Batch{
-		BatchNumber:    1,
-		GlobalExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		Coinbase:       common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
-		Timestamp:      time.Now(),
-		BatchL2Data:    common.Hex2Bytes("0x617b3a3528F9"),
-	}
-
-	err = testState.StoreBatchHeader(ctx, batch, tx)
-	require.NoError(t, err)
-	virtualBatch := state.VirtualBatch{
-		BlockNumber: 1,
-		BatchNumber: 1,
-		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		Sequencer:   common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
-	}
-	err = testState.AddVirtualBatch(ctx, &virtualBatch, tx)
-	require.NoError(t, err)
-	require.NoError(t, tx.Commit(ctx))
-
-	_, err = testState.Exec(ctx, "INSERT INTO statev2.l2block (block_num, block_hash, received_at, batch_num) VALUES ($1, $2, $3, $4)", 1, "0x423", time.Now(), 1)
-	require.NoError(t, err)
-	l2Tx := types.NewTransaction(1, common.Address{}, big.NewInt(10), 21000, big.NewInt(1), []byte{})
-	_, err = testState.Exec(ctx, "INSERT INTO statev2.transaction (l2_block_num, encoded, hash) VALUES ($1, $2, $3)",
-		virtualBatch.BatchNumber, fmt.Sprintf("encoded-%d", virtualBatch.BatchNumber), l2Tx.Hash().Hex())
-	require.NoError(t, err)
-
-	txHashes, err := testState.GetTxsHashesFromBlockNum(ctx, block.BlockNumber, nil)
-	require.NoError(t, err)
-	require.Equal(t, l2Tx.Hash().Hex(), txHashes[0].Hex())
-}
-
 func TestGetTxsHashesToDelete(t *testing.T) {
 	err := dbutils.InitOrReset(cfg)
 	require.NoError(t, err)
@@ -355,7 +309,7 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 		virtualBatch1.BatchNumber, fmt.Sprintf("encoded-%d", virtualBatch1.BatchNumber), l2Tx.Hash().Hex())
 	require.NoError(t, err)
 
-	txHashes, err := testState.GetTxsHashesFromBlockNum(ctx, block.BlockNumber, nil)
+	txHashes, err := testState.GetTxsHashesToDelete(ctx, block.BlockNumber, nil)
 	require.NoError(t, err)
 	require.Equal(t, l2Tx.Hash().Hex(), txHashes[0].Hex())
 }

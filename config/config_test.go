@@ -75,6 +75,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
+			path:          "Sequencerv2.BlocksAmountForTxsToBeDeleted",
+			expectedValue: uint64(100),
+		},
+		{
+			path:          "Sequencerv2.FrequencyToCheckTxsForDelete",
+			expectedValue: types.NewDuration(12 * time.Hour),
+		},
+		{
 			path:          "Sequencerv2.ProfitabilityChecker.SendBatchesEvenWhenNotProfitable",
 			expectedValue: true,
 		},

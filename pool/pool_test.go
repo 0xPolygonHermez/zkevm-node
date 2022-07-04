@@ -424,6 +424,71 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	assert.Equal(t, expectedGasPrice, gasPrice)
 }
 
+func TestGetTxsHashesNotExistingInState(t *testing.T) {
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+	ctx := context.Background()
+	sqlDB, err := db.NewSQLDB(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer sqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(sqlDB)
+
+	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	genesisBlock.ReceivedAt = time.Now()
+	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
+	genesis := state.Genesis{
+		Block: genesisBlock,
+		Balances: map[common.Address]*big.Int{
+			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
+		},
+	}
+	err = st.SetGenesis(context.Background(), genesis, "")
+	if err != nil {
+		t.Error(err)
+	}
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p := pool.NewPool(s, st, common.Address{})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	require.NoError(t, err)
+
+	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	signedTx1, err := auth.Signer(auth.From, tx1)
+	require.NoError(t, err)
+	if err := p.AddTx(ctx, *signedTx1); err != nil {
+		t.Error(err)
+	}
+
+	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+	signedTx2, err := auth.Signer(auth.From, tx2)
+	require.NoError(t, err)
+	if err := p.AddTx(ctx, *signedTx2); err != nil {
+		t.Error(err)
+	}
+
+	err = p.UpdateTxsState(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()}, pool.TxStateSelected)
+	if err != nil {
+		t.Error(err)
+	}
+
+	txHashes, err := p.GetTxsHashesNotExistingInState(ctx)
+	require.NoError(t, err)
+	require.Equal(t, signedTx1.Hash().Hex(), txHashes[0].Hex())
+	require.Equal(t, signedTx2.Hash().Hex(), txHashes[1].Hex())
+}
+
 func TestGetPendingTxSince(t *testing.T) {
 	if err := dbutils.InitOrReset(cfg); err != nil {
 		panic(err)

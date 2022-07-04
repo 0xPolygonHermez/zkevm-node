@@ -28,7 +28,7 @@ type ClientSynchronizer struct {
 	ctx               context.Context
 	cancelCtx         context.CancelFunc
 	genBlockNumber    uint64
-	reorgBlockNumChan chan uint64
+	reorgBlockNumChan chan struct{}
 	cfg               Config
 }
 
@@ -37,7 +37,7 @@ func NewSynchronizer(
 	ethMan ethermanInterface,
 	st stateInterface,
 	genBlockNumber uint64,
-	reorgBlockNumChan chan uint64,
+	reorgBlockNumChan chan struct{},
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{

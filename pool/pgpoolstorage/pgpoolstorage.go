@@ -58,6 +58,28 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 	return nil
 }
 
+// GetTxsHashesNotExistingInState get tx hashes that are not existing in the state
+func (p *PostgresPoolStorage) GetTxsHashesNotExistingInState(ctx context.Context) ([]common.Hash, error) {
+	const getTxsHashesNotExistingInState = "SELECT hash FROM pool.txs pt WHERE state = $1 AND NOT EXISTS (SELECT hash FROM statev2.transaction WHERE hash = pt.hash)"
+	rows, err := p.db.Query(ctx, getTxsHashesNotExistingInState, pool.TxStateSelected)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	txsHashes := make([]common.Hash, 0, len(rows.RawValues()))
+	for rows.Next() {
+		var hashStr string
+
+		if err := rows.Scan(&hashStr); err != nil {
+			return nil, err
+		}
+		txsHashes = append(txsHashes, common.HexToHash(hashStr))
+	}
+
+	return txsHashes, nil
+}
+
 // GetTxsByState returns an array of transactions filtered by state
 // limit parameter is used to limit amount txs from the db,
 // if limit = 0, then there is no limit

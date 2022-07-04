@@ -30,7 +30,7 @@ const (
 // Pool is an implementation of the Pool interface
 // that uses a postgres database to store the data
 type Pool struct {
-	storage                     storage
+	storage
 	state                       stateInterface
 	l2GlobalExitRootManagerAddr common.Address
 }
@@ -69,24 +69,19 @@ func (p *Pool) GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) (
 	return p.storage.GetTxsByState(ctx, TxStatePending, isClaims, limit)
 }
 
-func (p *Pool) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
-	return p.storage.GetPendingTxHashesSince(ctx, since)
+// GetSelectedTxs gets selected txs from the pool db
+func (p *Pool) GetSelectedTxs(ctx context.Context, limit uint64) ([]Transaction, error) {
+	return p.storage.GetTxsByState(ctx, TxStateSelected, false, limit)
 }
 
-// DeleteTxsByHashes delete txs by hashes
-func (p *Pool) DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error {
-	return p.storage.DeleteTxsByHashes(ctx, hashes)
+func (p *Pool) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
+	return p.storage.GetPendingTxHashesSince(ctx, since)
 }
 
 // UpdateTxState updates a transaction state accordingly to the
 // provided state and hash
 func (p *Pool) UpdateTxState(ctx context.Context, hash common.Hash, newState TxState) error {
 	return p.storage.UpdateTxState(ctx, hash, newState)
-}
-
-// UpdateTxsState updates transactions state accordingly to the provided state and hashes
-func (p *Pool) UpdateTxsState(ctx context.Context, hashes []common.Hash, newState TxState) error {
-	return p.storage.UpdateTxsState(ctx, hashes, newState)
 }
 
 // SetGasPrice allows an external component to define the gas price
