@@ -475,7 +475,7 @@ func stopProver() error {
 }
 
 func runCmd(c *exec.Cmd) error {
-	c.Dir = ".."
+	c.Dir = "../.."
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c.Run()
