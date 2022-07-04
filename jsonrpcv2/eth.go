@@ -646,7 +646,7 @@ func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.T
 		return block.Header(), nil
 
 	case EarliestBlockNumber:
-		header, err := e.state.GetL2BlockHeader(ctx, uint64(0), dbTx)
+		header, err := e.state.GetL2BlockHeaderByNumber(ctx, uint64(0), dbTx)
 		if err != nil {
 			return nil, err
 		}
@@ -669,7 +669,7 @@ func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.T
 		return header, nil
 
 	default:
-		return e.state.GetL2BlockHeader(ctx, uint64(number), dbTx)
+		return e.state.GetL2BlockHeaderByNumber(ctx, uint64(number), dbTx)
 	}
 }
 

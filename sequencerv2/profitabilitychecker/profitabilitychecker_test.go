@@ -82,8 +82,7 @@ func Test_IsSendSequencesProfitable(t *testing.T) {
 		Txs: []types.Transaction{*tx1, *tx2, *tx3},
 	}
 
-	estGas := big.NewInt(100)
-	isProfitable := pc.IsSendSequencesProfitable(estGas, []ethmanTypes.Sequence{sequence})
+	isProfitable := pc.IsSendSequencesProfitable(100, []ethmanTypes.Sequence{sequence})
 
 	require.True(t, isProfitable)
 }
@@ -107,8 +106,7 @@ func Test_IsSendSequencesFalse(t *testing.T) {
 		Txs: []types.Transaction{*tx1, *tx2, *tx3},
 	}
 
-	estGas := big.NewInt(100)
-	isProfitable := pc.IsSendSequencesProfitable(estGas, []ethmanTypes.Sequence{sequence})
+	isProfitable := pc.IsSendSequencesProfitable(100, []ethmanTypes.Sequence{sequence})
 
 	require.False(t, isProfitable)
 }
