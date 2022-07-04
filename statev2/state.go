@@ -186,12 +186,71 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-	return convertToProcessBatchResponse(processBatchResponse), err
+	return convertToProcessBatchResponse(txs, processBatchResponse), err
 }
 
 // StoreTransactions is used by the Trusted Sequencer to add processed transactions into the data base
-func (s *State) StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
-	// TODO: implement
+func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
+	foundPosition := -1
+
+	batch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+
+	lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// Look for the transaction that matches latest state root in data base
+	// in case we already have l2blocks for that batch
+	// to just store new transactions
+	if lastL2Block.Header().Number.Uint64() == batchNumber {
+		stateRoot := lastL2Block.Header().Root
+
+		for i, processedTx := range processedTxs {
+			if processedTx.StateRoot == stateRoot {
+				foundPosition = i
+				break
+			}
+		}
+	}
+
+	foundPosition++
+
+	for i := foundPosition; i < len(processedTxs); i++ {
+		processedTx := processedTxs[i]
+
+		lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
+		if err != nil {
+			return err
+		}
+
+		header := &types.Header{
+			Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
+			ParentHash: lastL2Block.Hash(),
+			Coinbase:   batch.Coinbase,
+			Root:       processedTx.StateRoot,
+		}
+
+		transactions := []*types.Transaction{}
+		transactions = append(transactions, &processedTx.Tx)
+
+		// Create block to be able to calculate its hash
+		block := types.NewBlock(header, transactions, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+		block.ReceivedAt = batch.Timestamp
+
+		receipt := generateReceipt(block, processedTx)
+		receipts := []*types.Receipt{}
+		receipts = append(receipts, receipt)
+
+		// Store L2 block and its transaction
+		err = s.PostgresStorage.AddL2Block(ctx, batchNumber, block, receipts, dbTx)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -458,5 +517,5 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 	block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	block.ReceivedAt = receivedAt
 
-	return s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, block, dbTx)
+	return s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, block, []*types.Receipt{}, dbTx)
 }

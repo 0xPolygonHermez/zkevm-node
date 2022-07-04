@@ -19,6 +19,8 @@ type Batch struct {
 	Timestamp         time.Time
 	Transactions      []types.Transaction
 	GlobalExitRoot    common.Hash
+	StateRoot         common.Hash
+	LocalExitRoot     common.Hash
 }
 
 // VerifyBatch represents a VerifyBatch

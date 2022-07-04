@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -32,6 +33,7 @@ const (
 	totalBatches      = 2
 	totalTxsLastBatch = 5
 	encodedFmt        = "encoded-%d"
+	forcedBatchNumber = 18
 )
 
 var (
@@ -55,7 +57,6 @@ func TestBroadcast(t *testing.T) {
 	defer func() {
 		require.NoError(t, stopBroadcast())
 	}()
-
 	st, err := initState()
 	require.NoError(t, err)
 
@@ -70,7 +71,7 @@ func TestBroadcast(t *testing.T) {
 
 	client := pb.NewBroadcastServiceClient(conn)
 
-	lastBatch, err := client.GetLastBatch(ctx, &pb.Empty{})
+	lastBatch, err := client.GetLastBatch(ctx, &emptypb.Empty{})
 	require.NoError(t, err)
 	require.Equal(t, totalBatches, int(lastBatch.BatchNumber))
 
@@ -85,6 +86,7 @@ func TestBroadcast(t *testing.T) {
 	for i, tx := range batch.Transactions {
 		require.Equal(t, fmt.Sprintf(encodedFmt, i+1), tx.Encoded)
 	}
+	require.EqualValues(t, forcedBatchNumber, batch.ForcedBatchNumber)
 }
 
 func initState() (*statev2.State, error) {
@@ -147,13 +149,17 @@ func runCmd(c *exec.Cmd) error {
 }
 
 func populateDB(ctx context.Context, st *statev2.State) error {
-	const addBatch = "INSERT INTO statev2.batch (batch_num, global_exit_root, timestamp) VALUES ($1, $2, $3)"
+	const addBatch = "INSERT INTO statev2.batch (batch_num, global_exit_root, timestamp, sequencer, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
 	const addTransaction = "INSERT INTO statev2.transaction (batch_num, encoded, hash, received_at, l2_block_num) VALUES ($1, $2, $3, $4, $5)"
+	const addForcedBatch = "INSERT INTO statev2.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, sequencer, timestamp, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	const addBlock = "INSERT INTO statev2.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
+	const blockNumber = 1
+
 	var parentHash common.Hash
 	var l2Block types.Block
 
 	for i := 1; i <= totalBatches; i++ {
-		if _, err := st.PostgresStorage.Exec(ctx, addBatch, i, common.Hash{}.String(), time.Now()); err != nil {
+		if _, err := st.PostgresStorage.Exec(ctx, addBatch, i, common.Hash{}.String(), time.Now(), common.HexToAddress("").String(), common.Hash{}.String(), common.Hash{}.String()); err != nil {
 			return err
 		}
 	}
@@ -172,7 +178,7 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 		l2Block := types.NewBlockWithHeader(header)
 		l2Block.ReceivedAt = time.Now()
 
-		if err := st.PostgresStorage.AddL2Block(ctx, uint64(i), l2Block, nil); err != nil {
+		if err := st.PostgresStorage.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, nil); err != nil {
 			return err
 		}
 
@@ -180,7 +186,11 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 			return err
 		}
 	}
-	return nil
+	if _, err := st.PostgresStorage.Exec(ctx, addBlock, blockNumber, time.Now(), ""); err != nil {
+		return err
+	}
+	_, err := st.PostgresStorage.Exec(ctx, addForcedBatch, forcedBatchNumber, common.Hash{}.String(), "", common.HexToAddress("").String(), time.Now(), totalBatches, blockNumber)
+	return err
 }
 
 func newExecutorClient() (executorclientpb.ExecutorServiceClient, *grpc.ClientConn, error) {
