@@ -109,6 +109,8 @@ func TestOpenCloseBatch(t *testing.T) {
 	err := dbutils.InitOrReset(cfg)
 	require.NoError(t, err)
 	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
 	// Set genesis batch
 	expectedBatch := state.Batch{
 		BatchNumber:    0,
@@ -118,7 +120,7 @@ func TestOpenCloseBatch(t *testing.T) {
 		Timestamp:      time.Now().UTC(),
 		GlobalExitRoot: common.HexToHash("4444"),
 	}
-	err = testState.StoreGenesisBatch(ctx, expectedBatch, nil)
+	err = testState.StoreGenesisBatch(ctx, expectedBatch, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	processingCtx1 := state.ProcessingContext{
@@ -127,7 +129,10 @@ func TestOpenCloseBatch(t *testing.T) {
 		Timestamp:      time.Now().UTC(),
 		GlobalExitRoot: common.HexToHash("a"),
 	}
-	err = testState.OpenBatch(ctx, processingCtx1, nil)
+	err = testState.OpenBatch(ctx, processingCtx1, dbTx)
+	require.NoError(t, err)
+	dbTx.Commit(ctx)
+	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Fail opening batch #2 (#1 is still open)
 	processingCtx2 := state.ProcessingContext{
@@ -136,7 +141,7 @@ func TestOpenCloseBatch(t *testing.T) {
 		Timestamp:      time.Now().UTC(),
 		GlobalExitRoot: common.HexToHash("b"),
 	}
-	err = testState.OpenBatch(ctx, processingCtx2, nil)
+	err = testState.OpenBatch(ctx, processingCtx2, dbTx)
 	assert.Equal(t, state.ErrLastBatchShouldBeClosed, err)
 	// Fail closing batch #1 (it has no txs yet)
 	receipt1 := state.ProcessingReceipt{
@@ -144,8 +149,11 @@ func TestOpenCloseBatch(t *testing.T) {
 		StateRoot:     common.HexToHash("1"),
 		LocalExitRoot: common.HexToHash("1"),
 	}
-	err = testState.CloseBatch(ctx, receipt1, nil)
+	err = testState.CloseBatch(ctx, receipt1, dbTx)
 	require.Equal(t, state.ErrClosingBatchWithoutTxs, err)
+	dbTx.Rollback(ctx)
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
 	// Add txs to batch #1
 	txsBatch1 := []*state.ProcessTransactionResponse{
 		{
@@ -155,10 +163,13 @@ func TestOpenCloseBatch(t *testing.T) {
 			TxHash: common.HexToHash("102"),
 		},
 	}
-	err = testState.StoreTransactions(ctx, 1, txsBatch1, nil)
+	err = testState.StoreTransactions(ctx, 1, txsBatch1, dbTx)
 	require.NoError(t, err)
 	// Close batch #1
-	err = testState.CloseBatch(ctx, receipt1, nil)
+	err = testState.CloseBatch(ctx, receipt1, dbTx)
+	require.NoError(t, err)
+	dbTx.Commit(ctx)
+	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Fail opening batch #3 (should open batch #2)
 	processingCtx3 := state.ProcessingContext{
@@ -167,18 +178,21 @@ func TestOpenCloseBatch(t *testing.T) {
 		Timestamp:      time.Now().UTC(),
 		GlobalExitRoot: common.HexToHash("c"),
 	}
-	err = testState.OpenBatch(ctx, processingCtx3, nil)
+	err = testState.OpenBatch(ctx, processingCtx3, dbTx)
 	require.True(t, strings.Contains(err.Error(), "unexpected batch"))
 	// Fail opening batch #2 (invalid timestamp)
 	processingCtx2.Timestamp = processingCtx1.Timestamp.Add(-1 * time.Second)
-	err = testState.OpenBatch(ctx, processingCtx2, nil)
+	err = testState.OpenBatch(ctx, processingCtx2, dbTx)
 	require.Equal(t, state.ErrTimestampGE, err)
 	processingCtx2.Timestamp = time.Now()
+	dbTx.Rollback(ctx)
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
 	// Open batch #2
-	err = testState.OpenBatch(ctx, processingCtx2, nil)
+	err = testState.OpenBatch(ctx, processingCtx2, dbTx)
 	require.NoError(t, err)
 	// Get batch #1 from DB and compare with on memory batch
-	actualBatch, err := testState.GetBatchByNumber(ctx, 1, nil)
+	actualBatch, err := testState.GetBatchByNumber(ctx, 1, dbTx)
 	require.NoError(t, err)
 	assertBatch(t, state.Batch{
 		BatchNumber:    1,
@@ -189,6 +203,7 @@ func TestOpenCloseBatch(t *testing.T) {
 		Timestamp:      processingCtx1.Timestamp,
 		GlobalExitRoot: processingCtx1.GlobalExitRoot,
 	}, *actualBatch)
+	dbTx.Commit(ctx)
 }
 
 func TestStoreGenesisBatch(t *testing.T) {

@@ -62,6 +62,8 @@ var (
 	ErrClosingBatchWithoutTxs = errors.New("can not close a batch without transactions")
 	// ErrTimestampGE indicates that timestamp needs to be greater or equal
 	ErrTimestampGE = errors.New("timestamp needs to be greater or equal")
+	// ErrDBTxNil indicates that the method requires a dbTx that is not nil
+	ErrDBTxNil = errors.New("the method requires a dbTx that is not nil")
 )
 
 var (
@@ -162,27 +164,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 // It's meant to be used by sequencers, since they don't necessarely know what transactions are going to be added
 // in this batch yet. In other words it's the creation of a WIP batch.
 // Note that this will add a batch with batch number N + 1, where N it's the greates batch number on the state.
-func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingContext, dbTx pgx.Tx) (err error) {
+func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingContext, dbTx pgx.Tx) error {
 	if dbTx == nil {
-		// If the function is not called with a dbTx, create one and commit / rollback based on the error
-		// after executing DB queries. This is done to ensure that both queries are atomic.
-		dbTx, err = s.PostgresStorage.Begin(ctx)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err != nil {
-				rollbackErr := dbTx.Rollback(ctx)
-				if rollbackErr != nil {
-					err = fmt.Errorf(
-						"error rolling back the DB tx, err: %v. This happened after this error: %v",
-						rollbackErr, err,
-					)
-				}
-			} else {
-				err = dbTx.Commit(ctx)
-			}
-		}()
+		return ErrDBTxNil
 	}
 	// Check if the batch that is being opened has batch num + 1 compared to the latest batch
 	lastBatchNum, err := s.PostgresStorage.GetLastBatchNumber(ctx, dbTx)
@@ -257,8 +241,12 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 	return convertToProcessBatchResponse(txs, processBatchResponse), err
 }
 
-// StoreTransactions is used by the Trusted Sequencer to add processed transactions into the data base
-func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
+// StoreTransactions is used by the sequencer to add processed transactions into an open batch.
+// If the batch already has txs, those WILL BE DELETED before adding the new ones.
+func (s *State) StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
 	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
 	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNum, dbTx)
 	if err != nil {
@@ -333,27 +321,9 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 
 // CloseBatch is used by sequencer to close the current batch. It will set the processing receipt and
 // the raw txs data based on the txs included on that batch that are already in the state
-func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) (err error) {
+func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error {
 	if dbTx == nil {
-		// If the function is not called with a dbTx, create one and commit / rollback based on the error
-		// after executing DB queries. This is done to ensure that both queries are atomic.
-		dbTx, err = s.PostgresStorage.Begin(ctx)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err != nil {
-				rollbackErr := dbTx.Rollback(ctx)
-				if rollbackErr != nil {
-					err = fmt.Errorf(
-						"error rolling back the DB tx, err: %v. This happened after this error: %v",
-						rollbackErr, err,
-					)
-				}
-			} else {
-				err = dbTx.Commit(ctx)
-			}
-		}()
+		return ErrDBTxNil
 	}
 	// Check if the batch that is being closed is the last batch
 	lastBatchNum, err := s.PostgresStorage.GetLastBatchNumber(ctx, dbTx)
