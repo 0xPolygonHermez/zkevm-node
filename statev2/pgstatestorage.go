@@ -81,11 +81,11 @@ const (
 		 INNER JOIN statev2.l2block consolidated_blocks
 			ON consolidated_blocks.batch_num = sy.last_batch_num_consolidated;
 	`
-	addTransactionSQL = "INSERT INTO statev2.transaction (hash, from_address, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4, $5)"
-	addReceiptSQL     = "INSERT INTO statev2.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
-	addLogSQL         = "INSERT INTO statev2.log (transaction_hash, log_index, transaction_index, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
-	getBatchNumByBlockNum                    = "SELECT batch_num FROM statev2.virtual_batch WHERE block_num = $1 ORDER BY batch_num ASC LIMIT 1"
-	getTxsHashesBeforeBatchNum               = "SELECT hash FROM statev2.transaction JOIN statev2.l2block ON statev2.transaction.l2_block_num = statev2.l2block.block_num AND statev2.l2block.batch_num < $1"
+	addTransactionSQL          = "INSERT INTO statev2.transaction (hash, from_address, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4, $5)"
+	addReceiptSQL              = "INSERT INTO statev2.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	addLogSQL                  = "INSERT INTO statev2.log (transaction_hash, log_index, transaction_index, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	getBatchNumByBlockNum      = "SELECT batch_num FROM statev2.virtual_batch WHERE block_num = $1 ORDER BY batch_num ASC LIMIT 1"
+	getTxsHashesBeforeBatchNum = "SELECT hash FROM statev2.transaction JOIN statev2.l2block ON statev2.transaction.l2_block_num = statev2.l2block.block_num AND statev2.l2block.batch_num <= $1"
 )
 
 // PostgresStorage implements the Storage interface
