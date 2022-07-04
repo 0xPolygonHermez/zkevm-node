@@ -10,6 +10,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/statev2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // Server provides the functionality of the Broadcast service.
@@ -69,7 +70,7 @@ func (s *Server) GetBatch(ctx context.Context, in *pb.GetBatchRequest) (*pb.GetB
 	return s.genericGetBatch(ctx, batch)
 }
 
-func (s *Server) GetLastBatch(ctx context.Context, empty *pb.Empty) (*pb.GetBatchResponse, error) {
+func (s *Server) GetLastBatch(ctx context.Context, empty *emptypb.Empty) (*pb.GetBatchResponse, error) {
 	batch, err := s.state.GetLastBatch(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -89,11 +90,23 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *statev2.Batch) (*pb
 		}
 	}
 
+	var forcedBatchNum uint64
+	forcedBatch, err := s.state.GetForcedBatchByBatchNumber(ctx, batch.BatchNumber, nil)
+	if err == nil {
+		forcedBatchNum = forcedBatch.ForcedBatchNumber
+	} else if err != statev2.ErrNotFound {
+		return nil, err
+	}
+
 	return &pb.GetBatchResponse{
-		BatchNumber:    batch.BatchNumber,
-		GlobalExitRoot: batch.GlobalExitRootNum.String(),
-		Timestamp:      uint64(batch.Timestamp.Unix()),
-		Transactions:   transactions,
+		BatchNumber:       batch.BatchNumber,
+		GlobalExitRoot:    batch.GlobalExitRootNum.String(),
+		Sequencer:         batch.Coinbase.String(),
+		LocalExitRoot:     batch.LocalExitRoot.String(),
+		StateRoot:         batch.StateRoot.String(),
+		Timestamp:         uint64(batch.Timestamp.Unix()),
+		Transactions:      transactions,
+		ForcedBatchNumber: forcedBatchNum,
 	}, nil
 }
 

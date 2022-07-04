@@ -126,8 +126,14 @@ func (s *State) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*Glob
 }
 
 // GetForcedBath retrieves a forced batch from the state data base
-func (s *State) GetForcedBatch(ctx context.Context, dbTx pgx.Tx, forcedBatchNumber uint64) (*ForcedBatch, error) {
+func (s *State) GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*ForcedBatch, error) {
 	return s.PostgresStorage.GetForcedBatch(ctx, forcedBatchNumber, dbTx)
+}
+
+// GetForcedBatchByBatchNumber retrieves a forced batch by batch number from the
+// state data base.
+func (s *State) GetForcedBatchByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*ForcedBatch, error) {
+	return s.PostgresStorage.GetForcedBatchByBatchNumber(ctx, batchNumber, dbTx)
 }
 
 // AddBlock adds a new block to the State Store.
