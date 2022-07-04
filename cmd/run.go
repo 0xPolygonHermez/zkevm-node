@@ -142,8 +142,9 @@ func start(ctx *cli.Context) error {
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			stateDb := statev2.NewPostgresStorage(sqlDB)
-			executorClient, _ := executor.NewExecutorClient(c.Executor)
-			stateDBClient, _ := merkletree.NewMTDBServiceClient(merkletree.Config(c.MTClient))
+			ctx := context.Background()
+			executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
+			stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config(c.MTClient))
 			stateTree := merkletree.NewStateTree(stateDBClient)
 			st := statev2.NewState(statev2.Config{}, stateDb, executorClient, stateTree)
 			go runBroadcastServer(c.BroadcastServer, st)

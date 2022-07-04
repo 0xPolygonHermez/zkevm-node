@@ -16,6 +16,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/hermeznetwork/hermez-core/test/operations"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,10 +37,10 @@ var (
 	stateCfg     = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
-	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
+	executorServerConfig = executor.Config{URI: "127.0.0.1:50071"}
 	executorClient       executorclientpb.ExecutorServiceClient
 	executorClientConn   *grpc.ClientConn
-	stateDBServerConfig  = merkletree.Config{URI: "54.170.178.97:50061"}
+	stateDBServerConfig  = merkletree.Config{URI: "127.0.0.1:50061"}
 )
 
 func TestMain(m *testing.M) {
@@ -53,12 +54,29 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	executorClient, executorClientConn = executor.NewExecutorClient(executorServerConfig)
+	if err := operations.StartComponent("run-zkprover", "stop-zkprover"); err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := operations.RunMakeTarget("stop-zkprover"); err != nil {
+			log.Errorf(err.Error())
+		}
+	}()
+	if err := operations.StartComponent("run-zkprover-db", "stop-zkprover-db"); err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := operations.RunMakeTarget("stop-zkprover-db"); err != nil {
+			log.Errorf(err.Error())
+		}
+	}()
+
+	executorClient, executorClientConn, _ = executor.NewExecutorClient(ctx, executorServerConfig)
 	s := executorClientConn.GetState()
 	log.Infof("executorClientConn state: %s", s.String())
 	defer executorClientConn.Close()
 
-	mtDBServiceClient, mtDBClientConn := merkletree.NewMTDBServiceClient(stateDBServerConfig)
+	mtDBServiceClient, mtDBClientConn, _ := merkletree.NewMTDBServiceClient(ctx, stateDBServerConfig)
 	s = mtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())
 	defer mtDBClientConn.Close()

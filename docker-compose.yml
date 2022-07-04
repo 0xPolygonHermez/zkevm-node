@@ -11,6 +11,7 @@ services:
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_DATABASE_PORT=5434
       - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
@@ -30,6 +31,7 @@ services:
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_DATABASE_PORT=5434
     volumes:
       - ./config/config.local.toml:/app/config.toml
     command:
@@ -45,6 +47,7 @@ services:
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_DATABASE_PORT=5434
       - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
@@ -62,6 +65,7 @@ services:
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_DATABASE_PORT=5434
       - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
@@ -79,6 +83,7 @@ services:
       - HERMEZCORE_DATABASE_PASSWORD=test_password
       - HERMEZCORE_DATABASE_NAME=test_db
       - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - HERMEZCORE_DATABASE_PORT=5434
     ports:
       - 61090:61090
     volumes:
@@ -98,7 +103,7 @@ services:
         reservations:
           memory: 1G
     ports:
-      - 5432:5432
+      - 5434:5432
     environment:
       # In order to update this values, you may need to run: docker rm -f -v postgres
       - POSTGRES_USER=test_user
@@ -174,3 +179,24 @@ services:
       - POSTGRES_HOST=hez-postgres
       - POSTGRES_PORT=5432
       - PROOF_TIME=1000
+
+  zkprover:
+    container_name: zkprover
+    image: hermeznetwork/zkprover-local
+    network_mode: "host"
+    expose:
+      - 50051
+      - 50061
+      - 50071
+    command: >
+      zkprover input_executor.json
+
+  zkprover-postgres:
+    container_name: zkprover-postgres
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=zkstatedb
+      - POSTGRES_PASSWORD=zkstatedb
+      - POSTGRES_DB=perf_db
