@@ -714,41 +714,35 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		uncles = string(unclesBytes)
 	}
 
-	if len(l2Block.Transactions()) > 0 {
-		for _, tx := range l2Block.Transactions() {
-			binary, err := tx.MarshalBinary()
-			if err != nil {
-				return err
-			}
-			encoded := hex.EncodeToHex(binary)
+	for _, tx := range l2Block.Transactions() {
+		binary, err := tx.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		encoded := hex.EncodeToHex(binary)
 
-			binary, err = tx.MarshalJSON()
-			if err != nil {
-				return err
-			}
-			decoded := string(binary)
+		binary, err = tx.MarshalJSON()
+		if err != nil {
+			return err
+		}
+		decoded := string(binary)
 
-			_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), "", encoded, decoded, l2Block.Number().Uint64())
-			if err != nil {
-				return err
-			}
+		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), "", encoded, decoded, l2Block.Number().Uint64())
+		if err != nil {
+			return err
 		}
 	}
 
-	if len(receipts) > 0 {
-		for _, receipt := range receipts {
-			err := p.AddReceipt(ctx, receipt, dbTx)
+	for _, receipt := range receipts {
+		err := p.AddReceipt(ctx, receipt, dbTx)
+		if err != nil {
+			return err
+		}
+
+		for _, log := range receipt.Logs {
+			err := p.AddLog(ctx, log, dbTx)
 			if err != nil {
 				return err
-			}
-
-			if len(receipt.Logs) > 0 {
-				for _, log := range receipt.Logs {
-					err := p.AddLog(ctx, log, dbTx)
-					if err != nil {
-						return err
-					}
-				}
 			}
 		}
 	}
