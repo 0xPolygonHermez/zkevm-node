@@ -364,12 +364,6 @@ func (s *State) AddClosedBatch(ctx context.Context, processingContext Processing
 	return nil
 }
 
-// GetLastTrustedBatchNumber get last trusted batch number
-func (s *State) GetLastTrustedBatchNumber(ctx context.Context) (uint64, error) {
-	// TODO: implement
-	return 0, nil
-}
-
 // GetLastBatch gets latest batch (closed or not) on the data base
 func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 	batches, err := s.PostgresStorage.GetLastNBatches(ctx, 1, dbTx)
