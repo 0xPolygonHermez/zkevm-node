@@ -31,8 +31,8 @@ var (
 	stateDb      *pgxpool.Pool
 	err          error
 	cfg          = dbutils.NewConfigFromEnv()
-	// ctx          = context.Background()
-	stateCfg = state.Config{
+	ctx          = context.Background()
+	stateCfg     = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
 	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
@@ -73,7 +73,7 @@ func TestAddBlock(t *testing.T) {
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
 	require.NoError(t, err)
-	ctx := context.Background()
+	// ctx := context.Background()
 	fmt.Println("db: ", stateDb)
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -320,7 +320,6 @@ func TestExecuteTransaction(t *testing.T) {
 	require.NoError(t, err)
 }
 */
-
 /*
 func TestGenesis(t *testing.T) {
 	balances := map[common.Address]*big.Int{
