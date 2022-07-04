@@ -527,7 +527,7 @@ func (p *PostgresStorage) openBatch(ctx context.Context, batchContext Processing
 	return err
 }
 
-func (p *PostgresStorage) CloseBatch(ctx context.Context, receipt ProcessingReceipt, rawTxs []byte, dbTx pgx.Tx) error {
+func (p *PostgresStorage) closeBatch(ctx context.Context, receipt ProcessingReceipt, rawTxs []byte, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, closeBatchSQL, receipt.StateRoot.String(), receipt.LocalExitRoot.String(), rawTxs, receipt.BatchNumber)
 	return err

@@ -383,7 +383,7 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	for i := 0; i < len(encodedTxsArray); i++ {
 		encodedTxs = append(encodedTxs, encodedTxsArray[i]...)
 	}
-	return s.PostgresStorage.CloseBatch(ctx, receipt, encodedTxs, dbTx)
+	return s.PostgresStorage.closeBatch(ctx, receipt, encodedTxs, dbTx)
 }
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch
