@@ -37,10 +37,10 @@ var (
 	stateCfg     = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
-	executorServerConfig = executor.Config{URI: "127.0.0.1:50071"}
+	executorServerConfig = executor.Config{URI: "zkprover:50071"}
 	executorClient       executorclientpb.ExecutorServiceClient
 	executorClientConn   *grpc.ClientConn
-	stateDBServerConfig  = merkletree.Config{URI: "127.0.0.1:50061"}
+	stateDBServerConfig  = merkletree.Config{URI: "zkprover:50061"}
 )
 
 func TestMain(m *testing.M) {
