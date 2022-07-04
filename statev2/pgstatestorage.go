@@ -66,9 +66,24 @@ const (
 	getTransactionLogsSQL                    = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE t.hash = $1"
 	getLogsByBlockHashSQL                    = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
 	getLogsByFilterSQL                       = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE l.batch_num BETWEEN $1 AND $2 AND (l.address = any($3) OR $3 IS NULL) AND (l.topic0 = any($4) OR $4 IS NULL) AND (l.topic1 = any($5) OR $5 IS NULL) AND (l.topic2 = any($6) OR $6 IS NULL) AND (l.topic3 = any($7) OR $7 IS NULL) AND (b.received_at >= $8 OR $8 IS NULL)"
-	addTransactionSQL                        = "INSERT INTO statev2.transaction (hash, from_address, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4, $5)"
-	addReceiptSQL                            = "INSERT INTO statev2.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
-	addLogSQL                                = "INSERT INTO statev2.log (transaction_hash, log_index, transaction_index, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	getSyncingInfoSQL                        = `
+		SELECT coalesce(MIN(initial_blocks.block_num), 0) as init_sync_block
+			 , coalesce(MAX(virtual_blocks.block_num), 0) as last_block_num_seen
+			 , coalesce(MAX(consolidated_blocks.block_num), 0) as last_block_num_consolidated
+			 , coalesce(MIN(sy.init_sync_batch), 0) as init_sync_batch
+			 , coalesce(MIN(sy.last_batch_num_seen), 0) as last_batch_num_seen
+			 , coalesce(MIN(sy.last_batch_num_consolidated), 0) as last_batch_num_consolidated
+		  FROM statev2.sync_info sy
+		 INNER JOIN statev2.l2block initial_blocks
+			ON initial_blocks.batch_num = sy.init_sync_batch
+		 INNER JOIN statev2.l2block virtual_blocks
+			ON virtual_blocks.batch_num = sy.last_batch_num_seen
+		 INNER JOIN statev2.l2block consolidated_blocks
+			ON consolidated_blocks.batch_num = sy.last_batch_num_consolidated;
+	`
+	addTransactionSQL = "INSERT INTO statev2.transaction (hash, from_address, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4, $5)"
+	addReceiptSQL     = "INSERT INTO statev2.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	addLogSQL         = "INSERT INTO statev2.log (transaction_hash, log_index, transaction_index, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 )
 
 // PostgresStorage implements the Storage interface
@@ -91,7 +106,7 @@ func (p *PostgresStorage) getExecQuerier(dbTx pgx.Tx) execQuerier {
 	return p
 }
 
-// Reset resets the state to a block
+// Reset resets the state to a block for the given DB tx
 func (p *PostgresStorage) Reset(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 	if _, err := e.Exec(ctx, resetSQL, blockNumber); err != nil {
@@ -521,6 +536,7 @@ func (p *PostgresStorage) AddBatchNumberInForcedBatch(ctx context.Context, force
 	return err
 }
 
+// GetL2BlockByNumber gets a l2 block by its number
 func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Block, error) {
 	header := &types.Header{}
 	uncles := []*types.Header{}
@@ -793,6 +809,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	return err
 }
 
+// GetLastConsolidatedL2BlockNumber gets the last l2 block verified
 func (p *PostgresStorage) GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	var lastConsolidatedBlockNumber uint64
 	q := p.getExecQuerier(dbTx)
@@ -807,6 +824,7 @@ func (p *PostgresStorage) GetLastConsolidatedL2BlockNumber(ctx context.Context, 
 	return lastConsolidatedBlockNumber, nil
 }
 
+// GetLastL2BlockNumber gets the last l2 block number
 func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	var lastBlockNumber uint64
 	q := p.getExecQuerier(dbTx)
@@ -846,6 +864,7 @@ func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*typ
 	return block, nil
 }
 
+// GetL2BlockByHash gets a l2 block from its hash
 func (p *PostgresStorage) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Block, error) {
 	header := &types.Header{}
 	uncles := []*types.Header{}
@@ -1024,6 +1043,32 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 	}
 
 	return logs, nil
+}
+
+// GetSyncingInfo returns information regarding the syncing status of the node
+func (p *PostgresStorage) GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (SyncingInfo, error) {
+	var info SyncingInfo
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getSyncingInfoSQL).
+		Scan(&info.InitialSyncingBlock, &info.LastBlockNumberSeen, &info.LastBlockNumberConsolidated,
+			&info.InitialSyncingBatch, &info.LastBatchNumberSeen, &info.LastBatchNumberConsolidated)
+	if err != nil {
+		return SyncingInfo{}, nil
+	}
+
+	lastBlockNumber, err := p.GetLastL2BlockNumber(ctx, dbTx)
+	if err != nil {
+		return SyncingInfo{}, nil
+	}
+	info.CurrentBlockNumber = lastBlockNumber
+
+	lastBatchNumber, err := p.GetLastBatchNumber(ctx, dbTx)
+	if err != nil {
+		return SyncingInfo{}, nil
+	}
+	info.CurrentBatchNumber = lastBatchNumber
+
+	return info, err
 }
 
 func (p *PostgresStorage) addressesToBytes(addresses []common.Address) [][]byte {
