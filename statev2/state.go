@@ -267,10 +267,16 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		transactions := []*types.Transaction{}
 		transactions = append(transactions, &processedTx.Tx)
 
+		// Create block to be able to calculate its hash
 		block := types.NewBlock(header, transactions, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 		block.ReceivedAt = batch.Timestamp
 
-		err = s.PostgresStorage.AddL2Block(ctx, batchNumber, block, dbTx)
+		receipt := generateReceipt(block, processedTx)
+		receipts := []*types.Receipt{}
+		receipts = append(receipts, receipt)
+
+		// Store L2 block and its transaction
+		err = s.PostgresStorage.AddL2Block(ctx, batchNumber, block, receipts, dbTx)
 		if err != nil {
 			return err
 		}
@@ -335,7 +341,7 @@ func (s *State) GetVerifiedBatch(ctx context.Context, dbTx pgx.Tx, batchNumber u
 	return s.PostgresStorage.GetVerifiedBatch(ctx, batchNumber, dbTx)
 }
 
-// DebugTransaction reexecutes a tx to generate its trace
+// DebugTransaction re executes a tx to generate its trace
 func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error) {
 	// TODO: Implement
 	return new(runtime.ExecutionResult), nil
@@ -627,5 +633,5 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 	block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	block.ReceivedAt = receivedAt
 
-	return s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, block, dbTx)
+	return s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, block, []*types.Receipt{}, dbTx)
 }

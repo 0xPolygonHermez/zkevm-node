@@ -66,6 +66,8 @@ const (
 	getLogsByBlockHashSQL                    = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
 	getLogsByFilterSQL                       = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE l.batch_num BETWEEN $1 AND $2 AND (l.address = any($3) OR $3 IS NULL) AND (l.topic0 = any($4) OR $4 IS NULL) AND (l.topic1 = any($5) OR $5 IS NULL) AND (l.topic2 = any($6) OR $6 IS NULL) AND (l.topic3 = any($7) OR $7 IS NULL) AND (b.received_at >= $8 OR $8 IS NULL)"
 	addTransactionSQL                        = "INSERT INTO statev2.transaction (hash, from_address, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4, $5)"
+	addReceiptSQL                            = "INSERT INTO statev2.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, block_hash, tx_index, contract_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
+	addLogSQL                                = "INSERT INTO statev2.log (transaction_hash, log_index, transaction_index, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 )
 
 // PostgresStorage implements the Storage interface
@@ -691,7 +693,7 @@ func decodeTx(encodedTx string) (*types.Transaction, error) {
 }
 
 // AddL2Block adds a new L2 block to the State Store
-func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
 	var header = "{}"
@@ -729,6 +731,24 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), "", encoded, decoded, l2Block.Number().Uint64())
 			if err != nil {
 				return err
+			}
+		}
+	}
+
+	if len(receipts) > 0 {
+		for _, receipt := range receipts {
+			err := p.AddReceipt(ctx, receipt, dbTx)
+			if err != nil {
+				return err
+			}
+
+			if len(receipt.Logs) > 0 {
+				for _, log := range receipt.Logs {
+					err := p.AddLog(ctx, log, dbTx)
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
@@ -992,4 +1012,25 @@ func (p *PostgresStorage) hashesToBytes(hashes []common.Hash) [][]byte {
 	}
 
 	return converted
+}
+
+// AddReceipt adds a new receipt to the State Store
+func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.Bytes(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.BlockHash.String(), receipt.TransactionIndex, receipt.ContractAddress.String())
+	return err
+}
+
+// AddLog adds a new log to the State Store
+func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx) error {
+	var topicsAsBytes [maxTopics]*[]byte
+	for i := 0; i < len(l.Topics); i++ {
+		topicBytes := l.Topics[i].Bytes()
+		topicsAsBytes[i] = &topicBytes
+	}
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addLogSQL, l.TxHash.String(), l.Index, l.TxIndex,
+		l.Address.String(), l.Data, topicsAsBytes[0], topicsAsBytes[1], topicsAsBytes[2], topicsAsBytes[3])
+	return err
 }

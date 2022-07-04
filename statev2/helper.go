@@ -94,8 +94,8 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 	return results
 }
 
-func convertToLog(responses []*pb.Log) []types.Log {
-	results := make([]types.Log, 0, len(responses))
+func convertToLog(responses []*pb.Log) []*types.Log {
+	results := make([]*types.Log, 0, len(responses))
 
 	for _, response := range responses {
 		result := new(types.Log)
@@ -107,7 +107,7 @@ func convertToLog(responses []*pb.Log) []types.Log {
 		result.TxIndex = uint(response.TxIndex)
 		result.BlockHash = common.BytesToHash(response.BatchHash)
 		result.Index = uint(response.Index)
-		results = append(results, *result)
+		results = append(results, result)
 	}
 
 	return results
@@ -232,4 +232,27 @@ func convertByteArrayToStringArray(responses []byte) []string {
 		results = append(results, string(response))
 	}
 	return results
+}
+
+func generateReceipt(block *types.Block, processedTx *ProcessTransactionResponse) *types.Receipt {
+	receipt := &types.Receipt{}
+	receipt.Type = uint8(processedTx.Type)
+	receipt.PostState = processedTx.StateRoot.Bytes()
+
+	if processedTx.Error == "" {
+		receipt.Status = types.ReceiptStatusSuccessful
+	} else {
+		receipt.Status = types.ReceiptStatusFailed
+	}
+
+	receipt.CumulativeGasUsed = processedTx.GasUsed
+	receipt.BlockNumber = block.Number()
+	receipt.BlockHash = block.Hash()
+	receipt.GasUsed = processedTx.GasUsed
+	receipt.TxHash = processedTx.TxHash
+	receipt.TransactionIndex = 0
+	receipt.ContractAddress = processedTx.CreateAddress
+	receipt.Logs = processedTx.Logs
+
+	return receipt
 }

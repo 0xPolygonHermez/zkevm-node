@@ -21,11 +21,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-/*
 const (
-	ether155V = 27
+// ether155V = 27
 )
-*/
+
 var (
 	testState    *state.State
 	hash1, hash2 common.Hash
@@ -313,12 +312,12 @@ func TestExecuteTransaction(t *testing.T) {
 
 	log.Debugf("%v", processBatchRequest)
 
-	_, err = executorClient.ProcessBatch(ctx, processBatchRequest)
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 
-	// file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	// err = ioutil.WriteFile("trace.json", file, 0644)
-	// require.NoError(t, err)
+	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	err = ioutil.WriteFile("trace.json", file, 0644)
+	require.NoError(t, err)
 }
 */
 
