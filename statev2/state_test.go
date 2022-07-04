@@ -131,7 +131,7 @@ func TestOpenCloseBatch(t *testing.T) {
 	}
 	err = testState.OpenBatch(ctx, processingCtx1, dbTx)
 	require.NoError(t, err)
-	dbTx.Commit(ctx)
+	require.NoError(t, dbTx.Commit(ctx))
 	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Fail opening batch #2 (#1 is still open)
@@ -151,7 +151,7 @@ func TestOpenCloseBatch(t *testing.T) {
 	}
 	err = testState.CloseBatch(ctx, receipt1, dbTx)
 	require.Equal(t, state.ErrClosingBatchWithoutTxs, err)
-	dbTx.Rollback(ctx)
+	require.NoError(t, dbTx.Rollback(ctx))
 	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Add txs to batch #1
@@ -168,7 +168,7 @@ func TestOpenCloseBatch(t *testing.T) {
 	// Close batch #1
 	err = testState.CloseBatch(ctx, receipt1, dbTx)
 	require.NoError(t, err)
-	dbTx.Commit(ctx)
+	require.NoError(t, dbTx.Commit(ctx))
 	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Fail opening batch #3 (should open batch #2)
@@ -185,7 +185,7 @@ func TestOpenCloseBatch(t *testing.T) {
 	err = testState.OpenBatch(ctx, processingCtx2, dbTx)
 	require.Equal(t, state.ErrTimestampGE, err)
 	processingCtx2.Timestamp = time.Now()
-	dbTx.Rollback(ctx)
+	require.NoError(t, dbTx.Rollback(ctx))
 	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Open batch #2
@@ -203,7 +203,7 @@ func TestOpenCloseBatch(t *testing.T) {
 		Timestamp:      processingCtx1.Timestamp,
 		GlobalExitRoot: processingCtx1.GlobalExitRoot,
 	}, *actualBatch)
-	dbTx.Commit(ctx)
+	require.NoError(t, dbTx.Commit(ctx))
 }
 
 func TestStoreGenesisBatch(t *testing.T) {
