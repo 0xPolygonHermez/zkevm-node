@@ -160,7 +160,7 @@ func (p *PostgresStorage) GetTxsHashesToDelete(ctx context.Context, blockNumDiff
 
 	blockNum = blockNum - blockNumDiff
 	if blockNum <= 0 {
-		return nil, errors.New("blockNumDiff is too big, there is no txs to delete")
+		return nil, errors.New("blockNumDiff is too big, there are no txs to delete")
 	}
 
 	err = e.QueryRow(ctx, getBatchNumByBlockNum, blockNum).Scan(&batchNum)
