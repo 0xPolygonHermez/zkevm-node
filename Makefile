@@ -90,8 +90,10 @@ test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race 
 	$(STOPDB)
 	$(RUNDB); sleep 7
 	$(STOPZKPROVERDB)
-	$(RUNZKPROVERDB); sleep 7
+	$(RUNZKPROVERDB); sleep 10
 	$(RUNZKPROVER)
+	sleep 5
+	docker logs zkprover
 	trap '$(STOPDB) && $(STOPZKPROVERDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
 
 .PHONY: test-e2e-group-1
