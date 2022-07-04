@@ -58,12 +58,12 @@ func TestMain(m *testing.M) {
 	log.Infof("executorClientConn state: %s", s.String())
 	defer executorClientConn.Close()
 
-	stateDbServiceClient, stateDbClientConn := merkletree.NewStateDBServiceClient(stateDBServerConfig)
-	s = stateDbClientConn.GetState()
+	mtDBServiceClient, mtDBClientConn := merkletree.NewMTDBServiceClient(stateDBServerConfig)
+	s = mtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())
-	defer stateDbClientConn.Close()
+	defer mtDBClientConn.Close()
 
-	stateTree := merkletree.NewStateTree(stateDbServiceClient)
+	stateTree := merkletree.NewStateTree(mtDBServiceClient)
 
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")

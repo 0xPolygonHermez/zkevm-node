@@ -7,16 +7,17 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func NewStateDBServiceClient(c Config) (pb.StateDBServiceClient, *grpc.ClientConn) {
+// NewMTDBServiceClient creates a new MTDB client.
+func NewMTDBServiceClient(c Config) (pb.StateDBServiceClient, *grpc.ClientConn) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 	}
-	stateDBConn, err := grpc.Dial(c.URI, opts...)
+	mtDBConn, err := grpc.Dial(c.URI, opts...)
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
 	}
 
-	stateDBClient := pb.NewStateDBServiceClient(stateDBConn)
-	return stateDBClient, stateDBConn
+	mtDBClient := pb.NewStateDBServiceClient(mtDBConn)
+	return mtDBClient, mtDBConn
 }
