@@ -16,7 +16,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
-	"github.com/hermeznetwork/hermez-core/test/operations"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,10 +37,8 @@ var (
 	stateCfg     = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
-	executorServerConfig = executor.Config{URI: "zkprover:50071"}
-	executorClient       executorclientpb.ExecutorServiceClient
-	executorClientConn   *grpc.ClientConn
-	stateDBServerConfig  = merkletree.Config{URI: "zkprover:50061"}
+	executorClient     executorclientpb.ExecutorServiceClient
+	executorClientConn *grpc.ClientConn
 )
 
 func TestMain(m *testing.M) {
@@ -54,28 +52,15 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	if err := operations.StartComponent("zkprover"); err != nil {
-		panic(err)
-	}
-	defer func() {
-		if err := operations.StopComponent("zkprover"); err != nil {
-			log.Errorf(err.Error())
-		}
-	}()
-	if err := operations.StartComponent("zkprover-db"); err != nil {
-		panic(err)
-	}
-	defer func() {
-		if err := operations.StopComponent("zkprover-db"); err != nil {
-			log.Errorf(err.Error())
-		}
-	}()
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	executorClient, executorClientConn, _ = executor.NewExecutorClient(ctx, executorServerConfig)
 	s := executorClientConn.GetState()
 	log.Infof("executorClientConn state: %s", s.String())
 	defer executorClientConn.Close()
 
+	stateDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	mtDBServiceClient, mtDBClientConn, _ := merkletree.NewMTDBServiceClient(ctx, stateDBServerConfig)
 	s = mtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())

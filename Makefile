@@ -89,7 +89,10 @@ test-full: build-docker compile-scs ## Runs all tests checking race conditions
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
 	$(STOPDB)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
+	$(STOPZKPROVERDB)
+	$(RUNZKPROVERDB); sleep 7
+	$(RUNZKPROVER)
+	trap '$(STOPDB) && $(STOPZKPROVERDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking race conditions

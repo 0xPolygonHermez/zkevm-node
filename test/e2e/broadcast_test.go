@@ -13,7 +13,6 @@ import (
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb"
 	"github.com/hermeznetwork/hermez-core/statev2"
-	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/operations"
@@ -130,7 +129,7 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 
 	for i := 1; i <= totalTxsLastBatch; i++ {
 		if i == 1 {
-			parentHash = state.ZeroHash
+			parentHash = statev2.ZeroHash
 		} else {
 			parentHash = l2Block.Hash()
 		}
