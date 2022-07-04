@@ -21,19 +21,18 @@ import (
 	"google.golang.org/grpc"
 )
 
-/*
 const (
-	ether155V = 27
+// ether155V = 27
 )
-*/
+
 var (
 	testState    *state.State
 	hash1, hash2 common.Hash
 	stateDb      *pgxpool.Pool
 	err          error
 	cfg          = dbutils.NewConfigFromEnv()
-	// ctx          = context.Background()
-	stateCfg = state.Config{
+	ctx          = context.Background()
+	stateCfg     = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
 	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
@@ -74,7 +73,7 @@ func TestAddBlock(t *testing.T) {
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
 	require.NoError(t, err)
-	ctx := context.Background()
+	// ctx := context.Background()
 	fmt.Println("db: ", stateDb)
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -313,15 +312,14 @@ func TestExecuteTransaction(t *testing.T) {
 
 	log.Debugf("%v", processBatchRequest)
 
-	_, err = executorClient.ProcessBatch(ctx, processBatchRequest)
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 
-	// file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	// err = ioutil.WriteFile("trace.json", file, 0644)
-	// require.NoError(t, err)
+	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	err = ioutil.WriteFile("trace.json", file, 0644)
+	require.NoError(t, err)
 }
 */
-
 /*
 func TestGenesis(t *testing.T) {
 	balances := map[common.Address]*big.Int{

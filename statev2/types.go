@@ -54,9 +54,11 @@ type ProcessTransactionResponse struct {
 	// State Root
 	StateRoot common.Hash
 	// Logs emitted by LOG opcode
-	Logs []types.Log
+	Logs []*types.Log
 	// Indicates if this tx didn't fit into the batch
 	UnprocessedTransaction bool
+	// Transaction
+	Tx types.Transaction
 	// Traces
 	ExecutionTrace []instrumentation.StructLog
 	CallTrace      instrumentation.ExecutorTrace

@@ -178,7 +178,7 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 		l2Block := types.NewBlockWithHeader(header)
 		l2Block.ReceivedAt = time.Now()
 
-		if err := st.PostgresStorage.AddL2Block(ctx, uint64(i), l2Block, nil); err != nil {
+		if err := st.PostgresStorage.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, nil); err != nil {
 			return err
 		}
 

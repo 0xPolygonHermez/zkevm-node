@@ -55,16 +55,20 @@ const (
 	getTransactionByL2BlockNumberAndIndexSQL = "SELECT t.encoded FROM statev2.transaction t WHERE t.l2_block_num = $1 AND 0 = $2"
 	getL2BlockTransactionCountByHashSQL      = "SELECT COUNT(*) FROM statev2.transaction t INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
 	getL2BlockTransactionCountByNumberSQL    = "SELECT COUNT(*) FROM statev2.transaction t WHERE t.l2_block_num = $1"
-	addL2BlockSQL                            = "INSERT INTO statev2.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num) VALUES ($1::BIGINT, $2::VARCHAR, $3::JSONB, $4::JSONB, $5::VARCHAR, $6::VARCHAR, $7, $8::BIGINT)"
+	addL2BlockSQL                            = "INSERT INTO statev2.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
 	getLastConsolidatedBlockNumberSQL        = "SELECT b.block_num FROM statev2.l2block b INNER JOIN statev2.verified_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
 	getLastVirtualBlockNumberSQL             = "SELECT b.block_num FROM statev2.l2block b INNER JOIN statev2.virtual_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockByHashSQL                      = "SELECT header, uncles, received_at FROM statev2.l2block b WHERE b.block_hash = $1"
+	getLastL2BlockSQL                        = "SELECT header, uncles, received_at FROM statev2.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockHeaderByHashSQL                = "SELECT header FROM statev2.l2block b WHERE b.block_hash = $1"
 	getTxsByBlockNumSQL                      = "SELECT transaction.encoded FROM statev2.transaction t WHERE t.block_num = $1"
 	getL2BlockHashesSinceSQL                 = "SELECT block_hash FROM statev2.l2block WHERE received_at >= $1"
 	getTransactionLogsSQL                    = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE t.hash = $1"
 	getLogsByBlockHashSQL                    = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
-	getLogsByFilter                          = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE l.batch_num BETWEEN $1 AND $2 AND (l.address = any($3) OR $3 IS NULL) AND (l.topic0 = any($4) OR $4 IS NULL) AND (l.topic1 = any($5) OR $5 IS NULL) AND (l.topic2 = any($6) OR $6 IS NULL) AND (l.topic3 = any($7) OR $7 IS NULL) AND (b.received_at >= $8 OR $8 IS NULL)"
+	getLogsByFilterSQL                       = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE l.batch_num BETWEEN $1 AND $2 AND (l.address = any($3) OR $3 IS NULL) AND (l.topic0 = any($4) OR $4 IS NULL) AND (l.topic1 = any($5) OR $5 IS NULL) AND (l.topic2 = any($6) OR $6 IS NULL) AND (l.topic3 = any($7) OR $7 IS NULL) AND (b.received_at >= $8 OR $8 IS NULL)"
+	addTransactionSQL                        = "INSERT INTO statev2.transaction (hash, from_address, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4, $5)"
+	addReceiptSQL                            = "INSERT INTO statev2.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	addLogSQL                                = "INSERT INTO statev2.log (transaction_hash, log_index, transaction_index, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 )
 
 // PostgresStorage implements the Storage interface
@@ -727,7 +731,7 @@ func decodeTx(encodedTx string) (*types.Transaction, error) {
 }
 
 // AddL2Block adds a new L2 block to the State Store
-func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
 	var header = "{}"
@@ -748,10 +752,44 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		uncles = string(unclesBytes)
 	}
 
+	for _, tx := range l2Block.Transactions() {
+		binary, err := tx.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		encoded := hex.EncodeToHex(binary)
+
+		binary, err = tx.MarshalJSON()
+		if err != nil {
+			return err
+		}
+		decoded := string(binary)
+
+		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), "", encoded, decoded, l2Block.Number().Uint64())
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, receipt := range receipts {
+		err := p.AddReceipt(ctx, receipt, dbTx)
+		if err != nil {
+			return err
+		}
+
+		for _, log := range receipt.Logs {
+			err := p.AddLog(ctx, log, dbTx)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	_, err := e.Exec(ctx, addL2BlockSQL,
 		l2Block.Number().Uint64(), l2Block.Hash().String(), header, uncles,
 		l2Block.ParentHash().String(), l2Block.Root().String(),
 		l2Block.ReceivedAt, batchNumber)
+
 	return err
 }
 
@@ -781,6 +819,31 @@ func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx)
 	}
 
 	return lastBlockNumber, nil
+}
+
+// GetLastL2Block retrieves the latest L2 Block from the State data base
+func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error) {
+	header := &types.Header{}
+	uncles := []*types.Header{}
+	receivedAt := time.Time{}
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getLastL2BlockSQL).Scan(&header, &uncles, &receivedAt)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	transactions, err := p.GetTxsByBlockNumber(ctx, header.Number.Uint64(), dbTx)
+	if errors.Is(err, pgx.ErrNoRows) {
+		transactions = []*types.Transaction{}
+	} else if err != nil {
+		return nil, err
+	}
+
+	block := types.NewBlock(header, transactions, uncles, nil, &trie.StackTrie{})
+	return block, nil
 }
 
 func (p *PostgresStorage) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Block, error) {
@@ -918,7 +981,7 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 
 		args = append(args, since)
 
-		rows, err = q.Query(ctx, getLogsByFilter, args...)
+		rows, err = q.Query(ctx, getLogsByFilterSQL, args...)
 	}
 
 	if err != nil {
@@ -981,4 +1044,25 @@ func (p *PostgresStorage) hashesToBytes(hashes []common.Hash) [][]byte {
 	}
 
 	return converted
+}
+
+// AddReceipt adds a new receipt to the State Store
+func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.Bytes(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
+	return err
+}
+
+// AddLog adds a new log to the State Store
+func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx) error {
+	var topicsAsBytes [maxTopics]*[]byte
+	for i := 0; i < len(l.Topics); i++ {
+		topicBytes := l.Topics[i].Bytes()
+		topicsAsBytes[i] = &topicBytes
+	}
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addLogSQL, l.TxHash.String(), l.Index, l.TxIndex,
+		l.Address.String(), l.Data, topicsAsBytes[0], topicsAsBytes[1], topicsAsBytes[2], topicsAsBytes[3])
+	return err
 }
