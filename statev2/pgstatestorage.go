@@ -39,6 +39,7 @@ const (
 	getLastBlockNumSQL                       = "SELECT block_num FROM statev2.block ORDER BY block_num DESC LIMIT 1"
 	getBlockTimeByNumSQL                     = "SELECT received_at FROM statev2.block WHERE block_num = $1"
 	getBatchByNumberSQL                      = "SELECT batch_num, global_exit_root, timestamp, local_exit_root, state_root from statev2.batch WHERE batch_num = $1"
+	getForcedBatchByBatchNumSQL              = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer, batch_num, block_num from statev2.forced_batch WHERE batch_num = $1"
 	getEncodedTransactionsByBatchNumberSQL   = "SELECT encoded from statev2.transaction WHERE batch_num = $1"
 	getLastBatchSeenSQL                      = "SELECT last_batch_num_seen FROM statev2.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                   = "UPDATE statev2.sync_info SET last_batch_num_seen = $1"
