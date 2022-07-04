@@ -54,19 +54,19 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	if err := operations.StartComponent("run-zkprover", "stop-zkprover"); err != nil {
+	if err := operations.StartComponent("zkprover"); err != nil {
 		panic(err)
 	}
 	defer func() {
-		if err := operations.RunMakeTarget("stop-zkprover"); err != nil {
+		if err := operations.StopComponent("zkprover"); err != nil {
 			log.Errorf(err.Error())
 		}
 	}()
-	if err := operations.StartComponent("run-zkprover-db", "stop-zkprover-db"); err != nil {
+	if err := operations.StartComponent("zkprover-db"); err != nil {
 		panic(err)
 	}
 	defer func() {
-		if err := operations.RunMakeTarget("stop-zkprover-db"); err != nil {
+		if err := operations.StopComponent("zkprover-db"); err != nil {
 			log.Errorf(err.Error())
 		}
 	}()
