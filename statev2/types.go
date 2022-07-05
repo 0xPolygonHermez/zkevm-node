@@ -56,7 +56,7 @@ type ProcessTransactionResponse struct {
 	// Logs emitted by LOG opcode
 	Logs []*types.Log
 	// Indicates if this tx didn't fit into the batch
-	UnprocessedTransaction bool
+	UnprocessedTransaction uint32
 	// Transaction
 	Tx types.Transaction
 	// Traces

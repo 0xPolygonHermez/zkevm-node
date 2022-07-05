@@ -33,6 +33,8 @@ const (
 	// Size of the memory in bytes reserved by the zkEVM
 	zkEVMReservedMemorySize int  = 128
 	two                     uint = 2
+	cTrue                        = 1
+	cFalse                       = 0
 )
 
 var (
@@ -179,9 +181,9 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 		GlobalExitRoot:       lastBatch.GlobalExitRootNum.Bytes(),
 		OldLocalExitRoot:     previousBatch.OldLocalExitRoot.Bytes(),
 		EthTimestamp:         uint64(lastBatch.Timestamp.Unix()),
-		UpdateMerkleTree:     true,
-		GenerateExecuteTrace: false,
-		GenerateCallTrace:    false,
+		UpdateMerkleTree:     cTrue,
+		GenerateExecuteTrace: cFalse,
+		GenerateCallTrace:    cFalse,
 	}
 
 	// Send Batch to the Executor

@@ -121,13 +121,13 @@ func convertToProperMap(responses map[string]string) map[common.Hash]common.Hash
 
 func convertToExecutorTrace(callTrace *pb.CallTrace) instrumentation.ExecutorTrace {
 	trace := new(instrumentation.ExecutorTrace)
-	trace.Context = converToContext(callTrace.Context)
+	trace.Context = convertToContext(callTrace.Context)
 	trace.Steps = convertToInstrumentationSteps(callTrace.Steps)
 
 	return *trace
 }
 
-func converToContext(context *pb.TransactionContext) instrumentation.Context {
+func convertToContext(context *pb.TransactionContext) instrumentation.Context {
 	return instrumentation.Context{
 		Type:         context.Type,
 		From:         context.From,
