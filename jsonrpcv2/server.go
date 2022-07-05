@@ -32,7 +32,7 @@ type Server struct {
 }
 
 // NewServer returns the JsonRPC server
-func NewServer(cfg Config, chainID uint64,
+func NewServer(cfg Config, defaultChainID uint64, chainID uint64,
 	p jsonRPCTxPool, s stateInterface, gpe gasPriceEstimator, storage storageInterface,
 	apis map[string]bool) *Server {
 	handler := newJSONRpcHandler()

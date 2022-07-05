@@ -63,7 +63,7 @@ func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Seque
 }
 
 // IsSendSequencesProfitable checks profitability to send sequences to the ethereum
-func (c *Checker) IsSendSequencesProfitable(estimatedGas uint64, sequences []types.Sequence) bool {
+func (c *Checker) IsSendSequencesProfitable(estimatedGas *big.Int, sequences []types.Sequence) bool {
 	if c.Config.SendBatchesEvenWhenNotProfitable {
 		return true
 	}
@@ -72,7 +72,7 @@ func (c *Checker) IsSendSequencesProfitable(estimatedGas uint64, sequences []typ
 	for _, seq := range sequences {
 		for _, tx := range seq.Txs {
 			gasCostSequences.Add(gasCostSequences, new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas())))
-			if gasCostSequences.Cmp(big.NewInt(0).SetUint64(estimatedGas)) > 0 {
+			if gasCostSequences.Cmp(estimatedGas) > 0 {
 				return true
 			}
 		}

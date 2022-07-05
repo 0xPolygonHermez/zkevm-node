@@ -242,7 +242,7 @@ func TestAddVirtualBatch(t *testing.T) {
 		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		Sequencer:   common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 	}
-	err = testState.AddVirtualBatch(ctx, virtualBatch, tx)
+	err = testState.AddVirtualBatch(ctx, &virtualBatch, tx)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit(ctx))
 }

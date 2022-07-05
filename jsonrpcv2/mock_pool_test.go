@@ -9,7 +9,7 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
-	pool "github.com/hermeznetwork/hermez-core/poolv2"
+	pool "github.com/hermeznetwork/hermez-core/pool"
 
 	time "time"
 

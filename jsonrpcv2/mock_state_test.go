@@ -49,8 +49,8 @@ func (_m *stateMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) 
 	return r0, r1
 }
 
-// CommitStateTransaction provides a mock function with given fields: ctx, tx
-func (_m *stateMock) CommitStateTransaction(ctx context.Context, tx pgx.Tx) error {
+// CommitState provides a mock function with given fields: ctx, tx
+func (_m *stateMock) CommitState(ctx context.Context, tx pgx.Tx) error {
 	ret := _m.Called(ctx, tx)
 
 	var r0 error
@@ -222,8 +222,8 @@ func (_m *stateMock) GetL2BlockHashesSince(ctx context.Context, since time.Time,
 	return r0, r1
 }
 
-// GetL2BlockHeaderByNumber provides a mock function with given fields: ctx, blockNumber, dbTx
-func (_m *stateMock) GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error) {
+// GetL2BlockHeader provides a mock function with given fields: ctx, blockNumber, dbTx
+func (_m *stateMock) GetL2BlockHeader(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error) {
 	ret := _m.Called(ctx, blockNumber, dbTx)
 
 	var r0 *types.Header
@@ -571,8 +571,8 @@ func (_m *stateMock) ProcessUnsignedTransaction(ctx context.Context, tx *types.T
 	return r0
 }
 
-// RollbackStateTransaction provides a mock function with given fields: ctx, tx
-func (_m *stateMock) RollbackStateTransaction(ctx context.Context, tx pgx.Tx) error {
+// RollbackState provides a mock function with given fields: ctx, tx
+func (_m *stateMock) RollbackState(ctx context.Context, tx pgx.Tx) error {
 	ret := _m.Called(ctx, tx)
 
 	var r0 error

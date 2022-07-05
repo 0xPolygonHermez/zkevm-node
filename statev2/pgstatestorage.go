@@ -58,7 +58,6 @@ const (
 	addL2BlockSQL                            = "INSERT INTO statev2.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
 	getLastConsolidatedBlockNumberSQL        = "SELECT b.block_num FROM statev2.l2block b INNER JOIN statev2.verified_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
 	getLastVirtualBlockNumberSQL             = "SELECT b.block_num FROM statev2.l2block b INNER JOIN statev2.virtual_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
-	getLastVirtualBlockHeaderSQL             = "SELECT b.header FROM statev2.l2block b INNER JOIN statev2.virtual_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockByHashSQL                      = "SELECT header, uncles, received_at FROM statev2.l2block b WHERE b.block_hash = $1"
 	getLastL2BlockSQL                        = "SELECT header, uncles, received_at FROM statev2.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockHeaderByHashSQL                = "SELECT header FROM statev2.l2block b WHERE b.block_hash = $1"
@@ -479,7 +478,7 @@ func (p *PostgresStorage) ResetTrustedBatch(ctx context.Context, batchNumber uin
 }
 
 // AddVirtualBatch adds a new virtual batch to the storage.
-func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch VirtualBatch, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Sequencer.String(), virtualBatch.BlockNumber)
 	return err
@@ -552,7 +551,7 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 		return nil, err
 	}
 
-	transactions, err := p.GetTxsByL2BlockNumber(ctx, header.Number.Uint64(), dbTx)
+	transactions, err := p.GetTxsByBlockNumber(ctx, header.Number.Uint64(), dbTx)
 	if errors.Is(err, pgx.ErrNoRows) {
 		transactions = []*types.Transaction{}
 	} else if err != nil {
@@ -840,21 +839,6 @@ func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx)
 	return lastBlockNumber, nil
 }
 
-// GetLastL2BlockHeader gets the last l2 block number
-func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
-	header := &types.Header{}
-	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getLastVirtualBlockHeaderSQL).Scan(&header)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
-	}
-
-	return header, nil
-}
-
 // GetLastL2Block retrieves the latest L2 Block from the State data base
 func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error) {
 	header := &types.Header{}
@@ -869,7 +853,7 @@ func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*typ
 		return nil, err
 	}
 
-	transactions, err := p.GetTxsByL2BlockNumber(ctx, header.Number.Uint64(), dbTx)
+	transactions, err := p.GetTxsByBlockNumber(ctx, header.Number.Uint64(), dbTx)
 	if errors.Is(err, pgx.ErrNoRows) {
 		transactions = []*types.Transaction{}
 	} else if err != nil {
@@ -895,7 +879,7 @@ func (p *PostgresStorage) GetL2BlockByHash(ctx context.Context, hash common.Hash
 		return nil, err
 	}
 
-	transactions, err := p.GetTxsByL2BlockNumber(ctx, header.Number.Uint64(), dbTx)
+	transactions, err := p.GetTxsByBlockNumber(ctx, header.Number.Uint64(), dbTx)
 	if errors.Is(err, pgx.ErrNoRows) {
 		transactions = []*types.Transaction{}
 	} else if err != nil {
@@ -907,7 +891,7 @@ func (p *PostgresStorage) GetL2BlockByHash(ctx context.Context, hash common.Hash
 }
 
 // GetTxsByBlockNum returns all the txs in a given block
-func (p *PostgresStorage) GetTxsByL2BlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error) {
+func (p *PostgresStorage) GetTxsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error) {
 	q := p.getExecQuerier(dbTx)
 	rows, err := q.Query(ctx, getTxsByBlockNumSQL, blockNumber)
 

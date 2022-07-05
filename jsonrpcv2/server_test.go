@@ -33,6 +33,7 @@ type mocks struct {
 
 func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	const (
+		defaultChainID      = 1000
 		chainID             = 1001
 		sequencerAddressHex = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
 
@@ -63,7 +64,8 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 		APIWeb3:   true,
 	}
 
-	server := NewServer(cfg, chainID, pool, state, gasPriceEstimator, storage, apis)
+	server := NewServer(cfg, defaultChainID, chainID,
+		pool, state, gasPriceEstimator, storage, apis)
 
 	go func() {
 		err := server.Start()
@@ -87,6 +89,7 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	require.NoError(t, err)
 
 	msv := &mockedServer{
+		DefaultChainID:   defaultChainID,
 		ChainID:          chainID,
 		SequencerAddress: sequencerAddress,
 

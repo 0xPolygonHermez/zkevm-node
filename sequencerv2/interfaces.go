@@ -9,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
-	pool "github.com/hermeznetwork/hermez-core/poolv2"
-	state "github.com/hermeznetwork/hermez-core/statev2"
+	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -27,7 +27,7 @@ type txPool interface {
 
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
-	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error)
+	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*big.Int, error)
 	GetSendSequenceFee() (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
 }
@@ -36,14 +36,14 @@ type etherman interface {
 type stateInterface interface {
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLastBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*state.GlobalExitRoot, error)
+	GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*statev2.GlobalExitRoot, error)
 
-	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
+	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*statev2.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	StoreBatchHeader(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error
-	StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*state.ProcessTransactionResponse, dbTx pgx.Tx) error
+	StoreBatchHeader(ctx context.Context, batch statev2.Batch, dbTx pgx.Tx) error
+	StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*statev2.ProcessTransactionResponse, dbTx pgx.Tx) error
 	CloseBatch(ctx context.Context, batchNum uint64, stateRoot, localExitRoot common.Hash, dbTx pgx.Tx) error
-	ProcessBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
+	ProcessBatch(ctx context.Context, txs []types.Transaction, dbTx pgx.Tx) (*statev2.ProcessBatchResponse, error)
 	GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLastBatchTime(ctx context.Context, dbTx pgx.Tx) (time.Time, error)

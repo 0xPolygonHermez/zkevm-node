@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/hermeznetwork/hermez-core/ethermanv2/types"
 	"github.com/hermeznetwork/hermez-core/log"
-	pool "github.com/hermeznetwork/hermez-core/poolv2"
+	"github.com/hermeznetwork/hermez-core/pool"
 	"github.com/hermeznetwork/hermez-core/sequencerv2/profitabilitychecker"
 	"github.com/hermeznetwork/hermez-core/statev2"
 )
@@ -130,7 +130,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	log.Infof("processing tx")
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	processBatchResp, err := s.state.ProcessBatch(ctx, batchNumber, s.sequenceInProgress.Txs, nil)
+	processBatchResp, err := s.state.ProcessBatch(ctx, s.sequenceInProgress.Txs, nil)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
