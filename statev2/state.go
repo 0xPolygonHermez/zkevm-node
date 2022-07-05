@@ -52,6 +52,8 @@ var (
 	ErrParsingExecutorTrace = fmt.Errorf("error while parsing executor trace")
 	// ErrInvalidBatchNumber indicates the provided batch number is not the latest in db
 	ErrInvalidBatchNumber = errors.New("provided batch number is not latest")
+	// ErrNoIncludedTransactions indicates none of the batch transactions was processed
+	ErrNoIncludedTransactions = errors.New("none of the batch transactions was processed")
 )
 
 var (
@@ -100,6 +102,57 @@ func (s *State) RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error
 	return err
 }
 
+// Reset resets the state to a block for the given DB tx
+func (s *State) Reset(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
+	return s.PostgresStorage.Reset(ctx, blockNumber, dbTx)
+}
+
+// ResetTrustedState resets the trusted batches which is higher than input.
+func (s *State) ResetTrustedState(ctx context.Context, batchNum uint64, dbTx pgx.Tx) error {
+	return s.PostgresStorage.ResetTrustedBatch(ctx, batchNum, dbTx)
+}
+
+// AddVirtualBatch add a new virtual batch to the state.
+func (s *State) AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch, dbTx pgx.Tx) error {
+	return s.PostgresStorage.AddVirtualBatch(ctx, virtualBatch, dbTx)
+}
+
+// AddGlobalExitRoot add a global exit root into the state data base
+func (s *State) AddGlobalExitRoot(ctx context.Context, exitRoot *GlobalExitRoot, dbTx pgx.Tx) error {
+	return s.PostgresStorage.AddGlobalExitRoot(ctx, exitRoot, dbTx)
+}
+
+// GetLatestGlobalExitRoot gets the most recent global exit root from the state data base
+func (s *State) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*GlobalExitRoot, error) {
+	return s.PostgresStorage.GetLatestGlobalExitRoot(ctx, dbTx)
+}
+
+// GetForcedBath retrieves a forced batch from the state data base
+func (s *State) GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*ForcedBatch, error) {
+	return s.PostgresStorage.GetForcedBatch(ctx, forcedBatchNumber, dbTx)
+}
+
+// GetForcedBatchByBatchNumber retrieves a forced batch by batch number from the
+// state data base.
+func (s *State) GetForcedBatchByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*ForcedBatch, error) {
+	return s.PostgresStorage.GetForcedBatchByBatchNumber(ctx, batchNumber, dbTx)
+}
+
+// AddBlock adds a new block to the State Store.
+func (s *State) AddBlock(ctx context.Context, block *Block, dbTx pgx.Tx) error {
+	return s.PostgresStorage.AddBlock(ctx, block, dbTx)
+}
+
+// GetLastBlock gets the last L1 block.
+func (s *State) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*Block, error) {
+	return s.PostgresStorage.GetLastBlock(ctx, dbTx)
+}
+
+// GetPreviousBlock gets the offset previous L1 block respect to latest.
+func (s *State) GetPreviousBlock(ctx context.Context, offset uint64, dbTx pgx.Tx) (*Block, error) {
+	return s.PostgresStorage.GetPreviousBlock(ctx, offset, dbTx)
+}
+
 // GetBalance from a given address
 func (s *State) GetBalance(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
 	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
@@ -146,6 +199,16 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error) {
 	// TODO: implement
 	return 0, nil
+}
+
+// StoreBatchHeader is used by the Trusted Sequencer to create a new batch
+func (s *State) StoreBatchHeader(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
+	return s.PostgresStorage.StoreBatchHeader(ctx, batch, dbTx)
+}
+
+// GetNextForcedBatches returns the next forced batches by nextForcedBatches
+func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]ForcedBatch, error) {
+	return s.PostgresStorage.GetNextForcedBatches(ctx, nextForcedBatches, dbTx)
 }
 
 // ProcessBatch is used by the Trusted Sequencer to add transactions to the batch
@@ -262,8 +325,29 @@ func (s *State) CloseBatch(ctx context.Context, batchNum uint64, stateRoot, loca
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to a add closed batch into the data base
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
-	// TODO: implement
-	return nil
+	processBatchResponse, err := s.ProcessBatch(ctx, batch.BatchNumber, batch.Transactions, dbTx)
+	if err != nil {
+		return err
+	}
+
+	err = s.StoreTransactions(ctx, batch.BatchNumber, processBatchResponse.Responses, dbTx)
+	if err != nil {
+		return err
+	}
+
+	i := len(processBatchResponse.Responses) - 1
+
+	for i >= 0 {
+		if !processBatchResponse.Responses[i].UnprocessedTransaction {
+			break
+		}
+	}
+
+	if i < 0 {
+		return ErrNoIncludedTransactions
+	}
+
+	return s.CloseBatch(ctx, batch.BatchNumber, processBatchResponse.Responses[i].StateRoot, batch.OldLocalExitRoot, dbTx)
 }
 
 // GetLastTrustedBatchNumber get last trusted batch number
@@ -281,7 +365,37 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 	return batches[0], nil
 }
 
-// DebugTransaction re-executes a tx to generate its trace
+// GetLastBatchNumber gets the last batch number.
+func (s *State) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetLastBatchNumber(ctx, dbTx)
+}
+
+// GetBatchByNumber gets a batch from data base by its number
+func (s *State) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+	return s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
+}
+
+// GetEncodedTransactionsByBatchNumber gets the txs for a given batch in encoded form
+func (s *State) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []string, err error) {
+	return s.PostgresStorage.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
+}
+
+// GetNumberOfBlocksSinceLastGERUpdate get number of blocks since last global exit root updated
+func (s *State) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetNumberOfBlocksSinceLastGERUpdate(ctx, dbTx)
+}
+
+// AddVerifiedBatch adds a new VerifiedBatch to the db
+func (s *State) AddVerifiedBatch(ctx context.Context, verifiedBatch *VerifiedBatch, dbTx pgx.Tx) error {
+	return s.PostgresStorage.AddVerifiedBatch(ctx, verifiedBatch, dbTx)
+}
+
+// GetVerifiedBatch get an L1 verifiedBatch
+func (s *State) GetVerifiedBatch(ctx context.Context, dbTx pgx.Tx, batchNumber uint64) (*VerifiedBatch, error) {
+	return s.PostgresStorage.GetVerifiedBatch(ctx, batchNumber, dbTx)
+}
+
+// DebugTransaction re executes a tx to generate its trace
 func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error) {
 	// TODO: Implement
 	return new(runtime.ExecutionResult), nil
@@ -423,6 +537,62 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	jsTracer.CaptureEnd(common.Hex2Bytes(trace.Context.Output), gasUsed.Uint64(), time.Duration(trace.Context.Time), nil)
 
 	return jsTracer.GetResult()
+}
+
+func (s *State) GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetLastConsolidatedL2BlockNumber(ctx, dbTx)
+}
+
+func (s *State) GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error) {
+	return s.PostgresStorage.GetTransactionByHash(ctx, transactionHash, dbTx)
+}
+
+func (s *State) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
+	return s.PostgresStorage.GetTransactionReceipt(ctx, transactionHash, dbTx)
+}
+
+func (s *State) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
+}
+
+func (s *State) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Block, error) {
+	return s.PostgresStorage.GetL2BlockByHash(ctx, hash, dbTx)
+}
+
+func (s *State) GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Block, error) {
+	return s.PostgresStorage.GetL2BlockByNumber(ctx, blockNumber, dbTx)
+}
+
+func (s *State) GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (SyncingInfo, error) {
+	panic("not implemented yet")
+}
+
+func (s *State) GetTransactionByL2BlockHashAndIndex(ctx context.Context, blockHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
+	return s.PostgresStorage.GetTransactionByL2BlockHashAndIndex(ctx, blockHash, index, dbTx)
+}
+
+func (s *State) GetTransactionByL2BlockNumberAndIndex(ctx context.Context, blockNumber uint64, index uint64, dbTx pgx.Tx) (*types.Transaction, error) {
+	return s.PostgresStorage.GetTransactionByL2BlockNumberAndIndex(ctx, blockNumber, index, dbTx)
+}
+
+func (s *State) GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error) {
+	return s.PostgresStorage.GetL2BlockHeaderByNumber(ctx, blockNumber, dbTx)
+}
+
+func (s *State) GetL2BlockTransactionCountByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetL2BlockTransactionCountByHash(ctx, hash, dbTx)
+}
+
+func (s *State) GetL2BlockTransactionCountByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	return s.PostgresStorage.GetL2BlockTransactionCountByNumber(ctx, blockNumber, dbTx)
+}
+
+func (s *State) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error) {
+	return s.PostgresStorage.GetLogs(ctx, fromBlock, toBlock, addresses, topics, blockHash, since, dbTx)
+}
+
+func (s *State) GetL2BlockHashesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]common.Hash, error) {
+	return s.PostgresStorage.GetL2BlockHashesSince(ctx, since, dbTx)
 }
 
 func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
