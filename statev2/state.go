@@ -52,6 +52,8 @@ var (
 	ErrParsingExecutorTrace = fmt.Errorf("error while parsing executor trace")
 	// ErrInvalidBatchNumber indicates the provided batch number is not the latest in db
 	ErrInvalidBatchNumber = errors.New("provided batch number is not latest")
+	// ErrNoIncludedTransactions indicates none of the batch transactions was processed
+	ErrNoIncludedTransactions = errors.New("none of the batch transactions was processed")
 )
 
 var (
@@ -323,8 +325,29 @@ func (s *State) CloseBatch(ctx context.Context, batchNum uint64, stateRoot, loca
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to a add closed batch into the data base
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
-	// TODO: implement
-	return nil
+	processBatchResponse, err := s.ProcessBatch(ctx, batch.BatchNumber, batch.Transactions, dbTx)
+	if err != nil {
+		return err
+	}
+
+	err = s.StoreTransactions(ctx, batch.BatchNumber, processBatchResponse.Responses, dbTx)
+	if err != nil {
+		return err
+	}
+
+	i := len(processBatchResponse.Responses) - 1
+
+	for i >= 0 {
+		if !processBatchResponse.Responses[i].UnprocessedTransaction {
+			break
+		}
+	}
+
+	if i < 0 {
+		return ErrNoIncludedTransactions
+	}
+
+	return s.CloseBatch(ctx, batch.BatchNumber, processBatchResponse.Responses[i].StateRoot, batch.OldLocalExitRoot, dbTx)
 }
 
 // GetLastTrustedBatchNumber get last trusted batch number
