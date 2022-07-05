@@ -130,6 +130,11 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	log.Infof("processing tx")
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
+	batchNumber, err := s.state.GetLastBatchNumber(ctx, nil)
+	if err != nil {
+		log.Debug("failed to get last batch number")
+		return
+	}
 	processBatchResp, err := s.state.ProcessBatch(ctx, batchNumber, s.sequenceInProgress.Txs, nil)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
