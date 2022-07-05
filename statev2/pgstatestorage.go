@@ -22,9 +22,9 @@ const (
 	addGlobalExitRootSQL                     = "INSERT INTO statev2.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root) VALUES ($1, $2, $3, $4, $5)"
 	getLatestExitRootSQL                     = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM statev2.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
 	getLatestExitRootBlockNumSQL             = "SELECT block_num FROM statev2.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
-	addVirtualBatchSQL                       = "INSERT INTO statev2.virtual_batch (batch_num, tx_hash, sequencer, block_num) VALUES ($1, $2, $3, $4)"
-	addForcedBatchSQL                        = "INSERT INTO statev2.forced_batch (forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
-	getForcedBatchSQL                        = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer, batch_num, block_num FROM statev2.forced_batch WHERE forced_batch_num = $1"
+	addVirtualBatchSQL                       = "INSERT INTO statev2.virtual_batch (batch_num, tx_hash, coinbase, block_num) VALUES ($1, $2, $3, $4)"
+	addForcedBatchSQL                        = "INSERT INTO statev2.forced_batch (forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	getForcedBatchSQL                        = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num FROM statev2.forced_batch WHERE forced_batch_num = $1"
 	addBlockSQL                              = "INSERT INTO statev2.block (block_num, block_hash, parent_hash, received_at) VALUES ($1, $2, $3, $4)"
 	getLastBlockSQL                          = "SELECT block_num, block_hash, parent_hash, received_at FROM statev2.block ORDER BY block_num DESC LIMIT 1"
 	getPreviousBlockSQL                      = "SELECT block_num, block_hash, parent_hash, received_at FROM statev2.block ORDER BY block_num DESC LIMIT 1 OFFSET $1"
@@ -33,24 +33,25 @@ const (
 	addVerifiedBatchSQL                      = "INSERT INTO statev2.verified_batch (block_num, batch_num, tx_hash, aggregator) VALUES ($1, $2, $3, $4)"
 	getVerifiedBatchSQL                      = "SELECT block_num, batch_num, tx_hash, aggregator FROM statev2.verified_batch WHERE batch_num = $1"
 	getLastBatchNumberSQL                    = "SELECT COALESCE(MAX(batch_num), 0) FROM statev2.batch"
-	getLastNBatchesSQL                       = "SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, sequencer, raw_txs_data from statev2.batch ORDER BY batch_num DESC LIMIT $1"
+	getLastNBatchesSQL                       = "SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data from statev2.batch ORDER BY batch_num DESC LIMIT $1"
 	getLastBatchTimeSQL                      = "SELECT timestamp FROM statev2.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchNumSQL                = "SELECT batch_num FROM statev2.virtual_batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchBlockNumSQL           = "SELECT block_num FROM statev2.virtual_batch ORDER BY batch_num DESC LIMIT 1"
 	getLastBlockNumSQL                       = "SELECT block_num FROM statev2.block ORDER BY block_num DESC LIMIT 1"
 	getLastL2BlockNumber                     = "SELECT block_num FROM statev2.l2block ORDER BY block_num DESC LIMIT 1"
 	getBlockTimeByNumSQL                     = "SELECT received_at FROM statev2.block WHERE block_num = $1"
-	getForcedBatchByBatchNumSQL              = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer, batch_num, block_num from statev2.forced_batch WHERE batch_num = $1"
-	getBatchByNumberSQL                      = "SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, sequencer, raw_txs_data from statev2.batch WHERE batch_num = $1"
+	getForcedBatchByBatchNumSQL              = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num from statev2.forced_batch WHERE batch_num = $1"
+	getBatchByNumberSQL                      = "SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data from statev2.batch WHERE batch_num = $1"
+	getProcessingContextSQL                  = "SELECT batch_num, global_exit_root, timestamp, coinbase from statev2.batch WHERE batch_num = $1"
 	getEncodedTransactionsByBatchNumberSQL   = "SELECT encoded FROM statev2.transaction t INNER JOIN statev2.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1"
 	getLastBatchSeenSQL                      = "SELECT last_batch_num_seen FROM statev2.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                   = "UPDATE statev2.sync_info SET last_batch_num_seen = $1"
 	resetTrustedBatchSQL                     = "DELETE FROM statev2.batch WHERE batch_num > $1"
-	isBatchClosedSQL                         = "SELECT raw_txs_data IS NOT NULL AND global_exit_root IS NOT NULL AND state_root IS NOT NULL FROM statev2.batch WHERE batch_num = $1 LIMIT 1"
-	addGenesisBatchSQL                       = `INSERT INTO statev2.batch (batch_num, global_exit_root, local_exit_root, state_root, timestamp, sequencer, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	openBatchSQL                             = "INSERT INTO statev2.batch (batch_num, global_exit_root, timestamp, sequencer) VALUES ($1, $2, $3, $4)"
+	isBatchClosedSQL                         = "SELECT global_exit_root IS NOT NULL AND state_root IS NOT NULL FROM statev2.batch WHERE batch_num = $1 LIMIT 1"
+	addGenesisBatchSQL                       = `INSERT INTO statev2.batch (batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	openBatchSQL                             = "INSERT INTO statev2.batch (batch_num, global_exit_root, timestamp, coinbase) VALUES ($1, $2, $3, $4)"
 	closeBatchSQL                            = "UPDATE statev2.batch SET state_root = $1, local_exit_root = $2, raw_txs_data = $3 WHERE batch_num = $4"
-	getNextForcedBatchesSQL                  = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, sequencer, batch_num, block_num FROM statev2.forced_batch WHERE batch_num IS NULL LIMIT $1"
+	getNextForcedBatchesSQL                  = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num FROM statev2.forced_batch WHERE batch_num IS NULL LIMIT $1"
 	addBatchNumberInForcedBatchSQL           = "UPDATE statev2.forced_batch SET batch_num = $2 WHERE forced_batch_num = $1"
 	getL2BlockByNumberSQL                    = "SELECT header, uncles, received_at FROM statev2.l2block b WHERE b.block_num = $1"
 	getL2BlockHeaderByNumberSQL              = "SELECT header FROM statev2.l2block b WHERE b.block_num = $1"
@@ -65,7 +66,7 @@ const (
 	getL2BlockByHashSQL                      = "SELECT header, uncles, received_at FROM statev2.l2block b WHERE b.block_hash = $1"
 	getLastL2BlockSQL                        = "SELECT header, uncles, received_at FROM statev2.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockHeaderByHashSQL                = "SELECT header FROM statev2.l2block b WHERE b.block_hash = $1"
-	getTxsByBlockNumSQL                      = "SELECT transaction.encoded FROM statev2.transaction t WHERE t.block_num = $1"
+	getTxsByBlockNumSQL                      = "SELECT encoded FROM statev2.transaction WHERE l2_block_num = $1"
 	getL2BlockHashesSinceSQL                 = "SELECT block_hash FROM statev2.l2block WHERE received_at >= $1"
 	getTransactionLogsSQL                    = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE t.hash = $1"
 	getLogsByBlockHashSQL                    = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM statev2.log l INNER JOIN statev2.transaction t ON t.hash = l.tx_hash INNER JOIN statev2.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
@@ -429,6 +430,30 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	return &batch, nil
 }
 
+func (p *PostgresStorage) GetProcessingContext(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*ProcessingContext, error) {
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, getProcessingContextSQL, batchNumber)
+	processingContext := ProcessingContext{}
+	var (
+		gerStr      string
+		coinbaseStr string
+	)
+	if err := row.Scan(
+		&processingContext.BatchNumber,
+		&gerStr,
+		&processingContext.Timestamp,
+		&coinbaseStr,
+	); errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+	processingContext.GlobalExitRoot = common.HexToHash(gerStr)
+	processingContext.Coinbase = common.HexToAddress(coinbaseStr)
+
+	return &processingContext, nil
+}
+
 func scanBatch(row pgx.Row) (Batch, error) {
 	batch := Batch{}
 	var (
@@ -487,11 +512,11 @@ func (p *PostgresStorage) ResetTrustedBatch(ctx context.Context, batchNumber uin
 // AddVirtualBatch adds a new virtual batch to the storage.
 func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Sequencer.String(), virtualBatch.BlockNumber)
+	_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber)
 	return err
 }
 
-func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
+func (p *PostgresStorage) storeGenesisBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
 	if batch.BatchNumber != 0 {
 		return fmt.Errorf("unexpected batch number. Got %d, should be 0", batch.BatchNumber)
 	}
@@ -809,13 +834,20 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		header = string(headerBytes)
 	}
 
-	var uncles = "{}"
+	var uncles = "[]"
 	if l2Block.Uncles() != nil {
 		unclesBytes, err := json.Marshal(l2Block.Uncles())
 		if err != nil {
 			return err
 		}
 		uncles = string(unclesBytes)
+	}
+
+	if _, err := e.Exec(ctx, addL2BlockSQL,
+		l2Block.Number().Uint64(), l2Block.Hash().String(), header, uncles,
+		l2Block.ParentHash().String(), l2Block.Root().String(),
+		l2Block.ReceivedAt, batchNumber); err != nil {
+		return err
 	}
 
 	for _, tx := range l2Block.Transactions() {
@@ -851,12 +883,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		}
 	}
 
-	_, err := e.Exec(ctx, addL2BlockSQL,
-		l2Block.Number().Uint64(), l2Block.Hash().String(), header, uncles,
-		l2Block.ParentHash().String(), l2Block.Root().String(),
-		l2Block.ReceivedAt, batchNumber)
-
-	return err
+	return nil
 }
 
 // GetLastConsolidatedL2BlockNumber gets the last l2 block verified
@@ -891,16 +918,30 @@ func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx)
 
 // GetLastL2Block retrieves the latest L2 Block from the State data base
 func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error) {
-	header := &types.Header{}
-	uncles := []*types.Header{}
-	receivedAt := time.Time{}
+	var (
+		headerStr  string
+		unclesStr  string
+		receivedAt time.Time
+	)
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getLastL2BlockSQL).Scan(&header, &uncles, &receivedAt)
+	err := q.QueryRow(ctx, getLastL2BlockSQL).Scan(&headerStr, &unclesStr, &receivedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
 		return nil, err
+	}
+
+	header := &types.Header{}
+	uncles := []*types.Header{}
+
+	if err := json.Unmarshal([]byte(headerStr), header); err != nil {
+		return nil, err
+	}
+	if unclesStr != "[]" {
+		if err := json.Unmarshal([]byte(unclesStr), &uncles); err != nil {
+			return nil, err
+		}
 	}
 
 	transactions, err := p.GetTxsByBlockNumber(ctx, header.Number.Uint64(), dbTx)
@@ -1144,7 +1185,8 @@ func (p *PostgresStorage) hashesToBytes(hashes []common.Hash) [][]byte {
 // AddReceipt adds a new receipt to the State Store
 func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.Bytes(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
+	// INSERT INTO statev2.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
 	return err
 }
 

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	state "github.com/hermeznetwork/hermez-core/statev2"
@@ -112,15 +113,7 @@ func TestOpenCloseBatch(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	expectedBatch := state.Batch{
-		BatchNumber:    0,
-		Coinbase:       common.HexToAddress("1111"),
-		BatchL2Data:    []byte("2222"),
-		LocalExitRoot:  common.HexToHash("3333"),
-		Timestamp:      time.Now().UTC(),
-		GlobalExitRoot: common.HexToHash("4444"),
-	}
-	err = testState.StoreGenesisBatch(ctx, expectedBatch, dbTx)
+	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	processingCtx1 := state.ProcessingContext{
@@ -155,12 +148,16 @@ func TestOpenCloseBatch(t *testing.T) {
 	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Add txs to batch #1
+	tx1 := *types.NewTransaction(0, common.HexToAddress("0"), big.NewInt(0), 0, big.NewInt(0), []byte("aaa"))
+	tx2 := *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
 	txsBatch1 := []*state.ProcessTransactionResponse{
 		{
-			TxHash: common.HexToHash("101"),
+			TxHash: tx1.Hash(),
+			Tx:     tx1,
 		},
 		{
-			TxHash: common.HexToHash("102"),
+			TxHash: tx2.Hash(),
+			Tx:     tx2,
 		},
 	}
 	err = testState.StoreTransactions(ctx, 1, txsBatch1, dbTx)
@@ -194,42 +191,18 @@ func TestOpenCloseBatch(t *testing.T) {
 	// Get batch #1 from DB and compare with on memory batch
 	actualBatch, err := testState.GetBatchByNumber(ctx, 1, dbTx)
 	require.NoError(t, err)
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{tx1, tx2})
+	require.NoError(t, err)
 	assertBatch(t, state.Batch{
 		BatchNumber:    1,
 		Coinbase:       processingCtx1.Coinbase,
-		BatchL2Data:    []byte("foofoo"),
+		BatchL2Data:    batchL2Data,
 		StateRoot:      receipt1.StateRoot,
 		LocalExitRoot:  receipt1.LocalExitRoot,
 		Timestamp:      processingCtx1.Timestamp,
 		GlobalExitRoot: processingCtx1.GlobalExitRoot,
 	}, *actualBatch)
 	require.NoError(t, dbTx.Commit(ctx))
-}
-
-func TestStoreGenesisBatch(t *testing.T) {
-	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
-	ctx := context.Background()
-	// Store genesis batch
-	expectedBatch := state.Batch{
-		BatchNumber:    0,
-		Coinbase:       common.HexToAddress("1111"),
-		BatchL2Data:    []byte("2222"),
-		LocalExitRoot:  common.HexToHash("3333"),
-		Timestamp:      time.Now().UTC(),
-		GlobalExitRoot: common.HexToHash("4444"),
-	}
-	err = testState.StoreGenesisBatch(ctx, expectedBatch, nil)
-	require.NoError(t, err)
-	// Get genesis batch from DB and compare with on memory batch
-	actualBatch, err := testState.GetBatchByNumber(ctx, 0, nil)
-	require.NoError(t, err)
-	assertBatch(t, expectedBatch, *actualBatch)
-	// Try to insert a batch that is not the genesis
-	nonGenesisBatch := state.Batch{BatchNumber: 1}
-	err = testState.StoreGenesisBatch(ctx, nonGenesisBatch, nil)
-	require.True(t, strings.Contains(err.Error(), "unexpected batch"))
 }
 
 func assertBatch(t *testing.T, expected, actual state.Batch) {
@@ -368,7 +341,7 @@ func TestAddVirtualBatch(t *testing.T) {
 		BlockNumber: 1,
 		BatchNumber: 1,
 		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		Sequencer:   common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+		Coinbase:    common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 	}
 	err = testState.AddVirtualBatch(ctx, &virtualBatch, tx)
 	require.NoError(t, err)

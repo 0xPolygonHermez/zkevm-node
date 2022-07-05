@@ -47,6 +47,6 @@ type VerifiedBatch struct {
 type VirtualBatch struct {
 	BatchNumber uint64
 	TxHash      common.Hash
-	Sequencer   common.Address
+	Coinbase    common.Address
 	BlockNumber uint64
 }

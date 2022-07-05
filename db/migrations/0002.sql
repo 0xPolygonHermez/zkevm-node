@@ -18,14 +18,14 @@ CREATE TABLE statev2.batch (  --batch abstraction: will be created through trust
     local_exit_root VARCHAR,
     state_root VARCHAR,
     timestamp TIMESTAMP,
-    sequencer VARCHAR,
-    raw_txs_data VARCHAR
+    coinbase VARCHAR,
+    raw_txs_data BYTEA
 );
 
 CREATE TABLE statev2.virtual_batch (  --virtual state
     batch_num BIGINT PRIMARY KEY REFERENCES statev2.batch (batch_num) ON DELETE CASCADE,
     tx_hash VARCHAR,
-    sequencer VARCHAR,
+    coinbase VARCHAR,
     block_num BIGINT NOT NULL REFERENCES statev2.block (block_num) ON DELETE CASCADE
 );
 
@@ -41,7 +41,7 @@ CREATE TABLE statev2.forced_batch (
     global_exit_root VARCHAR,
     timestamp TIMESTAMP,
     raw_txs_data VARCHAR,
-    sequencer VARCHAR,
+    coinbase VARCHAR,
     batch_num BIGINT, -- It can be null if the batch state is not trusted
     block_num BIGINT NOT NULL REFERENCES statev2.block (block_num) ON DELETE CASCADE
 );
@@ -88,11 +88,11 @@ CREATE TABLE statev2.receipt
 (
     tx_hash VARCHAR NOT NULL PRIMARY KEY REFERENCES statev2.transaction (hash) ON DELETE CASCADE,
     type integer,
-    post_state VARCHAR,
+    post_state BYTEA,
     status BIGINT,
     cumulative_gas_used BIGINT,
     gas_used BIGINT,
-    block_num BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
+    block_num BIGINT NOT NULL REFERENCES statev2.l2block (block_num) ON DELETE CASCADE,
     tx_index integer,
     contract_address VARCHAR
 );
