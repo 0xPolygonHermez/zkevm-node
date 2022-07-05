@@ -1,0 +1,93 @@
+{
+ "cumulative_gas_used": 140628218304016,
+ "responses": [
+  {
+   "tx_hash": "MHgxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0",
+   "type": 2399098432,
+   "return_value": "MHgxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0",
+   "gas_used": 140628218304016,
+   "gas_refunded": 94624515728992,
+   "error": "Hardcoded error",
+   "create_address": "Invalid Create Address",
+   "logs": [
+    {
+     "address": "0x1234567890123456789012345678901234567890",
+     "topics": [
+      "SW52YWxpZCBUb3BpYw==",
+      "SW52YWxpZCBUb3BpYw==",
+      "SW52YWxpZCBUb3BpYw=="
+     ],
+     "data": "MHgxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0",
+     "batch_number": 13,
+     "tx_hash": "MHgxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0",
+     "tx_index": 13,
+     "batch_hash": "MHgxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0",
+     "index": 13
+    }
+   ],
+   "unprocessed_transaction": 174,
+   "call_trace": {
+    "context": {
+     "type": "CALL",
+     "from": "0x617b3a3528f9cdd6630fd3301b9c8911f7bf063d",
+     "to": "0x13c",
+     "data": "MHgw",
+     "gas": 4200665547536988861,
+     "value": 2,
+     "batch": "MHgxN2FiNzkxZTU5OWZhM2U0ZWQ2ZmFlZTQzNDIzMjhmZWFkZjYzYTg3MDI5YzNiMmQzYTRiYzMwZjM1MjlmYWJk",
+     "gas_used": 140628218304016,
+     "gas_price": 5,
+     "old_state_root": "MHhiZWNjODFkYzA2NjAwMWRiMmJjZjAzNzg2NjcxMTA3NDQ1MmNmYTk0NGRiODc5ZjFlNmE1YTIzYjc1YTI2ODE5"
+    }
+   }
+  },
+  {
+   "tx_hash": "MHgxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0",
+   "return_value": "MHgxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0",
+   "gas_left": 4200665547536988861,
+   "gas_used": 13,
+   "gas_refunded": 13,
+   "error": "Hardcoded error",
+   "create_address": "Invalid Create Address",
+   "state_root": "MHhiZWNjODFkYzA2NjAwMWRiMmJjZjAzNzg2NjcxMTA3NDQ1MmNmYTk0NGRiODc5ZjFlNmE1YTIzYjc1YTI2ODE5",
+   "logs": [
+    {
+     "address": "0x1234567890123456789012345678901234567890",
+     "topics": [
+      "SW52YWxpZCBUb3BpYw==",
+      "SW52YWxpZCBUb3BpYw==",
+      "SW52YWxpZCBUb3BpYw=="
+     ],
+     "data": "MHgxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0",
+     "batch_number": 13,
+     "tx_hash": "MHgxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0",
+     "tx_index": 13,
+     "batch_hash": "MHgxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0",
+     "index": 13
+    }
+   ],
+   "call_trace": {
+    "context": {
+     "type": "CALL",
+     "from": "0x617b3a3528f9cdd6630fd3301b9c8911f7bf063d",
+     "to": "0x13c",
+     "data": "MHgw",
+     "gas": 4200665547536988861,
+     "value": 2,
+     "batch": "MHgxN2FiNzkxZTU5OWZhM2U0ZWQ2ZmFlZTQzNDIzMjhmZWFkZjYzYTg3MDI5YzNiMmQzYTRiYzMwZjM1MjlmYWJk",
+     "gas_price": 5,
+     "old_state_root": "MHhiZWNjODFkYzA2NjAwMWRiMmJjZjAzNzg2NjcxMTA3NDQ1MmNmYTk0NGRiODc5ZjFlNmE1YTIzYjc1YTI2ODE5"
+    }
+   }
+  }
+ ],
+ "new_state_root": "MHgxN2FiNzkxZTU5OWZhM2U0ZWQ2ZmFlZTQzNDIzMjhmZWFkZjYzYTg3MDI5YzNiMmQzYTRiYzMwZjM1MjlmYWJk",
+ "new_local_exit_root": "MHgxN2FiNzkxZTU5OWZhM2U0ZWQ2ZmFlZTQzNDIzMjhmZWFkZjYzYTg3MDI5YzNiMmQzYTRiYzMwZjM1MjlmYWJk",
+ "cnt_keccak_hashes": 10,
+ "cnt_poseidon_hashes": 8,
+ "cnt_poseidon_paddings": 13,
+ "cnt_mem_aligns": 13,
+ "cnt_arithmetics": 934,
+ "cnt_binaries": 1425,
+ "cnt_steps": 19921
+}
