@@ -18,7 +18,7 @@ func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient,
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxMsgSize)),
 		grpc.WithBlock(),
 	}
-	const maxWaitSeconds = 10
+	const maxWaitSeconds = 120
 	ctx, cancel := context.WithTimeout(ctx, maxWaitSeconds*time.Second)
 
 	executorConn, err := grpc.DialContext(ctx, c.URI, opts...)

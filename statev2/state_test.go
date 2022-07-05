@@ -55,16 +55,23 @@ func TestMain(m *testing.M) {
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
-	executorClient, executorClientConn, _ = executor.NewExecutorClient(ctx, executorServerConfig)
+	var executorCancel context.CancelFunc
+	executorClient, executorClientConn, executorCancel = executor.NewExecutorClient(ctx, executorServerConfig)
 	s := executorClientConn.GetState()
 	log.Infof("executorClientConn state: %s", s.String())
-	defer executorClientConn.Close()
+	defer func() {
+		executorCancel()
+		executorClientConn.Close()
+	}()
 
 	stateDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
-	mtDBServiceClient, mtDBClientConn, _ := merkletree.NewMTDBServiceClient(ctx, stateDBServerConfig)
+	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, stateDBServerConfig)
 	s = mtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())
-	defer mtDBClientConn.Close()
+	defer func() {
+		mtDBCancel()
+		mtDBClientConn.Close()
+	}()
 
 	stateTree := merkletree.NewStateTree(mtDBServiceClient)
 

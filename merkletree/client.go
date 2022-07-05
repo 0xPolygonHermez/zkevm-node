@@ -16,7 +16,7 @@ func NewMTDBServiceClient(ctx context.Context, c Config) (pb.StateDBServiceClien
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 	}
-	const maxWaitSeconds = 10
+	const maxWaitSeconds = 120
 	ctx, cancel := context.WithTimeout(ctx, maxWaitSeconds*time.Second)
 
 	mtDBConn, err := grpc.DialContext(ctx, c.URI, opts...)
