@@ -400,7 +400,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processBatchResponse.Responses); i++ {
-		if processBatchResponse.Responses[i].UnprocessedTransaction {
+		if processBatchResponse.Responses[i].UnprocessedTransaction == cTrue {
 			// Remove unprocessed tx
 			processBatchResponse.Responses = append(processBatchResponse.Responses[:i], processBatchResponse.Responses[i+1:]...)
 			i--
