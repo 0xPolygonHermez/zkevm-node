@@ -11,7 +11,6 @@ import (
 	"net/http"
 
 	"github.com/didip/tollbooth/v6"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/log"
 )
 
@@ -32,13 +31,12 @@ type Server struct {
 }
 
 // NewServer returns the JsonRPC server
-func NewServer(cfg Config, defaultChainID uint64, chainID uint64,
-	p jsonRPCTxPool, s stateInterface, gpe gasPriceEstimator, storage storageInterface,
-	apis map[string]bool) *Server {
+func NewServer(cfg Config, chainID uint64, p jsonRPCTxPool, s stateInterface,
+	gpe gasPriceEstimator, storage storageInterface, apis map[string]bool) *Server {
 	handler := newJSONRpcHandler()
 
 	if _, ok := apis[APIEth]; ok {
-		ethEndpoints := &Eth{chainID: chainID, pool: p, state: s, gpe: gpe, sequencerAddress: common.HexToAddress(cfg.SequencerAddress), storage: storage}
+		ethEndpoints := &Eth{chainID: chainID, pool: p, state: s, gpe: gpe, storage: storage}
 		handler.registerService(APIEth, ethEndpoints)
 	}
 
