@@ -195,3 +195,5 @@ services:
       - POSTGRES_USER=zkstatedb
       - POSTGRES_PASSWORD=zkstatedb
       - POSTGRES_DB=perf_db
+    volumes:
+      - ./test/migrations/zkprover/001.sql:/docker-entrypoint-initdb.d/001.sql
