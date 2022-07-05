@@ -17,9 +17,9 @@ message ProcessBatchRequest {
     bytes global_exit_root = 5;
     bytes old_local_exit_root = 6;
     uint64 eth_timestamp = 7;
-    bool update_merkle_tree = 8;
-    bool generate_execute_trace = 9;
-    bool generate_call_trace = 10;
+    uint32 update_merkle_tree = 8;
+    uint32 generate_execute_trace = 9;
+    uint32 generate_call_trace = 10;
     // For testing purposes only
     map<string, string> db = 11; 
 }
@@ -127,7 +127,7 @@ message ProcessTransactionResponse {
     // Logs emited by LOG opcode
     repeated Log logs = 10;
     // Indicates if this tx didn't fit into the batch 
-    bool unprocessed_transaction = 11;
+    uint32 unprocessed_transaction = 11;
     // Trace
     repeated ExecutionTraceStep execution_trace = 12;
     CallTrace call_trace = 13;
