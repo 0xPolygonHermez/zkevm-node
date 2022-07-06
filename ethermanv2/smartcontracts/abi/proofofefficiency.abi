@@ -30,6 +30,11 @@
 				"internalType": "bool",
 				"name": "_forceBatchAllowed",
 				"type": "bool"
+			},
+			{
+				"internalType": "string",
+				"name": "_trustedSequencerURL",
+				"type": "string"
 			}
 		],
 		"stateMutability": "nonpayable",
@@ -90,6 +95,45 @@
 			}
 		],
 		"name": "SequenceForceBatches",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "newForceBatchAllowed",
+				"type": "bool"
+			}
+		],
+		"name": "SetForceBatchAllowed",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "newTrustedSequencer",
+				"type": "address"
+			}
+		],
+		"name": "SetTrustedSequencer",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "newTrustedSequencerURL",
+				"type": "string"
+			}
+		],
+		"name": "SetTrustedSequencerURL",
 		"type": "event"
 	},
 	{
@@ -420,6 +464,11 @@
 				"internalType": "uint64",
 				"name": "timestamp",
 				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "forceBatchNum",
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -429,7 +478,7 @@
 		"inputs": [
 			{
 				"internalType": "bool",
-				"name": "_forceBatchAllowed",
+				"name": "newForceBatchAllowed",
 				"type": "bool"
 			}
 		],
@@ -452,6 +501,19 @@
 		"type": "function"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "newTrustedSequencerURL",
+				"type": "string"
+			}
+		],
+		"name": "setTrustedSequencerURL",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "trustedSequencer",
 		"outputs": [
@@ -459,6 +521,19 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "trustedSequencerURL",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
 			}
 		],
 		"stateMutability": "view",
