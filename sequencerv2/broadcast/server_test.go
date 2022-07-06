@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"path"
 	"runtime"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	broadcast "github.com/hermeznetwork/hermez-core/sequencerv2/broadcast"
 	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb"
 	"github.com/hermeznetwork/hermez-core/statev2"
@@ -112,9 +112,9 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 			description:      "happy path",
 			inputBatchNumber: 14,
 			expectedBatch: &statev2.Batch{
-				BatchNumber:       14,
-				GlobalExitRootNum: new(big.Int),
-				Timestamp:         time.Now(),
+				BatchNumber:    14,
+				GlobalExitRoot: common.HexToHash("a"),
+				Timestamp:      time.Now(),
 			},
 			expectedForcedBatch: &statev2.ForcedBatch{
 				ForcedBatchNumber: 1,
@@ -151,7 +151,7 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 
 			if err == nil {
 				require.Equal(t, tc.expectedBatch.BatchNumber, actualBatch.BatchNumber)
-				require.Equal(t, tc.expectedBatch.GlobalExitRootNum.String(), actualBatch.GlobalExitRoot)
+				require.Equal(t, tc.expectedBatch.GlobalExitRoot.String(), actualBatch.GlobalExitRoot)
 				require.Equal(t, uint64(tc.expectedBatch.Timestamp.Unix()), actualBatch.Timestamp)
 				for i, encoded := range tc.expectedEncodedTxs {
 					require.Equal(t, encoded, actualBatch.Transactions[i].Encoded)
@@ -174,9 +174,9 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 		{
 			description: "happy path",
 			expectedBatch: &statev2.Batch{
-				BatchNumber:       14,
-				GlobalExitRootNum: new(big.Int),
-				Timestamp:         time.Now(),
+				BatchNumber:    14,
+				GlobalExitRoot: common.HexToHash("b"),
+				Timestamp:      time.Now(),
 			},
 			expectedForcedBatch: &statev2.ForcedBatch{
 				ForcedBatchNumber: 1,
@@ -212,7 +212,7 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 
 			if err == nil {
 				require.Equal(t, tc.expectedBatch.BatchNumber, actualBatch.BatchNumber)
-				require.Equal(t, tc.expectedBatch.GlobalExitRootNum.String(), actualBatch.GlobalExitRoot)
+				require.Equal(t, tc.expectedBatch.GlobalExitRoot.String(), actualBatch.GlobalExitRoot)
 				require.Equal(t, uint64(tc.expectedBatch.Timestamp.Unix()), actualBatch.Timestamp)
 				for i, encoded := range tc.expectedEncodedTxs {
 					require.Equal(t, encoded, actualBatch.Transactions[i].Encoded)

@@ -26,7 +26,6 @@ import (
 )
 
 var (
-	ownershipTransferredSignatureHash  = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 	updateGlobalExitRootSignatureHash  = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
 	forcedBatchSignatureHash           = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
 	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
@@ -142,8 +141,6 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	switch vLog.Topics[0] {
 	case sequencedBatchesEventSignatureHash:
 		return etherMan.sequencedBatchesEvent(ctx, vLog, blocks, blocksOrder)
-	case ownershipTransferredSignatureHash:
-		return etherMan.ownershipTransferredEvent(vLog)
 	case updateGlobalExitRootSignatureHash:
 		return etherMan.updateGlobalExitRootEvent(ctx, vLog, blocks, blocksOrder)
 	case forcedBatchSignatureHash:
@@ -154,20 +151,6 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		return etherMan.forceSequencedBatchesEvent(ctx, vLog, blocks, blocksOrder)
 	}
 	log.Warn("Event not registered: ", vLog)
-	return nil
-}
-
-func (etherMan *Client) ownershipTransferredEvent(vLog types.Log) error {
-	ownership, err := etherMan.GlobalExitRootManager.ParseOwnershipTransferred(vLog)
-	if err != nil {
-		return err
-	}
-	emptyAddr := common.Address{}
-	if ownership.PreviousOwner == emptyAddr {
-		log.Debug("New rollup smc deployment detected. Deployment account: ", ownership.NewOwner)
-	} else {
-		log.Debug("Rollup smc OwnershipTransferred from account ", ownership.PreviousOwner, " to ", ownership.NewOwner)
-	}
 	return nil
 }
 
@@ -392,7 +375,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 		lastBatchNumber -= uint64(len(sequences[i].ForceBatchesTimestamp))
 		sequencedBatches[i] = SequencedBatch{
 			BatchNumber:                lastBatchNumber,
-			Sequencer:                  sequencer,
+			Coinbase:                   sequencer,
 			TxHash:                     txHash,
 			ProofOfEfficiencyBatchData: sequences[i],
 		}
@@ -461,7 +444,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 		log.Error(err)
 		return err
 	}
-	sequencedForceBatch.Sequencer = msg.From()
+	sequencedForceBatch.Coinbase = msg.From()
 	sequencedForceBatch.ForceBatchNumber, err = decodeForceBatchNumber(tx.Data())
 	sequencedForceBatch.TxHash = vLog.TxHash
 	if err != nil {

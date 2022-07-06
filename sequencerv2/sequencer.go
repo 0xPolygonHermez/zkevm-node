@@ -25,11 +25,12 @@ const (
 type Sequencer struct {
 	cfg Config
 
-	pool      txPool
-	state     stateInterface
-	txManager txManager
-	etherman  etherman
-	checker   *profitabilitychecker.Checker
+	pool              txPool
+	state             stateInterface
+	txManager         txManager
+	etherman          etherman
+	checker           *profitabilitychecker.Checker
+	reorgBlockNumChan chan struct{}
 
 	address                          common.Address
 	lastBatchNum                     uint64
@@ -46,6 +47,7 @@ func New(
 	state stateInterface,
 	etherman etherman,
 	priceGetter priceGetter,
+	reorgBlockNumChan chan struct{},
 	manager txManager) (*Sequencer, error) {
 	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
 
@@ -54,18 +56,21 @@ func New(
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
 	return &Sequencer{
-		cfg:       cfg,
-		pool:      pool,
-		state:     state,
-		etherman:  etherman,
-		checker:   checker,
-		txManager: manager,
-		address:   addr,
+		cfg:               cfg,
+		pool:              pool,
+		state:             state,
+		etherman:          etherman,
+		checker:           checker,
+		txManager:         manager,
+		address:           addr,
+		reorgBlockNumChan: reorgBlockNumChan,
 	}, nil
 }
 
 // Start starts the sequencer
 func (s *Sequencer) Start(ctx context.Context) {
+	go s.trackReorg(ctx)
+	go s.trackOldTxs(ctx)
 	ticker := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	defer ticker.Stop()
 	for {
@@ -73,6 +78,39 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 }
 
+func (s *Sequencer) trackReorg(ctx context.Context) {
+	for {
+		select {
+		case <-s.reorgBlockNumChan:
+			const waitTime = 5 * time.Second
+
+			err := s.pool.MarkReorgedTxsAsPending(ctx)
+			for err != nil {
+				time.Sleep(waitTime)
+				log.Errorf("failed to mark reorged txs as pending")
+				err = s.pool.MarkReorgedTxsAsPending(ctx)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (s *Sequencer) trackOldTxs(ctx context.Context) {
+	ticker := time.NewTicker(s.cfg.FrequencyToCheckTxsForDelete.Duration)
+	for {
+		waitTick(ctx, ticker)
+		txHashes, err := s.state.GetTxsOlderThanNL1Blocks(ctx, s.cfg.BlocksAmountForTxsToBeDeleted, nil)
+		if err != nil {
+			log.Errorf("failed to get txs hashes to delete, err: %v", err)
+			continue
+		}
+		err = s.pool.DeleteTxsByHashes(ctx, txHashes)
+		if err != nil {
+			log.Errorf("failed to delete txs from the pool, err: %v", err)
+		}
+	}
+}
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	if !s.isSynced(ctx) {
 		log.Infof("wait for synchronizer to sync last batch")
@@ -283,11 +321,10 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	s.lastBatchNum = s.lastBatchNum + 1
 
 	batchHeader := statev2.Batch{
-		BatchNumber:       s.lastBatchNum,
-		Timestamp:         time.Now(),
-		GlobalExitRoot:    root.GlobalExitRoot,
-		GlobalExitRootNum: root.GlobalExitRootNum,
-		Coinbase:          s.address,
+		BatchNumber:    s.lastBatchNum,
+		Timestamp:      time.Now(),
+		GlobalExitRoot: root.GlobalExitRoot,
+		Coinbase:       s.address,
 	}
 	err = s.state.StoreBatchHeader(ctx, batchHeader, nil)
 	if err != nil {

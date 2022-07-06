@@ -174,3 +174,14 @@ services:
       - POSTGRES_HOST=hez-postgres
       - POSTGRES_PORT=5432
       - PROOF_TIME=1000
+
+  zkprover:
+    container_name: zkprover
+    image: hermeznetwork/zkprover-local@sha256:8e080866fda2639c9c3eb91c0fec5461f17acff7303e9e5c94fc6e4d430b5bc2
+    network_mode: "host"
+    expose:
+      - 50051
+      - 50061
+      - 50071
+    command: >
+      zkprover input_executor.json

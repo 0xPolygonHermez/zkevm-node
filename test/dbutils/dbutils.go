@@ -1,9 +1,8 @@
 package dbutils
 
 import (
-	"os"
-
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 )
 
 // InitOrReset will initializes the db running the migrations or
@@ -29,20 +28,12 @@ func NewConfigFromEnv() db.Config {
 	const maxDBPoolConns = 50
 
 	return db.Config{
-		User:      getEnv("PGUSER", "test_user"),
-		Password:  getEnv("PGPASSWORD", "test_password"),
-		Name:      getEnv("PGDATABASE", "test_db"),
-		Host:      getEnv("PGHOST", "localhost"),
-		Port:      getEnv("PGPORT", "5432"),
+		User:      testutils.GetEnv("PGUSER", "test_user"),
+		Password:  testutils.GetEnv("PGPASSWORD", "test_password"),
+		Name:      testutils.GetEnv("PGDATABASE", "test_db"),
+		Host:      testutils.GetEnv("PGHOST", "localhost"),
+		Port:      testutils.GetEnv("PGPORT", "5432"),
 		EnableLog: true,
 		MaxConns:  maxDBPoolConns,
 	}
-}
-
-func getEnv(key string, defaultValue string) string {
-	value, exists := os.LookupEnv(key)
-	if exists {
-		return value
-	}
-	return defaultValue
 }

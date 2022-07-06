@@ -37,9 +37,6 @@ const (
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
 	aggregatorAddress = "0xb94f5374fce5edbc8e2a8697c15331677e6ebf0b"
-
-	makeCmd = "make"
-	cmdDir  = "../.."
 )
 
 var dbConfig = dbutils.NewConfigFromEnv()
@@ -187,7 +184,7 @@ func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot, globa
 
 	// Wait for sequencer to select txs from pool and propose a new batch
 	// Wait for the synchronizer to update state
-	err = m.wait.Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
+	err = Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
 		// using a closure here to capture st and currentBatchNumber
 		latestBatchNumber, err := m.st.GetLastBatchNumberConsolidatedOnEthereum(m.ctx, "")
 		if err != nil {
@@ -433,86 +430,85 @@ func (m *Manager) SetUpSequencer() error {
 
 // StartNetwork starts the L1 network container
 func (m *Manager) StartNetwork() error {
-	if err := stopNetwork(); err != nil {
-		return err
-	}
-	cmd := exec.Command(makeCmd, "run-network")
-	err := runCmd(cmd)
-	if err != nil {
-		return err
-	}
-	// Wait network to be ready
-	return m.wait.Poll(DefaultInterval, DefaultDeadline, networkUpCondition)
+	return StartComponent("network", networkUpCondition)
 }
 
 // InitNetwork Initializes the L2 network registering the sequencer and adding funds via the bridge
 func (m *Manager) InitNetwork() error {
-	cmd := exec.Command(makeCmd, "init-network")
-	err := runCmd(cmd)
-	if err != nil {
+	if err := runMakeTarget("init-network"); err != nil {
 		return err
 	}
+
 	// Wait network to be ready
-	return m.wait.Poll(DefaultInterval, DefaultDeadline, networkUpCondition)
+	return Poll(DefaultInterval, DefaultDeadline, networkUpCondition)
 }
 
 // DeployUniswap deploys a uniswap environment and perform swaps
 func (m *Manager) DeployUniswap() error {
-	cmd := exec.Command(makeCmd, "deploy-uniswap")
-	err := runCmd(cmd)
-	if err != nil {
+	if err := runMakeTarget("deploy-uniswap"); err != nil {
 		return err
 	}
 	// Wait network to be ready
-	return m.wait.Poll(DefaultInterval, DefaultDeadline, networkUpCondition)
+	return Poll(DefaultInterval, DefaultDeadline, networkUpCondition)
 }
 
 func stopNetwork() error {
-	cmd := exec.Command(makeCmd, "stop-network")
-	return runCmd(cmd)
+	return StopComponent("network")
 }
 
 // StartCore starts the core container
 func (m *Manager) StartCore() error {
-	if err := stopCore(); err != nil {
-		return err
-	}
-	cmd := exec.Command(makeCmd, "run-core")
-	err := runCmd(cmd)
-	if err != nil {
-		return err
-	}
-	// Wait core to be ready
-	return m.wait.Poll(DefaultInterval, DefaultDeadline, coreUpCondition)
+	return StartComponent("core", coreUpCondition)
 }
 
 func stopCore() error {
-	cmd := exec.Command(makeCmd, "stop-core")
-	return runCmd(cmd)
+	return StopComponent("core")
 }
 
 // StartProver starts the prover container
 func (m *Manager) StartProver() error {
-	if err := stopProver(); err != nil {
-		return err
-	}
-	cmd := exec.Command(makeCmd, "run-prover")
-	err := runCmd(cmd)
-	if err != nil {
-		return err
-	}
-	// Wait prover to be ready
-	return m.wait.Poll(DefaultInterval, DefaultDeadline, ProverUpCondition)
+	return StartComponent("prover", ProverUpCondition)
 }
 
 func stopProver() error {
-	cmd := exec.Command(makeCmd, "stop-prover")
-	return runCmd(cmd)
+	return StopComponent("prover")
 }
 
 func runCmd(c *exec.Cmd) error {
-	c.Dir = cmdDir
+	c.Dir = "../.."
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c.Run()
+}
+
+// StartComponent starts a docker-compose component.
+func StartComponent(component string, conditions ...ConditionFunc) error {
+	cmdDown := fmt.Sprintf("stop-%s", component)
+	if err := runMakeTarget(cmdDown); err != nil {
+		return err
+	}
+	cmdUp := fmt.Sprintf("run-%s", component)
+	if err := runMakeTarget(cmdUp); err != nil {
+		return err
+	}
+
+	// Wait component to be ready
+	for _, condition := range conditions {
+		if err := Poll(DefaultInterval, DefaultDeadline, condition); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// StopComponent stops a docker-compose component.
+func StopComponent(component string) error {
+	cmdDown := fmt.Sprintf("stop-%s", component)
+	return runMakeTarget(cmdDown)
+}
+
+// runMakeTarget runs a Makefile target.
+func runMakeTarget(target string) error {
+	cmd := exec.Command("make", target)
+	return runCmd(cmd)
 }

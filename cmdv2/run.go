@@ -362,8 +362,9 @@ func newStateV1(c *config.Config, sqlDB *pgxpool.Pool) *state.State {
 
 func newStateV2(c *config.Config, sqlDB *pgxpool.Pool) *statev2.State {
 	stateDb := statev2.NewPostgresStorage(sqlDB)
-	executorClient, _ := executor.NewExecutorClient(c.Executor)
-	stateDBClient, _ := merkletree.NewStateDBServiceClient(merkletree.Config(c.MTClient))
+	ctx := context.Background()
+	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
+	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config(c.MTClient))
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
 	stateCfg := statev2.Config{

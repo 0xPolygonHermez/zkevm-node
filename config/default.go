@@ -68,6 +68,8 @@ WaitPeriodPoolIsEmpty = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "15s"
 WaitBlocksToUpdateGER = 10
 LastTimeBatchMaxWaitPeriod = "15s"
+BlocksAmountForTxsToBeDeleted = 100
+FrequencyToCheckTxsForDelete = "12h"
 	[Sequencerv2.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 
