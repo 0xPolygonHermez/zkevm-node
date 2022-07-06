@@ -33,7 +33,7 @@ type GlobalExitRoot struct {
 // SequencedBatches represents virtual batches
 type SequencedBatch struct {
 	BatchNumber uint64
-	Sequencer   common.Address
+	Coinbase    common.Address
 	TxHash      common.Hash
 	proofofefficiency.ProofOfEfficiencyBatchData
 }
@@ -60,6 +60,6 @@ type VerifiedBatch struct {
 type SequencedForceBatch struct {
 	LastBatchSequenced uint64
 	ForceBatchNumber   uint64
-	Sequencer          common.Address
+	Coinbase           common.Address
 	TxHash             common.Hash
 }
