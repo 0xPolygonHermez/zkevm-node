@@ -195,11 +195,6 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 	return s.PostgresStorage.openBatch(ctx, processingContext, dbTx)
 }
 
-// GetNextForcedBatches returns the next forced batches by nextForcedBatches
-func (s *State) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]ForcedBatch, error) {
-	return s.PostgresStorage.GetNextForcedBatches(ctx, nextForcedBatches, dbTx)
-}
-
 // ProcessSequencerBatch is used by the sequencers to proceess transactions into an open batch
 func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	batchL2Data, err := EncodeTransactions(txs)
@@ -392,26 +387,30 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
 		return err
 	}
-	processBatchResponse, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, dbTx)
+	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, dbTx)
 	if err != nil {
 		return err
 	}
 
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
-	for i := 0; i < len(processBatchResponse.Responses); i++ {
-		if processBatchResponse.Responses[i].UnprocessedTransaction == cTrue {
+	for i := 0; i < len(processed.Responses); i++ {
+		if processed.Responses[i].UnprocessedTransaction == cTrue {
 			// Remove unprocessed tx
-			processBatchResponse.Responses = append(processBatchResponse.Responses[:i], processBatchResponse.Responses[i+1:]...)
+			if i == len(processed.Responses) {
+				processed.Responses = processed.Responses[:i]
+			} else {
+				processed.Responses = append(processed.Responses[:i], processed.Responses[i+1:]...)
+			}
 			i--
 		}
 	}
 	var txs []types.Transaction
-	if len(processBatchResponse.Responses) > 0 {
+	if len(processed.Responses) > 0 {
 		// TODO: missing method to decode txs
 		log.Fatal("TODO: missing method to decode txs")
 	}
-	processedBatch := convertToProcessBatchResponse(txs, processBatchResponse)
+	processedBatch := convertToProcessBatchResponse(txs, processed)
 
 	// Store processed txs into the batch
 	err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
