@@ -24,7 +24,7 @@ type txPool interface {
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
-	GetTxsHashesNotExistingInState(ctx context.Context) ([]common.Hash, error)
+	MarkReorgedTxsAsPending(ctx context.Context) error
 }
 
 // etherman contains the methods required to interact with ethereum.
@@ -51,7 +51,7 @@ type stateInterface interface {
 	GetLastBatchTime(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 
 	GetTxsHashesFromBatchNum(ctx context.Context, batchNum uint64, dbTx pgx.Tx) ([]common.Hash, error)
-	GetTxsHashesToDelete(ctx context.Context, blockNumDiff uint64, dbTx pgx.Tx) ([]common.Hash, error)
+	GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uint64, dbTx pgx.Tx) ([]common.Hash, error)
 }
 
 type txManager interface {

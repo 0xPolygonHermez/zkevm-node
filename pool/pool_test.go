@@ -424,7 +424,7 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	assert.Equal(t, expectedGasPrice, gasPrice)
 }
 
-func TestGetTxsHashesNotExistingInState(t *testing.T) {
+func TestMarkReorgedTxsAsPending(t *testing.T) {
 	if err := dbutils.InitOrReset(cfg); err != nil {
 		panic(err)
 	}
@@ -483,10 +483,12 @@ func TestGetTxsHashesNotExistingInState(t *testing.T) {
 		t.Error(err)
 	}
 
-	txHashes, err := p.GetTxsHashesNotExistingInState(ctx)
+	err = p.MarkReorgedTxsAsPending(ctx)
 	require.NoError(t, err)
-	require.Equal(t, signedTx1.Hash().Hex(), txHashes[0].Hex())
-	require.Equal(t, signedTx2.Hash().Hex(), txHashes[1].Hex())
+	txs, err := p.GetPendingTxs(ctx, false, 100)
+	require.NoError(t, err)
+	require.Equal(t, signedTx1.Hash().Hex(), txs[0].Hash().Hex())
+	require.Equal(t, signedTx2.Hash().Hex(), txs[1].Hash().Hex())
 }
 
 func TestGetPendingTxSince(t *testing.T) {

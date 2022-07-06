@@ -58,26 +58,13 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 	return nil
 }
 
-// GetTxsHashesNotExistingInState get tx hashes that are not existing in the state
-func (p *PostgresPoolStorage) GetTxsHashesNotExistingInState(ctx context.Context) ([]common.Hash, error) {
-	const getTxsHashesNotExistingInState = "SELECT hash FROM pool.txs pt WHERE state = $1 AND NOT EXISTS (SELECT hash FROM statev2.transaction WHERE hash = pt.hash)"
-	rows, err := p.db.Query(ctx, getTxsHashesNotExistingInState, pool.TxStateSelected)
-	if err != nil {
-		return nil, err
+// MarkReorgedTxsAsPending updated reorged txs state from selected to pending
+func (p *PostgresPoolStorage) MarkReorgedTxsAsPending(ctx context.Context) error {
+	const updateReorgedTxsToPending = "UPDATE pool.txs pt SET state = $1 WHERE state = $2 AND NOT EXISTS (SELECT hash FROM statev2.transaction WHERE hash = pt.hash)"
+	if _, err := p.db.Exec(ctx, updateReorgedTxsToPending, pool.TxStatePending, pool.TxStateSelected); err != nil {
+		return err
 	}
-	defer rows.Close()
-
-	txsHashes := make([]common.Hash, 0, len(rows.RawValues()))
-	for rows.Next() {
-		var hashStr string
-
-		if err := rows.Scan(&hashStr); err != nil {
-			return nil, err
-		}
-		txsHashes = append(txsHashes, common.HexToHash(hashStr))
-	}
-
-	return txsHashes, nil
+	return nil
 }
 
 // GetTxsByState returns an array of transactions filtered by state

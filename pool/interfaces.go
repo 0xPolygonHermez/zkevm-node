@@ -20,7 +20,7 @@ type storage interface {
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
-	GetTxsHashesNotExistingInState(ctx context.Context) ([]common.Hash, error)
+	MarkReorgedTxsAsPending(ctx context.Context) error
 }
 
 type stateInterface interface {

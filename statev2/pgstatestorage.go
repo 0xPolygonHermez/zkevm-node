@@ -134,8 +134,8 @@ func (p *PostgresStorage) AddBlock(ctx context.Context, block *Block, dbTx pgx.T
 	return err
 }
 
-// GetTxsHashesToDelete get txs hashes to delete from tx pool
-func (p *PostgresStorage) GetTxsHashesToDelete(ctx context.Context, blockNumDiff uint64, dbTx pgx.Tx) ([]common.Hash, error) {
+// GetTxsOlderThanNL1Blocks get txs hashes to delete from tx pool
+func (p *PostgresStorage) GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uint64, dbTx pgx.Tx) ([]common.Hash, error) {
 	var batchNum, blockNum uint64
 	e := p.getExecQuerier(dbTx)
 
@@ -146,7 +146,7 @@ func (p *PostgresStorage) GetTxsHashesToDelete(ctx context.Context, blockNumDiff
 		return nil, err
 	}
 
-	blockNum = blockNum - blockNumDiff
+	blockNum = blockNum - nL1Blocks
 	if blockNum <= 0 {
 		return nil, errors.New("blockNumDiff is too big, there are no txs to delete")
 	}

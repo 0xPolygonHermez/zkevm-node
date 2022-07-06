@@ -82,24 +82,13 @@ func (s *Sequencer) trackReorg(ctx context.Context) {
 	for {
 		select {
 		case <-s.reorgBlockNumChan:
-			var (
-				txHashes []common.Hash
-				err      error
-				waitTime = 5 * time.Second
-			)
+			waitTime := 5 * time.Second
 
-			txSelectedHashes, err := s.pool.GetTxsHashesNotExistingInState(ctx)
+			err := s.pool.MarkReorgedTxsAsPending(ctx)
 			for err != nil {
 				time.Sleep(waitTime)
-				log.Errorf("failed to get txHashes from pool that are not existing on the state, err: %v", err)
-				txSelectedHashes, err = s.pool.GetTxsHashesNotExistingInState(ctx)
-			}
-
-			err = s.pool.UpdateTxsState(ctx, txSelectedHashes, pool.TxStatePending)
-			for err != nil {
-				time.Sleep(waitTime)
-				log.Errorf("failed to update txs state")
-				err = s.pool.UpdateTxsState(ctx, txHashes, pool.TxStatePending)
+				log.Errorf("failed to mark reorged txs as pending")
+				err = s.pool.MarkReorgedTxsAsPending(ctx)
 			}
 		case <-ctx.Done():
 			return
@@ -111,7 +100,7 @@ func (s *Sequencer) trackOldTxs(ctx context.Context) {
 	ticker := time.NewTicker(s.cfg.FrequencyToCheckTxsForDelete.Duration)
 	for {
 		waitTick(ctx, ticker)
-		txHashes, err := s.state.GetTxsHashesToDelete(ctx, s.cfg.BlocksAmountForTxsToBeDeleted, nil)
+		txHashes, err := s.state.GetTxsOlderThanNL1Blocks(ctx, s.cfg.BlocksAmountForTxsToBeDeleted, nil)
 		if err != nil {
 			log.Errorf("failed to get txs hashes to delete, err: %v", err)
 			continue

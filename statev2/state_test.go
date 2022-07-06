@@ -323,7 +323,7 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	_, err = testState.Exec(ctx, "INSERT INTO statev2.transaction (l2_block_num, encoded, hash) VALUES ($1, $2, $3)",
 		virtualBatch2.BatchNumber, fmt.Sprintf("encoded-%d", virtualBatch2.BatchNumber), l2Tx2.Hash().Hex())
 	require.NoError(t, err)
-	txHashes, err := testState.GetTxsHashesToDelete(ctx, 1, nil)
+	txHashes, err := testState.GetTxsOlderThanNL1Blocks(ctx, 1, nil)
 	require.NoError(t, err)
 	require.Equal(t, l2Tx1.Hash().Hex(), txHashes[0].Hex())
 }
