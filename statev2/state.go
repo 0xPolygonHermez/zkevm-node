@@ -397,7 +397,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	for i := 0; i < len(processed.Responses); i++ {
 		if processed.Responses[i].UnprocessedTransaction == cTrue {
 			// Remove unprocessed tx
-			if i == len(processed.Responses) - 1 {
+			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
 			} else {
 				processed.Responses = append(processed.Responses[:i], processed.Responses[i+1:]...)
