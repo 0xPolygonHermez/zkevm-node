@@ -136,7 +136,7 @@ func runTxSender(b *testing.B, l2Client *ethclient.Client, pl *pool.Pool, gasPri
 
 	// Wait for sequencer to select txs from pool and propose a new batch
 	// Wait for the synchronizer to update state
-	err = operations.NewWait().Poll(defaultInterval, defaultDeadline, func() (bool, error) {
+	err = operations.Poll(defaultInterval, defaultDeadline, func() (bool, error) {
 		// using a closure here to capture st and currentBatchNumber
 		count, err := pl.CountPendingTransactions(ctx)
 		if err != nil {

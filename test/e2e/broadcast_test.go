@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"os"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -13,11 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/merkletree"
-	statedbclientpb "github.com/hermeznetwork/hermez-core/merkletree/pb"
 	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb"
 	"github.com/hermeznetwork/hermez-core/statev2"
-	state "github.com/hermeznetwork/hermez-core/statev2"
-	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
+	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/hermeznetwork/hermez-core/test/operations"
 	"github.com/stretchr/testify/require"
@@ -28,8 +24,6 @@ import (
 
 const (
 	serverAddress     = "localhost:61090"
-	makeCmd           = "make"
-	cmdDir            = "../.."
 	totalBatches      = 2
 	totalTxsLastBatch = 5
 	encodedFmt        = "encoded-%d"
@@ -53,9 +47,9 @@ func TestBroadcast(t *testing.T) {
 		t.Skip()
 	}
 
-	require.NoError(t, startBroadcast())
+	require.NoError(t, operations.StartComponent("broadcast"))
 	defer func() {
-		require.NoError(t, stopBroadcast())
+		require.NoError(t, operations.StopComponent("broadcast"))
 	}()
 	st, err := initState()
 	require.NoError(t, err)
@@ -101,16 +95,10 @@ func initState() (*statev2.State, error) {
 	}
 	stateDb := statev2.NewPostgresStorage(sqlDB)
 
-	executorClient, _, err := newExecutorClient()
-	if err != nil {
-		return nil, err
-	}
+	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: "localhost:8080"})
 
-	stateDBClient, _, err := newStateDBClient()
-	if err != nil {
-		return nil, err
-	}
-	stateTree := merkletree.NewStateTree(stateDBClient)
+	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: "localhost:8080"})
+	stateTree := merkletree.NewStateTree(mtDBClient)
 	return statev2.NewState(statev2.Config{}, stateDb, executorClient, stateTree), nil
 }
 
@@ -121,31 +109,6 @@ func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	conn, err := grpc.DialContext(ctx, serverAddress, opts...)
 	return conn, cancel, err
-}
-
-func startBroadcast() error {
-	if err := stopBroadcast(); err != nil {
-		return err
-	}
-	cmd := exec.Command(makeCmd, "run-broadcast")
-	err := runCmd(cmd)
-	if err != nil {
-		return err
-	}
-	// wait broadcast to be ready
-	return operations.WaitGRPCHealthy(serverAddress)
-}
-
-func stopBroadcast() error {
-	cmd := exec.Command(makeCmd, "stop-broadcast")
-	return runCmd(cmd)
-}
-
-func runCmd(c *exec.Cmd) error {
-	c.Dir = cmdDir
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	return c.Run()
 }
 
 func populateDB(ctx context.Context, st *statev2.State) error {
@@ -166,7 +129,7 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 
 	for i := 1; i <= totalTxsLastBatch; i++ {
 		if i == 1 {
-			parentHash = state.ZeroHash
+			parentHash = statev2.ZeroHash
 		} else {
 			parentHash = l2Block.Hash()
 		}
@@ -191,30 +154,4 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 	}
 	_, err := st.PostgresStorage.Exec(ctx, addForcedBatch, forcedBatchNumber, common.Hash{}.String(), "", common.HexToAddress("").String(), time.Now(), totalBatches, blockNumber)
 	return err
-}
-
-func newExecutorClient() (executorclientpb.ExecutorServiceClient, *grpc.ClientConn, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	executorConn, err := grpc.Dial("localhost:8080", opts...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("fail to dial: %v", err)
-	}
-
-	executorClient := executorclientpb.NewExecutorServiceClient(executorConn)
-	return executorClient, executorConn, nil
-}
-
-func newStateDBClient() (statedbclientpb.StateDBServiceClient, *grpc.ClientConn, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	stateDBConn, err := grpc.Dial("localhost:8080", opts...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("fail to dial: %v", err)
-	}
-
-	stateDBClient := statedbclientpb.NewStateDBServiceClient(stateDBConn)
-	return stateDBClient, stateDBConn, nil
 }

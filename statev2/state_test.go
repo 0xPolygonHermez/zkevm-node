@@ -5,17 +5,20 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,10 +39,8 @@ var (
 	stateCfg     = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
-	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
-	executorClient       executorclientpb.ExecutorServiceClient
-	clientConn           *grpc.ClientConn
-	stateDBServerConfig  = merkletree.Config{URI: "54.170.178.97:50061"}
+	executorClient     executorclientpb.ExecutorServiceClient
+	executorClientConn *grpc.ClientConn
 )
 
 func TestMain(m *testing.M) {
@@ -53,13 +54,28 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	executorClient, clientConn = executor.NewExecutorClient(executorServerConfig)
-	defer clientConn.Close()
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 
-	stateDbServiceClient, stateClientConn := merkletree.NewStateDBServiceClient(stateDBServerConfig)
-	defer stateClientConn.Close()
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	var executorCancel context.CancelFunc
+	executorClient, executorClientConn, executorCancel = executor.NewExecutorClient(ctx, executorServerConfig)
+	s := executorClientConn.GetState()
+	log.Infof("executorClientConn state: %s", s.String())
+	defer func() {
+		executorCancel()
+		executorClientConn.Close()
+	}()
 
-	stateTree := merkletree.NewStateTree(stateDbServiceClient)
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+	s = mtDBClientConn.GetState()
+	log.Infof("stateDbClientConn state: %s", s.String())
+	defer func() {
+		mtDBCancel()
+		mtDBClientConn.Close()
+	}()
+
+	stateTree := merkletree.NewStateTree(mtDBServiceClient)
 
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
@@ -102,6 +118,112 @@ func TestAddBlock(t *testing.T) {
 	prevBlock, err := testState.GetPreviousBlock(ctx, 1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), prevBlock.BlockNumber)
+}
+
+func TestOpenCloseBatch(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	// Set genesis batch
+	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	require.NoError(t, err)
+	// Open batch #1
+	processingCtx1 := state.ProcessingContext{
+		BatchNumber:    1,
+		Coinbase:       common.HexToAddress("1"),
+		Timestamp:      time.Now().UTC(),
+		GlobalExitRoot: common.HexToHash("a"),
+	}
+	err = testState.OpenBatch(ctx, processingCtx1, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	// Fail opening batch #2 (#1 is still open)
+	processingCtx2 := state.ProcessingContext{
+		BatchNumber:    2,
+		Coinbase:       common.HexToAddress("2"),
+		Timestamp:      time.Now().UTC(),
+		GlobalExitRoot: common.HexToHash("b"),
+	}
+	err = testState.OpenBatch(ctx, processingCtx2, dbTx)
+	assert.Equal(t, state.ErrLastBatchShouldBeClosed, err)
+	// Fail closing batch #1 (it has no txs yet)
+	receipt1 := state.ProcessingReceipt{
+		BatchNumber:   1,
+		StateRoot:     common.HexToHash("1"),
+		LocalExitRoot: common.HexToHash("1"),
+	}
+	err = testState.CloseBatch(ctx, receipt1, dbTx)
+	require.Equal(t, state.ErrClosingBatchWithoutTxs, err)
+	require.NoError(t, dbTx.Rollback(ctx))
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	// Add txs to batch #1
+	tx1 := *types.NewTransaction(0, common.HexToAddress("0"), big.NewInt(0), 0, big.NewInt(0), []byte("aaa"))
+	tx2 := *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
+	txsBatch1 := []*state.ProcessTransactionResponse{
+		{
+			TxHash: tx1.Hash(),
+			Tx:     tx1,
+		},
+		{
+			TxHash: tx2.Hash(),
+			Tx:     tx2,
+		},
+	}
+	err = testState.StoreTransactions(ctx, 1, txsBatch1, dbTx)
+	require.NoError(t, err)
+	// Close batch #1
+	err = testState.CloseBatch(ctx, receipt1, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	// Fail opening batch #3 (should open batch #2)
+	processingCtx3 := state.ProcessingContext{
+		BatchNumber:    3,
+		Coinbase:       common.HexToAddress("3"),
+		Timestamp:      time.Now().UTC(),
+		GlobalExitRoot: common.HexToHash("c"),
+	}
+	err = testState.OpenBatch(ctx, processingCtx3, dbTx)
+	require.True(t, strings.Contains(err.Error(), "unexpected batch"))
+	// Fail opening batch #2 (invalid timestamp)
+	processingCtx2.Timestamp = processingCtx1.Timestamp.Add(-1 * time.Second)
+	err = testState.OpenBatch(ctx, processingCtx2, dbTx)
+	require.Equal(t, state.ErrTimestampGE, err)
+	processingCtx2.Timestamp = time.Now()
+	require.NoError(t, dbTx.Rollback(ctx))
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	// Open batch #2
+	err = testState.OpenBatch(ctx, processingCtx2, dbTx)
+	require.NoError(t, err)
+	// Get batch #1 from DB and compare with on memory batch
+	actualBatch, err := testState.GetBatchByNumber(ctx, 1, dbTx)
+	require.NoError(t, err)
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{tx1, tx2})
+	require.NoError(t, err)
+	assertBatch(t, state.Batch{
+		BatchNumber:    1,
+		Coinbase:       processingCtx1.Coinbase,
+		BatchL2Data:    batchL2Data,
+		StateRoot:      receipt1.StateRoot,
+		LocalExitRoot:  receipt1.LocalExitRoot,
+		Timestamp:      processingCtx1.Timestamp,
+		GlobalExitRoot: processingCtx1.GlobalExitRoot,
+	}, *actualBatch)
+	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func assertBatch(t *testing.T, expected, actual state.Batch) {
+	assert.Equal(t, expected.Timestamp.Unix(), actual.Timestamp.Unix())
+	actual.Timestamp = expected.Timestamp
+	assert.Equal(t, expected, actual)
 }
 
 func TestAddGlobalExitRoot(t *testing.T) {
@@ -228,20 +350,13 @@ func TestAddVirtualBatch(t *testing.T) {
 	}
 	err = testState.AddBlock(ctx, block, tx)
 	assert.NoError(t, err)
-	batch := state.Batch{
-		BatchNumber:    1,
-		GlobalExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		Coinbase:       common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
-		Timestamp:      time.Now(),
-		BatchL2Data:    common.Hex2Bytes("0x617b3a3528F9"),
-	}
-	err = testState.StoreBatchHeader(ctx, batch, tx)
-	require.NoError(t, err)
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO statev2.batch (batch_num) VALUES (1)")
+	assert.NoError(t, err)
 	virtualBatch := state.VirtualBatch{
 		BlockNumber: 1,
 		BatchNumber: 1,
 		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		Sequencer:   common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+		Coinbase:    common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 	}
 	err = testState.AddVirtualBatch(ctx, &virtualBatch, tx)
 	require.NoError(t, err)
@@ -401,7 +516,7 @@ func TestExecuteTransaction(t *testing.T) {
 	require.NoError(t, err)
 }
 */
-/*
+
 func TestGenesis(t *testing.T) {
 	balances := map[common.Address]*big.Int{
 		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
@@ -430,4 +545,3 @@ func TestGenesis(t *testing.T) {
 	err := testState.SetGenesis(ctx, genesis, nil)
 	require.NoError(t, err)
 }
-*/

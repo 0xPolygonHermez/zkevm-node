@@ -39,7 +39,7 @@ func NewWait() *Wait {
 
 // Poll retries the given condition with the given interval until it succeeds
 // or the given deadline expires.
-func (w *Wait) Poll(interval, deadline time.Duration, condition ConditionFunc) error {
+func Poll(interval, deadline time.Duration, condition ConditionFunc) error {
 	timeout := time.After(deadline)
 	tick := time.NewTicker(interval)
 
@@ -61,9 +61,8 @@ func (w *Wait) Poll(interval, deadline time.Duration, condition ConditionFunc) e
 
 // WaitTxToBeMined waits until a tx has been mined or the given timeout expires.
 func WaitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) error {
-	w := NewWait()
 	ctx := context.Background()
-	return w.Poll(DefaultInterval, timeout, func() (bool, error) {
+	return Poll(DefaultInterval, timeout, func() (bool, error) {
 		return txMinedCondition(ctx, client, hash)
 	})
 }
@@ -71,8 +70,7 @@ func WaitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Du
 // WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
 // health standard in package grpc.health.v1
 func WaitGRPCHealthy(address string) error {
-	w := NewWait()
-	return w.Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
+	return Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
 		return grpcHealthyCondition(address)
 	})
 }
