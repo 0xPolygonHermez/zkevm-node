@@ -2,9 +2,7 @@ package statev2_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"strings"
@@ -449,12 +447,12 @@ func TestExecuteTransaction(t *testing.T) {
 		GenerateCallTrace:    0,
 	}
 
-	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	_, err = executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 
-	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	err = ioutil.WriteFile("trace.json", file, 0644)
-	require.NoError(t, err)
+	// file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	// err = ioutil.WriteFile("trace.json", file, 0644)
+	// require.NoError(t, err)
 }
 
 func TestGenesis(t *testing.T) {
@@ -487,6 +485,18 @@ func TestGenesis(t *testing.T) {
 }
 
 func TestExecutor(t *testing.T) {
+	// Test based on
+	// https://github.com/hermeznetwork/zkproverjs/blob/main/testvectors/input_gen.json
+	var expectedNewRoot = "0x3f6f2c7e2940b19305af26e26ab8de99b3b6fb496372f7b3eef09e9fdb10a7bd"
+
+	db := map[string]string{
+		"2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90": "00000000000000000000000000000000000000000000000000000000000000000d1f0da5a7b620c843fd1e18e59fd724d428d25da0cb1888e31f5542ac227c060000000000000000000000000000000000000000000000000000000000000000",
+		"e31f5542ac227c06d428d25da0cb188843fd1e18e59fd7240d1f0da5a7b620c8": "ed22ec7734d89ff2b2e639153607b7c542b2bd6ec2788851b7819329410847833e63658ee0db910d0b3e34316e81aa10e0dc203d93f4e3e5e10053d0ebc646020000000000000000000000000000000000000000000000000000000000000000",
+		"b78193294108478342b2bd6ec2788851b2e639153607b7c5ed22ec7734d89ff2": "16dde42596b907f049015d7e991a152894dd9dadd060910b60b4d5e9af514018b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
+		"3efad1dd58c2259d339438195426ad0af57d81efba5d4445b69b044f5e694795": "00000000dea000000000000035c9adc5000000000000003600000000000000000000000000000000000000000000000000000000000000000000000000000000",
+		"e10053d0ebc64602e0dc203d93f4e3e50b3e34316e81aa103e63658ee0db910d": "66ee2be0687eea766926f8ca8796c78a4c2f3e938869b82d649e63bfe1247ba4b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
+	}
+
 	// Create Batch
 	processBatchRequest := &executorclientpb.ProcessBatchRequest{
 		BatchNum:             1,
@@ -499,15 +509,13 @@ func TestExecutor(t *testing.T) {
 		UpdateMerkleTree:     0,
 		GenerateExecuteTrace: 0,
 		GenerateCallTrace:    0,
+		Db:                   db,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-
 	log.Debugf("request:%v", processBatchRequest)
-	log.Debugf("new_state_root=%v", common.BigToHash(new(big.Int).SetBytes(processBatchResponse.NewStateRoot)))
+	log.Debugf("new_state_root=%v", common.HexToHash(string(processBatchResponse.NewStateRoot)))
 
-	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	err = ioutil.WriteFile("trace.json", file, 0644)
-	require.NoError(t, err)
+	assert.Equal(t, common.HexToHash(expectedNewRoot), common.HexToHash(string(processBatchResponse.NewStateRoot)))
 }
