@@ -1,0 +1,7 @@
+{
+ "new_state_root": "MHhhYWYyOGNkNThhMWFhMGMxMzQ5NDE4NmM3ZWNhNjYwNzVhYmIzOTRiNGM2OWZiNTQwNjJjNzU4NjBiYTdhODNl",
+ "new_local_exit_root": "MHhhYWYyOGNkNThhMWFhMGMxMzQ5NDE4NmM3ZWNhNjYwNzVhYmIzOTRiNGM2OWZiNTQwNjJjNzU4NjBiYTdhODNl",
+ "cnt_keccak_hashes": 5,
+ "cnt_poseidon_hashes": 8,
+ "cnt_steps": 96
+}
