@@ -63,6 +63,7 @@ const (
 	getL2BlockTransactionCountByNumberSQL    = "SELECT COUNT(*) FROM statev2.transaction t WHERE t.l2_block_num = $1"
 	addL2BlockSQL                            = "INSERT INTO statev2.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
 	getLastConsolidatedBlockNumberSQL        = "SELECT b.block_num FROM statev2.l2block b INNER JOIN statev2.verified_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
+	getLastVirtualBlockHeaderSQL             = "SELECT b.header FROM statev2.l2block b INNER JOIN statev2.virtual_batch vb ON vb.batch_num = b.batch_num ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockByHashSQL                      = "SELECT header, uncles, received_at FROM statev2.l2block b WHERE b.block_hash = $1"
 	getLastL2BlockSQL                        = "SELECT header, uncles, received_at FROM statev2.l2block b ORDER BY b.block_num DESC LIMIT 1"
 	getL2BlockHeaderByHashSQL                = "SELECT header FROM statev2.l2block b WHERE b.block_hash = $1"
@@ -959,6 +960,21 @@ func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx)
 	}
 
 	return lastBlockNumber, nil
+}
+
+// GetLastL2BlockHeader gets the last l2 block number
+func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+	header := &types.Header{}
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getLastVirtualBlockHeaderSQL).Scan(&header)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return header, nil
 }
 
 // GetLastL2Block retrieves the latest L2 Block from the State data base

@@ -21,6 +21,11 @@ Host = "0.0.0.0"
 Port = 8123
 MaxRequestsPerIPAndSecond = 100
 
+[RPCV2]
+Host = "0.0.0.0"
+Port = 8123
+MaxRequestsPerIPAndSecond = 100
+
 [Synchronizer]
 SyncInterval = "5s"
 SyncChunkSize = 100

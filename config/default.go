@@ -31,6 +31,12 @@ MaxRequestsPerIPAndSecond = 50
 ChainID = 1001
 SequencerAddress = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
 
+[RPCV2]
+Host = "0.0.0.0"
+Port = 8123
+MaxRequestsPerIPAndSecond = 50
+ChainID = 1001
+
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
