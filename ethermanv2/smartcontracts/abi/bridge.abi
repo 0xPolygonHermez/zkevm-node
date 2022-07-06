@@ -20,21 +20,15 @@
 		"inputs": [
 			{
 				"indexed": false,
-				"internalType": "address",
-				"name": "tokenAddres",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
 				"internalType": "uint32",
 				"name": "originNetwork",
 				"type": "uint32"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "originTokenAddress",
+				"type": "address"
 			},
 			{
 				"indexed": false,
@@ -47,6 +41,18 @@
 				"internalType": "address",
 				"name": "destinationAddress",
 				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "metadata",
+				"type": "bytes"
 			},
 			{
 				"indexed": false,
@@ -70,13 +76,19 @@
 			{
 				"indexed": false,
 				"internalType": "uint32",
-				"name": "originalNetwork",
+				"name": "originNetwork",
 				"type": "uint32"
 			},
 			{
 				"indexed": false,
 				"internalType": "address",
-				"name": "token",
+				"name": "originTokenAddress",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "destinationAddress",
 				"type": "address"
 			},
 			{
@@ -84,12 +96,6 @@
 				"internalType": "uint256",
 				"name": "amount",
 				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "destinationAddress",
-				"type": "address"
 			}
 		],
 		"name": "ClaimEvent",
@@ -101,13 +107,13 @@
 			{
 				"indexed": false,
 				"internalType": "uint32",
-				"name": "originalNetwork",
+				"name": "originNetwork",
 				"type": "uint32"
 			},
 			{
 				"indexed": false,
 				"internalType": "address",
-				"name": "originalTokenAddress",
+				"name": "originTokenAddress",
 				"type": "address"
 			},
 			{
@@ -156,37 +162,8 @@
 		"inputs": [
 			{
 				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "addressToTokenInfo",
-		"outputs": [
-			{
-				"internalType": "uint32",
-				"name": "originalNetwork",
-				"type": "uint32"
-			},
-			{
-				"internalType": "address",
-				"name": "originalTokenAddress",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
 				"name": "token",
 				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
 			},
 			{
 				"internalType": "uint32",
@@ -197,6 +174,11 @@
 				"internalType": "address",
 				"name": "destinationAddress",
 				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
 			}
 		],
 		"name": "bridge",
@@ -206,31 +188,6 @@
 	},
 	{
 		"inputs": [
-			{
-				"internalType": "address",
-				"name": "originalTokenAddress",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint32",
-				"name": "originalNetwork",
-				"type": "uint32"
-			},
-			{
-				"internalType": "uint32",
-				"name": "destinationNetwork",
-				"type": "uint32"
-			},
-			{
-				"internalType": "address",
-				"name": "destinationAddress",
-				"type": "address"
-			},
 			{
 				"internalType": "bytes32[]",
 				"name": "smtProof",
@@ -250,6 +207,36 @@
 				"internalType": "bytes32",
 				"name": "rollupExitRoot",
 				"type": "bytes32"
+			},
+			{
+				"internalType": "uint32",
+				"name": "originNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "originTokenAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "uint32",
+				"name": "destinationNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "destinationAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes",
+				"name": "metadata",
+				"type": "bytes"
 			}
 		],
 		"name": "claim",
@@ -306,12 +293,56 @@
 		"inputs": [
 			{
 				"internalType": "uint32",
-				"name": "originalNetwork",
+				"name": "originNetwork",
 				"type": "uint32"
 			},
 			{
 				"internalType": "address",
-				"name": "originalTokenAddress",
+				"name": "originTokenAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "uint32",
+				"name": "destinationNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "destinationAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "metadataHash",
+				"type": "bytes32"
+			}
+		],
+		"name": "getLeafValue",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint32",
+				"name": "originNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "originTokenAddress",
 				"type": "address"
 			}
 		],
@@ -369,12 +400,12 @@
 		"inputs": [
 			{
 				"internalType": "uint32",
-				"name": "originalNetwork",
+				"name": "originNetwork",
 				"type": "uint32"
 			},
 			{
 				"internalType": "address",
-				"name": "originalTokenAddress",
+				"name": "originTokenAddress",
 				"type": "address"
 			}
 		],
@@ -417,7 +448,7 @@
 				"type": "bytes32"
 			}
 		],
-		"name": "tokenInfoToAddress",
+		"name": "tokenInfoToWrappedToken",
 		"outputs": [
 			{
 				"internalType": "address",
@@ -444,29 +475,9 @@
 	{
 		"inputs": [
 			{
-				"internalType": "address",
-				"name": "token",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint32",
-				"name": "originalNetwork",
-				"type": "uint32"
-			},
-			{
-				"internalType": "uint32",
-				"name": "destinationNetwork",
-				"type": "uint32"
-			},
-			{
-				"internalType": "address",
-				"name": "destinationAddress",
-				"type": "address"
+				"internalType": "bytes32",
+				"name": "leafHash",
+				"type": "bytes32"
 			},
 			{
 				"internalType": "bytes32[]",
@@ -493,6 +504,30 @@
 			}
 		],
 		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "wrappedTokenToTokenInfo",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "originNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "originTokenAddress",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	}
 ]

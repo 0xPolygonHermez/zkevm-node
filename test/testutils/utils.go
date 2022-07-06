@@ -69,3 +69,13 @@ func ReadBytecode(contractPath string) (string, error) {
 	}
 	return string(content), nil
 }
+
+// GetEnv reads an environment variable, returning a given default value if not
+// present.
+func GetEnv(key string, defaultValue string) string {
+	value, exists := os.LookupEnv(key)
+	if exists {
+		return value
+	}
+	return defaultValue
+}

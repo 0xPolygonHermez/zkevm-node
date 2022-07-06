@@ -392,7 +392,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 		lastBatchNumber -= uint64(len(sequences[i].ForceBatchesTimestamp))
 		sequencedBatches[i] = SequencedBatch{
 			BatchNumber:                lastBatchNumber,
-			Sequencer:                  sequencer,
+			Coinbase:                   sequencer,
 			TxHash:                     txHash,
 			ProofOfEfficiencyBatchData: sequences[i],
 		}
@@ -461,7 +461,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 		log.Error(err)
 		return err
 	}
-	sequencedForceBatch.Sequencer = msg.From()
+	sequencedForceBatch.Coinbase = msg.From()
 	sequencedForceBatch.ForceBatchNumber, err = decodeForceBatchNumber(tx.Data())
 	sequencedForceBatch.TxHash = vLog.TxHash
 	if err != nil {

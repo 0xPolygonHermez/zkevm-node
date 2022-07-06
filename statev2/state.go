@@ -54,6 +54,16 @@ var (
 	ErrParsingExecutorTrace = fmt.Errorf("error while parsing executor trace")
 	// ErrInvalidBatchNumber indicates the provided batch number is not the latest in db
 	ErrInvalidBatchNumber = errors.New("provided batch number is not latest")
+	// ErrLastBatchShouldBeClosed indicates that last batch needs to be closed before adding a new one
+	ErrLastBatchShouldBeClosed = errors.New("last batch needs to be closed before adding a new one")
+	// ErrLastBatchShouldBeClosed indicates that batch is already closed
+	ErrBatchAlreadyClosed = errors.New("batch is already closed")
+	// ErrClosingBatchWithoutTxs
+	ErrClosingBatchWithoutTxs = errors.New("can not close a batch without transactions")
+	// ErrTimestampGE indicates that timestamp needs to be greater or equal
+	ErrTimestampGE = errors.New("timestamp needs to be greater or equal")
+	// ErrDBTxNil indicates that the method requires a dbTx that is not nil
+	ErrDBTxNil = errors.New("the method requires a dbTx that is not nil")
 )
 
 var (
@@ -150,8 +160,58 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	return 0, nil
 }
 
-// ProcessBatch is used by the Trusted Sequencer to add transactions to the batch
-func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+// OpenBatch adds a new batch into the state, with the necessary data to start processing transactions within it.
+// It's meant to be used by sequencers, since they don't necessarely know what transactions are going to be added
+// in this batch yet. In other words it's the creation of a WIP batch.
+// Note that this will add a batch with batch number N + 1, where N it's the greates batch number on the state.
+func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingContext, dbTx pgx.Tx) error {
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+	// Check if the batch that is being opened has batch num + 1 compared to the latest batch
+	lastBatchNum, err := s.PostgresStorage.GetLastBatchNumber(ctx, dbTx)
+	if err != nil {
+		return err
+	}
+	if lastBatchNum+1 != processingContext.BatchNumber {
+		return fmt.Errorf("unexpected batch number %v, should be %v", processingContext.BatchNumber, lastBatchNum+1)
+	}
+	// Check if last batch is closed
+	isLastBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, lastBatchNum, dbTx)
+	if err != nil {
+		return err
+	}
+	if !isLastBatchClosed {
+		return ErrLastBatchShouldBeClosed
+	}
+	// Check that timestamp is equal or greater compared to previous batch
+	prevTimestamp, err := s.GetLastBatchTime(ctx, dbTx)
+	if err != nil {
+		return err
+	}
+	if prevTimestamp.Unix() > processingContext.Timestamp.Unix() {
+		return ErrTimestampGE
+	}
+	return s.PostgresStorage.openBatch(ctx, processingContext, dbTx)
+}
+
+// ProcessSequencerBatch is used by the sequencers to proceess transactions into an open batch
+func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	batchL2Data, err := EncodeTransactions(txs)
+	if err != nil {
+		return nil, err
+	}
+	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, dbTx)
+	if err != nil {
+		return nil, err
+	}
+	return convertToProcessBatchResponse(txs, processBatchResponse), nil
+}
+
+func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+	if dbTx == nil {
+		return nil, ErrDBTxNil
+	}
 	lastBatches, err := s.PostgresStorage.GetLastNBatches(ctx, two, dbTx)
 	if err != nil {
 		return nil, err
@@ -161,25 +221,26 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 	lastBatch := lastBatches[0]
 	// Get batch before latest to get state root and local exit root
 	previousBatch := lastBatches[1]
+	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+	if isBatchClosed {
+		return nil, ErrBatchAlreadyClosed
+	}
 
 	// Check provided batch number is the latest in db
 	if lastBatch.BatchNumber != batchNumber {
 		return nil, ErrInvalidBatchNumber
 	}
-
-	batchL2Data, err := EncodeTransactions(txs)
-	if err != nil {
-		return nil, err
-	}
-
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		BatchNum:             lastBatch.BatchNumber,
 		Coinbase:             lastBatch.Coinbase.String(),
 		BatchL2Data:          batchL2Data,
-		OldStateRoot:         previousBatch.OldStateRoot.Bytes(),
-		GlobalExitRoot:       lastBatch.GlobalExitRootNum.Bytes(),
-		OldLocalExitRoot:     previousBatch.OldLocalExitRoot.Bytes(),
+		OldStateRoot:         previousBatch.StateRoot.Bytes(),
+		GlobalExitRoot:       lastBatch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot:     previousBatch.LocalExitRoot.Bytes(),
 		EthTimestamp:         uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree:     cTrue,
 		GenerateExecuteTrace: cFalse,
@@ -187,15 +248,28 @@ func (s *State) ProcessBatch(ctx context.Context, batchNumber uint64, txs []type
 	}
 
 	// Send Batch to the Executor
-	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-	return convertToProcessBatchResponse(txs, processBatchResponse), err
+	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
 }
 
-// StoreTransactions is used by the Trusted Sequencer to add processed transactions into the data base
+// StoreTransactions is used by the sequencer to add processed transactions into an open batch.
+// If the batch already has txs, those WILL BE DELETED before adding the new ones.
 func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
+	// TODO: check existing txs vs parameter txs
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
+	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+	if isBatchClosed {
+		return ErrBatchAlreadyClosed
+	}
+
 	foundPosition := -1
 
-	batch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
+	processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
 	if err != nil {
 		return err
 	}
@@ -232,7 +306,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		header := &types.Header{
 			Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
 			ParentHash: lastL2Block.Hash(),
-			Coinbase:   batch.Coinbase,
+			Coinbase:   processingContext.Coinbase,
 			Root:       processedTx.StateRoot,
 		}
 
@@ -241,7 +315,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 
 		// Create block to be able to calculate its hash
 		block := types.NewBlock(header, transactions, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-		block.ReceivedAt = batch.Timestamp
+		block.ReceivedAt = processingContext.Timestamp
 
 		receipt := generateReceipt(block, processedTx)
 		receipts := []*types.Receipt{}
@@ -256,22 +330,100 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 	return nil
 }
 
-// CloseBatch is used by the Trusted Sequencer to close batch
-func (s *State) CloseBatch(ctx context.Context, batchNum uint64, stateRoot, localExitRoot common.Hash, dbTx pgx.Tx) error {
-	// TODO: implement
-	return nil
+// CloseBatch is used by sequencer to close the current batch. It will set the processing receipt and
+// the raw txs data based on the txs included on that batch that are already in the state
+func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error {
+	// TODO: differentiate the case where sequencer / sync calls the function so it's possible
+	// to use L2BatchData from L1 rather than from stored txs
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+	// Check if the batch that is being closed is the last batch
+	lastBatchNum, err := s.PostgresStorage.GetLastBatchNumber(ctx, dbTx)
+	if err != nil {
+		return err
+	}
+	if lastBatchNum != receipt.BatchNumber {
+		return fmt.Errorf("unexpected batch number %v, should be %v", receipt.BatchNumber, lastBatchNum)
+	}
+	// Check if last batch is closed
+	isLastBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, lastBatchNum, dbTx)
+	if err != nil {
+		return err
+	}
+	if isLastBatchClosed {
+		return ErrBatchAlreadyClosed
+	}
+	// Generate raw txs data
+	encodedTxsArray, err := s.GetEncodedTransactionsByBatchNumber(ctx, receipt.BatchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+	if len(encodedTxsArray) == 0 {
+		return ErrClosingBatchWithoutTxs
+	}
+	txs := []types.Transaction{}
+	for i := 0; i < len(encodedTxsArray); i++ {
+		tx, err := decodeTx(encodedTxsArray[i])
+		if err != nil {
+			return err
+		}
+		txs = append(txs, *tx)
+	}
+	batchL2Data, err := EncodeTransactions(txs)
+	if err != nil {
+		return err
+	}
+
+	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
 }
 
-// ProcessAndStoreClosedBatch is used by the Synchronizer to a add closed batch into the data base
-func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
-	// TODO: implement
-	return nil
-}
+// ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
+func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx) error {
+	// Open the batch and process the txs
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
+		return err
+	}
+	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, dbTx)
+	if err != nil {
+		return err
+	}
 
-// GetLastTrustedBatchNumber get last trusted batch number
-func (s *State) GetLastTrustedBatchNumber(ctx context.Context) (uint64, error) {
-	// TODO: implement
-	return 0, nil
+	// Filter unprocessed txs and decode txs to store metadata
+	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
+	for i := 0; i < len(processed.Responses); i++ {
+		if processed.Responses[i].UnprocessedTransaction == cTrue {
+			// Remove unprocessed tx
+			if i == len(processed.Responses)-1 {
+				processed.Responses = processed.Responses[:i]
+			} else {
+				processed.Responses = append(processed.Responses[:i], processed.Responses[i+1:]...)
+			}
+			i--
+		}
+	}
+	var txs []types.Transaction
+	if len(processed.Responses) > 0 {
+		// TODO: missing method to decode txs
+		log.Fatal("TODO: missing method to decode txs")
+	}
+	processedBatch := convertToProcessBatchResponse(txs, processed)
+
+	// Store processed txs into the batch
+	err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// Close batch
+	return s.CloseBatch(ctx, ProcessingReceipt{
+		BatchNumber:   processingCtx.BatchNumber,
+		StateRoot:     processedBatch.NewStateRoot,
+		LocalExitRoot: processedBatch.NewLocalExitRoot,
+	}, dbTx)
 }
 
 // GetLastBatch gets latest batch (closed or not) on the data base
@@ -489,22 +641,21 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 
 	root.SetBytes(newRoot)
 
-	receivedAt := time.Now()
+	receivedAt := time.Unix(0, 0)
 
 	// Store Genesis Batch
 	batch := Batch{
-		BatchNumber:       0,
-		Coinbase:          ZeroAddress,
-		BatchL2Data:       nil,
-		OldStateRoot:      ZeroHash,
-		GlobalExitRootNum: big.NewInt(0),
-		OldLocalExitRoot:  ZeroHash,
-		Timestamp:         receivedAt,
-		Transactions:      []types.Transaction{},
-		GlobalExitRoot:    ZeroHash,
+		BatchNumber:    0,
+		Coinbase:       ZeroAddress,
+		BatchL2Data:    nil,
+		StateRoot:      ZeroHash,
+		LocalExitRoot:  ZeroHash,
+		Timestamp:      receivedAt,
+		Transactions:   []types.Transaction{},
+		GlobalExitRoot: ZeroHash,
 	}
 
-	err = s.PostgresStorage.StoreBatchHeader(ctx, batch, dbTx)
+	err = s.storeGenesisBatch(ctx, batch, dbTx)
 	if err != nil {
 		return err
 	}

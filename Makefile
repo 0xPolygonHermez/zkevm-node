@@ -10,6 +10,7 @@ DOCKERCOMPOSEPROVER := hez-prover
 DOCKERCOMPOSEEXPLORER := hez-explorer
 DOCKERCOMPOSEEXPLORERDB := hez-explorer-postgres
 DOCKERCOMPOSEEXPLORERRPC := hez-explorer-rpc
+DOCKERCOMPOSEZKPROVER := zkprover
 
 RUNDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDB)
 RUNCORESEQ := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
@@ -23,6 +24,8 @@ RUNPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPROVER)
 RUNEXPLORER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORER)
 RUNEXPLORERDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERDB)
 RUNEXPLORERRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERRPC)
+RUNZKPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVER)
+
 RUN := $(DOCKERCOMPOSE) up -d
 
 STOPDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEDB)
@@ -37,6 +40,7 @@ STOPPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPROVER) && $(DOCKERCOMPOSE) r
 STOPEXPLORER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORER)
 STOPEXPLORERDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERDB)
 STOPEXPLORERRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERRPC)
+STOPZKPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVER)
 
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
@@ -82,7 +86,10 @@ test-full: build-docker compile-scs ## Runs all tests checking race conditions
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
 	$(STOPDB)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
+	$(RUNZKPROVER)
+	sleep 5
+	docker logs zkprover
+	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking race conditions
@@ -153,6 +160,14 @@ run-prover: ## Runs the zk prover
 .PHONY: stop-prover
 stop-prover: ## Stops the zk prover
 	$(STOPPROVER)
+
+.PHONY: run-zkprover
+run-zkprover: ## Runs zkprover
+	$(RUNZKPROVER)
+
+.PHONY: stop-zkprover
+stop-zkprover: ## Stops zkprover
+	$(STOPZKPROVER)
 
 .PHONY: run-explorer
 run-explorer: ## Runs the explorer

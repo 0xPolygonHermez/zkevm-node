@@ -350,7 +350,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		vb := state.VirtualBatch{
 			BatchNumber: sbatch.BatchNumber,
 			TxHash:      sbatch.TxHash,
-			Sequencer:   sbatch.Sequencer,
+			Coinbase:    sbatch.Coinbase,
 			BlockNumber: blockNumber,
 		}
 		virtualBatches := []state.VirtualBatch{vb}
@@ -358,7 +358,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			BatchNumber:    sbatch.BatchNumber,
 			GlobalExitRoot: sbatch.GlobalExitRoot,
 			Timestamp:      time.Unix(int64(sbatch.Timestamp), 0),
-			Coinbase:       sbatch.Sequencer,
+			Coinbase:       sbatch.Coinbase,
 			BatchL2Data:    sbatch.Transactions,
 		}
 		batches := []state.Batch{b}
@@ -382,7 +382,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				vb := state.VirtualBatch{
 					BatchNumber: sbatch.BatchNumber + uint64(i),
 					TxHash:      sbatch.TxHash,
-					Sequencer:   sbatch.Sequencer,
+					Coinbase:    sbatch.Coinbase,
 					BlockNumber: blockNumber,
 				}
 				virtualBatches = append(virtualBatches, vb)
@@ -485,7 +485,7 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch etherm
 		vb := state.VirtualBatch{
 			BatchNumber: sequenceForceBatch.LastBatchSequenced - sequenceForceBatch.ForceBatchNumber + uint64(i),
 			TxHash:      sequenceForceBatch.TxHash,
-			Sequencer:   sequenceForceBatch.Sequencer,
+			Coinbase:    sequenceForceBatch.Coinbase,
 			BlockNumber: blockNumber,
 		}
 		b := state.Batch{

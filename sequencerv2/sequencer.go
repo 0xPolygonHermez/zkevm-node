@@ -283,11 +283,10 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	s.lastBatchNum = s.lastBatchNum + 1
 
 	batchHeader := statev2.Batch{
-		BatchNumber:       s.lastBatchNum,
-		Timestamp:         time.Now(),
-		GlobalExitRoot:    root.GlobalExitRoot,
-		GlobalExitRootNum: root.GlobalExitRootNum,
-		Coinbase:          s.address,
+		BatchNumber:    s.lastBatchNum,
+		Timestamp:      time.Now(),
+		GlobalExitRoot: root.GlobalExitRoot,
+		Coinbase:       s.address,
 	}
 	err = s.state.StoreBatchHeader(ctx, batchHeader, nil)
 	if err != nil {
