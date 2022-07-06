@@ -29,4 +29,6 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Test
+      env:
+        ZKPROVER_URI: 127.0.0.1
       run: make test-full-non-e2e

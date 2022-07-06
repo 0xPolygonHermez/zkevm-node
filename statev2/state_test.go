@@ -10,11 +10,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
 	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,10 +37,8 @@ var (
 	stateCfg     = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
-	executorServerConfig = executor.Config{URI: "54.170.178.97:50071"}
-	executorClient       executorclientpb.ExecutorServiceClient
-	clientConn           *grpc.ClientConn
-	stateDBServerConfig  = merkletree.Config{URI: "54.170.178.97:50061"}
+	executorClient     executorclientpb.ExecutorServiceClient
+	executorClientConn *grpc.ClientConn
 )
 
 func TestMain(m *testing.M) {
@@ -52,13 +52,28 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	executorClient, clientConn = executor.NewExecutorClient(executorServerConfig)
-	defer clientConn.Close()
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 
-	stateDbServiceClient, stateClientConn := merkletree.NewStateDBServiceClient(stateDBServerConfig)
-	defer stateClientConn.Close()
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	var executorCancel context.CancelFunc
+	executorClient, executorClientConn, executorCancel = executor.NewExecutorClient(ctx, executorServerConfig)
+	s := executorClientConn.GetState()
+	log.Infof("executorClientConn state: %s", s.String())
+	defer func() {
+		executorCancel()
+		executorClientConn.Close()
+	}()
 
-	stateTree := merkletree.NewStateTree(stateDbServiceClient)
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+	s = mtDBClientConn.GetState()
+	log.Infof("stateDbClientConn state: %s", s.String())
+	defer func() {
+		mtDBCancel()
+		mtDBClientConn.Close()
+	}()
+
+	stateTree := merkletree.NewStateTree(mtDBServiceClient)
 
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
@@ -320,7 +335,7 @@ func TestExecuteTransaction(t *testing.T) {
 	require.NoError(t, err)
 }
 */
-/*
+
 func TestGenesis(t *testing.T) {
 	balances := map[common.Address]*big.Int{
 		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
@@ -349,4 +364,3 @@ func TestGenesis(t *testing.T) {
 	err := testState.SetGenesis(ctx, genesis, nil)
 	require.NoError(t, err)
 }
-*/
