@@ -64,6 +64,13 @@ var (
 	ErrTimestampGE = errors.New("timestamp needs to be greater or equal")
 	// ErrDBTxNil indicates that the method requires a dbTx that is not nil
 	ErrDBTxNil = errors.New("the method requires a dbTx that is not nil")
+	// ErrExistingTxGreaterThanProcessedTx indicates that we have more txs stored
+	// in db than the txs we weant to process.
+	ErrExistingTxGreaterThanProcessedTx = errors.New("There are more transactions in the database than in the processed transaction set")
+	// ErrOutOfOrderProcessedTx indicates the the processed transactions of an
+	// ongoing batch are not in the same order as the transactions stored in the
+	// database for the same batch.
+	ErrOutOfOrderProcessedTx = errors.New("The processed transactions are not in the same order as the stored transactions")
 )
 
 var (
@@ -254,10 +261,19 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 // StoreTransactions is used by the sequencer to add processed transactions into an open batch.
 // If the batch already has txs, those WILL BE DELETED before adding the new ones.
 func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
-	// TODO: check existing txs vs parameter txs
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
+
+	// check existing txs vs parameter txs
+	batch, err := s.GetBatchByNumber(ctx, batchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+	if err := CheckSupersetBatchTransactions(batch.Transactions, processedTxs); err != nil {
+		return err
+	}
+
 	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
 	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
 	if err != nil {
@@ -310,20 +326,16 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			Root:       processedTx.StateRoot,
 		}
 
-		transactions := []*types.Transaction{}
-		transactions = append(transactions, &processedTx.Tx)
+		transactions := []*types.Transaction{&processedTx.Tx}
 
 		// Create block to be able to calculate its hash
 		block := types.NewBlock(header, transactions, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 		block.ReceivedAt = processingContext.Timestamp
 
-		receipt := generateReceipt(block, processedTx)
-		receipts := []*types.Receipt{}
-		receipts = append(receipts, receipt)
+		receipts := []*types.Receipt{generateReceipt(block, processedTx)}
 
 		// Store L2 block and its transaction
-		err = s.PostgresStorage.AddL2Block(ctx, batchNumber, block, receipts, dbTx)
-		if err != nil {
+		if err := s.PostgresStorage.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
 			return err
 		}
 	}
@@ -671,4 +683,20 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 	block.ReceivedAt = receivedAt
 
 	return s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, block, []*types.Receipt{}, dbTx)
+}
+
+// CheckSupersetBatchTransactions verifies that processedTransactions is a
+// superset of existingTxs and that the existing txs have the same order,
+// returns a non-nil error if that is not the case.
+func CheckSupersetBatchTransactions(existingTxs []types.Transaction, processedTxs []*ProcessTransactionResponse) error {
+	if len(existingTxs) > len(processedTxs) {
+		return ErrExistingTxGreaterThanProcessedTx
+	}
+	for i, existingTx := range existingTxs {
+		processedTx := processedTxs[i]
+		if existingTx.Hash() != processedTx.TxHash {
+			return ErrOutOfOrderProcessedTx
+		}
+	}
+	return nil
 }

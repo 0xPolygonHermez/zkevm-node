@@ -530,3 +530,65 @@ func TestGenesis(t *testing.T) {
 	err := testState.SetGenesis(ctx, genesis, nil)
 	require.NoError(t, err)
 }
+
+func TestCheckSupersetBatchTransactions(t *testing.T) {
+	tcs := []struct {
+		description      string
+		existingTxs      []types.Transaction
+		processedTxs     []*state.ProcessTransactionResponse
+		expectedError    bool
+		expectedErrorMsg string
+	}{
+		{
+			description:  "empty existingTxs and processedTx is successful",
+			existingTxs:  []types.Transaction{},
+			processedTxs: []*state.ProcessTransactionResponse{},
+		},
+		{
+			description:      "existingTxs bigger than processedTx gives error",
+			existingTxs:      []types.Transaction{{}, {}},
+			processedTxs:     []*state.ProcessTransactionResponse{{}},
+			expectedError:    true,
+			expectedErrorMsg: state.ErrExistingTxGreaterThanProcessedTx.Error(),
+		},
+		{
+			description: "processedTx not present in existingTxs gives error",
+			existingTxs: []types.Transaction{
+				*types.NewTx(&types.LegacyTx{Nonce: 1}),
+				*types.NewTx(&types.LegacyTx{Nonce: 2}),
+			},
+			processedTxs: []*state.ProcessTransactionResponse{
+				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")}, // hash for nonce 1
+				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")}, // hash for nonce 3
+			},
+			expectedError:    true,
+			expectedErrorMsg: state.ErrOutOfOrderProcessedTx.Error(),
+		},
+		{
+			description: "out of order processedTx gives error",
+			existingTxs: []types.Transaction{
+				*types.NewTx(&types.LegacyTx{Nonce: 1}),
+				*types.NewTx(&types.LegacyTx{Nonce: 2}),
+				*types.NewTx(&types.LegacyTx{Nonce: 3}),
+			},
+			processedTxs: []*state.ProcessTransactionResponse{
+				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")}, // hash for nonce 1
+				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")}, // hash for nonce 3
+				{TxHash: common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52")}, // hash for nonce 2
+			},
+			expectedError:    true,
+			expectedErrorMsg: state.ErrOutOfOrderProcessedTx.Error(),
+		},
+	}
+
+	for _, tc := range tcs {
+		tc := tc
+		t.Run(tc.description, func(t *testing.T) {
+			require.NoError(t, testutils.CheckError(
+				state.CheckSupersetBatchTransactions(tc.existingTxs, tc.processedTxs),
+				tc.expectedError,
+				tc.expectedErrorMsg,
+			))
+		})
+	}
+}
