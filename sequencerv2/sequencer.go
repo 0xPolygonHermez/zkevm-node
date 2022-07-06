@@ -82,7 +82,7 @@ func (s *Sequencer) trackReorg(ctx context.Context) {
 	for {
 		select {
 		case <-s.reorgBlockNumChan:
-			waitTime := 5 * time.Second
+			const waitTime = 5 * time.Second
 
 			err := s.pool.MarkReorgedTxsAsPending(ctx)
 			for err != nil {

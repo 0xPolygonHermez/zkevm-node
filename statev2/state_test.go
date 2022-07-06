@@ -386,38 +386,23 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	err = testState.AddBlock(ctx, block2, tx)
 	assert.NoError(t, err)
 
-	batch1 := state.Batch{
-		BatchNumber:    1,
-		GlobalExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		Coinbase:       common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
-		Timestamp:      time.Now(),
-		BatchL2Data:    common.Hex2Bytes("0x617b3a3528F9"),
-	}
-
-	err = testState.StoreBatchHeader(ctx, batch1, tx)
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO statev2.batch (batch_num) VALUES (1)")
+	assert.NoError(t, err)
 	require.NoError(t, err)
 	virtualBatch1 := state.VirtualBatch{
 		BlockNumber: 1,
 		BatchNumber: 1,
 		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		Sequencer:   common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+		Coinbase:    common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 	}
 
-	batch2 := state.Batch{
-		BatchNumber:    2,
-		GlobalExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		Coinbase:       common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
-		Timestamp:      time.Now(),
-		BatchL2Data:    common.Hex2Bytes("0x617b3a3528F9"),
-	}
-
-	err = testState.StoreBatchHeader(ctx, batch2, tx)
-	require.NoError(t, err)
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO statev2.batch (batch_num) VALUES (2)")
+	assert.NoError(t, err)
 	virtualBatch2 := state.VirtualBatch{
 		BlockNumber: 1,
 		BatchNumber: 2,
 		TxHash:      common.HexToHash("0x132"),
-		Sequencer:   common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+		Coinbase:    common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 	}
 	err = testState.AddVirtualBatch(ctx, &virtualBatch1, tx)
 	require.NoError(t, err)
