@@ -19,7 +19,7 @@ type Batch struct {
 	GlobalExitRoot common.Hash
 }
 
-// ProcessingContext is the necessary data that a batch needs to porvide to the runtime,
+// ProcessingContext is the necessary data that a batch needs to provide to the runtime,
 // without the historical state data (processing receipt from previous batch)
 type ProcessingContext struct {
 	BatchNumber    uint64
