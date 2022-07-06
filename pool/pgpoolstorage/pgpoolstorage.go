@@ -58,6 +58,15 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 	return nil
 }
 
+// MarkReorgedTxsAsPending updated reorged txs state from selected to pending
+func (p *PostgresPoolStorage) MarkReorgedTxsAsPending(ctx context.Context) error {
+	const updateReorgedTxsToPending = "UPDATE pool.txs pt SET state = $1 WHERE state = $2 AND NOT EXISTS (SELECT hash FROM statev2.transaction WHERE hash = pt.hash)"
+	if _, err := p.db.Exec(ctx, updateReorgedTxsToPending, pool.TxStatePending, pool.TxStateSelected); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetTxsByState returns an array of transactions filtered by state
 // limit parameter is used to limit amount txs from the db,
 // if limit = 0, then there is no limit
@@ -160,6 +169,20 @@ func (p *PostgresPoolStorage) UpdateTxsState(ctx context.Context, hashes []commo
 
 	sql := "UPDATE pool.txs SET state = $1 WHERE hash = ANY ($2)"
 	if _, err := p.db.Exec(ctx, sql, newState, hh); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteTxsByHashes deletes txs by their hashes
+func (p *PostgresPoolStorage) DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error {
+	hh := make([]string, 0, len(hashes))
+	for _, h := range hashes {
+		hh = append(hh, h.Hex())
+	}
+
+	query := "DELETE FROM pool.txs WHERE hash = ANY ($1)"
+	if _, err := p.db.Exec(ctx, query, hh); err != nil {
 		return err
 	}
 	return nil

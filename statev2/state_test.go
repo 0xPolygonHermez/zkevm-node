@@ -363,6 +363,71 @@ func TestAddVirtualBatch(t *testing.T) {
 	require.NoError(t, tx.Commit(ctx))
 }
 
+func TestGetTxsHashesToDelete(t *testing.T) {
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	tx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	block1 := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block1, tx)
+	assert.NoError(t, err)
+	block2 := &state.Block{
+		BlockNumber: 2,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block2, tx)
+	assert.NoError(t, err)
+
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO statev2.batch (batch_num) VALUES (1)")
+	assert.NoError(t, err)
+	require.NoError(t, err)
+	virtualBatch1 := state.VirtualBatch{
+		BlockNumber: 1,
+		BatchNumber: 1,
+		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		Coinbase:    common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+	}
+
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO statev2.batch (batch_num) VALUES (2)")
+	assert.NoError(t, err)
+	virtualBatch2 := state.VirtualBatch{
+		BlockNumber: 1,
+		BatchNumber: 2,
+		TxHash:      common.HexToHash("0x132"),
+		Coinbase:    common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+	}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch1, tx)
+	require.NoError(t, err)
+	err = testState.AddVirtualBatch(ctx, &virtualBatch2, tx)
+	require.NoError(t, err)
+	require.NoError(t, tx.Commit(ctx))
+
+	_, err = testState.Exec(ctx, "INSERT INTO statev2.l2block (block_num, block_hash, received_at, batch_num) VALUES ($1, $2, $3, $4)", 1, "0x423", time.Now(), 1)
+	require.NoError(t, err)
+	l2Tx1 := types.NewTransaction(1, common.Address{}, big.NewInt(10), 21000, big.NewInt(1), []byte{})
+	_, err = testState.Exec(ctx, "INSERT INTO statev2.transaction (l2_block_num, encoded, hash) VALUES ($1, $2, $3)",
+		virtualBatch1.BatchNumber, fmt.Sprintf("encoded-%d", virtualBatch1.BatchNumber), l2Tx1.Hash().Hex())
+	require.NoError(t, err)
+
+	_, err = testState.Exec(ctx, "INSERT INTO statev2.l2block (block_num, block_hash, received_at, batch_num) VALUES ($1, $2, $3, $4)", 2, "0x423", time.Now(), 2)
+	require.NoError(t, err)
+	l2Tx2 := types.NewTransaction(2, common.Address{}, big.NewInt(10), 21000, big.NewInt(1), []byte{})
+	_, err = testState.Exec(ctx, "INSERT INTO statev2.transaction (l2_block_num, encoded, hash) VALUES ($1, $2, $3)",
+		virtualBatch2.BatchNumber, fmt.Sprintf("encoded-%d", virtualBatch2.BatchNumber), l2Tx2.Hash().Hex())
+	require.NoError(t, err)
+	txHashes, err := testState.GetTxsOlderThanNL1Blocks(ctx, 1, nil)
+	require.NoError(t, err)
+	require.Equal(t, l2Tx1.Hash().Hex(), txHashes[0].Hex())
+}
+
 /*
 func TestExecuteTransaction(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)

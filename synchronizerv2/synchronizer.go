@@ -23,12 +23,13 @@ type Synchronizer interface {
 
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
-	etherMan       ethermanInterface
-	state          stateInterface
-	ctx            context.Context
-	cancelCtx      context.CancelFunc
-	genBlockNumber uint64
-	cfg            Config
+	etherMan          ethermanInterface
+	state             stateInterface
+	ctx               context.Context
+	cancelCtx         context.CancelFunc
+	genBlockNumber    uint64
+	reorgBlockNumChan chan struct{}
+	cfg               Config
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -36,15 +37,17 @@ func NewSynchronizer(
 	ethMan ethermanInterface,
 	st stateInterface,
 	genBlockNumber uint64,
+	reorgBlockNumChan chan struct{},
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
-		state:          st,
-		etherMan:       ethMan,
-		ctx:            ctx,
-		cancelCtx:      cancel,
-		genBlockNumber: genBlockNumber,
-		cfg:            cfg,
+		state:             st,
+		etherMan:          ethMan,
+		ctx:               ctx,
+		cancelCtx:         cancel,
+		genBlockNumber:    genBlockNumber,
+		reorgBlockNumChan: reorgBlockNumChan,
+		cfg:               cfg,
 	}, nil
 }
 

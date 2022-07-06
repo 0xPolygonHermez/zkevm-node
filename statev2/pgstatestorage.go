@@ -86,9 +86,11 @@ const (
 		 INNER JOIN statev2.l2block consolidated_blocks
 			ON consolidated_blocks.batch_num = sy.last_batch_num_consolidated;
 	`
-	addTransactionSQL = "INSERT INTO statev2.transaction (hash, from_address, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4, $5)"
-	addReceiptSQL     = "INSERT INTO statev2.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
-	addLogSQL         = "INSERT INTO statev2.log (transaction_hash, log_index, transaction_index, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	addTransactionSQL          = "INSERT INTO statev2.transaction (hash, from_address, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4, $5)"
+	addReceiptSQL              = "INSERT INTO statev2.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	addLogSQL                  = "INSERT INTO statev2.log (transaction_hash, log_index, transaction_index, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	getBatchNumByBlockNum      = "SELECT batch_num FROM statev2.virtual_batch WHERE block_num = $1 ORDER BY batch_num ASC LIMIT 1"
+	getTxsHashesBeforeBatchNum = "SELECT hash FROM statev2.transaction JOIN statev2.l2block ON statev2.transaction.l2_block_num = statev2.l2block.block_num AND statev2.l2block.batch_num <= $1"
 )
 
 // PostgresStorage implements the Storage interface
@@ -135,6 +137,49 @@ func (p *PostgresStorage) AddBlock(ctx context.Context, block *Block, dbTx pgx.T
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addBlockSQL, block.BlockNumber, block.BlockHash.String(), block.ParentHash.String(), block.ReceivedAt)
 	return err
+}
+
+// GetTxsOlderThanNL1Blocks get txs hashes to delete from tx pool
+func (p *PostgresStorage) GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uint64, dbTx pgx.Tx) ([]common.Hash, error) {
+	var batchNum, blockNum uint64
+	e := p.getExecQuerier(dbTx)
+
+	err := e.QueryRow(ctx, getLastBlockNumSQL).Scan(&blockNum)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	blockNum = blockNum - nL1Blocks
+	if blockNum <= 0 {
+		return nil, errors.New("blockNumDiff is too big, there are no txs to delete")
+	}
+
+	err = e.QueryRow(ctx, getBatchNumByBlockNum, blockNum).Scan(&batchNum)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	rows, err := e.Query(ctx, getTxsHashesBeforeBatchNum, batchNum)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	hashes := make([]common.Hash, 0, len(rows.RawValues()))
+	for rows.Next() {
+		var hash string
+		err := rows.Scan(&hash)
+		if err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, common.HexToHash(hash))
+	}
+
+	return hashes, nil
 }
 
 // GetLastBlock returns the last L1 block.

@@ -20,6 +20,12 @@ type Config struct {
 	// LastTimeBatchMaxWaitPeriod is time after which new batch should be closed
 	LastTimeBatchMaxWaitPeriod types.Duration `mapstructure:"LastTimeBatchMaxWaitPeriod"`
 
+	// BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
+	BlocksAmountForTxsToBeDeleted uint64 `mapstructure:"BlocksAmountForTxsToBeDeleted"`
+
+	// FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
+	FrequencyToCheckTxsForDelete types.Duration `mapstructure:"FrequencyToCheckTxsForDelete"`
+
 	// ProfitabilityChecker configuration
 	ProfitabilityChecker profitabilitychecker.Config `mapstructure:"ProfitabilityChecker"`
 }
