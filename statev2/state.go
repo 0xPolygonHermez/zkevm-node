@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime"
@@ -266,11 +267,11 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 	}
 
 	// check existing txs vs parameter txs
-	batch, err := s.GetBatchByNumber(ctx, batchNumber, dbTx)
+	existingTxs, err := s.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 	if err != nil {
 		return err
 	}
-	if err := CheckSupersetBatchTransactions(batch.Transactions, processedTxs); err != nil {
+	if err := CheckSupersetBatchTransactions(existingTxs, processedTxs); err != nil {
 		return err
 	}
 
@@ -688,11 +689,17 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 // CheckSupersetBatchTransactions verifies that processedTransactions is a
 // superset of existingTxs and that the existing txs have the same order,
 // returns a non-nil error if that is not the case.
-func CheckSupersetBatchTransactions(existingTxs []types.Transaction, processedTxs []*ProcessTransactionResponse) error {
-	if len(existingTxs) > len(processedTxs) {
+func CheckSupersetBatchTransactions(existingEncodedTxs []string, processedTxs []*ProcessTransactionResponse) error {
+	if len(existingEncodedTxs) > len(processedTxs) {
 		return ErrExistingTxGreaterThanProcessedTx
 	}
-	for i, existingTx := range existingTxs {
+	for i, existingEncodedTx := range existingEncodedTxs {
+		existingEncodedTxBytes, err := hex.DecodeString(existingEncodedTx)
+		if err != nil {
+			return err
+		}
+		existingTx := types.NewTx(&types.LegacyTx{Data: existingEncodedTxBytes})
+
 		processedTx := processedTxs[i]
 		if existingTx.Hash() != processedTx.TxHash {
 			return ErrOutOfOrderProcessedTx

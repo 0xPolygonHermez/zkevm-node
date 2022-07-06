@@ -533,61 +533,61 @@ func TestGenesis(t *testing.T) {
 
 func TestCheckSupersetBatchTransactions(t *testing.T) {
 	tcs := []struct {
-		description      string
-		existingTxs      []types.Transaction
-		processedTxs     []*state.ProcessTransactionResponse
-		expectedError    bool
-		expectedErrorMsg string
+		description        string
+		existingEncodedTxs []string
+		processedTxs       []*state.ProcessTransactionResponse
+		expectedError      bool
+		expectedErrorMsg   string
 	}{
 		{
-			description:  "empty existingTxs and processedTx is successful",
-			existingTxs:  []types.Transaction{},
-			processedTxs: []*state.ProcessTransactionResponse{},
+			description:        "empty existingEncodedTxs and processedTx is successful",
+			existingEncodedTxs: []string{},
+			processedTxs:       []*state.ProcessTransactionResponse{},
 		},
 		{
 			description: "happy path",
-			existingTxs: []types.Transaction{
-				*types.NewTx(&types.LegacyTx{Nonce: 1}),
-				*types.NewTx(&types.LegacyTx{Nonce: 2}),
-				*types.NewTx(&types.LegacyTx{Nonce: 3}),
+			existingEncodedTxs: []string{
+				"10",
+				"11",
+				"12",
 			},
 			processedTxs: []*state.ProcessTransactionResponse{
-				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")}, // hash for nonce 1
-				{TxHash: common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52")}, // hash for nonce 2
-				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")}, // hash for nonce 3
+				{TxHash: common.HexToHash("0x9a970c0ee835ba57f7203768e78bd576939ae776b5df9a1f19c5f955abc8084b")}, // hash for encoded tx 10
+				{TxHash: common.HexToHash("0xf5c71615ef83e9fb9cb7dd4d04204a496ab8e50db2ef02c7969c271e70af7653")}, // hash for encoded tx 11
+				{TxHash: common.HexToHash("0x183762f82b7bc6a04730852616971cb4dac62212ec2491d681efb5a243b427a9")}, // hash for encoded tx 12
 			},
 		},
 		{
-			description:      "existingTxs bigger than processedTx gives error",
-			existingTxs:      []types.Transaction{{}, {}},
-			processedTxs:     []*state.ProcessTransactionResponse{{}},
-			expectedError:    true,
-			expectedErrorMsg: state.ErrExistingTxGreaterThanProcessedTx.Error(),
+			description:        "existingEncodedTxs bigger than processedTx gives error",
+			existingEncodedTxs: []string{"", ""},
+			processedTxs:       []*state.ProcessTransactionResponse{{}},
+			expectedError:      true,
+			expectedErrorMsg:   state.ErrExistingTxGreaterThanProcessedTx.Error(),
 		},
 		{
-			description: "processedTx not present in existingTxs gives error",
-			existingTxs: []types.Transaction{
-				*types.NewTx(&types.LegacyTx{Nonce: 1}),
-				*types.NewTx(&types.LegacyTx{Nonce: 2}),
+			description: "processedTx not present in existingEncodedTxs gives error",
+			existingEncodedTxs: []string{
+				"10",
+				"11",
 			},
 			processedTxs: []*state.ProcessTransactionResponse{
-				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")}, // hash for nonce 1
-				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")}, // hash for nonce 3
+				{TxHash: common.HexToHash("0x9a970c0ee835ba57f7203768e78bd576939ae776b5df9a1f19c5f955abc8084b")}, // hash for encoded tx 10
+				{TxHash: common.HexToHash("0x183762f82b7bc6a04730852616971cb4dac62212ec2491d681efb5a243b427a9")}, // hash for encoded tx 12
 			},
 			expectedError:    true,
 			expectedErrorMsg: state.ErrOutOfOrderProcessedTx.Error(),
 		},
 		{
 			description: "out of order processedTx gives error",
-			existingTxs: []types.Transaction{
-				*types.NewTx(&types.LegacyTx{Nonce: 1}),
-				*types.NewTx(&types.LegacyTx{Nonce: 2}),
-				*types.NewTx(&types.LegacyTx{Nonce: 3}),
+			existingEncodedTxs: []string{
+				"10",
+				"11",
+				"12",
 			},
 			processedTxs: []*state.ProcessTransactionResponse{
-				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")}, // hash for nonce 1
-				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")}, // hash for nonce 3
-				{TxHash: common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52")}, // hash for nonce 2
+				{TxHash: common.HexToHash("0x9a970c0ee835ba57f7203768e78bd576939ae776b5df9a1f19c5f955abc8084b")}, // hash for encoded tx 10
+				{TxHash: common.HexToHash("0x183762f82b7bc6a04730852616971cb4dac62212ec2491d681efb5a243b427a9")}, // hash for encoded tx 12
+				{TxHash: common.HexToHash("0xf5c71615ef83e9fb9cb7dd4d04204a496ab8e50db2ef02c7969c271e70af7653")}, // hash for encoded tx 11
 			},
 			expectedError:    true,
 			expectedErrorMsg: state.ErrOutOfOrderProcessedTx.Error(),
@@ -598,7 +598,7 @@ func TestCheckSupersetBatchTransactions(t *testing.T) {
 		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
 			require.NoError(t, testutils.CheckError(
-				state.CheckSupersetBatchTransactions(tc.existingTxs, tc.processedTxs),
+				state.CheckSupersetBatchTransactions(tc.existingEncodedTxs, tc.processedTxs),
 				tc.expectedError,
 				tc.expectedErrorMsg,
 			))
