@@ -109,7 +109,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	require.NoError(t, err)
 	ctx := context.Background()
 	fmt.Println("db: ", stateDb)
-	tx, err := testState.BeginStateTransaction(ctx)
+	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	block := &state.Block{
 		BlockNumber: 1,
@@ -117,7 +117,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		ReceivedAt:  time.Now(),
 	}
-	err = testState.AddBlock(ctx, block, tx)
+	err = testState.AddBlock(ctx, block, dbTx)
 	assert.NoError(t, err)
 	globalExitRoot := state.GlobalExitRoot{
 		BlockNumber:       1,
@@ -126,11 +126,11 @@ func TestAddGlobalExitRoot(t *testing.T) {
 		RollupExitRoot:    common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 	}
-	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, tx)
+	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, dbTx)
 	require.NoError(t, err)
-	exit, err := testState.GetLatestGlobalExitRoot(ctx, tx)
+	exit, err := testState.GetLatestGlobalExitRoot(ctx, dbTx)
 	require.NoError(t, err)
-	err = tx.Commit(ctx)
+	err = dbTx.Commit(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, globalExitRoot.BlockNumber, exit.BlockNumber)
 	assert.Equal(t, globalExitRoot.GlobalExitRootNum, exit.GlobalExitRootNum)
@@ -144,7 +144,7 @@ func TestAddForcedBatch(t *testing.T) {
 	err := dbutils.InitOrReset(cfg)
 	require.NoError(t, err)
 	ctx := context.Background()
-	tx, err := testState.BeginStateTransaction(ctx)
+	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	block := &state.Block{
 		BlockNumber: 1,
@@ -152,7 +152,7 @@ func TestAddForcedBatch(t *testing.T) {
 		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		ReceivedAt:  time.Now(),
 	}
-	err = testState.AddBlock(ctx, block, tx)
+	err = testState.AddBlock(ctx, block, dbTx)
 	assert.NoError(t, err)
 	b := common.Hex2Bytes("0x617b3a3528F9")
 	assert.NoError(t, err)
@@ -166,11 +166,11 @@ func TestAddForcedBatch(t *testing.T) {
 		RawTxsData:        b,
 		ForcedAt:          time.Now(),
 	}
-	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
+	err = testState.AddForcedBatch(ctx, &forcedBatch, dbTx)
 	require.NoError(t, err)
-	fb, err := testState.GetForcedBatch(ctx, 2, tx)
+	fb, err := testState.GetForcedBatch(ctx, 2, dbTx)
 	require.NoError(t, err)
-	err = tx.Commit(ctx)
+	err = dbTx.Commit(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, forcedBatch.BlockNumber, fb.BlockNumber)
 	assert.Equal(t, forcedBatch.BatchNumber, fb.BatchNumber)
@@ -179,7 +179,7 @@ func TestAddForcedBatch(t *testing.T) {
 	assert.Equal(t, forcedBatch.GlobalExitRoot, fb.GlobalExitRoot)
 	assert.Equal(t, forcedBatch.RawTxsData, fb.RawTxsData)
 	// Test GetNextForcedBatches
-	tx, err = testState.BeginStateTransaction(ctx)
+	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	forcedBatch = state.ForcedBatch{
 		BlockNumber:       1,
@@ -190,11 +190,11 @@ func TestAddForcedBatch(t *testing.T) {
 		RawTxsData:        b,
 		ForcedAt:          time.Now(),
 	}
-	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
+	err = testState.AddForcedBatch(ctx, &forcedBatch, dbTx)
 	require.NoError(t, err)
-	batches, err := testState.GetNextForcedBatches(ctx, 1, tx)
+	batches, err := testState.GetNextForcedBatches(ctx, 1, dbTx)
 	require.NoError(t, err)
-	require.NoError(t, tx.Commit(ctx))
+	require.NoError(t, dbTx.Commit(ctx))
 	assert.Equal(t, forcedBatch.BlockNumber, batches[0].BlockNumber)
 	assert.Equal(t, forcedBatch.BatchNumber, batches[0].BatchNumber)
 	assert.Equal(t, forcedBatch.ForcedBatchNumber, batches[0].ForcedBatchNumber)
@@ -202,14 +202,14 @@ func TestAddForcedBatch(t *testing.T) {
 	assert.Equal(t, forcedBatch.GlobalExitRoot, batches[0].GlobalExitRoot)
 	assert.Equal(t, forcedBatch.RawTxsData, batches[0].RawTxsData)
 	// Test AddBatchNumberInForcedBatch
-	tx, err = testState.BeginStateTransaction(ctx)
+	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = testState.AddBatchNumberInForcedBatch(ctx, 3, 2, tx)
+	err = testState.AddBatchNumberInForcedBatch(ctx, 3, 2, dbTx)
 	require.NoError(t, err)
-	fb, err = testState.GetForcedBatch(ctx, 3, tx)
+	fb, err = testState.GetForcedBatch(ctx, 3, dbTx)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(2), *fb.BatchNumber)
-	require.NoError(t, tx.Commit(ctx))
+	require.NoError(t, dbTx.Commit(ctx))
 }
 
 func TestAddVirtualBatch(t *testing.T) {
@@ -217,7 +217,7 @@ func TestAddVirtualBatch(t *testing.T) {
 	err := dbutils.InitOrReset(cfg)
 	require.NoError(t, err)
 	ctx := context.Background()
-	tx, err := testState.BeginStateTransaction(ctx)
+	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	block := &state.Block{
 		BlockNumber: 1,
@@ -225,16 +225,68 @@ func TestAddVirtualBatch(t *testing.T) {
 		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		ReceivedAt:  time.Now(),
 	}
-	err = testState.AddBlock(ctx, block, tx)
+	err = testState.AddBlock(ctx, block, dbTx)
 	assert.NoError(t, err)
+
+	// timestamp to check for `GetLastBatchTime` functionality
+	// NOTE: This timestamp time value has been diluted in precision to match the recovered SQL database timestamp
+	timestamp := time.Now().UTC().Round(1000 * time.Nanosecond)
 	batch := state.Batch{
 		BatchNumber:    1,
 		GlobalExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		Coinbase:       common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
-		Timestamp:      time.Now(),
+		Timestamp:      timestamp,
 		BatchL2Data:    common.Hex2Bytes("0x617b3a3528F9"),
 	}
-	err = testState.StoreBatchHeader(ctx, batch, tx)
+	err = testState.StoreBatchHeader(ctx, batch, dbTx)
+	require.NoError(t, err)
+
+	recoveredTimestamp, err := testState.GetLastBatchTime(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, timestamp, recoveredTimestamp)
+
+	virtualBatch := state.VirtualBatch{
+		BlockNumber: 1,
+		BatchNumber: 1,
+		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		Sequencer:   common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+	}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func TestVerifiedBatch(t *testing.T) {
+
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, dbTx)
+	assert.NoError(t, err)
+	//require.NoError(t, tx.Commit(ctx))
+
+	lastBlock, err := testState.GetLastBlock(ctx, dbTx)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1), lastBlock.BlockNumber)
+
+	batch := state.Batch{
+		BatchNumber:    1,
+		GlobalExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		Coinbase:       common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
+		Timestamp:      time.Now().UTC(),
+		BatchL2Data:    common.Hex2Bytes("0x617b3a3528F9"),
+	}
+
+	err = testState.StoreBatchHeader(ctx, batch, dbTx)
 	require.NoError(t, err)
 	virtualBatch := state.VirtualBatch{
 		BlockNumber: 1,
@@ -242,9 +294,25 @@ func TestAddVirtualBatch(t *testing.T) {
 		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		Sequencer:   common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 	}
-	err = testState.AddVirtualBatch(ctx, &virtualBatch, tx)
+	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
 	require.NoError(t, err)
-	require.NoError(t, tx.Commit(ctx))
+	expectedVerifiedBatch := state.VerifiedBatch{
+		BlockNumber: 1,
+		BatchNumber: 1,
+		Aggregator:  common.HexToAddress("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+	}
+	err = testState.AddVerifiedBatch(ctx, &expectedVerifiedBatch, dbTx)
+	require.NoError(t, err)
+
+	// Step to create done, retrieve it
+
+	actualVerifiedBatch, err := testState.GetVerifiedBatch(ctx, 1, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, expectedVerifiedBatch, *actualVerifiedBatch)
+
+	require.NoError(t, dbTx.Commit(ctx))
+
 }
 
 /*
