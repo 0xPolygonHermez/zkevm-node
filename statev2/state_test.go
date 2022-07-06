@@ -487,7 +487,7 @@ func TestGenesis(t *testing.T) {
 func TestExecutor(t *testing.T) {
 	// Test based on
 	// https://github.com/hermeznetwork/zkproverjs/blob/main/testvectors/input_gen.json
-	var expectedNewRoot = "0x3f6f2c7e2940b19305af26e26ab8de99b3b6fb496372f7b3eef09e9fdb10a7bd"
+	var expectedNewRoot = "0xbff23fc2c168c033aaac77503ce18f958e9689d5cdaebb88c5524ce5c0319de3"
 
 	db := map[string]string{
 		"2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90": "00000000000000000000000000000000000000000000000000000000000000000d1f0da5a7b620c843fd1e18e59fd724d428d25da0cb1888e31f5542ac227c060000000000000000000000000000000000000000000000000000000000000000",
