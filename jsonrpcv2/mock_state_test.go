@@ -49,20 +49,6 @@ func (_m *stateMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) 
 	return r0, r1
 }
 
-// CommitState provides a mock function with given fields: ctx, tx
-func (_m *stateMock) CommitState(ctx context.Context, tx pgx.Tx) error {
-	ret := _m.Called(ctx, tx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) error); ok {
-		r0 = rf(ctx, tx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // DebugTransaction provides a mock function with given fields: ctx, transactionHash, tracer
 func (_m *stateMock) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error) {
 	ret := _m.Called(ctx, transactionHash, tracer)
@@ -222,8 +208,8 @@ func (_m *stateMock) GetL2BlockHashesSince(ctx context.Context, since time.Time,
 	return r0, r1
 }
 
-// GetL2BlockHeader provides a mock function with given fields: ctx, blockNumber, dbTx
-func (_m *stateMock) GetL2BlockHeader(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error) {
+// GetL2BlockHeaderByNumber provides a mock function with given fields: ctx, blockNumber, dbTx
+func (_m *stateMock) GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error) {
 	ret := _m.Called(ctx, blockNumber, dbTx)
 
 	var r0 *types.Header
@@ -555,31 +541,17 @@ func (_m *stateMock) GetTransactionReceipt(ctx context.Context, transactionHash 
 	return r0, r1
 }
 
-// ProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, senderAddress, sequencerAddress, blockNumber, dbTx
-func (_m *stateMock) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, sequencerAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
-	ret := _m.Called(ctx, tx, senderAddress, sequencerAddress, blockNumber, dbTx)
+// ProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, senderAddress, blockNumber, dbTx
+func (_m *stateMock) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
+	ret := _m.Called(ctx, tx, senderAddress, blockNumber, dbTx)
 
 	var r0 *runtime.ExecutionResult
-	if rf, ok := ret.Get(0).(func(context.Context, *types.Transaction, common.Address, common.Address, uint64, pgx.Tx) *runtime.ExecutionResult); ok {
-		r0 = rf(ctx, tx, senderAddress, sequencerAddress, blockNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, *types.Transaction, common.Address, uint64, pgx.Tx) *runtime.ExecutionResult); ok {
+		r0 = rf(ctx, tx, senderAddress, blockNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*runtime.ExecutionResult)
 		}
-	}
-
-	return r0
-}
-
-// RollbackState provides a mock function with given fields: ctx, tx
-func (_m *stateMock) RollbackState(ctx context.Context, tx pgx.Tx) error {
-	ret := _m.Called(ctx, tx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) error); ok {
-		r0 = rf(ctx, tx)
-	} else {
-		r0 = ret.Error(0)
 	}
 
 	return r0

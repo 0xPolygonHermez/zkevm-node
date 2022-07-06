@@ -12,6 +12,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/ethtxmanager"
 	"github.com/hermeznetwork/hermez-core/gasprice"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
+	"github.com/hermeznetwork/hermez-core/jsonrpcv2"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/pricegetter"
 	"github.com/hermeznetwork/hermez-core/proverclient"
@@ -45,6 +46,7 @@ type Config struct {
 	Etherman          etherman.Config
 	EthTxManager      ethtxmanager.Config
 	RPC               jsonrpc.Config
+	RPCV2             jsonrpcv2.Config
 	Synchronizer      synchronizer.Config
 	Sequencer         sequencer.Config
 	Sequencerv2       sequencerv2.Config

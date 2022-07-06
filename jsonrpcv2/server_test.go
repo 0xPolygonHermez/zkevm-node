@@ -9,15 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
 
 type mockedServer struct {
-	DefaultChainID   uint64
-	ChainID          uint64
-	SequencerAddress common.Address
+	ChainID uint64
 
 	Server    *Server
 	ServerURL string
@@ -33,9 +30,7 @@ type mocks struct {
 
 func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	const (
-		defaultChainID      = 1000
-		chainID             = 1001
-		sequencerAddressHex = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
+		chainID = 999
 
 		host                      = "localhost"
 		port                      = 8123
@@ -46,10 +41,8 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 		Host:                      host,
 		Port:                      port,
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
-		SequencerAddress:          sequencerAddressHex,
 		ChainID:                   1001,
 	}
-	sequencerAddress := common.HexToAddress(sequencerAddressHex)
 	pool := newPoolMock(t)
 	state := newStateMock(t)
 	gasPriceEstimator := newGasPriceEstimatorMock(t)
@@ -64,7 +57,7 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 		APIWeb3:   true,
 	}
 
-	server := NewServer(cfg, defaultChainID, chainID,
+	server := NewServer(cfg, chainID,
 		pool, state, gasPriceEstimator, storage, apis)
 
 	go func() {
@@ -89,10 +82,7 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	require.NoError(t, err)
 
 	msv := &mockedServer{
-		DefaultChainID:   defaultChainID,
-		ChainID:          chainID,
-		SequencerAddress: sequencerAddress,
-
+		ChainID:   chainID,
 		Server:    server,
 		ServerURL: serverURL,
 	}
