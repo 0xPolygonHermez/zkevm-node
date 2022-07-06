@@ -386,9 +386,9 @@ func TestExecuteTransaction(t *testing.T) {
 		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:         uint64(time.Now().Unix()),
-		UpdateMerkleTree:     false,
-		GenerateExecuteTrace: false,
-		GenerateCallTrace:    false,
+		UpdateMerkleTree:     0,
+		GenerateExecuteTrace: 0,
+		GenerateCallTrace:    0,
 	}
 
 	log.Debugf("%v", processBatchRequest)
