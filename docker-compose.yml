@@ -98,7 +98,7 @@ services:
         reservations:
           memory: 1G
     ports:
-      - 5434:5432
+      - 5432:5432
     environment:
       # In order to update this values, you may need to run: docker rm -f -v postgres
       - POSTGRES_USER=test_user
@@ -177,7 +177,7 @@ services:
 
   zkprover:
     container_name: zkprover
-    image: hermeznetwork/zkprover-local
+    image: hermeznetwork/zkprover-local@sha256:8e080866fda2639c9c3eb91c0fec5461f17acff7303e9e5c94fc6e4d430b5bc2
     network_mode: "host"
     expose:
       - 50051
@@ -185,15 +185,3 @@ services:
       - 50071
     command: >
       zkprover input_executor.json
-
-  zkprover-postgres:
-    container_name: zkprover-postgres
-    image: postgres
-    ports:
-      - 5432:5432
-    environment:
-      - POSTGRES_USER=zkstatedb
-      - POSTGRES_PASSWORD=zkstatedb
-      - POSTGRES_DB=perf_db
-    volumes:
-      - ./test/migrations/zkprover/001.sql:/docker-entrypoint-initdb.d/001.sql

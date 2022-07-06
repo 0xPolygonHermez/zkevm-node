@@ -11,7 +11,6 @@ DOCKERCOMPOSEEXPLORER := hez-explorer
 DOCKERCOMPOSEEXPLORERDB := hez-explorer-postgres
 DOCKERCOMPOSEEXPLORERRPC := hez-explorer-rpc
 DOCKERCOMPOSEZKPROVER := zkprover
-DOCKERCOMPOSEZKPROVERDB := zkprover-postgres
 
 RUNDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDB)
 RUNCORESEQ := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
@@ -26,7 +25,6 @@ RUNEXPLORER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORER)
 RUNEXPLORERDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERDB)
 RUNEXPLORERRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERRPC)
 RUNZKPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVER)
-RUNZKPROVERDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVERDB)
 
 RUN := $(DOCKERCOMPOSE) up -d
 
@@ -43,7 +41,6 @@ STOPEXPLORER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORER) && $(DOCKERCOMPOS
 STOPEXPLORERDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERDB)
 STOPEXPLORERRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERRPC)
 STOPZKPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVER)
-STOPZKPROVERDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVERDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVERDB)
 
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
@@ -86,15 +83,13 @@ test-full: build-docker compile-scs ## Runs all tests checking race conditions
 	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
 
 .PHONY: test-full-non-e2e
-test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
+test-full-non-e2e: #build-docker compile-scs ## Runs non-e2e tests checking race conditions
 	$(STOPDB)
 	$(RUNDB); sleep 7
-	$(STOPZKPROVERDB)
-	$(RUNZKPROVERDB); sleep 10
 	$(RUNZKPROVER)
 	sleep 5
 	docker logs zkprover
-	trap '$(STOPDB) && $(STOPZKPROVERDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
+	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking race conditions
@@ -173,14 +168,6 @@ run-zkprover: ## Runs zkprover
 .PHONY: stop-zkprover
 stop-zkprover: ## Stops zkprover
 	$(STOPZKPROVER)
-
-.PHONY: run-zkprover-db
-run-zkprover-db: ## Runs zkprover database
-	$(RUNZKPROVERDB)
-
-.PHONY: stop-zkprover-db
-stop-zkprover-db: ## Stops zkprover database
-	$(STOPZKPROVERDB)
 
 .PHONY: run-explorer
 run-explorer: ## Runs the explorer

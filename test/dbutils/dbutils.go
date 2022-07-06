@@ -32,7 +32,7 @@ func NewConfigFromEnv() db.Config {
 		Password:  testutils.GetEnv("PGPASSWORD", "test_password"),
 		Name:      testutils.GetEnv("PGDATABASE", "test_db"),
 		Host:      testutils.GetEnv("PGHOST", "localhost"),
-		Port:      testutils.GetEnv("PGPORT", "5434"),
+		Port:      testutils.GetEnv("PGPORT", "5432"),
 		EnableLog: true,
 		MaxConns:  maxDBPoolConns,
 	}
