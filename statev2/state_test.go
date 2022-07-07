@@ -217,6 +217,18 @@ func TestOpenCloseBatch(t *testing.T) {
 		Timestamp:      processingCtx1.Timestamp,
 		GlobalExitRoot: processingCtx1.GlobalExitRoot,
 	}, *actualBatch)
+
+	recoveredTimestamp, err := testState.GetLastBatchTime(ctx, dbTx)
+	require.NoError(t, err)
+	log.Infof("\ntimestamps:\n\t1 %s\n\t2 %s\n\t3 %s", processingCtx1.Timestamp.UTC(), processingCtx2.Timestamp.UTC(), processingCtx3.Timestamp.UTC())
+	log.Infof("\nrecovered timestamps %s", recoveredTimestamp.UTC())
+
+	// timestamp to check for `GetLastBatchTime` functionality
+	// NOTE: This timestamp time value has been diluted in precision to match the recovered SQL database timestamp
+	_, offset := time.Now().Zone()
+	log.Infof("\noffset %d", offset)
+	dilutedTimestamp := processingCtx2.Timestamp.UTC().Add(time.Duration((offset / 3600)) * time.Hour).Round(1000 * time.Nanosecond)
+	require.Equal(t, dilutedTimestamp, recoveredTimestamp.UTC())
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
