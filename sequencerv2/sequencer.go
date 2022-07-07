@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -135,17 +136,23 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	shouldSent, shouldCut := s.shouldSendSequences(ctx)
 	if shouldSent {
 		log.Infof("current sequence should be sent")
+		estimateGas, err := s.etherman.EstimateGasSequenceBatches(s.closedSequences)
+		if err != nil {
+			log.Errorf("failed to estimate gas, err: %v", err)
+			return
+		}
 		if shouldCut {
 			log.Infof("current sequence should be cut")
 			cutSequence := s.closedSequences[len(s.closedSequences)-1]
-			err := s.txManager.SequenceBatches(s.closedSequences)
+
+			_, err := s.txManager.SequenceBatches(s.closedSequences, estimateGas)
 			if err != nil {
 				log.Errorf("failed to SequenceBatches, err: %v", err)
 				return
 			}
 			s.closedSequences = []types.Sequence{cutSequence}
 		} else {
-			err := s.txManager.SequenceBatches(s.closedSequences)
+			_, err := s.txManager.SequenceBatches(s.closedSequences, estimateGas)
 			if err != nil {
 				log.Errorf("failed to SequenceBatches, err: %v", err)
 				return
@@ -168,7 +175,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	log.Infof("processing tx")
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	processBatchResp, err := s.state.ProcessBatch(ctx, s.sequenceInProgress.Txs, nil)
+	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, nil)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
@@ -243,7 +250,7 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 
 	if lastBatchVirtualizationTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
 		// check profitability
-		if s.checker.IsSendSequencesProfitable(estimatedGas, s.closedSequences) {
+		if s.checker.IsSendSequencesProfitable(new(big.Int).SetUint64(estimatedGas), s.closedSequences) {
 			return true, false
 		}
 	}
@@ -301,7 +308,12 @@ func (s *Sequencer) getMostProfitablePendingTx(ctx context.Context) (*pool.Trans
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	// close current batch
 	if s.lastStateRoot.String() != "" || s.lastLocalExitRoot.String() != "" {
-		err := s.state.CloseBatch(ctx, s.lastBatchNum, s.lastStateRoot, s.lastLocalExitRoot, nil)
+		receipt := statev2.ProcessingReceipt{
+			BatchNumber:   s.lastBatchNum,
+			StateRoot:     s.lastStateRoot,
+			LocalExitRoot: s.lastLocalExitRoot,
+		}
+		err := s.state.CloseBatch(ctx, receipt, nil)
 		if err != nil {
 			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %v", err)
 		}
@@ -319,17 +331,6 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		return types.Sequence{}, fmt.Errorf("failed to get last batch number, err: %v", err)
 	}
 	s.lastBatchNum = s.lastBatchNum + 1
-
-	batchHeader := statev2.Batch{
-		BatchNumber:    s.lastBatchNum,
-		Timestamp:      time.Now(),
-		GlobalExitRoot: root.GlobalExitRoot,
-		Coinbase:       s.address,
-	}
-	err = s.state.StoreBatchHeader(ctx, batchHeader, nil)
-	if err != nil {
-		return types.Sequence{}, fmt.Errorf("failed to store batch header, err: %v", err)
-	}
 
 	return types.Sequence{
 		GlobalExitRoot:  root.GlobalExitRoot,

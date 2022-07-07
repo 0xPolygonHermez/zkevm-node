@@ -40,7 +40,7 @@ func approveTokens(ctx *cli.Context) error {
 	runMigrations(c.Database)
 
 	// Check if it is already registered
-	etherman, err := newEtherman(*c)
+	etherman, err := newEthermanV1(*c)
 	if err != nil {
 		log.Fatal(err)
 		return err
