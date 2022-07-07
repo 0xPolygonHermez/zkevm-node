@@ -604,3 +604,49 @@ func TestCheckSupersetBatchTransactions(t *testing.T) {
 		})
 	}
 }
+
+func TestGetTxsHashesByBatchNumber(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	// Set genesis batch
+	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	require.NoError(t, err)
+	// Open batch #1
+	processingCtx1 := state.ProcessingContext{
+		BatchNumber:    1,
+		Coinbase:       common.HexToAddress("1"),
+		Timestamp:      time.Now().UTC(),
+		GlobalExitRoot: common.HexToHash("a"),
+	}
+	err = testState.OpenBatch(ctx, processingCtx1, dbTx)
+	require.NoError(t, err)
+
+	// Add txs to batch #1
+	tx1 := *types.NewTransaction(0, common.HexToAddress("0"), big.NewInt(0), 0, big.NewInt(0), []byte("aaa"))
+	tx2 := *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
+	txsBatch1 := []*state.ProcessTransactionResponse{
+		{
+			TxHash: tx1.Hash(),
+			Tx:     tx1,
+		},
+		{
+			TxHash: tx2.Hash(),
+			Tx:     tx2,
+		},
+	}
+	err = testState.StoreTransactions(ctx, 1, txsBatch1, dbTx)
+	require.NoError(t, err)
+
+	txs, err := testState.GetTxsHashesByBatchNumber(ctx, 1, dbTx)
+	require.NoError(t, err)
+
+	require.Equal(t, len(txsBatch1), len(txs))
+	require.Equal(t, txsBatch1[0].TxHash, txs[0])
+	require.Equal(t, txsBatch1[1].TxHash, txs[1])
+
+	require.NoError(t, dbTx.Commit(ctx))
+}
