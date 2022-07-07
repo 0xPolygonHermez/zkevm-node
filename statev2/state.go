@@ -694,12 +694,14 @@ func CheckSupersetBatchTransactions(existingEncodedTxs []string, processedTxs []
 		return ErrExistingTxGreaterThanProcessedTx
 	}
 	for i, existingEncodedTx := range existingEncodedTxs {
-		existingEncodedTxBytes, err := hex.DecodeString(existingEncodedTx)
+		existingEncodedTxBytes, err := hex.DecodeHex(existingEncodedTx)
 		if err != nil {
 			return err
 		}
-		existingTx := types.NewTx(&types.LegacyTx{Data: existingEncodedTxBytes})
-
+		existingTx := types.NewTx(&types.LegacyTx{})
+		if err := existingTx.UnmarshalBinary(existingEncodedTxBytes); err != nil {
+			return err
+		}
 		processedTx := processedTxs[i]
 		if existingTx.Hash() != processedTx.TxHash {
 			return ErrOutOfOrderProcessedTx
