@@ -645,8 +645,8 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, len(txsBatch1), len(txs))
-	require.Equal(t, txsBatch1[0].TxHash, txs[0])
-	require.Equal(t, txsBatch1[1].TxHash, txs[1])
-
+	for i := range txsBatch1 {
+		require.Equal(t, txsBatch1[i].TxHash, txs[i])
+	}
 	require.NoError(t, dbTx.Commit(ctx))
 }
