@@ -177,7 +177,7 @@ services:
 
   zkprover:
     container_name: zkprover
-    image: hermeznetwork/zkprover-local@sha256:8e080866fda2639c9c3eb91c0fec5461f17acff7303e9e5c94fc6e4d430b5bc2
+    image: hermeznetwork/zkprover-local@sha256:ef45ccbb4144224872c468dd2b5261f3ab6986abe02f86b83351b1368a371eb4
     network_mode: "host"
     expose:
       - 50051
