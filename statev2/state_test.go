@@ -533,86 +533,71 @@ func TestGenesis(t *testing.T) {
 
 func TestCheckSupersetBatchTransactions(t *testing.T) {
 	tcs := []struct {
-		description        string
-		existingEncodedTxs []string
-		processedTxs       []*state.ProcessTransactionResponse
-		expectedError      bool
-		expectedErrorMsg   string
+		description      string
+		existingTxHashes []common.Hash
+		processedTxs     []*state.ProcessTransactionResponse
+		expectedError    bool
+		expectedErrorMsg string
 	}{
 		{
-			description:        "empty existingEncodedTxs and processedTx is successful",
-			existingEncodedTxs: []string{},
-			processedTxs:       []*state.ProcessTransactionResponse{},
+			description:      "empty existingTxHashes and processedTx is successful",
+			existingTxHashes: []common.Hash{},
+			processedTxs:     []*state.ProcessTransactionResponse{},
 		},
 		{
 			description: "happy path",
-			existingEncodedTxs: []string{
-				"0xc9018080808080808080", // encoded for nonce 1
-				"0xc9028080808080808080", // encoded for nonce 2
-				"0xc9038080808080808080", // encoded for nonce 3
+			existingTxHashes: []common.Hash{
+				common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c"),
+				common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52"),
+				common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f"),
 			},
 			processedTxs: []*state.ProcessTransactionResponse{
-				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")}, // hash for nonce 1
-				{TxHash: common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52")}, // hash for nonce 2
-				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")}, // hash for nonce 3
+				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")},
+				{TxHash: common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52")},
+				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")},
 			},
 		},
 		{
-			description:        "too short existingEncodedTxs gives error",
-			existingEncodedTxs: []string{""},
-			processedTxs:       []*state.ProcessTransactionResponse{{}},
-			expectedError:      true,
-			expectedErrorMsg:   "typed transaction too short",
+			description:      "existingTxHashes bigger than processedTx gives error",
+			existingTxHashes: []common.Hash{common.HexToHash(""), common.HexToHash("")},
+			processedTxs:     []*state.ProcessTransactionResponse{{}},
+			expectedError:    true,
+			expectedErrorMsg: state.ErrExistingTxGreaterThanProcessedTx.Error(),
 		},
 		{
-			description:        "invalid existingEncodedTxs gives error",
-			existingEncodedTxs: []string{"invalid"},
-			processedTxs:       []*state.ProcessTransactionResponse{{}},
-			expectedError:      true,
-			expectedErrorMsg:   "encoding/hex: invalid byte",
-		},
-		{
-			description:        "existingEncodedTxs bigger than processedTx gives error",
-			existingEncodedTxs: []string{"", ""},
-			processedTxs:       []*state.ProcessTransactionResponse{{}},
-			expectedError:      true,
-			expectedErrorMsg:   state.ErrExistingTxGreaterThanProcessedTx.Error(),
-		},
-		{
-			description: "processedTx not present in existingEncodedTxs gives error",
-			existingEncodedTxs: []string{
-				"0xc9018080808080808080", // encoded for nonce 1
-				"0xc9028080808080808080", // encoded for nonce 2
+			description: "processedTx not present in existingTxHashes gives error",
+			existingTxHashes: []common.Hash{
+				common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c"),
+				common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52"),
 			},
 			processedTxs: []*state.ProcessTransactionResponse{
-				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")}, // hash for nonce 1
-				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")}, // hash for nonce 3
+				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")},
+				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")},
 			},
 			expectedError:    true,
 			expectedErrorMsg: state.ErrOutOfOrderProcessedTx.Error(),
 		},
 		{
 			description: "out of order processedTx gives error",
-			existingEncodedTxs: []string{
-				"0xc9018080808080808080", // encoded for nonce 1
-				"0xc9028080808080808080", // encoded for nonce 2
-				"0xc9038080808080808080", // encoded for nonce 3
+			existingTxHashes: []common.Hash{
+				common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c"),
+				common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52"),
+				common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f"),
 			},
 			processedTxs: []*state.ProcessTransactionResponse{
-				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")}, // hash for nonce 1
-				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")}, // hash for nonce 3
-				{TxHash: common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52")}, // hash for nonce 2
+				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")},
+				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")},
+				{TxHash: common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52")},
 			},
 			expectedError:    true,
 			expectedErrorMsg: state.ErrOutOfOrderProcessedTx.Error(),
 		},
 	}
-
 	for _, tc := range tcs {
 		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
 			require.NoError(t, testutils.CheckError(
-				state.CheckSupersetBatchTransactions(tc.existingEncodedTxs, tc.processedTxs),
+				state.CheckSupersetBatchTransactions(tc.existingTxHashes, tc.processedTxs),
 				tc.expectedError,
 				tc.expectedErrorMsg,
 			))

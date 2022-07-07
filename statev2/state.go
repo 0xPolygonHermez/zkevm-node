@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/hex"
 	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/hermeznetwork/hermez-core/merkletree"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime"
@@ -259,15 +258,16 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
 }
 
-// StoreTransactions is used by the sequencer to add processed transactions into an open batch.
-// If the batch already has txs, those WILL BE DELETED before adding the new ones.
+// StoreTransactions is used by the sequencer to add processed transactions into
+// an open batch. If the batch already has txs, the processedTxs must be a super
+// set of the existing ones, preserving order.
 func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
 
 	// check existing txs vs parameter txs
-	existingTxs, err := s.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
+	existingTxs, err := s.GetTxsHashesByBatchNumber(ctx, batchNumber, dbTx)
 	if err != nil {
 		return err
 	}
@@ -284,35 +284,14 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		return ErrBatchAlreadyClosed
 	}
 
-	foundPosition := -1
-
 	processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
 	if err != nil {
 		return err
 	}
 
-	lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
-	if err != nil {
-		return err
-	}
+	firstTxToInsert := len(existingTxs)
 
-	// Look for the transaction that matches latest state root in data base
-	// in case we already have l2blocks for that batch
-	// to just store new transactions
-	if lastL2Block.Header().Number.Uint64() == batchNumber {
-		stateRoot := lastL2Block.Header().Root
-
-		for i, processedTx := range processedTxs {
-			if processedTx.StateRoot == stateRoot {
-				foundPosition = i
-				break
-			}
-		}
-	}
-
-	foundPosition++
-
-	for i := foundPosition; i < len(processedTxs); i++ {
+	for i := firstTxToInsert; i < len(processedTxs); i++ {
 		processedTx := processedTxs[i]
 
 		lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
@@ -689,21 +668,12 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 // CheckSupersetBatchTransactions verifies that processedTransactions is a
 // superset of existingTxs and that the existing txs have the same order,
 // returns a non-nil error if that is not the case.
-func CheckSupersetBatchTransactions(existingEncodedTxs []string, processedTxs []*ProcessTransactionResponse) error {
-	if len(existingEncodedTxs) > len(processedTxs) {
+func CheckSupersetBatchTransactions(existingTxHashes []common.Hash, processedTxs []*ProcessTransactionResponse) error {
+	if len(existingTxHashes) > len(processedTxs) {
 		return ErrExistingTxGreaterThanProcessedTx
 	}
-	for i, existingEncodedTx := range existingEncodedTxs {
-		existingEncodedTxBytes, err := hex.DecodeHex(existingEncodedTx)
-		if err != nil {
-			return err
-		}
-		existingTx := types.NewTx(&types.LegacyTx{})
-		if err := existingTx.UnmarshalBinary(existingEncodedTxBytes); err != nil {
-			return err
-		}
-		processedTx := processedTxs[i]
-		if existingTx.Hash() != processedTx.TxHash {
+	for i, existingTxHash := range existingTxHashes {
+		if existingTxHash != processedTxs[i].TxHash {
 			return ErrOutOfOrderProcessedTx
 		}
 	}
