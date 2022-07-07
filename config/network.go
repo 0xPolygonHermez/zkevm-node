@@ -22,6 +22,7 @@ type NetworkConfig struct {
 	PoEAddr                       common.Address
 	MaticAddr                     common.Address
 	L2GlobalExitRootManagerAddr   common.Address
+	GlobalExitRootManagerAddr     common.Address
 	SystemSCAddr                  common.Address
 	GlobalExitRootStoragePosition uint64
 	LocalExitRootStoragePosition  uint64
@@ -44,6 +45,7 @@ type networkConfigFromJSON struct {
 	Arity                         uint8                    `json:"arity"`
 	PoEAddr                       string                   `json:"proofOfEfficiencyAddress"`
 	MaticAddr                     string                   `json:"maticTokenAddress"`
+	GlobalExitRootManagerAddr     string                   `json:"globalExitRootManagerAddress"`
 	GenBlockNumber                uint64                   `json:"deploymentBlockNumber"`
 	SystemSCAddr                  string                   `json:"systemSCAddr"`
 	GlobalExitRootStoragePosition uint64                   `json:"globalExitRootStoragePosition"`
@@ -80,6 +82,7 @@ var (
 		PoEAddr:                       common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
 		MaticAddr:                     common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		GlobalExitRootManagerAddr:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
@@ -100,6 +103,7 @@ var (
 		PoEAddr:                       common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
 		MaticAddr:                     common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		GlobalExitRootManagerAddr:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
@@ -120,6 +124,7 @@ var (
 		PoEAddr:                       common.HexToAddress("0x083E10Fc0De5a919Dec514CCD9130cD772D38Bfb"),
 		MaticAddr:                     common.HexToAddress("0x7431FD5ba483f826cAf06B68ae95b2aE738D666D"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
+		GlobalExitRootManagerAddr:     common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
@@ -189,6 +194,7 @@ var (
 		PoEAddr:                       common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
 		MaticAddr:                     common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
+		GlobalExitRootManagerAddr:     common.HexToAddress("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,

@@ -94,13 +94,6 @@ func main() {
 			Flags:   flags,
 		},
 		{
-			Name:    "register",
-			Aliases: []string{"reg"},
-			Usage:   "Register sequencer in the smart contract",
-			Action:  registerSequencer,
-			Flags:   flags,
-		},
-		{
 			Name:    "approve",
 			Aliases: []string{"ap"},
 			Usage:   "Approve tokens to be spent by the smart contract",

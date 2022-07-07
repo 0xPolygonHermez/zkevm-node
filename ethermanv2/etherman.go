@@ -549,3 +549,12 @@ func (etherMan *Client) GetTx(ctx context.Context, txHash common.Hash) (*types.T
 func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	return etherMan.EtherClient.TransactionReceipt(ctx, txHash)
 }
+
+// ApproveMatic function allow to approve tokens in matic smc
+func (etherMan *Client) ApproveMatic(maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
+	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
+	if err != nil {
+		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
+	}
+	return tx, nil
+}

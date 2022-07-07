@@ -120,6 +120,10 @@ func TestAddBlock(t *testing.T) {
 	assert.Equal(t, uint64(1), prevBlock.BlockNumber)
 }
 
+func TestProcessCloseBatch(t *testing.T) {
+
+}
+
 func TestOpenCloseBatch(t *testing.T) {
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
