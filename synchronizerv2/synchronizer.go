@@ -270,7 +270,8 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			if rollbackErr != nil {
 				log.Fatalf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %s", blocks[i].BlockNumber, rollbackErr.Error(), err.Error())
 			}
-			log.Fatalf("error committing state to store block. BlockNumber: %d, err: %s", blocks[i].BlockNumber, err.Error())		}
+			log.Fatalf("error committing state to store block. BlockNumber: %d, err: %s", blocks[i].BlockNumber, err.Error())
+		}
 	}
 }
 
@@ -452,10 +453,10 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 
 		// Now we need to check all the batches. ForcedBatches should be already stored in the batch table because this is done by the sequencer
 		for i, batch := range batches {
-			processCtx := state.ProcessingContext {
-				BatchNumber: batch.BatchNumber,
-				Coinbase: batch.Coinbase,
-				Timestamp: batch.Timestamp,
+			processCtx := state.ProcessingContext{
+				BatchNumber:    batch.BatchNumber,
+				Coinbase:       batch.Coinbase,
+				Timestamp:      batch.Timestamp,
 				GlobalExitRoot: batch.GlobalExitRoot,
 			}
 			// Call the check trusted state method to compare trusted and virtual state
