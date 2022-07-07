@@ -427,7 +427,6 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, l2Tx1.Hash().Hex(), txHashes[0].Hex())
 }
-
 func TestVerifiedBatch(t *testing.T) {
 
 	err := dbutils.InitOrReset(cfg)
