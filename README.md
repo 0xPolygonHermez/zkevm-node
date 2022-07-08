@@ -49,11 +49,54 @@ The diagram represents the main components of the software and how they interact
 
 ## Roles of the network
 
+The node software is designed to support the execution of multiple roles. Each role require different services in order to work. Most of the services can run in different instances, and the JSON RPC can run in many instances (all the other services must have a single instance)
 
+### RPC
+
+This role can be performed by anyone.
+
+Required services and components:
+
+- JSON RPC: can run in a separated instance, and can have multiple instances
+- Synchronizer: single instance that needs to run together
+- Executor & Merkletree: service that can run on a separated instance
+- State DB: Postgres SQL that can be run in a separated instance
+
+There must be only one synchronizer, and it's recommended that it has exclusive access to an executor instance, although it's not necessary. In fact this role can perfectly be run in a single instance, however, the JSON RPC and executor services can benefit from running in multiple instances, if the performance decreases due to the amount of requests received
 
 ### Trusted sequencer
 
-Explained on the diagram above. It requires all the comopnents except the aggregator, which is optional. This role can only be performed by a single entitiy. This is enforced in the smart contract, as the related methods of the trusted sequencer can only be performed by the owner of a particular private key.
+This role can only be performed by a single entitiy. This is enforced in the smart contract, as the related methods of the trusted sequencer can only be performed by the owner of a particular private key.
+
+Required services and components:
+
+- JSON RPC: can run in a separated instance, and can have multiple instances
+- Sequencer & Synchronizer: single instance that needs to run together
+- Executor & Merkletree: service that can run on a separated instance
+- Broadcast: can run on a separated instance
+- Pool DB: Postgres SQL that can be run in a separated instance
+- State DB: Postgres SQL that can be run in a separated instance
+
+Note that the JSON RPC it's required in order to receive transactions. It's recommended that the JSON RPC runs on separated instances, and potentially more than one (depending on the load of the network). It's also recommended that the JSON RPC and the Sequencer don't share the same executor instance, to make sure that the sequencer has exclusive access to an executor
+
+### Permissionless sequencer
+
+TBD
+
+### Aggregator
+
+This role can be performed by anyone.
+
+Required services and components:
+
+- Synchronizer: single instance that can run on a separated instance
+- Executor & Merkletree: service that can run on a separated instance
+- State DB: Postgres SQL that can be run in a separated instance
+- Aggregator: single instance that can run on a separated instance
+- Prover: single instance that can run on a separated instance
+- Executor: single instance that can run on a separated instance
+
+It's recommended that the prover is run on a separated instance, as it has important hardware requirements. On the other hand all the other components can run on a single instance,
 
 ## Development
 
