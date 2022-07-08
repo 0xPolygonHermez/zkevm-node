@@ -106,6 +106,7 @@ func start(cliCtx *cli.Context) error {
 
 	npool = pool.NewPool(poolDb, stV1, c.NetworkConfig.L2GlobalExitRootManagerAddr)
 	gpe = createGasPriceEstimator(c.GasPriceEstimator, stV1, npool)
+	ch := make(chan struct{})
 
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
 		switch item {
@@ -115,7 +116,6 @@ func start(cliCtx *cli.Context) error {
 		case SEQUENCER:
 			log.Info("Running sequencer")
 			c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
-			ch := make(chan struct{})
 			seq := createSequencer(*c, npool, stV2, ethermanV2, ch)
 			go seq.Start(ctx)
 		case RPC:
@@ -127,8 +127,7 @@ func start(cliCtx *cli.Context) error {
 			go runJSONRpcServer(*c, npool, stV2, c.RPC.ChainID, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
-			go runSynchronizer(ctx, c.NetworkConfig, ethermanV1, stV1, c.Synchronizer, gpe)
-			go runSynchronizer(c.NetworkConfig, ethermanv2, stV2, c.Synchronizerv2, reorgBlockNumChan)
+			go runSynchronizer(c.NetworkConfig, ethermanV2, stV2, c.Synchronizerv2, ch)
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			go runBroadcastServer(c.BroadcastServer, stV2)
@@ -158,7 +157,7 @@ func newEthermanV1(c config.Config) (*etherman.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	etherman, err := ethermanv2.NewClient(c.Ethermanv2, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.GlobalExitRootManagerAddr)
+	etherman, err := etherman.NewClient(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.MaticAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -166,11 +165,11 @@ func newEthermanV1(c config.Config) (*etherman.Client, error) {
 }
 
 func newEthermanV2(c config.Config) (*ethermanv2.Client, error) {
-	auth, err := newAuthFromKeystore(c.EthermanV2.PrivateKeyPath, c.EthermanV2.PrivateKeyPassword, c.NetworkConfig.L1ChainID)
+	auth, err := newAuthFromKeystore(c.Ethermanv2.PrivateKeyPath, c.Ethermanv2.PrivateKeyPassword, c.NetworkConfig.L1ChainID)
 	if err != nil {
 		return nil, err
 	}
-	etherman, err := ethermanv2.NewClient(c.EthermanV2, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.L2GlobalExitRootManagerAddr)
+	etherman, err := ethermanv2.NewClient(c.Ethermanv2, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.GlobalExitRootManagerAddr)
 	if err != nil {
 		return nil, err
 	}
