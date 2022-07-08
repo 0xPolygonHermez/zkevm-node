@@ -55,9 +55,28 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 
 	gasPrice := tx.GasPrice().Uint64()
 	nonce := tx.Nonce()
-	sql := "INSERT INTO pool.txs (hash, encoded, decoded, state, gas_price, nonce, is_claims, cumulative_gas_used, used_keccak_hashes, " +
-		"used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns, used_arithmetics," +
-		"used_binaries, used_steps, received_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)"
+	sql := `
+		INSERT INTO pool.txs 
+		(
+			hash,
+			encoded,
+			decoded,
+			state,
+			gas_price,
+			nonce,
+			is_claims,
+			cumulative_gas_used,
+			used_keccak_hashes,
+			used_poseidon_hashes,
+			used_poseidon_paddings,
+			used_mem_aligns,
+			used_arithmetics,
+			used_binaries,
+			used_steps,
+			received_at
+		) 
+		VALUES 
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
 	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, tx.State, gasPrice, nonce, tx.IsClaims, tx.CumulativeGasUsed,
 		tx.UsedKeccakHashes, tx.UsedPoseidonHashes, tx.UsedPoseidonPaddings, tx.UsedMemAligns, tx.UsedArithmetics,
 		tx.UsedBinaries, tx.UsedSteps, tx.ReceivedAt); err != nil {
@@ -127,11 +146,34 @@ func (p *PostgresPoolStorage) GetTxsByState(ctx context.Context, state pool.TxSt
 }
 
 func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters pool.ZkCounters) (*pool.Transaction, error) {
-	sql := "SELECT encoded, state, cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, " +
-		"used_mem_aligns, used_arithmetics, used_binaries, used_steps, received_at FROM pool.txs WHERE " +
-		"state = $1 AND cumulative_gas_used < $2 AND used_keccak_hashes < $3 AND used_poseidon_hashes < $4 " +
-		"AND used_poseidon_paddings < $5 AND used_mem_aligns < $6 AND used_arithmetics < $7 AND used_binaries < $8 AND " +
-		"used_steps < $9 ORDER BY gas_price DESC LIMIT 1"
+	sql := `
+		SELECT 
+			encoded, 
+			state,
+			cumulative_gas_used,
+			used_keccak_hashes,
+			used_poseidon_hashes,
+			used_poseidon_paddings, 
+			used_mem_aligns,
+			used_arithmetics,
+			used_binaries,
+			used_steps,
+			received_at 
+		FROM
+			pool.txs 
+		WHERE 
+			state = $1 AND 
+			cumulative_gas_used < $2 AND 
+			used_keccak_hashes < $3 AND 
+			used_poseidon_hashes < $4 AND 
+			used_poseidon_paddings < $5 AND
+			used_mem_aligns < $6 AND 
+			used_arithmetics < $7 AND
+			used_binaries < $8 AND 
+			used_steps < $9
+		ORDER BY gas_price DESC
+		LIMIT 1
+	`
 	var (
 		encoded, state    string
 		receivedAt        time.Time
