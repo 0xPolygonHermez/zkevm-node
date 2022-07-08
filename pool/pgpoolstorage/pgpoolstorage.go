@@ -76,10 +76,25 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			received_at
 		) 
 		VALUES 
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
-	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, tx.State, gasPrice, nonce, tx.IsClaims, tx.CumulativeGasUsed,
-		tx.UsedKeccakHashes, tx.UsedPoseidonHashes, tx.UsedPoseidonPaddings, tx.UsedMemAligns, tx.UsedArithmetics,
-		tx.UsedBinaries, tx.UsedSteps, tx.ReceivedAt); err != nil {
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+	`
+	if _, err := p.db.Exec(ctx, sql,
+		hash,
+		encoded,
+		decoded,
+		tx.State,
+		gasPrice,
+		nonce,
+		tx.IsClaims,
+		tx.CumulativeGasUsed,
+		tx.UsedKeccakHashes,
+		tx.UsedPoseidonHashes,
+		tx.UsedPoseidonPaddings,
+		tx.UsedMemAligns,
+		tx.UsedArithmetics,
+		tx.UsedBinaries,
+		tx.UsedSteps,
+		tx.ReceivedAt); err != nil {
 		return err
 	}
 	return nil
