@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-const maxMsgSize = 100000000
+// const maxMsgSize = 100000000
 
 func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient, *grpc.ClientConn, context.CancelFunc) {
 	// opts := []grpc.DialOption{
