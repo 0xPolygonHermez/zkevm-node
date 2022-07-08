@@ -53,7 +53,7 @@ type stateInterface interface {
 }
 
 type txManager interface {
-	SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64) (*types.Transaction, error)
+	SequenceBatches(sequences []ethmanTypes.Sequence) error
 }
 
 // priceGetter is for getting eth/matic price, used for the tx profitability checker

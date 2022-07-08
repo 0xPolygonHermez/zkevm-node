@@ -136,24 +136,16 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	shouldSent, shouldCut := s.shouldSendSequences(ctx)
 	if shouldSent {
 		log.Infof("current sequence should be sent")
-		estimateGas, err := s.etherman.EstimateGasSequenceBatches(s.closedSequences)
-		if err != nil {
-			log.Errorf("failed to estimate gas, err: %v", err)
-			return
-		}
 		if shouldCut {
 			log.Infof("current sequence should be cut")
 			cutSequence := s.closedSequences[len(s.closedSequences)-1]
-
-			_, err := s.txManager.SequenceBatches(s.closedSequences, estimateGas)
-			if err != nil {
+			if err := s.txManager.SequenceBatches(s.closedSequences); err != nil {
 				log.Errorf("failed to SequenceBatches, err: %v", err)
 				return
 			}
 			s.closedSequences = []types.Sequence{cutSequence}
 		} else {
-			_, err := s.txManager.SequenceBatches(s.closedSequences, estimateGas)
-			if err != nil {
+			if err := s.txManager.SequenceBatches(s.closedSequences); err != nil {
 				log.Errorf("failed to SequenceBatches, err: %v", err)
 				return
 			}

@@ -18,6 +18,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/etherman"
 	"github.com/hermeznetwork/hermez-core/ethermanv2"
+	"github.com/hermeznetwork/hermez-core/ethtxmanager"
 	"github.com/hermeznetwork/hermez-core/gasprice"
 	jsonrpc "github.com/hermeznetwork/hermez-core/jsonrpcv2"
 	"github.com/hermeznetwork/hermez-core/log"
@@ -227,7 +228,9 @@ func createSequencer(c config.Config, pool *pool.Pool, state *statev2.State, eth
 	if err != nil {
 		log.Fatal(err)
 	}
-	seq, err := sequencerv2.New(c.SequencerV2, pool, state, etherman, pg, reorgBlockNumChan, etherman)
+	ethManager := ethtxmanager.New(c.EthTxManager, etherman)
+
+	seq, err := sequencerv2.New(c.SequencerV2, pool, state, etherman, pg, reorgBlockNumChan, ethManager)
 	if err != nil {
 		log.Fatal(err)
 	}
