@@ -9,6 +9,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/aggregator"
 	"github.com/hermeznetwork/hermez-core/db"
 	"github.com/hermeznetwork/hermez-core/etherman"
+	"github.com/hermeznetwork/hermez-core/ethermanv2"
 	"github.com/hermeznetwork/hermez-core/ethtxmanager"
 	"github.com/hermeznetwork/hermez-core/gasprice"
 	"github.com/hermeznetwork/hermez-core/jsonrpc"
@@ -44,12 +45,13 @@ type Config struct {
 	Log               log.Config
 	Database          db.Config
 	Etherman          etherman.Config
+	EthermanV2        ethermanv2.Config
 	EthTxManager      ethtxmanager.Config
 	RPC               jsonrpc.Config
 	RPCV2             jsonrpcv2.Config
 	Synchronizer      synchronizer.Config
 	Sequencer         sequencer.Config
-	Sequencerv2       sequencerv2.Config
+	SequencerV2       sequencerv2.Config
 	PriceGetter       pricegetter.Config
 	Aggregator        aggregator.Config
 	Prover            proverclient.Config

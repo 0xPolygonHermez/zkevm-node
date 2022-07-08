@@ -29,7 +29,7 @@ type txPool interface {
 
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
-	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*big.Int, error)
+	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error)
 	GetSendSequenceFee() (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
 }
@@ -42,15 +42,13 @@ type stateInterface interface {
 
 	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*statev2.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	StoreBatchHeader(ctx context.Context, batch statev2.Batch, dbTx pgx.Tx) error
 	StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*statev2.ProcessTransactionResponse, dbTx pgx.Tx) error
-	CloseBatch(ctx context.Context, batchNum uint64, stateRoot, localExitRoot common.Hash, dbTx pgx.Tx) error
-	ProcessBatch(ctx context.Context, txs []types.Transaction, dbTx pgx.Tx) (*statev2.ProcessBatchResponse, error)
+	CloseBatch(ctx context.Context, receipt statev2.ProcessingReceipt, dbTx pgx.Tx) error
+	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*statev2.ProcessBatchResponse, error)
 	GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLastBatchTime(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 
-	GetTxsHashesFromBatchNum(ctx context.Context, batchNum uint64, dbTx pgx.Tx) ([]common.Hash, error)
 	GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uint64, dbTx pgx.Tx) ([]common.Hash, error)
 }
 

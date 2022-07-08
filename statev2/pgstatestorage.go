@@ -44,6 +44,7 @@ const (
 	getBatchByNumberSQL                      = "SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data from statev2.batch WHERE batch_num = $1"
 	getProcessingContextSQL                  = "SELECT batch_num, global_exit_root, timestamp, coinbase from statev2.batch WHERE batch_num = $1"
 	getEncodedTransactionsByBatchNumberSQL   = "SELECT encoded FROM statev2.transaction t INNER JOIN statev2.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1"
+	getTransactionHashesByBatchNumberSQL     = "SELECT hash FROM statev2.transaction t INNER JOIN statev2.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1"
 	getLastBatchSeenSQL                      = "SELECT last_batch_num_seen FROM statev2.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                   = "UPDATE statev2.sync_info SET last_batch_num_seen = $1"
 	resetTrustedBatchSQL                     = "DELETE FROM statev2.batch WHERE batch_num > $1"
@@ -544,6 +545,28 @@ func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Contex
 		}
 
 		txs = append(txs, encoded)
+	}
+	return txs, nil
+}
+
+func (p *PostgresStorage) GetTxsHashesByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []common.Hash, err error) {
+	e := p.getExecQuerier(dbTx)
+	rows, err := e.Query(ctx, getTransactionHashesByBatchNumberSQL, batchNumber)
+	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	txs := make([]common.Hash, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		var hexHash string
+		err := rows.Scan(&hexHash)
+		if err != nil {
+			return nil, err
+		}
+
+		txs = append(txs, common.HexToHash(hexHash))
 	}
 	return txs, nil
 }
