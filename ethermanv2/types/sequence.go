@@ -3,9 +3,9 @@ package types
 import (
 	"reflect"
 
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/pool"
 )
 
 // Sequence represents an operation sent to the PoE smart contract to be

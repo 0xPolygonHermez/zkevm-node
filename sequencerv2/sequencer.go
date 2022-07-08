@@ -11,9 +11,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/ethermanv2/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/sequencerv2/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/statev2"
-	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 )
