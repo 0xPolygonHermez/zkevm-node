@@ -118,6 +118,15 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
+	if s.sequenceInProgress.IsEmpty() {
+		newSequence, err := s.newSequence(ctx)
+		if err != nil {
+			log.Errorf("failed to create new sequence, err: %v", err)
+			return
+		}
+		s.sequenceInProgress = newSequence
+	}
+
 	log.Infof("synchronizer has synced last batch, checking if current sequence should be closed")
 	if s.shouldCloseSequenceInProgress(ctx) {
 		log.Infof("current sequence should be closed")

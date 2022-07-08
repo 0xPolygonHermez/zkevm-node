@@ -65,7 +65,6 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 		if result.Failed() {
 			return rpcErrorResponse(defaultErrorCode, "failed to execute call", result.Err)
 		}
-
 		return argBytesPtr(result.ReturnValue), nil
 	})
 }

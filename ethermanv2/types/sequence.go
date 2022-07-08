@@ -1,6 +1,8 @@
 package types
 
 import (
+	"reflect"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -12,4 +14,8 @@ type Sequence struct {
 	Timestamp       int64
 	ForceBatchesNum uint64
 	Txs             []types.Transaction
+}
+
+func (s Sequence) IsEmpty() bool {
+	return reflect.DeepEqual(s, Sequence{})
 }

@@ -28,9 +28,29 @@ func (s TxState) String() string {
 // Transaction represents a pool tx
 type Transaction struct {
 	types.Transaction
-	State      TxState
-	IsClaims   bool
+	State    TxState
+	IsClaims bool
+	ZkCounters
+	//CumulativeGasUsed    uint64
+	//UsedKeccakHashes     uint32
+	//UsedPoseidonHashes   uint32
+	//UsedPoseidonPaddings uint32
+	//UsedMemAligns        uint32
+	//UsedArithmetics      uint32
+	//UsedBinaries         uint32
+	//UsedSteps            uint32
 	ReceivedAt time.Time
+}
+
+type ZkCounters struct {
+	CumulativeGasUsed    uint64
+	UsedKeccakHashes     uint32
+	UsedPoseidonHashes   uint32
+	UsedPoseidonPaddings uint32
+	UsedMemAligns        uint32
+	UsedArithmetics      uint32
+	UsedBinaries         uint32
+	UsedSteps            uint32
 }
 
 // IsClaimTx checks, if tx is a claim tx
