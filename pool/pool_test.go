@@ -3,7 +3,6 @@ package pool_test
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
 	"math"
 	"math/big"
 	"os"
@@ -290,7 +289,6 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	p := pool.NewPool(s, st, common.Address{})
 
 	const txsCount = 10
-	const limit = 0
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -300,7 +298,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10+int64(i)), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		if err := p.AddTx(ctx, *signedTx); err != nil {
@@ -320,8 +318,9 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	}
 	tx, err := p.GetTopPendingTxByProfitabilityAndZkCounters(ctx, zkCounters)
 	require.NoError(t, err)
-	fmt.Println(tx)
+	assert.Equal(t, tx.Transaction.GasPrice().Uint64(), uint64(19))
 }
+
 func Test_UpdateTxsState(t *testing.T) {
 	ctx := context.Background()
 

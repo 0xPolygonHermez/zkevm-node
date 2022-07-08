@@ -15,6 +15,10 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
+var (
+	ErrNotFound = errors.New("object not found")
+)
+
 // PostgresPoolStorage is an implementation of the Pool interface
 // that uses a postgres database to store the data
 type PostgresPoolStorage struct {
@@ -158,7 +162,9 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 			&usedSteps,
 			&receivedAt)
 
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
 		return nil, err
 	}
 

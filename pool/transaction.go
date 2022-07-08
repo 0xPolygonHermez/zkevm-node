@@ -31,14 +31,6 @@ type Transaction struct {
 	State    TxState
 	IsClaims bool
 	ZkCounters
-	//CumulativeGasUsed    uint64
-	//UsedKeccakHashes     uint32
-	//UsedPoseidonHashes   uint32
-	//UsedPoseidonPaddings uint32
-	//UsedMemAligns        uint32
-	//UsedArithmetics      uint32
-	//UsedBinaries         uint32
-	//UsedSteps            uint32
 	ReceivedAt time.Time
 }
 
@@ -51,6 +43,17 @@ type ZkCounters struct {
 	UsedArithmetics      uint32
 	UsedBinaries         uint32
 	UsedSteps            uint32
+}
+
+func (zkc *ZkCounters) IsZkCountersBelowZero() bool {
+	return zkc.CumulativeGasUsed < 0 ||
+		zkc.UsedArithmetics < 0 ||
+		zkc.UsedSteps < 0 ||
+		zkc.UsedBinaries < 0 ||
+		zkc.UsedMemAligns < 0 ||
+		zkc.UsedPoseidonPaddings < 0 ||
+		zkc.UsedPoseidonHashes < 0 ||
+		zkc.UsedKeccakHashes < 0
 }
 
 // IsClaimTx checks, if tx is a claim tx

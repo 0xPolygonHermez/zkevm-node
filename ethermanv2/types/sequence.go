@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hermeznetwork/hermez-core/pool"
 )
 
 // Sequence represents an operation sent to the PoE smart contract to be
@@ -14,6 +15,7 @@ type Sequence struct {
 	Timestamp       int64
 	ForceBatchesNum uint64
 	Txs             []types.Transaction
+	pool.ZkCounters
 }
 
 func (s Sequence) IsEmpty() bool {
