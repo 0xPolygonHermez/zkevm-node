@@ -27,28 +27,28 @@ type Config struct {
 	FrequencyToCheckTxsForDelete types.Duration `mapstructure:"FrequencyToCheckTxsForDelete"`
 
 	// MaxGasUsed is max gas amount used by batch
-	MaxGasUsed uint64 `mapstructure:"MaxGasUsedBy"`
+	MaxGasUsed int64 `mapstructure:"MaxGasUsed"`
 
 	// MaxKeccakHashes is max keccak hashes used by batch
-	MaxKeccakHashes uint32 `mapstructure:"MaxKeccakHashesIn"`
+	MaxKeccakHashes int32 `mapstructure:"MaxKeccakHashes"`
 
 	// MaxPoseidonHashes is max poseidon hashes batch can handle
-	MaxPoseidonHashes uint32 `mapstructure:"MaxPoseidonHashes"`
+	MaxPoseidonHashes int32 `mapstructure:"MaxPoseidonHashes"`
 
 	// MaxPoseidonPaddings is max poseidon paddings batch can handle
-	MaxPoseidonPaddings uint32 `mapstructure:"MaxPoseidonPaddings"`
+	MaxPoseidonPaddings int32 `mapstructure:"MaxPoseidonPaddings"`
 
 	// MaxMemAligns is max mem aligns batch can handle
-	MaxMemAligns uint32 `mapstructure:"MaxMemAligns"`
+	MaxMemAligns int32 `mapstructure:"MaxMemAligns"`
 
 	// MaxArithmetics is max arithmetics batch can handle
-	MaxArithmetics uint32 `mapstructure:"MaxArithmetics"`
+	MaxArithmetics int32 `mapstructure:"MaxArithmetics"`
 
 	// MaxBinaries is max binaries batch can handle
-	MaxBinaries uint32 `mapstructure:"MaxBinaries"`
+	MaxBinaries int32 `mapstructure:"MaxBinaries"`
 
 	// MaxSteps is max steps batch can handle
-	MaxSteps uint32 `mapstructure:"MaxSteps"`
+	MaxSteps int32 `mapstructure:"MaxSteps"`
 
 	// ProfitabilityChecker configuration
 	ProfitabilityChecker profitabilitychecker.Config `mapstructure:"ProfitabilityChecker"`

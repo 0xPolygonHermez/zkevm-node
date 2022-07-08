@@ -181,14 +181,14 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 	s.sequenceInProgress.ZkCounters = pool.ZkCounters{
-		CumulativeGasUsed:    processBatchResp.CumulativeGasUsed,
-		UsedKeccakHashes:     processBatchResp.CntKeccakHashes,
-		UsedPoseidonHashes:   processBatchResp.CntPoseidonHashes,
-		UsedPoseidonPaddings: processBatchResp.CntPoseidonPaddings,
-		UsedMemAligns:        processBatchResp.CntMemAligns,
-		UsedArithmetics:      processBatchResp.CntArithmetics,
-		UsedBinaries:         processBatchResp.CntBinaries,
-		UsedSteps:            processBatchResp.CntSteps,
+		CumulativeGasUsed:    int64(processBatchResp.CumulativeGasUsed),
+		UsedKeccakHashes:     int32(processBatchResp.CntKeccakHashes),
+		UsedPoseidonHashes:   int32(processBatchResp.CntPoseidonHashes),
+		UsedPoseidonPaddings: int32(processBatchResp.CntPoseidonPaddings),
+		UsedMemAligns:        int32(processBatchResp.CntMemAligns),
+		UsedArithmetics:      int32(processBatchResp.CntArithmetics),
+		UsedBinaries:         int32(processBatchResp.CntBinaries),
+		UsedSteps:            int32(processBatchResp.CntSteps),
 	}
 	s.lastStateRoot = processBatchResp.NewStateRoot
 	s.lastLocalExitRoot = processBatchResp.NewLocalExitRoot

@@ -135,10 +135,10 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 	var (
 		encoded, state    string
 		receivedAt        time.Time
-		cumulativeGasUsed uint64
+		cumulativeGasUsed int64
 
 		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
-		usedMemAligns, usedArithmetics, usedBinaries, usedSteps uint32
+		usedMemAligns, usedArithmetics, usedBinaries, usedSteps int32
 	)
 	err := p.db.QueryRow(ctx, sql,
 		pool.TxStatePending,

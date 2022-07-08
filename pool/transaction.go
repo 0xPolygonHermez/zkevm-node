@@ -35,14 +35,14 @@ type Transaction struct {
 }
 
 type ZkCounters struct {
-	CumulativeGasUsed    uint64
-	UsedKeccakHashes     uint32
-	UsedPoseidonHashes   uint32
-	UsedPoseidonPaddings uint32
-	UsedMemAligns        uint32
-	UsedArithmetics      uint32
-	UsedBinaries         uint32
-	UsedSteps            uint32
+	CumulativeGasUsed    int64
+	UsedKeccakHashes     int32
+	UsedPoseidonHashes   int32
+	UsedPoseidonPaddings int32
+	UsedMemAligns        int32
+	UsedArithmetics      int32
+	UsedBinaries         int32
+	UsedSteps            int32
 }
 
 func (zkc *ZkCounters) IsZkCountersBelowZero() bool {

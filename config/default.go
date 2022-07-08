@@ -70,6 +70,14 @@ WaitBlocksToUpdateGER = 10
 LastTimeBatchMaxWaitPeriod = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
+MaxGasUsed = 100000
+MaxKeccakHashes = 100
+MaxPoseidonHashes = 100
+MaxPoseidonPaddings = 100
+MaxMemAligns = 100
+MaxArithmetics = 100
+MaxBinaries = 100
+MaxSteps = 100
 	[SequencerV2.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 
