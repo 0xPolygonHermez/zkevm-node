@@ -427,7 +427,7 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 }
 
 func TestExecuteTransaction(t *testing.T) {
-	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var sequencerBalance = 4000000
@@ -584,3 +584,112 @@ func TestExecutor(t *testing.T) {
 
 	assert.Equal(t, common.HexToHash(expectedNewRoot), common.HexToHash(string(processBatchResponse.NewStateRoot)))
 }
+
+/*
+func TestExecutorRevert(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(1000)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 4000000
+	scRevertByteCode, err := testutils.ReadBytecode("Revert/Revert.bin")
+	require.NoError(t, err)
+
+	// Deploy revert.sol
+	tx0 := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(0),
+		Data:     common.Hex2Bytes(scRevertByteCode),
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	signedTx0, err := auth.Signer(auth.From, tx0)
+	require.NoError(t, err)
+
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx0})
+	require.NoError(t, err)
+
+	// Create Batch
+	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+		BatchNum:             1,
+		Coinbase:             sequencerAddress.String(),
+		BatchL2Data:          batchL2Data,
+		OldStateRoot:         common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		EthTimestamp:         uint64(time.Now().Unix()),
+		UpdateMerkleTree:     0,
+		GenerateExecuteTrace: 0,
+		GenerateCallTrace:    0,
+	}
+
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
+}
+
+func TestExecutorLogs(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(1000)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 4000000
+	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	scLogsByteCode, err := testutils.ReadBytecode("Emitlog2/Emitlog2.bin")
+	require.NoError(t, err)
+
+	// Deploy Emitlog2.sol
+	tx0 := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(0),
+		Data:     common.Hex2Bytes(scLogsByteCode),
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	signedTx0, err := auth.Signer(auth.From, tx0)
+	require.NoError(t, err)
+
+	// Call SC method
+	tx1 := types.NewTransaction(1, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("7966b4f6"))
+	signedTx1, err := auth.Signer(auth.From, tx1)
+	require.NoError(t, err)
+
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx0, *signedTx1})
+	require.NoError(t, err)
+
+	// Create Batch
+	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+		BatchNum:             1,
+		Coinbase:             sequencerAddress.String(),
+		BatchL2Data:          batchL2Data,
+		OldStateRoot:         common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		EthTimestamp:         uint64(time.Now().Unix()),
+		UpdateMerkleTree:     0,
+		GenerateExecuteTrace: 0,
+		GenerateCallTrace:    0,
+	}
+
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+
+	log.Debugf("create_address=%v", common.HexToAddress(string(processBatchResponse.Responses[1].CreateAddress)))
+
+	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	err = ioutil.WriteFile("trace.json", file, 0644)
+	require.NoError(t, err)
+}
+*/
