@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/test/testutils"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/stretchr/testify/require"
 )
 

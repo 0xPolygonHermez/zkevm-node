@@ -4,10 +4,10 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/proverclient/pb"
-	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // Consumer interfaces required by the package.

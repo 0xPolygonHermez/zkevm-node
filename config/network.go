@@ -8,9 +8,9 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/log"
 	"github.com/imdario/mergo"
 	"github.com/urfave/cli/v2"
 )

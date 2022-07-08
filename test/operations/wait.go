@@ -10,11 +10,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hermeznetwork/hermez-core/proverclient/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"

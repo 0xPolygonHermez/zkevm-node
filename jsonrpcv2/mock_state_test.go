@@ -12,9 +12,9 @@ import (
 
 	pgx "github.com/jackc/pgx/v4"
 
-	runtime "github.com/hermeznetwork/hermez-core/statev2/runtime"
+	runtime "github.com/0xPolygonHermez/zkevm-node/statev2/runtime"
 
-	statev2 "github.com/hermeznetwork/hermez-core/statev2"
+	statev2 "github.com/0xPolygonHermez/zkevm-node/statev2"
 
 	time "time"
 

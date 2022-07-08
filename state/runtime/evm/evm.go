@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 	"strconv"
 
-	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/state/runtime"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 )
 
 // EVM is the Ethereum Virtual Machine

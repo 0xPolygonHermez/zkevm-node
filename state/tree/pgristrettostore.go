@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/0xPolygonHermez/zkevm-node/state/store"
 	"github.com/dgraph-io/ristretto"
-	"github.com/hermeznetwork/hermez-core/state/store"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )

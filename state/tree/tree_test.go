@@ -10,10 +10,10 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/db"
-	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/test/dbutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

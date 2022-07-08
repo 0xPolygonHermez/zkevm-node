@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/jackc/pgx/v4"
 )
 

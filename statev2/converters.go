@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime/fakevm"
+	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/fakevm"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/instrumentation"
 )
 
 func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) *ProcessBatchResponse {

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/hermeznetwork/hermez-core/proverservice/pb"
+	"github.com/0xPolygonHermez/zkevm-node/proverservice/pb"
 	"google.golang.org/grpc"
 )
 

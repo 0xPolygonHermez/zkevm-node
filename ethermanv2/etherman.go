@@ -9,6 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/ethermanv2/smartcontracts/globalexitrootmanager"
+	"github.com/0xPolygonHermez/zkevm-node/ethermanv2/smartcontracts/matic"
+	"github.com/0xPolygonHermez/zkevm-node/ethermanv2/smartcontracts/proofofefficiency"
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/ethermanv2/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/statev2"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -16,12 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/globalexitrootmanager"
-	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/matic"
-	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
-	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/statev2"
 	"golang.org/x/crypto/sha3"
 )
 

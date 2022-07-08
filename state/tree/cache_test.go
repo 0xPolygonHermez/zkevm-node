@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hermeznetwork/hermez-core/test/testutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/stretchr/testify/require"
 )
 

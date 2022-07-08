@@ -3,8 +3,8 @@ package jsonrpcv2
 import (
 	"context"
 
-	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/jackc/pgx/v4"
 )
 

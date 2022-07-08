@@ -9,7 +9,7 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
-	runtime "github.com/hermeznetwork/hermez-core/state/runtime"
+	runtime "github.com/0xPolygonHermez/zkevm-node/state/runtime"
 
 	types "github.com/ethereum/go-ethereum/core/types"
 )

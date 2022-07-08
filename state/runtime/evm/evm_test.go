@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/state/runtime"
 	"gotest.tools/assert"
 )
 

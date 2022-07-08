@@ -3,7 +3,7 @@ package broadcast
 import (
 	"context"
 
-	"github.com/hermeznetwork/hermez-core/statev2"
+	"github.com/0xPolygonHermez/zkevm-node/statev2"
 	"github.com/jackc/pgx/v4"
 )
 

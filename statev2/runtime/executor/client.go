@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime/executor/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

@@ -3,7 +3,7 @@ package txselector
 import (
 	"sort"
 
-	"github.com/hermeznetwork/hermez-core/pool"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 )
 
 // TxSorterType for different txs sorters types

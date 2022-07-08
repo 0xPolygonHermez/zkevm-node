@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
 const (

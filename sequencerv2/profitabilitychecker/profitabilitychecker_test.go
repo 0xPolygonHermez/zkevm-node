@@ -5,11 +5,11 @@ import (
 	"math/big"
 	"testing"
 
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/ethermanv2/types"
+	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/sequencerv2/profitabilitychecker"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
-	"github.com/hermeznetwork/hermez-core/pricegetter"
-	"github.com/hermeznetwork/hermez-core/sequencerv2/profitabilitychecker"
 	"github.com/stretchr/testify/require"
 )
 

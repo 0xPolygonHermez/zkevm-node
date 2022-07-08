@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/config/types"
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/pool"
 )
 
 // PendingTxsQueueConfig config for pending tx queue data structure

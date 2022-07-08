@@ -4,7 +4,7 @@ import "google/protobuf/empty.proto";
 
 package statedb.v1;
 
-option go_package = "github.com/hermeznetwork/hermez-core/merkletree/pb";
+option go_package = "github.com/0xPolygonHermez/zkevm-node/merkletree/pb";
 
 message Version {
     string v0_0_1 = 1;

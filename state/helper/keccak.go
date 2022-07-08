@@ -4,7 +4,7 @@ import (
 	"hash"
 	"sync"
 
-	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/umbracle/fastrlp"
 	"golang.org/x/crypto/sha3"
 )

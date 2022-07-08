@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/bridge"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/globalexitrootmanager"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/bridge"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/globalexitrootmanager"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/matic"
-	"github.com/hermeznetwork/hermez-core/etherman/smartcontracts/proofofefficiency"
 )
 
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth

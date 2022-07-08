@@ -5,11 +5,11 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/runtime"
 )
 
 // Consumer interfaces required by the package.
