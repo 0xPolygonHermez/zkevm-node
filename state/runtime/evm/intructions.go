@@ -8,10 +8,10 @@ import (
 	"math/bits"
 	"sync"
 
+	"github.com/0xPolygonHermez/zkevm-node/state/helper"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/state/helper"
-	"github.com/hermeznetwork/hermez-core/state/runtime"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
 
 type instruction func(ctx context.Context, s *state)

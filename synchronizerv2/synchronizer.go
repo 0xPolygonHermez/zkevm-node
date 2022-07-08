@@ -8,10 +8,10 @@ import (
 	"math/big"
 	"time"
 
+	etherman "github.com/0xPolygonHermez/zkevm-node/ethermanv2"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	state "github.com/0xPolygonHermez/zkevm-node/statev2"
 	"github.com/ethereum/go-ethereum/common"
-	etherman "github.com/hermeznetwork/hermez-core/ethermanv2"
-	"github.com/hermeznetwork/hermez-core/log"
-	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/jackc/pgx/v4"
 )
 

@@ -4,10 +4,10 @@ import (
 	"context"
 	"math/big"
 
+	etherman "github.com/0xPolygonHermez/zkevm-node/ethermanv2"
+	state "github.com/0xPolygonHermez/zkevm-node/statev2"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	etherman "github.com/hermeznetwork/hermez-core/ethermanv2"
-	state "github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/jackc/pgx/v4"
 )
 

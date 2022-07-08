@@ -7,19 +7,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Storage"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/test/contracts/bin/Counter"
-	"github.com/hermeznetwork/hermez-core/test/contracts/bin/ERC20"
-	"github.com/hermeznetwork/hermez-core/test/contracts/bin/EmitLog"
-	"github.com/hermeznetwork/hermez-core/test/contracts/bin/Storage"
-	"github.com/hermeznetwork/hermez-core/test/operations"
 )
 
 const (

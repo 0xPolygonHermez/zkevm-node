@@ -6,11 +6,11 @@ import (
 	"math/big"
 	"time"
 
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/ethermanv2/types"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/statev2"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
-	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/jackc/pgx/v4"
 )
 

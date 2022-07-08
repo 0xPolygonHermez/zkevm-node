@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/instrumentation"
 )
 
 var (

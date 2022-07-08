@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 )
 

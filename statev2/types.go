@@ -1,9 +1,9 @@
 package statev2
 
 import (
+	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/instrumentation"
 )
 
 type ProcessBatchRequest struct {

@@ -1,9 +1,9 @@
 package sequencer
 
 import (
-	"github.com/hermeznetwork/hermez-core/config/types"
-	"github.com/hermeznetwork/hermez-core/pricegetter"
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy"
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/strategy"
 )
 
 // InitBatchProcessorIfDiffType let sequencer decide, how to init batch processor

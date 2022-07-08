@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/hex"
 )
 
 // DefaultMerkleTreeArity specifies Merkle Tree arity used by default

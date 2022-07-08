@@ -1,7 +1,7 @@
 package synchronizerv2
 
 import (
-	"github.com/hermeznetwork/hermez-core/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 )
 
 // Config represents the configuration of the synchronizer

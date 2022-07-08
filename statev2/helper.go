@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/hermeznetwork/hermez-core/hex"
 )
 
 const ether155V = 27

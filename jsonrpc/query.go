@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/hex"
 )
 
 type Filter struct {

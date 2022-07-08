@@ -1,4 +1,4 @@
-module github.com/hermeznetwork/hermez-core
+module github.com/0xPolygonHermez/zkevm-node
 
 go 1.17
 

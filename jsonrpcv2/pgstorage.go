@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/hermeznetwork/hermez-core/db"
+	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )

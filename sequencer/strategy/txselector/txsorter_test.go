@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/strategy/txselector"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
 	"github.com/stretchr/testify/assert"
 )
 

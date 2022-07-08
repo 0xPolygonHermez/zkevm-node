@@ -7,15 +7,15 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime/fakevm"
+	jsassets "github.com/0xPolygonHermez/zkevm-node/statev2/runtime/instrumentation/js/internal/tracers"
+	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime/instrumentation/tracers"
 	"github.com/dop251/goja"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/fakevm"
-	jsassets "github.com/hermeznetwork/hermez-core/statev2/runtime/instrumentation/js/internal/tracers"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/instrumentation/tracers"
 )
 
 var assetTracers = make(map[string]string)

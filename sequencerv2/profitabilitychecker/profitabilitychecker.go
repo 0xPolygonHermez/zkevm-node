@@ -4,8 +4,8 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/hermeznetwork/hermez-core/ethermanv2/types"
-	"github.com/hermeznetwork/hermez-core/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/ethermanv2/types"
+	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 )
 
 // Checker checks profitability to send sequences

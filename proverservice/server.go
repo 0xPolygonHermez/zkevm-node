@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hermeznetwork/hermez-core/proverservice/pb"
+	"github.com/0xPolygonHermez/zkevm-node/proverservice/pb"
 )
 
 type zkProverServiceServer struct {

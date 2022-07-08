@@ -5,11 +5,11 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/pool"
+	state "github.com/0xPolygonHermez/zkevm-node/statev2"
+	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/pool"
-	state "github.com/hermeznetwork/hermez-core/statev2"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime"
 	"github.com/jackc/pgx/v4"
 )
 
