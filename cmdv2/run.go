@@ -35,7 +35,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/statev2"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
-	"github.com/hermeznetwork/hermez-core/synchronizer"
+	synchronizer "github.com/hermeznetwork/hermez-core/synchronizerv2"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
@@ -106,6 +106,7 @@ func start(cliCtx *cli.Context) error {
 
 	npool = pool.NewPool(poolDb, stV1, c.NetworkConfig.L2GlobalExitRootManagerAddr)
 	gpe = createGasPriceEstimator(c.GasPriceEstimator, stV1, npool)
+	ch := make(chan struct{})
 
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
 		switch item {
@@ -115,7 +116,6 @@ func start(cliCtx *cli.Context) error {
 		case SEQUENCER:
 			log.Info("Running sequencer")
 			c.Sequencer.DefaultChainID = c.NetworkConfig.L2DefaultChainID
-			ch := make(chan struct{})
 			seq := createSequencer(*c, npool, stV2, ethermanV2, ch)
 			go seq.Start(ctx)
 		case RPC:
@@ -127,7 +127,7 @@ func start(cliCtx *cli.Context) error {
 			go runJSONRpcServer(*c, npool, stV2, c.RPC.ChainID, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
-			go runSynchronizer(ctx, c.NetworkConfig, ethermanV1, stV1, c.Synchronizer, gpe)
+			go runSynchronizer(c.NetworkConfig, ethermanV2, stV2, c.Synchronizerv2, ch)
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			go runBroadcastServer(c.BroadcastServer, stV2)
@@ -165,11 +165,11 @@ func newEthermanV1(c config.Config) (*etherman.Client, error) {
 }
 
 func newEthermanV2(c config.Config) (*ethermanv2.Client, error) {
-	auth, err := newAuthFromKeystore(c.EthermanV2.PrivateKeyPath, c.EthermanV2.PrivateKeyPassword, c.NetworkConfig.L1ChainID)
+	auth, err := newAuthFromKeystore(c.Ethermanv2.PrivateKeyPath, c.Ethermanv2.PrivateKeyPassword, c.NetworkConfig.L1ChainID)
 	if err != nil {
 		return nil, err
 	}
-	etherman, err := ethermanv2.NewClient(c.EthermanV2, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.L2GlobalExitRootManagerAddr)
+	etherman, err := ethermanv2.NewClient(c.Ethermanv2, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.GlobalExitRootManagerAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -190,20 +190,8 @@ func newProverClient(c proverclient.Config) (proverclientpb.ZKProverServiceClien
 	return proverClient, proverConn
 }
 
-func runSynchronizer(ctx context.Context, networkConfig config.NetworkConfig, etherman *etherman.Client, st *state.State, cfg synchronizer.Config, gpe gasPriceEstimator) {
-	genesisBlock, err := etherman.EtherClient.BlockByNumber(ctx, big.NewInt(0).SetUint64(networkConfig.GenBlockNumber))
-	if err != nil {
-		log.Fatal(err)
-	}
-	genesis := state.Genesis{
-		Block:          genesisBlock,
-		Balances:       networkConfig.Genesis.Balances,
-		SmartContracts: networkConfig.Genesis.SmartContracts,
-		Storage:        networkConfig.Genesis.Storage,
-		Nonces:         networkConfig.Genesis.Nonces,
-		L2ChainID:      networkConfig.L2DefaultChainID,
-	}
-	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, genesis, cfg, gpe)
+func runSynchronizer(networkConfig config.NetworkConfig, etherman *ethermanv2.Client, st *statev2.State, cfg synchronizer.Config, reorgBlockNumChan chan struct{}) {
+	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, reorgBlockNumChan, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}

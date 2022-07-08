@@ -23,6 +23,7 @@ import (
 	"github.com/hermeznetwork/hermez-core/state/tree"
 	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
 	"github.com/hermeznetwork/hermez-core/synchronizer"
+	"github.com/hermeznetwork/hermez-core/synchronizerv2"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
@@ -45,11 +46,12 @@ type Config struct {
 	Log               log.Config
 	Database          db.Config
 	Etherman          etherman.Config
-	EthermanV2        ethermanv2.Config
+	Ethermanv2        ethermanv2.Config
 	EthTxManager      ethtxmanager.Config
 	RPC               jsonrpc.Config
 	RPCV2             jsonrpcv2.Config
 	Synchronizer      synchronizer.Config
+	Synchronizerv2    synchronizerv2.Config
 	Sequencer         sequencer.Config
 	SequencerV2       sequencerv2.Config
 	PriceGetter       pricegetter.Config
