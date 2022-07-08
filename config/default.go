@@ -63,14 +63,14 @@ FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
 		TxPendingInQueueCheckingFrequency = "3s"
 		GetPendingTxsFrequency = "5s"
 
-[Sequencerv2]
+[SequencerV2]
 WaitPeriodPoolIsEmpty = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "15s"
 WaitBlocksToUpdateGER = 10
 LastTimeBatchMaxWaitPeriod = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
-	[Sequencerv2.ProfitabilityChecker]
+	[SequencerV2.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 
 [PriceGetter]

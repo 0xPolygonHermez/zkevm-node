@@ -427,6 +427,54 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, l2Tx1.Hash().Hex(), txHashes[0].Hex())
 }
+func TestVerifiedBatch(t *testing.T) {
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, dbTx)
+	assert.NoError(t, err)
+	//require.NoError(t, tx.Commit(ctx))
+
+	lastBlock, err := testState.GetLastBlock(ctx, dbTx)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1), lastBlock.BlockNumber)
+
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO statev2.batch (batch_num) VALUES (1)")
+
+	require.NoError(t, err)
+	virtualBatch := state.VirtualBatch{
+		BlockNumber: 1,
+		BatchNumber: 1,
+		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+	}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
+	require.NoError(t, err)
+	expectedVerifiedBatch := state.VerifiedBatch{
+		BlockNumber: 1,
+		BatchNumber: 1,
+		Aggregator:  common.HexToAddress("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+	}
+	err = testState.AddVerifiedBatch(ctx, &expectedVerifiedBatch, dbTx)
+	require.NoError(t, err)
+
+	// Step to create done, retrieve it
+
+	actualVerifiedBatch, err := testState.GetVerifiedBatch(ctx, 1, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, expectedVerifiedBatch, *actualVerifiedBatch)
+
+	require.NoError(t, dbTx.Commit(ctx))
+}
 
 /*
 func TestExecuteTransaction(t *testing.T) {
@@ -529,4 +577,124 @@ func TestGenesis(t *testing.T) {
 	}
 	err := testState.SetGenesis(ctx, genesis, nil)
 	require.NoError(t, err)
+}
+
+func TestCheckSupersetBatchTransactions(t *testing.T) {
+	tcs := []struct {
+		description      string
+		existingTxHashes []common.Hash
+		processedTxs     []*state.ProcessTransactionResponse
+		expectedError    bool
+		expectedErrorMsg string
+	}{
+		{
+			description:      "empty existingTxHashes and processedTx is successful",
+			existingTxHashes: []common.Hash{},
+			processedTxs:     []*state.ProcessTransactionResponse{},
+		},
+		{
+			description: "happy path",
+			existingTxHashes: []common.Hash{
+				common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c"),
+				common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52"),
+				common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f"),
+			},
+			processedTxs: []*state.ProcessTransactionResponse{
+				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")},
+				{TxHash: common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52")},
+				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")},
+			},
+		},
+		{
+			description:      "existingTxHashes bigger than processedTx gives error",
+			existingTxHashes: []common.Hash{common.HexToHash(""), common.HexToHash("")},
+			processedTxs:     []*state.ProcessTransactionResponse{{}},
+			expectedError:    true,
+			expectedErrorMsg: state.ErrExistingTxGreaterThanProcessedTx.Error(),
+		},
+		{
+			description: "processedTx not present in existingTxHashes gives error",
+			existingTxHashes: []common.Hash{
+				common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c"),
+				common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52"),
+			},
+			processedTxs: []*state.ProcessTransactionResponse{
+				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")},
+				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")},
+			},
+			expectedError:    true,
+			expectedErrorMsg: state.ErrOutOfOrderProcessedTx.Error(),
+		},
+		{
+			description: "out of order processedTx gives error",
+			existingTxHashes: []common.Hash{
+				common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c"),
+				common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52"),
+				common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f"),
+			},
+			processedTxs: []*state.ProcessTransactionResponse{
+				{TxHash: common.HexToHash("0x8a84686634729c57532b9ffa4e632e241b2de5c880c771c5c214d5e7ec465b1c")},
+				{TxHash: common.HexToHash("0x0d3453b6d17841b541d4f79f78d5fa22fff281551ed4012c7590b560b2969e7f")},
+				{TxHash: common.HexToHash("0x30c6a361ba88906ef2085d05a2aeac15e793caff2bdc1deaaae2f4910d83de52")},
+			},
+			expectedError:    true,
+			expectedErrorMsg: state.ErrOutOfOrderProcessedTx.Error(),
+		},
+	}
+	for _, tc := range tcs {
+		tc := tc
+		t.Run(tc.description, func(t *testing.T) {
+			require.NoError(t, testutils.CheckError(
+				state.CheckSupersetBatchTransactions(tc.existingTxHashes, tc.processedTxs),
+				tc.expectedError,
+				tc.expectedErrorMsg,
+			))
+		})
+	}
+}
+
+func TestGetTxsHashesByBatchNumber(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	// Set genesis batch
+	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	require.NoError(t, err)
+	// Open batch #1
+	processingCtx1 := state.ProcessingContext{
+		BatchNumber:    1,
+		Coinbase:       common.HexToAddress("1"),
+		Timestamp:      time.Now().UTC(),
+		GlobalExitRoot: common.HexToHash("a"),
+	}
+	err = testState.OpenBatch(ctx, processingCtx1, dbTx)
+	require.NoError(t, err)
+
+	// Add txs to batch #1
+	tx1 := *types.NewTransaction(0, common.HexToAddress("0"), big.NewInt(0), 0, big.NewInt(0), []byte("aaa"))
+	tx2 := *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
+	txsBatch1 := []*state.ProcessTransactionResponse{
+		{
+			TxHash: tx1.Hash(),
+			Tx:     tx1,
+		},
+		{
+			TxHash: tx2.Hash(),
+			Tx:     tx2,
+		},
+	}
+	err = testState.StoreTransactions(ctx, 1, txsBatch1, dbTx)
+	require.NoError(t, err)
+
+	txs, err := testState.GetTxsHashesByBatchNumber(ctx, 1, dbTx)
+	require.NoError(t, err)
+
+	require.Equal(t, len(txsBatch1), len(txs))
+	for i := range txsBatch1 {
+		require.Equal(t, txsBatch1[i].TxHash, txs[i])
+	}
+	require.NoError(t, dbTx.Commit(ctx))
 }
