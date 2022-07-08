@@ -565,6 +565,7 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch etherm
 		}
 		log.Fatal("error number of forced batches doesn't match")
 	}
+
 	for i, fbatch := range forcedBatches {
 		vb := state.VirtualBatch{
 			BatchNumber: sequenceForceBatch.LastBatchSequenced - sequenceForceBatch.ForceBatchNumber + uint64(i),
