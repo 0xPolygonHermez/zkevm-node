@@ -30,7 +30,7 @@ Glossary:
   <img src="./docs/architecture.drawio.png"/>
 </p>
 
-The diagram represents the main components of the software and how they interact between them. Note that this reflects a single entity running a node, but there are many entities running nodes into the network:
+The diagram represents the main components of the software and how they interact between them. Note that this reflects a single entity running a node, in particular a node that acts as trusted sequencer. But there are many entities running nodes into the network, and each of this entities can perform different roles. More on this later.
 
 - (JSON) RPC: interface that allow users (metamask, etherscan, ...) to interact with the node. Fully compatible with Ethereum RPC + some extra endpoints specifics of the network. It interacts with the `state` to get data and process transactions and with the `pool` to store transactions
 - Pool: DB that stores transactions by the `RPC` to be selected/discarded by the `sequencer` later on
@@ -45,6 +45,14 @@ The diagram represents the main components of the software and how they interact
   - Provide an EVM implementation that allows to process transactions and get all needed results metadata (state root, receipts, logs, ...)
   - Generate ZKPs
 - Merkletree: serivce that stores the Merkletree, containing all the account information (balances, nonces, smart contract code and smart contract storage). This component is also not implemented in this repo and is consumed as an external service by teh node. The implementation can be found [here TODO]()
+
+## Roles of the network
+
+
+
+### Trusted sequencer
+
+Explained on the diagram above. It requires all the comopnents except the aggregator, which is optional. This role can only be performed by a single entitiy. This is enforced in the smart contract, as the related methods of the trusted sequencer can only be performed by the owner of a particular private key.
 
 ## Development
 
