@@ -22,7 +22,7 @@ Glossary:
 - Consolidated state: state that is proven on-chain by submitting a ZKP (Zero Knowledge Proof) that proofs the execution of a sequence of the last virtual batch.
 - Invalid transaction: transaction that can't be processed and doesn't affect the state. Note that such a transaction could be included in a virtual batch. The reason for a transaction to not be valid could be related to the Ethereum protocol (invalid nonce, not enough balance, ...) or due to limitations introduced by the zkEVM (each batch can make use of a limited ammount of resources such as the total amount of keccak hashes that can be computed)
 - Reverted transaction: transaction that is executed, but is reverted (because of smart contract logic). Main difference with *invalid transaction* is that this transaction modifies the state, at least to increment nonce off the sender.
-- Proof of Efficiency (PoE): name of the protocol used by the network, it's enforced by the L1 smart contracts
+- Proof of Efficiency (PoE): name of the protocol used by the network, it's enforced by the [smart contracts TODO]()
 
 ## Architecture
 
@@ -39,7 +39,8 @@ The diagram represents the main components of the software and how they interact
 - Permissionless Sequenser: *comming soon*
 - Etherman: abstraction that implements the needed methods to interact with the Ethereum network and the relevant smart contracts.
 - Synchronizer: Updates the `state` by fetching data from Ethereum through the `etherman`. If the node is not a `trusted sequencer` it also updates the state with the data fetched from the `broadcast` of the `trusted sequencer`. It also detect and handles reorgs that can happen if the `trusted sequencer` sends different data in the broadcast vs the sequences sent to L1 (trusted vs virtual state)
-- State: Responsible for mannaging the state data (batches, blocks, transactions, ...). It also handles the integration with the `executor` and the `Merkletree` service
+- State: Responsible for mannaging the state data (batches, blocks, transactions, ...) that is stored on the `state SB`. It also handles the integration with the `executor` and the `Merkletree` service
+- State DB: persistance layer for the state data (except the Merkletree that is handled by the `Merkletree` service)
 - Aggregator: consolidates batches by generating ZKPs (Zero Knowledge proofs). To do so it gathers the necessary data that the `prover` needs as input thorugh the `state` and sends a request to it. Once the prove is generated it's sent to Ethereum through the `etherman`
 - Prover/Executor: service that generates ZK proofs. Note that this component is not implemented in this repository, and it's treated as a "black box" from the perspective of the node. The prover/executor has two implementations: [JS reference implementation TODO](https://github.com/hermeznetwork/zkproverjs) and [C production ready implementation TODO](https://github.com/hermeznetwork/zkproverc). Although it's the same software/service, it has two very different purposes:
   - Provide an EVM implementation that allows to process transactions and get all needed results metadata (state root, receipts, logs, ...)
