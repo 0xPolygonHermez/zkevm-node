@@ -47,7 +47,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		bn                  *BlockNumber
 		expectedBlockNumber uint64
 		expectedError       rpcError
-		setupMocks          func(s *stateMock, t *testCase)
+		setupMocks          func(s *stateMock, d *dbTxMock, t *testCase)
 	}
 
 	testCases := []testCase{
@@ -56,16 +56,16 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			bn:                  nil,
 			expectedBlockNumber: 0,
 			expectedError:       nil,
-			setupMocks:          func(s *stateMock, t *testCase) {},
+			setupMocks:          func(s *stateMock, d *dbTxMock, t *testCase) {},
 		},
 		{
 			name:                "BlockNumber LatestBlockNumber",
 			bn:                  bnPtr(LatestBlockNumber),
 			expectedBlockNumber: 50,
 			expectedError:       nil,
-			setupMocks: func(s *stateMock, t *testCase) {
+			setupMocks: func(s *stateMock, d *dbTxMock, t *testCase) {
 				s.
-					On("GetLastBatchNumber", context.Background(), "").
+					On("GetLastL2BlockNumber", context.Background(), d).
 					Return(uint64(50), nil).
 					Once()
 			},
@@ -75,9 +75,9 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			bn:                  bnPtr(PendingBlockNumber),
 			expectedBlockNumber: 30,
 			expectedError:       nil,
-			setupMocks: func(s *stateMock, t *testCase) {
+			setupMocks: func(s *stateMock, d *dbTxMock, t *testCase) {
 				s.
-					On("GetLastBatchNumber", context.Background(), "").
+					On("GetLastL2BlockNumber", context.Background(), d).
 					Return(uint64(30), nil).
 					Once()
 			},
@@ -87,33 +87,34 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			bn:                  bnPtr(EarliestBlockNumber),
 			expectedBlockNumber: 0,
 			expectedError:       nil,
-			setupMocks:          func(s *stateMock, t *testCase) {},
+			setupMocks:          func(s *stateMock, d *dbTxMock, t *testCase) {},
 		},
 		{
 			name:                "BlockNumber Positive Number",
 			bn:                  bnPtr(BlockNumber(int64(10))),
 			expectedBlockNumber: 10,
 			expectedError:       nil,
-			setupMocks:          func(s *stateMock, t *testCase) {},
+			setupMocks:          func(s *stateMock, d *dbTxMock, t *testCase) {},
 		},
 		{
 			name:                "BlockNumber Negative Number <= -4",
 			bn:                  bnPtr(BlockNumber(int64(-4))),
 			expectedBlockNumber: 0,
 			expectedError:       newRPCError(invalidParamsErrorCode, "invalid block number: -4"),
-			setupMocks:          func(s *stateMock, t *testCase) {},
+			setupMocks:          func(s *stateMock, d *dbTxMock, t *testCase) {},
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			tc := testCase
-			testCase.setupMocks(s, &tc)
-			result, err := testCase.bn.getNumericBlockNumber(context.Background(), s)
+			dbTx := newDbTxMock(t)
+			testCase.setupMocks(s, dbTx, &tc)
+			result, rpcErr := testCase.bn.getNumericBlockNumber(context.Background(), s, dbTx)
 			assert.Equal(t, testCase.expectedBlockNumber, result)
-			if err != nil || testCase.expectedError != nil {
-				assert.Equal(t, testCase.expectedError.ErrorCode(), err.ErrorCode())
-				assert.Equal(t, testCase.expectedError.Error(), err.Error())
+			if rpcErr != nil || testCase.expectedError != nil {
+				assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode())
+				assert.Equal(t, testCase.expectedError.Error(), rpcErr.Error())
 			}
 		})
 	}

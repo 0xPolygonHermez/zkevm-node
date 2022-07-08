@@ -1,10 +1,14 @@
 package benchmarks
 
-import "context"
+import (
+	"context"
+
+	"github.com/jackc/pgx/v4"
+)
 
 // Consumer interfaces required by the package.
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
+	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }

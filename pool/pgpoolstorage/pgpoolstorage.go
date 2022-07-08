@@ -60,7 +60,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 
 // MarkReorgedTxsAsPending updated reorged txs state from selected to pending
 func (p *PostgresPoolStorage) MarkReorgedTxsAsPending(ctx context.Context) error {
-	const updateReorgedTxsToPending = "UPDATE pool.txs pt SET state = $1 WHERE state = $2 AND NOT EXISTS (SELECT hash FROM statev2.transaction WHERE hash = pt.hash)"
+	const updateReorgedTxsToPending = "UPDATE pool.txs pt SET state = $1 WHERE state = $2 AND NOT EXISTS (SELECT hash FROM state.transaction WHERE hash = pt.hash)"
 	if _, err := p.db.Exec(ctx, updateReorgedTxsToPending, pool.TxStatePending, pool.TxStateSelected); err != nil {
 		return err
 	}

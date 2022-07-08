@@ -11,8 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer"
-	"github.com/0xPolygonHermez/zkevm-node/state/tree"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -29,10 +27,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.AllowNonRegistered",
 			expectedValue: false,
-		},
-		{
-			path:          "Sequencer.InitBatchProcessorIfDiffType",
-			expectedValue: sequencer.InitBatchProcessorIfDiffTypeSynced,
 		},
 		{
 			path:          "Sequencer.PriceGetter.Type",
@@ -59,31 +53,31 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "SequencerV2.WaitPeriodPoolIsEmpty",
+			path:          "sequencer.WaitPeriodPoolIsEmpty",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
-			path:          "SequencerV2.LastBatchVirtualizationTimeMaxWaitPeriod",
+			path:          "sequencer.LastBatchVirtualizationTimeMaxWaitPeriod",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
-			path:          "SequencerV2.WaitBlocksToUpdateGER",
+			path:          "sequencer.WaitBlocksToUpdateGER",
 			expectedValue: uint64(10),
 		},
 		{
-			path:          "SequencerV2.LastTimeBatchMaxWaitPeriod",
+			path:          "sequencer.LastTimeBatchMaxWaitPeriod",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
-			path:          "SequencerV2.BlocksAmountForTxsToBeDeleted",
+			path:          "sequencer.BlocksAmountForTxsToBeDeleted",
 			expectedValue: uint64(100),
 		},
 		{
-			path:          "SequencerV2.FrequencyToCheckTxsForDelete",
+			path:          "sequencer.FrequencyToCheckTxsForDelete",
 			expectedValue: types.NewDuration(12 * time.Hour),
 		},
 		{
-			path:          "SequencerV2.ProfitabilityChecker.SendBatchesEvenWhenNotProfitable",
+			path:          "sequencer.ProfitabilityChecker.SendBatchesEvenWhenNotProfitable",
 			expectedValue: true,
 		},
 		{
@@ -113,10 +107,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "MTServer.Port",
 			expectedValue: 50060,
-		},
-		{
-			path:          "MTServer.StoreBackend",
-			expectedValue: tree.PgMTStoreBackend,
 		},
 		{
 			path:          "MTClient.URI",

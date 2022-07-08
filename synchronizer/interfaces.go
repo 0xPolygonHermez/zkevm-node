@@ -3,48 +3,42 @@ package synchronizer
 import (
 	"context"
 	"math/big"
-	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	"github.com/0xPolygonHermez/zkevm-node/state"
+	etherman "github.com/0xPolygonHermez/zkevm-node/etherman"
+	state "github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/jackc/pgx/v4"
 )
 
-// Consumer interfaces required by the package.
-
-// gasPriceEstimator contains the methods required to interact with gas price estimator
-type gasPriceEstimator interface {
-	UpdateGasPriceAvg(newValue *big.Int)
-}
-
-// localEtherman contains the methods required to interact with ethereum.
-type localEtherman interface {
-	GetLatestProposedBatchNumber() (uint64, error)
-	GetLatestConsolidatedBatchNumber() (uint64, error)
+// ethermanInterface contains the methods required to interact with ethereum.
+type ethermanInterface interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
-	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]state.Block, map[common.Hash][]etherman.Order, error)
-	EthBlockByNumber(ctx context.Context, blockNum uint64) (*types.Block, error)
+	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]etherman.Block, map[common.Hash][]etherman.Order, error)
+	EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error)
+	GetLatestBatchNumber() (uint64, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBlock(ctx context.Context, txBundleID string) (*state.Block, error)
-	SetGenesis(ctx context.Context, genesis state.Genesis, txBundleID string) error
-	SetLastBatchNumberSeenOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
-	SetLastBatchNumberConsolidatedOnEthereum(ctx context.Context, batchNumber uint64, txBundleID string) error
-	SetInitSyncBatch(ctx context.Context, batchNumber uint64, txBundleID string) error
-	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
-	GetBatchHeader(ctx context.Context, batchNumber uint64, txBundleID string) (*types.Header, error)
-	GetPreviousBlock(ctx context.Context, offset uint64, txBundleID string) (*state.Block, error)
+	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
+	AddGlobalExitRoot(ctx context.Context, exitRoot *state.GlobalExitRoot, dbTx pgx.Tx) error
+	AddForcedBatch(ctx context.Context, forcedBatch *state.ForcedBatch, dbTx pgx.Tx) error
+	AddBlock(ctx context.Context, block *state.Block, dbTx pgx.Tx) error
+	Reset(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error
+	GetPreviousBlock(ctx context.Context, offset uint64, dbTx pgx.Tx) (*state.Block, error)
+	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
+	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+	AddVirtualBatch(ctx context.Context, virtualBatch *state.VirtualBatch, dbTx pgx.Tx) error
+	// GetNextForcedBatches returns the next forcedBatches in FIFO order
+	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]state.ForcedBatch, error)
+	AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, dbTx pgx.Tx) error
+	AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx pgx.Tx) error
 
-	BeginStateTransaction(ctx context.Context) (string, error)
-	RollbackState(ctx context.Context, txBundleID string) error
-	CommitState(ctx context.Context, txBundleID string) error
+	ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx) error
 
-	AddBlock(ctx context.Context, block *state.Block, txBundleID string) error
-	ConsolidateBatch(ctx context.Context, batchNumber uint64, consolidatedTxHash common.Hash, consolidatedAt time.Time, aggregator common.Address, txBundleID string) error
-	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte, txBundleID string) (*state.BatchProcessor, error)
-	AddSequencer(ctx context.Context, seq state.Sequencer, txBundleID string) error
-	Reset(ctx context.Context, block *state.Block, txBundleID string) error
+	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
+	RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error
+	CommitStateTransaction(ctx context.Context, dbTx pgx.Tx) error
 }

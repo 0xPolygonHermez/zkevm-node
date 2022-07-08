@@ -6,13 +6,12 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/pool"
-	"github.com/0xPolygonHermez/zkevm-node/state"
+	state "github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/jackc/pgx/v4"
 )
-
-// Consumer interfaces required by the package.
 
 // jsonRPCTxPool contains the methods required to interact with the tx pool.
 type jsonRPCTxPool interface {
@@ -29,28 +28,31 @@ type gasPriceEstimator interface {
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastConsolidatedBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
-	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, txBundleID string) (*types.Transaction, error)
-	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, txBundleID string) (*state.Receipt, error)
-	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
-	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
-	NewBatchProcessor(ctx context.Context, sequencerAddress common.Address, stateRoot []byte, txBundleID string) (BatchProcessorInterface, error)
+	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
+
+	GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
+	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error)
+	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
+	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
 	EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error)
-	GetBalance(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (*big.Int, error)
-	GetBatchByHash(ctx context.Context, hash common.Hash, txBundleID string) (*state.Batch, error)
-	GetBatchByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (*state.Batch, error)
-	GetCode(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) ([]byte, error)
-	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, batchNumber uint64, txBundleID string) (*big.Int, error)
-	GetSyncingInfo(ctx context.Context, txBundleID string) (state.SyncingInfo, error)
-	GetTransactionByBatchHashAndIndex(ctx context.Context, batchHash common.Hash, index uint64, txBundleID string) (*types.Transaction, error)
-	GetTransactionByBatchNumberAndIndex(ctx context.Context, batchNumber uint64, index uint64, txBundleID string) (*types.Transaction, error)
-	GetNonce(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (uint64, error)
-	GetBatchHeader(ctx context.Context, batchNumber uint64, txBundleID string) (*types.Header, error)
-	GetBatchTransactionCountByHash(ctx context.Context, hash common.Hash, txBundleID string) (uint64, error)
-	GetBatchTransactionCountByNumber(ctx context.Context, batchNumber uint64, txBundleID string) (uint64, error)
-	GetLogs(ctx context.Context, fromBatch uint64, toBatch uint64, addresses []common.Address, topics [][]common.Hash, batchHash *common.Hash, since *time.Time, txBundleID string) ([]*types.Log, error)
-	GetBatchHashesSince(ctx context.Context, since time.Time, txBundleID string) ([]common.Hash, error)
+	GetBalance(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error)
+	GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Block, error)
+	GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Block, error)
+	GetCode(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) ([]byte, error)
+	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error)
+	GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (state.SyncingInfo, error)
+	GetTransactionByL2BlockHashAndIndex(ctx context.Context, blockHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error)
+	GetTransactionByL2BlockNumberAndIndex(ctx context.Context, blockNumber uint64, index uint64, dbTx pgx.Tx) (*types.Transaction, error)
+	GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error)
+	GetL2BlockTransactionCountByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (uint64, error)
+	GetL2BlockTransactionCountByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error)
+	GetL2BlockHashesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]common.Hash, error)
 	DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error)
+	ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult
 }
 
 type storageInterface interface {
@@ -60,8 +62,4 @@ type storageInterface interface {
 	GetFilter(filterID uint64) (*Filter, error)
 	UpdateFilterLastPoll(filterID uint64) error
 	UninstallFilter(filterID uint64) (bool, error)
-}
-
-type BatchProcessorInterface interface {
-	ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress, sequencerAddress common.Address) *runtime.ExecutionResult
 }

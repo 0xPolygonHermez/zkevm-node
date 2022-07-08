@@ -3,7 +3,7 @@ package ethtxmanager
 import (
 	"context"
 
-	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/ethermanv2/types"
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )

@@ -21,11 +21,6 @@ Host = "0.0.0.0"
 Port = 8123
 MaxRequestsPerIPAndSecond = 100
 
-[RPCV2]
-Host = "0.0.0.0"
-Port = 8123
-MaxRequestsPerIPAndSecond = 100
-
 [Synchronizer]
 SyncInterval = "5s"
 SyncChunkSize = 100
@@ -73,7 +68,7 @@ StoreBackend = "PostgreSQL"
 URI = "127.0.0.1:50060"
 
 [Executor]
-URI = "51.210.116.237:50071"
+URI = "127.0.0.1:50071"
 
 [BroadcastServer]
 Host = "0.0.0.0"

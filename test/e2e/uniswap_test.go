@@ -38,11 +38,7 @@ func TestUniswap(t *testing.T) {
 	opsCfg := &operations.Config{
 		Arity: cfg.NetworkConfig.Arity,
 		State: &state.Config{
-			DefaultChainID:                cfg.NetworkConfig.L2DefaultChainID,
-			MaxCumulativeGasUsed:          cfg.NetworkConfig.MaxCumulativeGasUsed,
-			GlobalExitRootStoragePosition: cfg.NetworkConfig.GlobalExitRootStoragePosition,
-			LocalExitRootStoragePosition:  cfg.NetworkConfig.LocalExitRootStoragePosition,
-			L2GlobalExitRootManagerAddr:   cfg.NetworkConfig.L2GlobalExitRootManagerAddr,
+			MaxCumulativeGasUsed: cfg.NetworkConfig.MaxCumulativeGasUsed,
 		},
 		Sequencer: &operations.SequencerConfig{
 			Address:    "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",

@@ -2,53 +2,30 @@ package sequencer
 
 import (
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
-	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/strategy"
-)
-
-// InitBatchProcessorIfDiffType let sequencer decide, how to init batch processor
-type InitBatchProcessorIfDiffType string
-
-const (
-	// InitBatchProcessorIfDiffTypeSynced init batch processor from previous synced batch root
-	InitBatchProcessorIfDiffTypeSynced InitBatchProcessorIfDiffType = "synced"
-	// InitBatchProcessorIfDiffTypeCalculated init batch processor from previous calculated batch root
-	InitBatchProcessorIfDiffTypeCalculated InitBatchProcessorIfDiffType = "calculated"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 )
 
 // Config represents the configuration of a sequencer
 type Config struct {
-	// IntervalToProposeBatch is the time the sequencer waits until
+	// WaitPeriodPoolIsEmpty is the time the sequencer waits until
 	// trying to propose a batch
-	IntervalToProposeBatch types.Duration `mapstructure:"IntervalToProposeBatch"`
+	WaitPeriodPoolIsEmpty types.Duration `mapstructure:"WaitPeriodPoolIsEmpty"`
 
-	// SyncedBlockDif is the difference, how many block left to sync. So if sequencer see, that
-	// X amount of blocks are left to sync, it will start to select txs
-	SyncedBlockDif uint64 `mapstructure:"SyncedBlockDif"`
+	// LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
+	LastBatchVirtualizationTimeMaxWaitPeriod types.Duration `mapstructure:"LastBatchVirtualizationTimeMaxWaitPeriod"`
 
-	// IntervalAfterWhichBatchSentAnyway this is interval for the main sequencer, that will check if there is no transactions
-	IntervalAfterWhichBatchSentAnyway types.Duration `mapstructure:"IntervalAfterWhichBatchSentAnyway"`
+	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
+	WaitBlocksToUpdateGER uint64 `mapstructure:"WaitBlocksToUpdateGER"`
 
-	// Strategy is the configuration for the strategy
-	Strategy strategy.Strategy `mapstructure:"Strategy"`
+	// LastTimeBatchMaxWaitPeriod is time after which new batch should be closed
+	LastTimeBatchMaxWaitPeriod types.Duration `mapstructure:"LastTimeBatchMaxWaitPeriod"`
 
-	// PriceGetter config for the price getter
-	PriceGetter pricegetter.Config `mapstructure:"PriceGetter"`
+	// BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
+	BlocksAmountForTxsToBeDeleted uint64 `mapstructure:"BlocksAmountForTxsToBeDeleted"`
 
-	// InitBatchProcessorIfDiffType is for the case, when last synchronized batch num more than latest sent batch
-	// If "synced" init bp by synced batch, if "calculated" init by previous calculated root
-	InitBatchProcessorIfDiffType InitBatchProcessorIfDiffType `mapstructure:"InitBatchProcessorIfDiffType"`
-	// AllowNonRegistered determines if the sequencer will run using the default
-	// chain ID
-	AllowNonRegistered bool `mapstructure:"AllowNonRegistered"`
+	// FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
+	FrequencyToCheckTxsForDelete types.Duration `mapstructure:"FrequencyToCheckTxsForDelete"`
 
-	// MaxSendBatchTxRetries amount of how many tries for sending sendBatch tx to the ethereum
-	MaxSendBatchTxRetries uint32 `mapstructure:"MaxSendBatchTxRetries"`
-	// FrequencyForResendingFailedSendBatchesInMilliseconds frequency of the resending batches
-	FrequencyForResendingFailedSendBatchesInMilliseconds int64 `mapstructure:"FrequencyForResendingFailedSendBatchesInMilliseconds"`
-	// DefaultChainID is the common ChainID to all the sequencers
-	DefaultChainID uint64 `mapstructure:"DefaultChainID"`
-
-	// PendingTxsQueue config for pending tx queue data structure
-	PendingTxsQueue PendingTxsQueueConfig `mapstructure:"PendingTxsQueue"`
+	// ProfitabilityChecker configuration
+	ProfitabilityChecker profitabilitychecker.Config `mapstructure:"ProfitabilityChecker"`
 }
