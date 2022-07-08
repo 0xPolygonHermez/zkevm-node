@@ -555,8 +555,8 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 	require.NoError(t, err)
 	txs, err := p.GetPendingTxs(ctx, false, 100)
 	require.NoError(t, err)
-	require.Equal(t, signedTx1.Hash().Hex(), txs[0].Hash().Hex())
-	require.Equal(t, signedTx2.Hash().Hex(), txs[1].Hash().Hex())
+	require.Equal(t, signedTx1.Hash().Hex(), txs[1].Hash().Hex())
+	require.Equal(t, signedTx2.Hash().Hex(), txs[0].Hash().Hex())
 }
 
 func TestGetPendingTxSince(t *testing.T) {
