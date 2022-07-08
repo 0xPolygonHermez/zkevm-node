@@ -59,31 +59,31 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "Sequencerv2.WaitPeriodPoolIsEmpty",
+			path:          "SequencerV2.WaitPeriodPoolIsEmpty",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
-			path:          "Sequencerv2.LastBatchVirtualizationTimeMaxWaitPeriod",
+			path:          "SequencerV2.LastBatchVirtualizationTimeMaxWaitPeriod",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
-			path:          "Sequencerv2.WaitBlocksToUpdateGER",
+			path:          "SequencerV2.WaitBlocksToUpdateGER",
 			expectedValue: uint64(10),
 		},
 		{
-			path:          "Sequencerv2.LastTimeBatchMaxWaitPeriod",
+			path:          "SequencerV2.LastTimeBatchMaxWaitPeriod",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
-			path:          "Sequencerv2.BlocksAmountForTxsToBeDeleted",
+			path:          "SequencerV2.BlocksAmountForTxsToBeDeleted",
 			expectedValue: uint64(100),
 		},
 		{
-			path:          "Sequencerv2.FrequencyToCheckTxsForDelete",
+			path:          "SequencerV2.FrequencyToCheckTxsForDelete",
 			expectedValue: types.NewDuration(12 * time.Hour),
 		},
 		{
-			path:          "Sequencerv2.ProfitabilityChecker.SendBatchesEvenWhenNotProfitable",
+			path:          "SequencerV2.ProfitabilityChecker.SendBatchesEvenWhenNotProfitable",
 			expectedValue: true,
 		},
 		{

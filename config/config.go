@@ -53,7 +53,7 @@ type Config struct {
 	Synchronizer      synchronizer.Config
 	Synchronizerv2    synchronizerv2.Config
 	Sequencer         sequencer.Config
-	Sequencerv2       sequencerv2.Config
+	SequencerV2       sequencerv2.Config
 	PriceGetter       pricegetter.Config
 	Aggregator        aggregator.Config
 	Prover            proverclient.Config
