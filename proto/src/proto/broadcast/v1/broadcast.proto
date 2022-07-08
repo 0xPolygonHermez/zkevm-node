@@ -8,7 +8,7 @@ import "google/protobuf/empty.proto";
 
 package broadcast.v1;
 
-option go_package = "github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb";
+option go_package = "github.com/0xPolygonHermez/zkevm-node/sequencerv2/broadcast/pb";
 
 service BroadcastService {
   rpc GetLastBatch(google.protobuf.Empty) returns (GetBatchResponse);

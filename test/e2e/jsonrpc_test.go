@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/test/operations"
-	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/stretchr/testify/require"
 )
 

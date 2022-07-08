@@ -1,8 +1,8 @@
 package dbutils
 
 import (
-	"github.com/hermeznetwork/hermez-core/db"
-	"github.com/hermeznetwork/hermez-core/test/testutils"
+	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 )
 
 // InitOrReset will initializes the db running the migrations or

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/hermeznetwork/hermez-core/state"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
 // Default gas price from config is set.

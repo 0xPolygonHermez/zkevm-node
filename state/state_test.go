@@ -13,6 +13,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/js"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers"
+	"github.com/0xPolygonHermez/zkevm-node/state/tree"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/FailureTest"
+	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -20,19 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/hermeznetwork/hermez-core/db"
-	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/state"
-	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/js"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation/tracers"
-	"github.com/hermeznetwork/hermez-core/state/tree"
-	"github.com/hermeznetwork/hermez-core/test/contracts/bin/FailureTest"
-	"github.com/hermeznetwork/hermez-core/test/dbutils"
-	"github.com/hermeznetwork/hermez-core/test/testutils"
-	"github.com/hermeznetwork/hermez-core/test/vectors"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -848,7 +848,7 @@ func TestReceipts(t *testing.T) {
 				// BLOCKHASH -> BatchHash
 				// This assertion is wrong due to a missalignment between the node team and the protocol team
 				// We are commenting this line for now in order to unblock the development and we have created
-				// the issue #290 in order to track this fix: https://github.com/hermeznetwork/hermez-core/issues/290
+				// the issue #290 in order to track this fix: https://github.com/0xPolygonHermez/zkevm-node/issues/290
 				// assert.Equal(t, common.HexToHash(testReceipt.Receipt.BlockHash), receipt.BlockHash)
 			}
 		})

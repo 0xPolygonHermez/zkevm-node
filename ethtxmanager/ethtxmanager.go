@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"time"
 
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/ethermanv2/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
-	"github.com/hermeznetwork/hermez-core/log"
 )
 
 const (

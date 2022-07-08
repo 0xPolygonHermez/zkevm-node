@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hermeznetwork/hermez-core/config"
-	"github.com/hermeznetwork/hermez-core/config/types"
-	"github.com/hermeznetwork/hermez-core/pricegetter"
-	"github.com/hermeznetwork/hermez-core/sequencer"
-	"github.com/hermeznetwork/hermez-core/state/tree"
+	"github.com/0xPolygonHermez/zkevm-node/config"
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer"
+	"github.com/0xPolygonHermez/zkevm-node/state/tree"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )

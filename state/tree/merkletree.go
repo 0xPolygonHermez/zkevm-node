@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/hermeznetwork/hermez-core/hex"
-	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/iden3/go-iden3-crypto/ff"
 	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 )

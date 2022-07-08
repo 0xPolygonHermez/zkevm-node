@@ -7,10 +7,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hermeznetwork/hermez-core/db"
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/state/store"
-	"github.com/hermeznetwork/hermez-core/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state/store"
+	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 )

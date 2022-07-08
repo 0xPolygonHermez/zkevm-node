@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )

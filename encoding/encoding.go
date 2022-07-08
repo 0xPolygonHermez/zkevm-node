@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 )
 
 const (

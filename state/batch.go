@@ -4,10 +4,10 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/hermeznetwork/hermez-core/log"
 )
 
 // Hash returns the batch hash of the header, which is simply the keccak256 hash of its

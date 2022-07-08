@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	state "github.com/0xPolygonHermez/zkevm-node/statev2"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/hex"
-	state "github.com/hermeznetwork/hermez-core/statev2"
 )
 
 type argUint64 uint64

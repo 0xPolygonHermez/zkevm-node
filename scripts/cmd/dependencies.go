@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/hermeznetwork/hermez-core/scripts/cmd/dependencies"
+	"github.com/0xPolygonHermez/zkevm-node/scripts/cmd/dependencies"
 	"github.com/urfave/cli/v2"
 )
 

@@ -1,8 +1,8 @@
 package strategy
 
 import (
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/strategy/txprofitabilitychecker"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/strategy/txselector"
 )
 
 // Strategy holds config params

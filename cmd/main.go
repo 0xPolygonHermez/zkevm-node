@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hermeznetwork/hermez-core/config"
-	"github.com/hermeznetwork/hermez-core/jsonrpc"
-	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/0xPolygonHermez/zkevm-node/config"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/urfave/cli/v2"
 )
 

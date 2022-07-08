@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime/fakevm"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/fakevm"
 )
 
 // Context contains some contextual infos for a transaction execution that is not
