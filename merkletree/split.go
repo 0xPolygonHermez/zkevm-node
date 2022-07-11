@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 )
 
@@ -104,7 +103,6 @@ func scalarToh4(s *big.Int) []uint64 {
 // bytes.
 func ScalarToFilledByteSlice(s *big.Int) []byte {
 	buf := make([]byte, maxBigIntLen)
-	log.Debugf("Scalar=%v", s.String())
 	return s.FillBytes(buf)
 }
 
