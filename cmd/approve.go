@@ -59,7 +59,7 @@ func approveTokens(ctx *cli.Context) error {
 		rinkeby = 4
 		goerli  = 5
 	)
-	switch c.NetworkConfig.L1ChainID {
+	switch c.NetworkConfig.ChainID {
 	case mainnet:
 		fmt.Println("Check tx status: https://etherscan.io/tx/" + tx.Hash().String())
 	case rinkeby:

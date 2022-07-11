@@ -164,8 +164,8 @@ func validateFunc(funcName string, fv reflect.Value, isMethod bool) (inNum int, 
 		err = fmt.Errorf("unexpected number of output arguments in the function '%s': %d. Expected 2", funcName, outNum)
 		return
 	}
-	if !isErrorType(ft.Out(1)) {
-		err = fmt.Errorf("unexpected type for the second return value of the function '%s': '%s'. Expected '%s'", funcName, ft.Out(1), errt)
+	if !isRPCErrorType(ft.Out(1)) {
+		err = fmt.Errorf("unexpected type for the second return value of the function '%s': '%s'. Expected '%s'", funcName, ft.Out(1), rpcErrType)
 		return
 	}
 
@@ -176,10 +176,10 @@ func validateFunc(funcName string, fv reflect.Value, isMethod bool) (inNum int, 
 	return
 }
 
-var errt = reflect.TypeOf((*error)(nil)).Elem()
+var rpcErrType = reflect.TypeOf((*rpcError)(nil)).Elem()
 
-func isErrorType(t reflect.Type) bool {
-	return t.Implements(errt)
+func isRPCErrorType(t reflect.Type) bool {
+	return t.Implements(rpcErrType)
 }
 
 func getError(v reflect.Value) rpcError {
@@ -190,8 +190,6 @@ func getError(v reflect.Value) rpcError {
 	switch vt := v.Interface().(type) {
 	case *RPCError:
 		return vt
-	case error:
-		return newRPCError(defaultErrorCode, vt.Error())
 	default:
 		return newRPCError(defaultErrorCode, "runtime error")
 	}

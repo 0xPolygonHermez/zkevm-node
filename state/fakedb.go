@@ -10,9 +10,8 @@ import (
 
 // FakeDB is the implementation of the fakeevm.FakeDB interface
 type FakeDB struct {
-	State      *State
-	stateRoot  []byte
-	txBundleID string
+	State     *State
+	stateRoot []byte
 }
 
 func (f *FakeDB) SetStateRoot(stateRoot []byte) {
@@ -21,7 +20,7 @@ func (f *FakeDB) SetStateRoot(stateRoot []byte) {
 
 func (f *FakeDB) GetBalance(address common.Address) *big.Int {
 	ctx := context.Background()
-	balance, err := f.State.GetTree().GetBalance(ctx, address, f.stateRoot, f.txBundleID)
+	balance, err := f.State.GetTree().GetBalance(ctx, address, f.stateRoot)
 
 	if err != nil {
 		log.Errorf("error on FakeDB GetBalance for address %v", address)
@@ -33,7 +32,7 @@ func (f *FakeDB) GetBalance(address common.Address) *big.Int {
 
 func (f *FakeDB) GetNonce(address common.Address) uint64 {
 	ctx := context.Background()
-	nonce, err := f.State.GetTree().GetNonce(ctx, address, f.stateRoot, f.txBundleID)
+	nonce, err := f.State.GetTree().GetNonce(ctx, address, f.stateRoot)
 
 	if err != nil {
 		log.Errorf("error on FakeDB GetNonce for address %v", address)
@@ -46,7 +45,7 @@ func (f *FakeDB) GetNonce(address common.Address) uint64 {
 
 func (f *FakeDB) GetCode(address common.Address) []byte {
 	ctx := context.Background()
-	code, err := f.State.GetTree().GetCode(ctx, address, f.stateRoot, f.txBundleID)
+	code, err := f.State.GetTree().GetCode(ctx, address, f.stateRoot)
 
 	if err != nil {
 		log.Errorf("error on FakeDB GetCode for address %v", address)
@@ -59,7 +58,7 @@ func (f *FakeDB) GetCode(address common.Address) []byte {
 // GetState retrieves a value from the given account's storage trie.
 func (f *FakeDB) GetState(address common.Address, hash common.Hash) common.Hash {
 	ctx := context.Background()
-	storage, err := f.State.GetTree().GetStorageAt(ctx, address, hash.Big(), f.stateRoot, f.txBundleID)
+	storage, err := f.State.GetTree().GetStorageAt(ctx, address, hash.Big(), f.stateRoot)
 
 	if err != nil {
 		log.Errorf("error on FakeDB GetState for address %v", address)
@@ -71,13 +70,13 @@ func (f *FakeDB) GetState(address common.Address, hash common.Hash) common.Hash 
 }
 
 func (f *FakeDB) Exist(address common.Address) bool {
-	return !(f.GetNonce(address) == 0 && f.GetBalance(address).Int64() == 0 && f.GetCodeHash(address) == EmptyCodeHash)
+	return !(f.GetNonce(address) == 0 && f.GetBalance(address).Int64() == 0 && f.GetCodeHash(address) == ZeroHash)
 }
 
 // GetCodeHash gets the hash for the code at a given address
 func (f *FakeDB) GetCodeHash(address common.Address) common.Hash {
 	ctx := context.Background()
-	hash, err := f.State.GetTree().GetCodeHash(ctx, address, f.stateRoot, f.txBundleID)
+	hash, err := f.State.GetTree().GetCodeHash(ctx, address, f.stateRoot)
 
 	if err != nil {
 		log.Errorf("error on FakeDB GetCodeHash for address %v, err: %v", address, err)

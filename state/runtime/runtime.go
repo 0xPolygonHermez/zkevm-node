@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 
@@ -33,45 +32,6 @@ var (
 	// ErrCodeStoreOutOfGas indicates there is not enough gas for the storage
 	ErrCodeStoreOutOfGas = errors.New("contract creation code storage out of gas")
 )
-
-// CallType indicates the type of call to a contract
-type CallType int
-
-const (
-	// Call is the default call for a contract
-	Call CallType = iota
-	// CallCode is the callcode call for a contract
-	CallCode
-	// DelegateCall is the delegate call for a contract
-	DelegateCall
-	// StaticCall is the static call for a contract
-	StaticCall
-	// Create is the creation call for a contract
-	Create
-	// Create2 is the creation call for a contract from a contract
-	Create2
-)
-
-// Runtime can process contracts
-type Runtime interface {
-	Run(ctx context.Context, c *Contract, host Host, config *ForksInTime) *ExecutionResult
-	CanRun(c *Contract, host Host, config *ForksInTime) bool
-	Name() string
-}
-
-// TxContext is the context of the transaction
-type TxContext struct {
-	Hash        common.Hash
-	GasPrice    common.Hash
-	Origin      common.Address
-	Coinbase    common.Address
-	Number      int64
-	Timestamp   int64
-	GasLimit    int64
-	ChainID     int64
-	Difficulty  common.Hash
-	BatchNumber int64
-}
 
 // ExecutionResult includes all output after executing given evm
 // message no matter the execution itself is successful or not.

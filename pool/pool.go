@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/helper"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -123,18 +122,17 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	if err := state.CheckSignature(tx); err != nil {
 		return ErrInvalidSender
 	}
-	from, err := helper.GetSender(tx)
+	from, err := state.GetSender(tx)
 	if err != nil {
 		return ErrInvalidSender
 	}
 
-	lastBatch, err := p.state.GetLastBatch(ctx, true, "")
+	lastL2BlockNumber, err := p.state.GetLastL2BlockNumber(ctx, nil)
 	if err != nil {
 		return err
 	}
-	lastBatchNumber := lastBatch.Number().Uint64()
 
-	nonce, err := p.state.GetNonce(ctx, from, lastBatchNumber, "")
+	nonce, err := p.state.GetNonce(ctx, from, lastL2BlockNumber, nil)
 	if err != nil {
 		return err
 	}
@@ -145,7 +143,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	balance, err := p.state.GetBalance(ctx, from, lastBatchNumber, "")
+	balance, err := p.state.GetBalance(ctx, from, lastL2BlockNumber, nil)
 	if err != nil {
 		return err
 	}

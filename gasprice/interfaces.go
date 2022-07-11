@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/jackc/pgx/v4"
 )
 
 // Consumer interfaces required by the package.
@@ -16,6 +17,6 @@ type pool interface {
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
-	GetLastBatchNumber(ctx context.Context, txBundleID string) (uint64, error)
-	GetTxsByBatchNum(ctx context.Context, batchNum uint64, txBundleID string) ([]*types.Transaction, error)
+	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetTxsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
 }

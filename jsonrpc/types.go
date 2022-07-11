@@ -8,7 +8,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/helper"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -171,8 +170,8 @@ type rpcBlock struct {
 	Uncles          []common.Hash          `json:"uncles"`
 }
 
-func batchToRPCBlock(b *state.Batch, fullTx bool) *rpcBlock {
-	h := b.Header
+func l2BlockToRPCBlock(b *types.Block, fullTx bool) *rpcBlock {
+	h := b.Header()
 
 	n := big.NewInt(0).SetUint64(h.Nonce.Uint64())
 	nonce := common.LeftPadBytes(n.Bytes(), 8) //nolint:gomnd
@@ -207,7 +206,7 @@ func batchToRPCBlock(b *state.Batch, fullTx bool) *rpcBlock {
 		Uncles:          []common.Hash{},
 	}
 
-	for idx, txn := range b.Transactions {
+	for idx, txn := range b.Transactions() {
 		if fullTx {
 			tx := toRPCTransaction(txn, b.Number(), b.Hash(), uint64(idx))
 			res.Transactions = append(
@@ -222,7 +221,7 @@ func batchToRPCBlock(b *state.Batch, fullTx bool) *rpcBlock {
 		}
 	}
 
-	for _, uncle := range b.Uncles {
+	for _, uncle := range b.Uncles() {
 		res.Uncles = append(res.Uncles, uncle.Hash())
 	}
 
@@ -270,7 +269,7 @@ func toRPCTransaction(
 ) *rpcTransaction {
 	v, r, s := t.RawSignatureValues()
 
-	from, _ := helper.GetSender(*t)
+	from, _ := state.GetSender(*t)
 
 	res := &rpcTransaction{
 		Nonce:    argUint64(t.Nonce()),
@@ -313,8 +312,8 @@ type rpcReceipt struct {
 	Type              argUint64       `json:"type"`
 }
 
-func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
-	to := r.To
+func receiptToRPCReceipt(tx types.Transaction, r *types.Receipt) (rpcReceipt, error) {
+	to := tx.To()
 	logs := r.Logs
 	if logs == nil {
 		logs = []*types.Log{}
@@ -331,8 +330,13 @@ func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
 		blockNumber = argUint64(r.BlockNumber.Uint64())
 	}
 
+	from, err := state.GetSender(tx)
+	if err != nil {
+		return rpcReceipt{}, err
+	}
+
 	return rpcReceipt{
-		Root:              common.BytesToHash(r.Receipt.PostState),
+		Root:              common.BytesToHash(r.PostState),
 		CumulativeGasUsed: argUint64(r.CumulativeGasUsed),
 		LogsBloom:         r.Bloom,
 		Logs:              logs,
@@ -343,10 +347,10 @@ func stateReceiptToRPCReceipt(r *state.Receipt) rpcReceipt {
 		BlockNumber:       blockNumber,
 		GasUsed:           argUint64(r.GasUsed),
 		ContractAddress:   contractAddress,
-		FromAddr:          r.From,
+		FromAddr:          from,
 		ToAddr:            to,
 		Type:              argUint64(r.Type),
-	}
+	}, nil
 }
 
 type rpcLog struct {

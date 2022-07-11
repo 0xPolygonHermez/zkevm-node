@@ -36,7 +36,6 @@ func TestStateTransition(t *testing.T) {
 			opsCfg := &operations.Config{
 				Arity: testCase.Arity,
 				State: &state.Config{
-					DefaultChainID:       testCase.DefaultChainID,
 					MaxCumulativeGasUsed: 800000,
 				},
 
@@ -65,16 +64,16 @@ func TestStateTransition(t *testing.T) {
 			st := opsman.State()
 
 			// Check leafs
-			batchNumber, err := st.GetLastBatchNumber(ctx, "")
+			l2BlockNumber, err := st.GetLastL2BlockNumber(ctx, nil)
 			require.NoError(t, err)
 			for addrStr, leaf := range testCase.ExpectedNewLeafs {
 				addr := common.HexToAddress(addrStr)
 
-				actualBalance, err := st.GetBalance(ctx, addr, batchNumber, "")
+				actualBalance, err := st.GetBalance(ctx, addr, l2BlockNumber, nil)
 				require.NoError(t, err)
 				require.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("addr: %s expected: %s found: %s", addr.Hex(), leaf.Balance.Text(encoding.Base10), actualBalance.Text(encoding.Base10)))
 
-				actualNonce, err := st.GetNonce(ctx, addr, batchNumber, "")
+				actualNonce, err := st.GetNonce(ctx, addr, l2BlockNumber, nil)
 				require.NoError(t, err)
 				require.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, encoding.Base10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}
@@ -82,13 +81,13 @@ func TestStateTransition(t *testing.T) {
 			// Check virtual root against the expected state
 			require.NoError(t, opsman.CheckVirtualRoot(testCase.ExpectedNewRoot))
 
-			// Check that last virtual and consolidated batch are the same
-			lastConsolidatedBatchNumber, err := st.GetLastConsolidatedBatchNumber(ctx, "")
+			// Check that last virtual and consolidated l2 block are the same
+			lastConsolidatedL2BlockNumber, err := st.GetLastConsolidatedL2BlockNumber(ctx, nil)
 			require.NoError(t, err)
-			lastVirtualBatchNumber, err := st.GetLastBatchNumber(ctx, "")
+			lastVirtualL2BlockNumber, err := st.GetLastL2BlockNumber(ctx, nil)
 			require.NoError(t, err)
-			t.Logf("lastConsolidatedBatchNumber: %d lastVirtualBatchNumber: %d", lastConsolidatedBatchNumber, lastVirtualBatchNumber)
-			require.Equal(t, lastConsolidatedBatchNumber, lastVirtualBatchNumber)
+			t.Logf("lastConsolidatedL2BlockNumber: %d lastVirtualL2BlockNumber: %d", lastConsolidatedL2BlockNumber, lastVirtualL2BlockNumber)
+			require.Equal(t, lastConsolidatedL2BlockNumber, lastVirtualL2BlockNumber)
 
 			require.NoError(t, operations.Teardown())
 		})

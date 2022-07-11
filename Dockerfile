@@ -15,7 +15,7 @@ RUN cd /src && make build
 
 # CONTAINER FOR RUNNING BINARY
 FROM alpine:3.16.0
-COPY --from=build /src/dist/hezcore /app/hezcore
+COPY --from=build /src/dist/zkevm-node /app/zkevm-node
 COPY --from=build /src/config/config.local.toml /app/config.local.toml
 EXPOSE 8123
-CMD ["/bin/sh", "-c", "/app/hezcore run"]
+CMD ["/bin/sh", "-c", "/app/zkevm-node run"]
