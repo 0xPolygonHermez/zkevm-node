@@ -72,7 +72,7 @@ func h4ToString(h4 []uint64) string {
 
 // stringToh4 converts an hex string into array of 4 Scalars of 64 bits.
 func stringToh4(str string) ([]uint64, error) {
-	if strings.HasPrefix(str, "0x") {
+	if strings.HasPrefix(str, "0x") { // nolint
 		str = str[2:]
 	}
 
