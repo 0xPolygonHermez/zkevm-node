@@ -12,8 +12,8 @@ Glossary:
 - L2: the rollup network aka the Polygon zkEVM network.
 - Batch: a group of transactions that are executed/proved, using the [zkEVM prover TODO]() and sent to / synchronized from L1
 - Sequencer: the actor that is responsible for selecting transactions, putting them in a specific order, and sending them in batches to L1
-- Trusted sequencer: sequencer that has special privileges, there can only be one trusted sequencer. The privileges granted to the trusted sequencer make it available to forecast the batches that will be applied to L1. This way it can commit to a specific sequence before interacting with L1. This is done to achieve fast finality and reduce costs associated with using the network (lower gas fees)
-- Permissionless sequencer: sequencer role that can be performed by anyone. It has competitive disadvantages compared to the trusted sequencer (slow finality, MEV attacks). Its main purpose of it is to provide censorship resistance and unstoppability features to the network.
+- Trusted sequencer: sequencer that has special privileges, there can only be one trusted sequencer. The privileges granted to the trusted sequencer allow it to forecast the batches that will be applied to L1. This way it can commit to a specific sequence before interacting with L1. This is done to achieve fast finality and reduce costs associated with using the network (lower gas fees)
+- Permissionless sequencer: sequencer role that can be performed by anyone. It has competitive disadvantages compared to the trusted sequencer (slow finality, MEV attacks). Its main purpose is to provide censorship resistance and unstoppability features to the network.
 - Sequence: Group of batches and other metadata that the trusted sequencer sends to L1 to update the state
 - Forced batch: batch that is sent by permissionless sequencers to L1 to update the state
 - L2 Block: Same as an L1 block, but for L2. This is mostly used by the JSON RPC interface. Currently, all the L2 Blocks are set to only include one transaction, this is done to achieve instant finality: it's not necessary to close a batch to allow the JSON RPC to expose results of already processed transactions
@@ -21,7 +21,7 @@ Glossary:
 - Virtual state: state reached through processing transactions that have already been submitted to L1. These transactions are sent in batches by either trusted or permissionless sequencers. Those batches are also called virtual batches. Note that this state is trustless as it relies on L1 security assumptions
 - Consolidated state: state that is proven on-chain by submitting a ZKP (Zero Knowledge Proof) that proves the execution of a sequence of the last virtual batch.
 - Invalid transaction: a transaction that can't be processed and doesn't affect the state. Note that such a transaction could be included in a virtual batch. The reason for a transaction to be invalid could be related to the Ethereum protocol (invalid nonce, not enough balance, ...) or due to limitations introduced by the zkEVM (each batch can make use of a limited amount of resources such as the total amount of keccak hashes that can be computed)
-- Reverted transaction: a transaction that is executed, but is reverted (because of smart contract logic). The main difference with *invalid transaction* is that this transaction modifies the state, at least to increment nonce off the sender.
+- Reverted transaction: a transaction that is executed, but is reverted (because of smart contract logic). The main difference with *invalid transaction* is that this transaction modifies the state, at least to increment nonce of the sender.
 - Proof of Efficiency (PoE): name of the protocol used by the network, it's enforced by the [smart contracts TODO]()
 
 ## Architecture
@@ -58,7 +58,7 @@ This role can be performed by anyone.
 Required services and components:
 
 - JSON RPC: can run in a separated instance, and can have multiple instances
-- Synchronizer: single instance that needs to run together
+- Synchronizer: single instance that can run on a separate instance
 - Executor & Merkletree: service that can run on a separate instance
 - State DB: Postgres SQL that can be run in a separate instance
 
@@ -77,7 +77,7 @@ Required services and components:
 - Pool DB: Postgres SQL that can be run in a separate instance
 - State DB: Postgres SQL that can be run in a separate instance
 
-Note that the JSON RPC it's required to receive transactions. It's recommended that the JSON RPC runs on separated instances, and potentially more than one (depending on the load of the network). It's also recommended that the JSON RPC and the Sequencer don't share the same executor instance, to make sure that the sequencer has exclusive access to an executor
+Note that the JSON RPC is required to receive transactions. It's recommended that the JSON RPC runs on separated instances, and potentially more than one (depending on the load of the network). It's also recommended that the JSON RPC and the Sequencer don't share the same executor instance, to make sure that the sequencer has exclusive access to an executor
 
 ### Permissionless sequencer
 
