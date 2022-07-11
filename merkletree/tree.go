@@ -2,7 +2,6 @@ package merkletree
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -239,11 +238,8 @@ func (tree *StateTree) get(ctx context.Context, root, key []uint64) (*Proof, err
 	if err != nil {
 		return nil, err
 	}
-	if result.Root == nil {
-		return nil, errors.New("nil root returned")
-	}
 	return &Proof{
-		Root:  []uint64{result.Root.Fe0, result.Root.Fe1, result.Root.Fe2, result.Root.Fe3},
+		Root:  []uint64{root[0], root[1], root[2], root[3]},
 		Key:   key,
 		Value: value,
 	}, nil
