@@ -20,14 +20,6 @@ PrivateKeyPassword = "testonly"
 Host = "0.0.0.0"
 Port = 8123
 MaxRequestsPerIPAndSecond = 50
-ChainID = 1001
-SequencerAddress = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
-
-[RPCV2]
-Host = "0.0.0.0"
-Port = 8123
-MaxRequestsPerIPAndSecond = 50
-ChainID = 1001
 
 [Synchronizer]
 SyncInterval = "1s"
@@ -43,15 +35,15 @@ FrequencyToCheckTxsForDelete = "12h"
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 
+[Aggregator]
+IntervalToConsolidateState = "10s"
+IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"
+TxProfitabilityCheckerType = "acceptall"
+TxProfitabilityMinReward = "1.1"
+
 [GasPriceEstimator]
 Type = "default"
 DefaultGasPriceWei = 1000000000
-
-[Aggregator]
-IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"
-IntervalToConsolidateState = "10s"
-TxProfitabilityCheckerType = "acceptall"
-TxProfitabilityMinReward = "1.1"
 
 [Prover]
 ProverURI = "hez-prover:50051"
@@ -65,7 +57,7 @@ StoreBackend = "PostgreSQL"
 URI  = "127.0.0.1:50060"
 
 [Executor]
-URI = "51.210.116.237:50071"
+URI = "127.0.0.1:50071"
 
 [BroadcastServer]
 Host = "0.0.0.0"
