@@ -2,7 +2,9 @@ package state_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"strings"
@@ -10,6 +12,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	state "github.com/0xPolygonHermez/zkevm-node/state"
@@ -17,8 +20,11 @@ import (
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +32,7 @@ import (
 )
 
 const (
-// ether155V = 27
+	ether155V = 27
 )
 
 var (
@@ -501,7 +507,6 @@ func TestVerifiedBatch(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
-/*
 func TestExecuteTransaction(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(400)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -573,7 +578,6 @@ func TestExecuteTransaction(t *testing.T) {
 	err = ioutil.WriteFile("trace.json", file, 0644)
 	require.NoError(t, err)
 }
-*/
 
 func TestGenesis(t *testing.T) {
 	balances := map[common.Address]*big.Int{

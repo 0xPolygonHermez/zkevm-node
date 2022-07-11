@@ -3,6 +3,7 @@ package pool_test
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"math"
 	"math/big"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -659,8 +661,12 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 func newState(sqlDB *pgxpool.Pool) *state.State {
 	ctx := context.Background()
 	stateDb := state.NewPostgresStorage(sqlDB)
-	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{})
-	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config(merkletree.Config{}))
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
+
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+	executorClient, _, _ := executor.NewExecutorClient(ctx, executorServerConfig)
+	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
 	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000}, stateDb, executorClient, stateTree)
 	return st

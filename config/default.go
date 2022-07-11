@@ -42,35 +42,13 @@ SyncInterval = "0s"
 SyncChunkSize = 100
 
 [Sequencer]
-AllowNonRegistered = "false"
-IntervalToProposeBatch = "15s"
-SyncedBlockDif = 1
-InitBatchProcessorIfDiffType = "synced"
-MaxSendBatchTxRetries = 5
-FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
-    [Sequencer.Strategy]
-        [Sequencer.Strategy.TxSelector]
-            Type = "base"
-            TxSorterType = "bycostandnonce"
-        [Sequencer.Strategy.TxProfitabilityChecker]
-            Type = "acceptall"
-            MinReward = "1.1"
-			RewardPercentageToAggregator = 50
-	[Sequencer.PriceGetter]
-        Type = "default"
-        DefaultPrice = "2000"
-	[Sequencer.PendingTxsQueue]
-		TxPendingInQueueCheckingFrequency = "3s"
-		GetPendingTxsFrequency = "5s"
-
-[sequencer]
 WaitPeriodPoolIsEmpty = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "15s"
 WaitBlocksToUpdateGER = 10
 LastTimeBatchMaxWaitPeriod = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
-	[sequencer.ProfitabilityChecker]
+	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 
 [PriceGetter]
