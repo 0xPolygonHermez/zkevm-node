@@ -2,9 +2,9 @@ package merkletree
 
 import (
 	"context"
-	"log"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

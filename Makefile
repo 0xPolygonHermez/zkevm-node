@@ -55,7 +55,8 @@ GOENVVARS := GOBIN=$(GOBIN)
 GOBINARY := zkevm-node
 GOCMD := $(GOBASE)/cmd
 
-LINT := $$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E gosec -E gci -E misspell -E gomnd -E gofmt -E goimports -E revive
+LINT := $$(go env GOPATH)/bin/golangci-lint run
+
 BUILD := $(GOENVVARS) go build $(LDFLAGS) -o $(GOBIN)/$(GOBINARY) $(GOCMD)
 
 .PHONY: build

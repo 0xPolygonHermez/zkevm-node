@@ -23,6 +23,7 @@ type traceTransactionResponse struct {
 	StructLogs  []StructLogRes `json:"structLogs"`
 }
 
+// StructLogRes represents a log response.
 type StructLogRes struct {
 	Pc            uint64             `json:"pc"`
 	Op            string             `json:"op"`

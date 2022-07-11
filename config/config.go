@@ -25,15 +25,24 @@ import (
 )
 
 const (
-	FlagYes         = "yes"
-	FlagCfg         = "cfg"
-	FlagNetwork     = "network"
-	FlagNetworkCfg  = "network-cfg"
+	// FlagYes is the flag for yes.
+	FlagYes = "yes"
+	// FlagCfg is the flag for cfg.
+	FlagCfg = "cfg"
+	// FlagNetwork is the flag for network.
+	FlagNetwork = "network"
+	// FlagNetworkCfg is the flag for network-cfg.
+	FlagNetworkCfg = "network-cfg"
+	// FlagNetworkBase is the flag for netwotk-base.
 	FlagNetworkBase = "network-base"
-	FlagAmount      = "amount"
-	FlagRemoteMT    = "remote-merkletree"
-	FlagComponents  = "components"
-	FlagHTTPAPI     = "http.api"
+	// FlagAmount is the flag for amount.
+	FlagAmount = "amount"
+	// FlagRemoteMT is the flag for remote-merkletree.
+	FlagRemoteMT = "remote-merkletree"
+	// FlagComponents is the flag for components.
+	FlagComponents = "components"
+	// FlagHTTPAPI is the flag for http.api.
+	FlagHTTPAPI = "http.api"
 )
 
 // Config represents the configuration of the entire Hermez Node

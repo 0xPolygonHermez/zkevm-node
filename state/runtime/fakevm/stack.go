@@ -23,6 +23,7 @@ import (
 	"github.com/holiman/uint256"
 )
 
+// InitialStackSize represents the initial stack size.
 const InitialStackSize int = 16
 
 var stackPool = sync.Pool{
@@ -38,6 +39,7 @@ type Stack struct {
 	data []uint256.Int
 }
 
+// Newstack gets a stack from the pool.
 func Newstack() *Stack {
 	return stackPool.Get().(*Stack)
 }
@@ -47,6 +49,7 @@ func (st *Stack) Data() []uint256.Int {
 	return st.data
 }
 
+// Push adds an item to the data.
 func (st *Stack) Push(d *uint256.Int) {
 	// NOTE push limit (1024) is checked in baseCheck
 	st.data = append(st.data, *d)

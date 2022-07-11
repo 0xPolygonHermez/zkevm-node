@@ -15,12 +15,18 @@ import (
 )
 
 const (
-	APIEth    = "eth"
-	APINet    = "net"
-	APIDebug  = "debug"
-	APIHez    = "hez"
+	// APIEth represents the eth API prefix.
+	APIEth = "eth"
+	// APINet represents the net API prefix.
+	APINet = "net"
+	// APIDebug represents the debug API prefix.
+	APIDebug = "debug"
+	// APIHez represents the hez API prefix.
+	APIHez = "hez"
+	// APITxPool represents the txpool API prefix.
 	APITxPool = "txpool"
-	APIWeb3   = "web3"
+	// APIWeb3 represents the web3 API prefix.
+	APIWeb3 = "web3"
 )
 
 // Server is an API backend to handle RPC requests

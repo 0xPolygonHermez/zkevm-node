@@ -14,10 +14,12 @@ type FakeDB struct {
 	stateRoot []byte
 }
 
+// SetStateRoot is the stateRoot setter.
 func (f *FakeDB) SetStateRoot(stateRoot []byte) {
 	f.stateRoot = stateRoot
 }
 
+// GetBalance returns the balance of the given address.
 func (f *FakeDB) GetBalance(address common.Address) *big.Int {
 	ctx := context.Background()
 	balance, err := f.State.GetTree().GetBalance(ctx, address, f.stateRoot)
@@ -30,6 +32,7 @@ func (f *FakeDB) GetBalance(address common.Address) *big.Int {
 	return balance
 }
 
+// GetNonce returns the nonce of the given address.
 func (f *FakeDB) GetNonce(address common.Address) uint64 {
 	ctx := context.Background()
 	nonce, err := f.State.GetTree().GetNonce(ctx, address, f.stateRoot)
@@ -43,6 +46,7 @@ func (f *FakeDB) GetNonce(address common.Address) uint64 {
 	return nonce.Uint64()
 }
 
+// GetCode returns the SC code of the given address.
 func (f *FakeDB) GetCode(address common.Address) []byte {
 	ctx := context.Background()
 	code, err := f.State.GetTree().GetCode(ctx, address, f.stateRoot)
@@ -69,6 +73,7 @@ func (f *FakeDB) GetState(address common.Address, hash common.Hash) common.Hash 
 	return common.BytesToHash(storage.Bytes())
 }
 
+// Exist determines if the given address is in use.
 func (f *FakeDB) Exist(address common.Address) bool {
 	return !(f.GetNonce(address) == 0 && f.GetBalance(address).Int64() == 0 && f.GetCodeHash(address) == ZeroHash)
 }
