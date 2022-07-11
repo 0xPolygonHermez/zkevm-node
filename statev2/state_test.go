@@ -29,6 +29,7 @@ import (
 
 var (
 	testState    *state.State
+	stateTree    *merkletree.StateTree
 	hash1, hash2 common.Hash
 	stateDb      *pgxpool.Pool
 	err          error
@@ -73,7 +74,7 @@ func TestMain(m *testing.M) {
 		mtDBClientConn.Close()
 	}()
 
-	stateTree := merkletree.NewStateTree(mtDBServiceClient)
+	stateTree = merkletree.NewStateTree(mtDBServiceClient)
 
 	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
 	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
@@ -681,7 +682,8 @@ func TestExecutorRevert(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
 }
-
+*/
+/*
 func TestExecutorLogs(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -690,6 +692,15 @@ func TestExecutorLogs(t *testing.T) {
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
 	scLogsByteCode, err := testutils.ReadBytecode("Emitlog2/Emitlog2.bin")
 	require.NoError(t, err)
+
+	// Genesis DB
+	genesisDB := map[string]string{
+		"2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90": "00000000000000000000000000000000000000000000000000000000000000000d1f0da5a7b620c843fd1e18e59fd724d428d25da0cb1888e31f5542ac227c060000000000000000000000000000000000000000000000000000000000000000",
+		"e31f5542ac227c06d428d25da0cb188843fd1e18e59fd7240d1f0da5a7b620c8": "ed22ec7734d89ff2b2e639153607b7c542b2bd6ec2788851b7819329410847833e63658ee0db910d0b3e34316e81aa10e0dc203d93f4e3e5e10053d0ebc646020000000000000000000000000000000000000000000000000000000000000000",
+		"b78193294108478342b2bd6ec2788851b2e639153607b7c5ed22ec7734d89ff2": "16dde42596b907f049015d7e991a152894dd9dadd060910b60b4d5e9af514018b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
+		"3efad1dd58c2259d339438195426ad0af57d81efba5d4445b69b044f5e694795": "00000000dea000000000000035c9adc5000000000000003600000000000000000000000000000000000000000000000000000000000000000000000000000000",
+		"e10053d0ebc64602e0dc203d93f4e3e50b3e34316e81aa103e63658ee0db910d": "66ee2be0687eea766926f8ca8796c78a4c2f3e938869b82d649e63bfe1247ba4b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
+	}
 
 	// Deploy Emitlog2.sol
 	tx0 := types.NewTx(&types.LegacyTx{
@@ -722,13 +733,14 @@ func TestExecutorLogs(t *testing.T) {
 		BatchNum:             1,
 		Coinbase:             sequencerAddress.String(),
 		BatchL2Data:          batchL2Data,
-		OldStateRoot:         common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		EthTimestamp:         uint64(time.Now().Unix()),
+		OldStateRoot:         common.Hex2Bytes("2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90"),
+		GlobalExitRoot:       common.Hex2Bytes("090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"),
+		OldLocalExitRoot:     common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
+		EthTimestamp:         uint64(1944498031),
 		UpdateMerkleTree:     0,
 		GenerateExecuteTrace: 0,
 		GenerateCallTrace:    0,
+		Db:                   genesisDB,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -736,9 +748,9 @@ func TestExecutorLogs(t *testing.T) {
 
 	log.Debugf("create_address=%v", common.HexToAddress(string(processBatchResponse.Responses[1].CreateAddress)))
 
-	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	err = ioutil.WriteFile("trace.json", file, 0644)
-	require.NoError(t, err)
+	// file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	// err = ioutil.WriteFile("trace.json", file, 0644)
+	// require.NoError(t, err)
 }
 */
 func TestCheckSupersetBatchTransactions(t *testing.T) {
@@ -860,3 +872,79 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	}
 	require.NoError(t, dbTx.Commit(ctx))
 }
+
+/*
+func TestExecutorTransfer(t *testing.T) {
+	var chainID = new(big.Int).SetInt64(1000)
+	var senderAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var senderPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var receiverAddress = common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB")
+
+	// Set Genesis
+	balances := map[common.Address]*big.Int{
+		senderAddress: big.NewInt(1000),
+	}
+
+	genesis := state.Genesis{
+		Balances: balances,
+	}
+	err := testState.SetGenesis(ctx, genesis, nil)
+	require.NoError(t, err)
+
+	// Create transaction
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       &receiverAddress,
+		Value:    new(big.Int).SetUint64(2),
+		Gas:      uint64(30000),
+		GasPrice: new(big.Int).SetUint64(1),
+		Data:     nil,
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx})
+	require.NoError(t, err)
+
+	// Create Batch
+	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+		BatchNum:             1,
+		Coinbase:             senderAddress.String(),
+		BatchL2Data:          batchL2Data,
+		OldStateRoot:         common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		EthTimestamp:         uint64(0),
+		UpdateMerkleTree:     1,
+		GenerateExecuteTrace: 0,
+		GenerateCallTrace:    0,
+	}
+
+	// Read Receiver Balance before execution
+	// balance, err := stateTree.GetBalance(ctx, receiverAddress, processBatchRequest.OldStateRoot)
+	// require.NoError(t, err)
+
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+
+	log.Debugf("Len=%v", len(processBatchResponse.Responses[0].StateRoot))
+
+	log.Debugf("new state root=%v", common.HexToHash(string(processBatchResponse.Responses[0].StateRoot)))
+
+	// Read Receiver Balance
+	balance, err := stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
+	require.NoError(t, err)
+
+	log.Debugf("Balance:%v", balance.Uint64())
+
+	// file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	// err = ioutil.WriteFile("trace.json", file, 0644)
+	// require.NoError(t, err)
+}
+*/

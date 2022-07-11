@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/hermeznetwork/hermez-core/log"
 	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
 )
 
@@ -103,6 +104,7 @@ func scalarToh4(s *big.Int) []uint64 {
 // bytes.
 func ScalarToFilledByteSlice(s *big.Int) []byte {
 	buf := make([]byte, maxBigIntLen)
+	log.Debugf("Scalar=%v", s.String())
 	return s.FillBytes(buf)
 }
 
