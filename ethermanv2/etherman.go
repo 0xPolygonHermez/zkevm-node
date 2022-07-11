@@ -9,6 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/ethermanv2/smartcontracts/globalexitrootmanager"
+	"github.com/0xPolygonHermez/zkevm-node/ethermanv2/smartcontracts/matic"
+	"github.com/0xPolygonHermez/zkevm-node/ethermanv2/smartcontracts/proofofefficiency"
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/ethermanv2/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/statev2"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -16,12 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/globalexitrootmanager"
-	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/matic"
-	"github.com/hermeznetwork/hermez-core/ethermanv2/smartcontracts/proofofefficiency"
-	ethmanTypes "github.com/hermeznetwork/hermez-core/ethermanv2/types"
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/statev2"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -548,4 +548,13 @@ func (etherMan *Client) GetTx(ctx context.Context, txHash common.Hash) (*types.T
 // GetTxReceipt function gets ethereum tx receipt
 func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	return etherMan.EtherClient.TransactionReceipt(ctx, txHash)
+}
+
+// ApproveMatic function allow to approve tokens in matic smc
+func (etherMan *Client) ApproveMatic(maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
+	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
+	if err != nil {
+		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
+	}
+	return tx, nil
 }

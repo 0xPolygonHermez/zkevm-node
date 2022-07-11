@@ -3,7 +3,7 @@ package jsonrpc
 import (
 	"context"
 
-	"github.com/hermeznetwork/hermez-core/hex"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 )
 
 // Hez contains implementations for the "hez" RPC endpoints

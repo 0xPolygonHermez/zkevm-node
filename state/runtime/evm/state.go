@@ -8,10 +8,10 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/state/runtime"
-	"github.com/hermeznetwork/hermez-core/state/runtime/fakevm"
-	"github.com/hermeznetwork/hermez-core/state/runtime/instrumentation"
 )
 
 var statePool = sync.Pool{

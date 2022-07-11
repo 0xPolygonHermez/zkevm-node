@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	NW "github.com/hermeznetwork/hermez-core/tools/network"
+	NW "github.com/0xPolygonHermez/zkevm-node/tools/network"
 )
 
 func main() {

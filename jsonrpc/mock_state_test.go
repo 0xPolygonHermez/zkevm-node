@@ -10,9 +10,9 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
-	runtime "github.com/hermeznetwork/hermez-core/state/runtime"
+	runtime "github.com/0xPolygonHermez/zkevm-node/state/runtime"
 
-	state "github.com/hermeznetwork/hermez-core/state"
+	state "github.com/0xPolygonHermez/zkevm-node/state"
 
 	time "time"
 

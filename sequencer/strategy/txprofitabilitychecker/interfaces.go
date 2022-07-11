@@ -4,8 +4,8 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/state"
 )
 
 // Consumer interfaces required by the package.

@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/hermeznetwork/hermez-core/pricegetter"
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
+	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/strategy/txselector"
 )
 
 // Base struct

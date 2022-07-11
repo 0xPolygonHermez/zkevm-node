@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/hermeznetwork/hermez-core/config"
-	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/0xPolygonHermez/zkevm-node/config"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/urfave/cli/v2"
 )
 

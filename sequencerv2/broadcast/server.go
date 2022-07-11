@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/sequencerv2/broadcast/pb"
-	"github.com/hermeznetwork/hermez-core/statev2"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/sequencerv2/broadcast/pb"
+	"github.com/0xPolygonHermez/zkevm-node/statev2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/types/known/emptypb"

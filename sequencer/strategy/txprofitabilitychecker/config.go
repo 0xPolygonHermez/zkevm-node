@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 )
 
 // Type for different profitability checkers types

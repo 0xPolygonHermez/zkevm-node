@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/strategy/txprofitabilitychecker"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/strategy/txselector"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/hermeznetwork/hermez-core/encoding"
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/pool"
-	"github.com/hermeznetwork/hermez-core/pricegetter"
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txprofitabilitychecker"
-	"github.com/hermeznetwork/hermez-core/sequencer/strategy/txselector"
-	"github.com/hermeznetwork/hermez-core/state"
 )
 
 const (

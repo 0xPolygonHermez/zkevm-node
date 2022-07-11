@@ -9,18 +9,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	state "github.com/0xPolygonHermez/zkevm-node/statev2"
+	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime/executor"
+	executorclientpb "github.com/0xPolygonHermez/zkevm-node/statev2/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/hermeznetwork/hermez-core/db"
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/merkletree"
-	state "github.com/hermeznetwork/hermez-core/statev2"
-	"github.com/hermeznetwork/hermez-core/statev2/runtime/executor"
-	executorclientpb "github.com/hermeznetwork/hermez-core/statev2/runtime/executor/pb"
-	"github.com/hermeznetwork/hermez-core/test/dbutils"
-	"github.com/hermeznetwork/hermez-core/test/testutils"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -117,6 +117,31 @@ func TestAddBlock(t *testing.T) {
 	prevBlock, err := testState.GetPreviousBlock(ctx, 1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), prevBlock.BlockNumber)
+}
+
+func TestProcessCloseBatch(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	// Set genesis batch
+	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	require.NoError(t, err)
+	// Open batch #1
+	// processingCtx1 := state.ProcessingContext{
+	// 	BatchNumber:    1,
+	// 	Coinbase:       common.HexToAddress("1"),
+	// 	Timestamp:      time.Now().UTC(),
+	// 	GlobalExitRoot: common.HexToHash("a"),
+	// }
+	// Txs for batch #1
+	// rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
+	//TODO Finish and fix this test
+	// err = testState.ProcessAndStoreClosedBatch(ctx, processingCtx1, common.Hex2Bytes(rawTxs), dbTx)
+	// require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 }
 
 func TestOpenCloseBatch(t *testing.T) {

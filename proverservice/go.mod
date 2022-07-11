@@ -1,4 +1,4 @@
-module github.com/hermeznetwork/hermez-core/proverservice
+module github.com/0xPolygonHermez/zkevm-node/proverservice
 
 go 1.17
 

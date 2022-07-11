@@ -10,8 +10,8 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/didip/tollbooth/v6"
-	"github.com/hermeznetwork/hermez-core/log"
 )
 
 const (

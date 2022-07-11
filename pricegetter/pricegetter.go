@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/hermeznetwork/hermez-core/log"
-	"github.com/hermeznetwork/hermez-core/pricegetter/priceprovider"
-	"github.com/hermeznetwork/hermez-core/pricegetter/priceprovider/uniswap"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/pricegetter/priceprovider"
+	"github.com/0xPolygonHermez/zkevm-node/pricegetter/priceprovider/uniswap"
 )
 
 // Client for the pricegetter

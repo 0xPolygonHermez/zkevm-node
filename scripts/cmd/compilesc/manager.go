@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/hermeznetwork/hermez-core/log"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 )

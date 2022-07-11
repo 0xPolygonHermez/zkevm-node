@@ -3,8 +3,8 @@ package jsonrpc
 import (
 	"context"
 
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hermeznetwork/hermez-core/state"
 )
 
 type StateWrapper struct {

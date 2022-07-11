@@ -3,7 +3,7 @@ package jsonrpcv2
 import (
 	"strconv"
 
-	"github.com/hermeznetwork/hermez-core/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 )
 
 // Net contains implementations for the "net" RPC endpoints
