@@ -56,9 +56,9 @@ var (
 	ErrInvalidBatchNumber = errors.New("provided batch number is not latest")
 	// ErrLastBatchShouldBeClosed indicates that last batch needs to be closed before adding a new one
 	ErrLastBatchShouldBeClosed = errors.New("last batch needs to be closed before adding a new one")
-	// ErrLastBatchShouldBeClosed indicates that batch is already closed
+	// ErrBatchAlreadyClosed indicates that batch is already closed
 	ErrBatchAlreadyClosed = errors.New("batch is already closed")
-	// ErrClosingBatchWithoutTxs
+	// ErrClosingBatchWithoutTxs indicates that the batch attempted to close does not have txs.
 	ErrClosingBatchWithoutTxs = errors.New("can not close a batch without transactions")
 	// ErrTimestampGE indicates that timestamp needs to be greater or equal
 	ErrTimestampGE = errors.New("timestamp needs to be greater or equal")
@@ -98,7 +98,7 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorSe
 	}
 }
 
-// BeginDBTransaction starts a state transaction
+// BeginStateTransaction starts a state transaction
 func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	tx, err := s.Begin(ctx)
 	if err != nil {
@@ -107,13 +107,13 @@ func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 
-// Commit commits a state transaction
+// CommitStateTransaction commits a state transaction
 func (s *State) CommitStateTransaction(ctx context.Context, dbTx pgx.Tx) error {
 	err := dbTx.Commit(ctx)
 	return err
 }
 
-// Rollback rollbacks a state transaction
+// RollbackStateTransaction rollbacks a state transaction
 func (s *State) RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error {
 	err := dbTx.Rollback(ctx)
 	return err
@@ -435,6 +435,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	return new(runtime.ExecutionResult), nil
 }
 
+// ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
 func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumentation.ExecutorTrace, jsTracer tracers.Tracer) (json.RawMessage, error) {
 	var previousDepth int
 	var previousOpcode string
@@ -573,6 +574,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 	return jsTracer.GetResult()
 }
 
+// ProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
 	panic("not implemented yet")
 }

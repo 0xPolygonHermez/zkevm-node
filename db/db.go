@@ -30,10 +30,12 @@ func NewSQLDB(cfg Config) (*pgxpool.Pool, error) {
 	return conn, nil
 }
 
+// RunMigrationsUp runs migrate-up for the given config.
 func RunMigrationsUp(cfg Config) error {
 	return runMigrations(cfg, migrate.Up)
 }
 
+// RunMigrationsDown runs migrate-down for the given config.
 func RunMigrationsDown(cfg Config) error {
 	return runMigrations(cfg, migrate.Down)
 }

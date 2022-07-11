@@ -12,11 +12,15 @@ import (
 )
 
 const (
-	FilterTypeLog       = "log"
-	FilterTypeBlock     = "block"
+	// FilterTypeLog represents a filter of type log.
+	FilterTypeLog = "log"
+	// FilterTypeBlock represents a filter of type block.
+	FilterTypeBlock = "block"
+	// FilterTypePendingTx represent a filter of type pending Tx.
 	FilterTypePendingTx = "pendingTx"
 )
 
+// ErrNotFound represent a not found error.
 var ErrNotFound = errors.New("object not found")
 
 // PostgresStorage uses a postgres database to store the data

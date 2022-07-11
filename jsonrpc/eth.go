@@ -597,7 +597,7 @@ func (e *Eth) GetUncleByBlockHashAndIndex() (interface{}, rpcError) {
 	return nil, nil
 }
 
-// GetUncleByBlockHashAndIndex returns information about a uncle of a
+// GetUncleByBlockNumberAndIndex returns information about a uncle of a
 // block by number and uncle index position
 func (e *Eth) GetUncleByBlockNumberAndIndex() (interface{}, rpcError) {
 	return nil, nil
@@ -615,7 +615,7 @@ func (e *Eth) GetUncleCountByBlockNumber() (interface{}, rpcError) {
 	return "0x0", nil
 }
 
-// ProtocolVersion
+// ProtocolVersion returns the protocol version.
 func (e *Eth) ProtocolVersion() (interface{}, rpcError) {
 	return "0x0", nil
 }

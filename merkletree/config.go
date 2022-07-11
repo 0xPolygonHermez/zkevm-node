@@ -1,6 +1,7 @@
 package merkletree
 
-// ServerConfig represents the configuration of the merkletree server
+// Config represents the configuration of the merkletree server.
 type Config struct {
+	// URI is the server URI.
 	URI string `mapstructure:"URI"`
 }

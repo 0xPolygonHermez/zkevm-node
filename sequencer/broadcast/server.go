@@ -62,6 +62,7 @@ func (s *Server) Stop() {
 
 // Implementation of pb.BroadcastServiceServer interface methods.
 
+// GetBatch returns a batch by batch number.
 func (s *Server) GetBatch(ctx context.Context, in *pb.GetBatchRequest) (*pb.GetBatchResponse, error) {
 	batch, err := s.state.GetBatchByNumber(ctx, in.BatchNumber, nil)
 	if err != nil {
@@ -70,6 +71,7 @@ func (s *Server) GetBatch(ctx context.Context, in *pb.GetBatchRequest) (*pb.GetB
 	return s.genericGetBatch(ctx, batch)
 }
 
+// GetLastBatch returns the last batch.
 func (s *Server) GetLastBatch(ctx context.Context, empty *emptypb.Empty) (*pb.GetBatchResponse, error) {
 	batch, err := s.state.GetLastBatch(ctx, nil)
 	if err != nil {

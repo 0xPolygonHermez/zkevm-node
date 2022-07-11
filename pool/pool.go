@@ -73,6 +73,7 @@ func (p *Pool) GetSelectedTxs(ctx context.Context, limit uint64) ([]Transaction,
 	return p.storage.GetTxsByState(ctx, TxStateSelected, false, limit)
 }
 
+// GetPendingTxHashesSince returns the hashes of pending tx since the given date.
 func (p *Pool) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
 	return p.storage.GetPendingTxHashesSince(ctx, since)
 }

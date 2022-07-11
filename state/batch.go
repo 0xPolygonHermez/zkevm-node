@@ -35,7 +35,7 @@ type ProcessingReceipt struct {
 	LocalExitRoot common.Hash
 }
 
-// VerifyBatch represents a VerifyBatch
+// VerifiedBatch represents a VerifiedBatch
 type VerifiedBatch struct {
 	BlockNumber uint64
 	BatchNumber uint64
