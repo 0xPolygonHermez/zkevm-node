@@ -16,6 +16,7 @@ import (
 )
 
 var (
+	// ErrNotFound indicates an object has not been found for the search criteria used
 	ErrNotFound = errors.New("object not found")
 )
 
