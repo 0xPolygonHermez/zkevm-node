@@ -147,8 +147,10 @@ func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumbe
 	}
 
 	nonce, err := s.tree.GetNonce(ctx, address, l2Block.Root().Bytes())
-
-	return nonce.Uint64(), err
+	if err != nil {
+		return 0, err
+	}
+	return nonce.Uint64(), nil
 }
 
 // GetStorageAt from a given address
