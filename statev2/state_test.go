@@ -2,7 +2,9 @@ package statev2_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 	"strings"
@@ -624,8 +626,6 @@ func TestGenesis(t *testing.T) {
 }
 
 func TestExecutor(t *testing.T) {
-	// Test based on
-	// https://github.com/hermeznetwork/zkproverjs/blob/main/testvectors/input_gen.json
 	var expectedNewRoot = "0xbff23fc2c168c033aaac77503ce18f958e9689d5cdaebb88c5524ce5c0319de3"
 
 	db := map[string]string{
@@ -646,26 +646,31 @@ func TestExecutor(t *testing.T) {
 		OldLocalExitRoot:     common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
 		EthTimestamp:         uint64(1944498031),
 		UpdateMerkleTree:     0,
-		GenerateExecuteTrace: 0,
+		GenerateExecuteTrace: 1,
 		GenerateCallTrace:    0,
 		Db:                   db,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-	log.Debugf("request:%v", processBatchRequest)
-	log.Debugf("new_state_root=%v", common.HexToHash(string(processBatchResponse.NewStateRoot)))
 
-	assert.Equal(t, common.HexToHash(expectedNewRoot), common.HexToHash(string(processBatchResponse.NewStateRoot)))
+	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	err = ioutil.WriteFile("trace.json", file, 0644)
+	require.NoError(t, err)
+
+	log.Debugf("returned tx hash:%v", common.BytesToHash(processBatchResponse.Responses[0].TxHash))
+	log.Debugf("new_state_root=%v", common.BytesToHash(processBatchResponse.NewStateRoot))
+
+	assert.Equal(t, common.HexToHash(expectedNewRoot), common.BytesToHash(processBatchResponse.NewStateRoot))
 }
 
-/*
 func TestExecutorRevert(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
 	var sequencerBalance = 4000000
-	scRevertByteCode, err := testutils.ReadBytecode("Revert/Revert.bin")
+	scRevertByteCode, err := testutils.ReadBytecode("Revert2/Revert2.bin")
 	require.NoError(t, err)
 
 	// Deploy revert.sol
@@ -686,7 +691,12 @@ func TestExecutorRevert(t *testing.T) {
 	signedTx0, err := auth.Signer(auth.From, tx0)
 	require.NoError(t, err)
 
-	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx0})
+	// Call SC method
+	tx1 := types.NewTransaction(1, scAddress, new(big.Int), 40000, new(big.Int).SetUint64(1), common.Hex2Bytes("4abbb40a"))
+	signedTx1, err := auth.Signer(auth.From, tx1)
+	require.NoError(t, err)
+
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx0, *signedTx1})
 	require.NoError(t, err)
 
 	// Create Batch
@@ -705,10 +715,14 @@ func TestExecutorRevert(t *testing.T) {
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
+
+	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	err = ioutil.WriteFile("trace.json", file, 0644)
+	require.NoError(t, err)
+
+	// assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
 }
-*/
-/*
+
 func TestExecutorLogs(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -773,11 +787,11 @@ func TestExecutorLogs(t *testing.T) {
 
 	log.Debugf("create_address=%v", common.HexToAddress(string(processBatchResponse.Responses[1].CreateAddress)))
 
-	// file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	// err = ioutil.WriteFile("trace.json", file, 0644)
-	// require.NoError(t, err)
+	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	err = ioutil.WriteFile("trace.json", file, 0644)
+	require.NoError(t, err)
 }
-*/
+
 func TestCheckSupersetBatchTransactions(t *testing.T) {
 	tcs := []struct {
 		description      string
@@ -898,7 +912,6 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
-/*
 func TestExecutorTransfer(t *testing.T) {
 	var chainID = new(big.Int).SetInt64(1000)
 	var senderAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -960,7 +973,7 @@ func TestExecutorTransfer(t *testing.T) {
 
 	log.Debugf("Len=%v", len(processBatchResponse.Responses[0].StateRoot))
 
-	log.Debugf("new state root=%v", common.HexToHash(string(processBatchResponse.Responses[0].StateRoot)))
+	log.Debugf("new state root=%v", common.BytesToHash(processBatchResponse.Responses[0].StateRoot))
 
 	// Read Receiver Balance
 	balance, err := stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
@@ -968,8 +981,7 @@ func TestExecutorTransfer(t *testing.T) {
 
 	log.Debugf("Balance:%v", balance.Uint64())
 
-	// file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	// err = ioutil.WriteFile("trace.json", file, 0644)
-	// require.NoError(t, err)
+	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
+	err = ioutil.WriteFile("trace.json", file, 0644)
+	require.NoError(t, err)
 }
-*/
