@@ -1,39 +1,39 @@
 DOCKERCOMPOSE := docker-compose -f docker-compose.yml
-DOCKERCOMPOSEAPPSEQ := hez-core-sequencer
-DOCKERCOMPOSEAPPAGG := hez-core-agg
-DOCKERCOMPOSEAPPRPC := hez-core-rpc
-DOCKERCOMPOSEAPPSYNC := hez-core-sync
-DOCKERCOMPOSEAPPBROADCAST := hez-core-broadcast
-DOCKERCOMPOSEDB := hez-postgres
-DOCKERCOMPOSENETWORK := hez-network
-DOCKERCOMPOSEPROVER := hez-prover
-DOCKERCOMPOSEEXPLORER := hez-explorer
-DOCKERCOMPOSEEXPLORERDB := hez-explorer-postgres
-DOCKERCOMPOSEEXPLORERRPC := hez-explorer-rpc
+DOCKERCOMPOSEAPPSEQ := zkevm-sequencer
+DOCKERCOMPOSEAPPAGG := zkevm-aggregator
+DOCKERCOMPOSEAPPRPC := zkevm-json-rpc
+DOCKERCOMPOSEAPPSYNC := zkevm-sync
+DOCKERCOMPOSEAPPBROADCAST := zkevm-broadcast
+DOCKERCOMPOSEDB := zkevm-db
+DOCKERCOMPOSENETWORK := zkevm-mock-l1-network
+DOCKERCOMPOSEPROVER := zkevm-mock-prover
+DOCKERCOMPOSEEXPLORER := zkevm-explorer
+DOCKERCOMPOSEEXPLORERDB := zkevm-explorer-db
+DOCKERCOMPOSEEXPLORERRPC := zkevm-explorer-json-rpc
 DOCKERCOMPOSEZKPROVER := zkprover
 
 RUNDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDB)
-RUNCORESEQ := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
-RUNCOREAGG := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
-RUNCORERPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
-RUNCORESYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
-RUNCOREBROADCAST := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPBROADCAST)
+RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
+RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
+RUNJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
+RUNSYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
+RUNBROADCAST := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPBROADCAST)
 
-RUNNETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
+RUNL1NETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
 RUNPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPROVER)
 RUNEXPLORER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORER)
 RUNEXPLORERDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERDB)
-RUNEXPLORERRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERRPC)
+RUNEXPLORERJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERRPC)
 RUNZKPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVER)
 
 RUN := $(DOCKERCOMPOSE) up -d
 
 STOPDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEDB)
-STOPCORESEQ := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQ)
-STOPCOREAGG := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
-STOPCORERPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
-STOPCORESYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSYNC)
-STOPCOREBROADCAST := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPBROADCAST) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPBROADCAST)
+STOPSEQUENCER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQ)
+STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
+STOPJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
+STOPSYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSYNC)
+STOPBROADCAST := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPBROADCAST) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPBROADCAST)
 
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
 STOPPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPROVER)
@@ -52,7 +52,7 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/dist
 GOENVVARS := GOBIN=$(GOBIN)
-GOBINARY := hezcore
+GOBINARY := zkevm-node
 GOCMD := $(GOBASE)/cmd
 
 LINT := $$(go env GOPATH)/bin/golangci-lint run --timeout=5m -E whitespace -E gosec -E gci -E misspell -E gomnd -E gofmt -E goimports -E revive
@@ -63,12 +63,12 @@ build: ## Builds the binary locally into ./dist
 	$(BUILD)
 
 .PHONY: build-docker
-build-docker: ## Builds a docker image with the core binary
-	docker build -t hezcore -f ./Dockerfile .
+build-docker: ## Builds a docker image with the node binary
+	docker build -t zkevm-node -f ./Dockerfile .
 
 .PHONY: build-docker-nc
-build-docker-nc: ## Builds a docker image with the core binary - but without build cache
-	docker build --no-cache=true -t hezcore -f ./Dockerfile .
+build-docker-nc: ## Builds a docker image with the node binary - but without build cache
+	docker build --no-cache=true -t zkevm-node -f ./Dockerfile .
 
 .PHONY: test
 test: compile-scs ## Runs only short tests without checking race conditions
@@ -131,23 +131,23 @@ run-db: ## Runs the node database
 stop-db: ## Stops the node database
 	$(STOPDB)
 
-.PHONY: run-core
-run-core: ## Runs the core
-	$(RUNCORESEQ)
-	$(RUNCOREAGG)
-	$(RUNCORERPC)
-	$(RUNCORESYNC)
+.PHONY: run-node
+run-node: ## Runs the node
+	$(RUNSEQUENCER)
+	$(RUNAGGREGATOR)
+	$(RUNJSONRPC)
+	$(RUNSYNC)
 
-.PHONY: stop-core
-stop-core: ## Stops the core
-	$(STOPCORESEQ)
-	$(STOPCORERPC)
-	$(STOPCOREAGG)
-	$(STOPCORESYNC)
+.PHONY: stop-node
+stop-node: ## Stops the node
+	$(STOPSEQUENCER)
+	$(STOPJSONRPC)
+	$(STOPAGGREGATOR)
+	$(STOPSYNC)
 
 .PHONY: run-network
 run-network: ## Runs the l1 network
-	$(RUNNETWORK)
+	$(RUNL1NETWORK)
 
 .PHONY: stop-network
 stop-network: ## Stops the l1 network
@@ -171,7 +171,7 @@ stop-zkprover: ## Stops zkprover
 
 .PHONY: run-explorer
 run-explorer: ## Runs the explorer
-	$(RUNEXPLORERRPC)
+	$(RUNEXPLORERJSONRPC)
 	$(RUNEXPLORER)
 
 .PHONY: stop-explorer
@@ -191,24 +191,24 @@ stop-explorer-db: ## Stops the explorer database
 run: compile-scs ## Runs all the services
 	$(RUNDB)
 	$(RUNEXPLORERDB)
-	$(RUNNETWORK)
+	$(RUNL1NETWORK)
 	sleep 5
 	$(RUNPROVER)
 	sleep 2
-	$(RUNCORESEQ)
-	$(RUNCOREAGG)
-	$(RUNCORERPC)
-	$(RUNEXPLORERRPC)
-	$(RUNCORESYNC)
+	$(RUNSEQUENCER)
+	$(RUNAGGREGATOR)
+	$(RUNJSONRPC)
+	$(RUNEXPLORERJSONRPC)
+	$(RUNSYNC)
 	$(RUNEXPLORER)
 
 .PHONY: run-broadcast
 run-broadcast: ## Runs the broadcast service
-	$(RUNCOREBROADCAST)
+	$(RUNBROADCAST)
 
 .PHONY: stop-broadcast
 stop-broadcast: ## Stops the broadcast service
-	$(STOPCOREBROADCAST)
+	$(STOPBROADCAST)
 
 .PHONY: init-network
 init-network: ## Initializes the network

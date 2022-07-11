@@ -62,7 +62,7 @@ package network
 // 	// Deployer account, needs to have at least 10 L1 ETH for the L2
 // 	// deposit
 // 	L1Deployer L1Deployer
-// 	// Sequencer address, comes from the keystore passed to core
+// 	// Sequencer address, comes from the keystore passed to node
 // 	// on config
 // 	SequencerAddress, SequencerPrivateKey string
 // 	TxTimeout                             time.Duration

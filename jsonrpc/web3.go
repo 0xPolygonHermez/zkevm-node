@@ -11,7 +11,7 @@ type Web3 struct {
 }
 
 func (w *Web3) ClientVersion() (interface{}, rpcError) {
-	return "Polygon Hermez/v1.5.0", nil
+	return "Polygon Hermez zkEVM/v2.0.0", nil
 }
 
 func (w *Web3) Sha3(data argBig) (interface{}, rpcError) {

@@ -26,7 +26,7 @@ func updateFiles(fs afero.Fs, sourceDir, targetDir string) error {
 		sourceFile, err := fs.Open(sourcePath)
 		if os.IsNotExist(err) {
 			// we allow source files to not exist, for instance, test vectors that we
-			// have in hermez-core but are not present in the upstream repo
+			// have in zkevm-node but are not present in the upstream repo
 			return nil
 		}
 		if err != nil {

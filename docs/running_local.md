@@ -4,11 +4,11 @@
 
 This documentation will help you running the following components:
 
-- Hermez Node Database
+- zkEVM Node Database
 - Explorer Database
 - L1 Network
 - Prover
-- Hermez Node
+- zkEVM Node
 - Explorer
 
 ## Requirements
@@ -19,8 +19,8 @@ The current version of the environment requires `go`, `docker` and `docker-compo
 - <https://www.docker.com/get-started>
 - <https://docs.docker.com/compose/install/>
 
-The `hez-core` docker image must be built at least once and every time a change is made to the code.
-If you haven't build the `hez-core` image yet, you must run:
+The `zkevm-node` docker image must be built at least once and every time a change is made to the code.
+If you haven't build the `zkevm-node` image yet, you must run:
 
 ```bash
 make build-docker
@@ -74,7 +74,7 @@ make deploy-uniswap
 
 ## Accessing the environment
 
-- Hermez Node Database 
+- zkEVM Node Database 
   - `Type:` Postgres DB
   - `User:` test_user
   - `Password:` test_password
@@ -100,7 +100,7 @@ make deploy-uniswap
   - `Host:` localhost
   - `Port:` 50001
   - `Url:` <http://localhost:50001>
-- Hermez Node
+- zkEVM Node
   - `Type:` JSON RPC
   - `Host:` localhost
   - `Port:` 8123

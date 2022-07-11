@@ -136,7 +136,7 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == "GET" {
-		_, err := w.Write([]byte("Hermez JSON-RPC"))
+		_, err := w.Write([]byte("zkEVM JSON RPC Server"))
 		if err != nil {
 			log.Error(err)
 		}

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/pool"
-	state "github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

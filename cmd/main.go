@@ -12,7 +12,7 @@ import (
 
 const (
 	// App name
-	appName = "hermez-node"
+	appName = "zkevm-node"
 	// version represents the program based on the git tag
 	version = "v0.1.0"
 	// commit represents the program based on the git commit
@@ -89,7 +89,7 @@ func main() {
 		{
 			Name:    "run",
 			Aliases: []string{},
-			Usage:   "Run the hermez core",
+			Usage:   "Run the zkevm-node",
 			Action:  start,
 			Flags:   flags,
 		},

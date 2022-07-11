@@ -16,8 +16,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-// TestUniswap tests uniswap contracts deployment and functionality on the core
-// node.
+// TestUniswap tests uniswap contracts deployment and functionality on the node.
 func TestUniswap(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -52,7 +51,7 @@ func TestUniswap(t *testing.T) {
 	require.NoError(t, opsman.StartNetwork())
 	require.NoError(t, opsman.StartProver())
 	require.NoError(t, opsman.SetUpSequencer())
-	require.NoError(t, opsman.StartCore())
+	require.NoError(t, opsman.StartNode())
 	require.NoError(t, opsman.InitNetwork())
 
 	client, err := ethclient.Dial("http://localhost:8123")

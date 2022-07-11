@@ -48,7 +48,7 @@ func runMigrations(cfg Config, direction migrate.MigrationDirection) error {
 	}
 	db := stdlib.OpenDB(*c)
 
-	var migrations = &migrate.PackrMigrationSource{Box: packr.New("hermez-db-migrations", "./migrations")}
+	var migrations = &migrate.PackrMigrationSource{Box: packr.New("zkevm-db-migrations", "./migrations")}
 	nMigrations, err := migrate.Exec(db, "postgres", migrations, direction)
 	if err != nil {
 		return err

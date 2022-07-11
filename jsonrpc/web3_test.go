@@ -23,7 +23,7 @@ func TestClientVersion(t *testing.T) {
 	err = json.Unmarshal(res.Result, &result)
 	require.NoError(t, err)
 
-	assert.Equal(t, "Polygon Hermez/v1.5.0", result)
+	assert.Equal(t, "Polygon Hermez zkEVM/v2.0.0", result)
 }
 
 func TestSha3(t *testing.T) {

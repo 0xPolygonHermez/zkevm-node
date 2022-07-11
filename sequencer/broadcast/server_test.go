@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	broadcast "github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"

@@ -83,7 +83,7 @@ func Load(ctx *cli.Context) (*Config, error) {
 	viper.AutomaticEnv()
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
-	viper.SetEnvPrefix("HERMEZCORE")
+	viper.SetEnvPrefix("ZKEVM_NODE")
 	err = viper.ReadInConfig()
 	if err != nil {
 		_, ok := err.(viper.ConfigFileNotFoundError)

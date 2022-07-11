@@ -228,8 +228,8 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
-	// Run core container
-	err = m.StartCore()
+	// Run node container
+	err = m.StartNode()
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func (m *Manager) Setup() error {
 
 // Teardown stops all the components.
 func Teardown() error {
-	err := stopCore()
+	err := stopNode()
 	if err != nil {
 		return err
 	}
@@ -434,13 +434,13 @@ func stopNetwork() error {
 	return StopComponent("network")
 }
 
-// StartCore starts the core container
-func (m *Manager) StartCore() error {
-	return StartComponent("core", coreUpCondition)
+// StartNode starts the node container
+func (m *Manager) StartNode() error {
+	return StartComponent("node", nodeUpCondition)
 }
 
-func stopCore() error {
-	return StopComponent("core")
+func stopNode() error {
+	return StopComponent("node")
 }
 
 // StartProver starts the prover container

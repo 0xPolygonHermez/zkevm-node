@@ -6,13 +6,13 @@ Outputs = ["stdout"]
 User = "test_user"
 Password = "test_password"
 Name = "test_db"
-Host = "hez-postgres"
+Host = "zkevm-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200
 
 [Etherman]
-URL = "http://hez-network:8545"
+URL = "http://zkevm-mock-l1-network:8545"
 PrivateKeyPath = "./test/test.keystore"
 PrivateKeyPassword = "testonly"
 
@@ -46,7 +46,7 @@ Type = "default"
 DefaultGasPriceWei = 1000000000
 
 [Prover]
-ProverURI = "hez-prover:50051"
+ProverURI = "zkevm-mock-prover:50051"
 
 [MTServer]
 Host = "0.0.0.0"
