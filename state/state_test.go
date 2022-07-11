@@ -2,9 +2,7 @@ package state_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"strings"
@@ -573,10 +571,8 @@ func TestExecuteTransaction(t *testing.T) {
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-
-	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	err = ioutil.WriteFile("trace.json", file, 0644)
-	require.NoError(t, err)
+	log.Debug(processBatchResponse)
+	// TODO: assert processBatchResponse to make sure that the response makes sense
 }
 
 func TestGenesis(t *testing.T) {
