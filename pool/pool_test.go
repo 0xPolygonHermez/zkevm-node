@@ -3,6 +3,7 @@ package pool_test
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"math"
 	"math/big"
 	"os"
@@ -14,11 +15,13 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/tree"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -33,7 +36,9 @@ const (
 	senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 )
 
-var cfg = dbutils.NewConfigFromEnv()
+var (
+	dbCfg = dbutils.NewConfigFromEnv()
+)
 
 func TestMain(m *testing.M) {
 	log.Init(log.Config{
@@ -46,11 +51,11 @@ func TestMain(m *testing.M) {
 }
 
 func Test_AddTx(t *testing.T) {
-	if err := dbutils.InitOrReset(cfg); err != nil {
+	if err := dbutils.InitOrReset(dbCfg); err != nil {
 		panic(err)
 	}
 
-	sqlDB, err := db.NewSQLDB(cfg)
+	sqlDB, err := db.NewSQLDB(dbCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -62,17 +67,16 @@ func Test_AddTx(t *testing.T) {
 	genesisBlock.ReceivedAt = time.Now()
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Block: genesisBlock,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0xb48cA794d49EeC406A5dD2c547717e37b5952a83"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, "")
+	err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -120,11 +124,11 @@ func Test_AddTx(t *testing.T) {
 }
 
 func Test_GetPendingTxs(t *testing.T) {
-	if err := dbutils.InitOrReset(cfg); err != nil {
+	if err := dbutils.InitOrReset(dbCfg); err != nil {
 		panic(err)
 	}
 
-	sqlDB, err := db.NewSQLDB(cfg)
+	sqlDB, err := db.NewSQLDB(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -136,17 +140,16 @@ func Test_GetPendingTxs(t *testing.T) {
 	genesisBlock.ReceivedAt = time.Now()
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Block: genesisBlock,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, "")
+	err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -187,11 +190,11 @@ func Test_GetPendingTxs(t *testing.T) {
 }
 
 func Test_GetPendingTxsZeroPassed(t *testing.T) {
-	if err := dbutils.InitOrReset(cfg); err != nil {
+	if err := dbutils.InitOrReset(dbCfg); err != nil {
 		panic(err)
 	}
 
-	sqlDB, err := db.NewSQLDB(cfg)
+	sqlDB, err := db.NewSQLDB(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -203,17 +206,16 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	genesisBlock.ReceivedAt = time.Now()
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Block: genesisBlock,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, "")
+	err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -256,11 +258,11 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 func Test_UpdateTxsState(t *testing.T) {
 	ctx := context.Background()
 
-	if err := dbutils.InitOrReset(cfg); err != nil {
+	if err := dbutils.InitOrReset(dbCfg); err != nil {
 		panic(err)
 	}
 
-	sqlDB, err := db.NewSQLDB(cfg)
+	sqlDB, err := db.NewSQLDB(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -272,17 +274,16 @@ func Test_UpdateTxsState(t *testing.T) {
 	genesisBlock.ReceivedAt = time.Now()
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Block: genesisBlock,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, "")
+	err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -325,11 +326,11 @@ func Test_UpdateTxsState(t *testing.T) {
 func Test_UpdateTxState(t *testing.T) {
 	ctx := context.Background()
 
-	if err := dbutils.InitOrReset(cfg); err != nil {
+	if err := dbutils.InitOrReset(dbCfg); err != nil {
 		panic(err)
 	}
 
-	sqlDB, err := db.NewSQLDB(cfg)
+	sqlDB, err := db.NewSQLDB(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -341,17 +342,16 @@ func Test_UpdateTxState(t *testing.T) {
 	genesisBlock.ReceivedAt = time.Now()
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Block: genesisBlock,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, "")
+	err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -392,11 +392,11 @@ func Test_UpdateTxState(t *testing.T) {
 }
 
 func Test_SetAndGetGasPrice(t *testing.T) {
-	if err := dbutils.InitOrReset(cfg); err != nil {
+	if err := dbutils.InitOrReset(dbCfg); err != nil {
 		panic(err)
 	}
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -425,11 +425,11 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 }
 
 func TestMarkReorgedTxsAsPending(t *testing.T) {
-	if err := dbutils.InitOrReset(cfg); err != nil {
+	if err := dbutils.InitOrReset(dbCfg); err != nil {
 		panic(err)
 	}
 	ctx := context.Background()
-	sqlDB, err := db.NewSQLDB(cfg)
+	sqlDB, err := db.NewSQLDB(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -441,17 +441,16 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 	genesisBlock.ReceivedAt = time.Now()
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Block: genesisBlock,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, "")
+	err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -492,11 +491,11 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 }
 
 func TestGetPendingTxSince(t *testing.T) {
-	if err := dbutils.InitOrReset(cfg); err != nil {
+	if err := dbutils.InitOrReset(dbCfg); err != nil {
 		panic(err)
 	}
 
-	sqlDB, err := db.NewSQLDB(cfg)
+	sqlDB, err := db.NewSQLDB(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -508,17 +507,16 @@ func TestGetPendingTxSince(t *testing.T) {
 	genesisBlock.ReceivedAt = time.Now()
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Block: genesisBlock,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, "")
+	err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -596,10 +594,10 @@ func TestGetPendingTxSince(t *testing.T) {
 
 func Test_DeleteTxsByHashes(t *testing.T) {
 	ctx := context.Background()
-	if err := dbutils.InitOrReset(cfg); err != nil {
+	if err := dbutils.InitOrReset(dbCfg); err != nil {
 		panic(err)
 	}
-	sqlDB, err := db.NewSQLDB(cfg)
+	sqlDB, err := db.NewSQLDB(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -611,17 +609,16 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 	genesisBlock.ReceivedAt = time.Now()
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Block: genesisBlock,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, "")
+	err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -662,18 +659,15 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 }
 
 func newState(sqlDB *pgxpool.Pool) *state.State {
-	store := tree.NewPostgresStore(sqlDB)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
-	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
-	tr := tree.NewStateTree(mt, scCodeStore)
+	ctx := context.Background()
+	stateDb := state.NewPostgresStorage(sqlDB)
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 
-	stateCfg := state.Config{
-		DefaultChainID:       1000,
-		MaxCumulativeGasUsed: 800000,
-	}
-
-	stateDB := state.NewPostgresStorage(sqlDB)
-	st := state.NewState(stateCfg, stateDB, tr)
-
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+	executorClient, _, _ := executor.NewExecutorClient(ctx, executorServerConfig)
+	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+	stateTree := merkletree.NewStateTree(stateDBClient)
+	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000}, stateDb, executorClient, stateTree)
 	return st
 }

@@ -4,27 +4,26 @@ import (
 	"context"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/jackc/pgx/v4"
 )
 
 // Hez contains implementations for the "hez" RPC endpoints
 type Hez struct {
-	defaultChainID uint64
-	state          stateInterface
+	state stateInterface
+	txMan dbTxManager
 }
 
-// DefaultChainId returns the default chain id that is allowed to be used by all the sequencers
-func (h *Hez) DefaultChainId() (interface{}, error) { //nolint:revive
-	return hex.EncodeUint64(h.defaultChainID), nil
-}
+// ConsolidatedBlockNumber returns current block number for consolidated blocks
+func (h *Hez) ConsolidatedBlockNumber() (interface{}, rpcError) {
+	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		lastBlockNumber, err := h.state.GetLastConsolidatedL2BlockNumber(ctx, dbTx)
+		if err != nil {
+			const errorMessage = "failed to get last consolidated block number from state"
+			log.Errorf("%v:%v", errorMessage, err)
+			return nil, newRPCError(defaultErrorCode, errorMessage)
+		}
 
-// ConsolidatedBlockNumber returns current block number for consolidated batches
-func (h *Hez) ConsolidatedBlockNumber() (interface{}, error) {
-	ctx := context.Background()
-
-	lastBatchNumber, err := h.state.GetLastConsolidatedBatchNumber(ctx, "")
-	if err != nil {
-		return nil, err
-	}
-
-	return hex.EncodeUint64(lastBatchNumber), nil
+		return hex.EncodeUint64(lastBlockNumber), nil
+	})
 }

@@ -16,8 +16,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-// TestUniswap tests uniswap contracts deployment and functionality on the core
-// node.
+// TestUniswap tests uniswap contracts deployment and functionality on the node.
 func TestUniswap(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -38,11 +37,7 @@ func TestUniswap(t *testing.T) {
 	opsCfg := &operations.Config{
 		Arity: cfg.NetworkConfig.Arity,
 		State: &state.Config{
-			DefaultChainID:                cfg.NetworkConfig.L2DefaultChainID,
-			MaxCumulativeGasUsed:          cfg.NetworkConfig.MaxCumulativeGasUsed,
-			GlobalExitRootStoragePosition: cfg.NetworkConfig.GlobalExitRootStoragePosition,
-			LocalExitRootStoragePosition:  cfg.NetworkConfig.LocalExitRootStoragePosition,
-			L2GlobalExitRootManagerAddr:   cfg.NetworkConfig.L2GlobalExitRootManagerAddr,
+			MaxCumulativeGasUsed: cfg.NetworkConfig.MaxCumulativeGasUsed,
 		},
 		Sequencer: &operations.SequencerConfig{
 			Address:    "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
@@ -56,7 +51,7 @@ func TestUniswap(t *testing.T) {
 	require.NoError(t, opsman.StartNetwork())
 	require.NoError(t, opsman.StartProver())
 	require.NoError(t, opsman.SetUpSequencer())
-	require.NoError(t, opsman.StartCore())
+	require.NoError(t, opsman.StartNode())
 	require.NoError(t, opsman.InitNetwork())
 
 	client, err := ethclient.Dial("http://localhost:8123")

@@ -32,9 +32,8 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 	"globalExitRootStoragePosition": 0,
   "localExitRootStoragePosition":  1,
   "oldStateRootPosition":          0,
-	"l1ChainID":                     5,
+	"chainID":                     5,
 
-  "defaultChainID": 1000,
   "genesis": [
     {
       "balance": "0",
@@ -84,8 +83,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				GlobalExitRootStoragePosition: 0,
 				LocalExitRootStoragePosition:  1,
 				OldStateRootPosition:          0,
-				L1ChainID:                     5,
-				L2DefaultChainID:              1000,
+				ChainID:                       5,
 				Genesis: Genesis{
 					Balances: map[common.Address]*big.Int{
 						common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"): bigIntFromBase10String("100000000000000000000000"),
@@ -127,8 +125,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
   "globalExitRootStoragePosition": 2,
   "localExitRootStoragePosition": 2,
   "oldStateRootPosition": 0,
-  "l1ChainID":        1337,
-  "defaultChainID": 1000,
+  "chainID":        1337,
   "genesis": [
     {
       "address": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
@@ -155,8 +152,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				GlobalExitRootStoragePosition: 2,
 				LocalExitRootStoragePosition:  2,
 				OldStateRootPosition:          0,
-				L1ChainID:                     1337,
-				L2DefaultChainID:              1000,
+				ChainID:                       1337,
 				Genesis: Genesis{
 					Balances: map[common.Address]*big.Int{
 						common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"): bigIntFromBase10String("1000000000000000000000"),
@@ -209,8 +205,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 			require.Equal(t, tc.expectedConfig.GlobalExitRootStoragePosition, actualConfig.GlobalExitRootStoragePosition)
 			require.Equal(t, tc.expectedConfig.LocalExitRootStoragePosition, actualConfig.LocalExitRootStoragePosition)
 			require.Equal(t, tc.expectedConfig.OldStateRootPosition, actualConfig.OldStateRootPosition)
-			require.Equal(t, tc.expectedConfig.L1ChainID, actualConfig.L1ChainID)
-			require.Equal(t, tc.expectedConfig.L2DefaultChainID, actualConfig.L2DefaultChainID)
+			require.Equal(t, tc.expectedConfig.ChainID, actualConfig.ChainID)
 
 			require.Equal(t, tc.expectedConfig.Genesis.Balances, actualConfig.Genesis.Balances)
 			require.Equal(t, tc.expectedConfig.Genesis.SmartContracts, actualConfig.Genesis.SmartContracts)
@@ -279,12 +274,12 @@ func TestMergeNetworkConfig(t *testing.T) {
 			inputBaseConfig: NetworkConfig{
 				PoEAddr:              common.HexToAddress("0xb1Fe4a65D3392df68F96daC8eB4df56B2411afBf"),
 				Arity:                4,
-				L1ChainID:            5,
+				ChainID:              5,
 				MaxCumulativeGasUsed: 300,
 			},
 			expectedOutputConfig: NetworkConfig{
 				Arity:                4,
-				L1ChainID:            5,
+				ChainID:              5,
 				MaxCumulativeGasUsed: 300,
 				GenBlockNumber:       300,
 				PoEAddr:              common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),

@@ -10,10 +10,10 @@ import (
 
 const sampleNumber = 3 // Number of transactions sampled in a batch.
 
-// LastNBatches struct for gas price estimator last n batches.
-type LastNBatches struct {
-	lastBatchNumber uint64
-	lastPrice       *big.Int
+// LastNL2Blocks struct for gas price estimator last n l2 blocks.
+type LastNL2Blocks struct {
+	lastL2BlockNumber uint64
+	lastPrice         *big.Int
 
 	cfg Config
 
@@ -24,26 +24,26 @@ type LastNBatches struct {
 }
 
 // UpdateGasPriceAvg for last n bathes strategy is not needed to implement this function.
-func (g *LastNBatches) UpdateGasPriceAvg(newValue *big.Int) {}
+func (g *LastNL2Blocks) UpdateGasPriceAvg(newValue *big.Int) {}
 
-// NewEstimatorLastNBatches init gas price estimator for last n batches strategy.
-func NewEstimatorLastNBatches(cfg Config, state stateInterface) *LastNBatches {
-	return &LastNBatches{
+// NewEstimatorLastNL2Blocks init gas price estimator for last n l2 blocks strategy.
+func NewEstimatorLastNL2Blocks(cfg Config, state stateInterface) *LastNL2Blocks {
+	return &LastNL2Blocks{
 		cfg:   cfg,
 		state: state,
 	}
 }
 
-// GetAvgGasPrice calculate avg gas price from last n batches.
-func (g *LastNBatches) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
-	batchNumber, err := g.state.GetLastBatchNumber(ctx, "")
+// GetAvgGasPrice calculate avg gas price from last n l2 blocks.
+func (g *LastNL2Blocks) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
+	l2BlockNumber, err := g.state.GetLastL2BlockNumber(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last batch number, err: %v", err)
+		return nil, fmt.Errorf("failed to get last l2 block number, err: %v", err)
 	}
 	g.cacheLock.RLock()
-	lastBatchNumber, lastPrice := g.lastBatchNumber, g.lastPrice
+	lastL2BlockNumber, lastPrice := g.lastL2BlockNumber, g.lastPrice
 	g.cacheLock.RUnlock()
-	if batchNumber == lastBatchNumber {
+	if l2BlockNumber == lastL2BlockNumber {
 		return lastPrice, nil
 	}
 
@@ -52,14 +52,14 @@ func (g *LastNBatches) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
 
 	var (
 		sent, exp int
-		number    = lastBatchNumber
+		number    = lastL2BlockNumber
 		result    = make(chan results, g.cfg.CheckBlocks)
 		quit      = make(chan struct{})
 		results   []*big.Int
 	)
 
 	for sent < g.cfg.CheckBlocks && number > 0 {
-		go g.getBatchTxsTips(ctx, number, sampleNumber, g.cfg.IgnorePrice, result, quit)
+		go g.getL2BlockTxsTips(ctx, number, sampleNumber, g.cfg.IgnorePrice, result, quit)
 		sent++
 		exp++
 		number--
@@ -90,15 +90,15 @@ func (g *LastNBatches) GetAvgGasPrice(ctx context.Context) (*big.Int, error) {
 
 	g.cacheLock.Lock()
 	g.lastPrice = price
-	g.lastBatchNumber = batchNumber
+	g.lastL2BlockNumber = l2BlockNumber
 	g.cacheLock.Unlock()
 
 	return price, nil
 }
 
-// getBatchTxsTips calculates batch transaction gas fees.
-func (g *LastNBatches) getBatchTxsTips(ctx context.Context, batchNum uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
-	txs, err := g.state.GetTxsByBatchNum(ctx, batchNum, "")
+// getL2BlockTxsTips calculates l2 block transaction gas fees.
+func (g *LastNL2Blocks) getL2BlockTxsTips(ctx context.Context, l2BlockNumber uint64, limit int, ignorePrice *big.Int, result chan results, quit chan struct{}) {
+	txs, err := g.state.GetTxsByBlockNumber(ctx, l2BlockNumber, nil)
 	if txs == nil {
 		select {
 		case result <- results{nil, err}:

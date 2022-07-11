@@ -8,7 +8,7 @@ import (
 func updateDeps(ctx *cli.Context) error {
 	cfg := &dependencies.Config{
 		Images: &dependencies.ImagesConfig{
-			Names:          []string{"hermeznetwork/geth-zkevm-contracts", "hermeznetwork/hez-mock-prover"},
+			Names:          []string{"hermeznetwork/geth-zkevm-contracts", "hermeznetwork/zkevm-mock-prover"},
 			TargetFilePath: "../../../docker-compose.yml",
 		},
 		PB: &dependencies.PBConfig{

@@ -12,7 +12,6 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/didip/tollbooth/v6"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -32,13 +31,12 @@ type Server struct {
 }
 
 // NewServer returns the JsonRPC server
-func NewServer(cfg Config, defaultChainID uint64, chainID uint64,
-	p jsonRPCTxPool, s stateInterface, gpe gasPriceEstimator, storage storageInterface,
-	apis map[string]bool) *Server {
+func NewServer(cfg Config, chainID uint64, p jsonRPCTxPool, s stateInterface,
+	gpe gasPriceEstimator, storage storageInterface, apis map[string]bool) *Server {
 	handler := newJSONRpcHandler()
 
 	if _, ok := apis[APIEth]; ok {
-		ethEndpoints := &Eth{chainID: chainID, pool: p, state: s, gpe: gpe, sequencerAddress: common.HexToAddress(cfg.SequencerAddress), storage: storage}
+		ethEndpoints := &Eth{chainID: chainID, pool: p, state: s, gpe: gpe, storage: storage}
 		handler.registerService(APIEth, ethEndpoints)
 	}
 
@@ -48,7 +46,7 @@ func NewServer(cfg Config, defaultChainID uint64, chainID uint64,
 	}
 
 	if _, ok := apis[APIHez]; ok {
-		hezEndpoints := &Hez{defaultChainID: defaultChainID, state: s}
+		hezEndpoints := &Hez{state: s}
 		handler.registerService("hez", hezEndpoints)
 	}
 
@@ -138,7 +136,7 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == "GET" {
-		_, err := w.Write([]byte("Hermez JSON-RPC"))
+		_, err := w.Write([]byte("zkEVM JSON RPC Server"))
 		if err != nil {
 			log.Error(err)
 		}
@@ -249,4 +247,9 @@ func handleError(w http.ResponseWriter, err error) {
 	if err != nil {
 		log.Error(err)
 	}
+}
+
+func rpcErrorResponse(code int, errorMessage string, err error) (interface{}, rpcError) {
+	log.Errorf("%v:%v", errorMessage, err)
+	return nil, newRPCError(code, errorMessage)
 }

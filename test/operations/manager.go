@@ -11,10 +11,9 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/tree"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -22,7 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 )
 
@@ -35,8 +33,6 @@ const (
 
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-
-	aggregatorAddress = "0xb94f5374fce5edbc8e2a8697c15331677e6ebf0b"
 )
 
 var dbConfig = dbutils.NewConfigFromEnv()
@@ -78,7 +74,7 @@ func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 		ctx:  ctx,
 		wait: NewWait(),
 	}
-	st, err := initState(cfg.Arity, cfg.State.DefaultChainID, cfg.State.MaxCumulativeGasUsed)
+	st, err := initState(cfg.Arity, cfg.State.MaxCumulativeGasUsed)
 	if err != nil {
 		return nil, err
 	}
@@ -95,21 +91,23 @@ func (m *Manager) State() *state.State {
 // CheckVirtualRoot verifies if the given root is the current root of the
 // merkletree for virtual state.
 func (m *Manager) CheckVirtualRoot(expectedRoot string) error {
-	root, err := m.st.GetStateRoot(m.ctx, true, "")
-	if err != nil {
-		return err
-	}
-	return m.checkRoot(root, expectedRoot)
+	panic("not implemented yet")
+	// root, err := m.st.Getroot(m.ctx, true, "")
+	// if err != nil {
+	// 	return err
+	// }
+	// return m.checkRoot(root, expectedRoot)
 }
 
 // CheckConsolidatedRoot verifies if the given root is the current root of the
 // merkletree for consolidated state.
 func (m *Manager) CheckConsolidatedRoot(expectedRoot string) error {
-	root, err := m.st.GetStateRoot(m.ctx, false, "")
-	if err != nil {
-		return err
-	}
-	return m.checkRoot(root, expectedRoot)
+	panic("not implemented yet")
+	// root, err := m.st.GetStateRoot(m.ctx, false, "")
+	// if err != nil {
+	// 	return err
+	// }
+	// return m.checkRoot(root, expectedRoot)
 }
 
 // SetGenesis creates the genesis block in the state.
@@ -117,7 +115,6 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	genesisBlock.ReceivedAt = time.Now()
 	genesis := state.Genesis{
-		Block:    genesisBlock,
 		Balances: make(map[common.Address]*big.Int),
 	}
 	for address, balanceValue := range genesisAccounts {
@@ -126,78 +123,79 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 		genesis.Balances[common.HexToAddress(address)] = &balance
 	}
 
-	return m.st.SetGenesis(m.ctx, genesis, "")
+	return m.st.SetGenesis(m.ctx, genesis, nil)
 }
 
 // ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
 // the final state.
 func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot, globalExitRoot string) error {
-	// store current batch number to check later when the state is updated
-	currentBatchNumber, err := m.st.GetLastBatchNumberSeenOnEthereum(m.ctx, "")
-	if err != nil {
-		return err
-	}
+	panic("not implemented yet")
+	// // store current batch number to check later when the state is updated
+	// currentBatchNumber, err := m.st.GetLastBatchNumberSeenOnEthereum(m.ctx, nil)
+	// if err != nil {
+	// 	return err
+	// }
 
-	var txs []*types.Transaction
-	for _, vectorTx := range vectorTxs {
-		if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" {
-			var tx types.LegacyTx
-			bytes, err := hex.DecodeHex(vectorTx.RawTx)
-			if err != nil {
-				return err
-			}
+	// var txs []*types.Transaction
+	// for _, vectorTx := range vectorTxs {
+	// 	if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" {
+	// 		var tx types.LegacyTx
+	// 		bytes, err := hex.DecodeHex(vectorTx.RawTx)
+	// 		if err != nil {
+	// 			return err
+	// 		}
 
-			err = rlp.DecodeBytes(bytes, &tx)
-			if err == nil {
-				txs = append(txs, types.NewTx(&tx))
-			}
-			if err != nil {
-				return err
-			}
-		}
-	}
-	// Create Batch
-	batch := &state.Batch{
-		BlockNumber:        uint64(0),
-		Sequencer:          common.HexToAddress(m.cfg.Sequencer.Address),
-		Aggregator:         common.HexToAddress(aggregatorAddress),
-		ConsolidatedTxHash: common.Hash{},
-		Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
-		Uncles:             nil,
-		Transactions:       txs,
-		RawTxsData:         nil,
-		MaticCollateral:    big.NewInt(1),
-		ChainID:            big.NewInt(int64(m.cfg.State.DefaultChainID)),
-		GlobalExitRoot:     common.HexToHash(globalExitRoot),
-	}
+	// 		err = rlp.DecodeBytes(bytes, &tx)
+	// 		if err == nil {
+	// 			txs = append(txs, types.NewTx(&tx))
+	// 		}
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 	}
+	// }
+	// // Create Batch
+	// batch := &state.Batch{
+	// 	BlockNumber:        uint64(0),
+	// 	Sequencer:          common.HexToAddress(m.cfg.Sequencer.Address),
+	// 	Aggregator:         common.HexToAddress(aggregatorAddress),
+	// 	ConsolidatedTxHash: common.Hash{},
+	// 	Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
+	// 	Uncles:             nil,
+	// 	Transactions:       txs,
+	// 	RawTxsData:         nil,
+	// 	MaticCollateral:    big.NewInt(1),
+	// 	ChainID:            big.NewInt(int64(m.cfg.NetworkConfig.ChainID)),
+	// 	GlobalExitRoot:     common.HexToHash(globalExitRoot),
+	// }
 
-	// Create Batch Processor
-	bp, err := m.st.NewBatchProcessor(m.ctx, common.HexToAddress(m.cfg.Sequencer.Address), common.Hex2Bytes(strings.TrimPrefix(initialRoot, "0x")), "")
-	if err != nil {
-		return err
-	}
+	// // Create Batch Processor
+	// bp, err := m.st.NewBatchProcessor(m.ctx, common.HexToAddress(m.cfg.Sequencer.Address), common.Hex2Bytes(strings.TrimPrefix(initialRoot, "0x")), "")
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = bp.ProcessBatch(m.ctx, batch)
-	if err != nil {
-		return err
-	}
+	// err = bp.ProcessBatch(m.ctx, batch)
+	// if err != nil {
+	// 	return err
+	// }
 
-	// Wait for sequencer to select txs from pool and propose a new batch
-	// Wait for the synchronizer to update state
-	err = Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
-		// using a closure here to capture st and currentBatchNumber
-		latestBatchNumber, err := m.st.GetLastBatchNumberConsolidatedOnEthereum(m.ctx, "")
-		if err != nil {
-			return false, err
-		}
-		done := latestBatchNumber > currentBatchNumber
-		return done, nil
-	})
-	// if the state is not expected to change waitPoll can timeout
-	if initialRoot != "" && finalRoot != "" && initialRoot != finalRoot && err != nil {
-		return err
-	}
-	return nil
+	// // Wait for sequencer to select txs from pool and propose a new batch
+	// // Wait for the synchronizer to update state
+	// err = Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
+	// 	// using a closure here to capture st and currentBatchNumber
+	// 	latestBatchNumber, err := m.st.GetLastBatchNumberConsolidatedOnEthereum(m.ctx, "")
+	// 	if err != nil {
+	// 		return false, err
+	// 	}
+	// 	done := latestBatchNumber > currentBatchNumber
+	// 	return done, nil
+	// })
+	// // if the state is not expected to change waitPoll can timeout
+	// if initialRoot != "" && finalRoot != "" && initialRoot != finalRoot && err != nil {
+	// 	return err
+	// }
+	// return nil
 }
 
 // GetAuth configures and returns an auth object.
@@ -230,8 +228,8 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
-	// Run core container
-	err = m.StartCore()
+	// Run node container
+	err = m.StartNode()
 	if err != nil {
 		return err
 	}
@@ -241,7 +239,7 @@ func (m *Manager) Setup() error {
 
 // Teardown stops all the components.
 func Teardown() error {
-	err := stopCore()
+	err := stopNode()
 	if err != nil {
 		return err
 	}
@@ -259,35 +257,34 @@ func Teardown() error {
 	return nil
 }
 
-func initState(arity uint8, defaultChainID uint64, maxCumulativeGasUsed uint64) (*state.State, error) {
+func initState(arity uint8, maxCumulativeGasUsed uint64) (*state.State, error) {
 	sqlDB, err := db.NewSQLDB(dbConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	store := tree.NewPostgresStore(sqlDB)
-	mt := tree.NewMerkleTree(store, arity)
-	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
-	tr := tree.NewStateTree(mt, scCodeStore)
+	ctx := context.Background()
+	stateDb := state.NewPostgresStorage(sqlDB)
+	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{})
+	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{})
+	stateTree := merkletree.NewStateTree(stateDBClient)
 
 	stateCfg := state.Config{
-		DefaultChainID:              defaultChainID,
-		MaxCumulativeGasUsed:        maxCumulativeGasUsed,
-		L2GlobalExitRootManagerAddr: common.HexToAddress("0xAE4bB80bE56B819606589DE61d5ec3b522EEB032"),
+		MaxCumulativeGasUsed: maxCumulativeGasUsed,
 	}
 
-	stateDB := state.NewPostgresStorage(sqlDB)
-	return state.NewState(stateCfg, stateDB, tr), nil
+	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
+	return st, nil
 }
 
-func (m *Manager) checkRoot(root []byte, expectedRoot string) error {
-	actualRoot := hex.EncodeToHex(root)
+// func (m *Manager) checkRoot(root []byte, expectedRoot string) error {
+// 	actualRoot := hex.EncodeToHex(root)
 
-	if expectedRoot != actualRoot {
-		return fmt.Errorf("Invalid root, want %q, got %q", expectedRoot, actualRoot)
-	}
-	return nil
-}
+// 	if expectedRoot != actualRoot {
+// 		return fmt.Errorf("Invalid root, want %q, got %q", expectedRoot, actualRoot)
+// 	}
+// 	return nil
+// }
 
 func (m *Manager) setSequencerChainID() error {
 	// Update Sequencer ChainID to the one in the test vector
@@ -406,25 +403,6 @@ func (m *Manager) SetUpSequencer() error {
 	if err != nil {
 		return err
 	}
-
-	// Register the sequencer
-	ethermanConfig := etherman.Config{
-		URL: l1NetworkURL,
-	}
-	etherman, err := etherman.NewClient(ethermanConfig, auth, common.HexToAddress(poeAddress), common.HexToAddress(maticTokenAddress))
-	if err != nil {
-		return err
-	}
-	tx, err = etherman.RegisterSequencer(l2NetworkURL)
-	if err != nil {
-		return err
-	}
-
-	// Wait sequencer to be registered
-	err = WaitTxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -456,13 +434,13 @@ func stopNetwork() error {
 	return StopComponent("network")
 }
 
-// StartCore starts the core container
-func (m *Manager) StartCore() error {
-	return StartComponent("core", coreUpCondition)
+// StartNode starts the node container
+func (m *Manager) StartNode() error {
+	return StartComponent("node", nodeUpCondition)
 }
 
-func stopCore() error {
-	return StopComponent("core")
+func stopNode() error {
+	return StopComponent("node")
 }
 
 // StartProver starts the prover container

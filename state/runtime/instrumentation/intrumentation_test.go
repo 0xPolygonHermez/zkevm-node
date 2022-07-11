@@ -25,7 +25,6 @@ var (
 var cfg = dbutils.NewConfigFromEnv()
 
 var stateCfg = state.Config{
-	DefaultChainID:       1000,
 	MaxCumulativeGasUsed: 800000,
 }
 

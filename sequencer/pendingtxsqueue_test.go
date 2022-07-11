@@ -2,6 +2,7 @@ package sequencer_test
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"strings"
 	"testing"
@@ -10,12 +11,14 @@ import (
 	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/tree"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -51,12 +54,11 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 	genesisBlock.ReceivedAt = time.Now()
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Block: genesisBlock,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, "")
+	err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -133,12 +135,11 @@ func TestQueue_AddOneTx(t *testing.T) {
 	genesisBlock.ReceivedAt = time.Now()
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Block: genesisBlock,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, "")
+	err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -197,18 +198,15 @@ func TestQueue_AddOneTx(t *testing.T) {
 }
 
 func newState(sqlDB *pgxpool.Pool) *state.State {
-	store := tree.NewPostgresStore(sqlDB)
-	mt := tree.NewMerkleTree(store, tree.DefaultMerkleTreeArity)
-	scCodeStore := tree.NewPostgresSCCodeStore(sqlDB)
-	tr := tree.NewStateTree(mt, scCodeStore)
+	ctx := context.Background()
+	stateDb := state.NewPostgresStorage(sqlDB)
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 
-	stateCfg := state.Config{
-		DefaultChainID:       1000,
-		MaxCumulativeGasUsed: 800000,
-	}
-
-	stateDB := state.NewPostgresStorage(sqlDB)
-	st := state.NewState(stateCfg, stateDB, tr)
-
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+	executorClient, _, _ := executor.NewExecutorClient(ctx, executorServerConfig)
+	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+	stateTree := merkletree.NewStateTree(stateDBClient)
+	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000}, stateDb, executorClient, stateTree)
 	return st
 }

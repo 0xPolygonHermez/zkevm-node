@@ -33,7 +33,7 @@ func newGithubManager(aferoFs afero.Fs, sshKey, token string) *githubManager {
 }
 
 func (gm *githubManager) cloneTargetRepo(repoURL string) (string, error) {
-	tmpdir, err := afero.TempDir(gm.aferoFs, "", "hermez-core-deps")
+	tmpdir, err := afero.TempDir(gm.aferoFs, "", "zkevm-node-deps")
 	if err != nil {
 		return "", err
 	}

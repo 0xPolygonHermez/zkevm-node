@@ -29,8 +29,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            hermeznetwork/hermez-node-zkevm:develop
-            hermeznetwork/hermez-core:develop
+            hermeznetwork/zkevm-node:develop
 
       - name: Check changes in prover
         id: prover_changes
@@ -49,4 +48,4 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            hermeznetwork/hez-mock-prover:latest
+            hermeznetwork/zkevm-mock-prover:latest

@@ -24,7 +24,7 @@ func Test_image_readCurrentDigest(t *testing.T) {
 
 			input: `version: '3'
 services:
-    hez-core:
+    zkevm-node:
         image: imageorg/imagerepo@sha256:f7bc95017b64a6dee98dd2e3a98cbea8c715de137d0f599b1b16f683c2dae955
 `,
 			expectedOutput: "sha256:f7bc95017b64a6dee98dd2e3a98cbea8c715de137d0f599b1b16f683c2dae955",
@@ -33,12 +33,12 @@ services:
 			description: "multiple containers with matching image and existing digest",
 			input: `version: '3'
 services:
-    hez-core:
-        image: hezcore
+    zkevm-node:
+        image: zkevm-node
 
-    hez-network:
+    zkevm-mock-l1-network:
         image: imageorg/imagerepo@sha256:f7bc95017b64a6dee98dd2e3a98cbea8c715de137d0f599b1b16f683c2dae955
-    hez-prover:
+    zkevm-mock-prover:
         image: hezprover
 `,
 			expectedOutput: "sha256:f7bc95017b64a6dee98dd2e3a98cbea8c715de137d0f599b1b16f683c2dae955",
@@ -48,7 +48,7 @@ services:
 
 			input: `version: '3'
 services:
-    hez-core:
+    zkevm-node:
         image: imageorg/imagerepo:latest
 `,
 			expectedError:    true,
@@ -59,7 +59,7 @@ services:
 
 			input: `version: '3'
 services:
-    hez-core:
+    zkevm-node:
         image: imageNeworg/imageNewrepo@sha256:f7bc95017b64a6dee98dd2e3a98cbea8c715de137d0f599b1b16f683c2dae955
 `,
 			expectedError:    true,
@@ -114,61 +114,61 @@ func Test_image_updateDigest(t *testing.T) {
 			description: "single container with matching image and existing digest",
 			initialFileContents: `version: '3'
 services:
-    hez-core:
+    zkevm-node:
         image: imageorg/imagerepo@sha256:oldDigest`,
 			oldDigest: "sha256:oldDigest",
 			newDigest: "sha256:newDigest",
 			expectedFinalFileContents: `version: '3'
 services:
-    hez-core:
+    zkevm-node:
         image: imageorg/imagerepo@sha256:newDigest`,
 		},
 		{
 			description: "single container, not matching image",
 			initialFileContents: `version: '3'
 services:
-    hez-core:
+    zkevm-node:
         image: imageorg/anotherimagerepo@sha256:oldDigest`,
 			oldDigest: "sha256:oldDigest",
 			newDigest: "sha256:newDigest",
 			expectedFinalFileContents: `version: '3'
 services:
-    hez-core:
+    zkevm-node:
         image: imageorg/anotherimagerepo@sha256:oldDigest`,
 		},
 		{
 			description: "single container with matching image, non-existing digest",
 			initialFileContents: `version: '3'
 services:
-    hez-core:
+    zkevm-node:
         image: imageorg/imagerepo@sha256:veryOldDigest`,
 			oldDigest: "sha256:oldDigest",
 			newDigest: "sha256:newDigest",
 			expectedFinalFileContents: `version: '3'
 services:
-    hez-core:
+    zkevm-node:
         image: imageorg/imagerepo@sha256:veryOldDigest`,
 		},
 		{
 			description: "multiple container with matching image and existing digest",
 			initialFileContents: `version: '3'
 services:
-    hez-network:
+    zkevm-mock-l1-network:
         image: imageorg/networkImagerepo@sha256:oldDigest
-    hez-core:
+    zkevm-node:
         image: imageorg/imagerepo@sha256:oldDigest
-    hez-prover:
+    zkevm-mock-prover:
         image: imageorg/proverImagerepo@sha256:oldDigest
 `,
 			oldDigest: "sha256:oldDigest",
 			newDigest: "sha256:newDigest",
 			expectedFinalFileContents: `version: '3'
 services:
-    hez-network:
+    zkevm-mock-l1-network:
         image: imageorg/networkImagerepo@sha256:oldDigest
-    hez-core:
+    zkevm-node:
         image: imageorg/imagerepo@sha256:newDigest
-    hez-prover:
+    zkevm-mock-prover:
         image: imageorg/proverImagerepo@sha256:oldDigest
 `,
 		},

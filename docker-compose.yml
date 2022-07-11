@@ -1,84 +1,84 @@
 version: "3.5"
 networks:
   default:
-    name: hermez
+    name: zkevm
 services:
-  hez-core-sequencer:
-    container_name: hez-core-sequencer
-    image: hezcore
+  zkevm-sequencer:
+    container_name: zkevm-sequencer
+    image: zkevm-node
     environment:
-      - HERMEZCORE_DATABASE_USER=test_user
-      - HERMEZCORE_DATABASE_PASSWORD=test_password
-      - HERMEZCORE_DATABASE_NAME=test_db
-      - HERMEZCORE_DATABASE_HOST=hez-postgres
-      - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/hezcore run --network local --cfg /app/config.toml --components sequencer"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components sequencer"
 
-  hez-core-rpc:
-    container_name: hez-core-rpc
-    image: hezcore
+  zkevm-json-rpc:
+    container_name: zkevm-json-rpc
+    image: zkevm-node
     ports:
       - 8123:8123
     environment:
-      - HERMEZCORE_DATABASE_USER=test_user
-      - HERMEZCORE_DATABASE_PASSWORD=test_password
-      - HERMEZCORE_DATABASE_NAME=test_db
-      - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
     volumes:
       - ./config/config.local.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/hezcore run --network local --cfg /app/config.toml --components rpc"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc"
 
-  hez-core-agg:
-    container_name: hez-core-agg
-    image: hezcore
+  zkevm-aggregator:
+    container_name: zkevm-aggregator
+    image: zkevm-node
     environment:
-      - HERMEZCORE_DATABASE_USER=test_user
-      - HERMEZCORE_DATABASE_PASSWORD=test_password
-      - HERMEZCORE_DATABASE_NAME=test_db
-      - HERMEZCORE_DATABASE_HOST=hez-postgres
-      - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
-    volumes:
-      - ./test/test.keystore:/pk/keystore
-      - ./config/config.local.toml:/app/config.toml
-    command:
-      - "/bin/sh"
-      - "-c"
-      - "/app/hezcore run --network local --cfg /app/config.toml --components aggregator"
-
-  hez-core-sync:
-    container_name: hez-core-sync
-    image: hezcore
-    environment:
-      - HERMEZCORE_DATABASE_USER=test_user
-      - HERMEZCORE_DATABASE_PASSWORD=test_password
-      - HERMEZCORE_DATABASE_NAME=test_db
-      - HERMEZCORE_DATABASE_HOST=hez-postgres
-      - HERMEZCORE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/hezcore run --network local --cfg /app/config.toml --components synchronizer"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components aggregator"
 
-  hez-core-broadcast:
-    container_name: hez-core-broadcast
-    image: hezcore
+  zkevm-sync:
+    container_name: zkevm-sync
+    image: zkevm-node
     environment:
-      - HERMEZCORE_DATABASE_USER=test_user
-      - HERMEZCORE_DATABASE_PASSWORD=test_password
-      - HERMEZCORE_DATABASE_NAME=test_db
-      - HERMEZCORE_DATABASE_HOST=hez-postgres
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+    volumes:
+      - ./test/test.keystore:/pk/keystore
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components synchronizer"
+
+  zkevm-broadcast:
+    container_name: zkevm-broadcast
+    image: zkevm-node
+    environment:
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
     ports:
       - 61090:61090
     volumes:
@@ -86,10 +86,10 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/hezcore run --network local --cfg /app/config.toml --components broadcast-trusted-state"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components broadcast-trusted-state"
 
-  hez-postgres:
-    container_name: hez-postgres
+  zkevm-db:
+    container_name: zkevm-db
     image: postgres
     deploy:
       resources:
@@ -106,8 +106,8 @@ services:
       - POSTGRES_DB=test_db
     command: ["postgres", "-N", "500"]
 
-  hez-explorer:
-    container_name: hez-explorer
+  zkevm-explorer:
+    container_name: zkevm-explorer
     image: hermeznetwork/hermez-node-blockscout:latest
     ports:
       - 4000:4000
@@ -116,8 +116,8 @@ services:
       - SUBNETWORK=Polygon Hermez
       - COIN=ETH
       - ETHEREUM_JSONRPC_VARIANT=geth
-      - ETHEREUM_JSONRPC_HTTP_URL=http://hez-explorer-rpc:8124
-      - DATABASE_URL=postgres://test_user:test_password@hez-explorer-postgres:5432/explorer
+      - ETHEREUM_JSONRPC_HTTP_URL=http://zkevm-explorer-json-rpc:8124
+      - DATABASE_URL=postgres://test_user:test_password@zkevm-explorer-db:5432/explorer
       - ECTO_USE_SSL=false
       - MIX_ENV=prod
       - LOGO=/images/blockscout_logo.svg
@@ -125,26 +125,26 @@ services:
     command:
       ["/bin/sh", "-c", "mix do ecto.create, ecto.migrate; mix phx.server"]
 
-  hez-explorer-rpc:
-    container_name: hez-explorer-rpc
-    image: hezcore
+  zkevm-explorer-json-rpc:
+    container_name: zkevm-explorer-json-rpc
+    image: zkevm-node
     ports:
       - 8124:8124
     environment:
-      - HERMEZCORE_DATABASE_USER=test_user
-      - HERMEZCORE_DATABASE_PASSWORD=test_password
-      - HERMEZCORE_DATABASE_NAME=test_db
-      - HERMEZCORE_DATABASE_HOST=hez-postgres
-      - HERMEZCORE_RPC_PORT=8124
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_RPC_PORT=8124
     volumes:
       - ./config/config.local.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/hezcore run --network local --cfg /app/config.toml --components rpc --http.api eth,net,debug,hez,txpool,web3"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc --http.api eth,net,debug,hez,txpool,web3"
 
-  hez-explorer-postgres:
-    container_name: hez-explorer-postgres
+  zkevm-explorer-db:
+    container_name: zkevm-explorer-db
     image: postgres
     ports:
       - 5433:5432
@@ -155,15 +155,15 @@ services:
       - POSTGRES_DB=explorer
     command: ["postgres", "-N", "500"]
 
-  hez-network:
-    container_name: hez-network
-    image: hermeznetwork/geth-zkevm-contracts@sha256:52dfda8b09130485f40fe3ee26d0f6bf2b61d551e1b1481dae63e915168c0876
+  zkevm-mock-l1-network:
+    container_name: zkevm-local-l1-network
+    image: hermeznetwork/geth-zkevm-contracts@sha256:419cf8c488d5cd099d1ffb5722613375c5392bdcda7a3c5ae2801d498fe49af8
     ports:
       - 8545:8545
 
-  hez-prover:
-    container_name: hez-prover
-    image: hermeznetwork/hez-mock-prover@sha256:3a86d0c65f0428decb7f1f3843b753bf6846bf43f6c628ab0b4d298fe7f918f2
+  zkevm-mock-prover:
+    container_name: zkevm-mock-prover
+    image: hermeznetwork/zkevm-mock-prover@sha256:3a86d0c65f0428decb7f1f3843b753bf6846bf43f6c628ab0b4d298fe7f918f2
     ports:
       - 50051:50051
       - 50052:50052
@@ -171,7 +171,7 @@ services:
       - POSTGRES_USER=test_user
       - POSTGRES_PASSWORD=test_password
       - POSTGRES_DB=test_db
-      - POSTGRES_HOST=hez-postgres
+      - POSTGRES_HOST=zkevm-db
       - POSTGRES_PORT=5432
       - PROOF_TIME=1000
 

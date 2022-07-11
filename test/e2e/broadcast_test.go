@@ -9,9 +9,9 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
-	"github.com/0xPolygonHermez/zkevm-node/sequencerv2/broadcast/pb"
-	"github.com/0xPolygonHermez/zkevm-node/statev2"
-	"github.com/0xPolygonHermez/zkevm-node/statev2/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
+	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/common"
@@ -83,7 +83,7 @@ func TestBroadcast(t *testing.T) {
 	require.EqualValues(t, forcedBatchNumber, batch.ForcedBatchNumber)
 }
 
-func initState() (*statev2.State, error) {
+func initState() (*state.State, error) {
 	dbConfig := dbutils.NewConfigFromEnv()
 	err := dbutils.InitOrReset(dbConfig)
 	if err != nil {
@@ -93,13 +93,13 @@ func initState() (*statev2.State, error) {
 	if err != nil {
 		return nil, err
 	}
-	stateDb := statev2.NewPostgresStorage(sqlDB)
+	stateDb := state.NewPostgresStorage(sqlDB)
 
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: "localhost:8080"})
 
 	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: "localhost:8080"})
 	stateTree := merkletree.NewStateTree(mtDBClient)
-	return statev2.NewState(statev2.Config{}, stateDb, executorClient, stateTree), nil
+	return state.NewState(state.Config{}, stateDb, executorClient, stateTree), nil
 }
 
 func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
@@ -111,11 +111,11 @@ func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
 	return conn, cancel, err
 }
 
-func populateDB(ctx context.Context, st *statev2.State) error {
-	const addBatch = "INSERT INTO statev2.batch (batch_num, global_exit_root, timestamp, sequencer, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
-	const addTransaction = "INSERT INTO statev2.transaction (batch_num, encoded, hash, received_at, l2_block_num) VALUES ($1, $2, $3, $4, $5)"
-	const addForcedBatch = "INSERT INTO statev2.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, sequencer, timestamp, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
-	const addBlock = "INSERT INTO statev2.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
+func populateDB(ctx context.Context, st *state.State) error {
+	const addBatch = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, sequencer, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
+	const addTransaction = "INSERT INTO state.transaction (batch_num, encoded, hash, received_at, l2_block_num) VALUES ($1, $2, $3, $4, $5)"
+	const addForcedBatch = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, sequencer, timestamp, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	const addBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
 	const blockNumber = 1
 
 	var parentHash common.Hash
@@ -129,7 +129,7 @@ func populateDB(ctx context.Context, st *statev2.State) error {
 
 	for i := 1; i <= totalTxsLastBatch; i++ {
 		if i == 1 {
-			parentHash = statev2.ZeroHash
+			parentHash = state.ZeroHash
 		} else {
 			parentHash = l2Block.Hash()
 		}
