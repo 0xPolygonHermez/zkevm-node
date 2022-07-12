@@ -108,6 +108,7 @@ type jsTracer struct {
 	frameResultValue goja.Value
 }
 
+// NewJsTracer is the JS tracer constructor.
 func NewJsTracer(code string, ctx *tracers.Context) (tracers.Tracer, error) {
 	if c, ok := assetTracers[code]; ok {
 		code = c

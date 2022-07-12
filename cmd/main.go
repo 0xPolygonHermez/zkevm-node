@@ -22,11 +22,16 @@ const (
 )
 
 const (
-	AGGREGATOR   = "aggregator"
-	SEQUENCER    = "sequencer"
-	RPC          = "rpc"
+	// AGGREGATOR is the aggregator component identifier.
+	AGGREGATOR = "aggregator"
+	// SEQUENCER is the sequencer component identifier.
+	SEQUENCER = "sequencer"
+	// RPC is the RPC component identifier.
+	RPC = "rpc"
+	// SYNCHRONIZER is the synchronizer component identifier.
 	SYNCHRONIZER = "synchronizer"
-	BROADCAST    = "broadcast-trusted-state"
+	// BROADCAST is the broadcast component identifier.
+	BROADCAST = "broadcast-trusted-state"
 )
 
 func main() {

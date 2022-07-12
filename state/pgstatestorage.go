@@ -125,6 +125,8 @@ func (p *PostgresStorage) Reset(ctx context.Context, blockNumber uint64, dbTx pg
 	return nil
 }
 
+// ResetTrustedState removes the batches with number greater than the given one
+// from the database.
 func (p *PostgresStorage) ResetTrustedState(ctx context.Context, batchNum uint64, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 	if _, err := e.Exec(ctx, resetTrustedStateSQL, batchNum); err != nil {
@@ -227,7 +229,7 @@ func (p *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *Globa
 	return err
 }
 
-// GetLatestExitRoot get the latest ExitRoot synced.
+// GetLatestGlobalExitRoot get the latest global ExitRoot synced.
 func (p *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*GlobalExitRoot, error) {
 	var (
 		exitRoot  GlobalExitRoot
@@ -272,6 +274,8 @@ func (p *PostgresStorage) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Contex
 	return lastBlockNum - lastExitRootBlockNum, nil
 }
 
+// GetTimeForLatestBatchVirtualization returns the timestamp of the latest
+// virtual batch.
 func (p *PostgresStorage) GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
 	var (
 		blockNum  uint64
@@ -377,6 +381,7 @@ func (p *PostgresStorage) GetVerifiedBatch(ctx context.Context, batchNumber uint
 	return &verifiedBatch, nil
 }
 
+// GetLastNBatches returns the last numBatches batches.
 func (p *PostgresStorage) GetLastNBatches(ctx context.Context, numBatches uint, dbTx pgx.Tx) ([]*Batch, error) {
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getLastNBatchesSQL, numBatches)
@@ -464,6 +469,7 @@ func (p *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 	return batchNumber, nil
 }
 
+// GetBatchByNumber returns the batch with the given number.
 func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
 	e := p.getExecQuerier(dbTx)
 	row := e.QueryRow(ctx, getBatchByNumberSQL, batchNumber)
@@ -477,6 +483,7 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	return &batch, nil
 }
 
+// GetProcessingContext returns the processing context for the given batch.
 func (p *PostgresStorage) GetProcessingContext(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*ProcessingContext, error) {
 	e := p.getExecQuerier(dbTx)
 	row := e.QueryRow(ctx, getProcessingContextSQL, batchNumber)
@@ -527,6 +534,8 @@ func scanBatch(row pgx.Row) (Batch, error) {
 	return batch, nil
 }
 
+// GetEncodedTransactionsByBatchNumber returns the encoded field of all
+// transactions in the given batch.
 func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []string, err error) {
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getEncodedTransactionsByBatchNumberSQL, batchNumber)
@@ -549,6 +558,8 @@ func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Contex
 	return txs, nil
 }
 
+// GetTxsHashesByBatchNumber returns the hashes of the transactions in the
+// given batch.
 func (p *PostgresStorage) GetTxsHashesByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []common.Hash, err error) {
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getTransactionHashesByBatchNumberSQL, batchNumber)
@@ -571,7 +582,7 @@ func (p *PostgresStorage) GetTxsHashesByBatchNumber(ctx context.Context, batchNu
 	return txs, nil
 }
 
-// ResetTrustedState resets the batches which the batch number is highter than the input.
+// ResetTrustedBatch resets the batches which the batch number is higher than the input.
 func (p *PostgresStorage) ResetTrustedBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, resetTrustedBatchSQL, batchNumber)
@@ -1065,7 +1076,7 @@ func (p *PostgresStorage) GetL2BlockByHash(ctx context.Context, hash common.Hash
 	return block, nil
 }
 
-// GetTxsByBlockNum returns all the txs in a given block
+// GetTxsByBlockNumber returns all the txs in a given block
 func (p *PostgresStorage) GetTxsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error) {
 	q := p.getExecQuerier(dbTx)
 	rows, err := q.Query(ctx, getTxsByBlockNumSQL, blockNumber)

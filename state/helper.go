@@ -11,6 +11,7 @@ import (
 
 const ether155V = 27
 
+// EncodeTransactions RLP encodes the given transactions.
 func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	var batchL2Data []byte
 

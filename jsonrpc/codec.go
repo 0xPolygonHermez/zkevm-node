@@ -17,9 +17,12 @@ const (
 	// EarliestBlockNumber represents the earliest block number
 	EarliestBlockNumber = BlockNumber(-1)
 
+	// Earliest contains the string to represent the earliest block known.
 	Earliest = "earliest"
-	Latest   = "latest"
-	Pending  = "pending"
+	// Latest contains the string to represent the latest block known.
+	Latest = "latest"
+	// Pending contains the string to represent pending blocks.
+	Pending = "pending"
 )
 
 // Request is a jsonrpc request
@@ -65,6 +68,7 @@ func NewResponse(req Request, reply *[]byte, err rpcError) Response {
 	}
 }
 
+// MarshalJSON customizes the JSON representation of the response.
 func (r Response) MarshalJSON() ([]byte, error) {
 	if r.Error != nil {
 		return json.Marshal(struct {
