@@ -18,8 +18,8 @@ const wordLength = 64
 
 // fea2scalar converts array of uint64 values into one *big.Int.
 func fea2scalar(v []uint64) *big.Int {
-	if len(v) != poseidon.NROUNDSF {
-		return big.NewInt(0)
+	for i := len(v); i < poseidon.NROUNDSF; i++ {
+		v = append(v, 0)
 	}
 	res := new(big.Int).SetUint64(v[0])
 	res.Add(res, new(big.Int).Lsh(new(big.Int).SetUint64(v[1]), 32))  //nolint:gomnd
