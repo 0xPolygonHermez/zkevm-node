@@ -40,7 +40,7 @@ func (tree *StateTree) GetBalance(ctx context.Context, address common.Address, r
 	if proof == nil || proof.Value == nil {
 		return big.NewInt(0), nil
 	}
-	return h4ToScalar(proof.Value), nil
+	return fea2scalar(proof.Value), nil
 }
 
 // GetNonce returns nonce.
@@ -60,7 +60,7 @@ func (tree *StateTree) GetNonce(ctx context.Context, address common.Address, roo
 	if proof == nil || proof.Value == nil {
 		return big.NewInt(0), nil
 	}
-	return h4ToScalar(proof.Value), nil
+	return fea2scalar(proof.Value), nil
 }
 
 // GetCodeHash returns code hash.
@@ -81,7 +81,7 @@ func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, 
 		return nil, nil
 	}
 
-	valueBi := h4ToScalar(proof.Value)
+	valueBi := fea2scalar(proof.Value)
 	return ScalarToFilledByteSlice(valueBi), nil
 }
 
@@ -118,7 +118,7 @@ func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address,
 	if proof == nil || proof.Value == nil {
 		return big.NewInt(0), nil
 	}
-	return h4ToScalar(proof.Value), nil
+	return fea2scalar(proof.Value), nil
 }
 
 // SetBalance sets balance.
@@ -233,7 +233,7 @@ func (tree *StateTree) get(ctx context.Context, root, key []uint64) (*Proof, err
 		return nil, err
 	}
 
-	value, err := stringToh4(result.Value)
+	value, err := string2fea(result.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +274,7 @@ func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64) (*
 
 	var newValue []uint64
 	if result.NewValue != "" {
-		newValue, err = stringToh4(result.NewValue)
+		newValue, err = string2fea(result.NewValue)
 		if err != nil {
 			return nil, err
 		}
