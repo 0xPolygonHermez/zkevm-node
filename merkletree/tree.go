@@ -2,7 +2,6 @@ package merkletree
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -227,23 +226,19 @@ func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address,
 
 func (tree *StateTree) get(ctx context.Context, root, key []uint64) (*Proof, error) {
 	result, err := tree.grpcClient.Get(ctx, &pb.GetRequest{
-		Root:    &pb.Fea{Fe0: root[0], Fe1: root[1], Fe2: root[2], Fe3: root[3]},
-		Key:     &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
-		Details: false,
+		Root: &pb.Fea{Fe0: root[0], Fe1: root[1], Fe2: root[2], Fe3: root[3]},
+		Key:  &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	value, err := stringToh4(result.Value)
+	value, err := string2fea(result.Value)
 	if err != nil {
 		return nil, err
 	}
-	if result.Root == nil {
-		return nil, errors.New("nil root returned")
-	}
 	return &Proof{
-		Root:  []uint64{result.Root.Fe0, result.Root.Fe1, result.Root.Fe2, result.Root.Fe3},
+		Root:  []uint64{root[0], root[1], root[2], root[3]},
 		Key:   key,
 		Value: value,
 	}, nil
@@ -263,13 +258,15 @@ func (tree *StateTree) getProgram(ctx context.Context, hash string) (*ProgramPro
 }
 
 func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64) (*UpdateProof, error) {
-	h4Value := strings.TrimLeft(h4ToString(value), "0x")
+	h4Value := h4ToString(value)
+	if strings.HasPrefix(h4Value, "0x") { // nolint
+		h4Value = h4Value[2:]
+	}
 	result, err := tree.grpcClient.Set(ctx, &pb.SetRequest{
 		OldRoot:    &pb.Fea{Fe0: oldRoot[0], Fe1: oldRoot[1], Fe2: oldRoot[2], Fe3: oldRoot[3]},
 		Key:        &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 		Value:      h4Value,
 		Persistent: true,
-		Details:    false,
 	})
 	if err != nil {
 		return nil, err
@@ -277,7 +274,7 @@ func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64) (*
 
 	var newValue []uint64
 	if result.NewValue != "" {
-		newValue, err = stringToh4(result.NewValue)
+		newValue, err = string2fea(result.NewValue)
 		if err != nil {
 			return nil, err
 		}
