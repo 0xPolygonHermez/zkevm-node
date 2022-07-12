@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -23,11 +24,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
+
+const ether155V = 27
 
 var (
 	testState    *state.State
@@ -55,7 +59,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -502,6 +506,76 @@ func TestVerifiedBatch(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
+func TestExecuteTransaction(t *testing.T) {
+	var chainIDSequencer = new(big.Int).SetInt64(400)
+	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var sequencerBalance = 4000000
+	scCounterByteCode, err := testutils.ReadBytecode("Counter/Counter.bin")
+	require.NoError(t, err)
+
+	// Deploy counter.sol
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(sequencerBalance),
+		GasPrice: new(big.Int).SetUint64(0),
+		Data:     common.Hex2Bytes(scCounterByteCode),
+	})
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	require.NoError(t, err)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	// Encode transaction
+	v, r, s := signedTx.RawSignatureValues()
+	sign := 1 - (v.Uint64() & 1)
+
+	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
+		signedTx.Nonce(),
+		signedTx.GasPrice(),
+		signedTx.Gas(),
+		signedTx.To(),
+		signedTx.Value(),
+		signedTx.Data(),
+		signedTx.ChainId(), uint(0), uint(0),
+	})
+	require.NoError(t, err)
+
+	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
+	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
+	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
+	batchL2Data, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
+	require.NoError(t, err)
+
+	// Create Batch
+	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+		BatchNum:             1,
+		Coinbase:             sequencerAddress.String(),
+		BatchL2Data:          batchL2Data,
+		OldStateRoot:         common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		EthTimestamp:         uint64(time.Now().Unix()),
+		UpdateMerkleTree:     1,
+		GenerateExecuteTrace: 0,
+		GenerateCallTrace:    0,
+	}
+
+	log.Debugf("%v", processBatchRequest)
+
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+	log.Debug(processBatchResponse)
+	// TODO: assert processBatchResponse to make sure that the response makes sense
+}
+
 func TestGenesis(t *testing.T) {
 	balances := map[common.Address]*big.Int{
 		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
@@ -679,7 +753,7 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
-func TestExecuteTransaction(t *testing.T) {
+func TestExecuteTransaction2(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"

@@ -110,6 +110,10 @@ CREATE TABLE state.log
     topic3 VARCHAR
 );
 
+CREATE TABLE state.merkletree (
+    hash BYTEA PRIMARY KEY,
+    data BYTEA NOT NULL
+);
 
 CREATE SCHEMA pool
 

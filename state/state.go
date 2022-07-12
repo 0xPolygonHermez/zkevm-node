@@ -663,6 +663,8 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) ([
 		Coinbase:   ZeroAddress,
 		Root:       root,
 	}
+	rootHex := root.Hex()
+	log.Info("Genesis root ", rootHex)
 	block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	block.ReceivedAt = receivedAt
 
