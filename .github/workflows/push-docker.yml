@@ -29,7 +29,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            hermeznetwork/hermez-node-zkevm:latest
+            hermeznetwork/zkevm-node:latest
 
       - name: Check changes in mock prover
         id: prover_changes
@@ -48,4 +48,4 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            hermeznetwork/hez-mock-prover:latest
+            hermeznetwork/zkevm-mock-prover:latest

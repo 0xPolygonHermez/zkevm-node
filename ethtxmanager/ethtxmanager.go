@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/ethermanv2/types"
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

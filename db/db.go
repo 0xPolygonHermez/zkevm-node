@@ -30,10 +30,12 @@ func NewSQLDB(cfg Config) (*pgxpool.Pool, error) {
 	return conn, nil
 }
 
+// RunMigrationsUp runs migrate-up for the given config.
 func RunMigrationsUp(cfg Config) error {
 	return runMigrations(cfg, migrate.Up)
 }
 
+// RunMigrationsDown runs migrate-down for the given config.
 func RunMigrationsDown(cfg Config) error {
 	return runMigrations(cfg, migrate.Down)
 }
@@ -48,7 +50,7 @@ func runMigrations(cfg Config, direction migrate.MigrationDirection) error {
 	}
 	db := stdlib.OpenDB(*c)
 
-	var migrations = &migrate.PackrMigrationSource{Box: packr.New("hermez-db-migrations", "./migrations")}
+	var migrations = &migrate.PackrMigrationSource{Box: packr.New("zkevm-db-migrations", "./migrations")}
 	nMigrations, err := migrate.Exec(db, "postgres", migrations, direction)
 	if err != nil {
 		return err

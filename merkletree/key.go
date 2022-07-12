@@ -12,6 +12,8 @@ import (
 type Key [32]byte
 
 const (
+	// HashPoseidonAllZeroes represents the poseidon hash for an input with all
+	// bits set to zero.
 	HashPoseidonAllZeroes = "0xc71603f33a1144ca7953db0ab48808f4c4055e3364a246c33c18a9786cb0b359"
 )
 

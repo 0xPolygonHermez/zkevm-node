@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/jackc/pgx/v4"
 )
 
 type storage interface {
@@ -25,7 +25,7 @@ type storage interface {
 }
 
 type stateInterface interface {
-	GetLastBatch(ctx context.Context, isVirtual bool, txBundleID string) (*state.Batch, error)
-	GetNonce(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (uint64, error)
-	GetBalance(ctx context.Context, address common.Address, batchNumber uint64, txBundleID string) (*big.Int, error)
+	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetNonce(ctx context.Context, address common.Address, batchNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetBalance(ctx context.Context, address common.Address, batchNumber uint64, dbTx pgx.Tx) (*big.Int, error)
 }

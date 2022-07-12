@@ -15,6 +15,7 @@ type rpcError interface {
 	ErrorCode() int
 }
 
+// RPCError represents an RPC error.
 type RPCError struct {
 	err  string
 	code int
@@ -25,10 +26,12 @@ func newRPCError(code int, err string, args ...interface{}) *RPCError {
 	return &RPCError{code: code, err: errMessage}
 }
 
+// Error returns the error message.
 func (e *RPCError) Error() string {
 	return e.err
 }
 
+// ErrorCode returns the error code.
 func (e *RPCError) ErrorCode() int {
 	return e.code
 }

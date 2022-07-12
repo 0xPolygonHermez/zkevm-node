@@ -23,6 +23,7 @@ type traceTransactionResponse struct {
 	StructLogs  []StructLogRes `json:"structLogs"`
 }
 
+// StructLogRes represents a log response.
 type StructLogRes struct {
 	Pc            uint64             `json:"pc"`
 	Op            string             `json:"op"`
@@ -38,7 +39,7 @@ type StructLogRes struct {
 
 // TraceTransaction creates a response for debug_traceTransaction request.
 // See https://geth.ethereum.org/docs/rpc/ns-debug#debug_tracetransaction
-func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{}, error) {
+func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{}, rpcError) {
 	ctx := context.Background()
 
 	tracer := ""
@@ -58,61 +59,61 @@ func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{
 	}
 
 	failed := result.Failed()
-	structLogs := make([]StructLogRes, 0, len(result.StructLogs))
-	for _, structLog := range result.StructLogs {
-		var stackRes *[]argBig
-		if len(structLog.Stack) > 0 {
-			stack := make([]argBig, 0, len(structLog.Stack))
-			for _, stackItem := range structLog.Stack {
-				if stackItem != nil {
-					stack = append(stack, argBig(*stackItem))
-				}
-			}
-			stackRes = &stack
-		}
+	// structLogs := make([]StructLogRes, 0, len(result.StructLogs))
+	// for _, structLog := range result.StructLogs {
+	// 	var stackRes *[]argBig
+	// 	if len(structLog.Stack) > 0 {
+	// 		stack := make([]argBig, 0, len(structLog.Stack))
+	// 		for _, stackItem := range structLog.Stack {
+	// 			if stackItem != nil {
+	// 				stack = append(stack, argBig(*stackItem))
+	// 			}
+	// 		}
+	// 		stackRes = &stack
+	// 	}
 
-		var memoryRes *argBytes
-		if len(structLog.Memory) > 0 {
-			memory := make(argBytes, 0, len(structLog.Memory))
-			for _, memoryItem := range structLog.Memory {
-				memory = append(memory, memoryItem)
-			}
-			memoryRes = &memory
-		}
+	// 	var memoryRes *argBytes
+	// 	if len(structLog.Memory) > 0 {
+	// 		memory := make(argBytes, 0, len(structLog.Memory))
+	// 		for _, memoryItem := range structLog.Memory {
+	// 			memory = append(memory, memoryItem)
+	// 		}
+	// 		memoryRes = &memory
+	// 	}
 
-		var storageRes *map[string]string
-		if len(structLog.Storage) > 0 {
-			storage := make(map[string]string, len(structLog.Storage))
-			for storageKey, storageValue := range structLog.Storage {
-				storage[storageKey.Hex()] = storageValue.Hex()
-			}
-			storageRes = &storage
-		}
+	// 	var storageRes *map[string]string
+	// 	if len(structLog.Storage) > 0 {
+	// 		storage := make(map[string]string, len(structLog.Storage))
+	// 		for storageKey, storageValue := range structLog.Storage {
+	// 			storage[storageKey.Hex()] = storageValue.Hex()
+	// 		}
+	// 		storageRes = &storage
+	// 	}
 
-		errRes := ""
-		if structLog.Err != nil {
-			errRes = structLog.Err.Error()
-		}
+	// 	errRes := ""
+	// 	if structLog.Err != nil {
+	// 		errRes = structLog.Err.Error()
+	// 	}
 
-		structLogs = append(structLogs, StructLogRes{
-			Pc:            structLog.Pc,
-			Op:            structLog.Op,
-			Gas:           structLog.Gas,
-			GasCost:       structLog.GasCost,
-			Depth:         structLog.Depth,
-			Error:         errRes,
-			Stack:         stackRes,
-			Memory:        memoryRes,
-			Storage:       storageRes,
-			RefundCounter: structLog.RefundCounter,
-		})
-	}
+	// 	structLogs = append(structLogs, StructLogRes{
+	// 		Pc:            structLog.Pc,
+	// 		Op:            structLog.Op,
+	// 		Gas:           structLog.Gas,
+	// 		GasCost:       structLog.GasCost,
+	// 		Depth:         structLog.Depth,
+	// 		Error:         errRes,
+	// 		Stack:         stackRes,
+	// 		Memory:        memoryRes,
+	// 		Storage:       storageRes,
+	// 		RefundCounter: structLog.RefundCounter,
+	// 	})
+	// }
 
 	resp := traceTransactionResponse{
 		Gas:         result.GasUsed,
 		Failed:      failed,
 		ReturnValue: result.ReturnValue,
-		StructLogs:  structLogs,
+		// StructLogs:  structLogs,
 	}
 
 	return resp, nil

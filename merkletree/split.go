@@ -72,7 +72,9 @@ func h4ToString(h4 []uint64) string {
 
 // stringToh4 converts an hex string into array of 4 Scalars of 64 bits.
 func stringToh4(str string) ([]uint64, error) {
-	str = strings.TrimLeft(str, "0x")
+	if strings.HasPrefix(str, "0x") { // nolint
+		str = str[2:]
+	}
 
 	bi, ok := new(big.Int).SetString(str, hex.Base)
 	if !ok {
@@ -110,4 +112,22 @@ func ScalarToFilledByteSlice(s *big.Int) []byte {
 // maxBigIntLen bytes.
 func h4ToFilledByteSlice(h4 []uint64) []byte {
 	return ScalarToFilledByteSlice(h4ToScalar(h4))
+}
+
+// string2fea converts an string into an array of 32bit uint64 values.
+func string2fea(s string) ([]uint64, error) {
+	bi, ok := new(big.Int).SetString(s, hex.Base)
+	if !ok {
+		return nil, fmt.Errorf("Could not convert %q into big int", s)
+	}
+	return scalar2fea(bi), nil
+}
+
+// fea2string converts an array of 32bit uint64 values into a string.
+func fea2string(fea []uint64) string {
+	bi := fea2scalar(fea)
+
+	biBytes := ScalarToFilledByteSlice(bi)
+
+	return hex.EncodeToHex(biBytes)
 }

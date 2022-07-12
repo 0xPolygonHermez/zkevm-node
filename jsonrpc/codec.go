@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/jackc/pgx/v4"
 )
 
 const (
@@ -16,9 +17,12 @@ const (
 	// EarliestBlockNumber represents the earliest block number
 	EarliestBlockNumber = BlockNumber(-1)
 
+	// Earliest contains the string to represent the earliest block known.
 	Earliest = "earliest"
-	Latest   = "latest"
-	Pending  = "pending"
+	// Latest contains the string to represent the latest block known.
+	Latest = "latest"
+	// Pending contains the string to represent pending blocks.
+	Pending = "pending"
 )
 
 // Request is a jsonrpc request
@@ -64,6 +68,7 @@ func NewResponse(req Request, reply *[]byte, err rpcError) Response {
 	}
 }
 
+// MarshalJSON customizes the JSON representation of the response.
 func (r Response) MarshalJSON() ([]byte, error) {
 	if r.Error != nil {
 		return json.Marshal(struct {
@@ -101,7 +106,7 @@ func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
 	return nil
 }
 
-func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterface) (uint64, rpcError) {
+func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterface, dbTx pgx.Tx) (uint64, rpcError) {
 	if b == nil {
 		return 0, nil
 	}
@@ -109,12 +114,12 @@ func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterfac
 	bValue := *b
 	switch bValue {
 	case LatestBlockNumber, PendingBlockNumber:
-		lastBatchNumber, err := s.GetLastBatchNumber(ctx, "")
+		lastBlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
 		if err != nil {
-			return 0, newRPCError(defaultErrorCode, "failed to get the last batch number from state")
+			return 0, newRPCError(defaultErrorCode, "failed to get the last block number from state")
 		}
 
-		return lastBatchNumber, nil
+		return lastBlockNumber, nil
 
 	case EarliestBlockNumber:
 		return 0, nil

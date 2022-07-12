@@ -29,41 +29,12 @@ Host = "0.0.0.0"
 Port = 8123
 MaxRequestsPerIPAndSecond = 50
 ChainID = 1001
-SequencerAddress = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
-
-[RPCV2]
-Host = "0.0.0.0"
-Port = 8123
-MaxRequestsPerIPAndSecond = 50
-ChainID = 1001
 
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
 
 [Sequencer]
-AllowNonRegistered = "false"
-IntervalToProposeBatch = "15s"
-SyncedBlockDif = 1
-InitBatchProcessorIfDiffType = "synced"
-MaxSendBatchTxRetries = 5
-FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
-    [Sequencer.Strategy]
-        [Sequencer.Strategy.TxSelector]
-            Type = "base"
-            TxSorterType = "bycostandnonce"
-        [Sequencer.Strategy.TxProfitabilityChecker]
-            Type = "acceptall"
-            MinReward = "1.1"
-			RewardPercentageToAggregator = 50
-	[Sequencer.PriceGetter]
-        Type = "default"
-        DefaultPrice = "2000"
-	[Sequencer.PendingTxsQueue]
-		TxPendingInQueueCheckingFrequency = "3s"
-		GetPendingTxsFrequency = "5s"
-
-[SequencerV2]
 WaitPeriodPoolIsEmpty = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "15s"
 WaitBlocksToUpdateGER = 10
@@ -78,7 +49,7 @@ MaxMemAligns = 100
 MaxArithmetics = 100
 MaxBinaries = 100
 MaxSteps = 100
-	[SequencerV2.ProfitabilityChecker]
+	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 
 [PriceGetter]

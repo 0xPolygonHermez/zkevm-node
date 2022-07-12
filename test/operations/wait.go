@@ -154,7 +154,7 @@ func ProverUpCondition() (bool, error) {
 	return done, nil
 }
 
-func coreUpCondition() (done bool, err error) {
+func nodeUpCondition() (done bool, err error) {
 	return NodeUpCondition(l2NetworkURL)
 }
 

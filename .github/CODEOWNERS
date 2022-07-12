@@ -4,13 +4,13 @@ cmd/                    @tclemos @fgimenez
 db/                     @Mikelle @tclemos
 docs/                   @arnaubennassar
 etherman/               @ARR552 @cool-develope
-ethermanv2/             @ARR552 @cool-develope
+etherman/               @ARR552 @cool-develope
 jsonrpc/                @tclemos @ToniRamirezM
 pool/                   @Mikelle @tclemos
 sequencer/              @Mikelle @arnaubennassar
-sequencerv2/            @Mikelle @fgimenez
+sequencer/              @Mikelle @fgimenez
 state/                  @ToniRamirezM @tclemos
-statev2/                @ToniRamirezM @tclemos
+state/                  @ToniRamirezM @tclemos
 synchronizer/           @ARR552 @cool-develope
-synchronizerv2/         @ARR552 @cool-develope
+synchronizer/           @ARR552 @cool-develope
 test/                   @tclemos @fgimenez

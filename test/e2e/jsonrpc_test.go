@@ -9,19 +9,14 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
-	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 )
 
 const (
 	defaultArity                = 4
-	defaultChainID              = 1000
 	defaultSequencerAddress     = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
 	defaultSequencerPrivateKey  = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	defaultSequencerChainID     = 400
@@ -40,7 +35,6 @@ func TestJSONRPC(t *testing.T) {
 	opsCfg := &operations.Config{
 		Arity: defaultArity,
 		State: &state.Config{
-			DefaultChainID:       defaultChainID,
 			MaxCumulativeGasUsed: defaultMaxCumulativeGasUsed,
 		},
 		Sequencer: &operations.SequencerConfig{
@@ -146,62 +140,63 @@ func checkError(err error, expected bool, msg string) error {
 }
 
 func deployContracts(opsman *operations.Manager) error {
-	var txs []*types.Transaction
+	panic("not implemented yet")
+	// var txs []*types.Transaction
 
-	bytecode, err := testutils.ReadBytecode("Double/Double.bin")
-	if err != nil {
-		return err
-	}
-	tx0 := types.NewTx(&types.LegacyTx{
-		Nonce:    0,
-		To:       nil,
-		Value:    new(big.Int),
-		Gas:      uint64(defaultSequencerBalance),
-		GasPrice: new(big.Int).SetUint64(1),
-		Data:     common.Hex2Bytes(bytecode),
-	})
+	// bytecode, err := testutils.ReadBytecode("Double/Double.bin")
+	// if err != nil {
+	// 	return err
+	// }
+	// tx0 := types.NewTx(&types.LegacyTx{
+	// 	Nonce:    0,
+	// 	To:       nil,
+	// 	Value:    new(big.Int),
+	// 	Gas:      uint64(defaultSequencerBalance),
+	// 	GasPrice: new(big.Int).SetUint64(1),
+	// 	Data:     common.Hex2Bytes(bytecode),
+	// })
 
-	auth, err := operations.GetAuth(
-		defaultSequencerPrivateKey,
-		new(big.Int).SetInt64(defaultSequencerChainID))
-	if err != nil {
-		return err
-	}
-	signedTx0, err := auth.Signer(auth.From, tx0)
-	if err != nil {
-		return err
-	}
-	txs = append(txs, signedTx0)
+	// auth, err := operations.GetAuth(
+	// 	defaultSequencerPrivateKey,
+	// 	new(big.Int).SetInt64(defaultSequencerChainID))
+	// if err != nil {
+	// 	return err
+	// }
+	// signedTx0, err := auth.Signer(auth.From, tx0)
+	// if err != nil {
+	// 	return err
+	// }
+	// txs = append(txs, signedTx0)
 
-	// Create Batch
-	sequencerAddress := common.HexToAddress(defaultSequencerAddress)
-	batch := &state.Batch{
-		BlockNumber:        uint64(0),
-		Sequencer:          sequencerAddress,
-		Aggregator:         sequencerAddress,
-		ConsolidatedTxHash: common.Hash{},
-		Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
-		Uncles:             nil,
-		Transactions:       txs,
-		RawTxsData:         nil,
-		MaticCollateral:    big.NewInt(1),
-		ReceivedAt:         time.Now(),
-		ChainID:            big.NewInt(defaultSequencerChainID),
-		GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
-	}
+	// // Create Batch
+	// sequencerAddress := common.HexToAddress(defaultSequencerAddress)
+	// batch := &state.Batch{
+	// 	BlockNumber:        uint64(0),
+	// 	Sequencer:          sequencerAddress,
+	// 	Aggregator:         sequencerAddress,
+	// 	ConsolidatedTxHash: common.Hash{},
+	// 	Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
+	// 	Uncles:             nil,
+	// 	Transactions:       txs,
+	// 	RawTxsData:         nil,
+	// 	MaticCollateral:    big.NewInt(1),
+	// 	ReceivedAt:         time.Now(),
+	// 	ChainID:            big.NewInt(defaultSequencerChainID),
+	// 	GlobalExitRoot:     common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9fc"),
+	// }
 
-	st := opsman.State()
-	ctx := context.Background()
+	// st := opsman.State()
+	// ctx := context.Background()
 
-	lastVirtualBatch, err := st.GetLastBatch(ctx, true, "")
-	if err != nil {
-		return err
-	}
+	// lastVirtualBatch, err := st.GetLastBatch(ctx, true, "")
+	// if err != nil {
+	// 	return err
+	// }
 
-	bp, err := st.NewBatchProcessor(ctx, sequencerAddress, lastVirtualBatch.Header.Root[:], "")
-	if err != nil {
-		return err
-	}
+	// bp, err := st.NewBatchProcessor(ctx, sequencerAddress, lastVirtualBatch.Header.Root[:], "")
+	// if err != nil {
+	// 	return err
+	// }
 
-	return bp.ProcessBatch(ctx, batch)
+	// return bp.ProcessBatch(ctx, batch)
 }

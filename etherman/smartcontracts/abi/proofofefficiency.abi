@@ -20,6 +20,21 @@
 				"internalType": "bytes32",
 				"name": "genesisRoot",
 				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "_trustedSequencer",
+				"type": "address"
+			},
+			{
+				"internalType": "bool",
+				"name": "_forceBatchAllowed",
+				"type": "bool"
+			},
+			{
+				"internalType": "string",
+				"name": "_trustedSequencerURL",
+				"type": "string"
 			}
 		],
 		"stateMutability": "nonpayable",
@@ -30,43 +45,30 @@
 		"inputs": [
 			{
 				"indexed": true,
-				"internalType": "address",
-				"name": "previousOwner",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "newOwner",
-				"type": "address"
-			}
-		],
-		"name": "OwnershipTransferred",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "sequencerAddress",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "sequencerURL",
-				"type": "string"
-			},
-			{
-				"indexed": false,
 				"internalType": "uint64",
-				"name": "chainID",
+				"name": "forceBatchNum",
 				"type": "uint64"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "lastGlobalExitRoot",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "sequencer",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "transactions",
+				"type": "bytes"
 			}
 		],
-		"name": "RegisterSequencer",
+		"name": "ForceBatch",
 		"type": "event"
 	},
 	{
@@ -77,27 +79,61 @@
 				"internalType": "uint64",
 				"name": "numBatch",
 				"type": "uint64"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "sequencer",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint64",
-				"name": "batchChainID",
-				"type": "uint64"
-			},
-			{
-				"indexed": false,
-				"internalType": "bytes32",
-				"name": "lastGlobalExitRoot",
-				"type": "bytes32"
 			}
 		],
-		"name": "SendBatch",
+		"name": "SequenceBatches",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "numBatch",
+				"type": "uint64"
+			}
+		],
+		"name": "SequenceForceBatches",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "newForceBatchAllowed",
+				"type": "bool"
+			}
+		],
+		"name": "SetForceBatchAllowed",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "newTrustedSequencer",
+				"type": "address"
+			}
+		],
+		"name": "SetTrustedSequencer",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "newTrustedSequencerURL",
+				"type": "string"
+			}
+		],
+		"name": "SetTrustedSequencerURL",
 		"type": "event"
 	},
 	{
@@ -121,7 +157,7 @@
 	},
 	{
 		"inputs": [],
-		"name": "DEFAULT_CHAIN_ID",
+		"name": "FORCE_BATCH_TIMEOUT",
 		"outputs": [
 			{
 				"internalType": "uint64",
@@ -134,7 +170,33 @@
 	},
 	{
 		"inputs": [],
-		"name": "calculateSequencerCollateral",
+		"name": "MAX_BATCH_LENGTH",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "TRUSTED_SEQUENCER_FEE",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "calculateForceProverFee",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -172,6 +234,66 @@
 		"type": "function"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "bytes",
+				"name": "transactions",
+				"type": "bytes"
+			},
+			{
+				"internalType": "uint256",
+				"name": "maticAmount",
+				"type": "uint256"
+			}
+		],
+		"name": "forceBatch",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "forceBatchAllowed",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"name": "forcedBatches",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "batchHashData",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint256",
+				"name": "maticFee",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint64",
+				"name": "minTimestamp",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "globalExitRootManager",
 		"outputs": [
@@ -186,7 +308,46 @@
 	},
 	{
 		"inputs": [],
-		"name": "lastBatchSent",
+		"name": "lastBatchSequenced",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "lastForceBatch",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "lastForceBatchSequenced",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "lastTimestamp",
 		"outputs": [
 			{
 				"internalType": "uint64",
@@ -225,52 +386,6 @@
 	},
 	{
 		"inputs": [],
-		"name": "numSequencers",
-		"outputs": [
-			{
-				"internalType": "uint32",
-				"name": "",
-				"type": "uint32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "owner",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "sequencerURL",
-				"type": "string"
-			}
-		],
-		"name": "registerSequencer",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "renounceOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
 		"name": "rollupVerifier",
 		"outputs": [
 			{
@@ -285,17 +400,47 @@
 	{
 		"inputs": [
 			{
-				"internalType": "bytes",
-				"name": "transactions",
-				"type": "bytes"
-			},
-			{
-				"internalType": "uint256",
-				"name": "maticAmount",
-				"type": "uint256"
+				"components": [
+					{
+						"internalType": "bytes",
+						"name": "transactions",
+						"type": "bytes"
+					},
+					{
+						"internalType": "bytes32",
+						"name": "globalExitRoot",
+						"type": "bytes32"
+					},
+					{
+						"internalType": "uint64",
+						"name": "timestamp",
+						"type": "uint64"
+					},
+					{
+						"internalType": "uint64[]",
+						"name": "forceBatchesTimestamp",
+						"type": "uint64[]"
+					}
+				],
+				"internalType": "struct ProofOfEfficiency.BatchData[]",
+				"name": "batches",
+				"type": "tuple[]"
 			}
 		],
-		"name": "sendBatch",
+		"name": "sequenceBatches",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "numForcedBatches",
+				"type": "uint64"
+			}
+		],
+		"name": "sequenceForceBatches",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -308,7 +453,7 @@
 				"type": "uint64"
 			}
 		],
-		"name": "sentBatches",
+		"name": "sequencedBatches",
 		"outputs": [
 			{
 				"internalType": "bytes32",
@@ -316,32 +461,13 @@
 				"type": "bytes32"
 			},
 			{
-				"internalType": "uint256",
-				"name": "maticCollateral",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "sequencers",
-		"outputs": [
-			{
-				"internalType": "string",
-				"name": "sequencerURL",
-				"type": "string"
+				"internalType": "uint64",
+				"name": "timestamp",
+				"type": "uint64"
 			},
 			{
 				"internalType": "uint64",
-				"name": "chainID",
+				"name": "forceBatchNum",
 				"type": "uint64"
 			}
 		],
@@ -351,14 +477,66 @@
 	{
 		"inputs": [
 			{
+				"internalType": "bool",
+				"name": "newForceBatchAllowed",
+				"type": "bool"
+			}
+		],
+		"name": "setForceBatchAllowed",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "address",
-				"name": "newOwner",
+				"name": "newTrustedSequencer",
 				"type": "address"
 			}
 		],
-		"name": "transferOwnership",
+		"name": "setTrustedSequencer",
 		"outputs": [],
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "newTrustedSequencerURL",
+				"type": "string"
+			}
+		],
+		"name": "setTrustedSequencerURL",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "trustedSequencer",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "trustedSequencerURL",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{

@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+const amountOfPendingTxsRequested = 1000
+
 // PendingTxsQueueConfig config for pending tx queue data structure
 type PendingTxsQueueConfig struct {
 	TxPendingInQueueCheckingFrequency types.Duration `mapstructure:"TxPendingInQueueCheckingFrequency"`

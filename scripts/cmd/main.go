@@ -13,7 +13,7 @@ const (
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "hermez-node-scripts"
+	app.Name = "zkevm-node-scripts"
 	app.Commands = []*cli.Command{
 		{
 			Name:   "updatedeps",

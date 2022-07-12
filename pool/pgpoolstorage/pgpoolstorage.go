@@ -103,7 +103,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 
 // MarkReorgedTxsAsPending updated reorged txs state from selected to pending
 func (p *PostgresPoolStorage) MarkReorgedTxsAsPending(ctx context.Context) error {
-	const updateReorgedTxsToPending = "UPDATE pool.txs pt SET state = $1 WHERE state = $2 AND NOT EXISTS (SELECT hash FROM statev2.transaction WHERE hash = pt.hash)"
+	const updateReorgedTxsToPending = "UPDATE pool.txs pt SET state = $1 WHERE state = $2 AND NOT EXISTS (SELECT hash FROM state.transaction WHERE hash = pt.hash)"
 	if _, err := p.db.Exec(ctx, updateReorgedTxsToPending, pool.TxStatePending, pool.TxStateSelected); err != nil {
 		return err
 	}
@@ -161,6 +161,28 @@ func (p *PostgresPoolStorage) GetTxsByState(ctx context.Context, state pool.TxSt
 	return txs, nil
 }
 
+// GetPendingTxHashesSince returns the pending tx since the given time.
+func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
+	sql := "SELECT hash FROM pool.txs WHERE state = $1 AND received_at >= $2"
+	rows, err := p.db.Query(ctx, sql, pool.TxStatePending, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	hashes := make([]common.Hash, 0, len(rows.RawValues()))
+	for rows.Next() {
+		var hash string
+		if err := rows.Scan(&hash); err != nil {
+			return nil, err
+		}
+		hashes = append(hashes, common.HexToHash(hash))
+	}
+
+	return hashes, nil
+}
+
+// GetTopPendingTxByProfitabilityAndZkCounters
 func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters pool.ZkCounters) (*pool.Transaction, error) {
 	sql := `
 		SELECT 
@@ -251,26 +273,6 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 	return tx, nil
 }
 
-func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
-	sql := "SELECT hash FROM pool.txs WHERE state = $1 AND received_at >= $2"
-	rows, err := p.db.Query(ctx, sql, pool.TxStatePending, since)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	hashes := make([]common.Hash, 0, len(rows.RawValues()))
-	for rows.Next() {
-		var hash string
-		if err := rows.Scan(&hash); err != nil {
-			return nil, err
-		}
-		hashes = append(hashes, common.HexToHash(hash))
-	}
-
-	return hashes, nil
-}
-
 // CountTransactionsByState get number of transactions
 // accordingly to the provided state
 func (p *PostgresPoolStorage) CountTransactionsByState(ctx context.Context, state pool.TxState) (uint64, error) {
@@ -354,6 +356,8 @@ func (p *PostgresPoolStorage) GetGasPrice(ctx context.Context) (uint64, error) {
 	return gasPrice, nil
 }
 
+// IsTxPending determines if the tx associated to the given hash is pending or
+// not.
 func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) {
 	var exists bool
 	req := "SELECT exists (SELECT 1 FROM pool.txs WHERE hash = $1 AND state = $2)"

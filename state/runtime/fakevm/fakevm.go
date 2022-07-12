@@ -7,8 +7,10 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+// MemoryItemSize is the memory item size.
 const MemoryItemSize int = 32
 
+// FakeEVM represents the fake EVM.
 type FakeEVM struct {
 	// Context provides auxiliary blockchain related information
 	Context vm.BlockContext
@@ -27,7 +29,7 @@ type FakeEVM struct {
 	abort int32
 }
 
-// NewEVM returns a new EVM. The returned EVM is not thread safe and should
+// NewFakeEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
 // func NewFakeEVM(blockCtx vm.BlockContext, txCtx vm.TxContext, statedb runtime.FakeDB, chainConfig *params.ChainConfig, config Config) *FakeEVM {
 func NewFakeEVM(blockCtx vm.BlockContext, txCtx vm.TxContext, chainConfig *params.ChainConfig, config Config) *FakeEVM {
@@ -41,6 +43,7 @@ func NewFakeEVM(blockCtx vm.BlockContext, txCtx vm.TxContext, chainConfig *param
 	return evm
 }
 
+// SetStateDB is the StateDB setter.
 func (evm *FakeEVM) SetStateDB(stateDB FakeDB) {
 	evm.StateDB = stateDB
 }

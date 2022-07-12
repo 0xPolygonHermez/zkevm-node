@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// Filter represents a filter.
 type Filter struct {
 	ID         uint64
 	Type       string
@@ -17,6 +18,7 @@ type Filter struct {
 	LastPoll   time.Time
 }
 
+// LogFilterRequest represents a log filter request.
 type LogFilterRequest struct {
 	BlockHash *common.Hash  `json:"blockHash,omitempty"`
 	FromBlock string        `json:"fromBlock,omitempty"`
@@ -74,6 +76,7 @@ func (f *LogFilter) addAddress(raw string) error {
 	return nil
 }
 
+// MarshalJSON allows to customize the JSON representation.
 func (f *LogFilter) MarshalJSON() ([]byte, error) {
 	var obj LogFilterRequest
 

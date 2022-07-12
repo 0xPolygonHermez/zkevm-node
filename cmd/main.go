@@ -12,7 +12,7 @@ import (
 
 const (
 	// App name
-	appName = "hermez-node"
+	appName = "zkevm-node"
 	// version represents the program based on the git tag
 	version = "v0.1.0"
 	// commit represents the program based on the git commit
@@ -22,11 +22,16 @@ const (
 )
 
 const (
-	AGGREGATOR   = "aggregator"
-	SEQUENCER    = "sequencer"
-	RPC          = "rpc"
+	// AGGREGATOR is the aggregator component identifier.
+	AGGREGATOR = "aggregator"
+	// SEQUENCER is the sequencer component identifier.
+	SEQUENCER = "sequencer"
+	// RPC is the RPC component identifier.
+	RPC = "rpc"
+	// SYNCHRONIZER is the synchronizer component identifier.
 	SYNCHRONIZER = "synchronizer"
-	BROADCAST    = "broadcast-trusted-state"
+	// BROADCAST is the broadcast component identifier.
+	BROADCAST = "broadcast-trusted-state"
 )
 
 func main() {
@@ -89,15 +94,8 @@ func main() {
 		{
 			Name:    "run",
 			Aliases: []string{},
-			Usage:   "Run the hermez core",
+			Usage:   "Run the zkevm-node",
 			Action:  start,
-			Flags:   flags,
-		},
-		{
-			Name:    "register",
-			Aliases: []string{"reg"},
-			Usage:   "Register sequencer in the smart contract",
-			Action:  registerSequencer,
 			Flags:   flags,
 		},
 		{

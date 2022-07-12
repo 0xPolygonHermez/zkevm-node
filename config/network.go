@@ -27,8 +27,7 @@ type NetworkConfig struct {
 	GlobalExitRootStoragePosition uint64
 	LocalExitRootStoragePosition  uint64
 	OldStateRootPosition          uint64
-	L1ChainID                     uint64
-	L2DefaultChainID              uint64
+	ChainID                       uint64
 	Genesis                       Genesis
 	MaxCumulativeGasUsed          uint64
 }
@@ -51,8 +50,7 @@ type networkConfigFromJSON struct {
 	GlobalExitRootStoragePosition uint64                   `json:"globalExitRootStoragePosition"`
 	LocalExitRootStoragePosition  uint64                   `json:"localExitRootStoragePosition"`
 	OldStateRootPosition          uint64                   `json:"oldStateRootPosition"`
-	L1ChainID                     uint64                   `json:"l1ChainID"`
-	L2DefaultChainID              uint64                   `json:"defaultChainID"`
+	ChainID                       uint64                   `json:"chainID"`
 	Genesis                       []genesisAccountFromJSON `json:"genesis"`
 	MaxCumulativeGasUsed          uint64                   `json:"maxCumulativeGasUsed"`
 }
@@ -87,8 +85,7 @@ var (
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
-		L1ChainID:                     1, //Mainnet
-		L2DefaultChainID:              10000,
+		ChainID:                       1, //Mainnet
 		Genesis: Genesis{
 			Balances: map[common.Address]*big.Int{
 				common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
@@ -108,8 +105,7 @@ var (
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
-		L1ChainID:                     4, //Rinkeby
-		L2DefaultChainID:              40000,
+		ChainID:                       4, //Rinkeby
 		Genesis: Genesis{
 			Balances: map[common.Address]*big.Int{
 				common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
@@ -129,8 +125,7 @@ var (
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
-		L1ChainID:                     5, //Goerli
-		L2DefaultChainID:              1000,
+		ChainID:                       5, //Goerli
 		Genesis: Genesis{
 			Balances: map[common.Address]*big.Int{
 				common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"): bigIntFromBase10String("100000000000000000000000"),
@@ -199,8 +194,7 @@ var (
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
-		L1ChainID:                     1337,
-		L2DefaultChainID:              1000,
+		ChainID:                       1337,
 		Genesis: Genesis{
 			Balances: map[common.Address]*big.Int{
 				common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"): bigIntFromBase10String("100000000000000000000000"),
@@ -347,8 +341,7 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfg.GlobalExitRootStoragePosition = cfgJSON.GlobalExitRootStoragePosition
 	cfg.LocalExitRootStoragePosition = cfgJSON.LocalExitRootStoragePosition
 	cfg.OldStateRootPosition = cfgJSON.OldStateRootPosition
-	cfg.L1ChainID = cfgJSON.L1ChainID
-	cfg.L2DefaultChainID = cfgJSON.L2DefaultChainID
+	cfg.ChainID = cfgJSON.ChainID
 	cfg.MaxCumulativeGasUsed = cfgJSON.MaxCumulativeGasUsed
 
 	if len(cfgJSON.Genesis) == 0 {

@@ -1,64 +1,52 @@
 package state
 
 import (
-	"math/big"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// Hash returns the batch hash of the header, which is simply the keccak256 hash of its
-// RLP encoding.
-func (b *Batch) Hash() common.Hash {
-	return b.Header.Hash()
-}
-
-// Batch represents a batch
+// Batch struct
 type Batch struct {
-	BlockNumber        uint64
-	Sequencer          common.Address
-	Aggregator         common.Address
-	ConsolidatedTxHash common.Hash
-	ChainID            *big.Int
-	GlobalExitRoot     common.Hash
-	RollupExitRoot     common.Hash
-	Header             *types.Header
-	Uncles             []*types.Header
-	Transactions       []*types.Transaction
-	RawTxsData         []byte
-	Receipts           []*Receipt
-	MaticCollateral    *big.Int
-	ReceivedAt         time.Time
-	ConsolidatedAt     *time.Time
+	BatchNumber    uint64
+	Coinbase       common.Address
+	BatchL2Data    []byte
+	StateRoot      common.Hash
+	LocalExitRoot  common.Hash
+	Timestamp      time.Time
+	Transactions   []types.Transaction
+	GlobalExitRoot common.Hash
 }
 
-// NewBatchWithHeader creates a batch with the given header data.
-func NewBatchWithHeader(header types.Header) *Batch {
-	return &Batch{Header: &header}
+// ProcessingContext is the necessary data that a batch needs to provide to the runtime,
+// without the historical state data (processing receipt from previous batch)
+type ProcessingContext struct {
+	BatchNumber    uint64
+	Coinbase       common.Address
+	Timestamp      time.Time
+	GlobalExitRoot common.Hash
 }
 
-// Number is a helper function to get the batch number from the header
-func (b *Batch) Number() *big.Int {
-	return b.Header.Number
+// ProcessingReceipt indicates the outcome (StateRoot, LocalExitRoot) of processing a batch
+type ProcessingReceipt struct {
+	BatchNumber   uint64
+	StateRoot     common.Hash
+	LocalExitRoot common.Hash
 }
 
-// Size returns the true RLP encoded storage size of the batch, either by encoding
-// and returning it, or returning a previously cached value.
-func (b *Batch) Size() common.StorageSize {
-	c := writeCounter(0)
-	err := rlp.Encode(&c, b)
-	if err != nil {
-		log.Errorf("failed to compute the Size of the batch: %d", b.Number().Uint64())
-	}
-	return common.StorageSize(c)
+// VerifiedBatch represents a VerifiedBatch
+type VerifiedBatch struct {
+	BlockNumber uint64
+	BatchNumber uint64
+	Aggregator  common.Address
+	TxHash      common.Hash
 }
 
-type writeCounter common.StorageSize
-
-func (c *writeCounter) Write(b []byte) (int, error) {
-	*c += writeCounter(len(b))
-	return len(b), nil
+// VirtualBatch represents a VirtualBatch
+type VirtualBatch struct {
+	BatchNumber uint64
+	TxHash      common.Hash
+	Coinbase    common.Address
+	BlockNumber uint64
 }

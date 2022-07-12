@@ -1,10 +1,12 @@
 package instrumentation
 
+// ExecutorTrace contents executor traces.
 type ExecutorTrace struct {
 	Context Context `json:"context"`
 	Steps   []Step  `json:"steps"`
 }
 
+// Context is the trace context.
 type Context struct {
 	Type     string `json:"type"`
 	From     string `json:"from"`
@@ -21,6 +23,7 @@ type Context struct {
 	GasUsed      string `json:"gasUsed"`
 }
 
+// Step is a trace step.
 type Step struct {
 	StateRoot  string   `json:"stateRoot"`
 	Depth      int      `json:"depth"`
@@ -37,6 +40,7 @@ type Step struct {
 	ReturnData string   `json:"returnData"`
 }
 
+// Contract represents a contract in the trace.
 type Contract struct {
 	Address string `json:"address"`
 	Caller  string `json:"caller"`
@@ -45,6 +49,7 @@ type Contract struct {
 	Gas     string `json:"gas"`
 }
 
+// Tracer represents the executor tracer.
 type Tracer struct {
 	Code string `json:"tracer"`
 }

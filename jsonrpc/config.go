@@ -7,5 +7,4 @@ type Config struct {
 
 	MaxRequestsPerIPAndSecond float64 `mapstructure:"MaxRequestsPerIPAndSecond"`
 	ChainID                   uint64  `mapstructure:"ChainID"`
-	SequencerAddress          string  `mapstructure:"SequencerAddress"`
 }

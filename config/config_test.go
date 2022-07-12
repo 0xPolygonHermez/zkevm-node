@@ -11,8 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer"
-	"github.com/0xPolygonHermez/zkevm-node/state/tree"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -27,63 +25,39 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(100),
 		},
 		{
-			path:          "Sequencer.AllowNonRegistered",
-			expectedValue: false,
-		},
-		{
-			path:          "Sequencer.InitBatchProcessorIfDiffType",
-			expectedValue: sequencer.InitBatchProcessorIfDiffTypeSynced,
-		},
-		{
-			path:          "Sequencer.PriceGetter.Type",
+			path:          "PriceGetter.Type",
 			expectedValue: pricegetter.DefaultType,
 		},
 		{
-			path:          "Sequencer.PriceGetter.DefaultPrice",
+			path:          "PriceGetter.DefaultPrice",
 			expectedValue: pricegetter.TokenPrice{Float: new(big.Float).SetInt64(2000)},
 		},
 		{
-			path:          "Sequencer.MaxSendBatchTxRetries",
-			expectedValue: uint32(5),
-		},
-		{
-			path:          "Sequencer.FrequencyForResendingFailedSendBatchesInMilliseconds",
-			expectedValue: int64(1000),
-		},
-		{
-			path:          "Sequencer.PendingTxsQueue.TxPendingInQueueCheckingFrequency",
-			expectedValue: types.NewDuration(3 * time.Second),
-		},
-		{
-			path:          "Sequencer.PendingTxsQueue.GetPendingTxsFrequency",
-			expectedValue: types.NewDuration(5 * time.Second),
-		},
-		{
-			path:          "SequencerV2.WaitPeriodPoolIsEmpty",
+			path:          "Sequencer.WaitPeriodPoolIsEmpty",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
-			path:          "SequencerV2.LastBatchVirtualizationTimeMaxWaitPeriod",
+			path:          "Sequencer.LastBatchVirtualizationTimeMaxWaitPeriod",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
-			path:          "SequencerV2.WaitBlocksToUpdateGER",
+			path:          "Sequencer.WaitBlocksToUpdateGER",
 			expectedValue: uint64(10),
 		},
 		{
-			path:          "SequencerV2.LastTimeBatchMaxWaitPeriod",
+			path:          "Sequencer.LastTimeBatchMaxWaitPeriod",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{
-			path:          "SequencerV2.BlocksAmountForTxsToBeDeleted",
+			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
 			expectedValue: uint64(100),
 		},
 		{
-			path:          "SequencerV2.FrequencyToCheckTxsForDelete",
+			path:          "Sequencer.FrequencyToCheckTxsForDelete",
 			expectedValue: types.NewDuration(12 * time.Hour),
 		},
 		{
-			path:          "SequencerV2.ProfitabilityChecker.SendBatchesEvenWhenNotProfitable",
+			path:          "Sequencer.ProfitabilityChecker.SendBatchesEvenWhenNotProfitable",
 			expectedValue: true,
 		},
 		{
@@ -139,18 +113,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(1000000000),
 		},
 		{
-			path:          "MTServer.Host",
-			expectedValue: "0.0.0.0",
-		},
-		{
-			path:          "MTServer.Port",
-			expectedValue: 50060,
-		},
-		{
-			path:          "MTServer.StoreBackend",
-			expectedValue: tree.PgMTStoreBackend,
-		},
-		{
 			path:          "MTClient.URI",
 			expectedValue: "127.0.0.1:50060",
 		},
@@ -169,10 +131,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "RPC.ChainID",
 			expectedValue: uint64(1001),
-		},
-		{
-			path:          "RPC.SequencerAddress",
-			expectedValue: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 		},
 		{
 			path:          "BroadcastServer.Host",

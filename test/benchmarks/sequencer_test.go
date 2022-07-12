@@ -41,7 +41,6 @@ var (
 	opsCfg              = &operations.Config{
 		Arity: 4,
 		State: &state.Config{
-			DefaultChainID:       1000,
 			MaxCumulativeGasUsed: 800000,
 		},
 
@@ -118,7 +117,7 @@ func setUpEnv(b *testing.B) (*state.State, *pool.Pool, *big.Int, *ethclient.Clie
 }
 
 func tearDownEnv(b *testing.B, st stateInterface) {
-	lastBatchNumber, err := st.GetLastBatchNumber(ctx, "")
+	lastBatchNumber, err := st.GetLastL2BlockNumber(ctx, nil)
 	require.NoError(b, err)
 	fmt.Printf("lastBatchNumber: %v\n", lastBatchNumber)
 	require.NoError(b, operations.Teardown())
