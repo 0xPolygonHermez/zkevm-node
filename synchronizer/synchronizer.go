@@ -70,7 +70,7 @@ func (s *ClientSynchronizer) Sync() error {
 	lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx, dbTx)
 	if err != nil {
 		if err == state.ErrStateNotSynchronized {
-			log.Warn("error getting the latest ethereum block. No data stored. Setting genesis block. Error: ", err)
+			log.Info("State is empty, setting genesis block")
 			lastEthBlockSynced = &state.Block{
 				BlockNumber: s.genBlockNumber,
 			}
