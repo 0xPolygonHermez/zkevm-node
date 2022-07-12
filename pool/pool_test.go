@@ -71,7 +71,7 @@ func Test_AddTx(t *testing.T) {
 			common.HexToAddress("0xb48cA794d49EeC406A5dD2c547717e37b5952a83"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
+	_, err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -144,7 +144,7 @@ func Test_GetPendingTxs(t *testing.T) {
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
+	_, err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -210,7 +210,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
+	_, err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -278,7 +278,7 @@ func Test_UpdateTxsState(t *testing.T) {
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
+	_, err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -346,7 +346,7 @@ func Test_UpdateTxState(t *testing.T) {
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
+	_, err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -445,7 +445,7 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
+	_, err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -511,7 +511,7 @@ func TestGetPendingTxSince(t *testing.T) {
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
+	_, err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -613,7 +613,7 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
+	_, err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}

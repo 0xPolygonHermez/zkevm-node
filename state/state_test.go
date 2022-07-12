@@ -29,10 +29,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	ether155V = 27
-)
-
 var (
 	testState    *state.State
 	stateTree    *merkletree.StateTree
@@ -133,7 +129,7 @@ func TestProcessCloseBatch(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	_, err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	// processingCtx1 := state.ProcessingContext{
@@ -158,7 +154,7 @@ func TestOpenCloseBatch(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	_, err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	processingCtx1 := state.ProcessingContext{
@@ -531,8 +527,36 @@ func TestGenesis(t *testing.T) {
 		SmartContracts: smartContracts,
 		Storage:        storage,
 	}
-	err := testState.SetGenesis(ctx, genesis, nil)
+	stateRoot, err := testState.SetGenesis(ctx, genesis, nil)
 	require.NoError(t, err)
+
+	// Check Balances
+	balance, err := stateTree.GetBalance(ctx, common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"), stateRoot)
+	require.NoError(t, err)
+	require.Equal(t, balances[common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA")], balance)
+
+	balance, err = stateTree.GetBalance(ctx, common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"), stateRoot)
+	require.NoError(t, err)
+	require.Equal(t, balances[common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB")], balance)
+
+	// Check Nonces
+	nonce, err := stateTree.GetNonce(ctx, common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"), stateRoot)
+	require.NoError(t, err)
+	require.Equal(t, nonces[common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA")], nonce)
+
+	nonce, err = stateTree.GetNonce(ctx, common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"), stateRoot)
+	require.NoError(t, err)
+	require.Equal(t, nonces[common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB")], nonce)
+
+	// Check smart contracts
+	sc, err := stateTree.GetCode(ctx, common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"), stateRoot)
+	require.NoError(t, err)
+	require.Equal(t, smartContracts[common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA")], sc)
+
+	// Check Storage
+	st, err := stateTree.GetStorageAt(ctx, common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"), new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")), stateRoot)
+	require.NoError(t, err)
+	require.Equal(t, storage[common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032")][new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002"))], st)
 }
 
 func TestCheckSupersetBatchTransactions(t *testing.T) {
@@ -617,7 +641,7 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	_, err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	processingCtx1 := state.ProcessingContext{
@@ -930,7 +954,7 @@ func TestExecutorTransfer(t *testing.T) {
 	genesis := state.Genesis{
 		Balances: balances,
 	}
-	err := testState.SetGenesis(ctx, genesis, nil)
+	stateRoot, err := testState.SetGenesis(ctx, genesis, nil)
 	require.NoError(t, err)
 
 	// Create transaction
@@ -959,7 +983,7 @@ func TestExecutorTransfer(t *testing.T) {
 		BatchNum:             1,
 		Coinbase:             senderAddress.String(),
 		BatchL2Data:          batchL2Data,
-		OldStateRoot:         common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldStateRoot:         stateRoot,
 		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:         uint64(0),
@@ -968,9 +992,15 @@ func TestExecutorTransfer(t *testing.T) {
 		GenerateCallTrace:    0,
 	}
 
+	// Read Sender Balance before execution
+	balance, err := stateTree.GetBalance(ctx, receiverAddress, processBatchRequest.OldStateRoot)
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), balance.Uint64())
+
 	// Read Receiver Balance before execution
-	// balance, err := stateTree.GetBalance(ctx, receiverAddress, processBatchRequest.OldStateRoot)
-	// require.NoError(t, err)
+	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchRequest.OldStateRoot)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1000), balance.Uint64())
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
@@ -980,7 +1010,7 @@ func TestExecutorTransfer(t *testing.T) {
 	log.Debugf("new state root=%v", common.BytesToHash(processBatchResponse.Responses[0].StateRoot))
 
 	// Read Receiver Balance
-	balance, err := stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
+	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
 	require.NoError(t, err)
 
 	log.Debugf("Balance:%v", balance.Uint64())

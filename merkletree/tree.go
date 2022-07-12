@@ -229,7 +229,7 @@ func (tree *StateTree) get(ctx context.Context, root, key []uint64) (*Proof, err
 	result, err := tree.grpcClient.Get(ctx, &pb.GetRequest{
 		Root:    &pb.Fea{Fe0: root[0], Fe1: root[1], Fe2: root[2], Fe3: root[3]},
 		Key:     &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
-		Details: false,
+		Details: true,
 	})
 	if err != nil {
 		return nil, err

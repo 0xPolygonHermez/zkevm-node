@@ -123,7 +123,9 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 		genesis.Balances[common.HexToAddress(address)] = &balance
 	}
 
-	return m.st.SetGenesis(m.ctx, genesis, nil)
+	_, err := m.st.SetGenesis(m.ctx, genesis, nil)
+
+	return err
 }
 
 // ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks

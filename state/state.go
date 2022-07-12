@@ -588,7 +588,7 @@ func (s *State) GetTree() *merkletree.StateTree {
 }
 
 // SetGenesis populates state with genesis information
-func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) error {
+func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) ([]byte, error) {
 	var (
 		root    common.Hash
 		newRoot []byte
@@ -599,7 +599,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 		for address, balance := range genesis.Balances {
 			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
 			if err != nil {
-				return err
+				return newRoot, err
 			}
 		}
 	}
@@ -608,7 +608,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 		for address, sc := range genesis.SmartContracts {
 			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot)
 			if err != nil {
-				return err
+				return newRoot, err
 			}
 		}
 	}
@@ -618,7 +618,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 			for key, value := range storage {
 				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
 				if err != nil {
-					return err
+					return newRoot, err
 				}
 			}
 		}
@@ -628,7 +628,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 		for address, nonce := range genesis.Nonces {
 			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
 			if err != nil {
-				return err
+				return newRoot, err
 			}
 		}
 	}
@@ -651,7 +651,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 
 	err = s.storeGenesisBatch(ctx, batch, dbTx)
 	if err != nil {
-		return err
+		return newRoot, err
 	}
 
 	// Store L2 Genesis Block
@@ -664,7 +664,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 	block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	block.ReceivedAt = receivedAt
 
-	return s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, block, []*types.Receipt{}, dbTx)
+	return newRoot, s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, block, []*types.Receipt{}, dbTx)
 }
 
 // CheckSupersetBatchTransactions verifies that processedTransactions is a

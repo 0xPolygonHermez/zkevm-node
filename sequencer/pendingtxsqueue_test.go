@@ -58,7 +58,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
+	_, err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -139,7 +139,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
+	_, err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		panic(err)
 	}
