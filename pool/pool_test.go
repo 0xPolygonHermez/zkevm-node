@@ -257,11 +257,11 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 
 func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	ctx := context.Background()
-	if err := dbutils.InitOrReset(cfg); err != nil {
+	if err := dbutils.InitOrReset(dbCfg); err != nil {
 		panic(err)
 	}
 
-	sqlDB, err := db.NewSQLDB(cfg)
+	sqlDB, err := db.NewSQLDB(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -273,17 +273,16 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	genesisBlock.ReceivedAt = time.Now()
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Block: genesisBlock,
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, "")
+	err = st.SetGenesis(context.Background(), genesis, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(cfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
 		t.Error(err)
 	}

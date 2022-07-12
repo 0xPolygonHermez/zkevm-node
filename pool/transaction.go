@@ -34,6 +34,7 @@ type Transaction struct {
 	ReceivedAt time.Time
 }
 
+// ZkCounters counters for the tx
 type ZkCounters struct {
 	CumulativeGasUsed    int64
 	UsedKeccakHashes     int32
@@ -45,6 +46,7 @@ type ZkCounters struct {
 	UsedSteps            int32
 }
 
+// IsZkCountersBelowZero checks if any of the counters are below zero
 func (zkc *ZkCounters) IsZkCountersBelowZero() bool {
 	return zkc.CumulativeGasUsed < 0 ||
 		zkc.UsedArithmetics < 0 ||

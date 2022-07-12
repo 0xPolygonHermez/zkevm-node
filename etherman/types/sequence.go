@@ -18,6 +18,7 @@ type Sequence struct {
 	pool.ZkCounters
 }
 
+// IsEmpty checks is sequence struct is empty
 func (s Sequence) IsEmpty() bool {
 	return reflect.DeepEqual(s, Sequence{})
 }
