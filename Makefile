@@ -194,6 +194,8 @@ run: compile-scs ## Runs all the services
 	$(RUNEXPLORERDB)
 	$(RUNL1NETWORK)
 	sleep 5
+	$(RUNZKPROVER)
+	sleep 5
 	$(RUNPROVER)
 	sleep 2
 	$(RUNSEQUENCER)
