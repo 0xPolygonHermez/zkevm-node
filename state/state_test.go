@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -562,7 +562,7 @@ func TestExecuteTransaction(t *testing.T) {
 		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:         uint64(time.Now().Unix()),
-		UpdateMerkleTree:     0,
+		UpdateMerkleTree:     1,
 		GenerateExecuteTrace: 0,
 		GenerateCallTrace:    0,
 	}
@@ -602,6 +602,30 @@ func TestGenesis(t *testing.T) {
 	}
 	err := testState.SetGenesis(ctx, genesis, nil)
 	require.NoError(t, err)
+
+	// Assert results
+	for addr, expectedBalance := range balances {
+		actualBalance, err := testState.GetBalance(ctx, addr, 0, nil)
+		require.NoError(t, err)
+		assert.Equal(t, expectedBalance, actualBalance)
+	}
+	for addr, expectedNonce := range nonces {
+		actualNonce, err := testState.GetNonce(ctx, addr, 0, nil)
+		require.NoError(t, err)
+		assert.Equal(t, expectedNonce.Uint64(), actualNonce)
+	}
+	// for addr, expectedSC := range smartContracts {
+	// 	actualSC, err := testState.GetCode(ctx, addr, 0, nil)
+	// 	require.NoError(t, err)
+	// 	assert.Equal(t, expectedSC, actualSC)
+	// }
+	// for addr, expectedStorage := range storage {
+	// 	for position, expectedValue := range expectedStorage {
+	// 		actualValue, err := testState.GetStorageAt(ctx, addr, position, 0, nil)
+	// 		require.NoError(t, err)
+	// 		assert.Equal(t, expectedValue, actualValue)
+	// 	}
+	// }
 }
 
 func TestCheckSupersetBatchTransactions(t *testing.T) {
