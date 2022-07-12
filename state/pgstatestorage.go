@@ -1081,6 +1081,7 @@ func (p *PostgresStorage) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx)
 	return &verifiedBatch, nil
 }
 
+// GetStateRootByBatchNumber get state root by batch number
 func (p *PostgresStorage) GetStateRootByBatchNumber(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (common.Hash, error) {
 	const query = "SELECT state_root FROM state.batch WHERE batch_num = $1"
 	var stateRootStr string
@@ -1094,6 +1095,7 @@ func (p *PostgresStorage) GetStateRootByBatchNumber(ctx context.Context, batchNu
 	return common.HexToHash(stateRootStr), nil
 }
 
+// GetLocalExitRootByBatchNumber get local exit root by batch number
 func (p *PostgresStorage) GetLocalExitRootByBatchNumber(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (common.Hash, error) {
 	const query = "SELECT local_exit_root FROM state.batch WHERE batch_num = $1"
 	var localExitRootStr string
@@ -1107,6 +1109,7 @@ func (p *PostgresStorage) GetLocalExitRootByBatchNumber(ctx context.Context, bat
 	return common.HexToHash(localExitRootStr), nil
 }
 
+// GetBlockNumVirtualBatchByBatchNum get block num of virtual batch by block num
 func (p *PostgresStorage) GetBlockNumVirtualBatchByBatchNum(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (uint64, error) {
 	const query = "SELECT block_num FROM state.virtual_batch WHERE batch_num = $1"
 	var blockNum uint64
