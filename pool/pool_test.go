@@ -661,7 +661,7 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 func newState(sqlDB *pgxpool.Pool) *state.State {
 	ctx := context.Background()
 	stateDb := state.NewPostgresStorage(sqlDB)
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}

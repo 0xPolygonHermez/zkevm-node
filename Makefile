@@ -10,7 +10,7 @@ DOCKERCOMPOSEPROVER := zkevm-mock-prover
 DOCKERCOMPOSEEXPLORER := zkevm-explorer
 DOCKERCOMPOSEEXPLORERDB := zkevm-explorer-db
 DOCKERCOMPOSEEXPLORERRPC := zkevm-explorer-json-rpc
-DOCKERCOMPOSEZKPROVER := zkprover
+DOCKERCOMPOSEZKPROVER := zkevm-prover
 
 RUNDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDB)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
@@ -89,7 +89,7 @@ test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race 
 	$(RUNDB); sleep 7
 	$(RUNZKPROVER)
 	sleep 5
-	docker logs zkprover
+	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
 
 .PHONY: test-e2e-group-1
