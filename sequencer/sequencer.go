@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -112,6 +113,7 @@ func (s *Sequencer) trackOldTxs(ctx context.Context) {
 		}
 	}
 }
+
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	if !s.isSynced(ctx) {
 		log.Infof("wait for synchronizer to sync last batch")
@@ -119,17 +121,18 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	log.Infof("synchronizer has synced last batch, checking if current sequence should be closed")
-	if s.shouldCloseSequenceInProgress(ctx) {
-		log.Infof("current sequence should be closed")
-		s.closedSequences = append(s.closedSequences, s.sequenceInProgress)
+	if s.sequenceInProgress.IsEmpty() {
 		newSequence, err := s.newSequence(ctx)
 		if err != nil {
 			log.Errorf("failed to create new sequence, err: %v", err)
-			s.closedSequences = s.closedSequences[:len(s.closedSequences)-1]
 			return
 		}
 		s.sequenceInProgress = newSequence
+	}
+
+	log.Infof("synchronizer has synced last batch, checking if current sequence should be closed")
+	if s.shouldCloseSequenceInProgress(ctx) && !s.closeSequence(ctx) {
+		return
 	}
 
 	log.Infof("checking if current sequence should be sent")
@@ -154,14 +157,18 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	log.Infof("getting pending tx from the pool")
-	tx, ok := s.getMostProfitablePendingTx(ctx)
-	if !ok {
+	zkCounters := s.calculateZkCounters()
+	if zkCounters.IsZkCountersBelowZero() {
+		s.closeSequence(ctx)
 		return
 	}
-
-	if tx == nil {
-		log.Infof("waiting for pending txs...")
+	tx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, zkCounters)
+	if err == pgpoolstorage.ErrNotFound {
+		log.Infof("there is no suitable pending tx in the pool, waiting...")
 		waitTick(ctx, ticker)
+		return
+	} else if err != nil {
+		log.Errorf("failed to get pending tx, err: %v", err)
 		return
 	}
 
@@ -173,7 +180,16 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
 		return
 	}
-
+	s.sequenceInProgress.ZkCounters = pool.ZkCounters{
+		CumulativeGasUsed:    int64(processBatchResp.CumulativeGasUsed),
+		UsedKeccakHashes:     int32(processBatchResp.CntKeccakHashes),
+		UsedPoseidonHashes:   int32(processBatchResp.CntPoseidonHashes),
+		UsedPoseidonPaddings: int32(processBatchResp.CntPoseidonPaddings),
+		UsedMemAligns:        int32(processBatchResp.CntMemAligns),
+		UsedArithmetics:      int32(processBatchResp.CntArithmetics),
+		UsedBinaries:         int32(processBatchResp.CntBinaries),
+		UsedSteps:            int32(processBatchResp.CntSteps),
+	}
 	s.lastStateRoot = processBatchResp.NewStateRoot
 	s.lastLocalExitRoot = processBatchResp.NewLocalExitRoot
 
@@ -189,6 +205,19 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	_ = s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected)
 
 	log.Infof("TODO: broadcast tx in a new l2 block")
+}
+
+func (s *Sequencer) closeSequence(ctx context.Context) bool {
+	log.Infof("current sequence should be closed")
+	s.closedSequences = append(s.closedSequences, s.sequenceInProgress)
+	newSequence, err := s.newSequence(ctx)
+	if err != nil {
+		log.Errorf("failed to create new sequence, err: %v", err)
+		s.closedSequences = s.closedSequences[:len(s.closedSequences)-1]
+		return false
+	}
+	s.sequenceInProgress = newSequence
+	return true
 }
 
 func waitTick(ctx context.Context, ticker *time.Ticker) {
@@ -284,19 +313,6 @@ func (s *Sequencer) isSequenceProfitable(ctx context.Context) bool {
 	return isProfitable
 }
 
-func (s *Sequencer) getMostProfitablePendingTx(ctx context.Context) (*pool.Transaction, bool) {
-	tx, err := s.pool.GetPendingTxs(ctx, false, 1)
-	if err != nil {
-		log.Errorf("failed to get pending tx, err: %v", err)
-		return nil, false
-	}
-	if len(tx) == 0 {
-		log.Infof("waiting for pending tx to appear...")
-		return nil, false
-	}
-	return &tx[0], true
-}
-
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	// close current batch
 	if s.lastStateRoot.String() != "" || s.lastLocalExitRoot.String() != "" {
@@ -330,6 +346,19 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		ForceBatchesNum: 0,
 		Txs:             nil,
 	}, nil
+}
+
+func (s *Sequencer) calculateZkCounters() pool.ZkCounters {
+	return pool.ZkCounters{
+		CumulativeGasUsed:    s.cfg.MaxGasUsed - s.sequenceInProgress.CumulativeGasUsed,
+		UsedKeccakHashes:     s.cfg.MaxKeccakHashes - s.sequenceInProgress.UsedKeccakHashes,
+		UsedPoseidonHashes:   s.cfg.MaxPoseidonHashes - s.sequenceInProgress.UsedKeccakHashes,
+		UsedPoseidonPaddings: s.cfg.MaxPoseidonPaddings - s.sequenceInProgress.UsedPoseidonPaddings,
+		UsedMemAligns:        s.cfg.MaxMemAligns - s.sequenceInProgress.UsedMemAligns,
+		UsedArithmetics:      s.cfg.MaxArithmetics - s.sequenceInProgress.UsedArithmetics,
+		UsedBinaries:         s.cfg.MaxBinaries - s.sequenceInProgress.UsedBinaries,
+		UsedSteps:            s.cfg.MaxSteps - s.sequenceInProgress.UsedSteps,
+	}
 }
 
 func isDataForEthTxTooBig(err error) bool {
