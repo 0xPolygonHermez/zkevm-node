@@ -1050,6 +1050,76 @@ func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*typ
 	return block, nil
 }
 
+// GetLastVerifiedBatchNumberSeenOnEthereum gets last verified batch number seen on ethereum
+func (p *PostgresStorage) GetLastVerifiedBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	const getLastVerifiedBatchSeenSQL = "SELECT last_batch_num_verified FROM state.sync_info LIMIT 1"
+	var batchNumber uint64
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getLastVerifiedBatchSeenSQL).Scan(&batchNumber)
+	if err != nil {
+		return 0, err
+	}
+	return batchNumber, nil
+}
+
+// GetLastVerifiedBatch gets last verified batch
+func (p *PostgresStorage) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*VerifiedBatch, error) {
+	const query = "SELECT block_num, batch_num, tx_hash, aggregator FROM state.verified_batch ORDER BY batch_num DESC LIMIT 1"
+	var (
+		verifiedBatch VerifiedBatch
+		txHash, agg   string
+	)
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, query).Scan(&verifiedBatch.BlockNumber, &verifiedBatch.BatchNumber, &txHash, &agg)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	verifiedBatch.Aggregator = common.HexToAddress(agg)
+	verifiedBatch.TxHash = common.HexToHash(txHash)
+	return &verifiedBatch, nil
+}
+
+func (p *PostgresStorage) GetStateRootByBatchNumber(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (common.Hash, error) {
+	const query = "SELECT state_root FROM state.batch WHERE batch_num = $1"
+	var stateRootStr string
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, query, batchNum).Scan(&stateRootStr)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return common.Hash{}, ErrNotFound
+	} else if err != nil {
+		return common.Hash{}, err
+	}
+	return common.HexToHash(stateRootStr), nil
+}
+
+func (p *PostgresStorage) GetLocalExitRootByBatchNumber(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (common.Hash, error) {
+	const query = "SELECT local_exit_root FROM state.batch WHERE batch_num = $1"
+	var localExitRootStr string
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, query, batchNum).Scan(&localExitRootStr)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return common.Hash{}, ErrNotFound
+	} else if err != nil {
+		return common.Hash{}, err
+	}
+	return common.HexToHash(localExitRootStr), nil
+}
+
+func (p *PostgresStorage) GetBlockNumVirtualBatchByBatchNum(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (uint64, error) {
+	const query = "SELECT block_num FROM state.virtual_batch WHERE batch_num = $1"
+	var blockNum uint64
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, query, batchNum).Scan(&blockNum)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+	return blockNum, nil
+}
+
 // GetL2BlockByHash gets a l2 block from its hash
 func (p *PostgresStorage) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Block, error) {
 	header := &types.Header{}

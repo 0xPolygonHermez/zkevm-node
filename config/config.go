@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -47,15 +48,15 @@ const (
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	Log          log.Config
-	Database     db.Config
-	Etherman     etherman.Config
-	EthTxManager ethtxmanager.Config
-	RPC          jsonrpc.Config
-	Synchronizer synchronizer.Config
-	Sequencer    sequencer.Config
-	PriceGetter  pricegetter.Config
-	// Aggregator        aggregator.Config
+	Log               log.Config
+	Database          db.Config
+	Etherman          etherman.Config
+	EthTxManager      ethtxmanager.Config
+	RPC               jsonrpc.Config
+	Synchronizer      synchronizer.Config
+	Sequencer         sequencer.Config
+	PriceGetter       pricegetter.Config
+	Aggregator        aggregator.Config
 	Prover            proverclient.Config
 	NetworkConfig     NetworkConfig
 	GasPriceEstimator gasprice.Config
