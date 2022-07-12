@@ -8,6 +8,9 @@ import (
 	"net/http"
 )
 
+// JSONRPCCall executes a 2.0 JSON RPC HTTP Post Request to the provided URL with
+// the provided method and parameters, which is compatible with the Ethereum
+// JSON RPC Server.
 func JSONRPCCall(url, method string, parameters ...interface{}) (Response, error) {
 	const jsonRPCVersion = "2.0"
 
