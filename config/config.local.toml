@@ -20,6 +20,7 @@ PrivateKeyPassword = "testonly"
 Host = "0.0.0.0"
 Port = 8123
 MaxRequestsPerIPAndSecond = 50
+TrustedNodeURI = ""
 
 [Synchronizer]
 SyncInterval = "1s"

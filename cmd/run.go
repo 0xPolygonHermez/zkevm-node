@@ -95,7 +95,7 @@ func start(cliCtx *cli.Context) error {
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
 			}
-			go runJSONRPCServer(*c, npool, st, c.RPC.ChainID, gpe, apis)
+			go runJSONRPCServer(*c, npool, st, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
 			go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, ch)
@@ -145,13 +145,13 @@ func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Clie
 	}
 }
 
-func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, chainID uint64, gpe gasPriceEstimator, apis map[string]bool) {
+func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gasPriceEstimator, apis map[string]bool) {
 	storage, err := jsonrpc.NewPostgresStorage(c.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := jsonrpc.NewServer(c.RPC, chainID, pool, st, gpe, storage, apis).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, pool, st, gpe, storage, apis).Start(); err != nil {
 		log.Fatal(err)
 	}
 }

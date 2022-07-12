@@ -1,10 +1,7 @@
 package jsonrpc
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -13,9 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockedServer struct {
-	ChainID uint64
+const (
+	host                      = "localhost"
+	maxRequestsPerIPAndSecond = 1000
+)
 
+type mockedServer struct {
 	Server    *Server
 	ServerURL string
 }
@@ -28,21 +28,7 @@ type mocks struct {
 	DbTx              *dbTxMock
 }
 
-func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
-	const (
-		chainID = 999
-
-		host                      = "localhost"
-		port                      = 8123
-		maxRequestsPerIPAndSecond = 1000
-	)
-
-	cfg := Config{
-		Host:                      host,
-		Port:                      port,
-		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
-		ChainID:                   1001,
-	}
+func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclient.Client) {
 	pool := newPoolMock(t)
 	state := newStateMock(t)
 	gasPriceEstimator := newGasPriceEstimatorMock(t)
@@ -57,8 +43,7 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 		APIWeb3:   true,
 	}
 
-	server := NewServer(cfg, chainID,
-		pool, state, gasPriceEstimator, storage, apis)
+	server := NewServer(cfg, pool, state, gasPriceEstimator, storage, apis)
 
 	go func() {
 		err := server.Start()
@@ -82,7 +67,6 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	require.NoError(t, err)
 
 	msv := &mockedServer{
-		ChainID:   chainID,
 		Server:    server,
 		ServerURL: serverURL,
 	}
@@ -98,6 +82,27 @@ func newMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	return msv, mks, ethClient
 }
 
+func newTrustedMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
+	cfg := Config{
+		Host:                      host,
+		Port:                      8123,
+		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
+	}
+
+	return newMockedServer(t, cfg)
+}
+
+func newPermissionlessMockedServer(t *testing.T, trustedNodeURL string) (*mockedServer, *mocks, *ethclient.Client) {
+	cfg := Config{
+		Host:                      host,
+		Port:                      8124,
+		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
+		TrustedNodeURI:            trustedNodeURL,
+	}
+
+	return newMockedServer(t, cfg)
+}
+
 func (s *mockedServer) Stop() {
 	err := s.Server.Stop()
 	if err != nil {
@@ -106,51 +111,5 @@ func (s *mockedServer) Stop() {
 }
 
 func (s *mockedServer) JSONRPCCall(method string, parameters ...interface{}) (Response, error) {
-	params, err := json.Marshal(parameters)
-	if err != nil {
-		return Response{}, err
-	}
-
-	req := Request{
-		JSONRPC: "2.0",
-		ID:      float64(1),
-		Method:  method,
-		Params:  params,
-	}
-
-	reqBody, err := json.Marshal(req)
-	if err != nil {
-		return Response{}, err
-	}
-
-	reqBodyReader := bytes.NewReader(reqBody)
-	httpReq, err := http.NewRequest(http.MethodPost, s.ServerURL, reqBodyReader)
-	if err != nil {
-		return Response{}, err
-	}
-
-	httpReq.Header.Add("Content-type", "application/json")
-
-	httpRes, err := http.DefaultClient.Do(httpReq)
-	if err != nil {
-		return Response{}, err
-	}
-
-	if httpRes.StatusCode != http.StatusOK {
-		return Response{}, fmt.Errorf("Invalid status code, expected: %v, found: %v", http.StatusOK, httpRes.StatusCode)
-	}
-
-	resBody, err := io.ReadAll(httpRes.Body)
-	if err != nil {
-		return Response{}, err
-	}
-	defer httpRes.Body.Close()
-
-	var res Response
-	err = json.Unmarshal(resBody, &res)
-	if err != nil {
-		return Response{}, err
-	}
-
-	return res, nil
+	return JSONRPCCall(s.ServerURL, method, parameters...)
 }

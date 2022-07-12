@@ -28,7 +28,7 @@ FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
 Host = "0.0.0.0"
 Port = 8123
 MaxRequestsPerIPAndSecond = 50
-ChainID = 1001
+TrustedNodeURI = ""
 
 [Synchronizer]
 SyncInterval = "0s"
