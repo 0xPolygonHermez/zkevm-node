@@ -40,7 +40,7 @@ func (tree *StateTree) GetBalance(ctx context.Context, address common.Address, r
 	if proof == nil || proof.Value == nil {
 		return big.NewInt(0), nil
 	}
-	return fea2scalar(proof.Value), nil
+	return h4ToScalar(proof.Value), nil
 }
 
 // GetNonce returns nonce.
@@ -60,7 +60,7 @@ func (tree *StateTree) GetNonce(ctx context.Context, address common.Address, roo
 	if proof == nil || proof.Value == nil {
 		return big.NewInt(0), nil
 	}
-	return fea2scalar(proof.Value), nil
+	return h4ToScalar(proof.Value), nil
 }
 
 // GetCodeHash returns code hash.
@@ -81,7 +81,7 @@ func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, 
 		return nil, nil
 	}
 
-	valueBi := fea2scalar(proof.Value)
+	valueBi := h4ToScalar(proof.Value)
 	return ScalarToFilledByteSlice(valueBi), nil
 }
 
@@ -118,7 +118,7 @@ func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address,
 	if proof == nil || proof.Value == nil {
 		return big.NewInt(0), nil
 	}
-	return fea2scalar(proof.Value), nil
+	return h4ToScalar(proof.Value), nil
 }
 
 // SetBalance sets balance.
