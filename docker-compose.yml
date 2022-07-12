@@ -179,7 +179,7 @@ services:
     container_name: zkevm-prover
     image: hermeznetwork/zkprover-local@sha256:e9d6696c3a8e0a3f0950930dd8d6111473e9cd22769346a70110d70ec37eb783
     ports:
-      - 50051:50051
+      # - 50051:50051 # Uncoment once the prover integration is ready, and enable the mock in the config file (and remove the zkevm-mock-prover)
       - 50061:50061
       - 50071:50071
     volumes:
