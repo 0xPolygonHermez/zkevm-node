@@ -562,7 +562,7 @@ func TestExecuteTransaction(t *testing.T) {
 		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:         uint64(time.Now().Unix()),
-		UpdateMerkleTree:     0,
+		UpdateMerkleTree:     1,
 		GenerateExecuteTrace: 0,
 		GenerateCallTrace:    0,
 	}
