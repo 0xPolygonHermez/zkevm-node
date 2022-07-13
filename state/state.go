@@ -644,7 +644,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 		BatchNumber:    0,
 		Coinbase:       ZeroAddress,
 		BatchL2Data:    nil,
-		StateRoot:      ZeroHash,
+		StateRoot:      root,
 		LocalExitRoot:  ZeroHash,
 		Timestamp:      receivedAt,
 		Transactions:   []types.Transaction{},
