@@ -258,15 +258,16 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			log.Fatalf("error storing block. BlockNumber: %d, error: %s", blocks[i].BlockNumber, err.Error())
 		}
 		for _, element := range order[blocks[i].BlockHash] {
-			if element.Name == etherman.SequenceBatchesOrder {
+			switch element.Name {
+			case etherman.SequenceBatchesOrder:
 				s.processSequenceBatches(blocks[i].SequencedBatches[element.Pos], blocks[i].BlockNumber, dbTx)
-			} else if element.Name == etherman.ForcedBatchesOrder {
+			case etherman.ForcedBatchesOrder:
 				s.processForcedBatch(blocks[i].ForcedBatches[element.Pos], dbTx)
-			} else if element.Name == etherman.GlobalExitRootsOrder {
+			case etherman.GlobalExitRootsOrder:
 				s.processGlobalExitRoot(blocks[i].GlobalExitRoots[element.Pos], dbTx)
-			} else if element.Name == etherman.SequenceForceBatchesOrder {
+			case etherman.SequenceForceBatchesOrder:
 				s.processSequenceForceBatch(blocks[i].SequencedForceBatches[element.Pos], blocks[i].BlockNumber, dbTx)
-			} else if element.Name == etherman.VerifyBatchOrder {
+			case etherman.VerifyBatchOrder:
 				s.processVerifiedBatch(blocks[i].VerifiedBatches[element.Pos], dbTx)
 			}
 		}

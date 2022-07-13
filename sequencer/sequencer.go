@@ -249,7 +249,6 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		log.Errorf("failed to begin state transaction for StoreTransactions, err: %v", err)
 		return
 	}
-
 	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processBatchResp.Responses, dbTx)
 	if err != nil {
 		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
@@ -391,7 +390,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		}
 		dbTx, err := s.state.BeginStateTransaction(ctx)
 		if err != nil {
-			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %v", err)
+			return types.Sequence{}, fmt.Errorf("failed to begin state transaction to close batch, err: %v", err)
 		}
 		err = s.state.CloseBatch(ctx, receipt, dbTx)
 		if err != nil {
@@ -410,11 +409,15 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		return types.Sequence{}, errors.New("lastStateRoot and lastLocalExitRoot are empty, impossible to close a batch")
 	}
 	// open next batch
+	var gerHash common.Hash
 	ger, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
-	if err != nil {
+	if err != nil && err == state.ErrNotFound {
+		gerHash = state.ZeroHash
+	} else if err != nil {
 		return types.Sequence{}, fmt.Errorf("failed to get latest global exit root, err: %v", err)
+	} else {
+		gerHash = ger.GlobalExitRoot
 	}
-	gerHash := ger.GlobalExitRoot
 
 	lastBatchNum, err := s.state.GetLastBatchNumber(ctx, nil)
 	if err != nil {

@@ -947,7 +947,6 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			return err
 		}
 		decoded := string(binary)
-
 		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), "", encoded, decoded, l2Block.Number().Uint64())
 		if err != nil {
 			return err
