@@ -6,5 +6,8 @@ type Config struct {
 	Port int    `mapstructure:"Port"`
 
 	MaxRequestsPerIPAndSecond float64 `mapstructure:"MaxRequestsPerIPAndSecond"`
-	ChainID                   uint64  `mapstructure:"ChainID"`
+
+	// SequencerNodeURI is used allow Non-Sequencer nodes
+	// to relay transactions to the Sequencer node
+	SequencerNodeURI string `mapstructure:"URI"`
 }

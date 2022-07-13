@@ -37,38 +37,38 @@ type Server struct {
 }
 
 // NewServer returns the JsonRPC server
-func NewServer(cfg Config, chainID uint64, p jsonRPCTxPool, s stateInterface,
+func NewServer(cfg Config, p jsonRPCTxPool, s stateInterface,
 	gpe gasPriceEstimator, storage storageInterface, apis map[string]bool) *Server {
 	handler := newJSONRpcHandler()
 
 	if _, ok := apis[APIEth]; ok {
-		ethEndpoints := &Eth{chainID: chainID, pool: p, state: s, gpe: gpe, storage: storage}
+		ethEndpoints := &Eth{cfg: cfg, pool: p, state: s, gpe: gpe, storage: storage}
 		handler.registerService(APIEth, ethEndpoints)
 	}
 
 	if _, ok := apis[APINet]; ok {
-		netEndpoints := &Net{chainID: chainID}
-		handler.registerService("net", netEndpoints)
+		netEndpoints := &Net{}
+		handler.registerService(APINet, netEndpoints)
 	}
 
 	if _, ok := apis[APIHez]; ok {
 		hezEndpoints := &Hez{state: s}
-		handler.registerService("hez", hezEndpoints)
+		handler.registerService(APIHez, hezEndpoints)
 	}
 
 	if _, ok := apis[APITxPool]; ok {
 		txPoolEndpoints := &TxPool{}
-		handler.registerService("txpool", txPoolEndpoints)
+		handler.registerService(APITxPool, txPoolEndpoints)
 	}
 
 	if _, ok := apis[APIDebug]; ok {
 		debugEndpoints := &Debug{state: s}
-		handler.registerService("debug", debugEndpoints)
+		handler.registerService(APIDebug, debugEndpoints)
 	}
 
 	if _, ok := apis[APIWeb3]; ok {
 		web3Endpoints := &Web3{}
-		handler.registerService("web3", web3Endpoints)
+		handler.registerService(APIWeb3, web3Endpoints)
 	}
 
 	srv := &Server{
@@ -256,6 +256,10 @@ func handleError(w http.ResponseWriter, err error) {
 }
 
 func rpcErrorResponse(code int, errorMessage string, err error) (interface{}, rpcError) {
-	log.Errorf("%v:%v", errorMessage, err)
+	if err != nil {
+		log.Errorf("%v:%v", errorMessage, err)
+	} else {
+		log.Errorf("%v", errorMessage)
+	}
 	return nil, newRPCError(code, errorMessage)
 }

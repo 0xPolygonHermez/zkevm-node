@@ -89,16 +89,24 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 200,
 		},
 		{
+			path:          "RPC.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
+			path:          "RPC.Port",
+			expectedValue: int(8123),
+		},
+		{
+			path:          "RPC.SequencerNodeURI",
+			expectedValue: "",
+		},
+		{
 			path:          "RPC.MaxRequestsPerIPAndSecond",
 			expectedValue: float64(50),
 		},
 		{
 			path:          "Executor.URI",
 			expectedValue: "51.210.116.237:50071",
-		},
-		{
-			path:          "RPC.ChainID",
-			expectedValue: uint64(1001),
 		},
 		{
 			path:          "BroadcastServer.Host",
