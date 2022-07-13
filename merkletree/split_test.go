@@ -301,3 +301,80 @@ func Test_h4ToFilledByteSlice(t *testing.T) {
 		})
 	}
 }
+
+func Test_string2fea(t *testing.T) {
+	tcs := []struct {
+		input            string
+		expectedOutput   []uint64
+		expectedError    bool
+		expectedErrorMsg string
+	}{
+		{
+			input:          "0",
+			expectedOutput: []uint64{0, 0, 0, 0, 0, 0, 0, 0},
+		},
+		{
+			input:          "10",
+			expectedOutput: []uint64{16, 0, 0, 0, 0, 0, 0, 0},
+		},
+		{
+			input:          "256",
+			expectedOutput: []uint64{598, 0, 0, 0, 0, 0, 0, 0},
+		},
+		{
+			input:          "6195423570985008687907853269984665640564039457584007913129639935",
+			expectedOutput: []uint64{694393141, 1074237745, 60053336, 1701053796, 845781062, 1752762245, 1889030152, 1637171765},
+		},
+		{
+			input:          "deadbeef",
+			expectedOutput: []uint64{3735928559, 0, 0, 0, 0, 0, 0, 0},
+		},
+		{
+			input:            "deadbeefs",
+			expectedError:    true,
+			expectedErrorMsg: `Could not convert "deadbeefs" into big int`,
+		},
+	}
+	for i, tc := range tcs {
+		tc := tc
+		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+			actualOutput, err := string2fea(tc.input)
+			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
+
+			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func Test_fea2string(t *testing.T) {
+	tcs := []struct {
+		input            []uint64
+		expectedOutput   string
+		expectedError    bool
+		expectedErrorMsg string
+	}{
+		{
+			input:          []uint64{0, 0, 0, 0, 0, 0, 0, 0},
+			expectedOutput: "0x0000000000000000000000000000000000000000000000000000000000000000",
+		},
+		{
+			input:          []uint64{16, 0, 0, 0, 0, 0, 0, 0},
+			expectedOutput: "0x0000000000000000000000000000000000000000000000000000000000000010",
+		},
+		{
+			input:          []uint64{598, 0, 0, 0, 0, 0, 0, 0},
+			expectedOutput: "0x0000000000000000000000000000000000000000000000000000000000000256",
+		},
+		{
+			input:          []uint64{694393141, 1074237745, 60053336, 1701053796, 845781062, 1752762245, 1889030152, 1637171765},
+			expectedOutput: "0x6195423570985008687907853269984665640564039457584007913129639935",
+		},
+	}
+	for i, tc := range tcs {
+		tc := tc
+		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+			actualOutput := fea2string(tc.input)
+			require.Equal(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
