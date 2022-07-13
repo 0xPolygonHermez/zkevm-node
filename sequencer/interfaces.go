@@ -32,6 +32,7 @@ type etherman interface {
 	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error)
 	GetSendSequenceFee() (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
+	GetLatestBatchNumber() (uint64, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.

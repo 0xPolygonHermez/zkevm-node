@@ -72,13 +72,18 @@ func New(
 
 // Start starts the sequencer
 func (s *Sequencer) Start(ctx context.Context) {
+	for !s.isSynced(ctx) {
+		log.Infof("waiting for synchronizer to sync...")
+		time.Sleep(2 * time.Second)
+	}
 	// initialize sequence
-	batchNum, err := s.state.GetLastBatchNumber(context.Background(), nil)
+	batchNum, err := s.state.GetLastBatchNumber(ctx, nil)
 	if err != nil {
-		log.Fatalf("failed to get last bnatch number, err: %v", err)
+		log.Fatalf("failed to get last batch number, err: %v", err)
 	}
 	// case A: genesis
 	if batchNum == 0 {
+		log.Infof("starting sequencer with genesis batch")
 		processingCtx := state.ProcessingContext{
 			BatchNumber:    1,
 			Coinbase:       s.address,
@@ -87,7 +92,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		}
 		dbTx, err := s.state.BeginStateTransaction(ctx)
 		if err != nil {
-			log.Fatalf("failed to close batch, err: %v", err)
+			log.Fatalf("failed to begin state transaction for opening a batch, err: %v", err)
 		}
 		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
 		if err != nil {
@@ -97,6 +102,10 @@ func (s *Sequencer) Start(ctx context.Context) {
 					rollbackErr, err,
 				)
 			}
+			log.Fatalf("failed to open a batch, err: %v", err)
+		}
+		if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+			log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
 		}
 		s.sequenceInProgress = types.Sequence{
 			GlobalExitRoot:  processingCtx.GlobalExitRoot,
@@ -240,11 +249,11 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 
 func (s *Sequencer) isSynced(ctx context.Context) bool {
 	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
-	if err != nil {
+	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get last synced batch, err: %v", err)
 		return false
 	}
-	lastEthBatchNum, err := s.state.GetLastBatchNumberSeenOnEthereum(ctx, nil)
+	lastEthBatchNum, err := s.etherman.GetLatestBatchNumber()
 	if err != nil {
 		log.Errorf("failed to get last eth batch, err: %v", err)
 		return false
@@ -262,18 +271,19 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 	estimatedGas, err := s.etherman.EstimateGasSequenceBatches(s.closedSequences)
 	if err != nil && isDataForEthTxTooBig(err) {
+		log.Warnf("closedSequences eth data is too big, err: %v", err)
 		return true, true
 	}
 
 	if err != nil {
-		log.Errorf("failed to estimate gas for sequence batches", err)
+		log.Errorf("failed to estimate gas for sequence batches, err: %v", err)
 		return false, false
 	}
 
 	// TODO: checkAgainstForcedBatchQueueTimeout
 
 	lastBatchVirtualizationTime, err := s.state.GetTimeForLatestBatchVirtualization(ctx, nil)
-	if err != nil {
+	if err != nil && !errors.Is(err, state.ErrNotFound) {
 		log.Errorf("failed to get last l1 interaction time, err: %v", err)
 		return false, false
 	}
@@ -301,7 +311,7 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	}
 
 	lastBatchTime, err := s.state.GetLastBatchTime(ctx, nil)
-	if err != nil {
+	if err != nil && !errors.Is(err, state.ErrNotFound) {
 		log.Errorf("failed to get last batch time, err: %v", err)
 		return false
 	}
@@ -330,7 +340,7 @@ func (s *Sequencer) getMostProfitablePendingTx(ctx context.Context) (*pool.Trans
 	}
 	if len(tx) == 0 {
 		log.Infof("waiting for pending tx to appear...")
-		return nil, false
+		return nil, true
 	}
 	return &tx[0], true
 }
@@ -409,6 +419,6 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 
 func isDataForEthTxTooBig(err error) bool {
 	return strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
-		errors.As(err, &core.ErrOversizedData) ||
+		errors.Is(err, core.ErrOversizedData) ||
 		strings.Contains(err.Error(), errContentLengthTooLarge)
 }

@@ -64,6 +64,9 @@ func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Seque
 
 // IsSendSequencesProfitable checks profitability to send sequences to the ethereum
 func (c *Checker) IsSendSequencesProfitable(estimatedGas *big.Int, sequences []types.Sequence) bool {
+	if len(sequences) == 0 {
+		return false
+	}
 	if c.Config.SendBatchesEvenWhenNotProfitable {
 		return true
 	}
