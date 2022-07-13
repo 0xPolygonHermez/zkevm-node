@@ -242,7 +242,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			if isEVMRevertError(error) {
 				// The EVM reverted during execution, attempt to extract the
 				// error message and return it
-				return true, constructErrorFromRevert(error, processBatchResponse.Responses[0].ReturnValue)
+				return true, ConstructErrorFromRevert(error, processBatchResponse.Responses[0].ReturnValue)
 			}
 
 			return true, error

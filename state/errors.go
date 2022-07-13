@@ -46,7 +46,8 @@ var (
 	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
 )
 
-func constructErrorFromRevert(err error, returnValue []byte) error {
+// ConstructErrorFromRevert tries to extract the revert reason from the returned value
+func ConstructErrorFromRevert(err error, returnValue []byte) error {
 	revertErrMsg, unpackErr := abi.UnpackRevertError(returnValue)
 	if unpackErr != nil {
 		return err

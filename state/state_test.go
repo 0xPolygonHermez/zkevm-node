@@ -679,6 +679,7 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
+/*
 func TestExecuteTransaction(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -772,6 +773,7 @@ func TestExecuteTransaction(t *testing.T) {
 	// err = ioutil.WriteFile("trace.json", file, 0644)
 	// require.NoError(t, err)
 }
+*/
 
 func TestExecutor(t *testing.T) {
 	var expectedNewRoot = "0xbff23fc2c168c033aaac77503ce18f958e9689d5cdaebb88c5524ce5c0319de3"
@@ -800,10 +802,6 @@ func TestExecutor(t *testing.T) {
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
-	require.NoError(t, err)
-
-	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	err = ioutil.WriteFile("trace.json", file, 0644)
 	require.NoError(t, err)
 
 	assert.Equal(t, common.HexToHash(expectedNewRoot), common.BytesToHash(processBatchResponse.NewStateRoot))
@@ -865,7 +863,7 @@ func TestExecutorRevert(t *testing.T) {
 	err = ioutil.WriteFile("trace.json", file, 0644)
 	require.NoError(t, err)
 
-	// assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
+	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
 }
 
 func TestExecutorLogs(t *testing.T) {
@@ -1008,11 +1006,15 @@ func TestExecutorTransfer(t *testing.T) {
 
 	log.Debugf("new state root=%v", common.BytesToHash(processBatchResponse.Responses[0].StateRoot))
 
+	// Read Sender Balance
+	balance, err = stateTree.GetBalance(ctx, senderAddress, processBatchResponse.Responses[0].StateRoot)
+	require.NoError(t, err)
+	log.Debugf("Balance sender:%v", balance.Uint64())
+
 	// Read Receiver Balance
 	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
 	require.NoError(t, err)
-
-	log.Debugf("Balance:%v", balance.Uint64())
+	log.Debugf("Balance receiver:%v", balance.Uint64())
 
 	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
 	err = ioutil.WriteFile("trace.json", file, 0644)
