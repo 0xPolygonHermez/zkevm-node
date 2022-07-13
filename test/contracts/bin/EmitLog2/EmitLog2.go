@@ -30,8 +30,8 @@ var (
 
 // EmitLog2MetaData contains all meta data concerning the EmitLog2 contract.
 var EmitLog2MetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"a\",\"type\":\"uint256\"}],\"name\":\"LogA\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"emitLogs\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
-	Bin: "0x6080604052348015600f57600080fd5b5060998061001e6000396000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c80637966b4f614602d575b600080fd5b60336035565b005b6040516001907f977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac6290600090a256fea26469706673582212200aed1b5f98749897f641535d09c3f58975b5e30a8dfed8781f982ae3e31fd16e64736f6c634300080c0033",
+	ABI: "[{\"anonymous\":false,\"inputs\":[],\"name\":\"Log\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"a\",\"type\":\"uint256\"}],\"name\":\"LogA\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"a\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"b\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"c\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"d\",\"type\":\"uint256\"}],\"name\":\"LogABCD\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"emitLogs\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b50610101806100206000396000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c80637966b4f614602d575b600080fd5b60336035565b005b6040517f5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a90600090a16040516001907f977224b24e70d33f3be87246a29c5636cfc8dd6853e175b54af01ff493ffac6290600090a26003600260017fe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a64600460405160c191815260200190565b60405180910390a456fea2646970667358221220a898ac615afab4fe6bf2c6b3f55f66eff9c2a50b0605c64082f0020f9fb56a4464736f6c634300080c0033",
 }
 
 // EmitLog2ABI is the input ABI used to generate the binding from.
@@ -222,6 +222,139 @@ func (_EmitLog2 *EmitLog2TransactorSession) EmitLogs() (*types.Transaction, erro
 	return _EmitLog2.Contract.EmitLogs(&_EmitLog2.TransactOpts)
 }
 
+// EmitLog2LogIterator is returned from FilterLog and is used to iterate over the raw logs and unpacked data for Log events raised by the EmitLog2 contract.
+type EmitLog2LogIterator struct {
+	Event *EmitLog2Log // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *EmitLog2LogIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(EmitLog2Log)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(EmitLog2Log)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *EmitLog2LogIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *EmitLog2LogIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// EmitLog2Log represents a Log event raised by the EmitLog2 contract.
+type EmitLog2Log struct {
+	Raw types.Log // Blockchain specific contextual infos
+}
+
+// FilterLog is a free log retrieval operation binding the contract event 0x5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a.
+//
+// Solidity: event Log()
+func (_EmitLog2 *EmitLog2Filterer) FilterLog(opts *bind.FilterOpts) (*EmitLog2LogIterator, error) {
+
+	logs, sub, err := _EmitLog2.contract.FilterLogs(opts, "Log")
+	if err != nil {
+		return nil, err
+	}
+	return &EmitLog2LogIterator{contract: _EmitLog2.contract, event: "Log", logs: logs, sub: sub}, nil
+}
+
+// WatchLog is a free log subscription operation binding the contract event 0x5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a.
+//
+// Solidity: event Log()
+func (_EmitLog2 *EmitLog2Filterer) WatchLog(opts *bind.WatchOpts, sink chan<- *EmitLog2Log) (event.Subscription, error) {
+
+	logs, sub, err := _EmitLog2.contract.WatchLogs(opts, "Log")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(EmitLog2Log)
+				if err := _EmitLog2.contract.UnpackLog(event, "Log", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseLog is a log parse operation binding the contract event 0x5e7df75d54e493185612379c616118a4c9ac802de621b010c96f74d22df4b30a.
+//
+// Solidity: event Log()
+func (_EmitLog2 *EmitLog2Filterer) ParseLog(log types.Log) (*EmitLog2Log, error) {
+	event := new(EmitLog2Log)
+	if err := _EmitLog2.contract.UnpackLog(event, "Log", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
 // EmitLog2LogAIterator is returned from FilterLogA and is used to iterate over the raw logs and unpacked data for LogA events raised by the EmitLog2 contract.
 type EmitLog2LogAIterator struct {
 	Event *EmitLog2LogA // Event containing the contract specifics and raw log
@@ -360,6 +493,169 @@ func (_EmitLog2 *EmitLog2Filterer) WatchLogA(opts *bind.WatchOpts, sink chan<- *
 func (_EmitLog2 *EmitLog2Filterer) ParseLogA(log types.Log) (*EmitLog2LogA, error) {
 	event := new(EmitLog2LogA)
 	if err := _EmitLog2.contract.UnpackLog(event, "LogA", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// EmitLog2LogABCDIterator is returned from FilterLogABCD and is used to iterate over the raw logs and unpacked data for LogABCD events raised by the EmitLog2 contract.
+type EmitLog2LogABCDIterator struct {
+	Event *EmitLog2LogABCD // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *EmitLog2LogABCDIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(EmitLog2LogABCD)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(EmitLog2LogABCD)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *EmitLog2LogABCDIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *EmitLog2LogABCDIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// EmitLog2LogABCD represents a LogABCD event raised by the EmitLog2 contract.
+type EmitLog2LogABCD struct {
+	A   *big.Int
+	B   *big.Int
+	C   *big.Int
+	D   *big.Int
+	Raw types.Log // Blockchain specific contextual infos
+}
+
+// FilterLogABCD is a free log retrieval operation binding the contract event 0xe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a64.
+//
+// Solidity: event LogABCD(uint256 indexed a, uint256 indexed b, uint256 indexed c, uint256 d)
+func (_EmitLog2 *EmitLog2Filterer) FilterLogABCD(opts *bind.FilterOpts, a []*big.Int, b []*big.Int, c []*big.Int) (*EmitLog2LogABCDIterator, error) {
+
+	var aRule []interface{}
+	for _, aItem := range a {
+		aRule = append(aRule, aItem)
+	}
+	var bRule []interface{}
+	for _, bItem := range b {
+		bRule = append(bRule, bItem)
+	}
+	var cRule []interface{}
+	for _, cItem := range c {
+		cRule = append(cRule, cItem)
+	}
+
+	logs, sub, err := _EmitLog2.contract.FilterLogs(opts, "LogABCD", aRule, bRule, cRule)
+	if err != nil {
+		return nil, err
+	}
+	return &EmitLog2LogABCDIterator{contract: _EmitLog2.contract, event: "LogABCD", logs: logs, sub: sub}, nil
+}
+
+// WatchLogABCD is a free log subscription operation binding the contract event 0xe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a64.
+//
+// Solidity: event LogABCD(uint256 indexed a, uint256 indexed b, uint256 indexed c, uint256 d)
+func (_EmitLog2 *EmitLog2Filterer) WatchLogABCD(opts *bind.WatchOpts, sink chan<- *EmitLog2LogABCD, a []*big.Int, b []*big.Int, c []*big.Int) (event.Subscription, error) {
+
+	var aRule []interface{}
+	for _, aItem := range a {
+		aRule = append(aRule, aItem)
+	}
+	var bRule []interface{}
+	for _, bItem := range b {
+		bRule = append(bRule, bItem)
+	}
+	var cRule []interface{}
+	for _, cItem := range c {
+		cRule = append(cRule, cItem)
+	}
+
+	logs, sub, err := _EmitLog2.contract.WatchLogs(opts, "LogABCD", aRule, bRule, cRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(EmitLog2LogABCD)
+				if err := _EmitLog2.contract.UnpackLog(event, "LogABCD", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseLogABCD is a log parse operation binding the contract event 0xe5562b12d9276c5c987df08afff7b1946f2d869236866ea2285c7e2e95685a64.
+//
+// Solidity: event LogABCD(uint256 indexed a, uint256 indexed b, uint256 indexed c, uint256 d)
+func (_EmitLog2 *EmitLog2Filterer) ParseLogABCD(log types.Log) (*EmitLog2LogABCD, error) {
+	event := new(EmitLog2LogABCD)
+	if err := _EmitLog2.contract.UnpackLog(event, "LogABCD", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

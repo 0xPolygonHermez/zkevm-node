@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -1007,7 +1007,7 @@ func TestExecutorLogs(t *testing.T) {
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 
-	log.Debugf("create_address=%v", common.HexToAddress(string(processBatchResponse.Responses[1].CreateAddress)))
+	log.Debugf("create_address=%v", common.HexToAddress(string(processBatchResponse.Responses[0].CreateAddress)))
 
 	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
 	err = ioutil.WriteFile("trace.json", file, 0644)
