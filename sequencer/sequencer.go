@@ -56,6 +56,8 @@ func New(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
+	// TODO: check that private key used in etherman matches addr
+
 	return &Sequencer{
 		cfg:               cfg,
 		pool:              pool,
@@ -70,6 +72,42 @@ func New(
 
 // Start starts the sequencer
 func (s *Sequencer) Start(ctx context.Context) {
+	// initialize sequence
+	batchNum, err := s.state.GetLastBatchNumber(context.Background(), nil)
+	if err != nil {
+		log.Fatalf("failed to get last bnatch number, err: %v", err)
+	}
+	// case A: genesis
+	if batchNum == 0 {
+		processingCtx := state.ProcessingContext{
+			BatchNumber:    1,
+			Coinbase:       s.address,
+			Timestamp:      time.Now(),
+			GlobalExitRoot: state.ZeroHash,
+		}
+		dbTx, err := s.state.BeginStateTransaction(ctx)
+		if err != nil {
+			log.Fatalf("failed to close batch, err: %v", err)
+		}
+		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
+		if err != nil {
+			if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+				log.Fatalf(
+					"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
+					rollbackErr, err,
+				)
+			}
+		}
+		s.sequenceInProgress = types.Sequence{
+			GlobalExitRoot:  processingCtx.GlobalExitRoot,
+			Timestamp:       processingCtx.Timestamp.Unix(),
+			ForceBatchesNum: 0,
+			Txs:             nil,
+		}
+	}
+	// TODO:
+	// case B: ongoing sequence (sequencer stopped with an ongoing batch aka not closed)
+	// case C: else (latest batch is closed and is not genesis)
 	go s.trackReorg(ctx)
 	go s.trackOldTxs(ctx)
 	ticker := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
@@ -254,7 +292,7 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 // in case it's enough blocks since last GER update, long time since last batch and sequence is profitable
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	numberOfBlocks, err := s.state.GetNumberOfBlocksSinceLastGERUpdate(ctx, nil)
-	if err != nil {
+	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get last time GER updated, err: %v", err)
 		return false
 	}
@@ -267,7 +305,7 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 		log.Errorf("failed to get last batch time, err: %v", err)
 		return false
 	}
-	if lastBatchTime.Before(time.Now().Add(-s.cfg.LastTimeBatchMaxWaitPeriod.Duration)) {
+	if lastBatchTime.Before(time.Now().Add(-s.cfg.LastTimeBatchMaxWaitPeriod.Duration)) && len(s.sequenceInProgress.Txs) > 0 {
 		return s.isSequenceProfitable(ctx)
 	}
 
@@ -298,35 +336,72 @@ func (s *Sequencer) getMostProfitablePendingTx(ctx context.Context) (*pool.Trans
 }
 
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
-	// close current batch
 	if s.lastStateRoot.String() != "" || s.lastLocalExitRoot.String() != "" {
 		receipt := state.ProcessingReceipt{
 			BatchNumber:   s.lastBatchNum,
 			StateRoot:     s.lastStateRoot,
 			LocalExitRoot: s.lastLocalExitRoot,
 		}
-		err := s.state.CloseBatch(ctx, receipt, nil)
+		dbTx, err := s.state.BeginStateTransaction(ctx)
 		if err != nil {
 			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %v", err)
+		}
+		err = s.state.CloseBatch(ctx, receipt, dbTx)
+		if err != nil {
+			if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+				return types.Sequence{}, fmt.Errorf(
+					"failed to rollback dbTx when closing batch that gave err: %v. Rollback err: %v",
+					rollbackErr, err,
+				)
+			}
+			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %v", err)
+		}
+		if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+			return types.Sequence{}, fmt.Errorf("failed to commit dbTx when close batch, err: %v", err)
 		}
 	} else {
 		return types.Sequence{}, errors.New("lastStateRoot and lastLocalExitRoot are empty, impossible to close a batch")
 	}
-
-	root, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
+	// open next batch
+	ger, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
 	if err != nil {
 		return types.Sequence{}, fmt.Errorf("failed to get latest global exit root, err: %v", err)
 	}
+	gerHash := ger.GlobalExitRoot
 
-	s.lastBatchNum, err = s.state.GetLastBatchNumber(ctx, nil)
+	lastBatchNum, err := s.state.GetLastBatchNumber(ctx, nil)
 	if err != nil {
 		return types.Sequence{}, fmt.Errorf("failed to get last batch number, err: %v", err)
 	}
-	s.lastBatchNum = s.lastBatchNum + 1
+	newBatchNum := lastBatchNum + 1
+	dbTx, err := s.state.BeginStateTransaction(ctx)
+	if err != nil {
+		return types.Sequence{}, fmt.Errorf("failed to open new batch, err: %v", err)
+	}
+	processingCtx := state.ProcessingContext{
+		BatchNumber:    newBatchNum,
+		Coinbase:       s.address,
+		Timestamp:      time.Now(),
+		GlobalExitRoot: gerHash,
+	}
+	err = s.state.OpenBatch(ctx, processingCtx, dbTx)
+	if err != nil {
+		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+			return types.Sequence{}, fmt.Errorf(
+				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		return types.Sequence{}, fmt.Errorf("failed to open new batch, err: %v", err)
+	}
+	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+		return types.Sequence{}, fmt.Errorf("failed to commit dbTx when opening batch, err: %v", err)
+	}
 
+	s.lastBatchNum = newBatchNum
 	return types.Sequence{
-		GlobalExitRoot:  root.GlobalExitRoot,
-		Timestamp:       time.Now().Unix(),
+		GlobalExitRoot:  processingCtx.GlobalExitRoot,
+		Timestamp:       processingCtx.Timestamp.Unix(),
 		ForceBatchesNum: 0,
 		Txs:             nil,
 	}, nil

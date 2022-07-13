@@ -49,7 +49,12 @@ type stateInterface interface {
 
 	StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*state.ProcessTransactionResponse, dbTx pgx.Tx) error
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
+	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
 	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
+
+	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
+	CommitStateTransaction(ctx context.Context, dbTx pgx.Tx) error
+	RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error
 }
 
 type txManager interface {
