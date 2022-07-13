@@ -136,7 +136,13 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 }
 
 func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st *state.State, cfg synchronizer.Config, reorgBlockNumChan chan struct{}) {
-	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, reorgBlockNumChan, cfg)
+	genesis := state.Genesis{
+		Balances:       networkConfig.Genesis.Balances,
+		SmartContracts: networkConfig.Genesis.SmartContracts,
+		Storage:        networkConfig.Genesis.Storage,
+		Nonces:         networkConfig.Genesis.Nonces,
+	}
+	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, genesis, reorgBlockNumChan, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}

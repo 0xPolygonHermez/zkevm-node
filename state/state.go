@@ -38,42 +38,6 @@ const (
 )
 
 var (
-	// ErrInvalidBatchHeader indicates the batch header is invalid
-	ErrInvalidBatchHeader = errors.New("invalid batch header")
-	// ErrStateNotSynchronized indicates the state database may be empty
-	ErrStateNotSynchronized = errors.New("state not synchronized")
-	// ErrNotFound indicates an object has not been found for the search criteria used
-	ErrNotFound = errors.New("object not found")
-	// ErrNilDBTransaction indicates the db transaction has not been properly initialized
-	ErrNilDBTransaction = errors.New("database transaction not properly initialized")
-	// ErrAlreadyInitializedDBTransaction indicates the db transaction was already initialized
-	ErrAlreadyInitializedDBTransaction = errors.New("database transaction already initialized")
-	// ErrNotEnoughIntrinsicGas indicates the gas is not enough to cover the intrinsic gas cost
-	ErrNotEnoughIntrinsicGas = fmt.Errorf("not enough gas supplied for intrinsic gas costs")
-	// ErrParsingExecutorTrace indicates an error occurred while parsing the executor trace
-	ErrParsingExecutorTrace = fmt.Errorf("error while parsing executor trace")
-	// ErrInvalidBatchNumber indicates the provided batch number is not the latest in db
-	ErrInvalidBatchNumber = errors.New("provided batch number is not latest")
-	// ErrLastBatchShouldBeClosed indicates that last batch needs to be closed before adding a new one
-	ErrLastBatchShouldBeClosed = errors.New("last batch needs to be closed before adding a new one")
-	// ErrBatchAlreadyClosed indicates that batch is already closed
-	ErrBatchAlreadyClosed = errors.New("batch is already closed")
-	// ErrClosingBatchWithoutTxs indicates that the batch attempted to close does not have txs.
-	ErrClosingBatchWithoutTxs = errors.New("can not close a batch without transactions")
-	// ErrTimestampGE indicates that timestamp needs to be greater or equal
-	ErrTimestampGE = errors.New("timestamp needs to be greater or equal")
-	// ErrDBTxNil indicates that the method requires a dbTx that is not nil
-	ErrDBTxNil = errors.New("the method requires a dbTx that is not nil")
-	// ErrExistingTxGreaterThanProcessedTx indicates that we have more txs stored
-	// in db than the txs we weant to process.
-	ErrExistingTxGreaterThanProcessedTx = errors.New("There are more transactions in the database than in the processed transaction set")
-	// ErrOutOfOrderProcessedTx indicates the the processed transactions of an
-	// ongoing batch are not in the same order as the transactions stored in the
-	// database for the same batch.
-	ErrOutOfOrderProcessedTx = errors.New("The processed transactions are not in the same order as the stored transactions")
-)
-
-var (
 	// ZeroHash is the hash 0x0000000000000000000000000000000000000000000000000000000000000000
 	ZeroHash = common.Hash{}
 	// ZeroAddress is the address 0x0000000000000000000000000000000000000000
@@ -165,8 +129,160 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 
 // EstimateGas for a transaction
 func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error) {
-	// TODO: implement
-	return 0, nil
+	var lowEnd uint64
+	var highEnd uint64
+	ctx := context.Background()
+
+	lastBatch, err := s.GetLastBatch(ctx, nil)
+	if err != nil {
+		log.Errorf("failed to get last batch from the state, err: %v", err)
+		return 0, err
+	}
+
+	stateRoot := lastBatch.StateRoot
+
+	if s.isContractCreation(transaction) {
+		lowEnd = TxSmartContractCreationGas
+	} else {
+		lowEnd = TxTransferGas
+	}
+
+	if transaction.Gas() != 0 && transaction.Gas() > lowEnd {
+		highEnd = transaction.Gas()
+	} else {
+		highEnd = s.cfg.MaxCumulativeGasUsed
+	}
+
+	var availableBalance *big.Int
+
+	if senderAddress != ZeroAddress {
+		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, stateRoot.Bytes())
+		if err != nil {
+			if err == ErrNotFound {
+				senderBalance = big.NewInt(0)
+			} else {
+				return 0, err
+			}
+		}
+
+		availableBalance = new(big.Int).Set(senderBalance)
+
+		if transaction.Value() != nil {
+			if transaction.Value().Cmp(availableBalance) > 0 {
+				return 0, ErrInsufficientFunds
+			}
+
+			availableBalance.Sub(availableBalance, transaction.Value())
+		}
+	}
+
+	if transaction.GasPrice().BitLen() != 0 && // Gas price has been set
+		availableBalance != nil && // Available balance is found
+		availableBalance.Cmp(big.NewInt(0)) > 0 { // Available balance > 0
+		gasAllowance := new(big.Int).Div(availableBalance, transaction.GasPrice())
+
+		// Check the gas allowance for this account, make sure high end is capped to it
+		if gasAllowance.IsUint64() && highEnd > gasAllowance.Uint64() {
+			log.Debugf("Gas estimation high-end capped by allowance [%d]", gasAllowance.Uint64())
+			highEnd = gasAllowance.Uint64()
+		}
+	}
+
+	// Checks if executor level valid gas errors occurred
+	isGasApplyError := func(err error) bool {
+		return errors.As(err, &ErrNotEnoughIntrinsicGas)
+	}
+
+	// Checks if EVM level valid gas errors occurred
+	isGasEVMError := func(err error) bool {
+		return errors.Is(err, runtime.ErrOutOfGas) ||
+			errors.Is(err, runtime.ErrCodeStoreOutOfGas)
+	}
+
+	// Checks if the EVM reverted during execution
+	isEVMRevertError := func(err error) bool {
+		return errors.Is(err, runtime.ErrExecutionReverted)
+	}
+
+	// Run the transaction with the specified gas value.
+	// Returns a status indicating if the transaction failed and the accompanying error
+	testTransaction := func(gas uint64, shouldOmitErr bool) (bool, error) {
+		batchL2Data, err := EncodeTransactions([]types.Transaction{*transaction})
+		if err != nil {
+			return false, err
+		}
+
+		// Create a batch to be sent to the executor
+		processBatchRequest := &pb.ProcessBatchRequest{
+			BatchNum:             lastBatch.BatchNumber + 1,
+			Coinbase:             senderAddress.String(),
+			BatchL2Data:          batchL2Data,
+			OldStateRoot:         stateRoot.Bytes(),
+			UpdateMerkleTree:     0,
+			GenerateExecuteTrace: 0,
+			GenerateCallTrace:    0,
+		}
+
+		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+		if err != nil {
+			return false, err
+		}
+
+		// Check if an out of gas error happened during EVM execution
+		if processBatchResponse.Responses[0].Error != "" {
+			error := fmt.Errorf(processBatchResponse.Responses[0].Error)
+
+			if (isGasEVMError(error) || isGasApplyError(error)) && shouldOmitErr {
+				// Specifying the transaction failed, but not providing an error
+				// is an indication that a valid error occurred due to low gas,
+				// which will increase the lower bound for the search
+				return true, nil
+			}
+
+			if isEVMRevertError(error) {
+				// The EVM reverted during execution, attempt to extract the
+				// error message and return it
+				return true, constructErrorFromRevert(error, processBatchResponse.Responses[0].ReturnValue)
+			}
+
+			return true, error
+		}
+
+		return false, nil
+	}
+
+	// Start the binary search for the lowest possible gas price
+	for lowEnd < highEnd {
+		mid := (lowEnd + highEnd) / uint64(two)
+
+		failed, testErr := testTransaction(mid, true)
+		if testErr != nil &&
+			!isEVMRevertError(testErr) {
+			// Reverts are ignored in the binary search, but are checked later on
+			// during the execution for the optimal gas limit found
+			return 0, testErr
+		}
+
+		if failed {
+			// If the transaction failed => increase the gas
+			lowEnd = mid + 1
+		} else {
+			// If the transaction didn't fail => make this ok value the high end
+			highEnd = mid
+		}
+	}
+
+	// Check if the highEnd is a good value to make the transaction pass
+	failed, err := testTransaction(highEnd, false)
+	if failed {
+		// The transaction shouldn't fail, for whatever reason, at highEnd
+		return 0, fmt.Errorf(
+			"unable to apply transaction even for the highest gas limit %d: %w",
+			highEnd,
+			err,
+		)
+	}
+	return highEnd, nil
 }
 
 // OpenBatch adds a new batch into the state, with the necessary data to start processing transactions within it.
@@ -644,7 +760,7 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 		BatchNumber:    0,
 		Coinbase:       ZeroAddress,
 		BatchL2Data:    nil,
-		StateRoot:      ZeroHash,
+		StateRoot:      root,
 		LocalExitRoot:  ZeroHash,
 		Timestamp:      receivedAt,
 		Transactions:   []types.Transaction{},
@@ -684,4 +800,9 @@ func CheckSupersetBatchTransactions(existingTxHashes []common.Hash, processedTxs
 		}
 	}
 	return nil
+}
+
+// isContractCreation checks if the tx is a contract creation
+func (s *State) isContractCreation(tx *types.Transaction) bool {
+	return tx.To() == nil && len(tx.Data()) > 0
 }
