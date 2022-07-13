@@ -71,18 +71,6 @@ func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 
-// CommitStateTransaction commits a state transaction
-func (s *State) CommitStateTransaction(ctx context.Context, dbTx pgx.Tx) error {
-	err := dbTx.Commit(ctx)
-	return err
-}
-
-// RollbackStateTransaction rollbacks a state transaction
-func (s *State) RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error {
-	err := dbTx.Rollback(ctx)
-	return err
-}
-
 // GetBalance from a given address
 func (s *State) GetBalance(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
 	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
