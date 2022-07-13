@@ -92,8 +92,10 @@ func (tree *StateTree) GetCode(ctx context.Context, address common.Address, root
 		return nil, err
 	}
 
+	k := new(big.Int).SetBytes(scCodeHash[:])
+
 	// this code gets actual smart contract code from sc code storage
-	scCode, err := tree.getProgram(ctx, common.Bytes2Hex(scCodeHash))
+	scCode, err := tree.getProgram(ctx, scalarToh4(k))
 	if err != nil {
 		return nil, err
 	}
@@ -244,9 +246,9 @@ func (tree *StateTree) get(ctx context.Context, root, key []uint64) (*Proof, err
 	}, nil
 }
 
-func (tree *StateTree) getProgram(ctx context.Context, hash string) (*ProgramProof, error) {
+func (tree *StateTree) getProgram(ctx context.Context, key []uint64) (*ProgramProof, error) {
 	result, err := tree.grpcClient.GetProgram(ctx, &pb.GetProgramRequest{
-		Hash: hash,
+		Key: &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 	})
 	if err != nil {
 		return nil, err
@@ -288,10 +290,9 @@ func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64) (*
 	}, nil
 }
 
-func (tree *StateTree) setProgram(ctx context.Context, hash []uint64, data []byte, persistent bool) error {
-	h4Hash := h4ToString(hash)
+func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte, persistent bool) error {
 	_, err := tree.grpcClient.SetProgram(ctx, &pb.SetProgramRequest{
-		Hash:       h4Hash,
+		Key:        &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 		Data:       data,
 		Persistent: persistent,
 	})
