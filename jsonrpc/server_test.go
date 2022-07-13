@@ -82,7 +82,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 	return msv, mks, ethClient
 }
 
-func newTrustedMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
+func newSequencerMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Client) {
 	cfg := Config{
 		Host:                      host,
 		Port:                      8123,
@@ -92,12 +92,12 @@ func newTrustedMockedServer(t *testing.T) (*mockedServer, *mocks, *ethclient.Cli
 	return newMockedServer(t, cfg)
 }
 
-func newPermissionlessMockedServer(t *testing.T, trustedNodeURL string) (*mockedServer, *mocks, *ethclient.Client) {
+func newNonSequencerMockedServer(t *testing.T, sequencerNodeURI string) (*mockedServer, *mocks, *ethclient.Client) {
 	cfg := Config{
 		Host:                      host,
 		Port:                      8124,
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
-		TrustedNodeURI:            trustedNodeURL,
+		SequencerNodeURI:          sequencerNodeURI,
 	}
 
 	return newMockedServer(t, cfg)

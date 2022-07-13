@@ -11,7 +11,7 @@ import (
 )
 
 func TestConsolidatedBlockNumber(t *testing.T) {
-	s, m, _ := newTrustedMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {

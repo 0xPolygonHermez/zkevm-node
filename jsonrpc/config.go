@@ -7,7 +7,7 @@ type Config struct {
 
 	MaxRequestsPerIPAndSecond float64 `mapstructure:"MaxRequestsPerIPAndSecond"`
 
-	// TrustedSequencerURI is used allow Permission less nodes
-	// to relay transactions to the Trusted node
-	TrustedNodeURI string `mapstructure:"URI"`
+	// SequencerNodeURI is used allow Non-Sequencer nodes
+	// to relay transactions to the Sequencer node
+	SequencerNodeURI string `mapstructure:"URI"`
 }

@@ -97,7 +97,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: int(8123),
 		},
 		{
-			path:          "RPC.TrustedNodeURI",
+			path:          "RPC.SequencerNodeURI",
 			expectedValue: "",
 		},
 		{

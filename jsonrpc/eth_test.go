@@ -25,7 +25,7 @@ import (
 )
 
 func TestBlockNumber(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -102,7 +102,7 @@ func TestBlockNumber(t *testing.T) {
 }
 
 func TestCall(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -295,7 +295,7 @@ func TestCall(t *testing.T) {
 }
 
 func TestChainID(t *testing.T) {
-	s, _, c := newTrustedMockedServer(t)
+	s, _, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	chainID, err := c.ChainID(context.Background())
@@ -305,7 +305,7 @@ func TestChainID(t *testing.T) {
 }
 
 func TestEstimateGas(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	testCases := []struct {
@@ -368,7 +368,7 @@ func TestEstimateGas(t *testing.T) {
 }
 
 func TestGasPrice(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	testCases := []struct {
@@ -397,7 +397,7 @@ func TestGasPrice(t *testing.T) {
 }
 
 func TestGetBalance(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -627,7 +627,7 @@ func TestGetL2BlockByHash(t *testing.T) {
 		},
 	}
 
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	for _, testCase := range testCases {
@@ -854,7 +854,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 		},
 	}
 
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	for _, testCase := range testCases {
@@ -891,7 +891,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 }
 
 func TestGetUncleByBlockHashAndIndex(t *testing.T) {
-	s, _, _ := newTrustedMockedServer(t)
+	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	res, err := s.JSONRPCCall("eth_getUncleByBlockHashAndIndex", common.HexToHash("0x123").Hex(), "0x1")
@@ -909,7 +909,7 @@ func TestGetUncleByBlockHashAndIndex(t *testing.T) {
 }
 
 func TestGetUncleByBlockNumberAndIndex(t *testing.T) {
-	s, _, _ := newTrustedMockedServer(t)
+	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	res, err := s.JSONRPCCall("eth_getUncleByBlockNumberAndIndex", "0x123", "0x1")
@@ -927,7 +927,7 @@ func TestGetUncleByBlockNumberAndIndex(t *testing.T) {
 }
 
 func TestGetUncleCountByBlockHash(t *testing.T) {
-	s, _, _ := newTrustedMockedServer(t)
+	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	res, err := s.JSONRPCCall("eth_getUncleCountByBlockHash", common.HexToHash("0x123"))
@@ -945,7 +945,7 @@ func TestGetUncleCountByBlockHash(t *testing.T) {
 }
 
 func TestGetUncleCountByBlockNumber(t *testing.T) {
-	s, _, _ := newTrustedMockedServer(t)
+	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	res, err := s.JSONRPCCall("eth_getUncleCountByBlockNumber", "0x123")
@@ -963,7 +963,7 @@ func TestGetUncleCountByBlockNumber(t *testing.T) {
 }
 
 func TestGetCode(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -1096,7 +1096,7 @@ func TestGetCode(t *testing.T) {
 }
 
 func TestGetStorageAt(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -1234,7 +1234,7 @@ func TestGetStorageAt(t *testing.T) {
 }
 
 func TestGetCompilers(t *testing.T) {
-	s, _, _ := newTrustedMockedServer(t)
+	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	res, err := s.JSONRPCCall("eth_getCompilers")
@@ -1252,7 +1252,7 @@ func TestGetCompilers(t *testing.T) {
 }
 
 func TestSyncing(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -1353,7 +1353,7 @@ func TestSyncing(t *testing.T) {
 }
 
 func TestGetTransactiL2onByBlockHashAndIndex(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -1532,7 +1532,7 @@ func TestGetTransactiL2onByBlockHashAndIndex(t *testing.T) {
 }
 
 func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
-	s, m, _ := newTrustedMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -1747,7 +1747,7 @@ func TestGetTransactionByBlockNumberAndIndex(t *testing.T) {
 }
 
 func TestGetTransactionByHash(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -1924,7 +1924,7 @@ func TestGetTransactionByHash(t *testing.T) {
 }
 
 func TestGetBlockTransactionCountByHash(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -2004,7 +2004,7 @@ func TestGetBlockTransactionCountByHash(t *testing.T) {
 }
 
 func TestGetBlockTransactionCountByNumber(t *testing.T) {
-	s, m, _ := newTrustedMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -2122,7 +2122,7 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 }
 
 func TestGetTransactionCount(t *testing.T) {
-	s, m, _ := newTrustedMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -2276,7 +2276,7 @@ func TestGetTransactionCount(t *testing.T) {
 }
 
 func TestGetTransactionReceipt(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -2496,7 +2496,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 }
 
 func TestSendRawTransactionViaGeth(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -2564,7 +2564,7 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 }
 
 func TestSendRawTransactionJSONRPCCall(t *testing.T) {
-	s, m, _ := newTrustedMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -2658,11 +2658,11 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 	}
 }
 
-func TestSendRawTransactionViaGethForPermissionlessNode(t *testing.T) {
-	trustedServer, trustedMocks, _ := newTrustedMockedServer(t)
-	defer trustedServer.Stop()
-	permissionlessServer, _, permissionlessClient := newPermissionlessMockedServer(t, trustedServer.ServerURL)
-	defer permissionlessServer.Stop()
+func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
+	sequencerServer, sequencerMocks, _ := newSequencerMockedServer(t)
+	defer sequencerServer.Stop()
+	nonSequencerServer, _, nonSequencerClient := newNonSequencerMockedServer(t, sequencerServer.ServerURL)
+	defer nonSequencerServer.Stop()
 
 	type testCase struct {
 		Name          string
@@ -2711,9 +2711,9 @@ func TestSendRawTransactionViaGethForPermissionlessNode(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tc := testCase
-			tc.SetupMocks(t, trustedMocks, tc)
+			tc.SetupMocks(t, sequencerMocks, tc)
 
-			err := permissionlessClient.SendTransaction(context.Background(), tc.Tx)
+			err := nonSequencerClient.SendTransaction(context.Background(), tc.Tx)
 
 			if err != nil || testCase.ExpectedError != nil {
 				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
@@ -2728,9 +2728,9 @@ func TestSendRawTransactionViaGethForPermissionlessNode(t *testing.T) {
 	}
 }
 
-func TestSendRawTransactionViaGethForPermissionlessNodeFailsToRelayTxToTrustedNode(t *testing.T) {
-	permissionlessServer, _, permissionlessClient := newPermissionlessMockedServer(t, "http://wrong.url")
-	defer permissionlessServer.Stop()
+func TestSendRawTransactionViaGethForNonSequencerNodeFailsToRelayTxToSequencerNode(t *testing.T) {
+	nonSequencerServer, _, nonSequencerClient := newNonSequencerMockedServer(t, "http://wrong.url")
+	defer nonSequencerServer.Stop()
 
 	type testCase struct {
 		Name          string
@@ -2740,9 +2740,9 @@ func TestSendRawTransactionViaGethForPermissionlessNodeFailsToRelayTxToTrustedNo
 
 	testCases := []testCase{
 		{
-			Name:          "Send TX failed to relay tx to the trusted node",
+			Name:          "Send TX failed to relay tx to the sequencer node",
 			Tx:            types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), uint64(1), big.NewInt(1), []byte{}),
-			ExpectedError: newRPCError(defaultErrorCode, "failed to relay tx to the trusted node"),
+			ExpectedError: newRPCError(defaultErrorCode, "failed to relay tx to the sequencer node"),
 		},
 	}
 
@@ -2750,7 +2750,7 @@ func TestSendRawTransactionViaGethForPermissionlessNodeFailsToRelayTxToTrustedNo
 		t.Run(testCase.Name, func(t *testing.T) {
 			tc := testCase
 
-			err := permissionlessClient.SendTransaction(context.Background(), tc.Tx)
+			err := nonSequencerClient.SendTransaction(context.Background(), tc.Tx)
 
 			if err != nil || testCase.ExpectedError != nil {
 				if expectedErr, ok := testCase.ExpectedError.(*RPCError); ok {
@@ -2766,7 +2766,7 @@ func TestSendRawTransactionViaGethForPermissionlessNodeFailsToRelayTxToTrustedNo
 }
 
 func TestProtocolVersion(t *testing.T) {
-	s, _, _ := newTrustedMockedServer(t)
+	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	res, err := s.JSONRPCCall("eth_protocolVersion")
@@ -2784,7 +2784,7 @@ func TestProtocolVersion(t *testing.T) {
 }
 
 func TestNewFilter(t *testing.T) {
-	s, m, _ := newTrustedMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -2849,7 +2849,7 @@ func TestNewFilter(t *testing.T) {
 }
 
 func TestNewBlockFilter(t *testing.T) {
-	s, m, _ := newTrustedMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -2911,7 +2911,7 @@ func TestNewBlockFilter(t *testing.T) {
 }
 
 func TestNewPendingTransactionFilter(t *testing.T) {
-	s, m, _ := newTrustedMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -2973,7 +2973,7 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 }
 
 func TestUninstallFilter(t *testing.T) {
-	s, m, _ := newTrustedMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -3050,7 +3050,7 @@ func TestUninstallFilter(t *testing.T) {
 }
 
 func TestGetLogs(t *testing.T) {
-	s, m, c := newTrustedMockedServer(t)
+	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -3215,7 +3215,7 @@ func TestGetLogs(t *testing.T) {
 }
 
 func TestGetFilterLogs(t *testing.T) {
-	s, m, _ := newTrustedMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
@@ -3390,7 +3390,7 @@ func TestGetFilterLogs(t *testing.T) {
 }
 
 func TestGetFilterChanges(t *testing.T) {
-	s, m, _ := newTrustedMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {

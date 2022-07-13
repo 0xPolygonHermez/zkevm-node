@@ -538,20 +538,20 @@ func (e *Eth) NewPendingTransactionFilter(filterID argUint64) (interface{}, rpcE
 }
 
 // SendRawTransaction has two different ways to handle new transactions:
-// - for Trusted nodes it tries to add the tx to the pool
-// - for Permissionless nodes it relays the Tx to the Trusted node
+// - for Sequencer nodes it tries to add the tx to the pool
+// - for Non-Sequencer nodes it relays the Tx to the Sequencer node
 func (e *Eth) SendRawTransaction(input string) (interface{}, rpcError) {
-	if e.cfg.TrustedNodeURI != "" {
-		return e.relayTxToTrustedNode(input)
+	if e.cfg.SequencerNodeURI != "" {
+		return e.relayTxToSequencerNode(input)
 	} else {
 		return e.tryToAddTxToPool(input)
 	}
 }
 
-func (e *Eth) relayTxToTrustedNode(input string) (interface{}, rpcError) {
-	res, err := JSONRPCCall(e.cfg.TrustedNodeURI, "eth_sendRawTransaction", input)
+func (e *Eth) relayTxToSequencerNode(input string) (interface{}, rpcError) {
+	res, err := JSONRPCCall(e.cfg.SequencerNodeURI, "eth_sendRawTransaction", input)
 	if err != nil {
-		return rpcErrorResponse(defaultErrorCode, "failed to relay tx to the trusted node", err)
+		return rpcErrorResponse(defaultErrorCode, "failed to relay tx to the sequencer node", err)
 	}
 
 	if res.Error != nil {
