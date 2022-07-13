@@ -258,14 +258,14 @@ func (tree *StateTree) getProgram(ctx context.Context, hash string) (*ProgramPro
 }
 
 func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64) (*UpdateProof, error) {
-	h4Value := h4ToString(value)
-	if strings.HasPrefix(h4Value, "0x") { // nolint
-		h4Value = h4Value[2:]
+	feaValue := fea2string(value)
+	if strings.HasPrefix(feaValue, "0x") { // nolint
+		feaValue = feaValue[2:]
 	}
 	result, err := tree.grpcClient.Set(ctx, &pb.SetRequest{
 		OldRoot:    &pb.Fea{Fe0: oldRoot[0], Fe1: oldRoot[1], Fe2: oldRoot[2], Fe3: oldRoot[3]},
 		Key:        &pb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
-		Value:      h4Value,
+		Value:      feaValue,
 		Persistent: true,
 	})
 	if err != nil {

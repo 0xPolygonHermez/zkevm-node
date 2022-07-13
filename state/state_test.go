@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -24,14 +23,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
-
-const ether155V = 27
 
 var (
 	testState    *state.State
@@ -506,76 +502,6 @@ func TestVerifiedBatch(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
-func TestExecuteTransaction(t *testing.T) {
-	var chainIDSequencer = new(big.Int).SetInt64(400)
-	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
-	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
-	var sequencerBalance = 4000000
-	scCounterByteCode, err := testutils.ReadBytecode("Counter/Counter.bin")
-	require.NoError(t, err)
-
-	// Deploy counter.sol
-	tx := types.NewTx(&types.LegacyTx{
-		Nonce:    0,
-		To:       nil,
-		Value:    new(big.Int),
-		Gas:      uint64(sequencerBalance),
-		GasPrice: new(big.Int).SetUint64(0),
-		Data:     common.Hex2Bytes(scCounterByteCode),
-	})
-
-	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
-	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
-	require.NoError(t, err)
-
-	signedTx, err := auth.Signer(auth.From, tx)
-	require.NoError(t, err)
-
-	// Encode transaction
-	v, r, s := signedTx.RawSignatureValues()
-	sign := 1 - (v.Uint64() & 1)
-
-	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
-		signedTx.Nonce(),
-		signedTx.GasPrice(),
-		signedTx.Gas(),
-		signedTx.To(),
-		signedTx.Value(),
-		signedTx.Data(),
-		signedTx.ChainId(), uint(0), uint(0),
-	})
-	require.NoError(t, err)
-
-	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
-	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
-	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
-	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
-	batchL2Data, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
-	require.NoError(t, err)
-
-	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		BatchNum:             1,
-		Coinbase:             sequencerAddress.String(),
-		BatchL2Data:          batchL2Data,
-		OldStateRoot:         common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		EthTimestamp:         uint64(time.Now().Unix()),
-		UpdateMerkleTree:     1,
-		GenerateExecuteTrace: 0,
-		GenerateCallTrace:    0,
-	}
-
-	log.Debugf("%v", processBatchRequest)
-
-	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
-	require.NoError(t, err)
-	log.Debug(processBatchResponse)
-	// TODO: assert processBatchResponse to make sure that the response makes sense
-}
-
 func TestGenesis(t *testing.T) {
 	balances := map[common.Address]*big.Int{
 		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
@@ -625,29 +551,12 @@ func TestGenesis(t *testing.T) {
 	// Check smart contracts
 	sc, err := stateTree.GetCode(ctx, common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"), stateRoot)
 	require.NoError(t, err)
-	require.Equal(t, smartContracts[common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA")], sc)
+	require.Equal(t, smartContracts[common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032")], sc)
 
 	// Check Storage
 	st, err := stateTree.GetStorageAt(ctx, common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"), new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")), stateRoot)
 	require.NoError(t, err)
-	require.Equal(t, storage[common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032")][new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002"))], st)
-}
-
-func TestGenesisShort(t *testing.T) {
-	smartContracts := map[common.Address][]byte{
-		common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"): common.Hex2Bytes("608060405234801561001057600080fd5b50600436106100675760003560e01c806333d6247d1161005057806333d6247d146100a85780633ed691ef146100bd578063a3c573eb146100d257600080fd5b806301fd90441461006c5780633381fe9014610088575b600080fd5b61007560015481565b6040519081526020015b60405180910390f35b6100756100963660046101c7565b60006020819052908152604090205481565b6100bb6100b63660046101c7565b610117565b005b43600090815260208190526040902054610075565b6002546100f29073ffffffffffffffffffffffffffffffffffffffff1681565b60405173ffffffffffffffffffffffffffffffffffffffff909116815260200161007f565b60025473ffffffffffffffffffffffffffffffffffffffff1633146101c2576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152603460248201527f476c6f62616c45786974526f6f744d616e616765724c323a3a7570646174654560448201527f786974526f6f743a204f4e4c595f425249444745000000000000000000000000606482015260840160405180910390fd5b600155565b6000602082840312156101d957600080fd5b503591905056fea2646970667358221220d6ed73b81f538d38669b0b750b93be08ca365978fae900eedc9ca93131c97ca664736f6c63430008090033"),
-	}
-
-	genesis := state.Genesis{
-		SmartContracts: smartContracts,
-	}
-	stateRoot, err := testState.SetGenesis(ctx, genesis, nil)
-	require.NoError(t, err)
-
-	// Check smart contracts
-	sc, err := stateTree.GetCode(ctx, common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"), stateRoot)
-	require.NoError(t, err)
-	require.Equal(t, smartContracts[common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA")], sc)
+	require.Equal(t, new(big.Int).SetBytes(common.Hex2Bytes("9d98deabc42dd696deb9e40b4f1cab7ddbf55988")), st)
 }
 
 func TestCheckSupersetBatchTransactions(t *testing.T) {
@@ -770,7 +679,7 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
-func TestExecuteTransaction2(t *testing.T) {
+func TestExecuteTransaction(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
@@ -897,9 +806,6 @@ func TestExecutor(t *testing.T) {
 	err = ioutil.WriteFile("trace.json", file, 0644)
 	require.NoError(t, err)
 
-	log.Debugf("returned tx hash:%v", common.BytesToHash(processBatchResponse.Responses[0].TxHash))
-	log.Debugf("new_state_root=%v", common.BytesToHash(processBatchResponse.NewStateRoot))
-
 	assert.Equal(t, common.HexToHash(expectedNewRoot), common.BytesToHash(processBatchResponse.NewStateRoot))
 }
 
@@ -1024,11 +930,13 @@ func TestExecutorLogs(t *testing.T) {
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 
-	log.Debugf("create_address=%v", common.HexToAddress(string(processBatchResponse.Responses[0].CreateAddress)))
+	assert.Equal(t, scAddress, common.HexToAddress(string(processBatchResponse.Responses[0].CreateAddress)))
 
-	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	err = ioutil.WriteFile("trace.json", file, 0644)
-	require.NoError(t, err)
+	assert.Equal(t, 0, len(processBatchResponse.Responses[0].Logs))
+	assert.Equal(t, 3, len(processBatchResponse.Responses[1].Logs))
+	assert.Equal(t, 1, len(processBatchResponse.Responses[1].Logs[0].Topics))
+	assert.Equal(t, 2, len(processBatchResponse.Responses[1].Logs[1].Topics))
+	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs[2].Topics))
 }
 
 func TestExecutorTransfer(t *testing.T) {
@@ -1089,7 +997,7 @@ func TestExecutorTransfer(t *testing.T) {
 	require.Equal(t, uint64(0), balance.Uint64())
 
 	// Read Receiver Balance before execution
-	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchRequest.OldStateRoot)
+	balance, err = stateTree.GetBalance(ctx, senderAddress, processBatchRequest.OldStateRoot)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1000), balance.Uint64())
 
