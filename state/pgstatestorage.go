@@ -512,8 +512,8 @@ func scanBatch(row pgx.Row) (Batch, error) {
 	batch := Batch{}
 	var (
 		gerStr      string
-		lerStr      string
-		stateStr    string
+		lerStr      *string
+		stateStr    *string
 		coinbaseStr string
 	)
 	if err := row.Scan(
@@ -528,8 +528,13 @@ func scanBatch(row pgx.Row) (Batch, error) {
 		return batch, err
 	}
 	batch.GlobalExitRoot = common.HexToHash(gerStr)
-	batch.LocalExitRoot = common.HexToHash(lerStr)
-	batch.StateRoot = common.HexToHash(stateStr)
+	if lerStr != nil {
+		batch.LocalExitRoot = common.HexToHash(*lerStr)
+	}
+	if stateStr != nil {
+		batch.StateRoot = common.HexToHash(*stateStr)
+	}
+
 	batch.Coinbase = common.HexToAddress(coinbaseStr)
 	return batch, nil
 }

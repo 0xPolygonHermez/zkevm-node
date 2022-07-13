@@ -107,6 +107,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
 			log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
 		}
+		s.lastBatchNum = processingCtx.BatchNumber
 		s.sequenceInProgress = types.Sequence{
 			GlobalExitRoot:  processingCtx.GlobalExitRoot,
 			Timestamp:       processingCtx.Timestamp.Unix(),
@@ -213,11 +214,29 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	log.Infof("processing tx")
-	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, nil)
+	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
+		log.Errorf("failed to begin state transaction for processing tx, err: %v", err)
+		return
+	}
+
+	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
+	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
+	if err != nil {
+		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when processing tx that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+			return
+		}
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
+		return
+	}
+
+	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+		log.Errorf("failed to commit dbTx when processing tx, err: %v", err)
 		return
 	}
 
@@ -225,9 +244,27 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.lastLocalExitRoot = processBatchResp.NewLocalExitRoot
 
 	// TODO: add logic based on this response to decide which txs we include on the DB
-	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processBatchResp.Responses, nil)
+	dbTx, err = s.state.BeginStateTransaction(ctx)
 	if err != nil {
+		log.Errorf("failed to begin state transaction for StoreTransactions, err: %v", err)
+		return
+	}
+
+	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processBatchResp.Responses, dbTx)
+	if err != nil {
+		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when StoreTransactions that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+			return
+		}
 		log.Errorf("failed to store transactions, err: %v", err)
+		return
+	}
+
+	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+		log.Errorf("failed to commit dbTx when StoreTransactions, err: %v", err)
 		return
 	}
 
