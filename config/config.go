@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	"github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
@@ -60,6 +61,7 @@ type Config struct {
 	MTClient           merkletree.Config
 	StateDB            db.Config
 	PoolDB             db.Config
+	Metrics            metrics.Config
 }
 
 // Load loads the configuration

@@ -125,4 +125,7 @@ URI = "127.0.0.1:50071"
 [BroadcastServer]
 Host = "0.0.0.0"
 Port = 61090
+
+[Metrics]
+URI = ""
 `

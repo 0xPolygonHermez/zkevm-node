@@ -4,6 +4,8 @@ import (
 	"context"
 	"io/ioutil"
 	"math/big"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -17,6 +19,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	"github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
@@ -30,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 )
@@ -40,6 +44,9 @@ func start(cliCtx *cli.Context) error {
 		return err
 	}
 	setupLog(c.Log)
+	if c.Metrics.URI != "" {
+		metrics.Initialize()
+	}
 	runStateMigrations(c.StateDB)
 	stateSqlDB, err := db.NewSQLDB(c.StateDB)
 	if err != nil {
@@ -100,6 +107,10 @@ func start(cliCtx *cli.Context) error {
 			log.Info("Running broadcast service")
 			go runBroadcastServer(c.BroadcastServer, st)
 		}
+	}
+
+	if c.Metrics.URI != "" {
+		go startMetricsHttpServer(c)
 	}
 
 	waitSignal(grpcClientConns, cancelFuncs)
@@ -293,4 +304,23 @@ func createPool(poolDBConfig db.Config, l2BridgeAddr common.Address, l2ChainID u
 	}
 	poolInstance := pool.NewPool(poolStorage, st, l2BridgeAddr, l2ChainID)
 	return poolInstance
+}
+
+func startMetricsHttpServer(c *config.Config) {
+	mux := http.NewServeMux()
+	lis, err := net.Listen("tcp", c.Metrics.URI)
+	if err != nil {
+		log.Fatalf("failed to create tcp listener for metrics: %v", err)
+		return
+	}
+	mux.Handle("/metrics", promhttp.Handler())
+	metricsServer := &http.Server{
+		Handler: mux,
+	}
+	if err := metricsServer.Serve(lis); err != nil {
+		if err == http.ErrServerClosed {
+			log.Infof("http server for metrics stopped")
+		}
+		log.Fatalf("closed http connection for metrics server: %v", err)
+	}
 }

@@ -323,6 +323,10 @@ func Test_Defaults(t *testing.T) {
 			path:          "BroadcastServer.Port",
 			expectedValue: 61090,
 		},
+		{
+			path:          "Metrics.URI",
+			expectedValue: "",
+		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")
 	require.NoError(t, err)

@@ -114,3 +114,7 @@ URI = "zkevm-prover:50071"
 [BroadcastServer]
 Host = "0.0.0.0"
 Port = 61090
+
+[Metrics]
+URI = ""
+
