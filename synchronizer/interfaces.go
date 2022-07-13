@@ -39,6 +39,4 @@ type stateInterface interface {
 	SetGenesis(ctx context.Context, block state.Block, genesis state.Genesis, dbTx pgx.Tx) error
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
-	RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error
-	CommitStateTransaction(ctx context.Context, dbTx pgx.Tx) error
 }
