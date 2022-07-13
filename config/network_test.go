@@ -29,10 +29,10 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
   "maticTokenAddress": "0xEa2f9aC0cd926C92923355e88Af73Ee83F2D9C67",
 
   "arity": 4,
-	"globalExitRootStoragePosition": 0,
+  "globalExitRootStoragePosition": 0,
   "localExitRootStoragePosition":  1,
   "oldStateRootPosition":          0,
-	"chainID":                     5,
+  "chainID":                     5,
 
   "genesis": [
     {

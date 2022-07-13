@@ -20,6 +20,7 @@ PrivateKeyPassword = "testonly"
 Host = "0.0.0.0"
 Port = 8123
 MaxRequestsPerIPAndSecond = 50
+SequencerNodeURI = ""
 
 [Synchronizer]
 SyncInterval = "1s"
