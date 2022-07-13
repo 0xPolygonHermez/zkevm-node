@@ -69,21 +69,23 @@ func (s *ClientSynchronizer) Sync() error {
 	}
 	lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx, dbTx)
 	if err != nil {
-		if err == state.ErrStateNotSynchronized {
+		if errors.Is(err, state.ErrStateNotSynchronized) {
 			log.Info("State is empty, setting genesis block")
-			lastEthBlockSynced = &state.Block{
-				BlockNumber: s.genBlockNumber,
-			}
-			err := s.state.SetGenesis(s.ctx, s.genesis, dbTx)
+			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.genBlockNumber))
 			if err != nil {
+				log.Fatal("error getting l1 block header for block ", s.genBlockNumber, " : ", err)
+			}
+			lastEthBlockSynced = &state.Block{
+				BlockNumber: header.Number.Uint64(),
+				BlockHash:   header.Hash(),
+				ParentHash:  header.ParentHash,
+				ReceivedAt:  time.Unix(int64(header.Time), 0),
+			}
+			if err := s.state.SetGenesis(s.ctx, *lastEthBlockSynced, s.genesis, dbTx); err != nil {
 				log.Fatal("error setting genesis: ", err)
 			}
 		} else {
 			log.Fatal("unexpected error getting the latest ethereum block. Error: ", err)
-		}
-	} else if lastEthBlockSynced.BlockNumber == 0 {
-		lastEthBlockSynced = &state.Block{
-			BlockNumber: s.genBlockNumber,
 		}
 	}
 	err = s.state.CommitStateTransaction(s.ctx, dbTx)

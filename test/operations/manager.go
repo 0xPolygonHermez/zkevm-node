@@ -21,7 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/trie"
 )
 
 const (
@@ -112,8 +111,12 @@ func (m *Manager) CheckConsolidatedRoot(expectedRoot string) error {
 
 // SetGenesis creates the genesis block in the state.
 func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	genesis := state.Genesis{
 		Balances: make(map[common.Address]*big.Int),
 	}
@@ -123,7 +126,7 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 		genesis.Balances[common.HexToAddress(address)] = &balance
 	}
 
-	return m.st.SetGenesis(m.ctx, genesis, nil)
+	return m.st.SetGenesis(m.ctx, genesisBlock, genesis, nil)
 }
 
 // ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
