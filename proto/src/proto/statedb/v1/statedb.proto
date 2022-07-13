@@ -62,22 +62,22 @@ message GetRequest {
 
 /**
  * @dev SetProgramRequest
- * @param {hash} - hash to set
+ * @param {key} - hash to set
  * @param {data} - Program data to store
  * @param {persistent} - indicates if it should be stored in the database (true) or only in the memory cache (false)
  */
 message SetProgramRequest {
-    string hash = 1;
+    Fea key = 1;
     bytes data = 2;
     bool persistent = 3;
 }
 
 /**
  * @dev GetProgramRequest
- * @param {hash} - hash to get program data
+ * @param {key} - hash to get program data
  */
 message GetProgramRequest {
-    string hash = 1;
+    Fea key = 1;
 }
 
 /////////////////////
