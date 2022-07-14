@@ -4,7 +4,7 @@ DROP SCHEMA IF EXISTS pool CASCADE;
 DROP SCHEMA IF EXISTS rpc CASCADE;
 
 -- +migrate Up
-CREATE SCHEMA state
+CREATE SCHEMA state;
 
 CREATE TABLE state.block ( --L1 block
     block_num BIGINT PRIMARY KEY,
@@ -115,32 +115,43 @@ CREATE TABLE state.merkletree (
     data BYTEA NOT NULL
 );
 
-CREATE SCHEMA pool
+CREATE SCHEMA pool;
 
-CREATE TABLE pool.txs (
-    hash      VARCHAR PRIMARY KEY,
-    encoded   VARCHAR,
-    decoded   jsonb,
-    state     varchar(15),
-    gas_price DECIMAL(78,0),
-    nonce     DECIMAL(78,0),
-    is_claims BOOLEAN,
-    received_at TIMESTAMP WITH TIME ZONE NOT NULL
+CREATE TABLE pool.txs
+(
+    hash                   VARCHAR PRIMARY KEY,
+    encoded                VARCHAR,
+    decoded                jsonb,
+    state                  varchar(15),
+    gas_price              DECIMAL(78, 0),
+    nonce                  DECIMAL(78, 0),
+    is_claims              BOOLEAN,
+    cumulative_gas_used    BIGINT,
+    used_keccak_hashes     INTEGER,
+    used_poseidon_hashes   INTEGER,
+    used_poseidon_paddings INTEGER,
+    used_mem_aligns        INTEGER,
+    used_arithmetics       INTEGER,
+    used_binaries          INTEGER,
+    used_steps             INTEGER,
+    received_at            TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE INDEX idx_state_gas_price_nonce ON pool.txs(state, gas_price, nonce);
+CREATE INDEX idx_state_gas_price_nonce ON pool.txs (state, gas_price, nonce);
 
-CREATE TABLE pool.gas_price (
-    item_id SERIAL PRIMARY KEY,
-    price DECIMAL(78,0),
+CREATE TABLE pool.gas_price
+(
+    item_id   SERIAL PRIMARY KEY,
+    price     DECIMAL(78, 0),
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE SCHEMA rpc
 
-CREATE TABLE rpc.filters (
+CREATE TABLE rpc.filters
+(
     id          SERIAL PRIMARY KEY,
     filter_type VARCHAR(15) NOT NULL,
-    parameters  JSONB NOT NULL,
-    last_poll   TIMESTAMP NOT NULL
+    parameters  JSONB       NOT NULL,
+    last_poll   TIMESTAMP   NOT NULL
 );
