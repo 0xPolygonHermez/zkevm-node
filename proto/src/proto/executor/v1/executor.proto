@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package executor.v1;
 
-option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb";
+option go_package = "github.com/hermeznetwork/hermez-core/state/runtime/executor/pb";
 
 service ExecutorService {
     /// Processes a batch
@@ -13,15 +13,17 @@ message ProcessBatchRequest {
     uint64 batch_num = 1;
     string coinbase = 2;
     bytes batch_l2_data = 3;
-    bytes old_state_root = 4;
-    bytes global_exit_root = 5;
-    bytes old_local_exit_root = 6;
-    uint64 eth_timestamp = 7;
-    uint32 update_merkle_tree = 8;
-    uint32 generate_execute_trace = 9;
-    uint32 generate_call_trace = 10;
+    // from is used for unsigned transactions with sender
+    string from = 4;
+    bytes old_state_root = 5;
+    bytes global_exit_root = 6;
+    bytes old_local_exit_root = 7;
+    uint64 eth_timestamp = 8;
+    uint32 update_merkle_tree = 9;
+    bytes tx_hash_to_generate_execute_trace = 10;
+    bytes tx_hash_to_generate_call_trace = 11;
     // For testing purposes only
-    map<string, string> db = 11; 
+    map<string, string> db = 12; 
 }
 
 message ProcessBatchResponse {

@@ -214,13 +214,11 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		// Create a batch to be sent to the executor
 		processBatchRequest := &pb.ProcessBatchRequest{
-			BatchNum:             lastBatch.BatchNumber + 1,
-			Coinbase:             senderAddress.String(),
-			BatchL2Data:          batchL2Data,
-			OldStateRoot:         stateRoot.Bytes(),
-			UpdateMerkleTree:     0,
-			GenerateExecuteTrace: 0,
-			GenerateCallTrace:    0,
+			BatchNum:         lastBatch.BatchNumber + 1,
+			Coinbase:         senderAddress.String(),
+			BatchL2Data:      batchL2Data,
+			OldStateRoot:     stateRoot.Bytes(),
+			UpdateMerkleTree: cFalse,
 		}
 
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -360,16 +358,14 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	}
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		BatchNum:             lastBatch.BatchNumber,
-		Coinbase:             lastBatch.Coinbase.String(),
-		BatchL2Data:          batchL2Data,
-		OldStateRoot:         previousBatch.StateRoot.Bytes(),
-		GlobalExitRoot:       lastBatch.GlobalExitRoot.Bytes(),
-		OldLocalExitRoot:     previousBatch.LocalExitRoot.Bytes(),
-		EthTimestamp:         uint64(lastBatch.Timestamp.Unix()),
-		UpdateMerkleTree:     cTrue,
-		GenerateExecuteTrace: cFalse,
-		GenerateCallTrace:    cFalse,
+		BatchNum:         lastBatch.BatchNumber,
+		Coinbase:         lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     previousBatch.StateRoot.Bytes(),
+		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree: cTrue,
 	}
 
 	// Send Batch to the Executor
@@ -690,8 +686,34 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
-	panic("not implemented yet")
+func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *ProcessBatchResponse {
+	lastBlock, err := s.GetLastL2Block(ctx, dbTx)
+	if err != nil {
+		log.Errorf("error getting last l2 block ", err)
+		return nil
+	}
+
+	batchL2Data, err := EncodeUnsignedTransaction(*tx)
+	if err != nil {
+		log.Errorf("error encoding unsigned transaction ", err)
+		return nil
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchL2Data:      batchL2Data,
+		From:             senderAddress.String(),
+		OldStateRoot:     lastBlock.Header().Root.Bytes(),
+		UpdateMerkleTree: cFalse,
+	}
+
+	// Send Batch to the Executor
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	if err != nil {
+		log.Errorf("error processing unsigned transaction ", err)
+		return nil
+	}
+	return convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
 }
 
 // AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber.

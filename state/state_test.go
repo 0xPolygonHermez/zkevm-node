@@ -555,16 +555,14 @@ func TestExecuteTransaction(t *testing.T) {
 
 	// Create Batch
 	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		BatchNum:             1,
-		Coinbase:             sequencerAddress.String(),
-		BatchL2Data:          batchL2Data,
-		OldStateRoot:         common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		EthTimestamp:         uint64(time.Now().Unix()),
-		UpdateMerkleTree:     1,
-		GenerateExecuteTrace: 0,
-		GenerateCallTrace:    0,
+		BatchNum:         1,
+		Coinbase:         sequencerAddress.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		EthTimestamp:     uint64(time.Now().Unix()),
+		UpdateMerkleTree: 1,
 	}
 
 	log.Debugf("%v", processBatchRequest)

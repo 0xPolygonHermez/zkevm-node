@@ -15,8 +15,6 @@ const ether155V = 27
 func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	var batchL2Data []byte
 
-	// TODO: Check how to encode unsigned transactions
-
 	for _, tx := range txs {
 		v, r, s := tx.RawSignatureValues()
 		sign := 1 - (v.Uint64() & 1)
@@ -48,6 +46,37 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	}
 
 	return batchL2Data, nil
+}
+
+// EncodeTransactions RLP encodes the given unsigned transaction
+func EncodeUnsignedTransaction(tx types.Transaction) ([]byte, error) {
+	v, r, s := tx.RawSignatureValues()
+	sign := 1 - (v.Uint64() & 1)
+
+	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
+		tx.Nonce(),
+		tx.GasPrice(),
+		tx.Gas(),
+		tx.To(),
+		tx.Value(),
+		tx.Data(),
+		tx.ChainId(), uint(0), uint(0),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
+	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
+	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
+	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
+	if err != nil {
+		return nil, err
+	}
+
+	return txData, nil
 }
 
 func generateReceipt(block *types.Block, processedTx *ProcessTransactionResponse) *types.Receipt {
