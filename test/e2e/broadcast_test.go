@@ -35,7 +35,6 @@ var (
 	cfg = dbutils.NewConfigFromEnv()
 )
 
-
 func TestBroadcast(t *testing.T) {
 	if err := dbutils.InitOrReset(cfg); err != nil {
 		panic(err)

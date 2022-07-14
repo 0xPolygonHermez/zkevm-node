@@ -116,7 +116,10 @@ func (s *Sequencer) Start(ctx context.Context) {
 			Txs:             nil,
 		}
 	} else {
-		s.loadSequenceFromState(ctx)
+		err = s.loadSequenceFromState(ctx)
+		if err != nil {
+			log.Fatalf("failed to load sequence from the state, err: %v", err)
+		}
 	}
 
 	go s.trackReorg(ctx)
