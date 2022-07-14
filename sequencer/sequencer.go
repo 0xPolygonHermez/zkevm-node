@@ -470,10 +470,18 @@ func isDataForEthTxTooBig(err error) bool {
 }
 
 func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
+	// WIP
+	lastBatch, err := s.state.GetLastBatch(ctx, nil)
+	if err != nil {
+		return err
+	}
+	s.lastBatchNum = lastBatch.BatchNumber
+	s.lastStateRoot = lastBatch.StateRoot
+	s.lastLocalExitRoot = lastBatch.LocalExitRoot
 	return fmt.Errorf("NOT IMPLEMENTED: loadSequenceFromState")
 	/*
 		TODO: set s.[lastBatchNum, lastStateRoot, lastLocalExitRoot, closedSequences, sequenceInProgress]
 		based on stateDB data AND potentially pending txs to be mined on Ethereum, as this function may be called either
-		when starting the sequencer OR if there is a missmatch between state data and on memory
+		when starting the sequencer OR if there is a mismatch between state data and on memory
 	*/
 }

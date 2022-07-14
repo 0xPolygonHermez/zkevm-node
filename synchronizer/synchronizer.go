@@ -395,9 +395,9 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, dbTx pgx.Tx) (
 	}
 	//Compare virtual state with trusted state
 	if hex.EncodeToString(batch.BatchL2Data) == hex.EncodeToString(tBatch.BatchL2Data) &&
-		batch.GlobalExitRoot == tBatch.GlobalExitRoot &&
-		batch.Timestamp == tBatch.Timestamp &&
-		batch.Coinbase == tBatch.Coinbase {
+		batch.GlobalExitRoot.String() == tBatch.GlobalExitRoot.String() &&
+		batch.Timestamp.Unix() == tBatch.Timestamp.Unix() &&
+		batch.Coinbase.String() == tBatch.Coinbase.String() {
 		return true, nil
 	}
 	return false, nil
@@ -511,6 +511,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			}
 			if !status {
 				// Reset trusted state
+				log.Infof("reorg detected, discarding batches until batchNum %d", batch.BatchNumber)
 				err := s.state.ResetTrustedState(s.ctx, batch.BatchNumber, dbTx) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
 				if err != nil {
 					log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %s", batch.BatchNumber, blockNumber, err.Error())
