@@ -423,7 +423,6 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			Coinbase:   processingContext.Coinbase,
 			Root:       processedTx.StateRoot,
 		}
-
 		transactions := []*types.Transaction{&processedTx.Tx}
 
 		// Create block to be able to calculate its hash
