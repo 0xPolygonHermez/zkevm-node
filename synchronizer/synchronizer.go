@@ -420,7 +420,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			BatchL2Data:    sbatch.Transactions,
 		}
 		batches := []state.Batch{b}
-		// ForcedBatchesmust be processed after the batch.
+		// ForcedBatches must be processed after the batch.
 		numForcedBatches := len(sbatch.ForceBatchesTimestamp)
 		if numForcedBatches > 0 {
 			// Read forcedBatches from db
