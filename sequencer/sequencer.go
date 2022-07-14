@@ -398,19 +398,6 @@ func (s *Sequencer) isSequenceProfitable(ctx context.Context) bool {
 	return isProfitable
 }
 
-func (s *Sequencer) getMostProfitablePendingTx(ctx context.Context) (*pool.Transaction, bool) {
-	tx, err := s.pool.GetPendingTxs(ctx, false, 1)
-	if err != nil {
-		log.Errorf("failed to get pending tx, err: %v", err)
-		return nil, false
-	}
-	if len(tx) == 0 {
-		log.Infof("waiting for pending tx to appear...")
-		return nil, true
-	}
-	return &tx[0], true
-}
-
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	if s.lastStateRoot.String() != "" || s.lastLocalExitRoot.String() != "" {
 		receipt := state.ProcessingReceipt{
