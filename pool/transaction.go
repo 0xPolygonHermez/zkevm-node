@@ -28,9 +28,34 @@ func (s TxState) String() string {
 // Transaction represents a pool tx
 type Transaction struct {
 	types.Transaction
-	State      TxState
-	IsClaims   bool
+	State    TxState
+	IsClaims bool
+	ZkCounters
 	ReceivedAt time.Time
+}
+
+// ZkCounters counters for the tx
+type ZkCounters struct {
+	CumulativeGasUsed    int64
+	UsedKeccakHashes     int32
+	UsedPoseidonHashes   int32
+	UsedPoseidonPaddings int32
+	UsedMemAligns        int32
+	UsedArithmetics      int32
+	UsedBinaries         int32
+	UsedSteps            int32
+}
+
+// IsZkCountersBelowZero checks if any of the counters are below zero
+func (zkc *ZkCounters) IsZkCountersBelowZero() bool {
+	return zkc.CumulativeGasUsed < 0 ||
+		zkc.UsedArithmetics < 0 ||
+		zkc.UsedSteps < 0 ||
+		zkc.UsedBinaries < 0 ||
+		zkc.UsedMemAligns < 0 ||
+		zkc.UsedPoseidonPaddings < 0 ||
+		zkc.UsedPoseidonHashes < 0 ||
+		zkc.UsedKeccakHashes < 0
 }
 
 // IsClaimTx checks, if tx is a claim tx

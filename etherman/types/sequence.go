@@ -1,6 +1,9 @@
 package types
 
 import (
+	"reflect"
+
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -12,4 +15,10 @@ type Sequence struct {
 	Timestamp       int64
 	ForceBatchesNum uint64
 	Txs             []types.Transaction
+	pool.ZkCounters
+}
+
+// IsEmpty checks is sequence struct is empty
+func (s Sequence) IsEmpty() bool {
+	return reflect.DeepEqual(s, Sequence{})
 }
