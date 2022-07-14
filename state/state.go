@@ -782,6 +782,18 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		return err
 	}
 
+	// mark the genesis batch as verified/consolidated
+	verifiedBatch := &VerifiedBatch{
+		BatchNumber: batch.BatchNumber,
+		TxHash:      ZeroHash,
+		Aggregator:  ZeroAddress,
+		BlockNumber: block.BlockNumber,
+	}
+	err = s.AddVerifiedBatch(ctx, verifiedBatch, dbTx)
+	if err != nil {
+		return err
+	}
+
 	// store L2 genesis block
 	header := &types.Header{
 		Number:     big.NewInt(0),
