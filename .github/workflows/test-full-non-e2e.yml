@@ -1,12 +1,27 @@
 ---
-common_job_settings: &common_job_settings
+name: Test non-e2e
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - update-external-dependencies
+  pull_request:
+  repository_dispatch:
+    types: [ok-to-test-command]
+
+jobs:
+  trusted-test-full-non-e2e:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     strategy:
       matrix:
         go-version: [ 1.17.x ]
         goarch: [ "amd64" ]
     runs-on: ubuntu-latest
-
-common_steps: &common_steps
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
     - name: Install Go
       uses: actions/setup-go@v1
       with:
@@ -23,40 +38,36 @@ common_steps: &common_steps
         ZKPROVER_URI: 127.0.0.1
       run: make test-full-non-e2e
 
-
-name: Test non-e2e
-on:
-  push:
-    branches:
-      - main
-      - master
-      - develop
-      - update-external-dependencies
-  pull_request:
-  repository_dispatch:
-    types: [ok-to-test-command]
-
-jobs:
-  trusted-test-full-non-e2e:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    <<: *common_job_setttings
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-    <<: *common_steps
-
   from-fork-test-full-non-e2e:
     if:
       github.event_name == 'repository_dispatch' &&
       github.event.client_payload.slash_command.sha != '' &&
       contains(github.event.client_payload.pull_request.head.sha, github.event.client_payload.slash_command.sha)
-    <<: *common_job_setttings
+    strategy:
+      matrix:
+        go-version: [ 1.17.x ]
+        goarch: [ "amd64" ]
+    runs-on: ubuntu-latest
     steps:
     - name: Fork based /ok-to-test checkout
       uses: actions/checkout@v2
       with:
         ref: 'refs/pull/${{ github.event.client_payload.pull_request.number }}/merge'
-    <<: *common_steps
+    - name: Install Go
+      uses: actions/setup-go@v1
+      with:
+        go-version: ${{ matrix.go-version }}
+      env:
+        GOARCH: ${{ matrix.goarch }}
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Test
+      env:
+        ZKPROVER_URI: 127.0.0.1
+      run: make test-full-non-e2e
 
     # Update check run
     - uses: actions/github-script@v5
