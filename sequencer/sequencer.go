@@ -114,10 +114,10 @@ func (s *Sequencer) Start(ctx context.Context) {
 			ForceBatchesNum: 0,
 			Txs:             nil,
 		}
+	} else {
+		s.loadSequenceFromState(ctx)
 	}
-	// TODO:
-	// case B: ongoing sequence (sequencer stopped with an ongoing batch aka not closed)
-	// case C: else (latest batch is closed and is not genesis)
+
 	go s.trackReorg(ctx)
 	go s.trackOldTxs(ctx)
 	ticker := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
@@ -213,7 +213,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	log.Infof("processing tx")
+	log.Infof("processing tx: %s", tx.Hash())
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for processing tx, err: %v", err)
@@ -223,6 +223,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
 	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
+		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
 			log.Errorf(
 				"failed to rollback dbTx when processing tx that gave err: %v. Rollback err: %v",
@@ -230,7 +231,6 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			)
 			return
 		}
-		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
 		return
 	}
@@ -251,6 +251,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processBatchResp.Responses, dbTx)
 	if err != nil {
+		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
 			log.Errorf(
 				"failed to rollback dbTx when StoreTransactions that gave err: %v. Rollback err: %v",
@@ -259,6 +260,10 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			return
 		}
 		log.Errorf("failed to store transactions, err: %v", err)
+		if err == state.ErrOutOfOrderProcessedTx || err == state.ErrExistingTxGreaterThanProcessedTx {
+			err = s.loadSequenceFromState(ctx)
+			log.Errorf("failed to load sequence from state, err: %v", err)
+		}
 		return
 	}
 
@@ -267,11 +272,12 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	log.Infof("marking tx as selected in the pool")
+	log.Infof("Tx %s added into the state. Marking tx as selected in the pool", tx.Hash())
 	// TODO: add correct handling in case update didn't go through
-	_ = s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected)
-
-	log.Infof("TODO: broadcast tx in a new l2 block")
+	if err := s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected); err != nil {
+		log.Errorf("failed to update tx status on the pool, err: %v", err)
+		return
+	}
 }
 
 func waitTick(ctx context.Context, ticker *time.Ticker) {
@@ -461,4 +467,13 @@ func isDataForEthTxTooBig(err error) bool {
 	return strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
 		errors.Is(err, core.ErrOversizedData) ||
 		strings.Contains(err.Error(), errContentLengthTooLarge)
+}
+
+func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
+	return fmt.Errorf("NOT IMPLEMENTED: loadSequenceFromState")
+	/*
+		TODO: set s.[lastBatchNum, lastStateRoot, lastLocalExitRoot, closedSequences, sequenceInProgress]
+		based on stateDB data AND potentially pending txs to be mined on Ethereum, as this function may be called either
+		when starting the sequencer OR if there is a missmatch between state data and on memory
+	*/
 }

@@ -186,3 +186,20 @@ services:
       - ./config/prover.config.local.json:/usr/src/app/config.json
     command: >
       zkprover input_executor.json
+
+  zkevm-approve:
+    container_name: zkevm-approve
+    image: zkevm-node
+    environment:
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+    volumes:
+      - ./test/test.keystore:/pk/keystore
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node approve --am 10000000000000000 -y --network local --cfg /app/config.toml"

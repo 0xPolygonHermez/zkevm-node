@@ -19,7 +19,7 @@ PrivateKeyPassword = "testonly"
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
-MaxRequestsPerIPAndSecond = 50
+MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = ""
 
 [Synchronizer]
