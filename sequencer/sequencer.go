@@ -74,7 +74,7 @@ func New(
 func (s *Sequencer) Start(ctx context.Context) {
 	for !s.isSynced(ctx) {
 		log.Infof("waiting for synchronizer to sync...")
-		time.Sleep(2 * time.Second)
+		time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	}
 	// initialize sequence
 	batchNum, err := s.state.GetLastBatchNumber(ctx, nil)
