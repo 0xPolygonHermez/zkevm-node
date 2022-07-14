@@ -74,18 +74,23 @@ build-docker-nc: ## Builds a docker image with the node binary - but without bui
 .PHONY: test
 test: compile-scs ## Runs only short tests without checking race conditions
 	$(STOPDB)
+	$(STOPZKPROVER)
 	$(RUNDB); sleep 5
-	trap '$(STOPDB)' EXIT; go test -short -race -p 1 ./...
+	$(RUNZKPROVER); sleep 5
+	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; go test -short -race -p 1 ./...
 
 .PHONY: test-full
 test-full: build-docker compile-scs ## Runs all tests checking race conditions
 	$(STOPDB)
+	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
+	$(RUNZKPROVER); sleep 5
+	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
 
 .PHONY: test-full-non-e2e
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
 	$(STOPDB)
+	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
 	$(RUNZKPROVER)
 	sleep 5
@@ -193,6 +198,8 @@ run: compile-scs ## Runs all the services
 	$(RUNDB)
 	$(RUNEXPLORERDB)
 	$(RUNL1NETWORK)
+	sleep 5
+	$(RUNZKPROVER)
 	sleep 5
 	$(RUNPROVER)
 	sleep 2

@@ -17,7 +17,7 @@ import (
 
 // Eth contains implementations for the "eth" RPC endpoints
 type Eth struct {
-	chainID uint64
+	cfg     Config
 	pool    jsonRPCTxPool
 	state   stateInterface
 	gpe     gasPriceEstimator
@@ -72,7 +72,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 
 // ChainId returns the chain id of the client
 func (e *Eth) ChainId() (interface{}, rpcError) { //nolint:revive
-	return hex.EncodeUint64(e.chainID), nil
+	return hex.EncodeUint64(ChainID), nil
 }
 
 // EstimateGas generates and returns an estimate of how much gas is necessary to
@@ -537,8 +537,33 @@ func (e *Eth) NewPendingTransactionFilter(filterID argUint64) (interface{}, rpcE
 	return argUint64(id), nil
 }
 
-// SendRawTransaction sends a raw transaction
+// SendRawTransaction has two different ways to handle new transactions:
+// - for Sequencer nodes it tries to add the tx to the pool
+// - for Non-Sequencer nodes it relays the Tx to the Sequencer node
 func (e *Eth) SendRawTransaction(input string) (interface{}, rpcError) {
+	if e.cfg.SequencerNodeURI != "" {
+		return e.relayTxToSequencerNode(input)
+	} else {
+		return e.tryToAddTxToPool(input)
+	}
+}
+
+func (e *Eth) relayTxToSequencerNode(input string) (interface{}, rpcError) {
+	res, err := JSONRPCCall(e.cfg.SequencerNodeURI, "eth_sendRawTransaction", input)
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, "failed to relay tx to the sequencer node", err)
+	}
+
+	if res.Error != nil {
+		return rpcErrorResponse(res.Error.Code, res.Error.Message, nil)
+	}
+
+	txHash := res.Result
+
+	return txHash, nil
+}
+
+func (e *Eth) tryToAddTxToPool(input string) (interface{}, rpcError) {
 	tx, err := hexToTx(input)
 	if err != nil {
 		return rpcErrorResponse(invalidParamsErrorCode, "invalid tx input", err)

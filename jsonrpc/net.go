@@ -7,11 +7,9 @@ import (
 )
 
 // Net contains implementations for the "net" RPC endpoints
-type Net struct {
-	chainID uint64
-}
+type Net struct{}
 
 // Version returns the current network id
 func (n *Net) Version() (interface{}, rpcError) {
-	return strconv.FormatUint(n.chainID, encoding.Base10), nil
+	return strconv.FormatUint(ChainID, encoding.Base10), nil
 }

@@ -28,6 +28,7 @@ type ClientSynchronizer struct {
 	ctx               context.Context
 	cancelCtx         context.CancelFunc
 	genBlockNumber    uint64
+	genesis           state.Genesis
 	reorgBlockNumChan chan struct{}
 	cfg               Config
 }
@@ -37,15 +38,18 @@ func NewSynchronizer(
 	ethMan ethermanInterface,
 	st stateInterface,
 	genBlockNumber uint64,
+	genesis state.Genesis,
 	reorgBlockNumChan chan struct{},
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+
 	return &ClientSynchronizer{
 		state:             st,
 		etherMan:          ethMan,
 		ctx:               ctx,
 		cancelCtx:         cancel,
 		genBlockNumber:    genBlockNumber,
+		genesis:           genesis,
 		reorgBlockNumChan: reorgBlockNumChan,
 		cfg:               cfg,
 	}, nil
@@ -66,13 +70,16 @@ func (s *ClientSynchronizer) Sync() error {
 	lastEthBlockSynced, err := s.state.GetLastBlock(s.ctx, dbTx)
 	if err != nil {
 		if err == state.ErrStateNotSynchronized {
-			log.Warn("error getting the latest ethereum block. No data stored. Setting genesis block. Error: ", err)
+			log.Info("State is empty, setting genesis block")
 			lastEthBlockSynced = &state.Block{
 				BlockNumber: s.genBlockNumber,
 			}
-			// TODO Set Genesis if needed
+			err := s.state.SetGenesis(s.ctx, s.genesis, dbTx)
+			if err != nil {
+				log.Fatal("error setting genesis: ", err)
+			}
 		} else {
-			log.Fatal("unexpected error getting the latest ethereum block. Setting genesis block. Error: ", err)
+			log.Fatal("unexpected error getting the latest ethereum block. Error: ", err)
 		}
 	} else if lastEthBlockSynced.BlockNumber == 0 {
 		lastEthBlockSynced = &state.Block{
@@ -251,15 +258,16 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			log.Fatalf("error storing block. BlockNumber: %d, error: %s", blocks[i].BlockNumber, err.Error())
 		}
 		for _, element := range order[blocks[i].BlockHash] {
-			if element.Name == etherman.SequenceBatchesOrder {
+			switch element.Name {
+			case etherman.SequenceBatchesOrder:
 				s.processSequenceBatches(blocks[i].SequencedBatches[element.Pos], blocks[i].BlockNumber, dbTx)
-			} else if element.Name == etherman.ForcedBatchesOrder {
+			case etherman.ForcedBatchesOrder:
 				s.processForcedBatch(blocks[i].ForcedBatches[element.Pos], dbTx)
-			} else if element.Name == etherman.GlobalExitRootsOrder {
+			case etherman.GlobalExitRootsOrder:
 				s.processGlobalExitRoot(blocks[i].GlobalExitRoots[element.Pos], dbTx)
-			} else if element.Name == etherman.SequenceForceBatchesOrder {
+			case etherman.SequenceForceBatchesOrder:
 				s.processSequenceForceBatch(blocks[i].SequencedForceBatches[element.Pos], blocks[i].BlockNumber, dbTx)
-			} else if element.Name == etherman.VerifyBatchOrder {
+			case etherman.VerifyBatchOrder:
 				s.processVerifiedBatch(blocks[i].VerifiedBatches[element.Pos], dbTx)
 			}
 		}

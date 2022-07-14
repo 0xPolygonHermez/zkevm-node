@@ -9,7 +9,7 @@ import (
 )
 
 func TestClientVersion(t *testing.T) {
-	s, _, _ := newMockedServer(t)
+	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	res, err := s.JSONRPCCall("web3_clientVersion")
@@ -27,7 +27,7 @@ func TestClientVersion(t *testing.T) {
 }
 
 func TestSha3(t *testing.T) {
-	s, _, _ := newMockedServer(t)
+	s, _, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	res, err := s.JSONRPCCall("web3_sha3", "0x68656c6c6f20776f726c64")

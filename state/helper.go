@@ -58,7 +58,7 @@ func generateReceipt(block *types.Block, processedTx *ProcessTransactionResponse
 		BlockNumber:       block.Number(),
 		BlockHash:         block.Hash(),
 		GasUsed:           processedTx.GasUsed,
-		TxHash:            processedTx.TxHash,
+		TxHash:            processedTx.Tx.Hash(),
 		TransactionIndex:  0,
 		ContractAddress:   processedTx.CreateAddress,
 		Logs:              processedTx.Logs,
