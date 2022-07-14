@@ -1,0 +1,17 @@
+{
+ "cumulative_gas_used": 30000,
+ "responses": [
+  {
+   "tx_hash": "kr+9C9+xfjkdVlkj4Zd6ife8koE3za4+aK/HyNAZMwc=",
+   "gas_used": 30000,
+   "state_root": "dYwG4RJg3Bdz5++4TgRYWpvXsJ1Dk1Z84MBLo5fA0IA="
+  }
+ ],
+ "new_state_root": "dYwG4RJg3Bdz5++4TgRYWpvXsJ1Dk1Z84MBLo5fA0IA=",
+ "new_local_exit_root": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+ "cnt_keccak_hashes": 8,
+ "cnt_poseidon_hashes": 48,
+ "cnt_arithmetics": 464,
+ "cnt_binaries": 725,
+ "cnt_steps": 8043
+}
