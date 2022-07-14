@@ -15,9 +15,9 @@ import (
 )
 
 func Test1000EthTransfer(t *testing.T) {
-	// if testing.Short() {
-	// 	t.Skip()
-	// }
+	if testing.Short() {
+		t.Skip()
+	}
 	// TODO: use opsman to spin up/down all the containers
 	// defer func() {
 	// 	require.NoError(t, operations.Teardown())
