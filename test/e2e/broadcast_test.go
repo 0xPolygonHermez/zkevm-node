@@ -91,10 +91,8 @@ func initState() (*state.State, error) {
 		return nil, err
 	}
 	stateDb := state.NewPostgresStorage(sqlDB)
-
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: "127.0.0.1:50071"})
-
-	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: "127.0.0.1:50071"})
+	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: "127.0.0.1:50061"})
 	stateTree := merkletree.NewStateTree(mtDBClient)
 	return state.NewState(state.Config{}, stateDb, executorClient, stateTree), nil
 }
