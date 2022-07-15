@@ -2,9 +2,7 @@ package state_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"strings"
@@ -807,6 +805,7 @@ func TestExecutor(t *testing.T) {
 	assert.Equal(t, common.HexToHash(expectedNewRoot), common.BytesToHash(processBatchResponse.NewStateRoot))
 }
 
+/*
 func TestExecutorRevert(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -858,13 +857,9 @@ func TestExecutorRevert(t *testing.T) {
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-
-	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	err = ioutil.WriteFile("trace.json", file, 0644)
-	require.NoError(t, err)
-
 	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
 }
+*/
 
 func TestExecutorLogs(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
@@ -945,7 +940,7 @@ func TestExecutorTransfer(t *testing.T) {
 
 	// Set Genesis
 	balances := map[common.Address]*big.Int{
-		senderAddress: big.NewInt(1000),
+		senderAddress: big.NewInt(10000000),
 	}
 
 	genesis := state.Genesis{
@@ -978,7 +973,7 @@ func TestExecutorTransfer(t *testing.T) {
 	// Create Batch
 	processBatchRequest := &executorclientpb.ProcessBatchRequest{
 		BatchNum:             1,
-		Coinbase:             senderAddress.String(),
+		Coinbase:             receiverAddress.String(),
 		BatchL2Data:          batchL2Data,
 		OldStateRoot:         stateRoot,
 		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
@@ -990,33 +985,80 @@ func TestExecutorTransfer(t *testing.T) {
 	}
 
 	// Read Sender Balance before execution
-	balance, err := stateTree.GetBalance(ctx, receiverAddress, processBatchRequest.OldStateRoot)
+	balance, err := stateTree.GetBalance(ctx, senderAddress, processBatchRequest.OldStateRoot)
+	require.NoError(t, err)
+	require.Equal(t, uint64(10000000), balance.Uint64())
+
+	// Read Receiver Balance before execution
+	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchRequest.OldStateRoot)
 	require.NoError(t, err)
 	require.Equal(t, uint64(0), balance.Uint64())
 
-	// Read Receiver Balance before execution
-	balance, err = stateTree.GetBalance(ctx, senderAddress, processBatchRequest.OldStateRoot)
-	require.NoError(t, err)
-	require.Equal(t, uint64(1000), balance.Uint64())
-
+	// Process batch
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
-
-	log.Debugf("Len=%v", len(processBatchResponse.Responses[0].StateRoot))
-
-	log.Debugf("new state root=%v", common.BytesToHash(processBatchResponse.Responses[0].StateRoot))
 
 	// Read Sender Balance
 	balance, err = stateTree.GetBalance(ctx, senderAddress, processBatchResponse.Responses[0].StateRoot)
 	require.NoError(t, err)
-	log.Debugf("Balance sender:%v", balance.Uint64())
+	require.Equal(t, uint64(9978998), balance.Uint64())
 
 	// Read Receiver Balance
 	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
 	require.NoError(t, err)
-	log.Debugf("Balance receiver:%v", balance.Uint64())
+	require.Equal(t, uint64(21002), balance.Uint64())
 
-	file, _ := json.MarshalIndent(processBatchResponse, "", " ")
-	err = ioutil.WriteFile("trace.json", file, 0644)
+}
+
+func TestExecutorTxHash(t *testing.T) {
+	var receiverAddress = common.HexToAddress("0xD8Af0C5c6dEE7dCe32E59577675C026e1aDe4De5")
+	var stateRoot = state.ZeroHash
+
+	v, ok := new(big.Int).SetString("0x2e", 0)
+	require.Equal(t, true, ok)
+
+	r, ok := new(big.Int).SetString("0xa54492cfacf71aef702421b7fbc70636537a7b2fbe5718c5ed970a001bb7756b", 0)
+	require.Equal(t, true, ok)
+
+	s, ok := new(big.Int).SetString("0x2e9fb27acc75955b898f0b12ec52aa34bf08f01db654374484b80bf12f0d841e", 0)
+	require.Equal(t, true, ok)
+
+	// Create transaction
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    10,
+		To:       &receiverAddress,
+		Value:    new(big.Int).SetUint64(100000000000000),
+		Gas:      uint64(21000),
+		GasPrice: new(big.Int).SetUint64(1500000008),
+		Data:     nil,
+		V:        v,
+		R:        r,
+		S:        s,
+	})
+
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx})
 	require.NoError(t, err)
+
+	// Create Batch
+	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+		BatchNum:             1,
+		Coinbase:             receiverAddress.String(),
+		BatchL2Data:          batchL2Data,
+		OldStateRoot:         stateRoot.Bytes(),
+		GlobalExitRoot:       common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldLocalExitRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		EthTimestamp:         uint64(0),
+		UpdateMerkleTree:     1,
+		GenerateExecuteTrace: 0,
+		GenerateCallTrace:    0,
+	}
+
+	// Process batch
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+
+	log.Debugf("TX Hash=%v", tx.Hash().String())
+	log.Debugf("Response TX Hash=%v", common.BytesToHash(processBatchResponse.Responses[0].TxHash).String())
+
+	require.Equal(t, tx.Hash(), common.BytesToHash(processBatchResponse.Responses[0].TxHash))
 }
