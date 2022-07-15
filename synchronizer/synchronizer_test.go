@@ -226,8 +226,10 @@ func TestTrustedStateReorg(t *testing.T) {
 	// start synchronizing
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			sync := setupMocks(&m, &tc)
-			sync.Sync()
+			testCase := tc
+			sync := setupMocks(&m, &testCase)
+			err := sync.Sync()
+			require.NoError(t, err)
 		})
 	}
 
