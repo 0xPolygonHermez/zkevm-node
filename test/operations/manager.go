@@ -21,12 +21,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/trie"
 )
 
 const (
-	l1NetworkURL = "http://localhost:8545"
-	l2NetworkURL = "http://localhost:8123"
+	l1NetworkURL  = "http://localhost:8545"
+	l2NetworkURL  = "http://localhost:8123"
+	executorURI   = "127.0.0.1:50071"
+	merkletreeURI = "127.0.0.1:50061"
 
 	poeAddress        = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
 	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
@@ -36,6 +37,8 @@ const (
 )
 
 var dbConfig = dbutils.NewConfigFromEnv()
+var executorConfig = executor.Config{URI: executorURI}
+var merkletreeConfig = merkletree.Config{URI: merkletreeURI}
 
 // SequencerConfig is the configuration for the sequencer operations.
 type SequencerConfig struct {
@@ -112,8 +115,12 @@ func (m *Manager) CheckConsolidatedRoot(expectedRoot string) error {
 
 // SetGenesis creates the genesis block in the state.
 func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	genesis := state.Genesis{
 		Balances: make(map[common.Address]*big.Int),
 	}
@@ -123,7 +130,12 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 		genesis.Balances[common.HexToAddress(address)] = &balance
 	}
 
-	return m.st.SetGenesis(m.ctx, genesis, nil)
+	dbTx, err := m.st.BeginStateTransaction(m.ctx)
+	if err != nil {
+		return err
+	}
+
+	return m.st.SetGenesis(m.ctx, genesisBlock, genesis, dbTx)
 }
 
 // ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
@@ -229,12 +241,7 @@ func (m *Manager) Setup() error {
 	}
 
 	// Run node container
-	err = m.StartNode()
-	if err != nil {
-		return err
-	}
-
-	return m.setSequencerChainID()
+	return m.StartNode()
 }
 
 // Teardown stops all the components.
@@ -265,8 +272,8 @@ func initState(arity uint8, maxCumulativeGasUsed uint64) (*state.State, error) {
 
 	ctx := context.Background()
 	stateDb := state.NewPostgresStorage(sqlDB)
-	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{})
-	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{})
+	executorClient, _, _ := executor.NewExecutorClient(ctx, executorConfig)
+	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletreeConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
 	stateCfg := state.Config{
@@ -285,20 +292,6 @@ func initState(arity uint8, maxCumulativeGasUsed uint64) (*state.State, error) {
 // 	}
 // 	return nil
 // }
-
-func (m *Manager) setSequencerChainID() error {
-	// Update Sequencer ChainID to the one in the test vector
-	sqlDB, err := db.NewSQLDB(dbConfig)
-	if err != nil {
-		return err
-	}
-
-	_, err = sqlDB.Exec(m.ctx, "UPDATE state.sequencer SET chain_id = $1 WHERE address = $2", m.cfg.Sequencer.ChainID, common.HexToAddress(m.cfg.Sequencer.Address).Bytes())
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 // SetUpSequencer provide ETH, Matic to and register the sequencer
 func (m *Manager) SetUpSequencer() error {

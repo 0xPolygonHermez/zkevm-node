@@ -23,9 +23,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
@@ -50,18 +50,24 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		panic(err)
-	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
@@ -71,8 +77,6 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 	p := pool.NewPool(s, st, common.Address{})
 
 	const txsCount = 10
-
-	ctx := context.Background()
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	if err != nil {
@@ -131,18 +135,24 @@ func TestQueue_AddOneTx(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		panic(err)
-	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
@@ -152,8 +162,6 @@ func TestQueue_AddOneTx(t *testing.T) {
 	p := pool.NewPool(s, st, common.Address{})
 
 	const txsCount = 1
-
-	ctx := context.Background()
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	if err != nil {

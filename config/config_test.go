@@ -114,7 +114,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "MTClient.URI",
-			expectedValue: "127.0.0.1:50060",
+			expectedValue: "127.0.0.1:50061",
 		},
 		{
 			path:          "Database.MaxConns",
@@ -138,7 +138,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Executor.URI",
-			expectedValue: "51.210.116.237:50071",
+			expectedValue: "127.0.0.1:50071",
 		},
 		{
 			path:          "BroadcastServer.Host",

@@ -32,7 +32,7 @@ const (
 	resetTrustedStateSQL                     = "DELETE FROM state.batch WHERE batch_num > $1"
 	addVerifiedBatchSQL                      = "INSERT INTO state.verified_batch (block_num, batch_num, tx_hash, aggregator) VALUES ($1, $2, $3, $4)"
 	getVerifiedBatchSQL                      = "SELECT block_num, batch_num, tx_hash, aggregator FROM state.verified_batch WHERE batch_num = $1"
-	getLastBatchNumberSQL                    = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch"
+	getLastBatchNumberSQL                    = "SELECT batch_num FROM state.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastNBatchesSQL                       = "SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data from state.batch ORDER BY batch_num DESC LIMIT $1"
 	getLastBatchTimeSQL                      = "SELECT timestamp FROM state.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchNumSQL                = "SELECT COALESCE(MAX(batch_num), 0) FROM state.virtual_batch"
@@ -992,7 +992,7 @@ func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx)
 	err := q.QueryRow(ctx, getLastL2BlockNumber).Scan(&lastBlockNumber)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, ErrNotFound
+		return 0, ErrStateNotSynchronized
 	} else if err != nil {
 		return 0, err
 	}
@@ -1007,7 +1007,7 @@ func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx)
 	err := q.QueryRow(ctx, getLastVirtualBlockHeaderSQL).Scan(&header)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, ErrStateNotSynchronized
 	} else if err != nil {
 		return nil, err
 	}
@@ -1026,7 +1026,7 @@ func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*typ
 	err := q.QueryRow(ctx, getLastL2BlockSQL).Scan(&headerStr, &unclesStr, &receivedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, ErrStateNotSynchronized
 	} else if err != nil {
 		return nil, err
 	}

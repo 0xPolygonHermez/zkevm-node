@@ -17,16 +17,14 @@ type ethermanMock struct {
 }
 
 // EstimateGasSequenceBatches provides a mock function with given fields: sequences
-func (_m *ethermanMock) EstimateGasSequenceBatches(sequences []types.Sequence) (*big.Int, error) {
+func (_m *ethermanMock) EstimateGasSequenceBatches(sequences []types.Sequence) (uint64, error) {
 	ret := _m.Called(sequences)
 
-	var r0 *big.Int
-	if rf, ok := ret.Get(0).(func([]types.Sequence) *big.Int); ok {
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func([]types.Sequence) uint64); ok {
 		r0 = rf(sequences)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*big.Int)
-		}
+		r0 = ret.Get(0).(uint64)
 	}
 
 	var r1 error

@@ -132,7 +132,7 @@ func TestProcessCloseBatch(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	// processingCtx1 := state.ProcessingContext{
@@ -157,7 +157,7 @@ func TestOpenCloseBatch(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	processingCtx1 := state.ProcessingContext{
@@ -594,14 +594,24 @@ func TestGenesis(t *testing.T) {
 		common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"): {new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")): new(big.Int).SetBytes(common.Hex2Bytes("9d98deabc42dd696deb9e40b4f1cab7ddbf55988"))},
 	}
 
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
 	genesis := state.Genesis{
 		Balances:       balances,
 		Nonces:         nonces,
 		SmartContracts: smartContracts,
 		Storage:        storage,
 	}
-	err := testState.SetGenesis(ctx, genesis, nil)
+	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
+	err = testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	// Assert results
 	for addr, expectedBalance := range balances {
@@ -712,7 +722,7 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	processingCtx1 := state.ProcessingContext{

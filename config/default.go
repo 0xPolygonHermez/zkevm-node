@@ -16,7 +16,7 @@ EnableLog = false
 MaxConns = 200
 
 [Etherman]
-URL = "http://localhost"
+URL = "http://localhost:8545"
 PrivateKeyPath = "./test/test.keystore"
 PrivateKeyPassword = "testonly"
 
@@ -75,10 +75,10 @@ Port = 50060
 StoreBackend = "PostgreSQL"
 
 [MTClient]
-URI = "127.0.0.1:50060"
+URI = "127.0.0.1:50061"
 
 [Executor]
-URI = "51.210.116.237:50071"
+URI = "127.0.0.1:50071"
 
 [BroadcastServer]
 Host = "0.0.0.0"
