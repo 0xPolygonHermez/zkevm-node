@@ -109,6 +109,8 @@ test-e2e-group-2: build-docker compile-scs ## Runs group 2 e2e tests checking ra
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
 	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group2/...
 
 .PHONY: test-e2e-group-3
