@@ -35,14 +35,11 @@ var (
 	cfg = dbutils.NewConfigFromEnv()
 )
 
-func TestMain(m *testing.M) {
-	// Force schema recreation
+func TestBroadcast(t *testing.T) {
 	if err := dbutils.InitOrReset(cfg); err != nil {
 		panic(err)
 	}
-}
 
-func TestBroadcast(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -94,10 +91,8 @@ func initState() (*state.State, error) {
 		return nil, err
 	}
 	stateDb := state.NewPostgresStorage(sqlDB)
-
-	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: "localhost:8080"})
-
-	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: "localhost:8080"})
+	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: "127.0.0.1:50071"})
+	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: "127.0.0.1:50061"})
 	stateTree := merkletree.NewStateTree(mtDBClient)
 	return state.NewState(state.Config{}, stateDb, executorClient, stateTree), nil
 }
@@ -112,9 +107,9 @@ func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
 }
 
 func populateDB(ctx context.Context, st *state.State) error {
-	const addBatch = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, sequencer, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
-	const addTransaction = "INSERT INTO state.transaction (batch_num, encoded, hash, received_at, l2_block_num) VALUES ($1, $2, $3, $4, $5)"
-	const addForcedBatch = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, sequencer, timestamp, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	const addBatch = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
+	const addTransaction = "INSERT INTO state.transaction (hash, from_address, encoded, l2_block_num) VALUES ($1, $2, $3, $4)"
+	const addForcedBatch = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, coinbase, timestamp, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
 	const addBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
 	const blockNumber = 1
 
@@ -141,11 +136,11 @@ func populateDB(ctx context.Context, st *state.State) error {
 		l2Block := types.NewBlockWithHeader(header)
 		l2Block.ReceivedAt = time.Now()
 
-		if err := st.PostgresStorage.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, nil); err != nil {
+		if err := st.PostgresStorage.AddL2Block(ctx, totalBatches, l2Block, []*types.Receipt{}, nil); err != nil {
 			return err
 		}
 
-		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, totalBatches, fmt.Sprintf(encodedFmt, i), fmt.Sprintf("hash-%d", i), time.Now(), l2Block.Number()); err != nil {
+		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, fmt.Sprintf("hash-%d", i), common.HexToAddress("").String(), fmt.Sprintf(encodedFmt, i), l2Block.Number().Uint64()); err != nil {
 			return err
 		}
 	}

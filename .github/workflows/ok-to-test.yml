@@ -1,0 +1,23 @@
+---
+name: Ok To Test
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  ok-to-test:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request }}
+    steps:
+    - name: Slash Command Dispatch
+      uses: peter-evans/slash-command-dispatch@v1
+      env:
+        TOKEN: ${{ steps.generate_token.outputs.token }}
+      with:
+        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        reaction-token: ${{ secrets.GITHUB_TOKEN }}
+        issue-type: pull-request
+        commands: ok-to-test
+        named-args: true
+        permission: write

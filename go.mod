@@ -24,7 +24,7 @@ require (
 	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
-	google.golang.org/grpc v1.47.0
+	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1

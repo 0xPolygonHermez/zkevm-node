@@ -71,18 +71,6 @@ func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	return tx, nil
 }
 
-// CommitStateTransaction commits a state transaction
-func (s *State) CommitStateTransaction(ctx context.Context, dbTx pgx.Tx) error {
-	err := dbTx.Commit(ctx)
-	return err
-}
-
-// RollbackStateTransaction rollbacks a state transaction
-func (s *State) RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error {
-	err := dbTx.Rollback(ctx)
-	return err
-}
-
 // GetBalance from a given address
 func (s *State) GetBalance(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error) {
 	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
@@ -705,7 +693,11 @@ func (s *State) GetTree() *merkletree.StateTree {
 }
 
 // SetGenesis populates state with genesis information
-func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) error {
+func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, dbTx pgx.Tx) error {
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+
 	var (
 		root    common.Hash
 		newRoot []byte
@@ -754,7 +746,13 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 
 	receivedAt := time.Unix(0, 0)
 
-	// Store Genesis Batch
+	// store L1 block related to genesis batch
+	err = s.AddBlock(ctx, &block, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// store genesis batch
 	batch := Batch{
 		BatchNumber:    0,
 		Coinbase:       ZeroAddress,
@@ -771,7 +769,31 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 		return err
 	}
 
-	// Store L2 Genesis Block
+	// mark the genesis batch as virtualized
+	virtualBatch := &VirtualBatch{
+		BatchNumber: batch.BatchNumber,
+		TxHash:      ZeroHash,
+		Coinbase:    ZeroAddress,
+		BlockNumber: block.BlockNumber,
+	}
+	err = s.AddVirtualBatch(ctx, virtualBatch, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// mark the genesis batch as verified/consolidated
+	verifiedBatch := &VerifiedBatch{
+		BatchNumber: batch.BatchNumber,
+		TxHash:      ZeroHash,
+		Aggregator:  ZeroAddress,
+		BlockNumber: block.BlockNumber,
+	}
+	err = s.AddVerifiedBatch(ctx, verifiedBatch, dbTx)
+	if err != nil {
+		return err
+	}
+
+	// store L2 genesis block
 	header := &types.Header{
 		Number:     big.NewInt(0),
 		ParentHash: ZeroHash,
@@ -780,10 +802,10 @@ func (s *State) SetGenesis(ctx context.Context, genesis Genesis, dbTx pgx.Tx) er
 	}
 	rootHex := root.Hex()
 	log.Info("Genesis root ", rootHex)
-	block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	block.ReceivedAt = receivedAt
+	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+	l2Block.ReceivedAt = receivedAt
 
-	return s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, block, []*types.Receipt{}, dbTx)
+	return s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, l2Block, []*types.Receipt{}, dbTx)
 }
 
 // CheckSupersetBatchTransactions verifies that processedTransactions is a
@@ -794,7 +816,7 @@ func CheckSupersetBatchTransactions(existingTxHashes []common.Hash, processedTxs
 		return ErrExistingTxGreaterThanProcessedTx
 	}
 	for i, existingTxHash := range existingTxHashes {
-		if existingTxHash != processedTxs[i].TxHash {
+		if existingTxHash != processedTxs[i].Tx.Hash() {
 			return ErrOutOfOrderProcessedTx
 		}
 	}
