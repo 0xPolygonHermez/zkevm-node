@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -231,6 +232,24 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 	}
 
 	return tx, nil
+}
+
+// EstimateGasForVerifyBatch estimates gas for verify batch smart contract call
+func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse) (uint64, error) {
+	verifyBatchOpts := *etherMan.auth
+	verifyBatchOpts.NoSend = true
+	tx, err := etherMan.verifyBatch(&verifyBatchOpts, batchNumber, resGetProof)
+	if err != nil {
+		return 0, err
+	}
+	return tx.Gas(), nil
+}
+
+// VerifyBatch send verifyBatch request to the ethereum
+func (etherMan *Client) VerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64) (*types.Transaction, error) {
+	verifyBatchOpts := *etherMan.auth
+	verifyBatchOpts.GasLimit = gasLimit
+	return etherMan.verifyBatch(&verifyBatchOpts, batchNumber, resGetProof)
 }
 
 // GetSendSequenceFee get super/trusted sequencer fee
@@ -555,6 +574,48 @@ func (etherMan *Client) ApproveMatic(maticAmount *big.Int, to common.Address) (*
 	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
 	if err != nil {
 		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
+	}
+	return tx, nil
+}
+
+// VerifyBatch function allows the aggregator send the proof for a batch and consolidate it
+func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64, resGetProof *pb.GetProofResponse) (*types.Transaction, error) {
+	publicInputs := resGetProof.Public.PublicInputs
+	newLocalExitRoot, err := stringToFixedByteArray(publicInputs.NewLocalExitRoot)
+	if err != nil {
+		return nil, err
+	}
+	newStateRoot, err := stringToFixedByteArray(publicInputs.NewStateRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	proofA, err := strSliceToBigIntArray(resGetProof.Proof.ProofA)
+	if err != nil {
+		return nil, err
+	}
+
+	proofB, err := proofSlcToIntArray(resGetProof.Proof.ProofB)
+	if err != nil {
+		return nil, err
+	}
+	proofC, err := strSliceToBigIntArray(resGetProof.Proof.ProofC)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := etherMan.PoE.VerifyBatch(
+		opts,
+		newLocalExitRoot,
+		newStateRoot,
+		batchNumber,
+		proofA,
+		proofB,
+		proofC,
+	)
+
+	if err != nil {
+		return nil, err
 	}
 	return tx, nil
 }

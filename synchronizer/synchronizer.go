@@ -260,15 +260,16 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			log.Fatalf("error storing block. BlockNumber: %d, error: %s", blocks[i].BlockNumber, err.Error())
 		}
 		for _, element := range order[blocks[i].BlockHash] {
-			if element.Name == etherman.SequenceBatchesOrder {
+			switch element.Name {
+			case etherman.SequenceBatchesOrder:
 				s.processSequenceBatches(blocks[i].SequencedBatches[element.Pos], blocks[i].BlockNumber, dbTx)
-			} else if element.Name == etherman.ForcedBatchesOrder {
+			case etherman.ForcedBatchesOrder:
 				s.processForcedBatch(blocks[i].ForcedBatches[element.Pos], dbTx)
-			} else if element.Name == etherman.GlobalExitRootsOrder {
+			case etherman.GlobalExitRootsOrder:
 				s.processGlobalExitRoot(blocks[i].GlobalExitRoots[element.Pos], dbTx)
-			} else if element.Name == etherman.SequenceForceBatchesOrder {
+			case etherman.SequenceForceBatchesOrder:
 				s.processSequenceForceBatch(blocks[i].SequencedForceBatches[element.Pos], blocks[i].BlockNumber, dbTx)
-			} else if element.Name == etherman.VerifyBatchOrder {
+			case etherman.VerifyBatchOrder:
 				s.processVerifiedBatch(blocks[i].VerifiedBatches[element.Pos], dbTx)
 			}
 		}
@@ -396,9 +397,9 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, dbTx pgx.Tx) (
 	}
 	//Compare virtual state with trusted state
 	if hex.EncodeToString(batch.BatchL2Data) == hex.EncodeToString(tBatch.BatchL2Data) &&
-		batch.GlobalExitRoot == tBatch.GlobalExitRoot &&
-		batch.Timestamp == tBatch.Timestamp &&
-		batch.Coinbase == tBatch.Coinbase {
+		batch.GlobalExitRoot.String() == tBatch.GlobalExitRoot.String() &&
+		batch.Timestamp.Unix() == tBatch.Timestamp.Unix() &&
+		batch.Coinbase.String() == tBatch.Coinbase.String() {
 		return true, nil
 	}
 	return false, nil
@@ -512,6 +513,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			}
 			if !status {
 				// Reset trusted state
+				log.Infof("reorg detected, discarding batches until batchNum %d", batch.BatchNumber)
 				err := s.state.ResetTrustedState(s.ctx, batch.BatchNumber, dbTx) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
 				if err != nil {
 					log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %s", batch.BatchNumber, blockNumber, err.Error())

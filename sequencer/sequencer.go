@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -56,6 +57,8 @@ func New(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
+	// TODO: check that private key used in etherman matches addr
+
 	return &Sequencer{
 		cfg:               cfg,
 		pool:              pool,
@@ -70,6 +73,55 @@ func New(
 
 // Start starts the sequencer
 func (s *Sequencer) Start(ctx context.Context) {
+	for !s.isSynced(ctx) {
+		log.Infof("waiting for synchronizer to sync...")
+		time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
+	}
+	// initialize sequence
+	batchNum, err := s.state.GetLastBatchNumber(ctx, nil)
+	if err != nil {
+		log.Fatalf("failed to get last batch number, err: %v", err)
+	}
+	// case A: genesis
+	if batchNum == 0 {
+		log.Infof("starting sequencer with genesis batch")
+		processingCtx := state.ProcessingContext{
+			BatchNumber:    1,
+			Coinbase:       s.address,
+			Timestamp:      time.Now(),
+			GlobalExitRoot: state.ZeroHash,
+		}
+		dbTx, err := s.state.BeginStateTransaction(ctx)
+		if err != nil {
+			log.Fatalf("failed to begin state transaction for opening a batch, err: %v", err)
+		}
+		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
+		if err != nil {
+			if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+				log.Fatalf(
+					"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
+					rollbackErr, err,
+				)
+			}
+			log.Fatalf("failed to open a batch, err: %v", err)
+		}
+		if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+			log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
+		}
+		s.lastBatchNum = processingCtx.BatchNumber
+		s.sequenceInProgress = types.Sequence{
+			GlobalExitRoot:  processingCtx.GlobalExitRoot,
+			Timestamp:       processingCtx.Timestamp.Unix(),
+			ForceBatchesNum: 0,
+			Txs:             nil,
+		}
+	} else {
+		err = s.loadSequenceFromState(ctx)
+		if err != nil {
+			log.Fatalf("failed to load sequence from the state, err: %v", err)
+		}
+	}
+
 	go s.trackReorg(ctx)
 	go s.trackOldTxs(ctx)
 	ticker := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
@@ -112,6 +164,7 @@ func (s *Sequencer) trackOldTxs(ctx context.Context) {
 		}
 	}
 }
+
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	if !s.isSynced(ctx) {
 		log.Infof("wait for synchronizer to sync last batch")
@@ -119,17 +172,18 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	log.Infof("synchronizer has synced last batch, checking if current sequence should be closed")
-	if s.shouldCloseSequenceInProgress(ctx) {
-		log.Infof("current sequence should be closed")
-		s.closedSequences = append(s.closedSequences, s.sequenceInProgress)
+	if s.sequenceInProgress.IsEmpty() {
 		newSequence, err := s.newSequence(ctx)
 		if err != nil {
 			log.Errorf("failed to create new sequence, err: %v", err)
-			s.closedSequences = s.closedSequences[:len(s.closedSequences)-1]
 			return
 		}
 		s.sequenceInProgress = newSequence
+	}
+
+	log.Infof("synchronizer has synced last batch, checking if current sequence should be closed")
+	if s.shouldCloseSequenceInProgress(ctx) && !s.closeSequence(ctx) {
+		return
 	}
 
 	log.Infof("checking if current sequence should be sent")
@@ -154,41 +208,109 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	log.Infof("getting pending tx from the pool")
-	tx, ok := s.getMostProfitablePendingTx(ctx)
-	if !ok {
+	zkCounters := s.calculateZkCounters()
+	if zkCounters.IsZkCountersBelowZero() {
+		s.closeSequence(ctx)
 		return
 	}
-
-	if tx == nil {
-		log.Infof("waiting for pending txs...")
+	tx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, zkCounters)
+	if err == pgpoolstorage.ErrNotFound {
+		log.Infof("there is no suitable pending tx in the pool, waiting...")
 		waitTick(ctx, ticker)
 		return
+	} else if err != nil {
+		log.Errorf("failed to get pending tx, err: %v", err)
+		return
 	}
 
-	log.Infof("processing tx")
+	log.Infof("processing tx: %s", tx.Hash())
+	dbTx, err := s.state.BeginStateTransaction(ctx)
+	if err != nil {
+		log.Errorf("failed to begin state transaction for processing tx, err: %v", err)
+		return
+	}
+
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, nil)
+	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when processing tx that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+			return
+		}
 		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
 		return
 	}
 
+	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+		log.Errorf("failed to commit dbTx when processing tx, err: %v", err)
+		return
+	}
+
+	s.sequenceInProgress.ZkCounters = pool.ZkCounters{
+		CumulativeGasUsed:    int64(processBatchResp.CumulativeGasUsed),
+		UsedKeccakHashes:     int32(processBatchResp.CntKeccakHashes),
+		UsedPoseidonHashes:   int32(processBatchResp.CntPoseidonHashes),
+		UsedPoseidonPaddings: int32(processBatchResp.CntPoseidonPaddings),
+		UsedMemAligns:        int32(processBatchResp.CntMemAligns),
+		UsedArithmetics:      int32(processBatchResp.CntArithmetics),
+		UsedBinaries:         int32(processBatchResp.CntBinaries),
+		UsedSteps:            int32(processBatchResp.CntSteps),
+	}
 	s.lastStateRoot = processBatchResp.NewStateRoot
 	s.lastLocalExitRoot = processBatchResp.NewLocalExitRoot
 
 	// TODO: add logic based on this response to decide which txs we include on the DB
-	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processBatchResp.Responses, nil)
+	dbTx, err = s.state.BeginStateTransaction(ctx)
 	if err != nil {
+		log.Errorf("failed to begin state transaction for StoreTransactions, err: %v", err)
+		return
+	}
+	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processBatchResp.Responses, dbTx)
+	if err != nil {
+		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when StoreTransactions that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+			return
+		}
 		log.Errorf("failed to store transactions, err: %v", err)
+		if err == state.ErrOutOfOrderProcessedTx || err == state.ErrExistingTxGreaterThanProcessedTx {
+			err = s.loadSequenceFromState(ctx)
+			log.Errorf("failed to load sequence from state, err: %v", err)
+		}
 		return
 	}
 
-	log.Infof("marking tx as selected in the pool")
-	// TODO: add correct handling in case update didn't go through
-	_ = s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected)
+	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+		log.Errorf("failed to commit dbTx when StoreTransactions, err: %v", err)
+		return
+	}
 
-	log.Infof("TODO: broadcast tx in a new l2 block")
+	log.Infof("Tx %s added into the state. Marking tx as selected in the pool", tx.Hash())
+	// TODO: add correct handling in case update didn't go through
+	if err := s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected); err != nil {
+		log.Errorf("failed to update tx status on the pool, err: %v", err)
+		return
+	}
+}
+
+func (s *Sequencer) closeSequence(ctx context.Context) bool {
+	log.Infof("current sequence should be closed")
+	s.closedSequences = append(s.closedSequences, s.sequenceInProgress)
+	newSequence, err := s.newSequence(ctx)
+	if err != nil {
+		log.Errorf("failed to create new sequence, err: %v", err)
+		s.closedSequences = s.closedSequences[:len(s.closedSequences)-1]
+		return false
+	}
+	s.sequenceInProgress = newSequence
+	return true
 }
 
 func waitTick(ctx context.Context, ticker *time.Ticker) {
@@ -202,11 +324,11 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 
 func (s *Sequencer) isSynced(ctx context.Context) bool {
 	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
-	if err != nil {
+	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get last synced batch, err: %v", err)
 		return false
 	}
-	lastEthBatchNum, err := s.state.GetLastBatchNumberSeenOnEthereum(ctx, nil)
+	lastEthBatchNum, err := s.etherman.GetLatestBatchNumber()
 	if err != nil {
 		log.Errorf("failed to get last eth batch, err: %v", err)
 		return false
@@ -224,18 +346,19 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 	estimatedGas, err := s.etherman.EstimateGasSequenceBatches(s.closedSequences)
 	if err != nil && isDataForEthTxTooBig(err) {
+		log.Warnf("closedSequences eth data is too big, err: %v", err)
 		return true, true
 	}
 
 	if err != nil {
-		log.Errorf("failed to estimate gas for sequence batches", err)
+		log.Errorf("failed to estimate gas for sequence batches, err: %v", err)
 		return false, false
 	}
 
 	// TODO: checkAgainstForcedBatchQueueTimeout
 
 	lastBatchVirtualizationTime, err := s.state.GetTimeForLatestBatchVirtualization(ctx, nil)
-	if err != nil {
+	if err != nil && !errors.Is(err, state.ErrNotFound) {
 		log.Errorf("failed to get last l1 interaction time, err: %v", err)
 		return false, false
 	}
@@ -254,7 +377,7 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 // in case it's enough blocks since last GER update, long time since last batch and sequence is profitable
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	numberOfBlocks, err := s.state.GetNumberOfBlocksSinceLastGERUpdate(ctx, nil)
-	if err != nil {
+	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get last time GER updated, err: %v", err)
 		return false
 	}
@@ -263,11 +386,11 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	}
 
 	lastBatchTime, err := s.state.GetLastBatchTime(ctx, nil)
-	if err != nil {
+	if err != nil && !errors.Is(err, state.ErrNotFound) {
 		log.Errorf("failed to get last batch time, err: %v", err)
 		return false
 	}
-	if lastBatchTime.Before(time.Now().Add(-s.cfg.LastTimeBatchMaxWaitPeriod.Duration)) {
+	if lastBatchTime.Before(time.Now().Add(-s.cfg.LastTimeBatchMaxWaitPeriod.Duration)) && len(s.sequenceInProgress.Txs) > 0 {
 		return s.isSequenceProfitable(ctx)
 	}
 
@@ -284,56 +407,114 @@ func (s *Sequencer) isSequenceProfitable(ctx context.Context) bool {
 	return isProfitable
 }
 
-func (s *Sequencer) getMostProfitablePendingTx(ctx context.Context) (*pool.Transaction, bool) {
-	tx, err := s.pool.GetPendingTxs(ctx, false, 1)
-	if err != nil {
-		log.Errorf("failed to get pending tx, err: %v", err)
-		return nil, false
-	}
-	if len(tx) == 0 {
-		log.Infof("waiting for pending tx to appear...")
-		return nil, false
-	}
-	return &tx[0], true
-}
-
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
-	// close current batch
 	if s.lastStateRoot.String() != "" || s.lastLocalExitRoot.String() != "" {
 		receipt := state.ProcessingReceipt{
 			BatchNumber:   s.lastBatchNum,
 			StateRoot:     s.lastStateRoot,
 			LocalExitRoot: s.lastLocalExitRoot,
 		}
-		err := s.state.CloseBatch(ctx, receipt, nil)
+		dbTx, err := s.state.BeginStateTransaction(ctx)
 		if err != nil {
+			return types.Sequence{}, fmt.Errorf("failed to begin state transaction to close batch, err: %v", err)
+		}
+		err = s.state.CloseBatch(ctx, receipt, dbTx)
+		if err != nil {
+			if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+				return types.Sequence{}, fmt.Errorf(
+					"failed to rollback dbTx when closing batch that gave err: %v. Rollback err: %v",
+					rollbackErr, err,
+				)
+			}
 			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %v", err)
+		}
+		if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+			return types.Sequence{}, fmt.Errorf("failed to commit dbTx when close batch, err: %v", err)
 		}
 	} else {
 		return types.Sequence{}, errors.New("lastStateRoot and lastLocalExitRoot are empty, impossible to close a batch")
 	}
-
-	root, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
-	if err != nil {
+	// open next batch
+	var gerHash common.Hash
+	ger, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
+	if err != nil && err == state.ErrNotFound {
+		gerHash = state.ZeroHash
+	} else if err != nil {
 		return types.Sequence{}, fmt.Errorf("failed to get latest global exit root, err: %v", err)
+	} else {
+		gerHash = ger.GlobalExitRoot
 	}
 
-	s.lastBatchNum, err = s.state.GetLastBatchNumber(ctx, nil)
+	lastBatchNum, err := s.state.GetLastBatchNumber(ctx, nil)
 	if err != nil {
 		return types.Sequence{}, fmt.Errorf("failed to get last batch number, err: %v", err)
 	}
-	s.lastBatchNum = s.lastBatchNum + 1
+	newBatchNum := lastBatchNum + 1
+	dbTx, err := s.state.BeginStateTransaction(ctx)
+	if err != nil {
+		return types.Sequence{}, fmt.Errorf("failed to open new batch, err: %v", err)
+	}
+	processingCtx := state.ProcessingContext{
+		BatchNumber:    newBatchNum,
+		Coinbase:       s.address,
+		Timestamp:      time.Now(),
+		GlobalExitRoot: gerHash,
+	}
+	err = s.state.OpenBatch(ctx, processingCtx, dbTx)
+	if err != nil {
+		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+			return types.Sequence{}, fmt.Errorf(
+				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		return types.Sequence{}, fmt.Errorf("failed to open new batch, err: %v", err)
+	}
+	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+		return types.Sequence{}, fmt.Errorf("failed to commit dbTx when opening batch, err: %v", err)
+	}
 
+	s.lastBatchNum = newBatchNum
 	return types.Sequence{
-		GlobalExitRoot:  root.GlobalExitRoot,
-		Timestamp:       time.Now().Unix(),
+		GlobalExitRoot:  processingCtx.GlobalExitRoot,
+		Timestamp:       processingCtx.Timestamp.Unix(),
 		ForceBatchesNum: 0,
 		Txs:             nil,
 	}, nil
 }
 
+func (s *Sequencer) calculateZkCounters() pool.ZkCounters {
+	return pool.ZkCounters{
+		CumulativeGasUsed:    s.cfg.MaxGasUsed - s.sequenceInProgress.CumulativeGasUsed,
+		UsedKeccakHashes:     s.cfg.MaxKeccakHashes - s.sequenceInProgress.UsedKeccakHashes,
+		UsedPoseidonHashes:   s.cfg.MaxPoseidonHashes - s.sequenceInProgress.UsedKeccakHashes,
+		UsedPoseidonPaddings: s.cfg.MaxPoseidonPaddings - s.sequenceInProgress.UsedPoseidonPaddings,
+		UsedMemAligns:        s.cfg.MaxMemAligns - s.sequenceInProgress.UsedMemAligns,
+		UsedArithmetics:      s.cfg.MaxArithmetics - s.sequenceInProgress.UsedArithmetics,
+		UsedBinaries:         s.cfg.MaxBinaries - s.sequenceInProgress.UsedBinaries,
+		UsedSteps:            s.cfg.MaxSteps - s.sequenceInProgress.UsedSteps,
+	}
+}
+
 func isDataForEthTxTooBig(err error) bool {
 	return strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
-		errors.As(err, &core.ErrOversizedData) ||
+		errors.Is(err, core.ErrOversizedData) ||
 		strings.Contains(err.Error(), errContentLengthTooLarge)
+}
+
+func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
+	// WIP
+	lastBatch, err := s.state.GetLastBatch(ctx, nil)
+	if err != nil {
+		return err
+	}
+	s.lastBatchNum = lastBatch.BatchNumber
+	s.lastStateRoot = lastBatch.StateRoot
+	s.lastLocalExitRoot = lastBatch.LocalExitRoot
+	return fmt.Errorf("NOT IMPLEMENTED: loadSequenceFromState")
+	/*
+		TODO: set s.[lastBatchNum, lastStateRoot, lastLocalExitRoot, closedSequences, sequenceInProgress]
+		based on stateDB data AND potentially pending txs to be mined on Ethereum, as this function may be called either
+		when starting the sequencer OR if there is a mismatch between state data and on memory
+	*/
 }

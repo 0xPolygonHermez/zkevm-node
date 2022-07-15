@@ -35,14 +35,11 @@ var (
 	cfg = dbutils.NewConfigFromEnv()
 )
 
-func TestMain(m *testing.M) {
-	// Force schema recreation
+func TestBroadcast(t *testing.T) {
 	if err := dbutils.InitOrReset(cfg); err != nil {
 		panic(err)
 	}
-}
 
-func TestBroadcast(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}

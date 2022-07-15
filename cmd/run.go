@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
@@ -20,6 +21,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/proverclient"
+	proverclientpb "github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
@@ -31,6 +34,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // slice contains method
@@ -79,15 +83,16 @@ func start(cliCtx *cli.Context) error {
 	npool := pool.NewPool(poolDb, st, c.NetworkConfig.L2GlobalExitRootManagerAddr)
 	gpe := createGasPriceEstimator(c.GasPriceEstimator, st, npool)
 	ch := make(chan struct{})
-
+	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman)
+	proverClient, proverConn := newProverClient(c.Prover)
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
 		switch item {
-		// case AGGREGATOR:
-		// 	log.Info("Running aggregator")
-		// 	go runAggregator(c.Aggregator, ethermanV1, proverClient, st)
+		case AGGREGATOR:
+			log.Info("Running aggregator")
+			go runAggregator(c.Aggregator, ethTxManager, proverClient, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
-			seq := createSequencer(*c, npool, st, etherman, ch)
+			seq := createSequencer(*c, npool, st, etherman, ethTxManager, ch)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
@@ -105,7 +110,7 @@ func start(cliCtx *cli.Context) error {
 		}
 	}
 
-	// grpcClientConns = append(grpcClientConns)
+	grpcClientConns = append(grpcClientConns, proverConn)
 
 	waitSignal(grpcClientConns, cancelFuncs)
 
@@ -162,27 +167,41 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 	}
 }
 
-func createSequencer(c config.Config, pool *pool.Pool, state *state.State, etherman *etherman.Client, reorgBlockNumChan chan struct{}) *sequencer.Sequencer {
+func createSequencer(c config.Config, pool *pool.Pool, state *state.State, etherman *etherman.Client,
+	ethTxManager *ethtxmanager.Client, reorgBlockNumChan chan struct{}) *sequencer.Sequencer {
 	pg, err := pricegetter.NewClient(c.PriceGetter)
 	if err != nil {
 		log.Fatal(err)
 	}
-	ethManager := ethtxmanager.New(c.EthTxManager, etherman)
 
-	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, reorgBlockNumChan, ethManager)
+	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, reorgBlockNumChan, ethTxManager)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return seq
 }
 
-// func runAggregator(c aggregator.Config, etherman *etherman.Client, proverClient proverclientpb.ZKProverServiceClient, state *state.State) {
-// 	agg, err := aggregator.NewAggregator(c, state, etherman, proverClient)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	agg.Start()
-// }
+func runAggregator(c aggregator.Config, ethTxManager *ethtxmanager.Client, proverClient proverclientpb.ZKProverServiceClient, state *state.State) {
+	agg, err := aggregator.NewAggregator(c, state, ethTxManager, proverClient)
+	if err != nil {
+		log.Fatal(err)
+	}
+	agg.Start()
+}
+
+func newProverClient(c proverclient.Config) (proverclientpb.ZKProverServiceClient, *grpc.ClientConn) {
+	opts := []grpc.DialOption{
+		// TODO: once we have user and password for prover server, change this
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	proverConn, err := grpc.Dial(c.ProverURI, opts...)
+	if err != nil {
+		log.Fatalf("fail to dial: %v", err)
+	}
+
+	proverClient := proverclientpb.NewZKProverServiceClient(proverConn)
+	return proverClient, proverConn
+}
 
 func runBroadcastServer(c broadcast.ServerConfig, st *state.State) {
 	s := grpc.NewServer()

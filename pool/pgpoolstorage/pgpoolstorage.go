@@ -15,6 +15,11 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
+var (
+	// ErrNotFound indicates an object has not been found for the search criteria used
+	ErrNotFound = errors.New("object not found")
+)
+
 // PostgresPoolStorage is an implementation of the Pool interface
 // that uses a postgres database to store the data
 type PostgresPoolStorage struct {
@@ -51,8 +56,46 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 
 	gasPrice := tx.GasPrice().Uint64()
 	nonce := tx.Nonce()
-	sql := "INSERT INTO pool.txs (hash, encoded, decoded, state, gas_price, nonce, is_claims, received_at) VALUES($1, $2, $3, $4, $5, $6, $7, $8)"
-	if _, err := p.db.Exec(ctx, sql, hash, encoded, decoded, tx.State, gasPrice, nonce, tx.IsClaims, tx.ReceivedAt); err != nil {
+	sql := `
+		INSERT INTO pool.txs 
+		(
+			hash,
+			encoded,
+			decoded,
+			state,
+			gas_price,
+			nonce,
+			is_claims,
+			cumulative_gas_used,
+			used_keccak_hashes,
+			used_poseidon_hashes,
+			used_poseidon_paddings,
+			used_mem_aligns,
+			used_arithmetics,
+			used_binaries,
+			used_steps,
+			received_at
+		) 
+		VALUES 
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+	`
+	if _, err := p.db.Exec(ctx, sql,
+		hash,
+		encoded,
+		decoded,
+		tx.State,
+		gasPrice,
+		nonce,
+		tx.IsClaims,
+		tx.CumulativeGasUsed,
+		tx.UsedKeccakHashes,
+		tx.UsedPoseidonHashes,
+		tx.UsedPoseidonPaddings,
+		tx.UsedMemAligns,
+		tx.UsedArithmetics,
+		tx.UsedBinaries,
+		tx.UsedSteps,
+		tx.ReceivedAt); err != nil {
 		return err
 	}
 	return nil
@@ -137,6 +180,97 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 	}
 
 	return hashes, nil
+}
+
+// GetTopPendingTxByProfitabilityAndZkCounters gets top pending tx by profitability and zk counter
+func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters pool.ZkCounters) (*pool.Transaction, error) {
+	sql := `
+		SELECT 
+			encoded, 
+			state,
+			cumulative_gas_used,
+			used_keccak_hashes,
+			used_poseidon_hashes,
+			used_poseidon_paddings, 
+			used_mem_aligns,
+			used_arithmetics,
+			used_binaries,
+			used_steps,
+			received_at 
+		FROM
+			pool.txs 
+		WHERE 
+			state = $1 AND 
+			cumulative_gas_used < $2 AND 
+			used_keccak_hashes < $3 AND 
+			used_poseidon_hashes < $4 AND 
+			used_poseidon_paddings < $5 AND
+			used_mem_aligns < $6 AND 
+			used_arithmetics < $7 AND
+			used_binaries < $8 AND 
+			used_steps < $9
+		ORDER BY gas_price DESC
+		LIMIT 1
+	`
+	var (
+		encoded, state    string
+		receivedAt        time.Time
+		cumulativeGasUsed int64
+
+		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
+		usedMemAligns, usedArithmetics, usedBinaries, usedSteps int32
+	)
+	err := p.db.QueryRow(ctx, sql,
+		pool.TxStatePending,
+		maxZkCounters.CumulativeGasUsed,
+		maxZkCounters.UsedKeccakHashes,
+		maxZkCounters.UsedPoseidonHashes,
+		maxZkCounters.UsedPoseidonPaddings,
+		maxZkCounters.UsedMemAligns,
+		maxZkCounters.UsedArithmetics,
+		maxZkCounters.UsedBinaries,
+		maxZkCounters.UsedSteps).
+		Scan(&encoded,
+			&state,
+			&cumulativeGasUsed,
+			&usedKeccakHashes,
+			&usedPoseidonHashes,
+			&usedPoseidonPaddings,
+			&usedMemAligns,
+			&usedArithmetics,
+			&usedBinaries,
+			&usedSteps,
+			&receivedAt)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	tx := new(pool.Transaction)
+	b, err := hex.DecodeHex(encoded)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+
+	tx.State = pool.TxState(state)
+	tx.ReceivedAt = receivedAt
+	tx.ZkCounters = pool.ZkCounters{
+		CumulativeGasUsed:    cumulativeGasUsed,
+		UsedKeccakHashes:     usedKeccakHashes,
+		UsedPoseidonHashes:   usedPoseidonHashes,
+		UsedPoseidonPaddings: usedPoseidonPaddings,
+		UsedMemAligns:        usedMemAligns,
+		UsedArithmetics:      usedArithmetics,
+		UsedBinaries:         usedBinaries,
+		UsedSteps:            usedSteps,
+	}
+
+	return tx, nil
 }
 
 // CountTransactionsByState get number of transactions

@@ -11,6 +11,7 @@ import (
 
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -26,6 +27,7 @@ type Client struct {
 
 	ethMan                 etherman
 	sequenceBatchesTxsChan chan sequenceBatchesTx
+	verifyBatchTxsChan     chan verifyBatchTx
 }
 
 type sequenceBatchesTx struct {
@@ -34,13 +36,26 @@ type sequenceBatchesTx struct {
 	gasLimit  uint64
 }
 
+type verifyBatchTx struct {
+	batchNumber uint64
+	resGetProof *pb.GetProofResponse
+	hash        common.Hash
+	gasLimit    uint64
+}
+
 // New creates new eth tx manager
 func New(cfg Config, ethMan etherman) *Client {
 	sequenceBatchesTxsChan := make(chan sequenceBatchesTx, sentEthTxsChanLen)
-	return &Client{cfg: cfg, sequenceBatchesTxsChan: sequenceBatchesTxsChan, ethMan: ethMan}
+	verifyBatchTxsChan := make(chan verifyBatchTx, sentEthTxsChanLen)
+	return &Client{
+		cfg:                    cfg,
+		sequenceBatchesTxsChan: sequenceBatchesTxsChan,
+		verifyBatchTxsChan:     verifyBatchTxsChan,
+		ethMan:                 ethMan,
+	}
 }
 
-// SequenceBatches send request to ethereum
+// SequenceBatches send SequenceBatches request to ethereum
 func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) error {
 	gas, err := c.ethMan.EstimateGasSequenceBatches(sequences)
 	if err != nil {
@@ -60,19 +75,42 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) error {
 	return nil
 }
 
+// VerifyBatch send VerifyBatch request to ethereum
+func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) error {
+	gas, err := c.ethMan.EstimateGasForVerifyBatch(batchNum, resGetProof)
+	if err != nil {
+		return fmt.Errorf("failed to estimate gas for sending sequences batches, err: %v", err)
+	}
+
+	gasLimit := uint64(float64(gas) * gasLimitIncrease)
+	tx, err := c.ethMan.VerifyBatch(batchNum, resGetProof, gasLimit)
+	if err != nil {
+		return err
+	}
+	c.verifyBatchTxsChan <- verifyBatchTx{
+		batchNumber: batchNum,
+		resGetProof: resGetProof,
+		hash:        tx.Hash(),
+		gasLimit:    gasLimit,
+	}
+	return nil
+}
+
 // TrackEthSentTransactions tracks sent txs to the ethereum
 func (c *Client) TrackEthSentTransactions(ctx context.Context) {
 	for {
 		select {
 		case tx := <-c.sequenceBatchesTxsChan:
-			c.resendTxIfNeeded(ctx, tx)
+			c.resendSendBatchesTxIfNeeded(ctx, tx)
+		case tx := <-c.verifyBatchTxsChan:
+			c.resendVerifyBatchTxIfNeeded(ctx, tx)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (c *Client) resendTxIfNeeded(ctx context.Context, tx sequenceBatchesTx) {
+func (c *Client) resendSendBatchesTxIfNeeded(ctx context.Context, tx sequenceBatchesTx) {
 	var (
 		gasLimit       uint64
 		counter        uint32
@@ -104,6 +142,56 @@ func (c *Client) resendTxIfNeeded(ctx context.Context, tx sequenceBatchesTx) {
 			" gas limit %d is too high, first tx hash %s, last tx hash %s",
 			tx.sequences, gasLimit, tx.hash.Hex(), hash.Hex())
 	}
+}
+
+func (c *Client) resendVerifyBatchTxIfNeeded(ctx context.Context, tx verifyBatchTx) {
+	var (
+		gasLimit       uint64
+		counter        uint32
+		isTxSuccessful bool
+		err            error
+	)
+	hash := tx.hash
+	for !isTxSuccessful && counter <= c.cfg.MaxVerifyBatchTxRetries {
+		time.Sleep(time.Duration(c.cfg.FrequencyForResendingFailedVerifyBatchInMilliseconds) * time.Millisecond)
+		receipt := c.getTxReceipt(ctx, hash)
+		if receipt == nil {
+			continue
+		}
+		// tx is failed, so batch should be sent again
+		if receipt.Status == 0 {
+			gasLimit, hash, err = c.resendVerifyBatch(gasLimit, tx, hash, counter)
+			if err != nil {
+				log.Errorf("failed to resend verify batch to the ethereum, err: %v", err)
+			}
+			counter++
+			continue
+		}
+
+		log.Infof("verifyBatch transaction %s is successful", hash.Hex())
+		isTxSuccessful = true
+	}
+	if counter == c.cfg.MaxSendBatchTxRetries {
+		log.Fatalf("failed to send verify batch several times,"+
+			"batchNumber %d, gas limit %d is too high, first tx hash %s, last tx hash %s",
+			tx.batchNumber, gasLimit, tx.hash.Hex(), hash.Hex())
+	}
+}
+
+func (c *Client) resendVerifyBatch(gasLimit uint64, tx verifyBatchTx, hash common.Hash, counter uint32) (uint64, common.Hash, error) {
+	log.Warnf("increasing gas limit for the transaction sending, previous failed tx hash %v", hash)
+
+	gasLimit = uint64(float64(gasLimit) * gasLimitIncrease)
+	sentTx, err := c.ethMan.VerifyBatch(tx.batchNumber, tx.resGetProof, gasLimit)
+	if err != nil {
+		log.Warnf("failed to send batch once again, err: %v", err)
+		return gasLimit, hash, err
+	}
+	hash = sentTx.Hash()
+	log.Infof("sent sendBatch transaction with hash %s and gas limit %d with try number %d",
+		hash, gasLimit, counter)
+
+	return gasLimit, hash, nil
 }
 
 func (c *Client) resendSequenceBatches(gasLimit uint64, tx sequenceBatchesTx, hash common.Hash, counter uint32) (uint64, common.Hash, error) {

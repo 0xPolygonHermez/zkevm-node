@@ -61,6 +61,38 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
+			path:          "Sequencer.MaxGasUsed",
+			expectedValue: int64(100000),
+		},
+		{
+			path:          "Sequencer.MaxKeccakHashes",
+			expectedValue: int32(100),
+		},
+		{
+			path:          "Sequencer.MaxPoseidonHashes",
+			expectedValue: int32(100),
+		},
+		{
+			path:          "Sequencer.MaxPoseidonPaddings",
+			expectedValue: int32(100),
+		},
+		{
+			path:          "Sequencer.MaxMemAligns",
+			expectedValue: int32(100),
+		},
+		{
+			path:          "Sequencer.MaxArithmetics",
+			expectedValue: int32(100),
+		},
+		{
+			path:          "Sequencer.MaxBinaries",
+			expectedValue: int32(100),
+		},
+		{
+			path:          "Sequencer.MaxSteps",
+			expectedValue: int32(100),
+		},
+		{
 			path:          "EthTxManager.MaxSendBatchTxRetries",
 			expectedValue: uint32(10),
 		},
