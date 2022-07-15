@@ -55,8 +55,8 @@ func TestTrustedStateReorg(t *testing.T) {
 					Return(lastBlock, nil).
 					Once()
 
-				m.State.
-					On("CommitStateTransaction", ctx, m.DbTx).
+				m.DbTx.
+					On("Commit", ctx).
 					Return(nil).
 					Once()
 
@@ -158,8 +158,8 @@ func TestTrustedStateReorg(t *testing.T) {
 					Return(nil).
 					Once()
 
-				m.State.
-					On("CommitStateTransaction", ctx, m.DbTx).
+				m.DbTx.
+					On("Commit", ctx).
 					Run(func(args mock.Arguments) { sync.Stop() }).
 					Return(nil).
 					Once()

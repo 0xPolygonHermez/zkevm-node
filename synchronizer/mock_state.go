@@ -123,20 +123,6 @@ func (_m *stateMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) 
 	return r0, r1
 }
 
-// CommitStateTransaction provides a mock function with given fields: ctx, dbTx
-func (_m *stateMock) CommitStateTransaction(ctx context.Context, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, dbTx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) error); ok {
-		r0 = rf(ctx, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // GetBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
 func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
@@ -292,27 +278,13 @@ func (_m *stateMock) ResetTrustedState(ctx context.Context, batchNumber uint64, 
 	return r0
 }
 
-// RollbackStateTransaction provides a mock function with given fields: ctx, dbTx
-func (_m *stateMock) RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, dbTx)
+// SetGenesis provides a mock function with given fields: ctx, block, genesis, dbTx
+func (_m *stateMock) SetGenesis(ctx context.Context, block state.Block, genesis state.Genesis, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, block, genesis, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) error); ok {
-		r0 = rf(ctx, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// SetGenesis provides a mock function with given fields: ctx, genesis, dbTx
-func (_m *stateMock) SetGenesis(ctx context.Context, genesis state.Genesis, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, genesis, dbTx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.Genesis, pgx.Tx) error); ok {
-		r0 = rf(ctx, genesis, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Block, state.Genesis, pgx.Tx) error); ok {
+		r0 = rf(ctx, block, genesis, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
