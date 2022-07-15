@@ -686,10 +686,20 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
+	result := new(runtime.ExecutionResult)
+
+	l2BlockHeader, err := s.GetL2BlockHeaderByNumber(ctx, blockNumber, dbTx)
+	if err != nil {
+		log.Errorf("error getting l2 block ", err)
+		result.Err = err
+		return result
+	}
+
 	lastBatches, err := s.PostgresStorage.GetLastNBatches(ctx, two, dbTx)
 	if err != nil {
-		return nil, err
+		result.Err = err
+		return result
 	}
 
 	// Get latest batch from the database to get GER and Timestamp
@@ -700,20 +710,15 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	batchL2Data, err := EncodeUnsignedTransaction(*tx)
 	if err != nil {
 		log.Errorf("error encoding unsigned transaction ", err)
-		return nil, err
-	}
-
-	l2Block, err := s.GetLastL2Block(ctx, dbTx)
-	if err != nil {
-		log.Errorf("error getting last l2 block ", err)
-		return nil, err
+		result.Err = err
+		return result
 	}
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		BatchL2Data:      batchL2Data,
 		From:             senderAddress.String(),
-		OldStateRoot:     l2Block.Header().Root.Bytes(),
+		OldStateRoot:     l2BlockHeader.Root.Bytes(),
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
 		EthTimestamp:     uint64(time.Now().Unix()),
@@ -724,9 +729,20 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
 		log.Errorf("error processing unsigned transaction ", err)
-		return nil, err
+		result.Err = err
+		return result
 	}
-	return convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse), nil
+	response := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse).Responses[0]
+
+	// Todo populate result
+	result.ReturnValue = response.ReturnValue
+	result.GasLeft = response.GasLeft
+	result.GasUsed = response.GasUsed
+	result.Err = fmt.Errorf(response.Error)
+	result.CreateAddress = response.CreateAddress
+	result.StateRoot = response.StateRoot.Bytes()
+
+	return result
 }
 
 // AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber.

@@ -48,9 +48,12 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 	return batchL2Data, nil
 }
 
-// EncodeTransactions RLP encodes the given unsigned transaction
+// EncodeUnsignedTransaction RLP encodes the given unsigned transaction
 func EncodeUnsignedTransaction(tx types.Transaction) ([]byte, error) {
-	v, r, s := tx.RawSignatureValues()
+	v, _ := new(big.Int).SetString("0x2e", 0)
+	r, _ := new(big.Int).SetString("0xa54492cfacf71aef702421b7fbc70636537a7b2fbe5718c5ed970a001bb7756b", 0)
+	s, _ := new(big.Int).SetString("0x2e9fb27acc75955b898f0b12ec52aa34bf08f01db654374484b80bf12f0d841e", 0)
+
 	sign := 1 - (v.Uint64() & 1)
 
 	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
