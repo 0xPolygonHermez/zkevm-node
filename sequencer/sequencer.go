@@ -97,7 +97,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		}
 		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
 		if err != nil {
-			if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 				log.Fatalf(
 					"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
 					rollbackErr, err,
@@ -105,7 +105,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 			}
 			log.Fatalf("failed to open a batch, err: %v", err)
 		}
-		if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+		if err := dbTx.Commit(ctx); err != nil {
 			log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
 		}
 		s.lastBatchNum = processingCtx.BatchNumber
@@ -234,7 +234,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
-		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			log.Errorf(
 				"failed to rollback dbTx when processing tx that gave err: %v. Rollback err: %v",
 				rollbackErr, err,
@@ -245,7 +245,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+	if err := dbTx.Commit(ctx); err != nil {
 		log.Errorf("failed to commit dbTx when processing tx, err: %v", err)
 		return
 	}
@@ -272,7 +272,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processBatchResp.Responses, dbTx)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
-		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			log.Errorf(
 				"failed to rollback dbTx when StoreTransactions that gave err: %v. Rollback err: %v",
 				rollbackErr, err,
@@ -287,7 +287,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+	if err := dbTx.Commit(ctx); err != nil {
 		log.Errorf("failed to commit dbTx when StoreTransactions, err: %v", err)
 		return
 	}
@@ -420,7 +420,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		}
 		err = s.state.CloseBatch(ctx, receipt, dbTx)
 		if err != nil {
-			if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 				return types.Sequence{}, fmt.Errorf(
 					"failed to rollback dbTx when closing batch that gave err: %v. Rollback err: %v",
 					rollbackErr, err,
@@ -428,7 +428,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 			}
 			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %v", err)
 		}
-		if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+		if err := dbTx.Commit(ctx); err != nil {
 			return types.Sequence{}, fmt.Errorf("failed to commit dbTx when close batch, err: %v", err)
 		}
 	} else {
@@ -462,7 +462,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	}
 	err = s.state.OpenBatch(ctx, processingCtx, dbTx)
 	if err != nil {
-		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return types.Sequence{}, fmt.Errorf(
 				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
 				rollbackErr, err,
@@ -470,7 +470,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		}
 		return types.Sequence{}, fmt.Errorf("failed to open new batch, err: %v", err)
 	}
-	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+	if err := dbTx.Commit(ctx); err != nil {
 		return types.Sequence{}, fmt.Errorf("failed to commit dbTx when opening batch, err: %v", err)
 	}
 

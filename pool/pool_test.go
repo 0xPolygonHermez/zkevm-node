@@ -280,18 +280,23 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
