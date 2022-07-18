@@ -12,10 +12,15 @@ import (
 
 // Consumer interfaces required by the package.
 
-// ethTxManager contains the methods required to interact with
+// ethTxManager contains the methods required to send txs to
 // ethereum.
 type ethTxManager interface {
 	VerifyBatch(batchNum uint64, proof *pb.GetProofResponse) error
+}
+
+// etherman contains the methods required to interact with ethereum
+type etherman interface {
+	GetLatestVerifiedBatchNum() (uint64, error)
 }
 
 // aggregatorTxProfitabilityChecker interface for different profitability

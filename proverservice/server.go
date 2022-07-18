@@ -120,11 +120,3 @@ func (zkp *zkProverServiceServer) GetStatus(ctx context.Context, request *pb.Get
 func (zkp *zkProverServiceServer) Cancel(ctx context.Context, request *pb.CancelRequest) (*pb.CancelResponse, error) {
 	return &pb.CancelResponse{Result: pb.CancelResponse_RESULT_CANCEL_OK}, nil
 }
-
-func (zkp *zkProverServiceServer) Execute(server pb.ZKProverService_ExecuteServer) error {
-	return nil
-}
-
-func (zkp *zkProverServiceServer) SynchronizeBatchProposal(ctx context.Context, request *pb.SynchronizeBatchProposalRequest) (*pb.SynchronizeBatchProposalResponse, error) {
-	return nil, nil
-}

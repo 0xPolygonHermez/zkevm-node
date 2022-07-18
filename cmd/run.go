@@ -89,7 +89,7 @@ func start(cliCtx *cli.Context) error {
 		switch item {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
-			go runAggregator(c.Aggregator, ethTxManager, proverClient, st)
+			go runAggregator(c.Aggregator, etherman, ethTxManager, proverClient, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
 			seq := createSequencer(*c, npool, st, etherman, ethTxManager, ch)
@@ -181,8 +181,9 @@ func createSequencer(c config.Config, pool *pool.Pool, state *state.State, ether
 	return seq
 }
 
-func runAggregator(c aggregator.Config, ethTxManager *ethtxmanager.Client, proverClient proverclientpb.ZKProverServiceClient, state *state.State) {
-	agg, err := aggregator.NewAggregator(c, state, ethTxManager, proverClient)
+func runAggregator(c aggregator.Config, ethman *etherman.Client, ethTxManager *ethtxmanager.Client,
+	proverClient proverclientpb.ZKProverServiceClient, state *state.State) {
+	agg, err := aggregator.NewAggregator(c, state, ethTxManager, ethman, proverClient)
 	if err != nil {
 		log.Fatal(err)
 	}
