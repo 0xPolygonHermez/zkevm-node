@@ -558,6 +558,7 @@ func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
 	return etherMan.PoE.LastBatchSequenced(&bind.CallOpts{Pending: false})
 }
 
+// GetLatestVerifiedBatchNum gets latest verified batch from ethereum
 func (etherMan *Client) GetLatestVerifiedBatchNum() (uint64, error) {
 	return etherMan.PoE.LastVerifiedBatch(&bind.CallOpts{Pending: false})
 }
