@@ -106,8 +106,12 @@ test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking ra
 .PHONY: test-e2e-group-2
 test-e2e-group-2: build-docker compile-scs ## Runs group 2 e2e tests checking race conditions
 	$(STOPDB)
+	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group2/...
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group2/...
 
 .PHONY: test-e2e-group-3
 test-e2e-group-3: build-docker compile-scs ## Runs group 3 e2e tests checking race conditions
@@ -250,11 +254,6 @@ install-git-hooks: ## Moves hook files to the .git/hooks directory
 
 .PHONY: generate-mocks
 generate-mocks: ## Generates mocks for the tests, using mockery tool
-	mockery --name=etherman --dir=sequencer/strategy/txprofitabilitychecker --output=sequencer/strategy/txprofitabilitychecker --outpkg=txprofitabilitychecker_test --filename=etherman-mock_test.go
-	mockery --name=batchProcessor --dir=sequencer/strategy/txselector --output=sequencer/strategy/txselector --outpkg=txselector_test --filename=batchprocessor-mock_test.go
-	mockery --name=etherman --dir=sequencer --output=sequencer --outpkg=sequencer --structname=ethermanMock --filename=etherman-mock_test.go
-	mockery --name=Store --dir=state/tree --output=state/tree --outpkg=tree --structname=storeMock --filename=store-mock_test.go
-
 	mockery --name=storageInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=storageMock --filename=mock_storage_test.go
 	mockery --name=jsonRPCTxPool --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=poolMock --filename=mock_pool_test.go
 	mockery --name=gasPriceEstimator --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
@@ -265,6 +264,10 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=etherman --dir=sequencer --output=sequencer --outpkg=sequencer --structname=ethermanMock --filename=etherman-mock_test.go
 	mockery --name=etherman --dir=sequencer/profitabilitychecker --output=sequencer/profitabilitychecker --outpkg=profitabilitychecker_test --structname=ethermanMock --filename=etherman-mock_test.go
 	mockery --name=stateInterface --dir=sequencer/broadcast --output=sequencer/broadcast --outpkg=broadcast_test --structname=stateMock --filename=state-mock_test.go
+
+	mockery --name=ethermanInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=ethermanMock --filename=mock_etherman.go
+	mockery --name=stateInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=stateMock --filename=mock_state.go
+	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=synchronizer --outpkg=synchronizer --structname=dbTxMock --filename=mock_dbtx.go
 
 
 .PHONY: generate-code-from-proto
