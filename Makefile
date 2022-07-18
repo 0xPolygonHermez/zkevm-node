@@ -226,6 +226,9 @@ run: compile-scs ## Runs all the services
 run-broadcast: ## Runs the broadcast service
 	$(RUNBROADCAST)
 
+run-seq:
+	$(RUNSEQUENCER)
+
 .PHONY: stop-broadcast
 stop-broadcast: ## Stops the broadcast service
 	$(STOPBROADCAST)

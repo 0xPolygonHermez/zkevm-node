@@ -26,6 +26,7 @@ type Aggregator struct {
 
 	State          stateInterface
 	EthTxManager   ethTxManager
+	Ethman         etherman
 	ZkProverClient pb.ZKProverServiceClient
 
 	ProfitabilityChecker aggregatorTxProfitabilityChecker
@@ -39,6 +40,7 @@ func NewAggregator(
 	cfg Config,
 	state stateInterface,
 	ethTxManager ethTxManager,
+	etherman etherman,
 	zkProverClient pb.ZKProverServiceClient,
 ) (Aggregator, error) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -55,6 +57,7 @@ func NewAggregator(
 
 		State:                state,
 		EthTxManager:         ethTxManager,
+		Ethman:               etherman,
 		ZkProverClient:       zkProverClient,
 		ProfitabilityChecker: profitabilityChecker,
 
@@ -78,25 +81,29 @@ func (a *Aggregator) Start() {
 		case <-time.After(a.cfg.IntervalToConsolidateState.Duration):
 			// 1. check, if state is synced
 			lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(a.ctx, nil)
-			if err != nil {
+			var lastVerifiedBatchNum uint64
+			if err != nil && err != state.ErrNotFound {
 				log.Warnf("failed to get last consolidated batch, err: %v", err)
 				continue
 			}
-			lastConsolidatedEthBatchNum, err := a.State.GetLastVerifiedBatchNumberSeenOnEthereum(a.ctx, nil)
+			if lastVerifiedBatch != nil {
+				lastVerifiedBatchNum = lastVerifiedBatch.BatchNumber
+			}
+			lastConsolidatedEthBatchNum, err := a.Ethman.GetLatestVerifiedBatchNum()
 			if err != nil {
 				log.Warnf("failed to get last eth batch, err: %v", err)
 				continue
 			}
-			if lastVerifiedBatch.BatchNumber < lastConsolidatedEthBatchNum {
+			if lastVerifiedBatchNum < lastConsolidatedEthBatchNum {
 				log.Infof("waiting for the state to be synced, lastConsolidatedBatchNum: %d, lastEthConsolidatedBatchNum: %d",
-					lastVerifiedBatch.BatchNumber, lastConsolidatedEthBatchNum)
+					lastVerifiedBatchNum, lastConsolidatedEthBatchNum)
 				continue
 			}
 
 			// 2. find next batch to consolidate
-			delete(batchesSent, lastVerifiedBatch.BatchNumber)
+			delete(batchesSent, lastVerifiedBatchNum)
 
-			batchToVerify, err := a.State.GetBatchByNumber(a.ctx, lastVerifiedBatch.BatchNumber+1, nil)
+			batchToVerify, err := a.State.GetBatchByNumber(a.ctx, lastVerifiedBatchNum+1, nil)
 
 			if err != nil {
 				if err == state.ErrNotFound {
@@ -128,8 +135,8 @@ func (a *Aggregator) Start() {
 			}
 
 			// 4. send zki + txs to the prover
-			stateRootConsolidated, err := a.State.GetStateRootByBatchNumber(a.ctx, lastVerifiedBatch.BatchNumber, nil)
-			if err != nil {
+			stateRootConsolidated, err := a.State.GetStateRootByBatchNumber(a.ctx, lastVerifiedBatchNum, nil)
+			if err != nil && err != state.ErrNotFound {
 				log.Warnf("failed to get current state root, err: %v", err)
 				continue
 			}
@@ -147,9 +154,9 @@ func (a *Aggregator) Start() {
 			}
 			globalExitRoot := batchToVerify.GlobalExitRoot
 
-			oldLocalExitRoot, err := a.State.GetLocalExitRootByBatchNumber(a.ctx, lastVerifiedBatch.BatchNumber, nil)
+			oldLocalExitRoot, err := a.State.GetLocalExitRootByBatchNumber(a.ctx, lastVerifiedBatchNum, nil)
 			if err != nil {
-				log.Warnf("failed to get local exit root for batch %d, err: %v", lastVerifiedBatch.BatchNumber, err)
+				log.Warnf("failed to get local exit root for batch %d, err: %v", lastVerifiedBatchNum, err)
 				continue
 			}
 			newLocalExitRoot := batchToVerify.LocalExitRoot
@@ -173,11 +180,6 @@ func (a *Aggregator) Start() {
 			))
 			oldStateRoot := stateRootConsolidated
 			newStateRoot := stateRootToConsolidate
-			batchToVerifyBlockNum, err := a.State.GetBlockNumVirtualBatchByBatchNum(a.ctx, batchToVerify.BatchNumber, nil)
-			if err != nil {
-				log.Warnf("failed to get local batchToVerifyBlockNum batch %d, err: %v", batchToVerify.BatchNumber, err)
-				continue
-			}
 			inputProver := &pb.InputProver{
 				PublicInputs: &pb.PublicInputs{
 					OldStateRoot:     oldStateRoot.String(),
@@ -187,11 +189,10 @@ func (a *Aggregator) Start() {
 					SequencerAddr:    batchToVerify.Coinbase.String(),
 					BatchHashData:    batchHashData.String(),
 					BatchNum:         uint32(batchToVerify.BatchNumber),
-					BlockNum:         uint32(batchToVerifyBlockNum),
 					EthTimestamp:     uint64(batchToVerify.Timestamp.Unix()),
 				},
 				GlobalExitRoot:    globalExitRoot.String(),
-				BatchL2Data:       string(batchToVerify.BatchL2Data),
+				BatchL2Data:       hex.EncodeToString(batchToVerify.BatchL2Data),
 				Db:                db,
 				ContractsBytecode: db,
 			}
@@ -268,9 +269,7 @@ func (a *Aggregator) Start() {
 
 			// Calc inputHash
 			batchNumberByte := make([]byte, 4) //nolint:gomnd
-			blockNumberByte := make([]byte, 4) //nolint:gomnd
 			binary.BigEndian.PutUint32(batchNumberByte, inputProver.PublicInputs.BatchNum)
-			binary.BigEndian.PutUint32(blockNumberByte, inputProver.PublicInputs.BlockNum)
 			hash := keccak256.Hash(
 				oldStateRoot[:],
 				oldLocalExitRoot[:],
@@ -279,7 +278,6 @@ func (a *Aggregator) Start() {
 				batchToVerify.Coinbase[:],
 				batchHashData[:],
 				batchNumberByte[:],
-				blockNumberByte[:],
 				blockTimestampByte[:],
 			)
 			frB, _ := new(big.Int).SetString(fr, encoding.Base10)
@@ -300,7 +298,6 @@ func (a *Aggregator) Start() {
 				log.Debug("inputProver.PublicInputs.SequencerAddr: ", inputProver.PublicInputs.SequencerAddr)
 				log.Debug("inputProver.PublicInputs.BatchHashData: ", inputProver.PublicInputs.BatchHashData)
 				log.Debug("inputProver.PublicInputs.BatchNum: ", inputProver.PublicInputs.BatchNum)
-				log.Debug("inputProver.PublicInputs.BlockNum: ", inputProver.PublicInputs.BlockNum)
 				log.Debug("inputProver.PublicInputs.EthTimestamp: ", inputProver.PublicInputs.EthTimestamp)
 			}
 

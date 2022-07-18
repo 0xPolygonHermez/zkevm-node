@@ -555,8 +555,12 @@ func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64
 
 // GetLatestBatchNumber function allows to retrieve the latest proposed batch in the smc
 func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
-	latestBatch, err := etherMan.PoE.LastBatchSequenced(&bind.CallOpts{Pending: false})
-	return uint64(latestBatch), err
+	return etherMan.PoE.LastBatchSequenced(&bind.CallOpts{Pending: false})
+}
+
+// GetLatestVerifiedBatchNum gets latest verified batch from ethereum
+func (etherMan *Client) GetLatestVerifiedBatchNum() (uint64, error) {
+	return etherMan.PoE.LastVerifiedBatch(&bind.CallOpts{Pending: false})
 }
 
 // GetTx function get ethereum tx
