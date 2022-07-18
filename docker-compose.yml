@@ -37,6 +37,24 @@ services:
       - "-c"
       - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc"
 
+  zkevm-non-sequencer-json-rpc:
+    container_name: zkevm-non-sequencer-json-rpc
+    image: zkevm-node
+    ports:
+      - 8125:8125
+    environment:
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
+    volumes:
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc"
+
   zkevm-aggregator:
     container_name: zkevm-aggregator
     image: zkevm-node
@@ -203,3 +221,42 @@ services:
       - "/bin/sh"
       - "-c"
       - "/app/zkevm-node approve --am 10000000000000000 -y --network local --cfg /app/config.toml"
+
+  zkevm-permissionless-db:
+    container_name: zkevm-permissionless-db
+    image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5434:5432
+    environment:
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_DB=test_db
+    command: ["postgres", "-N", "500"]
+
+  zkevm-permissionless-node:
+    container_name: zkevm-permissionless-node
+    image: zkevm-node
+    ports:
+      - 8126:8126
+    environment:
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-permissionless-db
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+      - ZKEVM_NODE_RPC_PORT=8126
+      - ZKEVM_NODE_SYNCHRONIZER_TRUSTEDSEQUENCERURI=zkevm-broadcast:61090
+    volumes:
+      - ./test/test.keystore:/pk/keystore
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components \"rpc,synchronizer\""
+

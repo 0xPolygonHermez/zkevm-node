@@ -33,6 +33,7 @@ SequencerNodeURI = ""
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
+TrustedSequencerURI = ""
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "15s"

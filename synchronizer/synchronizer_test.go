@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -163,6 +164,17 @@ func TestTrustedStateReorg(t *testing.T) {
 					Run(func(args mock.Arguments) { sync.Stop() }).
 					Return(nil).
 					Once()
+
+				m.Etherman.
+					On("GetLatestBatchNumber").
+					Return(uint64(10), nil).
+					Once()
+
+				var nilDbTx pgx.Tx
+				m.State.
+					On("GetLastBatchNumber", ctx, nilDbTx).
+					Return(uint64(10), nil).
+					Once()
 			}).
 			Return(m.DbTx, nil).
 			Once()
@@ -232,10 +244,4 @@ func TestTrustedStateReorg(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
-
-	// send tx to change the trusted state
-	// virtualize the trusted state
-	// send tx to change the trusted state again
-	// send a forced batch to l1
-	// try virtualize the trusted state
 }

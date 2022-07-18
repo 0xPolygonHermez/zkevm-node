@@ -11,4 +11,8 @@ type Config struct {
 
 	// SyncChunkSize is the number of blocks to sync on each chunk
 	SyncChunkSize uint64 `mapstructure:"SyncChunkSize"`
+
+	// TrustedSequencerURI is used to allow permission less nodes
+	// to synchronize the trusted state from the trusted sequencer.
+	TrustedSequencerURI string `mapstructure:"TrustedSequencerURI"`
 }
