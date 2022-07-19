@@ -765,13 +765,13 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 		description               string
 		input                     []*state.ProcessTransactionResponse
 		expectedProcessedOutput   []*state.ProcessTransactionResponse
-		expectedUnprocessedOutput []*state.ProcessTransactionResponse
+		expectedUnprocessedOutput map[string]*state.ProcessTransactionResponse
 	}{
 		{
 			description:               "empty input returns empty",
 			input:                     []*state.ProcessTransactionResponse{},
 			expectedProcessedOutput:   []*state.ProcessTransactionResponse{},
-			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{},
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{},
 		},
 		{
 			description: "single processed transaction returns itself",
@@ -781,16 +781,22 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{
 				{UnprocessedTransaction: 0},
 			},
-			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{},
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{},
 		},
 		{
 			description: "single unprocessed transaction returns empty",
 			input: []*state.ProcessTransactionResponse{
-				{UnprocessedTransaction: 1},
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 1,
+				},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{},
-			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{
-				{UnprocessedTransaction: 1},
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
+				"0x000000000000000000000000000000000000000000000000000000000000000a": {
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 1,
+				},
 			},
 		},
 		{
@@ -823,7 +829,7 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 					UnprocessedTransaction: 0,
 				},
 			},
-			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{},
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{},
 		},
 		{
 			description: "multiple unprocessed transactions",
@@ -842,16 +848,16 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 				},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{},
-			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{
-				{
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
+				"0x000000000000000000000000000000000000000000000000000000000000000a": {
 					TxHash:                 common.HexToHash("a"),
 					UnprocessedTransaction: 1,
 				},
-				{
+				"0x000000000000000000000000000000000000000000000000000000000000000b": {
 					TxHash:                 common.HexToHash("b"),
 					UnprocessedTransaction: 1,
 				},
-				{
+				"0x000000000000000000000000000000000000000000000000000000000000000c": {
 					TxHash:                 common.HexToHash("c"),
 					UnprocessedTransaction: 1,
 				},
@@ -887,12 +893,12 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 					UnprocessedTransaction: 0,
 				},
 			},
-			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{
-				{
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
+				"0x000000000000000000000000000000000000000000000000000000000000000b": {
 					TxHash:                 common.HexToHash("b"),
 					UnprocessedTransaction: 1,
 				},
-				{
+				"0x000000000000000000000000000000000000000000000000000000000000000d": {
 					TxHash:                 common.HexToHash("d"),
 					UnprocessedTransaction: 1,
 				},
