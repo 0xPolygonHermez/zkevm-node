@@ -759,3 +759,153 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	}
 	require.NoError(t, dbTx.Commit(ctx))
 }
+
+func TestDetermineProcessedTransactions(t *testing.T) {
+	tcs := []struct {
+		description               string
+		input                     []*state.ProcessTransactionResponse
+		expectedProcessedOutput   []*state.ProcessTransactionResponse
+		expectedUnprocessedOutput []*state.ProcessTransactionResponse
+	}{
+		{
+			description:               "empty input returns empty",
+			input:                     []*state.ProcessTransactionResponse{},
+			expectedProcessedOutput:   []*state.ProcessTransactionResponse{},
+			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{},
+		},
+		{
+			description: "single processed transaction returns itself",
+			input: []*state.ProcessTransactionResponse{
+				{UnprocessedTransaction: 0},
+			},
+			expectedProcessedOutput: []*state.ProcessTransactionResponse{
+				{UnprocessedTransaction: 0},
+			},
+			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{},
+		},
+		{
+			description: "single unprocessed transaction returns empty",
+			input: []*state.ProcessTransactionResponse{
+				{UnprocessedTransaction: 1},
+			},
+			expectedProcessedOutput: []*state.ProcessTransactionResponse{},
+			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{
+				{UnprocessedTransaction: 1},
+			},
+		},
+		{
+			description: "multiple processed transactions",
+			input: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 0,
+				},
+			},
+			expectedProcessedOutput: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 0,
+				},
+			},
+			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{},
+		},
+		{
+			description: "multiple unprocessed transactions",
+			input: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 1,
+				},
+				{
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 1,
+				},
+				{
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 1,
+				},
+			},
+			expectedProcessedOutput: []*state.ProcessTransactionResponse{},
+			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 1,
+				},
+				{
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 1,
+				},
+				{
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 1,
+				},
+			},
+		},
+		{
+			description: "mixed processed and unprocessed transactions",
+			input: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 1,
+				},
+				{
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("d"),
+					UnprocessedTransaction: 1,
+				},
+			},
+			expectedProcessedOutput: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 0,
+				},
+			},
+			expectedUnprocessedOutput: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 1,
+				},
+				{
+					TxHash:                 common.HexToHash("d"),
+					UnprocessedTransaction: 1,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		tc := tc
+		t.Run(tc.description, func(t *testing.T) {
+			actualProcessedTx, actualUnprocessedTxs := state.DetermineProcessedTransactions(tc.input)
+			require.Equal(t, tc.expectedProcessedOutput, actualProcessedTx)
+			require.Equal(t, tc.expectedUnprocessedOutput, actualUnprocessedTxs)
+		})
+	}
+}
