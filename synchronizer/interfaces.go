@@ -37,6 +37,10 @@ type stateInterface interface {
 	AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx pgx.Tx) error
 	ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx) error
 	SetGenesis(ctx context.Context, block state.Block, genesis state.Genesis, dbTx pgx.Tx) error
+	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
+	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
+	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
+	StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*state.ProcessTransactionResponse, dbTx pgx.Tx) error
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }

@@ -682,11 +682,6 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	panic("not implemented yet")
 }
 
-// AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber.
-func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, dbTx pgx.Tx) error {
-	return s.PostgresStorage.AddBatchNumberInForcedBatch(ctx, forceBatchNumber, batchNumber, dbTx)
-}
-
 // GetTree returns State inner tree
 func (s *State) GetTree() *merkletree.StateTree {
 	return s.tree
