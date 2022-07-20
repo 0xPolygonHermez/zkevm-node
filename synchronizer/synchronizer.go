@@ -148,8 +148,8 @@ func (s *ClientSynchronizer) Sync() error {
 					continue
 				}
 				log.Info("Trusted state fully synchronized")
+				waitDuration = s.cfg.SyncInterval.Duration
 			}
-			waitDuration = s.cfg.SyncInterval.Duration
 		}
 	}
 }
