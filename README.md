@@ -4,7 +4,7 @@ zkEVM Node is a Go implementation of a node that operates the Polygon zkEVM Netw
 
 ## About the Polygon zkEVM network
 
-Since this is an implementation of a protocol it's fundamental to understand it, [here](TODO) you can find the specification of the protocol.
+Since this is an implementation of a protocol it's fundamental to understand it, [here](https://docs.hermez.io/) you can find the specification of the protocol.
 
 Glossary:
 
