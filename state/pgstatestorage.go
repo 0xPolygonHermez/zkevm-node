@@ -726,7 +726,7 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error) {
 	var encoded string
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&encoded)
+	err := q.QueryRow(ctx, getTransactionByHashSQL, transactionHash.String()).Scan(&encoded)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -744,20 +744,19 @@ func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 
 // GetTransactionReceipt gets a transaction receipt accordingly to the provided transaction hash
 func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
-	var encodedTx string
+	var txHash, encodedTx, contractAddress, l2BlockHash string
 	var l2BlockNum uint64
-	var l2BlockHash string
 
 	receipt := types.Receipt{}
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getReceiptSQL, transactionHash).
-		Scan(&receipt.TxHash,
+	err := q.QueryRow(ctx, getReceiptSQL, transactionHash.String()).
+		Scan(&txHash,
 			&receipt.Type,
 			&receipt.PostState,
 			&receipt.Status,
 			&receipt.CumulativeGasUsed,
 			&receipt.GasUsed,
-			&receipt.ContractAddress,
+			&contractAddress,
 			&encodedTx,
 			&l2BlockNum,
 			&l2BlockHash,
@@ -768,6 +767,9 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 	} else if err != nil {
 		return nil, err
 	}
+
+	receipt.TxHash = common.HexToHash(txHash)
+	receipt.ContractAddress = common.HexToAddress(contractAddress)
 
 	logs, err := p.getTransactionLogs(ctx, transactionHash, dbTx)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
@@ -849,7 +851,7 @@ func (p *PostgresStorage) GetL2BlockTransactionCountByNumber(ctx context.Context
 // getTransactionLogs returns the logs of a transaction by transaction hash
 func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) ([]*types.Log, error) {
 	q := p.getExecQuerier(dbTx)
-	rows, err := q.Query(ctx, getTransactionLogsSQL, transactionHash)
+	rows, err := q.Query(ctx, getTransactionLogsSQL, transactionHash.String())
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}
