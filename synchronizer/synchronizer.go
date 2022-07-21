@@ -10,13 +10,12 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -49,19 +48,11 @@ func NewSynchronizer(
 	cfg Config) (Synchronizer, error) {
 	var broadcastClient pb.BroadcastServiceClient
 
+	ctx, cancel := context.WithCancel(context.Background())
 	if cfg.TrustedSequencerURI != "" {
-		log.Infof("connecting to trusted sequencer broadcast service: %v", cfg.TrustedSequencerURI)
-		// connects to broadcast service to get updates from trusted sequencer
-		conn, _, err := initConn(cfg.TrustedSequencerURI)
-		if err != nil {
-			log.Errorf("failed to connect to trusted sequencer broadcast service: %v", err)
-			return nil, err
-		}
-		broadcastClient = pb.NewBroadcastServiceClient(conn)
-		log.Info("connected to trusted sequencer broadcast service")
+		broadcastClient, _, cancel = broadcast.NewClient(ctx, cfg.TrustedSequencerURI)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	return &ClientSynchronizer{
 		state:             st,
 		etherMan:          ethMan,
@@ -152,15 +143,6 @@ func (s *ClientSynchronizer) Sync() error {
 			}
 		}
 	}
-}
-
-func initConn(serverAddress string) (*grpc.ClientConn, context.CancelFunc, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	conn, err := grpc.DialContext(ctx, serverAddress, opts...)
-	return conn, cancel, err
 }
 
 // This function syncs the node from a specific block to the latest
@@ -758,8 +740,8 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *pb.GetBatchRespon
 		GlobalExitRoot: common.HexToHash(trustedBatch.GlobalExitRoot),
 	}
 	txs := []types.Transaction{}
-	for i := 0; i < len(trustedBatch.Transactions); i++ {
-		tx, err := state.DecodeTx(trustedBatch.Transactions[i].Encoded)
+	for _, transaction := range trustedBatch.Transactions {
+		tx, err := state.DecodeTx(transaction.Encoded)
 		if err != nil {
 			return err
 		}

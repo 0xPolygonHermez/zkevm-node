@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -17,8 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -53,14 +52,11 @@ func TestBroadcast(t *testing.T) {
 
 	require.NoError(t, populateDB(ctx, st))
 
-	conn, cancel, err := initConn()
-	require.NoError(t, err)
+	client, conn, cancel := broadcast.NewClient(ctx, serverAddress)
 	defer func() {
 		cancel()
 		require.NoError(t, conn.Close())
 	}()
-
-	client := pb.NewBroadcastServiceClient(conn)
 
 	lastBatch, err := client.GetLastBatch(ctx, &emptypb.Empty{})
 	require.NoError(t, err)
@@ -95,15 +91,6 @@ func initState() (*state.State, error) {
 	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: "127.0.0.1:50061"})
 	stateTree := merkletree.NewStateTree(mtDBClient)
 	return state.NewState(state.Config{}, stateDb, executorClient, stateTree), nil
-}
-
-func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	conn, err := grpc.DialContext(ctx, serverAddress, opts...)
-	return conn, cancel, err
 }
 
 func populateDB(ctx context.Context, st *state.State) error {
