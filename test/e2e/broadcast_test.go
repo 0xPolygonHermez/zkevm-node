@@ -83,8 +83,8 @@ func TestBroadcast(t *testing.T) {
 	}
 	require.EqualValues(t, forcedBatchNumber, batch.ForcedBatchNumber)
 
-	require.Equal(t, mainnetExitRoot, batch.MainnetExitRoot)
-	require.Equal(t, rollupExitRoot, batch.RollupExitRoot)
+	require.Equal(t, mainnetExitRoot.String(), batch.MainnetExitRoot)
+	require.Equal(t, rollupExitRoot.String(), batch.RollupExitRoot)
 }
 
 func initState() (*state.State, error) {
@@ -162,6 +162,6 @@ func populateDB(ctx context.Context, st *state.State) error {
 	}
 
 	const addExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root, global_exit_root_num) VALUES ($1, $2, $3, $4, $5)"
-	_, err := st.PostgresStorage.Exec(ctx, addExitRoots, blockNumber, ger.String(), mainnetExitRoot.String(), rollupExitRoot.String(), 1)
+	_, err := st.PostgresStorage.Exec(ctx, addExitRoots, blockNumber, ger, mainnetExitRoot, rollupExitRoot, 1)
 	return err
 }

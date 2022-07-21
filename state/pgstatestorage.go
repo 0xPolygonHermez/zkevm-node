@@ -1390,7 +1390,7 @@ func (p *PostgresStorage) GetExitRootByGlobalExitRootNum(ctx context.Context, ge
 	const sql = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM state.exit_root WHERE global_exit_root = $1 ORDER BY block_num DESC LIMIT 1"
 
 	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, sql, ger.Bytes()).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot, &exitRoot.GlobalExitRoot)
+	err = e.QueryRow(ctx, sql, ger).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot, &exitRoot.GlobalExitRoot)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
