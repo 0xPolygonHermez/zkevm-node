@@ -33,6 +33,10 @@ const (
 var (
 	ctx = context.Background()
 	cfg = dbutils.NewConfigFromEnv()
+
+	ger             = common.HexToHash("deadbeef")
+	mainnetExitRoot = common.HexToHash("caffe")
+	rollupExitRoot  = common.HexToHash("bead")
 )
 
 func TestBroadcast(t *testing.T) {
@@ -78,6 +82,9 @@ func TestBroadcast(t *testing.T) {
 		require.Equal(t, fmt.Sprintf(encodedFmt, i+1), tx.Encoded)
 	}
 	require.EqualValues(t, forcedBatchNumber, batch.ForcedBatchNumber)
+
+	require.Equal(t, mainnetExitRoot, batch.MainnetExitRoot)
+	require.Equal(t, rollupExitRoot, batch.RollupExitRoot)
 }
 
 func initState() (*state.State, error) {
@@ -100,6 +107,7 @@ func initState() (*state.State, error) {
 func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
 	}
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	conn, err := grpc.DialContext(ctx, serverAddress, opts...)
@@ -107,17 +115,14 @@ func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
 }
 
 func populateDB(ctx context.Context, st *state.State) error {
-	const addBatch = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
-	const addTransaction = "INSERT INTO state.transaction (hash, from_address, encoded, l2_block_num) VALUES ($1, $2, $3, $4)"
-	const addForcedBatch = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, coinbase, timestamp, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
-	const addBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
 	const blockNumber = 1
 
 	var parentHash common.Hash
 	var l2Block types.Block
 
+	const addBatch = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
 	for i := 1; i <= totalBatches; i++ {
-		if _, err := st.PostgresStorage.Exec(ctx, addBatch, i, common.Hash{}.String(), time.Now(), common.HexToAddress("").String(), common.Hash{}.String(), common.Hash{}.String()); err != nil {
+		if _, err := st.PostgresStorage.Exec(ctx, addBatch, i, ger.String(), time.Now(), common.HexToAddress("").String(), common.Hash{}.String(), common.Hash{}.String()); err != nil {
 			return err
 		}
 	}
@@ -140,13 +145,23 @@ func populateDB(ctx context.Context, st *state.State) error {
 			return err
 		}
 
+		const addTransaction = "INSERT INTO state.transaction (hash, from_address, encoded, l2_block_num) VALUES ($1, $2, $3, $4)"
 		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, fmt.Sprintf("hash-%d", i), common.HexToAddress("").String(), fmt.Sprintf(encodedFmt, i), l2Block.Number().Uint64()); err != nil {
 			return err
 		}
 	}
+
+	const addBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
 	if _, err := st.PostgresStorage.Exec(ctx, addBlock, blockNumber, time.Now(), ""); err != nil {
 		return err
 	}
-	_, err := st.PostgresStorage.Exec(ctx, addForcedBatch, forcedBatchNumber, common.Hash{}.String(), "", common.HexToAddress("").String(), time.Now(), totalBatches, blockNumber)
+
+	const addForcedBatch = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, coinbase, timestamp, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	if _, err := st.PostgresStorage.Exec(ctx, addForcedBatch, forcedBatchNumber, ger.String(), "", common.HexToAddress("").String(), time.Now(), totalBatches, blockNumber); err != nil {
+		return err
+	}
+
+	const addExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root, global_exit_root_num) VALUES ($1, $2, $3, $4, $5)"
+	_, err := st.PostgresStorage.Exec(ctx, addExitRoots, blockNumber, ger.String(), mainnetExitRoot.String(), rollupExitRoot.String(), 1)
 	return err
 }
