@@ -109,7 +109,7 @@ func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
 	}
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	conn, err := grpc.DialContext(ctx, serverAddress, opts...)
 	return conn, cancel, err
 }
