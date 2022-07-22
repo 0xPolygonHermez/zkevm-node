@@ -65,8 +65,8 @@ func (_m *stateMock) GetEncodedTransactionsByBatchNumber(ctx context.Context, ba
 	return r0, r1
 }
 
-// GetExitRootByGlobalExitRootNum provides a mock function with given fields: ctx, ger, dbTx
-func (_m *stateMock) GetExitRootByGlobalExitRootNum(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*state.GlobalExitRoot, error) {
+// GetExitRootByGlobalExitRoot provides a mock function with given fields: ctx, ger, dbTx
+func (_m *stateMock) GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*state.GlobalExitRoot, error) {
 	ret := _m.Called(ctx, ger, dbTx)
 
 	var r0 *state.GlobalExitRoot

@@ -1378,9 +1378,9 @@ func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx)
 	return err
 }
 
-// GetExitRootByGlobalExitRootNum returns the mainnet and rollup exit root given
+// GetExitRootByGlobalExitRoot returns the mainnet and rollup exit root given
 // a global exit root number.
-func (p *PostgresStorage) GetExitRootByGlobalExitRootNum(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*GlobalExitRoot, error) {
+func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*GlobalExitRoot, error) {
 	var (
 		exitRoot  GlobalExitRoot
 		globalNum uint64
