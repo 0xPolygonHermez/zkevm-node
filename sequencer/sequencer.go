@@ -27,12 +27,12 @@ const (
 type Sequencer struct {
 	cfg Config
 
-	pool              txPool
-	state             stateInterface
-	txManager         txManager
-	etherman          etherman
-	checker           *profitabilitychecker.Checker
-	reorgBlockNumChan chan struct{}
+	pool                  txPool
+	state                 stateInterface
+	txManager             txManager
+	etherman              etherman
+	checker               *profitabilitychecker.Checker
+	reorgTrustedStateChan chan struct{}
 
 	address                          common.Address
 	lastBatchNum                     uint64
@@ -49,7 +49,7 @@ func New(
 	state stateInterface,
 	etherman etherman,
 	priceGetter priceGetter,
-	reorgBlockNumChan chan struct{},
+	reorgTrustedStateChan chan struct{},
 	manager txManager) (*Sequencer, error) {
 	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
 
@@ -60,14 +60,14 @@ func New(
 	// TODO: check that private key used in etherman matches addr
 
 	return &Sequencer{
-		cfg:               cfg,
-		pool:              pool,
-		state:             state,
-		etherman:          etherman,
-		checker:           checker,
-		txManager:         manager,
-		address:           addr,
-		reorgBlockNumChan: reorgBlockNumChan,
+		cfg:                   cfg,
+		pool:                  pool,
+		state:                 state,
+		etherman:              etherman,
+		checker:               checker,
+		txManager:             manager,
+		address:               addr,
+		reorgTrustedStateChan: reorgTrustedStateChan,
 	}, nil
 }
 
@@ -134,7 +134,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 func (s *Sequencer) trackReorg(ctx context.Context) {
 	for {
 		select {
-		case <-s.reorgBlockNumChan:
+		case <-s.reorgTrustedStateChan:
 			const waitTime = 5 * time.Second
 
 			err := s.pool.MarkReorgedTxsAsPending(ctx)
