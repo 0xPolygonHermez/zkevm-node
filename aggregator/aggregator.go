@@ -3,7 +3,9 @@ package aggregator
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	"math/big"
 	"time"
 
@@ -14,7 +16,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/keccak256"
-	"google.golang.org/grpc"
 )
 
 // Prime field. It is the prime number used as the order in our elliptic curve
@@ -24,12 +25,14 @@ const fr = "21888242871839275222246405745257275088548364400416034343698204186575
 type Aggregator struct {
 	cfg Config
 
-	State          stateInterface
-	EthTxManager   ethTxManager
-	Ethman         etherman
-	ZkProverClient pb.ZKProverServiceClient
-
+	State                stateInterface
+	EthTxManager         ethTxManager
+	Ethman               etherman
+	ProverClient         prover.Client
 	ProfitabilityChecker aggregatorTxProfitabilityChecker
+
+	lastVerifiedBatchNum uint64
+	batchesSent          map[uint64]bool
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -52,14 +55,17 @@ func NewAggregator(
 	case ProfitabilityAcceptAll:
 		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration)
 	}
+
 	a := Aggregator{
 		cfg: cfg,
 
 		State:                state,
 		EthTxManager:         ethTxManager,
 		Ethman:               etherman,
-		ZkProverClient:       zkProverClient,
+		ProverClient:         prover.NewClient(zkProverClient),
 		ProfitabilityChecker: profitabilityChecker,
+
+		batchesSent: make(map[uint64]bool),
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -70,249 +76,218 @@ func NewAggregator(
 
 // Start starts the aggregator
 func (a *Aggregator) Start() {
-	// this is a batches, that were sent to ethereum to consolidate
-	batchesSent := make(map[uint64]bool)
-
 	// define those vars here, bcs it can be used in case <-a.ctx.Done()
-	var getProofCtx context.Context
-	var getProofCtxCancel context.CancelFunc
+	ticker := time.NewTicker(a.cfg.IntervalToConsolidateState.Duration)
+	defer ticker.Stop()
 	for {
+		a.tryVerifyBatch(a.ctx, ticker)
 		select {
-		case <-time.After(a.cfg.IntervalToConsolidateState.Duration):
-			// 1. check, if state is synced
-			lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(a.ctx, nil)
-			var lastVerifiedBatchNum uint64
-			if err != nil && err != state.ErrNotFound {
-				log.Warnf("failed to get last consolidated batch, err: %v", err)
-				continue
-			}
-			if lastVerifiedBatch != nil {
-				lastVerifiedBatchNum = lastVerifiedBatch.BatchNumber
-			}
-			lastConsolidatedEthBatchNum, err := a.Ethman.GetLatestVerifiedBatchNum()
-			if err != nil {
-				log.Warnf("failed to get last eth batch, err: %v", err)
-				continue
-			}
-			if lastVerifiedBatchNum < lastConsolidatedEthBatchNum {
-				log.Infof("waiting for the state to be synced, lastConsolidatedBatchNum: %d, lastEthConsolidatedBatchNum: %d",
-					lastVerifiedBatchNum, lastConsolidatedEthBatchNum)
-				continue
-			}
+		case <-ticker.C:
 
-			// 2. find next batch to consolidate
-			delete(batchesSent, lastVerifiedBatchNum)
-
-			batchToVerify, err := a.State.GetBatchByNumber(a.ctx, lastVerifiedBatchNum+1, nil)
-
-			if err != nil {
-				if err == state.ErrNotFound {
-					log.Infof("there are no batches to consolidate")
-					continue
-				}
-				log.Warnf("failed to get batch to consolidate, err: %v", err)
-				continue
-			}
-
-			if batchesSent[batchToVerify.BatchNumber] {
-				log.Infof("batch with number %d was already sent, but not yet consolidated by synchronizer",
-					batchToVerify.BatchNumber)
-				continue
-			}
-
-			// 3. check if it's profitable or not
-			// check is it profitable to aggregate txs or not
-			// pass matic collateral as zero here, bcs in smart contract fee for aggregator is not defined
-			isProfitable, err := a.ProfitabilityChecker.IsProfitable(a.ctx, big.NewInt(0))
-			if err != nil {
-				log.Warnf("failed to check aggregator profitability, err: %v", err)
-				continue
-			}
-
-			if !isProfitable {
-				log.Infof("Batch %d is not profitable, matic collateral %d", batchToVerify.BatchNumber, big.NewInt(0))
-				continue
-			}
-
-			// 4. send zki + txs to the prover
-			stateRootConsolidated, err := a.State.GetStateRootByBatchNumber(a.ctx, lastVerifiedBatchNum, nil)
-			if err != nil && err != state.ErrNotFound {
-				log.Warnf("failed to get current state root, err: %v", err)
-				continue
-			}
-
-			stateRootToConsolidate, err := a.State.GetStateRootByBatchNumber(a.ctx, batchToVerify.BatchNumber, nil)
-			if err != nil {
-				log.Warnf("failed to get state root to consolidate, err: %v", err)
-				continue
-			}
-
-			rawTxs, err := state.EncodeTransactions(batchToVerify.Transactions)
-			if err != nil {
-				log.Warnf("failed to encode transactions, err: %v", err)
-				continue
-			}
-			globalExitRoot := batchToVerify.GlobalExitRoot
-
-			oldLocalExitRoot, err := a.State.GetLocalExitRootByBatchNumber(a.ctx, lastVerifiedBatchNum, nil)
-			if err != nil {
-				log.Warnf("failed to get local exit root for batch %d, err: %v", lastVerifiedBatchNum, err)
-				continue
-			}
-			newLocalExitRoot := batchToVerify.LocalExitRoot
-			// TODO: change this, once it will be clear, what db means
-			db := map[string]string{
-				"0540ae2a259cb9179561cffe6a0a3852a2c1806ad894ed396a2ef16e1f10e9c7": "0000000000000000000000000000000000000000000000056bc75e2d63100000",
-				"061927dd2a72763869c1d5d9336a42d12a9a2f22809c9cf1feeb2a6d1643d950": "0000000000000000000000000000000000000000000000000000000000000000",
-				"03ae74d1bbdff41d14f155ec79bb389db716160c1766a49ee9c9707407f80a11": "00000000000000000000000000000000000000000000000ad78ebc5ac6200000",
-				"18d749d7bcc2bc831229c19256f9e933c08b6acdaff4915be158e34cbbc8a8e1": "0000000000000000000000000000000000000000000000000000000000000000",
-			}
-
-			batchChainIDByte := make([]byte, 4)   //nolint:gomnd
-			blockTimestampByte := make([]byte, 8) //nolint:gomnd
-			binary.BigEndian.PutUint64(blockTimestampByte, uint64(batchToVerify.Timestamp.Unix()))
-			batchHashData := common.BytesToHash(keccak256.Hash(
-				rawTxs,
-				globalExitRoot[:],
-				blockTimestampByte,
-				batchToVerify.Coinbase[:],
-				batchChainIDByte,
-			))
-			oldStateRoot := stateRootConsolidated
-			newStateRoot := stateRootToConsolidate
-			inputProver := &pb.InputProver{
-				PublicInputs: &pb.PublicInputs{
-					OldStateRoot:     oldStateRoot.String(),
-					OldLocalExitRoot: oldLocalExitRoot.String(),
-					NewStateRoot:     newStateRoot.String(),
-					NewLocalExitRoot: newLocalExitRoot.String(),
-					SequencerAddr:    batchToVerify.Coinbase.String(),
-					BatchHashData:    batchHashData.String(),
-					BatchNum:         uint32(batchToVerify.BatchNumber),
-					EthTimestamp:     uint64(batchToVerify.Timestamp.Unix()),
-				},
-				GlobalExitRoot:    globalExitRoot.String(),
-				BatchL2Data:       hex.EncodeToString(batchToVerify.BatchL2Data),
-				Db:                db,
-				ContractsBytecode: db,
-			}
-
-			genProofRequest := pb.GenProofRequest{Input: inputProver}
-
-			// init connection to the prover
-			var opts []grpc.CallOption
-			resGenProof, err := a.ZkProverClient.GenProof(a.ctx, &genProofRequest, opts...)
-			if err != nil {
-				log.Errorf("failed to connect to the prover to gen proof, err: %v", err)
-				continue
-			}
-
-			log.Debugf("Data sent to the prover: %+v", inputProver)
-			genProofRes := resGenProof.GetResult()
-			if genProofRes != pb.GenProofResponse_RESULT_GEN_PROOF_OK {
-				log.Warnf("failed to get result from the prover, batchNumber: %d, err: %v", batchToVerify.BatchNumber)
-				continue
-			}
-			genProofID := resGenProof.GetId()
-
-			resGetProof := &pb.GetProofResponse{
-				Result: -1,
-			}
-			getProofCtx, getProofCtxCancel = context.WithCancel(a.ctx)
-			getProofClient, err := a.ZkProverClient.GetProof(getProofCtx)
-			if err != nil {
-				log.Warnf("failed to init getProofClient, batchNumber: %d, err: %v", batchToVerify.BatchNumber, err)
-				continue
-			}
-			for resGetProof.Result != pb.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK {
-				err = getProofClient.Send(&pb.GetProofRequest{
-					Id: genProofID,
-				})
-				if err != nil {
-					log.Warnf("failed to send get proof request to the prover, batchNumber: %d, err: %v", batchToVerify.BatchNumber, err)
-					break
-				}
-
-				resGetProof, err = getProofClient.Recv()
-				if err != nil {
-					log.Warnf("failed to get proof from the prover, batchNumber: %d, err: %v", batchToVerify.BatchNumber, err)
-					break
-				}
-
-				resGetProofState := resGetProof.GetResult()
-				if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_ERROR ||
-					resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_COMPLETED_ERROR {
-					log.Fatalf("failed to get a proof for batch, batch number %d", batchToVerify.BatchNumber)
-				}
-				if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_INTERNAL_ERROR {
-					log.Warnf("failed to generate proof for batch, batchNumber: %v, ResGetProofState: %v", batchToVerify.BatchNumber, resGetProofState)
-					break
-				}
-
-				if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_CANCEL {
-					log.Warnf("proof generation was cancelled, batchNumber: %v", batchToVerify.BatchNumber)
-					break
-				}
-
-				if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_PENDING {
-					// in this case aggregator will wait, to send another request
-					time.Sleep(a.cfg.IntervalFrequencyToGetProofGenerationStateInSeconds.Duration)
-				}
-			}
-
-			// getProofCtxCancel call closes the connection stream with the prover. This is the only way to close it by client
-			getProofCtxCancel()
-
-			if resGetProof.GetResult() != pb.GetProofResponse_RESULT_GET_PROOF_COMPLETED_OK {
-				continue
-			}
-
-			// Calc inputHash
-			batchNumberByte := make([]byte, 4) //nolint:gomnd
-			binary.BigEndian.PutUint32(batchNumberByte, inputProver.PublicInputs.BatchNum)
-			hash := keccak256.Hash(
-				oldStateRoot[:],
-				oldLocalExitRoot[:],
-				newStateRoot[:],
-				newLocalExitRoot[:],
-				batchToVerify.Coinbase[:],
-				batchHashData[:],
-				batchNumberByte[:],
-				blockTimestampByte[:],
-			)
-			frB, _ := new(big.Int).SetString(fr, encoding.Base10)
-			inputHashMod := new(big.Int).Mod(new(big.Int).SetBytes(hash), frB)
-			internalInputHash := inputHashMod.Bytes()
-
-			// InputHash must match
-			internalInputHashS := fmt.Sprintf("0x%064s", hex.EncodeToString(internalInputHash))
-			publicInputsExtended := resGetProof.GetPublic()
-			if resGetProof.GetPublic().InputHash != internalInputHashS {
-				log.Error("inputHash received from the prover (", publicInputsExtended.InputHash,
-					") doesn't match with the internal value: ", internalInputHashS)
-				log.Debug("internalBatchHashData: ", batchHashData, " externalBatchHashData: ", publicInputsExtended.PublicInputs.BatchHashData)
-				log.Debug("inputProver.PublicInputs.OldStateRoot: ", inputProver.PublicInputs.OldStateRoot)
-				log.Debug("inputProver.PublicInputs.OldLocalExitRoot:", inputProver.PublicInputs.OldLocalExitRoot)
-				log.Debug("inputProver.PublicInputs.NewStateRoot: ", inputProver.PublicInputs.NewStateRoot)
-				log.Debug("inputProver.PublicInputs.NewLocalExitRoot: ", inputProver.PublicInputs.NewLocalExitRoot)
-				log.Debug("inputProver.PublicInputs.SequencerAddr: ", inputProver.PublicInputs.SequencerAddr)
-				log.Debug("inputProver.PublicInputs.BatchHashData: ", inputProver.PublicInputs.BatchHashData)
-				log.Debug("inputProver.PublicInputs.BatchNum: ", inputProver.PublicInputs.BatchNum)
-				log.Debug("inputProver.PublicInputs.EthTimestamp: ", inputProver.PublicInputs.EthTimestamp)
-			}
-
-			// 4. send proof + txs to the SC
-			err = a.EthTxManager.VerifyBatch(batchToVerify.BatchNumber, resGetProof)
-			if err != nil {
-				log.Warnf("failed to send request to consolidate batch to ethereum, batch number: %d, err: %v",
-					batchToVerify.BatchNumber, err)
-				continue
-			}
-			batchesSent[batchToVerify.BatchNumber] = true
 		case <-a.ctx.Done():
-			getProofCtxCancel()
 			return
 		}
+	}
+}
+
+func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
+	// 1. check, if state is synced
+	for !a.isSynced(a.ctx) {
+		log.Infof("waiting for synchronizer to sync...")
+		waitTick(ctx, ticker)
+		continue
+	}
+	// 2. find next batch to verify
+	batchToVerify, err := a.getBatchToVerify(ctx)
+	if err != nil {
+		waitTick(ctx, ticker)
+		return
+	}
+	// 3. check if it's profitable or not
+	// check is it profitable to aggregate txs or not
+	// pass matic collateral as zero here, bcs in smart contract fee for aggregator is not defined yet
+	isProfitable, err := a.ProfitabilityChecker.IsProfitable(ctx, big.NewInt(0))
+	if err != nil {
+		log.Warnf("failed to check aggregator profitability, err: %v", err)
+		return
+	}
+
+	if !isProfitable {
+		log.Infof("Batch %d is not profitable, matic collateral %d", batchToVerify.BatchNumber, big.NewInt(0))
+		return
+	}
+
+	// 4. send zki + txs to the prover
+	inputProver, err := a.buildInputProver(ctx, batchToVerify)
+	if err != nil {
+		log.Warnf("failed to build input prover, err: %v", err)
+		return
+	}
+
+	genProofID, err := a.ProverClient.GetGenProofID(a.ctx, inputProver)
+	if err != nil {
+		log.Warnf("failed to get gen proof id, err: %v", err)
+		return
+	}
+
+	resGetProof, err := a.ProverClient.GetResGetProof(ctx, genProofID, batchToVerify.BatchNumber)
+	if err != nil {
+		log.Warnf("failed to get proof from prover, err: %v", err)
+		return
+	}
+	a.compareInputHashes(inputProver, resGetProof)
+
+	// 4. send proof + txs to the SC
+	err = a.EthTxManager.VerifyBatch(batchToVerify.BatchNumber, resGetProof)
+	if err != nil {
+		log.Warnf("failed to send request to consolidate batch to ethereum, batch number: %d, err: %v",
+			batchToVerify.BatchNumber, err)
+		return
+	}
+	a.batchesSent[batchToVerify.BatchNumber] = true
+}
+
+func (a *Aggregator) isSynced(ctx context.Context) bool {
+	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Warnf("failed to get last consolidated batch, err: %v", err)
+		return false
+	}
+	if lastVerifiedBatch != nil {
+		a.lastVerifiedBatchNum = lastVerifiedBatch.BatchNumber
+	}
+	lastConsolidatedEthBatchNum, err := a.Ethman.GetLatestVerifiedBatchNum()
+	if err != nil {
+		log.Warnf("failed to get last eth batch, err: %v", err)
+		return false
+	}
+	if a.lastVerifiedBatchNum < lastConsolidatedEthBatchNum {
+		log.Infof("waiting for the state to be synced, lastConsolidatedBatchNum: %d, lastEthConsolidatedBatchNum: %d",
+			a.lastVerifiedBatchNum, lastConsolidatedEthBatchNum)
+		return false
+	}
+	return true
+}
+
+func (a *Aggregator) getBatchToVerify(ctx context.Context) (*state.Batch, error) {
+	delete(a.batchesSent, a.lastVerifiedBatchNum)
+
+	batchToVerify, err := a.State.GetBatchByNumber(ctx, a.lastVerifiedBatchNum+1, nil)
+
+	if err != nil {
+		if errors.Is(err, state.ErrNotFound) {
+			log.Infof("there are no batches to consolidate")
+			return nil, err
+		}
+		log.Warnf("failed to get batch to consolidate, err: %v", err)
+		return nil, err
+	}
+
+	if a.batchesSent[batchToVerify.BatchNumber] {
+		log.Infof("batch with number %d was already sent, but not yet consolidated by synchronizer",
+			batchToVerify.BatchNumber)
+		return nil, nil
+	}
+
+	return batchToVerify, nil
+}
+
+func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.Batch) (*pb.InputProver, error) {
+	oldStateRoot, err := a.State.GetStateRootByBatchNumber(ctx, a.lastVerifiedBatchNum, nil)
+	if err != nil && err != state.ErrNotFound {
+		return nil, fmt.Errorf("failed to get current state root, err: %v", err)
+	}
+
+	newStateRoot, err := a.State.GetStateRootByBatchNumber(ctx, batchToVerify.BatchNumber, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get state root to consolidate, err: %v", err)
+	}
+
+	rawTxs, err := state.EncodeTransactions(batchToVerify.Transactions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode transactions, err: %v", err)
+	}
+	globalExitRoot := batchToVerify.GlobalExitRoot
+
+	oldLocalExitRoot, err := a.State.GetLocalExitRootByBatchNumber(ctx, a.lastVerifiedBatchNum, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get local exit root for batch %d, err: %v", a.lastVerifiedBatchNum, err)
+	}
+	newLocalExitRoot := batchToVerify.LocalExitRoot
+	db := map[string]string{}
+
+	blockTimestampByte := make([]byte, 8) //nolint:gomnd
+	binary.BigEndian.PutUint64(blockTimestampByte, uint64(batchToVerify.Timestamp.Unix()))
+	batchHashData := common.BytesToHash(keccak256.Hash(
+		rawTxs,
+		globalExitRoot[:],
+		blockTimestampByte,
+		batchToVerify.Coinbase[:],
+	))
+	inputProver := &pb.InputProver{
+		PublicInputs: &pb.PublicInputs{
+			OldStateRoot:     oldStateRoot.String(),
+			OldLocalExitRoot: oldLocalExitRoot.String(),
+			NewStateRoot:     newStateRoot.String(),
+			NewLocalExitRoot: newLocalExitRoot.String(),
+			SequencerAddr:    batchToVerify.Coinbase.String(),
+			BatchHashData:    batchHashData.String(),
+			BatchNum:         uint32(batchToVerify.BatchNumber),
+			EthTimestamp:     uint64(batchToVerify.Timestamp.Unix()),
+		},
+		GlobalExitRoot:    globalExitRoot.String(),
+		BatchL2Data:       hex.EncodeToString(batchToVerify.BatchL2Data),
+		Db:                db,
+		ContractsBytecode: db,
+	}
+
+	return inputProver, nil
+}
+
+func (a *Aggregator) compareInputHashes(ip *pb.InputProver, resGetProof *pb.GetProofResponse) {
+	// Calc inputHash
+	batchNumberByte := make([]byte, 4) //nolint:gomnd
+	binary.BigEndian.PutUint32(batchNumberByte, ip.PublicInputs.BatchNum)
+	blockTimestampByte := make([]byte, 8) //nolint:gomnd
+	binary.BigEndian.PutUint64(blockTimestampByte, ip.PublicInputs.EthTimestamp)
+	hash := keccak256.Hash(
+		[]byte(ip.PublicInputs.OldStateRoot)[:],
+		[]byte(ip.PublicInputs.OldLocalExitRoot)[:],
+		[]byte(ip.PublicInputs.NewStateRoot)[:],
+		[]byte(ip.PublicInputs.NewLocalExitRoot)[:],
+		[]byte(ip.PublicInputs.SequencerAddr)[:],
+		[]byte(ip.PublicInputs.BatchHashData)[:],
+		batchNumberByte[:],
+		blockTimestampByte[:],
+	)
+	frB, _ := new(big.Int).SetString(fr, encoding.Base10)
+	inputHashMod := new(big.Int).Mod(new(big.Int).SetBytes(hash), frB)
+	internalInputHash := inputHashMod.Bytes()
+
+	// InputHash must match
+	internalInputHashS := fmt.Sprintf("0x%064s", hex.EncodeToString(internalInputHash))
+	publicInputsExtended := resGetProof.GetPublic()
+	if resGetProof.GetPublic().InputHash != internalInputHashS {
+		log.Error("inputHash received from the prover (", publicInputsExtended.InputHash,
+			") doesn't match with the internal value: ", internalInputHashS)
+		log.Debug("internalBatchHashData: ", ip.PublicInputs.BatchHashData, " externalBatchHashData: ", publicInputsExtended.PublicInputs.BatchHashData)
+		log.Debug("inputProver.PublicInputs.OldStateRoot: ", ip.PublicInputs.OldStateRoot)
+		log.Debug("inputProver.PublicInputs.OldLocalExitRoot:", ip.PublicInputs.OldLocalExitRoot)
+		log.Debug("inputProver.PublicInputs.NewStateRoot: ", ip.PublicInputs.NewStateRoot)
+		log.Debug("inputProver.PublicInputs.NewLocalExitRoot: ", ip.PublicInputs.NewLocalExitRoot)
+		log.Debug("inputProver.PublicInputs.SequencerAddr: ", ip.PublicInputs.SequencerAddr)
+		log.Debug("inputProver.PublicInputs.BatchHashData: ", ip.PublicInputs.BatchHashData)
+		log.Debug("inputProver.PublicInputs.BatchNum: ", ip.PublicInputs.BatchNum)
+		log.Debug("inputProver.PublicInputs.EthTimestamp: ", ip.PublicInputs.EthTimestamp)
+	}
+}
+
+func waitTick(ctx context.Context, ticker *time.Ticker) {
+	select {
+	case <-ticker.C:
+		// nothing
+	case <-ctx.Done():
+		return
 	}
 }
 
