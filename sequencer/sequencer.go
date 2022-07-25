@@ -263,13 +263,15 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.lastStateRoot = processBatchResp.NewStateRoot
 	s.lastLocalExitRoot = processBatchResp.NewLocalExitRoot
 
-	// TODO: add logic based on this response to decide which txs we include on the DB
 	dbTx, err = s.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for StoreTransactions, err: %v", err)
 		return
 	}
-	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processBatchResp.Responses, dbTx)
+
+	processedTxs, unprocessedTxs := state.DetermineProcessedTransactions(processBatchResp.Responses)
+	// only save in DB processed transactions.
+	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processedTxs, dbTx)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
@@ -292,9 +294,14 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	log.Infof("Tx %s added into the state. Marking tx as selected in the pool", tx.Hash())
-	// TODO: add correct handling in case update didn't go through
-	if err := s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected); err != nil {
+	var txState pool.TxState = pool.TxStateSelected
+	var txUpdateMsg string = fmt.Sprintf("Tx %q added into the state. Marking tx as selected in the pool", tx.Hash())
+	if _, ok := unprocessedTxs[tx.Hash().String()]; ok {
+		txState = pool.TxStatePending
+		txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as pending to return the pool", tx.Hash())
+	}
+	log.Infof(txUpdateMsg)
+	if err := s.pool.UpdateTxState(ctx, tx.Hash(), txState); err != nil {
 		log.Errorf("failed to update tx status on the pool, err: %v", err)
 		return
 	}
