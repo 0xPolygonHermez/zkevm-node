@@ -32,7 +32,7 @@ const (
 	resetTrustedStateSQL                     = "DELETE FROM state.batch WHERE batch_num > $1"
 	addVerifiedBatchSQL                      = "INSERT INTO state.verified_batch (block_num, batch_num, tx_hash, aggregator) VALUES ($1, $2, $3, $4)"
 	getVerifiedBatchSQL                      = "SELECT block_num, batch_num, tx_hash, aggregator FROM state.verified_batch WHERE batch_num = $1"
-	getLastBatchNumberSQL                    = "SELECT COALESCE(MAX(batch_num), 0) FROM state.batch"
+	getLastBatchNumberSQL                    = "SELECT batch_num FROM state.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastNBatchesSQL                       = "SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data from state.batch ORDER BY batch_num DESC LIMIT $1"
 	getLastNBatchesByBlockNumberSQL          = "SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, l.header->>'stateRoot' as l2_block_state_root from state.batch b, state.l2block l where l.block_num = $1 and b.batch_num <= l.batch_num order by b.batch_num DESC LIMIT $2"
 	getLastBatchTimeSQL                      = "SELECT timestamp FROM state.batch ORDER BY batch_num DESC LIMIT 1"
@@ -785,7 +785,7 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error) {
 	var encoded string
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&encoded)
+	err := q.QueryRow(ctx, getTransactionByHashSQL, transactionHash.String()).Scan(&encoded)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -803,20 +803,19 @@ func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 
 // GetTransactionReceipt gets a transaction receipt accordingly to the provided transaction hash
 func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
-	var encodedTx string
+	var txHash, encodedTx, contractAddress, l2BlockHash string
 	var l2BlockNum uint64
-	var l2BlockHash string
 
 	receipt := types.Receipt{}
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getReceiptSQL, transactionHash).
-		Scan(&receipt.TxHash,
+	err := q.QueryRow(ctx, getReceiptSQL, transactionHash.String()).
+		Scan(&txHash,
 			&receipt.Type,
 			&receipt.PostState,
 			&receipt.Status,
 			&receipt.CumulativeGasUsed,
 			&receipt.GasUsed,
-			&receipt.ContractAddress,
+			&contractAddress,
 			&encodedTx,
 			&l2BlockNum,
 			&l2BlockHash,
@@ -827,6 +826,9 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 	} else if err != nil {
 		return nil, err
 	}
+
+	receipt.TxHash = common.HexToHash(txHash)
+	receipt.ContractAddress = common.HexToAddress(contractAddress)
 
 	logs, err := p.getTransactionLogs(ctx, transactionHash, dbTx)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
@@ -908,7 +910,7 @@ func (p *PostgresStorage) GetL2BlockTransactionCountByNumber(ctx context.Context
 // getTransactionLogs returns the logs of a transaction by transaction hash
 func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) ([]*types.Log, error) {
 	q := p.getExecQuerier(dbTx)
-	rows, err := q.Query(ctx, getTransactionLogsSQL, transactionHash)
+	rows, err := q.Query(ctx, getTransactionLogsSQL, transactionHash.String())
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}
@@ -1051,7 +1053,7 @@ func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx)
 	err := q.QueryRow(ctx, getLastL2BlockNumber).Scan(&lastBlockNumber)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, ErrNotFound
+		return 0, ErrStateNotSynchronized
 	} else if err != nil {
 		return 0, err
 	}
@@ -1066,7 +1068,7 @@ func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx)
 	err := q.QueryRow(ctx, getLastVirtualBlockHeaderSQL).Scan(&header)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, ErrStateNotSynchronized
 	} else if err != nil {
 		return nil, err
 	}
@@ -1085,7 +1087,7 @@ func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*typ
 	err := q.QueryRow(ctx, getLastL2BlockSQL).Scan(&headerStr, &unclesStr, &receivedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, ErrStateNotSynchronized
 	} else if err != nil {
 		return nil, err
 	}

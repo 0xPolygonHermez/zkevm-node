@@ -97,7 +97,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		}
 		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
 		if err != nil {
-			if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 				log.Fatalf(
 					"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
 					rollbackErr, err,
@@ -105,7 +105,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 			}
 			log.Fatalf("failed to open a batch, err: %v", err)
 		}
-		if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+		if err := dbTx.Commit(ctx); err != nil {
 			log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
 		}
 		s.lastBatchNum = processingCtx.BatchNumber
@@ -115,10 +115,13 @@ func (s *Sequencer) Start(ctx context.Context) {
 			ForceBatchesNum: 0,
 			Txs:             nil,
 		}
+	} else {
+		err = s.loadSequenceFromState(ctx)
+		if err != nil {
+			log.Fatalf("failed to load sequence from the state, err: %v", err)
+		}
 	}
-	// TODO:
-	// case B: ongoing sequence (sequencer stopped with an ongoing batch aka not closed)
-	// case C: else (latest batch is closed and is not genesis)
+
 	go s.trackReorg(ctx)
 	go s.trackOldTxs(ctx)
 	ticker := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
@@ -169,14 +172,14 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	if s.sequenceInProgress.IsEmpty() {
-		newSequence, err := s.newSequence(ctx)
-		if err != nil {
-			log.Errorf("failed to create new sequence, err: %v", err)
-			return
-		}
-		s.sequenceInProgress = newSequence
-	}
+	//if s.sequenceInProgress.IsEmpty() {
+	//	newSequence, err := s.newSequence(ctx)
+	//	if err != nil {
+	//		log.Errorf("failed to create new sequence, err: %v", err)
+	//		return
+	//	}
+	//	s.sequenceInProgress = newSequence
+	//}
 
 	log.Infof("synchronizer has synced last batch, checking if current sequence should be closed")
 	if s.shouldCloseSequenceInProgress(ctx) && !s.closeSequence(ctx) {
@@ -220,7 +223,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	log.Infof("processing tx")
+	log.Infof("processing tx: %s", tx.Hash())
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for processing tx, err: %v", err)
@@ -230,19 +233,19 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
 	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
-		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			log.Errorf(
 				"failed to rollback dbTx when processing tx that gave err: %v. Rollback err: %v",
 				rollbackErr, err,
 			)
 			return
 		}
-		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
 		return
 	}
 
-	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+	if err := dbTx.Commit(ctx); err != nil {
 		log.Errorf("failed to commit dbTx when processing tx, err: %v", err)
 		return
 	}
@@ -260,15 +263,18 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.lastStateRoot = processBatchResp.NewStateRoot
 	s.lastLocalExitRoot = processBatchResp.NewLocalExitRoot
 
-	// TODO: add logic based on this response to decide which txs we include on the DB
 	dbTx, err = s.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for StoreTransactions, err: %v", err)
 		return
 	}
-	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processBatchResp.Responses, dbTx)
+
+	processedTxs, unprocessedTxs := state.DetermineProcessedTransactions(processBatchResp.Responses)
+	// only save in DB processed transactions.
+	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processedTxs, dbTx)
 	if err != nil {
-		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			log.Errorf(
 				"failed to rollback dbTx when StoreTransactions that gave err: %v. Rollback err: %v",
 				rollbackErr, err,
@@ -276,19 +282,29 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			return
 		}
 		log.Errorf("failed to store transactions, err: %v", err)
+		if err == state.ErrOutOfOrderProcessedTx || err == state.ErrExistingTxGreaterThanProcessedTx {
+			err = s.loadSequenceFromState(ctx)
+			log.Errorf("failed to load sequence from state, err: %v", err)
+		}
 		return
 	}
 
-	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+	if err := dbTx.Commit(ctx); err != nil {
 		log.Errorf("failed to commit dbTx when StoreTransactions, err: %v", err)
 		return
 	}
 
-	log.Infof("marking tx as selected in the pool")
-	// TODO: add correct handling in case update didn't go through
-	_ = s.pool.UpdateTxState(ctx, tx.Hash(), pool.TxStateSelected)
-
-	log.Infof("TODO: broadcast tx in a new l2 block")
+	var txState pool.TxState = pool.TxStateSelected
+	var txUpdateMsg string = fmt.Sprintf("Tx %q added into the state. Marking tx as selected in the pool", tx.Hash())
+	if _, ok := unprocessedTxs[tx.Hash().String()]; ok {
+		txState = pool.TxStatePending
+		txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as pending to return the pool", tx.Hash())
+	}
+	log.Infof(txUpdateMsg)
+	if err := s.pool.UpdateTxState(ctx, tx.Hash(), txState); err != nil {
+		log.Errorf("failed to update tx status on the pool, err: %v", err)
+		return
+	}
 }
 
 func (s *Sequencer) closeSequence(ctx context.Context) bool {
@@ -411,7 +427,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		}
 		err = s.state.CloseBatch(ctx, receipt, dbTx)
 		if err != nil {
-			if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 				return types.Sequence{}, fmt.Errorf(
 					"failed to rollback dbTx when closing batch that gave err: %v. Rollback err: %v",
 					rollbackErr, err,
@@ -419,7 +435,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 			}
 			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %v", err)
 		}
-		if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+		if err := dbTx.Commit(ctx); err != nil {
 			return types.Sequence{}, fmt.Errorf("failed to commit dbTx when close batch, err: %v", err)
 		}
 	} else {
@@ -453,7 +469,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	}
 	err = s.state.OpenBatch(ctx, processingCtx, dbTx)
 	if err != nil {
-		if rollbackErr := s.state.RollbackStateTransaction(ctx, dbTx); rollbackErr != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return types.Sequence{}, fmt.Errorf(
 				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
 				rollbackErr, err,
@@ -461,7 +477,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		}
 		return types.Sequence{}, fmt.Errorf("failed to open new batch, err: %v", err)
 	}
-	if err := s.state.CommitStateTransaction(ctx, dbTx); err != nil {
+	if err := dbTx.Commit(ctx); err != nil {
 		return types.Sequence{}, fmt.Errorf("failed to commit dbTx when opening batch, err: %v", err)
 	}
 
@@ -491,4 +507,21 @@ func isDataForEthTxTooBig(err error) bool {
 	return strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
 		errors.Is(err, core.ErrOversizedData) ||
 		strings.Contains(err.Error(), errContentLengthTooLarge)
+}
+
+func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
+	// WIP
+	lastBatch, err := s.state.GetLastBatch(ctx, nil)
+	if err != nil {
+		return err
+	}
+	s.lastBatchNum = lastBatch.BatchNumber
+	s.lastStateRoot = lastBatch.StateRoot
+	s.lastLocalExitRoot = lastBatch.LocalExitRoot
+	return fmt.Errorf("NOT IMPLEMENTED: loadSequenceFromState")
+	/*
+		TODO: set s.[lastBatchNum, lastStateRoot, lastLocalExitRoot, closedSequences, sequenceInProgress]
+		based on stateDB data AND potentially pending txs to be mined on Ethereum, as this function may be called either
+		when starting the sequencer OR if there is a mismatch between state data and on memory
+	*/
 }

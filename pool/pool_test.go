@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,18 +62,24 @@ func Test_AddTx(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0xb48cA794d49EeC406A5dD2c547717e37b5952a83"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
@@ -90,8 +95,6 @@ func Test_AddTx(t *testing.T) {
 	}
 	tx := new(types.Transaction)
 	tx.UnmarshalBinary(b) //nolint:gosec,errcheck
-
-	ctx := context.Background()
 
 	err = p.AddTx(ctx, *tx)
 	if err != nil {
@@ -136,18 +139,24 @@ func Test_GetPendingTxs(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
@@ -158,8 +167,6 @@ func Test_GetPendingTxs(t *testing.T) {
 
 	const txsCount = 10
 	const limit = 5
-
-	ctx := context.Background()
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -202,18 +209,24 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
@@ -224,8 +237,6 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 
 	const txsCount = 10
 	const limit = 0
-
-	ctx := context.Background()
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -269,18 +280,23 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
@@ -337,18 +353,23 @@ func Test_UpdateTxsState(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
@@ -405,18 +426,23 @@ func Test_UpdateTxState(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
@@ -504,18 +530,23 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
@@ -570,18 +601,24 @@ func TestGetPendingTxSince(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {
@@ -591,8 +628,6 @@ func TestGetPendingTxSince(t *testing.T) {
 	p := pool.NewPool(s, st, common.Address{})
 
 	const txsCount = 10
-
-	ctx := context.Background()
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
@@ -672,18 +707,23 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 
 	st := newState(sqlDB)
 
-	genesisBlock := types.NewBlock(&types.Header{Number: big.NewInt(0)}, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	genesisBlock.ReceivedAt = time.Now()
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
 	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
 		Balances: map[common.Address]*big.Int{
 			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
 		},
 	}
-	err = st.SetGenesis(context.Background(), genesis, nil)
-	if err != nil {
-		t.Error(err)
-	}
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
 	if err != nil {

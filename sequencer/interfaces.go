@@ -55,8 +55,6 @@ type stateInterface interface {
 	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
-	CommitStateTransaction(ctx context.Context, dbTx pgx.Tx) error
-	RollbackStateTransaction(ctx context.Context, dbTx pgx.Tx) error
 }
 
 type txManager interface {

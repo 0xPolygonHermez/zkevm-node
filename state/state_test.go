@@ -132,7 +132,7 @@ func TestProcessCloseBatch(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	// processingCtx1 := state.ProcessingContext{
@@ -157,7 +157,7 @@ func TestOpenCloseBatch(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	processingCtx1 := state.ProcessingContext{
@@ -592,14 +592,24 @@ func TestGenesis(t *testing.T) {
 		common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"): {new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")): new(big.Int).SetBytes(common.Hex2Bytes("9d98deabc42dd696deb9e40b4f1cab7ddbf55988"))},
 	}
 
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
 	genesis := state.Genesis{
 		Balances:       balances,
 		Nonces:         nonces,
 		SmartContracts: smartContracts,
 		Storage:        storage,
 	}
-	err := testState.SetGenesis(ctx, genesis, nil)
+	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
+	err = testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	// Assert results
 	for addr, expectedBalance := range balances {
@@ -626,6 +636,7 @@ func TestGenesis(t *testing.T) {
 	// }
 }
 
+/*
 func TestCheckSupersetBatchTransactions(t *testing.T) {
 	tcs := []struct {
 		description      string
@@ -689,7 +700,7 @@ func TestCheckSupersetBatchTransactions(t *testing.T) {
 		},
 	}
 	for _, tc := range tcs {
-		tc := tc
+		// tc := tc
 		t.Run(tc.description, func(t *testing.T) {
 			require.NoError(t, testutils.CheckError(
 				state.CheckSupersetBatchTransactions(tc.existingTxHashes, tc.processedTxs),
@@ -699,6 +710,7 @@ func TestCheckSupersetBatchTransactions(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	// Init database instance
@@ -708,7 +720,7 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	// Set genesis batch
-	err = testState.SetGenesis(ctx, state.Genesis{}, dbTx)
+	err = testState.SetGenesis(ctx, state.Block{}, state.Genesis{}, dbTx)
 	require.NoError(t, err)
 	// Open batch #1
 	processingCtx1 := state.ProcessingContext{
@@ -744,4 +756,160 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 		require.Equal(t, txsBatch1[i].TxHash, txs[i])
 	}
 	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func TestDetermineProcessedTransactions(t *testing.T) {
+	tcs := []struct {
+		description               string
+		input                     []*state.ProcessTransactionResponse
+		expectedProcessedOutput   []*state.ProcessTransactionResponse
+		expectedUnprocessedOutput map[string]*state.ProcessTransactionResponse
+	}{
+		{
+			description:               "empty input returns empty",
+			input:                     []*state.ProcessTransactionResponse{},
+			expectedProcessedOutput:   []*state.ProcessTransactionResponse{},
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{},
+		},
+		{
+			description: "single processed transaction returns itself",
+			input: []*state.ProcessTransactionResponse{
+				{UnprocessedTransaction: 0},
+			},
+			expectedProcessedOutput: []*state.ProcessTransactionResponse{
+				{UnprocessedTransaction: 0},
+			},
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{},
+		},
+		{
+			description: "single unprocessed transaction returns empty",
+			input: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 1,
+				},
+			},
+			expectedProcessedOutput: []*state.ProcessTransactionResponse{},
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
+				"0x000000000000000000000000000000000000000000000000000000000000000a": {
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 1,
+				},
+			},
+		},
+		{
+			description: "multiple processed transactions",
+			input: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 0,
+				},
+			},
+			expectedProcessedOutput: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 0,
+				},
+			},
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{},
+		},
+		{
+			description: "multiple unprocessed transactions",
+			input: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 1,
+				},
+				{
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 1,
+				},
+				{
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 1,
+				},
+			},
+			expectedProcessedOutput: []*state.ProcessTransactionResponse{},
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
+				"0x000000000000000000000000000000000000000000000000000000000000000a": {
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 1,
+				},
+				"0x000000000000000000000000000000000000000000000000000000000000000b": {
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 1,
+				},
+				"0x000000000000000000000000000000000000000000000000000000000000000c": {
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 1,
+				},
+			},
+		},
+		{
+			description: "mixed processed and unprocessed transactions",
+			input: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 1,
+				},
+				{
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("d"),
+					UnprocessedTransaction: 1,
+				},
+			},
+			expectedProcessedOutput: []*state.ProcessTransactionResponse{
+				{
+					TxHash:                 common.HexToHash("a"),
+					UnprocessedTransaction: 0,
+				},
+				{
+					TxHash:                 common.HexToHash("c"),
+					UnprocessedTransaction: 0,
+				},
+			},
+			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
+				"0x000000000000000000000000000000000000000000000000000000000000000b": {
+					TxHash:                 common.HexToHash("b"),
+					UnprocessedTransaction: 1,
+				},
+				"0x000000000000000000000000000000000000000000000000000000000000000d": {
+					TxHash:                 common.HexToHash("d"),
+					UnprocessedTransaction: 1,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		tc := tc
+		t.Run(tc.description, func(t *testing.T) {
+			actualProcessedTx, actualUnprocessedTxs := state.DetermineProcessedTransactions(tc.input)
+			require.Equal(t, tc.expectedProcessedOutput, actualProcessedTx)
+			require.Equal(t, tc.expectedUnprocessedOutput, actualUnprocessedTxs)
+		})
+	}
 }
