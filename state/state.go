@@ -689,14 +689,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
 	result := new(runtime.ExecutionResult)
 
-	l2BlockHeader, err := s.GetL2BlockHeaderByNumber(ctx, blockNumber, dbTx)
-	if err != nil {
-		log.Errorf("error getting l2 block ", err)
-		result.Err = err
-		return result
-	}
-
-	lastBatches, err := s.PostgresStorage.GetLastNBatches(ctx, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByBlockNumber(ctx, blockNumber, two, dbTx)
 	if err != nil {
 		result.Err = err
 		return result
@@ -718,10 +711,10 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	processBatchRequest := &pb.ProcessBatchRequest{
 		BatchL2Data:      batchL2Data,
 		From:             senderAddress.String(),
-		OldStateRoot:     l2BlockHeader.Root.Bytes(),
+		OldStateRoot:     l2BlockStateRoot.Bytes(),
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
-		EthTimestamp:     uint64(time.Now().Unix()),
+		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cFalse,
 	}
 
