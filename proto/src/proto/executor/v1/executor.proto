@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package executor.v1;
 
-option go_package = "github.com/hermeznetwork/hermez-core/state/runtime/executor/pb";
+option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb";
 
 service ExecutorService {
     /// Processes a batch
