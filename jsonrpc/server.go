@@ -21,8 +21,8 @@ const (
 	APINet = "net"
 	// APIDebug represents the debug API prefix.
 	APIDebug = "debug"
-	// APIHez represents the hez API prefix.
-	APIHez = "hez"
+	// APIZKEVM represents the zkevm API prefix.
+	APIZKEVM = "zkevm"
 	// APITxPool represents the txpool API prefix.
 	APITxPool = "txpool"
 	// APIWeb3 represents the web3 API prefix.
@@ -51,9 +51,9 @@ func NewServer(cfg Config, p jsonRPCTxPool, s stateInterface,
 		handler.registerService(APINet, netEndpoints)
 	}
 
-	if _, ok := apis[APIHez]; ok {
-		hezEndpoints := &Hez{state: s, config: cfg}
-		handler.registerService(APIHez, hezEndpoints)
+	if _, ok := apis[APIZKEVM]; ok {
+		hezEndpoints := &ZKEVM{state: s, config: cfg}
+		handler.registerService(APIZKEVM, hezEndpoints)
 	}
 
 	if _, ok := apis[APITxPool]; ok {

@@ -308,7 +308,7 @@ func (s *ClientSynchronizer) getBroadcastURI() (string, error) {
 	log.Debug("trustedSequencerURL ", trustedSequencerURL)
 
 	log.Debug("getting broadcast URI from Trusted Sequencer JSON RPC Server")
-	res, err := jsonrpc.JSONRPCCall(trustedSequencerURL, "hez_getBroadcastURI")
+	res, err := jsonrpc.JSONRPCCall(trustedSequencerURL, "zkevm_getBroadcastURI")
 	if err != nil {
 		return "", err
 	}
