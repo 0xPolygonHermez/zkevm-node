@@ -30,6 +30,7 @@ services:
       - ZKEVM_NODE_DATABASE_PASSWORD=test_password
       - ZKEVM_NODE_DATABASE_NAME=test_db
       - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
     volumes:
       - ./config/config.local.toml:/app/config.toml
     command:
@@ -245,13 +246,13 @@ services:
     ports:
       - 8126:8126
     environment:
+      - ZKEVM_NODE_TRUSTED=false
       - ZKEVM_NODE_DATABASE_USER=test_user
       - ZKEVM_NODE_DATABASE_PASSWORD=test_password
       - ZKEVM_NODE_DATABASE_NAME=test_db
       - ZKEVM_NODE_DATABASE_HOST=zkevm-permissionless-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
       - ZKEVM_NODE_RPC_PORT=8126
-      - ZKEVM_NODE_SYNCHRONIZER_TRUSTEDSEQUENCERURI=zkevm-broadcast:61090
     volumes:
       - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml

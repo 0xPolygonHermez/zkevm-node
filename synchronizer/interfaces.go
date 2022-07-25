@@ -17,6 +17,7 @@ type ethermanInterface interface {
 	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]etherman.Block, map[common.Hash][]etherman.Order, error)
 	EthBlockByNumber(ctx context.Context, blockNumber uint64) (*types.Block, error)
 	GetLatestBatchNumber() (uint64, error)
+	GetTrustedSequencerURL() (string, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.

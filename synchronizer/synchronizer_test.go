@@ -37,7 +37,7 @@ func TestTrustedStateReorg(t *testing.T) {
 			SyncChunkSize: 10,
 		}
 		reorgBlockNumChan := make(chan struct{})
-		sync, err := NewSynchronizer(m.Etherman, m.State, genBlockNumber, genesis, reorgBlockNumChan, cfg)
+		sync, err := NewSynchronizer(true, m.Etherman, m.State, genBlockNumber, genesis, reorgBlockNumChan, cfg)
 		require.NoError(t, err)
 
 		// state preparation

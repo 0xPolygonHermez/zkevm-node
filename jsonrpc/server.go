@@ -52,7 +52,7 @@ func NewServer(cfg Config, p jsonRPCTxPool, s stateInterface,
 	}
 
 	if _, ok := apis[APIHez]; ok {
-		hezEndpoints := &Hez{state: s}
+		hezEndpoints := &Hez{state: s, config: cfg}
 		handler.registerService(APIHez, hezEndpoints)
 	}
 

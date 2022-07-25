@@ -2,6 +2,7 @@ package synchronizer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
@@ -27,42 +29,38 @@ type Synchronizer interface {
 
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
-	etherMan          ethermanInterface
-	state             stateInterface
-	ctx               context.Context
-	cancelCtx         context.CancelFunc
-	genBlockNumber    uint64
-	genesis           state.Genesis
-	reorgBlockNumChan chan struct{}
-	cfg               Config
-	broadcastClient   pb.BroadcastServiceClient
+	IsTrustedSequencer bool
+	etherMan           ethermanInterface
+	state              stateInterface
+	ctx                context.Context
+	cancelCtx          context.CancelFunc
+	genBlockNumber     uint64
+	genesis            state.Genesis
+	reorgBlockNumChan  chan struct{}
+	cfg                Config
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(
+	trusted bool,
 	ethMan ethermanInterface,
 	st stateInterface,
 	genBlockNumber uint64,
 	genesis state.Genesis,
 	reorgBlockNumChan chan struct{},
 	cfg Config) (Synchronizer, error) {
-	var broadcastClient pb.BroadcastServiceClient
-
 	ctx, cancel := context.WithCancel(context.Background())
-	if cfg.TrustedSequencerURI != "" {
-		broadcastClient, _, cancel = broadcast.NewClient(ctx, cfg.TrustedSequencerURI)
-	}
 
 	return &ClientSynchronizer{
-		state:             st,
-		etherMan:          ethMan,
-		ctx:               ctx,
-		cancelCtx:         cancel,
-		genBlockNumber:    genBlockNumber,
-		genesis:           genesis,
-		reorgBlockNumChan: reorgBlockNumChan,
-		cfg:               cfg,
-		broadcastClient:   broadcastClient,
+		IsTrustedSequencer: trusted,
+		state:              st,
+		etherMan:           ethMan,
+		ctx:                ctx,
+		cancelCtx:          cancel,
+		genBlockNumber:     genBlockNumber,
+		genesis:            genesis,
+		reorgBlockNumChan:  reorgBlockNumChan,
+		cfg:                cfg,
 	}, nil
 }
 
@@ -233,15 +231,30 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 }
 
 // syncTrustedState synchronizes information from the trusted sequencer
-// related to the trusted state when the noda has all the information from
+// related to the trusted state when the node has all the information from
 // l1 synchronized
 func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
-	if s.broadcastClient == nil {
+	if s.IsTrustedSequencer {
 		return nil
 	}
 
+	log.Debug("Getting broadcast URI")
+	broadcastURI, err := s.getBroadcastURI()
+	if err != nil {
+		log.Errorf("error getting broadcast URI. Error: %v", err)
+		return err
+	}
+	log.Debug("broadcastURI ", broadcastURI)
+
+	if broadcastURI != "zkevm-broadcast:61090" {
+		log.Error("URI IS DIFFERENT")
+		log.Error([]byte(broadcastURI))
+		log.Error([]byte("zkevm-broadcast:61090"))
+	}
+	broadcastClient, _, _ := broadcast.NewClient(s.ctx, broadcastURI)
+
 	log.Info("Getting trusted state info")
-	lastTrustedStateBatch, err := s.broadcastClient.GetLastBatch(s.ctx, &emptypb.Empty{})
+	lastTrustedStateBatch, err := broadcastClient.GetLastBatch(s.ctx, &emptypb.Empty{})
 	if err != nil {
 		log.Warn("error syncing trusted state. Error: ", err)
 		return err
@@ -255,7 +268,7 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 
 	batchNumberToSync := latestSyncedBatch
 	for batchNumberToSync <= lastTrustedStateBatch.BatchNumber {
-		batchToSync, err := s.broadcastClient.GetBatch(s.ctx, &pb.GetBatchRequest{BatchNumber: batchNumberToSync})
+		batchToSync, err := broadcastClient.GetBatch(s.ctx, &pb.GetBatchRequest{BatchNumber: batchNumberToSync})
 		if err != nil {
 			log.Warnf("failed to get batch %v from trusted state via broadcast. Error: %v", batchNumberToSync, err)
 			return err
@@ -267,11 +280,12 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 		}
 
 		if err := s.processTrustedBatch(batchToSync, dbTx); err != nil {
-			log.Fatalf("error processing trusted batch %v: %v", batchNumberToSync, err)
+			log.Errorf("error processing trusted batch %v: %v", batchNumberToSync, err)
 			err := dbTx.Rollback(s.ctx)
 			if err != nil {
 				log.Fatalf("error rolling back db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
 			}
+			break
 		}
 
 		if err := dbTx.Commit(s.ctx); err != nil {
@@ -282,6 +296,34 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 	}
 
 	return nil
+}
+
+// gets the broadcast URI from trusted sequencer JSON RPC server
+func (s *ClientSynchronizer) getBroadcastURI() (string, error) {
+	log.Debug("getting trusted sequencer URL from smc")
+	trustedSequencerURL, err := s.etherMan.GetTrustedSequencerURL()
+	if err != nil {
+		return "", err
+	}
+	log.Debug("trustedSequencerURL ", trustedSequencerURL)
+
+	log.Debug("getting broadcast URI from Trusted Sequencer JSON RPC Server")
+	res, err := jsonrpc.JSONRPCCall(trustedSequencerURL, "hez_getBroadcastURI")
+	if err != nil {
+		return "", err
+	}
+
+	if res.Error != nil {
+		errMsg := fmt.Sprintf("%v:%v", res.Error.Code, res.Error.Message)
+		return "", errors.New(errMsg)
+	}
+
+	var url string
+	if err := json.Unmarshal(res.Result, &url); err != nil {
+		return "", err
+	}
+
+	return url, nil
 }
 
 func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order map[common.Hash][]etherman.Order) {
@@ -733,12 +775,6 @@ func (s *ClientSynchronizer) processVerifiedBatch(verifiedBatch etherman.Verifie
 
 func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *pb.GetBatchResponse, dbTx pgx.Tx) error {
 	log.Debugf("processing trusted batch: %v", trustedBatch.BatchNumber)
-	processCtx := state.ProcessingContext{
-		BatchNumber:    trustedBatch.BatchNumber,
-		Coinbase:       common.HexToAddress(trustedBatch.Sequencer),
-		Timestamp:      time.Unix(int64(trustedBatch.Timestamp), 0),
-		GlobalExitRoot: common.HexToHash(trustedBatch.GlobalExitRoot),
-	}
 	txs := []types.Transaction{}
 	for _, transaction := range trustedBatch.Transactions {
 		tx, err := state.DecodeTx(transaction.Encoded)
@@ -785,6 +821,12 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *pb.GetBatchRespon
 	}
 
 	log.Debugf("opening batch %v", trustedBatch.BatchNumber)
+	processCtx := state.ProcessingContext{
+		BatchNumber:    trustedBatch.BatchNumber,
+		Coinbase:       common.HexToAddress(trustedBatch.Sequencer),
+		Timestamp:      time.Unix(int64(trustedBatch.Timestamp), 0),
+		GlobalExitRoot: common.HexToHash(trustedBatch.GlobalExitRoot),
+	}
 	if err := s.state.OpenBatch(s.ctx, processCtx, dbTx); err != nil {
 		log.Errorf("error opening batch %d", trustedBatch.BatchNumber)
 		return err
@@ -808,8 +850,8 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *pb.GetBatchRespon
 	if isBatchClosed {
 		receipt := state.ProcessingReceipt{
 			BatchNumber:   trustedBatch.BatchNumber,
-			StateRoot:     common.HexToHash(trustedBatch.StateRoot),
-			LocalExitRoot: common.HexToHash(trustedBatch.LocalExitRoot),
+			StateRoot:     processBatchResp.NewStateRoot,
+			LocalExitRoot: processBatchResp.NewLocalExitRoot,
 		}
 		log.Debugf("closing batch %v", trustedBatch.BatchNumber)
 		if err := s.state.CloseBatch(s.ctx, receipt, dbTx); err != nil {
@@ -819,20 +861,9 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *pb.GetBatchRespon
 	}
 
 	if trustedBatch.ForcedBatchNumber > 0 {
-		log.Debugf("batch %v was forced with number forced batch number %v", trustedBatch.BatchNumber, trustedBatch.ForcedBatchNumber)
-		forcedBatch := &state.ForcedBatch{
-			// BlockNumber:       trustedBatch.,
-			BatchNumber:       &trustedBatch.BatchNumber,
-			ForcedBatchNumber: trustedBatch.ForcedBatchNumber,
-			Sequencer:         common.HexToAddress(trustedBatch.Sequencer),
-			GlobalExitRoot:    common.HexToHash(trustedBatch.GlobalExitRoot),
-			RawTxsData:        trustedBatchL2Data,
-			// ForcedAt:          trustedBatch.,
-		}
-
-		log.Debugf("adding forced batch %v for batch %v", trustedBatch.ForcedBatchNumber, trustedBatch.BatchNumber)
-		if err := s.state.AddForcedBatch(s.ctx, forcedBatch, dbTx); err != nil {
-			log.Errorf("error adding forced batch for batch %v", trustedBatch.BatchNumber)
+		log.Debugf("adding batch num %v for forced batch %v", trustedBatch.BatchNumber, trustedBatch.ForcedBatchNumber)
+		if err := s.state.AddBatchNumberInForcedBatch(s.ctx, trustedBatch.ForcedBatchNumber, trustedBatch.BatchNumber, dbTx); err != nil {
+			log.Errorf("error adding batch %v for forced batch %v", trustedBatch.BatchNumber, trustedBatch.ForcedBatchNumber)
 			return err
 		}
 	}

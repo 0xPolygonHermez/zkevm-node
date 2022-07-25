@@ -48,6 +48,7 @@ const (
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
+	Trusted           bool `mapstructure:"Trusted"`
 	Log               log.Config
 	Database          db.Config
 	Etherman          etherman.Config
@@ -62,7 +63,6 @@ type Config struct {
 	GasPriceEstimator gasprice.Config
 	Executor          executor.Config
 	BroadcastServer   broadcast.ServerConfig
-	BroadcastClient   broadcast.ClientConfig
 	MTClient          merkletree.Config
 }
 

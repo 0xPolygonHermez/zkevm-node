@@ -10,8 +10,9 @@ import (
 
 // Hez contains implementations for the "hez" RPC endpoints
 type Hez struct {
-	state stateInterface
-	txMan dbTxManager
+	config Config
+	state  stateInterface
+	txMan  dbTxManager
 }
 
 // ConsolidatedBlockNumber returns current block number for consolidated blocks
@@ -26,4 +27,10 @@ func (h *Hez) ConsolidatedBlockNumber() (interface{}, rpcError) {
 
 		return hex.EncodeUint64(lastBlockNumber), nil
 	})
+}
+
+// GetBroadcastURI returns the IP:PORT of the broadcast service provided
+// by the Trusted Sequencer JSON RPC server
+func (h *Hez) GetBroadcastURI() (interface{}, rpcError) {
+	return h.config.BroadcastURI, nil
 }
