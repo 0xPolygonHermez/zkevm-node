@@ -1,4 +1,4 @@
-Trusted = true
+IsTrustedSequencer = true
 
 [Log]
 Level = "debug"

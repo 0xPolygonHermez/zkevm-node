@@ -29,7 +29,7 @@ type Synchronizer interface {
 
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
-	IsTrustedSequencer bool
+	isTrustedSequencer bool
 	etherMan           ethermanInterface
 	state              stateInterface
 	ctx                context.Context
@@ -42,7 +42,7 @@ type ClientSynchronizer struct {
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(
-	trusted bool,
+	isTrustedSequencer bool,
 	ethMan ethermanInterface,
 	st stateInterface,
 	genBlockNumber uint64,
@@ -52,7 +52,7 @@ func NewSynchronizer(
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &ClientSynchronizer{
-		IsTrustedSequencer: trusted,
+		isTrustedSequencer: isTrustedSequencer,
 		state:              st,
 		etherMan:           ethMan,
 		ctx:                ctx,
@@ -234,7 +234,7 @@ func (s *ClientSynchronizer) syncBlocks(lastEthBlockSynced *state.Block) (*state
 // related to the trusted state when the node has all the information from
 // l1 synchronized
 func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
-	if s.IsTrustedSequencer {
+	if s.isTrustedSequencer {
 		return nil
 	}
 
@@ -245,12 +245,6 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 		return err
 	}
 	log.Debug("broadcastURI ", broadcastURI)
-
-	if broadcastURI != "zkevm-broadcast:61090" {
-		log.Error("URI IS DIFFERENT")
-		log.Error([]byte(broadcastURI))
-		log.Error([]byte("zkevm-broadcast:61090"))
-	}
 	broadcastClient, _, _ := broadcast.NewClient(s.ctx, broadcastURI)
 
 	log.Info("Getting trusted state info")

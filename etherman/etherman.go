@@ -584,7 +584,7 @@ func (etherMan *Client) ApproveMatic(maticAmount *big.Int, to common.Address) (*
 
 // GetTrustedSequencerURL Gets the trusted sequencer url from rollup smc
 func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
-	return etherMan.PoE.TrustedSequencerURL(nil)
+	return etherMan.PoE.TrustedSequencerURL(&bind.CallOpts{Pending: false})
 }
 
 // VerifyBatch function allows the aggregator send the proof for a batch and consolidate it

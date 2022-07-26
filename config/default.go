@@ -2,7 +2,7 @@ package config
 
 // DefaultValues is the default configuration
 const DefaultValues = `
-Trusted = false
+IsTrustedSequencer = false
 
 [Log]
 Level = "debug"

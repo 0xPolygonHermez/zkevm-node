@@ -147,7 +147,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.Sta
 		Storage:        cfg.NetworkConfig.Genesis.Storage,
 		Nonces:         cfg.NetworkConfig.Genesis.Nonces,
 	}
-	sy, err := synchronizer.NewSynchronizer(cfg.Trusted, etherman, st, cfg.NetworkConfig.GenBlockNumber, genesis, reorgBlockNumChan, cfg.Synchronizer)
+	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.GenBlockNumber, genesis, reorgBlockNumChan, cfg.Synchronizer)
 	if err != nil {
 		log.Fatal(err)
 	}
