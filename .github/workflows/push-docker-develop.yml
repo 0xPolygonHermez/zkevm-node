@@ -50,20 +50,20 @@ jobs:
           tags: |
             hermeznetwork/zkevm-mock-prover:latest
 
-      - name: Check changes in zkprovermock
-        id: zkprovermock_changes
+      - name: Check changes in zkevmprovermock
+        id: zkevmprovermock_changes
         uses: dorny/paths-filter@v2
         with:
           filters: |
-            zkprovermock:
-              - 'zkprovermock/**'
+            zkevmprovermock:
+              - 'zkevmprovermock/**'
 
-      - name: Build and push zkprovermock
-        if: steps.zkprovermock_changes.outputs.zkprovermock == 'true'
-        id: docker_build_zkprovermock
+      - name: Build and push zkevmprovermock
+        if: steps.zkevmprovermock_changes.outputs.zkevmprovermock == 'true'
+        id: docker_build_zkevmprovermock
         uses: docker/build-push-action@v2
         with:
-          context: ./zkprovermock
+          context: ./zkevmprovermock
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |

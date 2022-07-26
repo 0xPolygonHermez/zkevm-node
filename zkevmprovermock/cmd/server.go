@@ -15,7 +15,7 @@ import (
 )
 
 func runServer(cliCtx *cli.Context) error {
-	log.Info("Running zkEVM Prover Client mock...")
+	log.Info("Running zkEVM Prover Server mock...")
 
 	s := grpc.NewServer()
 
