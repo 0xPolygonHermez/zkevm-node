@@ -805,7 +805,6 @@ func TestExecutor(t *testing.T) {
 	assert.Equal(t, common.HexToHash(expectedNewRoot), common.BytesToHash(processBatchResponse.NewStateRoot))
 }
 
-/*
 func TestExecutorRevert(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -859,7 +858,6 @@ func TestExecutorRevert(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
 }
-*/
 
 func TestExecutorLogs(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
@@ -1030,7 +1028,7 @@ func TestExecutorTxHash(t *testing.T) {
 		Value:    new(big.Int).SetUint64(100000000000000),
 		Gas:      uint64(21000),
 		GasPrice: new(big.Int).SetUint64(1500000008),
-		Data:     nil,
+		Data:     common.Hex2Bytes("0x00"),
 		V:        v,
 		R:        r,
 		S:        s,
