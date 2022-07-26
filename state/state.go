@@ -475,6 +475,12 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
 }
 
+// isTransactionProcessed determines if the given process transaction response
+// represents a processed transaction.
+func isTransactionProcessed(unprocessedTransaction uint32) bool {
+	return unprocessedTransaction == cFalse
+}
+
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx) error {
 	// Open the batch and process the txs
@@ -492,7 +498,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
-		if processed.Responses[i].UnprocessedTransaction == cTrue {
+		if !isTransactionProcessed(processed.Responses[i].UnprocessedTransaction) {
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
@@ -821,4 +827,20 @@ func CheckSupersetBatchTransactions(existingTxHashes []common.Hash, processedTxs
 // isContractCreation checks if the tx is a contract creation
 func (s *State) isContractCreation(tx *types.Transaction) bool {
 	return tx.To() == nil && len(tx.Data()) > 0
+}
+
+// DetermineProcessedTransactions splits the given tx process responses
+// returning a slice with only processed and a map unprocessed txs
+// respectively.
+func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) ([]*ProcessTransactionResponse, map[string]*ProcessTransactionResponse) {
+	processedTxResponses := []*ProcessTransactionResponse{}
+	unprocessedTxResponses := map[string]*ProcessTransactionResponse{}
+	for _, response := range responses {
+		if isTransactionProcessed(response.UnprocessedTransaction) {
+			processedTxResponses = append(processedTxResponses, response)
+		} else {
+			unprocessedTxResponses[response.TxHash.String()] = response
+		}
+	}
+	return processedTxResponses, unprocessedTxResponses
 }

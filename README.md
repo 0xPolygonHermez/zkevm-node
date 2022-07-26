@@ -4,13 +4,13 @@ zkEVM Node is a Go implementation of a node that operates the Polygon zkEVM Netw
 
 ## About the Polygon zkEVM network
 
-Since this is an implementation of a protocol it's fundamental to understand it, [here TODO]() you can find the specification of the protocol.
+Since this is an implementation of a protocol it's fundamental to understand it, [here](https://docs.hermez.io/) you can find the specification of the protocol.
 
 Glossary:
 
 - L1: Base blockchain where the rollup smart contracts are deployed. It's Ethereum or a testnet of Ethereum, but it could be any EVM compatible blockchain.
 - L2: the rollup network aka the Polygon zkEVM network.
-- Batch: a group of transactions that are executed/proved, using the [zkEVM prover TODO]() and sent to / synchronized from L1
+- Batch: a group of transactions that are executed/proved, using the [zkEVM prover](https://github.com/0xPolygonHermez/zkevm-prover) and sent to / synchronized from L1
 - Sequencer: the actor that is responsible for selecting transactions, putting them in a specific order, and sending them in batches to L1
 - Trusted sequencer: sequencer that has special privileges, there can only be one trusted sequencer. The privileges granted to the trusted sequencer allow it to forecast the batches that will be applied to L1. This way it can commit to a specific sequence before interacting with L1. This is done to achieve fast finality and reduce costs associated with using the network (lower gas fees)
 - Permissionless sequencer: sequencer role that can be performed by anyone. It has competitive disadvantages compared to the trusted sequencer (slow finality, MEV attacks). Its main purpose is to provide censorship resistance and unstoppability features to the network.
@@ -22,7 +22,7 @@ Glossary:
 - Consolidated state: state that is proven on-chain by submitting a ZKP (Zero Knowledge Proof) that proves the execution of a sequence of the last virtual batch.
 - Invalid transaction: a transaction that can't be processed and doesn't affect the state. Note that such a transaction could be included in a virtual batch. The reason for a transaction to be invalid could be related to the Ethereum protocol (invalid nonce, not enough balance, ...) or due to limitations introduced by the zkEVM (each batch can make use of a limited amount of resources such as the total amount of keccak hashes that can be computed)
 - Reverted transaction: a transaction that is executed, but is reverted (because of smart contract logic). The main difference with *invalid transaction* is that this transaction modifies the state, at least to increment nonce of the sender.
-- Proof of Efficiency (PoE): name of the protocol used by the network, it's enforced by the [smart contracts TODO]()
+- Proof of Efficiency (PoE): name of the protocol used by the network, it's enforced by the [smart contracts](https://github.com/0xPolygonHermez/zkevm-contracts)
 
 ## Architecture
 
@@ -42,10 +42,10 @@ The diagram represents the main components of the software and how they interact
 - State: Responsible for managing the state data (batches, blocks, transactions, ...) that is stored on the `state SB`. It also handles the integration with the `executor` and the `Merkletree` service
 - State DB: persistence layer for the state data (except the Merkletree that is handled by the `Merkletree` service)
 - Aggregator: consolidates batches by generating ZKPs (Zero Knowledge proofs). To do so it gathers the necessary data that the `prover` needs as input through the `state` and sends a request to it. Once the proof is generated it's sent to Ethereum through the `etherman`
-- Prover/Executor: service that generates ZK proofs. Note that this component is not implemented in this repository, and it's treated as a "black box" from the perspective of the node. The prover/executor has two implementations: [JS reference implementation TODO](https://github.com/hermeznetwork/zkproverjs) and [C production-ready implementation TODO](https://github.com/hermeznetwork/zkproverc). Although it's the same software/service, it has two very different purposes:
+- Prover/Executor: service that generates ZK proofs. Note that this component is not implemented in this repository, and it's treated as a "black box" from the perspective of the node. The prover/executor has two implementations: [JS reference implementation](https://github.com/0xPolygonHermez/zkevm-proverjs) and [C production-ready implementation](https://github.com/0xPolygonHermez/zkevm-prover). Although it's the same software/service, it has two very different purposes:
   - Provide an EVM implementation that allows processing transactions and getting all needed results metadata (state root, receipts, logs, ...)
   - Generate ZKPs
-- Merkletree: service that stores the Merkletree, containing all the account information (balances, nonces, smart contract code, and smart contract storage). This component is also not implemented in this repo and is consumed as an external service by the node. The implementation can be found [here TODO]()
+- Merkletree: service that stores the Merkletree, containing all the account information (balances, nonces, smart contract code, and smart contract storage). This component is also not implemented in this repo and is consumed as an external service by the node. The implementation can be found [here](https://github.com/0xPolygonHermez/zkevm-prover)
 
 ## Roles of the network
 
@@ -118,3 +118,7 @@ It's recommended to use `make` for building, and testing the code, ... Run `make
 ## Contribute
 
 Before opening a pull request, please read this [guide](docs/contribute-guie.md)
+
+## Disclaimer
+
+This code has not yet been audited, and should not be used in any production systems.

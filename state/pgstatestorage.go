@@ -726,7 +726,7 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error) {
 	var encoded string
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getTransactionByHashSQL, transactionHash).Scan(&encoded)
+	err := q.QueryRow(ctx, getTransactionByHashSQL, transactionHash.String()).Scan(&encoded)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -744,20 +744,19 @@ func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 
 // GetTransactionReceipt gets a transaction receipt accordingly to the provided transaction hash
 func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
-	var encodedTx string
+	var txHash, encodedTx, contractAddress, l2BlockHash string
 	var l2BlockNum uint64
-	var l2BlockHash string
 
 	receipt := types.Receipt{}
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getReceiptSQL, transactionHash).
-		Scan(&receipt.TxHash,
+	err := q.QueryRow(ctx, getReceiptSQL, transactionHash.String()).
+		Scan(&txHash,
 			&receipt.Type,
 			&receipt.PostState,
 			&receipt.Status,
 			&receipt.CumulativeGasUsed,
 			&receipt.GasUsed,
-			&receipt.ContractAddress,
+			&contractAddress,
 			&encodedTx,
 			&l2BlockNum,
 			&l2BlockHash,
@@ -768,6 +767,9 @@ func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transaction
 	} else if err != nil {
 		return nil, err
 	}
+
+	receipt.TxHash = common.HexToHash(txHash)
+	receipt.ContractAddress = common.HexToAddress(contractAddress)
 
 	logs, err := p.getTransactionLogs(ctx, transactionHash, dbTx)
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
@@ -849,7 +851,7 @@ func (p *PostgresStorage) GetL2BlockTransactionCountByNumber(ctx context.Context
 // getTransactionLogs returns the logs of a transaction by transaction hash
 func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) ([]*types.Log, error) {
 	q := p.getExecQuerier(dbTx)
-	rows, err := q.Query(ctx, getTransactionLogsSQL, transactionHash)
+	rows, err := q.Query(ctx, getTransactionLogsSQL, transactionHash.String())
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}
@@ -1360,4 +1362,27 @@ func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx)
 	_, err := e.Exec(ctx, addLogSQL, l.TxHash.String(), l.Index, l.TxIndex,
 		l.Address.String(), l.Data, topicsAsBytes[0], topicsAsBytes[1], topicsAsBytes[2], topicsAsBytes[3])
 	return err
+}
+
+// GetExitRootByGlobalExitRoot returns the mainnet and rollup exit root given
+// a global exit root number.
+func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*GlobalExitRoot, error) {
+	var (
+		exitRoot  GlobalExitRoot
+		globalNum uint64
+		err       error
+	)
+
+	const sql = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM state.exit_root WHERE global_exit_root = $1 ORDER BY block_num DESC LIMIT 1"
+
+	e := p.getExecQuerier(dbTx)
+	err = e.QueryRow(ctx, sql, ger).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot, &exitRoot.GlobalExitRoot)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	exitRoot.GlobalExitRootNum = new(big.Int).SetUint64(globalNum)
+	return &exitRoot, nil
 }
