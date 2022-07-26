@@ -1377,3 +1377,26 @@ func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx)
 		l.Address.String(), l.Data, topicsAsBytes[0], topicsAsBytes[1], topicsAsBytes[2], topicsAsBytes[3])
 	return err
 }
+
+// GetExitRootByGlobalExitRoot returns the mainnet and rollup exit root given
+// a global exit root number.
+func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*GlobalExitRoot, error) {
+	var (
+		exitRoot  GlobalExitRoot
+		globalNum uint64
+		err       error
+	)
+
+	const sql = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM state.exit_root WHERE global_exit_root = $1 ORDER BY block_num DESC LIMIT 1"
+
+	e := p.getExecQuerier(dbTx)
+	err = e.QueryRow(ctx, sql, ger).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot, &exitRoot.GlobalExitRoot)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	exitRoot.GlobalExitRootNum = new(big.Int).SetUint64(globalNum)
+	return &exitRoot, nil
+}
