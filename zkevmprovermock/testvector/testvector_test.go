@@ -1,6 +1,7 @@
 package testvector_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -12,8 +13,6 @@ import (
 
 func TestNewContainer(t *testing.T) {
 	const defaultSourceDir = "/a/b/c"
-
-	var appFs = afero.NewMemMapFs()
 
 	tcs := []struct {
 		description       string
@@ -51,11 +50,29 @@ func TestNewContainer(t *testing.T) {
 				},
 			},
 		},
+		{
+			description: "invalid test vector causes error",
+			sourceFiles: map[string]string{
+				filepath.Join(defaultSourceDir, "merkle-tree/smt-raw.json"): "not a real json",
+			},
+			testVectorPath:   defaultSourceDir,
+			expectedError:    true,
+			expectedErrorMsg: "invalid character 'o' in literal null (expecting 'u')",
+		},
+		{
+			description:      "unexisting test vector causes error",
+			sourceFiles:      map[string]string{},
+			testVectorPath:   defaultSourceDir,
+			expectedError:    true,
+			expectedErrorMsg: fmt.Sprintf("open %s/merkle-tree/smt-raw.json: file does not exist", defaultSourceDir),
+		},
 	}
 
 	for _, tc := range tcs {
 		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
+			var appFs = afero.NewMemMapFs()
+
 			require.NoError(t, testutils.CreateTestFiles(appFs, tc.sourceFiles))
 
 			actualContainer, err := testvector.NewContainer(tc.testVectorPath, appFs)

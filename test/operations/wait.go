@@ -7,12 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -222,7 +222,7 @@ func WaitSignal(cleanupFuncs ...func()) {
 	for sig := range signals {
 		switch sig {
 		case os.Interrupt, os.Kill:
-			log.Println("terminating application gracefully...")
+			log.Info("terminating application gracefully...")
 			for _, cleanup := range cleanupFuncs {
 				cleanup()
 			}
