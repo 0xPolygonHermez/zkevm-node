@@ -33,7 +33,9 @@ func TestNewContainer(t *testing.T) {
     "values": [
       "1","2","3"
     ],
-    "expectedRoot": "root"
+    "expectedRoot": [
+      "root1", "root2", "root3"
+    ]
   }
 ]`,
 			},
@@ -44,7 +46,7 @@ func TestNewContainer(t *testing.T) {
 						{
 							Keys:         []string{"a", "b", "c"},
 							Values:       []string{"1", "2", "3"},
-							ExpectedRoot: "root",
+							ExpectedRoot: []string{"root1", "root2", "root3"},
 						},
 					},
 				},

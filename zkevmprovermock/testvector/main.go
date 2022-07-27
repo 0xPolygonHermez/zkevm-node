@@ -16,7 +16,7 @@ type StateDBRaw struct {
 type StateDBRawEntry struct {
 	Keys         []string
 	Values       []string
-	ExpectedRoot string
+	ExpectedRoot []string
 }
 
 // Container is a wrapper for test vectors.
