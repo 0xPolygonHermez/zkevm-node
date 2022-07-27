@@ -371,7 +371,7 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 			// check POE SC lastTimestamp against sequences' one
 			for _, seq := range s.closedSequences {
 				if seq.Timestamp < int64(lastTimestamp) {
-					panic("sequence timestamp is < POE SC lastTimestamp")
+					log.Fatalf("sequence timestamp %d is < POE SC lastTimestamp %d", seq.Timestamp, lastTimestamp)
 				}
 				lastTimestamp = uint64(seq.Timestamp)
 			}
