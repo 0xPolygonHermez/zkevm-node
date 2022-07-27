@@ -483,6 +483,35 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	return &batch, nil
 }
 
+// GetVirtualBatchByNumber gets batch from batch table that exists on virtual batch
+func (p *PostgresStorage) GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+	const query = `
+		SELECT 
+			batch_num,
+			global_exit_root,
+			local_exit_root,
+			state_root,
+			timestamp, 
+			coinbase,
+			raw_txs_data
+		FROM 
+			state.batch 
+		WHERE 
+			batch_num = $1 AND
+			EXISTS (SELECT batch_num FROM state.virtual_batch WHERE batch_num = $1)
+		`
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, query, batchNumber)
+	batch, err := scanBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	return &batch, nil
+}
+
 // GetProcessingContext returns the processing context for the given batch.
 func (p *PostgresStorage) GetProcessingContext(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*ProcessingContext, error) {
 	e := p.getExecQuerier(dbTx)

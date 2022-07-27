@@ -103,7 +103,7 @@ func (a *Aggregator) Start() {
 			// 2. find next batch to consolidate
 			delete(batchesSent, lastVerifiedBatchNum)
 
-			batchToVerify, err := a.State.GetBatchByNumber(a.ctx, lastVerifiedBatchNum+1, nil)
+			batchToVerify, err := a.State.GetVirtualBatchByNumber(a.ctx, lastVerifiedBatchNum+1, nil)
 
 			if err != nil {
 				if err == state.ErrNotFound {

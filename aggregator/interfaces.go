@@ -33,7 +33,7 @@ type aggregatorTxProfitabilityChecker interface {
 type stateInterface interface {
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error)
 	GetLastVerifiedBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
+	GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetStateRootByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
 	GetLocalExitRootByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
 	GetBlockNumVirtualBatchByBatchNum(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (uint64, error)

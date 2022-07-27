@@ -79,8 +79,14 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 	// initialize sequence
 	batchNum, err := s.state.GetLastBatchNumber(ctx, nil)
-	if err != nil {
-		log.Fatalf("failed to get last batch number, err: %v", err)
+	for err != nil {
+		if errors.Is(err, state.ErrStateNotSynchronized) {
+			log.Warnf("state is not synchronized, trying to get last batch num once again...")
+			time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
+			batchNum, err = s.state.GetLastBatchNumber(ctx, nil)
+		} else {
+			log.Fatalf("failed to get last batch number, err: %v", err)
+		}
 	}
 	// case A: genesis
 	if batchNum == 0 {
