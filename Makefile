@@ -189,7 +189,6 @@ stop-explorer-db: ## Stops the explorer database
 .PHONY: run
 run: compile-scs ## Runs all the services
 	$(RUNDB)
-	$(RUNEXPLORERDB)
 	$(RUNL1NETWORK)
 	sleep 5
 	$(RUNZKPROVER)
@@ -197,9 +196,7 @@ run: compile-scs ## Runs all the services
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
-	$(RUNEXPLORERJSONRPC)
 	$(RUNSYNC)
-	$(RUNEXPLORER)
 
 .PHONY: run-broadcast
 run-broadcast: ## Runs the broadcast service
