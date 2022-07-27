@@ -790,7 +790,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		newRoot []byte
 		err     error
 	)
-
+	log.Debugf("in set genesis")
 	if dbTx == nil {
 		return newRoot, ErrDBTxNil
 	}

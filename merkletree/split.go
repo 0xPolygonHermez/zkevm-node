@@ -114,8 +114,8 @@ func h4ToFilledByteSlice(h4 []uint64) []byte {
 	return ScalarToFilledByteSlice(h4ToScalar(h4))
 }
 
-// string2fea converts an string into an array of 32bit uint64 values.
-func string2fea(s string) ([]uint64, error) {
+// String2fea converts an string into an array of 32bit uint64 values.
+func String2fea(s string) ([]uint64, error) {
 	bi, ok := new(big.Int).SetString(s, hex.Base)
 	if !ok {
 		return nil, fmt.Errorf("Could not convert %q into big int", s)

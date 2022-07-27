@@ -249,7 +249,7 @@ func (tree *StateTree) get(ctx context.Context, root, key []uint64) (*Proof, err
 		return nil, err
 	}
 
-	value, err := string2fea(result.Value)
+	value, err := String2fea(result.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +290,7 @@ func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64) (*
 
 	var newValue []uint64
 	if result.NewValue != "" {
-		newValue, err = string2fea(result.NewValue)
+		newValue, err = String2fea(result.NewValue)
 		if err != nil {
 			return nil, err
 		}

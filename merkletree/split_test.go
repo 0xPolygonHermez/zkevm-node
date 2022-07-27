@@ -338,7 +338,7 @@ func Test_string2fea(t *testing.T) {
 	for i, tc := range tcs {
 		tc := tc
 		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
-			actualOutput, err := string2fea(tc.input)
+			actualOutput, err := String2fea(tc.input)
 			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 
 			require.Equal(t, tc.expectedOutput, actualOutput)
