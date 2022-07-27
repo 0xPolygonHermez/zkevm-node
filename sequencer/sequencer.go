@@ -21,6 +21,7 @@ import (
 const (
 	errGasRequiredExceedsAllowance = "gas required exceeds allowance"
 	errContentLengthTooLarge       = "content length too large"
+	errTimestampMustBeInsideRange  = "Timestamp must be inside range"
 )
 
 // Sequencer represents a sequencer
@@ -364,6 +365,27 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 	}
 
 	if err != nil {
+		// while estimating gas a new block is not created and the POE SC may return
+		// an error regarding timestamp verification, this must be handled
+		if strings.Contains(err.Error(), errTimestampMustBeInsideRange) {
+			// query the sc about the value of its lastTimestamp variable
+			lastTimestamp, err := s.etherman.GetLastTimestamp()
+			if err != nil {
+				log.Errorf("failed to query last timestamp from SC, err: %v", err)
+				return false, false
+			}
+			// check POE SC lastTimestamp against sequences' one
+			for _, seq := range s.closedSequences {
+				if seq.Timestamp < int64(lastTimestamp) {
+					log.Fatalf("sequence timestamp %d is < POE SC lastTimestamp %d", seq.Timestamp, lastTimestamp)
+				}
+				lastTimestamp = uint64(seq.Timestamp)
+			}
+
+			log.Debug("block.timestamp is greater than seq.Timestamp. A new block must be mined before the gas can be estimated.")
+			return false, false
+		}
+
 		log.Errorf("failed to estimate gas for sequence batches, err: %v", err)
 		return false, false
 	}
