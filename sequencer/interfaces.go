@@ -34,6 +34,7 @@ type etherman interface {
 	GetSendSequenceFee() (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
 	GetLatestBatchNumber() (uint64, error)
+	GetLastTimestamp() (uint64, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.

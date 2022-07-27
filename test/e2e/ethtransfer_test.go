@@ -50,7 +50,7 @@ func Test1000EthTransfer(t *testing.T) {
 		}
 	}
 	log.Infof("%d transactions sent without error. Waiting for all the transactions to be mined", nTxs)
-	timeout := 2 * time.Minute
+	timeout := 3 * time.Minute
 	err = operations.WaitTxToBeMined(client, lastTxHash, timeout)
 	require.NoError(t, err)
 }
