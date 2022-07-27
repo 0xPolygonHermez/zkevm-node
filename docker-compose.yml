@@ -176,13 +176,13 @@ services:
 
   zkevm-mock-l1-network:
     container_name: zkevm-local-l1-network
-    image: hermeznetwork/geth-zkevm-contracts@sha256:419cf8c488d5cd099d1ffb5722613375c5392bdcda7a3c5ae2801d498fe49af8
+    image: hermeznetwork/geth-zkevm-contracts@sha256:7ac654f8b06baaca030f0022398dca1ffaa872be07dcf03c6bbc3ff6011adb88
     ports:
       - 8545:8545
 
   zkevm-mock-prover:
     container_name: zkevm-mock-prover
-    image: hermeznetwork/zkevm-mock-prover@sha256:3a86d0c65f0428decb7f1f3843b753bf6846bf43f6c628ab0b4d298fe7f918f2
+    image: hermeznetwork/zkevm-mock-prover@sha256:5a702c225c89f1dc9b54efc779541b7dc8d181eecad3320a918f1dc5a6521b18
     ports:
       - 50051:50051
       - 50052:50052

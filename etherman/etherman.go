@@ -553,6 +553,11 @@ func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64
 	return block, nil
 }
 
+// GetLastTimestamp function allows to retrieve the lastTimestamp value in the smc
+func (etherMan *Client) GetLastTimestamp() (uint64, error) {
+	return etherMan.PoE.LastTimestamp(&bind.CallOpts{Pending: false})
+}
+
 // GetLatestBatchNumber function allows to retrieve the latest proposed batch in the smc
 func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
 	return etherMan.PoE.LastBatchSequenced(&bind.CallOpts{Pending: false})
