@@ -373,6 +373,7 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 				if seq.Timestamp < int64(lastTimestamp) {
 					panic("sequence timestamp is < POE SC lastTimestamp")
 				}
+				lastTimestamp = uint64(seq.Timestamp)
 			}
 
 			log.Debug("block.timestamp is greater than seq.Timestamp. A new block must be mined before the gas can be estimated.")
