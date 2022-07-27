@@ -360,12 +360,12 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 
 	if err != nil {
 		// while estimating gas a new block is not created and the POE SC may return
-		// an error regarding timestamp verification, this must handled
+		// an error regarding timestamp verification, this must be handled
 		if strings.Contains(err.Error(), errTimestampMustBeInsideRange) {
 			// query the sc about the value of its lastTimestamp variable
 			lastTimestamp, err := s.etherman.GetLastTimestamp()
 			if err != nil {
-				log.Errorf("failed to estimate gas for sequence batches, err: %v", err)
+				log.Errorf("failed to query last timestamp from SC, err: %v", err)
 				return false, false
 			}
 			// check POE SC lastTimestamp against sequences' one
@@ -375,7 +375,7 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 				}
 			}
 
-			log.Debug("block.timestamp is greater than seq.Timestamp. A new block must be forged.")
+			log.Debug("block.timestamp is greater than seq.Timestamp. A new block must be mined before the gas can be estimated.")
 			return false, false
 		}
 
