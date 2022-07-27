@@ -9,5 +9,7 @@ type Config struct {
 
 	// SequencerNodeURI is used allow Non-Sequencer nodes
 	// to relay transactions to the Sequencer node
-	SequencerNodeURI string `mapstructure:"URI"`
+	SequencerNodeURI string `mapstructure:"SequencerNodeURI"`
+
+	BroadcastURI string `mapstructure:"BroadcastURI"`
 }

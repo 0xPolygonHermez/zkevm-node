@@ -461,7 +461,7 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	}
 	txs := []types.Transaction{}
 	for i := 0; i < len(encodedTxsArray); i++ {
-		tx, err := decodeTx(encodedTxsArray[i])
+		tx, err := DecodeTx(encodedTxsArray[i])
 		if err != nil {
 			return err
 		}
@@ -686,11 +686,6 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 // ProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
 	panic("not implemented yet")
-}
-
-// AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber.
-func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, dbTx pgx.Tx) error {
-	return s.PostgresStorage.AddBatchNumberInForcedBatch(ctx, forceBatchNumber, batchNumber, dbTx)
 }
 
 // GetTree returns State inner tree

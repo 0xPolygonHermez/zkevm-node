@@ -763,7 +763,7 @@ func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 		return nil, err
 	}
 
-	tx, err := decodeTx(encoded)
+	tx, err := DecodeTx(encoded)
 	if err != nil {
 		return nil, err
 	}
@@ -827,7 +827,7 @@ func (p *PostgresStorage) GetTransactionByL2BlockHashAndIndex(ctx context.Contex
 		return nil, err
 	}
 
-	tx, err := decodeTx(encoded)
+	tx, err := DecodeTx(encoded)
 	if err != nil {
 		return nil, err
 	}
@@ -847,7 +847,7 @@ func (p *PostgresStorage) GetTransactionByL2BlockNumberAndIndex(ctx context.Cont
 		return nil, err
 	}
 
-	tx, err := decodeTx(encoded)
+	tx, err := DecodeTx(encoded)
 	if err != nil {
 		return nil, err
 	}
@@ -921,20 +921,6 @@ func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHas
 	}
 
 	return logs, nil
-}
-
-// decodeTx decodes a string rlp tx representation into a types.Transaction instance
-func decodeTx(encodedTx string) (*types.Transaction, error) {
-	b, err := hex.DecodeHex(encodedTx)
-	if err != nil {
-		return nil, err
-	}
-
-	tx := new(types.Transaction)
-	if err := tx.UnmarshalBinary(b); err != nil {
-		return nil, err
-	}
-	return tx, nil
 }
 
 // AddL2Block adds a new L2 block to the State Store
@@ -1204,7 +1190,7 @@ func (p *PostgresStorage) GetTxsByBlockNumber(ctx context.Context, blockNumber u
 			return nil, err
 		}
 
-		tx, err := decodeTx(encoded)
+		tx, err := DecodeTx(encoded)
 		if err != nil {
 			return nil, err
 		}
