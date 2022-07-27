@@ -38,7 +38,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclien
 		APIEth:    true,
 		APINet:    true,
 		APIDebug:  true,
-		APIHez:    true,
+		APIZKEVM:  true,
 		APITxPool: true,
 		APIWeb3:   true,
 	}
