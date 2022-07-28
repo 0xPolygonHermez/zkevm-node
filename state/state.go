@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
@@ -202,13 +203,11 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		// Create a batch to be sent to the executor
 		processBatchRequest := &pb.ProcessBatchRequest{
-			BatchNum:             lastBatch.BatchNumber + 1,
-			Coinbase:             senderAddress.String(),
-			BatchL2Data:          batchL2Data,
-			OldStateRoot:         stateRoot.Bytes(),
-			UpdateMerkleTree:     0,
-			GenerateExecuteTrace: 0,
-			GenerateCallTrace:    0,
+			BatchNum:         lastBatch.BatchNumber + 1,
+			Coinbase:         senderAddress.String(),
+			BatchL2Data:      batchL2Data,
+			OldStateRoot:     stateRoot.Bytes(),
+			UpdateMerkleTree: 0,
 		}
 
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -217,8 +216,8 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 
 		// Check if an out of gas error happened during EVM execution
-		if processBatchResponse.Responses[0].Error != "" {
-			error := fmt.Errorf(processBatchResponse.Responses[0].Error)
+		if processBatchResponse.Responses[0].Error != pb.Error(executor.NO_ERROR) {
+			error := fmt.Errorf(executor.ExecutorError(processBatchResponse.Responses[0].Error).Error())
 
 			if (isGasEVMError(error) || isGasApplyError(error)) && shouldOmitErr {
 				// Specifying the transaction failed, but not providing an error
@@ -348,16 +347,14 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	}
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		BatchNum:             lastBatch.BatchNumber,
-		Coinbase:             lastBatch.Coinbase.String(),
-		BatchL2Data:          batchL2Data,
-		OldStateRoot:         previousBatch.StateRoot.Bytes(),
-		GlobalExitRoot:       lastBatch.GlobalExitRoot.Bytes(),
-		OldLocalExitRoot:     previousBatch.LocalExitRoot.Bytes(),
-		EthTimestamp:         uint64(lastBatch.Timestamp.Unix()),
-		UpdateMerkleTree:     cTrue,
-		GenerateExecuteTrace: cFalse,
-		GenerateCallTrace:    cFalse,
+		BatchNum:         lastBatch.BatchNumber,
+		Coinbase:         lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     previousBatch.StateRoot.Bytes(),
+		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree: cTrue,
 	}
 
 	// Send Batch to the Executor

@@ -31,6 +31,10 @@ var (
 	ErrExecutionReverted = errors.New("execution was reverted")
 	// ErrCodeStoreOutOfGas indicates there is not enough gas for the storage
 	ErrCodeStoreOutOfGas = errors.New("contract creation code storage out of gas")
+	// ErrOutOfCounters indicates the executor run out of counters while executing the transaction
+	ErrOutOfCounters = errors.New("executor run out of counters")
+	// ErrInvalidTransaction indicates the executor found the transaction to be invalid
+	ErrInvalidTransaction = errors.New("invalid transaction")
 )
 
 // ExecutionResult includes all output after executing given evm

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
@@ -38,7 +39,7 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		result.GasLeft = response.GasLeft
 		result.GasUsed = response.GasUsed
 		result.GasRefunded = response.GasRefunded
-		result.Error = response.Error
+		result.Error = executor.ExecutorError(response.Error).Error()
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
@@ -95,7 +96,7 @@ func convertToStrucLogArray(responses []*pb.ExecutionTraceStep) []instrumentatio
 		result.Storage = convertToProperMap(response.Storage)
 		result.Depth = int(response.Depth)
 		result.RefundCounter = response.GasRefund
-		result.Err = fmt.Errorf(response.Error)
+		result.Err = fmt.Errorf(executor.ExecutorError(response.Error).Error())
 
 		results = append(results, *result)
 	}
@@ -156,7 +157,7 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) []instrument
 		step.OpCode = fakevm.OpCode(response.Op).String()
 		step.Refund = fmt.Sprint(response.GasRefund)
 		step.Op = fmt.Sprint(response.Op)
-		step.Error = response.Error
+		step.Error = executor.ExecutorError(response.Error).Error()
 		step.Contract = convertToInstrumentationContract(response.Contract)
 		step.GasCost = fmt.Sprint(response.GasCost)
 		step.Stack = convertUint64ArrayToStringArray(response.Stack)
