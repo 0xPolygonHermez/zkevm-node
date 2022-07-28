@@ -10,8 +10,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-      with:
-        ssh-key: ${{ secrets.UPDATE_DEPS_SSH_PK }}
     - name: Install Go
       uses: actions/setup-go@v1
       with:
@@ -28,11 +26,12 @@ jobs:
       env:
         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-        UPDATE_DEPS_SSH_PK: ${{ secrets.UPDATE_DEPS_SSH_PK }}
+        GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       run: make update-external-dependencies
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v3
       with:
+        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         commit-message: update external dependencies
         title: Update external dependencies
         body: Check for new images, test vectors and proto files and update the code to use them.

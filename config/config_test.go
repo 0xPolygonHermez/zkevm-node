@@ -137,6 +137,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: float64(50),
 		},
 		{
+			path:          "RPC.BroadcastURI",
+			expectedValue: "127.0.0.1:61090",
+		},
+		{
 			path:          "Executor.URI",
 			expectedValue: "127.0.0.1:50071",
 		},
@@ -147,10 +151,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "BroadcastServer.Port",
 			expectedValue: 61090,
-		},
-		{
-			path:          "BroadcastClient.URI",
-			expectedValue: "127.0.0.1:61090",
 		},
 	}
 

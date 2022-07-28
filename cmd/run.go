@@ -103,7 +103,7 @@ func start(cliCtx *cli.Context) error {
 			go runJSONRPCServer(*c, npool, st, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
-			go runSynchronizer(c.NetworkConfig, etherman, st, c.Synchronizer, ch)
+			go runSynchronizer(*c, etherman, st, ch)
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			go runBroadcastServer(c.BroadcastServer, st)
@@ -140,14 +140,14 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman, nil
 }
 
-func runSynchronizer(networkConfig config.NetworkConfig, etherman *etherman.Client, st *state.State, cfg synchronizer.Config, reorgBlockNumChan chan struct{}) {
+func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.State, reorgTrustedStateChan chan struct{}) {
 	genesis := state.Genesis{
-		Balances:       networkConfig.Genesis.Balances,
-		SmartContracts: networkConfig.Genesis.SmartContracts,
-		Storage:        networkConfig.Genesis.Storage,
-		Nonces:         networkConfig.Genesis.Nonces,
+		Balances:       cfg.NetworkConfig.Genesis.Balances,
+		SmartContracts: cfg.NetworkConfig.Genesis.SmartContracts,
+		Storage:        cfg.NetworkConfig.Genesis.Storage,
+		Nonces:         cfg.NetworkConfig.Genesis.Nonces,
 	}
-	sy, err := synchronizer.NewSynchronizer(etherman, st, networkConfig.GenBlockNumber, genesis, reorgBlockNumChan, cfg)
+	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.GenBlockNumber, genesis, reorgTrustedStateChan, cfg.Synchronizer)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -168,13 +168,13 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 }
 
 func createSequencer(c config.Config, pool *pool.Pool, state *state.State, etherman *etherman.Client,
-	ethTxManager *ethtxmanager.Client, reorgBlockNumChan chan struct{}) *sequencer.Sequencer {
+	ethTxManager *ethtxmanager.Client, reorgTrustedStateChan chan struct{}) *sequencer.Sequencer {
 	pg, err := pricegetter.NewClient(c.PriceGetter)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, reorgBlockNumChan, ethTxManager)
+	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, reorgTrustedStateChan, ethTxManager)
 	if err != nil {
 		log.Fatal(err)
 	}

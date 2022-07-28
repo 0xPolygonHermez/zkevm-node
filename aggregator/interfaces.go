@@ -38,7 +38,7 @@ type proverClient interface {
 // stateInterface gathers the methods to interact with the state.
 type stateInterface interface {
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error)
-	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
+	GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetStateRootByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
 	GetLocalExitRootByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
 }

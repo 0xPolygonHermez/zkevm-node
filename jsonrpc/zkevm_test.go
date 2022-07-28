@@ -70,7 +70,7 @@ func TestConsolidatedBlockNumber(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			res, err := s.JSONRPCCall("hez_consolidatedBlockNumber")
+			res, err := s.JSONRPCCall("zkevm_consolidatedBlockNumber")
 			require.NoError(t, err)
 
 			if res.Result != nil {

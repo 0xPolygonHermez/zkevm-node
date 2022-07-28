@@ -155,7 +155,7 @@ func (a *Aggregator) isSynced(ctx context.Context) bool {
 func (a *Aggregator) getBatchToVerify(ctx context.Context) (*state.Batch, error) {
 	delete(a.batchesSent, a.lastVerifiedBatchNum)
 
-	batchToVerify, err := a.State.GetBatchByNumber(ctx, a.lastVerifiedBatchNum+1, nil)
+	batchToVerify, err := a.State.GetVirtualBatchByNumber(ctx, a.lastVerifiedBatchNum+1, nil)
 
 	if err != nil {
 		if errors.Is(err, state.ErrNotFound) {

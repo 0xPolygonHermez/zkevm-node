@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
@@ -202,13 +203,11 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		// Create a batch to be sent to the executor
 		processBatchRequest := &pb.ProcessBatchRequest{
-			BatchNum:             lastBatch.BatchNumber + 1,
-			Coinbase:             senderAddress.String(),
-			BatchL2Data:          batchL2Data,
-			OldStateRoot:         stateRoot.Bytes(),
-			UpdateMerkleTree:     0,
-			GenerateExecuteTrace: 0,
-			GenerateCallTrace:    0,
+			BatchNum:         lastBatch.BatchNumber + 1,
+			Coinbase:         senderAddress.String(),
+			BatchL2Data:      batchL2Data,
+			OldStateRoot:     stateRoot.Bytes(),
+			UpdateMerkleTree: 0,
 		}
 
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -217,8 +216,8 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 
 		// Check if an out of gas error happened during EVM execution
-		if processBatchResponse.Responses[0].Error != "" {
-			error := fmt.Errorf(processBatchResponse.Responses[0].Error)
+		if processBatchResponse.Responses[0].Error != pb.Error(executor.NO_ERROR) {
+			error := fmt.Errorf(executor.ExecutorError(processBatchResponse.Responses[0].Error).Error())
 
 			if (isGasEVMError(error) || isGasApplyError(error)) && shouldOmitErr {
 				// Specifying the transaction failed, but not providing an error
@@ -348,16 +347,14 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	}
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		BatchNum:             lastBatch.BatchNumber,
-		Coinbase:             lastBatch.Coinbase.String(),
-		BatchL2Data:          batchL2Data,
-		OldStateRoot:         previousBatch.StateRoot.Bytes(),
-		GlobalExitRoot:       lastBatch.GlobalExitRoot.Bytes(),
-		OldLocalExitRoot:     previousBatch.LocalExitRoot.Bytes(),
-		EthTimestamp:         uint64(lastBatch.Timestamp.Unix()),
-		UpdateMerkleTree:     cTrue,
-		GenerateExecuteTrace: cFalse,
-		GenerateCallTrace:    cFalse,
+		BatchNum:         lastBatch.BatchNumber,
+		Coinbase:         lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     previousBatch.StateRoot.Bytes(),
+		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree: cTrue,
 	}
 
 	// Send Batch to the Executor
@@ -461,7 +458,7 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	}
 	txs := []types.Transaction{}
 	for i := 0; i < len(encodedTxsArray); i++ {
-		tx, err := decodeTx(encodedTxsArray[i])
+		tx, err := DecodeTx(encodedTxsArray[i])
 		if err != nil {
 			return err
 		}
@@ -483,6 +480,13 @@ func isTransactionProcessed(unprocessedTransaction uint32) bool {
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx) error {
+	// Decode transactions
+	decodedTransactions, _, err := DecodeTxs(encodedTxs)
+	if err != nil {
+		log.Debugf("error decoding transactions: %w", err)
+		return err
+	}
+
 	// Open the batch and process the txs
 	if dbTx == nil {
 		return ErrDBTxNil
@@ -495,6 +499,11 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		return err
 	}
 
+	// Sanity check
+	if len(decodedTransactions) != len(processed.Responses) {
+		return fmt.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
+	}
+
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
@@ -502,18 +511,16 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
+				decodedTransactions = decodedTransactions[:i]
 			} else {
 				processed.Responses = append(processed.Responses[:i], processed.Responses[i+1:]...)
+				decodedTransactions = append(decodedTransactions[:i], decodedTransactions[i+1:]...)
 			}
 			i--
 		}
 	}
-	var txs []types.Transaction
-	if len(processed.Responses) > 0 {
-		// TODO: missing method to decode txs
-		log.Fatal("TODO: missing method to decode txs")
-	}
-	processedBatch := convertToProcessBatchResponse(txs, processed)
+
+	processedBatch := convertToProcessBatchResponse(decodedTransactions, processed)
 
 	// Store processed txs into the batch
 	err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
@@ -686,11 +693,6 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 // ProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
 	panic("not implemented yet")
-}
-
-// AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber.
-func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, dbTx pgx.Tx) error {
-	return s.PostgresStorage.AddBatchNumberInForcedBatch(ctx, forceBatchNumber, batchNumber, dbTx)
 }
 
 // GetTree returns State inner tree

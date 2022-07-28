@@ -6,11 +6,12 @@ DOCKERCOMPOSEAPPSYNC := zkevm-sync
 DOCKERCOMPOSEAPPBROADCAST := zkevm-broadcast
 DOCKERCOMPOSEDB := zkevm-db
 DOCKERCOMPOSENETWORK := zkevm-mock-l1-network
-DOCKERCOMPOSEPROVER := zkevm-mock-prover
 DOCKERCOMPOSEEXPLORER := zkevm-explorer
 DOCKERCOMPOSEEXPLORERDB := zkevm-explorer-db
 DOCKERCOMPOSEEXPLORERRPC := zkevm-explorer-json-rpc
 DOCKERCOMPOSEZKPROVER := zkevm-prover
+DOCKERCOMPOSEPERMISSIONLESSDB := zkevm-permissionless-db
+DOCKERCOMPOSEPERMISSIONLESSNODE := zkevm-permissionless-node
 
 RUNDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDB)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
@@ -20,11 +21,13 @@ RUNSYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
 RUNBROADCAST := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPBROADCAST)
 
 RUNL1NETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
-RUNPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPROVER)
 RUNEXPLORER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORER)
 RUNEXPLORERDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERDB)
 RUNEXPLORERJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERRPC)
 RUNZKPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVER)
+
+RUNPERMISSIONLESSDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSDB)
+RUNPERMISSIONLESSNODE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSNODE)
 
 RUN := $(DOCKERCOMPOSE) up -d
 
@@ -36,11 +39,13 @@ STOPSYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm
 STOPBROADCAST := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPBROADCAST) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPBROADCAST)
 
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
-STOPPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPROVER)
 STOPEXPLORER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORER)
 STOPEXPLORERDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERDB)
 STOPEXPLORERRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERRPC)
 STOPZKPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVER)
+
+STOPPERMISSIONLESSDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSDB)
+STOPPERMISSIONLESSNODE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSNODE) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSNODE)
 
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
@@ -163,14 +168,6 @@ run-network: ## Runs the l1 network
 stop-network: ## Stops the l1 network
 	$(STOPNETWORK)
 
-.PHONY: run-prover
-run-prover: ## Runs the zk prover
-	$(RUNPROVER)
-
-.PHONY: stop-prover
-stop-prover: ## Stops the zk prover
-	$(STOPPROVER)
-
 .PHONY: run-zkprover
 run-zkprover: ## Runs zkprover
 	$(RUNZKPROVER)
@@ -200,19 +197,14 @@ stop-explorer-db: ## Stops the explorer database
 .PHONY: run
 run: compile-scs ## Runs all the services
 	$(RUNDB)
-	$(RUNEXPLORERDB)
 	$(RUNL1NETWORK)
 	sleep 5
 	$(RUNZKPROVER)
-	sleep 5
-	$(RUNPROVER)
 	sleep 2
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
-	$(RUNEXPLORERJSONRPC)
 	$(RUNSYNC)
-	$(RUNEXPLORER)
 
 .PHONY: run-broadcast
 run-broadcast: ## Runs the broadcast service
@@ -224,6 +216,16 @@ run-seq:
 .PHONY: stop-broadcast
 stop-broadcast: ## Stops the broadcast service
 	$(STOPBROADCAST)
+
+.PHONY: run-permissionless
+run-permissionless: ## Runs the permissionless node
+	$(RUNPERMISSIONLESSDB)
+	$(RUNPERMISSIONLESSNODE)
+
+.PHONY: stop-permissionless
+stop-permissionless: ## Stops the permissionless node
+	$(STOPPERMISSIONLESSNODE)
+	$(STOPPERMISSIONLESSDB)
 
 .PHONY: init-network
 init-network: ## Initializes the network
@@ -279,7 +281,6 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 generate-code-from-proto: ## Generates code from proto files
 	cd proto/src/proto/statedb/v1 && protoc --proto_path=. --proto_path=../../../../include --go_out=../../../../../merkletree/pb --go-grpc_out=../../../../../merkletree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative statedb.proto
 	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverclient/pb --go-grpc_out=../../../../../proverclient/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative zk-prover.proto
-	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverservice/pb --go-grpc_out=../../../../../proverservice/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative zk-prover.proto
 	cd proto/src/proto/executor/v1 && protoc --proto_path=. --go_out=../../../../../state/runtime/executor/pb --go-grpc_out=../../../../../state/runtime/executor/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative executor.proto
 	cd proto/src/proto/broadcast/v1 && protoc --proto_path=. --proto_path=../../../../include --go_out=../../../../../sequencer/broadcast/pb --go-grpc_out=../../../../../sequencer/broadcast/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative broadcast.proto
 
