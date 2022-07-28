@@ -180,27 +180,14 @@ services:
     ports:
       - 8545:8545
 
-  zkevm-mock-prover:
-    container_name: zkevm-mock-prover
-    image: hermeznetwork/zkevm-mock-prover@sha256:5a702c225c89f1dc9b54efc779541b7dc8d181eecad3320a918f1dc5a6521b18
-    ports:
-      - 50051:50051
-      - 50052:50052
-    environment:
-      - POSTGRES_USER=test_user
-      - POSTGRES_PASSWORD=test_password
-      - POSTGRES_DB=test_db
-      - POSTGRES_HOST=zkevm-db
-      - POSTGRES_PORT=5432
-      - PROOF_TIME=1000
-
   zkevm-prover:
     container_name: zkevm-prover
     image: hermeznetwork/zkprover-local@sha256:8d99a22794531ff92cc7d6f5a722db02427bf66d4b76656de432b430b39a4418
     ports:
-      # - 50051:50051 # Uncoment once the prover integration is ready, and enable the mock in the config file (and remove the zkevm-mock-prover)
-      - 50061:50061
-      - 50071:50071
+      # - 50051:50051 # Prover
+      - 50052:50052 # Mock prover
+      - 50061:50061 # MT
+      - 50071:50071 # Executor
     volumes:
       - ./config/prover.config.local.json:/usr/src/app/config.json
     command: >
@@ -260,4 +247,3 @@ services:
       - "/bin/sh"
       - "-c"
       - "/app/zkevm-node run --network local --cfg /app/config.toml --components \"rpc,synchronizer\""
-
