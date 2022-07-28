@@ -243,6 +243,7 @@ func TestIsBatchVirtualized(t *testing.T) {
 		})
 	}
 }
+
 func ptrUint64(n uint64) *uint64 {
 	return &n
 }
