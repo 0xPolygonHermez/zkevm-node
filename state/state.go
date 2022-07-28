@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
@@ -215,8 +216,8 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 
 		// Check if an out of gas error happened during EVM execution
-		if processBatchResponse.Responses[0].Error != "" {
-			error := fmt.Errorf(processBatchResponse.Responses[0].Error)
+		if processBatchResponse.Responses[0].Error != pb.Error(executor.NO_ERROR) {
+			error := fmt.Errorf(executor.ExecutorError(processBatchResponse.Responses[0].Error).Error())
 
 			if (isGasEVMError(error) || isGasApplyError(error)) && shouldOmitErr {
 				// Specifying the transaction failed, but not providing an error
@@ -457,7 +458,7 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	}
 	txs := []types.Transaction{}
 	for i := 0; i < len(encodedTxsArray); i++ {
-		tx, err := decodeTx(encodedTxsArray[i])
+		tx, err := DecodeTx(encodedTxsArray[i])
 		if err != nil {
 			return err
 		}
@@ -730,11 +731,6 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	result.StateRoot = response.StateRoot.Bytes()
 
 	return result
-}
-
-// AddBatchNumberInForcedBatch updates the forced_batch table with the batchNumber.
-func (s *State) AddBatchNumberInForcedBatch(ctx context.Context, forceBatchNumber, batchNumber uint64, dbTx pgx.Tx) error {
-	return s.PostgresStorage.AddBatchNumberInForcedBatch(ctx, forceBatchNumber, batchNumber, dbTx)
 }
 
 // GetTree returns State inner tree

@@ -553,6 +553,11 @@ func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64
 	return block, nil
 }
 
+// GetLastTimestamp function allows to retrieve the lastTimestamp value in the smc
+func (etherMan *Client) GetLastTimestamp() (uint64, error) {
+	return etherMan.PoE.LastTimestamp(&bind.CallOpts{Pending: false})
+}
+
 // GetLatestBatchNumber function allows to retrieve the latest proposed batch in the smc
 func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
 	return etherMan.PoE.LastBatchSequenced(&bind.CallOpts{Pending: false})
@@ -580,6 +585,11 @@ func (etherMan *Client) ApproveMatic(maticAmount *big.Int, to common.Address) (*
 		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
 	}
 	return tx, nil
+}
+
+// GetTrustedSequencerURL Gets the trusted sequencer url from rollup smc
+func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
+	return etherMan.PoE.TrustedSequencerURL(&bind.CallOpts{Pending: false})
 }
 
 // VerifyBatch function allows the aggregator send the proof for a batch and consolidate it

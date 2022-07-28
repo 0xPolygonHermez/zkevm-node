@@ -7,7 +7,7 @@ option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executo
 service ExecutorService {
     /// Processes a batch
     rpc ProcessBatch(ProcessBatchRequest) returns (ProcessBatchResponse) {}
-}   
+}
 
 message ProcessBatchRequest {
     uint64 batch_num = 1;
@@ -95,7 +95,7 @@ message TransactionStep {
     // Contract information
     Contract contract = 11;
     // Error
-    string error = 12;
+    Error error = 12;
 }
 
 message Contract {
@@ -121,7 +121,7 @@ message ProcessTransactionResponse {
     // Total gas refunded as result of execution
     uint64 gas_refunded = 6;
     // Any error encountered during the execution
-    string error = 7;
+    Error error = 7;
     // New SC Address in case of SC creation
     string create_address = 8;
     // State Root
@@ -178,5 +178,35 @@ message ExecutionTraceStep {
     // Gas refund
     uint64 gas_refund = 11;
     // Error
-    string error = 12;
+    Error error = 12;
+}
+
+enum Error {
+    ERROR_UNSPECIFIED = 0;
+    // ERROR_OUT_OF_GAS indicates there is not enough balance to continue the execution
+    ERROR_OUT_OF_GAS = 1;
+    // ERROR_STACK_OVERFLOW indicates a stack overflow has happened
+    ERROR_STACK_OVERFLOW = 2;
+    // ERROR_STACK_UNDERFLOW indicates a stack overflow has happened
+    ERROR_STACK_UNDERFLOW = 3;
+    // ERROR_NOT_ENOUGH_FUNDS indicates there is not enough funds to continue the execution
+    ERROR_NOT_ENOUGH_FUNDS = 4;
+    // ERROR_INSUFFICIENT_BALANCE indicates there is not enough balance to continue the execution
+    ERROR_INSUFFICIENT_BALANCE = 5;
+    // ERROR_CODE_NOT_FOUND indicates the code was not found
+    ERROR_CODE_NOT_FOUND = 6;
+    // ERROR_MAX_CODE_SIZE_EXCEEDED indicates the code size is beyond the maximum
+    ERROR_MAX_CODE_SIZE_EXCEEDED = 7;
+    // ERROR_CONTRACT_ADDRESS_COLLISION there is a collision regarding contract addresses
+    ERROR_CONTRACT_ADDRESS_COLLISION = 8;
+    // ERROR_DEPTH indicates the maximun call depth has been passed
+    ERROR_DEPTH= 9;
+    // ERROR_EXECUTION_REVERTED indicates the execution has been reverted
+    ERROR_EXECUTION_REVERTED = 10;
+    // ERROR_CODE_STORE_OUT_OF_GAS indicates there is not enough gas for the storage
+    ERROR_CODE_STORE_OUT_OF_GAS = 11;
+    // ERROR_OUT_OF_COUNTERS indicates there is not enough counters to continue the execution
+    ERROR_OUT_OF_COUNTERS = 12;
+    // ERROR_INVALID_TX indicates the transaction is invalid
+    ERROR_INVALID_TX = 13;
 }

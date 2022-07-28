@@ -509,6 +509,35 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	return &batch, nil
 }
 
+// GetVirtualBatchByNumber gets batch from batch table that exists on virtual batch
+func (p *PostgresStorage) GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+	const query = `
+		SELECT 
+			batch_num,
+			global_exit_root,
+			local_exit_root,
+			state_root,
+			timestamp, 
+			coinbase,
+			raw_txs_data
+		FROM 
+			state.batch 
+		WHERE 
+			batch_num = $1 AND
+			EXISTS (SELECT batch_num FROM state.virtual_batch WHERE batch_num = $1)
+		`
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, query, batchNumber)
+	batch, err := scanBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	return &batch, nil
+}
+
 // GetProcessingContext returns the processing context for the given batch.
 func (p *PostgresStorage) GetProcessingContext(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*ProcessingContext, error) {
 	e := p.getExecQuerier(dbTx)
@@ -793,7 +822,7 @@ func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 		return nil, err
 	}
 
-	tx, err := decodeTx(encoded)
+	tx, err := DecodeTx(encoded)
 	if err != nil {
 		return nil, err
 	}
@@ -857,7 +886,7 @@ func (p *PostgresStorage) GetTransactionByL2BlockHashAndIndex(ctx context.Contex
 		return nil, err
 	}
 
-	tx, err := decodeTx(encoded)
+	tx, err := DecodeTx(encoded)
 	if err != nil {
 		return nil, err
 	}
@@ -877,7 +906,7 @@ func (p *PostgresStorage) GetTransactionByL2BlockNumberAndIndex(ctx context.Cont
 		return nil, err
 	}
 
-	tx, err := decodeTx(encoded)
+	tx, err := DecodeTx(encoded)
 	if err != nil {
 		return nil, err
 	}
@@ -951,20 +980,6 @@ func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHas
 	}
 
 	return logs, nil
-}
-
-// decodeTx decodes a string rlp tx representation into a types.Transaction instance
-func decodeTx(encodedTx string) (*types.Transaction, error) {
-	b, err := hex.DecodeHex(encodedTx)
-	if err != nil {
-		return nil, err
-	}
-
-	tx := new(types.Transaction)
-	if err := tx.UnmarshalBinary(b); err != nil {
-		return nil, err
-	}
-	return tx, nil
 }
 
 // AddL2Block adds a new L2 block to the State Store
@@ -1234,7 +1249,7 @@ func (p *PostgresStorage) GetTxsByBlockNumber(ctx context.Context, blockNumber u
 			return nil, err
 		}
 
-		tx, err := decodeTx(encoded)
+		tx, err := DecodeTx(encoded)
 		if err != nil {
 			return nil, err
 		}

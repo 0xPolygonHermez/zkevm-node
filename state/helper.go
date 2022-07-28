@@ -82,6 +82,20 @@ func EncodeUnsignedTransaction(tx types.Transaction) ([]byte, error) {
 	return txData, nil
 }
 
+// DecodeTx decodes a string rlp tx representation into a types.Transaction instance
+func DecodeTx(encodedTx string) (*types.Transaction, error) {
+	b, err := hex.DecodeHex(encodedTx)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+	return tx, nil
+}
+
 func generateReceipt(block *types.Block, processedTx *ProcessTransactionResponse) *types.Receipt {
 	receipt := &types.Receipt{
 		Type:              uint8(processedTx.Type),

@@ -48,22 +48,22 @@ const (
 
 // Config represents the configuration of the entire Hermez Node
 type Config struct {
-	Log               log.Config
-	Database          db.Config
-	Etherman          etherman.Config
-	EthTxManager      ethtxmanager.Config
-	RPC               jsonrpc.Config
-	Synchronizer      synchronizer.Config
-	Sequencer         sequencer.Config
-	PriceGetter       pricegetter.Config
-	Aggregator        aggregator.Config
-	Prover            proverclient.Config
-	NetworkConfig     NetworkConfig
-	GasPriceEstimator gasprice.Config
-	Executor          executor.Config
-	BroadcastServer   broadcast.ServerConfig
-	BroadcastClient   broadcast.ClientConfig
-	MTClient          merkletree.Config
+	IsTrustedSequencer bool `mapstructure:"IsTrustedSequencer"`
+	Log                log.Config
+	Database           db.Config
+	Etherman           etherman.Config
+	EthTxManager       ethtxmanager.Config
+	RPC                jsonrpc.Config
+	Synchronizer       synchronizer.Config
+	Sequencer          sequencer.Config
+	PriceGetter        pricegetter.Config
+	Aggregator         aggregator.Config
+	Prover             proverclient.Config
+	NetworkConfig      NetworkConfig
+	GasPriceEstimator  gasprice.Config
+	Executor           executor.Config
+	BroadcastServer    broadcast.ServerConfig
+	MTClient           merkletree.Config
 }
 
 // Load loads the configuration

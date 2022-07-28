@@ -2,6 +2,8 @@ package config
 
 // DefaultValues is the default configuration
 const DefaultValues = `
+IsTrustedSequencer = false
+
 [Log]
 Level = "debug"
 Outputs = ["stdout"]
@@ -29,10 +31,12 @@ Host = "0.0.0.0"
 Port = 8123
 MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
+BroadcastURI = "127.0.0.1:61090"
 
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
+TrustedSequencerURI = ""
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "15s"
@@ -83,7 +87,4 @@ URI = "127.0.0.1:50071"
 [BroadcastServer]
 Host = "0.0.0.0"
 Port = 61090
-
-[BroadcastClient]
-URI = "127.0.0.1:61090"
 `

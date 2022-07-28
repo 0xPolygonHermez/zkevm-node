@@ -8,8 +8,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"os/signal"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -208,4 +211,22 @@ func txMinedCondition(ctx context.Context, client *ethclient.Client, hash common
 		done = true
 	}
 	return done, nil
+}
+
+// WaitSignal blocks until an Interrupt or Kill signal is received, then it
+// executes the given cleanup functions and returns.
+func WaitSignal(cleanupFuncs ...func()) {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt)
+
+	for sig := range signals {
+		switch sig {
+		case os.Interrupt, os.Kill:
+			log.Info("terminating application gracefully...")
+			for _, cleanup := range cleanupFuncs {
+				cleanup()
+			}
+			return
+		}
+	}
 }
