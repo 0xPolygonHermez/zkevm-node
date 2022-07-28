@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -1098,8 +1098,16 @@ func TestExecutorTransfer(t *testing.T) {
 	genesis := state.Genesis{
 		Balances: balances,
 	}
-	stateRoot, err := testState.SetGenesis(ctx, block, genesis, nil)
+
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
+	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
 
 	// Create transaction
 	tx := types.NewTx(&types.LegacyTx{
