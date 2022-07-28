@@ -77,7 +77,7 @@ func Test_AddTx(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -154,7 +154,7 @@ func Test_GetPendingTxs(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -224,7 +224,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -294,7 +294,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -367,7 +367,7 @@ func Test_UpdateTxsState(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -440,7 +440,7 @@ func Test_UpdateTxState(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -544,7 +544,7 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -616,7 +616,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -721,7 +721,7 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 

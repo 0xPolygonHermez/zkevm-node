@@ -65,7 +65,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -150,7 +150,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
