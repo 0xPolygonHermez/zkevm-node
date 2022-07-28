@@ -72,11 +72,10 @@ proposes a PR in case it finds any changes. The code executed can be found in
 the [dependencies package].
 
 Currently we are checking [three types of custom dependencies]:
-* External docker images used in the [docker compose file],
-`hermeznetwork/geth-zkevm-contracts` and `hermeznetwork/zkevm-mock-prover`. For
-each image the code compares the digest existing in the docker compose file with
-the digest returned by docker hub API, if they differ it includes the new one in
-the docker compose file.
+* External docker images used in the [docker compose file]. For each image the
+code compares the digest existing in the docker compose file with the digest
+returned by docker hub API, if they differ it includes the new one in the docker
+compose file.
 * Protocol buffer files from [comms protocol repo]: after checking the files
 for changes the client/server golang code is generated from them.
 * Test vectors from the [test vectors repo].
