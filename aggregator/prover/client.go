@@ -3,23 +3,26 @@ package prover
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
+	"google.golang.org/grpc"
 )
 
+// Client wrapper for the zkprover client
 type Client struct {
 	ZkProverClient                                      pb.ZKProverServiceClient
 	IntervalFrequencyToGetProofGenerationStateInSeconds types.Duration
 }
 
+// NewClient inits zkprover wrapper client
 func NewClient(pc pb.ZKProverServiceClient) *Client {
 	return &Client{ZkProverClient: pc}
 }
 
+// GetGenProofID get id of generation proof request
 func (c *Client) GetGenProofID(ctx context.Context, inputProver *pb.InputProver) (string, error) {
 	genProofRequest := pb.GenProofRequest{Input: inputProver}
 	// init connection to the prover
@@ -32,13 +35,14 @@ func (c *Client) GetGenProofID(ctx context.Context, inputProver *pb.InputProver)
 	log.Debugf("Data sent to the prover: %+v", inputProver)
 	genProofRes := resGenProof.GetResult()
 	if genProofRes != pb.GenProofResponse_RESULT_GEN_PROOF_OK {
-		return "", fmt.Errorf("failed to get result from the prover, batchNumber: %d, err: %v", inputProver.PublicInputs.BatchNum)
+		return "", fmt.Errorf("failed to get result from the prover, batchNumber: %d, err: %v", inputProver.PublicInputs.BatchNum, err)
 	}
 	genProofID := resGenProof.GetId()
 
 	return genProofID, err
 }
 
+// GetResGetProof get result from proof generation
 func (c *Client) GetResGetProof(ctx context.Context, genProofID string, batchNumber uint64) (*pb.GetProofResponse, error) {
 	resGetProof := &pb.GetProofResponse{Result: -1}
 	getProofCtx, getProofCtxCancel := context.WithCancel(ctx)
