@@ -541,6 +541,48 @@ func (_m *stateMock) GetTransactionReceipt(ctx context.Context, transactionHash 
 	return r0, r1
 }
 
+// IsBatchConsolidated provides a mock function with given fields: ctx, batchId, dbTx
+func (_m *stateMock) IsBatchConsolidated(ctx context.Context, batchId int, dbTx pgx.Tx) (bool, error) {
+	ret := _m.Called(ctx, batchId, dbTx)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, int, pgx.Tx) bool); ok {
+		r0 = rf(ctx, batchId, dbTx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, int, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchId, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// IsBatchVirtualized provides a mock function with given fields: ctx, batchId, dbTx
+func (_m *stateMock) IsBatchVirtualized(ctx context.Context, batchId int, dbTx pgx.Tx) (bool, error) {
+	ret := _m.Called(ctx, batchId, dbTx)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, int, pgx.Tx) bool); ok {
+		r0 = rf(ctx, batchId, dbTx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, int, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchId, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, senderAddress, blockNumber, dbTx
 func (_m *stateMock) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
 	ret := _m.Called(ctx, tx, senderAddress, blockNumber, dbTx)
