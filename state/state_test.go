@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -1075,6 +1075,7 @@ func TestExecutorLogs(t *testing.T) {
 	assert.Equal(t, 2, len(processBatchResponse.Responses[1].Logs[1].Topics))
 	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs[2].Topics))
 }
+*/
 
 func TestExecutorTransfer(t *testing.T) {
 	var chainID = new(big.Int).SetInt64(1000)
@@ -1158,6 +1159,7 @@ func TestExecutorTransfer(t *testing.T) {
 	require.Equal(t, uint64(21002), balance.Uint64())
 }
 
+/*
 func TestExecutorTxHash(t *testing.T) {
 	var receiverAddress = common.HexToAddress("0xD8Af0C5c6dEE7dCe32E59577675C026e1aDe4De5")
 	var stateRoot = state.ZeroHash
