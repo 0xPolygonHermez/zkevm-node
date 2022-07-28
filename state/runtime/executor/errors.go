@@ -40,6 +40,8 @@ const (
 
 func (e ExecutorError) Error() string {
 	switch e {
+	case NO_ERROR:
+		return ""
 	case ERROR_OUT_OF_GAS:
 		return runtime.ErrOutOfGas.Error()
 	case ERROR_STACK_OVERFLOW:
