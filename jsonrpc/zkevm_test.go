@@ -148,7 +148,7 @@ func TestIsBatchConsolidated(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			res, err := s.JSONRPCCall("hez_isBatchConsolidated", 1)
+			res, err := s.JSONRPCCall("zkevm_isBatchConsolidated", 1)
 			require.NoError(t, err)
 
 			if res.Result != nil {
@@ -226,7 +226,7 @@ func TestIsBatchVirtualized(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			res, err := s.JSONRPCCall("hez_isBatchVirtualized", 1)
+			res, err := s.JSONRPCCall("zkevm_isBatchVirtualized", 1)
 			require.NoError(t, err)
 
 			if res.Result != nil {

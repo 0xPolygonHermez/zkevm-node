@@ -30,7 +30,7 @@ func (h *ZKEVM) ConsolidatedBlockNumber() (interface{}, rpcError) {
 }
 
 // IsBatchConsolidated returns the consolidation status of a provided batch ID
-func (h *Hez) IsBatchConsolidated(batchID int) (interface{}, rpcError) {
+func (h *ZKEVM) IsBatchConsolidated(batchID int) (interface{}, rpcError) {
 	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		consolidation, err := h.state.IsBatchConsolidated(ctx, batchID, dbTx)
 		if err != nil {
@@ -44,7 +44,7 @@ func (h *Hez) IsBatchConsolidated(batchID int) (interface{}, rpcError) {
 }
 
 // IsBatchVirtualized returns the virtualisation status of a provided batch ID
-func (h *Hez) IsBatchVirtualized(batchID int) (interface{}, rpcError) {
+func (h *ZKEVM) IsBatchVirtualized(batchID int) (interface{}, rpcError) {
 	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		consolidation, err := h.state.IsBatchVirtualized(ctx, batchID, dbTx)
 		if err != nil {
@@ -55,7 +55,6 @@ func (h *Hez) IsBatchVirtualized(batchID int) (interface{}, rpcError) {
 
 		return consolidation, nil
 	})
-
 }
 
 // GetBroadcastURI returns the IP:PORT of the broadcast service provided
