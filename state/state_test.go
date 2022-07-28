@@ -885,6 +885,10 @@ func TestGenesis(t *testing.T) {
 		Storage:        storage,
 	}
 
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
