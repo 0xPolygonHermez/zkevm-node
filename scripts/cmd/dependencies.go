@@ -13,11 +13,11 @@ func updateDeps(ctx *cli.Context) error {
 		},
 		PB: &dependencies.PBConfig{
 			TargetDirPath: "../../../proto/src",
-			SourceRepo:    "git@github.com:0xPolygonHermez/zkevm-comms-protocol.git",
+			SourceRepo:    "https://github.com/0xPolygonHermez/zkevm-comms-protocol.git",
 		},
 		TV: &dependencies.TVConfig{
 			TargetDirPath: "../../../test/vectors/src",
-			SourceRepo:    "git@github.com:0xPolygonHermez/zkevm-testvectors.git",
+			SourceRepo:    "https://github.com/0xPolygonHermez/zkevm-testvectors.git",
 		},
 	}
 
