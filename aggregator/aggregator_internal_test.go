@@ -50,7 +50,7 @@ func TestGetBatchToVerify(t *testing.T) {
 	a := Aggregator{State: st, batchesSent: make(map[uint64]bool)}
 	a.batchesSent[a.lastVerifiedBatchNum] = true
 	ctx := context.Background()
-	st.On("GetBatchByNumber", ctx, a.lastVerifiedBatchNum+1, nil).Return(batchToVerify, nil)
+	st.On("GetVirtualBatchByNumber", ctx, a.lastVerifiedBatchNum+1, nil).Return(batchToVerify, nil)
 	res, err := a.getBatchToVerify(ctx)
 	require.NoError(t, err)
 	require.Equal(t, batchToVerify, res)
@@ -59,12 +59,12 @@ func TestGetBatchToVerify(t *testing.T) {
 
 func TestGetBatchToVerifyBatchAlreadySent(t *testing.T) {
 	st := new(aggrMocks.StateMock)
-	batchToVerify := &state.Batch{BatchNumber: 1}
+	batchToVerify := &state.Batch{BatchNumber: 2}
 	a := Aggregator{State: st, batchesSent: make(map[uint64]bool)}
 	a.lastVerifiedBatchNum = 1
-	a.batchesSent[a.lastVerifiedBatchNum] = true
+	a.batchesSent[a.lastVerifiedBatchNum+1] = true
 	ctx := context.Background()
-	st.On("GetBatchByNumber", ctx, a.lastVerifiedBatchNum+1, nil).Return(batchToVerify, nil)
+	st.On("GetVirtualBatchByNumber", ctx, a.lastVerifiedBatchNum+1, nil).Return(batchToVerify, nil)
 	res, err := a.getBatchToVerify(ctx)
 	require.NoError(t, err)
 	require.Nil(t, res)
@@ -253,7 +253,7 @@ func TestAggregatorFlow(t *testing.T) {
 	etherman.On("GetLatestVerifiedBatchNum").Return(uint64(1), nil)
 
 	// get batch to verify
-	st.On("GetBatchByNumber", mock.Anything, a.lastVerifiedBatchNum+1, nil).Return(batchToVerify, nil)
+	st.On("GetVirtualBatchByNumber", mock.Anything, a.lastVerifiedBatchNum+1, nil).Return(batchToVerify, nil)
 	// build input prover
 	st.On("GetStateRootByBatchNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(oldStateRoot, nil)
 	st.On("GetStateRootByBatchNumber", mock.Anything, a.lastVerifiedBatchNum+1, nil).Return(newStateRoot, nil)
