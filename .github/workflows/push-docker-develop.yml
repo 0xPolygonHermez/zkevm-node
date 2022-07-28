@@ -31,21 +31,21 @@ jobs:
           tags: |
             hermeznetwork/zkevm-node:develop
 
-      - name: Check changes in prover
-        id: prover_changes
+      - name: Check changes in zkevmprovermock
+        id: zkevmprovermock_changes
         uses: dorny/paths-filter@v2
         with:
           filters: |
-            proverservice:
-              - 'proverservice/**'
+            zkevmprovermock:
+              - 'zkevmprovermock/**'
 
-      - name: Build and push prover mock
-        if: steps.prover_changes.outputs.proverservice == 'true'
-        id: docker_build_prover_mock
+      - name: Build and push zkevmprovermock
+        if: steps.zkevmprovermock_changes.outputs.zkevmprovermock == 'true'
+        id: docker_build_zkevmprovermock
         uses: docker/build-push-action@v2
         with:
-          context: ./proverservice
+          context: ./zkevmprovermock
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            hermeznetwork/zkevm-mock-prover:latest
+            hermeznetwork/zkprover-mock:develop

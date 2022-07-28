@@ -30,6 +30,25 @@ services:
       - ZKEVM_NODE_DATABASE_PASSWORD=test_password
       - ZKEVM_NODE_DATABASE_NAME=test_db
       - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
+    volumes:
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc"
+
+  zkevm-non-sequencer-json-rpc:
+    container_name: zkevm-non-sequencer-json-rpc
+    image: zkevm-node
+    ports:
+      - 8125:8125
+    environment:
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
     volumes:
       - ./config/config.local.toml:/app/config.toml
     command:
@@ -157,31 +176,18 @@ services:
 
   zkevm-mock-l1-network:
     container_name: zkevm-local-l1-network
-    image: hermeznetwork/geth-zkevm-contracts@sha256:419cf8c488d5cd099d1ffb5722613375c5392bdcda7a3c5ae2801d498fe49af8
+    image: hermeznetwork/geth-zkevm-contracts@sha256:7ac654f8b06baaca030f0022398dca1ffaa872be07dcf03c6bbc3ff6011adb88
     ports:
       - 8545:8545
 
-  zkevm-mock-prover:
-    container_name: zkevm-mock-prover
-    image: hermeznetwork/zkevm-mock-prover@sha256:3a86d0c65f0428decb7f1f3843b753bf6846bf43f6c628ab0b4d298fe7f918f2
-    ports:
-      - 50051:50051
-      - 50052:50052
-    environment:
-      - POSTGRES_USER=test_user
-      - POSTGRES_PASSWORD=test_password
-      - POSTGRES_DB=test_db
-      - POSTGRES_HOST=zkevm-db
-      - POSTGRES_PORT=5432
-      - PROOF_TIME=1000
-
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkprover-local@sha256:8d99a22794531ff92cc7d6f5a722db02427bf66d4b76656de432b430b39a4418
+    image: hermeznetwork/zkprover-local@sha256:9adf1bb1e11e4063da4cfc9059f770506ccfd56b184c3f5e918a6f9d1571fd8e
     ports:
-      # - 50051:50051 # Uncoment once the prover integration is ready, and enable the mock in the config file (and remove the zkevm-mock-prover)
-      - 50061:50061
-      - 50071:50071
+      # - 50051:50051 # Prover
+      - 50052:50052 # Mock prover
+      - 50061:50061 # MT
+      - 50071:50071 # Executor
     volumes:
       - ./config/prover.config.local.json:/usr/src/app/config.json
     command: >
@@ -203,3 +209,41 @@ services:
       - "/bin/sh"
       - "-c"
       - "/app/zkevm-node approve --am 10000000000000000 -y --network local --cfg /app/config.toml"
+
+  zkevm-permissionless-db:
+    container_name: zkevm-permissionless-db
+    image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5434:5432
+    environment:
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_DB=test_db
+    command: ["postgres", "-N", "500"]
+
+  zkevm-permissionless-node:
+    container_name: zkevm-permissionless-node
+    image: zkevm-node
+    ports:
+      - 8126:8126
+    environment:
+      - ZKEVM_NODE_TRUSTED=false
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-permissionless-db
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+      - ZKEVM_NODE_RPC_PORT=8126
+    volumes:
+      - ./test/test.keystore:/pk/keystore
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components \"rpc,synchronizer\""

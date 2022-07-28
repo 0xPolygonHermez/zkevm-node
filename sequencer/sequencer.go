@@ -21,18 +21,19 @@ import (
 const (
 	errGasRequiredExceedsAllowance = "gas required exceeds allowance"
 	errContentLengthTooLarge       = "content length too large"
+	errTimestampMustBeInsideRange  = "Timestamp must be inside range"
 )
 
 // Sequencer represents a sequencer
 type Sequencer struct {
 	cfg Config
 
-	pool              txPool
-	state             stateInterface
-	txManager         txManager
-	etherman          etherman
-	checker           *profitabilitychecker.Checker
-	reorgBlockNumChan chan struct{}
+	pool                  txPool
+	state                 stateInterface
+	txManager             txManager
+	etherman              etherman
+	checker               *profitabilitychecker.Checker
+	reorgTrustedStateChan chan struct{}
 
 	address                          common.Address
 	lastBatchNum                     uint64
@@ -49,7 +50,7 @@ func New(
 	state stateInterface,
 	etherman etherman,
 	priceGetter priceGetter,
-	reorgBlockNumChan chan struct{},
+	reorgTrustedStateChan chan struct{},
 	manager txManager) (*Sequencer, error) {
 	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
 
@@ -60,14 +61,14 @@ func New(
 	// TODO: check that private key used in etherman matches addr
 
 	return &Sequencer{
-		cfg:               cfg,
-		pool:              pool,
-		state:             state,
-		etherman:          etherman,
-		checker:           checker,
-		txManager:         manager,
-		address:           addr,
-		reorgBlockNumChan: reorgBlockNumChan,
+		cfg:                   cfg,
+		pool:                  pool,
+		state:                 state,
+		etherman:              etherman,
+		checker:               checker,
+		txManager:             manager,
+		address:               addr,
+		reorgTrustedStateChan: reorgTrustedStateChan,
 	}, nil
 }
 
@@ -79,8 +80,14 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 	// initialize sequence
 	batchNum, err := s.state.GetLastBatchNumber(ctx, nil)
-	if err != nil {
-		log.Fatalf("failed to get last batch number, err: %v", err)
+	for err != nil {
+		if errors.Is(err, state.ErrStateNotSynchronized) {
+			log.Warnf("state is not synchronized, trying to get last batch num once again...")
+			time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
+			batchNum, err = s.state.GetLastBatchNumber(ctx, nil)
+		} else {
+			log.Fatalf("failed to get last batch number, err: %v", err)
+		}
 	}
 	// case A: genesis
 	if batchNum == 0 {
@@ -134,7 +141,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 func (s *Sequencer) trackReorg(ctx context.Context) {
 	for {
 		select {
-		case <-s.reorgBlockNumChan:
+		case <-s.reorgTrustedStateChan:
 			const waitTime = 5 * time.Second
 
 			err := s.pool.MarkReorgedTxsAsPending(ctx)
@@ -358,6 +365,27 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 	}
 
 	if err != nil {
+		// while estimating gas a new block is not created and the POE SC may return
+		// an error regarding timestamp verification, this must be handled
+		if strings.Contains(err.Error(), errTimestampMustBeInsideRange) {
+			// query the sc about the value of its lastTimestamp variable
+			lastTimestamp, err := s.etherman.GetLastTimestamp()
+			if err != nil {
+				log.Errorf("failed to query last timestamp from SC, err: %v", err)
+				return false, false
+			}
+			// check POE SC lastTimestamp against sequences' one
+			for _, seq := range s.closedSequences {
+				if seq.Timestamp < int64(lastTimestamp) {
+					log.Fatalf("sequence timestamp %d is < POE SC lastTimestamp %d", seq.Timestamp, lastTimestamp)
+				}
+				lastTimestamp = uint64(seq.Timestamp)
+			}
+
+			log.Debug("block.timestamp is greater than seq.Timestamp. A new block must be mined before the gas can be estimated.")
+			return false, false
+		}
+
 		log.Errorf("failed to estimate gas for sequence batches, err: %v", err)
 		return false, false
 	}

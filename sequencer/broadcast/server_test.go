@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
@@ -63,11 +64,10 @@ func initialize() {
 		panic(err)
 	}
 
-	// TODO: this package shouldn't be using a function from test package
-	// err = operations.WaitGRPCHealthy(address)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	err = operations.WaitGRPCHealthy(address)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func teardown() {
@@ -105,6 +105,7 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 		expectedBatch       *state.Batch
 		expectedForcedBatch *state.ForcedBatch
 		expectedEncodedTxs  []string
+		expectedGER         *state.GlobalExitRoot
 		expectedErr         bool
 		expectedErrMsg      string
 	}{
@@ -120,6 +121,10 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 				ForcedBatchNumber: 1,
 			},
 			expectedEncodedTxs: []string{"tx1", "tx2", "tx3"},
+			expectedGER: &state.GlobalExitRoot{
+				MainnetExitRoot: common.HexToHash("b"),
+				RollupExitRoot:  common.HexToHash("c"),
+			},
 		},
 		{
 			description:      "query errors are returned",
@@ -140,7 +145,9 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 			st.On("GetBatchByNumber", mock.AnythingOfType("*context.valueCtx"), tc.inputBatchNumber, nil).Return(tc.expectedBatch, err)
 			st.On("GetEncodedTransactionsByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.inputBatchNumber, nil).Return(tc.expectedEncodedTxs, err)
 			st.On("GetForcedBatchByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.inputBatchNumber, nil).Return(tc.expectedForcedBatch, err)
-
+			if tc.expectedBatch != nil {
+				st.On("GetExitRootByGlobalExitRoot", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.GlobalExitRoot, nil).Return(tc.expectedGER, err)
+			}
 			broadcastSrv.SetState(st)
 
 			client := pb.NewBroadcastServiceClient(conn)
@@ -156,6 +163,9 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 				for i, encoded := range tc.expectedEncodedTxs {
 					require.Equal(t, encoded, actualBatch.Transactions[i].Encoded)
 				}
+				require.Equal(t, tc.expectedGER.MainnetExitRoot.String(), actualBatch.MainnetExitRoot)
+				require.Equal(t, tc.expectedGER.RollupExitRoot.String(), actualBatch.RollupExitRoot)
+
 				require.True(t, st.AssertExpectations(t))
 			}
 		})
@@ -168,6 +178,7 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 		expectedBatch       *state.Batch
 		expectedForcedBatch *state.ForcedBatch
 		expectedEncodedTxs  []string
+		expectedGER         *state.GlobalExitRoot
 		expectedErr         bool
 		expectedErrMsg      string
 	}{
@@ -175,13 +186,17 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 			description: "happy path",
 			expectedBatch: &state.Batch{
 				BatchNumber:    14,
-				GlobalExitRoot: common.HexToHash("b"),
+				GlobalExitRoot: common.HexToHash("a"),
 				Timestamp:      time.Now(),
 			},
 			expectedForcedBatch: &state.ForcedBatch{
 				ForcedBatchNumber: 1,
 			},
 			expectedEncodedTxs: []string{"tx1", "tx2", "tx3"},
+			expectedGER: &state.GlobalExitRoot{
+				MainnetExitRoot: common.HexToHash("b"),
+				RollupExitRoot:  common.HexToHash("c"),
+			},
 		},
 		{
 			description:    "query errors are returned",
@@ -202,6 +217,7 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 			if tc.expectedBatch != nil {
 				st.On("GetEncodedTransactionsByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.BatchNumber, nil).Return(tc.expectedEncodedTxs, err)
 				st.On("GetForcedBatchByBatchNumber", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.BatchNumber, nil).Return(tc.expectedForcedBatch, err)
+				st.On("GetExitRootByGlobalExitRoot", mock.AnythingOfType("*context.valueCtx"), tc.expectedBatch.GlobalExitRoot, nil).Return(tc.expectedGER, err)
 			}
 
 			broadcastSrv.SetState(st)
@@ -217,6 +233,9 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 				for i, encoded := range tc.expectedEncodedTxs {
 					require.Equal(t, encoded, actualBatch.Transactions[i].Encoded)
 				}
+				require.Equal(t, tc.expectedGER.MainnetExitRoot.String(), actualBatch.MainnetExitRoot)
+				require.Equal(t, tc.expectedGER.RollupExitRoot.String(), actualBatch.RollupExitRoot)
+
 				require.True(t, st.AssertExpectations(t))
 			}
 		})

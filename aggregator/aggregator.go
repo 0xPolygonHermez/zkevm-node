@@ -103,7 +103,7 @@ func (a *Aggregator) Start() {
 			// 2. find next batch to consolidate
 			delete(batchesSent, lastVerifiedBatchNum)
 
-			batchToVerify, err := a.State.GetBatchByNumber(a.ctx, lastVerifiedBatchNum+1, nil)
+			batchToVerify, err := a.State.GetVirtualBatchByNumber(a.ctx, lastVerifiedBatchNum+1, nil)
 
 			if err != nil {
 				if err == state.ErrNotFound {
@@ -161,12 +161,7 @@ func (a *Aggregator) Start() {
 			}
 			newLocalExitRoot := batchToVerify.LocalExitRoot
 			// TODO: change this, once it will be clear, what db means
-			db := map[string]string{
-				"0540ae2a259cb9179561cffe6a0a3852a2c1806ad894ed396a2ef16e1f10e9c7": "0000000000000000000000000000000000000000000000056bc75e2d63100000",
-				"061927dd2a72763869c1d5d9336a42d12a9a2f22809c9cf1feeb2a6d1643d950": "0000000000000000000000000000000000000000000000000000000000000000",
-				"03ae74d1bbdff41d14f155ec79bb389db716160c1766a49ee9c9707407f80a11": "00000000000000000000000000000000000000000000000ad78ebc5ac6200000",
-				"18d749d7bcc2bc831229c19256f9e933c08b6acdaff4915be158e34cbbc8a8e1": "0000000000000000000000000000000000000000000000000000000000000000",
-			}
+			db := map[string]string{}
 
 			batchChainIDByte := make([]byte, 4)   //nolint:gomnd
 			blockTimestampByte := make([]byte, 8) //nolint:gomnd

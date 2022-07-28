@@ -9,6 +9,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -17,8 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -33,6 +32,10 @@ const (
 var (
 	ctx = context.Background()
 	cfg = dbutils.NewConfigFromEnv()
+
+	ger             = common.HexToHash("deadbeef")
+	mainnetExitRoot = common.HexToHash("caffe")
+	rollupExitRoot  = common.HexToHash("bead")
 )
 
 func TestBroadcast(t *testing.T) {
@@ -53,14 +56,11 @@ func TestBroadcast(t *testing.T) {
 
 	require.NoError(t, populateDB(ctx, st))
 
-	conn, cancel, err := initConn()
-	require.NoError(t, err)
+	client, conn, cancel := broadcast.NewClient(ctx, serverAddress)
 	defer func() {
 		cancel()
 		require.NoError(t, conn.Close())
 	}()
-
-	client := pb.NewBroadcastServiceClient(conn)
 
 	lastBatch, err := client.GetLastBatch(ctx, &emptypb.Empty{})
 	require.NoError(t, err)
@@ -78,6 +78,9 @@ func TestBroadcast(t *testing.T) {
 		require.Equal(t, fmt.Sprintf(encodedFmt, i+1), tx.Encoded)
 	}
 	require.EqualValues(t, forcedBatchNumber, batch.ForcedBatchNumber)
+
+	require.Equal(t, mainnetExitRoot.String(), batch.MainnetExitRoot)
+	require.Equal(t, rollupExitRoot.String(), batch.RollupExitRoot)
 }
 
 func initState() (*state.State, error) {
@@ -97,27 +100,15 @@ func initState() (*state.State, error) {
 	return state.NewState(state.Config{}, stateDb, executorClient, stateTree), nil
 }
 
-func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	conn, err := grpc.DialContext(ctx, serverAddress, opts...)
-	return conn, cancel, err
-}
-
 func populateDB(ctx context.Context, st *state.State) error {
-	const addBatch = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
-	const addTransaction = "INSERT INTO state.transaction (hash, from_address, encoded, l2_block_num) VALUES ($1, $2, $3, $4)"
-	const addForcedBatch = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, coinbase, timestamp, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
-	const addBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
 	const blockNumber = 1
 
 	var parentHash common.Hash
 	var l2Block types.Block
 
+	const addBatch = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, local_exit_root, state_root) VALUES ($1, $2, $3, $4, $5, $6)"
 	for i := 1; i <= totalBatches; i++ {
-		if _, err := st.PostgresStorage.Exec(ctx, addBatch, i, common.Hash{}.String(), time.Now(), common.HexToAddress("").String(), common.Hash{}.String(), common.Hash{}.String()); err != nil {
+		if _, err := st.PostgresStorage.Exec(ctx, addBatch, i, ger.String(), time.Now(), common.HexToAddress("").String(), common.Hash{}.String(), common.Hash{}.String()); err != nil {
 			return err
 		}
 	}
@@ -140,13 +131,23 @@ func populateDB(ctx context.Context, st *state.State) error {
 			return err
 		}
 
+		const addTransaction = "INSERT INTO state.transaction (hash, from_address, encoded, l2_block_num) VALUES ($1, $2, $3, $4)"
 		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, fmt.Sprintf("hash-%d", i), common.HexToAddress("").String(), fmt.Sprintf(encodedFmt, i), l2Block.Number().Uint64()); err != nil {
 			return err
 		}
 	}
+
+	const addBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
 	if _, err := st.PostgresStorage.Exec(ctx, addBlock, blockNumber, time.Now(), ""); err != nil {
 		return err
 	}
-	_, err := st.PostgresStorage.Exec(ctx, addForcedBatch, forcedBatchNumber, common.Hash{}.String(), "", common.HexToAddress("").String(), time.Now(), totalBatches, blockNumber)
+
+	const addForcedBatch = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, raw_txs_data, coinbase, timestamp, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	if _, err := st.PostgresStorage.Exec(ctx, addForcedBatch, forcedBatchNumber, ger.String(), "", common.HexToAddress("").String(), time.Now(), totalBatches, blockNumber); err != nil {
+		return err
+	}
+
+	const addExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root, global_exit_root_num) VALUES ($1, $2, $3, $4, $5)"
+	_, err := st.PostgresStorage.Exec(ctx, addExitRoots, blockNumber, ger, mainnetExitRoot, rollupExitRoot, 1)
 	return err
 }

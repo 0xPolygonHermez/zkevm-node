@@ -79,9 +79,9 @@ func main() {
 		&cli.StringSliceFlag{
 			Name:     config.FlagHTTPAPI,
 			Aliases:  []string{"ha"},
-			Usage:    fmt.Sprintf("List of JSON RPC apis to be exposed by the server: --http.api=%v,%v,%v,%v,%v,%v", jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIDebug, jsonrpc.APIHez, jsonrpc.APITxPool, jsonrpc.APIWeb3),
+			Usage:    fmt.Sprintf("List of JSON RPC apis to be exposed by the server: --http.api=%v,%v,%v,%v,%v,%v", jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIDebug, jsonrpc.APIZKEVM, jsonrpc.APITxPool, jsonrpc.APIWeb3),
 			Required: false,
-			Value:    cli.NewStringSlice(jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIHez, jsonrpc.APITxPool, jsonrpc.APIWeb3),
+			Value:    cli.NewStringSlice(jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIZKEVM, jsonrpc.APITxPool, jsonrpc.APIWeb3),
 		},
 	}
 	app.Commands = []*cli.Command{
