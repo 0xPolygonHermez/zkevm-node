@@ -269,6 +269,11 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=stateInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=stateMock --filename=mock_state.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=synchronizer --outpkg=synchronizer --structname=dbTxMock --filename=mock_dbtx.go
 
+	## mocks for the aggregator tests
+	mockery --name=stateInterface --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
+	mockery --name=proverClient --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=ProverClientMock --filename=mock_proverclient.go
+	mockery --name=etherman --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=Etherman --filename=mock_etherman.go
+	mockery --name=ethTxManager --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=EthTxManager --filename=mock_ethtxmanager.go
 
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files

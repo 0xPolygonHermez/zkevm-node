@@ -16,8 +16,8 @@ type Client struct {
 	IntervalFrequencyToGetProofGenerationStateInSeconds types.Duration
 }
 
-func NewClient(pc pb.ZKProverServiceClient) Client {
-	return Client{ZkProverClient: pc}
+func NewClient(pc pb.ZKProverServiceClient) *Client {
+	return &Client{ZkProverClient: pc}
 }
 
 func (c *Client) GetGenProofID(ctx context.Context, inputProver *pb.InputProver) (string, error) {

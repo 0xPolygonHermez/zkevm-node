@@ -5,10 +5,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -18,9 +18,6 @@ import (
 	"github.com/iden3/go-iden3-crypto/keccak256"
 )
 
-// Prime field. It is the prime number used as the order in our elliptic curve
-const fr = "21888242871839275222246405745257275088548364400416034343698204186575808495617"
-
 // Aggregator represents an aggregator
 type Aggregator struct {
 	cfg Config
@@ -28,14 +25,11 @@ type Aggregator struct {
 	State                stateInterface
 	EthTxManager         ethTxManager
 	Ethman               etherman
-	ProverClient         prover.Client
+	ProverClient         proverClient
 	ProfitabilityChecker aggregatorTxProfitabilityChecker
 
 	lastVerifiedBatchNum uint64
 	batchesSent          map[uint64]bool
-
-	ctx    context.Context
-	cancel context.CancelFunc
 }
 
 // NewAggregator creates a new aggregator
@@ -46,8 +40,6 @@ func NewAggregator(
 	etherman etherman,
 	zkProverClient pb.ZKProverServiceClient,
 ) (Aggregator, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-
 	var profitabilityChecker aggregatorTxProfitabilityChecker
 	switch cfg.TxProfitabilityCheckerType {
 	case ProfitabilityBase:
@@ -66,33 +58,24 @@ func NewAggregator(
 		ProfitabilityChecker: profitabilityChecker,
 
 		batchesSent: make(map[uint64]bool),
-
-		ctx:    ctx,
-		cancel: cancel,
 	}
 
 	return a, nil
 }
 
 // Start starts the aggregator
-func (a *Aggregator) Start() {
+func (a *Aggregator) Start(ctx context.Context) {
 	// define those vars here, bcs it can be used in case <-a.ctx.Done()
 	ticker := time.NewTicker(a.cfg.IntervalToConsolidateState.Duration)
 	defer ticker.Stop()
 	for {
-		a.tryVerifyBatch(a.ctx, ticker)
-		select {
-		case <-ticker.C:
-
-		case <-a.ctx.Done():
-			return
-		}
+		a.tryVerifyBatch(ctx, ticker)
 	}
 }
 
 func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	// 1. check, if state is synced
-	for !a.isSynced(a.ctx) {
+	for !a.isSynced(ctx) {
 		log.Infof("waiting for synchronizer to sync...")
 		waitTick(ctx, ticker)
 		continue
@@ -124,7 +107,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	genProofID, err := a.ProverClient.GetGenProofID(a.ctx, inputProver)
+	genProofID, err := a.ProverClient.GetGenProofID(ctx, inputProver)
 	if err != nil {
 		log.Warnf("failed to get gen proof id, err: %v", err)
 		return
@@ -260,6 +243,8 @@ func (a *Aggregator) compareInputHashes(ip *pb.InputProver, resGetProof *pb.GetP
 		batchNumberByte[:],
 		blockTimestampByte[:],
 	)
+	// Prime field. It is the prime number used as the order in our elliptic curve
+	const fr = "21888242871839275222246405745257275088548364400416034343698204186575808495617"
 	frB, _ := new(big.Int).SetString(fr, encoding.Base10)
 	inputHashMod := new(big.Int).Mod(new(big.Int).SetBytes(hash), frB)
 	internalInputHash := inputHashMod.Bytes()
@@ -289,9 +274,4 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 	case <-ctx.Done():
 		return
 	}
-}
-
-// Stop stops the aggregator
-func (a *Aggregator) Stop() {
-	a.cancel()
 }

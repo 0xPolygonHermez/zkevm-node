@@ -294,8 +294,8 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	var txState pool.TxState = pool.TxStateSelected
-	var txUpdateMsg string = fmt.Sprintf("Tx %q added into the state. Marking tx as selected in the pool", tx.Hash())
+	var txState = pool.TxStateSelected
+	var txUpdateMsg = fmt.Sprintf("Tx %q added into the state. Marking tx as selected in the pool", tx.Hash())
 	if _, ok := unprocessedTxs[tx.Hash().String()]; ok {
 		txState = pool.TxStatePending
 		txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as pending to return the pool", tx.Hash())
