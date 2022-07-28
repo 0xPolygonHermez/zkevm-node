@@ -480,6 +480,13 @@ func isTransactionProcessed(unprocessedTransaction uint32) bool {
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx) error {
+	// Decode transactions
+	decodedTransactions, _, err := DecodeTxs(encodedTxs)
+	if err != nil {
+		log.Debugf("error decoding transactions: %w", err)
+		return err
+	}
+
 	// Open the batch and process the txs
 	if dbTx == nil {
 		return ErrDBTxNil
@@ -492,6 +499,11 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		return err
 	}
 
+	// Sanity check
+	if len(decodedTransactions) != len(processed.Responses) {
+		return fmt.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
+	}
+
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
@@ -499,18 +511,16 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
+				decodedTransactions = decodedTransactions[:i]
 			} else {
 				processed.Responses = append(processed.Responses[:i], processed.Responses[i+1:]...)
+				decodedTransactions = append(decodedTransactions[:i], decodedTransactions[i+1:]...)
 			}
 			i--
 		}
 	}
-	var txs []types.Transaction
-	if len(processed.Responses) > 0 {
-		// TODO: missing method to decode txs
-		log.Fatal("TODO: missing method to decode txs")
-	}
-	processedBatch := convertToProcessBatchResponse(txs, processed)
+
+	processedBatch := convertToProcessBatchResponse(decodedTransactions, processed)
 
 	// Store processed txs into the batch
 	err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
