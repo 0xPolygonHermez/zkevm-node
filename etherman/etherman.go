@@ -242,7 +242,7 @@ func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProo
 	if err != nil {
 		return 0, err
 	}
-	return tx.Gas(), nil
+	return tx.Cost().Uint64(), nil
 }
 
 // VerifyBatch send verifyBatch request to the ethereum

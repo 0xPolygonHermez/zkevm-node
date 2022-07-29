@@ -65,7 +65,7 @@ func (c *Client) TrackSequenceBatchesSending(ctx context.Context) {
 		case sequences := <-c.sequencesToSendChan:
 			err := c.sequenceBatches(sequences)
 			var attempts uint32
-			for err != nil || attempts < c.cfg.MaxSendBatchTxRetries {
+			for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
 				log.Errorf("failed to sequence batches, trying once again, retry #%d, err: %v", attempts, err)
 				time.Sleep(time.Duration(c.cfg.FrequencyForResendingFailedSendBatchesInMilliseconds) * time.Millisecond)
 				attempts++
