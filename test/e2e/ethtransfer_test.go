@@ -28,10 +28,10 @@ func Test1000EthTransfer(t *testing.T) {
 	auth, err := operations.GetAuth("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", big.NewInt(1001))
 	require.NoError(t, err)
 	// Load eth client
-	client, err := ethclient.Dial("http://localhost:8123")
+	client, err := ethclient.Dial("http://localhost:8124")
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 1000
+	nTxs := 1
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x0000000000000000000000000000000000000001")
 	gasLimit := uint64(21000)

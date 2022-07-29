@@ -51,7 +51,7 @@ Type = "default"
 DefaultGasPriceWei = 1000000000
 
 [Prover]
-ProverURI = "zkevm-prover:50052"
+ProverURI = "44.201.243.97:50052"
 
 [MTServer]
 Host = "0.0.0.0"
@@ -59,10 +59,10 @@ Port = 50060
 StoreBackend = "PostgreSQL"
 
 [MTClient]
-URI  = "zkevm-prover:50061"
+URI  = "44.201.243.97:50061"
 
 [Executor]
-URI = "zkevm-prover:50071"
+URI = "44.201.243.97:50071"
 
 [BroadcastServer]
 Host = "0.0.0.0"
