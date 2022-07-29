@@ -67,7 +67,7 @@ func (c *Client) TrackSequenceBatchesSending(ctx context.Context) {
 			var attempts uint32
 			for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
 				log.Errorf("failed to sequence batches, trying once again, retry #%d, err: %v", attempts, err)
-				time.Sleep(time.Duration(c.cfg.FrequencyForResendingFailedSendBatchesInMilliseconds) * time.Millisecond)
+				time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 				attempts++
 				err = c.sequenceBatches(sequences)
 			}
@@ -146,7 +146,7 @@ func (c *Client) resendSendBatchesTxIfNeeded(ctx context.Context, tx sequenceBat
 	)
 	hash := tx.hash
 	for !isTxSuccessful && counter <= c.cfg.MaxSendBatchTxRetries {
-		time.Sleep(time.Duration(c.cfg.FrequencyForResendingFailedSendBatchesInMilliseconds) * time.Millisecond)
+		time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 		receipt := c.getTxReceipt(ctx, hash)
 		if receipt == nil {
 			continue
@@ -180,7 +180,7 @@ func (c *Client) resendVerifyBatchTxIfNeeded(ctx context.Context, tx verifyBatch
 	)
 	hash := tx.hash
 	for !isTxSuccessful && counter <= c.cfg.MaxVerifyBatchTxRetries {
-		time.Sleep(time.Duration(c.cfg.FrequencyForResendingFailedVerifyBatchInMilliseconds) * time.Millisecond)
+		time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
 		receipt := c.getTxReceipt(ctx, hash)
 		if receipt == nil {
 			continue
