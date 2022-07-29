@@ -198,7 +198,7 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 	if err != nil {
 		return 0, err
 	}
-	return tx.Cost().Uint64(), nil
+	return tx.Gas(), nil
 }
 
 // SequenceBatches send sequences of batches to the ethereum
@@ -224,7 +224,6 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 
 		batches = append(batches, batch)
 	}
-
 	tx, err := etherMan.PoE.SequenceBatches(opts, batches)
 
 	if err != nil {
@@ -242,7 +241,7 @@ func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProo
 	if err != nil {
 		return 0, err
 	}
-	return tx.Cost().Uint64(), nil
+	return tx.Gas(), nil
 }
 
 // VerifyBatch send verifyBatch request to the ethereum

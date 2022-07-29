@@ -192,6 +192,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		if shouldCut {
 			log.Infof("current sequence should be cut")
 			cutSequence := s.closedSequences[len(s.closedSequences)-1]
+			s.closedSequences = s.closedSequences[:len(s.closedSequences)-1]
 			s.txManager.SequenceBatches(s.closedSequences)
 			s.closedSequences = []types.Sequence{cutSequence}
 		} else {
@@ -202,7 +203,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	log.Info("getting pending tx from the pool")
 	zkCounters := s.calculateZkCounters()
-	if zkCounters.IsZkCountersBelowZero() {
+	if zkCounters.IsZkCountersBelowZero() && len(s.sequenceInProgress.Txs) != 0 {
 		s.closeSequence(ctx)
 		return
 	}

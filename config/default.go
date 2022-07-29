@@ -48,13 +48,13 @@ LastTimeBatchMaxWaitPeriod = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxGasUsed = 100000
-MaxKeccakHashes = 100
-MaxPoseidonHashes = 100
-MaxPoseidonPaddings = 100
-MaxMemAligns = 100
-MaxArithmetics = 100
-MaxBinaries = 100
-MaxSteps = 100
+MaxKeccakHashes = 1000
+MaxPoseidonHashes = 1000
+MaxPoseidonPaddings = 1000
+MaxMemAligns = 1000
+MaxArithmetics = 1000
+MaxBinaries = 1000
+MaxSteps = 10000
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 

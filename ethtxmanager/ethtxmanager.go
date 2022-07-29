@@ -63,13 +63,25 @@ func (c *Client) TrackSequenceBatchesSending(ctx context.Context) {
 	for {
 		select {
 		case sequences := <-c.sequencesToSendChan:
-			err := c.sequenceBatches(sequences)
+			gas, err := c.ethMan.EstimateGasSequenceBatches(sequences)
 			var attempts uint32
 			for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
-				log.Errorf("failed to sequence batches, trying once again, retry #%d, err: %v", attempts, err)
+				log.Errorf("failed to estimate gas for sending sequences batches, retry #%d, err: %v", err)
 				time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 				attempts++
-				err = c.sequenceBatches(sequences)
+				gas, err = c.ethMan.EstimateGasSequenceBatches(sequences)
+			}
+
+			gasLimit := uint64(float64(gas) * gasLimitIncrease)
+			attempts = 0
+			err = c.sequenceBatches(sequences, gasLimit)
+			for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
+				log.Errorf("failed to sequence batches, trying once again, retry #%d, gasLimit: %d, err: %v",
+					attempts, gasLimit, err)
+				time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
+				attempts++
+				gasLimit = uint64(float64(gasLimit) * gasLimitIncrease)
+				err = c.sequenceBatches(sequences, gasLimit)
 			}
 		case <-ctx.Done():
 			return
@@ -83,13 +95,7 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 }
 
 // SequenceBatches send SequenceBatches request to ethereum
-func (c *Client) sequenceBatches(sequences []ethmanTypes.Sequence) error {
-	gas, err := c.ethMan.EstimateGasSequenceBatches(sequences)
-	if err != nil {
-		return fmt.Errorf("failed to estimate gas for sending sequences batches, err: %v", err)
-	}
-
-	gasLimit := uint64(float64(gas) * gasLimitIncrease)
+func (c *Client) sequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64) error {
 	tx, err := c.ethMan.SequenceBatches(sequences, gasLimit)
 	if err != nil {
 		return err
