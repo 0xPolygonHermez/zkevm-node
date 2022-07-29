@@ -135,7 +135,9 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 		return err
 	}
 
-	return m.st.SetGenesis(m.ctx, genesisBlock, genesis, dbTx)
+	_, err = m.st.SetGenesis(m.ctx, genesisBlock, genesis, dbTx)
+
+	return err
 }
 
 // ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
