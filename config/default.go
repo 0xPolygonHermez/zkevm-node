@@ -24,7 +24,9 @@ PrivateKeyPassword = "testonly"
 
 [EthTxManager]
 MaxSendBatchTxRetries = 10
-FrequencyForResendingFailedSendBatchesInMilliseconds = 1000
+MaxVerifyBatchTxRetries = 10
+FrequencyForResendingFailedSendBatches = "1s"
+FrequencyForResendingFailedVerifyBatch = "1s"
 
 [RPC]
 Host = "0.0.0.0"

@@ -131,6 +131,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	go s.trackReorg(ctx)
 	go s.trackOldTxs(ctx)
+	go s.txManager.TrackSequenceBatchesSending(ctx)
 	ticker := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	defer ticker.Stop()
 	for {
@@ -179,15 +180,6 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	//if s.sequenceInProgress.IsEmpty() {
-	//	newSequence, err := s.newSequence(ctx)
-	//	if err != nil {
-	//		log.Errorf("failed to create new sequence, err: %v", err)
-	//		return
-	//	}
-	//	s.sequenceInProgress = newSequence
-	//}
-
 	log.Info("synchronizer has synced last batch, checking if current sequence should be closed")
 	if s.shouldCloseSequenceInProgress(ctx) && !s.closeSequence(ctx) {
 		return
@@ -200,16 +192,10 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		if shouldCut {
 			log.Infof("current sequence should be cut")
 			cutSequence := s.closedSequences[len(s.closedSequences)-1]
-			if err := s.txManager.SequenceBatches(s.closedSequences); err != nil {
-				log.Errorf("failed to SequenceBatches, err: %v", err)
-				return
-			}
+			s.txManager.SequenceBatches(s.closedSequences)
 			s.closedSequences = []types.Sequence{cutSequence}
 		} else {
-			if err := s.txManager.SequenceBatches(s.closedSequences); err != nil {
-				log.Errorf("failed to SequenceBatches, err: %v", err)
-				return
-			}
+			s.txManager.SequenceBatches(s.closedSequences)
 			s.closedSequences = []types.Sequence{}
 		}
 	}

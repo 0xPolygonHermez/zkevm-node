@@ -27,6 +27,7 @@ type Client struct {
 
 	ethMan                 etherman
 	sequenceBatchesTxsChan chan sequenceBatchesTx
+	sequencesToSendChan    chan []ethmanTypes.Sequence
 	verifyBatchTxsChan     chan verifyBatchTx
 }
 
@@ -47,16 +48,42 @@ type verifyBatchTx struct {
 func New(cfg Config, ethMan etherman) *Client {
 	sequenceBatchesTxsChan := make(chan sequenceBatchesTx, sentEthTxsChanLen)
 	verifyBatchTxsChan := make(chan verifyBatchTx, sentEthTxsChanLen)
+	sequencesToSendChan := make(chan []ethmanTypes.Sequence, sentEthTxsChanLen)
 	return &Client{
 		cfg:                    cfg,
 		sequenceBatchesTxsChan: sequenceBatchesTxsChan,
+		sequencesToSendChan:    sequencesToSendChan,
 		verifyBatchTxsChan:     verifyBatchTxsChan,
 		ethMan:                 ethMan,
 	}
 }
 
+// TrackSequenceBatchesSending tracks and send sequences, that should be sent
+func (c *Client) TrackSequenceBatchesSending(ctx context.Context) {
+	for {
+		select {
+		case sequences := <-c.sequencesToSendChan:
+			err := c.sequenceBatches(sequences)
+			var attempts uint32
+			for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
+				log.Errorf("failed to sequence batches, trying once again, retry #%d, err: %v", attempts, err)
+				time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
+				attempts++
+				err = c.sequenceBatches(sequences)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// SequenceBatches send sequences to the channel
+func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
+	c.sequencesToSendChan <- sequences
+}
+
 // SequenceBatches send SequenceBatches request to ethereum
-func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) error {
+func (c *Client) sequenceBatches(sequences []ethmanTypes.Sequence) error {
 	gas, err := c.ethMan.EstimateGasSequenceBatches(sequences)
 	if err != nil {
 		return fmt.Errorf("failed to estimate gas for sending sequences batches, err: %v", err)
@@ -119,7 +146,7 @@ func (c *Client) resendSendBatchesTxIfNeeded(ctx context.Context, tx sequenceBat
 	)
 	hash := tx.hash
 	for !isTxSuccessful && counter <= c.cfg.MaxSendBatchTxRetries {
-		time.Sleep(time.Duration(c.cfg.FrequencyForResendingFailedSendBatchesInMilliseconds) * time.Millisecond)
+		time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 		receipt := c.getTxReceipt(ctx, hash)
 		if receipt == nil {
 			continue
@@ -153,7 +180,7 @@ func (c *Client) resendVerifyBatchTxIfNeeded(ctx context.Context, tx verifyBatch
 	)
 	hash := tx.hash
 	for !isTxSuccessful && counter <= c.cfg.MaxVerifyBatchTxRetries {
-		time.Sleep(time.Duration(c.cfg.FrequencyForResendingFailedVerifyBatchInMilliseconds) * time.Millisecond)
+		time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
 		receipt := c.getTxReceipt(ctx, hash)
 		if receipt == nil {
 			continue
