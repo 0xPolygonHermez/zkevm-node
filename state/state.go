@@ -701,22 +701,22 @@ func (s *State) GetTree() *merkletree.StateTree {
 }
 
 // SetGenesis populates state with genesis information
-func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, dbTx pgx.Tx) error {
-	if dbTx == nil {
-		return ErrDBTxNil
-	}
-
+func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, dbTx pgx.Tx) ([]byte, error) {
 	var (
 		root    common.Hash
 		newRoot []byte
 		err     error
 	)
 
+	if dbTx == nil {
+		return newRoot, ErrDBTxNil
+	}
+
 	if genesis.Balances != nil {
 		for address, balance := range genesis.Balances {
 			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
 			if err != nil {
-				return err
+				return newRoot, err
 			}
 		}
 	}
@@ -725,7 +725,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		for address, sc := range genesis.SmartContracts {
 			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot)
 			if err != nil {
-				return err
+				return newRoot, err
 			}
 		}
 	}
@@ -735,7 +735,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 			for key, value := range storage {
 				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
 				if err != nil {
-					return err
+					return newRoot, err
 				}
 			}
 		}
@@ -745,7 +745,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		for address, nonce := range genesis.Nonces {
 			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
 			if err != nil {
-				return err
+				return newRoot, err
 			}
 		}
 	}
@@ -757,7 +757,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	// store L1 block related to genesis batch
 	err = s.AddBlock(ctx, &block, dbTx)
 	if err != nil {
-		return err
+		return newRoot, err
 	}
 
 	// store genesis batch
@@ -774,7 +774,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 
 	err = s.storeGenesisBatch(ctx, batch, dbTx)
 	if err != nil {
-		return err
+		return newRoot, err
 	}
 
 	// mark the genesis batch as virtualized
@@ -786,7 +786,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	}
 	err = s.AddVirtualBatch(ctx, virtualBatch, dbTx)
 	if err != nil {
-		return err
+		return newRoot, err
 	}
 
 	// mark the genesis batch as verified/consolidated
@@ -798,7 +798,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	}
 	err = s.AddVerifiedBatch(ctx, verifiedBatch, dbTx)
 	if err != nil {
-		return err
+		return newRoot, err
 	}
 
 	// store L2 genesis block
@@ -813,7 +813,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	l2Block.ReceivedAt = receivedAt
 
-	return s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, l2Block, []*types.Receipt{}, dbTx)
+	return newRoot, s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, l2Block, []*types.Receipt{}, dbTx)
 }
 
 // CheckSupersetBatchTransactions verifies that processedTransactions is a
