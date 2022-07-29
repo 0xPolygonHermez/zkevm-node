@@ -34,55 +34,65 @@ const (
 	BROADCAST = "broadcast-trusted-state"
 )
 
+var (
+	configFileFlag = cli.StringFlag{
+		Name:     config.FlagCfg,
+		Aliases:  []string{"c"},
+		Usage:    "Configuration `FILE`",
+		Required: false,
+	}
+	networkFlag = cli.StringFlag{
+		Name:     config.FlagNetwork,
+		Aliases:  []string{"n"},
+		Usage:    "Network: mainnet, testnet, internaltestnet, local, custom, merge. By default it uses mainnet",
+		Required: false,
+	}
+	customNetworkFlag = cli.StringFlag{
+		Name:    config.FlagNetworkCfg,
+		Aliases: []string{"nc"},
+		Usage:   "Custom network configuration `FILE` when using --network custom parameter",
+	}
+	baseNetworkFlag = cli.StringFlag{
+		Name:     config.FlagNetworkBase,
+		Aliases:  []string{"nb"},
+		Usage:    "Base existing network configuration to be merged with the custom configuration passed with --network-cfg, by default it uses internaltestnet",
+		Value:    "internaltestnet",
+		Required: false,
+	}
+	yesFlag = cli.BoolFlag{
+		Name:     config.FlagYes,
+		Aliases:  []string{"y"},
+		Usage:    "Automatically accepts any confirmation to execute the command",
+		Required: false,
+	}
+	componentsFlag = cli.StringSliceFlag{
+		Name:     config.FlagComponents,
+		Aliases:  []string{"co"},
+		Usage:    "List of components to run",
+		Required: false,
+		Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER),
+	}
+	httpAPIFlag = cli.StringSliceFlag{
+		Name:     config.FlagHTTPAPI,
+		Aliases:  []string{"ha"},
+		Usage:    fmt.Sprintf("List of JSON RPC apis to be exposed by the server: --http.api=%v,%v,%v,%v,%v,%v", jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIDebug, jsonrpc.APIZKEVM, jsonrpc.APITxPool, jsonrpc.APIWeb3),
+		Required: false,
+		Value:    cli.NewStringSlice(jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIZKEVM, jsonrpc.APITxPool, jsonrpc.APIWeb3),
+	}
+)
+
 func main() {
 	app := cli.NewApp()
 	app.Name = appName
 	app.Version = version
 	flags := []cli.Flag{
-		&cli.StringFlag{
-			Name:     config.FlagCfg,
-			Aliases:  []string{"c"},
-			Usage:    "Configuration `FILE`",
-			Required: false,
-		},
-		&cli.StringFlag{
-			Name:     config.FlagNetwork,
-			Aliases:  []string{"n"},
-			Usage:    "Network: mainnet, testnet, internaltestnet, local, custom, merge. By default it uses mainnet",
-			Required: false,
-		},
-		&cli.StringFlag{
-			Name:    config.FlagNetworkCfg,
-			Aliases: []string{"nc"},
-			Usage:   "Custom network configuration `FILE` when using --network custom parameter",
-		},
-		&cli.StringFlag{
-			Name:     config.FlagNetworkBase,
-			Aliases:  []string{"nb"},
-			Usage:    "Base existing network configuration to be merged with the custom configuration passed with --network-cfg, by default it uses internaltestnet",
-			Value:    "internaltestnet",
-			Required: false,
-		},
-		&cli.BoolFlag{
-			Name:     config.FlagYes,
-			Aliases:  []string{"y"},
-			Usage:    "Automatically accepts any confirmation to execute the command",
-			Required: false,
-		},
-		&cli.StringSliceFlag{
-			Name:     config.FlagComponents,
-			Aliases:  []string{"co"},
-			Usage:    "List of components to run",
-			Required: false,
-			Value:    cli.NewStringSlice(AGGREGATOR, SEQUENCER, RPC, SYNCHRONIZER),
-		},
-		&cli.StringSliceFlag{
-			Name:     config.FlagHTTPAPI,
-			Aliases:  []string{"ha"},
-			Usage:    fmt.Sprintf("List of JSON RPC apis to be exposed by the server: --http.api=%v,%v,%v,%v,%v,%v", jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIDebug, jsonrpc.APIZKEVM, jsonrpc.APITxPool, jsonrpc.APIWeb3),
-			Required: false,
-			Value:    cli.NewStringSlice(jsonrpc.APIEth, jsonrpc.APINet, jsonrpc.APIZKEVM, jsonrpc.APITxPool, jsonrpc.APIWeb3),
-		},
+		&configFileFlag,
+		&networkFlag,
+		&customNetworkFlag,
+		&baseNetworkFlag,
+		&yesFlag,
+		&componentsFlag,
+		&httpAPIFlag,
 	}
 	app.Commands = []*cli.Command{
 		{
@@ -117,6 +127,13 @@ func main() {
 			Usage:   "Encrypts the privatekey with a password and create a keystore file",
 			Action:  encryptKey,
 			Flags:   encryptKeyFlags,
+		},
+		{
+			Name:    "dumpState",
+			Aliases: []string{},
+			Usage:   "Dumps the state in a JSON file, for debug purposes",
+			Action:  dumpState,
+			Flags:   dumpStateFlags,
 		},
 	}
 

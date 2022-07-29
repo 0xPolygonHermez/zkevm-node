@@ -175,12 +175,12 @@ func (s *Sequencer) trackOldTxs(ctx context.Context) {
 
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	if !s.isSynced(ctx) {
-		log.Infof("wait for synchronizer to sync last batch")
+		log.Info("wait for synchronizer to sync last batch")
 		waitTick(ctx, ticker)
 		return
 	}
 
-	log.Infof("synchronizer has synced last batch, checking if current sequence should be closed")
+	log.Info("synchronizer has synced last batch, checking if current sequence should be closed")
 	if s.shouldCloseSequenceInProgress(ctx) && !s.closeSequence(ctx) {
 		return
 	}
@@ -200,7 +200,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		}
 	}
 
-	log.Infof("getting pending tx from the pool")
+	log.Info("getting pending tx from the pool")
 	zkCounters := s.calculateZkCounters()
 	if zkCounters.IsZkCountersBelowZero() {
 		s.closeSequence(ctx)
@@ -287,8 +287,8 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	var txState pool.TxState = pool.TxStateSelected
-	var txUpdateMsg string = fmt.Sprintf("Tx %q added into the state. Marking tx as selected in the pool", tx.Hash())
+	var txState = pool.TxStateSelected
+	var txUpdateMsg = fmt.Sprintf("Tx %q added into the state. Marking tx as selected in the pool", tx.Hash())
 	if _, ok := unprocessedTxs[tx.Hash().String()]; ok {
 		txState = pool.TxStatePending
 		txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as pending to return the pool", tx.Hash())

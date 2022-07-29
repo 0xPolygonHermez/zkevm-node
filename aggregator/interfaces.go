@@ -6,7 +6,6 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -29,12 +28,15 @@ type aggregatorTxProfitabilityChecker interface {
 	IsProfitable(context.Context, *big.Int) (bool, error)
 }
 
-// stateInterface gathers the methods to interract with the state.
+// proverClient is a wrapper to the prover service
+type proverClient interface {
+	GetGenProofID(ctx context.Context, inputProver *pb.InputProver) (string, error)
+	GetResGetProof(ctx context.Context, genProofID string, batchNumber uint64) (*pb.GetProofResponse, error)
+}
+
+// stateInterface gathers the methods to interact with the state.
 type stateInterface interface {
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error)
-	GetLastVerifiedBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
-	GetStateRootByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
-	GetLocalExitRootByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
-	GetBlockNumVirtualBatchByBatchNum(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (uint64, error)
+	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 }

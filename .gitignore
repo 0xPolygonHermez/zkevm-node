@@ -13,3 +13,4 @@
 /test/contracts/bin/**/*.abi
 
 **/.DS_Store
+.vscode
