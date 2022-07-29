@@ -90,10 +90,13 @@ func TestBuildInputProver(t *testing.T) {
 		newLocalExitRoot = common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0")
 		seqAddress       = common.HexToAddress("0x123")
 		batchL2Data      = []byte("data")
+		previousBatch    = &state.Batch{
+			BatchNumber:   1,
+			StateRoot:     oldStateRoot,
+			LocalExitRoot: oldLocalExitRoot,
+		}
 	)
-	st.On("GetStateRootByBatchNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(oldStateRoot, nil)
-	st.On("GetStateRootByBatchNumber", mock.Anything, a.lastVerifiedBatchNum+1, nil).Return(newStateRoot, nil)
-	st.On("GetLocalExitRootByBatchNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(oldLocalExitRoot, nil)
+	st.On("GetBatchByNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(previousBatch, nil)
 
 	ctx := context.Background()
 	tx := *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
@@ -101,6 +104,7 @@ func TestBuildInputProver(t *testing.T) {
 		BatchNumber:    2,
 		Coinbase:       seqAddress,
 		BatchL2Data:    batchL2Data,
+		StateRoot:      newStateRoot,
 		LocalExitRoot:  newLocalExitRoot,
 		Timestamp:      time.Now(),
 		Transactions:   []types.Transaction{tx},
@@ -152,7 +156,7 @@ func TestBuildInputProverError(t *testing.T) {
 		seqAddress       = common.HexToAddress("0x123")
 		batchL2Data      = []byte("data")
 	)
-	st.On("GetStateRootByBatchNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(nil, errors.New("error"))
+	st.On("GetBatchByNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(nil, errors.New("error"))
 
 	ctx := context.Background()
 	tx := *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
@@ -196,9 +200,15 @@ func TestAggregatorFlow(t *testing.T) {
 		seqAddress       = common.HexToAddress("0x123")
 		verifiedBatch    = &state.VerifiedBatch{BatchNumber: 1}
 		tx               = *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
-		batchToVerify    = &state.Batch{
+		previousBatch    = &state.Batch{
+			BatchNumber:   1,
+			StateRoot:     oldStateRoot,
+			LocalExitRoot: oldLocalExitRoot,
+		}
+		batchToVerify = &state.Batch{
 			BatchNumber:    2,
 			Coinbase:       seqAddress,
+			StateRoot:      newStateRoot,
 			LocalExitRoot:  newLocalExitRoot,
 			Timestamp:      time.Now(),
 			Transactions:   []types.Transaction{tx},
@@ -235,10 +245,8 @@ func TestAggregatorFlow(t *testing.T) {
 	)
 	blockTimestampByte := make([]byte, 8) //nolint:gomnd
 	binary.BigEndian.PutUint64(blockTimestampByte, uint64(batchToVerify.Timestamp.Unix()))
-	rawTxs, err := state.EncodeTransactions(batchToVerify.Transactions)
-	require.NoError(t, err)
 	batchHashData := common.BytesToHash(keccak256.Hash(
-		rawTxs,
+		batchToVerify.BatchL2Data,
 		batchToVerify.GlobalExitRoot[:],
 		blockTimestampByte,
 		batchToVerify.Coinbase[:],
@@ -251,9 +259,7 @@ func TestAggregatorFlow(t *testing.T) {
 	// get batch to verify
 	st.On("GetVirtualBatchByNumber", mock.Anything, a.lastVerifiedBatchNum+1, nil).Return(batchToVerify, nil)
 	// build input prover
-	st.On("GetStateRootByBatchNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(oldStateRoot, nil)
-	st.On("GetStateRootByBatchNumber", mock.Anything, a.lastVerifiedBatchNum+1, nil).Return(newStateRoot, nil)
-	st.On("GetLocalExitRootByBatchNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(oldLocalExitRoot, nil)
+	st.On("GetBatchByNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(previousBatch, nil)
 	// gen proof id
 	proverClient.On("GetGenProofID", mock.Anything, expectedInputProver).Return("1", nil)
 	// get proof

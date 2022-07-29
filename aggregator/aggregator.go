@@ -176,52 +176,34 @@ func (a *Aggregator) getBatchToVerify(ctx context.Context) (*state.Batch, error)
 }
 
 func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.Batch) (*pb.InputProver, error) {
-	oldStateRoot, err := a.State.GetStateRootByBatchNumber(ctx, a.lastVerifiedBatchNum, nil)
-	if err != nil && err != state.ErrNotFound {
-		return nil, fmt.Errorf("failed to get current state root, err: %v", err)
+	previousBatch, err := a.State.GetBatchByNumber(ctx, batchToVerify.BatchNumber-1, nil)
+	if err != nil && err != state.ErrStateNotSynchronized {
+		return nil, fmt.Errorf("failed to get previous batch, err: %v", err)
 	}
-
-	newStateRoot, err := a.State.GetStateRootByBatchNumber(ctx, batchToVerify.BatchNumber, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get state root to consolidate, err: %v", err)
-	}
-
-	rawTxs, err := state.EncodeTransactions(batchToVerify.Transactions)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode transactions, err: %v", err)
-	}
-	globalExitRoot := batchToVerify.GlobalExitRoot
-
-	oldLocalExitRoot, err := a.State.GetLocalExitRootByBatchNumber(ctx, a.lastVerifiedBatchNum, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get local exit root for batch %d, err: %v", a.lastVerifiedBatchNum, err)
-	}
-	newLocalExitRoot := batchToVerify.LocalExitRoot
-	db := map[string]string{}
 
 	blockTimestampByte := make([]byte, 8) //nolint:gomnd
 	binary.BigEndian.PutUint64(blockTimestampByte, uint64(batchToVerify.Timestamp.Unix()))
 	batchHashData := common.BytesToHash(keccak256.Hash(
-		rawTxs,
-		globalExitRoot[:],
+		batchToVerify.BatchL2Data,
+		batchToVerify.GlobalExitRoot[:],
 		blockTimestampByte,
 		batchToVerify.Coinbase[:],
 	))
 	inputProver := &pb.InputProver{
 		PublicInputs: &pb.PublicInputs{
-			OldStateRoot:     oldStateRoot.String(),
-			OldLocalExitRoot: oldLocalExitRoot.String(),
-			NewStateRoot:     newStateRoot.String(),
-			NewLocalExitRoot: newLocalExitRoot.String(),
+			OldStateRoot:     previousBatch.StateRoot.String(),
+			OldLocalExitRoot: previousBatch.LocalExitRoot.String(),
+			NewStateRoot:     batchToVerify.StateRoot.String(),
+			NewLocalExitRoot: batchToVerify.LocalExitRoot.String(),
 			SequencerAddr:    batchToVerify.Coinbase.String(),
 			BatchHashData:    batchHashData.String(),
 			BatchNum:         uint32(batchToVerify.BatchNumber),
 			EthTimestamp:     uint64(batchToVerify.Timestamp.Unix()),
 		},
-		GlobalExitRoot:    globalExitRoot.String(),
+		GlobalExitRoot:    batchToVerify.GlobalExitRoot.String(),
 		BatchL2Data:       hex.EncodeToString(batchToVerify.BatchL2Data),
-		Db:                db,
-		ContractsBytecode: db,
+		Db:                map[string]string{},
+		ContractsBytecode: map[string]string{},
 	}
 
 	return inputProver, nil

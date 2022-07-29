@@ -6,7 +6,6 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -39,6 +38,5 @@ type proverClient interface {
 type stateInterface interface {
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error)
 	GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
-	GetStateRootByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
-	GetLocalExitRootByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
+	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 }
