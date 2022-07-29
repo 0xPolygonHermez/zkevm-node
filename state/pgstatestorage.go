@@ -34,6 +34,7 @@ const (
 	getVerifiedBatchSQL                      = "SELECT block_num, batch_num, tx_hash, aggregator FROM state.verified_batch WHERE batch_num = $1"
 	getLastBatchNumberSQL                    = "SELECT batch_num FROM state.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastNBatchesSQL                       = "SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data from state.batch ORDER BY batch_num DESC LIMIT $1"
+	getLastNBatchesByBlockNumberSQL          = "SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, l.header->>'stateRoot' as l2_block_state_root from state.batch b, state.l2block l where l.block_num = $1 and b.batch_num <= l.batch_num order by b.batch_num DESC LIMIT $2"
 	getLastBatchTimeSQL                      = "SELECT timestamp FROM state.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchNumSQL                = "SELECT COALESCE(MAX(batch_num), 0) FROM state.virtual_batch"
 	getLastVirtualBatchBlockNumSQL           = "SELECT block_num FROM state.virtual_batch ORDER BY batch_num DESC LIMIT 1"
@@ -405,6 +406,31 @@ func (p *PostgresStorage) GetLastNBatches(ctx context.Context, numBatches uint, 
 	return batches, nil
 }
 
+// GetLastNBatchesByBlockNumber returns the last numBatches batches along with the block state root by blockNumber
+func (p *PostgresStorage) GetLastNBatchesByBlockNumber(ctx context.Context, blockNumber uint64, numBatches uint, dbTx pgx.Tx) ([]*Batch, common.Hash, error) {
+	var l2BlockStateRoot common.Hash
+	e := p.getExecQuerier(dbTx)
+	rows, err := e.Query(ctx, getLastNBatchesByBlockNumberSQL, blockNumber, numBatches)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, l2BlockStateRoot, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, l2BlockStateRoot, err
+	}
+	defer rows.Close()
+
+	batches := make([]*Batch, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		batch, l2BlockStateRoot, err := scanBatchWithL2BlockStateRoot(rows)
+		if err != nil {
+			return nil, l2BlockStateRoot, err
+		}
+		batches = append(batches, &batch)
+	}
+
+	return batches, l2BlockStateRoot, nil
+}
+
 // GetLastBatchNumber get last trusted batch number
 func (p *PostgresStorage) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	var batchNumber uint64
@@ -566,6 +592,39 @@ func scanBatch(row pgx.Row) (Batch, error) {
 
 	batch.Coinbase = common.HexToAddress(coinbaseStr)
 	return batch, nil
+}
+
+func scanBatchWithL2BlockStateRoot(row pgx.Row) (Batch, common.Hash, error) {
+	batch := Batch{}
+	var (
+		gerStr              string
+		lerStr              *string
+		stateStr            *string
+		coinbaseStr         string
+		l2BlockStateRootStr string
+	)
+	if err := row.Scan(
+		&batch.BatchNumber,
+		&gerStr,
+		&lerStr,
+		&stateStr,
+		&batch.Timestamp,
+		&coinbaseStr,
+		&batch.BatchL2Data,
+		&l2BlockStateRootStr,
+	); err != nil {
+		return batch, common.Hash{}, err
+	}
+	batch.GlobalExitRoot = common.HexToHash(gerStr)
+	if lerStr != nil {
+		batch.LocalExitRoot = common.HexToHash(*lerStr)
+	}
+	if stateStr != nil {
+		batch.StateRoot = common.HexToHash(*stateStr)
+	}
+
+	batch.Coinbase = common.HexToAddress(coinbaseStr)
+	return batch, common.HexToHash(l2BlockStateRootStr), nil
 }
 
 // GetEncodedTransactionsByBatchNumber returns the encoded field of all

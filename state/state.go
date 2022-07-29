@@ -207,7 +207,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			Coinbase:         senderAddress.String(),
 			BatchL2Data:      batchL2Data,
 			OldStateRoot:     stateRoot.Bytes(),
-			UpdateMerkleTree: 0,
+			UpdateMerkleTree: cFalse,
 		}
 
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -692,7 +692,55 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
-	panic("not implemented yet")
+	result := new(runtime.ExecutionResult)
+
+	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByBlockNumber(ctx, blockNumber, two, dbTx)
+	if err != nil {
+		result.Err = err
+		return result
+	}
+
+	// Get latest batch from the database to get GER and Timestamp
+	lastBatch := lastBatches[0]
+	// Get batch before latest to get state root and local exit root
+	previousBatch := lastBatches[1]
+
+	batchL2Data, err := EncodeUnsignedTransaction(*tx)
+	if err != nil {
+		log.Errorf("error encoding unsigned transaction ", err)
+		result.Err = err
+		return result
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchL2Data:      batchL2Data,
+		From:             senderAddress.String(),
+		OldStateRoot:     l2BlockStateRoot.Bytes(),
+		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree: cFalse,
+	}
+
+	// Send Batch to the Executor
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	if err != nil {
+		log.Errorf("error processing unsigned transaction ", err)
+		result.Err = err
+		return result
+	}
+	response := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse).Responses[0]
+
+	// Todo populate result
+	result.ReturnValue = response.ReturnValue
+	result.GasLeft = response.GasLeft
+	result.GasUsed = response.GasUsed
+	result.Err = fmt.Errorf(response.Error)
+	result.CreateAddress = response.CreateAddress
+	result.StateRoot = response.StateRoot.Bytes()
+
+	return result
 }
 
 // GetTree returns State inner tree
