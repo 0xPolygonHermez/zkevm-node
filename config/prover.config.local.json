@@ -60,7 +60,7 @@
     "binaryConstPolsFile": "binary.constants.bin",
     "starkInfoFile": "zkevm.starkinfo.json",
 
-    "databaseURL": "postgresql://test_user:test_password@zkevm-db:5432/test_db",
+    "databaseURL": "postgresql://prover_user:prover_pass@zkevm-db:5432/prover_db",
     "dbTableName": "state.merkletree",
     "dbAsyncWrite": false,
     "cleanerPollingPeriod": 600,

@@ -90,7 +90,7 @@ func (s *ClientSynchronizer) Sync() error {
 				ParentHash:  header.ParentHash,
 				ReceivedAt:  time.Unix(int64(header.Time), 0),
 			}
-			if err := s.state.SetGenesis(s.ctx, *lastEthBlockSynced, s.genesis, dbTx); err != nil {
+			if _, err := s.state.SetGenesis(s.ctx, *lastEthBlockSynced, s.genesis, dbTx); err != nil {
 				log.Fatal("error setting genesis: ", err)
 			}
 		} else {
