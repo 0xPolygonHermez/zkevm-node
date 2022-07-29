@@ -198,7 +198,7 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 	if err != nil {
 		return 0, err
 	}
-	return tx.Gas(), nil
+	return tx.Cost().Uint64(), nil
 }
 
 // SequenceBatches send sequences of batches to the ethereum
