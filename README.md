@@ -117,7 +117,7 @@ It's recommended to use `make` for building, and testing the code, ... Run `make
 
 ## Contribute
 
-Before opening a pull request, please read this [guide](docs/contribute-guie.md)
+Before opening a pull request, please read this [guide](CONTRIBUTING.md)
 
 ## Disclaimer
 
