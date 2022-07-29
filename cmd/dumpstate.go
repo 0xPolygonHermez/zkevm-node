@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/urfave/cli/v2"
 )
 
@@ -40,8 +41,35 @@ var dumpStateFlags = []cli.Flag{
 
 type dumpedState struct {
 	Description string
-	Genesis     state.Genesis
+	Genesis     genesis
 	Batches     []batchMeta
+}
+
+type genesis state.Genesis
+
+func (g genesis) MarshalJSON() ([]byte, error) {
+	type Alias genesis
+	contractsHex := map[common.Address]string{}
+	for addr, code := range g.SmartContracts {
+		contractsHex[addr] = "0x" + hex.EncodeToString(code)
+	}
+	storageHex := map[common.Address]map[string]string{}
+	for addr, storage := range g.Storage {
+		addrStorage := map[string]string{}
+		for position, value := range storage {
+			addrStorage["0x"+position.Text(16)] = "0x" + value.Text(16)
+		}
+		storageHex[addr] = addrStorage
+	}
+	return json.Marshal(&struct {
+		Alias
+		SmartContracts map[common.Address]string            `json:"smartContracts"`
+		Storage        map[common.Address]map[string]string `json:"storage"`
+	}{
+		Alias:          (Alias)(g),
+		SmartContracts: contractsHex,
+		Storage:        storageHex,
+	})
 }
 
 type batchMeta struct {
@@ -90,8 +118,8 @@ func dumpState(ctx *cli.Context) error {
 	}
 	stateDB := state.NewPostgresStorage(sqlDB)
 
-	// Load genesis
-	genesis := state.Genesis{
+	// Load g
+	g := state.Genesis{
 		Balances:       c.NetworkConfig.Genesis.Balances,
 		SmartContracts: c.NetworkConfig.Genesis.SmartContracts,
 		Storage:        c.NetworkConfig.Genesis.Storage,
@@ -99,7 +127,7 @@ func dumpState(ctx *cli.Context) error {
 	}
 	dump := dumpedState{
 		Description: description,
-		Genesis:     genesis,
+		Genesis:     genesis(g),
 	}
 
 	// Load batches
