@@ -48,11 +48,17 @@ type dumpedState struct {
 type genesis state.Genesis
 
 func (g genesis) MarshalJSON() ([]byte, error) {
-	type Alias genesis
+	// Balance in hexa
+	balancesHex := map[common.Address]string{}
+	for addr, balance := range g.Balances {
+		balancesHex[addr] = "0x" + balance.Text(16)
+	}
+	// Smart contract code in hexa
 	contractsHex := map[common.Address]string{}
 	for addr, code := range g.SmartContracts {
 		contractsHex[addr] = "0x" + hex.EncodeToString(code)
 	}
+	// Storage position and values in hexa
 	storageHex := map[common.Address]map[string]string{}
 	for addr, storage := range g.Storage {
 		addrStorage := map[string]string{}
@@ -61,12 +67,16 @@ func (g genesis) MarshalJSON() ([]byte, error) {
 		}
 		storageHex[addr] = addrStorage
 	}
+	// Create JSON
+	type Alias genesis
 	return json.Marshal(&struct {
 		Alias
+		Balances       map[common.Address]string            `json:"balances"`
 		SmartContracts map[common.Address]string            `json:"smartContracts"`
 		Storage        map[common.Address]map[string]string `json:"storage"`
 	}{
 		Alias:          (Alias)(g),
+		Balances:       balancesHex,
 		SmartContracts: contractsHex,
 		Storage:        storageHex,
 	})
