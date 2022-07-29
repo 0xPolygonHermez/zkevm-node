@@ -123,7 +123,7 @@ func TestIsBatchConsolidated(t *testing.T) {
 		{
 			Name:           "Failed to query the consolidation status",
 			ExpectedResult: false,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get batch info from state"),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to check if the batch is consolidated"),
 			SetupMocks: func(m *mocks) {
 				m.DbTx.
 					On("Rollback", context.Background()).
@@ -137,7 +137,7 @@ func TestIsBatchConsolidated(t *testing.T) {
 
 				m.State.
 					On("IsBatchConsolidated", context.Background(), 1, m.DbTx).
-					Return(true, errors.New("failed to get batch info from state")).
+					Return(true, errors.New("failed to check if the batch is consolidated")).
 					Once()
 			},
 		},
@@ -201,7 +201,7 @@ func TestIsBatchVirtualized(t *testing.T) {
 		{
 			Name:           "Failed to query the virtualization status",
 			ExpectedResult: false,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to get batch info from state"),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to check if the batch is virtualized"),
 			SetupMocks: func(m *mocks) {
 				m.DbTx.
 					On("Rollback", context.Background()).
@@ -215,7 +215,7 @@ func TestIsBatchVirtualized(t *testing.T) {
 
 				m.State.
 					On("IsBatchVirtualized", context.Background(), 1, m.DbTx).
-					Return(true, errors.New("failed to get batch info from state")).
+					Return(true, errors.New("failed to check if the batch is virtualized")).
 					Once()
 			},
 		},
