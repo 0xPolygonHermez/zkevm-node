@@ -84,10 +84,10 @@ func TestBuildInputProver(t *testing.T) {
 		lastVerifiedBatchNum: 1,
 	}
 	var (
-		oldStateRoot     = common.HexToHash("oldroot")
-		newStateRoot     = common.HexToHash("newroot")
-		oldLocalExitRoot = common.HexToHash("oldleroot")
-		newLocalExitRoot = common.HexToHash("newleroot")
+		oldStateRoot     = common.HexToHash("0xbdde84a5932a2f0a1a4c6c51f3b64ea265d4f1461749298cfdd09b31122ce0d6")
+		newStateRoot     = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
+		oldLocalExitRoot = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
+		newLocalExitRoot = common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0")
 		seqAddress       = common.HexToAddress("0x123")
 		batchL2Data      = []byte("data")
 	)
@@ -104,7 +104,7 @@ func TestBuildInputProver(t *testing.T) {
 		LocalExitRoot:  newLocalExitRoot,
 		Timestamp:      time.Now(),
 		Transactions:   []types.Transaction{tx},
-		GlobalExitRoot: common.HexToHash("geroot"),
+		GlobalExitRoot: common.HexToHash("0xc1df82d9c4b87413eae2ef048f94b4d3554cea73d92b0f7af96e0271c691e2bb"),
 	}
 
 	expectedInputProver := &pb.InputProver{
@@ -148,7 +148,7 @@ func TestBuildInputProverError(t *testing.T) {
 		lastVerifiedBatchNum: 1,
 	}
 	var (
-		newLocalExitRoot = common.HexToHash("newleroot")
+		newLocalExitRoot = common.HexToHash("0xbdde84a5932a2f0a1a4c6c51f3b64ea265d4f1461749298cfdd09b31122ce0d6")
 		seqAddress       = common.HexToAddress("0x123")
 		batchL2Data      = []byte("data")
 	)
@@ -163,7 +163,7 @@ func TestBuildInputProverError(t *testing.T) {
 		LocalExitRoot:  newLocalExitRoot,
 		Timestamp:      time.Now(),
 		Transactions:   []types.Transaction{tx},
-		GlobalExitRoot: common.HexToHash("geroot"),
+		GlobalExitRoot: common.HexToHash("0xc1df82d9c4b87413eae2ef048f94b4d3554cea73d92b0f7af96e0271c691e2bb"),
 	}
 
 	ip, err := a.buildInputProver(ctx, batchToVerify)
@@ -178,11 +178,7 @@ func TestAggregatorFlow(t *testing.T) {
 	proverClient := new(aggrMocks.ProverClientMock)
 	a := Aggregator{
 		cfg: Config{
-			IntervalToConsolidateState:                          cfgTypes.NewDuration(1 * time.Second),
-			IntervalFrequencyToGetProofGenerationStateInSeconds: cfgTypes.Duration{},
-			TxProfitabilityCheckerType:                          "",
-			TxProfitabilityMinReward:                            TokenAmountWithDecimals{},
-			IntervalAfterWhichBatchConsolidateAnyway:            cfgTypes.Duration{},
+			IntervalToConsolidateState: cfgTypes.NewDuration(1 * time.Second),
 		},
 		State:                st,
 		EthTxManager:         ethTxManager,
@@ -193,10 +189,10 @@ func TestAggregatorFlow(t *testing.T) {
 		batchesSent:          make(map[uint64]bool),
 	}
 	var (
-		oldStateRoot     = common.HexToHash("oldroot")
-		newStateRoot     = common.HexToHash("newroot")
-		oldLocalExitRoot = common.HexToHash("oldleroot")
-		newLocalExitRoot = common.HexToHash("newleroot")
+		oldStateRoot     = common.HexToHash("0xbdde84a5932a2f0a1a4c6c51f3b64ea265d4f1461749298cfdd09b31122ce0d6")
+		newStateRoot     = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
+		oldLocalExitRoot = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
+		newLocalExitRoot = common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0")
 		seqAddress       = common.HexToAddress("0x123")
 		verifiedBatch    = &state.VerifiedBatch{BatchNumber: 1}
 		tx               = *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
@@ -206,7 +202,7 @@ func TestAggregatorFlow(t *testing.T) {
 			LocalExitRoot:  newLocalExitRoot,
 			Timestamp:      time.Now(),
 			Transactions:   []types.Transaction{tx},
-			GlobalExitRoot: common.HexToHash("geroot"),
+			GlobalExitRoot: common.HexToHash("0xc1df82d9c4b87413eae2ef048f94b4d3554cea73d92b0f7af96e0271c691e2bb"),
 		}
 		expectedInputProver = &pb.InputProver{
 			PublicInputs: &pb.PublicInputs{

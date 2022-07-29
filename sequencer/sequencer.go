@@ -174,7 +174,7 @@ func (s *Sequencer) trackOldTxs(ctx context.Context) {
 
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	if !s.isSynced(ctx) {
-		log.Infof("wait for synchronizer to sync last batch")
+		log.Info("wait for synchronizer to sync last batch")
 		waitTick(ctx, ticker)
 		return
 	}
@@ -188,7 +188,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	//	s.sequenceInProgress = newSequence
 	//}
 
-	log.Infof("synchronizer has synced last batch, checking if current sequence should be closed")
+	log.Info("synchronizer has synced last batch, checking if current sequence should be closed")
 	if s.shouldCloseSequenceInProgress(ctx) && !s.closeSequence(ctx) {
 		return
 	}
@@ -214,7 +214,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		}
 	}
 
-	log.Infof("getting pending tx from the pool")
+	log.Info("getting pending tx from the pool")
 	zkCounters := s.calculateZkCounters()
 	if zkCounters.IsZkCountersBelowZero() {
 		s.closeSequence(ctx)

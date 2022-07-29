@@ -74,20 +74,19 @@ func (a *Aggregator) Start(ctx context.Context) {
 }
 
 func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
-	// 1. check, if state is synced
+	log.Info("checking if network is synced")
 	for !a.isSynced(ctx) {
 		log.Infof("waiting for synchronizer to sync...")
 		waitTick(ctx, ticker)
 		continue
 	}
-	// 2. find next batch to verify
+	log.Info("network is synced, getting batch to verify")
 	batchToVerify, err := a.getBatchToVerify(ctx)
 	if err != nil {
 		waitTick(ctx, ticker)
 		return
 	}
-	// 3. check if it's profitable or not
-	// check is it profitable to aggregate txs or not
+	log.Infof("checking profitability to aggregate batch, batchNumber: %d", batchToVerify.BatchNumber)
 	// pass matic collateral as zero here, bcs in smart contract fee for aggregator is not defined yet
 	isProfitable, err := a.ProfitabilityChecker.IsProfitable(ctx, big.NewInt(0))
 	if err != nil {
@@ -100,7 +99,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	// 4. send zki + txs to the prover
+	log.Infof("sending zki + batch to the prover, batchNumber: %d", batchToVerify.BatchNumber)
 	inputProver, err := a.buildInputProver(ctx, batchToVerify)
 	if err != nil {
 		log.Warnf("failed to build input prover, err: %v", err)
@@ -120,7 +119,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	}
 	a.compareInputHashes(inputProver, resGetProof)
 
-	// 4. send proof + txs to the SC
+	log.Infof("sending verified proof to the ethereum smart contract, batchNumber", batchToVerify.BatchNumber)
 	err = a.EthTxManager.VerifyBatch(batchToVerify.BatchNumber, resGetProof)
 	if err != nil {
 		log.Warnf("failed to send request to consolidate batch to ethereum, batch number: %d, err: %v",
@@ -128,6 +127,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 	a.batchesSent[batchToVerify.BatchNumber] = true
+	log.Infof("proof for the batch was send, batchNumber: %d", batchToVerify.BatchNumber)
 }
 
 func (a *Aggregator) isSynced(ctx context.Context) bool {
@@ -139,14 +139,14 @@ func (a *Aggregator) isSynced(ctx context.Context) bool {
 	if lastVerifiedBatch != nil {
 		a.lastVerifiedBatchNum = lastVerifiedBatch.BatchNumber
 	}
-	lastConsolidatedEthBatchNum, err := a.Ethman.GetLatestVerifiedBatchNum()
+	lastVerifiedEthBatchNum, err := a.Ethman.GetLatestVerifiedBatchNum()
 	if err != nil {
 		log.Warnf("failed to get last eth batch, err: %v", err)
 		return false
 	}
-	if a.lastVerifiedBatchNum < lastConsolidatedEthBatchNum {
-		log.Infof("waiting for the state to be synced, lastConsolidatedBatchNum: %d, lastEthConsolidatedBatchNum: %d",
-			a.lastVerifiedBatchNum, lastConsolidatedEthBatchNum)
+	if a.lastVerifiedBatchNum < lastVerifiedEthBatchNum {
+		log.Infof("waiting for the state to be synced, lastVerifiedBatchNum: %d, lastVerifiedEthBatchNum: %d",
+			a.lastVerifiedBatchNum, lastVerifiedEthBatchNum)
 		return false
 	}
 	return true
