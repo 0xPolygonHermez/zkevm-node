@@ -32,28 +32,28 @@ func (h *ZKEVM) ConsolidatedBlockNumber() (interface{}, rpcError) {
 // IsBatchConsolidated returns the consolidation status of a provided batch ID
 func (h *ZKEVM) IsBatchConsolidated(batchID int) (interface{}, rpcError) {
 	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		consolidation, err := h.state.IsBatchConsolidated(ctx, batchID, dbTx)
+		isBatchConsolidated, err := h.state.IsBatchConsolidated(ctx, batchID, dbTx)
 		if err != nil {
-			const errorMessage = "failed to get batch info from state"
+			const errorMessage = "failed to check if the batch is consolidated"
 			log.Errorf("%v:%v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
-		return consolidation, nil
+		return isBatchConsolidated, nil
 	})
 }
 
 // IsBatchVirtualized returns the virtualisation status of a provided batch ID
 func (h *ZKEVM) IsBatchVirtualized(batchID int) (interface{}, rpcError) {
 	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		consolidation, err := h.state.IsBatchVirtualized(ctx, batchID, dbTx)
+		isBatchVirtualized, err := h.state.IsBatchVirtualized(ctx, batchID, dbTx)
 		if err != nil {
-			const errorMessage = "failed to get batch info from state"
+			const errorMessage = "failed to check if the batch is virtualized"
 			log.Errorf("%v:%v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
-		return consolidation, nil
+		return isBatchVirtualized, nil
 	})
 }
 

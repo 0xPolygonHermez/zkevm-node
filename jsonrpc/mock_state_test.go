@@ -541,20 +541,20 @@ func (_m *stateMock) GetTransactionReceipt(ctx context.Context, transactionHash 
 	return r0, r1
 }
 
-// IsBatchConsolidated provides a mock function with given fields: ctx, batchId, dbTx
-func (_m *stateMock) IsBatchConsolidated(ctx context.Context, batchId int, dbTx pgx.Tx) (bool, error) {
-	ret := _m.Called(ctx, batchId, dbTx)
+// IsBatchConsolidated provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) IsBatchConsolidated(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
 
 	var r0 bool
 	if rf, ok := ret.Get(0).(func(context.Context, int, pgx.Tx) bool); ok {
-		r0 = rf(ctx, batchId, dbTx)
+		r0 = rf(ctx, batchNumber, dbTx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, int, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchId, dbTx)
+		r1 = rf(ctx, batchNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -562,20 +562,20 @@ func (_m *stateMock) IsBatchConsolidated(ctx context.Context, batchId int, dbTx 
 	return r0, r1
 }
 
-// IsBatchVirtualized provides a mock function with given fields: ctx, batchId, dbTx
-func (_m *stateMock) IsBatchVirtualized(ctx context.Context, batchId int, dbTx pgx.Tx) (bool, error) {
-	ret := _m.Called(ctx, batchId, dbTx)
+// IsBatchVirtualized provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) IsBatchVirtualized(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
 
 	var r0 bool
 	if rf, ok := ret.Get(0).(func(context.Context, int, pgx.Tx) bool); ok {
-		r0 = rf(ctx, batchId, dbTx)
+		r0 = rf(ctx, batchNumber, dbTx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, int, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchId, dbTx)
+		r1 = rf(ctx, batchNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
