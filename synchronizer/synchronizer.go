@@ -598,7 +598,8 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			if !status {
 				// Reset trusted state
 				log.Infof("reorg detected, discarding batches until batchNum %d", batch.BatchNumber)
-				err := s.state.ResetTrustedState(s.ctx, batch.BatchNumber, dbTx) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
+				previousBatchNumber := batch.BatchNumber - 1
+				err := s.state.ResetTrustedState(s.ctx, previousBatchNumber, dbTx) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
 				if err != nil {
 					log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %s", batch.BatchNumber, blockNumber, err.Error())
 					rollbackErr := dbTx.Rollback(s.ctx)
@@ -813,7 +814,8 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *pb.GetBatchRespon
 	}
 
 	log.Debugf("resetting trusted state from batch %v", trustedBatch.BatchNumber)
-	if err := s.state.ResetTrustedState(s.ctx, trustedBatch.BatchNumber-1, dbTx); err != nil {
+	previousBatchNumber := trustedBatch.BatchNumber - 1
+	if err := s.state.ResetTrustedState(s.ctx, previousBatchNumber, dbTx); err != nil {
 		log.Errorf("failed to reset trusted state", trustedBatch.BatchNumber)
 		return err
 	}

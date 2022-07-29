@@ -142,7 +142,7 @@ func TestTrustedStateReorg(t *testing.T) {
 					Once()
 
 				m.State.
-					On("ResetTrustedState", ctx, sequencedBatch.BatchNumber, m.DbTx).
+					On("ResetTrustedState", ctx, sequencedBatch.BatchNumber-1, m.DbTx).
 					Return(nil).
 					Once()
 
