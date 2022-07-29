@@ -51,7 +51,7 @@ func (g genesis) MarshalJSON() ([]byte, error) {
 	// Balance in hexa
 	balancesHex := map[common.Address]string{}
 	for addr, balance := range g.Balances {
-		balancesHex[addr] = "0x" + balance.Text(16)
+		balancesHex[addr] = "0x" + balance.Text(16) //nolint:gomnd
 	}
 	// Smart contract code in hexa
 	contractsHex := map[common.Address]string{}
@@ -63,7 +63,7 @@ func (g genesis) MarshalJSON() ([]byte, error) {
 	for addr, storage := range g.Storage {
 		addrStorage := map[string]string{}
 		for position, value := range storage {
-			addrStorage["0x"+position.Text(16)] = "0x" + value.Text(16)
+			addrStorage["0x"+position.Text(16)] = "0x" + value.Text(16) //nolint:gomnd
 		}
 		storageHex[addr] = addrStorage
 	}
