@@ -445,8 +445,8 @@ func (s *State) isBatchClosable(ctx context.Context, receipt ProcessingReceipt, 
 	return nil
 }
 
-// CloseSynchronizedBatch is used by Synchronizer to close the current batch.
-func (s *State) CloseSynchronizedBatch(ctx context.Context, receipt ProcessingReceipt, txs []types.Transaction, dbTx pgx.Tx) error {
+// closeSynchronizedBatch is used by Synchronizer to close the current batch.
+func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingReceipt, txs []types.Transaction, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
@@ -563,7 +563,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	}
 
 	// Close batch
-	return s.CloseSynchronizedBatch(ctx, ProcessingReceipt{
+	return s.closeSynchronizedBatch(ctx, ProcessingReceipt{
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
