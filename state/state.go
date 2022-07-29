@@ -424,14 +424,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 	return nil
 }
 
-// CloseBatch is used by sequencer to close the current batch. It will set the processing receipt and
-// the raw txs data based on the txs included on that batch that are already in the state
-func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error {
-	// TODO: differentiate the case where sequencer / sync calls the function so it's possible
-	// to use L2BatchData from L1 rather than from stored txs
-	if dbTx == nil {
-		return ErrDBTxNil
-	}
+func (s *State) isBatchClosable(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error {
 	// Check if the batch that is being closed is the last batch
 	lastBatchNum, err := s.PostgresStorage.GetLastBatchNumber(ctx, dbTx)
 	if err != nil {
@@ -448,6 +441,47 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	if isLastBatchClosed {
 		return ErrBatchAlreadyClosed
 	}
+
+	return nil
+}
+
+// closeSynchronizedBatch is used by Synchronizer to close the current batch.
+func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingReceipt, txs []types.Transaction, dbTx pgx.Tx) error {
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+
+	err := s.isBatchClosable(ctx, receipt, dbTx)
+	if err != nil {
+		return err
+	}
+
+	if len(txs) == 0 {
+		return ErrClosingBatchWithoutTxs
+	}
+
+	batchL2Data, err := EncodeTransactions(txs)
+	if err != nil {
+		return err
+	}
+
+	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
+}
+
+// CloseBatch is used by sequencer to close the current batch. It will set the processing receipt and
+// the raw txs data based on the txs included on that batch that are already in the state
+func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error {
+	// TODO: differentiate the case where sequencer / sync calls the function so it's possible
+	// to use L2BatchData from L1 rather than from stored txs
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+
+	err := s.isBatchClosable(ctx, receipt, dbTx)
+	if err != nil {
+		return err
+	}
+
 	// Generate raw txs data
 	encodedTxsArray, err := s.GetEncodedTransactionsByBatchNumber(ctx, receipt.BatchNumber, dbTx)
 	if err != nil {
@@ -529,11 +563,11 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	}
 
 	// Close batch
-	return s.CloseBatch(ctx, ProcessingReceipt{
+	return s.closeSynchronizedBatch(ctx, ProcessingReceipt{
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
-	}, dbTx)
+	}, decodedTransactions, dbTx)
 }
 
 // GetLastBatch gets latest batch (closed or not) on the data base

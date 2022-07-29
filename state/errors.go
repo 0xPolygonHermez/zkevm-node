@@ -36,11 +36,11 @@ var (
 	ErrDBTxNil = errors.New("the method requires a dbTx that is not nil")
 	// ErrExistingTxGreaterThanProcessedTx indicates that we have more txs stored
 	// in db than the txs we want to process.
-	ErrExistingTxGreaterThanProcessedTx = errors.New("There are more transactions in the database than in the processed transaction set")
+	ErrExistingTxGreaterThanProcessedTx = errors.New("there are more transactions in the database than in the processed transaction set")
 	// ErrOutOfOrderProcessedTx indicates the the processed transactions of an
 	// ongoing batch are not in the same order as the transactions stored in the
 	// database for the same batch.
-	ErrOutOfOrderProcessedTx = errors.New("The processed transactions are not in the same order as the stored transactions")
+	ErrOutOfOrderProcessedTx = errors.New("the processed transactions are not in the same order as the stored transactions")
 	// ErrInsufficientFunds is returned if the total cost of executing a transaction
 	// is higher than the balance of the user's account.
 	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
