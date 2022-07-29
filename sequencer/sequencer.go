@@ -193,17 +193,9 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			log.Infof("current sequence should be cut")
 			cutSequence := s.closedSequences[len(s.closedSequences)-1]
 			s.txManager.SequenceBatches(s.closedSequences)
-			//if err := s.txManager.SequenceBatches(s.closedSequences); err != nil {
-			//	log.Errorf("failed to SequenceBatches, err: %v", err)
-			//	return
-			//}
 			s.closedSequences = []types.Sequence{cutSequence}
 		} else {
 			s.txManager.SequenceBatches(s.closedSequences)
-			//if err := s.txManager.SequenceBatches(s.closedSequences); err != nil {
-			//	log.Errorf("failed to SequenceBatches, err: %v", err)
-			//	return
-			//}
 			s.closedSequences = []types.Sequence{}
 		}
 	}
