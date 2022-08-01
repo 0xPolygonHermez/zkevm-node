@@ -1257,9 +1257,9 @@ func (p *PostgresStorage) GetL2BlockHashesSince(ctx context.Context, since time.
 }
 
 // IsBatchConsolidated checks if the batch ID is consolidated
-func (p *PostgresStorage) IsBatchConsolidated(ctx context.Context, batchId int, dbTx pgx.Tx) (bool, error) {
+func (p *PostgresStorage) IsBatchConsolidated(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
 	q := p.getExecQuerier(dbTx)
-	_, err := q.Query(ctx, isBatchConsolidated, batchId)
+	_, err := q.Query(ctx, isBatchConsolidated, batchNumber)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, ErrNotFound
@@ -1270,9 +1270,9 @@ func (p *PostgresStorage) IsBatchConsolidated(ctx context.Context, batchId int, 
 }
 
 // IsBatchVirtualized checks if the batch ID is virtualized
-func (p *PostgresStorage) IsBatchVirtualized(ctx context.Context, batchId int, dbTx pgx.Tx) (bool, error) {
+func (p *PostgresStorage) IsBatchVirtualized(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
 	q := p.getExecQuerier(dbTx)
-	_, err := q.Query(ctx, isBatchVirtualized, batchId)
+	_, err := q.Query(ctx, isBatchVirtualized, batchNumber)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, ErrNotFound
