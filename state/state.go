@@ -928,6 +928,7 @@ func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) ([]
 		if isTransactionProcessed(response.UnprocessedTransaction) {
 			processedTxResponses = append(processedTxResponses, response)
 		} else {
+			log.Infof("Tx %s has not been processed", response.TxHash)
 			unprocessedTxResponses[response.TxHash.String()] = response
 		}
 	}

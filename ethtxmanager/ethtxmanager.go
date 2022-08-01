@@ -25,16 +25,9 @@ const (
 type Client struct {
 	cfg Config
 
-	ethMan                 etherman
-	sequenceBatchesTxsChan chan sequenceBatchesTx
-	sequencesToSendChan    chan []ethmanTypes.Sequence
-	verifyBatchTxsChan     chan verifyBatchTx
-}
-
-type sequenceBatchesTx struct {
-	sequences []ethmanTypes.Sequence
-	hash      common.Hash
-	gasLimit  uint64
+	ethMan              etherman
+	sequencesToSendChan chan []ethmanTypes.Sequence
+	verifyBatchTxsChan  chan verifyBatchTx
 }
 
 type verifyBatchTx struct {
@@ -74,24 +67,16 @@ func (c *Client) TrackSequenceBatchesSending(ctx context.Context) {
 				tx, err = c.ethMan.SequenceBatches(sequences, 0)
 			}
 			if err != nil {
-				log.Fatalf("failed to sequence batches, maximum attemps exceeded, gasLimit: %d, err: %v",
+				log.Fatalf("failed to sequence batches, maximum attempts exceeded, gasLimit: %d, err: %v",
 					0, err)
 			}
 			// Wait for tx to be mined
 			log.Infof("waiting for sequence to be mined. Tx hash: %s", tx.Hash())
-			err = c.ethMan.WaitTxToBeMined(tx.Hash(), time.Minute*2)
+			err = c.ethMan.WaitTxToBeMined(tx.Hash(), time.Minute*2) //nolint:gomnd
 			if err != nil {
-				log.Fatalf("tx failed, err: %v", err)
+				log.Fatalf("tx %s failed, err: %v", tx.Hash(), err)
 			}
-			// Check if tx succeeded
-			receipt := c.getTxReceipt(ctx, tx.Hash())
-			if receipt == nil {
-				log.Fatalf("Failed to get receipt for tx hash %s", tx.Hash())
-			}
-			if receipt.Status == 0 {
-				log.Fatalf("Send sequence reverted: %v", receipt)
-			}
-			log.Infof("sequence sent to L1 successfuly. Tx hash: %s", tx.Hash())
+			log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
 			// Check if success
 		case <-ctx.Done():
 			return
@@ -176,22 +161,6 @@ func (c *Client) resendVerifyBatch(gasLimit uint64, tx verifyBatchTx, hash commo
 
 	gasLimit = uint64(float64(gasLimit) * gasLimitIncrease)
 	sentTx, err := c.ethMan.VerifyBatch(tx.batchNumber, tx.resGetProof, gasLimit)
-	if err != nil {
-		log.Warnf("failed to send batch once again, err: %v", err)
-		return gasLimit, hash, err
-	}
-	hash = sentTx.Hash()
-	log.Infof("sent sendBatch transaction with hash %s and gas limit %d with try number %d",
-		hash, gasLimit, counter)
-
-	return gasLimit, hash, nil
-}
-
-func (c *Client) resendSequenceBatches(gasLimit uint64, tx sequenceBatchesTx, hash common.Hash, counter uint32) (uint64, common.Hash, error) {
-	log.Warnf("increasing gas limit for the transaction sending, previous failed tx hash %v", hash)
-
-	gasLimit = uint64(float64(gasLimit) * gasLimitIncrease)
-	sentTx, err := c.ethMan.SequenceBatches(tx.sequences, gasLimit)
 	if err != nil {
 		log.Warnf("failed to send batch once again, err: %v", err)
 		return gasLimit, hash, err

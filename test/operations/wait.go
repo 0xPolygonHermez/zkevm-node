@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"os"
 	"os/signal"
@@ -60,8 +61,13 @@ func Poll(interval, deadline time.Duration, condition ConditionFunc) error {
 	}
 }
 
+type ethClienter interface {
+	ethereum.TransactionReader
+	ethereum.ContractCaller
+}
+
 // WaitTxToBeMined waits until a tx has been mined or the given timeout expires.
-func WaitTxToBeMined(client ethereum.TransactionReader, hash common.Hash, timeout time.Duration) error {
+func WaitTxToBeMined(client ethClienter, hash common.Hash, timeout time.Duration) error {
 	ctx := context.Background()
 	return Poll(DefaultInterval, timeout, func() (bool, error) {
 		return txMinedCondition(ctx, client, hash)
@@ -187,28 +193,54 @@ func grpcHealthyCondition(address string) (bool, error) {
 }
 
 // txMinedCondition
-func txMinedCondition(ctx context.Context, client ethereum.TransactionReader, hash common.Hash) (bool, error) {
-	_, isPending, err := client.TransactionByHash(ctx, hash)
-	if err == ethereum.NotFound {
+func txMinedCondition(ctx context.Context, client ethClienter, hash common.Hash) (bool, error) {
+	// Get tx status
+	tx, isPending, err := client.TransactionByHash(ctx, hash)
+	if err == ethereum.NotFound || isPending {
 		return false, nil
 	}
-
 	if err != nil {
 		return false, err
 	}
-
-	var done bool
-	if !isPending {
-		r, err := client.TransactionReceipt(ctx, hash)
-		if err != nil {
-			return false, err
-		}
-		if r.Status == types.ReceiptStatusFailed {
-			return false, fmt.Errorf("transaction has failed: %v", r)
-		}
-		done = true
+	// Check if tx has failed
+	receipt, err := client.TransactionReceipt(ctx, hash)
+	if err != nil {
+		return false, err
 	}
-	return done, nil
+	if receipt.Status == types.ReceiptStatusFailed {
+		// Get revert reason
+		reason, reasonErr := revertReason(ctx, client, tx, receipt.BlockNumber)
+		if reasonErr != nil {
+			log.Warn(reasonErr)
+		}
+		return false, fmt.Errorf("transaction has failed, reason: %s, receipt: %+v. tx: %+v", reason, receipt, tx)
+	}
+	return true, nil
+}
+
+func revertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blockNumber *big.Int) (string, error) {
+	from, err := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
+	if err != nil {
+		from, err = types.Sender(types.HomesteadSigner{}, tx)
+		if err != nil {
+			return "", err
+		}
+	}
+	msg := ethereum.CallMsg{
+		From:  from,
+		To:    tx.To(),
+		Gas:   tx.Gas(),
+		Value: tx.Value(),
+		Data:  tx.Data(),
+	}
+	hex, err := c.CallContract(ctx, msg, blockNumber)
+	if err != nil {
+		return "", err
+	}
+
+	reasonOffset := new(big.Int).SetBytes(hex[4 : 4+32])
+	reason := string(hex[4+32+int(reasonOffset.Uint64()):])
+	return reason, nil
 }
 
 // WaitSignal blocks until an Interrupt or Kill signal is received, then it

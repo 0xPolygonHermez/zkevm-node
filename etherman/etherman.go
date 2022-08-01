@@ -58,6 +58,7 @@ type ethClienter interface {
 	ethereum.ChainReader
 	ethereum.LogFilterer
 	ethereum.TransactionReader
+	ethereum.ContractCaller
 }
 
 // Client is a simple implementation of EtherMan.
@@ -191,6 +192,7 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 	return nil
 }
 
+// WaitTxToBeMined waits for an L1 tx to be mined. It will return error if the tx is reverted or timeout is exceeded
 func (etherMan *Client) WaitTxToBeMined(hash common.Hash, timeout time.Duration) error {
 	return operations.WaitTxToBeMined(etherMan.EtherClient, hash, timeout)
 }
