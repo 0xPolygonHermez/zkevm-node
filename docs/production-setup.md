@@ -194,7 +194,7 @@ To create this file, go to the `zkevm-node` directory and run the following comm
 > Remember to replace the `--pk` and `--pw` parameter values by the L1 account private key and the password you want to use to encrypt the file, the password will be required in the future to configure the node, so make sure you will remember it.
 
 ```bash
-docker run --rm hermeznetwork/zkevm-node:latest sh -c "./zkevm-node encryptKey --pk=<account private key> --pw=<password to encrypt> --output=./keystore; cat ./keystore/*" > acc.keystore
+docker run --rm hermeznetwork/zkevm-node:latest sh -c "/app/zkevm-node encryptKey --pk=<account private key> --pw=<password to encrypt> --output=./keystore; cat ./keystore/*" > acc.keystore
 ```
 
 The command above will create the file `acc.keystore` inside of the `zkevm-node` directory.
