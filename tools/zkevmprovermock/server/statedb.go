@@ -13,8 +13,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"github.com/0xPolygonHermez/zkevm-node/tools/zkevmprovermock/testvector"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // StateDBMock represents a StateDB mock server.
@@ -63,7 +61,82 @@ func (server *StateDBMock) Stop() {
 
 // Set is the mock of the method for setting values in the tree.
 func (server *StateDBMock) Set(ctx context.Context, request *pb.SetRequest) (*pb.SetResponse, error) {
-	keyStr := merkletree.H4ToString([]uint64{request.Key.Fe0, request.Key.Fe1, request.Key.Fe2, request.Key.Fe3})
+	keyBIStr, err := getKeyBIStr(request.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	oldRootStr := merkletree.H4ToString([]uint64{request.OldRoot.Fe0, request.OldRoot.Fe1, request.OldRoot.Fe2, request.OldRoot.Fe3})
+	log.Debugf("Set called with key %v, value %v, root %v", keyBIStr, request.Value, oldRootStr)
+	_, newRoot, err := server.tvContainer.FindE2EGenesisRaw(keyBIStr, oldRootStr)
+	if err != nil {
+		return nil, err
+	}
+	h4NewRoot, err := merkletree.StringToh4(newRoot)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SetResponse{
+		NewRoot: &pb.Fea{Fe0: h4NewRoot[0], Fe1: h4NewRoot[1], Fe2: h4NewRoot[2], Fe3: h4NewRoot[3]},
+	}, nil
+}
+
+// Get is the mock of the method for getting values from the tree.
+func (server *StateDBMock) Get(ctx context.Context, request *pb.GetRequest) (*pb.GetResponse, error) {
+	keyBIStr, err := getKeyBIStr(request.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	rootStr := merkletree.H4ToString([]uint64{request.Root.Fe0, request.Root.Fe1, request.Root.Fe2, request.Root.Fe3})
+
+	log.Debugf("Get called with key %v, root %v", keyBIStr, rootStr)
+
+	value, _, err := server.tvContainer.FindE2EGenesisRaw(keyBIStr, rootStr)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetResponse{
+		Value: value,
+	}, nil
+}
+
+// SetProgram is the mock of the method for setting SC contents in the tree.
+func (server *StateDBMock) SetProgram(ctx context.Context, request *pb.SetProgramRequest) (*pb.SetProgramResponse, error) {
+	keyBIStr, err := getKeyBIStr(request.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	_, _, err = server.tvContainer.FindE2EGenesisRaw(keyBIStr, "")
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SetProgramResponse{}, nil
+}
+
+// GetProgram is the mock of the method for getting SC contents from the tree.
+func (server *StateDBMock) GetProgram(ctx context.Context, request *pb.GetProgramRequest) (*pb.GetProgramResponse, error) {
+	keyBIStr, err := getKeyBIStr(request.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	bytecode, _, err := server.tvContainer.FindE2EGenesisRaw(keyBIStr, "")
+	if err != nil {
+		return nil, err
+	}
+	data, err := hex.DecodeHex(bytecode)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetProgramResponse{
+		Data: data,
+	}, nil
+}
+
+func getKeyBIStr(key *pb.Fea) (string, error) {
+	keyStr := merkletree.H4ToString([]uint64{key.Fe0, key.Fe1, key.Fe2, key.Fe3})
 
 	if strings.HasPrefix(keyStr, "0x") { // nolint
 		keyStr = keyStr[2:]
@@ -71,36 +144,9 @@ func (server *StateDBMock) Set(ctx context.Context, request *pb.SetRequest) (*pb
 
 	keyBI, ok := new(big.Int).SetString(keyStr, hex.Base)
 	if !ok {
-		return nil, fmt.Errorf("Could not convert the hex string %q into big.Int", keyStr)
+		return "", fmt.Errorf("Could not convert the hex string %q into big.Int", keyStr)
 	}
 	keyBytes := merkletree.ScalarToFilledByteSlice(keyBI)
-	keyBIStr := new(big.Int).SetBytes(keyBytes).String()
 
-	log.Debugf("Set called with key %v, value %v, root %v", keyBIStr, request.Value, request.OldRoot)
-	_, newRoot, err := server.tvContainer.FindE2EGenesisRaw(keyBIStr, request.OldRoot.String())
-	if err != nil {
-		return nil, err
-	}
-	feaNewRoot, err := merkletree.StringToh4(newRoot)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.SetResponse{
-		NewRoot: &pb.Fea{Fe0: feaNewRoot[0], Fe1: feaNewRoot[1], Fe2: feaNewRoot[2], Fe3: feaNewRoot[3]},
-	}, nil
-}
-
-// Get is the mock of the method for getting values from the tree.
-func (server *StateDBMock) Get(ctx context.Context, request *pb.GetRequest) (*pb.GetResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
-}
-
-// SetProgram is the mock of the method for setting SC contents in the tree.
-func (server *StateDBMock) SetProgram(ctx context.Context, request *pb.SetProgramRequest) (*pb.SetProgramResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetProgram not implemented")
-}
-
-// GetProgram is the mock of the method for getting SC contents from the tree.
-func (server *StateDBMock) GetProgram(ctx context.Context, request *pb.GetProgramRequest) (*pb.GetProgramResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetProgram not implemented")
+	return new(big.Int).SetBytes(keyBytes).String(), nil
 }

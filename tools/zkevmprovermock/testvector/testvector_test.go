@@ -51,6 +51,10 @@ func TestNewContainer(t *testing.T) {
       }
     ]
   },
+  "contractsBytecode": {
+    "contract1Key": "contract1Bytecode",
+    "contract2Key": "contract2Bytecode"
+  },
   "genesisRaw": {
     "keys": [
       "a","b","c"
@@ -94,6 +98,10 @@ func TestNewContainer(t *testing.T) {
 									},
 								},
 							},
+							ContractsBytecode: map[string]string{
+								"contract1Key": "contract1Bytecode",
+								"contract2Key": "contract2Bytecode",
+							},
 							GenesisRaw: &testvector.GenesisRaw{
 								Keys:          []string{"a", "b", "c"},
 								Values:        []string{"1", "2", "3"},
@@ -123,6 +131,9 @@ func TestNewContainer(t *testing.T) {
       }
     ]
   },
+  "contractsBytecode": {
+    "contract1Key": "contract1Bytecode"
+  },
   "genesisRaw": {
     "keys": [
       "a"
@@ -151,6 +162,9 @@ func TestNewContainer(t *testing.T) {
         }
       }
     ]
+  },
+  "contractsBytecode": {
+    "contract2Key": "contract2Bytecode"
   },
   "genesisRaw": {
     "keys": [
@@ -185,6 +199,9 @@ func TestNewContainer(t *testing.T) {
 									},
 								},
 							},
+							ContractsBytecode: map[string]string{
+								"contract1Key": "contract1Bytecode",
+							},
 							GenesisRaw: &testvector.GenesisRaw{
 								Keys:          []string{"a"},
 								Values:        []string{"1"},
@@ -205,6 +222,9 @@ func TestNewContainer(t *testing.T) {
 										},
 									},
 								},
+							},
+							ContractsBytecode: map[string]string{
+								"contract2Key": "contract2Bytecode",
 							},
 							GenesisRaw: &testvector.GenesisRaw{
 								Keys:          []string{"b"},
@@ -321,6 +341,22 @@ func TestFindE2EGenesisRaw(t *testing.T) {
 			oldRoot:         "",
 			expectedValue:   "value1",
 			expectedNewRoot: "root1",
+		},
+		{
+			description: "happy path, bytecode",
+			e2e: &testvector.E2E{
+				Items: []*testvector.E2EItem{
+					{
+						ContractsBytecode: map[string]string{
+							"key1": "value1",
+						},
+					},
+				},
+			},
+			key:             "key1",
+			oldRoot:         "",
+			expectedValue:   "value1",
+			expectedNewRoot: "",
 		},
 		{
 			description: "unexisting key gives error",
