@@ -211,7 +211,7 @@ func txMinedCondition(ctx context.Context, client ethClienter, hash common.Hash)
 		// Get revert reason
 		reason, reasonErr := revertReason(ctx, client, tx, receipt.BlockNumber)
 		if reasonErr != nil {
-			log.Warn(reasonErr)
+			reason = reasonErr.Error()
 		}
 		return false, fmt.Errorf("transaction has failed, reason: %s, receipt: %+v. tx: %+v", reason, receipt, tx)
 	}
@@ -221,15 +221,17 @@ func txMinedCondition(ctx context.Context, client ethClienter, hash common.Hash)
 func revertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blockNumber *big.Int) (string, error) {
 	from, err := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
 	if err != nil {
-		from, err = types.Sender(types.HomesteadSigner{}, tx)
+		signer := types.LatestSignerForChainID(tx.ChainId())
+		from, err = types.Sender(signer, tx)
 		if err != nil {
 			return "", err
 		}
 	}
 	msg := ethereum.CallMsg{
-		From:  from,
-		To:    tx.To(),
-		Gas:   tx.Gas(),
+		From: from,
+		To:   tx.To(),
+		Gas:  tx.Gas(),
+
 		Value: tx.Value(),
 		Data:  tx.Data(),
 	}

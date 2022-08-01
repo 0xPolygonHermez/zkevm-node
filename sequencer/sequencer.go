@@ -183,7 +183,9 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	log.Info("synchronizer has synced last batch, checking if current sequence should be closed")
 
 	// Check if should close sequence
+	log.Infof("checking if current sequence should be closed")
 	if s.shouldCloseSequenceInProgress(ctx) {
+		log.Infof("current sequence should be closed")
 		err := s.closeSequence(ctx)
 		if err != nil {
 			log.Errorf("error closing sequence: %v", err)
@@ -304,7 +306,6 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 }
 
 func (s *Sequencer) closeSequence(ctx context.Context) error {
-	log.Infof("current sequence should be closed")
 	s.closedSequences = append(s.closedSequences, s.sequenceInProgress)
 	newSequence, err := s.newSequence(ctx)
 	if err != nil {
