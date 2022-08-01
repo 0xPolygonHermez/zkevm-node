@@ -16,6 +16,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -190,6 +191,10 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 	return nil
 }
 
+func (etherMan *Client) WaitTxToBeMined(hash common.Hash, timeout time.Duration) error {
+	return operations.WaitTxToBeMined(etherMan.EtherClient, hash, timeout)
+}
+
 // EstimateGasSequenceBatches estimates gas for sending batches
 func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error) {
 	noSendOpts := *etherMan.auth
@@ -224,13 +229,7 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 
 		batches = append(batches, batch)
 	}
-	tx, err := etherMan.PoE.SequenceBatches(opts, batches)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return tx, nil
+	return etherMan.PoE.SequenceBatches(opts, batches)
 }
 
 // EstimateGasForVerifyBatch estimates gas for verify batch smart contract call

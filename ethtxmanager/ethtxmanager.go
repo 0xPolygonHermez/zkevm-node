@@ -46,15 +46,13 @@ type verifyBatchTx struct {
 
 // New creates new eth tx manager
 func New(cfg Config, ethMan etherman) *Client {
-	sequenceBatchesTxsChan := make(chan sequenceBatchesTx, sentEthTxsChanLen)
 	verifyBatchTxsChan := make(chan verifyBatchTx, sentEthTxsChanLen)
 	sequencesToSendChan := make(chan []ethmanTypes.Sequence, sentEthTxsChanLen)
 	return &Client{
-		cfg:                    cfg,
-		sequenceBatchesTxsChan: sequenceBatchesTxsChan,
-		sequencesToSendChan:    sequencesToSendChan,
-		verifyBatchTxsChan:     verifyBatchTxsChan,
-		ethMan:                 ethMan,
+		cfg:                 cfg,
+		sequencesToSendChan: sequencesToSendChan,
+		verifyBatchTxsChan:  verifyBatchTxsChan,
+		ethMan:              ethMan,
 	}
 }
 
@@ -63,26 +61,38 @@ func (c *Client) TrackSequenceBatchesSending(ctx context.Context) {
 	for {
 		select {
 		case sequences := <-c.sequencesToSendChan:
-			gas, err := c.ethMan.EstimateGasSequenceBatches(sequences)
 			var attempts uint32
-			for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
-				log.Errorf("failed to estimate gas for sending sequences batches, retry #%d, err: %v", err)
-				time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
-				attempts++
-				gas, err = c.ethMan.EstimateGasSequenceBatches(sequences)
-			}
-
-			gasLimit := uint64(float64(gas) * gasLimitIncrease)
-			attempts = 0
-			err = c.sequenceBatches(sequences, gasLimit)
+			// attempts = 0
+			log.Info("sending sequence to L1")
+			tx, err := c.ethMan.SequenceBatches(sequences, 0)
 			for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
 				log.Errorf("failed to sequence batches, trying once again, retry #%d, gasLimit: %d, err: %v",
-					attempts, gasLimit, err)
+					attempts, 0, err)
 				time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 				attempts++
-				gasLimit = uint64(float64(gasLimit) * gasLimitIncrease)
-				err = c.sequenceBatches(sequences, gasLimit)
+				// gasLimit = uint64(float64(gasLimit) * gasLimitIncrease)
+				tx, err = c.ethMan.SequenceBatches(sequences, 0)
 			}
+			if err != nil {
+				log.Fatalf("failed to sequence batches, maximum attemps exceeded, gasLimit: %d, err: %v",
+					0, err)
+			}
+			// Wait for tx to be mined
+			log.Infof("waiting for sequence to be mined. Tx hash: %s", tx.Hash())
+			err = c.ethMan.WaitTxToBeMined(tx.Hash(), time.Minute*2)
+			if err != nil {
+				log.Fatalf("tx failed, err: %v", err)
+			}
+			// Check if tx succeeded
+			receipt := c.getTxReceipt(ctx, tx.Hash())
+			if receipt == nil {
+				log.Fatalf("Failed to get receipt for tx hash %s", tx.Hash())
+			}
+			if receipt.Status == 0 {
+				log.Fatalf("Send sequence reverted: %v", receipt)
+			}
+			log.Infof("sequence sent to L1 successfuly. Tx hash: %s", tx.Hash())
+			// Check if success
 		case <-ctx.Done():
 			return
 		}
@@ -92,20 +102,6 @@ func (c *Client) TrackSequenceBatchesSending(ctx context.Context) {
 // SequenceBatches send sequences to the channel
 func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 	c.sequencesToSendChan <- sequences
-}
-
-// SequenceBatches send SequenceBatches request to ethereum
-func (c *Client) sequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64) error {
-	tx, err := c.ethMan.SequenceBatches(sequences, gasLimit)
-	if err != nil {
-		return err
-	}
-	c.sequenceBatchesTxsChan <- sequenceBatchesTx{
-		sequences: sequences,
-		hash:      tx.Hash(),
-		gasLimit:  gasLimit,
-	}
-	return nil
 }
 
 // VerifyBatch send VerifyBatch request to ethereum
@@ -133,47 +129,11 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 func (c *Client) TrackEthSentTransactions(ctx context.Context) {
 	for {
 		select {
-		case tx := <-c.sequenceBatchesTxsChan:
-			c.resendSendBatchesTxIfNeeded(ctx, tx)
 		case tx := <-c.verifyBatchTxsChan:
 			c.resendVerifyBatchTxIfNeeded(ctx, tx)
 		case <-ctx.Done():
 			return
 		}
-	}
-}
-
-func (c *Client) resendSendBatchesTxIfNeeded(ctx context.Context, tx sequenceBatchesTx) {
-	var (
-		gasLimit       uint64
-		counter        uint32
-		isTxSuccessful bool
-		err            error
-	)
-	hash := tx.hash
-	for !isTxSuccessful && counter <= c.cfg.MaxSendBatchTxRetries {
-		time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
-		receipt := c.getTxReceipt(ctx, hash)
-		if receipt == nil {
-			continue
-		}
-		// tx is failed, so batch should be sent again
-		if receipt.Status == 0 {
-			gasLimit, hash, err = c.resendSequenceBatches(gasLimit, tx, hash, counter)
-			if err != nil {
-				log.Errorf("failed to resend sequence batches to the ethereum, err: %v", err)
-			}
-			counter++
-			continue
-		}
-
-		log.Infof("sendBatch transaction %s is successful", hash.Hex())
-		isTxSuccessful = true
-	}
-	if counter == c.cfg.MaxSendBatchTxRetries {
-		log.Fatalf("failed to send txs %v several times,"+
-			" gas limit %d is too high, first tx hash %s, last tx hash %s",
-			tx.sequences, gasLimit, tx.hash.Hex(), hash.Hex())
 	}
 }
 

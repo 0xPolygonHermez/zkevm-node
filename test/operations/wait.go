@@ -3,7 +3,6 @@ package operations
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -17,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -63,7 +61,7 @@ func Poll(interval, deadline time.Duration, condition ConditionFunc) error {
 }
 
 // WaitTxToBeMined waits until a tx has been mined or the given timeout expires.
-func WaitTxToBeMined(client *ethclient.Client, hash common.Hash, timeout time.Duration) error {
+func WaitTxToBeMined(client ethereum.TransactionReader, hash common.Hash, timeout time.Duration) error {
 	ctx := context.Background()
 	return Poll(DefaultInterval, timeout, func() (bool, error) {
 		return txMinedCondition(ctx, client, hash)
@@ -189,7 +187,7 @@ func grpcHealthyCondition(address string) (bool, error) {
 }
 
 // txMinedCondition
-func txMinedCondition(ctx context.Context, client *ethclient.Client, hash common.Hash) (bool, error) {
+func txMinedCondition(ctx context.Context, client ethereum.TransactionReader, hash common.Hash) (bool, error) {
 	_, isPending, err := client.TransactionByHash(ctx, hash)
 	if err == ethereum.NotFound {
 		return false, nil
@@ -206,7 +204,7 @@ func txMinedCondition(ctx context.Context, client *ethclient.Client, hash common
 			return false, err
 		}
 		if r.Status == types.ReceiptStatusFailed {
-			return false, fmt.Errorf("transaction has failed: %s", hex.EncodeToString(r.PostState))
+			return false, fmt.Errorf("transaction has failed: %v", r)
 		}
 		done = true
 	}
