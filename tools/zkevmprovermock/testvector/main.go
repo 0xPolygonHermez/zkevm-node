@@ -64,13 +64,19 @@ func NewContainer(testVectorPath string, aferoFs afero.Fs) (*Container, error) {
 // previous item.
 func (c *Container) FindE2EGenesisRaw(inputKey, oldRoot string) (value, newRoot string, err error) {
 	for _, item := range c.E2E.Items {
-		if item.GenesisRaw != nil {
-			for index, key := range item.GenesisRaw.Keys {
+		if item.GenesisRaw == nil {
+			continue
+		}
+		for index, key := range item.GenesisRaw.Keys {
+			/*
 				if key == inputKey &&
 					(index > 0 && oldRoot == item.GenesisRaw.ExpectedRoots[index-1] ||
 						index == 0 && oldRoot == "") {
 					return item.GenesisRaw.Values[index], item.GenesisRaw.ExpectedRoots[index], nil
 				}
+			*/
+			if key == inputKey {
+				return item.GenesisRaw.Values[index], item.GenesisRaw.ExpectedRoots[index], nil
 			}
 		}
 	}

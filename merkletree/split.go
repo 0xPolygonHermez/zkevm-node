@@ -63,15 +63,15 @@ func h4ToScalar(h4 []uint64) *big.Int {
 	return result
 }
 
-// h4ToString converts array of 4 Scalars of 64 bits into an hex string.
-func h4ToString(h4 []uint64) string {
+// H4ToString converts array of 4 Scalars of 64 bits into an hex string.
+func H4ToString(h4 []uint64) string {
 	sc := h4ToScalar(h4)
 
 	return fmt.Sprintf("0x%064s", hex.EncodeToString(sc.Bytes()))
 }
 
-// stringToh4 converts an hex string into array of 4 Scalars of 64 bits.
-func stringToh4(str string) ([]uint64, error) {
+// StringToh4 converts an hex string into array of 4 Scalars of 64 bits.
+func StringToh4(str string) ([]uint64, error) {
 	if strings.HasPrefix(str, "0x") { // nolint
 		str = str[2:]
 	}
@@ -114,8 +114,8 @@ func h4ToFilledByteSlice(h4 []uint64) []byte {
 	return ScalarToFilledByteSlice(h4ToScalar(h4))
 }
 
-// String2fea converts an string into an array of 32bit uint64 values.
-func String2fea(s string) ([]uint64, error) {
+// string2fea converts an string into an array of 32bit uint64 values.
+func string2fea(s string) ([]uint64, error) {
 	bi, ok := new(big.Int).SetString(s, hex.Base)
 	if !ok {
 		return nil, fmt.Errorf("Could not convert %q into big int", s)

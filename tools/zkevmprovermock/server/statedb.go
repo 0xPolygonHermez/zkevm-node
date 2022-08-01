@@ -2,8 +2,12 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"math/big"
 	"net"
+	"strings"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
@@ -59,13 +63,25 @@ func (server *StateDBMock) Stop() {
 
 // Set is the mock of the method for setting values in the tree.
 func (server *StateDBMock) Set(ctx context.Context, request *pb.SetRequest) (*pb.SetResponse, error) {
-	log.Infof("Set called")
+	keyStr := merkletree.H4ToString([]uint64{request.Key.Fe0, request.Key.Fe1, request.Key.Fe2, request.Key.Fe3})
 
-	_, newRoot, err := server.tvContainer.FindE2EGenesisRaw(request.Value, request.OldRoot.String())
+	if strings.HasPrefix(keyStr, "0x") { // nolint
+		keyStr = keyStr[2:]
+	}
+
+	keyBI, ok := new(big.Int).SetString(keyStr, hex.Base)
+	if !ok {
+		return nil, fmt.Errorf("Could not convert the hex string %q into big.Int", keyStr)
+	}
+	keyBytes := merkletree.ScalarToFilledByteSlice(keyBI)
+	keyBIStr := new(big.Int).SetBytes(keyBytes).String()
+
+	log.Debugf("Set called with key %v, value %v, root %v", keyBIStr, request.Value, request.OldRoot)
+	_, newRoot, err := server.tvContainer.FindE2EGenesisRaw(keyBIStr, request.OldRoot.String())
 	if err != nil {
 		return nil, err
 	}
-	feaNewRoot, err := merkletree.String2fea(newRoot)
+	feaNewRoot, err := merkletree.StringToh4(newRoot)
 	if err != nil {
 		return nil, err
 	}
