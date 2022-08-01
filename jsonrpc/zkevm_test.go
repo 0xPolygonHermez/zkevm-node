@@ -88,6 +88,162 @@ func TestConsolidatedBlockNumber(t *testing.T) {
 	}
 }
 
+func TestIsBatchConsolidated(t *testing.T) {
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		ExpectedResult bool
+		ExpectedError  rpcError
+		SetupMocks     func(m *mocks)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Query status of block number successfully",
+			ExpectedResult: true,
+			SetupMocks: func(m *mocks) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("IsBatchConsolidated", context.Background(), 1, m.DbTx).
+					Return(true, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "Failed to query the consolidation status",
+			ExpectedResult: false,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to check if the batch is consolidated"),
+			SetupMocks: func(m *mocks) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("IsBatchConsolidated", context.Background(), 1, m.DbTx).
+					Return(true, errors.New("failed to check if the batch is consolidated")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m)
+
+			res, err := s.JSONRPCCall("zkevm_isBatchConsolidated", 1)
+			require.NoError(t, err)
+
+			if res.Result != nil {
+				var result bool
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedResult, result)
+			}
+
+			if res.Error != nil || tc.ExpectedError != nil {
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
+func TestIsBatchVirtualized(t *testing.T) {
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		ExpectedResult bool
+		ExpectedError  rpcError
+		SetupMocks     func(m *mocks)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Query status of block number successfully",
+			ExpectedResult: true,
+			SetupMocks: func(m *mocks) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("IsBatchVirtualized", context.Background(), 1, m.DbTx).
+					Return(true, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "Failed to query the virtualization status",
+			ExpectedResult: false,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to check if the batch is virtualized"),
+			SetupMocks: func(m *mocks) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("IsBatchVirtualized", context.Background(), 1, m.DbTx).
+					Return(true, errors.New("failed to check if the batch is virtualized")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m)
+
+			res, err := s.JSONRPCCall("zkevm_isBatchVirtualized", 1)
+			require.NoError(t, err)
+
+			if res.Result != nil {
+				var result bool
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedResult, result)
+			}
+
+			if res.Error != nil || tc.ExpectedError != nil {
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
 func ptrUint64(n uint64) *uint64 {
 	return &n
 }

@@ -53,6 +53,8 @@ type stateInterface interface {
 	GetL2BlockHashesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]common.Hash, error)
 	DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error)
 	ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult
+	IsBatchConsolidated(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error)
+	IsBatchVirtualized(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error)
 }
 
 type storageInterface interface {

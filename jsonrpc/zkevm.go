@@ -29,6 +29,34 @@ func (h *ZKEVM) ConsolidatedBlockNumber() (interface{}, rpcError) {
 	})
 }
 
+// IsBatchConsolidated returns the consolidation status of a provided batch ID
+func (h *ZKEVM) IsBatchConsolidated(batchNumber int) (interface{}, rpcError) {
+	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		isBatchConsolidated, err := h.state.IsBatchConsolidated(ctx, batchNumber, dbTx)
+		if err != nil {
+			const errorMessage = "failed to check if the batch is consolidated"
+			log.Errorf("%v:%v", errorMessage, err)
+			return nil, newRPCError(defaultErrorCode, errorMessage)
+		}
+
+		return isBatchConsolidated, nil
+	})
+}
+
+// IsBatchVirtualized returns the virtualisation status of a provided batch ID
+func (h *ZKEVM) IsBatchVirtualized(batchNumber int) (interface{}, rpcError) {
+	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		isBatchVirtualized, err := h.state.IsBatchVirtualized(ctx, batchNumber, dbTx)
+		if err != nil {
+			const errorMessage = "failed to check if the batch is virtualized"
+			log.Errorf("%v:%v", errorMessage, err)
+			return nil, newRPCError(defaultErrorCode, errorMessage)
+		}
+
+		return isBatchVirtualized, nil
+	})
+}
+
 // GetBroadcastURI returns the IP:PORT of the broadcast service provided
 // by the Trusted Sequencer JSON RPC server
 func (h *ZKEVM) GetBroadcastURI() (interface{}, rpcError) {
