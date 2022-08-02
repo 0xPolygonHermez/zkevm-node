@@ -29,7 +29,6 @@ type NetworkConfig struct {
 	OldStateRootPosition          uint64
 	ChainID                       uint64
 	Genesis                       Genesis
-	MaxCumulativeGasUsed          uint64
 }
 
 // Genesis is part of NetworkConfig
@@ -52,7 +51,6 @@ type networkConfigFromJSON struct {
 	OldStateRootPosition          uint64                   `json:"oldStateRootPosition"`
 	ChainID                       uint64                   `json:"chainID"`
 	Genesis                       []genesisAccountFromJSON `json:"genesis"`
-	MaxCumulativeGasUsed          uint64                   `json:"maxCumulativeGasUsed"`
 }
 
 type genesisAccountFromJSON struct {
@@ -92,7 +90,6 @@ var (
 				common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 			},
 		},
-		MaxCumulativeGasUsed: 30000000,
 	}
 	testnetConfig = NetworkConfig{
 		Arity:                         4,
@@ -112,7 +109,6 @@ var (
 				common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
 			},
 		},
-		MaxCumulativeGasUsed: 30000000,
 	}
 	internalTestnetConfig = NetworkConfig{
 		Arity:                         4,
@@ -181,7 +177,6 @@ var (
 				common.HexToAddress("0x61ba0248b0986c2480181c6e76b6adeeaa962483"): bigIntFromBase10String("1"),
 			},
 		},
-		MaxCumulativeGasUsed: 30000000,
 	}
 	localConfig = NetworkConfig{
 		Arity:                         4,
@@ -251,7 +246,6 @@ var (
 				common.HexToAddress("0x61ba0248b0986c2480181c6e76b6adeeaa962483"): bigIntFromBase10String("1"),
 			},
 		},
-		MaxCumulativeGasUsed: 30000000,
 	}
 
 	networkConfigByName = map[string]NetworkConfig{
@@ -343,7 +337,6 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfg.LocalExitRootStoragePosition = cfgJSON.LocalExitRootStoragePosition
 	cfg.OldStateRootPosition = cfgJSON.OldStateRootPosition
 	cfg.ChainID = cfgJSON.ChainID
-	cfg.MaxCumulativeGasUsed = cfgJSON.MaxCumulativeGasUsed
 
 	if len(cfgJSON.Genesis) == 0 {
 		return cfg, nil

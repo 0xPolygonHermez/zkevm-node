@@ -111,7 +111,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 						common.HexToAddress("0x61ba0248b0986c2480181c6e76b6adeeaa962483"): bigIntFromBase10String("1"),
 					},
 				},
-				MaxCumulativeGasUsed: 300000,
 			},
 		},
 		{
@@ -163,7 +162,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 					Storage:        map[common.Address]map[*big.Int]*big.Int{},
 					Nonces:         map[common.Address]*big.Int{},
 				},
-				MaxCumulativeGasUsed: 123456,
 			},
 		},
 		{
@@ -272,18 +270,16 @@ func TestMergeNetworkConfig(t *testing.T) {
 				MaticAddr:      common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"),
 			},
 			inputBaseConfig: NetworkConfig{
-				PoEAddr:              common.HexToAddress("0xb1Fe4a65D3392df68F96daC8eB4df56B2411afBf"),
-				Arity:                4,
-				ChainID:              5,
-				MaxCumulativeGasUsed: 300,
+				PoEAddr: common.HexToAddress("0xb1Fe4a65D3392df68F96daC8eB4df56B2411afBf"),
+				Arity:   4,
+				ChainID: 5,
 			},
 			expectedOutputConfig: NetworkConfig{
-				Arity:                4,
-				ChainID:              5,
-				MaxCumulativeGasUsed: 300,
-				GenBlockNumber:       300,
-				PoEAddr:              common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
-				MaticAddr:            common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"),
+				Arity:          4,
+				ChainID:        5,
+				GenBlockNumber: 300,
+				PoEAddr:        common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+				MaticAddr:      common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"),
 			},
 		},
 		{
