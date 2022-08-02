@@ -90,6 +90,23 @@ services:
       - "-c"
       - "/app/zkevm-node run --network local --cfg /app/config.toml --components synchronizer"
 
+  zkevm-sync-sequencer:
+    container_name: zkevm-sync-sequencer
+    image: zkevm-node
+    environment:
+      - ZKEVM_NODE_DATABASE_USER=test_user
+      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
+      - ZKEVM_NODE_DATABASE_NAME=test_db
+      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
+    volumes:
+      - ./test/test.keystore:/pk/keystore
+      - ./config/config.local.toml:/app/config.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components synchronizer,sequencer"
+
   zkevm-broadcast:
     container_name: zkevm-broadcast
     image: zkevm-node
