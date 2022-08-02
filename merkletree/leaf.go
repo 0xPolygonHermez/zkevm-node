@@ -4,12 +4,14 @@ package merkletree
 type leafType uint8
 
 const (
-	// leafTypeBalance specifies that leaf stores Balance
-	leafTypeBalance leafType = 0
-	// leafTypeNonce specifies that leaf stores Nonce
-	leafTypeNonce leafType = 1
-	// leafTypeCode specifies that leaf stores Code
-	leafTypeCode leafType = 2
-	// leafTypeStorage specifies that leaf stores Storage Value
-	leafTypeStorage leafType = 3
+	// LeafTypeBalance specifies that leaf stores Balance
+	LeafTypeBalance leafType = 0
+	// LeafTypeNonce specifies that leaf stores Nonce
+	LeafTypeNonce leafType = 1
+	// LeafTypeCode specifies that leaf stores Code
+	LeafTypeCode leafType = 2
+	// LeafTypeStorage specifies that leaf stores Storage Value
+	LeafTypeStorage leafType = 3
+	// LeafTypeSCLength specifies that leaf stores Storage Value
+	LeafTypeSCLength leafType = 4
 )

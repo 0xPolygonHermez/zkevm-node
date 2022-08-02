@@ -59,7 +59,7 @@ func KeyEthAddrBalance(ethAddr common.Address) ([]byte, error) {
 		return nil, err
 	}
 
-	return keyEthAddr(ethAddr, leafTypeBalance, capIn)
+	return keyEthAddr(ethAddr, LeafTypeBalance, capIn)
 }
 
 // KeyEthAddrNonce returns the key of nonce leaf:
@@ -71,7 +71,7 @@ func KeyEthAddrNonce(ethAddr common.Address) ([]byte, error) {
 		return nil, err
 	}
 
-	return keyEthAddr(ethAddr, leafTypeNonce, capIn)
+	return keyEthAddr(ethAddr, LeafTypeNonce, capIn)
 }
 
 // KeyContractCode returns the key of contract code leaf:
@@ -83,7 +83,7 @@ func KeyContractCode(ethAddr common.Address) ([]byte, error) {
 		return nil, err
 	}
 
-	return keyEthAddr(ethAddr, leafTypeCode, capIn)
+	return keyEthAddr(ethAddr, LeafTypeCode, capIn)
 }
 
 // KeyContractStorage returns the key of contract storage position leaf:
@@ -108,7 +108,7 @@ func KeyContractStorage(ethAddr common.Address, storagePos []byte) ([]byte, erro
 		return nil, err
 	}
 
-	return keyEthAddr(ethAddr, leafTypeStorage, hk0)
+	return keyEthAddr(ethAddr, LeafTypeStorage, hk0)
 }
 
 // hashContractBytecode computes the bytecode hash in order to add it to the
@@ -180,4 +180,16 @@ func hashContractBytecode(code []byte) ([]uint64, error) {
 		}
 	}
 	return tmpHash[:], nil
+}
+
+// KeyCodeLength returns the key of code length leaf:
+// hk0: H([0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0])
+// key: H([ethAddr[0:4], ethAddr[4:8], ethAddr[8:12], ethAddr[12:16], ethAddr[16:20], 0, 4, 0], [hk0[0], hk0[1], hk0[2], hk0[3]]
+func KeyCodeLength(ethAddr common.Address) ([]byte, error) {
+	capIn, err := defaultCapIn()
+	if err != nil {
+		return nil, err
+	}
+
+	return keyEthAddr(ethAddr, LeafTypeSCLength, capIn)
 }
