@@ -3,10 +3,11 @@ package config
 import (
 	"flag"
 	"io/ioutil"
-	"math/big"
 	"os"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -84,31 +85,66 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				LocalExitRootStoragePosition:  1,
 				OldStateRootPosition:          0,
 				ChainID:                       5,
-				Genesis: Genesis{
-					Balances: map[common.Address]*big.Int{
-						common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"): bigIntFromBase10String("100000000000000000000000"),
-					},
-					SmartContracts: map[common.Address][]byte{
-						common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"): common.FromHex("0xbeef1"),
-						common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"): common.FromHex("0xbeef2"),
-						common.HexToAddress("0x61ba0248b0986c2480181c6e76b6adeeaa962483"): common.FromHex("0xbeef3"),
-					},
-					Storage: map[common.Address]map[*big.Int]*big.Int{
-						common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"): {
-							new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")): new(big.Int).SetBytes(common.Hex2Bytes("9d98deabc42dd696deb9e40b4f1cab7ddbf55988")),
+				Genesis: state.Genesis{
+					Actions: []*state.GenesisAction{
+						{
+							Address: "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
+							Type:    int(merkletree.LeafTypeBalance),
+							Value:   "100000000000000000000000",
 						},
-						common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"): {
-							new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000")): new(big.Int).SetBytes(common.Hex2Bytes("c949254d682d8c9ad5682521675b8f43b102aec4")),
+						{
+							Address: "0xc949254d682d8c9ad5682521675b8f43b102aec4",
+							Type:    int(merkletree.LeafTypeNonce),
+							Value:   "2",
 						},
-						common.HexToAddress("0x61ba0248b0986c2480181c6e76b6adeeaa962483"): {
-							new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000")): new(big.Int).SetBytes(common.Hex2Bytes("01")),
+						{
+							Address: "0xae4bb80be56b819606589de61d5ec3b522eeb032",
+							Type:    int(merkletree.LeafTypeNonce),
+							Value:   "1",
 						},
-					},
-					Nonces: map[common.Address]*big.Int{
-						common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"): bigIntFromBase10String("2"),
-						common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"): bigIntFromBase10String("1"),
-						common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"): bigIntFromBase10String("2"),
-						common.HexToAddress("0x61ba0248b0986c2480181c6e76b6adeeaa962483"): bigIntFromBase10String("1"),
+						{
+							Address: "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
+							Type:    int(merkletree.LeafTypeNonce),
+							Value:   "2",
+						},
+						{
+							Address: "0x61ba0248b0986c2480181c6e76b6adeeaa962483",
+							Type:    int(merkletree.LeafTypeNonce),
+							Value:   "1",
+						},
+						{
+							Address:  "0xae4bb80be56b819606589de61d5ec3b522eeb032",
+							Type:     int(merkletree.LeafTypeCode),
+							Bytecode: "0xbeef1",
+						},
+						{
+							Address:  "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
+							Type:     int(merkletree.LeafTypeCode),
+							Bytecode: "0xbeef2",
+						},
+						{
+							Address:  "0x61ba0248b0986c2480181c6e76b6adeeaa962483",
+							Type:     int(merkletree.LeafTypeCode),
+							Bytecode: "0xbeef3",
+						},
+						{
+							Address:         "0xae4bb80be56b819606589de61d5ec3b522eeb032",
+							Type:            int(merkletree.LeafTypeStorage),
+							StoragePosition: "0000000000000000000000000000000000000000000000000000000000000002",
+							Value:           "9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
+						},
+						{
+							Address:         "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
+							Type:            int(merkletree.LeafTypeStorage),
+							StoragePosition: "0000000000000000000000000000000000000000000000000000000000000000",
+							Value:           "c949254d682d8c9ad5682521675b8f43b102aec4",
+						},
+						{
+							Address:         "0x61ba0248b0986c2480181c6e76b6adeeaa962483",
+							Type:            int(merkletree.LeafTypeStorage),
+							StoragePosition: "0000000000000000000000000000000000000000000000000000000000000000",
+							Value:           "01",
+						},
 					},
 				},
 			},
@@ -152,15 +188,24 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				LocalExitRootStoragePosition:  2,
 				OldStateRootPosition:          0,
 				ChainID:                       1337,
-				Genesis: Genesis{
-					Balances: map[common.Address]*big.Int{
-						common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"): bigIntFromBase10String("1000000000000000000000"),
-						common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8"): bigIntFromBase10String("2000000000000000000000"),
-						common.HexToAddress("0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"): bigIntFromBase10String("3000000000000000000000"),
+				Genesis: state.Genesis{
+					Actions: []*state.GenesisAction{
+						{
+							Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+							Type:    int(merkletree.LeafTypeBalance),
+							Value:   "1000000000000000000000",
+						},
+						{
+							Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+							Type:    int(merkletree.LeafTypeBalance),
+							Value:   "2000000000000000000000",
+						},
+						{
+							Address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+							Type:    int(merkletree.LeafTypeBalance),
+							Value:   "3000000000000000000000",
+						},
 					},
-					SmartContracts: map[common.Address][]byte{},
-					Storage:        map[common.Address]map[*big.Int]*big.Int{},
-					Nonces:         map[common.Address]*big.Int{},
 				},
 			},
 		},
@@ -205,28 +250,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 			require.Equal(t, tc.expectedConfig.OldStateRootPosition, actualConfig.OldStateRootPosition)
 			require.Equal(t, tc.expectedConfig.ChainID, actualConfig.ChainID)
 
-			require.Equal(t, tc.expectedConfig.Genesis.Balances, actualConfig.Genesis.Balances)
-			require.Equal(t, tc.expectedConfig.Genesis.SmartContracts, actualConfig.Genesis.SmartContracts)
-			require.Equal(t, tc.expectedConfig.Genesis.Nonces, actualConfig.Genesis.Nonces)
-			require.Equal(t, len(tc.expectedConfig.Genesis.Storage), len(tc.expectedConfig.Genesis.Storage))
-			for address, expectedStoragePair := range tc.expectedConfig.Genesis.Storage {
-				actualStoragePair := actualConfig.Genesis.Storage[address]
-				require.NotNil(t, actualStoragePair)
-				for expectedStorageKey := range expectedStoragePair {
-					expectedStorageKeyStr := expectedStorageKey.String()
-					expectedStorageValueStr := tc.expectedConfig.Genesis.Storage[address][expectedStorageKey].String()
-					found := false
-					for actualStorageKey := range actualStoragePair {
-						actualStorageKeyStr := actualStorageKey.String()
-						actualStorageValueStr := actualConfig.Genesis.Storage[address][actualStorageKey].String()
-						if expectedStorageKeyStr == actualStorageKeyStr && expectedStorageValueStr == actualStorageValueStr {
-							found = true
-							break
-						}
-					}
-					require.True(t, found)
-				}
-			}
+			require.Equal(t, tc.expectedConfig.Genesis.Actions, actualConfig.Genesis.Actions)
 		})
 	}
 }
@@ -286,29 +310,52 @@ func TestMergeNetworkConfig(t *testing.T) {
 			description: "nested keys",
 			inputCustomConfig: NetworkConfig{
 				GenBlockNumber: 300,
-				Genesis: Genesis{
-					Balances: map[common.Address]*big.Int{
-						common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"): bigIntFromBase10String("100000000000000000000000"),
-						common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"): bigIntFromBase10String("900000000000000000000000"),
+				Genesis: state.Genesis{
+					Actions: []*state.GenesisAction{
+						{
+							Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+							Type:    int(merkletree.LeafTypeBalance),
+							Value:   "1000000000000000000000",
+						},
+						{
+							Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+							Type:    int(merkletree.LeafTypeBalance),
+							Value:   "2000000000000000000000",
+						},
 					},
 				},
 			},
 			inputBaseConfig: NetworkConfig{
 				GenBlockNumber: 10,
-				Genesis: Genesis{
-					Balances: map[common.Address]*big.Int{
-						common.HexToAddress("0xb1Fe4a65D3392df68F96daC8eB4df56B2411afBf"): bigIntFromBase10String("200000000000000000000000"),
-						common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"): bigIntFromBase10String("700000000000000000000000"),
+				Genesis: state.Genesis{
+					Actions: []*state.GenesisAction{
+						{
+							Address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+							Type:    int(merkletree.LeafTypeBalance),
+							Value:   "3000000000000000000000",
+						},
 					},
 				},
 			},
 			expectedOutputConfig: NetworkConfig{
 				GenBlockNumber: 300,
-				Genesis: Genesis{
-					Balances: map[common.Address]*big.Int{
-						common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"): bigIntFromBase10String("100000000000000000000000"),
-						common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"): bigIntFromBase10String("900000000000000000000000"),
-						common.HexToAddress("0xb1Fe4a65D3392df68F96daC8eB4df56B2411afBf"): bigIntFromBase10String("200000000000000000000000"),
+				Genesis: state.Genesis{
+					Actions: []*state.GenesisAction{
+						{
+							Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+							Type:    int(merkletree.LeafTypeBalance),
+							Value:   "1000000000000000000000",
+						},
+						{
+							Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+							Type:    int(merkletree.LeafTypeBalance),
+							Value:   "2000000000000000000000",
+						},
+						{
+							Address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+							Type:    int(merkletree.LeafTypeBalance),
+							Value:   "3000000000000000000000",
+						},
 					},
 				},
 			},
