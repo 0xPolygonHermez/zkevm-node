@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
-	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:16005", zkProverURI)}
 	var executorCancel context.CancelFunc
 	executorClient, executorClientConn, executorCancel = executor.NewExecutorClient(ctx, executorServerConfig)
 	s := executorClientConn.GetState()
@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 		executorClientConn.Close()
 	}()
 
-	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:16005", zkProverURI)}
 	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	s = mtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())
@@ -916,7 +916,7 @@ func TestGenesis(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, action.Value, balance.String())
 		case int(merkletree.LeafTypeNonce):
-			nonce, err := stateTree.GetBalance(ctx, address, stateRoot)
+			nonce, err := stateTree.GetNonce(ctx, address, stateRoot)
 			require.NoError(t, err)
 			require.Equal(t, action.Value, nonce.String())
 		case int(merkletree.LeafTypeCode):

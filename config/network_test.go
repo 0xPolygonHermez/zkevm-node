@@ -88,11 +88,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				Genesis: state.Genesis{
 					Actions: []*state.GenesisAction{
 						{
-							Address: "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
-							Type:    int(merkletree.LeafTypeBalance),
-							Value:   "100000000000000000000000",
-						},
-						{
 							Address: "0xc949254d682d8c9ad5682521675b8f43b102aec4",
 							Type:    int(merkletree.LeafTypeNonce),
 							Value:   "2",
@@ -103,19 +98,25 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 							Value:   "1",
 						},
 						{
-							Address: "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
-							Type:    int(merkletree.LeafTypeNonce),
-							Value:   "2",
-						},
-						{
-							Address: "0x61ba0248b0986c2480181c6e76b6adeeaa962483",
-							Type:    int(merkletree.LeafTypeNonce),
-							Value:   "1",
-						},
-						{
 							Address:  "0xae4bb80be56b819606589de61d5ec3b522eeb032",
 							Type:     int(merkletree.LeafTypeCode),
 							Bytecode: "0xbeef1",
+						},
+						{
+							Address:         "0xae4bb80be56b819606589de61d5ec3b522eeb032",
+							Type:            int(merkletree.LeafTypeStorage),
+							StoragePosition: "0x0000000000000000000000000000000000000000000000000000000000000002",
+							Value:           "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
+						},
+						{
+							Address: "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
+							Type:    int(merkletree.LeafTypeBalance),
+							Value:   "100000000000000000000000",
+						},
+						{
+							Address: "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
+							Type:    int(merkletree.LeafTypeNonce),
+							Value:   "2",
 						},
 						{
 							Address:  "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
@@ -123,27 +124,26 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 							Bytecode: "0xbeef2",
 						},
 						{
+							Address:         "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
+							Type:            int(merkletree.LeafTypeStorage),
+							StoragePosition: "0x0000000000000000000000000000000000000000000000000000000000000000",
+							Value:           "0xc949254d682d8c9ad5682521675b8f43b102aec4",
+						},
+						{
+							Address: "0x61ba0248b0986c2480181c6e76b6adeeaa962483",
+							Type:    int(merkletree.LeafTypeNonce),
+							Value:   "1",
+						},
+						{
 							Address:  "0x61ba0248b0986c2480181c6e76b6adeeaa962483",
 							Type:     int(merkletree.LeafTypeCode),
 							Bytecode: "0xbeef3",
 						},
 						{
-							Address:         "0xae4bb80be56b819606589de61d5ec3b522eeb032",
-							Type:            int(merkletree.LeafTypeStorage),
-							StoragePosition: "0000000000000000000000000000000000000000000000000000000000000002",
-							Value:           "9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
-						},
-						{
-							Address:         "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
-							Type:            int(merkletree.LeafTypeStorage),
-							StoragePosition: "0000000000000000000000000000000000000000000000000000000000000000",
-							Value:           "c949254d682d8c9ad5682521675b8f43b102aec4",
-						},
-						{
 							Address:         "0x61ba0248b0986c2480181c6e76b6adeeaa962483",
 							Type:            int(merkletree.LeafTypeStorage),
-							StoragePosition: "0000000000000000000000000000000000000000000000000000000000000000",
-							Value:           "01",
+							StoragePosition: "0x0000000000000000000000000000000000000000000000000000000000000000",
+							Value:           "0x01",
 						},
 					},
 				},
@@ -327,15 +327,6 @@ func TestMergeNetworkConfig(t *testing.T) {
 			},
 			inputBaseConfig: NetworkConfig{
 				GenBlockNumber: 10,
-				Genesis: state.Genesis{
-					Actions: []*state.GenesisAction{
-						{
-							Address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-							Type:    int(merkletree.LeafTypeBalance),
-							Value:   "3000000000000000000000",
-						},
-					},
-				},
 			},
 			expectedOutputConfig: NetworkConfig{
 				GenBlockNumber: 300,
@@ -350,11 +341,6 @@ func TestMergeNetworkConfig(t *testing.T) {
 							Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
 							Type:    int(merkletree.LeafTypeBalance),
 							Value:   "2000000000000000000000",
-						},
-						{
-							Address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-							Type:    int(merkletree.LeafTypeBalance),
-							Value:   "3000000000000000000000",
 						},
 					},
 				},

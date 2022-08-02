@@ -528,11 +528,19 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 			}
 			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
-		if account.Bytecode != "" {
+		if account.Nonce != "" && account.Nonce != "0" {
 			action := &state.GenesisAction{
 				Address: account.Address,
-				Type:    int(merkletree.LeafTypeCode),
-				Value:   account.Bytecode,
+				Type:    int(merkletree.LeafTypeNonce),
+				Value:   account.Nonce,
+			}
+			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
+		}
+		if account.Bytecode != "" {
+			action := &state.GenesisAction{
+				Address:  account.Address,
+				Type:     int(merkletree.LeafTypeCode),
+				Bytecode: account.Bytecode,
 			}
 			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
@@ -546,14 +554,6 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 				}
 				cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 			}
-		}
-		if account.Nonce != "" && account.Nonce != "0" {
-			action := &state.GenesisAction{
-				Address: account.Address,
-				Type:    int(merkletree.LeafTypeNonce),
-				Value:   account.Nonce,
-			}
-			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
 	}
 	return cfg, nil
@@ -579,8 +579,13 @@ func (a addressTransformer) Transformer(typ reflect.Type) func(dst, src reflect.
 }
 
 func mergeNetworkConfigs(custom, base NetworkConfig) (NetworkConfig, error) {
+	actionsBack := append(base.Genesis.Actions, custom.Genesis.Actions...)
+
 	if err := mergo.MergeWithOverwrite(&base, custom, mergo.WithTransformers(addressTransformer{})); err != nil {
 		return NetworkConfig{}, err
 	}
+
+	base.Genesis.Actions = actionsBack
+
 	return base, nil
 }
