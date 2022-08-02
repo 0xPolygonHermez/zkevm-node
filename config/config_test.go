@@ -62,7 +62,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.MaxCumulativeGasUsed",
-			expectedValue: int64(30000000),
+			expectedValue: uint64(30000000),
 		},
 		{
 			path:          "Sequencer.MaxKeccakHashes",
