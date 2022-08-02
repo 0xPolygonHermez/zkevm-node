@@ -30,6 +30,10 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		err := s.closeSequence(ctx)
 		if err != nil {
 			log.Errorf("error closing sequence: %v", err)
+			log.Info("reseting sequence in progress")
+			if err = s.loadSequenceFromState(ctx); err != nil {
+				log.Error("error loading sequence from state: %v", err)
+			}
 			return
 		}
 	}

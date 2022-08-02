@@ -215,11 +215,59 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 	s.lastBatchNum = lastBatch.BatchNumber
 	s.lastStateRoot = lastBatch.StateRoot
 	s.lastLocalExitRoot = lastBatch.LocalExitRoot
-	// s.lastBatchNumSentToL1 =
-	return fmt.Errorf("NOT IMPLEMENTED: loadSequenceFromState")
+	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
+	if err != nil {
+		return err
+	}
+	s.lastBatchNumSentToL1 = lastVirtualBatchNum
+	isClosed, err := s.state.IsBatchClosed(ctx, lastBatch.BatchNumber, nil)
+	if err != nil {
+		return err
+	}
+	if isClosed {
+		ger, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
+		if err != nil {
+			return err
+		}
+		processingCtx := state.ProcessingContext{
+			BatchNumber:    s.lastBatchNum + 1,
+			Coinbase:       s.address,
+			Timestamp:      time.Now(),
+			GlobalExitRoot: ger.GlobalExitRoot,
+		}
+		dbTx, err := s.state.BeginStateTransaction(ctx)
+		if err != nil {
+			return err
+		}
+		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
+		if err != nil {
+			rollErr := dbTx.Rollback(ctx)
+			if rollErr != nil {
+				err = fmt.Errorf("err: %v. Rollback err: %v", err, rollErr)
+			}
+			return err
+		}
+		if err = dbTx.Commit(ctx); err != nil {
+			return err
+		}
+		s.sequenceInProgress = types.Sequence{
+			GlobalExitRoot: processingCtx.GlobalExitRoot,
+			Timestamp:      processingCtx.Timestamp.Unix(),
+		}
+	} else {
+		txs, err := s.state.GetTransactionsByBatchNumber(ctx, lastBatch.BatchNumber, nil)
+		if err != nil {
+			return err
+		}
+		s.sequenceInProgress = types.Sequence{
+			GlobalExitRoot: lastBatch.GlobalExitRoot,
+			Timestamp:      lastBatch.Timestamp.Unix(),
+			Txs:            txs,
+		}
+	}
+
+	return nil
 	/*
-		TODO: set s.[lastBatchNum, lastStateRoot, lastLocalExitRoot, closedSequences, sequenceInProgress]
-		based on stateDB data AND potentially pending txs to be mined on Ethereum, as this function may be called either
-		when starting the sequencer OR if there is a mismatch between state data and on memory
+		TODO: deal with ongoing L1 txs
 	*/
 }
