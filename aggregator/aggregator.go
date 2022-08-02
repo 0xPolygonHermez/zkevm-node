@@ -82,7 +82,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	}
 	log.Info("network is synced, getting batch to verify")
 	batchToVerify, err := a.getBatchToVerify(ctx)
-	if err != nil {
+	if err != nil || batchToVerify == nil {
 		waitTick(ctx, ticker)
 		return
 	}

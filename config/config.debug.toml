@@ -59,7 +59,7 @@ Type = "default"
 DefaultGasPriceWei = 1000000000
 
 [Prover]
-ProverURI = "localhost:50051"
+ProverURI = "localhost:50052"
 
 [MTServer]
 Host = "0.0.0.0"
