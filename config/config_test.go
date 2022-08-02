@@ -38,7 +38,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.LastBatchVirtualizationTimeMaxWaitPeriod",
-			expectedValue: types.NewDuration(15 * time.Second),
+			expectedValue: types.NewDuration(300 * time.Second),
 		},
 		{
 			path:          "Sequencer.WaitBlocksToUpdateGER",
@@ -61,36 +61,36 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
-			path:          "Sequencer.MaxGasUsed",
-			expectedValue: int64(100000),
+			path:          "Sequencer.MaxCumulativeGasUsed",
+			expectedValue: uint64(30000000),
 		},
 		{
 			path:          "Sequencer.MaxKeccakHashes",
-			expectedValue: int32(100),
+			expectedValue: int32(468),
 		},
 		{
 			path:          "Sequencer.MaxPoseidonHashes",
-			expectedValue: int32(100),
+			expectedValue: int32(279620),
 		},
 		{
 			path:          "Sequencer.MaxPoseidonPaddings",
-			expectedValue: int32(100),
+			expectedValue: int32(149796),
 		},
 		{
 			path:          "Sequencer.MaxMemAligns",
-			expectedValue: int32(100),
+			expectedValue: int32(262144),
 		},
 		{
 			path:          "Sequencer.MaxArithmetics",
-			expectedValue: int32(100),
+			expectedValue: int32(262144),
 		},
 		{
 			path:          "Sequencer.MaxBinaries",
-			expectedValue: int32(100),
+			expectedValue: int32(262144),
 		},
 		{
 			path:          "Sequencer.MaxSteps",
-			expectedValue: int32(100),
+			expectedValue: int32(8388608),
 		},
 		{
 			path:          "EthTxManager.MaxSendBatchTxRetries",

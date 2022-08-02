@@ -195,12 +195,11 @@ stop-explorer-db: ## Stops the explorer database
 	$(STOPEXPLORERDB)
 
 .PHONY: run
-run: compile-scs ## Runs all the services
+run: ## Runs all the services
 	$(RUNDB)
 	$(RUNL1NETWORK)
-	sleep 5
 	$(RUNZKPROVER)
-	sleep 2
+	sleep 5
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)

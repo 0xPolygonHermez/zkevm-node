@@ -174,17 +174,26 @@ func (s *Sequencer) trackOldTxs(ctx context.Context) {
 }
 
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
+	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
 		waitTick(ctx, ticker)
 		return
 	}
-
 	log.Info("synchronizer has synced last batch, checking if current sequence should be closed")
-	if s.shouldCloseSequenceInProgress(ctx) && !s.closeSequence(ctx) {
-		return
+
+	// Check if should close sequence
+	log.Infof("checking if current sequence should be closed")
+	if s.shouldCloseSequenceInProgress(ctx) {
+		log.Infof("current sequence should be closed")
+		err := s.closeSequence(ctx)
+		if err != nil {
+			log.Errorf("error closing sequence: %v", err)
+			return
+		}
 	}
 
+	// Check if should send sequence
 	log.Infof("checking if current sequence should be sent")
 	shouldSent, shouldCut := s.shouldSendSequences(ctx)
 	if shouldSent {
@@ -192,6 +201,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		if shouldCut {
 			log.Infof("current sequence should be cut")
 			cutSequence := s.closedSequences[len(s.closedSequences)-1]
+			s.closedSequences = s.closedSequences[:len(s.closedSequences)-1]
 			s.txManager.SequenceBatches(s.closedSequences)
 			s.closedSequences = []types.Sequence{cutSequence}
 		} else {
@@ -200,13 +210,9 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		}
 	}
 
+	// Get next tx from the pool
 	log.Info("getting pending tx from the pool")
-	zkCounters := s.calculateZkCounters()
-	if zkCounters.IsZkCountersBelowZero() {
-		s.closeSequence(ctx)
-		return
-	}
-	tx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, zkCounters)
+	tx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.calculateZkCounters())
 	if err == pgpoolstorage.ErrNotFound {
 		log.Infof("there is no suitable pending tx in the pool, waiting...")
 		waitTick(ctx, ticker)
@@ -256,14 +262,13 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.lastStateRoot = processBatchResp.NewStateRoot
 	s.lastLocalExitRoot = processBatchResp.NewLocalExitRoot
 
+	processedTxs, unprocessedTxs := state.DetermineProcessedTransactions(processBatchResp.Responses)
+	// only save in DB processed transactions.
 	dbTx, err = s.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for StoreTransactions, err: %v", err)
 		return
 	}
-
-	processedTxs, unprocessedTxs := state.DetermineProcessedTransactions(processBatchResp.Responses)
-	// only save in DB processed transactions.
 	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processedTxs, dbTx)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
@@ -300,17 +305,15 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 }
 
-func (s *Sequencer) closeSequence(ctx context.Context) bool {
-	log.Infof("current sequence should be closed")
+func (s *Sequencer) closeSequence(ctx context.Context) error {
 	s.closedSequences = append(s.closedSequences, s.sequenceInProgress)
 	newSequence, err := s.newSequence(ctx)
 	if err != nil {
-		log.Errorf("failed to create new sequence, err: %v", err)
 		s.closedSequences = s.closedSequences[:len(s.closedSequences)-1]
-		return false
+		return fmt.Errorf("failed to create new sequence, err: %v", err)
 	}
 	s.sequenceInProgress = newSequence
-	return true
+	return nil
 }
 
 func waitTick(ctx context.Context, ticker *time.Ticker) {
@@ -347,6 +350,7 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 	estimatedGas, err := s.etherman.EstimateGasSequenceBatches(s.closedSequences)
 	if err != nil && isDataForEthTxTooBig(err) {
 		log.Warnf("closedSequences eth data is too big, err: %v", err)
+		log.Info("sequence should be sent to L1, because it's already too big for a single L1 tx")
 		return true, true
 	}
 
@@ -387,6 +391,7 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 	if lastBatchVirtualizationTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
 		// check profitability
 		if s.checker.IsSendSequencesProfitable(new(big.Int).SetUint64(estimatedGas), s.closedSequences) {
+			log.Info("sequence should be sent to L1, because too long since didn't send anything to L1")
 			return true, false
 		}
 	}
@@ -397,22 +402,43 @@ func (s *Sequencer) shouldSendSequences(ctx context.Context) (bool, bool) {
 // shouldCloseSequenceInProgress checks if sequence should be closed or not
 // in case it's enough blocks since last GER update, long time since last batch and sequence is profitable
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
+	// Check if GER needs to be updated
 	numberOfBlocks, err := s.state.GetNumberOfBlocksSinceLastGERUpdate(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get last time GER updated, err: %v", err)
 		return false
 	}
 	if numberOfBlocks >= s.cfg.WaitBlocksToUpdateGER {
-		return s.isSequenceProfitable(ctx)
+		if len(s.sequenceInProgress.Txs) == 0 {
+			log.Warn("TODO: update GER without closing batch as no txs have been added yet")
+			return false
+		}
+		isProfitable := s.isSequenceProfitable(ctx)
+		if isProfitable {
+			log.Infof("current sequence should be closed because %d blocks have been mined since last GER and tx is profitable", numberOfBlocks)
+			return true
+		}
 	}
-
+	// Check if it has been to long since a batch is virtualized
 	lastBatchTime, err := s.state.GetLastBatchTime(ctx, nil)
 	if err != nil && !errors.Is(err, state.ErrNotFound) {
 		log.Errorf("failed to get last batch time, err: %v", err)
 		return false
 	}
 	if lastBatchTime.Before(time.Now().Add(-s.cfg.LastTimeBatchMaxWaitPeriod.Duration)) && len(s.sequenceInProgress.Txs) > 0 {
-		return s.isSequenceProfitable(ctx)
+		isProfitable := s.isSequenceProfitable(ctx)
+		if isProfitable {
+			log.Info(
+				"current sequence should be closed because LastTimeBatchMaxWaitPeriod has been exceeded, " +
+					"there are pending sequences to be sent and they are profitable")
+			return true
+		}
+	}
+	// Check ZK counters
+	zkCounters := s.calculateZkCounters()
+	if zkCounters.IsZkCountersBelowZero() && len(s.sequenceInProgress.Txs) != 0 {
+		log.Info("closing sequence because at least some ZK counter is bellow 0")
+		return true
 	}
 
 	return false
@@ -506,7 +532,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 
 func (s *Sequencer) calculateZkCounters() pool.ZkCounters {
 	return pool.ZkCounters{
-		CumulativeGasUsed:    s.cfg.MaxGasUsed - s.sequenceInProgress.CumulativeGasUsed,
+		CumulativeGasUsed:    int64(s.cfg.MaxCumulativeGasUsed) - s.sequenceInProgress.CumulativeGasUsed,
 		UsedKeccakHashes:     s.cfg.MaxKeccakHashes - s.sequenceInProgress.UsedKeccakHashes,
 		UsedPoseidonHashes:   s.cfg.MaxPoseidonHashes - s.sequenceInProgress.UsedKeccakHashes,
 		UsedPoseidonPaddings: s.cfg.MaxPoseidonPaddings - s.sequenceInProgress.UsedPoseidonPaddings,

@@ -291,7 +291,7 @@ func newState(ctx context.Context, c *config.Config, sqlDB *pgxpool.Pool) *state
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
 	stateCfg := state.Config{
-		MaxCumulativeGasUsed: c.NetworkConfig.MaxCumulativeGasUsed,
+		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
