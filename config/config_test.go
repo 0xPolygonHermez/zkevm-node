@@ -61,7 +61,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
-			path:          "Sequencer.MaxGasUsed",
+			path:          "Sequencer.MaxCumulativeGasUsed",
 			expectedValue: int64(30000000),
 		},
 		{

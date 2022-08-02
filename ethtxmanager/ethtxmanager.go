@@ -55,7 +55,6 @@ func (c *Client) TrackSequenceBatchesSending(ctx context.Context) {
 		select {
 		case sequences := <-c.sequencesToSendChan:
 			var attempts uint32
-			// attempts = 0
 			log.Info("sending sequence to L1")
 			tx, err := c.ethMan.SequenceBatches(sequences, 0)
 			for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
@@ -63,7 +62,6 @@ func (c *Client) TrackSequenceBatchesSending(ctx context.Context) {
 					attempts, 0, err)
 				time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 				attempts++
-				// gasLimit = uint64(float64(gasLimit) * gasLimitIncrease)
 				tx, err = c.ethMan.SequenceBatches(sequences, 0)
 			}
 			if err != nil {

@@ -532,7 +532,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 
 func (s *Sequencer) calculateZkCounters() pool.ZkCounters {
 	return pool.ZkCounters{
-		CumulativeGasUsed:    s.cfg.MaxGasUsed - s.sequenceInProgress.CumulativeGasUsed,
+		CumulativeGasUsed:    int64(s.cfg.MaxCumulativeGasUsed) - s.sequenceInProgress.CumulativeGasUsed,
 		UsedKeccakHashes:     s.cfg.MaxKeccakHashes - s.sequenceInProgress.UsedKeccakHashes,
 		UsedPoseidonHashes:   s.cfg.MaxPoseidonHashes - s.sequenceInProgress.UsedKeccakHashes,
 		UsedPoseidonPaddings: s.cfg.MaxPoseidonPaddings - s.sequenceInProgress.UsedPoseidonPaddings,
