@@ -81,5 +81,7 @@ func (c *Checker) IsSendSequencesProfitable(estimatedGas *big.Int, sequences []t
 		}
 	}
 
+	// TODO: consider MATIC fee
+
 	return false
 }
