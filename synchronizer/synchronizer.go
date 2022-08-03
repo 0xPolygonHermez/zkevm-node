@@ -29,15 +29,14 @@ type Synchronizer interface {
 
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
-	isTrustedSequencer    bool
-	etherMan              ethermanInterface
-	state                 stateInterface
-	ctx                   context.Context
-	cancelCtx             context.CancelFunc
-	genBlockNumber        uint64
-	genesis               state.Genesis
-	reorgTrustedStateChan chan struct{}
-	cfg                   Config
+	isTrustedSequencer bool
+	etherMan           ethermanInterface
+	state              stateInterface
+	ctx                context.Context
+	cancelCtx          context.CancelFunc
+	genBlockNumber     uint64
+	genesis            state.Genesis
+	cfg                Config
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -47,20 +46,18 @@ func NewSynchronizer(
 	st stateInterface,
 	genBlockNumber uint64,
 	genesis state.Genesis,
-	reorgTrustedStateChan chan struct{},
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &ClientSynchronizer{
-		isTrustedSequencer:    isTrustedSequencer,
-		state:                 st,
-		etherMan:              ethMan,
-		ctx:                   ctx,
-		cancelCtx:             cancel,
-		genBlockNumber:        genBlockNumber,
-		genesis:               genesis,
-		reorgTrustedStateChan: reorgTrustedStateChan,
-		cfg:                   cfg,
+		isTrustedSequencer: isTrustedSequencer,
+		state:              st,
+		etherMan:           ethMan,
+		ctx:                ctx,
+		cancelCtx:          cancel,
+		genBlockNumber:     genBlockNumber,
+		genesis:            genesis,
+		cfg:                cfg,
 	}, nil
 }
 
@@ -617,8 +614,6 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 					}
 					log.Fatalf("error storing batch. BatchNumber: %d, BlockNumber: %d, error: %s", batch.BatchNumber, blockNumber, err.Error())
 				}
-				// Add info into the channel to inform the sequencer
-				s.reorgTrustedStateChan <- struct{}{}
 			}
 			// Store virtualBatch
 			err = s.state.AddVirtualBatch(s.ctx, &virtualBatches[i], dbTx)
@@ -708,8 +703,6 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch etherm
 			log.Fatalf("error adding the batchNumber to forcedBatch in processSequenceForceBatch. BlockNumber: %d, error: %s", blockNumber, err.Error())
 		}
 	}
-	// Add info into the channel to inform the sequencer
-	s.reorgTrustedStateChan <- struct{}{}
 }
 
 func (s *ClientSynchronizer) processForcedBatch(forcedBatch etherman.ForcedBatch, dbTx pgx.Tx) {

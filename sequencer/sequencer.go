@@ -24,12 +24,11 @@ const (
 type Sequencer struct {
 	cfg Config
 
-	pool                  txPool
-	state                 stateInterface
-	txManager             txManager
-	etherman              etherman
-	checker               *profitabilitychecker.Checker
-	reorgTrustedStateChan chan struct{}
+	pool      txPool
+	state     stateInterface
+	txManager txManager
+	etherman  etherman
+	checker   *profitabilitychecker.Checker
 
 	address                          common.Address
 	lastBatchNum                     uint64
@@ -46,7 +45,6 @@ func New(
 	state stateInterface,
 	etherman etherman,
 	priceGetter priceGetter,
-	reorgTrustedStateChan chan struct{},
 	manager txManager) (*Sequencer, error) {
 	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
 
@@ -57,14 +55,13 @@ func New(
 	// TODO: check that private key used in etherman matches addr
 
 	return &Sequencer{
-		cfg:                   cfg,
-		pool:                  pool,
-		state:                 state,
-		etherman:              etherman,
-		checker:               checker,
-		txManager:             manager,
-		address:               addr,
-		reorgTrustedStateChan: reorgTrustedStateChan,
+		cfg:       cfg,
+		pool:      pool,
+		state:     state,
+		etherman:  etherman,
+		checker:   checker,
+		txManager: manager,
+		address:   addr,
 	}, nil
 }
 
@@ -125,7 +122,6 @@ func (s *Sequencer) Start(ctx context.Context) {
 		}
 	}
 
-	go s.trackReorg(ctx)
 	go s.trackOldTxs(ctx)
 	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	tickerSendSequence := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
@@ -143,24 +139,6 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}()
 	// Wait until context is done
 	<-ctx.Done()
-}
-
-func (s *Sequencer) trackReorg(ctx context.Context) {
-	for {
-		select {
-		case <-s.reorgTrustedStateChan:
-			const waitTime = 5 * time.Second
-
-			err := s.pool.MarkReorgedTxsAsPending(ctx)
-			for err != nil {
-				time.Sleep(waitTime)
-				log.Errorf("failed to mark reorged txs as pending")
-				err = s.pool.MarkReorgedTxsAsPending(ctx)
-			}
-		case <-ctx.Done():
-			return
-		}
-	}
 }
 
 func (s *Sequencer) trackOldTxs(ctx context.Context) {
@@ -207,7 +185,16 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 }
 
 func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
-	// WIP
+	// Check if synchronizer is up to date
+	for !s.isSynced(ctx) {
+		log.Info("wait for synchronizer to sync last batch")
+		time.Sleep(time.Second)
+	}
+	// Revert reorged txs to pending
+	if err := s.pool.MarkReorgedTxsAsPending(ctx); err != nil {
+		return err
+	}
+	// Get latest info from the state
 	lastBatch, err := s.state.GetLastBatch(ctx, nil)
 	if err != nil {
 		return err
