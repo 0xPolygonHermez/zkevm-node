@@ -2,6 +2,7 @@ package ethtxmanager
 
 import (
 	"context"
+	"time"
 
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
@@ -16,4 +17,5 @@ type etherman interface {
 	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error)
 	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
 	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
+	WaitTxToBeMined(hash common.Hash, timeout time.Duration) error
 }

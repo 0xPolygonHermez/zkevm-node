@@ -37,7 +37,7 @@ func TestUniswap(t *testing.T) {
 	opsCfg := &operations.Config{
 		Arity: cfg.NetworkConfig.Arity,
 		State: &state.Config{
-			MaxCumulativeGasUsed: cfg.NetworkConfig.MaxCumulativeGasUsed,
+			MaxCumulativeGasUsed: cfg.Sequencer.MaxCumulativeGasUsed,
 		},
 		Sequencer: &operations.SequencerConfig{
 			Address:    "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",

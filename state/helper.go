@@ -4,13 +4,10 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
-	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -90,32 +87,6 @@ func EncodeUnsignedTransaction(tx types.Transaction) ([]byte, error) {
 
 // DecodeTxs extracts Tansactions for its encoded form
 func DecodeTxs(txsData []byte) ([]types.Transaction, []byte, error) {
-	// The first 4 bytes are the function hash bytes. These bytes has to be ripped.
-	// After that, the unpack method is used to read the call data.
-	// The txs data is a chunk of concatenated rawTx. This rawTx is the encoded tx information in rlp + the signature information (v, r, s).
-	//So, txs data will look like: txRLP+r+s+v+txRLP2+r2+s2+v2
-
-	// Extract coded txs.
-	// Load contract ABI
-	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyMetaData.ABI))
-	if err != nil {
-		log.Fatal("error reading smart contract abi: ", err)
-	}
-
-	// Recover Method from signature and ABI
-	method, err := abi.MethodById(txsData[:4])
-	if err != nil {
-		log.Fatal("error getting abi method: ", err)
-	}
-
-	// Unpack method inputs
-	data, err := method.Inputs.Unpack(txsData[4:])
-	if err != nil {
-		log.Fatal("error reading call data: ", err)
-	}
-
-	txsData = data[0].([]byte)
-
 	// Process coded txs
 	var pos int64
 	var txs []types.Transaction
