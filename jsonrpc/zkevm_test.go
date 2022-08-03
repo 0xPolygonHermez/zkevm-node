@@ -88,7 +88,7 @@ func TestConsolidatedBlockNumber(t *testing.T) {
 	}
 }
 
-func TestIsBatchConsolidated(t *testing.T) {
+func TestIsL2BlockConsolidated(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
@@ -115,7 +115,7 @@ func TestIsBatchConsolidated(t *testing.T) {
 					Once()
 
 				m.State.
-					On("IsBatchConsolidated", context.Background(), 1, m.DbTx).
+					On("IsL2BlockConsolidated", context.Background(), 1, m.DbTx).
 					Return(true, nil).
 					Once()
 			},
@@ -136,7 +136,7 @@ func TestIsBatchConsolidated(t *testing.T) {
 					Once()
 
 				m.State.
-					On("IsBatchConsolidated", context.Background(), 1, m.DbTx).
+					On("IsL2BlockConsolidated", context.Background(), 1, m.DbTx).
 					Return(true, errors.New("failed to check if the batch is consolidated")).
 					Once()
 			},
@@ -148,7 +148,7 @@ func TestIsBatchConsolidated(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			res, err := s.JSONRPCCall("zkevm_isBatchConsolidated", 1)
+			res, err := s.JSONRPCCall("zkevm_isL2BlockConsolidated", 1)
 			require.NoError(t, err)
 
 			if res.Result != nil {
@@ -166,7 +166,7 @@ func TestIsBatchConsolidated(t *testing.T) {
 	}
 }
 
-func TestIsBatchVirtualized(t *testing.T) {
+func TestIsL2BlockVirtualized(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
@@ -193,7 +193,7 @@ func TestIsBatchVirtualized(t *testing.T) {
 					Once()
 
 				m.State.
-					On("IsBatchVirtualized", context.Background(), 1, m.DbTx).
+					On("IsL2BlockVirtualized", context.Background(), 1, m.DbTx).
 					Return(true, nil).
 					Once()
 			},
@@ -214,7 +214,7 @@ func TestIsBatchVirtualized(t *testing.T) {
 					Once()
 
 				m.State.
-					On("IsBatchVirtualized", context.Background(), 1, m.DbTx).
+					On("IsL2BlockVirtualized", context.Background(), 1, m.DbTx).
 					Return(true, errors.New("failed to check if the batch is virtualized")).
 					Once()
 			},
@@ -226,7 +226,7 @@ func TestIsBatchVirtualized(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			res, err := s.JSONRPCCall("zkevm_isBatchVirtualized", 1)
+			res, err := s.JSONRPCCall("zkevm_isL2BlockVirtualized", 1)
 			require.NoError(t, err)
 
 			if res.Result != nil {

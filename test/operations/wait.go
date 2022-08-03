@@ -7,13 +7,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -78,6 +79,20 @@ func WaitGRPCHealthy(address string) error {
 	})
 }
 
+// WaitL2BlockToBeConsolidated waits until a L2 Block has been consolidated or the given timeout expires.
+func WaitL2BlockToBeConsolidated(l2Block *big.Int, timeout time.Duration) error {
+	return Poll(DefaultInterval, timeout, func() (bool, error) {
+		return l2BlockConsolidationCondition(l2Block)
+	})
+}
+
+// WaitL2BlockToBeVirtualized waits until a L2 Block has been virtualized or the given timeout expires.
+func WaitL2BlockToBeVirtualized(l2Block *big.Int, timeout time.Duration) error {
+	return Poll(DefaultInterval, timeout, func() (bool, error) {
+		return l2BlockVirtualizationCondition(l2Block)
+	})
+}
+
 // NodeUpCondition check if the container is up and running
 func NodeUpCondition(target string) (bool, error) {
 	var jsonStr = []byte(`{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}`)
@@ -122,39 +137,49 @@ func NodeUpCondition(target string) (bool, error) {
 	return done, nil
 }
 
+// makeJSONRPCCall makes a specified JSON-RPC call
+func makeJSONRPCCall(target string, request []byte, response interface{}) error {
+	req, err := http.NewRequest(
+		"POST", target,
+		bytes.NewBuffer(request))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		// we allow connection errors to wait for the container up
+		return nil
+	}
+
+	if res.Body != nil {
+		defer func() {
+			err = res.Body.Close()
+		}()
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ConditionFunc is a generic function
 type ConditionFunc func() (done bool, err error)
 
 func networkUpCondition() (bool, error) {
 	return NodeUpCondition(l1NetworkURL)
-}
-
-// ProverUpCondition check if the prover is up and running
-func ProverUpCondition() (bool, error) {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	conn, err := grpc.DialContext(ctx, "localhost:50051", opts...)
-	if err != nil {
-		// we allow connection errors to wait for the container up
-		return false, nil
-	}
-	defer func() {
-		err = conn.Close()
-	}()
-
-	proverClient := pb.NewZKProverServiceClient(conn)
-	state, err := proverClient.GetStatus(context.Background(), &pb.GetStatusRequest{})
-	if err != nil {
-		// we allow connection errors to wait for the container up
-		return false, nil
-	}
-
-	done := state.State == pb.GetStatusResponse_STATUS_PROVER_IDLE
-
-	return done, nil
 }
 
 func nodeUpCondition() (done bool, err error) {
@@ -211,6 +236,42 @@ func txMinedCondition(ctx context.Context, client *ethclient.Client, hash common
 		done = true
 	}
 	return done, nil
+}
+
+// l2BlockConsolidationCondition
+func l2BlockConsolidationCondition(l2Block *big.Int) (bool, error) {
+	l2NetworkURL := "http://localhost:8123"
+	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockConsolidated", l2Block.Uint64())
+	if err != nil {
+		return false, err
+	}
+	if response.Error != nil {
+		return false, fmt.Errorf("%d - %s", response.Error.Code, response.Error.Message)
+	}
+	var result bool
+	err = json.Unmarshal(response.Result, &result)
+	if err != nil {
+		return false, err
+	}
+	return result, nil
+}
+
+// l2BlockVirtualizationCondition
+func l2BlockVirtualizationCondition(l2Block *big.Int) (bool, error) {
+	l2NetworkURL := "http://localhost:8123"
+	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockVirtualized", l2Block.Uint64())
+	if err != nil {
+		return false, err
+	}
+	if response.Error != nil {
+		return false, fmt.Errorf("%d - %s", response.Error.Code, response.Error.Message)
+	}
+	var result bool
+	err = json.Unmarshal(response.Result, &result)
+	if err != nil {
+		return false, err
+	}
+	return result, nil
 }
 
 // WaitSignal blocks until an Interrupt or Kill signal is received, then it

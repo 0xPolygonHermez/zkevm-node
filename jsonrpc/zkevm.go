@@ -29,31 +29,31 @@ func (h *ZKEVM) ConsolidatedBlockNumber() (interface{}, rpcError) {
 	})
 }
 
-// IsBatchConsolidated returns the consolidation status of a provided batch ID
-func (h *ZKEVM) IsBatchConsolidated(batchNumber int) (interface{}, rpcError) {
+// IsL2BlockConsolidated returns the consolidation status of a provided batch ID
+func (h *ZKEVM) IsL2BlockConsolidated(batchNumber int) (interface{}, rpcError) {
 	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		isBatchConsolidated, err := h.state.IsBatchConsolidated(ctx, batchNumber, dbTx)
+		IsL2BlockConsolidated, err := h.state.IsL2BlockConsolidated(ctx, batchNumber, dbTx)
 		if err != nil {
 			const errorMessage = "failed to check if the batch is consolidated"
 			log.Errorf("%v:%v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
-		return isBatchConsolidated, nil
+		return IsL2BlockConsolidated, nil
 	})
 }
 
-// IsBatchVirtualized returns the virtualisation status of a provided batch ID
-func (h *ZKEVM) IsBatchVirtualized(batchNumber int) (interface{}, rpcError) {
+// IsL2BlockVirtualized returns the virtualisation status of a provided batch ID
+func (h *ZKEVM) IsL2BlockVirtualized(batchNumber int) (interface{}, rpcError) {
 	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		isBatchVirtualized, err := h.state.IsBatchVirtualized(ctx, batchNumber, dbTx)
+		IsL2BlockVirtualized, err := h.state.IsL2BlockVirtualized(ctx, batchNumber, dbTx)
 		if err != nil {
 			const errorMessage = "failed to check if the batch is virtualized"
 			log.Errorf("%v:%v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
-		return isBatchVirtualized, nil
+		return IsL2BlockVirtualized, nil
 	})
 }
 

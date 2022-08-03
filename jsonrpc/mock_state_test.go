@@ -541,8 +541,8 @@ func (_m *stateMock) GetTransactionReceipt(ctx context.Context, transactionHash 
 	return r0, r1
 }
 
-// IsBatchConsolidated provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *stateMock) IsBatchConsolidated(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
+// IsL2BlockConsolidated provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) IsL2BlockConsolidated(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
 
 	var r0 bool
@@ -562,8 +562,8 @@ func (_m *stateMock) IsBatchConsolidated(ctx context.Context, batchNumber int, d
 	return r0, r1
 }
 
-// IsBatchVirtualized provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *stateMock) IsBatchVirtualized(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
+// IsL2BlockVirtualized provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *stateMock) IsL2BlockVirtualized(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
 
 	var r0 bool
