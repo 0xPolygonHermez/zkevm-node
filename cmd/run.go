@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sort"
+	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
@@ -37,12 +37,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// slice contains method
-func contains(s []string, searchTerm string) bool {
-	i := sort.SearchStrings(s, searchTerm)
-	return i < len(s) && s[i] == searchTerm
-}
-
 func start(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
@@ -70,9 +64,9 @@ func start(cliCtx *cli.Context) error {
 		etherman        *etherman.Client
 	)
 
-	if contains(cliCtx.StringSlice(config.FlagComponents), AGGREGATOR) ||
-		contains(cliCtx.StringSlice(config.FlagComponents), SEQUENCER) ||
-		contains(cliCtx.StringSlice(config.FlagComponents), SYNCHRONIZER) {
+	if strings.Contains(cliCtx.String(config.FlagComponents), AGGREGATOR) ||
+		strings.Contains(cliCtx.String(config.FlagComponents), SEQUENCER) ||
+		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) {
 		var err error
 		etherman, err = newEtherman(*c)
 		if err != nil {
