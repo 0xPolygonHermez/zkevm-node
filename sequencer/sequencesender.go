@@ -162,8 +162,6 @@ func (s *Sequencer) handleEstmateGasSendSequenceErr(
 			if seq.Timestamp < int64(lastTimestamp) {
 				// TODO: gracefully handle this situation by crating an L2 reorg
 				log.Fatalf("sequence timestamp %d is < POE SC lastTimestamp %d", seq.Timestamp, lastTimestamp)
-				// 1659461532
-				// 1659461562
 			}
 			lastTimestamp = uint64(seq.Timestamp)
 		}
