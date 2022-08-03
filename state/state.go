@@ -834,7 +834,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 				return newRoot, err
 			}
 		case int(merkletree.LeafTypeSCLength):
-			// TODO
+			log.Debug("Skipped genesis action of type merkletree.LeafTypeSCLength, these actions will be handled as part of merkletree.LeafTypeCode actions")
 		default:
 			return newRoot, fmt.Errorf("Unknown genesis action type %q", action.Type)
 		}
