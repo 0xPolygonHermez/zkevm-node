@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/jackc/pgx/v4"
 )
 
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
@@ -134,13 +135,15 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 }
 
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
+	var dbTx pgx.Tx
+	var err error
 	if s.lastStateRoot.String() != "" || s.lastLocalExitRoot.String() != "" {
 		receipt := state.ProcessingReceipt{
 			BatchNumber:   s.lastBatchNum,
 			StateRoot:     s.lastStateRoot,
 			LocalExitRoot: s.lastLocalExitRoot,
 		}
-		dbTx, err := s.state.BeginStateTransaction(ctx)
+		dbTx, err = s.state.BeginStateTransaction(ctx)
 		if err != nil {
 			return types.Sequence{}, fmt.Errorf("failed to begin state transaction to close batch, err: %v", err)
 		}
@@ -154,9 +157,6 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 			}
 			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %v", err)
 		}
-		if err := dbTx.Commit(ctx); err != nil {
-			return types.Sequence{}, fmt.Errorf("failed to commit dbTx when close batch, err: %v", err)
-		}
 	} else {
 		return types.Sequence{}, errors.New("lastStateRoot and lastLocalExitRoot are empty, impossible to close a batch")
 	}
@@ -166,6 +166,12 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	if err != nil && err == state.ErrNotFound {
 		gerHash = state.ZeroHash
 	} else if err != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+			return types.Sequence{}, fmt.Errorf(
+				"failed to rollback dbTx when getting last GER that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
 		return types.Sequence{}, fmt.Errorf("failed to get latest global exit root, err: %v", err)
 	} else {
 		gerHash = ger.GlobalExitRoot
@@ -173,13 +179,15 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 
 	lastBatchNum, err := s.state.GetLastBatchNumber(ctx, nil)
 	if err != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+			return types.Sequence{}, fmt.Errorf(
+				"failed to rollback dbTx when getting last batch num that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
 		return types.Sequence{}, fmt.Errorf("failed to get last batch number, err: %v", err)
 	}
 	newBatchNum := lastBatchNum + 1
-	dbTx, err := s.state.BeginStateTransaction(ctx)
-	if err != nil {
-		return types.Sequence{}, fmt.Errorf("failed to open new batch, err: %v", err)
-	}
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    newBatchNum,
 		Coinbase:       s.address,
