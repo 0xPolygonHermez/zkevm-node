@@ -141,13 +141,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 }
 
 func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.State, reorgTrustedStateChan chan struct{}) {
-	genesis := state.Genesis{
-		Balances:       cfg.NetworkConfig.Genesis.Balances,
-		SmartContracts: cfg.NetworkConfig.Genesis.SmartContracts,
-		Storage:        cfg.NetworkConfig.Genesis.Storage,
-		Nonces:         cfg.NetworkConfig.Genesis.Nonces,
-	}
-	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.GenBlockNumber, genesis, reorgTrustedStateChan, cfg.Synchronizer)
+	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.GenBlockNumber, cfg.NetworkConfig.Genesis, reorgTrustedStateChan, cfg.Synchronizer)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -36,7 +35,16 @@ const (
 )
 
 var (
-	dbCfg = dbutils.NewConfigFromEnv()
+	dbCfg   = dbutils.NewConfigFromEnv()
+	genesis = state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "1000000000000000000000",
+			},
+		},
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -68,10 +76,13 @@ func Test_AddTx(t *testing.T) {
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
 	}
-	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
 	genesis := state.Genesis{
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0xb48cA794d49EeC406A5dD2c547717e37b5952a83"): balance,
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0xb48cA794d49EeC406A5dD2c547717e37b5952a83",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "1000000000000000000000",
+			},
 		},
 	}
 	ctx := context.Background()
@@ -145,12 +156,6 @@ func Test_GetPendingTxs(t *testing.T) {
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
 	}
-	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	genesis := state.Genesis{
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
-		},
-	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -214,12 +219,6 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 		BlockHash:   state.ZeroHash,
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
-	}
-	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	genesis := state.Genesis{
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
-		},
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
@@ -285,12 +284,6 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		BlockHash:   state.ZeroHash,
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
-	}
-	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	genesis := state.Genesis{
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
-		},
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -359,12 +352,6 @@ func Test_UpdateTxsState(t *testing.T) {
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
 	}
-	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	genesis := state.Genesis{
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
-		},
-	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
@@ -431,12 +418,6 @@ func Test_UpdateTxState(t *testing.T) {
 		BlockHash:   state.ZeroHash,
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
-	}
-	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	genesis := state.Genesis{
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
-		},
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -536,12 +517,6 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
 	}
-	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	genesis := state.Genesis{
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
-		},
-	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
@@ -606,12 +581,6 @@ func TestGetPendingTxSince(t *testing.T) {
 		BlockHash:   state.ZeroHash,
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
-	}
-	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	genesis := state.Genesis{
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
-		},
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
@@ -712,12 +681,6 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 		BlockHash:   state.ZeroHash,
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
-	}
-	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	genesis := state.Genesis{
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
-		},
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)

@@ -10,7 +10,6 @@ import (
 
 	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
@@ -28,14 +27,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+var (
+	senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 
-var dbCfg = dbutils.NewConfigFromEnv()
+	dbCfg = dbutils.NewConfigFromEnv()
 
-var queueCfg = sequencer.PendingTxsQueueConfig{
-	TxPendingInQueueCheckingFrequency: cfgTypes.NewDuration(1 * time.Second),
-	GetPendingTxsFrequency:            cfgTypes.NewDuration(1 * time.Second),
-}
+	queueCfg = sequencer.PendingTxsQueueConfig{
+		TxPendingInQueueCheckingFrequency: cfgTypes.NewDuration(1 * time.Second),
+		GetPendingTxsFrequency:            cfgTypes.NewDuration(1 * time.Second),
+	}
+
+	genesis = state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "1000000000000000000000",
+			},
+		},
+	}
+)
 
 func TestQueue_AddAndPopTx(t *testing.T) {
 	if err := dbutils.InitOrReset(dbCfg); err != nil {
@@ -55,12 +66,6 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 		BlockHash:   state.ZeroHash,
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
-	}
-	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	genesis := state.Genesis{
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
-		},
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
@@ -140,12 +145,6 @@ func TestQueue_AddOneTx(t *testing.T) {
 		BlockHash:   state.ZeroHash,
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
-	}
-	balance, _ := big.NewInt(0).SetString("1000000000000000000000", encoding.Base10)
-	genesis := state.Genesis{
-		Balances: map[common.Address]*big.Int{
-			common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"): balance,
-		},
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)

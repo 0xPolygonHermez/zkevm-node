@@ -853,24 +853,6 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 }
 
 func TestGenesis(t *testing.T) {
-	balances := map[common.Address]*big.Int{
-		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1000),
-		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(2000),
-	}
-
-	nonces := map[common.Address]*big.Int{
-		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"): big.NewInt(1),
-		common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"): big.NewInt(1),
-	}
-
-	smartContracts := map[common.Address][]byte{
-		common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"): common.Hex2Bytes("608060405234801561001057600080fd5b50600436106100675760003560e01c806333d6247d1161005057806333d6247d146100a85780633ed691ef146100bd578063a3c573eb146100d257600080fd5b806301fd90441461006c5780633381fe9014610088575b600080fd5b61007560015481565b6040519081526020015b60405180910390f35b6100756100963660046101c7565b60006020819052908152604090205481565b6100bb6100b63660046101c7565b610117565b005b43600090815260208190526040902054610075565b6002546100f29073ffffffffffffffffffffffffffffffffffffffff1681565b60405173ffffffffffffffffffffffffffffffffffffffff909116815260200161007f565b60025473ffffffffffffffffffffffffffffffffffffffff1633146101c2576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152603460248201527f476c6f62616c45786974526f6f744d616e616765724c323a3a7570646174654560448201527f786974526f6f743a204f4e4c595f425249444745000000000000000000000000606482015260840160405180910390fd5b600155565b6000602082840312156101d957600080fd5b503591905056fea2646970667358221220d6ed73b81f538d38669b0b750b93be08ca365978fae900eedc9ca93131c97ca664736f6c63430008090033"),
-	}
-
-	storage := map[common.Address]map[*big.Int]*big.Int{
-		common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"): {new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")): new(big.Int).SetBytes(common.Hex2Bytes("9d98deabc42dd696deb9e40b4f1cab7ddbf55988"))},
-	}
-
 	block := state.Block{
 		BlockNumber: 1,
 		BlockHash:   state.ZeroHash,
@@ -878,11 +860,42 @@ func TestGenesis(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 
+	actions := []*state.GenesisAction{
+		{
+			Address: "0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA",
+			Type:    int(merkletree.LeafTypeBalance),
+			Value:   "1000",
+		},
+		{
+			Address: "0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB",
+			Type:    int(merkletree.LeafTypeBalance),
+			Value:   "2000",
+		},
+		{
+			Address: "0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA",
+			Type:    int(merkletree.LeafTypeNonce),
+			Value:   "1",
+		},
+		{
+			Address: "0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB",
+			Type:    int(merkletree.LeafTypeNonce),
+			Value:   "1",
+		},
+		{
+			Address:  "0xae4bb80be56b819606589de61d5ec3b522eeb032",
+			Type:     int(merkletree.LeafTypeCode),
+			Bytecode: "608060405234801561001057600080fd5b50600436106100675760003560e01c806333d6247d1161005057806333d6247d146100a85780633ed691ef146100bd578063a3c573eb146100d257600080fd5b806301fd90441461006c5780633381fe9014610088575b600080fd5b61007560015481565b6040519081526020015b60405180910390f35b6100756100963660046101c7565b60006020819052908152604090205481565b6100bb6100b63660046101c7565b610117565b005b43600090815260208190526040902054610075565b6002546100f29073ffffffffffffffffffffffffffffffffffffffff1681565b60405173ffffffffffffffffffffffffffffffffffffffff909116815260200161007f565b60025473ffffffffffffffffffffffffffffffffffffffff1633146101c2576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152603460248201527f476c6f62616c45786974526f6f744d616e616765724c323a3a7570646174654560448201527f786974526f6f743a204f4e4c595f425249444745000000000000000000000000606482015260840160405180910390fd5b600155565b6000602082840312156101d957600080fd5b503591905056fea2646970667358221220d6ed73b81f538d38669b0b750b93be08ca365978fae900eedc9ca93131c97ca664736f6c63430008090033",
+		},
+		{
+			Address:         "0xae4bb80be56b819606589de61d5ec3b522eeb032",
+			Type:            int(merkletree.LeafTypeStorage),
+			StoragePosition: "0x0000000000000000000000000000000000000000000000000000000000000002",
+			Value:           "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
+		},
+	}
+
 	genesis := state.Genesis{
-		Balances:       balances,
-		Nonces:         nonces,
-		SmartContracts: smartContracts,
-		Storage:        storage,
+		Actions: actions,
 	}
 
 	if err := dbutils.InitOrReset(cfg); err != nil {
@@ -895,33 +908,27 @@ func TestGenesis(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	// Check Balances
-	balance, err := stateTree.GetBalance(ctx, common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"), stateRoot)
-	require.NoError(t, err)
-	require.Equal(t, balances[common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA")], balance)
-
-	balance, err = stateTree.GetBalance(ctx, common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"), stateRoot)
-	require.NoError(t, err)
-	require.Equal(t, balances[common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB")], balance)
-
-	// Check Nonces
-	nonce, err := stateTree.GetNonce(ctx, common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"), stateRoot)
-	require.NoError(t, err)
-	require.Equal(t, nonces[common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA")], nonce)
-
-	nonce, err = stateTree.GetNonce(ctx, common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB"), stateRoot)
-	require.NoError(t, err)
-	require.Equal(t, nonces[common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB")], nonce)
-
-	// Check smart contracts
-	sc, err := stateTree.GetCode(ctx, common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"), stateRoot)
-	require.NoError(t, err)
-	require.Equal(t, smartContracts[common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032")], sc)
-
-	// Check Storage
-	st, err := stateTree.GetStorageAt(ctx, common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"), new(big.Int).SetBytes(common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000002")), stateRoot)
-	require.NoError(t, err)
-	require.Equal(t, new(big.Int).SetBytes(common.Hex2Bytes("9d98deabc42dd696deb9e40b4f1cab7ddbf55988")), st)
+	for _, action := range actions {
+		address := common.HexToAddress(action.Address)
+		switch action.Type {
+		case int(merkletree.LeafTypeBalance):
+			balance, err := stateTree.GetBalance(ctx, address, stateRoot)
+			require.NoError(t, err)
+			require.Equal(t, action.Value, balance.String())
+		case int(merkletree.LeafTypeNonce):
+			nonce, err := stateTree.GetNonce(ctx, address, stateRoot)
+			require.NoError(t, err)
+			require.Equal(t, action.Value, nonce.String())
+		case int(merkletree.LeafTypeCode):
+			sc, err := stateTree.GetCode(ctx, address, stateRoot)
+			require.NoError(t, err)
+			require.Equal(t, common.Hex2Bytes(action.Bytecode), sc)
+		case int(merkletree.LeafTypeStorage):
+			st, err := stateTree.GetStorageAt(ctx, address, new(big.Int).SetBytes(common.Hex2Bytes(action.StoragePosition)), stateRoot)
+			require.NoError(t, err)
+			require.Equal(t, new(big.Int).SetBytes(common.Hex2Bytes(action.Value)), st)
+		}
+	}
 }
 
 func TestExecutor(t *testing.T) {
@@ -1084,10 +1091,6 @@ func TestExecutorTransfer(t *testing.T) {
 	var receiverAddress = common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB")
 
 	// Set Genesis
-	balances := map[common.Address]*big.Int{
-		senderAddress: big.NewInt(10000000),
-	}
-
 	block := state.Block{
 		BlockNumber: 0,
 		BlockHash:   state.ZeroHash,
@@ -1096,7 +1099,13 @@ func TestExecutorTransfer(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		Balances: balances,
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "10000000",
+			},
+		},
 	}
 
 	if err := dbutils.InitOrReset(cfg); err != nil {

@@ -5,13 +5,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/urfave/cli/v2"
 )
 
@@ -48,37 +48,26 @@ type dumpedState struct {
 type genesis state.Genesis
 
 func (g genesis) MarshalJSON() ([]byte, error) {
-	// Balance in hexa
-	balancesHex := map[common.Address]string{}
-	for addr, balance := range g.Balances {
-		balancesHex[addr] = "0x" + balance.Text(16) //nolint:gomnd
-	}
-	// Smart contract code in hexa
-	contractsHex := map[common.Address]string{}
-	for addr, code := range g.SmartContracts {
-		contractsHex[addr] = "0x" + hex.EncodeToString(code)
-	}
-	// Storage position and values in hexa
-	storageHex := map[common.Address]map[string]string{}
-	for addr, storage := range g.Storage {
-		addrStorage := map[string]string{}
-		for position, value := range storage {
-			addrStorage["0x"+position.Text(16)] = "0x" + value.Text(16) //nolint:gomnd
+	for _, action := range g.Actions {
+		if !strings.HasPrefix(action.Value, "0x") {
+			action.Value = fmt.Sprintf("0x%s", action.Value)
 		}
-		storageHex[addr] = addrStorage
+		if action.Bytecode != "" && !strings.HasPrefix(action.Bytecode, "0x") {
+			action.Bytecode = fmt.Sprintf("0x%s", action.Bytecode)
+		}
+		if action.StoragePosition != "" && !strings.HasPrefix(action.StoragePosition, "0x") {
+			action.StoragePosition = fmt.Sprintf("0x%s", action.StoragePosition)
+		}
 	}
+
 	// Create JSON
 	type Alias genesis
 	return json.Marshal(&struct {
 		Alias
-		Balances       map[common.Address]string            `json:"balances"`
-		SmartContracts map[common.Address]string            `json:"smartContracts"`
-		Storage        map[common.Address]map[string]string `json:"storage"`
+		Actions []*state.GenesisAction
 	}{
-		Alias:          (Alias)(g),
-		Balances:       balancesHex,
-		SmartContracts: contractsHex,
-		Storage:        storageHex,
+		Alias:   (Alias)(g),
+		Actions: g.Actions,
 	})
 }
 
@@ -128,16 +117,9 @@ func dumpState(ctx *cli.Context) error {
 	}
 	stateDB := state.NewPostgresStorage(sqlDB)
 
-	// Load g
-	g := state.Genesis{
-		Balances:       c.NetworkConfig.Genesis.Balances,
-		SmartContracts: c.NetworkConfig.Genesis.SmartContracts,
-		Storage:        c.NetworkConfig.Genesis.Storage,
-		Nonces:         c.NetworkConfig.Genesis.Nonces,
-	}
 	dump := dumpedState{
 		Description: description,
-		Genesis:     genesis(g),
+		Genesis:     genesis(c.NetworkConfig.Genesis),
 	}
 
 	// Load batches

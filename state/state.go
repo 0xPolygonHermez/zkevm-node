@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
@@ -794,41 +795,48 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		return newRoot, ErrDBTxNil
 	}
 
-	if genesis.Balances != nil {
-		for address, balance := range genesis.Balances {
+	for _, action := range genesis.Actions {
+		address := common.HexToAddress(action.Address)
+		switch action.Type {
+		case int(merkletree.LeafTypeBalance):
+			balance, ok := new(big.Int).SetString(action.Value, encoding.Base10)
+			if !ok {
+				return newRoot, fmt.Errorf("Could not set base10 balance %q to big.Int", action.Value)
+			}
 			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
 			if err != nil {
 				return newRoot, err
 			}
-		}
-	}
-
-	if genesis.SmartContracts != nil {
-		for address, sc := range genesis.SmartContracts {
-			newRoot, _, err = s.tree.SetCode(ctx, address, sc, newRoot)
-			if err != nil {
-				return newRoot, err
+		case int(merkletree.LeafTypeNonce):
+			nonce, ok := new(big.Int).SetString(action.Value, encoding.Base10)
+			if !ok {
+				return newRoot, fmt.Errorf("Could not set base10 nonce %q to big.Int", action.Value)
 			}
-		}
-	}
-
-	if len(genesis.Storage) > 0 {
-		for address, storage := range genesis.Storage {
-			for key, value := range storage {
-				newRoot, _, err = s.tree.SetStorageAt(ctx, address, key, value, newRoot)
-				if err != nil {
-					return newRoot, err
-				}
-			}
-		}
-	}
-
-	if genesis.Nonces != nil {
-		for address, nonce := range genesis.Nonces {
 			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
 			if err != nil {
 				return newRoot, err
 			}
+		case int(merkletree.LeafTypeCode):
+			code, err := hex.DecodeHex(action.Bytecode)
+			if err != nil {
+				return newRoot, fmt.Errorf("Could not decode SC bytecode for address %q: %v", address, err)
+			}
+			newRoot, _, err = s.tree.SetCode(ctx, address, code, newRoot)
+			if err != nil {
+				return newRoot, err
+			}
+		case int(merkletree.LeafTypeStorage):
+			positionBI := new(big.Int).SetBytes(common.Hex2Bytes(action.StoragePosition))
+			valueBI := new(big.Int).SetBytes(common.Hex2Bytes(action.Value))
+
+			newRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, newRoot)
+			if err != nil {
+				return newRoot, err
+			}
+		case int(merkletree.LeafTypeSCLength):
+			log.Debug("Skipped genesis action of type merkletree.LeafTypeSCLength, these actions will be handled as part of merkletree.LeafTypeCode actions")
+		default:
+			return newRoot, fmt.Errorf("Unknown genesis action type %q", action.Type)
 		}
 	}
 
