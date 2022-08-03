@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package zkprover.v1;
 
-option go_package = "./pb";
+option go_package = "github.com/0xPolygonHermez/zkevm-node/proverclient/pb";
 
 message Version {
     string v0_0_1 = 1;
@@ -13,7 +13,7 @@ message Version {
 /**
  * Define all methods implementes by the gRPC
  * GetStatus: get server report about its current state (non-blocking call)
- * GenProof: ask prover to start proof generation. If prover is busy, request is queued (non-blocking call)
+ * GenProof: ask prover to start proof generation. If prover is biusy, request is queued (non-blocking call)
  * Cancel: ask prover to cancel specific proof (non-blocking call)
  * GetProof: retrieve proof information given a timeout (blocking call)
  */
@@ -45,7 +45,7 @@ message GenProofRequest {
  * @dev CancelRequest
  * @param {id} - proof identifier
  */
-message CancelRequest {
+ message CancelRequest {
     string id = 1;
 }
 
@@ -208,6 +208,7 @@ message Proof {
  * @param {public_inputs} - public inputs
  * @param {global_exit_root} - bridge global exit root
  * @param {batch_l2_data} - contract calldata
+ * @param {address_aggregator} - ethereum address aggregator
  * @param {db} - database containing all key-values in smt matching the old state root
  * @param {contracts_bytecode} - key is the hash(contractBytecode), value is the bytecode itself
  */
@@ -215,8 +216,9 @@ message InputProver {
     PublicInputs public_inputs = 1;
     string global_exit_root = 2;
     string batch_l2_data = 3;
-    map<string, string> db = 4; // For debug/testing purpposes only. Don't fill this on production
-    map<string, string> contracts_bytecode = 5; // For debug/testing purpposes only. Don't fill this on production
+    string address_aggregator = 4;
+    map<string, string> db = 5; // For debug/testing purpposes only. Don't fill this on production
+    map<string, string> contracts_bytecode = 6; // For debug/testing purpposes only. Don't fill this on production
 }
 
 /**

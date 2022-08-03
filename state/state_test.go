@@ -1176,7 +1176,6 @@ func TestExecutorTransfer(t *testing.T) {
 	require.Equal(t, uint64(21002), balance.Uint64())
 }
 
-/*
 func TestExecutorTxHash(t *testing.T) {
 	var receiverAddress = common.HexToAddress("0xD8Af0C5c6dEE7dCe32E59577675C026e1aDe4De5")
 	var stateRoot = state.ZeroHash
@@ -1227,4 +1226,3 @@ func TestExecutorTxHash(t *testing.T) {
 
 	require.Equal(t, tx.Hash(), common.BytesToHash(processBatchResponse.Responses[0].TxHash))
 }
-*/
