@@ -121,6 +121,8 @@ func hashContractBytecode(code []byte) ([]uint64, error) {
 		maxBytesToAdd = bytecodeElementsHash * bytecodeBytesElement
 	)
 
+	code = append(code, 0x01) // nolint:gomnd
+
 	numHashes := int(math.Ceil(float64(len(code)) / float64(maxBytesToAdd)))
 
 	tmpHash := [4]uint64{}
@@ -150,6 +152,11 @@ func hashContractBytecode(code []byte) ([]uint64, error) {
 			if j < len(subsetBytecode) {
 				byteToAdd = subsetBytecode[j : j+1]
 			}
+
+			if j == len(subsetBytecode)-1 {
+				byteToAdd[0] = byteToAdd[0] | 0x80 // nolint:gomnd
+			}
+
 			tmpElem[counter] = byteToAdd[0]
 			counter++
 
