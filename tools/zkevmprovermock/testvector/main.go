@@ -36,10 +36,11 @@ func NewContainer(testVectorPath string, aferoFs afero.Fs) (*Container, error) {
 	}, nil
 }
 
-// FindE2EGenesisRaw searches for the given key on all the genesisRaw items
-// present, checking also that the given root was the root returned by the
-// previous item.
-func (c *Container) FindE2EGenesisRaw(inputKey, oldRoot string) (value, newRoot string, err error) {
+// FindValue searches for the given key on all the genesisRaw items present,
+// checking also that the given root was the root returned by the previous item.
+// If both the value and the root of the previous item match it returns the
+// associated value and new root.
+func (c *Container) FindValue(inputKey, oldRoot string) (value, newRoot string, err error) {
 	for _, item := range c.E2E.Items {
 		if item.GenesisRaw == nil {
 			continue
@@ -53,6 +54,22 @@ func (c *Container) FindE2EGenesisRaw(inputKey, oldRoot string) (value, newRoot 
 		}
 	}
 	return "", "", fmt.Errorf("key %q not found for oldRoot %q", inputKey, oldRoot)
+}
+
+// FindBytecode searches for the given key on all the genesisRaw items present
+// and returns the associated bytecode field on match.
+func (c *Container) FindBytecode(inputKey string) (bytecode string, err error) {
+	for _, item := range c.E2E.Items {
+		if item.GenesisRaw == nil {
+			continue
+		}
+		for index, action := range item.GenesisRaw {
+			if action.Key == inputKey && action.Bytecode != "" {
+				return item.GenesisRaw[index].Bytecode, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("bytecode for key %q not found", inputKey)
 }
 
 func getE2E(testVectorPath string, aferoFs afero.Fs) (*E2E, error) {

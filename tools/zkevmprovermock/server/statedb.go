@@ -68,7 +68,7 @@ func (server *StateDBMock) Set(ctx context.Context, request *pb.SetRequest) (*pb
 
 	oldRootStr := merkletree.H4ToString([]uint64{request.OldRoot.Fe0, request.OldRoot.Fe1, request.OldRoot.Fe2, request.OldRoot.Fe3})
 	log.Debugf("Set called with key %v, value %v, root %v", keyBIStr, request.Value, oldRootStr)
-	_, newRoot, err := server.tvContainer.FindE2EGenesisRaw(keyBIStr, oldRootStr)
+	_, newRoot, err := server.tvContainer.FindValue(keyBIStr, oldRootStr)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (server *StateDBMock) Get(ctx context.Context, request *pb.GetRequest) (*pb
 
 	log.Debugf("Get called with key %v, root %v", keyBIStr, rootStr)
 
-	value, _, err := server.tvContainer.FindE2EGenesisRaw(keyBIStr, rootStr)
+	value, _, err := server.tvContainer.FindValue(keyBIStr, rootStr)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func (server *StateDBMock) SetProgram(ctx context.Context, request *pb.SetProgra
 		return nil, err
 	}
 
-	_, _, err = server.tvContainer.FindE2EGenesisRaw(keyBIStr, "")
+	_, err = server.tvContainer.FindBytecode(keyBIStr)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func (server *StateDBMock) GetProgram(ctx context.Context, request *pb.GetProgra
 		return nil, err
 	}
 
-	bytecode, _, err := server.tvContainer.FindE2EGenesisRaw(keyBIStr, "")
+	bytecode, err := server.tvContainer.FindBytecode(keyBIStr)
 	if err != nil {
 		return nil, err
 	}

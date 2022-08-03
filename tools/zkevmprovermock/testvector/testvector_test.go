@@ -46,7 +46,7 @@ func TestNewContainer(t *testing.T) {
       "type": 2,
       "key": "keyRaw2",
       "value": "valueRaw2",
-      "bytecode": "bytecodeRaw2",
+      "bytecode": "bytecodeRaw2"
     },
     {
       "address": "addressRaw3",
@@ -60,7 +60,7 @@ func TestNewContainer(t *testing.T) {
       "type": 4,
       "key": "keyRaw4",
       "value": "valueRaw4"
-    },
+    }
   ]
 }
 ]`,
@@ -199,7 +199,7 @@ func TestNewContainer(t *testing.T) {
 	}
 }
 
-func TestFindE2EGenesisRaw(t *testing.T) {
+func TestFindValue(t *testing.T) {
 	tcs := []struct {
 		description      string
 		e2e              *testvector.E2E
@@ -370,12 +370,145 @@ func TestFindE2EGenesisRaw(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			subject.E2E = tc.e2e
 
-			actualValue, actualRoot, err := subject.FindE2EGenesisRaw(tc.key, tc.oldRoot)
+			actualValue, actualRoot, err := subject.FindValue(tc.key, tc.oldRoot)
 			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 
 			if err == nil {
 				require.Equal(t, tc.expectedValue, actualValue)
 				require.Equal(t, tc.expectedNewRoot, actualRoot)
+			}
+		})
+	}
+}
+
+func TestFindBytecode(t *testing.T) {
+	tcs := []struct {
+		description      string
+		e2e              *testvector.E2E
+		key              string
+		expectedBytecode string
+		expectedError    bool
+		expectedErrorMsg string
+	}{
+		{
+			description: "happy path, single item",
+			e2e: &testvector.E2E{
+				Items: []*testvector.E2EItem{
+					{
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:      "key1",
+								Bytecode: "bytecode1",
+							},
+							{
+								Key:      "key2",
+								Bytecode: "bytecode2",
+							},
+						},
+					},
+				},
+			},
+			key:              "key2",
+			expectedBytecode: "bytecode2",
+		},
+		{
+			description: "happy path, multiple items",
+			e2e: &testvector.E2E{
+				Items: []*testvector.E2EItem{
+					{
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:      "key3",
+								Bytecode: "bytecode3",
+							},
+							{
+								Key:      "key4",
+								Bytecode: "bytecode4",
+							},
+						},
+					},
+					{
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:      "key1",
+								Bytecode: "bytecode1",
+							},
+							{
+								Key:      "key2",
+								Bytecode: "bytecode2",
+							},
+						},
+					},
+				},
+			},
+			key:              "key2",
+			expectedBytecode: "bytecode2",
+		},
+		{
+			description: "unexisting key gives error",
+			e2e: &testvector.E2E{
+				Items: []*testvector.E2EItem{
+					{
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:      "key1",
+								Bytecode: "bytecode1",
+							},
+							{
+								Key:      "key2",
+								Bytecode: "bytecode2",
+							},
+						},
+					},
+				},
+			},
+			key:              "key10",
+			expectedError:    true,
+			expectedErrorMsg: `bytecode for key "key10" not found`,
+		},
+		{
+			description: "empty GenesisRaw gives error",
+			e2e: &testvector.E2E{
+				Items: []*testvector.E2EItem{
+					{},
+				},
+			},
+			key:              "key1",
+			expectedError:    true,
+			expectedErrorMsg: `bytecode for key "key1" not found`,
+		},
+		{
+			description: "empty bytecode for matching key gives error",
+			e2e: &testvector.E2E{
+				Items: []*testvector.E2EItem{
+					{
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:   "key1",
+								Value: "value1",
+							},
+						},
+					},
+				},
+			},
+			key:              "key1",
+			expectedError:    true,
+			expectedErrorMsg: `bytecode for key "key1" not found`,
+		},
+	}
+
+	subject := &testvector.Container{}
+
+	for _, tc := range tcs {
+		tc := tc
+		t.Run(tc.description, func(t *testing.T) {
+			subject.E2E = tc.e2e
+
+			actualBytecode, err := subject.FindBytecode(tc.key)
+			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
+
+			if err == nil {
+				require.Equal(t, tc.expectedBytecode, actualBytecode)
 			}
 		})
 	}
