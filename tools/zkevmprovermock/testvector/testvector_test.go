@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/0xPolygonHermez/zkevm-node/tools/zkevmprovermock/testvector"
 	"github.com/spf13/afero"
@@ -27,45 +28,40 @@ func TestNewContainer(t *testing.T) {
 			sourceFiles: map[string]string{
 				filepath.Join(defaultSourceDir, "a.json"): `[
 {
-  "stateTransition": {
-    "genesis": [
-      {
-        "address": "address1",
-        "balance": "balance1",
-        "nonce": "nonce1",
-        "bytecode": "bytecode1",
-        "storage": {
-          "storageKey1_1": "storageValue1_1",
-          "storageKey1_2": "storageValue1_2"
-        }
-      },
-      {
-        "address": "address2",
-        "balance": "balance2",
-        "nonce": "nonce2",
-        "bytecode": "bytecode2",
-        "storage": {
-          "storageKey2_1": "storageValue2_1",
-          "storageKey2_2": "storageValue2_2"
-        }
-      }
-    ]
-  },
-  "contractsBytecode": {
-    "contract1Key": "contract1Bytecode",
-    "contract2Key": "contract2Bytecode"
-  },
-  "genesisRaw": {
-    "keys": [
-      "a","b","c"
-    ],
-    "values": [
-      "1","2","3"
-    ],
-    "expectedRoots": [
-      "root1", "root2", "root3"
-    ]
-  }
+  "genesisRaw": [
+    {
+      "address": "addressRaw0",
+      "type": 0,
+      "key": "keyRaw0",
+      "value": "valueRaw0"
+    },
+    {
+      "address": "addressRaw1",
+      "type": 1,
+      "key": "keyRaw1",
+      "value": "valueRaw1"
+    },
+    {
+      "address": "addressRaw2",
+      "type": 2,
+      "key": "keyRaw2",
+      "value": "valueRaw2",
+      "bytecode": "bytecodeRaw2",
+    },
+    {
+      "address": "addressRaw3",
+      "type": 3,
+      "key": "keyRaw3",
+      "value": "valueRaw3",
+      "storagePosition": "storagePositionRaw3"
+    },
+    {
+      "address": "addressRaw4",
+      "type": 4,
+      "key": "keyRaw4",
+      "value": "valueRaw4"
+    },
+  ]
 }
 ]`,
 			},
@@ -74,38 +70,39 @@ func TestNewContainer(t *testing.T) {
 				E2E: &testvector.E2E{
 					Items: []*testvector.E2EItem{
 						{
-							StateTransition: &testvector.StateTransition{
-								Genesis: []*testvector.GenesisItem{
-									{
-										Address:  "address1",
-										Balance:  "balance1",
-										Nonce:    "nonce1",
-										Bytecode: "bytecode1",
-										Storage: map[string]string{
-											"storageKey1_1": "storageValue1_1",
-											"storageKey1_2": "storageValue1_2",
-										},
-									},
-									{
-										Address:  "address2",
-										Balance:  "balance2",
-										Nonce:    "nonce2",
-										Bytecode: "bytecode2",
-										Storage: map[string]string{
-											"storageKey2_1": "storageValue2_1",
-											"storageKey2_2": "storageValue2_2",
-										},
-									},
+							GenesisRaw: []*state.GenesisAction{
+								{
+									Address: "addressRaw0",
+									Type:    0,
+									Key:     "keyRaw0",
+									Value:   "valueRaw0",
 								},
-							},
-							ContractsBytecode: map[string]string{
-								"contract1Key": "contract1Bytecode",
-								"contract2Key": "contract2Bytecode",
-							},
-							GenesisRaw: &testvector.GenesisRaw{
-								Keys:          []string{"a", "b", "c"},
-								Values:        []string{"1", "2", "3"},
-								ExpectedRoots: []string{"root1", "root2", "root3"},
+								{
+									Address: "addressRaw1",
+									Type:    1,
+									Key:     "keyRaw1",
+									Value:   "valueRaw1",
+								},
+								{
+									Address:  "addressRaw2",
+									Type:     2,
+									Key:      "keyRaw2",
+									Value:    "valueRaw2",
+									Bytecode: "bytecodeRaw2",
+								},
+								{
+									Address:         "addressRaw3",
+									Type:            3,
+									Key:             "keyRaw3",
+									Value:           "valueRaw3",
+									StoragePosition: "storagePositionRaw3",
+								},
+								{
+									Address: "addressRaw4",
+									Type:    4,
+									Key:     "keyRaw4",
+									Value:   "valueRaw4",
+								},
 							},
 						},
 					},
@@ -117,66 +114,26 @@ func TestNewContainer(t *testing.T) {
 			sourceFiles: map[string]string{
 				filepath.Join(defaultSourceDir, "a.json"): `[
 {
-  "stateTransition": {
-    "genesis": [
-      {
-        "address": "address1",
-        "balance": "balance1",
-        "nonce": "nonce1",
-        "bytecode": "bytecode1",
-        "storage": {
-          "storageKey1_1": "storageValue1_1",
-          "storageKey1_2": "storageValue1_2"
-        }
-      }
-    ]
-  },
-  "contractsBytecode": {
-    "contract1Key": "contract1Bytecode"
-  },
-  "genesisRaw": {
-    "keys": [
-      "a"
-    ],
-    "values": [
-      "1"
-    ],
-    "expectedRoots": [
-      "root1"
-    ]
-  }
+  "genesisRaw": [
+    {
+      "address": "addressRaw0",
+      "type": 0,
+      "key": "keyRaw0",
+      "value": "valueRaw0"
+    }
+  ]
 }
 ]`,
 				filepath.Join(defaultSourceDir, "b.json"): `[
 {
-  "stateTransition": {
-    "genesis": [
-      {
-        "address": "address2",
-        "balance": "balance2",
-        "nonce": "nonce2",
-        "bytecode": "bytecode2",
-        "storage": {
-          "storageKey2_1": "storageValue2_1",
-          "storageKey2_2": "storageValue2_2"
-        }
-      }
-    ]
-  },
-  "contractsBytecode": {
-    "contract2Key": "contract2Bytecode"
-  },
-  "genesisRaw": {
-    "keys": [
-      "b"
-    ],
-    "values": [
-      "2"
-    ],
-    "expectedRoots": [
-      "root2"
-    ]
-  }
+  "genesisRaw": [
+    {
+      "address": "addressRaw1",
+      "type": 1,
+      "key": "keyRaw1",
+      "value": "valueRaw1"
+    }
+  ]
 }
 ]`,
 			},
@@ -185,51 +142,23 @@ func TestNewContainer(t *testing.T) {
 				E2E: &testvector.E2E{
 					Items: []*testvector.E2EItem{
 						{
-							StateTransition: &testvector.StateTransition{
-								Genesis: []*testvector.GenesisItem{
-									{
-										Address:  "address1",
-										Balance:  "balance1",
-										Nonce:    "nonce1",
-										Bytecode: "bytecode1",
-										Storage: map[string]string{
-											"storageKey1_1": "storageValue1_1",
-											"storageKey1_2": "storageValue1_2",
-										},
-									},
+							GenesisRaw: []*state.GenesisAction{
+								{
+									Address: "addressRaw0",
+									Type:    0,
+									Key:     "keyRaw0",
+									Value:   "valueRaw0",
 								},
-							},
-							ContractsBytecode: map[string]string{
-								"contract1Key": "contract1Bytecode",
-							},
-							GenesisRaw: &testvector.GenesisRaw{
-								Keys:          []string{"a"},
-								Values:        []string{"1"},
-								ExpectedRoots: []string{"root1"},
 							},
 						},
 						{
-							StateTransition: &testvector.StateTransition{
-								Genesis: []*testvector.GenesisItem{
-									{
-										Address:  "address2",
-										Balance:  "balance2",
-										Nonce:    "nonce2",
-										Bytecode: "bytecode2",
-										Storage: map[string]string{
-											"storageKey2_1": "storageValue2_1",
-											"storageKey2_2": "storageValue2_2",
-										},
-									},
+							GenesisRaw: []*state.GenesisAction{
+								{
+									Address: "addressRaw1",
+									Type:    1,
+									Key:     "keyRaw1",
+									Value:   "valueRaw1",
 								},
-							},
-							ContractsBytecode: map[string]string{
-								"contract2Key": "contract2Bytecode",
-							},
-							GenesisRaw: &testvector.GenesisRaw{
-								Keys:          []string{"b"},
-								Values:        []string{"2"},
-								ExpectedRoots: []string{"root2"},
 							},
 						},
 					},
@@ -286,10 +215,17 @@ func TestFindE2EGenesisRaw(t *testing.T) {
 			e2e: &testvector.E2E{
 				Items: []*testvector.E2EItem{
 					{
-						GenesisRaw: &testvector.GenesisRaw{
-							Keys:          []string{"key1", "key2"},
-							Values:        []string{"value1", "value2"},
-							ExpectedRoots: []string{"root1", "root2"},
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:   "key1",
+								Value: "value1",
+								Root:  "root1",
+							},
+							{
+								Key:   "key2",
+								Value: "value2",
+								Root:  "root2",
+							},
 						},
 					},
 				},
@@ -304,17 +240,31 @@ func TestFindE2EGenesisRaw(t *testing.T) {
 			e2e: &testvector.E2E{
 				Items: []*testvector.E2EItem{
 					{
-						GenesisRaw: &testvector.GenesisRaw{
-							Keys:          []string{"key3", "key4"},
-							Values:        []string{"value3", "value4"},
-							ExpectedRoots: []string{"root3", "root4"},
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:   "key3",
+								Value: "value3",
+								Root:  "root3",
+							},
+							{
+								Key:   "key4",
+								Value: "value4",
+								Root:  "root4",
+							},
 						},
 					},
 					{
-						GenesisRaw: &testvector.GenesisRaw{
-							Keys:          []string{"key1", "key2"},
-							Values:        []string{"value1", "value2"},
-							ExpectedRoots: []string{"root1", "root2"},
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:   "key1",
+								Value: "value1",
+								Root:  "root1",
+							},
+							{
+								Key:   "key2",
+								Value: "value2",
+								Root:  "root2",
+							},
 						},
 					},
 				},
@@ -329,10 +279,17 @@ func TestFindE2EGenesisRaw(t *testing.T) {
 			e2e: &testvector.E2E{
 				Items: []*testvector.E2EItem{
 					{
-						GenesisRaw: &testvector.GenesisRaw{
-							Keys:          []string{"key1", "key2"},
-							Values:        []string{"value1", "value2"},
-							ExpectedRoots: []string{"root1", "root2"},
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:   "key1",
+								Value: "value1",
+								Root:  "root1",
+							},
+							{
+								Key:   "key2",
+								Value: "value2",
+								Root:  "root2",
+							},
 						},
 					},
 				},
@@ -343,30 +300,21 @@ func TestFindE2EGenesisRaw(t *testing.T) {
 			expectedNewRoot: "root1",
 		},
 		{
-			description: "happy path, bytecode",
-			e2e: &testvector.E2E{
-				Items: []*testvector.E2EItem{
-					{
-						ContractsBytecode: map[string]string{
-							"key1": "value1",
-						},
-					},
-				},
-			},
-			key:             "key1",
-			oldRoot:         "",
-			expectedValue:   "value1",
-			expectedNewRoot: "",
-		},
-		{
 			description: "unexisting key gives error",
 			e2e: &testvector.E2E{
 				Items: []*testvector.E2EItem{
 					{
-						GenesisRaw: &testvector.GenesisRaw{
-							Keys:          []string{"key1", "key2"},
-							Values:        []string{"value1", "value2"},
-							ExpectedRoots: []string{"root1", "root2"},
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:   "key1",
+								Value: "value1",
+								Root:  "root1",
+							},
+							{
+								Key:   "key2",
+								Value: "value2",
+								Root:  "root2",
+							},
 						},
 					},
 				},
@@ -381,10 +329,17 @@ func TestFindE2EGenesisRaw(t *testing.T) {
 			e2e: &testvector.E2E{
 				Items: []*testvector.E2EItem{
 					{
-						GenesisRaw: &testvector.GenesisRaw{
-							Keys:          []string{"key1", "key2"},
-							Values:        []string{"value1", "value2"},
-							ExpectedRoots: []string{"root1", "root2"},
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:   "key1",
+								Value: "value1",
+								Root:  "root1",
+							},
+							{
+								Key:   "key2",
+								Value: "value2",
+								Root:  "root2",
+							},
 						},
 					},
 				},

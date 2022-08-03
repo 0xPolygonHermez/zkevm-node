@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/spf13/afero"
 )
 
@@ -15,32 +16,7 @@ type E2E struct {
 
 // E2EItem contains an end-to-end test vector.
 type E2EItem struct {
-	StateTransition   *StateTransition
-	GenesisRaw        *GenesisRaw
-	ContractsBytecode map[string]string
-}
-
-// StateTransition contains the human-friendly genesis.
-type StateTransition struct {
-	Genesis []*GenesisItem
-}
-
-// GenesisItem is an element of the human-frinsdly genesis.
-type GenesisItem struct {
-	Address  string
-	Nonce    string
-	Balance  string
-	PvtKey   string
-	Bytecode string
-	Storage  map[string]string
-}
-
-// GenesisRaw contains the genesis definition in raw mode as a set of keys, values,
-// and expected roots as seen by the StateDB mock service.
-type GenesisRaw struct {
-	Keys          []string
-	Values        []string
-	ExpectedRoots []string
+	GenesisRaw []*state.GenesisAction
 }
 
 // Container is a wrapper for test vectors.
@@ -65,23 +41,14 @@ func NewContainer(testVectorPath string, aferoFs afero.Fs) (*Container, error) {
 // previous item.
 func (c *Container) FindE2EGenesisRaw(inputKey, oldRoot string) (value, newRoot string, err error) {
 	for _, item := range c.E2E.Items {
-		if item.GenesisRaw != nil {
-			for index, key := range item.GenesisRaw.Keys {
-				if key == inputKey &&
-					(index > 0 && oldRoot == item.GenesisRaw.ExpectedRoots[index-1] ||
-						index == 0 && oldRoot == "") {
-					return item.GenesisRaw.Values[index], item.GenesisRaw.ExpectedRoots[index], nil
-				}
-				/*
-					if key == inputKey {
-						return item.GenesisRaw.Values[index], item.GenesisRaw.ExpectedRoots[index], nil
-					}
-				*/
-			}
+		if item.GenesisRaw == nil {
+			continue
 		}
-		for key, bytecode := range item.ContractsBytecode {
-			if key == inputKey {
-				return bytecode, "", nil
+		for index, action := range item.GenesisRaw {
+			if action.Key == inputKey &&
+				(index > 0 && oldRoot == item.GenesisRaw[index-1].Root ||
+					index == 0 && oldRoot == "") {
+				return item.GenesisRaw[index].Value, item.GenesisRaw[index].Root, nil
 			}
 		}
 	}
