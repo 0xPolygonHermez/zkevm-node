@@ -42,19 +42,19 @@ TrustedSequencerURI = ""
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "15s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "15s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "300s"
 WaitBlocksToUpdateGER = 10
 LastTimeBatchMaxWaitPeriod = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
-MaxGasUsed = 100000
-MaxKeccakHashes = 100
-MaxPoseidonHashes = 100
-MaxPoseidonPaddings = 100
-MaxMemAligns = 100
-MaxArithmetics = 100
-MaxBinaries = 100
-MaxSteps = 100
+MaxCumulativeGasUsed = 30000000
+MaxKeccakHashes = 468
+MaxPoseidonHashes = 279620
+MaxPoseidonPaddings = 149796
+MaxMemAligns = 262144
+MaxArithmetics = 262144
+MaxBinaries = 262144
+MaxSteps = 8388608
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 

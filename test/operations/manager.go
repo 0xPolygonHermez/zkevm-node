@@ -122,12 +122,15 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		Balances: make(map[common.Address]*big.Int),
+		Actions: []*state.GenesisAction{},
 	}
 	for address, balanceValue := range genesisAccounts {
-		// prevent taking the address of a loop variable
-		balance := balanceValue
-		genesis.Balances[common.HexToAddress(address)] = &balance
+		action := &state.GenesisAction{
+			Address: address,
+			Type:    int(merkletree.LeafTypeBalance),
+			Value:   balanceValue.String(),
+		}
+		genesis.Actions = append(genesis.Actions, action)
 	}
 
 	dbTx, err := m.st.BeginStateTransaction(m.ctx)

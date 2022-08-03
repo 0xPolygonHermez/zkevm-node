@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sort"
+	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
@@ -37,12 +37,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// slice contains method
-func contains(s []string, searchTerm string) bool {
-	i := sort.SearchStrings(s, searchTerm)
-	return i < len(s) && s[i] == searchTerm
-}
-
 func start(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
@@ -70,9 +64,9 @@ func start(cliCtx *cli.Context) error {
 		etherman        *etherman.Client
 	)
 
-	if contains(cliCtx.StringSlice(config.FlagComponents), AGGREGATOR) ||
-		contains(cliCtx.StringSlice(config.FlagComponents), SEQUENCER) ||
-		contains(cliCtx.StringSlice(config.FlagComponents), SYNCHRONIZER) {
+	if strings.Contains(cliCtx.String(config.FlagComponents), AGGREGATOR) ||
+		strings.Contains(cliCtx.String(config.FlagComponents), SEQUENCER) ||
+		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) {
 		var err error
 		etherman, err = newEtherman(*c)
 		if err != nil {
@@ -141,13 +135,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 }
 
 func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.State, reorgTrustedStateChan chan struct{}) {
-	genesis := state.Genesis{
-		Balances:       cfg.NetworkConfig.Genesis.Balances,
-		SmartContracts: cfg.NetworkConfig.Genesis.SmartContracts,
-		Storage:        cfg.NetworkConfig.Genesis.Storage,
-		Nonces:         cfg.NetworkConfig.Genesis.Nonces,
-	}
-	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.GenBlockNumber, genesis, reorgTrustedStateChan, cfg.Synchronizer)
+	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.GenBlockNumber, cfg.NetworkConfig.Genesis, reorgTrustedStateChan, cfg.Synchronizer)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -291,7 +279,7 @@ func newState(ctx context.Context, c *config.Config, sqlDB *pgxpool.Pool) *state
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
 	stateCfg := state.Config{
-		MaxCumulativeGasUsed: c.NetworkConfig.MaxCumulativeGasUsed,
+		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
