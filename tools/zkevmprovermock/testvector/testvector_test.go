@@ -275,7 +275,7 @@ func TestFindValue(t *testing.T) {
 			expectedNewRoot: "root2",
 		},
 		{
-			description: "happy path, first item requires empty root",
+			description: "happy path, first item requires zero root",
 			e2e: &testvector.E2E{
 				Items: []*testvector.E2EItem{
 					{
@@ -295,7 +295,7 @@ func TestFindValue(t *testing.T) {
 				},
 			},
 			key:             "key1",
-			oldRoot:         "",
+			oldRoot:         "0x0000000000000000000000000000000000000000000000000000000000000000",
 			expectedValue:   "value1",
 			expectedNewRoot: "root1",
 		},
@@ -397,11 +397,11 @@ func TestFindBytecode(t *testing.T) {
 					{
 						GenesisRaw: []*state.GenesisAction{
 							{
-								Key:      "key1",
+								Value:    "key1",
 								Bytecode: "bytecode1",
 							},
 							{
-								Key:      "key2",
+								Value:    "key2",
 								Bytecode: "bytecode2",
 							},
 						},
@@ -418,11 +418,11 @@ func TestFindBytecode(t *testing.T) {
 					{
 						GenesisRaw: []*state.GenesisAction{
 							{
-								Key:      "key3",
+								Value:    "key3",
 								Bytecode: "bytecode3",
 							},
 							{
-								Key:      "key4",
+								Value:    "key4",
 								Bytecode: "bytecode4",
 							},
 						},
@@ -430,11 +430,11 @@ func TestFindBytecode(t *testing.T) {
 					{
 						GenesisRaw: []*state.GenesisAction{
 							{
-								Key:      "key1",
+								Value:    "key1",
 								Bytecode: "bytecode1",
 							},
 							{
-								Key:      "key2",
+								Value:    "key2",
 								Bytecode: "bytecode2",
 							},
 						},
@@ -451,11 +451,11 @@ func TestFindBytecode(t *testing.T) {
 					{
 						GenesisRaw: []*state.GenesisAction{
 							{
-								Key:      "key1",
+								Value:    "key1",
 								Bytecode: "bytecode1",
 							},
 							{
-								Key:      "key2",
+								Value:    "key2",
 								Bytecode: "bytecode2",
 							},
 						},
@@ -484,8 +484,7 @@ func TestFindBytecode(t *testing.T) {
 					{
 						GenesisRaw: []*state.GenesisAction{
 							{
-								Key:   "key1",
-								Value: "value1",
+								Value: "key1",
 							},
 						},
 					},

@@ -790,15 +790,16 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		newRoot []byte
 		err     error
 	)
-	log.Debugf("in set genesis")
 	if dbTx == nil {
 		return newRoot, ErrDBTxNil
 	}
 
+	log.Debugf("in set genesis, actions: %d", len(genesis.Actions))
 	for _, action := range genesis.Actions {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
 		case int(merkletree.LeafTypeBalance):
+			log.Debugf("balance genesis action")
 			balance, ok := new(big.Int).SetString(action.Value, encoding.Base10)
 			if !ok {
 				return newRoot, fmt.Errorf("Could not set base10 balance %q to big.Int", action.Value)
@@ -808,6 +809,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 				return newRoot, err
 			}
 		case int(merkletree.LeafTypeNonce):
+			log.Debugf("nonce genesis action")
 			nonce, ok := new(big.Int).SetString(action.Value, encoding.Base10)
 			if !ok {
 				return newRoot, fmt.Errorf("Could not set base10 nonce %q to big.Int", action.Value)
@@ -817,6 +819,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 				return newRoot, err
 			}
 		case int(merkletree.LeafTypeCode):
+			log.Debugf("code genesis action")
 			code, err := hex.DecodeHex(action.Bytecode)
 			if err != nil {
 				return newRoot, fmt.Errorf("Could not decode SC bytecode for address %q: %v", address, err)
@@ -826,6 +829,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 				return newRoot, err
 			}
 		case int(merkletree.LeafTypeStorage):
+			log.Debugf("storage genesis action")
 			positionBI := new(big.Int).SetBytes(common.Hex2Bytes(action.StoragePosition))
 			valueBI := new(big.Int).SetBytes(common.Hex2Bytes(action.Value))
 

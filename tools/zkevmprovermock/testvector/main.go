@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/afero"
 )
 
@@ -41,14 +42,12 @@ func NewContainer(testVectorPath string, aferoFs afero.Fs) (*Container, error) {
 // If both the value and the root of the previous item match it returns the
 // associated value and new root.
 func (c *Container) FindValue(inputKey, oldRoot string) (value, newRoot string, err error) {
+	zero := common.HexToHash("").String()
 	for _, item := range c.E2E.Items {
-		if item.GenesisRaw == nil {
-			continue
-		}
 		for index, action := range item.GenesisRaw {
 			if action.Key == inputKey &&
 				(index > 0 && oldRoot == item.GenesisRaw[index-1].Root ||
-					index == 0 && oldRoot == "") {
+					index == 0 && oldRoot == zero) {
 				return item.GenesisRaw[index].Value, item.GenesisRaw[index].Root, nil
 			}
 		}
@@ -56,15 +55,12 @@ func (c *Container) FindValue(inputKey, oldRoot string) (value, newRoot string, 
 	return "", "", fmt.Errorf("key %q not found for oldRoot %q", inputKey, oldRoot)
 }
 
-// FindBytecode searches for the given key on all the genesisRaw items present
-// and returns the associated bytecode field on match.
+// FindBytecode searches for the given key on the value fields of all the
+// genesisRaw items present and returns the associated bytecode field on match.
 func (c *Container) FindBytecode(inputKey string) (bytecode string, err error) {
 	for _, item := range c.E2E.Items {
-		if item.GenesisRaw == nil {
-			continue
-		}
 		for index, action := range item.GenesisRaw {
-			if action.Key == inputKey && action.Bytecode != "" {
+			if action.Value == inputKey && action.Bytecode != "" {
 				return item.GenesisRaw[index].Bytecode, nil
 			}
 		}

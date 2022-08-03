@@ -1277,9 +1277,6 @@ func TestGenesisNewLeafType(t *testing.T) {
 		},
 	}
 
-	if err := dbutils.InitOrReset(cfg); err != nil {
-		panic(err)
-	}
 	require.NoError(t, dbutils.InitOrReset(cfg))
 
 	dbTx, err := testState.BeginStateTransaction(ctx)

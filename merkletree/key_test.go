@@ -121,7 +121,7 @@ func Test_byteCodeHash(t *testing.T) {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
 			hash, err := hashContractBytecode(common.Hex2Bytes(testVector.Bytecode))
 			require.NoError(t, err)
-			assert.Equal(t, common.HexToHash(testVector.ExpectedHash), common.HexToHash(h4ToString(hash)))
+			assert.Equal(t, common.HexToHash(testVector.ExpectedHash), common.HexToHash(H4ToString(hash)))
 		})
 	}
 }
