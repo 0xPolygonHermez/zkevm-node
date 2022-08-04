@@ -13,7 +13,7 @@ message Version {
 /**
  * Define all methods implementes by the gRPC
  * GetStatus: get server report about its current state (non-blocking call)
- * GenProof: ask prover to start proof generation. If prover is biusy, request is queued (non-blocking call)
+ * GenProof: ask prover to start proof generation. If prover is busy, request is queued (non-blocking call)
  * Cancel: ask prover to cancel specific proof (non-blocking call)
  * GetProof: retrieve proof information given a timeout (blocking call)
  */
