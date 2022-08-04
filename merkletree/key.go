@@ -153,7 +153,7 @@ func hashContractBytecode(code []byte) ([]uint64, error) {
 				byteToAdd = subsetBytecode[j : j+1]
 			}
 
-			if j == len(subsetBytecode)-1 {
+			if i == numHashes-1 && j == len(subsetBytecode)-1 {
 				byteToAdd[0] = byteToAdd[0] | 0x80 // nolint:gomnd
 			}
 

@@ -1249,9 +1249,9 @@ func TestGenesisNewLeafType(t *testing.T) {
 				Value:   "0",
 			},
 			{
-				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
-				Type:    int(merkletree.LeafTypeCode),
-				Value:   "0x1234",
+				Address:  "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:     int(merkletree.LeafTypeCode),
+				Bytecode: "1234",
 			},
 			{
 				Address:         "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
@@ -1276,9 +1276,9 @@ func TestGenesisNewLeafType(t *testing.T) {
 				Value:   "0",
 			},
 			{
-				Address: "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
-				Type:    int(merkletree.LeafTypeCode),
-				Value:   "0x1234",
+				Address:  "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+				Type:     int(merkletree.LeafTypeCode),
+				Bytecode: "1234",
 			},
 			{
 				Address:         "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
