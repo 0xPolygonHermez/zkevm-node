@@ -48,7 +48,7 @@ func Test1000EthTransfer(t *testing.T) {
 	client, err := ethclient.Dial("http://localhost:8123")
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 1000
+	nTxs := 100
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x0000000000000000000000000000000000000001")
 	gasLimit := uint64(21000)
@@ -56,7 +56,8 @@ func Test1000EthTransfer(t *testing.T) {
 	log.Infof("Sending %d transactions...", nTxs)
 	var lastTxHash common.Hash
 
-	before := time.Now()
+	var sentTxs []*types.Transaction
+
 	for i := 0; i < nTxs; i++ {
 		nonce := uint64(i + 1)
 		tx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
@@ -67,15 +68,27 @@ func Test1000EthTransfer(t *testing.T) {
 		if i == nTxs-1 {
 			lastTxHash = signedTx.Hash()
 		}
+
+		sentTxs = append(sentTxs, signedTx)
 	}
 
-	log.Infof("\n%d transactions sent without error. Waiting for all the transactions to be mined", nTxs)
-	timeout := 3 * time.Minute
-	err = operations.WaitTxToBeMined(client, lastTxHash, timeout)
-	require.NoError(t, err)
-	after := time.Now()
+	for _, tx := range sentTxs {
 
-	log.Infof("\nDuration: %f", after.Sub(before).Seconds())
+		// wait for TX to be mined
+		timeout := 20 * time.Minute
+		err = operations.WaitTxToBeMined(client, tx.Hash(), timeout)
+		require.NoError(t, err)
+
+		// check transaction nonce against transaction reported L2 block number
+		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+		require.NoError(t, err)
+
+		// get block L2 number
+		blockL2Number := receipt.BlockNumber
+
+		require.Equal(t, tx.Nonce(), blockL2Number.Uint64())
+	}
+	log.Infof("\n%d transactions sent without error. Waiting for all the transactions to be mined", nTxs)
 
 	receipt, err := client.TransactionReceipt(ctx, lastTxHash)
 	require.NoError(t, err)
