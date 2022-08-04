@@ -1368,14 +1368,14 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 		args := []interface{}{fromBlock, toBlock}
 
 		if len(addresses) > 0 {
-			args = append(args, p.addressesToBytes(addresses))
+			args = append(args, p.addressesToHex(addresses))
 		} else {
 			args = append(args, nil)
 		}
 
 		for i := 0; i < maxTopics; i++ {
 			if len(topics) > i && len(topics[i]) > 0 {
-				args = append(args, p.hashesToBytes(topics[i]))
+				args = append(args, p.hashesToHex(topics[i]))
 			} else {
 				args = append(args, nil)
 			}
@@ -1394,12 +1394,16 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 	logs := make([]*types.Log, 0, len(rows.RawValues()))
 
 	for rows.Next() {
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+
 		var log types.Log
-		var txHash, logAddress, logData, topic0 string
-		var topic1, topic2, topic3 *string
+		var txHash, logAddress, logData string
+		var topicsHashes [maxTopics]*string
 
 		err := rows.Scan(&log.BlockNumber, &log.BlockHash, &txHash, &log.Index,
-			&logAddress, &logData, &topic0, &topic1, &topic2, &topic3)
+			&logAddress, &logData, &topicsHashes[0], &topicsHashes[1], &topicsHashes[2], &topicsHashes[3])
 		if err != nil {
 			return nil, err
 		}
@@ -1409,20 +1413,17 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 		log.TxIndex = uint(0)
 		log.Data = []byte(logData)
 
-		log.Topics = []common.Hash{common.HexToHash(topic0)}
-		if topic1 != nil {
-			log.Topics = append(log.Topics, common.HexToHash(*topic1))
-		}
-
-		if topic2 != nil {
-			log.Topics = append(log.Topics, common.HexToHash(*topic2))
-		}
-
-		if topic3 != nil {
-			log.Topics = append(log.Topics, common.HexToHash(*topic3))
+		for i := 0; i < maxTopics; i++ {
+			if topicsHashes[i] != nil {
+				log.Topics = append(log.Topics, common.HexToHash(*topicsHashes[i]))
+			}
 		}
 
 		logs = append(logs, &log)
+	}
+
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 
 	return logs, nil
@@ -1454,21 +1455,21 @@ func (p *PostgresStorage) GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (Sync
 	return info, err
 }
 
-func (p *PostgresStorage) addressesToBytes(addresses []common.Address) [][]byte {
-	converted := make([][]byte, 0, len(addresses))
+func (p *PostgresStorage) addressesToHex(addresses []common.Address) []string {
+	converted := make([]string, 0, len(addresses))
 
 	for _, address := range addresses {
-		converted = append(converted, address.Bytes())
+		converted = append(converted, address.String())
 	}
 
 	return converted
 }
 
-func (p *PostgresStorage) hashesToBytes(hashes []common.Hash) [][]byte {
-	converted := make([][]byte, 0, len(hashes))
+func (p *PostgresStorage) hashesToHex(hashes []common.Hash) []string {
+	converted := make([]string, 0, len(hashes))
 
 	for _, hash := range hashes {
-		converted = append(converted, hash.Bytes())
+		converted = append(converted, hash.String())
 	}
 
 	return converted
@@ -1484,15 +1485,15 @@ func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt
 
 // AddLog adds a new log to the State Store
 func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx) error {
-	var topicsAsBytes [maxTopics]*[]byte
+	var topicsAsHex [maxTopics]string
 	for i := 0; i < len(l.Topics); i++ {
-		topicBytes := l.Topics[i].Bytes()
-		topicsAsBytes[i] = &topicBytes
+		topicHex := l.Topics[i].String()
+		topicsAsHex[i] = topicHex
 	}
 
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addLogSQL, l.TxHash.String(), l.Index, l.TxIndex,
-		l.Address.String(), l.Data, topicsAsBytes[0], topicsAsBytes[1], topicsAsBytes[2], topicsAsBytes[3])
+		l.Address.String(), l.Data, topicsAsHex[0], topicsAsHex[1], topicsAsHex[2], topicsAsHex[3])
 	return err
 }
 
