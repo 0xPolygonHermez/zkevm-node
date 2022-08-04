@@ -76,7 +76,6 @@ func start(cliCtx *cli.Context) error {
 
 	npool := pool.NewPool(poolDb, st, c.NetworkConfig.L2GlobalExitRootManagerAddr)
 	gpe := createGasPriceEstimator(c.GasPriceEstimator, st, npool)
-	ch := make(chan struct{})
 	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman)
 	proverClient, proverConn := newProverClient(c.Prover)
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
@@ -86,7 +85,7 @@ func start(cliCtx *cli.Context) error {
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, proverClient, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
-			seq := createSequencer(*c, npool, st, etherman, ethTxManager, ch)
+			seq := createSequencer(*c, npool, st, etherman, ethTxManager)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
@@ -97,7 +96,7 @@ func start(cliCtx *cli.Context) error {
 			go runJSONRPCServer(*c, npool, st, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
-			go runSynchronizer(*c, etherman, st, ch)
+			go runSynchronizer(*c, etherman, st)
 		case BROADCAST:
 			log.Info("Running broadcast service")
 			go runBroadcastServer(c.BroadcastServer, st)
@@ -134,8 +133,8 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman, nil
 }
 
-func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.State, reorgTrustedStateChan chan struct{}) {
-	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.GenBlockNumber, cfg.NetworkConfig.Genesis, reorgTrustedStateChan, cfg.Synchronizer)
+func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.State) {
+	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.GenBlockNumber, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -156,13 +155,13 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 }
 
 func createSequencer(c config.Config, pool *pool.Pool, state *state.State, etherman *etherman.Client,
-	ethTxManager *ethtxmanager.Client, reorgTrustedStateChan chan struct{}) *sequencer.Sequencer {
+	ethTxManager *ethtxmanager.Client) *sequencer.Sequencer {
 	pg, err := pricegetter.NewClient(c.PriceGetter)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, reorgTrustedStateChan, ethTxManager)
+	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, ethTxManager)
 	if err != nil {
 		log.Fatal(err)
 	}

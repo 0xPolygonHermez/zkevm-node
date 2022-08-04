@@ -7,6 +7,7 @@ package ethtxmanager
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -25,9 +26,8 @@ const (
 type Client struct {
 	cfg Config
 
-	ethMan              etherman
-	sequencesToSendChan chan []ethmanTypes.Sequence
-	verifyBatchTxsChan  chan verifyBatchTx
+	ethMan             etherman
+	verifyBatchTxsChan chan verifyBatchTx
 }
 
 type verifyBatchTx struct {
@@ -40,51 +40,50 @@ type verifyBatchTx struct {
 // New creates new eth tx manager
 func New(cfg Config, ethMan etherman) *Client {
 	verifyBatchTxsChan := make(chan verifyBatchTx, sentEthTxsChanLen)
-	sequencesToSendChan := make(chan []ethmanTypes.Sequence, sentEthTxsChanLen)
 	return &Client{
-		cfg:                 cfg,
-		sequencesToSendChan: sequencesToSendChan,
-		verifyBatchTxsChan:  verifyBatchTxsChan,
-		ethMan:              ethMan,
-	}
-}
-
-// TrackSequenceBatchesSending tracks and send sequences, that should be sent
-func (c *Client) TrackSequenceBatchesSending(ctx context.Context) {
-	for {
-		select {
-		case sequences := <-c.sequencesToSendChan:
-			var attempts uint32
-			log.Info("sending sequence to L1")
-			tx, err := c.ethMan.SequenceBatches(sequences, 0)
-			for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
-				log.Errorf("failed to sequence batches, trying once again, retry #%d, gasLimit: %d, err: %v",
-					attempts, 0, err)
-				time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
-				attempts++
-				tx, err = c.ethMan.SequenceBatches(sequences, 0)
-			}
-			if err != nil {
-				log.Fatalf("failed to sequence batches, maximum attempts exceeded, gasLimit: %d, err: %v",
-					0, err)
-			}
-			// Wait for tx to be mined
-			log.Infof("waiting for sequence to be mined. Tx hash: %s", tx.Hash())
-			err = c.ethMan.WaitTxToBeMined(tx.Hash(), time.Minute*2) //nolint:gomnd
-			if err != nil {
-				log.Fatalf("tx %s failed, err: %v", tx.Hash(), err)
-			}
-			log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
-			// Check if success
-		case <-ctx.Done():
-			return
-		}
+		cfg:                cfg,
+		verifyBatchTxsChan: verifyBatchTxsChan,
+		ethMan:             ethMan,
 	}
 }
 
 // SequenceBatches send sequences to the channel
 func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
-	c.sequencesToSendChan <- sequences
+	var attempts uint32
+	var gas uint64
+	log.Info("sending sequence to L1")
+	for attempts < c.cfg.MaxSendBatchTxRetries {
+		tx, err := c.ethMan.SequenceBatches(sequences, gas)
+		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
+			log.Errorf("failed to sequence batches, trying once again, retry #%d, gasLimit: %d, err: %v",
+				attempts, 0, err)
+			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
+			attempts++
+			tx, err = c.ethMan.SequenceBatches(sequences, gas)
+		}
+		if err != nil {
+			log.Fatalf("failed to sequence batches, maximum attempts exceeded, gasLimit: %d, err: %v",
+				0, err)
+		}
+		// Wait for tx to be mined
+		log.Infof("waiting for sequence to be mined. Tx hash: %s", tx.Hash())
+		// TODO: timeout via config file
+		err = c.ethMan.WaitTxToBeMined(tx.Hash(), time.Minute*2) //nolint:gomnd
+		if err != nil {
+			attempts++
+			if strings.Contains(err.Error(), "out of gas") {
+				// TODO: percentage gas inncrease via config file
+				gas = uint64(float64(tx.Gas()) * 1.1) //nolint:gomnd
+				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
+				continue
+			}
+			// TODO: handle timeout by increasing gas price
+			log.Fatalf("tx %s failed, err: %v", tx.Hash(), err)
+		} else {
+			log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
+			return
+		}
+	}
 }
 
 // VerifyBatch send VerifyBatch request to ethereum
