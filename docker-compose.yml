@@ -184,7 +184,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkprover-local@sha256:9adf1bb1e11e4063da4cfc9059f770506ccfd56b184c3f5e918a6f9d1571fd8e
+    image: hermeznetwork/zkprover-local@sha256:6d81ddcf31fcb5d2db65cc59ca4df78047f5cda734c3f5067125be8b15a02276
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
