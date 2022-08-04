@@ -27,7 +27,7 @@ func Test1000EthTransfer(t *testing.T) {
 	cfg := &operations.Config{
 		Arity: 4,
 		State: &state.Config{
-			MaxCumulativeGasUsed: 800000,
+			MaxCumulativeGasUsed: 80000000000,
 		},
 
 		Sequencer: &operations.SequencerConfig{
@@ -37,6 +37,7 @@ func Test1000EthTransfer(t *testing.T) {
 		},
 	}
 	opsman, err := operations.NewManager(ctx, cfg)
+	require.NoError(t, err)
 	err = opsman.Setup()
 	require.NoError(t, err)
 
@@ -55,6 +56,7 @@ func Test1000EthTransfer(t *testing.T) {
 	log.Infof("Sending %d transactions...", nTxs)
 	var lastTxHash common.Hash
 
+	before := time.Now()
 	for i := 0; i < nTxs; i++ {
 		nonce := uint64(i + 1)
 		tx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
@@ -66,10 +68,14 @@ func Test1000EthTransfer(t *testing.T) {
 			lastTxHash = signedTx.Hash()
 		}
 	}
-	log.Infof("%d transactions sent without error. Waiting for all the transactions to be mined", nTxs)
+
+	log.Infof("\n%d transactions sent without error. Waiting for all the transactions to be mined", nTxs)
 	timeout := 3 * time.Minute
 	err = operations.WaitTxToBeMined(client, lastTxHash, timeout)
 	require.NoError(t, err)
+	after := time.Now()
+
+	log.Infof("\nDuration: %f", after.Sub(before).Seconds())
 
 	receipt, err := client.TransactionReceipt(ctx, lastTxHash)
 	require.NoError(t, err)
@@ -87,5 +93,4 @@ func Test1000EthTransfer(t *testing.T) {
 
 	err = operations.WaitL2BlockToBeConsolidated(blockL2Number, 30*time.Second)
 	require.NoError(t, err)
-
 }

@@ -653,6 +653,22 @@ func (p *PostgresStorage) GetEncodedTransactionsByBatchNumber(ctx context.Contex
 	return txs, nil
 }
 
+// GetTransactionsByBatchNumber returns the transactions in the given batch.
+func (p *PostgresStorage) GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error) {
+	encodedTxs, err := p.GetEncodedTransactionsByBatchNumber(ctx, batchNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(encodedTxs); i++ {
+		tx, err := DecodeTx(encodedTxs[i])
+		if err != nil {
+			return nil, err
+		}
+		txs = append(txs, *tx)
+	}
+	return
+}
+
 // GetTxsHashesByBatchNumber returns the hashes of the transactions in the
 // given batch.
 func (p *PostgresStorage) GetTxsHashesByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []common.Hash, err error) {

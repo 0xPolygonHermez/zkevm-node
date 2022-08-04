@@ -34,7 +34,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.WaitPeriodPoolIsEmpty",
-			expectedValue: types.NewDuration(15 * time.Second),
+			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
 			path:          "Sequencer.LastBatchVirtualizationTimeMaxWaitPeriod",

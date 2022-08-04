@@ -140,44 +140,6 @@ func NodeUpCondition(target string) (bool, error) {
 	return done, nil
 }
 
-// makeJSONRPCCall makes a specified JSON-RPC call
-func makeJSONRPCCall(target string, request []byte, response interface{}) error {
-	req, err := http.NewRequest(
-		"POST", target,
-		bytes.NewBuffer(request))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	res, err := client.Do(req)
-	if err != nil {
-		// we allow connection errors to wait for the container up
-		return nil
-	}
-
-	if res.Body != nil {
-		defer func() {
-			err = res.Body.Close()
-		}()
-	}
-
-	body, err := ioutil.ReadAll(res.Body)
-
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // ConditionFunc is a generic function
 type ConditionFunc func() (done bool, err error)
 
@@ -237,7 +199,7 @@ func txMinedCondition(ctx context.Context, client ethClienter, hash common.Hash)
 		if reasonErr != nil {
 			reason = reasonErr.Error()
 		}
-		return false, fmt.Errorf("transaction has failed, reason: %s, receipt: %+v. tx: %+v", reason, receipt, tx)
+		return false, fmt.Errorf("transaction has failed, reason: %s, receipt: %+v. tx: %+v, gas: %v", reason, receipt, tx, tx.Gas())
 	}
 	return true, nil
 }
