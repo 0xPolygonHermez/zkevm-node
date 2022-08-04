@@ -213,7 +213,7 @@ func txMinedCondition(ctx context.Context, client ethClienter, hash common.Hash)
 		if reasonErr != nil {
 			reason = reasonErr.Error()
 		}
-		return false, fmt.Errorf("transaction has failed, reason: %s, receipt: %+v. tx: %+v", reason, receipt, tx)
+		return false, fmt.Errorf("transaction has failed, reason: %s, receipt: %+v. tx: %+v, gas: %v", reason, receipt, tx, tx.Gas())
 	}
 	return true, nil
 }
