@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -1225,4 +1227,107 @@ func TestExecutorTxHash(t *testing.T) {
 	log.Debugf("Response TX Hash=%v", common.BytesToHash(processBatchResponse.Responses[0].TxHash).String())
 
 	require.Equal(t, tx.Hash(), common.BytesToHash(processBatchResponse.Responses[0].TxHash))
+}
+
+func TestExecutorInvalidNonce(t *testing.T) {
+	chainID := new(big.Int).SetInt64(1000)
+	senderPvtKey := "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	receiverAddress := common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB")
+
+	// authorization
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+	senderAddress := auth.From
+
+	type testCase struct {
+		name         string
+		currentNonce uint64
+		txNonce      uint64
+	}
+
+	testCases := []testCase{
+		{
+			name:         "tx nonce is greater than expected",
+			currentNonce: 1,
+			txNonce:      5,
+		},
+		{
+			name:         "tx nonce is less than expected",
+			currentNonce: 5,
+			txNonce:      2,
+		},
+		{
+			name:         "tx nonce is equal current",
+			currentNonce: 5,
+			txNonce:      5,
+		},
+	}
+
+	for _, testCase := range testCases {
+		if err := dbutils.InitOrReset(cfg); err != nil {
+			panic(err)
+		}
+
+		// Set Genesis
+		block := state.Block{
+			BlockNumber: 0,
+			BlockHash:   state.ZeroHash,
+			ParentHash:  state.ZeroHash,
+			ReceivedAt:  time.Now(),
+		}
+		genesis := state.Genesis{
+			Actions: []*state.GenesisAction{
+				{
+					Address: senderAddress.String(),
+					Type:    int(merkletree.LeafTypeBalance),
+					Value:   "10000000",
+				},
+				{
+					Address: senderAddress.String(),
+					Type:    int(merkletree.LeafTypeNonce),
+					Value:   strconv.FormatUint(testCase.currentNonce, encoding.Base10),
+				},
+			},
+		}
+		dbTx, err := testState.BeginStateTransaction(ctx)
+		require.NoError(t, err)
+		stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+		require.NoError(t, err)
+		require.NoError(t, dbTx.Commit(ctx))
+
+		// Read Sender Balance
+		currentNonce, err := stateTree.GetNonce(ctx, senderAddress, stateRoot)
+		require.NoError(t, err)
+		assert.Equal(t, testCase.currentNonce, currentNonce.Uint64())
+
+		// Create transaction
+		tx := types.NewTransaction(testCase.txNonce, receiverAddress, new(big.Int).SetUint64(2), uint64(30000), big.NewInt(1), nil)
+		signedTx, err := auth.Signer(auth.From, tx)
+		require.NoError(t, err)
+
+		// encode txs
+		batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx})
+		require.NoError(t, err)
+
+		// Create Batch
+		processBatchRequest := &executorclientpb.ProcessBatchRequest{
+			BatchNum:         1,
+			Coinbase:         receiverAddress.String(),
+			BatchL2Data:      batchL2Data,
+			OldStateRoot:     stateRoot,
+			GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			EthTimestamp:     uint64(0),
+			UpdateMerkleTree: 1,
+		}
+
+		// Process batch
+		processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+		require.NoError(t, err)
+
+		transactionResponses := processBatchResponse.GetResponses()
+		assert.Equal(t, transactionResponses[0].Error, executorclientpb.Error_ERROR_INVALID_TX, "invalid tx Error, it is expected to be INVALID TX")
+	}
 }
