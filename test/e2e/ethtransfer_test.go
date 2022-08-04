@@ -73,7 +73,6 @@ func Test1000EthTransfer(t *testing.T) {
 	}
 
 	for _, tx := range sentTxs {
-
 		// wait for TX to be mined
 		timeout := 20 * time.Minute
 		err = operations.WaitTxToBeMined(client, tx.Hash(), timeout)
