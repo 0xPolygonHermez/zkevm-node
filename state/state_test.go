@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -1176,7 +1176,6 @@ func TestExecutorTransfer(t *testing.T) {
 	require.Equal(t, uint64(21002), balance.Uint64())
 }
 
-/*
 func TestExecutorTxHash(t *testing.T) {
 	var receiverAddress = common.HexToAddress("0xD8Af0C5c6dEE7dCe32E59577675C026e1aDe4De5")
 	var stateRoot = state.ZeroHash
@@ -1227,4 +1226,85 @@ func TestExecutorTxHash(t *testing.T) {
 
 	require.Equal(t, tx.Hash(), common.BytesToHash(processBatchResponse.Responses[0].TxHash))
 }
-*/
+
+func TestGenesisNewLeafType(t *testing.T) {
+	// Set Genesis
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000",
+			},
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeNonce),
+				Value:   "0",
+			},
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeCode),
+				Value:   "0x1234",
+			},
+			{
+				Address:         "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:            int(merkletree.LeafTypeStorage),
+				StoragePosition: "0x0000000000000000000000000000000000000000000000000000000000000000",
+				Value:           "0x01",
+			},
+			{
+				Address:         "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:            int(merkletree.LeafTypeStorage),
+				StoragePosition: "0x0000000000000000000000000000000000000000000000000000000000000001",
+				Value:           "0x02",
+			},
+			{
+				Address: "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "200000000000000000000",
+			},
+			{
+				Address: "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+				Type:    int(merkletree.LeafTypeNonce),
+				Value:   "0",
+			},
+			{
+				Address: "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+				Type:    int(merkletree.LeafTypeCode),
+				Value:   "0x1234",
+			},
+			{
+				Address:         "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:            int(merkletree.LeafTypeStorage),
+				StoragePosition: "0x0000000000000000000000000000000000000000000000000000000000000001",
+				Value:           "0x01",
+			},
+			{
+				Address:         "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:            int(merkletree.LeafTypeStorage),
+				StoragePosition: "0x0000000000000000000000000000000000000000000000000000000000005BBF",
+				Value:           "0x0B6E",
+			},
+		},
+	}
+
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	log.Debug(common.BytesToHash(stateRoot))
+	log.Debug(new(big.Int).SetBytes(stateRoot))
+}
