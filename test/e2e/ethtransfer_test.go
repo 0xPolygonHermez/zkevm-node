@@ -22,7 +22,7 @@ func Test1000EthTransfer(t *testing.T) {
 	}
 
 	defer func() {
-		//require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.Teardown())
 	}()
 	cfg := &operations.Config{
 		Arity: 4,
@@ -86,6 +86,7 @@ func Test1000EthTransfer(t *testing.T) {
 	// wait for l2 Block number to be virtualized
 
 	fmt.Printf("\nL2 Block number: %s", blockL2Number)
+	fmt.Printf("\nLast TX Hash %s", lastTxHash.String())
 	err = operations.WaitL2BlockToBeVirtualized(blockL2Number, 30*time.Second)
 	require.NoError(t, err)
 
