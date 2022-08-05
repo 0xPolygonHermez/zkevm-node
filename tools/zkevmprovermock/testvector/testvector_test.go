@@ -300,6 +300,41 @@ func TestFindValue(t *testing.T) {
 			expectedNewRoot: "root1",
 		},
 		{
+			description: "happy path, querying existing key and last root returns last value of the key",
+			e2e: &testvector.E2E{
+				Items: []*testvector.E2EItem{
+					{
+						GenesisRaw: []*state.GenesisAction{
+							{
+								Key:   "key1",
+								Value: "value1",
+								Root:  "root1",
+							},
+							{
+								Key:   "key2",
+								Value: "value2",
+								Root:  "root2",
+							},
+							{
+								Key:   "key1",
+								Value: "value3",
+								Root:  "root2",
+							},
+							{
+								Key:   "key4",
+								Value: "value4",
+								Root:  "root4",
+							},
+						},
+					},
+				},
+			},
+			key:             "key1",
+			oldRoot:         "root4",
+			expectedValue:   "value3",
+			expectedNewRoot: "root4",
+		},
+		{
 			description: "unexisting key gives error",
 			e2e: &testvector.E2E{
 				Items: []*testvector.E2EItem{
@@ -345,9 +380,9 @@ func TestFindValue(t *testing.T) {
 				},
 			},
 			key:              "key1",
-			oldRoot:          "root2",
+			oldRoot:          "root3",
 			expectedError:    true,
-			expectedErrorMsg: `key "key1" not found for oldRoot "root2"`,
+			expectedErrorMsg: `key "key1" not found for oldRoot "root3"`,
 		},
 		{
 			description: "empty GenesisRaw gives error",

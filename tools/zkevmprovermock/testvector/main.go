@@ -43,13 +43,22 @@ func NewContainer(testVectorPath string, aferoFs afero.Fs) (*Container, error) {
 // associated value and new root.
 func (c *Container) FindValue(inputKey, oldRoot string) (value, newRoot string, err error) {
 	zero := common.HexToHash("").String()
+	var lastValue string
 	for _, item := range c.E2E.Items {
 		for index, action := range item.GenesisRaw {
-			if action.Key == inputKey &&
-				(index > 0 && oldRoot == item.GenesisRaw[index-1].Root ||
-					index == 0 && oldRoot == zero) {
-				return item.GenesisRaw[index].Value, item.GenesisRaw[index].Root, nil
+			if action.Key == inputKey {
+				if index > 0 && oldRoot == item.GenesisRaw[index-1].Root ||
+					index == 0 && oldRoot == zero {
+					return item.GenesisRaw[index].Value, item.GenesisRaw[index].Root, nil
+				} else {
+					lastValue = item.GenesisRaw[index].Value
+				}
 			}
+		}
+		if len(item.GenesisRaw) > 0 &&
+			oldRoot == item.GenesisRaw[len(item.GenesisRaw)-1].Root &&
+			lastValue != "" {
+			return lastValue, oldRoot, nil
 		}
 	}
 	return "", "", fmt.Errorf("key %q not found for oldRoot %q", inputKey, oldRoot)
