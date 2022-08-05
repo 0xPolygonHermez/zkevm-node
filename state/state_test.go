@@ -1226,3 +1226,72 @@ func TestExecutorTxHash(t *testing.T) {
 
 	require.Equal(t, tx.Hash(), common.BytesToHash(processBatchResponse.Responses[0].TxHash))
 }
+
+func TestGenesisNewLeafType(t *testing.T) {
+	// Set Genesis
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000",
+			},
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeNonce),
+				Value:   "0",
+			},
+			{
+				Address: "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "200000000000000000000",
+			},
+			{
+				Address: "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+				Type:    int(merkletree.LeafTypeNonce),
+				Value:   "0",
+			},
+			{
+				Address: "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "0",
+			},
+			{
+				Address: "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
+				Type:    int(merkletree.LeafTypeNonce),
+				Value:   "0",
+			},
+			{
+				Address:  "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
+				Type:     int(merkletree.LeafTypeCode),
+				Bytecode: "60606040525b600080fd00a165627a7a7230582012c9bd00152fa1c480f6827f81515bb19c3e63bf7ed9ffbb5fda0265983ac7980029",
+			},
+		},
+	}
+
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+	require.NoError(t, dbutils.InitOrReset(cfg))
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	log.Debug(string(stateRoot))
+	log.Debug(common.BytesToHash(stateRoot))
+	log.Debug(common.BytesToHash(stateRoot).String())
+	log.Debug(new(big.Int).SetBytes(stateRoot))
+	log.Debug(common.Bytes2Hex(stateRoot))
+
+	require.Equal(t, "49461512068930131501252998918674096186707801477301326632372959001738876161218", new(big.Int).SetBytes(stateRoot).String())
+}
