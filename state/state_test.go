@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
-	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:16005", zkProverURI)}
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
 	executorClient, executorClientConn, executorCancel = executor.NewExecutorClient(ctx, executorServerConfig)
 	s := executorClientConn.GetState()
@@ -74,7 +74,7 @@ func TestMain(m *testing.M) {
 		executorClientConn.Close()
 	}()
 
-	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:17005", zkProverURI)}
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var mtDBCancel context.CancelFunc
 	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	s = mtDBClientConn.GetState()
@@ -1373,14 +1373,12 @@ func TestGenesisFromMock(t *testing.T) {
 	expectedRoot := tv.GenesisRaw[len(tv.GenesisRaw)-1].Root
 	require.Equal(t, expectedRoot, hex.EncodeToHex(stateRoot))
 
-	/*
-		// Check Balances
-		for address, expectedBalance := range balances {
-			actualBalance, err := stateTree.GetBalance(ctx, address, stateRoot)
-			require.NoError(t, err)
-			require.Equal(t, expectedBalance, actualBalance)
-		}
-	*/
+	// Check Balances
+	for address, expectedBalance := range balances {
+		actualBalance, err := stateTree.GetBalance(ctx, address, stateRoot)
+		require.NoError(t, err)
+		require.Equal(t, expectedBalance, actualBalance)
+	}
 
 	// Check Nonces
 	for address, expectedNonce := range nonces {

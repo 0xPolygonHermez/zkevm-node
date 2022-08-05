@@ -7,6 +7,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -90,14 +91,19 @@ func (server *StateDBMock) Get(ctx context.Context, request *pb.GetRequest) (*pb
 
 	rootStr := merkletree.H4ToString([]uint64{request.Root.Fe0, request.Root.Fe1, request.Root.Fe2, request.Root.Fe3})
 
-	log.Debugf("Get called with key %v, root %v", keyBIStr, rootStr)
-
 	value, _, err := server.tvContainer.FindValue(keyBIStr, rootStr)
 	if err != nil {
 		return nil, err
 	}
+	valueBI, ok := new(big.Int).SetString(value, encoding.Base10)
+	if !ok {
+		return nil, fmt.Errorf("Could not convert base 10 %q to big.Int", value)
+	}
+	valueHex := hex.EncodeBig(valueBI)[2:]
+
+	log.Debugf("Get called with key %v, root %v, returning value %v", keyBIStr, rootStr, valueHex)
 	return &pb.GetResponse{
-		Value: value,
+		Value: valueHex,
 	}, nil
 }
 
