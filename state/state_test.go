@@ -74,7 +74,7 @@ func TestMain(m *testing.M) {
 		executorClientConn.Close()
 	}()
 
-	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	var mtDBCancel context.CancelFunc
 	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	s = mtDBClientConn.GetState()
@@ -1337,17 +1337,27 @@ func TestGenesisFromMock(t *testing.T) {
 			require.True(t, ok)
 			nonces[address] = nonce
 		case int(merkletree.LeafTypeCode):
+			if strings.HasPrefix(item.Bytecode, "0x") { // nolint
+				item.Bytecode = item.Bytecode[2:]
+			}
 			bytecodeSlice := common.Hex2Bytes(item.Bytecode)
 			smartContracts[address] = bytecodeSlice
 		case int(merkletree.LeafTypeStorage):
-			storageKey, ok := new(big.Int).SetString(item.StoragePosition[2:], 16)
+			if strings.HasPrefix(item.StoragePosition, "0x") { // nolint
+				item.StoragePosition = item.StoragePosition[2:]
+			}
+			storageKey, ok := new(big.Int).SetString(item.StoragePosition, 16)
 			require.True(t, ok)
-			storageValue, ok := new(big.Int).SetString(item.Value, 16)
+			storageValue, ok := new(big.Int).SetString(item.Value, 10)
 			require.True(t, ok)
 			if storage[address] == nil {
 				storage[address] = map[*big.Int]*big.Int{}
 			}
 			storage[address][storageKey] = storageValue
+
+			// Currently the test vector includes storage values in base10 format,
+			// our SetGenesis requires base16 values.
+			item.Value = hex.EncodeBig(storageValue)
 		}
 	}
 
@@ -1388,22 +1398,19 @@ func TestGenesisFromMock(t *testing.T) {
 	}
 
 	// Check smart contracts
-	/*
-		for address, expectedBytecode := range smartContracts {
-			actualBytecode, err := stateTree.GetCode(ctx, address, stateRoot)
-			require.NoError(t, err)
-			require.Equal(t, expectedBytecode, actualBytecode)
-		}
-	*/
+	for address, expectedBytecode := range smartContracts {
+		actualBytecode, err := stateTree.GetCode(ctx, address, stateRoot)
+		require.NoError(t, err)
+		require.Equal(t, expectedBytecode, actualBytecode)
+	}
 
-	/*
-		// Check Storage
-		for address, storageMap := range storage {
-			for expectedKey, expectedValue := range storageMap {
-				actualValue, err := stateTree.GetStorageAt(ctx, address, expectedKey, stateRoot)
-				require.NoError(t, err)
-				require.Equal(t, expectedValue, actualValue)
-			}
+	// Check Storage
+	for address, storageMap := range storage {
+		for expectedKey, expectedValue := range storageMap {
+			actualValue, err := stateTree.GetStorageAt(ctx, address, expectedKey, stateRoot)
+			require.NoError(t, err)
+
+			require.Equal(t, expectedValue, actualValue)
 		}
-	*/
+	}
 }
