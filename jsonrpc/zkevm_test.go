@@ -123,7 +123,7 @@ func TestIsL2BlockConsolidated(t *testing.T) {
 		{
 			Name:           "Failed to query the consolidation status",
 			ExpectedResult: false,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to check if the batch is consolidated"),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to check if the block is consolidated"),
 			SetupMocks: func(m *mocks) {
 				m.DbTx.
 					On("Rollback", context.Background()).
@@ -137,7 +137,7 @@ func TestIsL2BlockConsolidated(t *testing.T) {
 
 				m.State.
 					On("IsL2BlockConsolidated", context.Background(), 1, m.DbTx).
-					Return(true, errors.New("failed to check if the batch is consolidated")).
+					Return(true, errors.New("failed to check if the block is consolidated")).
 					Once()
 			},
 		},
@@ -201,7 +201,7 @@ func TestIsL2BlockVirtualized(t *testing.T) {
 		{
 			Name:           "Failed to query the virtualization status",
 			ExpectedResult: false,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to check if the batch is virtualized"),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to check if the block is virtualized"),
 			SetupMocks: func(m *mocks) {
 				m.DbTx.
 					On("Rollback", context.Background()).
@@ -215,7 +215,7 @@ func TestIsL2BlockVirtualized(t *testing.T) {
 
 				m.State.
 					On("IsL2BlockVirtualized", context.Background(), 1, m.DbTx).
-					Return(true, errors.New("failed to check if the batch is virtualized")).
+					Return(true, errors.New("failed to check if the block is virtualized")).
 					Once()
 			},
 		},

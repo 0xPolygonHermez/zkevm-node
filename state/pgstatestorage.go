@@ -1331,10 +1331,10 @@ func (p *PostgresStorage) GetL2BlockHashesSince(ctx context.Context, since time.
 	return blockHashes, nil
 }
 
-// IsL2BlockConsolidated checks if the batch ID is consolidated
-func (p *PostgresStorage) IsL2BlockConsolidated(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
+// IsL2BlockConsolidated checks if the block ID is consolidated
+func (p *PostgresStorage) IsL2BlockConsolidated(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error) {
 	q := p.getExecQuerier(dbTx)
-	rows, err := q.Query(ctx, isL2BlockConsolidated, batchNumber)
+	rows, err := q.Query(ctx, isL2BlockConsolidated, blockNumber)
 	if err != nil {
 		return false, err
 	}
@@ -1348,10 +1348,10 @@ func (p *PostgresStorage) IsL2BlockConsolidated(ctx context.Context, batchNumber
 	return isConsolidated, nil
 }
 
-// IsL2BlockVirtualized checks if the batch ID is virtualized
-func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
+// IsL2BlockVirtualized checks if the block  ID is virtualized
+func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error) {
 	q := p.getExecQuerier(dbTx)
-	rows, err := q.Query(ctx, isL2BlockVirtualized, batchNumber)
+	rows, err := q.Query(ctx, isL2BlockVirtualized, blockNumber)
 	if err != nil {
 		return false, err
 	}

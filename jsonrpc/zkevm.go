@@ -34,7 +34,7 @@ func (h *ZKEVM) IsL2BlockConsolidated(blockNumber int) (interface{}, rpcError) {
 	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		IsL2BlockConsolidated, err := h.state.IsL2BlockConsolidated(ctx, blockNumber, dbTx)
 		if err != nil {
-			const errorMessage = "failed to check if the batch is consolidated"
+			const errorMessage = "failed to check if the block is consolidated"
 			log.Errorf("%v:%v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
@@ -48,7 +48,7 @@ func (h *ZKEVM) IsL2BlockVirtualized(blockNumber int) (interface{}, rpcError) {
 	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		IsL2BlockVirtualized, err := h.state.IsL2BlockVirtualized(ctx, blockNumber, dbTx)
 		if err != nil {
-			const errorMessage = "failed to check if the batch is virtualized"
+			const errorMessage = "failed to check if the block is virtualized"
 			log.Errorf("%v:%v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
