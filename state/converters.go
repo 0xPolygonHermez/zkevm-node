@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
@@ -127,7 +128,7 @@ func convertToBigIntArray(responses []string) ([]*big.Int, error) {
 	results := make([]*big.Int, 0, len(responses))
 
 	for _, response := range responses {
-		result, ok := new(big.Int).SetString(response, 16)
+		result, ok := new(big.Int).SetString(response, hex.Base)
 		if ok {
 			results = append(results, result)
 		} else {
