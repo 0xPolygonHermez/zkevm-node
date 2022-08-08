@@ -198,6 +198,7 @@ stop-explorer-db: ## Stops the explorer database
 run: ## Runs all the services
 	$(RUNDB)
 	$(RUNL1NETWORK)
+	sleep 2
 	$(RUNZKPROVER)
 	sleep 5
 	$(RUNSEQUENCER)
