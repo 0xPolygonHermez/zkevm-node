@@ -1256,11 +1256,6 @@ func TestExecutorInvalidNonce(t *testing.T) {
 			currentNonce: 5,
 			txNonce:      2,
 		},
-		// {
-		//	name:         "tx nonce is equal current",
-		//	currentNonce: 5,
-		//	txNonce:      5,
-		// },
 	}
 
 	for _, testCase := range testCases {
