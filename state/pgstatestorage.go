@@ -94,8 +94,8 @@ const (
 	addLogSQL                  = "INSERT INTO state.log (transaction_hash, log_index, transaction_index, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 	getBatchNumByBlockNum      = "SELECT batch_num FROM state.virtual_batch WHERE block_num = $1 ORDER BY batch_num ASC LIMIT 1"
 	getTxsHashesBeforeBatchNum = "SELECT hash FROM state.transaction JOIN state.l2block ON state.transaction.l2_block_num = state.l2block.block_num AND state.l2block.batch_num <= $1"
-	isBatchVirtualized         = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
-	isBatchConsolidated        = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.verified_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
+	isL2BlockVirtualized       = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
+	isL2BlockConsolidated      = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.verified_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
 )
 
 // PostgresStorage implements the Storage interface
@@ -1068,7 +1068,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 func (p *PostgresStorage) GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	var lastConsolidatedBlockNumber uint64
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, getLastConsolidatedBlockNumberSQL, common.Hash{}).Scan(&lastConsolidatedBlockNumber)
+	err := q.QueryRow(ctx, getLastConsolidatedBlockNumberSQL).Scan(&lastConsolidatedBlockNumber)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrNotFound
@@ -1331,30 +1331,38 @@ func (p *PostgresStorage) GetL2BlockHashesSince(ctx context.Context, since time.
 	return blockHashes, nil
 }
 
-// IsBatchConsolidated checks if the batch ID is consolidated
-func (p *PostgresStorage) IsBatchConsolidated(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
+// IsL2BlockConsolidated checks if the block ID is consolidated
+func (p *PostgresStorage) IsL2BlockConsolidated(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error) {
 	q := p.getExecQuerier(dbTx)
-	_, err := q.Query(ctx, isBatchConsolidated, batchNumber)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return false, ErrNotFound
-	} else if err != nil {
+	rows, err := q.Query(ctx, isL2BlockConsolidated, blockNumber)
+	if err != nil {
 		return false, err
 	}
-	return true, nil
+	defer rows.Close()
+	isConsolidated := rows.Next()
+
+	if rows.Err() != nil {
+		return false, rows.Err()
+	}
+
+	return isConsolidated, nil
 }
 
-// IsBatchVirtualized checks if the batch ID is virtualized
-func (p *PostgresStorage) IsBatchVirtualized(ctx context.Context, batchNumber int, dbTx pgx.Tx) (bool, error) {
+// IsL2BlockVirtualized checks if the block  ID is virtualized
+func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error) {
 	q := p.getExecQuerier(dbTx)
-	_, err := q.Query(ctx, isBatchVirtualized, batchNumber)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return false, ErrNotFound
-	} else if err != nil {
+	rows, err := q.Query(ctx, isL2BlockVirtualized, blockNumber)
+	if err != nil {
 		return false, err
 	}
-	return true, nil
+	defer rows.Close()
+	isVirtualized := rows.Next()
+
+	if rows.Err() != nil {
+		return false, rows.Err()
+	}
+
+	return isVirtualized, nil
 }
 
 // GetLogs returns the logs that match the filter
