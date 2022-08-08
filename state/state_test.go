@@ -1256,11 +1256,11 @@ func TestExecutorInvalidNonce(t *testing.T) {
 			currentNonce: 5,
 			txNonce:      2,
 		},
-		{
-			name:         "tx nonce is equal current",
-			currentNonce: 5,
-			txNonce:      5,
-		},
+		// {
+		//	name:         "tx nonce is equal current",
+		//	currentNonce: 5,
+		//	txNonce:      5,
+		// },
 	}
 
 	for _, testCase := range testCases {
@@ -1325,10 +1325,8 @@ func TestExecutorInvalidNonce(t *testing.T) {
 		processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 		require.NoError(t, err)
 
-		_ = processBatchResponse.GetResponses() // TODO: transactionResponses := processBatchResponse.GetResponses()
-
-		//TODO: Expected answer: Error_ERROR_INTRINSIC_INVALID_TX vs actual answer ERROR_NO_ERROR
-		//assert.Equal(t, transactionResponses[0].Error, executorclientpb.Error_ERROR_INTRINSIC_INVALID_TX, "invalid tx Error, it is expected to be INVALID TX")
+		transactionResponses := processBatchResponse.GetResponses()
+		assert.Equal(t, transactionResponses[0].Error, executorclientpb.Error_ERROR_INTRINSIC_INVALID_TX, "invalid tx Error, it is expected to be INVALID TX")
 	}
 }
 
