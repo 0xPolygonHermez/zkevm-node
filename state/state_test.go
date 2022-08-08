@@ -18,7 +18,6 @@ import (
 	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
@@ -1603,20 +1602,20 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	require.NoError(t, err)
 
 	// assert signed tx do deploy sc
-	assert.Equal(t, pb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
+	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
 	assert.Equal(t, scAddress, common.HexToAddress(string(processBatchResponse.Responses[0].CreateAddress)))
 
 	// assert signed tx
-	assert.Equal(t, pb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[1].Error)
+	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[1].Error)
 
 	// assert unsigned tx
-	assert.Equal(t, pb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[2].Error)
+	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[2].Error)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[2].ReturnValue))
 
 	// assert signed tx
-	assert.Equal(t, pb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[3].Error)
+	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[3].Error)
 
 	// assert unsigned tx
-	assert.Equal(t, pb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[4].Error)
+	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[4].Error)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000002", hex.EncodeToString(processBatchResponse.Responses[4].ReturnValue))
 }
