@@ -10,6 +10,7 @@ DOCKERCOMPOSEEXPLORER := zkevm-explorer
 DOCKERCOMPOSEEXPLORERDB := zkevm-explorer-db
 DOCKERCOMPOSEEXPLORERRPC := zkevm-explorer-json-rpc
 DOCKERCOMPOSEZKPROVER := zkevm-prover
+DOCKERCOMPOSEZKPROVERMOCK := zkprover-mock
 DOCKERCOMPOSEPERMISSIONLESSDB := zkevm-permissionless-db
 DOCKERCOMPOSEPERMISSIONLESSNODE := zkevm-permissionless-node
 DOCKERCOMPOSENODEAPPROVE := zkevm-approve
@@ -26,6 +27,7 @@ RUNEXPLORER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORER)
 RUNEXPLORERDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERDB)
 RUNEXPLORERJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERRPC)
 RUNZKPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVER)
+RUNZKPROVERMOCK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVERMOCK)
 
 RUNPERMISSIONLESSDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSDB)
 RUNPERMISSIONLESSNODE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSNODE)
@@ -46,6 +48,7 @@ STOPEXPLORER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORER) && $(DOCKERCOMPOS
 STOPEXPLORERDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERDB)
 STOPEXPLORERRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERRPC)
 STOPZKPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVER)
+STOPZKPROVERMOCK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVERMOCK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVERMOCK)
 
 STOPPERMISSIONLESSDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSDB)
 STOPPERMISSIONLESSNODE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSNODE) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSNODE)
@@ -95,7 +98,8 @@ test-full: build-docker compile-scs ## Runs all tests checking race conditions
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
 	$(RUNZKPROVER); sleep 5
-	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
+	$(RUNZKPROVERMOCK)
+	trap '$(STOPDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
 
 .PHONY: test-full-non-e2e
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
@@ -103,9 +107,10 @@ test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race 
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
 	$(RUNZKPROVER)
+	$(RUNZKPROVERMOCK)
 	sleep 5
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
+	trap '$(STOPDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking race conditions
@@ -180,6 +185,14 @@ run-zkprover: ## Runs zkprover
 .PHONY: stop-zkprover
 stop-zkprover: ## Stops zkprover
 	$(STOPZKPROVER)
+
+.PHONY: run-zkprover-mock
+run-zkprover-mock: ## Runs zkprover-mock
+	$(RUNZKPROVERMOCK)
+
+.PHONY: stop-zkprover-mock
+stop-zkprover-mock: ## Stops zkprover-mock
+	$(STOPZKPROVERMOCK)
 
 .PHONY: run-explorer
 run-explorer: ## Runs the explorer

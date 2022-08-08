@@ -97,7 +97,7 @@ func Test_h4ToString(t *testing.T) {
 	for i, tc := range tcs {
 		tc := tc
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
-			actual := h4ToString(tc.input)
+			actual := H4ToString(tc.input)
 			require.Equal(t, tc.expected, actual)
 		})
 	}
@@ -217,7 +217,7 @@ func Test_stringToh4(t *testing.T) {
 	for _, tc := range tcs {
 		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
-			actual, err := stringToh4(tc.input)
+			actual, err := StringToh4(tc.input)
 			require.NoError(t, testutils.CheckError(err, tc.expectedErr, tc.expectedErrMsg))
 
 			require.Equal(t, tc.expected, actual)

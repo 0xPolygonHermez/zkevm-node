@@ -63,15 +63,15 @@ func h4ToScalar(h4 []uint64) *big.Int {
 	return result
 }
 
-// h4ToString converts array of 4 Scalars of 64 bits into an hex string.
-func h4ToString(h4 []uint64) string {
+// H4ToString converts array of 4 Scalars of 64 bits into an hex string.
+func H4ToString(h4 []uint64) string {
 	sc := h4ToScalar(h4)
 
 	return fmt.Sprintf("0x%064s", hex.EncodeToString(sc.Bytes()))
 }
 
-// stringToh4 converts an hex string into array of 4 Scalars of 64 bits.
-func stringToh4(str string) ([]uint64, error) {
+// StringToh4 converts an hex string into array of 4 Scalars of 64 bits.
+func StringToh4(str string) ([]uint64, error) {
 	if strings.HasPrefix(str, "0x") { // nolint
 		str = str[2:]
 	}
