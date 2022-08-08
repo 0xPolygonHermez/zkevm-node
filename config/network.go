@@ -500,6 +500,7 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfg.GenBlockNumber = cfgJSON.GenBlockNumber
 	cfg.PoEAddr = common.HexToAddress(cfgJSON.PoEAddr)
 	cfg.MaticAddr = common.HexToAddress(cfgJSON.MaticAddr)
+	cfg.GlobalExitRootManagerAddr = common.HexToAddress(cfgJSON.GlobalExitRootManagerAddr)
 	cfg.SystemSCAddr = common.HexToAddress(cfgJSON.SystemSCAddr)
 	cfg.GlobalExitRootStoragePosition = cfgJSON.GlobalExitRootStoragePosition
 	cfg.LocalExitRootStoragePosition = cfgJSON.LocalExitRootStoragePosition
