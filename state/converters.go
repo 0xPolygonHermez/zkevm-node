@@ -13,7 +13,6 @@ import (
 )
 
 func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-
 	responses, err := convertToProcessTransactionResponse(txs, response.Responses)
 	if err != nil {
 		return nil, err
@@ -33,18 +32,16 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 	}, nil
 }
 
-func isUnprocessed(error pb.Error) bool {
-
+func isProcessed(error pb.Error) bool {
 	//TODO: Implement this check
 
-	return false
+	return true
 }
 
 func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 
 	for i, response := range responses {
-
 		trace, err := convertToStrucLogArray(response.ExecutionTrace)
 		if err != nil {
 			return nil, err
@@ -61,7 +58,7 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
-		result.UnprocessedTransaction = isUnprocessed(response.Error)
+		result.IsProcessed = isProcessed(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 		result.Tx = txs[i]
@@ -177,7 +174,6 @@ func convertToContext(context *pb.TransactionContext) instrumentation.Context {
 func convertToInstrumentationSteps(responses []*pb.TransactionStep) []instrumentation.Step {
 	results := make([]instrumentation.Step, 0, len(responses))
 	for _, response := range responses {
-
 		step := new(instrumentation.Step)
 		step.StateRoot = string(response.StateRoot)
 		step.Depth = int(response.Depth)
@@ -206,14 +202,6 @@ func convertToInstrumentationContract(response *pb.Contract) instrumentation.Con
 		Input:   string(response.Data),
 		Gas:     fmt.Sprint(response.Gas),
 	}
-}
-
-func convertUint64ArrayToStringArray(responses []uint64) []string {
-	results := make([]string, 0, len(responses))
-	for _, response := range responses {
-		results = append(results, fmt.Sprint(response))
-	}
-	return results
 }
 
 func convertByteArrayToStringArray(responses []byte) []string {

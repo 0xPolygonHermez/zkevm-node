@@ -511,15 +511,6 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
 }
 
-// isTransactionProcessed determines if the given process transaction response
-// represents a processed transaction.
-func isTransactionProcessed(input bool) bool {
-
-	//TODO: Finish this function
-
-	return false
-}
-
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
 func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx) error {
 	// Decode transactions
@@ -549,9 +540,8 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
-
 		//TODO: Also check this
-		if false { // if !isTransactionProcessed(processed.Responses[i]) {
+		if !isProcessed(processed.Responses[i].Error) {
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
@@ -953,7 +943,7 @@ func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) ([]
 	processedTxResponses := []*ProcessTransactionResponse{}
 	unprocessedTxResponses := map[string]*ProcessTransactionResponse{}
 	for _, response := range responses {
-		if isTransactionProcessed(response.UnprocessedTransaction) {
+		if response.IsProcessed {
 			processedTxResponses = append(processedTxResponses, response)
 		} else {
 			log.Infof("Tx %s has not been processed", response.TxHash)

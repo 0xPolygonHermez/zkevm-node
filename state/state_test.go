@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -716,10 +716,10 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 		{
 			description: "single processed transaction returns itself",
 			input: []*state.ProcessTransactionResponse{
-				{UnprocessedTransaction: false},
+				{IsProcessed: true},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{
-				{UnprocessedTransaction: false},
+				{IsProcessed: true},
 			},
 			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{},
 		},
@@ -727,15 +727,15 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 			description: "single unprocessed transaction returns empty",
 			input: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: false,
 				},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{},
 			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
 				"0x000000000000000000000000000000000000000000000000000000000000000a": {
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: false,
 				},
 			},
 		},
@@ -743,30 +743,30 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 			description: "multiple processed transactions",
 			input: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: false,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: false,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: false,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: true,
 				},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: false,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: false,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: false,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: true,
 				},
 			},
 			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{},
@@ -775,31 +775,31 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 			description: "multiple unprocessed transactions",
 			input: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: false,
 				},
 				{
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: false,
 				},
 				{
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: false,
 				},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{},
 			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
 				"0x000000000000000000000000000000000000000000000000000000000000000a": {
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: false,
 				},
 				"0x000000000000000000000000000000000000000000000000000000000000000b": {
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: false,
 				},
 				"0x000000000000000000000000000000000000000000000000000000000000000c": {
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: false,
 				},
 			},
 		},
@@ -807,40 +807,40 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 			description: "mixed processed and unprocessed transactions",
 			input: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: false,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: false,
 				},
 				{
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: false,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("d"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("d"),
+					IsProcessed: false,
 				},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: false,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: false,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: true,
 				},
 			},
 			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
 				"0x000000000000000000000000000000000000000000000000000000000000000b": {
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: false,
 				},
 				"0x000000000000000000000000000000000000000000000000000000000000000d": {
-					TxHash:                 common.HexToHash("d"),
-					UnprocessedTransaction: true,
+					TxHash:      common.HexToHash("d"),
+					IsProcessed: false,
 				},
 			},
 		},
@@ -1261,69 +1261,71 @@ func TestExecutorInvalidNonce(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		if err := dbutils.InitOrReset(cfg); err != nil {
-			panic(err)
-		}
+		t.Run(testCase.name, func(t *testing.T) {
+			if err := dbutils.InitOrReset(cfg); err != nil {
+				panic(err)
+			}
 
-		// Set Genesis
-		block := state.Block{
-			BlockNumber: 0,
-			BlockHash:   state.ZeroHash,
-			ParentHash:  state.ZeroHash,
-			ReceivedAt:  time.Now(),
-		}
-		genesis := state.Genesis{
-			Actions: []*state.GenesisAction{
-				{
-					Address: senderAddress.String(),
-					Type:    int(merkletree.LeafTypeBalance),
-					Value:   "10000000",
+			// Set Genesis
+			block := state.Block{
+				BlockNumber: 0,
+				BlockHash:   state.ZeroHash,
+				ParentHash:  state.ZeroHash,
+				ReceivedAt:  time.Now(),
+			}
+			genesis := state.Genesis{
+				Actions: []*state.GenesisAction{
+					{
+						Address: senderAddress.String(),
+						Type:    int(merkletree.LeafTypeBalance),
+						Value:   "10000000",
+					},
+					{
+						Address: senderAddress.String(),
+						Type:    int(merkletree.LeafTypeNonce),
+						Value:   strconv.FormatUint(testCase.currentNonce, encoding.Base10),
+					},
 				},
-				{
-					Address: senderAddress.String(),
-					Type:    int(merkletree.LeafTypeNonce),
-					Value:   strconv.FormatUint(testCase.currentNonce, encoding.Base10),
-				},
-			},
-		}
-		dbTx, err := testState.BeginStateTransaction(ctx)
-		require.NoError(t, err)
-		stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
-		require.NoError(t, err)
-		require.NoError(t, dbTx.Commit(ctx))
+			}
+			dbTx, err := testState.BeginStateTransaction(ctx)
+			require.NoError(t, err)
+			stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+			require.NoError(t, err)
+			require.NoError(t, dbTx.Commit(ctx))
 
-		// Read Sender Balance
-		currentNonce, err := stateTree.GetNonce(ctx, senderAddress, stateRoot)
-		require.NoError(t, err)
-		assert.Equal(t, testCase.currentNonce, currentNonce.Uint64())
+			// Read Sender Balance
+			currentNonce, err := stateTree.GetNonce(ctx, senderAddress, stateRoot)
+			require.NoError(t, err)
+			assert.Equal(t, testCase.currentNonce, currentNonce.Uint64())
 
-		// Create transaction
-		tx := types.NewTransaction(testCase.txNonce, receiverAddress, new(big.Int).SetUint64(2), uint64(30000), big.NewInt(1), nil)
-		signedTx, err := auth.Signer(auth.From, tx)
-		require.NoError(t, err)
+			// Create transaction
+			tx := types.NewTransaction(testCase.txNonce, receiverAddress, new(big.Int).SetUint64(2), uint64(30000), big.NewInt(1), nil)
+			signedTx, err := auth.Signer(auth.From, tx)
+			require.NoError(t, err)
 
-		// encode txs
-		batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx})
-		require.NoError(t, err)
+			// encode txs
+			batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx})
+			require.NoError(t, err)
 
-		// Create Batch
-		processBatchRequest := &executorclientpb.ProcessBatchRequest{
-			BatchNum:         1,
-			Coinbase:         receiverAddress.String(),
-			BatchL2Data:      batchL2Data,
-			OldStateRoot:     stateRoot,
-			GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-			EthTimestamp:     uint64(0),
-			UpdateMerkleTree: 1,
-		}
+			// Create Batch
+			processBatchRequest := &executorclientpb.ProcessBatchRequest{
+				BatchNum:         1,
+				Coinbase:         receiverAddress.String(),
+				BatchL2Data:      batchL2Data,
+				OldStateRoot:     stateRoot,
+				GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+				OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+				EthTimestamp:     uint64(0),
+				UpdateMerkleTree: 1,
+			}
 
-		// Process batch
-		processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
-		require.NoError(t, err)
+			// Process batch
+			processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+			require.NoError(t, err)
 
-		transactionResponses := processBatchResponse.GetResponses()
-		assert.Equal(t, executorclientpb.Error_ERROR_INTRINSIC_INVALID_TX, transactionResponses[0].Error, "invalid tx Error, it is expected to be INVALID TX")
+			transactionResponses := processBatchResponse.GetResponses()
+			assert.Equal(t, executorclientpb.Error_ERROR_INTRINSIC_INVALID_TX, transactionResponses[0].Error, "invalid tx Error, it is expected to be INVALID TX")
+		})
 	}
 }
 
