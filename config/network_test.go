@@ -28,6 +28,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
   "deploymentBlockNumber": 6934972,
   "proofOfEfficiencyAddress": "0x2f612dc8fB986E7976AEfc13d8bB0Eb18488a4C9",
   "maticTokenAddress": "0xEa2f9aC0cd926C92923355e88Af73Ee83F2D9C67",
+  "globalExitRootManagerAddress": "0x9730d4ec6684E5567fB70B12d49Bf3f58f5ce4Cc",
 
   "arity": 4,
   "globalExitRootStoragePosition": 0,
@@ -79,6 +80,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				PoEAddr:        common.HexToAddress("0x2f612dc8fB986E7976AEfc13d8bB0Eb18488a4C9"),
 				MaticAddr:      common.HexToAddress("0xEa2f9aC0cd926C92923355e88Af73Ee83F2D9C67"),
 
+				GlobalExitRootManagerAddr:     common.HexToAddress("0x9730d4ec6684E5567fB70B12d49Bf3f58f5ce4Cc"),
 				L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
 				SystemSCAddr:                  common.Address{},
 				GlobalExitRootStoragePosition: 0,
@@ -156,6 +158,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
   "deploymentBlockNumber":   1,
   "proofOfEfficiencyAddress":          "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
   "maticTokenAddress":        "0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa",
+  "globalExitRootManagerAddress": "0x9730d4ec6684E5567fB70B12d49Bf3f58f5ce4Cc",
   "systemSCAddr": "0x0000000000000000000000000000000000000000",
   "globalExitRootStoragePosition": 2,
   "localExitRootStoragePosition": 2,
@@ -183,6 +186,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				PoEAddr:        common.HexToAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
 				MaticAddr:      common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
 
+				GlobalExitRootManagerAddr:     common.HexToAddress("0x9730d4ec6684E5567fB70B12d49Bf3f58f5ce4Cc"),
 				SystemSCAddr:                  common.Address{},
 				GlobalExitRootStoragePosition: 2,
 				LocalExitRootStoragePosition:  2,
@@ -243,6 +247,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 			require.Equal(t, tc.expectedConfig.GenBlockNumber, actualConfig.GenBlockNumber)
 			require.Equal(t, tc.expectedConfig.PoEAddr, actualConfig.PoEAddr)
 			require.Equal(t, tc.expectedConfig.MaticAddr, actualConfig.MaticAddr)
+			require.Equal(t, tc.expectedConfig.GlobalExitRootManagerAddr, actualConfig.GlobalExitRootManagerAddr)
 			require.Equal(t, tc.expectedConfig.L2GlobalExitRootManagerAddr, actualConfig.L2GlobalExitRootManagerAddr)
 			require.Equal(t, tc.expectedConfig.SystemSCAddr, actualConfig.SystemSCAddr)
 			require.Equal(t, tc.expectedConfig.GlobalExitRootStoragePosition, actualConfig.GlobalExitRootStoragePosition)
