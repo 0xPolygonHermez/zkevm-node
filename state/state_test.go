@@ -1251,12 +1251,12 @@ func TestExecutorInvalidNonce(t *testing.T) {
 		{
 			name:         "tx nonce is greater than expected",
 			currentNonce: 1,
-			txNonce:      5,
+			txNonce:      2,
 		},
 		{
 			name:         "tx nonce is less than expected",
 			currentNonce: 5,
-			txNonce:      2,
+			txNonce:      4,
 		},
 	}
 
