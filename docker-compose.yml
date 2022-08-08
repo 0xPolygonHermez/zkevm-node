@@ -195,6 +195,16 @@ services:
     command: >
       zkprover input_executor.json
 
+  zkprover-mock:
+    container_name: zkprover-mock
+    image: hermeznetwork/zkprover-mock:latest
+    ports:
+      - 43061:43061 # MT
+    volumes:
+      - ./test/vectors/src:/app/testvectors
+    command: >
+      /app/zkprover-mock server --statedb-port 43061 --test-vector-path /app/testvectors
+
   zkevm-approve:
     container_name: zkevm-approve
     image: zkevm-node

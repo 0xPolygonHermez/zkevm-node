@@ -790,7 +790,6 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		newRoot []byte
 		err     error
 	)
-
 	if dbTx == nil {
 		return newRoot, ErrDBTxNil
 	}
@@ -826,7 +825,13 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 				return newRoot, err
 			}
 		case int(merkletree.LeafTypeStorage):
+			if strings.HasPrefix(action.StoragePosition, "0x") { // nolint
+				action.StoragePosition = action.StoragePosition[2:]
+			}
 			positionBI := new(big.Int).SetBytes(common.Hex2Bytes(action.StoragePosition))
+			if strings.HasPrefix(action.Value, "0x") { // nolint
+				action.StoragePosition = action.Value[2:]
+			}
 			valueBI := new(big.Int).SetBytes(common.Hex2Bytes(action.Value))
 
 			newRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, newRoot)
