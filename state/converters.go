@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
@@ -12,10 +13,14 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) *ProcessBatchResponse {
+func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	responses, err := convertToProcessTransactionResponse(txs, response.Responses)
+	if err != nil {
+		return nil, err
+	}
 	return &ProcessBatchResponse{
 		CumulativeGasUsed:   response.CumulativeGasUsed,
-		Responses:           convertToProcessTransactionResponse(txs, response.Responses),
+		Responses:           responses,
 		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
 		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
 		CntKeccakHashes:     response.CntKeccakHashes,
@@ -25,13 +30,24 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 		CntArithmetics:      response.CntArithmetics,
 		CntBinaries:         response.CntBinaries,
 		CntSteps:            response.CntSteps,
-	}
+	}, nil
 }
 
-func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) []*ProcessTransactionResponse {
+func isProcessed(error pb.Error) bool {
+	//TODO: Implement this check
+
+	return true
+}
+
+func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 
 	for i, response := range responses {
+		trace, err := convertToStrucLogArray(response.ExecutionTrace)
+		if err != nil {
+			return nil, err
+		}
+
 		result := new(ProcessTransactionResponse)
 		result.TxHash = common.BytesToHash(response.TxHash)
 		result.Type = response.Type
@@ -43,14 +59,14 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
-		result.UnprocessedTransaction = response.UnprocessedTransaction
-		result.ExecutionTrace = convertToStrucLogArray(response.ExecutionTrace)
+		result.IsProcessed = isProcessed(response.Error)
+		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 		result.Tx = txs[i]
 		results = append(results, result)
 	}
 
-	return results
+	return results, nil
 }
 
 func convertToLog(responses []*pb.Log) []*types.Log {
@@ -81,9 +97,14 @@ func convertToTopics(responses [][]byte) []common.Hash {
 	return results
 }
 
-func convertToStrucLogArray(responses []*pb.ExecutionTraceStep) []instrumentation.StructLog {
+func convertToStrucLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumentation.StructLog, error) {
 	results := make([]instrumentation.StructLog, 0, len(responses))
+
 	for _, response := range responses {
+		convertedStack, err := convertToBigIntArray(response.Stack)
+		if err != nil {
+			return nil, err
+		}
 		result := new(instrumentation.StructLog)
 		result.Pc = response.Pc
 		result.Op = response.Op
@@ -91,7 +112,7 @@ func convertToStrucLogArray(responses []*pb.ExecutionTraceStep) []instrumentatio
 		result.GasCost = response.GasCost
 		result.Memory = response.Memory
 		result.MemorySize = int(response.MemorySize)
-		result.Stack = convertToBigIntArray(response.Stack)
+		result.Stack = convertedStack
 		result.ReturnData = response.ReturnData
 		result.Storage = convertToProperMap(response.Storage)
 		result.Depth = int(response.Depth)
@@ -100,16 +121,21 @@ func convertToStrucLogArray(responses []*pb.ExecutionTraceStep) []instrumentatio
 
 		results = append(results, *result)
 	}
-	return results
+	return &results, nil
 }
 
-func convertToBigIntArray(responses []uint64) []*big.Int {
+func convertToBigIntArray(responses []string) ([]*big.Int, error) {
 	results := make([]*big.Int, 0, len(responses))
 
 	for _, response := range responses {
-		results = append(results, new(big.Int).SetUint64(response))
+		result, ok := new(big.Int).SetString(response, hex.Base)
+		if ok {
+			results = append(results, result)
+		} else {
+			return nil, fmt.Errorf("String %s is not valid", response)
+		}
 	}
-	return results
+	return results, nil
 }
 
 func convertToProperMap(responses map[string]string) map[common.Hash]common.Hash {
@@ -160,7 +186,7 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) []instrument
 		step.Error = executor.ExecutorError(response.Error).Error()
 		step.Contract = convertToInstrumentationContract(response.Contract)
 		step.GasCost = fmt.Sprint(response.GasCost)
-		step.Stack = convertUint64ArrayToStringArray(response.Stack)
+		step.Stack = response.Stack
 		step.Memory = convertByteArrayToStringArray(response.Memory)
 		step.ReturnData = string(response.ReturnData)
 
@@ -177,14 +203,6 @@ func convertToInstrumentationContract(response *pb.Contract) instrumentation.Con
 		Input:   string(response.Data),
 		Gas:     fmt.Sprint(response.Gas),
 	}
-}
-
-func convertUint64ArrayToStringArray(responses []uint64) []string {
-	results := make([]string, 0, len(responses))
-	for _, response := range responses {
-		results = append(results, fmt.Sprint(response))
-	}
-	return results
 }
 
 func convertByteArrayToStringArray(responses []byte) []string {
