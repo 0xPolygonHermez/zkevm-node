@@ -963,7 +963,6 @@ func TestExecutor(t *testing.T) {
 	assert.Equal(t, common.HexToHash(expectedNewRoot), common.BytesToHash(processBatchResponse.NewStateRoot))
 }
 
-/*
 func TestExecutorRevert(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -1022,7 +1021,7 @@ func TestExecutorLogs(t *testing.T) {
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var sequencerBalance = 4000000
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
-	scLogsByteCode, err := testutils.ReadBytecode("Emitlog2/Emitlog2.bin")
+	scLogsByteCode, err := testutils.ReadBytecode("EmitLog2/EmitLog2.bin")
 	require.NoError(t, err)
 
 	// Genesis DB
@@ -1084,7 +1083,6 @@ func TestExecutorLogs(t *testing.T) {
 	assert.Equal(t, 2, len(processBatchResponse.Responses[1].Logs[1].Topics))
 	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs[2].Topics))
 }
-*/
 
 func TestExecutorTransfer(t *testing.T) {
 	var chainID = new(big.Int).SetInt64(1000)
