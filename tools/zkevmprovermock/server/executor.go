@@ -1,12 +1,15 @@
 package server
 
 import (
+	"context"
 	"net"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/tools/zkevmprovermock/testvector"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ExecutorMock represents and Executor mock server
@@ -52,4 +55,9 @@ func (server *ExecutorMock) Start() {
 func (server *ExecutorMock) Stop() {
 	log.Info("Executor mock server: stopping...")
 	server.srv.Stop()
+}
+
+// ProcessBatch implements the ProcessBatch gRPC method.
+func (server *ExecutorMock) ProcessBatch(ctx context.Context, request *pb.ProcessBatchRequest) (*pb.ProcessBatchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ProcessBatch not implemented")
 }

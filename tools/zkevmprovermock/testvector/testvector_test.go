@@ -28,6 +28,97 @@ func TestNewContainer(t *testing.T) {
 			sourceFiles: map[string]string{
 				filepath.Join(defaultSourceDir, "a.json"): `[
 {
+  "traces": {
+    "batchHash": "batchHash",
+    "old_state_root": "old_state_root",
+    "globalHash": "globalHash",
+    "numBatch": 1,
+    "timestamp": 1944498031,
+    "sequencerAddr": "sequencerAddr",
+    "responses": [
+      {
+        "tx_hash": "0xabc",
+        "type": 0,
+        "gas_left": "28099",
+        "gas_used": "71901",
+        "gas_refunded": "0",
+        "state_root": "0x2031e0233b733481aa0e8c1056b874d68731fc0c673248538f7acfb81d2d7764",
+        "logs": [
+          {
+            "data": [
+              "000000000000000000000002540be400"
+            ],
+            "topics": [
+              "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+              "00000000000000000000000000000000",
+              "4d5cf5032b2a844602278b01199ed191a86c93ff"
+            ],
+            "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+            "batch_number": 1,
+            "tx_hash": "0xeeb51664fd2b6dcf865de752589f59f29b8398bdc38b5f556715ae88615c4641",
+            "tx_index": 0,
+            "batch_hash": "0x7624c022e923e798a6682171fd27b54912c426cfd92d49fb6be3bf300ba27679",
+            "index": 0
+          }
+        ],
+        "unprocessed_transaction": false,
+        "call_trace": {
+          "context": {
+            "from": "0x617b3a3528f9cdd6630fd3301b9c8911f7bf063d",
+            "to": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+            "type": "CALL",
+            "data": "0x40c10f190000000000000000000000004d5cf5032b2a844602278b01199ed191a86c93ff00000000000000000000000000000000000000000000000000000002540be400",
+            "gas": "100000",
+            "value": "0",
+            "batch": "0x7624c022e923e798a6682171fd27b54912c426cfd92d49fb6be3bf300ba27679",
+            "output": "",
+            "gas_used": "71901",
+            "execution_time": "",
+            "old_state_root": "0x2031e0233b733481aa0e8c1056b874d68731fc0c673248538f7acfb81d2d7764",
+            "nonce": 0,
+            "gasPrice": "1000000000",
+            "chainId": 1000,
+            "return_value": []
+          },
+          "steps": [
+            {
+              "depth": 1,
+              "pc": 0,
+              "remaining_gas": "78392",
+              "opcode": "PUSH1",
+              "gas_refund": "0",
+              "op": "0x60",
+              "error": "",
+              "state_root": "0xdf403125ab76e36f1fb313619e704e4630b984bd93c3121b3775b71d1b72f9c6",
+              "contract": {
+                "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+                "caller": "0x617b3a3528f9cdd6630fd3301b9c8911f7bf063d",
+                "value": "0",
+                "data": "0x40c10f190000000000000000000000004d5cf5032b2a844602278b01199ed191a86c93ff00000000000000000000000000000000000000000000000000000002540be40000000000000000000000000000000000000000000000000000000000",
+                "gas": "100000"
+              },
+              "return_data": [],
+              "gas_cost": "3",
+              "stack": [
+                "0x80"
+              ],
+              "memory": []
+            }
+          ]
+        }
+      }
+    ],
+    "cumulative_gas_used": "171380",
+    "new_state_root": "0xb6f5c8f596b7130c7c7eb3257e80badfd7a89aa2977cc6d521a8b97f764230f5",
+    "new_local_exit_root": "0x00",
+    "cnt_keccak_hashes": 1,
+    "cnt_poseidon_hashes": 1,
+    "cnt_poseidon_paddings": 1,
+    "cnt_mem_aligns": 1,
+    "cnt_arithmetics": 1,
+    "cnt_binaries": 1,
+    "cnt_steps": 1
+  },
   "genesisRaw": [
     {
       "address": "addressRaw0",
@@ -70,6 +161,92 @@ func TestNewContainer(t *testing.T) {
 				E2E: &testvector.E2E{
 					Items: []*testvector.E2EItem{
 						{
+							Traces: &testvector.Traces{
+								BatchHash:     "batchHash",
+								OldStateRoot:  "old_state_root",
+								GlobalHash:    "globalHash",
+								NumBatch:      1,
+								Timestamp:     1944498031,
+								SequencerAddr: "sequencerAddr",
+								ProcessBatchResponse: &testvector.ProcessBatchResponse{
+									Responses: []*testvector.ProcessTransactionResponse{
+										{
+											TxHash:      "0xabc",
+											Type:        0,
+											GasLeft:     "28099",
+											GasUsed:     "71901",
+											GasRefunded: "0",
+											StateRoot:   "0x2031e0233b733481aa0e8c1056b874d68731fc0c673248538f7acfb81d2d7764",
+											Logs: []*testvector.Log{
+												{
+													Data: []string{"000000000000000000000002540be400"},
+													Topics: []string{
+														"ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+														"00000000000000000000000000000000",
+														"4d5cf5032b2a844602278b01199ed191a86c93ff",
+													},
+													Address:     "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+													BatchNumber: 1,
+													TxHash:      "0xeeb51664fd2b6dcf865de752589f59f29b8398bdc38b5f556715ae88615c4641",
+													TxIndex:     0,
+													BatchHash:   "0x7624c022e923e798a6682171fd27b54912c426cfd92d49fb6be3bf300ba27679",
+													Index:       0,
+												},
+											},
+											UnprocessedTransaction: false,
+											CallTrace: &testvector.CallTrace{
+												Context: &testvector.TransactionContext{
+													From:          "0x617b3a3528f9cdd6630fd3301b9c8911f7bf063d",
+													To:            "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+													Type:          "CALL",
+													Data:          "0x40c10f190000000000000000000000004d5cf5032b2a844602278b01199ed191a86c93ff00000000000000000000000000000000000000000000000000000002540be400",
+													Gas:           "100000",
+													Value:         "0",
+													Batch:         "0x7624c022e923e798a6682171fd27b54912c426cfd92d49fb6be3bf300ba27679",
+													Output:        "",
+													GasUsed:       "71901",
+													ExecutionTime: "",
+													OldStateRoot:  "0x2031e0233b733481aa0e8c1056b874d68731fc0c673248538f7acfb81d2d7764",
+													GasPrice:      "1000000000",
+												},
+
+												Steps: []*testvector.TransactionStep{
+													{
+														Depth:        1,
+														Pc:           0,
+														RemainingGas: "78392",
+														OpCode:       "PUSH1",
+														GasRefund:    "0",
+														Op:           "0x60",
+														StateRoot:    "0xdf403125ab76e36f1fb313619e704e4630b984bd93c3121b3775b71d1b72f9c6",
+														Contract: &testvector.Contract{
+															Address: "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
+															Caller:  "0x617b3a3528f9cdd6630fd3301b9c8911f7bf063d",
+															Value:   "0",
+															Data:    "0x40c10f190000000000000000000000004d5cf5032b2a844602278b01199ed191a86c93ff00000000000000000000000000000000000000000000000000000002540be40000000000000000000000000000000000000000000000000000000000",
+															Gas:     "100000",
+														},
+														ReturnData: []string{},
+														GasCost:    "3",
+														Stack:      []string{"0x80"},
+														Memory:     []string{},
+													},
+												},
+											},
+										},
+									},
+									CumulativeGasUsed:   "171380",
+									NewStateRoot:        "0xb6f5c8f596b7130c7c7eb3257e80badfd7a89aa2977cc6d521a8b97f764230f5",
+									NewLocalExitRoot:    "0x00",
+									CntKeccakHashes:     1,
+									CntPoseidonHashes:   1,
+									CntPoseidonPaddings: 1,
+									CntMemAligns:        1,
+									CntArithmetics:      1,
+									CntBinaries:         1,
+									CntSteps:            1,
+								},
+							},
 							GenesisRaw: []*state.GenesisAction{
 								{
 									Address: "addressRaw0",
@@ -194,7 +371,9 @@ func TestNewContainer(t *testing.T) {
 
 			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 
-			require.Equal(t, tc.expectedContainer, actualContainer)
+			if err == nil {
+				require.Equal(t, tc.expectedContainer.E2E.Items, actualContainer.E2E.Items)
+			}
 		})
 	}
 }

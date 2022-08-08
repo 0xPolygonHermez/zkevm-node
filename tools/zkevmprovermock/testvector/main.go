@@ -17,7 +17,110 @@ type E2E struct {
 
 // E2EItem contains an end-to-end test vector.
 type E2EItem struct {
+	Traces     *Traces
 	GenesisRaw []*state.GenesisAction
+}
+
+// Traces represents executor processing traces.
+type Traces struct {
+	BatchHash     string
+	OldStateRoot  string `json:"old_state_root"`
+	GlobalHash    string
+	NumBatch      uint64
+	Timestamp     uint64
+	SequencerAddr string
+
+	*ProcessBatchResponse
+}
+
+// ProcessBatchResponse contains information about the executor response to a
+// ProcessBatch request.
+type ProcessBatchResponse struct {
+	CumulativeGasUsed   string                        `json:"cumulative_gas_used,omitempty"`
+	Responses           []*ProcessTransactionResponse `json:"responses,omitempty"`
+	NewStateRoot        string                        `json:"new_state_root,omitempty"`
+	NewLocalExitRoot    string                        `json:"new_local_exit_root,omitempty"`
+	CntKeccakHashes     uint32                        `json:"cnt_keccak_hashes,omitempty"`
+	CntPoseidonHashes   uint32                        `json:"cnt_poseidon_hashes,omitempty"`
+	CntPoseidonPaddings uint32                        `json:"cnt_poseidon_paddings,omitempty"`
+	CntMemAligns        uint32                        `json:"cnt_mem_aligns,omitempty"`
+	CntArithmetics      uint32                        `json:"cnt_arithmetics,omitempty"`
+	CntBinaries         uint32                        `json:"cnt_binaries,omitempty"`
+	CntSteps            uint32                        `json:"cnt_steps,omitempty"`
+}
+
+// ProcessTransactionResponse contains information about the executor response to a
+// transaction execution.
+type ProcessTransactionResponse struct {
+	TxHash                 string `json:"tx_hash"`
+	Type                   uint32
+	GasLeft                string `json:"gas_left"`
+	GasUsed                string `json:"gas_used"`
+	GasRefunded            string `json:"gas_refunded"`
+	StateRoot              string `json:"state_root"`
+	Logs                   []*Log
+	UnprocessedTransaction bool       `json:"unprocessed_transaction,omitempty"`
+	CallTrace              *CallTrace `json:"call_trace,omitempty"`
+}
+
+// Log represent logs emitted by LOG opcode.
+type Log struct {
+	Data        []string
+	Topics      []string
+	Address     string
+	BatchNumber uint64 `json:"batch_number"`
+	TxHash      string `json:"tx_hash"`
+	TxIndex     uint32 `json:"tx_index"`
+	BatchHash   string `json:"batch_hash"`
+	Index       uint32
+}
+
+// CallTrace represents the batch call trace.
+type CallTrace struct {
+	Context *TransactionContext `json:"context,omitempty"`
+	Steps   []*TransactionStep  `json:"steps,omitempty"`
+}
+
+// TransactionContext represents a transaction's context.
+type TransactionContext struct {
+	From          string `json:"from,omitempty"`
+	To            string `json:"to,omitempty"`
+	Type          string `json:"type,omitempty"`
+	Data          string `json:"data,omitempty"`
+	Gas           string `json:"gas,omitempty"`
+	Value         string `json:"value,omitempty"`
+	Batch         string `json:"batch,omitempty"`
+	Output        string `json:"output,omitempty"`
+	GasUsed       string `json:"gas_used,omitempty"`
+	ExecutionTime string `json:"execution_time,omitempty"`
+	OldStateRoot  string `json:"old_state_root,omitempty"`
+	GasPrice      string `json:"gasPrice,omitempty"`
+}
+
+// TransactionStep represents a transaction's step.
+type TransactionStep struct {
+	Depth        uint32 `json:"depth,omitempty"`
+	Pc           uint64 `json:"pc,omitempty"`
+	RemainingGas string `json:"remaining_gas,omitempty"`
+	OpCode       string
+	GasRefund    string `json:"gas_refund,omitempty"`
+	Op           string `json:"op,omitempty"`
+	Error        string
+	StateRoot    string    `json:"state_root"`
+	Contract     *Contract `json:"contract,omitempty"`
+	ReturnData   []string  `json:"return_data,omitempty"`
+	GasCost      string    `json:"gas_cost"`
+	Stack        []string
+	Memory       []string
+}
+
+// Contract contains information about SCs executed in a batch.
+type Contract struct {
+	Address string `json:"address,omitempty"`
+	Caller  string `json:"caller,omitempty"`
+	Value   string `json:"value,omitempty"`
+	Data    string `json:"data,omitempty"`
+	Gas     string `json:"gas,omitempty"`
 }
 
 // Container is a wrapper for test vectors.
