@@ -205,6 +205,20 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 		return nil, nil, err
 	}
 
+	// set code length as a leaf value in merkle tree
+	key, err = KeyCodeLength(address)
+	if err != nil {
+		return nil, nil, err
+	}
+	k = new(big.Int).SetBytes(key[:])
+	scCodeLengthBI := new(big.Int).SetInt64(int64(len(code)))
+	scCodeLengthH8 := scalar2fea(scCodeLengthBI)
+
+	updateProof, err = tree.set(ctx, updateProof.NewRoot, scalarToh4(k), scCodeLengthH8)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	return h4ToFilledByteSlice(updateProof.NewRoot), updateProof, nil
 }
 

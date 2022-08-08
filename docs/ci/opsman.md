@@ -8,11 +8,11 @@ containers, the package exposes the function `StartComponent` which takes a
 container name (as defined in the [docker compose file]) and a variadic parameter
 with a set of condition functions to check when the container can be considered
 as ready. So we can call it without any condition like:
-```
+```go
 operations.StartComponent("my-container")
 ```
 or adding readiness conditions as:
-```
+```go
 operations.StartComponent("my-container", func() (done bool, err error){
   // run some checks
   return true, nil

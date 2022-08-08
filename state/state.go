@@ -318,7 +318,11 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, t
 	if err != nil {
 		return nil, err
 	}
-	return convertToProcessBatchResponse(txs, processBatchResponse), nil
+	result, err := convertToProcessBatchResponse(txs, processBatchResponse)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
@@ -509,8 +513,11 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 
 // isTransactionProcessed determines if the given process transaction response
 // represents a processed transaction.
-func isTransactionProcessed(unprocessedTransaction uint32) bool {
-	return unprocessedTransaction == cFalse
+func isTransactionProcessed(input bool) bool {
+
+	//TODO: Finish this function
+
+	return false
 }
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
@@ -542,7 +549,9 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
-		if !isTransactionProcessed(processed.Responses[i].UnprocessedTransaction) {
+
+		//TODO: Also check this
+		if false { // if !isTransactionProcessed(processed.Responses[i]) {
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
@@ -555,8 +564,10 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		}
 	}
 
-	processedBatch := convertToProcessBatchResponse(decodedTransactions, processed)
-
+	processedBatch, err := convertToProcessBatchResponse(decodedTransactions, processed)
+	if err != nil {
+		return err
+	}
 	// Store processed txs into the batch
 	err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
 	if err != nil {
@@ -765,15 +776,19 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		result.Err = err
 		return result
 	}
-	response := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse).Responses[0]
-
+	response, err := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
+	if err != nil {
+		result.Err = err
+		return result
+	}
 	// Todo populate result
-	result.ReturnValue = response.ReturnValue
-	result.GasLeft = response.GasLeft
-	result.GasUsed = response.GasUsed
-	result.Err = fmt.Errorf(response.Error)
-	result.CreateAddress = response.CreateAddress
-	result.StateRoot = response.StateRoot.Bytes()
+	r := response.Responses[0]
+	result.ReturnValue = r.ReturnValue
+	result.GasLeft = r.GasLeft
+	result.GasUsed = r.GasUsed
+	result.Err = fmt.Errorf(r.Error)
+	result.CreateAddress = r.CreateAddress
+	result.StateRoot = r.StateRoot.Bytes()
 
 	return result
 }
