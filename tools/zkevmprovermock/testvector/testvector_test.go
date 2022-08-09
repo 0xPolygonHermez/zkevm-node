@@ -28,6 +28,8 @@ func TestNewContainer(t *testing.T) {
 			sourceFiles: map[string]string{
 				filepath.Join(defaultSourceDir, "a.json"): `[
 {
+  "batchL2Data": "0xabc123456",
+  "globalExitRoot": "0x1234abcd",
   "traces": {
     "batchHash": "batchHash",
     "old_state_root": "old_state_root",
@@ -161,6 +163,8 @@ func TestNewContainer(t *testing.T) {
 				E2E: &testvector.E2E{
 					Items: []*testvector.E2EItem{
 						{
+							BatchL2Data:    "0xabc123456",
+							GlobalExitRoot: "0x1234abcd",
 							Traces: &testvector.Traces{
 								BatchHash:     "batchHash",
 								OldStateRoot:  "old_state_root",
@@ -378,7 +382,7 @@ func TestNewContainer(t *testing.T) {
 	}
 }
 
-func TestFindValue(t *testing.T) {
+func TestFindSMTValue(t *testing.T) {
 	tcs := []struct {
 		description      string
 		e2e              *testvector.E2E
@@ -584,7 +588,7 @@ func TestFindValue(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			subject.E2E = tc.e2e
 
-			actualValue, actualRoot, err := subject.FindValue(tc.key, tc.oldRoot)
+			actualValue, actualRoot, err := subject.FindSMTValue(tc.key, tc.oldRoot)
 			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 
 			if err == nil {
@@ -722,6 +726,110 @@ func TestFindBytecode(t *testing.T) {
 
 			if err == nil {
 				require.Equal(t, tc.expectedBytecode, actualBytecode)
+			}
+		})
+	}
+}
+
+func TestFindProcessBatchResponse(t *testing.T) {
+	tcs := []struct {
+		description      string
+		e2e              *testvector.E2E
+		batchL2Data      string
+		expectedResponse *testvector.ProcessBatchResponse
+		expectedError    bool
+		expectedErrorMsg string
+	}{
+		{
+			description: "happy path, single item",
+			e2e: &testvector.E2E{
+				Items: []*testvector.E2EItem{
+					{
+						BatchL2Data: "0xabc",
+						Traces: &testvector.Traces{
+							ProcessBatchResponse: &testvector.ProcessBatchResponse{
+								CumulativeGasUsed: "100",
+								CntKeccakHashes:   200,
+								CntMemAligns:      300,
+							},
+						},
+					},
+				},
+			},
+			batchL2Data: "0xabc",
+			expectedResponse: &testvector.ProcessBatchResponse{
+				CumulativeGasUsed: "100",
+				CntKeccakHashes:   200,
+				CntMemAligns:      300,
+			},
+		},
+		{
+			description: "happy path, multiple item",
+			e2e: &testvector.E2E{
+				Items: []*testvector.E2EItem{
+					{
+						BatchL2Data: "0xabc1234",
+						Traces: &testvector.Traces{
+							ProcessBatchResponse: &testvector.ProcessBatchResponse{
+								CumulativeGasUsed: "1100",
+								CntKeccakHashes:   1200,
+								CntMemAligns:      1300,
+							},
+						},
+					},
+					{
+						BatchL2Data: "0xabc",
+						Traces: &testvector.Traces{
+							ProcessBatchResponse: &testvector.ProcessBatchResponse{
+								CumulativeGasUsed: "100",
+								CntKeccakHashes:   200,
+								CntMemAligns:      300,
+							},
+						},
+					},
+				},
+			},
+			batchL2Data: "0xabc",
+			expectedResponse: &testvector.ProcessBatchResponse{
+				CumulativeGasUsed: "100",
+				CntKeccakHashes:   200,
+				CntMemAligns:      300,
+			},
+		},
+		{
+			description: "unhappy path, id not found",
+			e2e: &testvector.E2E{
+				Items: []*testvector.E2EItem{
+					{
+						BatchL2Data: "0xabc",
+						Traces: &testvector.Traces{
+							ProcessBatchResponse: &testvector.ProcessBatchResponse{
+								CumulativeGasUsed: "100",
+								CntKeccakHashes:   200,
+								CntMemAligns:      300,
+							},
+						},
+					},
+				},
+			},
+			batchL2Data:      "0x123",
+			expectedError:    true,
+			expectedErrorMsg: `ProcessBatchResponse for batchL2Data "0x123" not found`,
+		},
+	}
+
+	subject := &testvector.Container{}
+
+	for _, tc := range tcs {
+		tc := tc
+		t.Run(tc.description, func(t *testing.T) {
+			subject.E2E = tc.e2e
+
+			actualResponse, err := subject.FindProcessBatchResponse(tc.batchL2Data)
+			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
+
+			if err == nil {
+				require.Equal(t, tc.expectedResponse, actualResponse)
 			}
 		})
 	}
