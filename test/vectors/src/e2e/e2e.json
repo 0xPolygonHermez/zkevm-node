@@ -107417,7 +107417,14 @@
     ],
     "cumulative_gas_used": "171380",
     "new_state_root": "0xb6f5c8f596b7130c7c7eb3257e80badfd7a89aa2977cc6d521a8b97f764230f5",
-    "new_local_exit_root": "0x00"
+    "new_local_exit_root": "0x00",
+    "cnt_keccak_hashes": 1,
+    "cnt_poseidon_hashes": 1,
+    "cnt_poseidon_paddings": 1,
+    "cnt_mem_aligns": 1,
+    "cnt_arithmetics": 1,
+    "cnt_binaries": 1,
+    "cnt_steps": 1
   },
   "stateTransition": {
     "id": 0,
