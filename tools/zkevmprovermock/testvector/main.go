@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -186,7 +187,7 @@ func (c *Container) FindBytecode(inputKey string) (bytecode string, err error) {
 // request identified by tge batch L2 data.
 func (c *Container) FindProcessBatchResponse(batchL2Data string) (*ProcessBatchResponse, error) {
 	for _, item := range c.E2E.Items {
-		if item.BatchL2Data == batchL2Data {
+		if strings.Replace(item.BatchL2Data, "0x", "", -1) == strings.Replace(batchL2Data, "0x", "", -1) {
 			return item.Traces.ProcessBatchResponse, nil
 		}
 	}

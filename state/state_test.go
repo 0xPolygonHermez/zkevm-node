@@ -1538,7 +1538,10 @@ func TestFromMock(t *testing.T) {
 	if strings.HasPrefix(tv.BatchL2Data, "0x") { // nolint
 		tv.BatchL2Data = tv.BatchL2Data[2:]
 	}
-	require.NoError(t, testState.ProcessAndStoreClosedBatch(ctx, processCtx, common.Hex2Bytes(tv.BatchL2Data), nil))
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, testState.ProcessAndStoreClosedBatch(ctx, processCtx, common.Hex2Bytes(tv.BatchL2Data), dbTx))
 }
 
 func TestExecutorUnsignedTransactions(t *testing.T) {

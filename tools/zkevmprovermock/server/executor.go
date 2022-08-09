@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"net"
 	"strconv"
+	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -86,11 +88,18 @@ func (server *ExecutorMock) ProcessBatch(ctx context.Context, request *pb.Proces
 		responses = append(responses, newResponse)
 	}
 
+	if strings.HasPrefix(processBatchResponse.NewStateRoot, "0x") { // nolint
+		processBatchResponse.NewStateRoot = processBatchResponse.NewStateRoot[2:]
+	}
+	if strings.HasPrefix(processBatchResponse.NewLocalExitRoot, "0x") { // nolint
+		processBatchResponse.NewLocalExitRoot = processBatchResponse.NewLocalExitRoot[2:]
+	}
+
 	return &pb.ProcessBatchResponse{
 		CumulativeGasUsed:   cumulativeGasUSed,
 		Responses:           responses,
-		NewStateRoot:        common.Hex2Bytes(processBatchResponse.NewStateRoot[2:]),
-		NewLocalExitRoot:    common.Hex2Bytes(processBatchResponse.NewLocalExitRoot[2:]),
+		NewStateRoot:        common.Hex2Bytes(processBatchResponse.NewStateRoot),
+		NewLocalExitRoot:    common.Hex2Bytes(processBatchResponse.NewLocalExitRoot),
 		CntKeccakHashes:     processBatchResponse.CntKeccakHashes,
 		CntPoseidonHashes:   processBatchResponse.CntPoseidonHashes,
 		CntPoseidonPaddings: processBatchResponse.CntPoseidonPaddings,
@@ -102,18 +111,32 @@ func (server *ExecutorMock) ProcessBatch(ctx context.Context, request *pb.Proces
 }
 
 func translateResponse(response *testvector.ProcessTransactionResponse) (*pb.ProcessTransactionResponse, error) {
-	gasLeft, err := strconv.ParseUint(response.GasLeft, encoding.Base10, bits64)
-	if err != nil {
-		return nil, fmt.Errorf("Could not convert %q to uint64: %v", response.GasLeft, err)
+	var err error
+
+	var gasLeft uint64
+	if response.GasLeft != "" {
+		gasLeft, err = strconv.ParseUint(response.GasLeft, encoding.Base10, bits64)
+		if err != nil {
+			return nil, fmt.Errorf("Could not convert %q to uint64: %v", response.GasLeft, err)
+		}
 	}
-	gasUsed, err := strconv.ParseUint(response.GasUsed, encoding.Base10, bits64)
-	if err != nil {
-		return nil, fmt.Errorf("Could not convert %q to uint64: %v", response.GasUsed, err)
+
+	var gasUsed uint64
+	if response.GasUsed != "" {
+		gasUsed, err = strconv.ParseUint(response.GasUsed, encoding.Base10, bits64)
+		if err != nil {
+			return nil, fmt.Errorf("Could not convert %q to uint64: %v", response.GasUsed, err)
+		}
 	}
-	gasRefunded, err := strconv.ParseUint(response.GasRefunded, encoding.Base10, bits64)
-	if err != nil {
-		return nil, fmt.Errorf("Could not convert %q to uint64: %v", response.GasRefunded, err)
+
+	var gasRefunded uint64
+	if response.GasRefunded != "" {
+		gasRefunded, err = strconv.ParseUint(response.GasRefunded, encoding.Base10, bits64)
+		if err != nil {
+			return nil, fmt.Errorf("Could not convert %q to uint64: %v", response.GasRefunded, err)
+		}
 	}
+
 	logs, err := translateLogs(response.Logs)
 	if err != nil {
 		return nil, err
@@ -124,13 +147,20 @@ func translateResponse(response *testvector.ProcessTransactionResponse) (*pb.Pro
 		return nil, err
 	}
 
+	if strings.HasPrefix(response.TxHash, "0x") { // nolint
+		response.TxHash = response.TxHash[2:]
+	}
+	if strings.HasPrefix(response.StateRoot, "0x") { // nolint
+		response.StateRoot = response.StateRoot[2:]
+	}
+
 	return &pb.ProcessTransactionResponse{
-		TxHash:      common.Hex2Bytes(response.TxHash[2:]),
+		TxHash:      common.Hex2Bytes(response.TxHash),
 		Type:        response.Type,
 		GasLeft:     gasLeft,
 		GasUsed:     gasUsed,
 		GasRefunded: gasRefunded,
-		StateRoot:   common.Hex2Bytes(response.StateRoot[2:]),
+		StateRoot:   common.Hex2Bytes(response.StateRoot),
 		Logs:        logs,
 		CallTrace:   callTrace,
 	}, nil
@@ -150,9 +180,20 @@ func translateLogs(inputLogs []*testvector.Log) ([]*pb.Log, error) {
 			topics = append(topics, newTopic)
 		}
 
-		data, err := hex.DecodeString(log.Data[0])
-		if err != nil {
-			return nil, err
+		data := []byte{}
+		var err error
+		if len(log.Data) > 0 {
+			data, err = hex.DecodeString(log.Data[0])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if strings.HasPrefix(log.TxHash, "0x") { // nolint
+			log.TxHash = log.TxHash[2:]
+		}
+		if strings.HasPrefix(log.BatchHash, "0x") { // nolint
+			log.BatchHash = log.BatchHash[2:]
 		}
 
 		newLog := &pb.Log{
@@ -160,9 +201,9 @@ func translateLogs(inputLogs []*testvector.Log) ([]*pb.Log, error) {
 			Topics:      topics,
 			Data:        data,
 			BatchNumber: log.BatchNumber,
-			TxHash:      common.Hex2Bytes(log.TxHash[2:]),
+			TxHash:      common.Hex2Bytes(log.TxHash),
 			TxIndex:     log.TxIndex,
-			BatchHash:   common.Hex2Bytes(log.BatchHash[2:]),
+			BatchHash:   common.Hex2Bytes(log.BatchHash),
 			Index:       log.Index,
 		}
 
@@ -189,40 +230,71 @@ func translateCallTrace(callTrace *testvector.CallTrace) (*pb.CallTrace, error) 
 }
 
 func translateTransactionContext(ctx *testvector.TransactionContext) (*pb.TransactionContext, error) {
-	gas, err := strconv.ParseUint(ctx.Gas, encoding.Base10, bits64)
-	if err != nil {
-		return nil, fmt.Errorf("Could not convert %q to uint64: %v", ctx.Gas, err)
+	var err error
+	var gas uint64
+	if ctx.Gas != "" {
+		gas, err = strconv.ParseUint(ctx.Gas, encoding.Base10, bits64)
+		if err != nil {
+			return nil, fmt.Errorf("Could not convert %q to uint64: %v", ctx.Gas, err)
+		}
 	}
-	value, err := strconv.ParseUint(ctx.Value, encoding.Base10, bits64)
-	if err != nil {
-		return nil, fmt.Errorf("Could not convert %q to uint64: %v", ctx.Value, err)
+	var value uint64
+	if ctx.Value != "" {
+		value, err = strconv.ParseUint(ctx.Value, encoding.Base10, bits64)
+		if err != nil {
+			return nil, fmt.Errorf("Could not convert %q to uint64: %v", ctx.Value, err)
+		}
 	}
-	gasUsed, err := strconv.ParseUint(ctx.GasUsed, encoding.Base10, bits64)
-	if err != nil {
-		return nil, fmt.Errorf("Could not convert %q to uint64: %v", ctx.GasUsed, err)
+
+	var gasUsed uint64
+	if ctx.GasUsed != "" {
+		gasUsed, err = strconv.ParseUint(ctx.GasUsed, encoding.Base10, bits64)
+		if err != nil {
+			return nil, fmt.Errorf("Could not convert %q to uint64: %v", ctx.GasUsed, err)
+		}
 	}
-	gasPrice, err := strconv.ParseUint(ctx.GasPrice, encoding.Base10, bits64)
-	if err != nil {
-		return nil, fmt.Errorf("Could not convert %q to uint64: %v", ctx.GasPrice, err)
+
+	var gasPrice uint64
+	if ctx.GasPrice != "" {
+		gasPrice, err = strconv.ParseUint(ctx.GasPrice, encoding.Base10, bits64)
+		if err != nil {
+			return nil, fmt.Errorf("Could not convert %q to uint64: %v", ctx.GasPrice, err)
+		}
 	}
-	executionTime, err := strconv.ParseUint(ctx.ExecutionTime, encoding.Base10, bits32)
-	if err != nil {
-		return nil, fmt.Errorf("Could not convert %q to uint32: %v", ctx.ExecutionTime, err)
+
+	var executionTime uint64
+	if ctx.ExecutionTime != "" {
+		executionTime, err = strconv.ParseUint(ctx.ExecutionTime, encoding.Base10, bits32)
+		if err != nil {
+			return nil, fmt.Errorf("Could not convert %q to uint32: %v", ctx.ExecutionTime, err)
+		}
+	}
+	if strings.HasPrefix(ctx.Data, "0x") { // nolint
+		ctx.Data = ctx.Data[2:]
+	}
+	if strings.HasPrefix(ctx.Batch, "0x") { // nolint
+		ctx.Batch = ctx.Batch[2:]
+	}
+	if strings.HasPrefix(ctx.Output, "0x") { // nolint
+		ctx.Output = ctx.Output[2:]
+	}
+	if strings.HasPrefix(ctx.OldStateRoot, "0x") { // nolint
+		ctx.OldStateRoot = ctx.OldStateRoot[2:]
 	}
 
 	return &pb.TransactionContext{
 		Type:          ctx.Type,
 		From:          ctx.From,
 		To:            ctx.To,
-		Data:          common.Hex2Bytes(ctx.Data[2:]),
+		Data:          common.Hex2Bytes(ctx.Data),
 		Gas:           gas,
 		Value:         value,
 		GasUsed:       gasUsed,
-		Batch:         common.Hex2Bytes(ctx.Batch[2:]),
-		Output:        common.Hex2Bytes(ctx.Output[2:]),
+		Batch:         common.Hex2Bytes(ctx.Batch),
+		Output:        common.Hex2Bytes(ctx.Output),
 		GasPrice:      gasPrice,
 		ExecutionTime: uint32(executionTime),
-		OldStateRoot:  common.Hex2Bytes(ctx.OldStateRoot[2:]),
+		OldStateRoot:  common.Hex2Bytes(ctx.OldStateRoot),
 	}, nil
 }
 
@@ -235,29 +307,61 @@ func translateTransactionSteps(inputSteps []*testvector.TransactionStep) ([]*pb.
 			return nil, err
 		}
 
-		gas, err := strconv.ParseUint(inputStep.RemainingGas, encoding.Base10, bits64)
-		if err != nil {
-			return nil, fmt.Errorf("Could not convert %q to uint64: %v", inputStep.RemainingGas, err)
+		var gas uint64
+		if inputStep.RemainingGas != "" {
+			gas, err = strconv.ParseUint(inputStep.RemainingGas, encoding.Base10, bits64)
+			if err != nil {
+				return nil, fmt.Errorf("Could not convert %q to uint64: %v", inputStep.RemainingGas, err)
+			}
 		}
-		gasCost, err := strconv.ParseUint(inputStep.GasCost, encoding.Base10, bits64)
-		if err != nil {
-			return nil, fmt.Errorf("Could not convert %q to uint64: %v", inputStep.GasCost, err)
+		var gasCost uint64
+		if inputStep.GasCost != "" {
+			gasCost, err = strconv.ParseUint(inputStep.GasCost, encoding.Base10, bits64)
+			if err != nil {
+				return nil, fmt.Errorf("Could not convert %q to uint64: %v", inputStep.GasCost, err)
+			}
 		}
-		gasRefund, err := strconv.ParseUint(inputStep.GasRefund, encoding.Base10, bits64)
-		if err != nil {
-			return nil, fmt.Errorf("Could not convert %q to uint64: %v", inputStep.GasRefund, err)
+		var gasRefund uint64
+		if inputStep.GasRefund != "" {
+			gasRefund, err = strconv.ParseUint(inputStep.GasRefund, encoding.Base10, bits64)
+			if err != nil {
+				return nil, fmt.Errorf("Could not convert %q to uint64: %v", inputStep.GasRefund, err)
+			}
 		}
-		op, err := strconv.ParseUint(inputStep.Op, encoding.Base10, bits32)
-		if err != nil {
-			return nil, fmt.Errorf("Could not convert %q to uint32: %v", inputStep.Op, err)
+		var op uint64
+		if inputStep.Op != "" {
+			if strings.HasPrefix(inputStep.Op, "0x") { // nolint
+				inputStep.Op = inputStep.Op[2:]
+			}
+			opBI, ok := new(big.Int).SetString(inputStep.Op, encoding.Base16)
+			if !ok {
+				return nil, fmt.Errorf("Could not convert base16 %q to big int", inputStep.Op)
+			}
+			op = opBI.Uint64()
 		}
-		pbErr, err := strconv.ParseUint(inputStep.Error, encoding.Base10, bits32)
-		if err != nil {
-			return nil, fmt.Errorf("Could not convert %q to uint32: %v", inputStep.Error, err)
+		var pbErr uint64
+		if inputStep.Error != "" {
+			pbErr, err = strconv.ParseUint(inputStep.Error, encoding.Base10, bits32)
+			if err != nil {
+				return nil, fmt.Errorf("Could not convert %q to uint32: %v", inputStep.Error, err)
+			}
+		}
+
+		if strings.HasPrefix(inputStep.StateRoot, "0x") { // nolint
+			inputStep.StateRoot = inputStep.StateRoot[2:]
+		}
+
+		memory := []byte{}
+		if len(inputStep.Memory) > 0 {
+			memory = common.Hex2Bytes(inputStep.Memory[0])
+		}
+		returnData := []byte{}
+		if len(inputStep.ReturnData) > 0 {
+			returnData = common.Hex2Bytes(inputStep.ReturnData[0])
 		}
 
 		newStep := &pb.TransactionStep{
-			StateRoot:  common.Hex2Bytes(inputStep.StateRoot[2:]),
+			StateRoot:  common.Hex2Bytes(inputStep.StateRoot),
 			Depth:      inputStep.Depth,
 			Pc:         inputStep.Pc,
 			Gas:        gas,
@@ -265,8 +369,8 @@ func translateTransactionSteps(inputSteps []*testvector.TransactionStep) ([]*pb.
 			GasRefund:  gasRefund,
 			Op:         uint32(op),
 			Stack:      inputStep.Stack,
-			Memory:     common.Hex2Bytes(inputStep.Memory[0]),
-			ReturnData: common.Hex2Bytes(inputStep.ReturnData[0]),
+			Memory:     memory,
+			ReturnData: returnData,
 			Contract:   contract,
 			Error:      pb.Error(pbErr),
 		}
@@ -277,19 +381,30 @@ func translateTransactionSteps(inputSteps []*testvector.TransactionStep) ([]*pb.
 }
 
 func translateContract(contract *testvector.Contract) (*pb.Contract, error) {
-	value, err := strconv.ParseUint(contract.Value, encoding.Base10, bits64)
-	if err != nil {
-		return nil, fmt.Errorf("Could not convert %q to uint64: %v", contract.Value, err)
+	var err error
+	var value uint64
+	if contract.Value != "" {
+		value, err = strconv.ParseUint(contract.Value, encoding.Base10, bits64)
+		if err != nil {
+			return nil, fmt.Errorf("Could not convert %q to uint64: %v", contract.Value, err)
+		}
 	}
-	gas, err := strconv.ParseUint(contract.Gas, encoding.Base10, bits64)
-	if err != nil {
-		return nil, fmt.Errorf("Could not convert %q to uint64: %v", contract.Gas, err)
+	var gas uint64
+	if contract.Gas != "" {
+		gas, err = strconv.ParseUint(contract.Gas, encoding.Base10, bits64)
+		if err != nil {
+			return nil, fmt.Errorf("Could not convert %q to uint64: %v", contract.Gas, err)
+		}
+	}
+
+	if strings.HasPrefix(contract.Data, "0x") { // nolint
+		contract.Data = contract.Data[2:]
 	}
 
 	return &pb.Contract{
 		Address: contract.Address,
 		Caller:  contract.Caller,
-		Data:    common.Hex2Bytes(contract.Data[2:]),
+		Data:    common.Hex2Bytes(contract.Data),
 		Value:   value,
 		Gas:     gas,
 	}, nil

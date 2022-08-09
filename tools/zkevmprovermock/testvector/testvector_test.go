@@ -764,6 +764,29 @@ func TestFindProcessBatchResponse(t *testing.T) {
 			},
 		},
 		{
+			description: "happy path, no leading 0x in id",
+			e2e: &testvector.E2E{
+				Items: []*testvector.E2EItem{
+					{
+						BatchL2Data: "0xabc",
+						Traces: &testvector.Traces{
+							ProcessBatchResponse: &testvector.ProcessBatchResponse{
+								CumulativeGasUsed: "100",
+								CntKeccakHashes:   200,
+								CntMemAligns:      300,
+							},
+						},
+					},
+				},
+			},
+			batchL2Data: "abc",
+			expectedResponse: &testvector.ProcessBatchResponse{
+				CumulativeGasUsed: "100",
+				CntKeccakHashes:   200,
+				CntMemAligns:      300,
+			},
+		},
+		{
 			description: "happy path, multiple item",
 			e2e: &testvector.E2E{
 				Items: []*testvector.E2EItem{
