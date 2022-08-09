@@ -390,6 +390,11 @@ var (
 					Type:    int(merkletree.LeafTypeBalance),
 					Value:   "100000000000000000000000",
 				},
+				{
+					Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+					Type:    int(merkletree.LeafTypeBalance),
+					Value:   "100000000000000000000000",
+				},
 			},
 		},
 	}
