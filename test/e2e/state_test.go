@@ -38,11 +38,9 @@ func TestStateTransition(t *testing.T) {
 				State: &state.Config{
 					MaxCumulativeGasUsed: 800000,
 				},
-
 				Sequencer: &operations.SequencerConfig{
 					Address:    testCase.SequencerAddress,
 					PrivateKey: testCase.SequencerPrivateKey,
-					ChainID:    testCase.ChainIDSequencer,
 				},
 			}
 			opsman, err := operations.NewManager(ctx, opsCfg)

@@ -43,7 +43,6 @@ var merkletreeConfig = merkletree.Config{URI: merkletreeURI}
 // SequencerConfig is the configuration for the sequencer operations.
 type SequencerConfig struct {
 	Address, PrivateKey string
-	ChainID             uint64
 }
 
 // Config is the main Manager configuration.

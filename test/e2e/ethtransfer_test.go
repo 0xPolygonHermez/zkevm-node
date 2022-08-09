@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -24,19 +23,9 @@ func Test1000EthTransfer(t *testing.T) {
 	defer func() {
 		require.NoError(t, operations.Teardown())
 	}()
-	cfg := &operations.Config{
-		Arity: 4,
-		State: &state.Config{
-			MaxCumulativeGasUsed: 80000000000,
-		},
-
-		Sequencer: &operations.SequencerConfig{
-			Address:    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-			PrivateKey: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-			ChainID:    1001,
-		},
-	}
-	opsman, err := operations.NewManager(ctx, cfg)
+	opsCfg := getDefaultOperationsConfig()
+	opsCfg.State.MaxCumulativeGasUsed = 80000000000
+	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
 	err = opsman.Setup()
 	require.NoError(t, err)
