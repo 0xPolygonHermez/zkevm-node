@@ -17,8 +17,10 @@ type E2E struct {
 
 // E2EItem contains an end-to-end test vector.
 type E2EItem struct {
-	Traces     *Traces
-	GenesisRaw []*state.GenesisAction
+	BatchL2Data    string
+	GlobalExitRoot string
+	Traces         *Traces
+	GenesisRaw     []*state.GenesisAction
 }
 
 // Traces represents executor processing traces.
@@ -140,11 +142,11 @@ func NewContainer(testVectorPath string, aferoFs afero.Fs) (*Container, error) {
 	}, nil
 }
 
-// FindValue searches for the given key on all the genesisRaw items present,
+// FindSMTValue searches for the given key on all the genesisRaw items present,
 // checking also that the given root was the root returned by the previous item.
 // If both the value and the root of the previous item match it returns the
 // associated value and new root.
-func (c *Container) FindValue(inputKey, oldRoot string) (value, newRoot string, err error) {
+func (c *Container) FindSMTValue(inputKey, oldRoot string) (value, newRoot string, err error) {
 	zero := common.HexToHash("").String()
 	var lastValue string
 	for _, item := range c.E2E.Items {
@@ -178,6 +180,17 @@ func (c *Container) FindBytecode(inputKey string) (bytecode string, err error) {
 		}
 	}
 	return "", fmt.Errorf("bytecode for key %q not found", inputKey)
+}
+
+// FindProcessBatchResponse searches for the responses to a process batch
+// request identified by tge batch L2 data.
+func (c *Container) FindProcessBatchResponse(batchL2Data string) (*ProcessBatchResponse, error) {
+	for _, item := range c.E2E.Items {
+		if item.BatchL2Data == batchL2Data {
+			return item.Traces.ProcessBatchResponse, nil
+		}
+	}
+	return nil, fmt.Errorf("ProcessBatchResponse for batchL2Data %q not found", batchL2Data)
 }
 
 func getE2E(testVectorPath string, aferoFs afero.Fs) (*E2E, error) {
