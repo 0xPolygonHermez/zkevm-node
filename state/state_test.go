@@ -1395,14 +1395,28 @@ func TestGenesisNewLeafType(t *testing.T) {
 	require.Equal(t, "49461512068930131501252998918674096186707801477301326632372959001738876161218", new(big.Int).SetBytes(stateRoot).String())
 }
 
-func TestGenesisFromMock(t *testing.T) {
-	mtDBServiceClientBack := mtDBServiceClient
+func TestFromMock(t *testing.T) {
+	executorClientBack := executorClient
 
+	executorServerConfig := executor.Config{URI: "127.0.0.1:43071"}
+	var executorCancel context.CancelFunc
+	executorClient, executorClientConn, executorCancel = executor.NewExecutorClient(ctx, executorServerConfig)
+	log.Infof("executorClientConn state: %s", executorClientConn.GetState().String())
+
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
+
+	defer func() {
+		executorCancel()
+		executorClientConn.Close()
+		executorClient = executorClientBack
+		testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
+	}()
+
+	mtDBServiceClientBack := mtDBServiceClient
 	mtDBServerConfig := merkletree.Config{URI: "127.0.0.1:43061"}
 	var mtDBCancel context.CancelFunc
 	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
-	s := mtDBClientConn.GetState()
-	log.Infof("stateDbClientConn state: %s", s.String())
+	log.Infof("stateDbClientConn state: %s", mtDBClientConn.GetState().String())
 
 	stateTree = merkletree.NewStateTree(mtDBServiceClient)
 	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
@@ -1513,6 +1527,18 @@ func TestGenesisFromMock(t *testing.T) {
 			require.Equal(t, expectedValue, actualValue)
 		}
 	}
+
+	processCtx := state.ProcessingContext{
+		BatchNumber:    tv.Traces.NumBatch,
+		Coinbase:       common.HexToAddress(tv.Traces.SequencerAddr),
+		Timestamp:      time.Unix(int64(tv.Traces.Timestamp), 0),
+		GlobalExitRoot: common.HexToHash(tv.GlobalExitRoot),
+	}
+
+	if strings.HasPrefix(tv.BatchL2Data, "0x") { // nolint
+		tv.BatchL2Data = tv.BatchL2Data[2:]
+	}
+	require.NoError(t, testState.ProcessAndStoreClosedBatch(ctx, processCtx, common.Hex2Bytes(tv.BatchL2Data), nil))
 }
 
 func TestExecutorUnsignedTransactions(t *testing.T) {
