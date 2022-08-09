@@ -750,13 +750,14 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:         lastBatch.BatchNumber,
 		BatchL2Data:      batchL2Data,
 		From:             senderAddress.String(),
 		OldStateRoot:     l2BlockStateRoot.Bytes(),
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
-		Coinbase:         "0x0000000000000000000000000000000000000000",
+		Coinbase:         lastBatch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
 	}
 

@@ -64,7 +64,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	// zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
+	//zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
@@ -1551,6 +1551,10 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	signedTxFirstIncrement, err := auth.Signer(auth.From, unsignedTxFirstIncrement)
 	require.NoError(t, err)
 
+	unsignedTxFirstRetrieve := types.NewTransaction(2, scAddress, new(big.Int), gasLimit, new(big.Int).SetUint64(1), retrieveFnSignature)
+	signedTxFirstRetrieve, err := auth.Signer(auth.From, unsignedTxFirstRetrieve)
+	require.NoError(t, err)
+
 	dbTx, err := testState.BeginStateTransaction(context.Background())
 	require.NoError(t, err)
 	// Set genesis
@@ -1573,6 +1577,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	signedTxs := []types.Transaction{
 		*signedTxDeploy,
 		*signedTxFirstIncrement,
+		*signedTxFirstRetrieve,
 	}
 	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx)
 	require.NoError(t, err)
@@ -1582,6 +1587,10 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 
 	// assert signed tx to increment counter
 	assert.Equal(t, "", processBatchResponse.Responses[1].Error)
+
+	// assert signed tx to increment counter
+	assert.Equal(t, "", processBatchResponse.Responses[2].Error)
+	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[2].ReturnValue))
 
 	// Add txs to DB
 	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, dbTx)
@@ -1601,9 +1610,9 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	dbTx, err = testState.BeginStateTransaction(context.Background())
 	require.NoError(t, err)
 
-	unsignedTxFirstRetrieve := types.NewTransaction(2, scAddress, new(big.Int), gasLimit, new(big.Int).SetUint64(1), retrieveFnSignature)
-	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxFirstRetrieve, sequencerAddress, 1, dbTx)
+	unsignedTxSecondRetrieve := types.NewTransaction(3, scAddress, new(big.Int), gasLimit, new(big.Int).SetUint64(1), retrieveFnSignature)
+	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, sequencerAddress, 3, dbTx)
 	// assert unsigned tx
 	assert.NoError(t, result.Err)
-	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", string(result.ReturnValue))
+	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
 }
