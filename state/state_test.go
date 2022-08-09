@@ -64,6 +64,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
+	// zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
@@ -1519,7 +1520,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
-	var sequencerBalance = uint64(4000000)
+	var gasLimit = uint64(4000000)
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
 	scByteCode, err := testutils.ReadBytecode("Counter/Counter.bin")
 	require.NoError(t, err)
@@ -1535,7 +1536,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		Nonce:    0,
 		To:       nil,
 		Value:    new(big.Int),
-		Gas:      sequencerBalance,
+		Gas:      gasLimit,
 		GasPrice: new(big.Int).SetUint64(0),
 		Data:     common.Hex2Bytes(scByteCode),
 	})
@@ -1546,76 +1547,63 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	retrieveFnSignature := crypto.Keccak256Hash([]byte("getCount()")).Bytes()[:4]
 
 	// signed tx to call SC
-	unsignedTxFirstIncrement := types.NewTransaction(1, scAddress, new(big.Int), sequencerBalance, new(big.Int).SetUint64(1), incrementFnSignature)
+	unsignedTxFirstIncrement := types.NewTransaction(1, scAddress, new(big.Int), gasLimit, new(big.Int).SetUint64(1), incrementFnSignature)
 	signedTxFirstIncrement, err := auth.Signer(auth.From, unsignedTxFirstIncrement)
 	require.NoError(t, err)
 
-	// unsigned tx to call SC
-	unsignedTxFirstRetrieve := types.NewTransaction(2, scAddress, new(big.Int), sequencerBalance, new(big.Int).SetUint64(1), retrieveFnSignature)
-	// signedTxFirstRetrieve, err := auth.Signer(auth.From, unsignedTxFirstRetrieve)
-	// require.NoError(t, err)
-
-	// signed tx to call SC again
-	unsignedTxSecondIncrement := types.NewTransaction(3, scAddress, new(big.Int), sequencerBalance, new(big.Int).SetUint64(1), incrementFnSignature)
-	signedTxSecondIncrement, err := auth.Signer(auth.From, unsignedTxSecondIncrement)
+	dbTx, err := testState.BeginStateTransaction(context.Background())
 	require.NoError(t, err)
-
-	// unsigned tx to call SC again
-	unsignedTxSecondRetrieve := types.NewTransaction(4, scAddress, new(big.Int), sequencerBalance, new(big.Int).SetUint64(1), retrieveFnSignature)
-	// signedTxSecondRetrieve, err := auth.Signer(auth.From, unsignedTxSecondRetrieve)
-	// require.NoError(t, err)
-
-	// Genesis DB
-	genesisDB := map[string]string{
-		"2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90": "00000000000000000000000000000000000000000000000000000000000000000d1f0da5a7b620c843fd1e18e59fd724d428d25da0cb1888e31f5542ac227c060000000000000000000000000000000000000000000000000000000000000000",
-		"e31f5542ac227c06d428d25da0cb188843fd1e18e59fd7240d1f0da5a7b620c8": "ed22ec7734d89ff2b2e639153607b7c542b2bd6ec2788851b7819329410847833e63658ee0db910d0b3e34316e81aa10e0dc203d93f4e3e5e10053d0ebc646020000000000000000000000000000000000000000000000000000000000000000",
-		"b78193294108478342b2bd6ec2788851b2e639153607b7c5ed22ec7734d89ff2": "16dde42596b907f049015d7e991a152894dd9dadd060910b60b4d5e9af514018b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
-		"3efad1dd58c2259d339438195426ad0af57d81efba5d4445b69b044f5e694795": "00000000dea000000000000035c9adc5000000000000003600000000000000000000000000000000000000000000000000000000000000000000000000000000",
-		"e10053d0ebc64602e0dc203d93f4e3e50b3e34316e81aa103e63658ee0db910d": "66ee2be0687eea766926f8ca8796c78a4c2f3e938869b82d649e63bfe1247ba4b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
+	// Set genesis
+	genesis := state.Genesis{Actions: []*state.GenesisAction{
+		{
+			Address: sequencerAddress.Hex(),
+			Type:    int(merkletree.LeafTypeBalance),
+			Value:   "100000000000000000000000",
+		},
+	}}
+	_, err = testState.SetGenesis(ctx, state.Block{}, genesis, dbTx)
+	require.NoError(t, err)
+	batchCtx := state.ProcessingContext{
+		BatchNumber: 1,
+		Coinbase:    sequencerAddress,
+		Timestamp:   time.Now(),
 	}
-
-	batchL2Data, err := state.EncodeTransactions([]types.Transaction{
+	err = testState.OpenBatch(context.Background(), batchCtx, dbTx)
+	require.NoError(t, err)
+	signedTxs := []types.Transaction{
 		*signedTxDeploy,
 		*signedTxFirstIncrement,
-		*unsignedTxFirstRetrieve,
-		// *signedTxFirstRetrieve,
-		*signedTxSecondIncrement,
-		*unsignedTxSecondRetrieve,
-		// *signedTxSecondRetrieve,
-	})
-	require.NoError(t, err)
-
-	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		BatchNum:         1,
-		Coinbase:         sequencerAddress.String(),
-		BatchL2Data:      batchL2Data,
-		OldStateRoot:     common.Hex2Bytes("2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90"),
-		GlobalExitRoot:   common.Hex2Bytes("090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"),
-		OldLocalExitRoot: common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
-		EthTimestamp:     uint64(1944498031),
-		UpdateMerkleTree: 0,
-		Db:               genesisDB,
 	}
+	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx)
+	require.NoError(t, err)
+	// assert signed tx do deploy sc
+	assert.Equal(t, "", processBatchResponse.Responses[0].Error)
+	assert.Equal(t, scAddress, processBatchResponse.Responses[0].CreateAddress)
 
-	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	// assert signed tx to increment counter
+	assert.Equal(t, "", processBatchResponse.Responses[1].Error)
+
+	// Add txs to DB
+	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, dbTx)
+	require.NoError(t, err)
+	// Close batch
+	err = testState.CloseBatch(
+		context.Background(),
+		state.ProcessingReceipt{
+			BatchNumber:   1,
+			StateRoot:     processBatchResponse.NewStateRoot,
+			LocalExitRoot: processBatchResponse.NewLocalExitRoot,
+		}, dbTx,
+	)
 	require.NoError(t, err)
 
-	// assert signed tx do deploy sc
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
-	assert.Equal(t, scAddress, common.HexToAddress(string(processBatchResponse.Responses[0].CreateAddress)))
+	require.NoError(t, dbTx.Commit(context.Background()))
+	dbTx, err = testState.BeginStateTransaction(context.Background())
+	require.NoError(t, err)
 
-	// assert signed tx
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[1].Error)
-
+	unsignedTxFirstRetrieve := types.NewTransaction(2, scAddress, new(big.Int), gasLimit, new(big.Int).SetUint64(1), retrieveFnSignature)
+	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxFirstRetrieve, sequencerAddress, 1, dbTx)
 	// assert unsigned tx
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[2].Error)
-	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[2].ReturnValue))
-
-	// assert signed tx
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[3].Error)
-
-	// assert unsigned tx
-	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[4].Error)
-	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000002", hex.EncodeToString(processBatchResponse.Responses[4].ReturnValue))
+	assert.NoError(t, result.Err)
+	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", string(result.ReturnValue))
 }

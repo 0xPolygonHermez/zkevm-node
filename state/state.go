@@ -217,7 +217,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 
 		// Check if an out of gas error happened during EVM execution
-		if processBatchResponse.Responses[0].Error != pb.Error(executor.NO_ERROR) {
+		if processBatchResponse.Responses[0].Error != pb.Error(executor.ERROR_NO_ERROR) {
 			error := fmt.Errorf(executor.ExecutorError(processBatchResponse.Responses[0].Error).Error())
 
 			if (isGasEVMError(error) || isGasApplyError(error)) && shouldOmitErr {
@@ -727,10 +727,10 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
+func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
 	result := new(runtime.ExecutionResult)
 
-	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByBlockNumber(ctx, blockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
 	if err != nil {
 		result.Err = err
 		return result
@@ -756,6 +756,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		Coinbase:         "0x0000000000000000000000000000000000000000",
 		UpdateMerkleTree: cFalse,
 	}
 
