@@ -27,9 +27,6 @@ type Aggregator struct {
 	Ethman               etherman
 	ProverClient         proverClient
 	ProfitabilityChecker aggregatorTxProfitabilityChecker
-
-	lastVerifiedBatchNum uint64
-	batchesSent          map[uint64]bool
 }
 
 // NewAggregator creates a new aggregator
@@ -56,8 +53,6 @@ func NewAggregator(
 		Ethman:               etherman,
 		ProverClient:         prover.NewClient(zkProverClient),
 		ProfitabilityChecker: profitabilityChecker,
-
-		batchesSent: make(map[uint64]bool),
 	}
 
 	return a, nil
@@ -119,15 +114,9 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	}
 	a.compareInputHashes(inputProver, resGetProof)
 
-	log.Infof("sending verified proof to the ethereum smart contract, batchNumber", batchToVerify.BatchNumber)
-	err = a.EthTxManager.VerifyBatch(batchToVerify.BatchNumber, resGetProof)
-	if err != nil {
-		log.Warnf("failed to send request to consolidate batch to ethereum, batch number: %d, err: %v",
-			batchToVerify.BatchNumber, err)
-		return
-	}
-	a.batchesSent[batchToVerify.BatchNumber] = true
-	log.Infof("proof for the batch was send, batchNumber: %d", batchToVerify.BatchNumber)
+	log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchToVerify.BatchNumber)
+	a.EthTxManager.VerifyBatch(batchToVerify.BatchNumber, resGetProof)
+	log.Infof("proof for the batch was sent, batchNumber: %d", batchToVerify.BatchNumber)
 }
 
 func (a *Aggregator) isSynced(ctx context.Context) bool {
@@ -136,26 +125,28 @@ func (a *Aggregator) isSynced(ctx context.Context) bool {
 		log.Warnf("failed to get last consolidated batch, err: %v", err)
 		return false
 	}
-	if lastVerifiedBatch != nil {
-		a.lastVerifiedBatchNum = lastVerifiedBatch.BatchNumber
+	if lastVerifiedBatch == nil {
+		return false
 	}
 	lastVerifiedEthBatchNum, err := a.Ethman.GetLatestVerifiedBatchNum()
 	if err != nil {
 		log.Warnf("failed to get last eth batch, err: %v", err)
 		return false
 	}
-	if a.lastVerifiedBatchNum < lastVerifiedEthBatchNum {
+	if lastVerifiedBatch.BatchNumber < lastVerifiedEthBatchNum {
 		log.Infof("waiting for the state to be synced, lastVerifiedBatchNum: %d, lastVerifiedEthBatchNum: %d",
-			a.lastVerifiedBatchNum, lastVerifiedEthBatchNum)
+			lastVerifiedBatch.BatchNumber, lastVerifiedEthBatchNum)
 		return false
 	}
 	return true
 }
 
 func (a *Aggregator) getBatchToVerify(ctx context.Context) (*state.Batch, error) {
-	delete(a.batchesSent, a.lastVerifiedBatchNum)
-
-	batchToVerify, err := a.State.GetVirtualBatchByNumber(ctx, a.lastVerifiedBatchNum+1, nil)
+	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	batchToVerify, err := a.State.GetVirtualBatchByNumber(ctx, lastVerifiedBatch.BatchNumber+1, nil)
 
 	if err != nil {
 		if errors.Is(err, state.ErrNotFound) {
@@ -165,13 +156,6 @@ func (a *Aggregator) getBatchToVerify(ctx context.Context) (*state.Batch, error)
 		log.Warnf("failed to get batch to consolidate, err: %v", err)
 		return nil, err
 	}
-
-	if a.batchesSent[batchToVerify.BatchNumber] {
-		log.Infof("batch with number %d was already sent, but not yet consolidated by synchronizer",
-			batchToVerify.BatchNumber)
-		return nil, nil
-	}
-
 	return batchToVerify, nil
 }
 
