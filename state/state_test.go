@@ -1621,8 +1621,8 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, dbTx.Commit(context.Background()))
-	dbTx, err = testState.BeginStateTransaction(context.Background())
-	require.NoError(t, err)
+	// dbTx, err = testState.BeginStateTransaction(context.Background())
+	// require.NoError(t, err)
 	// TODO: uncoment once it's working
 	// unsignedTxSecondRetrieve := types.NewTx(&types.LegacyTx{
 	// 	Nonce:    0,
