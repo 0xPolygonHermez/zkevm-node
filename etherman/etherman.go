@@ -563,6 +563,7 @@ func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
 	return etherMan.PoE.LastBatchSequenced(&bind.CallOpts{Pending: false})
 }
 
+// GetLatestBlockNumber gets the latest block number from the ethereum
 func (etherMan *Client) GetLatestBlockNumber(ctx context.Context) (uint64, error) {
 	header, err := etherMan.EtherClient.HeaderByNumber(ctx, nil)
 	if err != nil || header == nil {

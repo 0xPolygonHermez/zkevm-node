@@ -308,6 +308,7 @@ func (p *PostgresStorage) UpdateGlobalExitRootBlockNum(ctx context.Context, dbTx
 	return err
 }
 
+// GetBlockNumAndMainnetExitRootByGER gets block number and mainnet exit root by the global exit root
 func (p *PostgresStorage) GetBlockNumAndMainnetExitRootByGER(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (uint64, common.Hash, error) {
 	var (
 		blockNum        uint64
