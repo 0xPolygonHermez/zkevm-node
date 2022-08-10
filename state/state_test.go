@@ -64,8 +64,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
-	// zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -1624,19 +1623,19 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, dbTx.Commit(context.Background()))
-	// dbTx, err = testState.BeginStateTransaction(context.Background())
-	// require.NoError(t, err)
+	dbTx, err = testState.BeginStateTransaction(context.Background())
+	require.NoError(t, err)
 	// TODO: uncoment once it's working
-	// unsignedTxSecondRetrieve := types.NewTx(&types.LegacyTx{
-	// 	Nonce:    0,
-	// 	To:       &scAddress,
-	// 	Value:    new(big.Int),
-	// 	Gas:      gasLimit,
-	// 	GasPrice: new(big.Int),
-	// 	Data:     retrieveFnSignature,
-	// })
-	// result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), 3, dbTx)
-	// // assert unsigned tx
-	// assert.NoError(t, result.Err)
-	// assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
+	unsignedTxSecondRetrieve := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       &scAddress,
+		Value:    new(big.Int),
+		Gas:      gasLimit,
+		GasPrice: new(big.Int),
+		Data:     retrieveFnSignature,
+	})
+	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), 3, dbTx)
+	// assert unsigned tx
+	assert.Equal(t, "", result.Err.Error())
+	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
 }
