@@ -10,8 +10,10 @@ DOCKERCOMPOSEEXPLORER := zkevm-explorer
 DOCKERCOMPOSEEXPLORERDB := zkevm-explorer-db
 DOCKERCOMPOSEEXPLORERRPC := zkevm-explorer-json-rpc
 DOCKERCOMPOSEZKPROVER := zkevm-prover
+DOCKERCOMPOSEZKPROVERMOCK := zkprover-mock
 DOCKERCOMPOSEPERMISSIONLESSDB := zkevm-permissionless-db
 DOCKERCOMPOSEPERMISSIONLESSNODE := zkevm-permissionless-node
+DOCKERCOMPOSENODEAPPROVE := zkevm-approve
 
 RUNDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDB)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
@@ -25,9 +27,12 @@ RUNEXPLORER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORER)
 RUNEXPLORERDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERDB)
 RUNEXPLORERJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERRPC)
 RUNZKPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVER)
+RUNZKPROVERMOCK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVERMOCK)
 
 RUNPERMISSIONLESSDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSDB)
 RUNPERMISSIONLESSNODE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSNODE)
+
+RUNAPPROVE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENODEAPPROVE)
 
 RUN := $(DOCKERCOMPOSE) up -d
 
@@ -43,9 +48,12 @@ STOPEXPLORER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORER) && $(DOCKERCOMPOS
 STOPEXPLORERDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERDB)
 STOPEXPLORERRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERRPC)
 STOPZKPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVER)
+STOPZKPROVERMOCK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVERMOCK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVERMOCK)
 
 STOPPERMISSIONLESSDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSDB)
 STOPPERMISSIONLESSNODE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSNODE) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPERMISSIONLESSNODE)
+
+STOPAPPROVE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENODEAPPROVE) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENODEAPPROVE)
 
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
@@ -90,7 +98,8 @@ test-full: build-docker compile-scs ## Runs all tests checking race conditions
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
 	$(RUNZKPROVER); sleep 5
-	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
+	$(RUNZKPROVERMOCK)
+	trap '$(STOPDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
 
 .PHONY: test-full-non-e2e
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
@@ -98,9 +107,10 @@ test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race 
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
 	$(RUNZKPROVER)
+	$(RUNZKPROVERMOCK)
 	sleep 5
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
+	trap '$(STOPDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 600s ./...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking race conditions
@@ -148,10 +158,10 @@ stop-db: ## Stops the node database
 
 .PHONY: run-node
 run-node: ## Runs the node
+	$(RUNSYNC)
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
-	$(RUNSYNC)
 
 .PHONY: stop-node
 stop-node: ## Stops the node
@@ -175,6 +185,14 @@ run-zkprover: ## Runs zkprover
 .PHONY: stop-zkprover
 stop-zkprover: ## Stops zkprover
 	$(STOPZKPROVER)
+
+.PHONY: run-zkprover-mock
+run-zkprover-mock: ## Runs zkprover-mock
+	$(RUNZKPROVERMOCK)
+
+.PHONY: stop-zkprover-mock
+stop-zkprover-mock: ## Stops zkprover-mock
+	$(STOPZKPROVERMOCK)
 
 .PHONY: run-explorer
 run-explorer: ## Runs the explorer
@@ -226,6 +244,14 @@ run-permissionless: ## Runs the permissionless node
 stop-permissionless: ## Stops the permissionless node
 	$(STOPPERMISSIONLESSNODE)
 	$(STOPPERMISSIONLESSDB)
+
+.PHONY: run-approve-matic
+run-approve-matic: ## Runs approve in node container
+	$(RUNAPPROVE)
+
+.PHONY: stop-approve-matic
+stop-approve-matic: ## Stops approve in node container
+	$(STOPAPPROVE)
 
 .PHONY: init-network
 init-network: ## Initializes the network
@@ -280,7 +306,7 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 .PHONY: generate-code-from-proto
 generate-code-from-proto: ## Generates code from proto files
 	cd proto/src/proto/statedb/v1 && protoc --proto_path=. --proto_path=../../../../include --go_out=../../../../../merkletree/pb --go-grpc_out=../../../../../merkletree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative statedb.proto
-	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverclient/pb --go-grpc_out=../../../../../proverclient/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative zk-prover.proto
+	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverclient/pb --go-grpc_out=../../../../../proverclient/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative zk_prover.proto
 	cd proto/src/proto/executor/v1 && protoc --proto_path=. --go_out=../../../../../state/runtime/executor/pb --go-grpc_out=../../../../../state/runtime/executor/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative executor.proto
 	cd proto/src/proto/broadcast/v1 && protoc --proto_path=. --proto_path=../../../../include --go_out=../../../../../sequencer/broadcast/pb --go-grpc_out=../../../../../sequencer/broadcast/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative broadcast.proto
 

@@ -10,6 +10,7 @@ import (
 
 	aggrMocks "github.com/0xPolygonHermez/zkevm-node/aggregator/mocks"
 	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
+
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -47,28 +48,17 @@ func TestIsSyncedNotSynced(t *testing.T) {
 func TestGetBatchToVerify(t *testing.T) {
 	st := new(aggrMocks.StateMock)
 	batchToVerify := &state.Batch{BatchNumber: 1}
-	a := Aggregator{State: st, batchesSent: make(map[uint64]bool)}
-	a.batchesSent[a.lastVerifiedBatchNum] = true
+	a := Aggregator{State: st}
 	ctx := context.Background()
-	st.On("GetVirtualBatchByNumber", ctx, a.lastVerifiedBatchNum+1, nil).Return(batchToVerify, nil)
+
+	verifiedBatch := &state.VerifiedBatch{BatchNumber: 1}
+
+	st.On("GetLastVerifiedBatch", ctx, nil).Return(verifiedBatch, nil)
+	st.On("GetVirtualBatchByNumber", ctx, verifiedBatch.BatchNumber+1, nil).Return(batchToVerify, nil)
+
 	res, err := a.getBatchToVerify(ctx)
 	require.NoError(t, err)
 	require.Equal(t, batchToVerify, res)
-	require.False(t, a.batchesSent[a.lastVerifiedBatchNum])
-}
-
-func TestGetBatchToVerifyBatchAlreadySent(t *testing.T) {
-	st := new(aggrMocks.StateMock)
-	batchToVerify := &state.Batch{BatchNumber: 2}
-	a := Aggregator{State: st, batchesSent: make(map[uint64]bool)}
-	a.lastVerifiedBatchNum = 1
-	a.batchesSent[a.lastVerifiedBatchNum+1] = true
-	ctx := context.Background()
-	st.On("GetVirtualBatchByNumber", ctx, a.lastVerifiedBatchNum+1, nil).Return(batchToVerify, nil)
-	res, err := a.getBatchToVerify(ctx)
-	require.NoError(t, err)
-	require.Nil(t, res)
-	require.False(t, a.batchesSent[a.lastVerifiedBatchNum])
 }
 
 func TestBuildInputProver(t *testing.T) {
@@ -77,11 +67,10 @@ func TestBuildInputProver(t *testing.T) {
 	etherman := new(aggrMocks.Etherman)
 	proverClient := new(aggrMocks.ProverClientMock)
 	a := Aggregator{
-		State:                st,
-		EthTxManager:         ethTxManager,
-		Ethman:               etherman,
-		ProverClient:         proverClient,
-		lastVerifiedBatchNum: 1,
+		State:        st,
+		EthTxManager: ethTxManager,
+		Ethman:       etherman,
+		ProverClient: proverClient,
 	}
 	var (
 		oldStateRoot     = common.HexToHash("0xbdde84a5932a2f0a1a4c6c51f3b64ea265d4f1461749298cfdd09b31122ce0d6")
@@ -96,9 +85,19 @@ func TestBuildInputProver(t *testing.T) {
 			LocalExitRoot: oldLocalExitRoot,
 		}
 	)
-	st.On("GetBatchByNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(previousBatch, nil)
 
 	ctx := context.Background()
+
+	verifiedBatch := &state.VerifiedBatch{BatchNumber: 1}
+
+	st.On("GetLastVerifiedBatch", ctx, nil).Return(verifiedBatch, nil)
+	etherman.On("GetLatestVerifiedBatchNum").Return(verifiedBatch.BatchNumber, nil)
+
+	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
+	require.NoError(t, err)
+
+	st.On("GetBatchByNumber", mock.Anything, lastVerifiedBatch.BatchNumber, nil).Return(previousBatch, nil)
+
 	tx := *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
 	batchToVerify := &state.Batch{
 		BatchNumber:    2,
@@ -145,20 +144,28 @@ func TestBuildInputProverError(t *testing.T) {
 	etherman := new(aggrMocks.Etherman)
 	proverClient := new(aggrMocks.ProverClientMock)
 	a := Aggregator{
-		State:                st,
-		EthTxManager:         ethTxManager,
-		Ethman:               etherman,
-		ProverClient:         proverClient,
-		lastVerifiedBatchNum: 1,
+		State:        st,
+		EthTxManager: ethTxManager,
+		Ethman:       etherman,
+		ProverClient: proverClient,
 	}
 	var (
 		newLocalExitRoot = common.HexToHash("0xbdde84a5932a2f0a1a4c6c51f3b64ea265d4f1461749298cfdd09b31122ce0d6")
 		seqAddress       = common.HexToAddress("0x123")
 		batchL2Data      = []byte("data")
 	)
-	st.On("GetBatchByNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(nil, errors.New("error"))
-
 	ctx := context.Background()
+
+	verifiedBatch := &state.VerifiedBatch{BatchNumber: 1}
+
+	st.On("GetLastVerifiedBatch", ctx, nil).Return(verifiedBatch, nil)
+	etherman.On("GetLatestVerifiedBatchNum").Return(verifiedBatch.BatchNumber, nil)
+
+	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
+	require.NoError(t, err)
+
+	st.On("GetBatchByNumber", mock.Anything, lastVerifiedBatch.BatchNumber, nil).Return(nil, errors.New("error"))
+
 	tx := *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
 	batchToVerify := &state.Batch{
 		BatchNumber:    2,
@@ -189,8 +196,6 @@ func TestAggregatorFlow(t *testing.T) {
 		Ethman:               etherman,
 		ProverClient:         proverClient,
 		ProfitabilityChecker: NewTxProfitabilityCheckerAcceptAll(st, 1*time.Second),
-		lastVerifiedBatchNum: 1,
-		batchesSent:          make(map[uint64]bool),
 	}
 	var (
 		oldStateRoot     = common.HexToHash("0xbdde84a5932a2f0a1a4c6c51f3b64ea265d4f1461749298cfdd09b31122ce0d6")
@@ -256,10 +261,12 @@ func TestAggregatorFlow(t *testing.T) {
 	st.On("GetLastVerifiedBatch", mock.Anything, nil).Return(verifiedBatch, nil)
 	etherman.On("GetLatestVerifiedBatchNum").Return(uint64(1), nil)
 
+	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(context.Background(), nil)
+	require.NoError(t, err)
 	// get batch to verify
-	st.On("GetVirtualBatchByNumber", mock.Anything, a.lastVerifiedBatchNum+1, nil).Return(batchToVerify, nil)
+	st.On("GetVirtualBatchByNumber", mock.Anything, lastVerifiedBatch.BatchNumber+1, nil).Return(batchToVerify, nil)
 	// build input prover
-	st.On("GetBatchByNumber", mock.Anything, a.lastVerifiedBatchNum, nil).Return(previousBatch, nil)
+	st.On("GetBatchByNumber", mock.Anything, lastVerifiedBatch.BatchNumber, nil).Return(previousBatch, nil)
 	// gen proof id
 	proverClient.On("GetGenProofID", mock.Anything, expectedInputProver).Return("1", nil)
 	// get proof
@@ -270,5 +277,4 @@ func TestAggregatorFlow(t *testing.T) {
 	defer ticker.Stop()
 	ctx := context.Background()
 	a.tryVerifyBatch(ctx, ticker)
-	require.True(t, a.batchesSent[batchToVerify.BatchNumber])
 }

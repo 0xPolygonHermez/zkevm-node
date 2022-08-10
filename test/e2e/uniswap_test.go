@@ -49,7 +49,6 @@ func TestUniswap(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, opsman.StartNetwork())
-	require.NoError(t, opsman.StartProver())
 	require.NoError(t, opsman.SetUpSequencer())
 	require.NoError(t, opsman.StartNode())
 	require.NoError(t, opsman.InitNetwork())

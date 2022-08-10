@@ -42,7 +42,7 @@ func keyEthAddr(ethAddr common.Address, leafType leafType, key1Capacity [4]uint6
 }
 
 func defaultCapIn() ([4]uint64, error) {
-	capIn, err := stringToh4(HashPoseidonAllZeroes)
+	capIn, err := StringToh4(HashPoseidonAllZeroes)
 	if err != nil {
 		return [4]uint64{}, err
 	}
@@ -121,6 +121,16 @@ func hashContractBytecode(code []byte) ([]uint64, error) {
 		maxBytesToAdd = bytecodeElementsHash * bytecodeBytesElement
 	)
 
+	// add 0x01
+	code = append(code, 0x01) // nolint:gomnd
+
+	// add padding
+	for len(code)%(56) != 0 { // nolint:gomnd
+		code = append(code, 0x00) // nolint:gomnd
+	}
+
+	code[len(code)-1] = code[len(code)-1] | 0x80 // nolint:gomnd
+
 	numHashes := int(math.Ceil(float64(len(code)) / float64(maxBytesToAdd)))
 
 	tmpHash := [4]uint64{}
@@ -130,15 +140,10 @@ func hashContractBytecode(code []byte) ([]uint64, error) {
 	for i := 0; i < numHashes; i++ {
 		elementsToHash := [12]uint64{}
 
-		if i != 0 {
-			for j := 0; j < 4; j++ {
-				elementsToHash[j] = tmpHash[j]
-			}
-		} else {
-			for j := 0; j < 4; j++ {
-				elementsToHash[j] = 0
-			}
+		for j := 0; j < 4; j++ {
+			elementsToHash[j] = tmpHash[j]
 		}
+
 		subsetBytecode := code[bytesPointer : int(math.Min(float64(len(code)-1), float64(bytesPointer+maxBytesToAdd)))+1]
 		bytesPointer += maxBytesToAdd
 		tmpElem := [7]byte{}
@@ -150,7 +155,8 @@ func hashContractBytecode(code []byte) ([]uint64, error) {
 			if j < len(subsetBytecode) {
 				byteToAdd = subsetBytecode[j : j+1]
 			}
-			tmpElem[counter] = byteToAdd[0]
+
+			tmpElem[bytecodeBytesElement-1-counter] = byteToAdd[0]
 			counter++
 
 			if counter == bytecodeBytesElement {
@@ -180,4 +186,16 @@ func hashContractBytecode(code []byte) ([]uint64, error) {
 		}
 	}
 	return tmpHash[:], nil
+}
+
+// KeyCodeLength returns the key of code length leaf:
+// hk0: H([0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0])
+// key: H([ethAddr[0:4], ethAddr[4:8], ethAddr[8:12], ethAddr[12:16], ethAddr[16:20], 0, 4, 0], [hk0[0], hk0[1], hk0[2], hk0[3]]
+func KeyCodeLength(ethAddr common.Address) ([]byte, error) {
+	capIn, err := defaultCapIn()
+	if err != nil {
+		return nil, err
+	}
+
+	return keyEthAddr(ethAddr, LeafTypeSCLength, capIn)
 }

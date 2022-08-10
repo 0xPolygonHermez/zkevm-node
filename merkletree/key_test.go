@@ -21,6 +21,11 @@ type testVectorKey struct {
 	ExpectedKey     string `json:"expectedKey"`
 }
 
+type bytecodeTest struct {
+	Bytecode     string `json:"bytecode"`
+	ExpectedHash string `json:"expectedHash"`
+}
+
 func init() {
 	// Change dir to project root
 	// This is important because we have relative paths to files containing test vectors
@@ -52,6 +57,11 @@ func Test_CommonKeys(t *testing.T) {
 			description:    "keyContractCode",
 			testVectorFile: "test/vectors/src/merkle-tree/smt-key-contract-code.json",
 			keyFunc:        KeyContractCode,
+		},
+		{
+			description:    "keyCodeLength",
+			testVectorFile: "test/vectors/src/merkle-tree/smt-key-contract-length.json",
+			keyFunc:        KeyCodeLength,
 		},
 	}
 	for _, tc := range tcs {
@@ -95,6 +105,23 @@ func Test_KeyContractStorage(t *testing.T) {
 
 			expected, _ := new(big.Int).SetString(testVector.ExpectedKey, 10)
 			assert.Equal(t, hex.EncodeToString(expected.Bytes()), hex.EncodeToString(key))
+		})
+	}
+}
+
+func Test_byteCodeHash(t *testing.T) {
+	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-hash-bytecode.json")
+	require.NoError(t, err)
+
+	var testVectors []bytecodeTest
+	err = json.Unmarshal(data, &testVectors)
+	require.NoError(t, err)
+
+	for ti, testVector := range testVectors {
+		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
+			hash, err := hashContractBytecode(common.Hex2Bytes(testVector.Bytecode))
+			require.NoError(t, err)
+			assert.Equal(t, common.HexToHash(testVector.ExpectedHash), common.HexToHash(H4ToString(hash)))
 		})
 	}
 }

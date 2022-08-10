@@ -234,8 +234,8 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
-	// Start prover container
-	err = m.StartProver()
+	// Approve matic
+	err = StartComponent("approve-matic")
 	if err != nil {
 		return err
 	}
@@ -252,11 +252,6 @@ func (m *Manager) Setup() error {
 // Teardown stops all the components.
 func Teardown() error {
 	err := stopNode()
-	if err != nil {
-		return err
-	}
-
-	err = stopProver()
 	if err != nil {
 		return err
 	}
@@ -381,8 +376,8 @@ func (m *Manager) SetUpSequencer() error {
 		return err
 	}
 
-	if 0 != b.Cmp(maticAmount) {
-		return fmt.Errorf("expected: %v found %v", maticAmount.Text(encoding.Base10), b.Text(encoding.Base10))
+	if b.Cmp(maticAmount) <= 0 {
+		return fmt.Errorf("Minimum amount is: %v but found: %v", maticAmount.Text(encoding.Base10), b.Text(encoding.Base10))
 	}
 
 	// Create sequencer auth
@@ -439,15 +434,6 @@ func (m *Manager) StartNode() error {
 
 func stopNode() error {
 	return StopComponent("node")
-}
-
-// StartProver starts the prover container
-func (m *Manager) StartProver() error {
-	return StartComponent("prover", ProverUpCondition)
-}
-
-func stopProver() error {
-	return StopComponent("prover")
 }
 
 func runCmd(c *exec.Cmd) error {

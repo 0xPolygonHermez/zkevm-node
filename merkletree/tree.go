@@ -192,7 +192,7 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 	}
 	k := new(big.Int).SetBytes(key[:])
 
-	scCodeHash, err := hex.DecodeHex(h4ToString(scCodeHash4))
+	scCodeHash, err := hex.DecodeHex(H4ToString(scCodeHash4))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -201,6 +201,20 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 	scCodeHashH8 := scalar2fea(scCodeHashBI)
 
 	updateProof, err := tree.set(ctx, scalarToh4(r), scalarToh4(k), scCodeHashH8)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// set code length as a leaf value in merkle tree
+	key, err = KeyCodeLength(address)
+	if err != nil {
+		return nil, nil, err
+	}
+	k = new(big.Int).SetBytes(key[:])
+	scCodeLengthBI := new(big.Int).SetInt64(int64(len(code)))
+	scCodeLengthH8 := scalar2fea(scCodeLengthBI)
+
+	updateProof, err = tree.set(ctx, updateProof.NewRoot, scalarToh4(k), scCodeLengthH8)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -23,7 +23,8 @@ message ProcessBatchRequest {
     bytes tx_hash_to_generate_execute_trace = 10;
     bytes tx_hash_to_generate_call_trace = 11;
     // For testing purposes only
-    map<string, string> db = 12; 
+    map<string, string> db = 12;
+    map<string, string> contracts_bytecode = 13; // For debug/testing purpposes only. Don't fill this on production
 }
 
 message ProcessBatchResponse {
@@ -41,8 +42,8 @@ message ProcessBatchResponse {
 }
 
 message CallTrace {
-    TransactionContext context = 2;
-    repeated TransactionStep steps = 3;
+    TransactionContext context = 1;
+    repeated TransactionStep steps = 2;
 }
 
 message TransactionContext {
@@ -87,7 +88,7 @@ message TransactionStep {
     // Opcode
     uint32 op = 7;
     // Content of the stack
-    repeated uint64 stack = 8;
+    repeated string stack = 8;
     // Content of the memory
     bytes memory = 9;
     // Return Data
@@ -109,30 +110,31 @@ message Contract {
 message ProcessTransactionResponse {
     // Hash of the transaction
     bytes tx_hash = 1;
+    // RLP encoded transaction
+    // [nonce, gasPrice, gasLimit, to, value, data, v, r, s]
+    bytes rlp_tx = 2;
     // Type indicates legacy transaction
     // It will be always 0 (legacy) in the executor
-    uint32 type = 2;
+    uint32 type = 3;
     // Returned data from the runtime (function result or data supplied with revert opcode)
-    bytes return_value = 3;
+    bytes return_value = 4;
     // Total gas left as result of execution
-    uint64 gas_left = 4;
+    uint64 gas_left = 5;
     // Total gas used as result of execution or gas estimation
-    uint64 gas_used = 5;
+    uint64 gas_used = 6;
     // Total gas refunded as result of execution
-    uint64 gas_refunded = 6;
+    uint64 gas_refunded = 7;
     // Any error encountered during the execution
-    Error error = 7;
+    Error error = 8;
     // New SC Address in case of SC creation
-    string create_address = 8;
+    string create_address = 9;
     // State Root
-    bytes state_root = 9;
+    bytes state_root = 10;
     // Logs emited by LOG opcode
-    repeated Log logs = 10;
-    // Indicates if this tx didn't fit into the batch 
-    uint32 unprocessed_transaction = 11;
+    repeated Log logs = 11;
     // Trace
-    repeated ExecutionTraceStep execution_trace = 12;
-    CallTrace call_trace = 13;
+    repeated ExecutionTraceStep execution_trace = 13;
+    CallTrace call_trace = 14;
 }
 
 message Log {
@@ -168,7 +170,7 @@ message ExecutionTraceStep {
     // Size of memory
     uint32 memory_size = 6;
     // Content of the stack
-    repeated uint64 stack = 7;
+    repeated string stack = 7;
     // Returned data
     bytes return_data = 8;
     // Content of the storage
@@ -183,30 +185,35 @@ message ExecutionTraceStep {
 
 enum Error {
     ERROR_UNSPECIFIED = 0;
+    // ERROR_NO_ERROR indicates the execution ended successfully
+    ERROR_NO_ERROR = 1;
     // ERROR_OUT_OF_GAS indicates there is not enough balance to continue the execution
-    ERROR_OUT_OF_GAS = 1;
+    ERROR_OUT_OF_GAS = 2;
     // ERROR_STACK_OVERFLOW indicates a stack overflow has happened
-    ERROR_STACK_OVERFLOW = 2;
+    ERROR_STACK_OVERFLOW = 3;
     // ERROR_STACK_UNDERFLOW indicates a stack overflow has happened
-    ERROR_STACK_UNDERFLOW = 3;
+    ERROR_STACK_UNDERFLOW = 4;
     // ERROR_NOT_ENOUGH_FUNDS indicates there is not enough funds to continue the execution
-    ERROR_NOT_ENOUGH_FUNDS = 4;
+    ERROR_NOT_ENOUGH_FUNDS = 5;
     // ERROR_INSUFFICIENT_BALANCE indicates there is not enough balance to continue the execution
-    ERROR_INSUFFICIENT_BALANCE = 5;
+    ERROR_INSUFFICIENT_BALANCE = 6;
     // ERROR_CODE_NOT_FOUND indicates the code was not found
-    ERROR_CODE_NOT_FOUND = 6;
+    ERROR_CODE_NOT_FOUND = 7;
     // ERROR_MAX_CODE_SIZE_EXCEEDED indicates the code size is beyond the maximum
-    ERROR_MAX_CODE_SIZE_EXCEEDED = 7;
+    ERROR_MAX_CODE_SIZE_EXCEEDED = 8;
     // ERROR_CONTRACT_ADDRESS_COLLISION there is a collision regarding contract addresses
-    ERROR_CONTRACT_ADDRESS_COLLISION = 8;
+    ERROR_CONTRACT_ADDRESS_COLLISION = 9;
     // ERROR_DEPTH indicates the maximun call depth has been passed
-    ERROR_DEPTH= 9;
+    ERROR_DEPTH= 10;
     // ERROR_EXECUTION_REVERTED indicates the execution has been reverted
-    ERROR_EXECUTION_REVERTED = 10;
+    ERROR_EXECUTION_REVERTED = 11;
     // ERROR_CODE_STORE_OUT_OF_GAS indicates there is not enough gas for the storage
-    ERROR_CODE_STORE_OUT_OF_GAS = 11;
+    ERROR_CODE_STORE_OUT_OF_GAS = 12;
     // ERROR_OUT_OF_COUNTERS indicates there is not enough counters to continue the execution
-    ERROR_OUT_OF_COUNTERS = 12;
-    // ERROR_INVALID_TX indicates the transaction is invalid
-    ERROR_INVALID_TX = 13;
+    ERROR_OUT_OF_COUNTERS = 13;
+    // ERROR_INVALID_TX indicates the transaction is invalid because of invalid jump dest, invalid opcode, invalid deploy
+    // or invalid static tx
+    ERROR_INVALID_TX = 14;
+    // ERROR_INTRINSIC_INVALID_TX indicates the transaction is failing at the intrinsic checks
+    ERROR_INTRINSIC_INVALID_TX = 15;
 }

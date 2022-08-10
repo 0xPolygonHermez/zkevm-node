@@ -5,25 +5,30 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	mtDBclientpb "github.com/0xPolygonHermez/zkevm-node/merkletree/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
+	"github.com/0xPolygonHermez/zkevm-node/tools/zkevmprovermock/testvector"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -34,18 +39,18 @@ const (
 )
 
 var (
-	testState    *state.State
-	stateTree    *merkletree.StateTree
-	hash1, hash2 common.Hash
-	stateDb      *pgxpool.Pool
-	err          error
-	cfg          = dbutils.NewConfigFromEnv()
-	ctx          = context.Background()
-	stateCfg     = state.Config{
+	testState *state.State
+	stateTree *merkletree.StateTree
+	stateDb   *pgxpool.Pool
+	err       error
+	cfg       = dbutils.NewConfigFromEnv()
+	ctx       = context.Background()
+	stateCfg  = state.Config{
 		MaxCumulativeGasUsed: 800000,
 	}
-	executorClient     executorclientpb.ExecutorServiceClient
-	executorClientConn *grpc.ClientConn
+	executorClient                     executorclientpb.ExecutorServiceClient
+	mtDBServiceClient                  mtDBclientpb.StateDBServiceClient
+	executorClientConn, mtDBClientConn *grpc.ClientConn
 )
 
 func TestMain(m *testing.M) {
@@ -72,7 +77,8 @@ func TestMain(m *testing.M) {
 	}()
 
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
-	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+	var mtDBCancel context.CancelFunc
+	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	s = mtDBClientConn.GetState()
 	log.Infof("stateDbClientConn state: %s", s.String())
 	defer func() {
@@ -82,8 +88,6 @@ func TestMain(m *testing.M) {
 
 	stateTree = merkletree.NewStateTree(mtDBServiceClient)
 
-	hash1 = common.HexToHash("0x65b4699dda5f7eb4519c730e6a48e73c90d2b1c8efcd6a6abdfd28c3b8e7d7d9")
-	hash2 = common.HexToHash("0x613aabebf4fddf2ad0f034a8c73aa2f9c5a6fac3a07543023e0a6ee6f36e5795")
 	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
 
 	result := m.Run()
@@ -712,10 +716,10 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 		{
 			description: "single processed transaction returns itself",
 			input: []*state.ProcessTransactionResponse{
-				{UnprocessedTransaction: 0},
+				{IsProcessed: true},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{
-				{UnprocessedTransaction: 0},
+				{IsProcessed: true},
 			},
 			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{},
 		},
@@ -723,15 +727,15 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 			description: "single unprocessed transaction returns empty",
 			input: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: false,
 				},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{},
 			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
 				"0x000000000000000000000000000000000000000000000000000000000000000a": {
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: false,
 				},
 			},
 		},
@@ -739,30 +743,30 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 			description: "multiple processed transactions",
 			input: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: 0,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: 0,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: 0,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: true,
 				},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: 0,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: 0,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: 0,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: true,
 				},
 			},
 			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{},
@@ -771,31 +775,31 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 			description: "multiple unprocessed transactions",
 			input: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: false,
 				},
 				{
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: false,
 				},
 				{
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: false,
 				},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{},
 			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
 				"0x000000000000000000000000000000000000000000000000000000000000000a": {
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: false,
 				},
 				"0x000000000000000000000000000000000000000000000000000000000000000b": {
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: false,
 				},
 				"0x000000000000000000000000000000000000000000000000000000000000000c": {
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: false,
 				},
 			},
 		},
@@ -803,40 +807,40 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 			description: "mixed processed and unprocessed transactions",
 			input: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: 0,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: false,
 				},
 				{
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: 0,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("d"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("d"),
+					IsProcessed: false,
 				},
 			},
 			expectedProcessedOutput: []*state.ProcessTransactionResponse{
 				{
-					TxHash:                 common.HexToHash("a"),
-					UnprocessedTransaction: 0,
+					TxHash:      common.HexToHash("a"),
+					IsProcessed: true,
 				},
 				{
-					TxHash:                 common.HexToHash("c"),
-					UnprocessedTransaction: 0,
+					TxHash:      common.HexToHash("c"),
+					IsProcessed: true,
 				},
 			},
 			expectedUnprocessedOutput: map[string]*state.ProcessTransactionResponse{
 				"0x000000000000000000000000000000000000000000000000000000000000000b": {
-					TxHash:                 common.HexToHash("b"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("b"),
+					IsProcessed: false,
 				},
 				"0x000000000000000000000000000000000000000000000000000000000000000d": {
-					TxHash:                 common.HexToHash("d"),
-					UnprocessedTransaction: 1,
+					TxHash:      common.HexToHash("d"),
+					IsProcessed: false,
 				},
 			},
 		},
@@ -961,7 +965,6 @@ func TestExecutor(t *testing.T) {
 	assert.Equal(t, common.HexToHash(expectedNewRoot), common.BytesToHash(processBatchResponse.NewStateRoot))
 }
 
-/*
 func TestExecutorRevert(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -1020,7 +1023,7 @@ func TestExecutorLogs(t *testing.T) {
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var sequencerBalance = 4000000
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
-	scLogsByteCode, err := testutils.ReadBytecode("Emitlog2/Emitlog2.bin")
+	scLogsByteCode, err := testutils.ReadBytecode("EmitLog2/EmitLog2.bin")
 	require.NoError(t, err)
 
 	// Genesis DB
@@ -1082,7 +1085,6 @@ func TestExecutorLogs(t *testing.T) {
 	assert.Equal(t, 2, len(processBatchResponse.Responses[1].Logs[1].Topics))
 	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs[2].Topics))
 }
-*/
 
 func TestExecutorTransfer(t *testing.T) {
 	var chainID = new(big.Int).SetInt64(1000)
@@ -1176,7 +1178,6 @@ func TestExecutorTransfer(t *testing.T) {
 	require.Equal(t, uint64(21002), balance.Uint64())
 }
 
-/*
 func TestExecutorTxHash(t *testing.T) {
 	var receiverAddress = common.HexToAddress("0xD8Af0C5c6dEE7dCe32E59577675C026e1aDe4De5")
 	var stateRoot = state.ZeroHash
@@ -1227,4 +1228,289 @@ func TestExecutorTxHash(t *testing.T) {
 
 	require.Equal(t, tx.Hash(), common.BytesToHash(processBatchResponse.Responses[0].TxHash))
 }
-*/
+
+func TestExecutorInvalidNonce(t *testing.T) {
+	chainID := new(big.Int).SetInt64(1000)
+	senderPvtKey := "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	receiverAddress := common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB")
+
+	// authorization
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPvtKey, "0x"))
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+	senderAddress := auth.From
+
+	type testCase struct {
+		name         string
+		currentNonce uint64
+		txNonce      uint64
+	}
+
+	testCases := []testCase{
+		{
+			name:         "tx nonce is greater than expected",
+			currentNonce: 1,
+			txNonce:      2,
+		},
+		{
+			name:         "tx nonce is less than expected",
+			currentNonce: 5,
+			txNonce:      4,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if err := dbutils.InitOrReset(cfg); err != nil {
+				panic(err)
+			}
+
+			// Set Genesis
+			block := state.Block{
+				BlockNumber: 0,
+				BlockHash:   state.ZeroHash,
+				ParentHash:  state.ZeroHash,
+				ReceivedAt:  time.Now(),
+			}
+			genesis := state.Genesis{
+				Actions: []*state.GenesisAction{
+					{
+						Address: senderAddress.String(),
+						Type:    int(merkletree.LeafTypeBalance),
+						Value:   "10000000",
+					},
+					{
+						Address: senderAddress.String(),
+						Type:    int(merkletree.LeafTypeNonce),
+						Value:   strconv.FormatUint(testCase.currentNonce, encoding.Base10),
+					},
+				},
+			}
+			dbTx, err := testState.BeginStateTransaction(ctx)
+			require.NoError(t, err)
+			stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+			require.NoError(t, err)
+			require.NoError(t, dbTx.Commit(ctx))
+
+			// Read Sender Balance
+			currentNonce, err := stateTree.GetNonce(ctx, senderAddress, stateRoot)
+			require.NoError(t, err)
+			assert.Equal(t, testCase.currentNonce, currentNonce.Uint64())
+
+			// Create transaction
+			tx := types.NewTransaction(testCase.txNonce, receiverAddress, new(big.Int).SetUint64(2), uint64(30000), big.NewInt(1), nil)
+			signedTx, err := auth.Signer(auth.From, tx)
+			require.NoError(t, err)
+
+			// encode txs
+			batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx})
+			require.NoError(t, err)
+
+			// Create Batch
+			processBatchRequest := &executorclientpb.ProcessBatchRequest{
+				BatchNum:         1,
+				Coinbase:         receiverAddress.String(),
+				BatchL2Data:      batchL2Data,
+				OldStateRoot:     stateRoot,
+				GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+				OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+				EthTimestamp:     uint64(0),
+				UpdateMerkleTree: 1,
+			}
+
+			// Process batch
+			processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+			require.NoError(t, err)
+
+			transactionResponses := processBatchResponse.GetResponses()
+			assert.Equal(t, executorclientpb.Error_ERROR_INTRINSIC_INVALID_TX, transactionResponses[0].Error, "invalid tx Error, it is expected to be INVALID TX")
+		})
+	}
+}
+
+func TestGenesisNewLeafType(t *testing.T) {
+	// Set Genesis
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000",
+			},
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeNonce),
+				Value:   "0",
+			},
+			{
+				Address: "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "200000000000000000000",
+			},
+			{
+				Address: "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
+				Type:    int(merkletree.LeafTypeNonce),
+				Value:   "0",
+			},
+			{
+				Address: "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "0",
+			},
+			{
+				Address: "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
+				Type:    int(merkletree.LeafTypeNonce),
+				Value:   "0",
+			},
+			{
+				Address:  "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
+				Type:     int(merkletree.LeafTypeCode),
+				Bytecode: "60606040525b600080fd00a165627a7a7230582012c9bd00152fa1c480f6827f81515bb19c3e63bf7ed9ffbb5fda0265983ac7980029",
+			},
+		},
+	}
+
+	require.NoError(t, dbutils.InitOrReset(cfg))
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	log.Debug(string(stateRoot))
+	log.Debug(common.BytesToHash(stateRoot))
+	log.Debug(common.BytesToHash(stateRoot).String())
+	log.Debug(new(big.Int).SetBytes(stateRoot))
+	log.Debug(common.Bytes2Hex(stateRoot))
+
+	require.Equal(t, "49461512068930131501252998918674096186707801477301326632372959001738876161218", new(big.Int).SetBytes(stateRoot).String())
+}
+
+func TestGenesisFromMock(t *testing.T) {
+	mtDBServiceClientBack := mtDBServiceClient
+
+	mtDBServerConfig := merkletree.Config{URI: "127.0.0.1:43061"}
+	var mtDBCancel context.CancelFunc
+	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+	s := mtDBClientConn.GetState()
+	log.Infof("stateDbClientConn state: %s", s.String())
+
+	stateTree = merkletree.NewStateTree(mtDBServiceClient)
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
+
+	defer func() {
+		mtDBCancel()
+		mtDBClientConn.Close()
+		mtDBServiceClient = mtDBServiceClientBack
+		stateTree = merkletree.NewStateTree(mtDBServiceClient)
+		testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
+	}()
+
+	tvContainer, err := testvector.NewContainer("../test/vectors/src", afero.NewOsFs())
+	require.NoError(t, err)
+
+	tv := tvContainer.E2E.Items[0]
+
+	balances := map[common.Address]*big.Int{}
+	nonces := map[common.Address]*big.Int{}
+	smartContracts := map[common.Address][]byte{}
+	storage := map[common.Address]map[*big.Int]*big.Int{}
+
+	for _, item := range tv.GenesisRaw {
+		address := common.HexToAddress(item.Address)
+		switch item.Type {
+		case int(merkletree.LeafTypeBalance):
+			balance, ok := new(big.Int).SetString(item.Value, 10)
+			require.True(t, ok)
+			balances[address] = balance
+		case int(merkletree.LeafTypeNonce):
+			nonce, ok := new(big.Int).SetString(item.Value, 10)
+			require.True(t, ok)
+			nonces[address] = nonce
+		case int(merkletree.LeafTypeCode):
+			if strings.HasPrefix(item.Bytecode, "0x") { // nolint
+				item.Bytecode = item.Bytecode[2:]
+			}
+			bytecodeSlice := common.Hex2Bytes(item.Bytecode)
+			smartContracts[address] = bytecodeSlice
+		case int(merkletree.LeafTypeStorage):
+			if strings.HasPrefix(item.StoragePosition, "0x") { // nolint
+				item.StoragePosition = item.StoragePosition[2:]
+			}
+			storageKey, ok := new(big.Int).SetString(item.StoragePosition, 16)
+			require.True(t, ok)
+			storageValue, ok := new(big.Int).SetString(item.Value, 10)
+			require.True(t, ok)
+			if storage[address] == nil {
+				storage[address] = map[*big.Int]*big.Int{}
+			}
+			storage[address][storageKey] = storageValue
+
+			// Currently the test vector includes storage values in base10 format,
+			// our SetGenesis requires base16 values.
+			item.Value = hex.EncodeBig(storageValue)
+		}
+	}
+
+	block := state.Block{
+		BlockNumber: 1,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: tv.GenesisRaw,
+	}
+
+	require.NoError(t, dbutils.InitOrReset(cfg))
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	expectedRoot := tv.GenesisRaw[len(tv.GenesisRaw)-1].Root
+	require.Equal(t, expectedRoot, hex.EncodeToHex(stateRoot))
+
+	// Check Balances
+	for address, expectedBalance := range balances {
+		actualBalance, err := stateTree.GetBalance(ctx, address, stateRoot)
+		require.NoError(t, err)
+		require.Equal(t, expectedBalance, actualBalance)
+	}
+
+	// Check Nonces
+	for address, expectedNonce := range nonces {
+		actualNonce, err := stateTree.GetNonce(ctx, address, stateRoot)
+		require.NoError(t, err)
+		require.Equal(t, expectedNonce, actualNonce)
+	}
+
+	// Check smart contracts
+	for address, expectedBytecode := range smartContracts {
+		actualBytecode, err := stateTree.GetCode(ctx, address, stateRoot)
+		require.NoError(t, err)
+		require.Equal(t, expectedBytecode, actualBytecode)
+	}
+
+	// Check Storage
+	for address, storageMap := range storage {
+		for expectedKey, expectedValue := range storageMap {
+			actualValue, err := stateTree.GetStorageAt(ctx, address, expectedKey, stateRoot)
+			require.NoError(t, err)
+
+			require.Equal(t, expectedValue, actualValue)
+		}
+	}
+}
