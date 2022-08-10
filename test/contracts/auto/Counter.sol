@@ -8,4 +8,8 @@ contract Counter {
     function increment() external {
         count += 1;
     }
+
+    function getCount() public view returns (uint) {
+        return count;
+    }
 }

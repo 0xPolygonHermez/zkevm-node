@@ -34,7 +34,6 @@ const (
 	getVerifiedBatchSQL                      = "SELECT block_num, batch_num, tx_hash, aggregator FROM state.verified_batch WHERE batch_num = $1"
 	getLastBatchNumberSQL                    = "SELECT batch_num FROM state.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastNBatchesSQL                       = "SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data from state.batch ORDER BY batch_num DESC LIMIT $1"
-	getLastNBatchesByBlockNumberSQL          = "SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, l.header->>'stateRoot' as l2_block_state_root from state.batch b, state.l2block l where l.block_num = $1 and b.batch_num <= l.batch_num order by b.batch_num DESC LIMIT $2"
 	getLastBatchTimeSQL                      = "SELECT timestamp FROM state.batch ORDER BY batch_num DESC LIMIT 1"
 	getLastVirtualBatchNumSQL                = "SELECT COALESCE(MAX(batch_num), 0) FROM state.virtual_batch"
 	getLastVirtualBatchBlockNumSQL           = "SELECT block_num FROM state.virtual_batch ORDER BY batch_num DESC LIMIT 1"
@@ -408,11 +407,16 @@ func (p *PostgresStorage) GetLastNBatches(ctx context.Context, numBatches uint, 
 	return batches, nil
 }
 
-// GetLastNBatchesByBlockNumber returns the last numBatches batches along with the block state root by blockNumber
-func (p *PostgresStorage) GetLastNBatchesByBlockNumber(ctx context.Context, blockNumber uint64, numBatches uint, dbTx pgx.Tx) ([]*Batch, common.Hash, error) {
+// GetLastNBatchesByL2BlockNumber returns the last numBatches batches along with the l2 block state root by l2BlockNumber
+func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2BlockNumber uint64, numBatches uint, dbTx pgx.Tx) ([]*Batch, common.Hash, error) {
+	const getLastNBatchesByBlockNumberSQL = `
+	SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, l2.header->>'stateRoot' as l2_block_state_root 
+	FROM state.batch b, state.l2block l2
+	WHERE l2.block_num = $1 AND b.batch_num <= l2.batch_num
+	ORDER BY b.batch_num DESC LIMIT $2`
 	var l2BlockStateRoot common.Hash
 	e := p.getExecQuerier(dbTx)
-	rows, err := e.Query(ctx, getLastNBatchesByBlockNumberSQL, blockNumber, numBatches)
+	rows, err := e.Query(ctx, getLastNBatchesByBlockNumberSQL, l2BlockNumber, numBatches)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, l2BlockStateRoot, ErrStateNotSynchronized
 	} else if err != nil {
@@ -423,11 +427,12 @@ func (p *PostgresStorage) GetLastNBatchesByBlockNumber(ctx context.Context, bloc
 	batches := make([]*Batch, 0, len(rows.RawValues()))
 
 	for rows.Next() {
-		batch, l2BlockStateRoot, err := scanBatchWithL2BlockStateRoot(rows)
+		batch, _l2BlockStateRoot, err := scanBatchWithL2BlockStateRoot(rows)
 		if err != nil {
 			return nil, l2BlockStateRoot, err
 		}
 		batches = append(batches, &batch)
+		l2BlockStateRoot = _l2BlockStateRoot
 	}
 
 	return batches, l2BlockStateRoot, nil
