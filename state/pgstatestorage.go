@@ -71,8 +71,6 @@ const (
 	getTxsByBlockNumSQL                      = "SELECT encoded FROM state.transaction WHERE l2_block_num = $1"
 	getL2BlockHashesSinceSQL                 = "SELECT block_hash FROM state.l2block WHERE received_at >= $1"
 	getTransactionLogsSQL                    = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM state.log l INNER JOIN state.transaction t ON t.hash = l.tx_hash INNER JOIN state.l2block b ON b.block_num = t.l2_block_num WHERE t.hash = $1"
-	getLogsByBlockHashSQL                    = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM state.log l INNER JOIN state.transaction t ON t.hash = l.tx_hash INNER JOIN state.l2block b ON b.block_num = t.l2_block_num WHERE b.block_hash = $1"
-	getLogsByFilterSQL                       = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM state.log l INNER JOIN state.transaction t ON t.hash = l.tx_hash INNER JOIN state.l2block b ON b.block_num = t.l2_block_num WHERE b.block_num BETWEEN $1 AND $2 AND (l.address = any($3) OR $3 IS NULL) AND (l.topic0 = any($4) OR $4 IS NULL) AND (l.topic1 = any($5) OR $5 IS NULL) AND (l.topic2 = any($6) OR $6 IS NULL) AND (l.topic3 = any($7) OR $7 IS NULL) AND (b.received_at >= $8 OR $8 IS NULL)"
 	getSyncingInfoSQL                        = `
 		SELECT coalesce(MIN(initial_blocks.block_num), 0) as init_sync_block
 			 , coalesce(MAX(virtual_blocks.block_num), 0) as last_block_num_seen
@@ -90,7 +88,6 @@ const (
 	`
 	addTransactionSQL          = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4, $5)"
 	addReceiptSQL              = "INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
-	addLogSQL                  = "INSERT INTO state.log (transaction_hash, log_index, transaction_index, address, data, topic0, topic1, topic2, topic3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 	getBatchNumByBlockNum      = "SELECT batch_num FROM state.virtual_batch WHERE block_num = $1 ORDER BY batch_num ASC LIMIT 1"
 	getTxsHashesBeforeBatchNum = "SELECT hash FROM state.transaction JOIN state.l2block ON state.transaction.l2_block_num = state.l2block.block_num AND state.l2block.batch_num <= $1"
 	isL2BlockVirtualized       = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
@@ -972,15 +969,16 @@ func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHas
 
 	for rows.Next() {
 		var log types.Log
-		var txHash, logAddress, logData, topic0 string
+		var blockHash, txHash, logAddress, logData, topic0 string
 		var topic1, topic2, topic3 *string
 
-		err := rows.Scan(&log.BlockNumber, &log.BlockHash, &txHash, &log.Index,
+		err := rows.Scan(&log.BlockNumber, &blockHash, &txHash, &log.Index,
 			&logAddress, &logData, &topic0, &topic1, &topic2, &topic3)
 		if err != nil {
 			return nil, err
 		}
 
+		log.BlockHash = common.HexToHash(blockHash)
 		log.TxHash = common.HexToHash(txHash)
 		log.Address = common.HexToAddress(logAddress)
 		log.TxIndex = uint(0)
@@ -1372,6 +1370,24 @@ func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber 
 
 // GetLogs returns the logs that match the filter
 func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error) {
+	const getLogsByBlockHashSQL = `
+	  SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 
+		FROM state.log l
+	   INNER JOIN state.transaction t ON t.hash = l.tx_hash
+	   INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
+	   WHERE b.block_hash = $1`
+	const getLogsByFilterSQL = `
+	  SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
+	    FROM state.log l
+	   INNER JOIN state.transaction t ON t.hash = l.tx_hash
+	   INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
+	   WHERE b.block_num BETWEEN $1 AND $2 AND (l.address = any($3) OR $3 IS NULL)
+	     AND (l.topic0 = any($4) OR $4 IS NULL)
+		 AND (l.topic1 = any($5) OR $5 IS NULL)
+		 AND (l.topic2 = any($6) OR $6 IS NULL)
+		 AND (l.topic3 = any($7) OR $7 IS NULL)
+		 AND (b.received_at >= $8 OR $8 IS NULL)`
+
 	var err error
 	var rows pgx.Rows
 	q := p.getExecQuerier(dbTx)
@@ -1412,19 +1428,23 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 		}
 
 		var log types.Log
-		var txHash, logAddress, logData string
+		var blockHash, txHash, logAddress, logData string
 		var topicsHashes [maxTopics]*string
 
-		err := rows.Scan(&log.BlockNumber, &log.BlockHash, &txHash, &log.Index,
+		err := rows.Scan(&log.BlockNumber, &blockHash, &txHash, &log.Index,
 			&logAddress, &logData, &topicsHashes[0], &topicsHashes[1], &topicsHashes[2], &topicsHashes[3])
 		if err != nil {
 			return nil, err
 		}
 
+		log.BlockHash = common.HexToHash(blockHash)
 		log.TxHash = common.HexToHash(txHash)
 		log.Address = common.HexToAddress(logAddress)
 		log.TxIndex = uint(0)
-		log.Data = []byte(logData)
+		log.Data, err = hex.DecodeHex(logData)
+		if err != nil {
+			return nil, err
+		}
 
 		for i := 0; i < maxTopics; i++ {
 			if topicsHashes[i] != nil {
@@ -1498,6 +1518,9 @@ func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt
 
 // AddLog adds a new log to the State Store
 func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx) error {
+	const addLogSQL = `INSERT INTO state.log (tx_hash, log_index, address, data, topic0, topic1, topic2, topic3)
+	                                  VALUES ($1, 	   $2,        $3,      $4,   $5,     $6,     $7,     $8)`
+
 	var topicsAsHex [maxTopics]string
 	for i := 0; i < len(l.Topics); i++ {
 		topicHex := l.Topics[i].String()
@@ -1505,8 +1528,9 @@ func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx)
 	}
 
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addLogSQL, l.TxHash.String(), l.Index, l.TxIndex,
-		l.Address.String(), l.Data, topicsAsHex[0], topicsAsHex[1], topicsAsHex[2], topicsAsHex[3])
+	_, err := e.Exec(ctx, addLogSQL,
+		l.TxHash.String(), l.Index, l.Address.String(), hex.EncodeToHex(l.Data),
+		topicsAsHex[0], topicsAsHex[1], topicsAsHex[2], topicsAsHex[3])
 	return err
 }
 

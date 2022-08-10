@@ -57,10 +57,10 @@ func TestEmitLog2(t *testing.T) {
 		require.NoError(t, err)
 
 		log.Debug(scCallTx.Hash())
-		err = operations.WaitTxToBeMined(l1Client, scCallTx.Hash(), defaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(client, scCallTx.Hash(), defaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
-		scCallTxReceipt, err := l1Client.TransactionReceipt(ctx, scCallTx.Hash())
+		scCallTxReceipt, err := client.TransactionReceipt(ctx, scCallTx.Hash())
 		require.NoError(t, err)
 
 		filterBlock := scCallTxReceipt.BlockNumber
@@ -73,6 +73,7 @@ func TestEmitLog2(t *testing.T) {
 	}
 
 	gasLimit := uint64(400000)
+
 	test(t, l1Auth, l1Client, nil)
 	test(t, l2Auth, l2Client, &gasLimit)
 }

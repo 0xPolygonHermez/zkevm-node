@@ -100,14 +100,15 @@ CREATE TABLE state.receipt
 
 CREATE TABLE state.log
 (
-    tx_hash VARCHAR NOT NULL PRIMARY KEY REFERENCES state.transaction (hash) ON DELETE CASCADE,
+    tx_hash VARCHAR NOT NULL REFERENCES state.transaction (hash) ON DELETE CASCADE,
     log_index integer,
     address VARCHAR NOT NULL,
     data VARCHAR,
     topic0 VARCHAR NOT NULL,
     topic1 VARCHAR,
     topic2 VARCHAR,
-    topic3 VARCHAR
+    topic3 VARCHAR,
+    PRIMARY KEY (tx_hash, log_index)
 );
 
 CREATE SCHEMA pool;
