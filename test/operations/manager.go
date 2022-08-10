@@ -496,6 +496,7 @@ func runMakeTarget(target string) error {
 	return runCmd(cmd)
 }
 
+// GetDefaultOperationsConfig provides a default configuration to run the environment
 func GetDefaultOperationsConfig() *Config {
 	return &Config{
 		Arity: DefaultArity, State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
@@ -503,6 +504,7 @@ func GetDefaultOperationsConfig() *Config {
 	}
 }
 
+// GetL1AndL2Clients provides a client for L1 and another one for L2 already connected to the default URLs
 func GetL1AndL2Clients() (*ethclient.Client, *ethclient.Client, error) {
 	l1Client, err := ethclient.Dial(DefaultL1NetworkURL)
 	if err != nil {
@@ -517,6 +519,7 @@ func GetL1AndL2Clients() (*ethclient.Client, *ethclient.Client, error) {
 	return l1Client, l2Client, nil
 }
 
+// GetL1AndL2Authorizations provides an authorization for L1 and another one for L2 already with the default ChainIDs
 func GetL1AndL2Authorizations() (*bind.TransactOpts, *bind.TransactOpts, error) {
 	chainID := big.NewInt(0).SetUint64(DefaultL1ChainID)
 	l1Auth, err := GetAuth(DefaultSequencerPrivateKey, chainID)
