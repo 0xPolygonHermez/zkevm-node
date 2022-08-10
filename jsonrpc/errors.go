@@ -22,7 +22,12 @@ type RPCError struct {
 }
 
 func newRPCError(code int, err string, args ...interface{}) *RPCError {
-	errMessage := fmt.Sprintf(err, args...)
+	var errMessage string
+	if len(args) > 0 {
+		errMessage = fmt.Sprintf(err, args...)
+	} else {
+		errMessage = err
+	}
 	return &RPCError{code: code, err: errMessage}
 }
 

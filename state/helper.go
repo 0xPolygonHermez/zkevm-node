@@ -22,14 +22,17 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 		v, r, s := tx.RawSignatureValues()
 		sign := 1 - (v.Uint64() & 1)
 
+		nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
+		log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", data, " ", chainID)
+
 		txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
-			tx.Nonce(),
-			tx.GasPrice(),
-			tx.Gas(),
-			tx.To(),
-			tx.Value(),
-			tx.Data(),
-			tx.ChainId(), uint(0), uint(0),
+			nonce,
+			gasPrice,
+			gas,
+			to,
+			value,
+			data,
+			chainID, uint(0), uint(0),
 		})
 
 		if err != nil {
@@ -59,14 +62,17 @@ func EncodeUnsignedTransaction(tx types.Transaction) ([]byte, error) {
 
 	sign := 1 - (v.Uint64() & 1)
 
+	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), big.NewInt(1000)
+	log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", data, " ", chainID)
+
 	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
-		tx.Nonce(),
-		tx.GasPrice(),
-		tx.Gas(),
-		tx.To(),
-		tx.Value(),
-		tx.Data(),
-		big.NewInt(1000), uint(0), uint(0), //nolint:gomnd
+		nonce,
+		gasPrice,
+		gas,
+		to,
+		value,
+		data,
+		chainID, uint(0), uint(0), //nolint:gomnd
 	})
 
 	if err != nil {
@@ -176,6 +182,16 @@ func generateReceipt(block *types.Block, processedTx *ProcessTransactionResponse
 		TransactionIndex:  0,
 		ContractAddress:   processedTx.CreateAddress,
 		Logs:              processedTx.Logs,
+	}
+
+	// TODO: this fix is temporary while the Executor is returning a
+	// different Tx hash for the TxHash, Log.TxHash and Tx.Hash().
+	// At the moment, the processedTx.TxHash and Log[n].TxHash are
+	// returning a different hash than the Hash of the transaction
+	// sent to be processed by the Executor.
+	// The processedTx.Tx.Hash() is correct.
+	for i := 0; i < len(receipt.Logs); i++ {
+		receipt.Logs[i].TxHash = processedTx.Tx.Hash()
 	}
 
 	if processedTx.Error == "" {

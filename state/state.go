@@ -118,18 +118,24 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 }
 
 // EstimateGas for a transaction
-func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address) (uint64, error) {
+func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	var lowEnd uint64
 	var highEnd uint64
 	ctx := context.Background()
 
-	lastBatch, err := s.GetLastBatch(ctx, nil)
+	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
 	if err != nil {
-		log.Errorf("failed to get last batch from the state, err: %v", err)
 		return 0, err
 	}
 
-	stateRoot := lastBatch.StateRoot
+	// Get latest batch from the database to get GER and Timestamp
+	lastBatch := lastBatches[0]
+
+	// Get batch before latest to get state root and local exit root
+	previousBatch := lastBatches[0]
+	if len(lastBatches) > 1 {
+		previousBatch = lastBatches[1]
+	}
 
 	if s.isContractCreation(transaction) {
 		lowEnd = TxSmartContractCreationGas
@@ -146,7 +152,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	var availableBalance *big.Int
 
 	if senderAddress != ZeroAddress {
-		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, stateRoot.Bytes())
+		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, l2BlockStateRoot.Bytes())
 		if err != nil {
 			if err == ErrNotFound {
 				senderBalance = big.NewInt(0)
@@ -180,7 +186,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	// Checks if executor level valid gas errors occurred
 	isGasApplyError := func(err error) bool {
-		return errors.As(err, &ErrNotEnoughIntrinsicGas)
+		return errors.Is(err, ErrNotEnoughIntrinsicGas)
 	}
 
 	// Checks if EVM level valid gas errors occurred
@@ -195,55 +201,69 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	}
 
 	// Run the transaction with the specified gas value.
-	// Returns a status indicating if the transaction failed and the accompanying error
-	testTransaction := func(gas uint64, shouldOmitErr bool) (bool, error) {
-		batchL2Data, err := EncodeTransactions([]types.Transaction{*transaction})
+	// Returns a status indicating if the transaction failed, if it was reverted and the accompanying error
+	testTransaction := func(gas uint64, shouldOmitErr bool) (bool, bool, error) {
+		tx := types.NewTx(&types.LegacyTx{
+			Nonce:    transaction.Nonce(),
+			To:       transaction.To(),
+			Value:    transaction.Value(),
+			Gas:      gas,
+			GasPrice: transaction.GasPrice(),
+			Data:     transaction.Data(),
+		})
+		batchL2Data, err := EncodeUnsignedTransaction(*tx)
 		if err != nil {
-			return false, err
+			log.Errorf("error encoding unsigned transaction ", err)
+			return false, false, err
 		}
 
 		// Create a batch to be sent to the executor
 		processBatchRequest := &pb.ProcessBatchRequest{
 			BatchNum:         lastBatch.BatchNumber + 1,
-			Coinbase:         senderAddress.String(),
 			BatchL2Data:      batchL2Data,
-			OldStateRoot:     stateRoot.Bytes(),
+			From:             senderAddress.String(),
+			OldStateRoot:     l2BlockStateRoot.Bytes(),
+			GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
+			OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+			EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+			Coinbase:         lastBatch.Coinbase.String(),
 			UpdateMerkleTree: cFalse,
 		}
 
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 		if err != nil {
-			return false, err
+			log.Errorf("error processing unsigned transaction ", err)
+			return false, false, err
 		}
 
 		// Check if an out of gas error happened during EVM execution
 		if processBatchResponse.Responses[0].Error != pb.Error(executor.ERROR_NO_ERROR) {
-			error := fmt.Errorf(executor.ExecutorError(processBatchResponse.Responses[0].Error).Error())
+			err := executor.ExecutorError(processBatchResponse.Responses[0].Error).Err()
 
-			if (isGasEVMError(error) || isGasApplyError(error)) && shouldOmitErr {
+			if (isGasEVMError(err) || isGasApplyError(err)) && shouldOmitErr {
 				// Specifying the transaction failed, but not providing an error
 				// is an indication that a valid error occurred due to low gas,
 				// which will increase the lower bound for the search
-				return true, nil
+				return true, false, nil
 			}
 
-			if isEVMRevertError(error) {
+			if isEVMRevertError(err) {
 				// The EVM reverted during execution, attempt to extract the
 				// error message and return it
-				return true, constructErrorFromRevert(error, processBatchResponse.Responses[0].ReturnValue)
+				return true, true, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
 			}
 
-			return true, error
+			return true, false, err
 		}
 
-		return false, nil
+		return false, false, nil
 	}
 
 	// Start the binary search for the lowest possible gas price
 	for lowEnd < highEnd {
 		mid := (lowEnd + highEnd) / uint64(two)
 
-		failed, testErr := testTransaction(mid, true)
+		failed, _, testErr := testTransaction(mid, true)
 		if testErr != nil &&
 			!isEVMRevertError(testErr) {
 			// Reverts are ignored in the binary search, but are checked later on
@@ -261,8 +281,12 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	}
 
 	// Check if the highEnd is a good value to make the transaction pass
-	failed, err := testTransaction(highEnd, false)
+	failed, reverted, err := testTransaction(highEnd, false)
 	if failed {
+		if reverted {
+			return 0, err
+		}
+
 		// The transaction shouldn't fail, for whatever reason, at highEnd
 		return 0, fmt.Errorf(
 			"unable to apply transaction even for the highest gas limit %d: %w",
@@ -336,8 +360,10 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 
 	// Get latest batch from the database to get GER and Timestamp
 	lastBatch := lastBatches[0]
+
 	// Get batch before latest to get state root and local exit root
 	previousBatch := lastBatches[1]
+
 	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
 	if err != nil {
 		return nil, err
@@ -738,6 +764,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 
 	// Get latest batch from the database to get GER and Timestamp
 	lastBatch := lastBatches[0]
+
 	// Get batch before latest to get state root and local exit root
 	previousBatch := lastBatches[1]
 
@@ -778,9 +805,11 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	result.ReturnValue = r.ReturnValue
 	result.GasLeft = r.GasLeft
 	result.GasUsed = r.GasUsed
-	result.Err = fmt.Errorf(r.Error)
 	result.CreateAddress = r.CreateAddress
 	result.StateRoot = r.StateRoot.Bytes()
+	if r.Error != "" {
+		result.Err = fmt.Errorf(r.Error)
+	}
 
 	return result
 }

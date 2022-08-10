@@ -41,7 +41,6 @@ const (
 	getLastL2BlockNumber                     = "SELECT block_num FROM state.l2block ORDER BY block_num DESC LIMIT 1"
 	getBlockTimeByNumSQL                     = "SELECT received_at FROM state.block WHERE block_num = $1"
 	getForcedBatchByBatchNumSQL              = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num from state.forced_batch WHERE batch_num = $1"
-	getBatchByNumberSQL                      = "SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data from state.batch WHERE batch_num = $1"
 	getProcessingContextSQL                  = "SELECT batch_num, global_exit_root, timestamp, coinbase from state.batch WHERE batch_num = $1"
 	getEncodedTransactionsByBatchNumberSQL   = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1"
 	getTransactionHashesByBatchNumberSQL     = "SELECT hash FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1"
@@ -501,8 +500,35 @@ func (p *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 
 // GetBatchByNumber returns the batch with the given number.
 func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+	const getBatchByNumberSQL = `
+		SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data
+		  FROM state.batch 
+		 WHERE batch_num = $1`
+
 	e := p.getExecQuerier(dbTx)
 	row := e.QueryRow(ctx, getBatchByNumberSQL, batchNumber)
+	batch, err := scanBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+	return &batch, nil
+}
+
+// GetBatchByL2BlockNumber returns the batch related to the l2 block accordingly to the provided l2 block number.
+func (p *PostgresStorage) GetBatchByL2BlockNumber(ctx context.Context, l2BlockNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+	const getBatchByL2BlockNumberSQL = `
+		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data 
+		  FROM state.batch bt
+		 INNER JOIN state.l2block bl
+		    ON bt.batch_num = bl.batch_num
+		 WHERE bl.block_num = $1
+		 LIMIT 1;`
+
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, getBatchByL2BlockNumberSQL, l2BlockNumber)
 	batch, err := scanBatch(row)
 
 	if errors.Is(err, pgx.ErrNoRows) {

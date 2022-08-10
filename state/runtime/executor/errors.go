@@ -1,6 +1,8 @@
 package executor
 
 import (
+	"fmt"
+
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 )
 
@@ -42,36 +44,44 @@ const (
 	ERROR_INTRINSIC_INVALID_TX
 )
 
-func (e ExecutorError) Error() string {
+func (e ExecutorError) Err() error {
 	switch e {
 	case ERROR_NO_ERROR:
-		return ""
+		return nil
 	case ERROR_OUT_OF_GAS:
-		return runtime.ErrOutOfGas.Error()
+		return runtime.ErrOutOfGas
 	case ERROR_STACK_OVERFLOW:
-		return runtime.ErrStackOverflow.Error()
+		return runtime.ErrStackOverflow
 	case ERROR_STACK_UNDERFLOW:
-		return runtime.ErrStackUnderflow.Error()
+		return runtime.ErrStackUnderflow
 	case ERROR_NOT_ENOUGH_FUNDS:
-		return runtime.ErrNotEnoughFunds.Error()
+		return runtime.ErrNotEnoughFunds
 	case ERROR_INSUFFICIENT_BALANCE:
-		return runtime.ErrInsufficientBalance.Error()
+		return runtime.ErrInsufficientBalance
 	case ERROR_CODE_NOT_FOUND:
-		return runtime.ErrCodeNotFound.Error()
+		return runtime.ErrCodeNotFound
 	case ERROR_MAX_CODE_SIZE_EXCEEDED:
-		return runtime.ErrMaxCodeSizeExceeded.Error()
+		return runtime.ErrMaxCodeSizeExceeded
 	case ERROR_CONTRACT_ADDRESS_COLLISION:
-		return runtime.ErrContractAddressCollision.Error()
+		return runtime.ErrContractAddressCollision
 	case ERROR_DEPTH:
-		return runtime.ErrDepth.Error()
+		return runtime.ErrDepth
 	case ERROR_EXECUTION_REVERTED:
-		return runtime.ErrExecutionReverted.Error()
+		return runtime.ErrExecutionReverted
 	case ERROR_CODE_STORE_OUT_OF_GAS:
-		return runtime.ErrCodeStoreOutOfGas.Error()
+		return runtime.ErrCodeStoreOutOfGas
 	case ERROR_OUT_OF_COUNTERS:
-		return runtime.ErrOutOfCounters.Error()
+		return runtime.ErrOutOfCounters
 	case ERROR_INVALID_TX, ERROR_INTRINSIC_INVALID_TX:
-		return runtime.ErrInvalidTransaction.Error()
+		return runtime.ErrInvalidTransaction
 	}
-	return "unknown error"
+	return fmt.Errorf("unknown error")
+}
+
+func (e ExecutorError) Error() string {
+	err := e.Err()
+	if err != nil {
+		return e.Err().Error()
+	}
+	return ""
 }
