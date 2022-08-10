@@ -15,15 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	defaultArity                = 4
-	defaultSequencerAddress     = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
-	defaultSequencerPrivateKey  = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
-	defaultSequencerChainID     = 400
-	defaultSequencerBalance     = 400000
-	defaultMaxCumulativeGasUsed = 800000
-)
-
 // TestJSONRPC tests JSON RPC methods on a running environment.
 func TestJSONRPC(t *testing.T) {
 	if testing.Short() {
@@ -33,15 +24,8 @@ func TestJSONRPC(t *testing.T) {
 	ctx := context.Background()
 
 	opsCfg := &operations.Config{
-		Arity: defaultArity,
-		State: &state.Config{
-			MaxCumulativeGasUsed: defaultMaxCumulativeGasUsed,
-		},
-		Sequencer: &operations.SequencerConfig{
-			Address:    defaultSequencerAddress,
-			PrivateKey: defaultSequencerPrivateKey,
-			ChainID:    defaultSequencerChainID,
-		},
+		Arity: operations.DefaultArity, State: &state.Config{MaxCumulativeGasUsed: operations.DefaultMaxCumulativeGasUsed},
+		Sequencer: &operations.SequencerConfig{Address: operations.DefaultSequencerAddress, PrivateKey: operations.DefaultSequencerPrivateKey},
 	}
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
@@ -50,10 +34,10 @@ func TestJSONRPC(t *testing.T) {
 		require.NoError(t, operations.Teardown())
 	}()
 
-	sequencerBalance := new(big.Int).SetInt64(int64(defaultSequencerBalance))
+	sequencerBalance := new(big.Int).SetInt64(int64(operations.DefaultSequencerBalance))
 
 	genesisAccounts := make(map[string]big.Int)
-	genesisAccounts[defaultSequencerAddress] = *sequencerBalance
+	genesisAccounts[operations.DefaultSequencerAddress] = *sequencerBalance
 	require.NoError(t, opsman.SetGenesis(genesisAccounts))
 
 	require.NoError(t, opsman.Setup())

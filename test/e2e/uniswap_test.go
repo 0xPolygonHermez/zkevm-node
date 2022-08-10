@@ -42,7 +42,6 @@ func TestUniswap(t *testing.T) {
 		Sequencer: &operations.SequencerConfig{
 			Address:    "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 			PrivateKey: "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
-			ChainID:    1001,
 		},
 	}
 	opsman, err := operations.NewManager(ctx, opsCfg)

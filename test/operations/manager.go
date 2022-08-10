@@ -24,8 +24,6 @@ import (
 )
 
 const (
-	l1NetworkURL  = "http://localhost:8545"
-	l2NetworkURL  = "http://localhost:8123"
 	executorURI   = "127.0.0.1:50071"
 	merkletreeURI = "127.0.0.1:50061"
 
@@ -36,6 +34,22 @@ const (
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 )
 
+// Public constants
+const (
+	DefaultArity                = 4
+	DefaultSequencerAddress     = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+	DefaultSequencerPrivateKey  = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	DefaultSequencerBalance     = 400000
+	DefaultMaxCumulativeGasUsed = 800000
+
+	DefaultL1NetworkURL        = "http://localhost:8545"
+	DefaultL1ChainID    uint64 = 1337
+	DefaultL2NetworkURL        = "http://localhost:8123"
+	DefaultL2ChainID    uint64 = 1000
+
+	DefaultTimeoutTxToBeMined = 1 * time.Minute
+)
+
 var dbConfig = dbutils.NewConfigFromEnv()
 var executorConfig = executor.Config{URI: executorURI}
 var merkletreeConfig = merkletree.Config{URI: merkletreeURI}
@@ -43,7 +57,6 @@ var merkletreeConfig = merkletree.Config{URI: merkletreeURI}
 // SequencerConfig is the configuration for the sequencer operations.
 type SequencerConfig struct {
 	Address, PrivateKey string
-	ChainID             uint64
 }
 
 // Config is the main Manager configuration.
@@ -235,7 +248,7 @@ func (m *Manager) Setup() error {
 	}
 
 	// Approve matic
-	err = StartComponent("approve-matic")
+	err = approveMatic()
 	if err != nil {
 		return err
 	}
@@ -296,7 +309,7 @@ func initState(arity uint8, maxCumulativeGasUsed uint64) (*state.State, error) {
 // SetUpSequencer provide ETH, Matic to and register the sequencer
 func (m *Manager) SetUpSequencer() error {
 	// Eth client
-	client, err := ethclient.Dial(l1NetworkURL)
+	client, err := ethclient.Dial(DefaultL1NetworkURL)
 	if err != nil {
 		return err
 	}
@@ -432,6 +445,14 @@ func (m *Manager) StartNode() error {
 	return StartComponent("node", nodeUpCondition)
 }
 
+func approveMatic() error {
+	err := StartComponent("approve-matic")
+	if err != nil {
+		return err
+	}
+	return StopComponent("approve-matic")
+}
+
 func stopNode() error {
 	return StopComponent("node")
 }
@@ -473,4 +494,44 @@ func StopComponent(component string) error {
 func runMakeTarget(target string) error {
 	cmd := exec.Command("make", target)
 	return runCmd(cmd)
+}
+
+// GetDefaultOperationsConfig provides a default configuration to run the environment
+func GetDefaultOperationsConfig() *Config {
+	return &Config{
+		Arity: DefaultArity, State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
+		Sequencer: &SequencerConfig{Address: DefaultSequencerAddress, PrivateKey: DefaultSequencerPrivateKey},
+	}
+}
+
+// GetL1AndL2Clients provides a client for L1 and another one for L2 already connected to the default URLs
+func GetL1AndL2Clients() (*ethclient.Client, *ethclient.Client, error) {
+	l1Client, err := ethclient.Dial(DefaultL1NetworkURL)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	l2Client, err := ethclient.Dial(DefaultL2NetworkURL)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return l1Client, l2Client, nil
+}
+
+// GetL1AndL2Authorizations provides an authorization for L1 and another one for L2 already with the default ChainIDs
+func GetL1AndL2Authorizations() (*bind.TransactOpts, *bind.TransactOpts, error) {
+	chainID := big.NewInt(0).SetUint64(DefaultL1ChainID)
+	l1Auth, err := GetAuth(DefaultSequencerPrivateKey, chainID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	chainID = big.NewInt(0).SetUint64(DefaultL2ChainID)
+	l2Auth, err := GetAuth(DefaultSequencerPrivateKey, chainID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return l1Auth, l2Auth, nil
 }
