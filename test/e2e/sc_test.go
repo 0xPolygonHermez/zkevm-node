@@ -21,7 +21,9 @@ func TestEmitLog2(t *testing.T) {
 		t.Skip()
 	}
 	var err error
-	operations.Teardown()
+	err = operations.Teardown()
+	require.NoError(t, err)
+
 	defer func() { require.NoError(t, operations.Teardown()) }()
 
 	ctx := context.Background()

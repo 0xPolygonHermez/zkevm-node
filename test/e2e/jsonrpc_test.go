@@ -15,8 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const ()
-
 // TestJSONRPC tests JSON RPC methods on a running environment.
 func TestJSONRPC(t *testing.T) {
 	if testing.Short() {
