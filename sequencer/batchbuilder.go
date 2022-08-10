@@ -24,14 +24,14 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 	log.Info("synchronizer has synced last batch, checking if current sequence should be closed")
 
-	// Check if should close sequence
+	// Check if sequence should be close
 	log.Infof("checking if current sequence should be closed")
 	if s.shouldCloseSequenceInProgress(ctx) {
 		log.Infof("current sequence should be closed")
 		err := s.closeSequence(ctx)
 		if err != nil {
 			log.Errorf("error closing sequence: %v", err)
-			log.Info("reseting sequence in progress")
+			log.Info("resetting sequence in progress")
 			if err = s.loadSequenceFromState(ctx); err != nil {
 				log.Error("error loading sequence from state: %v", err)
 			}
@@ -243,23 +243,44 @@ func (s *Sequencer) closeSequence(ctx context.Context) error {
 // in case it's enough blocks since last GER update, long time since last batch and sequence is profitable
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	// Check if GER needs to be updated
-	numberOfBlocks, err := s.state.GetNumberOfBlocksSinceLastGERUpdate(ctx, nil)
-	if err != nil && err != state.ErrNotFound {
-		log.Errorf("failed to get last time GER updated, err: %v", err)
+	blockNum, mainnetExitRoot, err := s.state.GetBlockNumAndMainnetExitRootByGER(ctx, s.sequenceInProgress.GlobalExitRoot, nil)
+	if err != nil {
+		log.Errorf("failed to get mainnetExitRoot and blockNum by ger, err: %v", err)
 		return false
 	}
-	if numberOfBlocks >= s.cfg.WaitBlocksToUpdateGER {
-		if len(s.sequenceInProgress.Txs) == 0 {
-			log.Warn("TODO: update GER without closing batch as no txs have been added yet")
+
+	lastGer, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
+	if err != nil {
+		log.Errorf("failed to get latest global exit root, err: %v", err)
+		return false
+	}
+
+	if lastGer.MainnetExitRoot != mainnetExitRoot {
+		log.Info("last mainnet exit root %s not equal to current sequence mainnet exit root %s", lastGer.MainnetExitRoot.String(), mainnetExitRoot.String())
+	} else {
+		latestBlockNumber, err := s.etherman.GetLatestBlockNumber(ctx)
+		if err != nil {
+			log.Errorf("failed to get latest batch number from ethereum, err: %v", err)
 			return false
 		}
-		isProfitable := s.isSequenceProfitable(ctx)
-		if isProfitable {
-			log.Infof("current sequence should be closed because %d blocks have been mined since last GER and tx is profitable", numberOfBlocks)
-			return true
+		if latestBlockNumber-blockNum > s.cfg.WaitBlocksToUpdateGER {
+			if len(s.sequenceInProgress.Txs) == 0 {
+				log.Info("update GER without closing batch as no txs have been added yet")
+				err = s.state.UpdateGERInOpenBatch(ctx, lastGer.GlobalExitRoot, nil)
+				if err != nil {
+					log.Errorf("failed to update ger in open batch, err: %v", err)
+					return false
+				}
+			} else {
+				isProfitable := s.isSequenceProfitable(ctx)
+				if isProfitable {
+					log.Infof("current sequence should be closed because blocks have been mined since last GER and tx is profitable")
+					return true
+				}
+			}
 		}
 	}
-	// Check if it has been to long since a batch is virtualized
+	// Check if it has been too long since a batch is virtualized
 	lastBatchTime, err := s.state.GetLastBatchTime(ctx, nil)
 	if err != nil && !errors.Is(err, state.ErrNotFound) {
 		log.Errorf("failed to get last batch time, err: %v", err)

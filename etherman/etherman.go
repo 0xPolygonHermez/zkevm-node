@@ -563,6 +563,14 @@ func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
 	return etherMan.PoE.LastBatchSequenced(&bind.CallOpts{Pending: false})
 }
 
+func (etherMan *Client) GetLatestBlockNumber(ctx context.Context) (uint64, error) {
+	header, err := etherMan.EtherClient.HeaderByNumber(ctx, nil)
+	if err != nil || header == nil {
+		return 0, err
+	}
+	return header.Number.Uint64(), nil
+}
+
 // GetLatestVerifiedBatchNum gets latest verified batch from ethereum
 func (etherMan *Client) GetLatestVerifiedBatchNum() (uint64, error) {
 	return etherMan.PoE.LastVerifiedBatch(&bind.CallOpts{Pending: false})

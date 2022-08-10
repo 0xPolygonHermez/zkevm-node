@@ -277,6 +277,54 @@ func (p *PostgresStorage) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Contex
 	return lastBlockNum - lastExitRootBlockNum, nil
 }
 
+// UpdateGlobalExitRootBlockNum updates global exit root block num in case ger gets too old
+func (p *PostgresStorage) UpdateGlobalExitRootBlockNum(ctx context.Context, dbTx pgx.Tx) error {
+	var (
+		lastBlockNum uint64
+		exitRoot     GlobalExitRoot
+		globalNum    uint64
+	)
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getLastBlockNumSQL).Scan(&lastBlockNum)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	err = e.QueryRow(ctx, getLatestExitRootSQL).Scan(
+		&exitRoot.BlockNumber,
+		&globalNum,
+		&exitRoot.MainnetExitRoot,
+		&exitRoot.RollupExitRoot,
+		&exitRoot.GlobalExitRoot)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+
+	_, err = e.Exec(ctx, addGlobalExitRootSQL, lastBlockNum, exitRoot.GlobalExitRootNum.String(), exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot, exitRoot.GlobalExitRoot)
+	return err
+}
+
+func (p *PostgresStorage) GetBlockNumAndMainnetExitRootByGER(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (uint64, common.Hash, error) {
+	var (
+		blockNum        uint64
+		mainnetExitRoot common.Hash
+	)
+	e := p.getExecQuerier(dbTx)
+	const getMainnetExitRoot = "SELECT block_num, mainnet_exit_root FROM state.exit_root WHERE global_exit_root = $1"
+	err := e.QueryRow(ctx, getMainnetExitRoot, ger.String()).Scan(&blockNum, &mainnetExitRoot)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, common.Hash{}, ErrNotFound
+	} else if err != nil {
+		return 0, common.Hash{}, err
+	}
+
+	return blockNum, mainnetExitRoot, nil
+}
+
 // GetTimeForLatestBatchVirtualization returns the timestamp of the latest
 // virtual batch.
 func (p *PostgresStorage) GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
@@ -746,6 +794,19 @@ func (p *PostgresStorage) openBatch(ctx context.Context, batchContext Processing
 func (p *PostgresStorage) closeBatch(ctx context.Context, receipt ProcessingReceipt, rawTxs []byte, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, closeBatchSQL, receipt.StateRoot.String(), receipt.LocalExitRoot.String(), rawTxs, receipt.BatchNumber)
+	return err
+}
+
+// UpdateGERInOpenBatch update ger in open batch
+func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.Hash, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+	const updateGER = `
+			UPDATE 
+    			state.batch
+			SET global_exit_root = $1
+			WHERE batch_num = (SELECT batch_num FROM state.batch ORDER BY batch_num DESC LIMIT 1) 
+				AND state_root IS NULL`
+	_, err := e.Exec(ctx, updateGER, ger)
 	return err
 }
 
