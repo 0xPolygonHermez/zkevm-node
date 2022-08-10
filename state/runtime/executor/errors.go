@@ -44,6 +44,7 @@ const (
 	ERROR_INTRINSIC_INVALID_TX
 )
 
+// Err returns an instance of error related to the ExecutorError
 func (e ExecutorError) Err() error {
 	switch e {
 	case ERROR_NO_ERROR:
@@ -78,6 +79,7 @@ func (e ExecutorError) Err() error {
 	return fmt.Errorf("unknown error")
 }
 
+// Error returns the error message
 func (e ExecutorError) Error() string {
 	err := e.Err()
 	if err != nil {

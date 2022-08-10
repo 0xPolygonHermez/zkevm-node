@@ -62,7 +62,7 @@ func EncodeUnsignedTransaction(tx types.Transaction) ([]byte, error) {
 
 	sign := 1 - (v.Uint64() & 1)
 
-	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), big.NewInt(1000)
+	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), big.NewInt(1000) //nolint:gomnd
 	log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", data, " ", chainID)
 
 	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
@@ -72,7 +72,7 @@ func EncodeUnsignedTransaction(tx types.Transaction) ([]byte, error) {
 		to,
 		value,
 		data,
-		chainID, uint(0), uint(0), //nolint:gomnd
+		chainID, uint(0), uint(0),
 	})
 
 	if err != nil {
