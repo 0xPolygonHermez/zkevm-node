@@ -42327,22 +42327,6 @@
         "logs": [
           {
             "data": [
-              "000000000000000000000002540be400"
-            ],
-            "topics": [
-              "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-              "00000000000000000000000000000000",
-              "4d5cf5032b2a844602278b01199ed191a86c93ff"
-            ],
-            "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
-            "batch_number": 1,
-            "tx_hash": "0xeeb51664fd2b6dcf865de752589f59f29b8398bdc38b5f556715ae88615c4641",
-            "tx_index": 0,
-            "batch_hash": "0x7624c022e923e798a6682171fd27b54912c426cfd92d49fb6be3bf300ba27679",
-            "index": 0
-          },
-          {
-            "data": [
               "00000000000000000000000000000320"
             ],
             "topics": [
@@ -92309,40 +92293,6 @@
         "error": "",
         "create_address": "",
         "state_root": "0x9cbde9c3bbb2b024bf1a0cbe9f1de937da0433014d3fd4f4a51bad93b717141f",
-        "logs": [
-          {
-            "data": [
-              "000000000000000000000002540be400"
-            ],
-            "topics": [
-              "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-              "00000000000000000000000000000000",
-              "4d5cf5032b2a844602278b01199ed191a86c93ff"
-            ],
-            "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
-            "batch_number": 1,
-            "tx_hash": "0xeeb51664fd2b6dcf865de752589f59f29b8398bdc38b5f556715ae88615c4641",
-            "tx_index": 0,
-            "batch_hash": "0x7624c022e923e798a6682171fd27b54912c426cfd92d49fb6be3bf300ba27679",
-            "index": 0
-          },
-          {
-            "data": [
-              "00000000000000000000000000000320"
-            ],
-            "topics": [
-              "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-              "4d5cf5032b2a844602278b01199ed191a86c93ff",
-              "617b3a3528f9cdd6630fd3301b9c8911f7bf063d"
-            ],
-            "address": "0x1275fbb540c8efc58b812ba83b0d0b8b9917ae98",
-            "batch_number": 1,
-            "tx_hash": "0xe155a592722177c9de6fbf9639d9117afd50a4582b255007c75bbc16ca32bd12",
-            "tx_index": 1,
-            "batch_hash": "0x7624c022e923e798a6682171fd27b54912c426cfd92d49fb6be3bf300ba27679",
-            "index": 1
-          }
-        ],
         "unprocessed_transaction": false,
         "call_trace": {
           "context": {
