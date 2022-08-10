@@ -277,37 +277,6 @@ func (p *PostgresStorage) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Contex
 	return lastBlockNum - lastExitRootBlockNum, nil
 }
 
-// UpdateGlobalExitRootBlockNum updates global exit root block num in case ger gets too old
-func (p *PostgresStorage) UpdateGlobalExitRootBlockNum(ctx context.Context, dbTx pgx.Tx) error {
-	var (
-		lastBlockNum uint64
-		exitRoot     GlobalExitRoot
-		globalNum    uint64
-	)
-	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getLastBlockNumSQL).Scan(&lastBlockNum)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotFound
-	} else if err != nil {
-		return err
-	}
-	err = e.QueryRow(ctx, getLatestExitRootSQL).Scan(
-		&exitRoot.BlockNumber,
-		&globalNum,
-		&exitRoot.MainnetExitRoot,
-		&exitRoot.RollupExitRoot,
-		&exitRoot.GlobalExitRoot)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotFound
-	} else if err != nil {
-		return err
-	}
-
-	_, err = e.Exec(ctx, addGlobalExitRootSQL, lastBlockNum, exitRoot.GlobalExitRootNum.String(), exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot, exitRoot.GlobalExitRoot)
-	return err
-}
-
 // GetBlockNumAndMainnetExitRootByGER gets block number and mainnet exit root by the global exit root
 func (p *PostgresStorage) GetBlockNumAndMainnetExitRootByGER(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (uint64, common.Hash, error) {
 	var (
@@ -800,14 +769,37 @@ func (p *PostgresStorage) closeBatch(ctx context.Context, receipt ProcessingRece
 
 // UpdateGERInOpenBatch update ger in open batch
 func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.Hash, dbTx pgx.Tx) error {
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+
+	var (
+		batchNumber   uint64
+		isBatchHasTxs bool
+	)
 	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getLastBatchNumberSQL).Scan(&batchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrStateNotSynchronized
+	}
+
+	const isBatchHasTxsQuery = `SELECT raw_txs_data IS NULL FROM state.batch WHERE batch_num = $1`
+	err = e.QueryRow(ctx, isBatchHasTxsQuery).Scan(&isBatchHasTxs)
+	if err != nil {
+		return err
+	}
+
+	if isBatchHasTxs {
+		return errors.New("batch has txs, can't change GER")
+	}
+
 	const updateGER = `
 			UPDATE 
     			state.batch
-			SET global_exit_root = $1
+			SET global_exit_root = $1 AND timestamp = $2
 			WHERE batch_num = (SELECT batch_num FROM state.batch ORDER BY batch_num DESC LIMIT 1) 
 				AND state_root IS NULL`
-	_, err := e.Exec(ctx, updateGER, ger)
+	_, err = e.Exec(ctx, updateGER, ger, time.Now())
 	return err
 }
 

@@ -256,8 +256,6 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	}
 
 	if lastGer.MainnetExitRoot != mainnetExitRoot {
-		log.Info("last mainnet exit root %s not equal to current sequence mainnet exit root %s", lastGer.MainnetExitRoot.String(), mainnetExitRoot.String())
-	} else {
 		latestBlockNumber, err := s.etherman.GetLatestBlockNumber(ctx)
 		if err != nil {
 			log.Errorf("failed to get latest batch number from ethereum, err: %v", err)
@@ -266,9 +264,28 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 		if latestBlockNumber-blockNum > s.cfg.WaitBlocksToUpdateGER {
 			if len(s.sequenceInProgress.Txs) == 0 {
 				log.Info("update GER without closing batch as no txs have been added yet")
-				err = s.state.UpdateGERInOpenBatch(ctx, lastGer.GlobalExitRoot, nil)
+
+				dbTx, err := s.state.BeginStateTransaction(ctx)
 				if err != nil {
+					log.Errorf("failed to begin state transaction for UpdateGERInOpenBatch tx, err: %v", err)
+					return false
+				}
+
+				err = s.state.UpdateGERInOpenBatch(ctx, lastGer.GlobalExitRoot, dbTx)
+				if err != nil {
+					if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+						log.Errorf(
+							"failed to rollback dbTx when UpdateGERInOpenBatch that gave err: %v. Rollback err: %v",
+							rollbackErr, err,
+						)
+						return false
+					}
 					log.Errorf("failed to update ger in open batch, err: %v", err)
+					return false
+				}
+
+				if err := dbTx.Commit(ctx); err != nil {
+					log.Errorf("failed to commit dbTx when processing UpdateGERInOpenBatch, err: %v", err)
 					return false
 				}
 			} else {
