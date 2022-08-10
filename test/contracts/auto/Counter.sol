@@ -9,7 +9,7 @@ contract Counter {
         count += 1;
     }
 
-    function getCount() external view returns (uint) {
+    function getCount() public view returns (uint) {
         return count;
     }
 }
