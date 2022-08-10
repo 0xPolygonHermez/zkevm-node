@@ -30,8 +30,8 @@ var (
 
 // CounterMetaData contains all meta data concerning the Counter contract.
 var CounterMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"count\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"increment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
-	Bin: "0x608060405234801561001057600080fd5b5060cb8061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806306661abd146037578063d09de08a146051575b600080fd5b603f60005481565b60405190815260200160405180910390f35b60576059565b005b6001600080828254606991906070565b9091555050565b60008219821115609057634e487b7160e01b600052601160045260246000fd5b50019056fea2646970667358221220291a8fdae1dee080b8e7b2f52ecb2a5cd0db107c01dcacaad9086af92edd64e564736f6c634300080c0033",
+	ABI: "[{\"inputs\":[],\"name\":\"count\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getCount\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"increment\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b5060dc8061001f6000396000f3fe6080604052348015600f57600080fd5b5060043610603c5760003560e01c806306661abd146041578063a87d942c14605b578063d09de08a146062575b600080fd5b604960005481565b60405190815260200160405180910390f35b6000546049565b6068606a565b005b6001600080828254607a91906081565b9091555050565b6000821982111560a157634e487b7160e01b600052601160045260246000fd5b50019056fea26469706673582212203dde2a11f13de2ac0ba7c486c16ed13e810a9bfd6907be0249306d2273373bd664736f6c634300080c0033",
 }
 
 // CounterABI is the input ABI used to generate the binding from.
@@ -230,6 +230,37 @@ func (_Counter *CounterSession) Count() (*big.Int, error) {
 // Solidity: function count() view returns(uint256)
 func (_Counter *CounterCallerSession) Count() (*big.Int, error) {
 	return _Counter.Contract.Count(&_Counter.CallOpts)
+}
+
+// GetCount is a free data retrieval call binding the contract method 0xa87d942c.
+//
+// Solidity: function getCount() view returns(uint256)
+func (_Counter *CounterCaller) GetCount(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _Counter.contract.Call(opts, &out, "getCount")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetCount is a free data retrieval call binding the contract method 0xa87d942c.
+//
+// Solidity: function getCount() view returns(uint256)
+func (_Counter *CounterSession) GetCount() (*big.Int, error) {
+	return _Counter.Contract.GetCount(&_Counter.CallOpts)
+}
+
+// GetCount is a free data retrieval call binding the contract method 0xa87d942c.
+//
+// Solidity: function getCount() view returns(uint256)
+func (_Counter *CounterCallerSession) GetCount() (*big.Int, error) {
+	return _Counter.Contract.GetCount(&_Counter.CallOpts)
 }
 
 // Increment is a paid mutator transaction binding the contract method 0xd09de08a.

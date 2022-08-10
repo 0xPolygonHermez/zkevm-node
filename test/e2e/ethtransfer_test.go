@@ -21,6 +21,9 @@ func Test1000EthTransfer(t *testing.T) {
 		t.Skip()
 	}
 
+	defer func() {
+		require.NoError(t, operations.Teardown())
+	}()
 	cfg := &operations.Config{
 		Arity: 4,
 		State: &state.Config{
@@ -45,7 +48,7 @@ func Test1000EthTransfer(t *testing.T) {
 	client, err := ethclient.Dial("http://localhost:8123")
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 1000
+	nTxs := 100
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x0000000000000000000000000000000000000001")
 	gasLimit := uint64(21000)
