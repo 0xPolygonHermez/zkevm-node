@@ -70,8 +70,15 @@ In order to add a new group, for instance, group 4, we should:
 * create a new subdir `e2e-group4` under `ci/`.
 * symlink from `./ci/e2e-group4` the e2e test (under `./test/e2e`) that we want
 to belong to the new group.
-* create a new makefile entry, `test-e2e-group-4` similar to
-https://github.com/0xPolygonHermez/zkevm-node/blob/develop/Makefile#L131
+* create a new makefile entry, `test-e2e-group-4` that executes the go tests in
+`./ci/e2e-group4`, for instance:
+```
+.PHONY: test-e2e-group-4
+test-e2e-group-4: build-docker compile-scs ## Runs group 4 e2e tests checking race conditions
+	$(STOPDB)
+	$(RUNDB); sleep 7
+	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group4/...
+```
 * include `4` in the matrix definition for the `trusted` and `from-fork` jobs
 in `.github/workflows/test-e2e.yml`
 
