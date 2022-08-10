@@ -66,7 +66,7 @@ func EncodeUnsignedTransaction(tx types.Transaction) ([]byte, error) {
 		tx.To(),
 		tx.Value(),
 		tx.Data(),
-		big.NewInt(1000), uint(0), uint(0),
+		big.NewInt(1000), uint(0), uint(0), //nolint:gomnd
 	})
 
 	if err != nil {
