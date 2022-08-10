@@ -10,7 +10,6 @@ import (
 
 	aggrMocks "github.com/0xPolygonHermez/zkevm-node/aggregator/mocks"
 	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
-
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
