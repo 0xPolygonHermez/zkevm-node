@@ -23,7 +23,7 @@ func Test1000EthTransfer(t *testing.T) {
 	defer func() {
 		require.NoError(t, operations.Teardown())
 	}()
-	opsCfg := getDefaultOperationsConfig()
+	opsCfg := operations.GetDefaultOperationsConfig()
 	opsCfg.State.MaxCumulativeGasUsed = 80000000000
 	opsman, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)

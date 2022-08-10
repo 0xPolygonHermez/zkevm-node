@@ -144,11 +144,11 @@ func NodeUpCondition(target string) (bool, error) {
 type ConditionFunc func() (done bool, err error)
 
 func networkUpCondition() (bool, error) {
-	return NodeUpCondition(l1NetworkURL)
+	return NodeUpCondition(DefaultL1NetworkURL)
 }
 
 func nodeUpCondition() (done bool, err error) {
-	return NodeUpCondition(l2NetworkURL)
+	return NodeUpCondition(DefaultL2NetworkURL)
 }
 
 func grpcHealthyCondition(address string) (bool, error) {

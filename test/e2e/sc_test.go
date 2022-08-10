@@ -20,6 +20,7 @@ func TestEmitLog2(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+
 	var err error
 	err = operations.Teardown()
 	require.NoError(t, err)
@@ -27,16 +28,16 @@ func TestEmitLog2(t *testing.T) {
 	defer func() { require.NoError(t, operations.Teardown()) }()
 
 	ctx := context.Background()
-	opsCfg := getDefaultOperationsConfig()
+	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
 	err = opsMan.Setup()
 	require.NoError(t, err)
 
-	l1Client, l2Client, err := getClients()
+	l1Client, l2Client, err := operations.GetL1AndL2Clients()
 	require.NoError(t, err)
 
-	l1Auth, l2Auth, err := getAuth()
+	l1Auth, l2Auth, err := operations.GetL1AndL2Authorizations()
 	require.NoError(t, err)
 
 	test := func(t *testing.T, auth *bind.TransactOpts, client *ethclient.Client, gasLimit *uint64) {
@@ -52,14 +53,14 @@ func TestEmitLog2(t *testing.T) {
 		require.NoError(t, err)
 
 		log.Debug(scTx.Hash())
-		err = operations.WaitTxToBeMined(client, scTx.Hash(), defaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		scCallTx, err := sc.EmitLogs(auth)
 		require.NoError(t, err)
 
 		log.Debug(scCallTx.Hash())
-		err = operations.WaitTxToBeMined(client, scCallTx.Hash(), defaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(client, scCallTx.Hash(), operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		scCallTxReceipt, err := client.TransactionReceipt(ctx, scCallTx.Hash())
