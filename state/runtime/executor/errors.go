@@ -8,8 +8,10 @@ import (
 type ExecutorError int32
 
 const (
-	// NO_ERROR indicates the execution ended successfully
-	NO_ERROR ExecutorError = iota
+	// ERROR_UNSPECIFIED indicates the execution ended successfully
+	ERROR_UNSPECIFIED ExecutorError = iota
+	// ERROR_NO_ERROR indicates the execution ended successfully
+	ERROR_NO_ERROR
 	// ERROR_OUT_OF_GAS indicates there is not enough balance to continue the execution
 	ERROR_OUT_OF_GAS
 	// ERROR_STACK_OVERFLOW indicates a stack overflow has happened
@@ -36,11 +38,13 @@ const (
 	ERROR_OUT_OF_COUNTERS
 	// ERROR_INVALID_TX indicates the transaction is invalid
 	ERROR_INVALID_TX
+	// ERROR_INTRINSIC_INVALID_TX indicates the transaction is failing at the intrinsic checks
+	ERROR_INTRINSIC_INVALID_TX
 )
 
 func (e ExecutorError) Error() string {
 	switch e {
-	case NO_ERROR:
+	case ERROR_NO_ERROR:
 		return ""
 	case ERROR_OUT_OF_GAS:
 		return runtime.ErrOutOfGas.Error()
@@ -66,7 +70,7 @@ func (e ExecutorError) Error() string {
 		return runtime.ErrCodeStoreOutOfGas.Error()
 	case ERROR_OUT_OF_COUNTERS:
 		return runtime.ErrOutOfCounters.Error()
-	case ERROR_INVALID_TX:
+	case ERROR_INVALID_TX, ERROR_INTRINSIC_INVALID_TX:
 		return runtime.ErrInvalidTransaction.Error()
 	}
 	return "unknown error"
