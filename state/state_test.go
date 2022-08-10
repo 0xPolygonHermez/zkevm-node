@@ -1543,8 +1543,13 @@ func TestFromMock(t *testing.T) {
 
 	err = testState.ProcessAndStoreClosedBatch(ctx, processCtx, common.Hex2Bytes(tv.BatchL2Data), dbTx) // nolint:ineffassign,staticcheck
 	// TODO: actually check for nil err in ProcessAndStoreClosedBatch return value,
-	// currently blocked by https://github.com/0xPolygonHermez/zkevm-node/issues/1020
+	// currently blocked by the issue about the mismatched tx hashes described here
+	// https://github.com/0xPolygonHermez/zkevm-node/issues/1033
 	// require.NoError(t, err)
+
+	// TODO: currently the db tx is marked as invalid after the first error, once
+	// testState.ProcessAndStoreClosedBatch works properly we should make assertions
+	// about the database contents: batches, blocksL2, logs, receipts, ....
 }
 
 func TestExecutorUnsignedTransactions(t *testing.T) {
