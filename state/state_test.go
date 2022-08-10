@@ -1517,6 +1517,9 @@ func TestGenesisFromMock(t *testing.T) {
 }
 
 func TestExecutorUnsignedTransactions(t *testing.T) {
+	// Init database instance
+	err := dbutils.InitOrReset(cfg)
+	require.NoError(t, err)
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
