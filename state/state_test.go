@@ -1590,6 +1590,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	}
 	err = testState.OpenBatch(context.Background(), batchCtx, dbTx)
 	require.NoError(t, err)
+	log.Debug("Processing txs")
 	signedTxs := []types.Transaction{
 		*signedTxDeploy,
 		*signedTxFirstIncrement,
@@ -1609,6 +1610,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[2].ReturnValue))
 
 	// Add txs to DB
+	log.Debug("Storing txs")
 	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, dbTx)
 	require.NoError(t, err)
 	// Close batch
@@ -1621,11 +1623,9 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		}, dbTx,
 	)
 	require.NoError(t, err)
-
 	require.NoError(t, dbTx.Commit(context.Background()))
-	dbTx, err = testState.BeginStateTransaction(context.Background())
-	require.NoError(t, err)
-	// TODO: uncoment once it's working
+
+	log.Debug("Processing unsigned tx")
 	unsignedTxSecondRetrieve := types.NewTx(&types.LegacyTx{
 		Nonce:    0,
 		To:       &scAddress,
@@ -1634,7 +1634,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		GasPrice: new(big.Int),
 		Data:     retrieveFnSignature,
 	})
-	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), 3, dbTx)
+	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), 3, nil)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
