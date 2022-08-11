@@ -796,10 +796,10 @@ func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.H
 	const updateGER = `
 			UPDATE 
     			state.batch
-			SET global_exit_root = $1 AND timestamp = $2
-			WHERE batch_num = (SELECT batch_num FROM state.batch ORDER BY batch_num DESC LIMIT 1) 
+			SET global_exit_root = $1, timestamp = $2
+			WHERE batch_num = $3
 				AND state_root IS NULL`
-	_, err = e.Exec(ctx, updateGER, ger, time.Now())
+	_, err = e.Exec(ctx, updateGER, ger, time.Now(), batchNumber)
 	return err
 }
 
