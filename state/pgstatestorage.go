@@ -783,7 +783,7 @@ func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.H
 		return ErrStateNotSynchronized
 	}
 
-	const isBatchHasTxsQuery = `SELECT EXISTS (SELECT 1 FROM state.batch WHERE raw_txs_data IS NULL AND batch_num = $1)`
+	const isBatchHasTxsQuery = `SELECT EXISTS (SELECT 1 FROM state.batch WHERE raw_txs_data IS NOT NULL AND batch_num = $1)`
 	err = e.QueryRow(ctx, isBatchHasTxsQuery, batchNumber).Scan(&isBatchHasTxs)
 	if err != nil {
 		return err
