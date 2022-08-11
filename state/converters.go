@@ -69,23 +69,23 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 	return results, nil
 }
 
-func convertToLog(responses []*pb.Log) []*types.Log {
-	results := make([]*types.Log, 0, len(responses))
+func convertToLog(protoLogs []*pb.Log) []*types.Log {
+	logs := make([]*types.Log, 0, len(protoLogs))
 
-	for _, response := range responses {
-		result := new(types.Log)
-		result.Address = common.HexToAddress(response.Address)
-		result.Topics = convertToTopics(response.Topics)
-		result.Data = response.Data
-		result.BlockNumber = response.BatchNumber
-		result.TxHash = common.BytesToHash(response.TxHash)
-		result.TxIndex = uint(response.TxIndex)
-		result.BlockHash = common.BytesToHash(response.BatchHash)
-		result.Index = uint(response.Index)
-		results = append(results, result)
+	for _, protoLog := range protoLogs {
+		log := new(types.Log)
+		log.Address = common.HexToAddress(protoLog.Address)
+		log.Topics = convertToTopics(protoLog.Topics)
+		log.Data = protoLog.Data
+		log.BlockNumber = protoLog.BatchNumber
+		log.TxHash = common.BytesToHash(protoLog.TxHash)
+		log.TxIndex = uint(protoLog.TxIndex)
+		log.BlockHash = common.BytesToHash(protoLog.BatchHash)
+		log.Index = uint(protoLog.Index)
+		logs = append(logs, log)
 	}
 
-	return results
+	return logs
 }
 
 func convertToTopics(responses [][]byte) []common.Hash {

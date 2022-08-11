@@ -28,7 +28,7 @@ var (
 	// ErrDepth indicates the maximun call depth has been passed
 	ErrDepth = errors.New("max call depth exceeded")
 	// ErrExecutionReverted indicates the execution has been reverted
-	ErrExecutionReverted = errors.New("execution was reverted")
+	ErrExecutionReverted = errors.New("execution reverted")
 	// ErrCodeStoreOutOfGas indicates there is not enough gas for the storage
 	ErrCodeStoreOutOfGas = errors.New("contract creation code storage out of gas")
 	// ErrOutOfCounters indicates the executor run out of counters while executing the transaction

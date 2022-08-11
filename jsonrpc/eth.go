@@ -54,12 +54,24 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 			arg.Gas = &gas
 		}
 
-		tx := arg.ToTransaction()
-
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
+
+		if arg.From == state.ZeroAddress && arg.Nonce == nil {
+			nonce := argUint64(0)
+			arg.Nonce = &nonce
+		} else if arg.From != state.ZeroAddress && arg.Nonce == nil {
+			n, err := e.state.GetNonce(ctx, arg.From, blockNumber, dbTx)
+			if err != nil {
+				return rpcErrorResponse(defaultErrorCode, "failed to get nonce", err)
+			}
+			nonce := argUint64(n)
+			arg.Nonce = &nonce
+		}
+
+		tx := arg.ToTransaction()
 
 		result := e.state.ProcessUnsignedTransaction(ctx, tx, arg.From, blockNumber, dbTx)
 		if result.Failed() {
@@ -81,14 +93,38 @@ func (e *Eth) ChainId() (interface{}, rpcError) { //nolint:revive
 // Note that the estimate may be significantly more than the amount of gas actually
 // used by the transaction, for a variety of reasons including EVM mechanics and
 // node performance.
-func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, rpcError) {
-	tx := arg.ToTransaction()
+func (e *Eth) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
+	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		if number == nil {
+			lbn := LatestBlockNumber
+			number = &lbn
+		}
 
-	gasEstimation, err := e.state.EstimateGas(tx, arg.From)
-	if err != nil {
-		return rpcErrorResponse(defaultErrorCode, "failed to estimate gas", err)
-	}
-	return hex.EncodeUint64(gasEstimation), nil
+		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+
+		if arg.From == state.ZeroAddress && arg.Nonce == nil {
+			nonce := argUint64(0)
+			arg.Nonce = &nonce
+		} else if arg.From != state.ZeroAddress && arg.Nonce == nil {
+			n, err := e.state.GetNonce(ctx, arg.From, blockNumber, dbTx)
+			if err != nil {
+				return rpcErrorResponse(defaultErrorCode, "failed to get nonce", err)
+			}
+			nonce := argUint64(n)
+			arg.Nonce = &nonce
+		}
+
+		tx := arg.ToTransaction()
+
+		gasEstimation, err := e.state.EstimateGas(tx, arg.From, blockNumber, dbTx)
+		if err != nil {
+			return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
+		}
+		return hex.EncodeUint64(gasEstimation), nil
+	})
 }
 
 // GasPrice returns the average gas price based on the last x blocks

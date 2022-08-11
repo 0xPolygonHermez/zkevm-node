@@ -257,9 +257,9 @@ func handleError(w http.ResponseWriter, err error) {
 
 func rpcErrorResponse(code int, errorMessage string, err error) (interface{}, rpcError) {
 	if err != nil {
-		log.Errorf("%v:%v", errorMessage, err)
+		log.Errorf("%v:%v", errorMessage, err.Error())
 	} else {
-		log.Errorf("%v", errorMessage)
+		log.Error(errorMessage)
 	}
 	return nil, newRPCError(code, errorMessage)
 }
