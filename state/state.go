@@ -448,7 +448,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		receipts := []*types.Receipt{generateReceipt(block, processedTx)}
 
 		// Store L2 block and its transaction
-		if err := s.PostgresStorage.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
+		if err := s.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
 			return err
 		}
 	}
@@ -944,7 +944,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
 	l2Block.ReceivedAt = receivedAt
 
-	return newRoot, s.PostgresStorage.AddL2Block(ctx, batch.BatchNumber, l2Block, []*types.Receipt{}, dbTx)
+	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, []*types.Receipt{}, dbTx)
 }
 
 // CheckSupersetBatchTransactions verifies that processedTransactions is a

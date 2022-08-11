@@ -69,7 +69,6 @@ const (
 	getL2BlockHeaderByHashSQL                = "SELECT header FROM state.l2block b WHERE b.block_hash = $1"
 	getTxsByBlockNumSQL                      = "SELECT encoded FROM state.transaction WHERE l2_block_num = $1"
 	getL2BlockHashesSinceSQL                 = "SELECT block_hash FROM state.l2block WHERE received_at >= $1"
-	getTransactionLogsSQL                    = "SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 FROM state.log l INNER JOIN state.transaction t ON t.hash = l.tx_hash INNER JOIN state.l2block b ON b.block_num = t.l2_block_num WHERE t.hash = $1"
 	getSyncingInfoSQL                        = `
 		SELECT coalesce(MIN(initial_blocks.block_num), 0) as init_sync_block
 			 , coalesce(MAX(virtual_blocks.block_num), 0) as last_block_num_seen
@@ -985,15 +984,30 @@ func (p *PostgresStorage) GetL2BlockTransactionCountByNumber(ctx context.Context
 // getTransactionLogs returns the logs of a transaction by transaction hash
 func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) ([]*types.Log, error) {
 	q := p.getExecQuerier(dbTx)
+
+	const getTransactionLogsSQL = `
+	SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
+	FROM state.log l
+	INNER JOIN state.transaction t ON t.hash = l.tx_hash
+	INNER JOIN state.l2block b ON b.block_num = t.l2_block_num 
+	WHERE t.hash = $1`
 	rows, err := q.Query(ctx, getTransactionLogsSQL, transactionHash.String())
 	if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 		return nil, err
 	}
+	return scanLogs(rows)
+}
+
+func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 	defer rows.Close()
 
 	logs := make([]*types.Log, 0, len(rows.RawValues()))
 
 	for rows.Next() {
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+
 		var log types.Log
 		var blockHash, txHash, logAddress, logData, topic0 string
 		var topic1, topic2, topic3 *string
@@ -1008,8 +1022,10 @@ func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHas
 		log.TxHash = common.HexToHash(txHash)
 		log.Address = common.HexToAddress(logAddress)
 		log.TxIndex = uint(0)
-		log.Data = []byte(logData)
-
+		log.Data, err = hex.DecodeHex(logData)
+		if err != nil {
+			return nil, err
+		}
 		log.Topics = []common.Hash{common.HexToHash(topic0)}
 		if topic1 != nil {
 			log.Topics = append(log.Topics, common.HexToHash(*topic1))
@@ -1024,6 +1040,10 @@ func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHas
 		}
 
 		logs = append(logs, &log)
+	}
+
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 
 	return logs, nil
@@ -1444,48 +1464,7 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	logs := make([]*types.Log, 0, len(rows.RawValues()))
-
-	for rows.Next() {
-		if rows.Err() != nil {
-			return nil, rows.Err()
-		}
-
-		var log types.Log
-		var blockHash, txHash, logAddress, logData string
-		var topicsHashes [maxTopics]*string
-
-		err := rows.Scan(&log.BlockNumber, &blockHash, &txHash, &log.Index,
-			&logAddress, &logData, &topicsHashes[0], &topicsHashes[1], &topicsHashes[2], &topicsHashes[3])
-		if err != nil {
-			return nil, err
-		}
-
-		log.BlockHash = common.HexToHash(blockHash)
-		log.TxHash = common.HexToHash(txHash)
-		log.Address = common.HexToAddress(logAddress)
-		log.TxIndex = uint(0)
-		log.Data, err = hex.DecodeHex(logData)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := 0; i < maxTopics; i++ {
-			if topicsHashes[i] != nil {
-				log.Topics = append(log.Topics, common.HexToHash(*topicsHashes[i]))
-			}
-		}
-
-		logs = append(logs, &log)
-	}
-
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
-
-	return logs, nil
+	return scanLogs(rows)
 }
 
 // GetSyncingInfo returns information regarding the syncing status of the node
@@ -1547,10 +1526,10 @@ func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx)
 	const addLogSQL = `INSERT INTO state.log (tx_hash, log_index, address, data, topic0, topic1, topic2, topic3)
 	                                  VALUES ($1, 	   $2,        $3,      $4,   $5,     $6,     $7,     $8)`
 
-	var topicsAsHex [maxTopics]string
+	var topicsAsHex [maxTopics]*string
 	for i := 0; i < len(l.Topics); i++ {
 		topicHex := l.Topics[i].String()
-		topicsAsHex[i] = topicHex
+		topicsAsHex[i] = &topicHex
 	}
 
 	e := p.getExecQuerier(dbTx)
