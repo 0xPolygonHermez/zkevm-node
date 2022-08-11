@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math/big"
 	"strings"
 	"testing"
@@ -393,9 +392,6 @@ func TestEstimateGas(t *testing.T) {
 					matchValue := tx.Value().Uint64() == testCase.value.Uint64()
 					matchData := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data)
 					matchNonce := tx.Nonce() == nonce
-					fmt.Println("***********************************************************")
-					fmt.Println(matchTo, matchGasPrice, matchValue, matchData, matchNonce)
-					fmt.Println("***********************************************************")
 					return matchTo && matchGasPrice && matchValue && matchData && matchNonce
 				})
 
