@@ -81,7 +81,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		// Check if can be send
 		estimatedGas, err = s.etherman.EstimateGasSequenceBatches(sequences)
 		if err != nil {
-			sequences, err = s.handleEstmateGasSendSequenceErr(sequences, currentBatchNumToSequence, err)
+			sequences, err = s.handleEstimateGasSendSequenceErr(sequences, currentBatchNumToSequence, err)
 			if sequences != nil {
 				// Handling the error gracefully, re-processing the sequence as a sanity check
 				_, err = s.etherman.EstimateGasSequenceBatches(sequences)
@@ -117,17 +117,17 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 	return nil, nil
 }
 
-// handleEstmateGasSendSequenceErr handles an error on the estimate gas. It will return:
+// handleEstimateGasSendSequenceErr handles an error on the estimate gas. It will return:
 // nil, error: impossible to handle gracefully
 // sequence, nil: handled gracefully. Potentially manipulating the sequences
 // nil, nil: a situation that requires waiting
-func (s *Sequencer) handleEstmateGasSendSequenceErr(
+func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	sequences []types.Sequence,
 	currentBatchNumToSequence uint64,
 	err error,
 ) ([]types.Sequence, error) {
-	// Insuficient allowance
-	if strings.Contains(err.Error(), errInsuficientAllowance) {
+	// Insufficient allowance
+	if strings.Contains(err.Error(), errInsufficientAllowance) {
 		return nil, err
 	}
 

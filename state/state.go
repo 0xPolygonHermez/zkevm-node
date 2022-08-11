@@ -604,6 +604,9 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(batches) == 0 {
+		return nil, ErrNotFound
+	}
 	return batches[0], nil
 }
 

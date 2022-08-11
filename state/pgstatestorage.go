@@ -271,6 +271,24 @@ func (p *PostgresStorage) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Contex
 	return lastBlockNum - lastExitRootBlockNum, nil
 }
 
+// GetBlockNumAndMainnetExitRootByGER gets block number and mainnet exit root by the global exit root
+func (p *PostgresStorage) GetBlockNumAndMainnetExitRootByGER(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (uint64, common.Hash, error) {
+	var (
+		blockNum        uint64
+		mainnetExitRoot common.Hash
+	)
+	e := p.getExecQuerier(dbTx)
+	const getMainnetExitRoot = "SELECT block_num, mainnet_exit_root FROM state.exit_root WHERE global_exit_root = $1"
+	err := e.QueryRow(ctx, getMainnetExitRoot, ger.String()).Scan(&blockNum, &mainnetExitRoot)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, common.Hash{}, ErrNotFound
+	} else if err != nil {
+		return 0, common.Hash{}, err
+	}
+
+	return blockNum, mainnetExitRoot, nil
+}
+
 // GetTimeForLatestBatchVirtualization returns the timestamp of the latest
 // virtual batch.
 func (p *PostgresStorage) GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
@@ -405,7 +423,7 @@ func (p *PostgresStorage) GetLastNBatches(ctx context.Context, numBatches uint, 
 // GetLastNBatchesByL2BlockNumber returns the last numBatches batches along with the l2 block state root by l2BlockNumber
 func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2BlockNumber uint64, numBatches uint, dbTx pgx.Tx) ([]*Batch, common.Hash, error) {
 	const getLastNBatchesByBlockNumberSQL = `
-	SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, l2.header->>'stateRoot' as l2_block_state_root 
+	SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, l2.header->>'stateRoot' as l2_block_state_root
 	FROM state.batch b, state.l2block l2
 	WHERE l2.block_num = $1 AND b.batch_num <= l2.batch_num
 	ORDER BY b.batch_num DESC LIMIT $2`
@@ -541,17 +559,17 @@ func (p *PostgresStorage) GetBatchByL2BlockNumber(ctx context.Context, l2BlockNu
 // GetVirtualBatchByNumber gets batch from batch table that exists on virtual batch
 func (p *PostgresStorage) GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
 	const query = `
-		SELECT 
+		SELECT
 			batch_num,
 			global_exit_root,
 			local_exit_root,
 			state_root,
-			timestamp, 
+			timestamp,
 			coinbase,
 			raw_txs_data
-		FROM 
-			state.batch 
-		WHERE 
+		FROM
+			state.batch
+		WHERE
 			batch_num = $1 AND
 			EXISTS (SELECT batch_num FROM state.virtual_batch WHERE batch_num = $1)
 		`
@@ -773,6 +791,42 @@ func (p *PostgresStorage) openBatch(ctx context.Context, batchContext Processing
 func (p *PostgresStorage) closeBatch(ctx context.Context, receipt ProcessingReceipt, rawTxs []byte, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, closeBatchSQL, receipt.StateRoot.String(), receipt.LocalExitRoot.String(), rawTxs, receipt.BatchNumber)
+	return err
+}
+
+// UpdateGERInOpenBatch update ger in open batch
+func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.Hash, dbTx pgx.Tx) error {
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+
+	var (
+		batchNumber   uint64
+		isBatchHasTxs bool
+	)
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getLastBatchNumberSQL).Scan(&batchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrStateNotSynchronized
+	}
+
+	const isBatchHasTxsQuery = `SELECT EXISTS (SELECT 1 FROM state.l2block WHERE batch_num = $1)`
+	err = e.QueryRow(ctx, isBatchHasTxsQuery, batchNumber).Scan(&isBatchHasTxs)
+	if err != nil {
+		return err
+	}
+
+	if isBatchHasTxs {
+		return errors.New("batch has txs, can't change GER")
+	}
+
+	const updateGER = `
+			UPDATE 
+    			state.batch
+			SET global_exit_root = $1, timestamp = $2
+			WHERE batch_num = $3
+				AND state_root IS NULL`
+	_, err = e.Exec(ctx, updateGER, ger.String(), time.Now(), batchNumber)
 	return err
 }
 
@@ -1417,7 +1471,7 @@ func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber 
 // GetLogs returns the logs that match the filter
 func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error) {
 	const getLogsByBlockHashSQL = `
-	  SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3 
+	  SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
 		FROM state.log l
 	   INNER JOIN state.transaction t ON t.hash = l.tx_hash
 	   INNER JOIN state.l2block b ON b.block_num = t.l2_block_num

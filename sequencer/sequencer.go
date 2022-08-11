@@ -17,7 +17,7 @@ const (
 	errGasRequiredExceedsAllowance = "gas required exceeds allowance"
 	errContentLengthTooLarge       = "content length too large"
 	errTimestampMustBeInsideRange  = "Timestamp must be inside range"
-	errInsuficientAllowance        = "insufficient allowance"
+	errInsufficientAllowance       = "insufficient allowance"
 )
 
 // Sequencer represents a sequencer
