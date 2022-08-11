@@ -59,7 +59,10 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 			return nil, rpcErr
 		}
 
-		if arg.From != state.ZeroAddress && arg.Nonce == nil {
+		if arg.From == state.ZeroAddress && arg.Nonce == nil {
+			nonce := argUint64(0)
+			arg.Nonce = &nonce
+		} else if arg.From != state.ZeroAddress && arg.Nonce == nil {
 			n, err := e.state.GetNonce(ctx, arg.From, blockNumber, dbTx)
 			if err != nil {
 				return rpcErrorResponse(defaultErrorCode, "failed to get nonce", err)
@@ -102,7 +105,10 @@ func (e *Eth) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcEr
 			return nil, rpcErr
 		}
 
-		if arg.From != state.ZeroAddress && arg.Nonce == nil {
+		if arg.From == state.ZeroAddress && arg.Nonce == nil {
+			nonce := argUint64(0)
+			arg.Nonce = &nonce
+		} else if arg.From != state.ZeroAddress && arg.Nonce == nil {
 			n, err := e.state.GetNonce(ctx, arg.From, blockNumber, dbTx)
 			if err != nil {
 				return rpcErrorResponse(defaultErrorCode, "failed to get nonce", err)
