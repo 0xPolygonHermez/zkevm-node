@@ -244,18 +244,18 @@ func (s *Sequencer) closeSequence(ctx context.Context) error {
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	// Check if GER needs to be updated
 	blockNum, mainnetExitRoot, err := s.state.GetBlockNumAndMainnetExitRootByGER(ctx, s.sequenceInProgress.GlobalExitRoot, nil)
-	if err != nil {
+	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get mainnetExitRoot and blockNum by ger, err: %v", err)
 		return false
 	}
 
 	lastGer, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
-	if err != nil {
+	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get latest global exit root, err: %v", err)
 		return false
 	}
 
-	if lastGer.MainnetExitRoot != mainnetExitRoot {
+	if lastGer != nil && lastGer.MainnetExitRoot != mainnetExitRoot {
 		latestBlockNumber, err := s.etherman.GetLatestBlockNumber(ctx)
 		if err != nil {
 			log.Errorf("failed to get latest batch number from ethereum, err: %v", err)
