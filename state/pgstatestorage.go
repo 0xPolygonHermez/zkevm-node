@@ -799,7 +799,7 @@ func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.H
 			SET global_exit_root = $1, timestamp = $2
 			WHERE batch_num = $3
 				AND state_root IS NULL`
-	_, err = e.Exec(ctx, updateGER, ger, time.Now(), batchNumber)
+	_, err = e.Exec(ctx, updateGER, ger.String(), time.Now(), batchNumber)
 	return err
 }
 
