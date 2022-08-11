@@ -1525,19 +1525,25 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	log.Debug("INIT TestExecutorUnsignedTransactions")
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
+	log.Debug("1")
 	require.NoError(t, err)
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var gasLimit = uint64(4000000)
 	var scAddress = common.HexToAddress("0x1275fbb540c8efC58b812ba83B0D0B8b9917AE98")
+	log.Debug("2")
 	scByteCode, err := testutils.ReadBytecode("Counter/Counter.bin")
+	log.Debug("3")
 	require.NoError(t, err)
 
 	// auth
+	log.Debug("4")
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(sequencerPvtKey, "0x"))
+	log.Debug("5")
 	require.NoError(t, err)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIDSequencer)
+	log.Debug("6")
 	require.NoError(t, err)
 
 	// signed tx to deploy SC
@@ -1549,13 +1555,16 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		GasPrice: new(big.Int),
 		Data:     common.Hex2Bytes(scByteCode),
 	})
+	log.Debug("7")
 	signedTxDeploy, err := auth.Signer(auth.From, unsignedTxDeploy)
 	require.NoError(t, err)
 
+	log.Debug("8")
 	incrementFnSignature := crypto.Keccak256Hash([]byte("increment()")).Bytes()[:4]
 	retrieveFnSignature := crypto.Keccak256Hash([]byte("getCount()")).Bytes()[:4]
 
 	// signed tx to call SC
+	log.Debug("9")
 	unsignedTxFirstIncrement := types.NewTx(&types.LegacyTx{
 		Nonce:    1,
 		To:       &scAddress,
@@ -1564,9 +1573,11 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		GasPrice: new(big.Int),
 		Data:     incrementFnSignature,
 	})
+	log.Debug("10")
 	signedTxFirstIncrement, err := auth.Signer(auth.From, unsignedTxFirstIncrement)
 	require.NoError(t, err)
 
+	log.Debug("11")
 	unsignedTxFirstRetrieve := types.NewTx(&types.LegacyTx{
 		Nonce:    2,
 		To:       &scAddress,
@@ -1575,12 +1586,15 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		GasPrice: new(big.Int),
 		Data:     retrieveFnSignature,
 	})
+	log.Debug("12")
 	signedTxFirstRetrieve, err := auth.Signer(auth.From, unsignedTxFirstRetrieve)
 	require.NoError(t, err)
 
+	log.Debug("13")
 	dbTx, err := testState.BeginStateTransaction(context.Background())
 	require.NoError(t, err)
 	// Set genesis
+	log.Debug("14")
 	genesis := state.Genesis{Actions: []*state.GenesisAction{
 		{
 			Address: sequencerAddress.Hex(),
@@ -1588,6 +1602,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 			Value:   "100000000000000000000000",
 		},
 	}}
+	log.Debug("15")
 	_, err = testState.SetGenesis(ctx, state.Block{}, genesis, dbTx)
 	require.NoError(t, err)
 	batchCtx := state.ProcessingContext{
@@ -1595,13 +1610,16 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		Coinbase:    sequencerAddress,
 		Timestamp:   time.Now(),
 	}
+	log.Debug("16")
 	err = testState.OpenBatch(context.Background(), batchCtx, dbTx)
 	require.NoError(t, err)
+	log.Debug("17")
 	signedTxs := []types.Transaction{
 		*signedTxDeploy,
 		*signedTxFirstIncrement,
 		*signedTxFirstRetrieve,
 	}
+	log.Debug("18")
 	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
@@ -1616,9 +1634,11 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[2].ReturnValue))
 
 	// Add txs to DB
+	log.Debug("19")
 	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, dbTx)
 	require.NoError(t, err)
 	// Close batch
+	log.Debug("20")
 	err = testState.CloseBatch(
 		context.Background(),
 		state.ProcessingReceipt{
@@ -1628,8 +1648,10 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		}, dbTx,
 	)
 	require.NoError(t, err)
+	log.Debug("21")
 	require.NoError(t, dbTx.Commit(context.Background()))
 
+	log.Debug("22")
 	unsignedTxSecondRetrieve := types.NewTx(&types.LegacyTx{
 		Nonce:    0,
 		To:       &scAddress,
@@ -1638,8 +1660,10 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		GasPrice: new(big.Int),
 		Data:     retrieveFnSignature,
 	})
+	log.Debug("23")
 	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), 3, nil)
 	// assert unsigned tx
+	log.Debug("24")
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
 	log.Debug("DONE TestExecutorUnsignedTransactions")
