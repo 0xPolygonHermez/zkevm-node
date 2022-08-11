@@ -966,6 +966,7 @@ func TestExecutor(t *testing.T) {
 }
 
 func TestExecutorRevert(t *testing.T) {
+	log.Debug("INIT TestExecutorRevert")
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
@@ -1015,9 +1016,11 @@ func TestExecutorRevert(t *testing.T) {
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 	assert.NotEqual(t, "", processBatchResponse.Responses[0].Error)
+	log.Debug("DONE TestExecutorRevert")
 }
 
 func TestExecutorLogs(t *testing.T) {
+	log.Debug("INIT TestExecutorLogs")
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
@@ -1084,9 +1087,11 @@ func TestExecutorLogs(t *testing.T) {
 	assert.Equal(t, 1, len(processBatchResponse.Responses[1].Logs[0].Topics))
 	assert.Equal(t, 2, len(processBatchResponse.Responses[1].Logs[1].Topics))
 	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs[2].Topics))
+	log.Debug("DONE TestExecutorLogs")
 }
 
 func TestExecutorTransfer(t *testing.T) {
+	log.Debug("INIT TestExecutorTransfer")
 	var chainID = new(big.Int).SetInt64(1000)
 	var senderAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var senderPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
@@ -1176,6 +1181,7 @@ func TestExecutorTransfer(t *testing.T) {
 	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
 	require.NoError(t, err)
 	require.Equal(t, uint64(21002), balance.Uint64())
+	log.Debug("DONE TestExecutorTransfer")
 }
 
 func TestExecutorTxHash(t *testing.T) {
@@ -1516,6 +1522,7 @@ func TestGenesisFromMock(t *testing.T) {
 }
 
 func TestExecutorUnsignedTransactions(t *testing.T) {
+	log.Debug("INIT TestExecutorUnsignedTransactions")
 	// Init database instance
 	err := dbutils.InitOrReset(cfg)
 	require.NoError(t, err)
@@ -1590,7 +1597,6 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	}
 	err = testState.OpenBatch(context.Background(), batchCtx, dbTx)
 	require.NoError(t, err)
-	log.Debug("Processing txs")
 	signedTxs := []types.Transaction{
 		*signedTxDeploy,
 		*signedTxFirstIncrement,
@@ -1610,7 +1616,6 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[2].ReturnValue))
 
 	// Add txs to DB
-	log.Debug("Storing txs")
 	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, dbTx)
 	require.NoError(t, err)
 	// Close batch
@@ -1625,7 +1630,6 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(context.Background()))
 
-	log.Debug("Processing unsigned tx")
 	unsignedTxSecondRetrieve := types.NewTx(&types.LegacyTx{
 		Nonce:    0,
 		To:       &scAddress,
@@ -1638,4 +1642,5 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
+	log.Debug("DONE TestExecutorUnsignedTransactions")
 }
