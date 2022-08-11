@@ -34,6 +34,7 @@ type etherman interface {
 	GetSendSequenceFee() (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
 	GetLatestBatchNumber() (uint64, error)
+	GetLatestBlockNumber(ctx context.Context) (uint64, error)
 	GetLastTimestamp() (uint64, error)
 }
 
@@ -57,6 +58,9 @@ type stateInterface interface {
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
 	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
+
+	UpdateGERInOpenBatch(ctx context.Context, ger common.Hash, dbTx pgx.Tx) error
+	GetBlockNumAndMainnetExitRootByGER(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (uint64, common.Hash, error)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }
