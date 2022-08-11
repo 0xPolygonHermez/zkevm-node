@@ -69,7 +69,7 @@ func (server *StateDBMock) Set(ctx context.Context, request *pb.SetRequest) (*pb
 
 	oldRootStr := merkletree.H4ToString([]uint64{request.OldRoot.Fe0, request.OldRoot.Fe1, request.OldRoot.Fe2, request.OldRoot.Fe3})
 	log.Debugf("Set called with key %v, value %v, root %v", keyBIStr, request.Value, oldRootStr)
-	_, newRoot, err := server.tvContainer.FindValue(keyBIStr, oldRootStr)
+	_, newRoot, err := server.tvContainer.FindSMTValue(keyBIStr, oldRootStr)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (server *StateDBMock) Get(ctx context.Context, request *pb.GetRequest) (*pb
 
 	rootStr := merkletree.H4ToString([]uint64{request.Root.Fe0, request.Root.Fe1, request.Root.Fe2, request.Root.Fe3})
 
-	value, _, err := server.tvContainer.FindValue(keyBIStr, rootStr)
+	value, _, err := server.tvContainer.FindSMTValue(keyBIStr, rootStr)
 	if err != nil {
 		return nil, err
 	}
