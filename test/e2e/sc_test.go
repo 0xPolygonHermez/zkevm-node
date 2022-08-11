@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"encoding/json"
 	"math/big"
 	"testing"
 
@@ -69,10 +68,6 @@ func TestEmitLog2(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, 3, len(logs))
-
-		j, err := json.Marshal(logs)
-		require.NoError(t, err)
-		log.Debug(string(j))
 
 		_, err = sc.ParseLog(logs[0])
 		require.NoError(t, err)
