@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/FailureTest"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Read"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -133,6 +134,67 @@ func TestFailureTest(t *testing.T) {
 		log.Debug("storing value with revert")
 		_, err = sc.StoreAndFail(auth, big.NewInt(2))
 		assert.Equal(t, err.Error(), "execution reverted: this method always fails")
+	}
+
+	log.Debug("testing l1")
+	test(t, l1Auth, l1Client)
+
+	log.Debug("testing l2")
+	test(t, l2Auth, l2Client)
+}
+
+func TestRead(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() { require.NoError(t, operations.Teardown()) }()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	l1Client, l2Client, err := operations.GetL1AndL2Clients()
+	require.NoError(t, err)
+
+	l1Auth, l2Auth, err := operations.GetL1AndL2Authorizations()
+	require.NoError(t, err)
+
+	test := func(t *testing.T, auth *bind.TransactOpts, client *ethclient.Client) {
+		log.Debug("deploying SC")
+		_, scTx, sc, err := Read.DeployRead(auth, client)
+		require.NoError(t, err)
+
+		logTx(scTx)
+		err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		log.Debug("public read")
+		value, err := sc.PublicRead(&bind.CallOpts{Pending: false})
+		require.NoError(t, err)
+		assert.Equal(t, 0, big.NewInt(1).Cmp(value))
+
+		log.Debug("public read with parameter")
+		value, err = sc.PublicReadWParams(&bind.CallOpts{Pending: false}, big.NewInt(1))
+		require.NoError(t, err)
+		assert.Equal(t, 0, big.NewInt(2).Cmp(value))
+
+		log.Debug("external read")
+		value, err = sc.ExternalRead(&bind.CallOpts{Pending: false})
+		require.NoError(t, err)
+		assert.Equal(t, 0, big.NewInt(1).Cmp(value))
+
+		log.Debug("external read with parameter")
+		value, err = sc.ExternalReadWParams(&bind.CallOpts{Pending: false}, big.NewInt(1))
+		require.NoError(t, err)
+		assert.Equal(t, 0, big.NewInt(2).Cmp(value))
 	}
 
 	log.Debug("testing l1")
