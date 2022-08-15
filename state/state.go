@@ -211,6 +211,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			GasPrice: transaction.GasPrice(),
 			Data:     transaction.Data(),
 		})
+
 		batchL2Data, err := EncodeUnsignedTransaction(*tx)
 		if err != nil {
 			log.Errorf("error encoding unsigned transaction ", err)
@@ -362,7 +363,10 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	lastBatch := lastBatches[0]
 
 	// Get batch before latest to get state root and local exit root
-	previousBatch := lastBatches[1]
+	previousBatch := lastBatches[0]
+	if len(lastBatches) > 1 {
+		previousBatch = lastBatches[1]
+	}
 
 	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
 	if err != nil {
@@ -769,7 +773,10 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	lastBatch := lastBatches[0]
 
 	// Get batch before latest to get state root and local exit root
-	previousBatch := lastBatches[1]
+	previousBatch := lastBatches[0]
+	if len(lastBatches) > 1 {
+		previousBatch = lastBatches[1]
+	}
 
 	batchL2Data, err := EncodeUnsignedTransaction(*tx)
 	if err != nil {
@@ -780,7 +787,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		BatchNum:         lastBatch.BatchNumber,
+		BatchNum:         lastBatch.BatchNumber + 1,
 		BatchL2Data:      batchL2Data,
 		From:             senderAddress.String(),
 		OldStateRoot:     l2BlockStateRoot.Bytes(),
