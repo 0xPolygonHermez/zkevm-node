@@ -86,7 +86,7 @@ const (
 		 INNER JOIN state.l2block consolidated_blocks
 			ON consolidated_blocks.batch_num = sy.last_batch_num_consolidated;
 	`
-	addTransactionSQL          = "INSERT INTO state.transaction (hash, from_address, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4, $5)"
+	addTransactionSQL          = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4)"
 	addReceiptSQL              = "INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
 	getBatchNumByBlockNum      = "SELECT batch_num FROM state.virtual_batch WHERE block_num = $1 ORDER BY batch_num ASC LIMIT 1"
 	getTxsHashesBeforeBatchNum = "SELECT hash FROM state.transaction JOIN state.l2block ON state.transaction.l2_block_num = state.l2block.block_num AND state.l2block.batch_num <= $1"
@@ -1044,7 +1044,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			return err
 		}
 		decoded := string(binary)
-		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), "", encoded, decoded, l2Block.Number().Uint64())
+		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64())
 		if err != nil {
 			return err
 		}

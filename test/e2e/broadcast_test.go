@@ -131,8 +131,8 @@ func populateDB(ctx context.Context, st *state.State) error {
 			return err
 		}
 
-		const addTransaction = "INSERT INTO state.transaction (hash, from_address, encoded, l2_block_num) VALUES ($1, $2, $3, $4)"
-		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, fmt.Sprintf("hash-%d", i), common.HexToAddress("").String(), fmt.Sprintf(encodedFmt, i), l2Block.Number().Uint64()); err != nil {
+		const addTransaction = "INSERT INTO state.transaction (hash, encoded, l2_block_num) VALUES ($1, $2, $3, $4)"
+		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, fmt.Sprintf("hash-%d", i), fmt.Sprintf(encodedFmt, i), l2Block.Number().Uint64()); err != nil {
 			return err
 		}
 	}

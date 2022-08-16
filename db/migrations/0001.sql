@@ -60,7 +60,6 @@ CREATE TABLE state.l2block (
 
 CREATE TABLE state.transaction (
     hash VARCHAR PRIMARY KEY,
-    from_address VARCHAR,
     encoded VARCHAR NOT NULL,
     decoded jsonb,
     l2_block_num BIGINT NOT NULL REFERENCES state.l2block (block_num) ON DELETE CASCADE
@@ -130,7 +129,8 @@ CREATE TABLE pool.txs
     used_arithmetics       INTEGER,
     used_binaries          INTEGER,
     used_steps             INTEGER,
-    received_at            TIMESTAMP WITH TIME ZONE NOT NULL
+    received_at            TIMESTAMP WITH TIME ZONE NOT NULL,
+    from_address           varchar NOT NULL
 );
 
 CREATE INDEX idx_state_gas_price_nonce ON pool.txs (state, gas_price, nonce);
