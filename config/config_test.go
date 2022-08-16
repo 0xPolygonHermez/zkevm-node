@@ -149,6 +149,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: "127.0.0.1:61090",
 		},
 		{
+			path:          "RPC.DefaultSenderAddress",
+			expectedValue: "0x1111111111111111111111111111111111111111",
+		},
+		{
 			path:          "Executor.URI",
 			expectedValue: "127.0.0.1:50071",
 		},

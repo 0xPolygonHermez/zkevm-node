@@ -1,6 +1,7 @@
 package jsonrpc
 
 import (
+	"context"
 	"math/big"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/jackc/pgx/v4"
 )
 
 type argUint64 uint64
@@ -101,50 +103,59 @@ type txnArgs struct {
 	From     common.Address
 	To       *common.Address
 	Gas      *argUint64
-	GasPrice *argBytes
+	GasPrice *argUint64
 	Value    *argBytes
-	Input    *argBytes
 	Data     *argBytes
-	Nonce    *argUint64
 }
 
 // ToTransaction transforms txnArgs into a Transaction
-func (arg *txnArgs) ToTransaction() *types.Transaction {
-	nonce := uint64(0)
-	if arg.Nonce != nil {
-		nonce = uint64(*arg.Nonce)
-	}
-
-	gas := uint64(0)
-	if arg.Gas != nil {
-		gas = uint64(*arg.Gas)
-	}
-
-	gasPrice := big.NewInt(0)
-	if arg.GasPrice != nil {
-		gasPrice.SetBytes(*arg.GasPrice)
+func (args *txnArgs) ToUnsignedTransaction(ctx context.Context, st stateInterface, blockNumber uint64, cfg Config, dbTx pgx.Tx) (common.Address, *types.Transaction, error) {
+	gas := cfg.MaxCumulativeGasUsed
+	if args.Gas != nil && uint64(*args.Gas) > uint64(0) {
+		gas = uint64(*args.Gas)
 	}
 
 	value := big.NewInt(0)
-	if arg.Value != nil {
-		value.SetBytes(*arg.Value)
+	if args.Value != nil {
+		value.SetBytes(*args.Value)
 	}
 
 	data := []byte{}
-	if arg.Data != nil {
-		data = *arg.Data
+	if args.Data != nil {
+		data = *args.Data
+	}
+
+	sender := args.From
+	nonce := uint64(0)
+	gasPrice := big.NewInt(0)
+
+	defaultSenderAddress := common.HexToAddress(cfg.DefaultSenderAddress)
+	if sender == state.ZeroAddress {
+		sender = defaultSenderAddress
+	}
+
+	if sender != defaultSenderAddress {
+		if args.GasPrice != nil {
+			gasPrice.SetUint64(uint64(*args.GasPrice))
+		}
+
+		n, err := st.GetNonce(ctx, sender, blockNumber, dbTx)
+		if err != nil {
+			return common.Address{}, nil, err
+		}
+		nonce = uint64(n)
 	}
 
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    nonce,
-		To:       arg.To,
+		To:       args.To,
 		Value:    value,
 		Gas:      gas,
 		GasPrice: gasPrice,
 		Data:     data,
 	})
 
-	return tx
+	return sender, tx, nil
 }
 
 type rpcBlock struct {

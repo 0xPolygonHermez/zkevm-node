@@ -184,22 +184,6 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 	}
 
-	// Checks if executor level valid gas errors occurred
-	isGasApplyError := func(err error) bool {
-		return errors.Is(err, ErrNotEnoughIntrinsicGas)
-	}
-
-	// Checks if EVM level valid gas errors occurred
-	isGasEVMError := func(err error) bool {
-		return errors.Is(err, runtime.ErrOutOfGas) ||
-			errors.Is(err, runtime.ErrCodeStoreOutOfGas)
-	}
-
-	// Checks if the EVM reverted during execution
-	isEVMRevertError := func(err error) bool {
-		return errors.Is(err, runtime.ErrExecutionReverted)
-	}
-
 	// Run the transaction with the specified gas value.
 	// Returns a status indicating if the transaction failed, if it was reverted and the accompanying error
 	testTransaction := func(gas uint64, shouldOmitErr bool) (bool, bool, error) {
@@ -295,6 +279,22 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		)
 	}
 	return highEnd, nil
+}
+
+// Checks if executor level valid gas errors occurred
+func isGasApplyError(err error) bool {
+	return errors.Is(err, ErrNotEnoughIntrinsicGas)
+}
+
+// Checks if EVM level valid gas errors occurred
+func isGasEVMError(err error) bool {
+	return errors.Is(err, runtime.ErrOutOfGas) ||
+		errors.Is(err, runtime.ErrCodeStoreOutOfGas)
+}
+
+// Checks if the EVM reverted during execution
+func isEVMRevertError(err error) bool {
+	return errors.Is(err, runtime.ErrExecutionReverted)
 }
 
 // OpenBatch adds a new batch into the state, with the necessary data to start processing transactions within it.
@@ -810,8 +810,13 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	result.GasUsed = r.GasUsed
 	result.CreateAddress = r.CreateAddress
 	result.StateRoot = r.StateRoot.Bytes()
-	if r.Error != "" {
-		result.Err = fmt.Errorf(r.Error)
+	if processBatchResponse.Responses[0].Error != pb.Error(executor.ERROR_NO_ERROR) {
+		err := executor.ExecutorError(processBatchResponse.Responses[0].Error).Err()
+		if isEVMRevertError(err) {
+			result.Err = constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
+		} else {
+			result.Err = err
+		}
 	}
 
 	return result

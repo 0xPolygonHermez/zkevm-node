@@ -152,7 +152,7 @@ func TestRead(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	defer func() { require.NoError(t, operations.Teardown()) }()
+	//defer func() { require.NoError(t, operations.Teardown()) }()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()

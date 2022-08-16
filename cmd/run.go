@@ -149,6 +149,8 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 		log.Fatal(err)
 	}
 
+	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
+
 	if err := jsonrpc.NewServer(c.RPC, pool, st, gpe, storage, apis).Start(); err != nil {
 		log.Fatal(err)
 	}
