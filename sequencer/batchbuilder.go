@@ -15,6 +15,8 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+// if batch is empty - tx invalid
+// otherwise close batch and put tx as pending
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
@@ -59,7 +61,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
+	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastStateRoot, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
@@ -124,8 +126,26 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	var txState = pool.TxStateSelected
 	var txUpdateMsg = fmt.Sprintf("Tx %q added into the state. Marking tx as selected in the pool", tx.Hash())
 	if _, ok := unprocessedTxs[tx.Hash().String()]; ok {
-		txState = pool.TxStatePending
-		txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as pending to return the pool", tx.Hash())
+		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+		// in this case tx is invalid
+		if len(s.sequenceInProgress.Txs) == 0 {
+			txState = pool.TxStateInvalid
+			txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as invalid", tx.Hash())
+		} else {
+			// otherwise close batch and put tx as pending
+			txState = pool.TxStatePending
+			txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as pending to return the pool", tx.Hash())
+
+			log.Infof("current sequence should be closed, so tx with hash %q can be processed", tx.Hash())
+			err := s.closeSequence(ctx)
+			if err != nil {
+				log.Errorf("error closing sequence: %v", err)
+				log.Info("resetting sequence in progress")
+				if err = s.loadSequenceFromState(ctx); err != nil {
+					log.Error("error loading sequence from state: %v", err)
+				}
+			}
+		}
 	}
 	log.Infof(txUpdateMsg)
 	if err := s.pool.UpdateTxState(ctx, tx.Hash(), txState); err != nil {
