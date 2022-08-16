@@ -15,8 +15,6 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-// if batch is empty - tx invalid
-// otherwise close batch and put tx as pending
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
