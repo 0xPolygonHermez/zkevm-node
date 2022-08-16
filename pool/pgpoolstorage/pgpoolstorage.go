@@ -81,14 +81,12 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 	`
 
-	fromAddress := new(common.Address).String()
-
 	// Get FromAddress from the JSON data
 	data, err := state.GetSender(tx.Transaction)
 	if err != nil {
 		return err
 	}
-	fromAddress = data.String()
+	fromAddress := data.String()
 
 	if _, err := p.db.Exec(ctx, sql,
 		hash,
