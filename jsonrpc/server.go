@@ -47,7 +47,7 @@ func NewServer(cfg Config, p jsonRPCTxPool, s stateInterface,
 	}
 
 	if _, ok := apis[APINet]; ok {
-		netEndpoints := &Net{}
+		netEndpoints := &Net{cfg: cfg}
 		handler.registerService(APINet, netEndpoints)
 	}
 

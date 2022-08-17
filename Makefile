@@ -143,7 +143,7 @@ lint: ## Runs the linter
 	$(LINT)
 
 .PHONY: check
-check: lint build test ## lint, build and unit tests
+check: stop lint build build-docker test-full-non-e2e test-e2e-group-2 ## lint, build and essential tests
 
 .PHONY: validate
 validate: lint build test-full ## lint, build, unit and e2e tests

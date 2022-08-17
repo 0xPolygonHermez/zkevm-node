@@ -26,7 +26,8 @@ type NetworkConfig struct {
 	GlobalExitRootStoragePosition uint64
 	LocalExitRootStoragePosition  uint64
 	OldStateRootPosition          uint64
-	ChainID                       uint64
+	L1ChainID                     uint64
+	L2ChainID                     uint64
 	Genesis                       state.Genesis
 	MaxCumulativeGasUsed          uint64
 }
@@ -41,7 +42,8 @@ type networkConfigFromJSON struct {
 	GlobalExitRootStoragePosition uint64                   `json:"globalExitRootStoragePosition"`
 	LocalExitRootStoragePosition  uint64                   `json:"localExitRootStoragePosition"`
 	OldStateRootPosition          uint64                   `json:"oldStateRootPosition"`
-	ChainID                       uint64                   `json:"chainID"`
+	L1ChainID                     uint64                   `json:"l1ChainID"`
+	L2ChainID                     uint64                   `json:"l2ChainID"`
 	Genesis                       []genesisAccountFromJSON `json:"genesis"`
 }
 
@@ -75,7 +77,8 @@ var (
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
-		ChainID:                       1, //Mainnet
+		L1ChainID:                     1, //Mainnet
+		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Actions: []*state.GenesisAction{
 				{
@@ -102,7 +105,8 @@ var (
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
-		ChainID:                       4, //Rinkeby
+		L1ChainID:                     4, //Rinkeby
+		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Actions: []*state.GenesisAction{
 				{
@@ -382,7 +386,8 @@ var (
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
-		ChainID:                       5, //Goerli
+		L1ChainID:                     5, //Goerli
+		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Actions: []*state.GenesisAction{
 				{
@@ -410,7 +415,8 @@ var (
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
-		ChainID:                       1337,
+		L1ChainID:                     1337,
+		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Actions: []*state.GenesisAction{
 				{
@@ -510,7 +516,8 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfg.GlobalExitRootStoragePosition = cfgJSON.GlobalExitRootStoragePosition
 	cfg.LocalExitRootStoragePosition = cfgJSON.LocalExitRootStoragePosition
 	cfg.OldStateRootPosition = cfgJSON.OldStateRootPosition
-	cfg.ChainID = cfgJSON.ChainID
+	cfg.L1ChainID = cfgJSON.L1ChainID
+	cfg.L2ChainID = cfgJSON.L2ChainID
 
 	if len(cfgJSON.Genesis) == 0 {
 		return cfg, nil
