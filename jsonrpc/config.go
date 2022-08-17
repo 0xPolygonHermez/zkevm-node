@@ -11,5 +11,14 @@ type Config struct {
 	// to relay transactions to the Sequencer node
 	SequencerNodeURI string `mapstructure:"SequencerNodeURI"`
 
+	// BroadcastURI is the URL of the Trusted State broadcast service
 	BroadcastURI string `mapstructure:"BroadcastURI"`
+
+	// DefaultSenderAddress is the address that jRPC will use
+	// to communicate with the state for eth_EstimateGas and eth_Call when
+	// the From field is not specified because it is optional
+	DefaultSenderAddress string `mapstructure:"DefaultSenderAddress"`
+
+	// MaxCumulativeGasUsed is the max gas allowed per batch
+	MaxCumulativeGasUsed uint64
 }
