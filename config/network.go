@@ -188,6 +188,7 @@ var (
 	}
 )
 
+// GenesisAction struct
 type GenesisAction struct {
 	Genesis []*state.GenesisAction `json:"genesis"`
 }
@@ -197,7 +198,7 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 
 	var genesisAction GenesisAction
 	byteGenesis, _ := os.ReadFile("../config/genesis.json")
-	json.Unmarshal(byteGenesis, &genesisAction)
+	_ = json.Unmarshal(byteGenesis, &genesisAction)
 	commonGenesisActions := genesisAction.Genesis
 
 	switch network {

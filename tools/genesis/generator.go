@@ -94,5 +94,5 @@ func main() {
 	gJson, _ := json.MarshalIndent(GenesisResult{
 		Genesis: genesisActions,
 	}, "", " ")
-	_ = ioutil.WriteFile("./config/genesis.json", gJson, 0600)
+	_ = ioutil.WriteFile("./config/genesis.json", gJson, 0600) //nolint:gomnd
 }
