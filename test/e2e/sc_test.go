@@ -152,7 +152,7 @@ func TestRead(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	//defer func() { require.NoError(t, operations.Teardown()) }()
+	defer func() { require.NoError(t, operations.Teardown()) }()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -167,32 +167,97 @@ func TestRead(t *testing.T) {
 	l1Auth, l2Auth, err := operations.GetL1AndL2Authorizations()
 	require.NoError(t, err)
 
+	const ownerName = "this is the owner name"
+	callOpts := &bind.CallOpts{Pending: false}
 	test := func(t *testing.T, auth *bind.TransactOpts, client *ethclient.Client) {
 		log.Debug("deploying SC")
-		_, scTx, sc, err := Read.DeployRead(auth, client)
+		_, scTx, sc, err := Read.DeployRead(auth, client, ownerName)
 		require.NoError(t, err)
 
 		logTx(scTx)
 		err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
-		log.Debug("public read")
-		value, err := sc.PublicRead(&bind.CallOpts{Pending: false})
+		log.Debug("read string public variable directly")
+		ownerNameValue, err := sc.OwnerName(callOpts)
+		require.NoError(t, err)
+		assert.Equal(t, ownerName, ownerNameValue)
+
+		log.Debug("read address public variable directly")
+		ownerValue, err := sc.Owner(callOpts)
+		require.NoError(t, err)
+		assert.Equal(t, auth.From, ownerValue)
+
+		tA := Read.Readtoken{
+			Name:     "Token A",
+			Quantity: big.NewInt(50),
+			Address:  common.HexToAddress("0x1"),
+		}
+
+		tB := Read.Readtoken{
+			Name:     "Token B",
+			Quantity: big.NewInt(30),
+			Address:  common.HexToAddress("0x2"),
+		}
+
+		log.Debug("public add token")
+		tx, err := sc.PublicAddToken(auth, tA)
+		require.NoError(t, err)
+		logTx(tx)
+		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		log.Debug("external add token")
+		tx, err = sc.ExternalAddToken(auth, tB)
+		require.NoError(t, err)
+		logTx(tx)
+		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		log.Debug("read mapping public variable directly")
+		tk, err := sc.Tokens(callOpts, tA.Address)
+		require.NoError(t, err)
+		assert.Equal(t, tk.Name, tA.Name)
+		assert.Equal(t, tk.Quantity, tA.Quantity)
+		assert.Equal(t, tk.Address, tA.Address)
+
+		tk, err = sc.Tokens(callOpts, tB.Address)
+		require.NoError(t, err)
+		assert.Equal(t, tk.Name, tB.Name)
+		assert.Equal(t, tk.Quantity, tB.Quantity)
+		assert.Equal(t, tk.Address, tB.Address)
+
+		log.Debug("public struct read")
+		tk, err = sc.PublicGetToken(callOpts, tA.Address)
+		require.NoError(t, err)
+		assert.Equal(t, tk.Name, tA.Name)
+		assert.Equal(t, tk.Quantity, tA.Quantity)
+		assert.Equal(t, tk.Address, tA.Address)
+
+		log.Debug("external struct read")
+		tk, err = sc.ExternalGetToken(callOpts, tB.Address)
+		require.NoError(t, err)
+		assert.Equal(t, tk.Name, tB.Name)
+		assert.Equal(t, tk.Quantity, tB.Quantity)
+		assert.Equal(t, tk.Address, tB.Address)
+
+		log.Debug("public uint256 read")
+		value, err := sc.PublicRead(callOpts)
 		require.NoError(t, err)
 		assert.Equal(t, 0, big.NewInt(1).Cmp(value))
 
-		log.Debug("public read with parameter")
-		value, err = sc.PublicReadWParams(&bind.CallOpts{Pending: false}, big.NewInt(1))
+		log.Debug("external uint256 read")
+		value, err = sc.ExternalRead(callOpts)
+		require.NoError(t, err)
+		assert.Equal(t, 0, big.NewInt(1).Cmp(value))
+
+		log.Debug("public uint256 read with parameter")
+		value, err = sc.PublicReadWParams(callOpts, big.NewInt(1))
 		require.NoError(t, err)
 		assert.Equal(t, 0, big.NewInt(2).Cmp(value))
 
-		log.Debug("external read")
-		value, err = sc.ExternalRead(&bind.CallOpts{Pending: false})
-		require.NoError(t, err)
-		assert.Equal(t, 0, big.NewInt(1).Cmp(value))
-
-		log.Debug("external read with parameter")
-		value, err = sc.ExternalReadWParams(&bind.CallOpts{Pending: false}, big.NewInt(1))
+		log.Debug("external uint256 read with parameter")
+		value, err = sc.ExternalReadWParams(callOpts, big.NewInt(1))
 		require.NoError(t, err)
 		assert.Equal(t, 0, big.NewInt(2).Cmp(value))
 	}
