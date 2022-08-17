@@ -59,23 +59,14 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 			return nil, rpcErr
 		}
 
-		if arg.From == state.ZeroAddress && arg.Nonce == nil {
-			nonce := argUint64(0)
-			arg.Nonce = &nonce
-		} else if arg.From != state.ZeroAddress && arg.Nonce == nil {
-			n, err := e.state.GetNonce(ctx, arg.From, blockNumber, dbTx)
-			if err != nil {
-				return rpcErrorResponse(defaultErrorCode, "failed to get nonce", err)
-			}
-			nonce := argUint64(n)
-			arg.Nonce = &nonce
+		sender, tx, err := arg.ToUnsignedTransaction(ctx, e.state, blockNumber, e.cfg, dbTx)
+		if err != nil {
+			return rpcErrorResponse(defaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		tx := arg.ToTransaction()
-
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, arg.From, blockNumber, dbTx)
+		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumber, dbTx)
 		if result.Failed() {
-			return rpcErrorResponse(defaultErrorCode, "failed to execute call", result.Err)
+			return rpcErrorResponse(defaultErrorCode, result.Err.Error(), nil)
 		}
 
 		return argBytesPtr(result.ReturnValue), nil
@@ -105,21 +96,12 @@ func (e *Eth) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcEr
 			return nil, rpcErr
 		}
 
-		if arg.From == state.ZeroAddress && arg.Nonce == nil {
-			nonce := argUint64(0)
-			arg.Nonce = &nonce
-		} else if arg.From != state.ZeroAddress && arg.Nonce == nil {
-			n, err := e.state.GetNonce(ctx, arg.From, blockNumber, dbTx)
-			if err != nil {
-				return rpcErrorResponse(defaultErrorCode, "failed to get nonce", err)
-			}
-			nonce := argUint64(n)
-			arg.Nonce = &nonce
+		sender, tx, err := arg.ToUnsignedTransaction(ctx, e.state, blockNumber, e.cfg, dbTx)
+		if err != nil {
+			return rpcErrorResponse(defaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		tx := arg.ToTransaction()
-
-		gasEstimation, err := e.state.EstimateGas(tx, arg.From, blockNumber, dbTx)
+		gasEstimation, err := e.state.EstimateGas(tx, sender, blockNumber, dbTx)
 		if err != nil {
 			return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
 		}

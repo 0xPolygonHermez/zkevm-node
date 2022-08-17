@@ -34,6 +34,7 @@ Port = 8123
 MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
+DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 
 [Synchronizer]
 SyncInterval = "0s"
