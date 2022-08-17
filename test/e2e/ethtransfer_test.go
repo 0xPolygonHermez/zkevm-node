@@ -37,7 +37,7 @@ func TestEthTransfer(t *testing.T) {
 	client, err := ethclient.Dial("http://localhost:8123")
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 100
+	nTxs := 10
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
 	gasLimit := uint64(21000)
