@@ -91,6 +91,7 @@ func getDefaultConfig() Config {
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
 		DefaultSenderAddress:      "0x1111111111111111111111111111111111111111",
 		MaxCumulativeGasUsed:      300000,
+		ChainID:                   1000,
 	}
 	return cfg
 }

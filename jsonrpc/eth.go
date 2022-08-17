@@ -75,7 +75,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 
 // ChainId returns the chain id of the client
 func (e *Eth) ChainId() (interface{}, rpcError) { //nolint:revive
-	return hex.EncodeUint64(ChainID), nil
+	return hex.EncodeUint64(e.cfg.ChainID), nil
 }
 
 // EstimateGas generates and returns an estimate of how much gas is necessary to
