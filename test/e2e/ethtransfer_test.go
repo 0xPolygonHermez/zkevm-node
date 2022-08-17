@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test1000EthTransfer(t *testing.T) {
+func TestEthTransfer(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -37,7 +37,7 @@ func Test1000EthTransfer(t *testing.T) {
 	client, err := ethclient.Dial("http://localhost:8123")
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 1000
+	nTxs := 100
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
 	gasLimit := uint64(21000)
