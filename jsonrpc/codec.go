@@ -107,11 +107,11 @@ func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
 }
 
 func (b *BlockNumber) getNumericBlockNumber(ctx context.Context, s stateInterface, dbTx pgx.Tx) (uint64, rpcError) {
-	if b == nil {
-		return 0, nil
+	bValue := LatestBlockNumber
+	if b != nil {
+		bValue = *b
 	}
 
-	bValue := *b
 	switch bValue {
 	case LatestBlockNumber, PendingBlockNumber:
 		lastBlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)

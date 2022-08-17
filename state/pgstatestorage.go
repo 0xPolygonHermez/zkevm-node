@@ -421,12 +421,23 @@ func (p *PostgresStorage) GetLastNBatches(ctx context.Context, numBatches uint, 
 }
 
 // GetLastNBatchesByL2BlockNumber returns the last numBatches batches along with the l2 block state root by l2BlockNumber
-func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2BlockNumber uint64, numBatches uint, dbTx pgx.Tx) ([]*Batch, common.Hash, error) {
+// if the l2BlockNumber parameter is nil, it means we want to get the most recent last N batches
+func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2BlockNumber *uint64, numBatches uint, dbTx pgx.Tx) ([]*Batch, common.Hash, error) {
 	const getLastNBatchesByBlockNumberSQL = `
-	SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, l2.header->>'stateRoot' as l2_block_state_root
-	FROM state.batch b, state.l2block l2
-	WHERE l2.block_num = $1 AND b.batch_num <= l2.batch_num
-	ORDER BY b.batch_num DESC LIMIT $2`
+	select b.batch_num, 
+       b.global_exit_root, 
+       b.local_exit_root, 
+       b.state_root, 
+       b.timestamp, 
+       b.coinbase,
+       b.raw_txs_data, 
+       coalesce(l2.header->>'stateRoot', b.state_root) as l2_block_state_root
+	FROM state.batch b
+	LEFT JOIN state.l2block l2
+	  ON b.batch_num <= l2.batch_num
+	WHERE (l2.block_num = $1 and $1 is not null) 
+	   OR $1 is null 
+	ORDER BY b.batch_num desc limit $2;`
 	var l2BlockStateRoot common.Hash
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getLastNBatchesByBlockNumberSQL, l2BlockNumber, numBatches)
@@ -648,7 +659,7 @@ func scanBatchWithL2BlockStateRoot(row pgx.Row) (Batch, common.Hash, error) {
 		lerStr              *string
 		stateStr            *string
 		coinbaseStr         string
-		l2BlockStateRootStr string
+		l2BlockStateRootStr *string
 	)
 	if err := row.Scan(
 		&batch.BatchNumber,
@@ -669,9 +680,13 @@ func scanBatchWithL2BlockStateRoot(row pgx.Row) (Batch, common.Hash, error) {
 	if stateStr != nil {
 		batch.StateRoot = common.HexToHash(*stateStr)
 	}
+	l2BlockStateRoot := ZeroHash
+	if l2BlockStateRootStr != nil {
+		l2BlockStateRoot = common.HexToHash(*l2BlockStateRootStr)
+	}
 
 	batch.Coinbase = common.HexToAddress(coinbaseStr)
-	return batch, common.HexToHash(l2BlockStateRootStr), nil
+	return batch, l2BlockStateRoot, nil
 }
 
 // GetEncodedTransactionsByBatchNumber returns the encoded field of all

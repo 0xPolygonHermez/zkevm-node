@@ -20,15 +20,15 @@ func TestEthTransfer(t *testing.T) {
 		t.Skip()
 	}
 
-	defer func() {
-		require.NoError(t, operations.Teardown())
-	}()
-	opsCfg := operations.GetDefaultOperationsConfig()
-	opsCfg.State.MaxCumulativeGasUsed = 80000000000
-	opsman, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsman.Setup()
-	require.NoError(t, err)
+	// defer func() {
+	// 	require.NoError(t, operations.Teardown())
+	// }()
+	// opsCfg := operations.GetDefaultOperationsConfig()
+	// opsCfg.State.MaxCumulativeGasUsed = 80000000000
+	// opsman, err := operations.NewManager(ctx, opsCfg)
+	// require.NoError(t, err)
+	// err = opsman.Setup()
+	// require.NoError(t, err)
 
 	// Load account with balance on local genesis
 	auth, err := operations.GetAuth("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", big.NewInt(1000))

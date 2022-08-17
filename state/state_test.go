@@ -1671,7 +1671,8 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		GasPrice: new(big.Int),
 		Data:     retrieveFnSignature,
 	})
-	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), 3, nil)
+	l2BlockNumber := uint64(3)
+	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), &l2BlockNumber, nil)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
