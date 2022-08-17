@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test1000EthTransfer(t *testing.T) {
+func TestEthTransfer(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -31,15 +31,15 @@ func Test1000EthTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Load account with balance on local genesis
-	auth, err := operations.GetAuth("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", big.NewInt(1001))
+	auth, err := operations.GetAuth("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", big.NewInt(1000))
 	require.NoError(t, err)
 	// Load eth client
 	client, err := ethclient.Dial("http://localhost:8123")
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 100
+	nTxs := 10
 	amount := big.NewInt(10000)
-	toAddress := common.HexToAddress("0x0000000000000000000000000000000000000001")
+	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
 	gasLimit := uint64(21000)
 	gasPrice := big.NewInt(1000000)
 	log.Infof("Sending %d transactions...", nTxs)
@@ -48,7 +48,7 @@ func Test1000EthTransfer(t *testing.T) {
 	var sentTxs []*types.Transaction
 
 	for i := 0; i < nTxs; i++ {
-		nonce := uint64(i + 1)
+		nonce := uint64(i)
 		tx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
@@ -63,7 +63,8 @@ func Test1000EthTransfer(t *testing.T) {
 
 	for _, tx := range sentTxs {
 		// wait for TX to be mined
-		timeout := 20 * time.Minute
+		timeout := 5 * time.Minute
+		log.Infof("\nTx Hash %s", tx.Hash())
 		err = operations.WaitTxToBeMined(client, tx.Hash(), timeout)
 		require.NoError(t, err)
 
@@ -74,9 +75,9 @@ func Test1000EthTransfer(t *testing.T) {
 		// get block L2 number
 		blockL2Number := receipt.BlockNumber
 
-		require.Equal(t, tx.Nonce(), blockL2Number.Uint64())
+		require.Equal(t, tx.Nonce(), blockL2Number.Uint64()-1)
 	}
-	log.Infof("\n%d transactions sent without error. Waiting for all the transactions to be mined", nTxs)
+	log.Infof("\n%d transactions added into the trusted state without error. Waiting for all the batches to be virtualized", nTxs)
 
 	receipt, err := client.TransactionReceipt(ctx, lastTxHash)
 	require.NoError(t, err)
@@ -88,11 +89,11 @@ func Test1000EthTransfer(t *testing.T) {
 
 	fmt.Printf("\nL2 Block number: %s", blockL2Number)
 	fmt.Printf("\nLast TX Hash %s", lastTxHash.String())
-	err = operations.WaitL2BlockToBeVirtualized(blockL2Number, 30*time.Second)
+	err = operations.WaitL2BlockToBeVirtualized(blockL2Number, 2*time.Minute)
 	require.NoError(t, err)
 
 	// wait for l2 block number to be consolidated
 
-	err = operations.WaitL2BlockToBeConsolidated(blockL2Number, 30*time.Second)
+	err = operations.WaitL2BlockToBeConsolidated(blockL2Number, 2*time.Minute)
 	require.NoError(t, err)
 }

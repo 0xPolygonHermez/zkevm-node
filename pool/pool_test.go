@@ -328,7 +328,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	}
 	tx, err := p.GetTopPendingTxByProfitabilityAndZkCounters(ctx, zkCounters)
 	require.NoError(t, err)
-	assert.Equal(t, tx.Transaction.GasPrice().Uint64(), uint64(19))
+	assert.Equal(t, tx.Transaction.GasPrice().Uint64(), uint64(10))
 }
 
 func Test_UpdateTxsState(t *testing.T) {

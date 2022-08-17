@@ -74,11 +74,20 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 			used_arithmetics,
 			used_binaries,
 			used_steps,
-			received_at
+			received_at,
+			from_address
 		) 
 		VALUES 
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 	`
+
+	// Get FromAddress from the JSON data
+	data, err := state.GetSender(tx.Transaction)
+	if err != nil {
+		return err
+	}
+	fromAddress := data.String()
+
 	if _, err := p.db.Exec(ctx, sql,
 		hash,
 		encoded,
@@ -95,7 +104,8 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		tx.UsedArithmetics,
 		tx.UsedBinaries,
 		tx.UsedSteps,
-		tx.ReceivedAt); err != nil {
+		tx.ReceivedAt,
+		fromAddress); err != nil {
 		return err
 	}
 	return nil
@@ -196,9 +206,10 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 			used_arithmetics,
 			used_binaries,
 			used_steps,
-			received_at 
+			received_at,
+			nonce
 		FROM
-			pool.txs 
+			pool.txs p1
 		WHERE 
 			state = $1 AND 
 			cumulative_gas_used < $2 AND 
@@ -208,8 +219,18 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 			used_mem_aligns < $6 AND 
 			used_arithmetics < $7 AND
 			used_binaries < $8 AND 
-			used_steps < $9
-		ORDER BY gas_price DESC
+			used_steps < $9 AND
+			nonce = (
+				SELECT MIN(p2.nonce)
+				FROM pool.txs p2
+				WHERE p1.from_address = p2.from_address AND
+				state = $10
+			)
+		GROUP BY 
+			from_address, p1.hash
+		ORDER BY
+			nonce 
+		DESC
 		LIMIT 1
 	`
 	var (
@@ -219,6 +240,7 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 
 		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
 		usedMemAligns, usedArithmetics, usedBinaries, usedSteps int32
+		nonce uint64
 	)
 	err := p.db.QueryRow(ctx, sql,
 		pool.TxStatePending,
@@ -229,7 +251,8 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 		maxZkCounters.UsedMemAligns,
 		maxZkCounters.UsedArithmetics,
 		maxZkCounters.UsedBinaries,
-		maxZkCounters.UsedSteps).
+		maxZkCounters.UsedSteps,
+		pool.TxStatePending).
 		Scan(&encoded,
 			&state,
 			&cumulativeGasUsed,
@@ -240,7 +263,8 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 			&usedArithmetics,
 			&usedBinaries,
 			&usedSteps,
-			&receivedAt)
+			&receivedAt,
+			&nonce)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
