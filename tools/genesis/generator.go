@@ -15,6 +15,7 @@ import (
 
 const repoURL = "https://github.com/0xPolygonHermez/zkevm-commonjs"
 
+// GenesisAction struct
 type GenesisAction struct {
 	Balance  string            `json:"balanace"`
 	Nonce    string            `json:"nonce"`
@@ -23,11 +24,13 @@ type GenesisAction struct {
 	Storage  map[string]string `json:"storage"`
 }
 
+// GenesisData struct
 type GenesisData struct {
 	Root    string          `json:"root"`
 	Genesis []GenesisAction `json:"genesis"`
 }
 
+// GenesisResult struct
 type GenesisResult struct {
 	Genesis []state.GenesisAction `json:"genesis"`
 }
@@ -88,8 +91,8 @@ func main() {
 		}
 	}
 
-	gJson, _ := json.Marshal(GenesisResult{
+	gJson, _ := json.MarshalIndent(GenesisResult{
 		Genesis: genesisActions,
-	})
-	_ = ioutil.WriteFile("./config/genesis.json", gJson, 0666)
+	}, "", " ")
+	_ = ioutil.WriteFile("./config/genesis.json", gJson, 0600)
 }
