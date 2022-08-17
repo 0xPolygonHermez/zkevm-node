@@ -196,11 +196,6 @@ type GenesisAction struct {
 func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 	network := ctx.String(FlagNetwork)
 
-	var genesisAction GenesisAction
-	byteGenesis, _ := os.ReadFile("../config/genesis.json")
-	_ = json.Unmarshal(byteGenesis, &genesisAction)
-	commonGenesisActions := genesisAction.Genesis
-
 	switch network {
 	case testnet:
 		log.Debug("Testnet network selected")

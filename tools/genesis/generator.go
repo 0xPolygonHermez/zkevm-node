@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -28,11 +29,6 @@ type GenesisAction struct {
 type GenesisData struct {
 	Root    string          `json:"root"`
 	Genesis []GenesisAction `json:"genesis"`
-}
-
-// GenesisResult struct
-type GenesisResult struct {
-	Genesis []state.GenesisAction `json:"genesis"`
 }
 
 func main() {
@@ -91,8 +87,31 @@ func main() {
 		}
 	}
 
-	gJson, _ := json.MarshalIndent(GenesisResult{
-		Genesis: genesisActions,
-	}, "", " ")
-	_ = ioutil.WriteFile("./config/genesis.json", gJson, 0600) //nolint:gomnd
+	gJson, _ := json.MarshalIndent(genesisActions, "", " ")
+	gString := string(gJson)
+	gString = strings.Replace(gString, "[\n", "", -1)
+	gString = strings.Replace(gString, "]", "", -1)
+	gString = `//nolint
+package config
+
+import "github.com/0xPolygonHermez/zkevm-node/state" 
+
+var commonGenesisActions = []*state.GenesisAction{
+` + gString + `
+}`
+
+	gString = strings.Replace(gString, `"address"`, "Address", -1)
+	gString = strings.Replace(gString, `"type"`, "Type", -1)
+	gString = strings.Replace(gString, `"storagePosition"`, "StoragePosition", -1)
+	gString = strings.Replace(gString, `"value"`, "Value", -1)
+	gString = strings.Replace(gString, `"bytecode"`, "Bytecode", -1)
+	gString = strings.Replace(gString, `"key"`, "Key", -1)
+	gString = strings.Replace(gString, `"root"`, "Root", -1)
+	gString = strings.Replace(gString, "\"\n", "\",\n", -1)
+	gString = strings.Replace(gString, "}\n", "},\n", -1)
+
+	err = ioutil.WriteFile("./config/genesis.go", []byte(gString), 0600) //nolint:gomnd
+	if err != nil {
+		panic(fmt.Errorf("error writing file: %v", err))
+	}
 }
