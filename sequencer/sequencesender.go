@@ -81,7 +81,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		// Check if can be send
 		estimatedGas, err = s.etherman.EstimateGasSequenceBatches(sequences)
 		if err != nil {
-			sequences, err = s.handleEstimateGasSendSequenceErr(sequences, currentBatchNumToSequence, err)
+			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
 			if sequences != nil {
 				// Handling the error gracefully, re-processing the sequence as a sanity check
 				_, err = s.etherman.EstimateGasSequenceBatches(sequences)
@@ -122,6 +122,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 // sequence, nil: handled gracefully. Potentially manipulating the sequences
 // nil, nil: a situation that requires waiting
 func (s *Sequencer) handleEstimateGasSendSequenceErr(
+	ctx context.Context,
 	sequences []types.Sequence,
 	currentBatchNumToSequence uint64,
 	err error,
@@ -153,7 +154,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	// an error regarding timestamp verification, this must be handled
 	if strings.Contains(err.Error(), errTimestampMustBeInsideRange) {
 		// query the sc about the value of its lastTimestamp variable
-		lastTimestamp, err := s.etherman.GetLastTimestamp()
+		lastTimestamp, err := s.etherman.GetLastBatchTimestamp()
 		if err != nil {
 			return nil, err
 		}
@@ -165,8 +166,11 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 			}
 			lastTimestamp = uint64(seq.Timestamp)
 		}
-
-		log.Debug("block.timestamp is greater than seq.Timestamp. A new block must be mined in L1 before the gas can be estimated.")
+		blockTimestamp, err := s.etherman.GetLatestBlockTimestamp(ctx)
+		if err != nil {
+			log.Error("error getting block timestamp: ", err)
+		}
+		log.Debugf("block.timestamp: %d is smaller than seq.Timestamp: %d. A new block must be mined in L1 before the gas can be estimated.", blockTimestamp, sequences[0].Timestamp)
 		return nil, nil
 	}
 
