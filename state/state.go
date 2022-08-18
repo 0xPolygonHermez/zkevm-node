@@ -28,10 +28,10 @@ import (
 )
 
 const (
-	// TxTransferGas used for TXs that do not create a contract
-	TxTransferGas uint64 = 21000
-	// TxSmartContractCreationGas used for TXs that create a contract
-	TxSmartContractCreationGas uint64 = 53000
+	// TxGas used for TXs that do not create a contract
+	TxGas uint64 = 21000
+	// TxGasContractCreation used for TXs that create a contract
+	TxGasContractCreation uint64 = TxGas + 32000
 	// Size of the memory in bytes reserved by the zkEVM
 	zkEVMReservedMemorySize int  = 128
 	two                     uint = 2
@@ -138,10 +138,12 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	}
 
 	if s.isContractCreation(transaction) {
-		lowEnd = TxSmartContractCreationGas
+		lowEnd = TxGasContractCreation
 	} else {
-		lowEnd = TxTransferGas
+		lowEnd = TxGas
 	}
+
+	lowEnd += computeTxGasCalldata(transaction)
 
 	if transaction.Gas() != 0 && transaction.Gas() > lowEnd {
 		highEnd = transaction.Gas()
@@ -296,6 +298,30 @@ func isGasEVMError(err error) bool {
 // Checks if the EVM reverted during execution
 func isEVMRevertError(err error) bool {
 	return errors.Is(err, runtime.ErrExecutionReverted)
+}
+
+// computeTxGasCalldata computes the amount of gas should be required because of
+// the transaction data.
+// if the transaction comes with data, for each zero byte 4 gas is added,
+// and for each non-zero byte 16 gas is added
+func computeTxGasCalldata(tx *types.Transaction) uint64 {
+	const gasPerZeroByte = 4
+	const gasPerNonZeroByte = 16
+
+	gas := uint64(0)
+
+	if tx == nil || tx.Data() == nil || len(tx.Data()) == 0 {
+		return gas
+	}
+
+	for _, b := range tx.Data() {
+		if b == 0 {
+			gas += gasPerZeroByte
+		} else {
+			gas += gasPerNonZeroByte
+		}
+	}
+	return gas
 }
 
 // OpenBatch adds a new batch into the state, with the necessary data to start processing transactions within it.

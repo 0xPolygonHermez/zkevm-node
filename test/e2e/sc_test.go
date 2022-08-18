@@ -15,10 +15,18 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var networks = []struct {
+	URL        string
+	ChainID    uint64
+	PrivateKey string
+}{
+	{URL: operations.DefaultL1NetworkURL, ChainID: operations.DefaultL1ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
+	{URL: operations.DefaultL2NetworkURL, ChainID: operations.DefaultL2ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
+}
 
 func TestEmitLog2(t *testing.T) {
 	if testing.Short() {
@@ -38,13 +46,10 @@ func TestEmitLog2(t *testing.T) {
 	err = opsMan.Setup()
 	require.NoError(t, err)
 
-	l1Client, l2Client, err := operations.GetL1AndL2Clients()
-	require.NoError(t, err)
+	for _, network := range networks {
+		client := operations.MustGetClient(network.URL)
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
-	l1Auth, l2Auth, err := operations.GetL1AndL2Authorizations()
-	require.NoError(t, err)
-
-	test := func(t *testing.T, auth *bind.TransactOpts, client *ethclient.Client) {
 		scAddr, scTx, sc, err := EmitLog2.DeployEmitLog2(auth, client)
 		require.NoError(t, err)
 
@@ -82,12 +87,6 @@ func TestEmitLog2(t *testing.T) {
 		assert.Equal(t, big.NewInt(3), logABCD.C)
 		assert.Equal(t, big.NewInt(4), logABCD.D)
 	}
-
-	log.Debug("testing l1")
-	test(t, l1Auth, l1Client)
-
-	log.Debug("testing l2")
-	test(t, l2Auth, l2Client)
 }
 
 func TestFailureTest(t *testing.T) {
@@ -108,13 +107,10 @@ func TestFailureTest(t *testing.T) {
 	err = opsMan.Setup()
 	require.NoError(t, err)
 
-	l1Client, l2Client, err := operations.GetL1AndL2Clients()
-	require.NoError(t, err)
+	for _, network := range networks {
+		client := operations.MustGetClient(network.URL)
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
-	l1Auth, l2Auth, err := operations.GetL1AndL2Authorizations()
-	require.NoError(t, err)
-
-	test := func(t *testing.T, auth *bind.TransactOpts, client *ethclient.Client) {
 		log.Debug("deploying SC")
 		_, scTx, sc, err := FailureTest.DeployFailureTest(auth, client)
 		require.NoError(t, err)
@@ -133,14 +129,8 @@ func TestFailureTest(t *testing.T) {
 
 		log.Debug("storing value with revert")
 		_, err = sc.StoreAndFail(auth, big.NewInt(2))
-		assert.Equal(t, err.Error(), "execution reverted: this method always fails")
+		assert.Equal(t, "execution reverted: this method always fails", err.Error())
 	}
-
-	log.Debug("testing l1")
-	test(t, l1Auth, l1Client)
-
-	log.Debug("testing l2")
-	test(t, l2Auth, l2Client)
 }
 
 func TestRead(t *testing.T) {
@@ -161,15 +151,13 @@ func TestRead(t *testing.T) {
 	err = opsMan.Setup()
 	require.NoError(t, err)
 
-	l1Client, l2Client, err := operations.GetL1AndL2Clients()
-	require.NoError(t, err)
+	for _, network := range networks {
+		client := operations.MustGetClient(network.URL)
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
-	l1Auth, l2Auth, err := operations.GetL1AndL2Authorizations()
-	require.NoError(t, err)
+		const ownerName = "this is the owner name"
+		callOpts := &bind.CallOpts{Pending: false}
 
-	const ownerName = "this is the owner name"
-	callOpts := &bind.CallOpts{Pending: false}
-	test := func(t *testing.T, auth *bind.TransactOpts, client *ethclient.Client) {
 		log.Debug("deploying SC")
 		_, scTx, sc, err := Read.DeployRead(auth, client, ownerName)
 		require.NoError(t, err)
@@ -217,29 +205,29 @@ func TestRead(t *testing.T) {
 		log.Debug("read mapping public variable directly")
 		tk, err := sc.Tokens(callOpts, tA.Address)
 		require.NoError(t, err)
-		assert.Equal(t, tk.Name, tA.Name)
-		assert.Equal(t, tk.Quantity, tA.Quantity)
-		assert.Equal(t, tk.Address, tA.Address)
+		assert.Equal(t, tA.Name, tk.Name)
+		assert.Equal(t, tA.Quantity, tk.Quantity)
+		assert.Equal(t, tA.Address, tk.Address)
 
 		tk, err = sc.Tokens(callOpts, tB.Address)
 		require.NoError(t, err)
-		assert.Equal(t, tk.Name, tB.Name)
-		assert.Equal(t, tk.Quantity, tB.Quantity)
-		assert.Equal(t, tk.Address, tB.Address)
+		assert.Equal(t, tB.Name, tk.Name)
+		assert.Equal(t, tB.Quantity, tk.Quantity)
+		assert.Equal(t, tB.Address, tk.Address)
 
 		log.Debug("public struct read")
 		tk, err = sc.PublicGetToken(callOpts, tA.Address)
 		require.NoError(t, err)
-		assert.Equal(t, tk.Name, tA.Name)
-		assert.Equal(t, tk.Quantity, tA.Quantity)
-		assert.Equal(t, tk.Address, tA.Address)
+		assert.Equal(t, tA.Name, tk.Name)
+		assert.Equal(t, tA.Quantity, tk.Quantity)
+		assert.Equal(t, tA.Address, tk.Address)
 
 		log.Debug("external struct read")
 		tk, err = sc.ExternalGetToken(callOpts, tB.Address)
 		require.NoError(t, err)
-		assert.Equal(t, tk.Name, tB.Name)
-		assert.Equal(t, tk.Quantity, tB.Quantity)
-		assert.Equal(t, tk.Address, tB.Address)
+		assert.Equal(t, tB.Name, tk.Name)
+		assert.Equal(t, tB.Quantity, tk.Quantity)
+		assert.Equal(t, tB.Address, tk.Address)
 
 		log.Debug("public uint256 read")
 		value, err := sc.PublicRead(callOpts)
@@ -261,12 +249,6 @@ func TestRead(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, big.NewInt(2).Cmp(value))
 	}
-
-	log.Debug("testing l1")
-	test(t, l1Auth, l1Client)
-
-	log.Debug("testing l2")
-	test(t, l2Auth, l2Client)
 }
 
 func logTx(tx *types.Transaction) {

@@ -229,13 +229,22 @@ func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot, globa
 }
 
 // GetAuth configures and returns an auth object.
-func GetAuth(privateKeyStr string, chainID *big.Int) (*bind.TransactOpts, error) {
+func GetAuth(privateKeyStr string, chainID uint64) (*bind.TransactOpts, error) {
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(privateKeyStr, "0x"))
 	if err != nil {
 		return nil, err
 	}
 
-	return bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	return bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(DefaultL1ChainID))
+}
+
+// MustGetAuth GetAuth but panics if err
+func MustGetAuth(privateKeyStr string, chainID uint64) *bind.TransactOpts {
+	auth, err := GetAuth(privateKeyStr, chainID)
+	if err != nil {
+		panic(err)
+	}
+	return auth
 }
 
 // Setup creates all the required components and initializes them according to
@@ -320,7 +329,7 @@ func (m *Manager) SetUpSequencer() error {
 		return err
 	}
 
-	auth, err := GetAuth(l1AccHexPrivateKey, chainID)
+	auth, err := GetAuth(l1AccHexPrivateKey, chainID.Uint64())
 	if err != nil {
 		return err
 	}
@@ -394,7 +403,7 @@ func (m *Manager) SetUpSequencer() error {
 	}
 
 	// Create sequencer auth
-	auth, err = GetAuth(m.cfg.Sequencer.PrivateKey, chainID)
+	auth, err = GetAuth(m.cfg.Sequencer.PrivateKey, chainID.Uint64())
 	if err != nil {
 		return err
 	}
@@ -504,34 +513,20 @@ func GetDefaultOperationsConfig() *Config {
 	}
 }
 
-// GetL1AndL2Clients provides a client for L1 and another one for L2 already connected to the default URLs
-func GetL1AndL2Clients() (*ethclient.Client, *ethclient.Client, error) {
-	l1Client, err := ethclient.Dial(DefaultL1NetworkURL)
+// GetClient returns an ethereum client to the provided URL
+func GetClient(URL string) (*ethclient.Client, error) {
+	client, err := ethclient.Dial(DefaultL1NetworkURL)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	l2Client, err := ethclient.Dial(DefaultL2NetworkURL)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return l1Client, l2Client, nil
+	return client, nil
 }
 
-// GetL1AndL2Authorizations provides an authorization for L1 and another one for L2 already with the default ChainIDs
-func GetL1AndL2Authorizations() (*bind.TransactOpts, *bind.TransactOpts, error) {
-	chainID := big.NewInt(0).SetUint64(DefaultL1ChainID)
-	l1Auth, err := GetAuth(DefaultSequencerPrivateKey, chainID)
+// MustGetClient GetClient but panic if err
+func MustGetClient(URL string) *ethclient.Client {
+	client, err := GetClient(URL)
 	if err != nil {
-		return nil, nil, err
+		panic(err)
 	}
-
-	chainID = big.NewInt(0).SetUint64(DefaultL2ChainID)
-	l2Auth, err := GetAuth(DefaultSequencerPrivateKey, chainID)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return l1Auth, l2Auth, nil
+	return client
 }

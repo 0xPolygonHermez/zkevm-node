@@ -31,7 +31,7 @@ func TestEthTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Load account with balance on local genesis
-	auth, err := operations.GetAuth("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", big.NewInt(1000))
+	auth, err := operations.GetAuth("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", operations.DefaultL2ChainID)
 	require.NoError(t, err)
 	// Load eth client
 	client, err := ethclient.Dial("http://localhost:8123")
