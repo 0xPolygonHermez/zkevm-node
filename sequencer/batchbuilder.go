@@ -59,7 +59,13 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastStateRoot, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
+	previousStateRoot, err := s.state.GetStateRootByBatchNumber(ctx, s.lastBatchNum-1, nil)
+	if err != nil {
+		log.Errorf("failed to get state root for batchNum %d, err: %v", s.lastBatchNum, err)
+		return
+	}
+
+	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, previousStateRoot, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
@@ -99,6 +105,15 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processedTxs, dbTx)
+	for _, tx := range processedTxs {
+		log.Debugf("tx: %v\n", tx.Tx.Hash())
+		log.Debugf("tx nonce: %v\n", tx.Tx.Nonce())
+	}
+	for _, tx := range unprocessedTxs {
+		log.Debugf("tx: %v\n", tx.Tx.Hash())
+		log.Debugf("tx nonce: %v\n", tx.Tx.Nonce())
+		log.Debugf("tx error: %v\n", tx.Error)
+	}
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
@@ -111,7 +126,9 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		log.Errorf("failed to store transactions, err: %v", err)
 		if err == state.ErrOutOfOrderProcessedTx || err == state.ErrExistingTxGreaterThanProcessedTx {
 			err = s.loadSequenceFromState(ctx)
-			log.Errorf("failed to load sequence from state, err: %v", err)
+			if err != nil {
+				log.Errorf("failed to load sequence from state, err: %v", err)
+			}
 		}
 		return
 	}

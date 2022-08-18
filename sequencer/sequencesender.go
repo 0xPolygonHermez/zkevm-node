@@ -113,7 +113,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		}
 	}
 
-	log.Info("not enougth time has passed since last batch was virtualized, and the sequence could be bigger")
+	log.Info("not enough time has passed since last batch was virtualized, and the sequence could be bigger")
 	return nil, nil
 }
 
@@ -140,7 +140,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 				currentBatchNumToSequence, err,
 			)
 		}
-		// Remove latest item and send the sequences
+		// Remove the latest item and send the sequences
 		log.Infof(
 			"Done building sequences, selected batches from %d to %d. Batch %d caused the L1 tx to be too big",
 			s.lastBatchNumSentToL1+1, currentBatchNumToSequence, currentBatchNumToSequence+1,
@@ -178,7 +178,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 			currentBatchNumToSequence, err,
 		)
 	}
-	// Remove latest item and send the sequences
+	// Remove the latest item and send the sequences
 	log.Infof(
 		"Done building sequences, selected batches from %d to %d. Batch %d excluded due to unknown error: %v",
 		s.lastBatchNumSentToL1+1, currentBatchNumToSequence, currentBatchNumToSequence+1, err,

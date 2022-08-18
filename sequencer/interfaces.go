@@ -1,4 +1,3 @@
-//nolint
 package sequencer
 
 import (
@@ -61,6 +60,7 @@ type stateInterface interface {
 
 	UpdateGERInOpenBatch(ctx context.Context, ger common.Hash, dbTx pgx.Tx) error
 	GetBlockNumAndMainnetExitRootByGER(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (uint64, common.Hash, error)
+	GetStateRootByBatchNumber(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (common.Hash, error)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }
