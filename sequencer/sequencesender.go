@@ -153,10 +153,11 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	// an error regarding timestamp verification, this must be handled
 	if strings.Contains(err.Error(), errTimestampMustBeInsideRange) {
 		// query the sc about the value of its lastTimestamp variable
-		lastTimestamp, err := s.etherman.GetLastTimestamp()
+		blockTimestamp, err := s.etherman.GetLastTimestamp()
 		if err != nil {
 			return nil, err
 		}
+		lastTimestamp := blockTimestamp
 		// check POE SC lastTimestamp against sequences' one
 		for _, seq := range sequences {
 			if seq.Timestamp < int64(lastTimestamp) {
@@ -166,7 +167,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 			lastTimestamp = uint64(seq.Timestamp)
 		}
 
-		log.Debug("block.timestamp is greater than seq.Timestamp. A new block must be mined in L1 before the gas can be estimated.")
+		log.Debugf("block.timestamp: %d is greater than seq.Timestamp: %d. A new block must be mined in L1 before the gas can be estimated.", blockTimestamp, sequences[0])
 		return nil, nil
 	}
 
