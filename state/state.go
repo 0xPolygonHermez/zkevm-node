@@ -798,10 +798,6 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		UpdateMerkleTree: cFalse,
 	}
 
-	log.Debug("*******************************************************")
-	log.Debug(processBatchRequest)
-	log.Debug("*******************************************************")
-
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {

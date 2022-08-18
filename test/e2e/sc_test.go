@@ -152,7 +152,7 @@ func TestRead(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	// defer func() { require.NoError(t, operations.Teardown()) }()
+	defer func() { require.NoError(t, operations.Teardown()) }()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -161,10 +161,10 @@ func TestRead(t *testing.T) {
 	err = opsMan.Setup()
 	require.NoError(t, err)
 
-	_, l2Client, err := operations.GetL1AndL2Clients()
+	l1Client, l2Client, err := operations.GetL1AndL2Clients()
 	require.NoError(t, err)
 
-	_, l2Auth, err := operations.GetL1AndL2Authorizations()
+	l1Auth, l2Auth, err := operations.GetL1AndL2Authorizations()
 	require.NoError(t, err)
 
 	const ownerName = "this is the owner name"
@@ -183,87 +183,87 @@ func TestRead(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, ownerName, ownerNameValue)
 
-		// log.Debug("read address public variable directly")
-		// ownerValue, err := sc.Owner(callOpts)
-		// require.NoError(t, err)
-		// assert.Equal(t, auth.From, ownerValue)
+		log.Debug("read address public variable directly")
+		ownerValue, err := sc.Owner(callOpts)
+		require.NoError(t, err)
+		assert.Equal(t, auth.From, ownerValue)
 
-		// tA := Read.Readtoken{
-		// 	Name:     "Token A",
-		// 	Quantity: big.NewInt(50),
-		// 	Address:  common.HexToAddress("0x1"),
-		// }
+		tA := Read.Readtoken{
+			Name:     "Token A",
+			Quantity: big.NewInt(50),
+			Address:  common.HexToAddress("0x1"),
+		}
 
-		// tB := Read.Readtoken{
-		// 	Name:     "Token B",
-		// 	Quantity: big.NewInt(30),
-		// 	Address:  common.HexToAddress("0x2"),
-		// }
+		tB := Read.Readtoken{
+			Name:     "Token B",
+			Quantity: big.NewInt(30),
+			Address:  common.HexToAddress("0x2"),
+		}
 
-		// log.Debug("public add token")
-		// tx, err := sc.PublicAddToken(auth, tA)
-		// require.NoError(t, err)
-		// logTx(tx)
-		// err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
-		// require.NoError(t, err)
+		log.Debug("public add token")
+		tx, err := sc.PublicAddToken(auth, tA)
+		require.NoError(t, err)
+		logTx(tx)
+		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
 
-		// log.Debug("external add token")
-		// tx, err = sc.ExternalAddToken(auth, tB)
-		// require.NoError(t, err)
-		// logTx(tx)
-		// err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
-		// require.NoError(t, err)
+		log.Debug("external add token")
+		tx, err = sc.ExternalAddToken(auth, tB)
+		require.NoError(t, err)
+		logTx(tx)
+		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
 
-		// log.Debug("read mapping public variable directly")
-		// tk, err := sc.Tokens(callOpts, tA.Address)
-		// require.NoError(t, err)
-		// assert.Equal(t, tk.Name, tA.Name)
-		// assert.Equal(t, tk.Quantity, tA.Quantity)
-		// assert.Equal(t, tk.Address, tA.Address)
+		log.Debug("read mapping public variable directly")
+		tk, err := sc.Tokens(callOpts, tA.Address)
+		require.NoError(t, err)
+		assert.Equal(t, tk.Name, tA.Name)
+		assert.Equal(t, tk.Quantity, tA.Quantity)
+		assert.Equal(t, tk.Address, tA.Address)
 
-		// tk, err = sc.Tokens(callOpts, tB.Address)
-		// require.NoError(t, err)
-		// assert.Equal(t, tk.Name, tB.Name)
-		// assert.Equal(t, tk.Quantity, tB.Quantity)
-		// assert.Equal(t, tk.Address, tB.Address)
+		tk, err = sc.Tokens(callOpts, tB.Address)
+		require.NoError(t, err)
+		assert.Equal(t, tk.Name, tB.Name)
+		assert.Equal(t, tk.Quantity, tB.Quantity)
+		assert.Equal(t, tk.Address, tB.Address)
 
-		// log.Debug("public struct read")
-		// tk, err = sc.PublicGetToken(callOpts, tA.Address)
-		// require.NoError(t, err)
-		// assert.Equal(t, tk.Name, tA.Name)
-		// assert.Equal(t, tk.Quantity, tA.Quantity)
-		// assert.Equal(t, tk.Address, tA.Address)
+		log.Debug("public struct read")
+		tk, err = sc.PublicGetToken(callOpts, tA.Address)
+		require.NoError(t, err)
+		assert.Equal(t, tk.Name, tA.Name)
+		assert.Equal(t, tk.Quantity, tA.Quantity)
+		assert.Equal(t, tk.Address, tA.Address)
 
-		// log.Debug("external struct read")
-		// tk, err = sc.ExternalGetToken(callOpts, tB.Address)
-		// require.NoError(t, err)
-		// assert.Equal(t, tk.Name, tB.Name)
-		// assert.Equal(t, tk.Quantity, tB.Quantity)
-		// assert.Equal(t, tk.Address, tB.Address)
+		log.Debug("external struct read")
+		tk, err = sc.ExternalGetToken(callOpts, tB.Address)
+		require.NoError(t, err)
+		assert.Equal(t, tk.Name, tB.Name)
+		assert.Equal(t, tk.Quantity, tB.Quantity)
+		assert.Equal(t, tk.Address, tB.Address)
 
-		// log.Debug("public uint256 read")
-		// value, err := sc.PublicRead(callOpts)
-		// require.NoError(t, err)
-		// assert.Equal(t, 0, big.NewInt(1).Cmp(value))
+		log.Debug("public uint256 read")
+		value, err := sc.PublicRead(callOpts)
+		require.NoError(t, err)
+		assert.Equal(t, 0, big.NewInt(1).Cmp(value))
 
-		// log.Debug("external uint256 read")
-		// value, err = sc.ExternalRead(callOpts)
-		// require.NoError(t, err)
-		// assert.Equal(t, 0, big.NewInt(1).Cmp(value))
+		log.Debug("external uint256 read")
+		value, err = sc.ExternalRead(callOpts)
+		require.NoError(t, err)
+		assert.Equal(t, 0, big.NewInt(1).Cmp(value))
 
-		// log.Debug("public uint256 read with parameter")
-		// value, err = sc.PublicReadWParams(callOpts, big.NewInt(1))
-		// require.NoError(t, err)
-		// assert.Equal(t, 0, big.NewInt(2).Cmp(value))
+		log.Debug("public uint256 read with parameter")
+		value, err = sc.PublicReadWParams(callOpts, big.NewInt(1))
+		require.NoError(t, err)
+		assert.Equal(t, 0, big.NewInt(2).Cmp(value))
 
-		// log.Debug("external uint256 read with parameter")
-		// value, err = sc.ExternalReadWParams(callOpts, big.NewInt(1))
-		// require.NoError(t, err)
-		// assert.Equal(t, 0, big.NewInt(2).Cmp(value))
+		log.Debug("external uint256 read with parameter")
+		value, err = sc.ExternalReadWParams(callOpts, big.NewInt(1))
+		require.NoError(t, err)
+		assert.Equal(t, 0, big.NewInt(2).Cmp(value))
 	}
 
-	// log.Debug("testing l1")
-	// test(t, l1Auth, l1Client)
+	log.Debug("testing l1")
+	test(t, l1Auth, l1Client)
 
 	log.Debug("testing l2")
 	test(t, l2Auth, l2Client)

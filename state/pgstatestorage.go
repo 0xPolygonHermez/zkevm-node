@@ -437,7 +437,7 @@ func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2
 	  ON b.batch_num <= l2.batch_num
 	WHERE (l2.block_num = $1 and $1 is not null) 
 	   OR $1 is null 
-	ORDER BY b.batch_num desc limit $2;`
+	ORDER BY b.batch_num desc, l2.block_num desc limit $2;`
 	var l2BlockStateRoot common.Hash
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getLastNBatchesByBlockNumberSQL, l2BlockNumber, numBatches)
