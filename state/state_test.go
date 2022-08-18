@@ -1635,7 +1635,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		*signedTxFirstIncrement,
 		*signedTxFirstRetrieve,
 	}
-	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx)
+	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), common.Hash{}, 1, signedTxs, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
 	assert.Equal(t, "", processBatchResponse.Responses[0].Error)
