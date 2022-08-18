@@ -309,7 +309,7 @@ func TestChainID(t *testing.T) {
 	chainID, err := c.ChainID(context.Background())
 	require.NoError(t, err)
 
-	assert.Equal(t, ChainID, chainID.Uint64())
+	assert.Equal(t, s.Config.ChainID, chainID.Uint64())
 }
 
 func TestEstimateGas(t *testing.T) {

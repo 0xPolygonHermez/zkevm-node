@@ -196,7 +196,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			Data:     transaction.Data(),
 		})
 
-		batchL2Data, err := EncodeUnsignedTransaction(*tx)
+		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID)
 		if err != nil {
 			log.Errorf("error encoding unsigned transaction ", err)
 			return false, false, err
@@ -782,7 +782,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		previousBatch = lastBatches[1]
 	}
 
-	batchL2Data, err := EncodeUnsignedTransaction(*tx)
+	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID)
 	if err != nil {
 		log.Errorf("error encoding unsigned transaction ", err)
 		result.Err = err

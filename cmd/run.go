@@ -122,7 +122,7 @@ func runMigrations(c db.Config) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.NetworkConfig.ChainID)
+	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.NetworkConfig.L1ChainID)
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +150,7 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 	}
 
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
+	c.RPC.ChainID = c.NetworkConfig.L2ChainID
 
 	if err := jsonrpc.NewServer(c.RPC, pool, st, gpe, storage, apis).Start(); err != nil {
 		log.Fatal(err)
@@ -281,6 +282,7 @@ func newState(ctx context.Context, c *config.Config, sqlDB *pgxpool.Pool) *state
 
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
+		ChainID:              c.NetworkConfig.L2ChainID,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
