@@ -553,8 +553,8 @@ func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64
 	return block, nil
 }
 
-// GetLastTimestamp function allows to retrieve the lastTimestamp value in the smc
-func (etherMan *Client) GetLastTimestamp() (uint64, error) {
+// GetLastBatchTimestamp function allows to retrieve the lastTimestamp value in the smc
+func (etherMan *Client) GetLastBatchTimestamp() (uint64, error) {
 	return etherMan.PoE.LastTimestamp(&bind.CallOpts{Pending: false})
 }
 
@@ -570,6 +570,15 @@ func (etherMan *Client) GetLatestBlockNumber(ctx context.Context) (uint64, error
 		return 0, err
 	}
 	return header.Number.Uint64(), nil
+}
+
+// GetLatestBlockTimestamp gets the latest block timestamp from the ethereum
+func (etherMan *Client) GetLatestBlockTimestamp(ctx context.Context) (uint64, error) {
+	header, err := etherMan.EtherClient.HeaderByNumber(ctx, nil)
+	if err != nil || header == nil {
+		return 0, err
+	}
+	return header.Time, nil
 }
 
 // GetLatestVerifiedBatchNum gets latest verified batch from ethereum
