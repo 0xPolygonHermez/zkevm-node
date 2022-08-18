@@ -2,13 +2,17 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/storage/memory"
@@ -16,22 +20,38 @@ import (
 
 const repoURL = "https://github.com/0xPolygonHermez/zkevm-commonjs"
 
-// GenesisAction struct
-type GenesisAction struct {
-	Balance  string            `json:"balanace"`
+// GenesisAccount struct
+type GenesisAccount struct {
+	Balance  string            `json:"balance"`
 	Nonce    string            `json:"nonce"`
 	Address  string            `json:"address"`
 	Bytecode string            `json:"bytecode"`
 	Storage  map[string]string `json:"storage"`
 }
 
-// GenesisData struct
-type GenesisData struct {
-	Root    string          `json:"root"`
-	Genesis []GenesisAction `json:"genesis"`
+// GenesisReader struct
+type GenesisReader struct {
+	Root     string           `json:"root"`
+	Accounts []GenesisAccount `json:"genesis"`
+}
+
+// Genesis struct
+type Genesis struct {
+	Root  string
+	Leafs []state.GenesisAction
 }
 
 func main() {
+	rawGenesis := getLatestGenesisRaw()
+	genesis := raw2Struct(rawGenesis)
+	genGoCode(genesis)
+	err := assertGenesis(genesis.Root)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func getLatestGenesisRaw() []byte {
 	fs := memfs.New()
 
 	_, err := git.Clone(memory.NewStorage(), fs, &git.CloneOptions{
@@ -53,48 +73,67 @@ func main() {
 	for scanner.Scan() {
 		genesis = append(genesis, scanner.Bytes()...)
 	}
+	return genesis
+}
 
-	var genesisData GenesisData
-	err = json.Unmarshal(genesis, &genesisData)
+func raw2Struct(raw []byte) Genesis {
+	var genesisData GenesisReader
+	err := json.Unmarshal(raw, &genesisData)
 	if err != nil {
 		panic(fmt.Errorf("error json unmarshal: %v", err))
 	}
 
-	genesisActions := make([]state.GenesisAction, 0)
+	leafs := make([]state.GenesisAction, 0)
 
-	for _, g := range genesisData.Genesis {
-		if len(g.Nonce) != 0 {
-			genesisActions = append(genesisActions, state.GenesisAction{
-				Address: g.Address,
+	for _, acc := range genesisData.Accounts {
+		if len(acc.Balance) != 0 && acc.Balance != "0" {
+			leafs = append(leafs, state.GenesisAction{
+				Address: acc.Address,
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   acc.Balance,
+			})
+		}
+		if len(acc.Nonce) != 0 && acc.Nonce != "0" {
+			leafs = append(leafs, state.GenesisAction{
+				Address: acc.Address,
 				Type:    int(merkletree.LeafTypeNonce),
-				Value:   g.Nonce,
+				Value:   acc.Nonce,
 			})
 		}
-		if len(g.Bytecode) != 0 {
-			genesisActions = append(genesisActions, state.GenesisAction{
-				Address:  g.Address,
+		if len(acc.Bytecode) != 0 {
+			leafs = append(leafs, state.GenesisAction{
+				Address:  acc.Address,
 				Type:     int(merkletree.LeafTypeCode),
-				Bytecode: g.Bytecode,
+				Bytecode: acc.Bytecode,
 			})
 		}
-		for key, value := range g.Storage {
-			genesisActions = append(genesisActions, state.GenesisAction{
-				Address:         g.Address,
+		for key, value := range acc.Storage {
+			leafs = append(leafs, state.GenesisAction{
+				Address:         acc.Address,
 				Type:            int(merkletree.LeafTypeStorage),
 				StoragePosition: key,
 				Value:           value,
 			})
 		}
 	}
+	return Genesis{
+		Root:  genesisData.Root,
+		Leafs: leafs,
+	}
+}
 
-	gJson, _ := json.MarshalIndent(genesisActions, "", " ")
+func genGoCode(genesis Genesis) {
+	gJson, _ := json.MarshalIndent(genesis.Leafs, "", " ")
 	gString := string(gJson)
 	gString = strings.Replace(gString, "[\n", "", -1)
 	gString = strings.Replace(gString, "]", "", -1)
 	gString = `//nolint
 package config
 
-import "github.com/0xPolygonHermez/zkevm-node/state" 
+import (
+	"github.com/0xPolygonHermez/zkevm-node/merkletree" 
+	"github.com/0xPolygonHermez/zkevm-node/state" 
+)
 
 var commonGenesisActions = []*state.GenesisAction{
 ` + gString + `
@@ -109,9 +148,64 @@ var commonGenesisActions = []*state.GenesisAction{
 	gString = strings.Replace(gString, `"root"`, "Root", -1)
 	gString = strings.Replace(gString, "\"\n", "\",\n", -1)
 	gString = strings.Replace(gString, "}\n", "},\n", -1)
+	gString = strings.Replace(gString, "Type: 0,", "Type: int(merkletree.LeafTypeBalance),", -1)
+	gString = strings.Replace(gString, "Type: 1,", "Type: int(merkletree.LeafTypeNonce),", -1)
+	gString = strings.Replace(gString, "Type: 2,", "Type: int(merkletree.LeafTypeCode),", -1)
+	gString = strings.Replace(gString, "Type: 3,", "Type: int(merkletree.LeafTypeStorage),", -1)
 
-	err = ioutil.WriteFile("./config/genesis.go", []byte(gString), 0600) //nolint:gomnd
+	err := ioutil.WriteFile("../../config/genesis.go", []byte(gString), 0600) //nolint:gomnd
 	if err != nil {
 		panic(fmt.Errorf("error writing file: %v", err))
 	}
+}
+
+func assertGenesis(expectedRoot string) (err error) {
+	// Build node
+	if err = operations.RunMakeTarget("build-docker"); err != nil {
+		return
+	}
+	// Start DB and executor
+	if err = operations.RunMakeTarget("run-db"); err != nil {
+		return
+	}
+	if err = operations.RunMakeTarget("run-zkprover"); err != nil {
+		return
+	}
+	// Stop everything once done
+	defer func() {
+		if defErr := operations.Teardown(); defErr != nil {
+			err = fmt.Errorf("Error tearing down components: %s", defErr.Error())
+		}
+	}()
+
+	// Setup opsman
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsCfg.State.MaxCumulativeGasUsed = 80000000000
+	opsman, err := operations.NewManager(context.Background(), opsCfg)
+	if err != nil {
+		return
+	}
+
+	// Run node
+	err = opsman.Setup()
+	if err != nil {
+		return
+	}
+
+	// Get Genesis root using jRPC
+	client, err := ethclient.Dial("http://localhost:8123")
+	if err != nil {
+		return
+	}
+	blockHeader, err := client.HeaderByNumber(context.Background(), big.NewInt(0))
+	if err != nil {
+		return
+	}
+	actualRoot := "0x" + blockHeader.Root.Hex()
+	if actualRoot != expectedRoot {
+		err = fmt.Errorf("Root missmatch: expected: %s, actual %s", expectedRoot, actualRoot)
+		return
+	}
+	fmt.Printf("SUCCESS: expected: %s, actual %s\n", expectedRoot, actualRoot)
+	return
 }

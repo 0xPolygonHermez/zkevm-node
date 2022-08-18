@@ -419,7 +419,7 @@ func (m *Manager) StartNetwork() error {
 
 // InitNetwork Initializes the L2 network registering the sequencer and adding funds via the bridge
 func (m *Manager) InitNetwork() error {
-	if err := runMakeTarget("init-network"); err != nil {
+	if err := RunMakeTarget("init-network"); err != nil {
 		return err
 	}
 
@@ -429,7 +429,7 @@ func (m *Manager) InitNetwork() error {
 
 // DeployUniswap deploys a uniswap environment and perform swaps
 func (m *Manager) DeployUniswap() error {
-	if err := runMakeTarget("deploy-uniswap"); err != nil {
+	if err := RunMakeTarget("deploy-uniswap"); err != nil {
 		return err
 	}
 	// Wait network to be ready
@@ -467,11 +467,11 @@ func runCmd(c *exec.Cmd) error {
 // StartComponent starts a docker-compose component.
 func StartComponent(component string, conditions ...ConditionFunc) error {
 	cmdDown := fmt.Sprintf("stop-%s", component)
-	if err := runMakeTarget(cmdDown); err != nil {
+	if err := RunMakeTarget(cmdDown); err != nil {
 		return err
 	}
 	cmdUp := fmt.Sprintf("run-%s", component)
-	if err := runMakeTarget(cmdUp); err != nil {
+	if err := RunMakeTarget(cmdUp); err != nil {
 		return err
 	}
 
@@ -487,11 +487,11 @@ func StartComponent(component string, conditions ...ConditionFunc) error {
 // StopComponent stops a docker-compose component.
 func StopComponent(component string) error {
 	cmdDown := fmt.Sprintf("stop-%s", component)
-	return runMakeTarget(cmdDown)
+	return RunMakeTarget(cmdDown)
 }
 
-// runMakeTarget runs a Makefile target.
-func runMakeTarget(target string) error {
+// RunMakeTarget runs a Makefile target.
+func RunMakeTarget(target string) error {
 	cmd := exec.Command("make", target)
 	return runCmd(cmd)
 }
