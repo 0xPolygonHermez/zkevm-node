@@ -338,7 +338,7 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 		log.Errorf("failed to get last virtual batch num, err: %v", err)
 		return false
 	}
-	if time.Unix(s.sequenceInProgress.Timestamp, 0).Add(s.cfg.MaxTimeForBatchToBeOpen.Duration).After(time.Now()) &&
+	if time.Unix(s.sequenceInProgress.Timestamp, 0).Add(s.cfg.MaxTimeForBatchToBeOpen.Duration).Before(time.Now()) &&
 		isPreviousBatchVirtualized && len(s.sequenceInProgress.Txs) > 0 {
 		log.Info("closing batch because there are enough time to close a batch, previous batch is virtualized and batch has txs")
 		return true
