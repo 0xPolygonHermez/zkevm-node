@@ -89,7 +89,7 @@ func TestEthTransfer(t *testing.T) {
 
 	fmt.Printf("\nL2 Block number: %s", blockL2Number)
 	fmt.Printf("\nLast TX Hash %s", lastTxHash.String())
-	err = operations.WaitL2BlockToBeVirtualized(blockL2Number, 2*time.Minute)
+	err = operations.WaitL2BlockToBeVirtualized(blockL2Number, 8*time.Minute)
 	require.NoError(t, err)
 
 	// wait for l2 block number to be consolidated
