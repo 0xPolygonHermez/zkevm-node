@@ -182,11 +182,6 @@ var (
 	}
 )
 
-// GenesisAction struct
-type GenesisAction struct {
-	Genesis []*state.GenesisAction `json:"genesis"`
-}
-
 func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 	network := ctx.String(FlagNetwork)
 
