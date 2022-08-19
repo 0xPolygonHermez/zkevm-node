@@ -217,6 +217,8 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			UpdateMerkleTree: cFalse,
 		}
 
+		log.Debugf("EstimateGas[processBatchRequest]: %v", processBatchRequest)
+
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 		if err != nil {
 			log.Errorf("error processing unsigned transaction ", err)
@@ -833,6 +835,8 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		Coinbase:         lastBatch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
 	}
+
+	log.Debugf("ProcessUnsignedTransaction[processBatchRequest]: %v", processBatchRequest)
 
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)

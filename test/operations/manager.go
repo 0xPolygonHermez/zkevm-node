@@ -235,7 +235,7 @@ func GetAuth(privateKeyStr string, chainID uint64) (*bind.TransactOpts, error) {
 		return nil, err
 	}
 
-	return bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(DefaultL1ChainID))
+	return bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(chainID))
 }
 
 // MustGetAuth GetAuth but panics if err
@@ -515,7 +515,7 @@ func GetDefaultOperationsConfig() *Config {
 
 // GetClient returns an ethereum client to the provided URL
 func GetClient(URL string) (*ethclient.Client, error) {
-	client, err := ethclient.Dial(DefaultL1NetworkURL)
+	client, err := ethclient.Dial(URL)
 	if err != nil {
 		return nil, err
 	}

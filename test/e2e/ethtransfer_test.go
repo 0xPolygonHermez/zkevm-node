@@ -20,7 +20,7 @@ func TestEthTransfer(t *testing.T) {
 		t.Skip()
 	}
 
-	// defer func() {	require.NoError(t, operations.Teardown()) }()
+	defer func() { require.NoError(t, operations.Teardown()) }()
 
 	err := operations.Teardown()
 	require.NoError(t, err)
@@ -52,7 +52,7 @@ func TestEthTransfer(t *testing.T) {
 	log.Infof("Sender Nonce: %v", senderNonce)
 
 	log.Infof("Sending %d transactions...", nTxs)
-	// var lastTxHash common.Hash
+	var lastTxHash common.Hash
 
 	var sentTxs []*types.Transaction
 
@@ -69,44 +69,43 @@ func TestEthTransfer(t *testing.T) {
 		tx := types.NewTransaction(nonce+uint64(i), toAddress, amount, gasLimit, gasPrice, nil)
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		log.Infof("Sending Tx %v Nonce %v Gas %v GasPrice %v", signedTx.Hash(), signedTx.Nonce(), gasLimit, gasPrice)
+		log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
 		err = client.SendTransaction(context.Background(), signedTx)
 		require.NoError(t, err)
-		// 	lastTxHash = signedTx.Hash()
+		lastTxHash = signedTx.Hash()
 
 		sentTxs = append(sentTxs, signedTx)
 	}
 	// wait for TX to be mined
 	timeout := 30 * time.Second
 	for _, tx := range sentTxs {
-
-		log.Infof("\nTx Hash %s", tx.Hash())
+		log.Infof("Waiting Tx %s to be mined", tx.Hash())
 		err = operations.WaitTxToBeMined(client, tx.Hash(), timeout)
 		require.NoError(t, err)
+		log.Infof("Tx %s mined successfully", tx.Hash())
 
-		// // check transaction nonce against transaction reported L2 block number
-		// receipt, err := client.TransactionReceipt(ctx, tx.Hash())
-		// require.NoError(t, err)
+		// check transaction nonce against transaction reported L2 block number
+		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+		require.NoError(t, err)
 
-		// // get block L2 number
-		// blockL2Number := receipt.BlockNumber
-		// require.Equal(t, tx.Nonce(), blockL2Number.Uint64()-1)
+		// get block L2 number
+		blockL2Number := receipt.BlockNumber
+		require.Equal(t, tx.Nonce(), blockL2Number.Uint64()-1)
 	}
-	// log.Infof("\n%d transactions added into the trusted state without error. Waiting for all the batches to be virtualized", nTxs)
+	log.Infof("%d transactions added into the trusted state successfully.", nTxs)
 
-	// receipt, err := client.TransactionReceipt(ctx, lastTxHash)
-	// require.NoError(t, err)
+	// get block L2 number of the last transaction sent
+	receipt, err := client.TransactionReceipt(ctx, lastTxHash)
+	require.NoError(t, err)
+	l2BlockNumber := receipt.BlockNumber
 
-	// // get block L2 number
-	// blockL2Number := receipt.BlockNumber
+	// wait for l2 block to be virtualized
+	log.Infof("waiting for the block number %v to be virtualized", l2BlockNumber.String())
+	err = operations.WaitL2BlockToBeVirtualized(l2BlockNumber, 2*time.Minute)
+	require.NoError(t, err)
 
-	// // wait for l2 Block number to be virtualized
-	// fmt.Printf("\nL2 Block number: %s", blockL2Number)
-	// fmt.Printf("\nLast TX Hash %s", lastTxHash.String())
-	// err = operations.WaitL2BlockToBeVirtualized(blockL2Number, 2*time.Minute)
-	// require.NoError(t, err)
-
-	// // wait for l2 block number to be consolidated
-	// err = operations.WaitL2BlockToBeConsolidated(blockL2Number, 2*time.Minute)
-	// require.NoError(t, err)
+	// wait for l2 block number to be consolidated
+	log.Infof("waiting for the block number %v to be consolidated", l2BlockNumber.String())
+	err = operations.WaitL2BlockToBeConsolidated(l2BlockNumber, 2*time.Minute)
+	require.NoError(t, err)
 }

@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/FailureTest"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Read"
@@ -20,12 +20,13 @@ import (
 )
 
 var networks = []struct {
+	Name       string
 	URL        string
 	ChainID    uint64
 	PrivateKey string
 }{
-	{URL: operations.DefaultL1NetworkURL, ChainID: operations.DefaultL1ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
-	{URL: operations.DefaultL2NetworkURL, ChainID: operations.DefaultL2ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
+	{Name: "Local L1", URL: operations.DefaultL1NetworkURL, ChainID: operations.DefaultL1ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
+	{Name: "Local L2", URL: operations.DefaultL2NetworkURL, ChainID: operations.DefaultL2ChainID, PrivateKey: operations.DefaultSequencerPrivateKey},
 }
 
 func TestEmitLog2(t *testing.T) {
@@ -47,6 +48,7 @@ func TestEmitLog2(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, network := range networks {
+		log.Debugf(network.Name)
 		client := operations.MustGetClient(network.URL)
 		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
@@ -108,6 +110,7 @@ func TestFailureTest(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, network := range networks {
+		log.Debugf(network.Name)
 		client := operations.MustGetClient(network.URL)
 		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
@@ -152,6 +155,7 @@ func TestRead(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, network := range networks {
+		log.Debugf(network.Name)
 		client := operations.MustGetClient(network.URL)
 		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
@@ -252,6 +256,19 @@ func TestRead(t *testing.T) {
 }
 
 func logTx(tx *types.Transaction) {
-	b, _ := tx.MarshalBinary()
-	log.Debug(tx.Hash(), " ", hex.EncodeToHex(b))
+	sender, _ := state.GetSender(*tx)
+	log.Debugf("********************")
+	log.Debugf("Hash: %v", tx.Hash())
+	log.Debugf("From: %v", sender)
+	log.Debugf("Nonce: %v", tx.Nonce())
+	log.Debugf("ChainId: %v", tx.ChainId())
+	log.Debugf("To: %v", tx.To())
+	log.Debugf("Gas: %v", tx.Gas())
+	log.Debugf("GasPrice: %v", tx.GasPrice())
+	log.Debugf("Cost: %v", tx.Cost())
+
+	// b, _ := tx.MarshalBinary()
+	//log.Debugf("RLP: ", hex.EncodeToHex(b))
+	log.Debugf("********************")
+
 }
