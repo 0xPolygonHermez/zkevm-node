@@ -30,7 +30,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
   "maticTokenAddress": "0xEa2f9aC0cd926C92923355e88Af73Ee83F2D9C67",
   "globalExitRootManagerAddress": "0x9730d4ec6684E5567fB70B12d49Bf3f58f5ce4Cc",
 
-  "arity": 4,
   "globalExitRootStoragePosition": 0,
   "localExitRootStoragePosition":  1,
   "oldStateRootPosition":          0,
@@ -76,7 +75,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
   "maxCumulativeGasUsed": 300000
 }`,
 			expectedConfig: NetworkConfig{
-				Arity:          4,
 				GenBlockNumber: 6934972,
 				PoEAddr:        common.HexToAddress("0x2f612dc8fB986E7976AEfc13d8bB0Eb18488a4C9"),
 				MaticAddr:      common.HexToAddress("0xEa2f9aC0cd926C92923355e88Af73Ee83F2D9C67"),
@@ -156,7 +154,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 		{
 			description: "imported from network-config.example.json",
 			inputConfigStr: `{
-  "arity":            4,
   "deploymentBlockNumber":   1,
   "proofOfEfficiencyAddress":          "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
   "maticTokenAddress":        "0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa",
@@ -184,7 +181,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
   "maxCumulativeGasUsed": 123456
 }`,
 			expectedConfig: NetworkConfig{
-				Arity:          4,
 				GenBlockNumber: 1,
 				PoEAddr:        common.HexToAddress("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"),
 				MaticAddr:      common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
@@ -247,7 +243,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 			actualConfig, err := loadCustomNetworkConfig(ctx)
 			require.NoError(t, testutils.CheckError(err, tc.expectedError, tc.expectedErrorMsg))
 
-			require.Equal(t, tc.expectedConfig.Arity, actualConfig.Arity)
 			require.Equal(t, tc.expectedConfig.GenBlockNumber, actualConfig.GenBlockNumber)
 			require.Equal(t, tc.expectedConfig.PoEAddr, actualConfig.PoEAddr)
 			require.Equal(t, tc.expectedConfig.MaticAddr, actualConfig.MaticAddr)
@@ -305,12 +300,10 @@ func TestMergeNetworkConfig(t *testing.T) {
 			},
 			inputBaseConfig: NetworkConfig{
 				PoEAddr:   common.HexToAddress("0xb1Fe4a65D3392df68F96daC8eB4df56B2411afBf"),
-				Arity:     4,
 				L1ChainID: 5,
 				L2ChainID: 1000,
 			},
 			expectedOutputConfig: NetworkConfig{
-				Arity:          4,
 				L1ChainID:      5,
 				L2ChainID:      1000,
 				GenBlockNumber: 300,

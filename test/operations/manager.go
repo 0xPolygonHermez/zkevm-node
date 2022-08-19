@@ -36,7 +36,6 @@ const (
 
 // Public constants
 const (
-	DefaultArity                = 4
 	DefaultSequencerAddress     = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	DefaultSequencerPrivateKey  = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 	DefaultSequencerBalance     = 400000
@@ -61,7 +60,6 @@ type SequencerConfig struct {
 
 // Config is the main Manager configuration.
 type Config struct {
-	Arity     uint8
 	State     *state.Config
 	Sequencer *SequencerConfig
 }
@@ -90,7 +88,7 @@ func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 		ctx:  ctx,
 		wait: NewWait(),
 	}
-	st, err := initState(cfg.Arity, cfg.State.MaxCumulativeGasUsed)
+	st, err := initState(cfg.State.MaxCumulativeGasUsed)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +275,7 @@ func Teardown() error {
 	return nil
 }
 
-func initState(arity uint8, maxCumulativeGasUsed uint64) (*state.State, error) {
+func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 	sqlDB, err := db.NewSQLDB(dbConfig)
 	if err != nil {
 		return nil, err
@@ -499,7 +497,7 @@ func RunMakeTarget(target string) error {
 // GetDefaultOperationsConfig provides a default configuration to run the environment
 func GetDefaultOperationsConfig() *Config {
 	return &Config{
-		Arity: DefaultArity, State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
+		State:     &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
 		Sequencer: &SequencerConfig{Address: DefaultSequencerAddress, PrivateKey: DefaultSequencerPrivateKey},
 	}
 }
