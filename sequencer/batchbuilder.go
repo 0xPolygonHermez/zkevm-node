@@ -333,20 +333,17 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 		}
 	}
 	// Check if it has been too long since a batch is virtualized
-	lastBatchTime, err := s.state.GetLastBatchTime(ctx, nil)
-	if err != nil && !errors.Is(err, state.ErrNotFound) {
-		log.Errorf("failed to get last batch time, err: %v", err)
+	isPreviousBatchVirtualized, err := s.state.IsBatchVirtualized(ctx, s.lastBatchNum-1, nil)
+	if err != nil {
+		log.Errorf("failed to get last virtual batch num, err: %v", err)
 		return false
 	}
-	if lastBatchTime.Before(time.Now().Add(-s.cfg.LastTimeBatchMaxWaitPeriod.Duration)) && len(s.sequenceInProgress.Txs) > 0 {
-		isProfitable := s.isSequenceProfitable(ctx)
-		if isProfitable {
-			log.Info(
-				"current sequence should be closed because LastTimeBatchMaxWaitPeriod has been exceeded, " +
-					"there are pending sequences to be sent and they are profitable")
-			return true
-		}
+	if time.Unix(s.sequenceInProgress.Timestamp, 0).Add(s.cfg.MaxTimeForBatchToBeOpen.Duration).Before(time.Now()) &&
+		isPreviousBatchVirtualized && len(s.sequenceInProgress.Txs) > 0 {
+		log.Info("closing batch because there are enough time to close a batch, previous batch is virtualized and batch has txs")
+		return true
 	}
+
 	// Check ZK counters
 	zkCounters := s.calculateZkCounters()
 	if zkCounters.IsZkCountersBelowZero() && len(s.sequenceInProgress.Txs) != 0 {
