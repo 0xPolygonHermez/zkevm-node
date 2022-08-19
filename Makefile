@@ -86,6 +86,7 @@ build-docker-nc: ## Builds a docker image with the node binary - but without bui
 
 .PHONY: test
 test: compile-scs ## Runs only short tests without checking race conditions
+	export CONFIG_MODE="test"	
 	$(STOPDB)
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 5
@@ -94,6 +95,7 @@ test: compile-scs ## Runs only short tests without checking race conditions
 
 .PHONY: test-full
 test-full: build-docker compile-scs ## Runs all tests checking race conditions
+	export CONFIG_MODE="test"
 	$(STOPDB)
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
@@ -103,6 +105,7 @@ test-full: build-docker compile-scs ## Runs all tests checking race conditions
 
 .PHONY: test-full-non-e2e
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
+	export CONFIG_MODE="test"	
 	$(STOPDB)
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
