@@ -9,9 +9,9 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/0xPolygonHermez/zkevm-node/tools/genesis/genesisparser"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
@@ -20,8 +20,8 @@ import (
 
 const repoURL = "https://github.com/0xPolygonHermez/zkevm-commonjs"
 
-// GenesisAccount struct
-type GenesisAccount struct {
+// genesisAccountReader struct
+type genesisAccountReader struct {
 	Balance  string            `json:"balance"`
 	Nonce    string            `json:"nonce"`
 	Address  string            `json:"address"`
@@ -29,29 +29,37 @@ type GenesisAccount struct {
 	Storage  map[string]string `json:"storage"`
 }
 
-// GenesisReader struct
-type GenesisReader struct {
-	Root     string           `json:"root"`
-	Accounts []GenesisAccount `json:"genesis"`
+// genesisReader struct
+type genesisReader struct {
+	Root     string                 `json:"root"`
+	Accounts []genesisAccountReader `json:"genesis"`
 }
 
-// Genesis struct
-type Genesis struct {
-	Root  string
-	Leafs []state.GenesisAction
+func (gr genesisReader) GenesisAccountTest() []genesisparser.GenesisAccountTest {
+	accs := []genesisparser.GenesisAccountTest{}
+	for i := 0; i < len(gr.Accounts); i++ {
+		accs = append(accs, genesisparser.GenesisAccountTest{
+			Balance:  gr.Accounts[i].Balance,
+			Nonce:    gr.Accounts[i].Nonce,
+			Address:  gr.Accounts[i].Address,
+			Bytecode: gr.Accounts[i].Bytecode,
+			Storage:  gr.Accounts[i].Storage,
+		})
+	}
+	return accs
 }
 
 func main() {
 	rawGenesis := getLatestGenesisRaw()
-	genesis := raw2Struct(rawGenesis)
-	genGoCode(genesis)
-	err := assertGenesis(genesis.Root)
+	actions := genesisparser.GenesisTest2Actions(rawGenesis.GenesisAccountTest())
+	genGoCode(actions)
+	err := assertGenesis(rawGenesis.Root)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func getLatestGenesisRaw() []byte {
+func getLatestGenesisRaw() genesisReader {
 	fs := memfs.New()
 
 	_, err := git.Clone(memory.NewStorage(), fs, &git.CloneOptions{
@@ -73,57 +81,16 @@ func getLatestGenesisRaw() []byte {
 	for scanner.Scan() {
 		genesis = append(genesis, scanner.Bytes()...)
 	}
-	return genesis
-}
-
-func raw2Struct(raw []byte) Genesis {
-	var genesisData GenesisReader
-	err := json.Unmarshal(raw, &genesisData)
+	var genesisData genesisReader
+	err = json.Unmarshal(genesis, &genesisData)
 	if err != nil {
 		panic(fmt.Errorf("error json unmarshal: %v", err))
 	}
-
-	leafs := make([]state.GenesisAction, 0)
-
-	for _, acc := range genesisData.Accounts {
-		if len(acc.Balance) != 0 && acc.Balance != "0" {
-			leafs = append(leafs, state.GenesisAction{
-				Address: acc.Address,
-				Type:    int(merkletree.LeafTypeBalance),
-				Value:   acc.Balance,
-			})
-		}
-		if len(acc.Nonce) != 0 && acc.Nonce != "0" {
-			leafs = append(leafs, state.GenesisAction{
-				Address: acc.Address,
-				Type:    int(merkletree.LeafTypeNonce),
-				Value:   acc.Nonce,
-			})
-		}
-		if len(acc.Bytecode) != 0 {
-			leafs = append(leafs, state.GenesisAction{
-				Address:  acc.Address,
-				Type:     int(merkletree.LeafTypeCode),
-				Bytecode: acc.Bytecode,
-			})
-		}
-		for key, value := range acc.Storage {
-			leafs = append(leafs, state.GenesisAction{
-				Address:         acc.Address,
-				Type:            int(merkletree.LeafTypeStorage),
-				StoragePosition: key,
-				Value:           value,
-			})
-		}
-	}
-	return Genesis{
-		Root:  genesisData.Root,
-		Leafs: leafs,
-	}
+	return genesisData
 }
 
-func genGoCode(genesis Genesis) {
-	gJson, _ := json.MarshalIndent(genesis.Leafs, "", " ")
+func genGoCode(actions []*state.GenesisAction) {
+	gJson, _ := json.MarshalIndent(actions, "", " ")
 	gString := string(gJson)
 	gString = strings.Replace(gString, "[\n", "", -1)
 	gString = strings.Replace(gString, "]", "", -1)
