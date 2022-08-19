@@ -81,7 +81,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		// Check if can be send
 		estimatedGas, err = s.etherman.EstimateGasSequenceBatches(sequences)
 		if err != nil {
-			sequences, err = s.handleEstimateGasSendSequenceErr(sequences, currentBatchNumToSequence, err)
+			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
 			if sequences != nil {
 				// Handling the error gracefully, re-processing the sequence as a sanity check
 				_, err = s.etherman.EstimateGasSequenceBatches(sequences)
@@ -113,7 +113,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		}
 	}
 
-	log.Info("not enougth time has passed since last batch was virtualized, and the sequence could be bigger")
+	log.Info("not enough time has passed since last batch was virtualized, and the sequence could be bigger")
 	return nil, nil
 }
 
@@ -122,6 +122,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 // sequence, nil: handled gracefully. Potentially manipulating the sequences
 // nil, nil: a situation that requires waiting
 func (s *Sequencer) handleEstimateGasSendSequenceErr(
+	ctx context.Context,
 	sequences []types.Sequence,
 	currentBatchNumToSequence uint64,
 	err error,
@@ -140,7 +141,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 				currentBatchNumToSequence, err,
 			)
 		}
-		// Remove latest item and send the sequences
+		// Remove the latest item and send the sequences
 		log.Infof(
 			"Done building sequences, selected batches from %d to %d. Batch %d caused the L1 tx to be too big",
 			s.lastBatchNumSentToL1+1, currentBatchNumToSequence, currentBatchNumToSequence+1,
@@ -153,7 +154,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	// an error regarding timestamp verification, this must be handled
 	if strings.Contains(err.Error(), errTimestampMustBeInsideRange) {
 		// query the sc about the value of its lastTimestamp variable
-		lastTimestamp, err := s.etherman.GetLastTimestamp()
+		lastTimestamp, err := s.etherman.GetLastBatchTimestamp()
 		if err != nil {
 			return nil, err
 		}
@@ -165,8 +166,11 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 			}
 			lastTimestamp = uint64(seq.Timestamp)
 		}
-
-		log.Debug("block.timestamp is greater than seq.Timestamp. A new block must be mined in L1 before the gas can be estimated.")
+		blockTimestamp, err := s.etherman.GetLatestBlockTimestamp(ctx)
+		if err != nil {
+			log.Error("error getting block timestamp: ", err)
+		}
+		log.Debugf("block.timestamp: %d is smaller than seq.Timestamp: %d. A new block must be mined in L1 before the gas can be estimated.", blockTimestamp, sequences[0].Timestamp)
 		return nil, nil
 	}
 
@@ -178,7 +182,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 			currentBatchNumToSequence, err,
 		)
 	}
-	// Remove latest item and send the sequences
+	// Remove the latest item and send the sequences
 	log.Infof(
 		"Done building sequences, selected batches from %d to %d. Batch %d excluded due to unknown error: %v",
 		s.lastBatchNumSentToL1+1, currentBatchNumToSequence, currentBatchNumToSequence+1, err,
