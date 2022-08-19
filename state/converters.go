@@ -55,7 +55,7 @@ func convertToProcessTransactionResponse(txs []types.Transaction, responses []*p
 		result.GasLeft = response.GasLeft
 		result.GasUsed = response.GasUsed
 		result.GasRefunded = response.GasRefunded
-		result.Error = executor.ExecutorError(response.Error).Error()
+		result.Error = executor.Err(response.Error)
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
@@ -117,7 +117,7 @@ func convertToStrucLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumentat
 		result.Storage = convertToProperMap(response.Storage)
 		result.Depth = int(response.Depth)
 		result.RefundCounter = response.GasRefund
-		result.Err = fmt.Errorf(executor.ExecutorError(response.Error).Error())
+		result.Err = executor.Err(response.Error)
 
 		results = append(results, *result)
 	}
@@ -183,7 +183,10 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) []instrument
 		step.OpCode = fakevm.OpCode(response.Op).String()
 		step.Refund = fmt.Sprint(response.GasRefund)
 		step.Op = fmt.Sprint(response.Op)
-		step.Error = executor.ExecutorError(response.Error).Error()
+		err := executor.Err(response.Error)
+		if err != nil {
+			step.Error = err.Error()
+		}
 		step.Contract = convertToInstrumentationContract(response.Contract)
 		step.GasCost = fmt.Sprint(response.GasCost)
 		step.Stack = response.Stack

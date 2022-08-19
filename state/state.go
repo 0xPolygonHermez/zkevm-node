@@ -225,7 +225,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		// Check if an out of gas error happened during EVM execution
 		if processBatchResponse.Responses[0].Error != pb.Error(executor.ERROR_NO_ERROR) {
-			err := executor.ExecutorError(processBatchResponse.Responses[0].Error).Err()
+			err := executor.Err(processBatchResponse.Responses[0].Error)
 
 			if (isGasEVMError(err) || isGasApplyError(err)) && shouldOmitErr {
 				// Specifying the transaction failed, but not providing an error
@@ -457,6 +457,12 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 
 	for i := firstTxToInsert; i < len(processedTxs); i++ {
 		processedTx := processedTxs[i]
+		// if the transaction has an intrinsic invalid tx error it means
+		// the transaction has not changed the state, so we don't store it
+		// and just move to the next
+		if errors.Is(processedTx.Error, runtime.ErrIntrinsicInvalidTransaction) {
+			continue
+		}
 
 		lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
 		if err != nil {
@@ -844,7 +850,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	result.CreateAddress = r.CreateAddress
 	result.StateRoot = r.StateRoot.Bytes()
 	if processBatchResponse.Responses[0].Error != pb.Error(executor.ERROR_NO_ERROR) {
-		err := executor.ExecutorError(processBatchResponse.Responses[0].Error).Err()
+		err := executor.Err(processBatchResponse.Responses[0].Error)
 		if isEVMRevertError(err) {
 			result.Err = constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
 		} else {

@@ -29,6 +29,11 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	if s.shouldCloseSequenceInProgress(ctx) {
 		log.Infof("current sequence should be closed")
 		err := s.closeSequence(ctx)
+		if errors.Is(err, state.ErrClosingBatchWithoutTxs) {
+			log.Info("current sequence can't be closed without transactions")
+			waitTick(ctx, ticker)
+			return
+		}
 		if err != nil {
 			log.Errorf("error closing sequence: %v", err)
 			log.Info("resetting sequence in progress")
@@ -155,7 +160,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 					rollbackErr, err,
 				)
 			}
-			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %v", err)
+			return types.Sequence{}, fmt.Errorf("failed to close batch, err: %w", err)
 		}
 	} else {
 		return types.Sequence{}, errors.New("lastStateRoot and lastLocalExitRoot are empty, impossible to close a batch")
@@ -233,7 +238,7 @@ func (s *Sequencer) calculateZkCounters() pool.ZkCounters {
 func (s *Sequencer) closeSequence(ctx context.Context) error {
 	newSequence, err := s.newSequence(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to create new sequence, err: %v", err)
+		return fmt.Errorf("failed to create new sequence, err: %w", err)
 	}
 	s.sequenceInProgress = newSequence
 	return nil

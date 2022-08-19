@@ -193,8 +193,7 @@ func generateReceipt(block *types.Block, processedTx *ProcessTransactionResponse
 	for i := 0; i < len(receipt.Logs); i++ {
 		receipt.Logs[i].TxHash = processedTx.Tx.Hash()
 	}
-
-	if processedTx.Error == "" {
+	if processedTx.Error == nil {
 		receipt.Status = types.ReceiptStatusSuccessful
 	} else {
 		receipt.Status = types.ReceiptStatusFailed
