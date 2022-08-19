@@ -10,7 +10,6 @@ import (
 type StateTransitionTestCase struct {
 	ID                  uint   `json:"id"`
 	Description         string `json:"description"`
-	Arity               uint8  `json:"arity"`
 	ChainIDSequencer    uint64 `json:"chainIdSequencer"`
 	SequencerAddress    string `json:"sequencerAddress"`
 	SequencerPrivateKey string `json:"sequencerPvtKey"`

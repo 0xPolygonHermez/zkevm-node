@@ -24,7 +24,7 @@ func TestJSONRPC(t *testing.T) {
 	ctx := context.Background()
 
 	opsCfg := &operations.Config{
-		Arity: operations.DefaultArity, State: &state.Config{MaxCumulativeGasUsed: operations.DefaultMaxCumulativeGasUsed},
+		State:     &state.Config{MaxCumulativeGasUsed: operations.DefaultMaxCumulativeGasUsed},
 		Sequencer: &operations.SequencerConfig{Address: operations.DefaultSequencerAddress, PrivateKey: operations.DefaultSequencerPrivateKey},
 	}
 	opsman, err := operations.NewManager(ctx, opsCfg)

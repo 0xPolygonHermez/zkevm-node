@@ -34,7 +34,6 @@ func TestStateTransition(t *testing.T) {
 			ctx := context.Background()
 
 			opsCfg := &operations.Config{
-				Arity: testCase.Arity,
 				State: &state.Config{
 					MaxCumulativeGasUsed: 800000,
 				},
