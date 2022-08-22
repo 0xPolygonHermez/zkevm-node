@@ -55,4 +55,10 @@ type Config struct {
 
 	// ProfitabilityChecker configuration
 	ProfitabilityChecker profitabilitychecker.Config `mapstructure:"ProfitabilityChecker"`
+
+	// Maximum size, in bytes, a batch can reach
+	MaxBatchSize uint `mapstructure:"MaxBatchSize"`
+
+	// Maximum size, in bytes, a sequence can reach
+	MaxSequenceSize uint `mapstructure:"MaxSequenceSize"`
 }

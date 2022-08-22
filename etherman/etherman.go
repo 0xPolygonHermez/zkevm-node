@@ -198,14 +198,15 @@ func (etherMan *Client) WaitTxToBeMined(hash common.Hash, timeout time.Duration)
 }
 
 // EstimateGasSequenceBatches estimates gas for sending batches
-func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error) {
+func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
 	noSendOpts := *etherMan.auth
 	noSendOpts.NoSend = true
 	tx, err := etherMan.sequenceBatches(&noSendOpts, sequences)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return tx.Gas(), nil
+
+	return tx, nil
 }
 
 // SequenceBatches send sequences of batches to the ethereum
