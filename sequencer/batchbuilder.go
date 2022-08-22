@@ -62,7 +62,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
 
-	accumlatedBytes, err := s.state.EncodeTransactions(s.sequenceInProgress.Txs)
+	accumlatedBytes, err := state.EncodeTransactions(s.sequenceInProgress.Txs)
 	if err != nil {
 		log.Errorf("failed to encode transactions: %w", err)
 		return

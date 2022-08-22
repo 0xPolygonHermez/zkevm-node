@@ -65,8 +65,6 @@ type stateInterface interface {
 	GetStateRootByBatchNumber(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (common.Hash, error)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
-
-	EncodeTransactions(txs []types.Transaction) ([]byte, error)
 }
 
 type txManager interface {
