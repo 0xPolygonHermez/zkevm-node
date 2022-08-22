@@ -173,12 +173,12 @@ func TestRead(t *testing.T) {
 		log.Debug("read string public variable directly")
 		ownerNameValue, err := sc.OwnerName(callOpts)
 		require.NoError(t, err)
-		assert.Equal(t, ownerName, ownerNameValue)
+		require.Equal(t, ownerName, ownerNameValue)
 
 		log.Debug("read address public variable directly")
 		ownerValue, err := sc.Owner(callOpts)
 		require.NoError(t, err)
-		assert.Equal(t, auth.From, ownerValue)
+		require.Equal(t, auth.From, ownerValue)
 
 		tA := Read.Readtoken{
 			Name:     "Token A",
@@ -209,49 +209,49 @@ func TestRead(t *testing.T) {
 		log.Debug("read mapping public variable directly")
 		tk, err := sc.Tokens(callOpts, tA.Address)
 		require.NoError(t, err)
-		assert.Equal(t, tA.Name, tk.Name)
-		assert.Equal(t, tA.Quantity, tk.Quantity)
-		assert.Equal(t, tA.Address, tk.Address)
+		require.Equal(t, tA.Name, tk.Name)
+		require.Equal(t, tA.Quantity, tk.Quantity)
+		require.Equal(t, tA.Address, tk.Address)
 
 		tk, err = sc.Tokens(callOpts, tB.Address)
 		require.NoError(t, err)
-		assert.Equal(t, tB.Name, tk.Name)
-		assert.Equal(t, tB.Quantity, tk.Quantity)
-		assert.Equal(t, tB.Address, tk.Address)
+		require.Equal(t, tB.Name, tk.Name)
+		require.Equal(t, tB.Quantity, tk.Quantity)
+		require.Equal(t, tB.Address, tk.Address)
 
 		log.Debug("public struct read")
 		tk, err = sc.PublicGetToken(callOpts, tA.Address)
 		require.NoError(t, err)
-		assert.Equal(t, tA.Name, tk.Name)
-		assert.Equal(t, tA.Quantity, tk.Quantity)
-		assert.Equal(t, tA.Address, tk.Address)
+		require.Equal(t, tA.Name, tk.Name)
+		require.Equal(t, tA.Quantity, tk.Quantity)
+		require.Equal(t, tA.Address, tk.Address)
 
 		log.Debug("external struct read")
 		tk, err = sc.ExternalGetToken(callOpts, tB.Address)
 		require.NoError(t, err)
-		assert.Equal(t, tB.Name, tk.Name)
-		assert.Equal(t, tB.Quantity, tk.Quantity)
-		assert.Equal(t, tB.Address, tk.Address)
+		require.Equal(t, tB.Name, tk.Name)
+		require.Equal(t, tB.Quantity, tk.Quantity)
+		require.Equal(t, tB.Address, tk.Address)
 
 		log.Debug("public uint256 read")
 		value, err := sc.PublicRead(callOpts)
 		require.NoError(t, err)
-		assert.Equal(t, 0, big.NewInt(1).Cmp(value))
+		require.Equal(t, 0, big.NewInt(1).Cmp(value))
 
 		log.Debug("external uint256 read")
 		value, err = sc.ExternalRead(callOpts)
 		require.NoError(t, err)
-		assert.Equal(t, 0, big.NewInt(1).Cmp(value))
+		require.Equal(t, 0, big.NewInt(1).Cmp(value))
 
 		log.Debug("public uint256 read with parameter")
 		value, err = sc.PublicReadWParams(callOpts, big.NewInt(1))
 		require.NoError(t, err)
-		assert.Equal(t, 0, big.NewInt(2).Cmp(value))
+		require.Equal(t, 0, big.NewInt(2).Cmp(value))
 
 		log.Debug("external uint256 read with parameter")
 		value, err = sc.ExternalReadWParams(callOpts, big.NewInt(1))
 		require.NoError(t, err)
-		assert.Equal(t, 0, big.NewInt(2).Cmp(value))
+		require.Equal(t, 0, big.NewInt(2).Cmp(value))
 	}
 }
 
@@ -270,5 +270,4 @@ func logTx(tx *types.Transaction) {
 	// b, _ := tx.MarshalBinary()
 	//log.Debugf("RLP: ", hex.EncodeToHex(b))
 	log.Debugf("********************")
-
 }

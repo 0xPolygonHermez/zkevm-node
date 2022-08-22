@@ -424,27 +424,40 @@ func (p *PostgresStorage) GetLastNBatches(ctx context.Context, numBatches uint, 
 // if the l2BlockNumber parameter is nil, it means we want to get the most recent last N batches
 func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2BlockNumber *uint64, numBatches uint, dbTx pgx.Tx) ([]*Batch, common.Hash, error) {
 	const getLastNBatchesByBlockNumberSQL = `
-	select b.batch_num, 
-       b.global_exit_root, 
-       b.local_exit_root, 
-       b.state_root, 
-       b.timestamp, 
-       b.coinbase,
-       b.raw_txs_data, 
-       coalesce(l2.header->>'stateRoot', b.state_root) as l2_block_state_root
-	FROM state.batch b
-	LEFT JOIN state.l2block l2
-	  ON b.batch_num <= l2.batch_num
-	WHERE (l2.block_num = $1 and $1 is not null) 
-	   OR $1 is null 
-	ORDER BY b.batch_num desc, l2.block_num desc limit $2;`
-	var l2BlockStateRoot common.Hash
+        SELECT b.batch_num,
+               b.global_exit_root,
+               b.local_exit_root,
+               b.state_root,
+               b.timestamp,
+               b.coinbase,
+               b.raw_txs_data,
+               /* gets the state root of the l2 block with the highest number associated to the batch in the row */
+               (SELECT l2b1.header->>'stateRoot'
+                  FROM state.l2block l2b1
+                 WHERE l2b1.block_num = (SELECT MAX(l2b2.block_num)
+                                           FROM state.l2block l2b2
+                                          WHERE l2b2.batch_num = b.batch_num)) as l2_block_state_root
+          FROM state.batch b
+               /* if there is a value for the parameter $1 (l2 block number), filter the batches with batch number
+                * smaller or equal than the batch associated to the l2 block number */
+         WHERE ($1::int8 IS NOT NULL AND b.batch_num <= (SELECT MAX(l2b.batch_num)
+                                                           FROM state.l2block l2b
+                                                          WHERE l2b.block_num = $1))
+               /* OR if $1 is null, this means we want to get the most updated information from state, so it considers all the batches.
+                * this is generally used by estimate gas, process unsigned transactions and it is required by claim transactions to add
+                * the open batch to the result and get the most updated GER synced from L1 and stored in the current open batch when 
+                * there was not transactions yet to create a l2 block with it */
+            OR $1 IS NULL
+         ORDER BY b.batch_num DESC
+         LIMIT $2;`
+
+	var l2BlockStateRoot *common.Hash
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getLastNBatchesByBlockNumberSQL, l2BlockNumber, numBatches)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, l2BlockStateRoot, ErrStateNotSynchronized
+		return nil, common.Hash{}, ErrStateNotSynchronized
 	} else if err != nil {
-		return nil, l2BlockStateRoot, err
+		return nil, common.Hash{}, err
 	}
 	defer rows.Close()
 
@@ -453,13 +466,15 @@ func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2
 	for rows.Next() {
 		batch, _l2BlockStateRoot, err := scanBatchWithL2BlockStateRoot(rows)
 		if err != nil {
-			return nil, l2BlockStateRoot, err
+			return nil, common.Hash{}, err
 		}
 		batches = append(batches, &batch)
-		l2BlockStateRoot = _l2BlockStateRoot
+		if l2BlockStateRoot == nil && _l2BlockStateRoot != nil {
+			l2BlockStateRoot = _l2BlockStateRoot
+		}
 	}
 
-	return batches, l2BlockStateRoot, nil
+	return batches, *l2BlockStateRoot, nil
 }
 
 // GetLastBatchNumber get last trusted batch number
@@ -664,7 +679,7 @@ func scanBatch(row pgx.Row) (Batch, error) {
 	return batch, nil
 }
 
-func scanBatchWithL2BlockStateRoot(row pgx.Row) (Batch, common.Hash, error) {
+func scanBatchWithL2BlockStateRoot(row pgx.Row) (Batch, *common.Hash, error) {
 	batch := Batch{}
 	var (
 		gerStr              string
@@ -683,7 +698,7 @@ func scanBatchWithL2BlockStateRoot(row pgx.Row) (Batch, common.Hash, error) {
 		&batch.BatchL2Data,
 		&l2BlockStateRootStr,
 	); err != nil {
-		return batch, common.Hash{}, err
+		return batch, nil, err
 	}
 	batch.GlobalExitRoot = common.HexToHash(gerStr)
 	if lerStr != nil {
@@ -692,9 +707,10 @@ func scanBatchWithL2BlockStateRoot(row pgx.Row) (Batch, common.Hash, error) {
 	if stateStr != nil {
 		batch.StateRoot = common.HexToHash(*stateStr)
 	}
-	l2BlockStateRoot := ZeroHash
+	var l2BlockStateRoot *common.Hash
 	if l2BlockStateRootStr != nil {
-		l2BlockStateRoot = common.HexToHash(*l2BlockStateRootStr)
+		h := common.HexToHash(*l2BlockStateRootStr)
+		l2BlockStateRoot = &h
 	}
 
 	batch.Coinbase = common.HexToAddress(coinbaseStr)
