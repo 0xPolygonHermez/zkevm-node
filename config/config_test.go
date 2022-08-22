@@ -45,7 +45,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(10),
 		},
 		{
-			path:          "Sequencer.LastTimeBatchMaxWaitPeriod",
+			path:          "Sequencer.MaxTimeForBatchToBeOpen",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
 		{

@@ -20,6 +20,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/trie"
@@ -137,10 +138,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		previousBatch = lastBatches[1]
 	}
 
-	if s.isContractCreation(transaction) {
-		lowEnd = TxGasContractCreation
-	} else {
-		lowEnd = TxGas
+	lowEnd, err = core.IntrinsicGas(transaction.Data(), transaction.AccessList(), s.isContractCreation(transaction), true, false)
+	if err != nil {
+		return 0, err
 	}
 
 	lowEnd += computeTxGasCalldata(transaction)
@@ -419,7 +419,6 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cTrue,
 	}
-
 	// Send Batch to the Executor
 	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
 }
@@ -609,7 +608,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
 		//TODO: Also check this
-		if !isProcessed(previousStateRoot, common.BytesToHash(processed.NewStateRoot)) {
+		if !isProcessed(previousStateRoot, common.BytesToHash(processed.NewStateRoot), processed.Responses[i].Error) {
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]

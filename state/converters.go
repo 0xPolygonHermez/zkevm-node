@@ -33,8 +33,10 @@ func convertToProcessBatchResponse(oldRoot common.Hash, txs []types.Transaction,
 	}, nil
 }
 
-func isProcessed(oldRoot common.Hash, newRoot common.Hash) bool {
-	return oldRoot.String() != newRoot.String()
+func isProcessed(oldRoot common.Hash, newRoot common.Hash, err pb.Error) bool {
+	// temporary commented, bcs prover returns changed state root for invalid txs
+	// return oldRoot.String() != newRoot.String()
+	return err != pb.Error_ERROR_INTRINSIC_INVALID_TX
 }
 
 func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
@@ -57,7 +59,7 @@ func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transa
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
-		result.IsProcessed = isProcessed(oldRoot, result.StateRoot)
+		result.IsProcessed = isProcessed(oldRoot, result.StateRoot, response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 		result.Tx = txs[i]

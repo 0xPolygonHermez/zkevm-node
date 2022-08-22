@@ -35,7 +35,6 @@ func TestUniswap(t *testing.T) {
 	require.NoError(t, err)
 
 	opsCfg := &operations.Config{
-		Arity: cfg.NetworkConfig.Arity,
 		State: &state.Config{
 			MaxCumulativeGasUsed: cfg.Sequencer.MaxCumulativeGasUsed,
 		},

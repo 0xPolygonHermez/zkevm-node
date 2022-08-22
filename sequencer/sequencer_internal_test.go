@@ -133,7 +133,7 @@ package sequencer
 //		WaitPeriodPoolIsEmpty:              cfgTypes.NewDuration(time.Second),
 //		LastL1InteractionTimeMaxWaitPeriod: cfgTypes.NewDuration(60 * time.Second),
 //		WaitBlocksToUpdateGER:              10,
-//		LastTimeBatchMaxWaitPeriod:         cfgTypes.NewDuration(60 * time.Second),
+//		MaxTimeForBatchToBeOpen:         cfgTypes.NewDuration(60 * time.Second),
 //		ProfitabilityChecker:               profitabilitychecker.Config{SendBatchesEvenWhenNotProfitable: true},
 //	}
 //
@@ -250,7 +250,7 @@ package sequencer
 //	require.Equal(t, 0, len(seq.closedSequences))
 //
 //	// checks that if seq meets WaitBlocksToUpdateGER condition, it will close a sequence
-//	seq.cfg.LastTimeBatchMaxWaitPeriod = cfgTypes.NewDuration(0)
+//	seq.cfg.MaxTimeForBatchToBeOpen = cfgTypes.NewDuration(0)
 //	seq.tryToProcessTx(ctx, ticker)
 //	pendTxs, err = pl.GetPendingTxs(ctx, false, getPendingTxsLimit)
 //	require.NoError(t, err)
@@ -263,7 +263,7 @@ package sequencer
 //	require.Equal(t, maxTxsInSequence, len(seq.closedSequences[0].Txs))
 //
 //	// return config param back
-//	seq.cfg.LastTimeBatchMaxWaitPeriod = cfgTypes.NewDuration(10 * time.Second)
+//	seq.cfg.MaxTimeForBatchToBeOpen = cfgTypes.NewDuration(10 * time.Second)
 //
 //	for i := 0; i < 4; i++ {
 //		seq.tryToProcessTx(ctx, ticker)
@@ -271,7 +271,7 @@ package sequencer
 //
 //	// set config params that way, that txs will be selected and sent to ethereum
 //	seq.cfg.LastL1InteractionTimeMaxWaitPeriod = cfgTypes.NewDuration(0)
-//	seq.cfg.LastTimeBatchMaxWaitPeriod = cfgTypes.NewDuration(0)
+//	seq.cfg.MaxTimeForBatchToBeOpen = cfgTypes.NewDuration(0)
 //	seq.tryToProcessTx(ctx, ticker)
 //
 //	// checks, that after processing there is no pending txs left, no txs in sequence in progress
