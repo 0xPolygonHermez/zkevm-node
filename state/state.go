@@ -20,6 +20,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/trie"
@@ -137,10 +138,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		previousBatch = lastBatches[1]
 	}
 
-	if s.isContractCreation(transaction) {
-		lowEnd = TxSmartContractCreationGas
-	} else {
-		lowEnd = TxTransferGas
+	lowEnd, err = core.IntrinsicGas(transaction.Data(), transaction.AccessList(), s.isContractCreation(transaction), true, false)
+	if err != nil {
+		return 0, err
 	}
 
 	if transaction.Gas() != 0 && transaction.Gas() > lowEnd {
