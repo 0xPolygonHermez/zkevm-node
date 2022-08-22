@@ -13,6 +13,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
+
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
@@ -145,6 +147,49 @@ func (s *Sequencer) processTx(ctx context.Context, tx *pool.Transaction) ([]*sta
 	}
 
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
+
+	accumlatedBytes, err := s.state.EncodeTransactions(s.sequenceInProgress.Txs)
+	if err != nil {
+		log.Errorf("failed to encode transactions: %w", err)
+		return nil, nil, err
+	}
+	if uint(len(accumlatedBytes)) > s.cfg.MaxBatchSize {
+		if len(s.sequenceInProgress.Txs) == 1 {
+			// set tx as invalid
+			err := s.pool.UpdateTxState(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStateInvalid)
+			if err != nil {
+				log.Errorf("failed to update tx status on the pool, err: %w", err)
+				return nil, nil, err
+			}
+			// rm tx from sequenceInProgress
+			s.sequenceInProgress.Txs = []ethtypes.Transaction{}
+		} else {
+
+			// rm tx from sequenceInProgress
+			s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+
+			// close batch
+			receipt := state.ProcessingReceipt{
+				BatchNumber:   s.lastBatchNum,
+				StateRoot:     s.lastStateRoot,
+				LocalExitRoot: s.lastLocalExitRoot,
+			}
+			err = s.state.CloseBatch(ctx, receipt, dbTx)
+			if err != nil {
+				if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+					log.Errorf(
+						"failed to rollback dbTx when closing batch that gave err: %v. Rollback err: %v",
+						rollbackErr, err,
+					)
+					return nil, nil, err
+				}
+				log.Errorf("failed to close batch, err: %v", err)
+				return nil, nil, err
+			}
+		}
+		return nil, nil, nil
+
+	}
 	previousStateRoot, err := s.state.GetStateRootByBatchNumber(ctx, s.lastBatchNum-1, nil)
 	if err != nil {
 		log.Errorf("failed to get state root for batchNum %d, err: %v", s.lastBatchNum, err)
