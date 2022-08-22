@@ -135,7 +135,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	// Data to big for a single ethereum transfer
 	if isDataForEthTxTooBig(err) {
 		if len(sequences) == 1 {
-			// TODO: gracefully handle this situation by crating an L2 reorg
+			// TODO: gracefully handle this situation by creating an L2 reorg
 			log.Fatalf(
 				"BatchNum %d is too big to be sent to L1, even when it's the only item in the sequence: %v",
 				currentBatchNumToSequence, err,
@@ -161,7 +161,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 		// check POE SC lastTimestamp against sequences' one
 		for _, seq := range sequences {
 			if seq.Timestamp < int64(lastTimestamp) {
-				// TODO: gracefully handle this situation by crating an L2 reorg
+				// TODO: gracefully handle this situation by creating an L2 reorg
 				log.Fatalf("sequence timestamp %d is < POE SC lastTimestamp %d", seq.Timestamp, lastTimestamp)
 			}
 			lastTimestamp = uint64(seq.Timestamp)
@@ -176,7 +176,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 
 	// Unknown error
 	if len(sequences) == 1 {
-		// TODO: gracefully handle this situation by crating an L2 reorg
+		// TODO: gracefully handle this situation by creating an L2 reorg
 		log.Fatalf(
 			"Error when estimating gas for BatchNum %d (alone in the sequences): %v",
 			currentBatchNumToSequence, err,

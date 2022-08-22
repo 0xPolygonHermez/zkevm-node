@@ -391,7 +391,6 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cTrue,
 	}
-
 	// Send Batch to the Executor
 	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
 }
@@ -575,7 +574,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
 		//TODO: Also check this
-		if !isProcessed(previousStateRoot, common.BytesToHash(processed.NewStateRoot)) {
+		if !isProcessed(previousStateRoot, common.BytesToHash(processed.NewStateRoot), processed.Responses[i].Error) {
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
