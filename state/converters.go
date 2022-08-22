@@ -39,7 +39,6 @@ func isProcessed(oldRoot common.Hash, newRoot common.Hash) bool {
 
 func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
-
 	for i, response := range responses {
 		trace, err := convertToStrucLogArray(response.ExecutionTrace)
 		if err != nil {

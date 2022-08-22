@@ -14,6 +14,7 @@ type GenesisAccountTest struct {
 	Storage  map[string]string
 }
 
+// GenesisTest2Actions change format from testvector to the used internaly
 func GenesisTest2Actions(accounts []GenesisAccountTest) []*state.GenesisAction {
 	leafs := make([]*state.GenesisAction, 0)
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"os/exec"
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -18,7 +19,11 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 )
 
-const repoURL = "https://github.com/0xPolygonHermez/zkevm-commonjs"
+const (
+	repoURL    = "https://github.com/0xPolygonHermez/zkevm-commonjs"
+	inputFile  = "tools/fill-genesis/genesis.json"
+	outputFile = "../../config/genesis.go"
+)
 
 // genesisAccountReader struct
 type genesisAccountReader struct {
@@ -69,7 +74,7 @@ func getLatestGenesisRaw() genesisReader {
 		panic(fmt.Errorf("error when clone repo: %v", err))
 	}
 
-	file, err := fs.Open("tools/fill-genesis/genesis.json")
+	file, err := fs.Open(inputFile)
 	if err != nil {
 		panic(fmt.Errorf("error when open file: %v", err))
 	}
@@ -94,8 +99,7 @@ func genGoCode(actions []*state.GenesisAction) {
 	gString := string(gJson)
 	gString = strings.Replace(gString, "[\n", "", -1)
 	gString = strings.Replace(gString, "]", "", -1)
-	gString = `//nolint
-package config
+	gString = `package config
 
 import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree" 
@@ -120,9 +124,16 @@ var commonGenesisActions = []*state.GenesisAction{
 	gString = strings.Replace(gString, "Type: 2,", "Type: int(merkletree.LeafTypeCode),", -1)
 	gString = strings.Replace(gString, "Type: 3,", "Type: int(merkletree.LeafTypeStorage),", -1)
 
-	err := ioutil.WriteFile("../../config/genesis.go", []byte(gString), 0600) //nolint:gomnd
+	err := ioutil.WriteFile(outputFile, []byte(gString), 0600) //nolint:gomnd
 	if err != nil {
 		panic(fmt.Errorf("error writing file: %v", err))
+	}
+
+	// format code
+	cmd := exec.Command("gofmt", "-s", "-w", outputFile)
+	res, err := cmd.CombinedOutput()
+	if err != nil {
+		panic(fmt.Errorf("error formating file: %s.\n%w", string(res), err))
 	}
 }
 
@@ -160,7 +171,7 @@ func assertGenesis(expectedRoot string) (err error) {
 	}
 
 	// Get Genesis root using jRPC
-	client, err := ethclient.Dial("http://localhost:8123")
+	client, err := ethclient.Dial("http://localhost:8124")
 	if err != nil {
 		return
 	}

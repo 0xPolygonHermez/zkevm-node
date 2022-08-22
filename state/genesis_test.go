@@ -60,12 +60,20 @@ func init() {
 
 func TestGenesisVectors(t *testing.T) {
 	// Load test vectors
-	data, err := os.ReadFile("test/vectors/src/merkle-tree/smt-genesis.json")
-	require.NoError(t, err)
 	var testVectors []genesisTestVectorReader
-	err = json.Unmarshal(data, &testVectors)
-	require.NoError(t, err)
-
+	files := []string{
+		"test/vectors/src/merkle-tree/smt-full-genesis.json",
+		"test/vectors/src/merkle-tree/smt-genesis.json",
+	}
+	for _, f := range files {
+		var tv []genesisTestVectorReader
+		data, err := os.ReadFile(f)
+		require.NoError(t, err)
+		err = json.Unmarshal(data, &tv)
+		require.NoError(t, err)
+		testVectors = append(testVectors, tv...)
+	}
+	// Run vectors
 	for ti, testVector := range testVectors {
 		t.Run(fmt.Sprintf("Test vector %d", ti), func(t *testing.T) {
 			genesisCase(t, testVector)

@@ -853,18 +853,18 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
 		case int(merkletree.LeafTypeBalance):
-			balance, ok := new(big.Int).SetString(action.Value, encoding.Base10)
-			if !ok {
-				return newRoot, fmt.Errorf("Could not set base10 balance %q to big.Int", action.Value)
+			balance, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
+			if err != nil {
+				return newRoot, err
 			}
 			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
 			if err != nil {
 				return newRoot, err
 			}
 		case int(merkletree.LeafTypeNonce):
-			nonce, ok := new(big.Int).SetString(action.Value, encoding.Base10)
-			if !ok {
-				return newRoot, fmt.Errorf("Could not set base10 nonce %q to big.Int", action.Value)
+			nonce, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
+			if err != nil {
+				return newRoot, err
 			}
 			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
 			if err != nil {
@@ -880,15 +880,16 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 				return newRoot, err
 			}
 		case int(merkletree.LeafTypeStorage):
-			if strings.HasPrefix(action.StoragePosition, "0x") { // nolint
-				action.StoragePosition = action.StoragePosition[2:]
+			// Parse position and value
+			positionBI, err := encoding.DecodeBigIntHexOrDecimal(action.StoragePosition)
+			if err != nil {
+				return newRoot, err
 			}
-			positionBI := new(big.Int).SetBytes(common.Hex2Bytes(action.StoragePosition))
-			if strings.HasPrefix(action.Value, "0x") { // nolint
-				action.StoragePosition = action.Value[2:]
+			valueBI, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
+			if err != nil {
+				return newRoot, err
 			}
-			valueBI := new(big.Int).SetBytes(common.Hex2Bytes(action.Value))
-
+			// Store
 			newRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, newRoot)
 			if err != nil {
 				return newRoot, err
