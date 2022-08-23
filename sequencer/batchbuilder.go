@@ -59,7 +59,13 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
+	previousStateRoot, err := s.state.GetStateRootByBatchNumber(ctx, s.lastBatchNum-1, nil)
+	if err != nil {
+		log.Errorf("failed to get state root for batchNum %d, err: %v", s.lastBatchNum, err)
+		return
+	}
+
+	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, previousStateRoot, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
@@ -99,6 +105,15 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processedTxs, dbTx)
+	for _, tx := range processedTxs {
+		log.Debugf("tx: %v\n", tx.Tx.Hash())
+		log.Debugf("tx nonce: %v\n", tx.Tx.Nonce())
+	}
+	for _, tx := range unprocessedTxs {
+		log.Debugf("tx: %v\n", tx.Tx.Hash())
+		log.Debugf("tx nonce: %v\n", tx.Tx.Nonce())
+		log.Debugf("tx error: %v\n", tx.Error)
+	}
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
@@ -111,7 +126,9 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		log.Errorf("failed to store transactions, err: %v", err)
 		if err == state.ErrOutOfOrderProcessedTx || err == state.ErrExistingTxGreaterThanProcessedTx {
 			err = s.loadSequenceFromState(ctx)
-			log.Errorf("failed to load sequence from state, err: %v", err)
+			if err != nil {
+				log.Errorf("failed to load sequence from state, err: %v", err)
+			}
 		}
 		return
 	}
@@ -124,8 +141,26 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	var txState = pool.TxStateSelected
 	var txUpdateMsg = fmt.Sprintf("Tx %q added into the state. Marking tx as selected in the pool", tx.Hash())
 	if _, ok := unprocessedTxs[tx.Hash().String()]; ok {
-		txState = pool.TxStatePending
-		txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as pending to return the pool", tx.Hash())
+		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+		// in this case tx is invalid
+		if len(s.sequenceInProgress.Txs) == 0 {
+			txState = pool.TxStateInvalid
+			txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as invalid", tx.Hash())
+		} else {
+			// otherwise close batch and put tx as pending
+			txState = pool.TxStatePending
+			txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as pending to return the pool", tx.Hash())
+
+			log.Infof("current sequence should be closed, so tx with hash %q can be processed", tx.Hash())
+			err := s.closeSequence(ctx)
+			if err != nil {
+				log.Errorf("error closing sequence: %v", err)
+				log.Info("resetting sequence in progress")
+				if err = s.loadSequenceFromState(ctx); err != nil {
+					log.Error("error loading sequence from state: %v", err)
+				}
+			}
+		}
 	}
 	log.Infof(txUpdateMsg)
 	if err := s.pool.UpdateTxState(ctx, tx.Hash(), txState); err != nil {
@@ -298,20 +333,17 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 		}
 	}
 	// Check if it has been too long since a batch is virtualized
-	lastBatchTime, err := s.state.GetLastBatchTime(ctx, nil)
-	if err != nil && !errors.Is(err, state.ErrNotFound) {
-		log.Errorf("failed to get last batch time, err: %v", err)
+	isPreviousBatchVirtualized, err := s.state.IsBatchVirtualized(ctx, s.lastBatchNum-1, nil)
+	if err != nil {
+		log.Errorf("failed to get last virtual batch num, err: %v", err)
 		return false
 	}
-	if lastBatchTime.Before(time.Now().Add(-s.cfg.LastTimeBatchMaxWaitPeriod.Duration)) && len(s.sequenceInProgress.Txs) > 0 {
-		isProfitable := s.isSequenceProfitable(ctx)
-		if isProfitable {
-			log.Info(
-				"current sequence should be closed because LastTimeBatchMaxWaitPeriod has been exceeded, " +
-					"there are pending sequences to be sent and they are profitable")
-			return true
-		}
+	if time.Unix(s.sequenceInProgress.Timestamp, 0).Add(s.cfg.MaxTimeForBatchToBeOpen.Duration).Before(time.Now()) &&
+		isPreviousBatchVirtualized && len(s.sequenceInProgress.Txs) > 0 {
+		log.Info("closing batch because there are enough time to close a batch, previous batch is virtualized and batch has txs")
+		return true
 	}
+
 	// Check ZK counters
 	zkCounters := s.calculateZkCounters()
 	if zkCounters.IsZkCountersBelowZero() && len(s.sequenceInProgress.Txs) != 0 {

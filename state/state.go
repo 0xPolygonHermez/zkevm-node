@@ -20,6 +20,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/trie"
@@ -137,10 +138,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		previousBatch = lastBatches[1]
 	}
 
-	if s.isContractCreation(transaction) {
-		lowEnd = TxSmartContractCreationGas
-	} else {
-		lowEnd = TxTransferGas
+	lowEnd, err = core.IntrinsicGas(transaction.Data(), transaction.AccessList(), s.isContractCreation(transaction), true, false)
+	if err != nil {
+		return 0, err
 	}
 
 	if transaction.Gas() != 0 && transaction.Gas() > lowEnd {
@@ -333,8 +333,8 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 	return s.PostgresStorage.openBatch(ctx, processingContext, dbTx)
 }
 
-// ProcessSequencerBatch is used by the sequencers to proceess transactions into an open batch
-func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+// ProcessSequencerBatch is used by the sequencers to process transactions into an open batch
+func (s *State) ProcessSequencerBatch(ctx context.Context, oldRoot common.Hash, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	batchL2Data, err := EncodeTransactions(txs)
 	if err != nil {
 		return nil, err
@@ -343,7 +343,7 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, t
 	if err != nil {
 		return nil, err
 	}
-	result, err := convertToProcessBatchResponse(txs, processBatchResponse)
+	result, err := convertToProcessBatchResponse(oldRoot, txs, processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +391,6 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cTrue,
 	}
-
 	// Send Batch to the Executor
 	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
 }
@@ -567,11 +566,15 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		return fmt.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
 	}
 
+	previousStateRoot, err := s.GetStateRootByBatchNumber(ctx, processingCtx.BatchNumber-1, dbTx)
+	if err != nil {
+		return err
+	}
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
 		//TODO: Also check this
-		if !isProcessed(processed.Responses[i].Error) {
+		if !isProcessed(previousStateRoot, common.BytesToHash(processed.NewStateRoot), processed.Responses[i].Error) {
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
@@ -584,7 +587,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		}
 	}
 
-	processedBatch, err := convertToProcessBatchResponse(decodedTransactions, processed)
+	processedBatch, err := convertToProcessBatchResponse(previousStateRoot, decodedTransactions, processed)
 	if err != nil {
 		return err
 	}
@@ -805,7 +808,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		result.Err = err
 		return result
 	}
-	response, err := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
+	response, err := convertToProcessBatchResponse(l2BlockStateRoot, []types.Transaction{*tx}, processBatchResponse)
 	if err != nil {
 		result.Err = err
 		return result
@@ -849,18 +852,18 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
 		case int(merkletree.LeafTypeBalance):
-			balance, ok := new(big.Int).SetString(action.Value, encoding.Base10)
-			if !ok {
-				return newRoot, fmt.Errorf("Could not set base10 balance %q to big.Int", action.Value)
+			balance, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
+			if err != nil {
+				return newRoot, err
 			}
 			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot)
 			if err != nil {
 				return newRoot, err
 			}
 		case int(merkletree.LeafTypeNonce):
-			nonce, ok := new(big.Int).SetString(action.Value, encoding.Base10)
-			if !ok {
-				return newRoot, fmt.Errorf("Could not set base10 nonce %q to big.Int", action.Value)
+			nonce, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
+			if err != nil {
+				return newRoot, err
 			}
 			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot)
 			if err != nil {
@@ -876,15 +879,16 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 				return newRoot, err
 			}
 		case int(merkletree.LeafTypeStorage):
-			if strings.HasPrefix(action.StoragePosition, "0x") { // nolint
-				action.StoragePosition = action.StoragePosition[2:]
+			// Parse position and value
+			positionBI, err := encoding.DecodeBigIntHexOrDecimal(action.StoragePosition)
+			if err != nil {
+				return newRoot, err
 			}
-			positionBI := new(big.Int).SetBytes(common.Hex2Bytes(action.StoragePosition))
-			if strings.HasPrefix(action.Value, "0x") { // nolint
-				action.StoragePosition = action.Value[2:]
+			valueBI, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
+			if err != nil {
+				return newRoot, err
 			}
-			valueBI := new(big.Int).SetBytes(common.Hex2Bytes(action.Value))
-
+			// Store
 			newRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, newRoot)
 			if err != nil {
 				return newRoot, err

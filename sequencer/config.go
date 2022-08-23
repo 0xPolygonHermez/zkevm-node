@@ -20,8 +20,8 @@ type Config struct {
 	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
 	WaitBlocksToUpdateGER uint64 `mapstructure:"WaitBlocksToUpdateGER"`
 
-	// LastTimeBatchMaxWaitPeriod is time after which new batch should be closed
-	LastTimeBatchMaxWaitPeriod types.Duration `mapstructure:"LastTimeBatchMaxWaitPeriod"`
+	// MaxTimeForBatchToBeOpen is time after which new batch should be closed
+	MaxTimeForBatchToBeOpen types.Duration `mapstructure:"MaxTimeForBatchToBeOpen"`
 
 	// BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
 	BlocksAmountForTxsToBeDeleted uint64 `mapstructure:"BlocksAmountForTxsToBeDeleted"`

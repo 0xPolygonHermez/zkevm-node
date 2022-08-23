@@ -585,6 +585,18 @@ func (p *PostgresStorage) GetVirtualBatchByNumber(ctx context.Context, batchNumb
 	return &batch, nil
 }
 
+// IsBatchVirtualized checks if batch is virtualized
+func (p *PostgresStorage) IsBatchVirtualized(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (bool, error) {
+	const query = `SELECT EXISTS (SELECT 1 FROM state.virtual_batch WHERE batch_num = $1)`
+	e := p.getExecQuerier(dbTx)
+	var exists bool
+	err := e.QueryRow(ctx, query, batchNumber).Scan(&exists)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return exists, err
+	}
+	return exists, nil
+}
+
 // GetProcessingContext returns the processing context for the given batch.
 func (p *PostgresStorage) GetProcessingContext(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*ProcessingContext, error) {
 	e := p.getExecQuerier(dbTx)
@@ -764,7 +776,7 @@ func (p *PostgresStorage) storeGenesisBatch(ctx context.Context, batch Batch, db
 		batch.GlobalExitRoot.String(),
 		batch.LocalExitRoot.String(),
 		batch.StateRoot.String(),
-		batch.Timestamp,
+		batch.Timestamp.UTC(),
 		batch.Coinbase.String(),
 		batch.BatchL2Data,
 	)
@@ -782,7 +794,7 @@ func (p *PostgresStorage) openBatch(ctx context.Context, batchContext Processing
 		ctx, openBatchSQL,
 		batchContext.BatchNumber,
 		batchContext.GlobalExitRoot.String(),
-		batchContext.Timestamp,
+		batchContext.Timestamp.UTC(),
 		batchContext.Coinbase.String(),
 	)
 	return err
@@ -826,7 +838,7 @@ func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.H
 			SET global_exit_root = $1, timestamp = $2
 			WHERE batch_num = $3
 				AND state_root IS NULL`
-	_, err = e.Exec(ctx, updateGER, ger.String(), time.Now(), batchNumber)
+	_, err = e.Exec(ctx, updateGER, ger.String(), time.Now().UTC(), batchNumber)
 	return err
 }
 
