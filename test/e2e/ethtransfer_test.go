@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"testing"
 	"time"
+	"os"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
@@ -14,6 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
+
+func init(){
+	os.Setenv("CONFIG_MODE", "test")
+}
 
 func TestEthTransfer(t *testing.T) {
 	if testing.Short() {
@@ -89,11 +94,11 @@ func TestEthTransfer(t *testing.T) {
 
 	fmt.Printf("\nL2 Block number: %s", blockL2Number)
 	fmt.Printf("\nLast TX Hash %s", lastTxHash.String())
-	err = operations.WaitL2BlockToBeVirtualized(blockL2Number, 2*time.Minute)
+	err = operations.WaitL2BlockToBeVirtualized(blockL2Number, 5*time.Minute)
 	require.NoError(t, err)
 
 	// wait for l2 block number to be consolidated
 
-	err = operations.WaitL2BlockToBeConsolidated(blockL2Number, 2*time.Minute)
+	err = operations.WaitL2BlockToBeConsolidated(blockL2Number, 5*time.Minute)
 	require.NoError(t, err)
 }
