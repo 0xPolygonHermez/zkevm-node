@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/mocks"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
@@ -86,7 +87,7 @@ func initConn() (*grpc.ClientConn, context.CancelFunc, error) {
 
 func initBroadcastServer() *broadcast.Server {
 	s := grpc.NewServer()
-	st := new(stateMock)
+	st := new(mocks.StateMock)
 	cfg := &broadcast.ServerConfig{
 		Host: host,
 		Port: port,
@@ -137,7 +138,7 @@ func TestBroadcastServerGetBatch(t *testing.T) {
 	for _, tc := range tcs {
 		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
-			st := new(stateMock)
+			st := new(mocks.StateMock)
 			var err error
 			if tc.expectedErr {
 				err = errors.New(tc.expectedErrMsg)
@@ -208,7 +209,7 @@ func TestBroadcastServerGetLastBatch(t *testing.T) {
 	for _, tc := range tcs {
 		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
-			st := new(stateMock)
+			st := new(mocks.StateMock)
 			var err error
 			if tc.expectedErr {
 				err = errors.New(tc.expectedErrMsg)

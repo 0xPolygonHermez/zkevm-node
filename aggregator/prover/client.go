@@ -13,13 +13,16 @@ import (
 
 // Client wrapper for the zkprover client
 type Client struct {
-	ZkProverClient                                      pb.ZKProverServiceClient
-	IntervalFrequencyToGetProofGenerationStateInSeconds types.Duration
+	ZkProverClient                             pb.ZKProverServiceClient
+	IntervalFrequencyToGetProofGenerationState types.Duration
 }
 
 // NewClient inits zkprover wrapper client
-func NewClient(pc pb.ZKProverServiceClient) *Client {
-	return &Client{ZkProverClient: pc}
+func NewClient(pc pb.ZKProverServiceClient, intervalFrequencyToGetProofGenerationState types.Duration) *Client {
+	return &Client{
+		ZkProverClient: pc,
+		IntervalFrequencyToGetProofGenerationState: intervalFrequencyToGetProofGenerationState,
+	}
 }
 
 // GetGenProofID get id of generation proof request
@@ -80,7 +83,7 @@ func (c *Client) GetResGetProof(ctx context.Context, genProofID string, batchNum
 
 		if resGetProofState == pb.GetProofResponse_RESULT_GET_PROOF_PENDING {
 			// in this case aggregator will wait, to send another request
-			time.Sleep(c.IntervalFrequencyToGetProofGenerationStateInSeconds.Duration)
+			time.Sleep(c.IntervalFrequencyToGetProofGenerationState.Duration)
 		}
 	}
 

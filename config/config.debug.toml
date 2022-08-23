@@ -52,7 +52,7 @@ MaxSteps = 8388608
 
 [Aggregator]
 IntervalToConsolidateState = "10s"
-IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"
+IntervalFrequencyToGetProofGenerationState = "5s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 

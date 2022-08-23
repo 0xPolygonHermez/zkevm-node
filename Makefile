@@ -288,10 +288,10 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=stateInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=stateMock --filename=mock_state_test.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=jsonrpc --outpkg=jsonrpc --structname=dbTxMock --filename=mock_dbtx_test.go
 
-	mockery --name=txManager --dir=sequencer --output=sequencer --outpkg=sequencer --structname=txmanagerMock --filename=txmanager-mock_test.go
-	mockery --name=etherman --dir=sequencer --output=sequencer --outpkg=sequencer --structname=ethermanMock --filename=etherman-mock_test.go
-	mockery --name=etherman --dir=sequencer/profitabilitychecker --output=sequencer/profitabilitychecker --outpkg=profitabilitychecker_test --structname=ethermanMock --filename=etherman-mock_test.go
-	mockery --name=stateInterface --dir=sequencer/broadcast --output=sequencer/broadcast --outpkg=broadcast_test --structname=stateMock --filename=state-mock_test.go
+	mockery --name=txManager --dir=sequencer --output=sequencer/mocks --outpkg=mocks --structname=TxmanagerMock --filename=mock_txmanager.go
+	mockery --name=etherman --dir=sequencer --output=sequencer/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
+	mockery --name=etherman --dir=sequencer/profitabilitychecker --output=sequencer/profitabilitychecker/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
+	mockery --name=stateInterface --dir=sequencer/broadcast --output=sequencer/broadcast/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 
 	mockery --name=ethermanInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=ethermanMock --filename=mock_etherman.go
 	mockery --name=stateInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=stateMock --filename=mock_state.go

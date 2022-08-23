@@ -19,8 +19,6 @@ import (
 type txPool interface {
 	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
 	UpdateTxState(ctx context.Context, hash common.Hash, newState pool.TxState) error
-	UpdateTxsState(ctx context.Context, hashes []common.Hash, newState pool.TxState) error
-	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error
@@ -41,10 +39,8 @@ type etherman interface {
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetLastBatchNumberSeenOnEthereum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*state.GlobalExitRoot, error)
 	GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
-	GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uint64, dbTx pgx.Tx) ([]common.Hash, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error)
@@ -53,7 +49,6 @@ type stateInterface interface {
 
 	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetLastBatchTime(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 
 	StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*state.ProcessTransactionResponse, dbTx pgx.Tx) error
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
