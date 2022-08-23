@@ -31,6 +31,12 @@ const (
 	DefaultTxMinedDeadline = 5 * time.Second
 )
 
+var (
+	// ErrTimeoutReached is thrown when the timeout is reached and
+	// because the condition is not matched
+	ErrTimeoutReached = fmt.Errorf("timeout has been reached")
+)
+
 // Wait handles polliing until conditions are met.
 type Wait struct{}
 
@@ -48,7 +54,7 @@ func Poll(interval, deadline time.Duration, condition ConditionFunc) error {
 	for {
 		select {
 		case <-timeout:
-			return fmt.Errorf("Condition not met after %s", deadline)
+			return ErrTimeoutReached
 		case <-tick.C:
 			ok, err := condition()
 			if err != nil {

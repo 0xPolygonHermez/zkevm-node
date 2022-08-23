@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
@@ -42,7 +43,7 @@ func isProcessed(oldRoot common.Hash, newRoot common.Hash, err pb.Error) bool {
 func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for i, response := range responses {
-		trace, err := convertToStrucLogArray(response.ExecutionTrace)
+		trace, err := convertToStructLogArray(response.ExecutionTrace)
 		if err != nil {
 			return nil, err
 		}
@@ -64,6 +65,14 @@ func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transa
 		result.Tx = txs[i]
 		results = append(results, result)
 		oldRoot = result.StateRoot
+
+		log.Debugf("ProcessTransactionResponse[TxHash]: %v", txs[i].Hash().String())
+		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
+		log.Debugf("ProcessTransactionResponse[Error]: %v", result.Error)
+		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
+		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
+		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
+		log.Debugf("ProcessTransactionResponse[IsProcessed]: %v", result.IsProcessed)
 	}
 
 	return results, nil
@@ -97,7 +106,7 @@ func convertToTopics(responses [][]byte) []common.Hash {
 	return results
 }
 
-func convertToStrucLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumentation.StructLog, error) {
+func convertToStructLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumentation.StructLog, error) {
 	results := make([]instrumentation.StructLog, 0, len(responses))
 
 	for _, response := range responses {

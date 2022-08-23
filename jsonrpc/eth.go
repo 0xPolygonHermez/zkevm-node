@@ -594,7 +594,7 @@ func (e *Eth) tryToAddTxToPool(input string) (interface{}, rpcError) {
 
 	log.Debugf("adding TX to the pool: %v", tx.Hash().Hex())
 	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
-		return rpcErrorResponse(defaultErrorCode, "failed to add TX to the pool", err)
+		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
 	}
 	log.Infof("TX added to the pool: %v", tx.Hash().Hex())
 

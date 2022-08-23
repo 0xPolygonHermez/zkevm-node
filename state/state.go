@@ -218,7 +218,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 
 		log.Debugf("EstimateGas[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
-		log.Debugf("EstimateGas[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
+		// log.Debugf("EstimateGas[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 		log.Debugf("EstimateGas[processBatchRequest.From]: %v", processBatchRequest.From)
 		log.Debugf("EstimateGas[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
 		log.Debugf("EstimateGas[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
@@ -371,6 +371,8 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 
 // ProcessSequencerBatch is used by the sequencers to process transactions into an open batch
 func (s *State) ProcessSequencerBatch(ctx context.Context, oldRoot common.Hash, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	log.Debugf("*******************************************")
+	log.Debugf("ProcessSequencerBatch start")
 	batchL2Data, err := EncodeTransactions(txs)
 	if err != nil {
 		return nil, err
@@ -383,6 +385,8 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, oldRoot common.Hash, 
 	if err != nil {
 		return nil, err
 	}
+	log.Debugf("ProcessSequencerBatch end")
+	log.Debugf("*******************************************")
 	return result, nil
 }
 
@@ -428,6 +432,15 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		UpdateMerkleTree: cTrue,
 	}
 	// Send Batch to the Executor
+	log.Debugf("processBatch[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
+	// log.Debugf("EstimateGas[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
+	log.Debugf("processBatch[processBatchRequest.From]: %v", processBatchRequest.From)
+	log.Debugf("processBatch[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
+	log.Debugf("processBatch[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
+	log.Debugf("processBatch[processBatchRequest.OldLocalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.OldLocalExitRoot))
+	log.Debugf("processBatch[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
+	log.Debugf("processBatch[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
+	log.Debugf("processBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
 	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
 }
 
@@ -844,7 +857,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	}
 
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
+	// log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
