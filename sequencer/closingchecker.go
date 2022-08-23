@@ -13,17 +13,11 @@ import (
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	// Check if there are any deposits or GER needs to be updated
 	if isThereAnyDeposits, err := s.isThereAnyDeposits(ctx); err != nil || isThereAnyDeposits {
-		if err != nil {
-			return false
-		}
-		return true
+		return err == nil
 	}
 	// Check if it has been too long since a previous batch was virtualized
 	if isBatchVirtualized, err := s.isBatchVirtualized(ctx); err != nil || isBatchVirtualized {
-		if err != nil {
-			return false
-		}
-		return true
+		return err == nil
 	}
 	// Check ZK counters
 	zkCounters := s.calculateZkCounters()
