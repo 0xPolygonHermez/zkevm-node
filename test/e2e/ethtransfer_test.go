@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
 	"testing"
 	"time"
-	"os"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func init(){
+func init() {
 	os.Setenv("CONFIG_MODE", "test")
 }
 
