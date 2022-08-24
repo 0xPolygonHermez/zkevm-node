@@ -14,7 +14,7 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
-      - ./config/config.local.toml:/app/config.toml
+      - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -32,7 +32,7 @@ services:
       - ZKEVM_NODE_DATABASE_HOST=zkevm-db
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
     volumes:
-      - ./config/config.local.toml:/app/config.toml
+      - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -50,7 +50,7 @@ services:
       - ZKEVM_NODE_DATABASE_HOST=zkevm-db
       - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
     volumes:
-      - ./config/config.local.toml:/app/config.toml
+      - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -67,7 +67,7 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
-      - ./config/config.local.toml:/app/config.toml
+      - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -84,7 +84,7 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
-      - ./config/config.local.toml:/app/config.toml
+      - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -184,14 +184,14 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkprover-local@sha256:8d5798f5b1241fce8858386191dcc8b581f3a818fe719929bd5f0d3c0fd005d9
+    image: hermeznetwork/zkprover-local@sha256:0be88da4159de817f8a78666742eadf4cac367ace2cdb1fca428152057ae3a02
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
-      - ./config/prover.config.local.json:/usr/src/app/config.json
+      - ./${CONFIG_MODE}/config/prover.config.${CONFIG_MODE:-local}.json:/usr/src/app/config.json
     command: >
       zkprover input_executor.json
 
