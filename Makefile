@@ -86,6 +86,7 @@ build-docker-nc: ## Builds a docker image with the node binary - but without bui
 
 .PHONY: test
 test: compile-scs ## Runs only short tests without checking race conditions
+	export CONFIG_MODE="test"	
 	$(STOPDB)
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 5
@@ -94,6 +95,7 @@ test: compile-scs ## Runs only short tests without checking race conditions
 
 .PHONY: test-full
 test-full: build-docker compile-scs ## Runs all tests checking race conditions
+	export CONFIG_MODE="test"
 	$(STOPDB)
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
@@ -103,6 +105,7 @@ test-full: build-docker compile-scs ## Runs all tests checking race conditions
 
 .PHONY: test-full-non-e2e
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
+	export CONFIG_MODE="test"	
 	$(STOPDB)
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
@@ -114,22 +117,25 @@ test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race 
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking race conditions
+	export CONFIG_MODE="test"	
 	$(STOPDB)
 	$(RUNDB); sleep 7
 	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group1/...
 
 .PHONY: test-e2e-group-2
 test-e2e-group-2: build-docker compile-scs ## Runs group 2 e2e tests checking race conditions
+	export CONFIG_MODE="test"	
 	$(STOPDB)
 	$(STOPZKPROVER)
 	$(RUNDB); sleep 7
-	$(RUNZKPROVER)
+	CONFIG_MODE="test" $(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group2/...
 
 .PHONY: test-e2e-group-3
 test-e2e-group-3: build-docker compile-scs ## Runs group 3 e2e tests checking race conditions
+	export CONFIG_MODE="test"	
 	$(STOPDB)
 	$(RUNDB); sleep 7
 	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group3/...

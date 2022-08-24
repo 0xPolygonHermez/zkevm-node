@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
@@ -14,6 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	os.Setenv("CONFIG_MODE", "test")
+}
 
 func TestEthTransfer(t *testing.T) {
 	if testing.Short() {
@@ -37,7 +42,7 @@ func TestEthTransfer(t *testing.T) {
 	client, err := ethclient.Dial("http://localhost:8123")
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 10
+	nTxs := 50
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
 	gasLimit := uint64(21000)
@@ -89,11 +94,11 @@ func TestEthTransfer(t *testing.T) {
 
 	fmt.Printf("\nL2 Block number: %s", blockL2Number)
 	fmt.Printf("\nLast TX Hash %s", lastTxHash.String())
-	err = operations.WaitL2BlockToBeVirtualized(blockL2Number, 8*time.Minute)
+	err = operations.WaitL2BlockToBeVirtualized(blockL2Number, 5*time.Minute)
 	require.NoError(t, err)
 
 	// wait for l2 block number to be consolidated
 
-	err = operations.WaitL2BlockToBeConsolidated(blockL2Number, 8*time.Minute)
+	err = operations.WaitL2BlockToBeConsolidated(blockL2Number, 5*time.Minute)
 	require.NoError(t, err)
 }
