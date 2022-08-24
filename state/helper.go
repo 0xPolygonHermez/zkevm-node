@@ -23,7 +23,7 @@ func EncodeTransactions(txs []types.Transaction) ([]byte, error) {
 		sign := 1 - (v.Uint64() & 1)
 
 		nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
-		log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", data, " ", chainID)
+		log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID)
 
 		txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
 			nonce,
@@ -63,7 +63,7 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64) ([]byte, er
 	sign := 1 - (v.Uint64() & 1)
 
 	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), chainID //nolint:gomnd
-	log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", data, " ", chainID)
+	log.Debug(nonce, " ", gasPrice, " ", gas, " ", to, " ", value, " ", len(data), " ", chainID)
 
 	txCodedRlp, err := rlp.EncodeToBytes([]interface{}{
 		nonce,
@@ -193,8 +193,7 @@ func generateReceipt(block *types.Block, processedTx *ProcessTransactionResponse
 	for i := 0; i < len(receipt.Logs); i++ {
 		receipt.Logs[i].TxHash = processedTx.Tx.Hash()
 	}
-
-	if processedTx.Error == "" {
+	if processedTx.Error == nil {
 		receipt.Status = types.ReceiptStatusSuccessful
 	} else {
 		receipt.Status = types.ReceiptStatusFailed

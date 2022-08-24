@@ -4,14 +4,12 @@ import (
 	"fmt"
 
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 )
-
-// ExecutorError is an error returned by the Executor
-type ExecutorError int32
 
 const (
 	// ERROR_UNSPECIFIED indicates the execution ended successfully
-	ERROR_UNSPECIFIED ExecutorError = iota
+	ERROR_UNSPECIFIED int32 = iota
 	// ERROR_NO_ERROR indicates the execution ended successfully
 	ERROR_NO_ERROR
 	// ERROR_OUT_OF_GAS indicates there is not enough balance to continue the execution
@@ -45,9 +43,10 @@ const (
 )
 
 // Err returns an instance of error related to the ExecutorError
-func (e ExecutorError) Err() error {
+func Err(errorCode pb.Error) error {
+	e := int32(errorCode)
 	switch e {
-	case ERROR_NO_ERROR:
+	case ERROR_NO_ERROR, ERROR_UNSPECIFIED:
 		return nil
 	case ERROR_OUT_OF_GAS:
 		return runtime.ErrOutOfGas
@@ -73,17 +72,10 @@ func (e ExecutorError) Err() error {
 		return runtime.ErrCodeStoreOutOfGas
 	case ERROR_OUT_OF_COUNTERS:
 		return runtime.ErrOutOfCounters
-	case ERROR_INVALID_TX, ERROR_INTRINSIC_INVALID_TX:
+	case ERROR_INVALID_TX:
 		return runtime.ErrInvalidTransaction
+	case ERROR_INTRINSIC_INVALID_TX:
+		return runtime.ErrIntrinsicInvalidTransaction
 	}
 	return fmt.Errorf("unknown error")
-}
-
-// Error returns the error message
-func (e ExecutorError) Error() string {
-	err := e.Err()
-	if err != nil {
-		return e.Err().Error()
-	}
-	return ""
 }

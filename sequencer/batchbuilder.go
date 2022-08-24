@@ -29,7 +29,11 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	if s.shouldCloseSequenceInProgress(ctx) {
 		log.Infof("current sequence should be closed")
 		err := s.closeSequence(ctx)
-		if err != nil {
+		if errors.Is(err, state.ErrClosingBatchWithoutTxs) {
+			log.Info("current sequence can't be closed without transactions")
+			waitTick(ctx, ticker)
+			return
+		} else if err != nil {
 			log.Errorf("error closing sequence: %v", err)
 			log.Info("resetting sequence in progress")
 			if err = s.loadSequenceFromState(ctx); err != nil {
@@ -233,7 +237,9 @@ func (s *Sequencer) updateTxStateInPool(ctx context.Context, tx *pool.Transactio
 
 			log.Infof("current sequence should be closed, so tx with hash %q can be processed", tx.Hash())
 			err := s.closeSequence(ctx)
-			if err != nil {
+			if errors.Is(err, state.ErrClosingBatchWithoutTxs) {
+				log.Info("current sequence can't be closed without transactions")
+			} else if err != nil {
 				log.Errorf("error closing sequence: %v", err)
 				log.Info("resetting sequence in progress")
 				if err = s.loadSequenceFromState(ctx); err != nil {

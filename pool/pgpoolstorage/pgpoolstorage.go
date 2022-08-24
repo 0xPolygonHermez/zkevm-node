@@ -143,28 +143,10 @@ func (p *PostgresPoolStorage) GetTxsByState(ctx context.Context, state pool.TxSt
 
 	txs := make([]pool.Transaction, 0, len(rows.RawValues()))
 	for rows.Next() {
-		var (
-			encoded, state string
-			receivedAt     time.Time
-		)
-
-		if err := rows.Scan(&encoded, &state, &receivedAt); err != nil {
-			return nil, err
-		}
-
-		tx := new(pool.Transaction)
-
-		b, err := hex.DecodeHex(encoded)
+		tx, err := scanTx(rows)
 		if err != nil {
 			return nil, err
 		}
-
-		if err := tx.UnmarshalBinary(b); err != nil {
-			return nil, err
-		}
-
-		tx.State = pool.TxState(state)
-		tx.ReceivedAt = receivedAt
 		txs = append(txs, *tx)
 	}
 
@@ -391,4 +373,57 @@ func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash)
 	}
 
 	return exists, nil
+}
+
+// GetTxsByFromAndNonce get all the transactions from the pool with the same from and nonce
+func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]pool.Transaction, error) {
+	sql := `SELECT encoded, state, received_at
+	          FROM pool.txs
+			 WHERE from_address = $1
+			   AND decoded->>'nonce' = $2`
+	rows, err := p.db.Query(ctx, sql, from.String(), hex.EncodeUint64(nonce))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	txs := make([]pool.Transaction, 0, len(rows.RawValues()))
+	for rows.Next() {
+		tx, err := scanTx(rows)
+		if err != nil {
+			return nil, err
+		}
+		txs = append(txs, *tx)
+	}
+
+	return txs, nil
+}
+
+func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
+	var (
+		encoded, state string
+		receivedAt     time.Time
+	)
+
+	if err := rows.Scan(&encoded, &state, &receivedAt); err != nil {
+		return nil, err
+	}
+
+	tx := new(pool.Transaction)
+
+	b, err := hex.DecodeHex(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+
+	tx.State = pool.TxState(state)
+	tx.ReceivedAt = receivedAt
+
+	return tx, nil
 }

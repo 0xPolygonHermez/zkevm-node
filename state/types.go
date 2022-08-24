@@ -51,7 +51,7 @@ type ProcessTransactionResponse struct {
 	// GasRefunded is the total gas refunded as result of execution
 	GasRefunded uint64
 	// Error represents any error encountered during the execution
-	Error string
+	Error error
 	// CreateAddress is the new SC Address in case of SC creation
 	CreateAddress common.Address
 	// StateRoot is the State Root

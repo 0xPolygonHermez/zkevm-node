@@ -64,7 +64,12 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 			return rpcErrorResponse(defaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumber, dbTx)
+		var blockNumberToProcessTx *uint64
+		if number != nil && *number != LatestBlockNumber && *number != PendingBlockNumber {
+			blockNumberToProcessTx = &blockNumber
+		}
+
+		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, dbTx)
 		if result.Failed() {
 			return rpcErrorResponse(defaultErrorCode, result.Err.Error(), nil)
 		}
@@ -86,11 +91,6 @@ func (e *Eth) ChainId() (interface{}, rpcError) { //nolint:revive
 // node performance.
 func (e *Eth) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		if number == nil {
-			lbn := LatestBlockNumber
-			number = &lbn
-		}
-
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
@@ -101,7 +101,12 @@ func (e *Eth) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcEr
 			return rpcErrorResponse(defaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		gasEstimation, err := e.state.EstimateGas(tx, sender, blockNumber, dbTx)
+		var blockNumberToProcessTx *uint64
+		if number != nil && *number != LatestBlockNumber && *number != PendingBlockNumber {
+			blockNumberToProcessTx = &blockNumber
+		}
+
+		gasEstimation, err := e.state.EstimateGas(tx, sender, blockNumberToProcessTx, dbTx)
 		if err != nil {
 			return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
 		}
@@ -589,7 +594,7 @@ func (e *Eth) tryToAddTxToPool(input string) (interface{}, rpcError) {
 
 	log.Debugf("adding TX to the pool: %v", tx.Hash().Hex())
 	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
-		return rpcErrorResponse(defaultErrorCode, "failed to add TX to the pool", err)
+		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
 	}
 	log.Infof("TX added to the pool: %v", tx.Hash().Hex())
 

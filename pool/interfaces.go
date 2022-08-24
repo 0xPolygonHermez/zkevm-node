@@ -22,6 +22,7 @@ type storage interface {
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error
 	GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters ZkCounters) (*Transaction, error)
+	GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]Transaction, error)
 }
 
 type stateInterface interface {
