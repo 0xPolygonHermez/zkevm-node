@@ -380,8 +380,8 @@ func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from com
 	sql := `SELECT encoded, state, received_at
 	          FROM pool.txs
 			 WHERE from_address = $1
-			   AND decoded->>'nonce' = $2`
-	rows, err := p.db.Query(ctx, sql, from.String(), hex.EncodeUint64(nonce))
+			   AND nonce = $2`
+	rows, err := p.db.Query(ctx, sql, from.String(), nonce)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	} else if err != nil {
@@ -399,6 +399,41 @@ func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from com
 	}
 
 	return txs, nil
+}
+
+// GetNonce gets the nonce to the provided address accordingly to the txs in the pool
+func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Address) (uint64, error) {
+	sql := `SELECT MAX(nonce)
+              FROM pool.txs
+             WHERE from_address = $1
+               AND (state = $2 OR state = $3)`
+	rows, err := p.db.Query(ctx, sql, address.String(), pool.TxStatePending, pool.TxStateSelected)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, nil
+	} else if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var nonce *uint64
+	for rows.Next() {
+		err := rows.Scan(&nonce)
+		if err != nil {
+			return 0, err
+		} else if rows.Err() != nil {
+			return 0, rows.Err()
+		}
+	}
+
+	if nonce == nil {
+		n := uint64(0)
+		nonce = &n
+	} else {
+		n := *nonce + 1
+		nonce = &n
+	}
+
+	return *nonce, nil
 }
 
 func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
