@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
@@ -14,6 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	os.Setenv("CONFIG_MODE", "test")
+}
 
 func TestEthTransfer(t *testing.T) {
 	if testing.Short() {
@@ -38,7 +43,7 @@ func TestEthTransfer(t *testing.T) {
 	client, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 10
+	nTxs := 50
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)

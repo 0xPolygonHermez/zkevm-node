@@ -25,8 +25,8 @@
     "proverServerPort": 50051,
     "proverServerMockPort": 50052,
     "proverClientPort": 50051,
-    "proverServerMockTimeout": 60000000,
-
+    "proverServerMockTimeout": 10000000,
+    
     "executorServerPort": 50071,
     "executorClientPort": 50071,
     "executorClientHost": "127.0.0.1",
