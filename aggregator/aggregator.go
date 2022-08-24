@@ -51,7 +51,7 @@ func NewAggregator(
 		State:                state,
 		EthTxManager:         ethTxManager,
 		Ethman:               etherman,
-		ProverClient:         prover.NewClient(zkProverClient),
+		ProverClient:         prover.NewClient(zkProverClient, cfg.IntervalFrequencyToGetProofGenerationState),
 		ProfitabilityChecker: profitabilityChecker,
 	}
 

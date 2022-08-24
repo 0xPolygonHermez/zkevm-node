@@ -36,7 +36,7 @@ type Config struct {
 
 	// IntervalFrequencyToGetProofGenerationStateInSeconds is the time the aggregator waits until
 	// trying to get proof generation status, in case prover client returns PENDING state
-	IntervalFrequencyToGetProofGenerationStateInSeconds types.Duration `mapstructure:"IntervalFrequencyToGetProofGenerationStateInSeconds"`
+	IntervalFrequencyToGetProofGenerationState types.Duration `mapstructure:"IntervalFrequencyToGetProofGenerationState"`
 
 	// TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
 	// possible values: base/acceptall

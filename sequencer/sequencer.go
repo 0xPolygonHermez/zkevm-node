@@ -84,37 +84,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 	// case A: genesis
 	if batchNum == 0 {
-		log.Infof("starting sequencer with genesis batch")
-		processingCtx := state.ProcessingContext{
-			BatchNumber:    1,
-			Coinbase:       s.address,
-			Timestamp:      time.Now(),
-			GlobalExitRoot: state.ZeroHash,
-		}
-		dbTx, err := s.state.BeginStateTransaction(ctx)
-		if err != nil {
-			log.Fatalf("failed to begin state transaction for opening a batch, err: %v", err)
-		}
-		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
-		if err != nil {
-			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-				log.Fatalf(
-					"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
-					rollbackErr, err,
-				)
-			}
-			log.Fatalf("failed to open a batch, err: %v", err)
-		}
-		if err := dbTx.Commit(ctx); err != nil {
-			log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
-		}
-		s.lastBatchNum = processingCtx.BatchNumber
-		s.sequenceInProgress = types.Sequence{
-			GlobalExitRoot:  processingCtx.GlobalExitRoot,
-			Timestamp:       processingCtx.Timestamp.Unix(),
-			ForceBatchesNum: 0,
-			Txs:             nil,
-		}
+		s.createFirstBatch(ctx)
 	} else {
 		err = s.loadSequenceFromState(ctx)
 		if err != nil {
@@ -257,4 +227,38 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 	/*
 		TODO: deal with ongoing L1 txs
 	*/
+}
+
+func (s *Sequencer) createFirstBatch(ctx context.Context) {
+	log.Infof("starting sequencer with genesis batch")
+	processingCtx := state.ProcessingContext{
+		BatchNumber:    1,
+		Coinbase:       s.address,
+		Timestamp:      time.Now(),
+		GlobalExitRoot: state.ZeroHash,
+	}
+	dbTx, err := s.state.BeginStateTransaction(ctx)
+	if err != nil {
+		log.Fatalf("failed to begin state transaction for opening a batch, err: %v", err)
+	}
+	err = s.state.OpenBatch(ctx, processingCtx, dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+			log.Fatalf(
+				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Fatalf("failed to open a batch, err: %v", err)
+	}
+	if err := dbTx.Commit(ctx); err != nil {
+		log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
+	}
+	s.lastBatchNum = processingCtx.BatchNumber
+	s.sequenceInProgress = types.Sequence{
+		GlobalExitRoot:  processingCtx.GlobalExitRoot,
+		Timestamp:       processingCtx.Timestamp.Unix(),
+		ForceBatchesNum: 0,
+		Txs:             nil,
+	}
 }
