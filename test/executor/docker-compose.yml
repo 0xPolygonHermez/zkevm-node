@@ -1,0 +1,30 @@
+version: "3.5"
+networks:
+  default:
+    name: zkevm-executor-test
+
+services:
+  zkevm-db:
+    container_name: zkevm-db
+    image: postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - ../../config/initproverdb.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      # In order to update this values, you may need to run: docker rm -f -v postgres
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_DB=test_db
+    command: ["postgres", "-N", "500"]
+
+  zkevm-prover:
+    container_name: zkevm-prover
+    image: hermeznetwork/zkprover-local@sha256:0be88da4159de817f8a78666742eadf4cac367ace2cdb1fca428152057ae3a02
+    ports:
+      - 50061:50061 # MT
+      - 50071:50071 # Executor
+    volumes:
+      - ./prover.config.json:/usr/src/app/config.json
+    command: >
+      zkprover input_executor.json
