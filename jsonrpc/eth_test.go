@@ -1418,7 +1418,7 @@ func TestSyncing(t *testing.T) {
 	}
 }
 
-func TestGetTransactiL2onByBlockHashAndIndex(t *testing.T) {
+func TestGetTransactionL2onByBlockHashAndIndex(t *testing.T) {
 	s, m, c := newSequencerMockedServer(t)
 	defer s.Stop()
 
@@ -2083,7 +2083,7 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			Name:           "Count txs successfully",
+			Name:           "Count txs successfully for latest block",
 			BlockNumber:    "latest",
 			ExpectedResult: uint(10),
 			ExpectedError:  nil,
@@ -2106,6 +2106,28 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 
 				m.State.
 					On("GetL2BlockTransactionCountByNumber", context.Background(), blockNumber, m.DbTx).
+					Return(uint64(10), nil).
+					Once()
+			},
+		},
+		{
+			Name:           "Count txs successfully for pending block",
+			BlockNumber:    "pending",
+			ExpectedResult: uint(10),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.Pool.
+					On("CountPendingTransactions", context.Background()).
 					Return(uint64(10), nil).
 					Once()
 			},
@@ -2156,6 +2178,28 @@ func TestGetBlockTransactionCountByNumber(t *testing.T) {
 
 				m.State.
 					On("GetL2BlockTransactionCountByNumber", context.Background(), blockNumber, m.DbTx).
+					Return(uint64(0), errors.New("failed to count")).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to count pending tx",
+			BlockNumber:    "pending",
+			ExpectedResult: 0,
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to count pending transactions"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.Pool.
+					On("CountPendingTransactions", context.Background()).
 					Return(uint64(0), errors.New("failed to count")).
 					Once()
 			},
