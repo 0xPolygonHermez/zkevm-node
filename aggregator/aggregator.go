@@ -114,6 +114,16 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	}
 	a.compareInputHashes(inputProver, resGetProof)
 
+	// Handle local exit root in the case of the mock prover
+	if resGetProof.Public.PublicInputs.NewLocalExitRoot == "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e" {
+		// This local exit root comes from the mock, use the one captured by the executor instead
+		log.Warnf(
+			"NewLocalExitRoot looks like a mock value, using value from executor instead: %v",
+			inputProver.PublicInputs.NewLocalExitRoot,
+		)
+		resGetProof.Public.PublicInputs.NewLocalExitRoot = inputProver.PublicInputs.NewLocalExitRoot
+	}
+
 	log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchToVerify.BatchNumber)
 	a.EthTxManager.VerifyBatch(batchToVerify.BatchNumber, resGetProof)
 	log.Infof("proof for the batch was sent, batchNumber: %d", batchToVerify.BatchNumber)
