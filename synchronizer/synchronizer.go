@@ -571,7 +571,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			// Call the check trusted state method to compare trusted and virtual state
 			status, err := s.checkTrustedState(batch, dbTx)
 			if err != nil {
-				if errors.Is(err, state.ErrNotFound) {
+				if errors.Is(err, state.ErrNotFound) || errors.Is(err, state.ErrStateNotSynchronized) {
 					log.Debugf("BatchNumber: %d, not found in trusted state. Storing it...", batch.BatchNumber)
 					// If it is not found, store batch
 					err = s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx)
