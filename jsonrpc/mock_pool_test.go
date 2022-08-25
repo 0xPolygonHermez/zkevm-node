@@ -56,6 +56,27 @@ func (_m *poolMock) GetGasPrice(ctx context.Context) (uint64, error) {
 	return r0, r1
 }
 
+// GetNonce provides a mock function with given fields: ctx, address
+func (_m *poolMock) GetNonce(ctx context.Context, address common.Address) (uint64, error) {
+	ret := _m.Called(ctx, address)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address) uint64); ok {
+		r0 = rf(ctx, address)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, common.Address) error); ok {
+		r1 = rf(ctx, address)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPendingTxHashesSince provides a mock function with given fields: ctx, since
 func (_m *poolMock) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error) {
 	ret := _m.Called(ctx, since)

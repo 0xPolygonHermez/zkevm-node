@@ -449,17 +449,30 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, rpcError) {
 // GetTransactionCount returns account nonce
 func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		var pendingNonce uint64
+		var nonce uint64
 		var err error
+		if number != nil && *number == PendingBlockNumber {
+			pendingNonce, err = e.pool.GetNonce(ctx, address)
+			if err != nil {
+				return rpcErrorResponse(defaultErrorCode, "failed to count pending transactions", err)
+			}
+		}
+
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
+		nonce, err = e.state.GetNonce(ctx, address, blockNumber, dbTx)
 
-		nonce, err := e.state.GetNonce(ctx, address, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return hex.EncodeUint64(0), nil
 		} else if err != nil {
 			return rpcErrorResponse(defaultErrorCode, "failed to count transactions", err)
+		}
+
+		if pendingNonce > nonce {
+			nonce = pendingNonce
 		}
 
 		return hex.EncodeUint64(nonce), nil
