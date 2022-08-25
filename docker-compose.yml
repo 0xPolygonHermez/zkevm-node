@@ -24,7 +24,7 @@ services:
     container_name: zkevm-json-rpc
     image: zkevm-node
     ports:
-      - 8123:8123
+      - 8124:8123
     environment:
       - ZKEVM_NODE_DATABASE_USER=test_user
       - ZKEVM_NODE_DATABASE_PASSWORD=test_password

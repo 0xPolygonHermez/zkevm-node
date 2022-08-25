@@ -254,16 +254,16 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
-	// Approve matic
-	err = approveMatic()
-	if err != nil {
-		return err
-	}
+	// // Approve matic
+	// err = approveMatic()
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = m.SetUpSequencer()
-	if err != nil {
-		return err
-	}
+	// err = m.SetUpSequencer()
+	// if err != nil {
+	// 	return err
+	// }
 
 	// Run node container
 	return m.StartNode()
