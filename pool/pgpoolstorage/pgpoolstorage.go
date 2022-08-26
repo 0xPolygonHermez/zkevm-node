@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/lib/pq"
 )
 
 var (
@@ -193,8 +194,8 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 }
 
 // GetTopPendingTxByProfitabilityAndZkCounters gets top pending tx by profitability and zk counter
-func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters pool.ZkCounters) (*pool.Transaction, error) {
-	sql := `
+func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters pool.ZkCounters, hashes []string) (*pool.Transaction, error) {
+	query := `
 		SELECT 
 			encoded, 
 			state,
@@ -212,20 +213,21 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 			pool.txs p1
 		WHERE 
 			state = $1 AND 
-			cumulative_gas_used < $2 AND 
-			used_keccak_hashes < $3 AND 
-			used_poseidon_hashes < $4 AND 
-			used_poseidon_paddings < $5 AND
-			used_mem_aligns < $6 AND 
-			used_arithmetics < $7 AND
-			used_binaries < $8 AND 
-			used_steps < $9 AND
+			cumulative_gas_used <= $2 AND 
+			used_keccak_hashes <= $3 AND 
+			used_poseidon_hashes <= $4 AND 
+			used_poseidon_paddings <= $5 AND
+			used_mem_aligns <= $6 AND 
+			used_arithmetics <= $7 AND
+			used_binaries <= $8 AND 
+			used_steps <= $9 AND
 			nonce = (
 				SELECT MIN(p2.nonce)
 				FROM pool.txs p2
 				WHERE p1.from_address = p2.from_address AND
 				state = $10
-			)
+			) AND 
+		    hash NOT IN ($11)
 		GROUP BY 
 			from_address, p1.hash
 		ORDER BY
@@ -242,7 +244,7 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 		usedMemAligns, usedArithmetics, usedBinaries, usedSteps int32
 		nonce uint64
 	)
-	err := p.db.QueryRow(ctx, sql,
+	err := p.db.QueryRow(ctx, query,
 		pool.TxStatePending,
 		maxZkCounters.CumulativeGasUsed,
 		maxZkCounters.UsedKeccakHashes,
@@ -252,7 +254,7 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 		maxZkCounters.UsedArithmetics,
 		maxZkCounters.UsedBinaries,
 		maxZkCounters.UsedSteps,
-		pool.TxStatePending).
+		pool.TxStatePending, pq.Array(hashes)).
 		Scan(&encoded,
 			&state,
 			&cumulativeGasUsed,

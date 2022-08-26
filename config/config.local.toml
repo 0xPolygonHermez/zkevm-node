@@ -47,6 +47,7 @@ MaxMemAligns = 262144
 MaxArithmetics = 262144
 MaxBinaries = 262144
 MaxSteps = 8388608
+MaxWaitTimeForSuitableTxToAppear = "15s"
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 
@@ -61,7 +62,7 @@ Type = "default"
 DefaultGasPriceWei = 1000000000
 
 [Prover]
-ProverURI = "zkevm-prover:50052"
+ProverURI = "54.170.178.97:35006"
 
 [MTServer]
 Host = "0.0.0.0"
@@ -69,10 +70,10 @@ Port = 50060
 StoreBackend = "PostgreSQL"
 
 [MTClient]
-URI  = "zkevm-prover:50061"
+URI = "54.170.178.97:36005"
 
 [Executor]
-URI = "zkevm-prover:50071"
+URI = "54.170.178.97:37005"
 
 [BroadcastServer]
 Host = "0.0.0.0"

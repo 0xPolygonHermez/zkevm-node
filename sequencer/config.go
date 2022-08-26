@@ -53,6 +53,9 @@ type Config struct {
 	// MaxSteps is max steps batch can handle
 	MaxSteps int32 `mapstructure:"MaxSteps"`
 
+	// MaxWaitTimeForSuitableTxToAppear is max wait time for tx in the pool to satisfy the zk counters restriction
+	MaxWaitTimeForSuitableTxToAppear types.Duration `mapstructure:"MaxWaitTimeForSuitableTxToAppear"`
+
 	// ProfitabilityChecker configuration
 	ProfitabilityChecker profitabilitychecker.Config `mapstructure:"ProfitabilityChecker"`
 }

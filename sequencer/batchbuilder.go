@@ -40,19 +40,40 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	// Get next tx from the pool
-	log.Info("getting pending tx from the pool")
-	tx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.calculateZkCounters())
-	if err == pgpoolstorage.ErrNotFound {
-		log.Infof("there is no suitable pending tx in the pool, waiting...")
-		waitTick(ctx, ticker)
-		return
-	} else if err != nil {
-		log.Errorf("failed to get pending tx, err: %v", err)
-		return
+	log.Info("getting pending txs from the pool")
+	pendingTxsHashes := []string{}
+	pendingTxs := []*pool.Transaction{}
+	sumZkCounters := pool.ZkCounters{}
+	startBuildBatchTime := time.Now()
+	for !s.isZkCountersMoreThanMax(sumZkCounters) {
+		pendTx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.calculateZkCounters(sumZkCounters), pendingTxsHashes)
+		if err == pgpoolstorage.ErrNotFound {
+			log.Infof("there is no suitable pending tx in the pool, waiting...")
+			waitTick(ctx, ticker)
+			return
+		} else if err != nil {
+			log.Errorf("failed to get pending tx, err: %v", err)
+			return
+		}
+		sumZkCounters = s.sumUpZkCounters(sumZkCounters, pendTx.ZkCounters)
+		pendingTxs = append(pendingTxs, pendTx)
+		pendingTxsHashes = append(pendingTxsHashes, pendTx.Hash().String())
+
+		if startBuildBatchTime.Add(s.cfg.MaxWaitTimeForSuitableTxToAppear.Duration).Before(time.Now()) && len(pendingTxs) > 0 {
+			log.Infof("time to gather txs are passed, gathering ended")
+			break
+		}
 	}
 
-	log.Infof("processing tx: %s", tx.Hash())
-	processedTxs, unprocessedTxs, err := s.processTx(ctx, tx)
+	if s.isZkCountersMoreThanMax(sumZkCounters) {
+		pendingTxs = pendingTxs[:len(pendingTxs)-1]
+		pendingTxsHashes = pendingTxsHashes[:len(pendingTxsHashes)-1]
+	}
+
+	for _, tx := range pendingTxs {
+		log.Infof("processing tx: %s", tx)
+	}
+	processedTxs, unprocessedTxs, err := s.processTxs(ctx, pendingTxs)
 	if err != nil {
 		return
 	}
@@ -63,7 +84,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	// update tx state in the pool
-	s.updateTxStateInPool(ctx, tx, unprocessedTxs)
+	s.updateTxStateInPool(ctx, len(pendingTxs), unprocessedTxs)
 }
 
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
@@ -101,16 +122,16 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	}, nil
 }
 
-func (s *Sequencer) calculateZkCounters() pool.ZkCounters {
+func (s *Sequencer) calculateZkCounters(zkCounters pool.ZkCounters) pool.ZkCounters {
 	return pool.ZkCounters{
-		CumulativeGasUsed:    int64(s.cfg.MaxCumulativeGasUsed) - s.sequenceInProgress.CumulativeGasUsed,
-		UsedKeccakHashes:     s.cfg.MaxKeccakHashes - s.sequenceInProgress.UsedKeccakHashes,
-		UsedPoseidonHashes:   s.cfg.MaxPoseidonHashes - s.sequenceInProgress.UsedKeccakHashes,
-		UsedPoseidonPaddings: s.cfg.MaxPoseidonPaddings - s.sequenceInProgress.UsedPoseidonPaddings,
-		UsedMemAligns:        s.cfg.MaxMemAligns - s.sequenceInProgress.UsedMemAligns,
-		UsedArithmetics:      s.cfg.MaxArithmetics - s.sequenceInProgress.UsedArithmetics,
-		UsedBinaries:         s.cfg.MaxBinaries - s.sequenceInProgress.UsedBinaries,
-		UsedSteps:            s.cfg.MaxSteps - s.sequenceInProgress.UsedSteps,
+		CumulativeGasUsed:    int64(s.cfg.MaxCumulativeGasUsed) - zkCounters.CumulativeGasUsed,
+		UsedKeccakHashes:     s.cfg.MaxKeccakHashes - zkCounters.UsedKeccakHashes,
+		UsedPoseidonHashes:   s.cfg.MaxPoseidonHashes - zkCounters.UsedKeccakHashes,
+		UsedPoseidonPaddings: s.cfg.MaxPoseidonPaddings - zkCounters.UsedPoseidonPaddings,
+		UsedMemAligns:        s.cfg.MaxMemAligns - zkCounters.UsedMemAligns,
+		UsedArithmetics:      s.cfg.MaxArithmetics - zkCounters.UsedArithmetics,
+		UsedBinaries:         s.cfg.MaxBinaries - zkCounters.UsedBinaries,
+		UsedSteps:            s.cfg.MaxSteps - zkCounters.UsedSteps,
 	}
 }
 
@@ -133,14 +154,17 @@ func (s *Sequencer) isSequenceProfitable(ctx context.Context) bool {
 	return isProfitable
 }
 
-func (s *Sequencer) processTx(ctx context.Context, tx *pool.Transaction) ([]*state.ProcessTransactionResponse, map[string]*state.ProcessTransactionResponse, error) {
+func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transaction) (
+	[]*state.ProcessTransactionResponse, map[string]*state.ProcessTransactionResponse, error) {
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for processing tx, err: %v", err)
 		return nil, nil, err
 	}
 
-	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
+	for _, tx := range pendingTxs {
+		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
+	}
 	previousStateRoot, err := s.state.GetStateRootByBatchNumber(ctx, s.lastBatchNum-1, nil)
 	if err != nil {
 		log.Errorf("failed to get state root for batchNum %d, err: %v", s.lastBatchNum, err)
@@ -149,7 +173,7 @@ func (s *Sequencer) processTx(ctx context.Context, tx *pool.Transaction) ([]*sta
 
 	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, previousStateRoot, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
-		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-len(pendingTxs)]
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			log.Errorf(
 				"failed to rollback dbTx when processing tx that gave err: %v. Rollback err: %v",
@@ -157,7 +181,9 @@ func (s *Sequencer) processTx(ctx context.Context, tx *pool.Transaction) ([]*sta
 			)
 			return nil, nil, err
 		}
-		log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
+		for _, tx := range pendingTxs {
+			log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
+		}
 		return nil, nil, err
 	}
 
@@ -217,35 +243,38 @@ func (s *Sequencer) storeProcessedTransactions(ctx context.Context, processedTxs
 	return nil
 }
 
-func (s *Sequencer) updateTxStateInPool(ctx context.Context, tx *pool.Transaction, unprocessedTxs map[string]*state.ProcessTransactionResponse) {
-	var txState = pool.TxStateSelected
-	var txUpdateMsg = fmt.Sprintf("Tx %q added into the state. Marking tx as selected in the pool", tx.Hash())
-	if _, ok := unprocessedTxs[tx.Hash().String()]; ok {
-		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
-		// in this case tx is invalid
-		if len(s.sequenceInProgress.Txs) == 0 {
-			txState = pool.TxStateInvalid
-			txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as invalid", tx.Hash())
-		} else {
-			// otherwise close batch and put tx as pending
-			txState = pool.TxStatePending
-			txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as pending to return the pool", tx.Hash())
+func (s *Sequencer) updateTxStateInPool(ctx context.Context, pendingTxsLen int, unprocessedTxs map[string]*state.ProcessTransactionResponse) {
+	for i := pendingTxsLen - 1; i < len(s.sequenceInProgress.Txs); i++ {
+		tx := s.sequenceInProgress.Txs[i]
+		var txState = pool.TxStateSelected
+		var txUpdateMsg = fmt.Sprintf("Tx %q added into the state. Marking tx as selected in the pool", tx.Hash())
+		if _, ok := unprocessedTxs[tx.Hash().String()]; ok {
+			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs[:i], s.sequenceInProgress.Txs[i+1:]...)
+			// in this case tx is invalid
+			if len(s.sequenceInProgress.Txs) == 0 {
+				txState = pool.TxStateInvalid
+				txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as invalid", tx.Hash())
+			} else {
+				// otherwise close batch and put tx as pending
+				txState = pool.TxStatePending
+				txUpdateMsg = fmt.Sprintf("Tx %q failed to be processed. Marking tx as pending to return the pool", tx.Hash())
 
-			log.Infof("current sequence should be closed, so tx with hash %q can be processed", tx.Hash())
-			err := s.closeSequence(ctx)
-			if err != nil {
-				log.Errorf("error closing sequence: %v", err)
-				log.Info("resetting sequence in progress")
-				if err = s.loadSequenceFromState(ctx); err != nil {
-					log.Error("error loading sequence from state: %v", err)
+				log.Infof("current sequence should be closed, so tx with hash %q can be processed", tx.Hash())
+				err := s.closeSequence(ctx)
+				if err != nil {
+					log.Errorf("error closing sequence: %v", err)
+					log.Info("resetting sequence in progress")
+					if err = s.loadSequenceFromState(ctx); err != nil {
+						log.Error("error loading sequence from state: %v", err)
+					}
 				}
 			}
 		}
-	}
-	log.Infof(txUpdateMsg)
-	if err := s.pool.UpdateTxState(ctx, tx.Hash(), txState); err != nil {
-		log.Errorf("failed to update tx status on the pool, err: %v", err)
-		return
+		log.Infof(txUpdateMsg)
+		if err := s.pool.UpdateTxState(ctx, tx.Hash(), txState); err != nil {
+			log.Errorf("failed to update tx status on the pool, err: %v", err)
+			return
+		}
 	}
 }
 
@@ -351,4 +380,28 @@ func (s *Sequencer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 	s.lastBatchNum = newBatchNum
 
 	return processingCtx, nil
+}
+
+func (s *Sequencer) sumUpZkCounters(sumCounters pool.ZkCounters, txZkCounters pool.ZkCounters) pool.ZkCounters {
+	return pool.ZkCounters{
+		CumulativeGasUsed:    sumCounters.CumulativeGasUsed + txZkCounters.CumulativeGasUsed,
+		UsedKeccakHashes:     sumCounters.UsedKeccakHashes + txZkCounters.UsedKeccakHashes,
+		UsedPoseidonHashes:   sumCounters.UsedPoseidonHashes + txZkCounters.UsedPoseidonHashes,
+		UsedPoseidonPaddings: sumCounters.UsedPoseidonPaddings + txZkCounters.UsedPoseidonPaddings,
+		UsedMemAligns:        sumCounters.UsedMemAligns + txZkCounters.UsedMemAligns,
+		UsedArithmetics:      sumCounters.UsedArithmetics + txZkCounters.UsedArithmetics,
+		UsedBinaries:         sumCounters.UsedBinaries + txZkCounters.UsedBinaries,
+		UsedSteps:            sumCounters.UsedSteps + txZkCounters.UsedSteps,
+	}
+}
+
+func (s *Sequencer) isZkCountersMoreThanMax(sumCounters pool.ZkCounters) bool {
+	return s.cfg.MaxCumulativeGasUsed < uint64(sumCounters.CumulativeGasUsed) ||
+		s.cfg.MaxKeccakHashes < sumCounters.UsedKeccakHashes ||
+		s.cfg.MaxPoseidonHashes < sumCounters.UsedPoseidonHashes ||
+		s.cfg.MaxPoseidonPaddings < sumCounters.UsedPoseidonPaddings ||
+		s.cfg.MaxMemAligns < sumCounters.UsedMemAligns ||
+		s.cfg.MaxArithmetics < sumCounters.UsedArithmetics ||
+		s.cfg.MaxBinaries < sumCounters.UsedBinaries ||
+		s.cfg.MaxSteps < sumCounters.UsedSteps
 }

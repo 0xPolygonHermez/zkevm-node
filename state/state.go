@@ -989,7 +989,8 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 // DetermineProcessedTransactions splits the given tx process responses
 // returning a slice with only processed and a map unprocessed txs
 // respectively.
-func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) ([]*ProcessTransactionResponse, map[string]*ProcessTransactionResponse) {
+func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
+	[]*ProcessTransactionResponse, map[string]*ProcessTransactionResponse) {
 	processedTxResponses := []*ProcessTransactionResponse{}
 	unprocessedTxResponses := map[string]*ProcessTransactionResponse{}
 	for _, response := range responses {

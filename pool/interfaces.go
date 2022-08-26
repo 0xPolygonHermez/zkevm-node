@@ -21,7 +21,7 @@ type storage interface {
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error
-	GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters ZkCounters) (*Transaction, error)
+	GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters ZkCounters, hashes []string) (*Transaction, error)
 }
 
 type stateInterface interface {
