@@ -86,11 +86,13 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	isProfitable, err := a.ProfitabilityChecker.IsProfitable(ctx, big.NewInt(0))
 	if err != nil {
 		log.Warnf("failed to check aggregator profitability, err: %v", err)
+		waitTick(ctx, ticker)
 		return
 	}
 
 	if !isProfitable {
 		log.Infof("Batch %d is not profitable, matic collateral %d", batchToVerify.BatchNumber, big.NewInt(0))
+		waitTick(ctx, ticker)
 		return
 	}
 
@@ -98,18 +100,21 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	inputProver, err := a.buildInputProver(ctx, batchToVerify)
 	if err != nil {
 		log.Warnf("failed to build input prover, err: %v", err)
+		waitTick(ctx, ticker)
 		return
 	}
 
 	genProofID, err := a.ProverClient.GetGenProofID(ctx, inputProver)
 	if err != nil {
 		log.Warnf("failed to get gen proof id, err: %v", err)
+		waitTick(ctx, ticker)
 		return
 	}
 
 	resGetProof, err := a.ProverClient.GetResGetProof(ctx, genProofID, batchToVerify.BatchNumber)
 	if err != nil {
 		log.Warnf("failed to get proof from prover, err: %v", err)
+		waitTick(ctx, ticker)
 		return
 	}
 	a.compareInputHashes(inputProver, resGetProof)
