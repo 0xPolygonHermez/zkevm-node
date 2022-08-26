@@ -1638,14 +1638,14 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), common.Hash{}, 1, signedTxs, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
-	assert.Equal(t, "", processBatchResponse.Responses[0].Error)
+	assert.Nil(t, processBatchResponse.Responses[0].Error)
 	assert.Equal(t, scAddress, processBatchResponse.Responses[0].CreateAddress)
 
 	// assert signed tx to increment counter
-	assert.Equal(t, "", processBatchResponse.Responses[1].Error)
+	assert.Nil(t, processBatchResponse.Responses[1].Error)
 
 	// assert signed tx to increment counter
-	assert.Equal(t, "", processBatchResponse.Responses[2].Error)
+	assert.Nil(t, processBatchResponse.Responses[2].Error)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[2].ReturnValue))
 
 	// Add txs to DB
@@ -1671,7 +1671,8 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		GasPrice: new(big.Int),
 		Data:     retrieveFnSignature,
 	})
-	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), 3, nil)
+	l2BlockNumber := uint64(3)
+	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), &l2BlockNumber, nil)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))

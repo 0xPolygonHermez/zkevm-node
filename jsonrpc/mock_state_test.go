@@ -73,18 +73,18 @@ func (_m *stateMock) DebugTransaction(ctx context.Context, transactionHash commo
 }
 
 // EstimateGas provides a mock function with given fields: transaction, senderAddress, l2BlockNumber, dbTx
-func (_m *stateMock) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+func (_m *stateMock) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(transaction, senderAddress, l2BlockNumber, dbTx)
 
 	var r0 uint64
-	if rf, ok := ret.Get(0).(func(*types.Transaction, common.Address, uint64, pgx.Tx) uint64); ok {
+	if rf, ok := ret.Get(0).(func(*types.Transaction, common.Address, *uint64, pgx.Tx) uint64); ok {
 		r0 = rf(transaction, senderAddress, l2BlockNumber, dbTx)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(*types.Transaction, common.Address, uint64, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(1).(func(*types.Transaction, common.Address, *uint64, pgx.Tx) error); ok {
 		r1 = rf(transaction, senderAddress, l2BlockNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
@@ -584,11 +584,11 @@ func (_m *stateMock) IsL2BlockVirtualized(ctx context.Context, blockNumber int, 
 }
 
 // ProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, senderAddress, blockNumber, dbTx
-func (_m *stateMock) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
+func (_m *stateMock) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber *uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
 	ret := _m.Called(ctx, tx, senderAddress, blockNumber, dbTx)
 
 	var r0 *runtime.ExecutionResult
-	if rf, ok := ret.Get(0).(func(context.Context, *types.Transaction, common.Address, uint64, pgx.Tx) *runtime.ExecutionResult); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *types.Transaction, common.Address, *uint64, pgx.Tx) *runtime.ExecutionResult); ok {
 		r0 = rf(ctx, tx, senderAddress, blockNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {

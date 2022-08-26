@@ -35,6 +35,8 @@ var (
 	ErrOutOfCounters = errors.New("executor run out of counters")
 	// ErrInvalidTransaction indicates the executor found the transaction to be invalid
 	ErrInvalidTransaction = errors.New("invalid transaction")
+	// ErrIntrinsicInvalidTransaction indicates the executor found the transaction to be invalid and this does not affected the state
+	ErrIntrinsicInvalidTransaction = errors.New("intrinsic invalid transaction")
 )
 
 // ExecutionResult includes all output after executing given evm

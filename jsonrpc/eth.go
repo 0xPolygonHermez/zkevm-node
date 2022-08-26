@@ -64,7 +64,12 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 			return rpcErrorResponse(defaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumber, dbTx)
+		var blockNumberToProcessTx *uint64
+		if number != nil && *number != LatestBlockNumber && *number != PendingBlockNumber {
+			blockNumberToProcessTx = &blockNumber
+		}
+
+		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, dbTx)
 		if result.Failed() {
 			return rpcErrorResponse(defaultErrorCode, result.Err.Error(), nil)
 		}
@@ -86,11 +91,6 @@ func (e *Eth) ChainId() (interface{}, rpcError) { //nolint:revive
 // node performance.
 func (e *Eth) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		if number == nil {
-			lbn := LatestBlockNumber
-			number = &lbn
-		}
-
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
@@ -101,7 +101,12 @@ func (e *Eth) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcEr
 			return rpcErrorResponse(defaultErrorCode, "failed to convert arguments into an unsigned transaction", err)
 		}
 
-		gasEstimation, err := e.state.EstimateGas(tx, sender, blockNumber, dbTx)
+		var blockNumberToProcessTx *uint64
+		if number != nil && *number != LatestBlockNumber && *number != PendingBlockNumber {
+			blockNumberToProcessTx = &blockNumber
+		}
+
+		gasEstimation, err := e.state.EstimateGas(tx, sender, blockNumberToProcessTx, dbTx)
 		if err != nil {
 			return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
 		}
@@ -444,17 +449,30 @@ func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, rpcError) {
 // GetTransactionCount returns account nonce
 func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		var pendingNonce uint64
+		var nonce uint64
 		var err error
+		if number != nil && *number == PendingBlockNumber {
+			pendingNonce, err = e.pool.GetNonce(ctx, address)
+			if err != nil {
+				return rpcErrorResponse(defaultErrorCode, "failed to count pending transactions", err)
+			}
+		}
+
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
+		nonce, err = e.state.GetNonce(ctx, address, blockNumber, dbTx)
 
-		nonce, err := e.state.GetNonce(ctx, address, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return hex.EncodeUint64(0), nil
 		} else if err != nil {
 			return rpcErrorResponse(defaultErrorCode, "failed to count transactions", err)
+		}
+
+		if pendingNonce > nonce {
+			nonce = pendingNonce
 		}
 
 		return hex.EncodeUint64(nonce), nil
@@ -478,6 +496,14 @@ func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, rpc
 // block from a block mlocking the given block number.
 func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		if number != nil && *number == PendingBlockNumber {
+			c, err := e.pool.CountPendingTransactions(ctx)
+			if err != nil {
+				return rpcErrorResponse(defaultErrorCode, "failed to count pending transactions", err)
+			}
+			return argUint64(c), nil
+		}
+
 		var err error
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
@@ -589,7 +615,7 @@ func (e *Eth) tryToAddTxToPool(input string) (interface{}, rpcError) {
 
 	log.Debugf("adding TX to the pool: %v", tx.Hash().Hex())
 	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
-		return rpcErrorResponse(defaultErrorCode, "failed to add TX to the pool", err)
+		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
 	}
 	log.Infof("TX added to the pool: %v", tx.Hash().Hex())
 

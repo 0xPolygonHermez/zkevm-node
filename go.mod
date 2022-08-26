@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/didip/tollbooth/v6 v6.1.2
 	github.com/dop251/goja v0.0.0-20220405120441-9037c2b61cbf
-	github.com/ethereum/go-ethereum v1.10.21
+	github.com/ethereum/go-ethereum v1.10.23
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/gobuffalo/packr/v2 v2.8.3
@@ -22,10 +22,10 @@ require (
 	github.com/stretchr/testify v1.8.0
 	github.com/umbracle/ethgo v0.1.3
 	github.com/urfave/cli/v2 v2.11.2
-	go.uber.org/zap v1.22.0
+	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
-	google.golang.org/grpc v1.48.0
+	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1

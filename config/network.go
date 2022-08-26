@@ -134,11 +134,6 @@ var (
 		Genesis: state.Genesis{
 			Actions: []*state.GenesisAction{
 				{
-					Address: "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988",
-					Type:    int(merkletree.LeafTypeBalance),
-					Value:   "100000000000000000000000",
-				},
-				{
 					Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
 					Type:    int(merkletree.LeafTypeBalance),
 					Value:   "100000000000000000000000",

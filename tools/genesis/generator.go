@@ -10,12 +10,14 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/tools/genesis/genesisparser"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/storage/memory"
 )
 
@@ -68,7 +70,8 @@ func getLatestGenesisRaw() genesisReader {
 	fs := memfs.New()
 
 	_, err := git.Clone(memory.NewStorage(), fs, &git.CloneOptions{
-		URL: repoURL,
+		ReferenceName: plumbing.NewBranchReferenceName("main"),
+		URL:           repoURL,
 	})
 	if err != nil {
 		panic(fmt.Errorf("error when clone repo: %v", err))
@@ -140,13 +143,16 @@ var commonGenesisActions = []*state.GenesisAction{
 func assertGenesis(expectedRoot string) (err error) {
 	// Build node
 	if err = operations.RunMakeTarget("build-docker"); err != nil {
+		log.Error(err)
 		return
 	}
 	// Start DB and executor
 	if err = operations.RunMakeTarget("run-db"); err != nil {
+		log.Error(err)
 		return
 	}
 	if err = operations.RunMakeTarget("run-zkprover"); err != nil {
+		log.Error(err)
 		return
 	}
 	// Stop everything once done
@@ -161,22 +167,26 @@ func assertGenesis(expectedRoot string) (err error) {
 	opsCfg.State.MaxCumulativeGasUsed = 80000000000
 	opsman, err := operations.NewManager(context.Background(), opsCfg)
 	if err != nil {
+		log.Error(err)
 		return
 	}
 
 	// Run node
 	err = opsman.Setup()
 	if err != nil {
+		log.Error(err)
 		return
 	}
 
 	// Get Genesis root using jRPC
 	client, err := ethclient.Dial("http://localhost:8124")
 	if err != nil {
+		log.Error(err)
 		return
 	}
 	blockHeader, err := client.HeaderByNumber(context.Background(), big.NewInt(0))
 	if err != nil {
+		log.Error(err)
 		return
 	}
 	actualRoot := "0x" + blockHeader.Root.Hex()

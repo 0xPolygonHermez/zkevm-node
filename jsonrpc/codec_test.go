@@ -54,9 +54,14 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		{
 			name:                "BlockNumber nil",
 			bn:                  nil,
-			expectedBlockNumber: 0,
+			expectedBlockNumber: 40,
 			expectedError:       nil,
-			setupMocks:          func(s *stateMock, d *dbTxMock, t *testCase) {},
+			setupMocks: func(s *stateMock, d *dbTxMock, t *testCase) {
+				s.
+					On("GetLastL2BlockNumber", context.Background(), d).
+					Return(uint64(40), nil).
+					Once()
+			},
 		},
 		{
 			name:                "BlockNumber LatestBlockNumber",
