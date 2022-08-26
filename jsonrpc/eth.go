@@ -496,6 +496,14 @@ func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, rpc
 // block from a block mlocking the given block number.
 func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		if number != nil && *number == PendingBlockNumber {
+			c, err := e.pool.CountPendingTransactions(ctx)
+			if err != nil {
+				return rpcErrorResponse(defaultErrorCode, "failed to count pending transactions", err)
+			}
+			return argUint64(c), nil
+		}
+
 		var err error
 		blockNumber, rpcErr := number.getNumericBlockNumber(ctx, e.state, dbTx)
 		if rpcErr != nil {
