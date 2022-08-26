@@ -45,12 +45,9 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	// Get next tx from the pool
 	log.Info("getting pending txs from the pool")
-	pendingTxsHashes := []string{}
-	pendingTxs := []*pool.Transaction{}
-	sumZkCounters := pool.ZkCounters{}
 	startBuildBatchTime := time.Now()
-	for !s.isZkCountersMoreThanMax(sumZkCounters) {
-		pendTx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.calculateZkCounters(sumZkCounters), pendingTxsHashes)
+	for !s.isZkCountersMoreThanMax(s.sumZkCounters) {
+		pendTx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.calculateZkCounters(s.sumZkCounters), s.pendingTxsHashes)
 		if err == pgpoolstorage.ErrNotFound {
 			log.Infof("there is no suitable pending tx in the pool, waiting...")
 			waitTick(ctx, ticker)
@@ -59,25 +56,25 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			log.Errorf("failed to get pending tx, err: %v", err)
 			return
 		}
-		sumZkCounters = s.sumUpZkCounters(sumZkCounters, pendTx.ZkCounters)
-		pendingTxs = append(pendingTxs, pendTx)
-		pendingTxsHashes = append(pendingTxsHashes, pendTx.Hash().String())
+		s.sumZkCounters = s.sumUpZkCounters(s.sumZkCounters, pendTx.ZkCounters)
+		s.pendingTxs = append(s.pendingTxs, pendTx)
+		s.pendingTxsHashes = append(s.pendingTxsHashes, pendTx.Hash().String())
 
-		if startBuildBatchTime.Add(s.cfg.MaxWaitTimeForSuitableTxToAppear.Duration).Before(time.Now()) && len(pendingTxs) > 0 {
+		if startBuildBatchTime.Add(s.cfg.MaxWaitTimeForSuitableTxToAppear.Duration).Before(time.Now()) && len(s.pendingTxs) > 0 {
 			log.Infof("time to gather txs are passed, gathering ended")
 			break
 		}
 	}
 
-	if s.isZkCountersMoreThanMax(sumZkCounters) {
-		pendingTxs = pendingTxs[:len(pendingTxs)-1]
-		pendingTxsHashes = pendingTxsHashes[:len(pendingTxsHashes)-1]
+	if s.isZkCountersMoreThanMax(s.sumZkCounters) {
+		s.pendingTxs = s.pendingTxs[:len(s.pendingTxs)-1]
+		s.pendingTxsHashes = s.pendingTxsHashes[:len(s.pendingTxsHashes)-1]
 	}
 
-	for _, tx := range pendingTxs {
+	for _, tx := range s.pendingTxs {
 		log.Infof("processing tx: %s", tx)
 	}
-	processedTxs, unprocessedTxs, err := s.processTxs(ctx, pendingTxs)
+	processedTxs, unprocessedTxs, err := s.processTxs(ctx, s.pendingTxs)
 	if err != nil {
 		return
 	}
@@ -88,7 +85,11 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	// update tx state in the pool
-	s.updateTxStateInPool(ctx, len(pendingTxs), unprocessedTxs)
+	s.updateTxStateInPool(ctx, len(s.pendingTxs), unprocessedTxs)
+
+	s.pendingTxs = []*pool.Transaction{}
+	s.pendingTxsHashes = []string{}
+	s.sumZkCounters = pool.ZkCounters{}
 }
 
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
@@ -402,12 +403,12 @@ func (s *Sequencer) sumUpZkCounters(sumCounters pool.ZkCounters, txZkCounters po
 }
 
 func (s *Sequencer) isZkCountersMoreThanMax(sumCounters pool.ZkCounters) bool {
-	return s.cfg.MaxCumulativeGasUsed < uint64(sumCounters.CumulativeGasUsed) ||
-		s.cfg.MaxKeccakHashes < sumCounters.UsedKeccakHashes ||
-		s.cfg.MaxPoseidonHashes < sumCounters.UsedPoseidonHashes ||
-		s.cfg.MaxPoseidonPaddings < sumCounters.UsedPoseidonPaddings ||
-		s.cfg.MaxMemAligns < sumCounters.UsedMemAligns ||
-		s.cfg.MaxArithmetics < sumCounters.UsedArithmetics ||
-		s.cfg.MaxBinaries < sumCounters.UsedBinaries ||
-		s.cfg.MaxSteps < sumCounters.UsedSteps
+	return s.cfg.MaxCumulativeGasUsed <= uint64(sumCounters.CumulativeGasUsed) ||
+		s.cfg.MaxKeccakHashes <= sumCounters.UsedKeccakHashes ||
+		s.cfg.MaxPoseidonHashes <= sumCounters.UsedPoseidonHashes ||
+		s.cfg.MaxPoseidonPaddings <= sumCounters.UsedPoseidonPaddings ||
+		s.cfg.MaxMemAligns <= sumCounters.UsedMemAligns ||
+		s.cfg.MaxArithmetics <= sumCounters.UsedArithmetics ||
+		s.cfg.MaxBinaries <= sumCounters.UsedBinaries ||
+		s.cfg.MaxSteps <= sumCounters.UsedSteps
 }

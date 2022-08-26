@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -36,6 +37,9 @@ type Sequencer struct {
 	lastStateRoot, lastLocalExitRoot common.Hash
 
 	sequenceInProgress types.Sequence
+	pendingTxs         []*pool.Transaction
+	pendingTxsHashes   []string
+	sumZkCounters      pool.ZkCounters
 }
 
 // New init sequencer
