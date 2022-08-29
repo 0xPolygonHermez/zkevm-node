@@ -1180,7 +1180,7 @@ func TestExecutorTransfer(t *testing.T) {
 	require.Equal(t, uint64(21002), balance.Uint64())
 }
 
-func TestExecutorTxHash(t *testing.T) {
+func TestExecutorTxHashAndRLP(t *testing.T) {
 	// Test Case
 	type TxHashTestCase struct {
 		Nonce    string `json:"nonce"`
@@ -1273,10 +1273,18 @@ func TestExecutorTxHash(t *testing.T) {
 		processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 		require.NoError(t, err)
 
+		// TX Hash
 		log.Debugf("TX Hash=%v", tx.Hash().String())
 		log.Debugf("Response TX Hash=%v", common.BytesToHash(processBatchResponse.Responses[0].TxHash).String())
 
+		// RPL Enconding
+		b, err := tx.MarshalBinary()
+		require.NoError(t, err)
+		log.Debugf("TX RLP=%v", hex.EncodeToHex(b))
+		log.Debugf("Response TX RLP=%v", common.BytesToHash(processBatchResponse.Responses[0].RlpTx).String())
+
 		require.Equal(t, tx.Hash(), common.BytesToHash(processBatchResponse.Responses[0].TxHash))
+		require.Equal(t, hex.EncodeToHex(b), common.BytesToHash(processBatchResponse.Responses[0].RlpTx))
 	}
 }
 
