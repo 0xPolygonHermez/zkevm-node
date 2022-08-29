@@ -1210,7 +1210,7 @@ func TestExecutorTxHash(t *testing.T) {
 	err = json.Unmarshal(bytes, &testCases)
 	require.NoError(t, err)
 
-	for _, testCase := range testCases {
+	for x, testCase := range testCases {
 		var receiverAddress = common.HexToAddress(testCase.To)
 		var stateRoot = state.ZeroHash
 
@@ -1259,7 +1259,7 @@ func TestExecutorTxHash(t *testing.T) {
 
 		// Create Batch
 		processBatchRequest := &executorclientpb.ProcessBatchRequest{
-			BatchNum:         1,
+			BatchNum:         uint64(x),
 			Coinbase:         receiverAddress.String(),
 			BatchL2Data:      batchL2Data,
 			OldStateRoot:     stateRoot.Bytes(),
