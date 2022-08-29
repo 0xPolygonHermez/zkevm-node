@@ -200,7 +200,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 		if err != nil {
 			rollErr := dbTx.Rollback(ctx)
 			if rollErr != nil {
-				err = fmt.Errorf("failed to open a batch, err: %w. Rollback err: %w", err, rollErr)
+				err = fmt.Errorf("failed to open a batch, err: %w. Rollback err: %v", err, rollErr)
 			}
 			return err
 		}
