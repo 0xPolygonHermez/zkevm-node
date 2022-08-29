@@ -45,7 +45,7 @@ type Sequencer struct {
 // New init sequencer
 func New(
 	cfg Config,
-	pool txPool,
+	txPool txPool,
 	state stateInterface,
 	etherman etherman,
 	priceGetter priceGetter,
@@ -59,13 +59,16 @@ func New(
 	// TODO: check that private key used in etherman matches addr
 
 	return &Sequencer{
-		cfg:       cfg,
-		pool:      pool,
-		state:     state,
-		etherman:  etherman,
-		checker:   checker,
-		txManager: manager,
-		address:   addr,
+		cfg:              cfg,
+		pool:             txPool,
+		state:            state,
+		etherman:         etherman,
+		checker:          checker,
+		txManager:        manager,
+		address:          addr,
+		pendingTxs:       []*pool.Transaction{},
+		pendingTxsHashes: []string{},
+		sumZkCounters:    pool.ZkCounters{},
 	}, nil
 }
 
