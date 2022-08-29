@@ -13,7 +13,7 @@ require (
 	github.com/iden3/go-iden3-crypto v0.0.14-0.20220413123345-edc36bfa5247
 	github.com/imdario/mergo v0.3.13
 	github.com/jackc/pgconn v1.13.0
-	github.com/jackc/pgx/v4 v4.17.0
+	github.com/jackc/pgx/v4 v4.17.1
 	github.com/lib/pq v1.10.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/rubenv/sql-migrate v0.0.0-20211023115951-9f02b1e13857
@@ -72,7 +72,7 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.3.1 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
-	github.com/jackc/puddle v1.2.1 // indirect
+	github.com/jackc/puddle v1.3.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/karrick/godirwalk v1.16.1 // indirect
 	github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351 // indirect
