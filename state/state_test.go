@@ -1277,11 +1277,11 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 		log.Debugf("TX Hash=%v", tx.Hash().String())
 		log.Debugf("Response TX Hash=%v", common.BytesToHash(processBatchResponse.Responses[0].TxHash).String())
 
-		// RPL Enconding
+		// RPL Encoding
 		b, err := tx.MarshalBinary()
 		require.NoError(t, err)
 		log.Debugf("TX RLP=%v", hex.EncodeToHex(b))
-		log.Debugf("Response TX RLP=%v", common.BytesToHash(processBatchResponse.Responses[0].RlpTx).String())
+		log.Debugf("Response TX RLP=%v", "0x"+common.Bytes2Hex(processBatchResponse.Responses[0].RlpTx))
 
 		require.Equal(t, tx.Hash(), common.BytesToHash(processBatchResponse.Responses[0].TxHash))
 		require.Equal(t, hex.EncodeToHex(b), "0x"+common.Bytes2Hex(processBatchResponse.Responses[0].RlpTx))
