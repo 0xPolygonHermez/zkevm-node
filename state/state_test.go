@@ -1284,7 +1284,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 		log.Debugf("Response TX RLP=%v", common.BytesToHash(processBatchResponse.Responses[0].RlpTx).String())
 
 		require.Equal(t, tx.Hash(), common.BytesToHash(processBatchResponse.Responses[0].TxHash))
-		require.Equal(t, hex.EncodeToHex(b), common.BytesToHash(processBatchResponse.Responses[0].RlpTx))
+		require.Equal(t, hex.EncodeToHex(b), "0x"+common.Bytes2Hex(processBatchResponse.Responses[0].RlpTx))
 	}
 }
 
