@@ -169,50 +169,50 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 	}
 	// Revert reorged txs to pending
 	if err := s.pool.MarkReorgedTxsAsPending(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to mark reorged txs as pending, err: %w", err)
 	}
 	// Get latest info from the state
 	lastBatch, err := s.state.GetLastBatch(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get last batch, err: %w", err)
 	}
 	s.lastBatchNum = lastBatch.BatchNumber
 	s.lastStateRoot = lastBatch.StateRoot
 	s.lastLocalExitRoot = lastBatch.LocalExitRoot
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get last virtual batch num, err: %w", err)
 	}
 	s.lastBatchNumSentToL1 = lastVirtualBatchNum
 	isClosed, err := s.state.IsBatchClosed(ctx, lastBatch.BatchNumber, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check is batch closed or not, err: %w", err)
 	}
 	if isClosed {
-		ger, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
+		dbTx, err := s.state.BeginStateTransaction(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to begin state tx to open a batch, err: %w", err)
+		}
+		ger, err := s.getLatestGer(ctx, dbTx)
+		if err != nil {
+			return fmt.Errorf("failed to get latest global exit root, err: %w", err)
 		}
 		processingCtx := state.ProcessingContext{
 			BatchNumber:    s.lastBatchNum + 1,
 			Coinbase:       s.address,
 			Timestamp:      time.Now(),
-			GlobalExitRoot: ger.GlobalExitRoot,
-		}
-		dbTx, err := s.state.BeginStateTransaction(ctx)
-		if err != nil {
-			return err
+			GlobalExitRoot: ger,
 		}
 		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
 		if err != nil {
 			rollErr := dbTx.Rollback(ctx)
 			if rollErr != nil {
-				err = fmt.Errorf("err: %v. Rollback err: %v", err, rollErr)
+				err = fmt.Errorf("failed to open a batch, err: %w. Rollback err: %v", err, rollErr)
 			}
 			return err
 		}
 		if err = dbTx.Commit(ctx); err != nil {
-			return err
+			return fmt.Errorf("failed to commit a state tx to open a batch, err: %w", err)
 		}
 		s.sequenceInProgress = types.Sequence{
 			GlobalExitRoot: processingCtx.GlobalExitRoot,
@@ -221,7 +221,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 	} else {
 		txs, err := s.state.GetTransactionsByBatchNumber(ctx, lastBatch.BatchNumber, nil)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get tx by batch number, err: %w", err)
 		}
 		s.sequenceInProgress = types.Sequence{
 			GlobalExitRoot: lastBatch.GlobalExitRoot,
