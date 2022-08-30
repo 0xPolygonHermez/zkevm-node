@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	// ERROR_UNSPECIFIED indicates the execution ended successfully
+	// ERROR_UNSPECIFIED indicates the execution error was not specified
 	ERROR_UNSPECIFIED int32 = iota
-	// ERROR_NO_ERROR indicates the execution ended successfully
+	// ERROR_NO_ERROR indicates the execution finished successfully
 	ERROR_NO_ERROR
 	// ERROR_OUT_OF_GAS indicates there is not enough balance to continue the execution
 	ERROR_OUT_OF_GAS

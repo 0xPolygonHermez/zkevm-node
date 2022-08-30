@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "54.170.178.97")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -1635,7 +1635,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		*signedTxFirstIncrement,
 		*signedTxFirstRetrieve,
 	}
-	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), common.Hash{}, 1, signedTxs, dbTx)
+	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
 	assert.Nil(t, processBatchResponse.Responses[0].Error)
