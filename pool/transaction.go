@@ -58,6 +58,18 @@ func (zkc *ZkCounters) IsZkCountersBelowZero() bool {
 		zkc.UsedKeccakHashes < 0
 }
 
+// SumUpZkCounters sum ups zk counters with passed tx zk counters
+func (zkc *ZkCounters) SumUpZkCounters(txZkCounters ZkCounters) {
+	zkc.CumulativeGasUsed += txZkCounters.CumulativeGasUsed
+	zkc.UsedKeccakHashes += txZkCounters.UsedKeccakHashes
+	zkc.UsedPoseidonHashes += txZkCounters.UsedPoseidonHashes
+	zkc.UsedPoseidonPaddings += txZkCounters.UsedPoseidonPaddings
+	zkc.UsedMemAligns += txZkCounters.UsedMemAligns
+	zkc.UsedArithmetics += txZkCounters.UsedArithmetics
+	zkc.UsedBinaries += txZkCounters.UsedBinaries
+	zkc.UsedSteps += txZkCounters.UsedSteps
+}
+
 // IsClaimTx checks, if tx is a claim tx
 func (tx *Transaction) IsClaimTx(l2GlobalExitRootManagerAddr common.Address) bool {
 	if tx.To() == nil {

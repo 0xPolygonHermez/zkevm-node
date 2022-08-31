@@ -53,7 +53,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			break
 		}
 
-		pendTx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.calculateZkCounters(s.sumZkCounters), s.pendingTxsHashes)
+		pendTx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.maxZkCountersSubPassedZkCounters(s.sumZkCounters), s.pendingTxsHashes)
 		if err == pgpoolstorage.ErrNotFound {
 			log.Infof("there is no suitable pending tx in the pool, waiting...")
 			waitTick(ctx, ticker)
@@ -64,7 +64,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		} else {
 			log.Infof("adding pending txs to pending tx array, hash: %s", pendTx.Hash().String())
 		}
-		s.sumZkCounters = s.sumUpZkCounters(s.sumZkCounters, pendTx.ZkCounters)
+		s.sumZkCounters.SumUpZkCounters(pendTx.ZkCounters)
 		s.pendingTxs = append(s.pendingTxs, pendTx)
 		s.pendingTxsHashes = append(s.pendingTxsHashes, pendTx.Hash().String())
 	}
@@ -76,7 +76,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	for _, tx := range s.pendingTxs {
-		log.Infof("processing tx: %s", tx)
+		log.Infof("processing tx: %s", tx.Hash())
 	}
 	processedTxs, unprocessedTxs, err := s.processTxs(ctx, s.pendingTxs)
 	if err != nil {
@@ -133,7 +133,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	}, nil
 }
 
-func (s *Sequencer) calculateZkCounters(zkCounters pool.ZkCounters) pool.ZkCounters {
+func (s *Sequencer) maxZkCountersSubPassedZkCounters(zkCounters pool.ZkCounters) pool.ZkCounters {
 	return pool.ZkCounters{
 		CumulativeGasUsed:    int64(s.cfg.MaxCumulativeGasUsed) - zkCounters.CumulativeGasUsed,
 		UsedKeccakHashes:     s.cfg.MaxKeccakHashes - zkCounters.UsedKeccakHashes,
@@ -397,19 +397,6 @@ func (s *Sequencer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 	s.lastBatchNum = newBatchNum
 
 	return processingCtx, nil
-}
-
-func (s *Sequencer) sumUpZkCounters(sumCounters pool.ZkCounters, txZkCounters pool.ZkCounters) pool.ZkCounters {
-	return pool.ZkCounters{
-		CumulativeGasUsed:    sumCounters.CumulativeGasUsed + txZkCounters.CumulativeGasUsed,
-		UsedKeccakHashes:     sumCounters.UsedKeccakHashes + txZkCounters.UsedKeccakHashes,
-		UsedPoseidonHashes:   sumCounters.UsedPoseidonHashes + txZkCounters.UsedPoseidonHashes,
-		UsedPoseidonPaddings: sumCounters.UsedPoseidonPaddings + txZkCounters.UsedPoseidonPaddings,
-		UsedMemAligns:        sumCounters.UsedMemAligns + txZkCounters.UsedMemAligns,
-		UsedArithmetics:      sumCounters.UsedArithmetics + txZkCounters.UsedArithmetics,
-		UsedBinaries:         sumCounters.UsedBinaries + txZkCounters.UsedBinaries,
-		UsedSteps:            sumCounters.UsedSteps + txZkCounters.UsedSteps,
-	}
 }
 
 func (s *Sequencer) isZkCountersMoreThanMax(sumCounters pool.ZkCounters) bool {
