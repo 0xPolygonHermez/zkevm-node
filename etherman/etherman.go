@@ -610,6 +610,7 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 	return etherMan.PoE.TrustedSequencerURL(&bind.CallOpts{Pending: false})
 }
 
+// GetPublicAddress returns eth client public address
 func (etherMan *Client) GetPublicAddress() common.Address {
 	return etherMan.auth.From
 }
