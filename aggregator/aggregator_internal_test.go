@@ -123,6 +123,8 @@ func TestBuildInputProver(t *testing.T) {
 		GlobalExitRoot: batchToVerify.GlobalExitRoot.String(),
 		BatchL2Data:    hex.EncodeToString(batchL2Data),
 	}
+
+	etherman.On("GetPublicAddress").Return(common.HexToAddress("0x123"))
 	ip, err := a.buildInputProver(ctx, batchToVerify)
 	require.NoError(t, err)
 	require.NotNil(t, ip)
@@ -202,6 +204,7 @@ func TestAggregatorFlow(t *testing.T) {
 		oldLocalExitRoot = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
 		newLocalExitRoot = common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0")
 		seqAddress       = common.HexToAddress("0x123")
+		aggrAddress      = common.HexToAddress("0x123")
 		verifiedBatch    = &state.VerifiedBatch{BatchNumber: 1}
 		tx               = *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
 		previousBatch    = &state.Batch{
@@ -227,6 +230,7 @@ func TestAggregatorFlow(t *testing.T) {
 				SequencerAddr:    seqAddress.String(),
 				BatchNum:         uint32(batchToVerify.BatchNumber),
 				EthTimestamp:     uint64(batchToVerify.Timestamp.Unix()),
+				AggregatorAddr:   aggrAddress.String(),
 			},
 			GlobalExitRoot:    batchToVerify.GlobalExitRoot.String(),
 			Db:                map[string]string{},
@@ -259,6 +263,7 @@ func TestAggregatorFlow(t *testing.T) {
 	// isSynced
 	st.On("GetLastVerifiedBatch", mock.Anything, nil).Return(verifiedBatch, nil)
 	etherman.On("GetLatestVerifiedBatchNum").Return(uint64(1), nil)
+	etherman.On("GetPublicAddress").Return(aggrAddress)
 
 	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(context.Background(), nil)
 	require.NoError(t, err)

@@ -610,6 +610,10 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 	return etherMan.PoE.TrustedSequencerURL(&bind.CallOpts{Pending: false})
 }
 
+func (etherMan *Client) GetPublicAddress() common.Address {
+	return etherMan.auth.From
+}
+
 // VerifyBatch function allows the aggregator send the proof for a batch and consolidate it
 func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64, resGetProof *pb.GetProofResponse) (*types.Transaction, error) {
 	publicInputs := resGetProof.Public.PublicInputs
