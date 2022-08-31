@@ -2,9 +2,12 @@ package state_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -1177,55 +1180,112 @@ func TestExecutorTransfer(t *testing.T) {
 	require.Equal(t, uint64(21002), balance.Uint64())
 }
 
-func TestExecutorTxHash(t *testing.T) {
-	var receiverAddress = common.HexToAddress("0xD8Af0C5c6dEE7dCe32E59577675C026e1aDe4De5")
-	var stateRoot = state.ZeroHash
-
-	v, ok := new(big.Int).SetString("0x2e", 0)
-	require.Equal(t, true, ok)
-
-	r, ok := new(big.Int).SetString("0xa54492cfacf71aef702421b7fbc70636537a7b2fbe5718c5ed970a001bb7756b", 0)
-	require.Equal(t, true, ok)
-
-	s, ok := new(big.Int).SetString("0x2e9fb27acc75955b898f0b12ec52aa34bf08f01db654374484b80bf12f0d841e", 0)
-	require.Equal(t, true, ok)
-
-	// Create transaction
-	tx := types.NewTx(&types.LegacyTx{
-		Nonce:    10,
-		To:       &receiverAddress,
-		Value:    new(big.Int).SetUint64(100000000000000),
-		Gas:      uint64(21000),
-		GasPrice: new(big.Int).SetUint64(1500000008),
-		Data:     common.Hex2Bytes("0x00"),
-		V:        v,
-		R:        r,
-		S:        s,
-	})
-
-	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx})
-	require.NoError(t, err)
-
-	// Create Batch
-	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		BatchNum:         1,
-		Coinbase:         receiverAddress.String(),
-		BatchL2Data:      batchL2Data,
-		OldStateRoot:     stateRoot.Bytes(),
-		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		EthTimestamp:     uint64(0),
-		UpdateMerkleTree: 1,
+func TestExecutorTxHashAndRLP(t *testing.T) {
+	// Test Case
+	type TxHashTestCase struct {
+		Nonce    string `json:"nonce"`
+		GasPrice string `json:"gasPrice"`
+		GasLimit string `json:"gasLimit"`
+		To       string `json:"to"`
+		Value    string `json:"value"`
+		Data     string `json:"data"`
+		ChainID  string `json:"chainId"`
+		V        string `json:"v"`
+		R        string `json:"r"`
+		S        string `json:"s"`
+		From     string `json:"from"`
+		Hash     string `json:"hash"`
+		Link     string `json:"link"`
 	}
 
-	// Process batch
-	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+	var testCases []TxHashTestCase
+
+	jsonFile, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/tx-hash-goerli.json"))
+	require.NoError(t, err)
+	defer func() { _ = jsonFile.Close() }()
+
+	bytes, err := ioutil.ReadAll(jsonFile)
 	require.NoError(t, err)
 
-	log.Debugf("TX Hash=%v", tx.Hash().String())
-	log.Debugf("Response TX Hash=%v", common.BytesToHash(processBatchResponse.Responses[0].TxHash).String())
+	err = json.Unmarshal(bytes, &testCases)
+	require.NoError(t, err)
 
-	require.Equal(t, tx.Hash(), common.BytesToHash(processBatchResponse.Responses[0].TxHash))
+	for x, testCase := range testCases {
+		var receiverAddress = common.HexToAddress(testCase.To)
+		var stateRoot = state.ZeroHash
+
+		v, ok := new(big.Int).SetString(testCase.V, 0)
+		require.Equal(t, true, ok)
+
+		r, ok := new(big.Int).SetString(testCase.R, 0)
+		require.Equal(t, true, ok)
+
+		s, ok := new(big.Int).SetString(testCase.S, 0)
+		require.Equal(t, true, ok)
+
+		value := new(big.Int)
+
+		if testCase.Value != "0x" {
+			value, ok = new(big.Int).SetString(testCase.Value, 0)
+			require.Equal(t, true, ok)
+		}
+
+		gasPrice, ok := new(big.Int).SetString(testCase.GasPrice, 0)
+		require.Equal(t, true, ok)
+
+		gasLimit, ok := new(big.Int).SetString(testCase.GasLimit, 0)
+		require.Equal(t, true, ok)
+
+		nonce, ok := new(big.Int).SetString(testCase.Nonce, 0)
+		require.Equal(t, true, ok)
+
+		// Create transaction
+		tx := types.NewTx(&types.LegacyTx{
+			Nonce:    nonce.Uint64(),
+			To:       &receiverAddress,
+			Value:    value,
+			Gas:      gasLimit.Uint64(),
+			GasPrice: gasPrice,
+			Data:     common.Hex2Bytes(testCase.Data),
+			V:        v,
+			R:        r,
+			S:        s,
+		})
+
+		require.Equal(t, testCase.Hash, tx.Hash().String())
+
+		batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx})
+		require.NoError(t, err)
+
+		// Create Batch
+		processBatchRequest := &executorclientpb.ProcessBatchRequest{
+			BatchNum:         uint64(x + 1),
+			Coinbase:         receiverAddress.String(),
+			BatchL2Data:      batchL2Data,
+			OldStateRoot:     stateRoot.Bytes(),
+			GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			EthTimestamp:     uint64(0),
+			UpdateMerkleTree: 1,
+		}
+
+		// Process batch
+		processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+		require.NoError(t, err)
+
+		// TX Hash
+		log.Debugf("TX Hash=%v", tx.Hash().String())
+		log.Debugf("Response TX Hash=%v", common.BytesToHash(processBatchResponse.Responses[0].TxHash).String())
+
+		// RPL Encoding
+		b, err := tx.MarshalBinary()
+		require.NoError(t, err)
+		log.Debugf("TX RLP=%v", hex.EncodeToHex(b))
+		log.Debugf("Response TX RLP=%v", "0x"+common.Bytes2Hex(processBatchResponse.Responses[0].RlpTx))
+
+		require.Equal(t, tx.Hash(), common.BytesToHash(processBatchResponse.Responses[0].TxHash))
+		require.Equal(t, hex.EncodeToHex(b), "0x"+common.Bytes2Hex(processBatchResponse.Responses[0].RlpTx))
+	}
 }
 
 func TestExecutorInvalidNonce(t *testing.T) {
