@@ -93,10 +93,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: int32(8388608),
 		},
 		{
-			path:          "Sequencer.MaxWaitTimeForSuitableTxToAppear",
-			expectedValue: types.NewDuration(15 * time.Second),
-		},
-		{
 			path:          "EthTxManager.MaxSendBatchTxRetries",
 			expectedValue: uint32(10),
 		},

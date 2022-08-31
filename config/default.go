@@ -57,7 +57,6 @@ MaxMemAligns = 262144
 MaxArithmetics = 262144
 MaxBinaries = 262144
 MaxSteps = 8388608
-MaxWaitTimeForSuitableTxToAppear = "15s"
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 

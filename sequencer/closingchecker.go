@@ -20,7 +20,7 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 		return err == nil
 	}
 	// Check ZK counters
-	zkCounters := s.maxZkCountersSubPassedZkCounters(s.sequenceInProgress.ZkCounters)
+	zkCounters := s.remainingZkCounters(s.sequenceInProgress.ZkCounters)
 	if zkCounters.IsZkCountersBelowZero() && len(s.sequenceInProgress.Txs) != 0 {
 		log.Info("closing sequence because at least some ZK counter is bellow 0")
 		return true

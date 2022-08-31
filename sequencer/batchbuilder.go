@@ -44,35 +44,26 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		}
 	}
 
-	// Get next tx from the pool
+	// Get next txs from the pool
 	log.Info("getting pending txs from the pool")
-	startBuildBatchTime := time.Now()
 	for !s.isZkCountersMoreThanMax(s.sumZkCounters) {
-		if startBuildBatchTime.Add(s.cfg.MaxWaitTimeForSuitableTxToAppear.Duration).Before(time.Now()) && len(s.pendingTxs) > 0 {
-			log.Info("time to gather txs are passed, gathering ended")
-			break
-		}
-
-		pendTx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.maxZkCountersSubPassedZkCounters(s.sumZkCounters), s.pendingTxsHashes)
+		pendTx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.remainingZkCounters(s.sumZkCounters), s.pendingTxsHashes)
 		if err == pgpoolstorage.ErrNotFound {
+			if len(s.pendingTxs) > 0 {
+				log.Info("there is no suitable pending tx in the pool, proceed to process pending txs...")
+				break
+			}
 			log.Infof("there is no suitable pending tx in the pool, waiting...")
 			waitTick(ctx, ticker)
 			continue
 		} else if err != nil {
 			log.Errorf("failed to get pending tx, err: %v", err)
 			return
-		} else {
-			log.Infof("adding pending txs to pending tx array, hash: %s", pendTx.Hash().String())
 		}
+		log.Infof("adding pending txs to pending tx array, hash: %s", pendTx.Hash().String())
 		s.sumZkCounters.SumUpZkCounters(pendTx.ZkCounters)
 		s.pendingTxs = append(s.pendingTxs, pendTx)
 		s.pendingTxsHashes = append(s.pendingTxsHashes, pendTx.Hash().String())
-	}
-
-	if s.isZkCountersMoreThanMax(s.sumZkCounters) {
-		log.Info("zk counters exceeded max values from config, delete last tx from pending tx array")
-		s.pendingTxs = s.pendingTxs[:len(s.pendingTxs)-1]
-		s.pendingTxsHashes = s.pendingTxsHashes[:len(s.pendingTxsHashes)-1]
 	}
 
 	for _, tx := range s.pendingTxs {
@@ -133,7 +124,8 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	}, nil
 }
 
-func (s *Sequencer) maxZkCountersSubPassedZkCounters(zkCounters pool.ZkCounters) pool.ZkCounters {
+// remainingZkCounters calculates difference between max values in cfg and passed zk counters
+func (s *Sequencer) remainingZkCounters(zkCounters pool.ZkCounters) pool.ZkCounters {
 	return pool.ZkCounters{
 		CumulativeGasUsed:    int64(s.cfg.MaxCumulativeGasUsed) - zkCounters.CumulativeGasUsed,
 		UsedKeccakHashes:     s.cfg.MaxKeccakHashes - zkCounters.UsedKeccakHashes,
