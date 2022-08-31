@@ -45,7 +45,7 @@ message GenProofRequest {
  * @dev CancelRequest
  * @param {id} - proof identifier
  */
- message CancelRequest {
+message CancelRequest {
     string id = 1;
 }
 
@@ -181,6 +181,7 @@ message PublicInputs {
     string batch_hash_data = 6;
     uint32 batch_num = 7;
     uint64 eth_timestamp = 8;
+    string aggregator_addr = 9;
 }
 
 /**
