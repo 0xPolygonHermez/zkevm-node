@@ -207,16 +207,16 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 				SELECT MIN(p2.nonce)
 				FROM pool.txs p2
 				WHERE p1.from_address = p2.from_address AND
-				state = $10
-			) AND 
-		    hash NOT IN ($11)
-		GROUP BY 
+				state = $10 AND hash != ALL($11)
+			) AND hash != ALL($11)
+		GROUP BY
 			from_address, p1.hash
 		ORDER BY
-			nonce 
+			nonce
 		DESC
 		LIMIT 1
 	`
+
 	var (
 		encoded, state    string
 		receivedAt        time.Time
@@ -226,8 +226,8 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 		usedMemAligns, usedArithmetics, usedBinaries, usedSteps int32
 		nonce uint64
 	)
-	err := p.db.QueryRow(ctx, query,
-		pool.TxStatePending,
+
+	args := []interface{}{pool.TxStatePending,
 		maxZkCounters.CumulativeGasUsed,
 		maxZkCounters.UsedKeccakHashes,
 		maxZkCounters.UsedPoseidonHashes,
@@ -236,7 +236,9 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 		maxZkCounters.UsedArithmetics,
 		maxZkCounters.UsedBinaries,
 		maxZkCounters.UsedSteps,
-		pool.TxStatePending, pq.Array(hashes)).
+		pool.TxStatePending, pq.Array(hashes)}
+
+	err := p.db.QueryRow(ctx, query, args...).
 		Scan(&encoded,
 			&state,
 			&cumulativeGasUsed,

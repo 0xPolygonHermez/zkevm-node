@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -29,7 +30,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	if s.shouldCloseSequenceInProgress(ctx) {
 		log.Infof("current sequence should be closed")
 		err := s.closeSequence(ctx)
-		if errors.Is(err, state.ErrClosingBatchWithoutTxs) {
+		if errors.As(err, &state.ErrClosingBatchWithoutTxs) {
 			log.Info("current sequence can't be closed without transactions")
 			waitTick(ctx, ticker)
 			return
@@ -47,26 +48,29 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	log.Info("getting pending txs from the pool")
 	startBuildBatchTime := time.Now()
 	for !s.isZkCountersMoreThanMax(s.sumZkCounters) {
+		if startBuildBatchTime.Add(s.cfg.MaxWaitTimeForSuitableTxToAppear.Duration).Before(time.Now()) && len(s.pendingTxs) > 0 {
+			log.Info("time to gather txs are passed, gathering ended")
+			break
+		}
+
 		pendTx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.calculateZkCounters(s.sumZkCounters), s.pendingTxsHashes)
 		if err == pgpoolstorage.ErrNotFound {
 			log.Infof("there is no suitable pending tx in the pool, waiting...")
 			waitTick(ctx, ticker)
-			return
+			continue
 		} else if err != nil {
 			log.Errorf("failed to get pending tx, err: %v", err)
 			return
+		} else {
+			log.Infof("adding pending txs to pending tx array, hash: %s", pendTx.Hash().String())
 		}
 		s.sumZkCounters = s.sumUpZkCounters(s.sumZkCounters, pendTx.ZkCounters)
 		s.pendingTxs = append(s.pendingTxs, pendTx)
 		s.pendingTxsHashes = append(s.pendingTxsHashes, pendTx.Hash().String())
-
-		if startBuildBatchTime.Add(s.cfg.MaxWaitTimeForSuitableTxToAppear.Duration).Before(time.Now()) && len(s.pendingTxs) > 0 {
-			log.Infof("time to gather txs are passed, gathering ended")
-			break
-		}
 	}
 
 	if s.isZkCountersMoreThanMax(s.sumZkCounters) {
+		log.Info("zk counters exceeded max values from config, delete last tx from pending tx array")
 		s.pendingTxs = s.pendingTxs[:len(s.pendingTxs)-1]
 		s.pendingTxsHashes = s.pendingTxsHashes[:len(s.pendingTxsHashes)-1]
 	}
@@ -76,16 +80,18 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 	processedTxs, unprocessedTxs, err := s.processTxs(ctx, s.pendingTxs)
 	if err != nil {
+		log.Errorf("failed to process txs, err: %w", err)
 		return
 	}
 	// only save in DB processed transactions.
 	err = s.storeProcessedTransactions(ctx, processedTxs)
 	if err != nil {
+		log.Errorf("failed to store processed txs, err: %w", err)
 		return
 	}
 
 	// update tx state in the pool
-	s.updateTxStateInPool(ctx, len(s.pendingTxs), unprocessedTxs)
+	s.updateTxStateInPool(ctx, unprocessedTxs)
 
 	s.pendingTxs = []*pool.Transaction{}
 	s.pendingTxsHashes = []string{}
@@ -143,7 +149,7 @@ func (s *Sequencer) calculateZkCounters(zkCounters pool.ZkCounters) pool.ZkCount
 func (s *Sequencer) closeSequence(ctx context.Context) error {
 	newSequence, err := s.newSequence(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to create new sequence, err: %v", err)
+		return err
 	}
 	s.sequenceInProgress = newSequence
 	return nil
@@ -222,7 +228,7 @@ func (s *Sequencer) storeProcessedTransactions(ctx context.Context, processedTxs
 	}
 	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processedTxs, dbTx)
 	if err != nil {
-		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-len(processedTxs)]
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			log.Errorf(
 				"failed to rollback dbTx when StoreTransactions that gave err: %v. Rollback err: %v",
@@ -248,13 +254,13 @@ func (s *Sequencer) storeProcessedTransactions(ctx context.Context, processedTxs
 	return nil
 }
 
-func (s *Sequencer) updateTxStateInPool(ctx context.Context, pendingTxsLen int, unprocessedTxs map[string]*state.ProcessTransactionResponse) {
-	for i := pendingTxsLen - 1; i < len(s.sequenceInProgress.Txs); i++ {
+func (s *Sequencer) updateTxStateInPool(ctx context.Context, unprocessedTxs map[string]*state.ProcessTransactionResponse) {
+	var tempSequenceInProgressTxs []ethTypes.Transaction
+	for i := 0; i < len(s.sequenceInProgress.Txs); i++ {
 		tx := s.sequenceInProgress.Txs[i]
 		var txState = pool.TxStateSelected
 		var txUpdateMsg = fmt.Sprintf("Tx %q added into the state. Marking tx as selected in the pool", tx.Hash())
 		if _, ok := unprocessedTxs[tx.Hash().String()]; ok {
-			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs[:i], s.sequenceInProgress.Txs[i+1:]...)
 			// in this case tx is invalid
 			if len(s.sequenceInProgress.Txs) == 0 {
 				txState = pool.TxStateInvalid
@@ -266,7 +272,7 @@ func (s *Sequencer) updateTxStateInPool(ctx context.Context, pendingTxsLen int, 
 
 				log.Infof("current sequence should be closed, so tx with hash %q can be processed", tx.Hash())
 				err := s.closeSequence(ctx)
-				if errors.Is(err, state.ErrClosingBatchWithoutTxs) {
+				if errors.As(err, &state.ErrClosingBatchWithoutTxs) {
 					log.Info("current sequence can't be closed without transactions")
 				} else if err != nil {
 					log.Errorf("error closing sequence: %v", err)
@@ -276,13 +282,17 @@ func (s *Sequencer) updateTxStateInPool(ctx context.Context, pendingTxsLen int, 
 					}
 				}
 			}
+		} else {
+			tempSequenceInProgressTxs = append(tempSequenceInProgressTxs, tx)
 		}
+
 		log.Infof(txUpdateMsg)
 		if err := s.pool.UpdateTxState(ctx, tx.Hash(), txState); err != nil {
 			log.Errorf("failed to update tx status on the pool, err: %v", err)
 			return
 		}
 	}
+	s.sequenceInProgress.Txs = tempSequenceInProgressTxs
 }
 
 func (s *Sequencer) updateGerInBatch(ctx context.Context, lastGer *state.GlobalExitRoot) error {
