@@ -42,7 +42,7 @@ func isProcessed(err pb.Error) bool {
 func isBatchOutOfCounters(responses []*pb.ProcessTransactionResponse) bool {
 	i := 0
 	ooc := false
-	for !ooc {
+	for !ooc && i < len(responses) {
 		ooc = responses[i].Error == pb.Error_ERROR_OUT_OF_COUNTERS
 		i++
 	}
