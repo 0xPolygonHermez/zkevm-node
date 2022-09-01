@@ -827,12 +827,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *pb.GetBatchRespon
 
 	log.Debugf("processing sequencer for batch %v", trustedBatch.BatchNumber)
 
-	previousStateRoot, err := s.state.GetStateRootByBatchNumber(s.ctx, previousBatchNumber, dbTx)
-	if err != nil {
-		return err
-	}
-
-	processBatchResp, err := s.state.ProcessSequencerBatch(s.ctx, previousStateRoot, trustedBatch.BatchNumber, txs, dbTx)
+	processBatchResp, err := s.state.ProcessSequencerBatch(s.ctx, trustedBatch.BatchNumber, txs, dbTx)
 	if err != nil {
 		log.Errorf("error processing sequencer batch for batch: %d", trustedBatch.BatchNumber)
 		return err

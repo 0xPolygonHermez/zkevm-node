@@ -306,13 +306,13 @@ func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingC
 	return r0
 }
 
-// ProcessSequencerBatch provides a mock function with given fields: ctx, oldRoot, batchNumber, txs, dbTx
-func (_m *stateMock) ProcessSequencerBatch(ctx context.Context, oldRoot common.Hash, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
-	ret := _m.Called(ctx, oldRoot, batchNumber, txs, dbTx)
+// ProcessSequencerBatch provides a mock function with given fields: ctx, batchNumber, txs, dbTx
+func (_m *stateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, batchNumber, txs, dbTx)
 
 	var r0 *state.ProcessBatchResponse
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, uint64, []types.Transaction, pgx.Tx) *state.ProcessBatchResponse); ok {
-		r0 = rf(ctx, oldRoot, batchNumber, txs, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []types.Transaction, pgx.Tx) *state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, batchNumber, txs, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.ProcessBatchResponse)
@@ -320,8 +320,8 @@ func (_m *stateMock) ProcessSequencerBatch(ctx context.Context, oldRoot common.H
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, uint64, []types.Transaction, pgx.Tx) error); ok {
-		r1 = rf(ctx, oldRoot, batchNumber, txs, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, []types.Transaction, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, txs, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

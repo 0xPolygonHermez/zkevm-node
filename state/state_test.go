@@ -1695,7 +1695,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		*signedTxFirstIncrement,
 		*signedTxFirstRetrieve,
 	}
-	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), common.Hash{}, 1, signedTxs, dbTx)
+	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
 	assert.Nil(t, processBatchResponse.Responses[0].Error)
@@ -1736,4 +1736,129 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
+}
+
+func TestExecutorUniswapOutOfCounters(t *testing.T) {
+	// Test Case
+	type TxHashTestCase struct {
+		Hash    string `json:"hash"`
+		Encoded string `json:"encoded"`
+	}
+
+	var testCases []TxHashTestCase
+
+	jsonFile, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/uniswap.json"))
+	require.NoError(t, err)
+	defer func() { _ = jsonFile.Close() }()
+
+	bytes, err := ioutil.ReadAll(jsonFile)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(bytes, &testCases)
+	require.NoError(t, err)
+
+	// Set Genesis
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+			{
+				Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+		},
+	}
+
+	if err := dbutils.InitOrReset(cfg); err != nil {
+		panic(err)
+	}
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	transactions := make([]types.Transaction, len(testCases))
+
+	for x, testCase := range testCases {
+		log.Debugf("Hash:%v", testCase.Hash)
+		tx, err := state.DecodeTx(strings.TrimLeft(testCase.Encoded, "0x"))
+		require.NoError(t, err)
+		transactions[x] = *tx
+	}
+
+	var numBatch uint64
+
+	for len(transactions) != 0 {
+		numBatch++
+		log.Debugf("# of transactions to process= %d", len(transactions))
+
+		batchL2Data, err := state.EncodeTransactions(transactions)
+		require.NoError(t, err)
+
+		// Create Batch
+		processBatchRequest := &executorclientpb.ProcessBatchRequest{
+			BatchNum:         numBatch,
+			Coinbase:         common.Address{}.String(),
+			BatchL2Data:      batchL2Data,
+			OldStateRoot:     stateRoot,
+			GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			EthTimestamp:     uint64(0),
+			UpdateMerkleTree: 1,
+		}
+
+		// Process batch
+		processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+		require.NoError(t, err)
+
+		processedTxs := len(processBatchResponse.Responses)
+
+		if processedTxs <= len(transactions) {
+			if int32(processBatchResponse.Responses[processedTxs-1].Error) == executor.ERROR_OUT_OF_COUNTERS {
+				newTransactions := transactions[0 : processedTxs-1]
+				log.Debugf("# of transactions to reprocess= %d", len(newTransactions))
+
+				batchL2Data, err := state.EncodeTransactions(newTransactions)
+				require.NoError(t, err)
+
+				// Create Batch
+				processBatchRequest := &executorclientpb.ProcessBatchRequest{
+					BatchNum:         numBatch,
+					Coinbase:         common.Address{}.String(),
+					BatchL2Data:      batchL2Data,
+					OldStateRoot:     processBatchResponse.NewStateRoot,
+					GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+					OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+					EthTimestamp:     uint64(0),
+					UpdateMerkleTree: 1,
+				}
+
+				// Process batch
+				processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
+				require.NoError(t, err)
+
+				processedTxs = len(processBatchResponse.Responses)
+			}
+		}
+
+		for _, response := range processBatchResponse.Responses {
+			require.Equal(t, executor.ERROR_NO_ERROR, int32(response.Error))
+		}
+
+		transactions = transactions[processedTxs:]
+		stateRoot = processBatchResponse.NewStateRoot
+	}
 }

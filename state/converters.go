@@ -14,13 +14,14 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func convertToProcessBatchResponse(oldRoot common.Hash, txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	responses, err := convertToProcessTransactionResponse(oldRoot, txs, response.Responses)
+func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	responses, err := convertToProcessTransactionResponse(txs, response.Responses)
 	if err != nil {
 		return nil, err
 	}
 	return &ProcessBatchResponse{
 		CumulativeGasUsed:   response.CumulativeGasUsed,
+		DiscardedBatchByOOC: isBatchOutOfCounters(response.Responses),
 		Responses:           responses,
 		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
 		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
@@ -34,13 +35,22 @@ func convertToProcessBatchResponse(oldRoot common.Hash, txs []types.Transaction,
 	}, nil
 }
 
-func isProcessed(oldRoot common.Hash, newRoot common.Hash, err pb.Error) bool {
-	// temporary commented, bcs prover returns changed state root for invalid txs
-	// return oldRoot.String() != newRoot.String()
-	return err != pb.Error_ERROR_INTRINSIC_INVALID_TX
+func isProcessed(err pb.Error) bool {
+	return err != pb.Error_ERROR_INTRINSIC_INVALID_TX && err != pb.Error_ERROR_OUT_OF_COUNTERS
 }
 
-func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
+func isBatchOutOfCounters(responses []*pb.ProcessTransactionResponse) bool {
+	i := 0
+	ooc := false
+	for !ooc {
+		ooc = responses[i].Error == pb.Error_ERROR_OUT_OF_COUNTERS
+		i++
+	}
+
+	return ooc
+}
+
+func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for i, response := range responses {
 		trace, err := convertToStructLogArray(response.ExecutionTrace)
@@ -59,12 +69,11 @@ func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transa
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
-		result.IsProcessed = isProcessed(oldRoot, result.StateRoot, response.Error)
+		result.IsProcessed = isProcessed(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 		result.Tx = txs[i]
 		results = append(results, result)
-		oldRoot = result.StateRoot
 
 		log.Debugf("ProcessTransactionResponse[TxHash]: %v", txs[i].Hash().String())
 		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
