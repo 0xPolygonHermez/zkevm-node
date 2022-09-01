@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
@@ -33,15 +34,16 @@ func convertToProcessBatchResponse(oldRoot common.Hash, txs []types.Transaction,
 	}, nil
 }
 
-func isProcessed(oldRoot common.Hash, newRoot common.Hash) bool {
-	return oldRoot.String() != newRoot.String()
+func isProcessed(oldRoot common.Hash, newRoot common.Hash, err pb.Error) bool {
+	// temporary commented, bcs prover returns changed state root for invalid txs
+	// return oldRoot.String() != newRoot.String()
+	return err != pb.Error_ERROR_INTRINSIC_INVALID_TX
 }
 
 func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
-
 	for i, response := range responses {
-		trace, err := convertToStrucLogArray(response.ExecutionTrace)
+		trace, err := convertToStructLogArray(response.ExecutionTrace)
 		if err != nil {
 			return nil, err
 		}
@@ -53,16 +55,24 @@ func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transa
 		result.GasLeft = response.GasLeft
 		result.GasUsed = response.GasUsed
 		result.GasRefunded = response.GasRefunded
-		result.Error = executor.ExecutorError(response.Error).Error()
+		result.Error = executor.Err(response.Error)
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
-		result.IsProcessed = isProcessed(oldRoot, result.StateRoot)
+		result.IsProcessed = isProcessed(oldRoot, result.StateRoot, response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 		result.Tx = txs[i]
 		results = append(results, result)
 		oldRoot = result.StateRoot
+
+		log.Debugf("ProcessTransactionResponse[TxHash]: %v", txs[i].Hash().String())
+		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
+		log.Debugf("ProcessTransactionResponse[Error]: %v", result.Error)
+		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
+		log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
+		log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
+		log.Debugf("ProcessTransactionResponse[IsProcessed]: %v", result.IsProcessed)
 	}
 
 	return results, nil
@@ -96,7 +106,7 @@ func convertToTopics(responses [][]byte) []common.Hash {
 	return results
 }
 
-func convertToStrucLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumentation.StructLog, error) {
+func convertToStructLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumentation.StructLog, error) {
 	results := make([]instrumentation.StructLog, 0, len(responses))
 
 	for _, response := range responses {
@@ -116,7 +126,7 @@ func convertToStrucLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumentat
 		result.Storage = convertToProperMap(response.Storage)
 		result.Depth = int(response.Depth)
 		result.RefundCounter = response.GasRefund
-		result.Err = fmt.Errorf(executor.ExecutorError(response.Error).Error())
+		result.Err = executor.Err(response.Error)
 
 		results = append(results, *result)
 	}
@@ -182,7 +192,10 @@ func convertToInstrumentationSteps(responses []*pb.TransactionStep) []instrument
 		step.OpCode = fakevm.OpCode(response.Op).String()
 		step.Refund = fmt.Sprint(response.GasRefund)
 		step.Op = fmt.Sprint(response.Op)
-		step.Error = executor.ExecutorError(response.Error).Error()
+		err := executor.Err(response.Error)
+		if err != nil {
+			step.Error = err.Error()
+		}
 		step.Contract = convertToInstrumentationContract(response.Contract)
 		step.GasCost = fmt.Sprint(response.GasCost)
 		step.Stack = response.Stack

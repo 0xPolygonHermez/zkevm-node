@@ -84,37 +84,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 	// case A: genesis
 	if batchNum == 0 {
-		log.Infof("starting sequencer with genesis batch")
-		processingCtx := state.ProcessingContext{
-			BatchNumber:    1,
-			Coinbase:       s.address,
-			Timestamp:      time.Now(),
-			GlobalExitRoot: state.ZeroHash,
-		}
-		dbTx, err := s.state.BeginStateTransaction(ctx)
-		if err != nil {
-			log.Fatalf("failed to begin state transaction for opening a batch, err: %v", err)
-		}
-		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
-		if err != nil {
-			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-				log.Fatalf(
-					"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
-					rollbackErr, err,
-				)
-			}
-			log.Fatalf("failed to open a batch, err: %v", err)
-		}
-		if err := dbTx.Commit(ctx); err != nil {
-			log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
-		}
-		s.lastBatchNum = processingCtx.BatchNumber
-		s.sequenceInProgress = types.Sequence{
-			GlobalExitRoot:  processingCtx.GlobalExitRoot,
-			Timestamp:       processingCtx.Timestamp.Unix(),
-			ForceBatchesNum: 0,
-			Txs:             nil,
-		}
+		s.createFirstBatch(ctx)
 	} else {
 		err = s.loadSequenceFromState(ctx)
 		if err != nil {
@@ -192,50 +162,50 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 	}
 	// Revert reorged txs to pending
 	if err := s.pool.MarkReorgedTxsAsPending(ctx); err != nil {
-		return err
+		return fmt.Errorf("failed to mark reorged txs as pending, err: %w", err)
 	}
 	// Get latest info from the state
 	lastBatch, err := s.state.GetLastBatch(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get last batch, err: %w", err)
 	}
 	s.lastBatchNum = lastBatch.BatchNumber
 	s.lastStateRoot = lastBatch.StateRoot
 	s.lastLocalExitRoot = lastBatch.LocalExitRoot
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get last virtual batch num, err: %w", err)
 	}
 	s.lastBatchNumSentToL1 = lastVirtualBatchNum
 	isClosed, err := s.state.IsBatchClosed(ctx, lastBatch.BatchNumber, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check is batch closed or not, err: %w", err)
 	}
 	if isClosed {
-		ger, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
+		dbTx, err := s.state.BeginStateTransaction(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to begin state tx to open a batch, err: %w", err)
+		}
+		ger, err := s.getLatestGer(ctx, dbTx)
+		if err != nil {
+			return fmt.Errorf("failed to get latest global exit root, err: %w", err)
 		}
 		processingCtx := state.ProcessingContext{
 			BatchNumber:    s.lastBatchNum + 1,
 			Coinbase:       s.address,
 			Timestamp:      time.Now(),
-			GlobalExitRoot: ger.GlobalExitRoot,
-		}
-		dbTx, err := s.state.BeginStateTransaction(ctx)
-		if err != nil {
-			return err
+			GlobalExitRoot: ger,
 		}
 		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
 		if err != nil {
 			rollErr := dbTx.Rollback(ctx)
 			if rollErr != nil {
-				err = fmt.Errorf("err: %v. Rollback err: %v", err, rollErr)
+				err = fmt.Errorf("failed to open a batch, err: %w. Rollback err: %v", err, rollErr)
 			}
 			return err
 		}
 		if err = dbTx.Commit(ctx); err != nil {
-			return err
+			return fmt.Errorf("failed to commit a state tx to open a batch, err: %w", err)
 		}
 		s.sequenceInProgress = types.Sequence{
 			GlobalExitRoot: processingCtx.GlobalExitRoot,
@@ -244,7 +214,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 	} else {
 		txs, err := s.state.GetTransactionsByBatchNumber(ctx, lastBatch.BatchNumber, nil)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get tx by batch number, err: %w", err)
 		}
 		s.sequenceInProgress = types.Sequence{
 			GlobalExitRoot: lastBatch.GlobalExitRoot,
@@ -257,4 +227,38 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 	/*
 		TODO: deal with ongoing L1 txs
 	*/
+}
+
+func (s *Sequencer) createFirstBatch(ctx context.Context) {
+	log.Infof("starting sequencer with genesis batch")
+	processingCtx := state.ProcessingContext{
+		BatchNumber:    1,
+		Coinbase:       s.address,
+		Timestamp:      time.Now(),
+		GlobalExitRoot: state.ZeroHash,
+	}
+	dbTx, err := s.state.BeginStateTransaction(ctx)
+	if err != nil {
+		log.Fatalf("failed to begin state transaction for opening a batch, err: %v", err)
+	}
+	err = s.state.OpenBatch(ctx, processingCtx, dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+			log.Fatalf(
+				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Fatalf("failed to open a batch, err: %v", err)
+	}
+	if err := dbTx.Commit(ctx); err != nil {
+		log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
+	}
+	s.lastBatchNum = processingCtx.BatchNumber
+	s.sequenceInProgress = types.Sequence{
+		GlobalExitRoot:  processingCtx.GlobalExitRoot,
+		Timestamp:       processingCtx.Timestamp.Unix(),
+		ForceBatchesNum: 0,
+		Txs:             nil,
+	}
 }

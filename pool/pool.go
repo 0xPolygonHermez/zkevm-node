@@ -2,6 +2,8 @@ package pool
 
 import (
 	"context"
+	"errors"
+	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -24,6 +26,16 @@ const (
 
 	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
 	bridgeClaimMethodSignature = "0x122650ff"
+)
+
+var (
+	// ErrAlreadyKnown is returned if the transactions is already contained
+	// within the pool.
+	ErrAlreadyKnown = errors.New("already known")
+
+	// ErrReplaceUnderpriced is returned if a transaction is attempted to be replaced
+	// with a different one without the required price bump.
+	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
 )
 
 // Pool is an implementation of the Pool interface
@@ -150,6 +162,30 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	}
 	if balance.Cmp(tx.Cost()) < 0 {
 		return ErrInsufficientFunds
+	}
+
+	// try to get a transaction from the pool with the same nonce to check
+	// if the new one has a price bump
+	oldTxs, err := p.storage.GetTxsByFromAndNonce(ctx, from, tx.Nonce())
+	if err != nil {
+		return err
+	}
+
+	// check if the new transaction has more gas than all the other txs in the pool
+	// with the same from and nonce to be able to replace the current txs by the new
+	// when being selected
+	for _, oldTx := range oldTxs {
+		oldTxPrice := new(big.Int).Mul(oldTx.GasPrice(), new(big.Int).SetUint64(oldTx.Gas()))
+		txPrice := new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas()))
+
+		if oldTx.Hash() == tx.Hash() {
+			return ErrAlreadyKnown
+		}
+
+		// if old Tx Price is higher than the new tx price, it returns an error
+		if oldTxPrice.Cmp(txPrice) > 0 {
+			return ErrReplaceUnderpriced
+		}
 	}
 
 	return nil

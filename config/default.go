@@ -65,7 +65,7 @@ Type = "default"
 DefaultPrice = "2000"
 
 [Aggregator]
-IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"
+IntervalFrequencyToGetProofGenerationState = "5s"
 IntervalToConsolidateState = "3s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"

@@ -2,27 +2,33 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
 
+func init() {
+	os.Setenv("CONFIG_MODE", "test")
+}
+
 func TestEthTransfer(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
 
-	defer func() {
-		require.NoError(t, operations.Teardown())
-	}()
+	defer func() { require.NoError(t, operations.Teardown()) }()
+
+	err := operations.Teardown()
+	require.NoError(t, err)
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsCfg.State.MaxCumulativeGasUsed = 80000000000
 	opsman, err := operations.NewManager(ctx, opsCfg)
@@ -31,42 +37,57 @@ func TestEthTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Load account with balance on local genesis
-	auth, err := operations.GetAuth("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", big.NewInt(1000))
+	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
 	require.NoError(t, err)
 	// Load eth client
-	client, err := ethclient.Dial("http://localhost:8123")
+	client, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 10
+	nTxs := 50
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
-	gasLimit := uint64(21000)
-	gasPrice := big.NewInt(1000000)
+	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)
+	require.NoError(t, err)
+	senderNonce, err := client.PendingNonceAt(ctx, auth.From)
+	require.NoError(t, err)
+
+	log.Infof("Receiver Addr: %v", toAddress.String())
+	log.Infof("Sender Addr: %v", auth.From.String())
+	log.Infof("Sender Balance: %v", senderBalance.String())
+	log.Infof("Sender Nonce: %v", senderNonce)
+
 	log.Infof("Sending %d transactions...", nTxs)
 	var lastTxHash common.Hash
 
 	var sentTxs []*types.Transaction
 
+	gasLimit, err := client.EstimateGas(ctx, ethereum.CallMsg{From: auth.From, To: &toAddress, Value: amount})
+	require.NoError(t, err)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	nonce, err := client.PendingNonceAt(ctx, auth.From)
+	require.NoError(t, err)
+
 	for i := 0; i < nTxs; i++ {
-		nonce := uint64(i)
-		tx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
+		tx := types.NewTransaction(nonce+uint64(i), toAddress, amount, gasLimit, gasPrice, nil)
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
+		log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
 		err = client.SendTransaction(context.Background(), signedTx)
 		require.NoError(t, err)
-		if i == nTxs-1 {
-			lastTxHash = signedTx.Hash()
-		}
+		lastTxHash = signedTx.Hash()
 
 		sentTxs = append(sentTxs, signedTx)
 	}
-
+	// wait for TX to be mined
+	timeout := 30 * time.Second
 	for _, tx := range sentTxs {
-		// wait for TX to be mined
-		timeout := 5 * time.Minute
-		log.Infof("\nTx Hash %s", tx.Hash())
+		log.Infof("Waiting Tx %s to be mined", tx.Hash())
 		err = operations.WaitTxToBeMined(client, tx.Hash(), timeout)
 		require.NoError(t, err)
+		log.Infof("Tx %s mined successfully", tx.Hash())
 
 		// check transaction nonce against transaction reported L2 block number
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
@@ -74,26 +95,22 @@ func TestEthTransfer(t *testing.T) {
 
 		// get block L2 number
 		blockL2Number := receipt.BlockNumber
-
 		require.Equal(t, tx.Nonce(), blockL2Number.Uint64()-1)
 	}
-	log.Infof("\n%d transactions added into the trusted state without error. Waiting for all the batches to be virtualized", nTxs)
+	log.Infof("%d transactions added into the trusted state successfully.", nTxs)
 
+	// get block L2 number of the last transaction sent
 	receipt, err := client.TransactionReceipt(ctx, lastTxHash)
 	require.NoError(t, err)
+	l2BlockNumber := receipt.BlockNumber
 
-	// get block L2 number
-	blockL2Number := receipt.BlockNumber
-
-	// wait for l2 Block number to be virtualized
-
-	fmt.Printf("\nL2 Block number: %s", blockL2Number)
-	fmt.Printf("\nLast TX Hash %s", lastTxHash.String())
-	err = operations.WaitL2BlockToBeVirtualized(blockL2Number, 8*time.Minute)
+	// wait for l2 block to be virtualized
+	log.Infof("waiting for the block number %v to be virtualized", l2BlockNumber.String())
+	err = operations.WaitL2BlockToBeVirtualized(l2BlockNumber, 2*time.Minute)
 	require.NoError(t, err)
 
 	// wait for l2 block number to be consolidated
-
-	err = operations.WaitL2BlockToBeConsolidated(blockL2Number, 8*time.Minute)
+	log.Infof("waiting for the block number %v to be consolidated", l2BlockNumber.String())
+	err = operations.WaitL2BlockToBeConsolidated(l2BlockNumber, 2*time.Minute)
 	require.NoError(t, err)
 }

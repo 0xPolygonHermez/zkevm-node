@@ -8,13 +8,14 @@ import (
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_IsSequenceProfitable(t *testing.T) {
-	ethman := new(ethermanMock)
+	ethman := new(mocks.EthermanMock)
 	ethman.On("GetSendSequenceFee").Return(big.NewInt(0), nil)
 
 	pg, err := pricegetter.NewClient(pricegetter.Config{
@@ -39,7 +40,7 @@ func Test_IsSequenceProfitable(t *testing.T) {
 }
 
 func Test_IsSequenceProfitableFalse(t *testing.T) {
-	ethman := new(ethermanMock)
+	ethman := new(mocks.EthermanMock)
 	ethman.On("GetSendSequenceFee").Return(big.NewInt(10000000), nil)
 
 	pg, err := pricegetter.NewClient(pricegetter.Config{
@@ -64,7 +65,7 @@ func Test_IsSequenceProfitableFalse(t *testing.T) {
 }
 
 func Test_IsSendSequencesProfitable(t *testing.T) {
-	ethman := new(ethermanMock)
+	ethman := new(mocks.EthermanMock)
 
 	pg, err := pricegetter.NewClient(pricegetter.Config{
 		Type:         "default",
@@ -89,7 +90,7 @@ func Test_IsSendSequencesProfitable(t *testing.T) {
 }
 
 func Test_IsSendSequencesFalse(t *testing.T) {
-	ethman := new(ethermanMock)
+	ethman := new(mocks.EthermanMock)
 
 	pg, err := pricegetter.NewClient(pricegetter.Config{
 		Type:         "default",

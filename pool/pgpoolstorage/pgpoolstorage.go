@@ -143,28 +143,10 @@ func (p *PostgresPoolStorage) GetTxsByState(ctx context.Context, state pool.TxSt
 
 	txs := make([]pool.Transaction, 0, len(rows.RawValues()))
 	for rows.Next() {
-		var (
-			encoded, state string
-			receivedAt     time.Time
-		)
-
-		if err := rows.Scan(&encoded, &state, &receivedAt); err != nil {
-			return nil, err
-		}
-
-		tx := new(pool.Transaction)
-
-		b, err := hex.DecodeHex(encoded)
+		tx, err := scanTx(rows)
 		if err != nil {
 			return nil, err
 		}
-
-		if err := tx.UnmarshalBinary(b); err != nil {
-			return nil, err
-		}
-
-		tx.State = pool.TxState(state)
-		tx.ReceivedAt = receivedAt
 		txs = append(txs, *tx)
 	}
 
@@ -391,4 +373,92 @@ func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash)
 	}
 
 	return exists, nil
+}
+
+// GetTxsByFromAndNonce get all the transactions from the pool with the same from and nonce
+func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]pool.Transaction, error) {
+	sql := `SELECT encoded, state, received_at
+	          FROM pool.txs
+			 WHERE from_address = $1
+			   AND nonce = $2`
+	rows, err := p.db.Query(ctx, sql, from.String(), nonce)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	txs := make([]pool.Transaction, 0, len(rows.RawValues()))
+	for rows.Next() {
+		tx, err := scanTx(rows)
+		if err != nil {
+			return nil, err
+		}
+		txs = append(txs, *tx)
+	}
+
+	return txs, nil
+}
+
+// GetNonce gets the nonce to the provided address accordingly to the txs in the pool
+func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Address) (uint64, error) {
+	sql := `SELECT MAX(nonce)
+              FROM pool.txs
+             WHERE from_address = $1
+               AND (state = $2 OR state = $3)`
+	rows, err := p.db.Query(ctx, sql, address.String(), pool.TxStatePending, pool.TxStateSelected)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, nil
+	} else if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var nonce *uint64
+	for rows.Next() {
+		err := rows.Scan(&nonce)
+		if err != nil {
+			return 0, err
+		} else if rows.Err() != nil {
+			return 0, rows.Err()
+		}
+	}
+
+	if nonce == nil {
+		n := uint64(0)
+		nonce = &n
+	} else {
+		n := *nonce + 1
+		nonce = &n
+	}
+
+	return *nonce, nil
+}
+
+func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
+	var (
+		encoded, state string
+		receivedAt     time.Time
+	)
+
+	if err := rows.Scan(&encoded, &state, &receivedAt); err != nil {
+		return nil, err
+	}
+
+	tx := new(pool.Transaction)
+
+	b, err := hex.DecodeHex(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+
+	tx.State = pool.TxState(state)
+	tx.ReceivedAt = receivedAt
+
+	return tx, nil
 }

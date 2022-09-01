@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -87,4 +88,23 @@ func EncodeBytes(b []byte) *string {
 func EncodeBigInt(b *big.Int) *string {
 	res := "0x" + b.Text(hex.Base)
 	return &res
+}
+
+// DecodeBigIntHexOrDecimal parses a string that can be decimal or hexa (starts with 0x)
+// into a *big.Int
+func DecodeBigIntHexOrDecimal(s string) (*big.Int, error) {
+	var r *big.Int
+	if strings.HasPrefix(s, "0x") { // nolint
+		// Value in hex format
+		s = s[2:]
+		r = new(big.Int).SetBytes(common.Hex2Bytes(s))
+	} else {
+		// Value in decimal format
+		value, ok := new(big.Int).SetString(s, Base10)
+		if !ok {
+			return nil, fmt.Errorf("Could not set base10 %q to big.Int", s)
+		}
+		r = value
+	}
+	return r, nil
 }
