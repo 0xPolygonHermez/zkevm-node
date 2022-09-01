@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/jackc/pgx/v4"
 
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -187,7 +188,7 @@ func (s *Sequencer) processTx(ctx context.Context, tx *pool.Transaction) ([]*sta
 				return nil, nil, err
 			}
 		}
-		return nil, nil, nil
+		return nil, nil, core.ErrOversizedData
 
 	}
 	previousStateRoot, err := s.state.GetStateRootByBatchNumber(ctx, s.lastBatchNum-1, nil)
