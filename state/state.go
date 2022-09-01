@@ -466,14 +466,20 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			ParentHash: lastL2Block.Hash(),
 			Coinbase:   processingContext.Coinbase,
 			Root:       processedTx.StateRoot,
+			GasUsed:    processedTx.GasUsed,
+			GasLimit:   s.cfg.MaxCumulativeGasUsed,
+			Time:       uint64(processingContext.Timestamp.Unix()),
 		}
 		transactions := []*types.Transaction{&processedTx.Tx}
 
+		receipt := generateReceipt(header.Number, processedTx)
+		receipts := []*types.Receipt{receipt}
+
 		// Create block to be able to calculate its hash
-		block := types.NewBlock(header, transactions, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+		block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
 		block.ReceivedAt = processingContext.Timestamp
 
-		receipts := []*types.Receipt{generateReceipt(block, processedTx)}
+		receipt.BlockHash = block.Hash()
 
 		// Store L2 block and its transaction
 		if err := s.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
@@ -937,8 +943,6 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 
 	root.SetBytes(newRoot)
 
-	receivedAt := time.Unix(0, 0)
-
 	// store L1 block related to genesis batch
 	err = s.AddBlock(ctx, &block, dbTx)
 	if err != nil {
@@ -952,7 +956,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		BatchL2Data:    nil,
 		StateRoot:      root,
 		LocalExitRoot:  ZeroHash,
-		Timestamp:      receivedAt,
+		Timestamp:      block.ReceivedAt,
 		Transactions:   []types.Transaction{},
 		GlobalExitRoot: ZeroHash,
 	}
@@ -992,11 +996,12 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		ParentHash: ZeroHash,
 		Coinbase:   ZeroAddress,
 		Root:       root,
+		Time:       uint64(block.ReceivedAt.Unix()),
 	}
 	rootHex := root.Hex()
 	log.Info("Genesis root ", rootHex)
 	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	l2Block.ReceivedAt = receivedAt
+	l2Block.ReceivedAt = block.ReceivedAt
 
 	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, []*types.Receipt{}, dbTx)
 }

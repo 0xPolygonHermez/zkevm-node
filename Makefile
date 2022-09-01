@@ -202,6 +202,7 @@ stop-zkprover-mock: ## Stops zkprover-mock
 
 .PHONY: run-explorer
 run-explorer: ## Runs the explorer
+	$(RUNEXPLORERDB)
 	$(RUNEXPLORERJSONRPC)
 	$(RUNEXPLORER)
 
@@ -209,6 +210,7 @@ run-explorer: ## Runs the explorer
 stop-explorer: ## Stops the explorer
 	$(STOPEXPLORER)
 	$(STOPEXPLORERRPC)
+	$(STOPEXPLORERDB)
 
 .PHONY: run-explorer-db
 run-explorer-db: ## Runs the explorer database

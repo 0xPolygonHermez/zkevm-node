@@ -949,6 +949,7 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 	}
 
 	block := types.NewBlock(header, transactions, uncles, nil, &trie.StackTrie{})
+	block.ReceivedAt = receivedAt
 	return block, nil
 }
 
@@ -1291,6 +1292,7 @@ func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*typ
 	}
 
 	block := types.NewBlock(header, transactions, uncles, nil, &trie.StackTrie{})
+	block.ReceivedAt = receivedAt
 	return block, nil
 }
 
@@ -1390,6 +1392,7 @@ func (p *PostgresStorage) GetL2BlockByHash(ctx context.Context, hash common.Hash
 	}
 
 	block := types.NewBlock(header, transactions, uncles, nil, &trie.StackTrie{})
+	block.ReceivedAt = receivedAt
 	return block, nil
 }
 

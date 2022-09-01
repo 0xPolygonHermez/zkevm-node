@@ -19,7 +19,7 @@ type traceConfig struct {
 type traceTransactionResponse struct {
 	Gas         uint64         `json:"gas"`
 	Failed      bool           `json:"failed"`
-	ReturnValue argBytes       `json:"returnValue"`
+	ReturnValue interface{}    `json:"returnValue"`
 	StructLogs  []StructLogRes `json:"structLogs"`
 }
 
@@ -109,10 +109,13 @@ func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{
 	// 	})
 	// }
 
+	// returnValue := result.ReturnValue
+	returnValue := []string{}
+
 	resp := traceTransactionResponse{
 		Gas:         result.GasUsed,
 		Failed:      failed,
-		ReturnValue: result.ReturnValue,
+		ReturnValue: returnValue,
 		// StructLogs:  structLogs,
 	}
 
