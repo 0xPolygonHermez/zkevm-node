@@ -28,7 +28,7 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 
 	return &ProcessBatchResponse{
 		CumulativeGasUsed:   response.CumulativeGasUsed,
-		DiscardedBatchByOOC: discardedBatchByOCC,
+		UnprocesedBatch:     discardedBatchByOCC,
 		Responses:           responses,
 		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
 		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
