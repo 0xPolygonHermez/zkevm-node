@@ -191,9 +191,9 @@ services:
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
-      - ./${CONFIG_MODE}/config/prover.config.${CONFIG_MODE:-local}.json:/usr/src/app/config.json
+      - ./config/prover.config.local.json:/usr/src/app/config.json
     command: >
-      zkProver input_executor.json
+      zkProver -c /usr/src/app/config.json
 
   zkprover-mock:
     container_name: zkprover-mock
