@@ -18,7 +18,8 @@ import (
 // txPool contains the methods required to interact with the tx pool.
 type txPool interface {
 	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
-	UpdateTxState(ctx context.Context, hash common.Hash, newState pool.TxState) error
+	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error
+	UpdateTxsStatus(ctx context.Context, hashes []common.Hash, newStatus pool.TxStatus) error
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error

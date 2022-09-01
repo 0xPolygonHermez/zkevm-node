@@ -130,7 +130,7 @@ func Test_AddTx(t *testing.T) {
 		assert.Equal(t, "0xa3cff5abdf47d4feb8204a45c0a8c58fc9b9bb9b29c6588c1d206b746815e9cc", hash, "invalid hash")
 		assert.Equal(t, txRLPHash, encoded, "invalid encoded")
 		assert.JSONEq(t, string(b), decoded, "invalid decoded")
-		assert.Equal(t, string(pool.TxStatePending), state, "invalid tx state")
+		assert.Equal(t, string(pool.TxStatusPending), state, "invalid tx state")
 		c++
 	}
 
@@ -197,7 +197,7 @@ func Test_GetPendingTxs(t *testing.T) {
 	assert.Equal(t, limit, len(txs))
 
 	for i := 0; i < txsCount; i++ {
-		assert.Equal(t, pool.TxStatePending, txs[0].State)
+		assert.Equal(t, pool.TxStatusPending, txs[0].Status)
 	}
 }
 
@@ -261,7 +261,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	assert.Equal(t, txsCount, len(txs))
 
 	for i := 0; i < txsCount; i++ {
-		assert.Equal(t, pool.TxStatePending, txs[0].State)
+		assert.Equal(t, pool.TxStatusPending, txs[0].Status)
 	}
 }
 
@@ -388,20 +388,20 @@ func Test_UpdateTxsState(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.UpdateTxsState(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()}, pool.TxStateInvalid)
+	err = p.UpdateTxsStatus(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()}, pool.TxStatusInvalid)
 	if err != nil {
 		t.Error(err)
 	}
 
 	var count int
-	err = sqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs WHERE state = $1", pool.TxStateInvalid).Scan(&count)
+	err = sqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs WHERE state = $1", pool.TxStatusInvalid).Scan(&count)
 	if err != nil {
 		t.Error(err)
 	}
 	assert.Equal(t, 2, count)
 }
 
-func Test_UpdateTxState(t *testing.T) {
+func Test_UpdateTxStatus(t *testing.T) {
 	ctx := context.Background()
 
 	if err := dbutils.InitOrReset(dbCfg); err != nil {
@@ -448,7 +448,7 @@ func Test_UpdateTxState(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.UpdateTxState(ctx, signedTx.Hash(), pool.TxStateInvalid)
+	err = p.UpdateTxStatus(ctx, signedTx.Hash(), pool.TxStatusInvalid)
 	if err != nil {
 		t.Error(err)
 	}
@@ -465,7 +465,7 @@ func Test_UpdateTxState(t *testing.T) {
 		t.Error(err)
 	}
 
-	assert.Equal(t, pool.TxStateInvalid, pool.TxState(state))
+	assert.Equal(t, pool.TxStatusInvalid, pool.TxStatus(state))
 }
 
 func Test_SetAndGetGasPrice(t *testing.T) {
@@ -553,7 +553,7 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.UpdateTxsState(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()}, pool.TxStateSelected)
+	err = p.UpdateTxsStatus(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()}, pool.TxStatusSelected)
 	if err != nil {
 		t.Error(err)
 	}
