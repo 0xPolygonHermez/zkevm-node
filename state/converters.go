@@ -19,9 +19,16 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 	if err != nil {
 		return nil, err
 	}
+
+	discardedBatchByOCC := false
+
+	if len(response.Responses) > 0 {
+		discardedBatchByOCC = response.Responses[len(response.Responses)-1].Error == pb.Error_ERROR_OUT_OF_COUNTERS
+	}
+
 	return &ProcessBatchResponse{
 		CumulativeGasUsed:   response.CumulativeGasUsed,
-		DiscardedBatchByOOC: isBatchOutOfCounters(response.Responses),
+		DiscardedBatchByOOC: discardedBatchByOCC,
 		Responses:           responses,
 		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
 		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
@@ -37,17 +44,6 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 
 func isProcessed(err pb.Error) bool {
 	return err != pb.Error_ERROR_INTRINSIC_INVALID_TX && err != pb.Error_ERROR_OUT_OF_COUNTERS
-}
-
-func isBatchOutOfCounters(responses []*pb.ProcessTransactionResponse) bool {
-	i := 0
-	ooc := false
-	for !ooc && i < len(responses) {
-		ooc = responses[i].Error == pb.Error_ERROR_OUT_OF_COUNTERS
-		i++
-	}
-
-	return ooc
 }
 
 func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
