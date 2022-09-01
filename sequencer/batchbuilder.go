@@ -168,13 +168,8 @@ func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transacti
 	for _, tx := range pendingTxs {
 		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
 	}
-	previousStateRoot, err := s.state.GetStateRootByBatchNumber(ctx, s.lastBatchNum-1, nil)
-	if err != nil {
-		log.Errorf("failed to get state root for batchNum %d, err: %v", s.lastBatchNum, err)
-		return nil, nil, err
-	}
 
-	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, previousStateRoot, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
+	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-len(pendingTxs)]
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
