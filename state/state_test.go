@@ -1826,32 +1826,30 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 
 		processedTxs := len(processBatchResponse.Responses)
 
-		if processedTxs <= len(transactions) {
-			if int32(processBatchResponse.Responses[processedTxs-1].Error) == executor.ERROR_OUT_OF_COUNTERS {
-				newTransactions := transactions[0 : processedTxs-1]
-				log.Debugf("# of transactions to reprocess= %d", len(newTransactions))
+		if int32(processBatchResponse.Responses[processedTxs-1].Error) == executor.ERROR_OUT_OF_COUNTERS {
+			newTransactions := transactions[0 : processedTxs-1]
+			log.Debugf("# of transactions to reprocess= %d", len(newTransactions))
 
-				batchL2Data, err := state.EncodeTransactions(newTransactions)
-				require.NoError(t, err)
+			batchL2Data, err := state.EncodeTransactions(newTransactions)
+			require.NoError(t, err)
 
-				// Create Batch
-				processBatchRequest := &executorclientpb.ProcessBatchRequest{
-					BatchNum:         numBatch,
-					Coinbase:         common.Address{}.String(),
-					BatchL2Data:      batchL2Data,
-					OldStateRoot:     processBatchResponse.NewStateRoot,
-					GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-					OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-					EthTimestamp:     uint64(0),
-					UpdateMerkleTree: 1,
-				}
-
-				// Process batch
-				processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
-				require.NoError(t, err)
-
-				processedTxs = len(processBatchResponse.Responses)
+			// Create Batch
+			processBatchRequest := &executorclientpb.ProcessBatchRequest{
+				BatchNum:         numBatch,
+				Coinbase:         common.Address{}.String(),
+				BatchL2Data:      batchL2Data,
+				OldStateRoot:     processBatchResponse.NewStateRoot,
+				GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+				OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+				EthTimestamp:     uint64(0),
+				UpdateMerkleTree: 1,
 			}
+
+			// Process batch
+			processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
+			require.NoError(t, err)
+
+			processedTxs = len(processBatchResponse.Responses)
 		}
 
 		for _, response := range processBatchResponse.Responses {
