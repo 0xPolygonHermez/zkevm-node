@@ -86,7 +86,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		tx, err = s.etherman.EstimateGasSequenceBatches(sequences)
 		estimatedGas = tx.Gas()
 
-		if err == nil && uint(len(tx.Data())) > s.cfg.MaxSequenceSize {
+		if err == nil && tx.GasPrice().Cmp(s.cfg.MaxSequenceSize) >= 1 {
 			log.Errorf("Error: Oversized Data on TX hash %s", tx.Hash())
 			err = core.ErrOversizedData
 		}
