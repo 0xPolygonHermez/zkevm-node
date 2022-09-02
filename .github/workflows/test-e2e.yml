@@ -65,7 +65,7 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Test
-      run: make test-e2e-group-${{ matrix.e2e-group }}
+      run: CONFIG_MODE="test" make test-e2e-group-${{ matrix.e2e-group }}
 
     # Update check run
     - uses: actions/github-script@v5
