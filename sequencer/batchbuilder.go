@@ -80,10 +80,10 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		// processedTxs must be reprocessed as the batch was discarded by the executor
 		reprocessTxs := make([]*pool.Transaction, len(processedTxs))
 		for _, pTxHash := range processedTxsHashes {
-			tx := s.getPendingTx(s.pendingTxs, pTxHash)
+			tx := s.getPendingTxByHash(s.pendingTxs, pTxHash)
 			reprocessTxs = append(reprocessTxs, tx)
 		}
-		reprocessedTxs, unreprocessedTxs, unreprocessedBatch, err := s.processTxs(ctx, reprocessTxs)
+		reprocessedTxs, _, unreprocessedTxs, unreprocessedBatch, err := s.processTxs(ctx, reprocessTxs)
 		if err != nil {
 			log.Errorf("failed to reprocess txs, err: %w", err)
 			return
@@ -195,7 +195,7 @@ func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transacti
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for processing tx, err: %v", err)
-		return nil, nil, nil, truen, err
+		return nil, nil, nil, true, err
 	}
 
 	for _, tx := range pendingTxs {
@@ -389,7 +389,7 @@ func (s *Sequencer) isZkCountersMoreThanMax(sumCounters pool.ZkCounters) bool {
 		s.cfg.MaxSteps <= sumCounters.UsedSteps
 }
 
-func (s *Sequencer) getPendingTx(transactions []*pool.Transaction, hash common.Hash) *pool.Transaction {
+func (s *Sequencer) getPendingTxByHash(transactions []*pool.Transaction, hash common.Hash) *pool.Transaction {
 	for _, tx := range transactions {
 		if tx.Hash() == hash {
 			return tx
