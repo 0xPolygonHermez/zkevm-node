@@ -1,6 +1,8 @@
 package sequencer
 
 import (
+	"math/big"
+
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 )
@@ -56,9 +58,9 @@ type Config struct {
 	// ProfitabilityChecker configuration
 	ProfitabilityChecker profitabilitychecker.Config `mapstructure:"ProfitabilityChecker"`
 
-	// Maximum size, in bytes, a batch can reach
-	MaxBatchSize uint `mapstructure:"MaxBatchSize"`
+	// Maximum size, in gas size, a batch can reach
+	MaxBatchSize *big.Int `mapstructure:"MaxBatchSize"`
 
-	// Maximum size, in bytes, a sequence can reach
-	MaxSequenceSize uint `mapstructure:"MaxSequenceSize"`
+	// Maximum size, in gas size, a sequence can reach
+	MaxSequenceSize *big.Int `mapstructure:"MaxSequenceSize"`
 }
