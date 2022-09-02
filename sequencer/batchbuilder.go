@@ -69,11 +69,31 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	for _, tx := range s.pendingTxs {
 		log.Infof("processing tx: %s", tx.Hash())
 	}
-	processedTxs, processedTxsHashes, unprocessedTxs, err := s.processTxs(ctx, s.pendingTxs)
+	processedTxs, processedTxsHashes, unprocessedTxs, unprocessedBatch, err := s.processTxs(ctx, s.pendingTxs)
 	if err != nil {
 		log.Errorf("failed to process txs, err: %w", err)
 		return
 	}
+
+	if unprocessedBatch {
+		// An Out Of Counter error has happened
+		// processedTxs must be reprocessed as the batch was discarded by the executor
+		reprocessTxs := make([]*pool.Transaction, len(processedTxs))
+		for _, pTxHash := range processedTxsHashes {
+			tx := s.getPendingTx(s.pendingTxs, pTxHash)
+			reprocessTxs = append(reprocessTxs, tx)
+		}
+		reprocessedTxs, unreprocessedTxs, unreprocessedBatch, err := s.processTxs(ctx, reprocessTxs)
+		if err != nil {
+			log.Errorf("failed to reprocess txs, err: %w", err)
+			return
+		}
+		if len(reprocessedTxs) != len(reprocessTxs) || len(unreprocessedTxs) > 0 || unreprocessedBatch {
+			log.Error("failed to reprocess txs")
+			return
+		}
+	}
+
 	// only save in DB processed transactions.
 	err = s.storeProcessedTransactions(ctx, processedTxs)
 	if err != nil {
@@ -171,11 +191,11 @@ func (s *Sequencer) isSequenceProfitable(ctx context.Context) bool {
 }
 
 func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transaction) (
-	[]*state.ProcessTransactionResponse, []common.Hash, map[string]*state.ProcessTransactionResponse, error) {
+	[]*state.ProcessTransactionResponse, []common.Hash, map[string]*state.ProcessTransactionResponse, bool, error) {
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for processing tx, err: %v", err)
-		return nil, nil, nil, err
+		return nil, nil, nil, truen, err
 	}
 
 	for _, tx := range pendingTxs {
@@ -190,17 +210,17 @@ func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transacti
 				"failed to rollback dbTx when processing tx that gave err: %v. Rollback err: %v",
 				rollbackErr, err,
 			)
-			return nil, nil, nil, err
+			return nil, nil, nil, true, err
 		}
 		for _, tx := range pendingTxs {
 			log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
 		}
-		return nil, nil, nil, err
+		return nil, nil, nil, true, err
 	}
 
 	if err := dbTx.Commit(ctx); err != nil {
 		log.Errorf("failed to commit dbTx when processing tx, err: %v", err)
-		return nil, nil, nil, err
+		return nil, nil, nil, true, err
 	}
 
 	s.sequenceInProgress.ZkCounters = pool.ZkCounters{
@@ -217,7 +237,7 @@ func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transacti
 	s.lastLocalExitRoot = processBatchResp.NewLocalExitRoot
 
 	processedTxs, processedTxsHashes, unprocessedTxs := state.DetermineProcessedTransactions(processBatchResp.Responses)
-	return processedTxs, processedTxsHashes, unprocessedTxs, nil
+	return processedTxs, processedTxsHashes, unprocessedTxs, processBatchResp.UnprocesedBatch, nil
 }
 
 func (s *Sequencer) storeProcessedTransactions(ctx context.Context, processedTxs []*state.ProcessTransactionResponse) error {
@@ -367,4 +387,13 @@ func (s *Sequencer) isZkCountersMoreThanMax(sumCounters pool.ZkCounters) bool {
 		s.cfg.MaxArithmetics <= sumCounters.UsedArithmetics ||
 		s.cfg.MaxBinaries <= sumCounters.UsedBinaries ||
 		s.cfg.MaxSteps <= sumCounters.UsedSteps
+}
+
+func (s *Sequencer) getPendingTx(transactions []*pool.Transaction, hash common.Hash) *pool.Transaction {
+	for _, tx := range transactions {
+		if tx.Hash() == hash {
+			return tx
+		}
+	}
+	return nil
 }
