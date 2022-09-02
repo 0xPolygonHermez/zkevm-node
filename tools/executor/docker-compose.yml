@@ -1,11 +1,11 @@
 version: "3.5"
 networks:
   default:
-    name: zkevm-executor-test
+    name: executor-tool
 
 services:
-  zkevm-db:
-    container_name: zkevm-db
+  executor-tool-db:
+    container_name: executor-tool-db
     image: postgres
     ports:
       - 5432:5432
@@ -27,4 +27,4 @@ services:
     volumes:
       - ./prover.config.json:/usr/src/app/config.json
     command: >
-      zkprover input_executor.json
+      zkProver -c /usr/src/app/config.json
