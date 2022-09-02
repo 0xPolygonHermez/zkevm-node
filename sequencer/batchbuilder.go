@@ -75,21 +75,19 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	if unprocessedBatch {
-		// An Out Of Counter error has happened
+	closeBatch := unprocessedBatch
+
+	for unprocessedBatch {
+		// The entire batch hasn't been processed
 		// processedTxs must be reprocessed as the batch was discarded by the executor
 		reprocessTxs := make([]*pool.Transaction, len(processedTxs))
-		for _, pTxHash := range processedTxsHashes {
-			tx := s.getPendingTxByHash(s.pendingTxs, pTxHash)
+		for _, pTx := range processedTxs {
+			tx := s.getPendingTxByHash(s.pendingTxs, pTx.TxHash)
 			reprocessTxs = append(reprocessTxs, tx)
 		}
-		reprocessedTxs, _, unreprocessedTxs, unreprocessedBatch, err := s.processTxs(ctx, reprocessTxs)
+		processedTxs, _, _, unprocessedBatch, err = s.processTxs(ctx, reprocessTxs)
 		if err != nil {
 			log.Errorf("failed to reprocess txs, err: %w", err)
-			return
-		}
-		if len(reprocessedTxs) != len(reprocessTxs) || len(unreprocessedTxs) > 0 || unreprocessedBatch {
-			log.Error("failed to reprocess txs")
 			return
 		}
 	}
@@ -120,6 +118,22 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.pendingTxs = []*pool.Transaction{}
 	s.pendingTxsHashes = []string{}
 	s.sumZkCounters = pool.ZkCounters{}
+
+	if closeBatch {
+		err := s.closeSequence(ctx)
+		if errors.As(err, &state.ErrClosingBatchWithoutTxs) {
+			log.Info("current sequence can't be closed without transactions")
+			waitTick(ctx, ticker)
+			return
+		} else if err != nil {
+			log.Errorf("error closing sequence: %v", err)
+			log.Info("resetting sequence in progress")
+			if err = s.loadSequenceFromState(ctx); err != nil {
+				log.Error("error loading sequence from state: %v", err)
+			}
+			return
+		}
+	}
 }
 
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
