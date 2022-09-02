@@ -71,7 +71,6 @@ func main() {
 		}
 		log.Infof("Done running case %v\n\n\n\n\n", test.Title)
 	}
-
 }
 
 func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error {
@@ -109,7 +108,7 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 	}
 
 	// Executor connection
-	xecutor, _, _ := executor.NewExecutorClient(ctx, executor.Config{executorURL})
+	xecutor, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorURL})
 	// Execute batches
 	for _, req := range tc.Requests {
 		pbr := pb.ProcessBatchRequest(req)
