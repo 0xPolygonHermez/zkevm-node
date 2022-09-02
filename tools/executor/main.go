@@ -110,14 +110,14 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 	// Executor connection
 	xecutor, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorURL})
 	// Execute batches
-	for _, req := range tc.Requests {
-		pbr := pb.ProcessBatchRequest(req)
+	for i := 0; i < len(tc.Requests); i++ {
+		pbr := pb.ProcessBatchRequest(tc.Requests[i])
 		res, err := xecutor.ProcessBatch(ctx, &pbr)
 		if err != nil {
 			return err
 		}
-		log.Infof("**********              BATCH %d              **********", req.BatchNum)
-		txs, _, err := state.DecodeTxs(req.BatchL2Data)
+		log.Infof("**********              BATCH %d              **********", tc.Requests[i].BatchNum)
+		txs, _, err := state.DecodeTxs(tc.Requests[i].BatchL2Data)
 		if err != nil {
 			log.Warnf("Txs are not correctly encoded")
 		}
@@ -271,6 +271,6 @@ func (er *executorRequest) UnmarshalJSON(data []byte) error {
 		Coinbase:         jer.SequencerAddr,
 		EthTimestamp:     jer.Timestamp,
 	}
-	*er = executorRequest(req)
+	*er = executorRequest(req) //nolint
 	return nil
 }
