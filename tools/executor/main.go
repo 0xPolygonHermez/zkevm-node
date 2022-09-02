@@ -111,7 +111,7 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 	xecutor, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorURL})
 	// Execute batches
 	for i := 0; i < len(tc.Requests); i++ {
-		pbr := pb.ProcessBatchRequest(tc.Requests[i])
+		pbr := pb.ProcessBatchRequest(tc.Requests[i]) //nolint
 		res, err := xecutor.ProcessBatch(ctx, &pbr)
 		if err != nil {
 			return err
