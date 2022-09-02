@@ -25,14 +25,14 @@ const (
 )
 
 func main() {
-	// // Start containers
-	// defer func() {
-	// 	cmd := exec.Command("docker-compose", "down", "--remove-orphans")
-	// 	if err := cmd.Run(); err != nil {
-	// 		log.Errorf("Failed stop containers: %v", err)
-	// 		return
-	// 	}
-	// }()
+	// Start containers
+	defer func() {
+		cmd := exec.Command("docker-compose", "down", "--remove-orphans")
+		if err := cmd.Run(); err != nil {
+			log.Errorf("Failed stop containers: %v", err)
+			return
+		}
+	}()
 	log.Info("Starting DB and prover")
 	cmd := exec.Command("docker-compose", "up", "-d", "executor-tool-db")
 	if out, err := cmd.CombinedOutput(); err != nil {
