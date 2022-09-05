@@ -46,19 +46,32 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	calculatedBridgeAddr := crypto.CreateAddress(auth.From, nonce+1)
-	const pos = 2
-	calculatedPoEAddr := crypto.CreateAddress(auth.From, nonce+pos)
+	const posBridge = 2
+	calculatedBridgeAddr := crypto.CreateAddress(auth.From, nonce+posBridge)
+	const posPoE = 4
+	calculatedPoEAddr := crypto.CreateAddress(auth.From, nonce+posPoE)
 	var genesis [32]byte
-	exitManagerAddr, _, globalExitRoot, err := globalexitrootmanager.DeployGlobalexitrootmanager(auth, client, calculatedPoEAddr, calculatedBridgeAddr)
+	exitManagerAddr, _, globalExitRoot, err := globalexitrootmanager.DeployGlobalexitrootmanager(auth, client)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	bridgeAddr, _, br, err := bridge.DeployBridge(auth, client, 0, exitManagerAddr)
+	_, err = globalExitRoot.Initialize(auth, calculatedPoEAddr, calculatedBridgeAddr)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	poeAddr, _, poe, err := proofofefficiency.DeployProofofefficiency(auth, client, exitManagerAddr, maticAddr, rollupVerifierAddr, genesis, auth.From, true, "http://localhost")
+	bridgeAddr, _, br, err := bridge.DeployBridge(auth, client)
+	if err != nil {
+		return nil, nil, common.Address{}, nil, err
+	}
+	_, err = br.Initialize(auth, 0, exitManagerAddr)
+	if err != nil {
+		return nil, nil, common.Address{}, nil, err
+	}
+	poeAddr, _, poe, err := proofofefficiency.DeployProofofefficiency(auth, client)
+	if err != nil {
+		return nil, nil, common.Address{}, nil, err
+	}
+	_, err = poe.Initialize(auth, exitManagerAddr, maticAddr, rollupVerifierAddr, genesis, auth.From, true, "http://localhost")
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}

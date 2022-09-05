@@ -1,21 +1,5 @@
 [
 	{
-		"inputs": [
-			{
-				"internalType": "uint32",
-				"name": "_networkID",
-				"type": "uint32"
-			},
-			{
-				"internalType": "contract IGlobalExitRootManager",
-				"name": "_globalExitRootManager",
-				"type": "address"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -106,6 +90,19 @@
 		"inputs": [
 			{
 				"indexed": false,
+				"internalType": "uint8",
+				"name": "version",
+				"type": "uint8"
+			}
+		],
+		"name": "Initialized",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
 				"internalType": "uint32",
 				"name": "originNetwork",
 				"type": "uint32"
@@ -124,25 +121,6 @@
 			}
 		],
 		"name": "NewWrappedToken",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "previousOwner",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "newOwner",
-				"type": "address"
-			}
-		],
-		"name": "OwnershipTransferred",
 		"type": "event"
 	},
 	{
@@ -179,6 +157,11 @@
 				"internalType": "uint256",
 				"name": "amount",
 				"type": "uint256"
+			},
+			{
+				"internalType": "bytes",
+				"name": "permitData",
+				"type": "bytes"
 			}
 		],
 		"name": "bridge",
@@ -371,6 +354,24 @@
 		"type": "function"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "uint32",
+				"name": "_networkID",
+				"type": "uint32"
+			},
+			{
+				"internalType": "contract IGlobalExitRootManager",
+				"name": "_globalExitRootManager",
+				"type": "address"
+			}
+		],
+		"name": "initialize",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "networkID",
 		"outputs": [
@@ -378,19 +379,6 @@
 				"internalType": "uint32",
 				"name": "",
 				"type": "uint32"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "owner",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
 			}
 		],
 		"stateMutability": "view",
@@ -418,13 +406,6 @@
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "renounceOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -457,19 +438,6 @@
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newOwner",
-				"type": "address"
-			}
-		],
-		"name": "transferOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
