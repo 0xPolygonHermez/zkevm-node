@@ -56,7 +56,7 @@ func TestGEREvent(t *testing.T) {
 	amount := big.NewInt(1000000000000000)
 	a := etherman.auth
 	a.Value = amount
-	_, err = br.Bridge(a, common.Address{}, 1, etherman.auth.From, amount)
+	_, err = br.Bridge(a, common.Address{}, 1, etherman.auth.From, amount, []byte{})
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -123,7 +123,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	// Make a bridge tx
 	a := etherman.auth
 	a.Value = big.NewInt(1000000000000000)
-	_, err = br.Bridge(a, common.Address{}, 1, a.From, a.Value)
+	_, err = br.Bridge(a, common.Address{}, 1, a.From, a.Value, []byte{})
 	require.NoError(t, err)
 	ethBackend.Commit()
 	a.Value = big.NewInt(0)
@@ -280,7 +280,7 @@ func TestSendSequences(t *testing.T) {
 	// Make a bridge tx
 	a := etherman.auth
 	a.Value = big.NewInt(1000000000000000)
-	_, err = br.Bridge(a, common.Address{}, 1, a.From, a.Value)
+	_, err = br.Bridge(a, common.Address{}, 1, a.From, a.Value, []byte{})
 	require.NoError(t, err)
 	ethBackend.Commit()
 	a.Value = big.NewInt(0)
