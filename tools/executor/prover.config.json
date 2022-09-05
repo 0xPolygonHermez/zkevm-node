@@ -1,0 +1,70 @@
+{
+    "runProverServer": false,
+    "runProverServerMock": true,
+    "runProverClient": false,
+
+    "runExecutorServer": true,
+    "runExecutorClient": false,
+
+    "runStateDBServer": true,
+    "runStateDBTest": false,
+
+    "runFile": false,
+    "runFileFast": false,
+
+    "runKeccakScriptGenerator": false,
+    "executorROMLineTraces": true,
+    "runKeccakTest": false,
+    "runStorageSMTest": false,
+    "runBinarySMTest": false,
+    "runMemAlignSMTest": false,
+    "runStarkTest": false,
+
+    "executeInParallel" : false,
+    "useMainExecGenerated" : false,
+
+    "proverServerPort": 50051,
+    "proverServerMockPort": 50052,
+    "proverClientPort": 50051,
+    "proverServerMockTimeout": 60000000,
+
+    "executorServerPort": 50071,
+    "executorClientPort": 50071,
+    "executorClientHost": "127.0.0.1",
+
+    "stateDBServerPort": 50061,
+    "stateDBURL": "local",    
+
+    "inputFile": "input_executor.json",
+    "outputPath": "output",
+    "romFile": "rom.json",
+    "pilFile": "zkevm.pil.json",
+    "cmPolsFile": "commit.bin",
+    "constPolsFile": "constants.bin",
+    "constantsTreeFile": "constantstree.bin",
+    "scriptFile": "starkgen_bmscript.json",
+    "starkFile_disabled": "stark.json",
+    "verifierFile": "verifier.dat",
+    "witnessFile_disabled": "witness.wtns",
+    "starkVerifierFile": "starkverifier_0001.zkey",
+    "publicFile": "public.json",
+    "proofFile": "proof.json",
+    "keccakScriptFile": "keccak_script.json",
+    "keccakPolsFile_DISABLED": "keccak_pols.json",
+    "keccakConnectionsFile": "keccak_connections.json",
+    "storageRomFile": "storage_sm_rom.json",
+    "storagePilFile": "storage.pil.json",
+    "storagePolsFile": "storage.commit.bin",
+    "memoryPilFile": "mem.pil.json",
+    "memoryPolsFile": "mem.commit.bin",
+    "binaryPilFile": "binary.pil.json",
+    "binaryPolsFile": "binary.commit.bin",
+    "binaryConstPolsFile": "binary.constants.bin",
+    "starkInfoFile": "zkevm.starkinfo.json",
+
+    "databaseURL": "postgresql://prover_user:prover_pass@executor-tool-db:5432/prover_db",
+    "dbTableName": "state.merkletree",
+    "dbAsyncWrite": false,
+    "cleanerPollingPeriod": 600,
+    "requestsPersistence": 3600
+}
