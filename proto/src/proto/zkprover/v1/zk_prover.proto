@@ -217,9 +217,8 @@ message InputProver {
     PublicInputs public_inputs = 1;
     string global_exit_root = 2;
     string batch_l2_data = 3;
-    string address_aggregator = 4;
-    map<string, string> db = 5; // For debug/testing purpposes only. Don't fill this on production
-    map<string, string> contracts_bytecode = 6; // For debug/testing purpposes only. Don't fill this on production
+    map<string, string> db = 4; // For debug/testing purpposes only. Don't fill this on production
+    map<string, string> contracts_bytecode = 5; // For debug/testing purpposes only. Don't fill this on production
 }
 
 /**

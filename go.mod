@@ -13,7 +13,7 @@ require (
 	github.com/iden3/go-iden3-crypto v0.0.14-0.20220413123345-edc36bfa5247
 	github.com/imdario/mergo v0.3.13
 	github.com/jackc/pgconn v1.13.0
-	github.com/jackc/pgx/v4 v4.17.1
+	github.com/jackc/pgx/v4 v4.17.2
 	github.com/lib/pq v1.10.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/rubenv/sql-migrate v0.0.0-20211023115951-9f02b1e13857
@@ -21,7 +21,7 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0
 	github.com/umbracle/ethgo v0.1.3
-	github.com/urfave/cli/v2 v2.14.0
+	github.com/urfave/cli/v2 v2.14.1
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29

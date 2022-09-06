@@ -1,46 +1,5 @@
 [
 	{
-		"inputs": [
-			{
-				"internalType": "contract IGlobalExitRootManager",
-				"name": "_globalExitRootManager",
-				"type": "address"
-			},
-			{
-				"internalType": "contract IERC20",
-				"name": "_matic",
-				"type": "address"
-			},
-			{
-				"internalType": "contract IVerifierRollup",
-				"name": "_rollupVerifier",
-				"type": "address"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "genesisRoot",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "address",
-				"name": "_trustedSequencer",
-				"type": "address"
-			},
-			{
-				"internalType": "bool",
-				"name": "_forceBatchAllowed",
-				"type": "bool"
-			},
-			{
-				"internalType": "string",
-				"name": "_trustedSequencerURL",
-				"type": "string"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
-	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -69,6 +28,19 @@
 			}
 		],
 		"name": "ForceBatch",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "version",
+				"type": "uint8"
+			}
+		],
+		"name": "Initialized",
 		"type": "event"
 	},
 	{
@@ -307,6 +279,49 @@
 		"type": "function"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "contract IGlobalExitRootManager",
+				"name": "_globalExitRootManager",
+				"type": "address"
+			},
+			{
+				"internalType": "contract IERC20Upgradeable",
+				"name": "_matic",
+				"type": "address"
+			},
+			{
+				"internalType": "contract IVerifierRollup",
+				"name": "_rollupVerifier",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "genesisRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "_trustedSequencer",
+				"type": "address"
+			},
+			{
+				"internalType": "bool",
+				"name": "_forceBatchAllowed",
+				"type": "bool"
+			},
+			{
+				"internalType": "string",
+				"name": "_trustedSequencerURL",
+				"type": "string"
+			}
+		],
+		"name": "initialize",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "lastBatchSequenced",
 		"outputs": [
@@ -376,7 +391,7 @@
 		"name": "matic",
 		"outputs": [
 			{
-				"internalType": "contract IERC20",
+				"internalType": "contract IERC20Upgradeable",
 				"name": "",
 				"type": "address"
 			}
