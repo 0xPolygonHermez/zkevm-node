@@ -149,12 +149,11 @@ func (s *Sequencer) processTx(ctx context.Context, tx *pool.Transaction) ([]*sta
 
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
 
-	accumlatedBytes, err := state.EncodeTransactions(s.sequenceInProgress.Txs)
 	if err != nil {
 		log.Errorf("failed to encode transactions: %w", err)
 		return nil, nil, err
 	}
-	if uint(len(accumlatedBytes)) > s.cfg.MaxBatchSize {
+	if tx.Transaction.GasPrice().Cmp(s.cfg.MaxBatchSize) >= 1 {
 		if len(s.sequenceInProgress.Txs) == 1 {
 			// set tx as invalid
 			err := s.pool.UpdateTxState(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStateInvalid)

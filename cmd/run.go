@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -130,6 +131,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("\ncfg: \nConfig: %+v\nPoE %s\nMatic %s\nGER %s\n", c.Etherman, c.NetworkConfig.PoEAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.GlobalExitRootManagerAddr)
 	return etherman, nil
 }
 
