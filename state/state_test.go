@@ -1223,7 +1223,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 		s, ok := new(big.Int).SetString(testCase.S, 0)
 		require.Equal(t, true, ok)
 
-		value := new(big.Int)
+		var value *big.Int
 
 		if testCase.Value != "0x" {
 			value, ok = new(big.Int).SetString(testCase.Value, 0)
@@ -1246,7 +1246,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 			Value:    value,
 			Gas:      gasLimit.Uint64(),
 			GasPrice: gasPrice,
-			Data:     common.Hex2Bytes(testCase.Data),
+			Data:     common.Hex2Bytes(strings.TrimPrefix(testCase.Data, "0x")),
 			V:        v,
 			R:        r,
 			S:        s,
