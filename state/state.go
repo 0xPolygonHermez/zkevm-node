@@ -1009,7 +1009,7 @@ func CheckSupersetBatchTransactions(existingTxHashes []common.Hash, processedTxs
 		return ErrExistingTxGreaterThanProcessedTx
 	}
 	for i, existingTxHash := range existingTxHashes {
-		if existingTxHash != processedTxs[i].Tx.Hash() {
+		if existingTxHash != processedTxs[i].TxHash {
 			return ErrOutOfOrderProcessedTx
 		}
 	}
