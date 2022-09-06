@@ -208,7 +208,7 @@ func l2BlockToRPCBlock(b *types.Block, fullTx bool) *rpcBlock {
 		Number:          argUint64(b.Number().Uint64()),
 		GasLimit:        argUint64(h.GasLimit),
 		GasUsed:         argUint64(h.GasUsed),
-		Timestamp:       argUint64(b.ReceivedAt.Unix()),
+		Timestamp:       argUint64(h.Time),
 		ExtraData:       argBytes(h.Extra),
 		MixHash:         h.MixDigest,
 		Nonce:           nonce,

@@ -1,0 +1,30 @@
+version: "3.5"
+networks:
+  default:
+    name: executor-tool
+
+services:
+  executor-tool-db:
+    container_name: executor-tool-db
+    image: postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - ../../config/initproverdb.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      # In order to update this values, you may need to run: docker rm -f -v postgres
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_DB=test_db
+    command: ["postgres", "-N", "500"]
+
+  executor-tool-prover:
+    container_name: executor-tool-prover
+    image: hermeznetwork/zkprover-local@sha256:f3eb2a1c0728c51c182e778c33d10eefbf4703f0e96a6e15e88ad155078a5e9e
+    ports:
+      - 50061:50061 # MT
+      - 50071:50071 # Executor
+    volumes:
+      - ./prover.config.json:/usr/src/app/config.json
+    command: >
+      zkProver -c /usr/src/app/config.json
