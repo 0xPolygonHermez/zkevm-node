@@ -20,7 +20,7 @@ type processTxResponse struct {
 	processedTxs       []*state.ProcessTransactionResponse
 	processedTxsHashes []common.Hash
 	unprocessedTxs     map[string]*state.ProcessTransactionResponse
-	isUnprocessedBatch bool
+	isBatchProcessed   bool
 }
 
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
@@ -82,12 +82,12 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	if pTxResponse.isUnprocessedBatch {
+	if !pTxResponse.isBatchProcessed {
 		rpTxResponse := processTxResponse{
-			processedTxs:       pTxResponse.processedTxs,
-			isUnprocessedBatch: pTxResponse.isUnprocessedBatch,
+			processedTxs:     pTxResponse.processedTxs,
+			isBatchProcessed: pTxResponse.isBatchProcessed,
 		}
-		for rpTxResponse.isUnprocessedBatch {
+		for !rpTxResponse.isBatchProcessed {
 			// The entire batch hasn't been processed
 			// processedTxs must be reprocessed as the batch was discarded by the executor
 			reprocessTxs := make([]*pool.Transaction, 0, len(rpTxResponse.processedTxs))
@@ -130,7 +130,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.pendingTxsHashes = []string{}
 	s.sumZkCounters = pool.ZkCounters{}
 
-	if pTxResponse.isUnprocessedBatch {
+	if !pTxResponse.isBatchProcessed {
 		err := s.closeSequence(ctx)
 		if errors.As(err, &state.ErrClosingBatchWithoutTxs) {
 			log.Info("current sequence can't be closed without transactions")
@@ -217,16 +217,10 @@ func (s *Sequencer) isSequenceProfitable(ctx context.Context) bool {
 
 func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transaction) (
 	processTxResponse, error) {
-	response := processTxResponse{
-		processedTxs:       nil,
-		processedTxsHashes: nil,
-		unprocessedTxs:     nil,
-		isUnprocessedBatch: true,
-	}
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for processing tx, err: %v", err)
-		return response, err
+		return processTxResponse{}, err
 	}
 
 	for _, tx := range pendingTxs {
@@ -241,17 +235,17 @@ func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transacti
 				"failed to rollback dbTx when processing tx that gave err: %v. Rollback err: %v",
 				rollbackErr, err,
 			)
-			return response, err
+			return processTxResponse{}, err
 		}
 		for _, tx := range pendingTxs {
 			log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
 		}
-		return response, err
+		return processTxResponse{}, err
 	}
 
 	if err := dbTx.Commit(ctx); err != nil {
 		log.Errorf("failed to commit dbTx when processing tx, err: %v", err)
-		return response, err
+		return processTxResponse{}, err
 	}
 
 	s.sequenceInProgress.ZkCounters = pool.ZkCounters{
@@ -269,10 +263,12 @@ func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transacti
 
 	processedTxs, processedTxsHashes, unprocessedTxs := state.DetermineProcessedTransactions(processBatchResp.Responses)
 
-	response.processedTxs = processedTxs
-	response.processedTxsHashes = processedTxsHashes
-	response.unprocessedTxs = unprocessedTxs
-	response.isUnprocessedBatch = processBatchResp.UnprocesedBatch
+	response := processTxResponse{
+		processedTxs:       processedTxs,
+		processedTxsHashes: processedTxsHashes,
+		unprocessedTxs:     unprocessedTxs,
+		isBatchProcessed:   !processBatchResp.UnprocesedBatch,
+	}
 
 	return response, nil
 }
