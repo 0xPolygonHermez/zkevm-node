@@ -16,6 +16,13 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+type processTxResponse struct {
+	processedTxs       []*state.ProcessTransactionResponse
+	processedTxsHashes []common.Hash
+	unprocessedTxs     map[string]*state.ProcessTransactionResponse
+	isBatchProcessed   bool
+}
+
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
@@ -69,29 +76,51 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	for _, tx := range s.pendingTxs {
 		log.Infof("processing tx: %s", tx.Hash())
 	}
-	processedTxs, processedTxsHashes, unprocessedTxs, err := s.processTxs(ctx, s.pendingTxs)
+	pTxResponse, err := s.processTxs(ctx, s.pendingTxs)
 	if err != nil {
 		log.Errorf("failed to process txs, err: %w", err)
 		return
 	}
+
+	if !pTxResponse.isBatchProcessed {
+		rpTxResponse := processTxResponse{
+			processedTxs:     pTxResponse.processedTxs,
+			isBatchProcessed: pTxResponse.isBatchProcessed,
+		}
+		for !rpTxResponse.isBatchProcessed {
+			// The entire batch hasn't been processed
+			// processedTxs must be reprocessed as the batch was discarded by the executor
+			reprocessTxs := make([]*pool.Transaction, 0, len(rpTxResponse.processedTxs))
+			for _, pTx := range rpTxResponse.processedTxs {
+				tx := s.getPendingTxByHash(s.pendingTxs, pTx.TxHash)
+				reprocessTxs = append(reprocessTxs, tx)
+			}
+			rpTxResponse, err = s.processTxs(ctx, reprocessTxs)
+			if err != nil {
+				log.Errorf("failed to reprocess txs, err: %w", err)
+				return
+			}
+		}
+	}
+
 	// only save in DB processed transactions.
-	err = s.storeProcessedTransactions(ctx, processedTxs)
+	err = s.storeProcessedTransactions(ctx, pTxResponse.processedTxs)
 	if err != nil {
 		log.Errorf("failed to store processed txs, err: %w", err)
 		return
 	}
 
 	// update processed txs
-	err = s.pool.UpdateTxsStatus(ctx, processedTxsHashes, pool.TxStatusSelected)
+	err = s.pool.UpdateTxsStatus(ctx, pTxResponse.processedTxsHashes, pool.TxStatusSelected)
 	for err != nil {
 		log.Errorf("failed to update txs state to selected, err: %w")
 		waitTick(ctx, ticker)
-		err = s.pool.UpdateTxsStatus(ctx, processedTxsHashes, pool.TxStatusSelected)
+		err = s.pool.UpdateTxsStatus(ctx, pTxResponse.processedTxsHashes, pool.TxStatusSelected)
 	}
 	// get rid of unprocessed txs in sequenceInProgressTxs slice
 	var tempSequenceInProgressTxs []ethTypes.Transaction
 	for _, tx := range s.sequenceInProgress.Txs {
-		if _, ok := unprocessedTxs[tx.Hash().String()]; !ok {
+		if _, ok := pTxResponse.unprocessedTxs[tx.Hash().String()]; !ok {
 			tempSequenceInProgressTxs = append(tempSequenceInProgressTxs, tx)
 		}
 	}
@@ -100,6 +129,22 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.pendingTxs = []*pool.Transaction{}
 	s.pendingTxsHashes = []string{}
 	s.sumZkCounters = pool.ZkCounters{}
+
+	if !pTxResponse.isBatchProcessed {
+		err := s.closeSequence(ctx)
+		if errors.As(err, &state.ErrClosingBatchWithoutTxs) {
+			log.Info("current sequence can't be closed without transactions")
+			waitTick(ctx, ticker)
+			return
+		} else if err != nil {
+			log.Errorf("error closing sequence: %v", err)
+			log.Info("resetting sequence in progress")
+			if err = s.loadSequenceFromState(ctx); err != nil {
+				log.Error("error loading sequence from state: %v", err)
+			}
+			return
+		}
+	}
 }
 
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
@@ -171,11 +216,11 @@ func (s *Sequencer) isSequenceProfitable(ctx context.Context) bool {
 }
 
 func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transaction) (
-	[]*state.ProcessTransactionResponse, []common.Hash, map[string]*state.ProcessTransactionResponse, error) {
+	processTxResponse, error) {
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for processing tx, err: %v", err)
-		return nil, nil, nil, err
+		return processTxResponse{}, err
 	}
 
 	for _, tx := range pendingTxs {
@@ -190,17 +235,17 @@ func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transacti
 				"failed to rollback dbTx when processing tx that gave err: %v. Rollback err: %v",
 				rollbackErr, err,
 			)
-			return nil, nil, nil, err
+			return processTxResponse{}, err
 		}
 		for _, tx := range pendingTxs {
 			log.Debugf("failed to process tx, hash: %s, err: %v", tx.Hash(), err)
 		}
-		return nil, nil, nil, err
+		return processTxResponse{}, err
 	}
 
 	if err := dbTx.Commit(ctx); err != nil {
 		log.Errorf("failed to commit dbTx when processing tx, err: %v", err)
-		return nil, nil, nil, err
+		return processTxResponse{}, err
 	}
 
 	s.sequenceInProgress.ZkCounters = pool.ZkCounters{
@@ -217,7 +262,15 @@ func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transacti
 	s.lastLocalExitRoot = processBatchResp.NewLocalExitRoot
 
 	processedTxs, processedTxsHashes, unprocessedTxs := state.DetermineProcessedTransactions(processBatchResp.Responses)
-	return processedTxs, processedTxsHashes, unprocessedTxs, nil
+
+	response := processTxResponse{
+		processedTxs:       processedTxs,
+		processedTxsHashes: processedTxsHashes,
+		unprocessedTxs:     unprocessedTxs,
+		isBatchProcessed:   !processBatchResp.UnprocesedBatch,
+	}
+
+	return response, nil
 }
 
 func (s *Sequencer) storeProcessedTransactions(ctx context.Context, processedTxs []*state.ProcessTransactionResponse) error {
@@ -367,4 +420,13 @@ func (s *Sequencer) isZkCountersMoreThanMax(sumCounters pool.ZkCounters) bool {
 		s.cfg.MaxArithmetics <= sumCounters.UsedArithmetics ||
 		s.cfg.MaxBinaries <= sumCounters.UsedBinaries ||
 		s.cfg.MaxSteps <= sumCounters.UsedSteps
+}
+
+func (s *Sequencer) getPendingTxByHash(transactions []*pool.Transaction, hash common.Hash) *pool.Transaction {
+	for _, tx := range transactions {
+		if tx.Hash() == hash {
+			return tx
+		}
+	}
+	return nil
 }
