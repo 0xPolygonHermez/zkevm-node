@@ -19,11 +19,11 @@ import (
 type txPool interface {
 	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus) error
-	UpdateTxsStatus(ctx context.Context, hashes []common.Hash, newStatus pool.TxStatus) error
+	UpdateTxsStatus(ctx context.Context, hashes []string, newStatus pool.TxStatus) error
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error
-	GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters pool.ZkCounters, hashes []string) (*pool.Transaction, error)
+	GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters pool.ZkCounters, limit uint64) ([]*pool.Transaction, error)
 }
 
 // etherman contains the methods required to interact with ethereum.

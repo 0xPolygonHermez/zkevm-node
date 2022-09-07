@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/lib/pq"
 )
 
 var (
@@ -176,15 +175,15 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 }
 
 // GetTopPendingTxByProfitabilityAndZkCounters gets top pending tx by profitability and zk counter
-func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters pool.ZkCounters, hashes []string) (*pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters pool.ZkCounters, limit uint64) ([]*pool.Transaction, error) {
 	query := `
-		SELECT 
-			encoded, 
+		SELECT
+			encoded,
 			status,
 			cumulative_gas_used,
 			used_keccak_hashes,
 			used_poseidon_hashes,
-			used_poseidon_paddings, 
+			used_poseidon_paddings,
 			used_mem_aligns,
 			used_arithmetics,
 			used_binaries,
@@ -195,26 +194,23 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 			pool.txs p1
 		WHERE 
 			status = $1 AND 
-			cumulative_gas_used <= $2 AND 
-			used_keccak_hashes <= $3 AND 
-			used_poseidon_hashes <= $4 AND 
-			used_poseidon_paddings <= $5 AND
-			used_mem_aligns <= $6 AND 
-			used_arithmetics <= $7 AND
-			used_binaries <= $8 AND 
-			used_steps <= $9 AND
+-- 			cumulative_gas_used <= $2 AND 
+-- 			used_keccak_hashes <= $3 AND 
+-- 			used_poseidon_hashes <= $4 AND 
+-- 			used_poseidon_paddings <= $5 AND
+-- 			used_mem_aligns <= $6 AND 
+-- 			used_arithmetics <= $7 AND
+-- 			used_binaries <= $8 AND 
+-- 			used_steps <= $9 AND
 			nonce = (
 				SELECT MIN(p2.nonce)
 				FROM pool.txs p2
-				WHERE p1.from_address = p2.from_address AND
-				status = $10 AND hash != ALL($11)
-			) AND hash != ALL($11)
+				WHERE p1.from_address = p2.from_address AND status = $1
+			)
 		GROUP BY
 			from_address, p1.hash
-		ORDER BY
-			nonce
-		DESC
-		LIMIT 1
+		ORDER BY gas_price DESC
+		LIMIT $2
 	`
 
 	var (
@@ -227,19 +223,19 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 		nonce uint64
 	)
 
-	args := []interface{}{pool.TxStatusPending,
-		maxZkCounters.CumulativeGasUsed,
-		maxZkCounters.UsedKeccakHashes,
-		maxZkCounters.UsedPoseidonHashes,
-		maxZkCounters.UsedPoseidonPaddings,
-		maxZkCounters.UsedMemAligns,
-		maxZkCounters.UsedArithmetics,
-		maxZkCounters.UsedBinaries,
-		maxZkCounters.UsedSteps,
-		pool.TxStatusPending, pq.Array(hashes)}
+	args := []interface{}{pool.TxStatusPending, limit}
 
-	err := p.db.QueryRow(ctx, query, args...).
-		Scan(&encoded,
+	rows, err := p.db.Query(ctx, query, args...)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	txs := make([]*pool.Transaction, 0, len(rows.RawValues()))
+	for rows.Next() {
+		err := rows.Scan(
+			&encoded,
 			&status,
 			&cumulativeGasUsed,
 			&usedKeccakHashes,
@@ -252,35 +248,35 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 			&receivedAt,
 			&nonce)
 
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+		tx := new(pool.Transaction)
+		b, err := hex.DecodeHex(encoded)
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.UnmarshalBinary(b); err != nil {
+			return nil, err
+		}
+
+		tx.Status = pool.TxStatus(status)
+		tx.ReceivedAt = receivedAt
+		tx.ZkCounters = pool.ZkCounters{
+			CumulativeGasUsed:    cumulativeGasUsed,
+			UsedKeccakHashes:     usedKeccakHashes,
+			UsedPoseidonHashes:   usedPoseidonHashes,
+			UsedPoseidonPaddings: usedPoseidonPaddings,
+			UsedMemAligns:        usedMemAligns,
+			UsedArithmetics:      usedArithmetics,
+			UsedBinaries:         usedBinaries,
+			UsedSteps:            usedSteps,
+		}
+
+		txs = append(txs, tx)
 	}
 
-	tx := new(pool.Transaction)
-	b, err := hex.DecodeHex(encoded)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.UnmarshalBinary(b); err != nil {
-		return nil, err
-	}
-
-	tx.Status = pool.TxStatus(status)
-	tx.ReceivedAt = receivedAt
-	tx.ZkCounters = pool.ZkCounters{
-		CumulativeGasUsed:    cumulativeGasUsed,
-		UsedKeccakHashes:     usedKeccakHashes,
-		UsedPoseidonHashes:   usedPoseidonHashes,
-		UsedPoseidonPaddings: usedPoseidonPaddings,
-		UsedMemAligns:        usedMemAligns,
-		UsedArithmetics:      usedArithmetics,
-		UsedBinaries:         usedBinaries,
-		UsedSteps:            usedSteps,
-	}
-
-	return tx, nil
+	return txs, nil
 }
 
 // CountTransactionsByStatus get number of transactions
@@ -306,14 +302,9 @@ func (p *PostgresPoolStorage) UpdateTxStatus(ctx context.Context, hash common.Ha
 }
 
 // UpdateTxsStatus updates transactions status accordingly to the provided status and hashes
-func (p *PostgresPoolStorage) UpdateTxsStatus(ctx context.Context, hashes []common.Hash, newStatus pool.TxStatus) error {
-	hh := make([]string, 0, len(hashes))
-	for _, h := range hashes {
-		hh = append(hh, h.Hex())
-	}
-
+func (p *PostgresPoolStorage) UpdateTxsStatus(ctx context.Context, hashes []string, newStatus pool.TxStatus) error {
 	sql := "UPDATE pool.txs SET status = $1 WHERE hash = ANY ($2)"
-	if _, err := p.db.Exec(ctx, sql, newStatus, hh); err != nil {
+	if _, err := p.db.Exec(ctx, sql, newStatus, hashes); err != nil {
 		return err
 	}
 	return nil

@@ -13,8 +13,10 @@ const (
 	TxStatusPending TxStatus = "pending"
 	// TxStatusInvalid represents an invalid tx
 	TxStatusInvalid TxStatus = "invalid"
-	// TxStatusSelected represents a tx that has been selected
+	// TxStatusSelected represents a tx that has been	 selected
 	TxStatusSelected TxStatus = "selected"
+	// TxStatusPreSelected represents a tx that has been preselected for executor processing
+	TxStatusPreSelected TxStatus = "preselected"
 )
 
 // TxStatus represents the state of a tx

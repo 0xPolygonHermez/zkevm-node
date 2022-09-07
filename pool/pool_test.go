@@ -326,12 +326,10 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		UsedBinaries:         1,
 		UsedSteps:            1,
 	}
-	tx, err := p.GetTopPendingTxByProfitabilityAndZkCounters(ctx, zkCounters, []string{})
+	txs, err := p.GetTopPendingTxByProfitabilityAndZkCounters(ctx, zkCounters, 10)
 	require.NoError(t, err)
-	assert.Equal(t, tx.Transaction.GasPrice().Uint64(), uint64(10))
-	tx1, err := p.GetTopPendingTxByProfitabilityAndZkCounters(ctx, zkCounters, []string{tx.Hash().String()})
-	require.NoError(t, err)
-	assert.Equal(t, tx1.Transaction.GasPrice().Uint64(), uint64(11))
+	assert.Equal(t, txs[1].Transaction.GasPrice().Uint64(), uint64(10))
+	assert.Equal(t, txs[0].Transaction.GasPrice().Uint64(), uint64(11))
 }
 
 func Test_UpdateTxsStatus(t *testing.T) {
@@ -388,7 +386,7 @@ func Test_UpdateTxsStatus(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.UpdateTxsStatus(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()}, pool.TxStatusInvalid)
+	err = p.UpdateTxsStatus(ctx, []string{signedTx1.Hash().String(), signedTx2.Hash().String()}, pool.TxStatusInvalid)
 	if err != nil {
 		t.Error(err)
 	}
@@ -553,7 +551,7 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.UpdateTxsStatus(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()}, pool.TxStatusSelected)
+	err = p.UpdateTxsStatus(ctx, []string{signedTx1.Hash().String(), signedTx2.Hash().String()}, pool.TxStatusSelected)
 	if err != nil {
 		t.Error(err)
 	}

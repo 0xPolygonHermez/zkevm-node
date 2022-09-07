@@ -1020,14 +1020,14 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 // returning a slice with only processed and a map unprocessed txs
 // respectively.
 func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
-	[]*ProcessTransactionResponse, []common.Hash, map[string]*ProcessTransactionResponse) {
+	[]*ProcessTransactionResponse, []string, map[string]*ProcessTransactionResponse) {
 	processedTxResponses := []*ProcessTransactionResponse{}
-	processedTxsHashes := []common.Hash{}
+	processedTxsHashes := []string{}
 	unprocessedTxResponses := map[string]*ProcessTransactionResponse{}
 	for _, response := range responses {
 		if response.IsProcessed {
 			processedTxResponses = append(processedTxResponses, response)
-			processedTxsHashes = append(processedTxsHashes, response.TxHash)
+			processedTxsHashes = append(processedTxsHashes, response.TxHash.String())
 		} else {
 			log.Infof("Tx %s has not been processed", response.TxHash)
 			unprocessedTxResponses[response.TxHash.String()] = response

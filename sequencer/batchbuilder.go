@@ -16,9 +16,11 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+const gasLimit = 21000
+
 type processTxResponse struct {
 	processedTxs       []*state.ProcessTransactionResponse
-	processedTxsHashes []common.Hash
+	processedTxsHashes []string
 	unprocessedTxs     map[string]*state.ProcessTransactionResponse
 	isBatchProcessed   bool
 }
@@ -53,8 +55,14 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	// Get next txs from the pool
 	log.Info("getting pending txs from the pool")
+	maxTxs := s.cfg.MaxCumulativeGasUsed / gasLimit
 	for !s.isZkCountersMoreThanMax(s.sumZkCounters) {
-		pendTx, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.remainingZkCounters(s.sumZkCounters), s.pendingTxsHashes)
+		if uint64(len(s.pendingTxs)) >= maxTxs {
+			log.Info("pending txs slice reached limit, proceeding to processing txs...")
+			break
+		}
+
+		pendTxs, err := s.pool.GetTopPendingTxByProfitabilityAndZkCounters(ctx, s.remainingZkCounters(s.sumZkCounters), maxTxs-uint64(len(s.pendingTxs)))
 		if err == pgpoolstorage.ErrNotFound {
 			if len(s.pendingTxs) > 0 {
 				log.Info("there is no suitable pending tx in the pool, proceed to process pending txs...")
@@ -67,14 +75,21 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			log.Errorf("failed to get pending tx, err: %v", err)
 			return
 		}
-		log.Infof("adding pending txs to pending tx array, hash: %s", pendTx.Hash().String())
-		s.sumZkCounters.SumUpZkCounters(pendTx.ZkCounters)
-		s.pendingTxs = append(s.pendingTxs, pendTx)
-		s.pendingTxsHashes = append(s.pendingTxsHashes, pendTx.Hash().String())
+
+		for _, tx := range pendTxs {
+			s.sumZkCounters.SumUpZkCounters(tx.ZkCounters)
+			s.pendingTxsHashes = append(s.pendingTxsHashes, tx.Hash().String())
+		}
+		s.pendingTxs = append(s.pendingTxs, pendTxs...)
 	}
 
-	for _, tx := range s.pendingTxs {
-		log.Infof("processing tx: %s", tx.Hash())
+	err := s.pool.UpdateTxsStatus(ctx, s.pendingTxsHashes, pool.TxStatusPreSelected)
+	if err != nil {
+		log.Errorf("failed to update pending txs status to preselected, err: %w", err)
+		return
+	}
+	for _, hash := range s.pendingTxsHashes {
+		log.Infof("processing tx: %s", hash)
 	}
 	pTxResponse, err := s.processTxs(ctx, s.pendingTxs)
 	if err != nil {
