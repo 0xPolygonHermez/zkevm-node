@@ -13,12 +13,12 @@ type traceConfig struct {
 	Tracer *string `json:"tracer"`
 }
 
-type traceTransactionResponse struct {
-	Gas         uint64         `json:"gas"`
-	Failed      bool           `json:"failed"`
-	ReturnValue interface{}    `json:"returnValue"`
-	StructLogs  []StructLogRes `json:"structLogs"`
-}
+// type traceTransactionResponse struct {
+// 	Gas         uint64         `json:"gas"`
+// 	Failed      bool           `json:"failed"`
+// 	ReturnValue interface{}    `json:"returnValue"`
+// 	StructLogs  []StructLogRes `json:"structLogs"`
+// }
 
 // StructLogRes represents a log response.
 type StructLogRes struct {
