@@ -178,13 +178,13 @@ services:
 
   zkevm-mock-l1-network:
     container_name: zkevm-local-l1-network
-    image: hermeznetwork/geth-zkevm-contracts@sha256:7ac654f8b06baaca030f0022398dca1ffaa872be07dcf03c6bbc3ff6011adb88
+    image: hermeznetwork/geth-zkevm-contracts@sha256:a3a61178d3821a38774a366e087214120475f70c1f91154188d779d23195b2c5
     ports:
       - 8545:8545
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkprover-local@sha256:0be88da4159de817f8a78666742eadf4cac367ace2cdb1fca428152057ae3a02
+    image: hermeznetwork/zkprover-local@sha256:f3eb2a1c0728c51c182e778c33d10eefbf4703f0e96a6e15e88ad155078a5e9e
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
@@ -193,7 +193,7 @@ services:
     volumes:
       - ./${CONFIG_MODE}/config/prover.config.${CONFIG_MODE:-local}.json:/usr/src/app/config.json
     command: >
-      zkprover input_executor.json
+      zkProver -c /usr/src/app/config.json
 
   zkprover-mock:
     container_name: zkprover-mock
