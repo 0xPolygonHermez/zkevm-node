@@ -24,7 +24,7 @@ services:
     container_name: zkevm-json-rpc
     image: zkevm-node
     ports:
-      - 8123:8123
+      - 8124:8123
     environment:
       - ZKEVM_NODE_DATABASE_USER=test_user
       - ZKEVM_NODE_DATABASE_PASSWORD=test_password
@@ -177,7 +177,7 @@ services:
     command: ["postgres", "-N", "500"]
 
   zkevm-mock-l1-network:
-    container_name: zkevm-local-l1-network
+    container_name: zkevm-mock-l1-network
     image: hermeznetwork/geth-zkevm-contracts@sha256:7ac654f8b06baaca030f0022398dca1ffaa872be07dcf03c6bbc3ff6011adb88
     ports:
       - 8545:8545

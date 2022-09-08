@@ -411,7 +411,10 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	log.Debugf("processBatch[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("processBatch[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("processBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
-	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	now := time.Now()
+	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	log.Infof("It took %v for the executor to process the request", time.Since(now))
+	return res, err
 }
 
 // StoreTransactions is used by the sequencer to add processed transactions into

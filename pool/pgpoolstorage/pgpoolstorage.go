@@ -175,7 +175,7 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 }
 
 // GetTopPendingTxByProfitabilityAndZkCounters gets top pending tx by profitability and zk counter
-func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters pool.ZkCounters, limit uint64) ([]*pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, limit uint64) ([]*pool.Transaction, error) {
 	query := `
 		SELECT
 			encoded,
@@ -193,23 +193,9 @@ func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx co
 		FROM
 			pool.txs p1
 		WHERE 
-			status = $1 AND 
--- 			cumulative_gas_used <= $2 AND 
--- 			used_keccak_hashes <= $3 AND 
--- 			used_poseidon_hashes <= $4 AND 
--- 			used_poseidon_paddings <= $5 AND
--- 			used_mem_aligns <= $6 AND 
--- 			used_arithmetics <= $7 AND
--- 			used_binaries <= $8 AND 
--- 			used_steps <= $9 AND
-			nonce = (
-				SELECT MIN(p2.nonce)
-				FROM pool.txs p2
-				WHERE p1.from_address = p2.from_address AND status = $1
-			)
-		GROUP BY
-			from_address, p1.hash
-		ORDER BY gas_price DESC
+			status = $1
+		ORDER BY 
+			nonce ASC
 		LIMIT $2
 	`
 

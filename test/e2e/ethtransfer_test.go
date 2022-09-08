@@ -25,7 +25,7 @@ func TestEthTransfer(t *testing.T) {
 		t.Skip()
 	}
 
-	defer func() { require.NoError(t, operations.Teardown()) }()
+	// defer func() { require.NoError(t, operations.Teardown()) }()
 
 	err := operations.Teardown()
 	require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestEthTransfer(t *testing.T) {
 	client, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 50
+	nTxs := 2000
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)
@@ -82,7 +82,7 @@ func TestEthTransfer(t *testing.T) {
 		sentTxs = append(sentTxs, signedTx)
 	}
 	// wait for TX to be mined
-	timeout := 30 * time.Second
+	timeout := 180 * time.Second
 	for _, tx := range sentTxs {
 		log.Infof("Waiting Tx %s to be mined", tx.Hash())
 		err = operations.WaitTxToBeMined(client, tx.Hash(), timeout)

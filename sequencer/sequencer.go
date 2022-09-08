@@ -38,7 +38,6 @@ type Sequencer struct {
 	lastStateRoot, lastLocalExitRoot common.Hash
 
 	sequenceInProgress types.Sequence
-	pendingTxs         []*pool.Transaction
 	sumZkCounters      pool.ZkCounters
 }
 
@@ -66,7 +65,6 @@ func New(
 		checker:       checker,
 		txManager:     manager,
 		address:       addr,
-		pendingTxs:    []*pool.Transaction{},
 		sumZkCounters: pool.ZkCounters{},
 	}, nil
 }

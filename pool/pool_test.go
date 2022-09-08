@@ -316,17 +316,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		}
 	}
 
-	zkCounters := pool.ZkCounters{
-		CumulativeGasUsed:    1000000,
-		UsedKeccakHashes:     1,
-		UsedPoseidonHashes:   1,
-		UsedPoseidonPaddings: 1,
-		UsedMemAligns:        1,
-		UsedArithmetics:      1,
-		UsedBinaries:         1,
-		UsedSteps:            1,
-	}
-	txs, err := p.GetTopPendingTxByProfitabilityAndZkCounters(ctx, zkCounters, 10)
+	txs, err := p.GetTopPendingTxByProfitabilityAndZkCounters(ctx, 10)
 	require.NoError(t, err)
 	assert.Equal(t, txs[0].Transaction.GasPrice().Uint64(), uint64(20))
 }

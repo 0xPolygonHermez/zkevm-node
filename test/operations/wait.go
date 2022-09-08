@@ -24,7 +24,7 @@ import (
 
 const (
 	// DefaultInterval is a time interval
-	DefaultInterval = 2 * time.Second
+	DefaultInterval = 2 * time.Millisecond
 	// DefaultDeadline is a time interval
 	DefaultDeadline = 30 * time.Second
 	// DefaultTxMinedDeadline is a time interval
@@ -239,7 +239,7 @@ func revertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blo
 
 // l2BlockConsolidationCondition
 func l2BlockConsolidationCondition(l2Block *big.Int) (bool, error) {
-	l2NetworkURL := "http://localhost:8123"
+	l2NetworkURL := "http://localhost:8124"
 	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockConsolidated", l2Block.Uint64())
 	if err != nil {
 		return false, err
@@ -257,7 +257,7 @@ func l2BlockConsolidationCondition(l2Block *big.Int) (bool, error) {
 
 // l2BlockVirtualizationCondition
 func l2BlockVirtualizationCondition(l2Block *big.Int) (bool, error) {
-	l2NetworkURL := "http://localhost:8123"
+	l2NetworkURL := "http://localhost:8124"
 	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockVirtualized", l2Block.Uint64())
 	if err != nil {
 		return false, err
