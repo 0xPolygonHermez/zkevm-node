@@ -453,11 +453,7 @@ func (m *Manager) StartNode() error {
 }
 
 func approveMatic() error {
-	err := StartComponent("approve-matic")
-	if err != nil {
-		return err
-	}
-	return StopComponent("approve-matic")
+	return StartComponent("approve-matic")
 }
 
 func stopNode() error {
