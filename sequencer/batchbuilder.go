@@ -266,7 +266,7 @@ func (s *Sequencer) processTxs(ctx context.Context, pendingTxs []*pool.Transacti
 		processedTxs:       processedTxs,
 		processedTxsHashes: processedTxsHashes,
 		unprocessedTxs:     unprocessedTxs,
-		isBatchProcessed:   !processBatchResp.IsBatchProcessed,
+		isBatchProcessed:   processBatchResp.IsBatchProcessed,
 	}
 
 	return response, nil
