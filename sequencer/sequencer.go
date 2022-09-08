@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 const (
@@ -38,7 +39,6 @@ type Sequencer struct {
 
 	sequenceInProgress types.Sequence
 	pendingTxs         []*pool.Transaction
-	pendingTxsHashes   []string
 	sumZkCounters      pool.ZkCounters
 }
 
@@ -59,16 +59,15 @@ func New(
 	// TODO: check that private key used in etherman matches addr
 
 	return &Sequencer{
-		cfg:              cfg,
-		pool:             txPool,
-		state:            state,
-		etherman:         etherman,
-		checker:          checker,
-		txManager:        manager,
-		address:          addr,
-		pendingTxs:       []*pool.Transaction{},
-		pendingTxsHashes: []string{},
-		sumZkCounters:    pool.ZkCounters{},
+		cfg:           cfg,
+		pool:          txPool,
+		state:         state,
+		etherman:      etherman,
+		checker:       checker,
+		txManager:     manager,
+		address:       addr,
+		pendingTxs:    []*pool.Transaction{},
+		sumZkCounters: pool.ZkCounters{},
 	}, nil
 }
 
@@ -266,6 +265,6 @@ func (s *Sequencer) createFirstBatch(ctx context.Context) {
 		GlobalExitRoot:  processingCtx.GlobalExitRoot,
 		Timestamp:       processingCtx.Timestamp.Unix(),
 		ForceBatchesNum: 0,
-		Txs:             nil,
+		Txs:             []ethTypes.Transaction{},
 	}
 }

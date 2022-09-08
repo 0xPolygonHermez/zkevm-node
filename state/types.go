@@ -23,7 +23,7 @@ type ProcessBatchRequest struct {
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
 	CumulativeGasUsed   uint64
-	UnprocesedBatch     bool
+	IsBatchProcessed    bool
 	Responses           []*ProcessTransactionResponse
 	NewStateRoot        common.Hash
 	NewLocalExitRoot    common.Hash

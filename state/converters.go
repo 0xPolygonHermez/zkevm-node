@@ -20,15 +20,15 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 		return nil, err
 	}
 
-	discardedBatchByOCC := false
-
+	isBatchProcessed := true
 	if len(response.Responses) > 0 {
-		discardedBatchByOCC = response.Responses[len(response.Responses)-1].Error == pb.Error_ERROR_OUT_OF_COUNTERS
+		// Check out of counters
+		isBatchProcessed = !(response.Responses[len(response.Responses)-1].Error == pb.Error_ERROR_OUT_OF_COUNTERS)
 	}
 
 	return &ProcessBatchResponse{
 		CumulativeGasUsed:   response.CumulativeGasUsed,
-		UnprocesedBatch:     discardedBatchByOCC,
+		IsBatchProcessed:    isBatchProcessed,
 		Responses:           responses,
 		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
 		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
