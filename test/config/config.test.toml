@@ -57,8 +57,8 @@ MaxSteps = 8388608
 		SendBatchesEvenWhenNotProfitable = "true"
 
 [Aggregator]
-IntervalToConsolidateState = "10s"
-IntervalFrequencyToGetProofGenerationStateInSeconds = "5s"
+IntervalToConsolidateState = "1s"
+IntervalFrequencyToGetProofGenerationState = "100ms"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
 

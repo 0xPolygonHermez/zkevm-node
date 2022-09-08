@@ -35,7 +35,7 @@ func TestEthTransfer(t *testing.T) {
 	require.NoError(t, err)
 	err = opsman.Setup()
 	require.NoError(t, err)
-
+	time.Sleep(5 * time.Second)
 	// Load account with balance on local genesis
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
 	require.NoError(t, err)
@@ -106,11 +106,11 @@ func TestEthTransfer(t *testing.T) {
 
 	// wait for l2 block to be virtualized
 	log.Infof("waiting for the block number %v to be virtualized", l2BlockNumber.String())
-	err = operations.WaitL2BlockToBeVirtualized(l2BlockNumber, 2*time.Minute)
+	err = operations.WaitL2BlockToBeVirtualized(l2BlockNumber, 4*time.Minute)
 	require.NoError(t, err)
 
 	// wait for l2 block number to be consolidated
 	log.Infof("waiting for the block number %v to be consolidated", l2BlockNumber.String())
-	err = operations.WaitL2BlockToBeConsolidated(l2BlockNumber, 2*time.Minute)
+	err = operations.WaitL2BlockToBeConsolidated(l2BlockNumber, 4*time.Minute)
 	require.NoError(t, err)
 }

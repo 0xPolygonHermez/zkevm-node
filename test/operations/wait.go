@@ -24,7 +24,7 @@ import (
 
 const (
 	// DefaultInterval is a time interval
-	DefaultInterval = 2 * time.Second
+	DefaultInterval = 100 * time.Millisecond
 	// DefaultDeadline is a time interval
 	DefaultDeadline = 30 * time.Second
 	// DefaultTxMinedDeadline is a time interval
