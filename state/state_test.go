@@ -1211,8 +1211,12 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 	require.NoError(t, err)
 
 	for x, testCase := range testCases {
-		var receiverAddress = common.HexToAddress(testCase.To)
 		var stateRoot = state.ZeroHash
+		var receiverAddress = common.HexToAddress(testCase.To)
+		receiver := &receiverAddress
+		if testCase.To == "0x" {
+			receiver = nil
+		}
 
 		v, ok := new(big.Int).SetString(testCase.V, 0)
 		require.Equal(t, true, ok)
@@ -1223,7 +1227,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 		s, ok := new(big.Int).SetString(testCase.S, 0)
 		require.Equal(t, true, ok)
 
-		value := new(big.Int)
+		var value *big.Int
 
 		if testCase.Value != "0x" {
 			value, ok = new(big.Int).SetString(testCase.Value, 0)
@@ -1242,11 +1246,11 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 		// Create transaction
 		tx := types.NewTx(&types.LegacyTx{
 			Nonce:    nonce.Uint64(),
-			To:       &receiverAddress,
+			To:       receiver,
 			Value:    value,
 			Gas:      gasLimit.Uint64(),
 			GasPrice: gasPrice,
-			Data:     common.Hex2Bytes(testCase.Data),
+			Data:     common.Hex2Bytes(strings.TrimPrefix(testCase.Data, "0x")),
 			V:        v,
 			R:        r,
 			S:        s,

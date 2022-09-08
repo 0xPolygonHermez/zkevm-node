@@ -101,7 +101,7 @@ test-full: build-docker compile-scs ## Runs all tests checking race conditions
 	$(RUNDB); sleep 7
 	$(RUNZKPROVER); sleep 5
 	$(RUNZKPROVERMOCK)
-	trap '$(STOPDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
+	trap '$(STOPDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
 
 .PHONY: test-full-non-e2e
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
@@ -120,7 +120,7 @@ test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking ra
 	export CONFIG_MODE="test"	
 	$(STOPDB)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group1/...
+	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group1/...
 
 .PHONY: test-e2e-group-2
 test-e2e-group-2: build-docker compile-scs ## Runs group 2 e2e tests checking race conditions
@@ -131,14 +131,14 @@ test-e2e-group-2: build-docker compile-scs ## Runs group 2 e2e tests checking ra
 	CONFIG_MODE="test" $(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group2/...
+	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group2/...
 
 .PHONY: test-e2e-group-3
 test-e2e-group-3: build-docker compile-scs ## Runs group 3 e2e tests checking race conditions
 	export CONFIG_MODE="test"	
 	$(STOPDB)
 	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -p 1 -timeout 600s ./ci/e2e-group3/...
+	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group3/...
 
 .PHONY: install-linter
 install-linter: ## Installs the linter
