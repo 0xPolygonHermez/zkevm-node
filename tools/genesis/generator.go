@@ -179,7 +179,7 @@ func assertGenesis(expectedRoot string) (err error) {
 	}
 
 	// Get Genesis root using jRPC
-	client, err := ethclient.Dial("http://localhost:8124")
+	client, err := ethclient.Dial("http://localhost:8123")
 	if err != nil {
 		log.Error(err)
 		return

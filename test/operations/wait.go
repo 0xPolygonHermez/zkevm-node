@@ -239,7 +239,7 @@ func revertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blo
 
 // l2BlockConsolidationCondition
 func l2BlockConsolidationCondition(l2Block *big.Int) (bool, error) {
-	l2NetworkURL := "http://localhost:8124"
+	l2NetworkURL := "http://localhost:8123"
 	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockConsolidated", l2Block.Uint64())
 	if err != nil {
 		return false, err
@@ -257,7 +257,7 @@ func l2BlockConsolidationCondition(l2Block *big.Int) (bool, error) {
 
 // l2BlockVirtualizationCondition
 func l2BlockVirtualizationCondition(l2Block *big.Int) (bool, error) {
-	l2NetworkURL := "http://localhost:8124"
+	l2NetworkURL := "http://localhost:8123"
 	response, err := jsonrpc.JSONRPCCall(l2NetworkURL, "zkevm_isL2BlockVirtualized", l2Block.Uint64())
 	if err != nil {
 		return false, err

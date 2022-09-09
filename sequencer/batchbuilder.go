@@ -106,7 +106,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			return
 		}
 	}
-	log.Infof("%d txs processed successfuly", len(s.sequenceInProgress.Txs))
+	log.Infof("%d txs processed successfully", len(s.sequenceInProgress.Txs))
 
 	// If after processing new txs the sequence is equal or smaller, revert changes and close sequence
 	if len(s.sequenceInProgress.Txs) <= len(sequenceBeforeTryingToProcessNewTxs.Txs) {
@@ -376,24 +376,4 @@ func (s *Sequencer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 	s.lastBatchNum = newBatchNum
 
 	return processingCtx, nil
-}
-
-func (s *Sequencer) isZkCountersMoreThanMax(sumCounters pool.ZkCounters) bool {
-	return s.cfg.MaxCumulativeGasUsed <= uint64(sumCounters.CumulativeGasUsed) ||
-		s.cfg.MaxKeccakHashes <= sumCounters.UsedKeccakHashes ||
-		s.cfg.MaxPoseidonHashes <= sumCounters.UsedPoseidonHashes ||
-		s.cfg.MaxPoseidonPaddings <= sumCounters.UsedPoseidonPaddings ||
-		s.cfg.MaxMemAligns <= sumCounters.UsedMemAligns ||
-		s.cfg.MaxArithmetics <= sumCounters.UsedArithmetics ||
-		s.cfg.MaxBinaries <= sumCounters.UsedBinaries ||
-		s.cfg.MaxSteps <= sumCounters.UsedSteps
-}
-
-func (s *Sequencer) getPendingTxByHash(transactions []*pool.Transaction, hash common.Hash) *pool.Transaction {
-	for _, tx := range transactions {
-		if tx.Hash() == hash {
-			return tx
-		}
-	}
-	return nil
 }

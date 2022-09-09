@@ -26,7 +26,7 @@ FrequencyForResendingFailedVerifyBatch = "1s"
 
 [RPC]
 Host = "0.0.0.0"
-Port = 8124
+Port = 8123
 MaxRequestsPerIPAndSecond = 10000
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
