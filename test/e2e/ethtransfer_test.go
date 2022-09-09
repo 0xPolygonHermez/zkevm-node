@@ -25,16 +25,16 @@ func TestEthTransfer(t *testing.T) {
 		t.Skip()
 	}
 
-	// defer func() { require.NoError(t, operations.Teardown()) }()
+	defer func() { require.NoError(t, operations.Teardown()) }()
 
-	// err := operations.Teardown()
-	// require.NoError(t, err)
-	// opsCfg := operations.GetDefaultOperationsConfig()
-	// opsCfg.State.MaxCumulativeGasUsed = 80000000000
-	// opsman, err := operations.NewManager(ctx, opsCfg)
-	// require.NoError(t, err)
-	// err = opsman.Setup()
-	// require.NoError(t, err)
+	err := operations.Teardown()
+	require.NoError(t, err)
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsCfg.State.MaxCumulativeGasUsed = 80000000000
+	opsman, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsman.Setup()
+	require.NoError(t, err)
 
 	// Load account with balance on local genesis
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
@@ -43,7 +43,7 @@ func TestEthTransfer(t *testing.T) {
 	client, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 2000
+	nTxs := 50
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)

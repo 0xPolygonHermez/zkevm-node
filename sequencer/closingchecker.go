@@ -13,7 +13,7 @@ import (
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	// Check if sequence is full
 	if len(s.sequenceInProgress.Txs) == int(maxTxsPerBatch) {
-		log.Infof("current sequence should be closed because as it reached the maximum capacity (%d txs)", maxTxsPerBatch)
+		log.Infof("current sequence should be closed because it has reached the maximum capacity (%d txs)", maxTxsPerBatch)
 		return true
 	}
 	// Check if there are any deposits or GER needs to be updated
