@@ -3,7 +3,6 @@ package types
 import (
 	"reflect"
 
-	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -11,11 +10,9 @@ import (
 // Sequence represents an operation sent to the PoE smart contract to be
 // processed.
 type Sequence struct {
-	GlobalExitRoot  common.Hash
-	Timestamp       int64
-	ForceBatchesNum uint64
-	Txs             []types.Transaction
-	pool.ZkCounters
+	GlobalExitRoot, StateRoot, LocalExitRoot common.Hash
+	Timestamp                                int64
+	Txs                                      []types.Transaction
 }
 
 // IsEmpty checks is sequence struct is empty
