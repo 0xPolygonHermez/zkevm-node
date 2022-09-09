@@ -35,10 +35,10 @@ var (
 	verifiedBatchSignatureHash         = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
 
 	// Proxy events
-	initializedSignatureHash           = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
-	AdminChangedSignatureHash          = crypto.Keccak256Hash([]byte("AdminChanged(address,address)"))
-	BeaconUpgradedSignatureHash        = crypto.Keccak256Hash([]byte("BeaconUpgraded(address)"))
-	UpgradedSignatureHash              = crypto.Keccak256Hash([]byte("Upgraded(address)"))
+	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
+	adminChangedSignatureHash   = crypto.Keccak256Hash([]byte("AdminChanged(address,address)"))
+	beaconUpgradedSignatureHash = crypto.Keccak256Hash([]byte("BeaconUpgraded(address)"))
+	upgradedSignatureHash       = crypto.Keccak256Hash([]byte("Upgraded(address)"))
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
@@ -161,13 +161,13 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	case initializedSignatureHash:
 		log.Debug("Initialized event detected")
 		return nil
-	case AdminChangedSignatureHash:
+	case adminChangedSignatureHash:
 		log.Debug("AdminChanged event detected")
 		return nil
-	case BeaconUpgradedSignatureHash:
+	case beaconUpgradedSignatureHash:
 		log.Debug("BeaconUpgraded event detected")
 		return nil
-	case UpgradedSignatureHash:
+	case upgradedSignatureHash:
 		log.Debug("Upgraded event detected")
 		return nil
 	}
