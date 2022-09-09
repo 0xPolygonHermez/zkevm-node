@@ -133,6 +133,9 @@ services:
     ports:
       - 4000:4000
     environment:
+      - NETWORK=ETH
+      - SUBNETWORK=Local Ethereum
+      - COIN=ETH
       - ETHEREUM_JSONRPC_VARIANT=geth
       - ETHEREUM_JSONRPC_HTTP_URL=http://zkevm-mock-l1-network:8545
       - DATABASE_URL=postgres://test_user:test_password@zkevm-explorer-l1-db:5432/explorer
@@ -188,7 +191,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc --http.api eth,net,debug,hez,txpool,web3"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc --http.api eth,net,debug,zkevm,txpool,web3"
 
   zkevm-explorer-db:
     container_name: zkevm-explorer-db
