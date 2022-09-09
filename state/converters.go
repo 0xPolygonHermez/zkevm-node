@@ -67,6 +67,7 @@ func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transa
 		oldRoot = result.StateRoot
 
 		log.Debugf("ProcessTransactionResponse[TxHash]: %v", txs[i].Hash().String())
+		log.Debugf("ProcessTransactionResponse[Nonce]: %v", txs[i].Nonce())
 		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
 		log.Debugf("ProcessTransactionResponse[Error]: %v", result.Error)
 		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
