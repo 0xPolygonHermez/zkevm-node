@@ -33,7 +33,12 @@ var (
 	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
 	forceSequencedBatchesSignatureHash = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))
 	verifiedBatchSignatureHash         = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
+
+	// Proxy events
 	initializedSignatureHash           = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
+	AdminChangedSignatureHash          = crypto.Keccak256Hash([]byte("AdminChanged(address,address)"))
+	BeaconUpgradedSignatureHash        = crypto.Keccak256Hash([]byte("BeaconUpgraded(address)"))
+	UpgradedSignatureHash              = crypto.Keccak256Hash([]byte("Upgraded(address)"))
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
@@ -155,6 +160,15 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		return etherMan.forceSequencedBatchesEvent(ctx, vLog, blocks, blocksOrder)
 	case initializedSignatureHash:
 		log.Debug("Initialized event detected")
+		return nil
+	case AdminChangedSignatureHash:
+		log.Debug("AdminChanged event detected")
+		return nil
+	case BeaconUpgradedSignatureHash:
+		log.Debug("BeaconUpgraded event detected")
+		return nil
+	case UpgradedSignatureHash:
+		log.Debug("Upgraded event detected")
 		return nil
 	}
 	log.Warn("Event not registered: ", vLog)
