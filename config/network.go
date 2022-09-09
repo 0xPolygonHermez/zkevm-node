@@ -132,6 +132,7 @@ var (
 		L1ChainID:                     5, //Goerli
 		L2ChainID:                     1000,
 		Genesis: state.Genesis{
+			NewRoot: common.HexToHash("0x2f6faa6d4df6548625caca49d4b474e7283173bcedd37480c7c88a221e739399"),
 			Actions: []*state.GenesisAction{
 				{
 					Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
@@ -144,10 +145,10 @@ var (
 
 	localConfig = NetworkConfig{
 		GenBlockNumber:                1,
-		PoEAddr:                       common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
+		PoEAddr:                       common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
 		MaticAddr:                     common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
-		GlobalExitRootManagerAddr:     common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
+		GlobalExitRootManagerAddr:     common.HexToAddress("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
@@ -155,6 +156,7 @@ var (
 		L1ChainID:                     1337,
 		L2ChainID:                     1000,
 		Genesis: state.Genesis{
+			NewRoot: common.HexToHash("0x698e3022bcb9b7a75e02d67d7c53406ad989b8a224d5b8388377ee0cc5c6b803"),
 			Actions: []*state.GenesisAction{
 				{
 					Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",

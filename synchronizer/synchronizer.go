@@ -87,8 +87,14 @@ func (s *ClientSynchronizer) Sync() error {
 				ParentHash:  header.ParentHash,
 				ReceivedAt:  time.Unix(int64(header.Time), 0),
 			}
-			if _, err := s.state.SetGenesis(s.ctx, *lastEthBlockSynced, s.genesis, dbTx); err != nil {
+			newRoot, err := s.state.SetGenesis(s.ctx, *lastEthBlockSynced, s.genesis, dbTx)
+			if err != nil {
 				log.Fatal("error setting genesis: ", err)
+			}
+			var root common.Hash
+			root.SetBytes(newRoot)
+			if root != s.genesis.NewRoot {
+				log.Fatal("Calculated newRoot should be ", s.genesis.NewRoot, " instead of ", root)
 			}
 		} else {
 			log.Fatal("unexpected error getting the latest ethereum block. Error: ", err)
