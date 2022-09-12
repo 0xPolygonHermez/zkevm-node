@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	repoURL    = "https://github.com/0xPolygonHermez/zkevm-commonjs"
-	inputFile  = "tools/fill-genesis/genesis.json"
+	repoURL    = "https://github.com/0xPolygonHermez/zkevm-contracts"
+	inputFile  = "deployment/deployment_v2-0/genesis.json"
 	outputFile = "../../config/genesis.go"
 )
 

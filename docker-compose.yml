@@ -127,11 +127,40 @@ services:
       - POSTGRES_DB=test_db
     command: ["postgres", "-N", "500"]
 
+  zkevm-explorer-l1:
+    container_name: zkevm-explorer-l1
+    image: hermeznetwork/hermez-node-blockscout:latest
+    ports:
+      - 4000:4000
+    environment:
+      - NETWORK=ETH
+      - SUBNETWORK=Local Ethereum
+      - COIN=ETH
+      - ETHEREUM_JSONRPC_VARIANT=geth
+      - ETHEREUM_JSONRPC_HTTP_URL=http://zkevm-mock-l1-network:8545
+      - DATABASE_URL=postgres://test_user:test_password@zkevm-explorer-l1-db:5432/explorer
+      - ECTO_USE_SSL=false
+      - MIX_ENV=prod
+    command:
+      ["/bin/sh", "-c", "mix do ecto.create, ecto.migrate; mix phx.server"]
+
+  zkevm-explorer-l1-db:
+    container_name: zkevm-explorer-l1-db
+    image: postgres
+    ports:
+      - 5433:5432
+    environment:
+      # In order to update this values, you may need to run: docker rm -f -v postgres
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_DB=explorer
+    command: ["postgres", "-N", "500"]
+
   zkevm-explorer:
     container_name: zkevm-explorer
     image: hermeznetwork/hermez-node-blockscout:latest
     ports:
-      - 4000:4000
+      - 4001:4000
     environment:
       - NETWORK=POE
       - SUBNETWORK=Polygon Hermez
@@ -162,13 +191,13 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc --http.api eth,net,debug,hez,txpool,web3"
+      - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc --http.api eth,net,debug,zkevm,txpool,web3"
 
   zkevm-explorer-db:
     container_name: zkevm-explorer-db
     image: postgres
     ports:
-      - 5433:5432
+      - 5434:5432
     environment:
       # In order to update this values, you may need to run: docker rm -f -v postgres
       - POSTGRES_USER=test_user
@@ -178,9 +207,10 @@ services:
 
   zkevm-mock-l1-network:
     container_name: zkevm-mock-l1-network
-    image: hermeznetwork/geth-zkevm-contracts@sha256:7ac654f8b06baaca030f0022398dca1ffaa872be07dcf03c6bbc3ff6011adb88
+    image: hermeznetwork/geth-zkevm-contracts@sha256:b88d03a42ef4975d0b92c0dd192e1bf4d673fc4b761aaf4bcfdd606989c1b006
     ports:
       - 8545:8545
+    command: ["--http", "--http.api", "admin,eth,debug,miner,net,txpool,personal,web3",  "--http.addr", "0.0.0.0","--http.corsdomain", "*", "--http.vhosts" ,"*", "--ws", "--ws.origins", "*", "--ws.addr", "0.0.0.0", "--dev", "--datadir", "/geth_data"]
 
   zkevm-prover:
     container_name: zkevm-prover

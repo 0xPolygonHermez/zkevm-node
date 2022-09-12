@@ -170,13 +170,12 @@ func DecodeTx(encodedTx string) (*types.Transaction, error) {
 	return tx, nil
 }
 
-func generateReceipt(block *types.Block, processedTx *ProcessTransactionResponse) *types.Receipt {
+func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse) *types.Receipt {
 	receipt := &types.Receipt{
 		Type:              uint8(processedTx.Type),
 		PostState:         processedTx.StateRoot.Bytes(),
 		CumulativeGasUsed: processedTx.GasUsed,
-		BlockNumber:       block.Number(),
-		BlockHash:         block.Hash(),
+		BlockNumber:       blockNumber,
 		GasUsed:           processedTx.GasUsed,
 		TxHash:            processedTx.Tx.Hash(),
 		TransactionIndex:  0,

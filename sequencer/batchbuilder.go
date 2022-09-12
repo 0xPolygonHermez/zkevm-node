@@ -46,10 +46,10 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 				waitTick(ctx, ticker)
 				return
 			} else {
-				log.Errorf("error closing sequence: %v", err)
+				log.Errorf("error closing sequence: %w", err)
 				log.Info("resetting sequence in progress")
 				if err = s.loadSequenceFromState(ctx); err != nil {
-					log.Errorf("error loading sequence from state: %v", err)
+					log.Errorf("error loading sequence from state: %w", err)
 				}
 				return
 			}
@@ -74,7 +74,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		waitTick(ctx, ticker)
 		return
 	} else if err != nil {
-		log.Errorf("failed to get pending tx, err: %v", err)
+		log.Errorf("failed to get pending tx, err: %w", err)
 		return
 	}
 	for i := 0; i < len(pendTxs); i++ {
@@ -180,7 +180,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 func (s *Sequencer) closeSequence(ctx context.Context) error {
 	newSequence, err := s.newSequence(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create new sequence, err: %w", err)
 	}
 	s.sequenceInProgress = newSequence
 	return nil
@@ -189,18 +189,17 @@ func (s *Sequencer) closeSequence(ctx context.Context) error {
 func (s *Sequencer) isSequenceProfitable(ctx context.Context) bool {
 	isProfitable, err := s.checker.IsSequenceProfitable(ctx, s.sequenceInProgress)
 	if err != nil {
-		log.Errorf("failed to check is sequence profitable, err: %v", err)
+		log.Errorf("failed to check is sequence profitable, err: %w", err)
 		return false
 	}
 
 	return isProfitable
 }
 
-func (s *Sequencer) processTxs(ctx context.Context) (
-	processTxResponse, error) {
+func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
-		log.Errorf("failed to begin state transaction for processing tx, err: %v", err)
+		log.Errorf("failed to begin state transaction for processing tx, err: %w", err)
 		return processTxResponse{}, err
 	}
 
@@ -216,7 +215,7 @@ func (s *Sequencer) processTxs(ctx context.Context) (
 		}
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			log.Errorf(
-				"failed to rollback dbTx when processing tx that gave err: %v. Rollback err: %v",
+				"failed to rollback dbTx when processing tx that gave err: %w. Rollback err: %v",
 				rollbackErr, err,
 			)
 			return processTxResponse{}, err
@@ -226,7 +225,7 @@ func (s *Sequencer) processTxs(ctx context.Context) (
 	}
 
 	if err := dbTx.Commit(ctx); err != nil {
-		log.Errorf("failed to commit dbTx when processing tx, err: %v", err)
+		log.Errorf("failed to commit dbTx when processing tx, err: %w", err)
 		return processTxResponse{}, err
 	}
 
@@ -248,7 +247,7 @@ func (s *Sequencer) processTxs(ctx context.Context) (
 func (s *Sequencer) storeProcessedTransactions(ctx context.Context, processedTxs []*state.ProcessTransactionResponse) error {
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
-		log.Errorf("failed to begin state transaction for StoreTransactions, err: %v", err)
+		log.Errorf("failed to begin state transaction for StoreTransactions, err: %w", err)
 		return err
 	}
 	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processedTxs, dbTx)
@@ -256,23 +255,23 @@ func (s *Sequencer) storeProcessedTransactions(ctx context.Context, processedTxs
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-len(processedTxs)]
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			log.Errorf(
-				"failed to rollback dbTx when StoreTransactions that gave err: %v. Rollback err: %v",
+				"failed to rollback dbTx when StoreTransactions that gave err: %w. Rollback err: %w",
 				rollbackErr, err,
 			)
 			return err
 		}
-		log.Errorf("failed to store transactions, err: %v", err)
+		log.Errorf("failed to store transactions, err: %w", err)
 		if err == state.ErrOutOfOrderProcessedTx || err == state.ErrExistingTxGreaterThanProcessedTx {
 			err = s.loadSequenceFromState(ctx)
 			if err != nil {
-				log.Errorf("failed to load sequence from state, err: %v", err)
+				log.Errorf("failed to load sequence from state, err: %w", err)
 			}
 		}
 		return err
 	}
 
 	if err := dbTx.Commit(ctx); err != nil {
-		log.Errorf("failed to commit dbTx when StoreTransactions, err: %v", err)
+		log.Errorf("failed to commit dbTx when StoreTransactions, err: %w", err)
 		return err
 	}
 
@@ -284,7 +283,7 @@ func (s *Sequencer) updateGerInBatch(ctx context.Context, lastGer *state.GlobalE
 
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
-		log.Errorf("failed to begin state transaction for UpdateGERInOpenBatch tx, err: %v", err)
+		log.Errorf("failed to begin state transaction for UpdateGERInOpenBatch tx, err: %w", err)
 		return err
 	}
 
@@ -292,17 +291,17 @@ func (s *Sequencer) updateGerInBatch(ctx context.Context, lastGer *state.GlobalE
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			log.Errorf(
-				"failed to rollback dbTx when UpdateGERInOpenBatch that gave err: %v. Rollback err: %v",
+				"failed to rollback dbTx when UpdateGERInOpenBatch that gave err: %w. Rollback err: %w",
 				rollbackErr, err,
 			)
 			return err
 		}
-		log.Errorf("failed to update ger in open batch, err: %v", err)
+		log.Errorf("failed to update ger in open batch, err: %w", err)
 		return err
 	}
 
 	if err := dbTx.Commit(ctx); err != nil {
-		log.Errorf("failed to commit dbTx when processing UpdateGERInOpenBatch, err: %v", err)
+		log.Errorf("failed to commit dbTx when processing UpdateGERInOpenBatch, err: %w", err.Error())
 		return err
 	}
 
@@ -319,11 +318,11 @@ func (s *Sequencer) closeBatch(ctx context.Context, dbTx pgx.Tx) error {
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return fmt.Errorf(
-				"failed to rollback dbTx when closing batch that gave err: %v. Rollback err: %v",
-				rollbackErr, err,
+				"failed to rollback dbTx when closing batch that gave err: %s. Rollback err: %s",
+				rollbackErr.Error(), err.Error(),
 			)
 		}
-		return fmt.Errorf("failed to close batch, err: %v", err)
+		return fmt.Errorf("failed to close batch, err: %w", err)
 	}
 
 	return nil
@@ -336,11 +335,11 @@ func (s *Sequencer) getLatestGer(ctx context.Context, dbTx pgx.Tx) (common.Hash,
 	} else if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return common.Hash{}, fmt.Errorf(
-				"failed to rollback dbTx when getting last GER that gave err: %v. Rollback err: %v",
-				rollbackErr, err,
+				"failed to rollback dbTx when getting last GER that gave err: %s. Rollback err: %s",
+				rollbackErr.Error(), err.Error(),
 			)
 		}
-		return common.Hash{}, fmt.Errorf("failed to get latest global exit root, err: %v", err)
+		return common.Hash{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
 	} else {
 		return ger.GlobalExitRoot, nil
 	}
@@ -351,11 +350,11 @@ func (s *Sequencer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return state.ProcessingContext{}, fmt.Errorf(
-				"failed to rollback dbTx when getting last batch num that gave err: %v. Rollback err: %v",
-				rollbackErr, err,
+				"failed to rollback dbTx when getting last batch num that gave err: %s. Rollback err: %s",
+				rollbackErr.Error(), err.Error(),
 			)
 		}
-		return state.ProcessingContext{}, fmt.Errorf("failed to get last batch number, err: %v", err)
+		return state.ProcessingContext{}, fmt.Errorf("failed to get last batch number, err: %w", err)
 	}
 	newBatchNum := lastBatchNum + 1
 	processingCtx := state.ProcessingContext{
@@ -368,8 +367,8 @@ func (s *Sequencer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return state.ProcessingContext{}, fmt.Errorf(
-				"failed to rollback dbTx when opening batch that gave err: %v. Rollback err: %v",
-				rollbackErr, err,
+				"failed to rollback dbTx when opening batch that gave err: %s. Rollback err: %s",
+				rollbackErr.Error(), err.Error(),
 			)
 		}
 		return state.ProcessingContext{}, fmt.Errorf("failed to open new batch, err: %w", err)

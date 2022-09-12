@@ -144,10 +144,10 @@ var (
 
 	localConfig = NetworkConfig{
 		GenBlockNumber:                1,
-		PoEAddr:                       common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
+		PoEAddr:                       common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
 		MaticAddr:                     common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
-		GlobalExitRootManagerAddr:     common.HexToAddress("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"),
+		GlobalExitRootManagerAddr:     common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,

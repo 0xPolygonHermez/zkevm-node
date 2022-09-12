@@ -34,7 +34,7 @@ type Config struct {
 	// trying to consolidate a new state
 	IntervalToConsolidateState types.Duration `mapstructure:"IntervalToConsolidateState"`
 
-	// IntervalFrequencyToGetProofGenerationStateInSeconds is the time the aggregator waits until
+	// IntervalFrequencyToGetProofGenerationState is the time the aggregator waits until
 	// trying to get proof generation status, in case prover client returns PENDING state
 	IntervalFrequencyToGetProofGenerationState types.Duration `mapstructure:"IntervalFrequencyToGetProofGenerationState"`
 
