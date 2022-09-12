@@ -42,6 +42,7 @@ type networkConfigFromJSON struct {
 	OldStateRootPosition          uint64                   `json:"oldStateRootPosition"`
 	L1ChainID                     uint64                   `json:"l1ChainID"`
 	L2ChainID                     uint64                   `json:"l2ChainID"`
+	Root                          string                   `json:"root"`
 	Genesis                       []genesisAccountFromJSON `json:"genesis"`
 }
 
@@ -132,7 +133,7 @@ var (
 		L1ChainID:                     5, //Goerli
 		L2ChainID:                     1000,
 		Genesis: state.Genesis{
-			NewRoot: common.HexToHash("0x2f6faa6d4df6548625caca49d4b474e7283173bcedd37480c7c88a221e739399"),
+			Root: common.HexToHash("0x2f6faa6d4df6548625caca49d4b474e7283173bcedd37480c7c88a221e739399"),
 			Actions: []*state.GenesisAction{
 				{
 					Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
@@ -156,7 +157,7 @@ var (
 		L1ChainID:                     1337,
 		L2ChainID:                     1000,
 		Genesis: state.Genesis{
-			NewRoot: common.HexToHash("0x698e3022bcb9b7a75e02d67d7c53406ad989b8a224d5b8388377ee0cc5c6b803"),
+			Root: common.HexToHash("0x698e3022bcb9b7a75e02d67d7c53406ad989b8a224d5b8388377ee0cc5c6b803"),
 			Actions: []*state.GenesisAction{
 				{
 					Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
@@ -263,6 +264,7 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	}
 
 	cfg.Genesis = state.Genesis{
+		Root: common.HexToHash(cfgJSON.Root),
 		Actions: []*state.GenesisAction{},
 	}
 

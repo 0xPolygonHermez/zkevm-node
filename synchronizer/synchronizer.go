@@ -93,9 +93,10 @@ func (s *ClientSynchronizer) Sync() error {
 			}
 			var root common.Hash
 			root.SetBytes(newRoot)
-			if root != s.genesis.NewRoot {
-				log.Fatal("Calculated newRoot should be ", s.genesis.NewRoot, " instead of ", root)
+			if root != s.genesis.Root {
+				log.Fatal("Calculated newRoot should be ", s.genesis.Root, " instead of ", root)
 			}
+			log.Debug("Genesis root matches!")
 		} else {
 			log.Fatal("unexpected error getting the latest ethereum block. Error: ", err)
 		}
