@@ -316,9 +316,9 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		}
 	}
 
-	txs, err := p.GetTopPendingTxByProfitabilityAndZkCounters(ctx, 10)
+	txs, err := p.GetPendingTxsWithLowestNonce(ctx, 10)
 	require.NoError(t, err)
-	// bcs it's sorted by nonce, tx with lowest nonce is expected here
+	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
 	assert.Equal(t, txs[0].Transaction.Nonce(), uint64(0))
 }
 

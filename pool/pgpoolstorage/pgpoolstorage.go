@@ -174,8 +174,8 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 	return hashes, nil
 }
 
-// GetTopPendingTxByProfitabilityAndZkCounters gets top pending tx by profitability and zk counter
-func (p *PostgresPoolStorage) GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, limit uint64) ([]*pool.Transaction, error) {
+// GetPendingTxsWithLowestNonce gets top pending txs with the lowest nonce
+func (p *PostgresPoolStorage) GetPendingTxsWithLowestNonce(ctx context.Context, limit uint64) ([]*pool.Transaction, error) {
 	query := `
 		SELECT
 			encoded,
