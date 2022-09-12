@@ -120,11 +120,11 @@ var (
 	}
 
 	internalTestnetConfig = NetworkConfig{
-		GenBlockNumber:                6829370,
-		PoEAddr:                       common.HexToAddress("0x083E10Fc0De5a919Dec514CCD9130cD772D38Bfb"),
-		MaticAddr:                     common.HexToAddress("0x7431FD5ba483f826cAf06B68ae95b2aE738D666D"),
+		GenBlockNumber:                7470420,
+		PoEAddr:                       common.HexToAddress("0x483189fFbFc5C0fb6C5593f706430b9b996Fe26D"),
+		MaticAddr:                     common.HexToAddress("0x2C71135C098Ccde47641000F7aE6BbA50Ef448cE"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
-		GlobalExitRootManagerAddr:     common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
+		GlobalExitRootManagerAddr:     common.HexToAddress("0x0D4Ec53a872A108891d817b59Af74C01A2930D18"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
