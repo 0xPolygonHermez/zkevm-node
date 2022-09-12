@@ -403,7 +403,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	}
 	// Send Batch to the Executor
 	log.Debugf("processBatch[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
-	log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
+	// log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("processBatch[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("processBatch[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
 	log.Debugf("processBatch[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
@@ -411,7 +411,10 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	log.Debugf("processBatch[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("processBatch[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("processBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
-	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	now := time.Now()
+	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	log.Infof("It took %v for the executor to process the request", time.Since(now))
+	return res, err
 }
 
 // StoreTransactions is used by the sequencer to add processed transactions into

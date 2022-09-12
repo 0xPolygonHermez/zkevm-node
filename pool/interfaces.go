@@ -23,7 +23,7 @@ type storage interface {
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	UpdateTxsStatus(ctx context.Context, hashes []string, newStatus TxStatus) error
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus) error
-	GetTopPendingTxByProfitabilityAndZkCounters(ctx context.Context, maxZkCounters ZkCounters, limit uint64) ([]*Transaction, error)
+	GetPendingTxsWithLowestNonce(ctx context.Context, limit uint64) ([]*Transaction, error)
 }
 
 type stateInterface interface {

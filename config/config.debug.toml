@@ -10,7 +10,7 @@ Password = "test_password"
 Name = "test_db"
 Host = "localhost"
 Port = "5432"
-EnableLog = true
+EnableLog = false
 MaxConns = 10
 
 [Etherman]
@@ -27,7 +27,7 @@ FrequencyForResendingFailedVerifyBatch = "1s"
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
-MaxRequestsPerIPAndSecond = 100
+MaxRequestsPerIPAndSecond = 10000
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"

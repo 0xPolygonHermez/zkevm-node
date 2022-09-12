@@ -177,14 +177,14 @@ services:
     command: ["postgres", "-N", "500"]
 
   zkevm-mock-l1-network:
-    container_name: zkevm-local-l1-network
+    container_name: zkevm-mock-l1-network
     image: hermeznetwork/geth-zkevm-contracts@sha256:7ac654f8b06baaca030f0022398dca1ffaa872be07dcf03c6bbc3ff6011adb88
     ports:
       - 8545:8545
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkprover-local@sha256:f3eb2a1c0728c51c182e778c33d10eefbf4703f0e96a6e15e88ad155078a5e9e
+    image: hermeznetwork/zkprover-local@sha256:7afb29d1922e7312da2bf5a6d844266c9702c61506d15243506483b7e3a2fde3
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
