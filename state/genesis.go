@@ -4,7 +4,7 @@ import "github.com/ethereum/go-ethereum/common"
 
 // Genesis contains the information to populate state on creation
 type Genesis struct {
-	Root common.Hash
+	Root    common.Hash
 	Actions []*GenesisAction
 }
 

@@ -264,7 +264,7 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	}
 
 	cfg.Genesis = state.Genesis{
-		Root: common.HexToHash(cfgJSON.Root),
+		Root:    common.HexToHash(cfgJSON.Root),
 		Actions: []*state.GenesisAction{},
 	}
 
