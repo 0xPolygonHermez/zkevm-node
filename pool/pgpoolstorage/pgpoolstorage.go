@@ -174,8 +174,8 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 	return hashes, nil
 }
 
-// GetPendingTxsWithLowestNonce gets top pending txs with the lowest nonce
-func (p *PostgresPoolStorage) GetPendingTxsWithLowestNonce(ctx context.Context, limit uint64) ([]*pool.Transaction, error) {
+// GetTxs gets txs with the lowest nonce
+func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, limit uint64) ([]*pool.Transaction, error) {
 	query := `
 		SELECT
 			encoded,
@@ -209,7 +209,7 @@ func (p *PostgresPoolStorage) GetPendingTxsWithLowestNonce(ctx context.Context, 
 		nonce uint64
 	)
 
-	args := []interface{}{pool.TxStatusPending, limit}
+	args := []interface{}{filterStatus, limit}
 
 	rows, err := p.db.Query(ctx, query, args...)
 	if errors.Is(err, pgx.ErrNoRows) {

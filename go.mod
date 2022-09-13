@@ -14,7 +14,6 @@ require (
 	github.com/imdario/mergo v0.3.13
 	github.com/jackc/pgconn v1.13.0
 	github.com/jackc/pgx/v4 v4.17.2
-	github.com/lib/pq v1.10.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/rubenv/sql-migrate v0.0.0-20211023115951-9f02b1e13857
 	github.com/spf13/afero v1.9.2
