@@ -150,7 +150,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(stateDBCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		panic(err)
 	}

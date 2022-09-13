@@ -49,9 +49,9 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 		Password = "rpc_password"
 		Name = "rpc_db"
 		Host = "localhost"
-		Port = "5434"
+		Port = "5432"
 		EnableLog = false
-		MaxConns = 10
+		MaxConns = 200
 
 [Synchronizer]
 SyncInterval = "0s"
