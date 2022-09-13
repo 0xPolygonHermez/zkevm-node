@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -19,7 +20,6 @@ type storage interface {
 	GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]Transaction, error)
 	GetTxsByStatus(ctx context.Context, state TxStatus, isClaims bool, limit uint64) ([]Transaction, error)
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
-	MarkReorgedTxsAsPending(ctx context.Context) error
 	SetGasPrice(ctx context.Context, gasPrice uint64) error
 	UpdateTxsStatus(ctx context.Context, hashes []string, newStatus TxStatus) error
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus) error
@@ -30,4 +30,5 @@ type stateInterface interface {
 	GetBalance(ctx context.Context, address common.Address, batchNumber uint64, dbTx pgx.Tx) (*big.Int, error)
 	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetNonce(ctx context.Context, address common.Address, batchNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
 }

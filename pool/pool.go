@@ -190,3 +190,31 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 
 	return nil
 }
+
+func (p *Pool) MarkReorgedTxsAsPending(ctx context.Context) error {
+	// get selected transactions from pool
+	selectedTxs, err := p.GetSelectedTxs(ctx, 0)
+	if err != nil {
+		return err
+	}
+
+	txsHashesToUpdate := []string{}
+	// look for non existent transactions on state
+	for _, selectedTx := range selectedTxs {
+		txHash := selectedTx.Hash()
+		_, err := p.state.GetTransactionByHash(ctx, txHash, nil)
+		if err == state.ErrNotFound {
+			txsHashesToUpdate = append(txsHashesToUpdate, txHash.String())
+		} else if err != nil {
+			return err
+		}
+	}
+
+	// revert pool state from selected to pending on the pool
+	err = p.UpdateTxsStatus(ctx, txsHashesToUpdate, TxStatusPending)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
