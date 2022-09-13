@@ -30,7 +30,10 @@ import (
 var (
 	senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 
-	dbCfg = dbutils.NewConfigFromEnv()
+	stateDBCfg           = dbutils.NewStateConfigFromEnv()
+	stateDBMigrationsDir = "./migrations/state"
+	poolDBCfg            = dbutils.NewPoolConfigFromEnv()
+	poolDBMigrationsDir  = "./migrations/pool"
 
 	queueCfg = sequencer.PendingTxsQueueConfig{
 		TxPendingInQueueCheckingFrequency: cfgTypes.NewDuration(1 * time.Second),
@@ -49,11 +52,9 @@ var (
 )
 
 func TestQueue_AddAndPopTx(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	sqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -74,7 +75,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(stateDBCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -128,11 +129,9 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 }
 
 func TestQueue_AddOneTx(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	sqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -153,7 +152,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(stateDBCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -216,4 +215,13 @@ func newState(sqlDB *pgxpool.Pool) *state.State {
 	stateTree := merkletree.NewStateTree(stateDBClient)
 	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000}, stateDb, executorClient, stateTree)
 	return st
+}
+
+func initOrResetDB() {
+	if err := dbutils.InitOrReset(stateDBCfg, stateDBMigrationsDir); err != nil {
+		panic(err)
+	}
+	if err := dbutils.InitOrReset(poolDBCfg, poolDBMigrationsDir); err != nil {
+		panic(err)
+	}
 }

@@ -49,9 +49,16 @@ const (
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
 )
 
-var dbConfig = dbutils.NewConfigFromEnv()
-var executorConfig = executor.Config{URI: executorURI}
-var merkletreeConfig = merkletree.Config{URI: merkletreeURI}
+var (
+	stateDBCfg           = dbutils.NewStateConfigFromEnv()
+	stateDBMigrationsDir = "./migrations/state"
+	poolDBCfg            = dbutils.NewPoolConfigFromEnv()
+	poolDBMigrationsDir  = "./migrations/pool"
+	rpcDBCfg             = dbutils.NewPoolConfigFromEnv()
+	rpcDBMigrationsDir   = "./migrations/pool"
+	executorConfig       = executor.Config{URI: executorURI}
+	merkletreeConfig     = merkletree.Config{URI: merkletreeURI}
+)
 
 // SequencerConfig is the configuration for the sequencer operations.
 type SequencerConfig struct {
@@ -78,10 +85,7 @@ type Manager struct {
 // during its creation (which can come from the setup of the db connection).
 func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 	// Init database instance
-	err := dbutils.InitOrReset(dbConfig)
-	if err != nil {
-		return nil, err
-	}
+	initOrResetDB()
 
 	opsman := &Manager{
 		cfg:  cfg,
@@ -285,7 +289,7 @@ func Teardown() error {
 }
 
 func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
-	sqlDB, err := db.NewSQLDB(dbConfig)
+	sqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -523,4 +527,16 @@ func MustGetClient(URL string) *ethclient.Client {
 		panic(err)
 	}
 	return client
+}
+
+func initOrResetDB() {
+	if err := dbutils.InitOrReset(stateDBCfg, stateDBMigrationsDir); err != nil {
+		panic(err)
+	}
+	if err := dbutils.InitOrReset(poolDBCfg, poolDBMigrationsDir); err != nil {
+		panic(err)
+	}
+	if err := dbutils.InitOrReset(rpcDBCfg, rpcDBMigrationsDir); err != nil {
+		panic(err)
+	}
 }

@@ -30,8 +30,9 @@ const (
 )
 
 var (
-	ctx = context.Background()
-	cfg = dbutils.NewConfigFromEnv()
+	ctx                  = context.Background()
+	stateDBCfg           = dbutils.NewStateConfigFromEnv()
+	stateDBMigrationsDir = "./migrations/state"
 
 	ger             = common.HexToHash("deadbeef")
 	mainnetExitRoot = common.HexToHash("caffe")
@@ -39,9 +40,7 @@ var (
 )
 
 func TestBroadcast(t *testing.T) {
-	if err := dbutils.InitOrReset(cfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
 	if testing.Short() {
 		t.Skip()
@@ -84,12 +83,8 @@ func TestBroadcast(t *testing.T) {
 }
 
 func initState() (*state.State, error) {
-	dbConfig := dbutils.NewConfigFromEnv()
-	err := dbutils.InitOrReset(dbConfig)
-	if err != nil {
-		return nil, err
-	}
-	sqlDB, err := db.NewSQLDB(dbConfig)
+	initOrResetDB()
+	sqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -150,4 +145,10 @@ func populateDB(ctx context.Context, st *state.State) error {
 	const addExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root, global_exit_root_num) VALUES ($1, $2, $3, $4, $5)"
 	_, err := st.PostgresStorage.Exec(ctx, addExitRoots, blockNumber, ger, mainnetExitRoot, rollupExitRoot, 1)
 	return err
+}
+
+func initOrResetDB() {
+	if err := dbutils.InitOrReset(stateDBCfg, stateDBMigrationsDir); err != nil {
+		panic(err)
+	}
 }

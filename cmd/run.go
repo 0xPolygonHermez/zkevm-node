@@ -43,17 +43,20 @@ func start(cliCtx *cli.Context) error {
 		return err
 	}
 	setupLog(c.Log)
-	runMigrations(c.Database)
+	runMigrations(c.StateDB, "./migrations/state")
+	runMigrations(c.PoolDB, "./migrations/pool")
+	runMigrations(c.RPC.DB, "./migrations/rpc")
 
-	sqlDB, err := db.NewSQLDB(c.Database)
+	stateSqlDB, err := db.NewSQLDB(c.StateDB)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	ctx := context.Background()
 
-	st := newState(ctx, c, sqlDB)
+	st := newState(ctx, c, stateSqlDB)
 
-	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(c.Database)
+	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(c.PoolDB)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -114,8 +117,8 @@ func setupLog(c log.Config) {
 	log.Init(c)
 }
 
-func runMigrations(c db.Config) {
-	err := db.RunMigrationsUp(c)
+func runMigrations(c db.Config, dir string) {
+	err := db.RunMigrationsUp(c, dir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -144,7 +147,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.Sta
 }
 
 func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gasPriceEstimator, apis map[string]bool) {
-	storage, err := jsonrpc.NewPostgresStorage(c.Database)
+	storage, err := jsonrpc.NewPostgresStorage(c.RPC.DB)
 	if err != nil {
 		log.Fatal(err)
 	}

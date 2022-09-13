@@ -37,7 +37,9 @@ func approveTokens(ctx *cli.Context) error {
 
 	setupLog(c.Log)
 
-	runMigrations(c.Database)
+	runMigrations(c.StateDB, "./migrations/state")
+	runMigrations(c.PoolDB, "./migrations/pool")
+	runMigrations(c.RPC.DB, "./migrations/rpc")
 
 	// Check if it is already registered
 	etherman, err := newEtherman(*c)

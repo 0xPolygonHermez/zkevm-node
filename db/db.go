@@ -31,26 +31,26 @@ func NewSQLDB(cfg Config) (*pgxpool.Pool, error) {
 }
 
 // RunMigrationsUp runs migrate-up for the given config.
-func RunMigrationsUp(cfg Config) error {
-	return runMigrations(cfg, migrate.Up)
+func RunMigrationsUp(cfg Config, dir string) error {
+	return runMigrations(cfg, dir, migrate.Up)
 }
 
 // RunMigrationsDown runs migrate-down for the given config.
-func RunMigrationsDown(cfg Config) error {
-	return runMigrations(cfg, migrate.Down)
+func RunMigrationsDown(cfg Config, dir string) error {
+	return runMigrations(cfg, dir, migrate.Down)
 }
 
 // runMigrations will execute pending migrations if needed to keep
 // the database updated with the latest changes in either direction,
 // up or down.
-func runMigrations(cfg Config, direction migrate.MigrationDirection) error {
+func runMigrations(cfg Config, dir string, direction migrate.MigrationDirection) error {
 	c, err := pgx.ParseConfig(fmt.Sprintf("postgres://%s:%s@%s:%s/%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name))
 	if err != nil {
 		return err
 	}
 	db := stdlib.OpenDB(*c)
 
-	var migrations = &migrate.PackrMigrationSource{Box: packr.New("zkevm-db-migrations", "./migrations")}
+	var migrations = &migrate.PackrMigrationSource{Box: packr.New("zkevm-db-migrations", dir)}
 	nMigrations, err := migrate.Exec(db, "postgres", migrations, direction)
 	if err != nil {
 		return err

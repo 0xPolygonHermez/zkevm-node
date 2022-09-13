@@ -1,5 +1,7 @@
 package jsonrpc
 
+import "github.com/0xPolygonHermez/zkevm-node/db"
+
 // Config represents the configuration of the json rpc
 type Config struct {
 	Host string `mapstructure:"Host"`
@@ -24,4 +26,7 @@ type Config struct {
 
 	// ChainID is the L2 ChainID provided by the Network Config
 	ChainID uint64
+
+	// RPC Database COnfig
+	DB db.Config `mapstructure:"DB"`
 }

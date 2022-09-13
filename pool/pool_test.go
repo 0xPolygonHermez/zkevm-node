@@ -35,8 +35,9 @@ const (
 )
 
 var (
-	dbCfg   = dbutils.NewConfigFromEnv()
-	genesis = state.Genesis{
+	poolDBCfg           = dbutils.NewStateConfigFromEnv()
+	poolDBMigrationsDir = "./migrations/pool"
+	genesis             = state.Genesis{
 		Actions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
@@ -58,11 +59,9 @@ func TestMain(m *testing.M) {
 }
 
 func Test_AddTx(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	sqlDB, err := db.NewSQLDB(poolDBCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -92,7 +91,7 @@ func Test_AddTx(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -138,11 +137,9 @@ func Test_AddTx(t *testing.T) {
 }
 
 func Test_GetPendingTxs(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	sqlDB, err := db.NewSQLDB(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -163,7 +160,7 @@ func Test_GetPendingTxs(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -202,11 +199,9 @@ func Test_GetPendingTxs(t *testing.T) {
 }
 
 func Test_GetPendingTxsZeroPassed(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	sqlDB, err := db.NewSQLDB(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -227,7 +222,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -267,11 +262,9 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 
 func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	ctx := context.Background()
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	sqlDB, err := db.NewSQLDB(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -291,7 +284,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -325,11 +318,9 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 func Test_UpdateTxsStatus(t *testing.T) {
 	ctx := context.Background()
 
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	sqlDB, err := db.NewSQLDB(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -349,7 +340,7 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -392,11 +383,9 @@ func Test_UpdateTxsStatus(t *testing.T) {
 func Test_UpdateTxStatus(t *testing.T) {
 	ctx := context.Background()
 
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	sqlDB, err := db.NewSQLDB(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -416,7 +405,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -457,11 +446,9 @@ func Test_UpdateTxStatus(t *testing.T) {
 }
 
 func Test_SetAndGetGasPrice(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -490,11 +477,9 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 }
 
 func TestMarkReorgedTxsAsPending(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 	ctx := context.Background()
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	sqlDB, err := db.NewSQLDB(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -514,7 +499,7 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -555,11 +540,9 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 }
 
 func TestGetPendingTxSince(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	sqlDB, err := db.NewSQLDB(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -580,7 +563,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -656,10 +639,8 @@ func TestGetPendingTxSince(t *testing.T) {
 
 func Test_DeleteTxsByHashes(t *testing.T) {
 	ctx := context.Background()
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	initOrResetDB()
+	sqlDB, err := db.NewSQLDB(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -679,7 +660,7 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -731,4 +712,10 @@ func newState(sqlDB *pgxpool.Pool) *state.State {
 	stateTree := merkletree.NewStateTree(stateDBClient)
 	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000}, stateDb, executorClient, stateTree)
 	return st
+}
+
+func initOrResetDB() {
+	if err := dbutils.InitOrReset(poolDBCfg, poolDBMigrationsDir); err != nil {
+		panic(err)
+	}
 }
