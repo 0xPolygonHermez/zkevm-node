@@ -16,8 +16,8 @@ message Version {
  * Define all methods implementes by the gRPC
  * Get: get the value for a specific key
  * Set: set the value for a specific key
- * SetProgram: set the byte data for a specific hash
- * GetProgram: get the byte data for a specific hash
+ * SetProgram: set the byte data for a specific key
+ * GetProgram: get the byte data for a specific key
  * Flush: wait for all the pendings writes to the DB are done
  */
 service StateDBService {
@@ -62,7 +62,7 @@ message GetRequest {
 
 /**
  * @dev SetProgramRequest
- * @param {key} - hash to set
+ * @param {key} - key to set
  * @param {data} - Program data to store
  * @param {persistent} - indicates if it should be stored in the database (true) or only in the memory cache (false)
  */
@@ -74,7 +74,7 @@ message SetProgramRequest {
 
 /**
  * @dev GetProgramRequest
- * @param {key} - hash to get program data
+ * @param {key} - key to get program data
  */
 message GetProgramRequest {
     Fea key = 1;
@@ -96,6 +96,7 @@ message GetProgramRequest {
  * @param {old_value} - old value (HEX string format)
  * @param {new_value} - new value (HEX string format)
  * @param {mode}
+ * @param {proof_hash_counter}
  * @param {result} - result code
  */
 message SetResponse {
@@ -109,7 +110,8 @@ message SetResponse {
     string old_value = 8;
     string new_value = 9;
     string mode = 10;
-    ResultCode result = 11;
+    uint64 proof_hash_counter = 11;
+    ResultCode result = 12;
 }
 
 /**
@@ -121,6 +123,7 @@ message SetResponse {
  * @param {ins_value} - value found (HEX string format)
  * @param {is_old0} - is new insert or delete
  * @param {value} - value retrieved (HEX string format)
+ * @param {proof_hash_counter}
  * @param {result} - result code
  */
 message GetResponse {
@@ -131,7 +134,8 @@ message GetResponse {
     string ins_value = 5;
     bool is_old0 = 6;
     string value = 7;
-    ResultCode result = 8;
+    uint64 proof_hash_counter = 8;
+    ResultCode result = 9;
 }
 
 /**
@@ -182,9 +186,10 @@ message ResultCode {
     enum Code {
         CODE_UNSPECIFIED = 0;
         CODE_SUCCESS = 1;
-        CODE_KEY_NOT_FOUND = 2;
-        CODE_DB_ERROR = 3;
+        CODE_DB_KEY_NOT_FOUND = 2; // Requested key was not found in database
+        CODE_DB_ERROR = 3; // Error connecting to database, or processing request
         CODE_INTERNAL_ERROR = 4;
+        CODE_SMT_INVALID_DATA_SIZE = 14; // Invalid size for the data of MT node
     }
     Code code = 1;
 }
