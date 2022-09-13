@@ -83,7 +83,7 @@ func TestGenesisVectors(t *testing.T) {
 
 func genesisCase(t *testing.T, tv genesisTestVectorReader) {
 	// Init database instance
-	err := dbutils.InitOrReset(stateDBCfg, stateDBMigrationsDir)
+	err := dbutils.InitOrResetState(stateDBCfg)
 	require.NoError(t, err)
 	actions := genesisparser.GenesisTest2Actions(tv.GenesisAccountTest())
 	genesis := state.Genesis{

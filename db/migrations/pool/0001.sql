@@ -2,7 +2,7 @@
 DROP SCHEMA IF EXISTS pool CASCADE;
 
 -- +migrate Up
-CREATE SCHEMA IF NOT EXISTS pool;
+CREATE SCHEMA pool;
 
 CREATE TABLE pool.txs
 (

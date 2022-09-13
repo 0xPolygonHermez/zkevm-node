@@ -45,7 +45,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 		Password = "rpc_password"
 		Name = "rpc_db"
 		Host = "zkevm-rpc-db"
-		Port = "5434"
+		Port = "5432"
 		EnableLog = false
 		MaxConns = 10
 

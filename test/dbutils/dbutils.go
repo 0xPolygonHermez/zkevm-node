@@ -7,9 +7,27 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 )
 
-// InitOrReset will initializes the db running the migrations or
+// InitOrResetState will initializes the State db running the migrations or
 // will reset all the known data and rerun the migrations
-func InitOrReset(cfg db.Config, dir string) error {
+func InitOrResetState(cfg db.Config) error {
+	return initOrReset(cfg, "zkevm-state-db")
+}
+
+// InitOrResetPool will initializes the Pool db running the migrations or
+// will reset all the known data and rerun the migrations
+func InitOrResetPool(cfg db.Config) error {
+	return initOrReset(cfg, "zkevm-pool-db")
+}
+
+// InitOrResetRPC will initializes the RPC db running the migrations or
+// will reset all the known data and rerun the migrations
+func InitOrResetRPC(cfg db.Config) error {
+	return initOrReset(cfg, "zkevm-rpc-db")
+}
+
+// initOrReset will initializes the db running the migrations or
+// will reset all the known data and rerun the migrations
+func initOrReset(cfg db.Config, name string) error {
 	// connect to database
 	dbPool, err := db.NewSQLDB(cfg)
 	if err != nil {
@@ -18,10 +36,10 @@ func InitOrReset(cfg db.Config, dir string) error {
 	defer dbPool.Close()
 
 	// run migrations
-	if err := db.RunMigrationsDown(cfg, dir); err != nil {
+	if err := db.RunMigrationsDown(cfg, name); err != nil {
 		return err
 	}
-	return db.RunMigrationsUp(cfg, dir)
+	return db.RunMigrationsUp(cfg, name)
 }
 
 // NewStateConfigFromEnv return a config for state db

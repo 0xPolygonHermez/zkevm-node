@@ -50,14 +50,11 @@ const (
 )
 
 var (
-	stateDBCfg           = dbutils.NewStateConfigFromEnv()
-	stateDBMigrationsDir = "./migrations/state"
-	poolDBCfg            = dbutils.NewPoolConfigFromEnv()
-	poolDBMigrationsDir  = "./migrations/pool"
-	rpcDBCfg             = dbutils.NewPoolConfigFromEnv()
-	rpcDBMigrationsDir   = "./migrations/pool"
-	executorConfig       = executor.Config{URI: executorURI}
-	merkletreeConfig     = merkletree.Config{URI: merkletreeURI}
+	stateDBCfg       = dbutils.NewStateConfigFromEnv()
+	poolDBCfg        = dbutils.NewPoolConfigFromEnv()
+	rpcDBCfg         = dbutils.NewPoolConfigFromEnv()
+	executorConfig   = executor.Config{URI: executorURI}
+	merkletreeConfig = merkletree.Config{URI: merkletreeURI}
 )
 
 // SequencerConfig is the configuration for the sequencer operations.
@@ -530,13 +527,13 @@ func MustGetClient(URL string) *ethclient.Client {
 }
 
 func initOrResetDB() {
-	if err := dbutils.InitOrReset(stateDBCfg, stateDBMigrationsDir); err != nil {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
 		panic(err)
 	}
-	if err := dbutils.InitOrReset(poolDBCfg, poolDBMigrationsDir); err != nil {
+	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
 		panic(err)
 	}
-	if err := dbutils.InitOrReset(rpcDBCfg, rpcDBMigrationsDir); err != nil {
+	if err := dbutils.InitOrResetRPC(rpcDBCfg); err != nil {
 		panic(err)
 	}
 }

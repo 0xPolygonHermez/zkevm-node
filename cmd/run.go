@@ -43,10 +43,7 @@ func start(cliCtx *cli.Context) error {
 		return err
 	}
 	setupLog(c.Log)
-	runMigrations(c.StateDB, "./migrations/state")
-	runMigrations(c.PoolDB, "./migrations/pool")
-	runMigrations(c.RPC.DB, "./migrations/rpc")
-
+	runStateMigrations(c.StateDB)
 	stateSqlDB, err := db.NewSQLDB(c.StateDB)
 	if err != nil {
 		log.Fatal(err)
@@ -55,11 +52,6 @@ func start(cliCtx *cli.Context) error {
 	ctx := context.Background()
 
 	st := newState(ctx, c, stateSqlDB)
-
-	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(c.PoolDB)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	var (
 		grpcClientConns []*grpc.ClientConn
@@ -77,8 +69,6 @@ func start(cliCtx *cli.Context) error {
 		}
 	}
 
-	npool := pool.NewPool(poolDb, st, c.NetworkConfig.L2GlobalExitRootManagerAddr)
-	gpe := createGasPriceEstimator(c.GasPriceEstimator, st, npool)
 	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman)
 	proverClient, proverConn := newProverClient(c.Prover)
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
@@ -88,15 +78,19 @@ func start(cliCtx *cli.Context) error {
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, proverClient, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
-			seq := createSequencer(*c, npool, st, etherman, ethTxManager)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig, st)
+			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
+			runRPCMigrations(c.RPC.DB)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig, st)
+			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
 			}
-			go runJSONRPCServer(*c, npool, st, gpe, apis)
+			go runJSONRPCServer(*c, poolInstance, st, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
 			go runSynchronizer(*c, etherman, st)
@@ -117,8 +111,20 @@ func setupLog(c log.Config) {
 	log.Init(c)
 }
 
-func runMigrations(c db.Config, dir string) {
-	err := db.RunMigrationsUp(c, dir)
+func runStateMigrations(c db.Config) {
+	runMigrations(c, "zkevm-state-db")
+}
+
+func runPoolMigrations(c db.Config) {
+	runMigrations(c, "zkevm-pool-db")
+}
+
+func runRPCMigrations(c db.Config) {
+	runMigrations(c, "zkevm-rpc-db")
+}
+
+func runMigrations(c db.Config, name string) {
+	err := db.RunMigrationsUp(c, name)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -290,4 +296,14 @@ func newState(ctx context.Context, c *config.Config, sqlDB *pgxpool.Pool) *state
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
 	return st
+}
+
+func createPool(poolDBConfig db.Config, networkConfig config.NetworkConfig, st *state.State) *pool.Pool {
+	runPoolMigrations(poolDBConfig)
+	poolStorage, err := pgpoolstorage.NewPostgresPoolStorage(poolDBConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	poolInstance := pool.NewPool(poolStorage, st, networkConfig.L2GlobalExitRootManagerAddr)
+	return poolInstance
 }

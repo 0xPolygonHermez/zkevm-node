@@ -35,9 +35,8 @@ const (
 )
 
 var (
-	poolDBCfg           = dbutils.NewStateConfigFromEnv()
-	poolDBMigrationsDir = "./migrations/pool"
-	genesis             = state.Genesis{
+	poolDBCfg = dbutils.NewStateConfigFromEnv()
+	genesis   = state.Genesis{
 		Actions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
@@ -715,7 +714,7 @@ func newState(sqlDB *pgxpool.Pool) *state.State {
 }
 
 func initOrResetDB() {
-	if err := dbutils.InitOrReset(poolDBCfg, poolDBMigrationsDir); err != nil {
+	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
 		panic(err)
 	}
 }

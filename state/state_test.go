@@ -41,14 +41,13 @@ const (
 )
 
 var (
-	testState            *state.State
-	stateTree            *merkletree.StateTree
-	stateDb              *pgxpool.Pool
-	err                  error
-	stateDBCfg           = dbutils.NewStateConfigFromEnv()
-	stateDBMigrationsDir = "./migrations/state"
-	ctx                  = context.Background()
-	stateCfg             = state.Config{
+	testState  *state.State
+	stateTree  *merkletree.StateTree
+	stateDb    *pgxpool.Pool
+	err        error
+	stateDBCfg = dbutils.NewStateConfigFromEnv()
+	ctx        = context.Background()
+	stateCfg   = state.Config{
 		MaxCumulativeGasUsed: 800000,
 		ChainID:              1000,
 	}
@@ -1934,7 +1933,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 }
 
 func initOrResetDB() {
-	if err := dbutils.InitOrReset(stateDBCfg, stateDBMigrationsDir); err != nil {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
 		panic(err)
 	}
 }

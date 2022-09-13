@@ -30,10 +30,8 @@ const (
 )
 
 var (
-	ctx                  = context.Background()
-	stateDBCfg           = dbutils.NewStateConfigFromEnv()
-	stateDBMigrationsDir = "./migrations/state"
-
+	ctx             = context.Background()
+	stateDBCfg      = dbutils.NewStateConfigFromEnv()
 	ger             = common.HexToHash("deadbeef")
 	mainnetExitRoot = common.HexToHash("caffe")
 	rollupExitRoot  = common.HexToHash("bead")
@@ -148,7 +146,7 @@ func populateDB(ctx context.Context, st *state.State) error {
 }
 
 func initOrResetDB() {
-	if err := dbutils.InitOrReset(stateDBCfg, stateDBMigrationsDir); err != nil {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
 		panic(err)
 	}
 }

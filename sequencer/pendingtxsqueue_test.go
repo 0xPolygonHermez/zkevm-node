@@ -30,10 +30,8 @@ import (
 var (
 	senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 
-	stateDBCfg           = dbutils.NewStateConfigFromEnv()
-	stateDBMigrationsDir = "./migrations/state"
-	poolDBCfg            = dbutils.NewPoolConfigFromEnv()
-	poolDBMigrationsDir  = "./migrations/pool"
+	stateDBCfg = dbutils.NewStateConfigFromEnv()
+	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 
 	queueCfg = sequencer.PendingTxsQueueConfig{
 		TxPendingInQueueCheckingFrequency: cfgTypes.NewDuration(1 * time.Second),
@@ -218,10 +216,10 @@ func newState(sqlDB *pgxpool.Pool) *state.State {
 }
 
 func initOrResetDB() {
-	if err := dbutils.InitOrReset(stateDBCfg, stateDBMigrationsDir); err != nil {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
 		panic(err)
 	}
-	if err := dbutils.InitOrReset(poolDBCfg, poolDBMigrationsDir); err != nil {
+	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
 		panic(err)
 	}
 }

@@ -2,7 +2,7 @@
 DROP SCHEMA IF EXISTS state CASCADE;
 
 -- +migrate Up
-CREATE SCHEMA IF NOT EXISTS state;
+CREATE SCHEMA state;
 
 CREATE TABLE state.block
 ( --L1 block

@@ -2,7 +2,7 @@
 DROP SCHEMA IF EXISTS rpc CASCADE;
 
 -- +migrate Up
-CREATE SCHEMA IF NOT EXISTS rpc
+CREATE SCHEMA rpc;
 
 CREATE TABLE rpc.filters
 (
