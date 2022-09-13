@@ -35,8 +35,9 @@ const (
 )
 
 var (
-	poolDBCfg = dbutils.NewStateConfigFromEnv()
-	genesis   = state.Genesis{
+	stateDBCfg = dbutils.NewStateConfigFromEnv()
+	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
+	genesis    = state.Genesis{
 		Actions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
@@ -60,13 +61,19 @@ func TestMain(m *testing.M) {
 func Test_AddTx(t *testing.T) {
 	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(poolDBCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		panic(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -110,7 +117,7 @@ func Test_AddTx(t *testing.T) {
 		t.Error(err)
 	}
 
-	rows, err := sqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.txs")
+	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.txs")
 	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
@@ -138,13 +145,13 @@ func Test_AddTx(t *testing.T) {
 func Test_GetPendingTxs(t *testing.T) {
 	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(poolDBCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -200,13 +207,13 @@ func Test_GetPendingTxs(t *testing.T) {
 func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(poolDBCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -263,13 +270,13 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	ctx := context.Background()
 	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(poolDBCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close()
+	defer stateSqlDB.Close()
 
-	st := newState(sqlDB)
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -319,13 +326,19 @@ func Test_UpdateTxsStatus(t *testing.T) {
 
 	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(poolDBCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -372,7 +385,7 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	}
 
 	var count int
-	err = sqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs WHERE status = $1", pool.TxStatusInvalid).Scan(&count)
+	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs WHERE status = $1", pool.TxStatusInvalid).Scan(&count)
 	if err != nil {
 		t.Error(err)
 	}
@@ -384,13 +397,19 @@ func Test_UpdateTxStatus(t *testing.T) {
 
 	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(poolDBCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -429,7 +448,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 		t.Error(err)
 	}
 
-	rows, err := sqlDB.Query(ctx, "SELECT status FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
+	rows, err := poolSqlDB.Query(ctx, "SELECT status FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
 	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
@@ -478,13 +497,13 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 func TestMarkReorgedTxsAsPending(t *testing.T) {
 	initOrResetDB()
 	ctx := context.Background()
-	sqlDB, err := db.NewSQLDB(poolDBCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -541,13 +560,13 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 func TestGetPendingTxSince(t *testing.T) {
 	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(poolDBCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -639,13 +658,19 @@ func TestGetPendingTxSince(t *testing.T) {
 func Test_DeleteTxsByHashes(t *testing.T) {
 	ctx := context.Background()
 	initOrResetDB()
-	sqlDB, err := db.NewSQLDB(poolDBCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -692,7 +717,7 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 	}
 
 	var count int
-	err = sqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs").Scan(&count)
+	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs").Scan(&count)
 	if err != nil {
 		t.Error(err)
 	}
@@ -714,6 +739,9 @@ func newState(sqlDB *pgxpool.Pool) *state.State {
 }
 
 func initOrResetDB() {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
+		panic(err)
+	}
 	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
 		panic(err)
 	}
