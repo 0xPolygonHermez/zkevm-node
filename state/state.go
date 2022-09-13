@@ -340,7 +340,7 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 }
 
 // ProcessSequencerBatch is used by the sequencers to process transactions into an open batch
-func (s *State) ProcessSequencerBatch(ctx context.Context, oldRoot common.Hash, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessSequencerBatch start")
 	batchL2Data, err := EncodeTransactions(txs)
@@ -351,7 +351,7 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, oldRoot common.Hash, 
 	if err != nil {
 		return nil, err
 	}
-	result, err := convertToProcessBatchResponse(oldRoot, txs, processBatchResponse)
+	result, err := convertToProcessBatchResponse(txs, processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -403,7 +403,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	}
 	// Send Batch to the Executor
 	log.Debugf("processBatch[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
-	log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
+	// log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("processBatch[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("processBatch[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
 	log.Debugf("processBatch[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
@@ -411,7 +411,10 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	log.Debugf("processBatch[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("processBatch[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("processBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
-	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	now := time.Now()
+	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	log.Infof("It took %v for the executor to process the request", time.Since(now))
+	return res, err
 }
 
 // StoreTransactions is used by the sequencer to add processed transactions into
@@ -597,15 +600,10 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		return fmt.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
 	}
 
-	previousStateRoot, err := s.GetStateRootByBatchNumber(ctx, processingCtx.BatchNumber-1, dbTx)
-	if err != nil {
-		return err
-	}
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
-		//TODO: Also check this
-		if !isProcessed(previousStateRoot, common.BytesToHash(processed.NewStateRoot), processed.Responses[i].Error) {
+		if !isProcessed(processed.Responses[i].Error) {
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
@@ -618,7 +616,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		}
 	}
 
-	processedBatch, err := convertToProcessBatchResponse(previousStateRoot, decodedTransactions, processed)
+	processedBatch, err := convertToProcessBatchResponse(decodedTransactions, processed)
 	if err != nil {
 		return err
 	}
@@ -849,7 +847,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		result.Err = err
 		return result
 	}
-	response, err := convertToProcessBatchResponse(l2BlockStateRoot, []types.Transaction{*tx}, processBatchResponse)
+	response, err := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
 	if err != nil {
 		result.Err = err
 		return result
@@ -1029,16 +1027,19 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 // DetermineProcessedTransactions splits the given tx process responses
 // returning a slice with only processed and a map unprocessed txs
 // respectively.
-func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) ([]*ProcessTransactionResponse, map[string]*ProcessTransactionResponse) {
+func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
+	[]*ProcessTransactionResponse, []string, map[string]*ProcessTransactionResponse) {
 	processedTxResponses := []*ProcessTransactionResponse{}
+	processedTxsHashes := []string{}
 	unprocessedTxResponses := map[string]*ProcessTransactionResponse{}
 	for _, response := range responses {
 		if response.IsProcessed {
 			processedTxResponses = append(processedTxResponses, response)
+			processedTxsHashes = append(processedTxsHashes, response.TxHash.String())
 		} else {
 			log.Infof("Tx %s has not been processed", response.TxHash)
 			unprocessedTxResponses[response.TxHash.String()] = response
 		}
 	}
-	return processedTxResponses, unprocessedTxResponses
+	return processedTxResponses, processedTxsHashes, unprocessedTxResponses
 }

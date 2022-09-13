@@ -75,7 +75,7 @@ Port = 50060
 StoreBackend = "PostgreSQL"
 
 [MTClient]
-URI  = "zkevm-prover:50061"
+URI = "zkevm-prover:50061"
 
 [Executor]
 URI = "zkevm-prover:50071"

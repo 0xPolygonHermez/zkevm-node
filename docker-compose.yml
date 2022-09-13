@@ -143,7 +143,7 @@ services:
       - MIX_ENV=prod
     command:
       ["/bin/sh", "-c", "mix do ecto.create, ecto.migrate; mix phx.server"]
-  
+
   zkevm-explorer-l1-db:
     container_name: zkevm-explorer-l1-db
     image: postgres
@@ -206,7 +206,7 @@ services:
     command: ["postgres", "-N", "500"]
 
   zkevm-mock-l1-network:
-    container_name: zkevm-local-l1-network
+    container_name: zkevm-mock-l1-network
     image: hermeznetwork/geth-zkevm-contracts@sha256:b88d03a42ef4975d0b92c0dd192e1bf4d673fc4b761aaf4bcfdd606989c1b006
     ports:
       - 8545:8545

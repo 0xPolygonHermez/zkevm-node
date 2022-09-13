@@ -294,10 +294,9 @@ func TestSendSequences(t *testing.T) {
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	sequence := ethmanTypes.Sequence{
-		GlobalExitRoot:  ger,
-		Timestamp:       int64(currentBlock.Time() - 1),
-		ForceBatchesNum: 0,
-		Txs:             []types.Transaction{*tx1},
+		GlobalExitRoot: ger,
+		Timestamp:      int64(currentBlock.Time() - 1),
+		Txs:            []types.Transaction{*tx1},
 	}
 	tx, err := etherman.sequenceBatches(etherman.auth, []ethmanTypes.Sequence{sequence})
 	require.NoError(t, err)
