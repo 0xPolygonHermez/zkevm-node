@@ -191,6 +191,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	return nil
 }
 
+// MarkReorgedTxsAsPending updated reorged txs status from selected to pending
 func (p *Pool) MarkReorgedTxsAsPending(ctx context.Context) error {
 	// get selected transactions from pool
 	selectedTxs, err := p.GetSelectedTxs(ctx, 0)
