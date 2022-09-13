@@ -157,8 +157,6 @@ services:
           memory: 1G
     ports:
       - 5433:5432
-    volumes:
-      - ./config/initproverdb.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       - POSTGRES_USER=pool_user
       - POSTGRES_PASSWORD=pool_password
@@ -176,8 +174,6 @@ services:
           memory: 1G
     ports:
       - 5434:5432
-    volumes:
-      - ./config/initproverdb.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       - POSTGRES_USER=rpc_user
       - POSTGRES_PASSWORD=rpc_password
