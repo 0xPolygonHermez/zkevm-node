@@ -28,18 +28,17 @@ func New(cfg Config, ethMan etherman) *Client {
 }
 
 // SequenceBatches send sequences to the channel
-func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
+func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64) {
 	var attempts uint32
-	var gas uint64
 	log.Info("sending sequence to L1")
 	for attempts < c.cfg.MaxSendBatchTxRetries {
-		tx, err := c.ethMan.SequenceBatches(sequences, gas)
+		tx, err := c.ethMan.SequenceBatches(sequences, gasLimit)
 		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
 			log.Errorf("failed to sequence batches, trying once again, retry #%d, gasLimit: %d, err: %v",
 				attempts, 0, err)
 			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 			attempts++
-			tx, err = c.ethMan.SequenceBatches(sequences, gas)
+			tx, err = c.ethMan.SequenceBatches(sequences, gasLimit)
 		}
 		if err != nil {
 			log.Fatalf("failed to sequence batches, maximum attempts exceeded, gasLimit: %d, err: %v",
@@ -52,9 +51,9 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 		if err != nil {
 			attempts++
 			if strings.Contains(err.Error(), "out of gas") {
-				// TODO: percentage gas inncrease via config file
-				gas = uint64(float64(tx.Gas()) * 1.1) //nolint:gomnd
-				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
+				// TODO: percentage gas increase via config file
+				gasLimit = uint64(float64(tx.Gas()) * 1.1) //nolint:gomnd
+				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gasLimit)
 				continue
 			}
 			// TODO: handle timeout by increasing gas price

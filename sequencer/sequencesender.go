@@ -23,7 +23,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 
 	// Check if should send sequence to L1
 	log.Infof("getting sequences to send")
-	sequences, err := s.getSequencesToSend(ctx)
+	sequences, gasLimit, err := s.getSequencesToSend(ctx)
 	if err != nil || len(sequences) == 0 {
 		if err != nil {
 			log.Errorf("error getting sequences: %v", err)
@@ -39,14 +39,14 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 		"sending sequences to L1. From batch %d to batch %d",
 		s.lastBatchNumSentToL1+1, s.lastBatchNumSentToL1+uint64(len(sequences)),
 	)
-	s.txManager.SequenceBatches(sequences)
+	s.txManager.SequenceBatches(sequences, gasLimit)
 	s.lastBatchNumSentToL1 += uint64(len(sequences))
 }
 
 // getSequencesToSend generates an array of sequences to be send to L1.
 // If the array is empty, it doesn't necessarily mean that there are no sequences to be sent,
 // it could be that it's not worth it to do so yet.
-func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, error) {
+func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, uint64, error) {
 	currentBatchNumToSequence := s.lastBatchNumSentToL1 + 1
 	sequences := []types.Sequence{}
 	var estimatedGas uint64
@@ -56,7 +56,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		// Check if batch is closed
 		isClosed, err := s.state.IsBatchClosed(ctx, currentBatchNumToSequence, nil)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if !isClosed {
 			// Reached current (WIP) batch
@@ -65,11 +65,11 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		// Add new sequence
 		batch, err := s.state.GetBatchByNumber(ctx, currentBatchNumToSequence, nil)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		txs, err := s.state.GetTransactionsByBatchNumber(ctx, currentBatchNumToSequence, nil)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		sequences = append(sequences, types.Sequence{
 			GlobalExitRoot: batch.GlobalExitRoot,
@@ -85,9 +85,9 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 			if sequences != nil {
 				// Handling the error gracefully, re-processing the sequence as a sanity check
 				_, err = s.etherman.EstimateGasSequenceBatches(sequences)
-				return sequences, err
+				return sequences, estimatedGas, err
 			}
-			return sequences, err
+			return sequences, estimatedGas, err
 		}
 
 		// Increase batch num for next iteration
@@ -97,24 +97,24 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 	// Reached latest batch. Decide if it's worth to send the sequence, or wait for new batches
 	if len(sequences) == 0 {
 		log.Info("no batches to be sequenced")
-		return nil, nil
+		return nil, 0, nil
 	}
 
 	lastBatchVirtualizationTime, err := s.state.GetTimeForLatestBatchVirtualization(ctx, nil)
 	if err != nil && !errors.Is(err, state.ErrNotFound) {
 		log.Warnf("failed to get last l1 interaction time, err: %v. Sending sequences as a conservative approach", err)
-		return sequences, nil
+		return sequences, estimatedGas, nil
 	}
 	if lastBatchVirtualizationTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
 		// check profitability
 		if s.checker.IsSendSequencesProfitable(new(big.Int).SetUint64(estimatedGas), sequences) {
 			log.Info("sequence should be sent to L1, because too long since didn't send anything to L1")
-			return sequences, nil
+			return sequences, estimatedGas, nil
 		}
 	}
 
 	log.Info("not enough time has passed since last batch was virtualized, and the sequence could be bigger")
-	return nil, nil
+	return nil, 0, nil
 }
 
 // handleEstimateGasSendSequenceErr handles an error on the estimate gas. It will return:
