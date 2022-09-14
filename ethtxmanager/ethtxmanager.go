@@ -52,7 +52,13 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint
 			attempts++
 			if strings.Contains(err.Error(), "out of gas") {
 				// TODO: percentage gas increase via config file
-				gasLimit = uint64(float64(tx.Gas()) * 1.1) //nolint:gomnd
+
+				// Due to issue #1118 we add 20K gas to avoid and OOG
+				// when the gas estimation is processed before a batch consolidation
+				// in the same block
+				gasLimit += 20000 //nolint:gomnd
+
+				// gasLimit = uint64(float64(tx.Gas()) * 1.1) //nolint:gomnd
 				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gasLimit)
 				continue
 			}
