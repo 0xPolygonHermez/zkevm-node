@@ -94,10 +94,6 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	if s.isTxFirstFailedByOCCInBatch(processResponse) {
-		s.updateTxsStatus(ctx, ticker, []string{processResponse.unprocessedTxsHashes[0]}, pool.TxStatusInvalid)
-	}
-
 	// reprocess the batch until:
 	// - all the txs in it are processed, so the batch doesn't include invalid txs
 	// - the batch is processed (certain situations may cause the entire batch to not have effect on the state)
@@ -114,10 +110,6 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
 			log.Errorf("failed to reprocess txs, err: %w", err)
 			return
-		}
-
-		if s.isTxFirstFailedByOCCInBatch(processResponse) {
-			s.updateTxsStatus(ctx, ticker, []string{processResponse.unprocessedTxsHashes[0]}, pool.TxStatusInvalid)
 		}
 	}
 	log.Infof("%d txs processed successfully", len(s.sequenceInProgress.Txs))
@@ -157,11 +149,6 @@ func (s *Sequencer) updateTxsStatus(ctx context.Context, ticker *time.Ticker, ha
 		waitTick(ctx, ticker)
 		err = s.pool.UpdateTxsStatus(ctx, hashes, status)
 	}
-}
-
-// isTxFirstFailedByOCCInBatch If the first tx in a batch fails by an out of counters error it should be discarded
-func (s *Sequencer) isTxFirstFailedByOCCInBatch(processResponse processTxResponse) bool {
-	return !processResponse.isBatchProcessed && len(processResponse.unprocessedTxsHashes) > 0 && s.sequenceInProgress.Txs[0].Hash().String() == processResponse.unprocessedTxsHashes[0]
 }
 
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
