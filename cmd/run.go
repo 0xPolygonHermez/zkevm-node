@@ -122,11 +122,11 @@ func runMigrations(c db.Config) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.NetworkConfig.L1ChainID)
+	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.Etherman.L1ChainID)
 	if err != nil {
 		return nil, err
 	}
-	etherman, err := etherman.NewClient(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.GlobalExitRootManagerAddr)
+	etherman, err := etherman.NewClient(c.Etherman, auth)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 }
 
 func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.State) {
-	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.GenBlockNumber, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
+	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 	}
 
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
-	c.RPC.ChainID = c.NetworkConfig.L2ChainID
+	// c.RPC.ChainID = c.NetworkConfig.L2ChainID
 
 	if err := jsonrpc.NewServer(c.RPC, pool, st, gpe, storage, apis).Start(); err != nil {
 		log.Fatal(err)
@@ -282,7 +282,7 @@ func newState(ctx context.Context, c *config.Config, sqlDB *pgxpool.Pool) *state
 
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
-		ChainID:              c.NetworkConfig.L2ChainID,
+		ChainID:              c.RPC.ChainID,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)

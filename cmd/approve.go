@@ -24,7 +24,7 @@ func approveTokens(ctx *cli.Context) error {
 
 	if !ctx.Bool(config.FlagYes) {
 		fmt.Print("*WARNING* Are you sure you want to approve ", amount,
-			" tokens to be spent by the smc <Name: PoE. Address: "+c.NetworkConfig.PoEAddr.String()+">? [y/N]: ")
+			" tokens to be spent by the smc <Name: PoE. Address: "+c.Etherman.PoEAddr.String()+">? [y/N]: ")
 		var input string
 		if _, err := fmt.Scanln(&input); err != nil {
 			return err
@@ -50,7 +50,7 @@ func approveTokens(ctx *cli.Context) error {
 	amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
 	amountB := new(big.Int)
 	amountInWei.Int(amountB)
-	tx, err := etherman.ApproveMatic(amountB, c.NetworkConfig.PoEAddr)
+	tx, err := etherman.ApproveMatic(amountB, c.Etherman.PoEAddr)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func approveTokens(ctx *cli.Context) error {
 		rinkeby = 4
 		goerli  = 5
 	)
-	switch c.NetworkConfig.L1ChainID {
+	switch c.Etherman.L1ChainID {
 	case mainnet:
 		fmt.Println("Check tx status: https://etherscan.io/tx/" + tx.Hash().String())
 	case rinkeby:

@@ -19,8 +19,12 @@ MaxConns = 200
 
 [Etherman]
 URL = "http://localhost:8545"
+L1ChainID = 1337
 PrivateKeyPath = "./test/test.keystore"
 PrivateKeyPassword = "testonly"
+PoEAddr = "0x0000000000000000000000000000000000000000"
+MaticAddr = "0x0000000000000000000000000000000000000000"
+GlobalExitRootManagerAddr = "0x0000000000000000000000000000000000000000"
 
 [EthTxManager]
 MaxSendBatchTxRetries = 10
@@ -35,11 +39,13 @@ MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
+L2ChainID = 1000
 
 [Synchronizer]
 SyncInterval = "0s"
 SyncChunkSize = 100
 TrustedSequencerURI = ""
+GenBlockNumber = 1
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"

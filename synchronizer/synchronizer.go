@@ -34,7 +34,6 @@ type ClientSynchronizer struct {
 	state              stateInterface
 	ctx                context.Context
 	cancelCtx          context.CancelFunc
-	genBlockNumber     uint64
 	genesis            state.Genesis
 	cfg                Config
 }
@@ -44,7 +43,6 @@ func NewSynchronizer(
 	isTrustedSequencer bool,
 	ethMan ethermanInterface,
 	st stateInterface,
-	genBlockNumber uint64,
 	genesis state.Genesis,
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -55,7 +53,6 @@ func NewSynchronizer(
 		etherMan:           ethMan,
 		ctx:                ctx,
 		cancelCtx:          cancel,
-		genBlockNumber:     genBlockNumber,
 		genesis:            genesis,
 		cfg:                cfg,
 	}, nil
@@ -77,9 +74,9 @@ func (s *ClientSynchronizer) Sync() error {
 	if err != nil {
 		if errors.Is(err, state.ErrStateNotSynchronized) {
 			log.Info("State is empty, setting genesis block")
-			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.genBlockNumber))
+			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.cfg.GenBlockNumber))
 			if err != nil {
-				log.Fatal("error getting l1 block header for block ", s.genBlockNumber, " : ", err)
+				log.Fatal("error getting l1 block header for block ", s.cfg.GenBlockNumber, " : ", err)
 			}
 			lastEthBlockSynced = &state.Block{
 				BlockNumber: header.Number.Uint64(),
@@ -430,7 +427,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 			return nil, err
 		}
 		// Compare hashes
-		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > s.genBlockNumber {
+		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > s.cfg.GenBlockNumber {
 			log.Debug("[checkReorg function] => latestBlockNumber: ", latestBlock.BlockNumber)
 			log.Debug("[checkReorg function] => latestBlockHash: ", latestBlock.BlockHash)
 			log.Debug("[checkReorg function] => latestBlockHashParent: ", latestBlock.ParentHash)
