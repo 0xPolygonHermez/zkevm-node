@@ -186,6 +186,12 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 		}
 		ger, err := s.getLatestGer(ctx, dbTx)
 		if err != nil {
+			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+				return fmt.Errorf(
+					"failed to rollback dbTx when getting last GER that gave err: %s. Rollback err: %s",
+					rollbackErr.Error(), err.Error(),
+				)
+			}
 			return fmt.Errorf("failed to get latest global exit root, err: %w", err)
 		}
 		processingCtx := state.ProcessingContext{

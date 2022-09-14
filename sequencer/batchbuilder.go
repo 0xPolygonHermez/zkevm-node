@@ -155,16 +155,34 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	}
 	err = s.closeBatch(ctx, dbTx)
 	if err != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+			return types.Sequence{}, fmt.Errorf(
+				"failed to rollback dbTx when closing batch that gave err: %s. Rollback err: %s",
+				rollbackErr.Error(), err.Error(),
+			)
+		}
 		return types.Sequence{}, err
 	}
 	// open next batch
 	gerHash, err := s.getLatestGer(ctx, dbTx)
 	if err != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+			return types.Sequence{}, fmt.Errorf(
+				"failed to rollback dbTx when getting last GER that gave err: %s. Rollback err: %s",
+				rollbackErr.Error(), err.Error(),
+			)
+		}
 		return types.Sequence{}, err
 	}
 
 	processingCtx, err := s.openBatch(ctx, gerHash, dbTx)
 	if err != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+			return types.Sequence{}, fmt.Errorf(
+				"failed to rollback dbTx when getting last batch num that gave err: %s. Rollback err: %s",
+				rollbackErr.Error(), err.Error(),
+			)
+		}
 		return types.Sequence{}, err
 	}
 	if err := dbTx.Commit(ctx); err != nil {
@@ -316,12 +334,6 @@ func (s *Sequencer) closeBatch(ctx context.Context, dbTx pgx.Tx) error {
 	}
 	err := s.state.CloseBatch(ctx, receipt, dbTx)
 	if err != nil {
-		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-			return fmt.Errorf(
-				"failed to rollback dbTx when closing batch that gave err: %s. Rollback err: %s",
-				rollbackErr.Error(), err.Error(),
-			)
-		}
 		return fmt.Errorf("failed to close batch, err: %w", err)
 	}
 
@@ -333,12 +345,6 @@ func (s *Sequencer) getLatestGer(ctx context.Context, dbTx pgx.Tx) (common.Hash,
 	if err != nil && errors.Is(err, state.ErrNotFound) {
 		return state.ZeroHash, nil
 	} else if err != nil {
-		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-			return common.Hash{}, fmt.Errorf(
-				"failed to rollback dbTx when getting last GER that gave err: %s. Rollback err: %s",
-				rollbackErr.Error(), err.Error(),
-			)
-		}
 		return common.Hash{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
 	} else {
 		return ger.GlobalExitRoot, nil
@@ -348,12 +354,6 @@ func (s *Sequencer) getLatestGer(ctx context.Context, dbTx pgx.Tx) (common.Hash,
 func (s *Sequencer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx.Tx) (state.ProcessingContext, error) {
 	lastBatchNum, err := s.state.GetLastBatchNumber(ctx, nil)
 	if err != nil {
-		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-			return state.ProcessingContext{}, fmt.Errorf(
-				"failed to rollback dbTx when getting last batch num that gave err: %s. Rollback err: %s",
-				rollbackErr.Error(), err.Error(),
-			)
-		}
 		return state.ProcessingContext{}, fmt.Errorf("failed to get last batch number, err: %w", err)
 	}
 	newBatchNum := lastBatchNum + 1
@@ -365,12 +365,6 @@ func (s *Sequencer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 	}
 	err = s.state.OpenBatch(ctx, processingCtx, dbTx)
 	if err != nil {
-		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-			return state.ProcessingContext{}, fmt.Errorf(
-				"failed to rollback dbTx when opening batch that gave err: %s. Rollback err: %s",
-				rollbackErr.Error(), err.Error(),
-			)
-		}
 		return state.ProcessingContext{}, fmt.Errorf("failed to open new batch, err: %w", err)
 	}
 
