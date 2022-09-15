@@ -20,10 +20,11 @@ import (
 const maxTxsPerBatch uint64 = 150
 
 type processTxResponse struct {
-	processedTxs       []*state.ProcessTransactionResponse
-	processedTxsHashes []string
-	unprocessedTxs     map[string]*state.ProcessTransactionResponse
-	isBatchProcessed   bool
+	processedTxs         []*state.ProcessTransactionResponse
+	processedTxsHashes   []string
+	unprocessedTxs       map[string]*state.ProcessTransactionResponse
+	unprocessedTxsHashes []string
+	isBatchProcessed     bool
 }
 
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
@@ -68,11 +69,14 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	getTxsLimit := maxTxsPerBatch - uint64(len(s.sequenceInProgress.Txs))
 
 	// get txs from the pool
-	pendTxs, err := s.pool.GetPendingTxsWithLowestNonce(ctx, getTxsLimit)
+	pendTxs, err := s.pool.GetTxs(ctx, pool.TxStatusPending, getTxsLimit)
 	if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
-		log.Info("there is no suitable pending tx in the pool, waiting...")
-		waitTick(ctx, ticker)
-		return
+		pendTxs, err = s.pool.GetTxs(ctx, pool.TxStatusFailed, getTxsLimit)
+		if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
+			log.Info("there is no suitable pending or failed txs in the pool, waiting...")
+			waitTick(ctx, ticker)
+			return
+		}
 	} else if err != nil {
 		log.Errorf("failed to get pending tx, err: %w", err)
 		return
@@ -133,11 +137,17 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	log.Infof("%d txs stored and added into the trusted state", len(processResponse.processedTxs))
 
 	// update processed txs
-	err = s.pool.UpdateTxsStatus(ctx, processResponse.processedTxsHashes, pool.TxStatusSelected)
+	s.updateTxsStatus(ctx, ticker, processResponse.processedTxsHashes, pool.TxStatusSelected)
+	// update unprocessed txs
+	s.updateTxsStatus(ctx, ticker, processResponse.unprocessedTxsHashes, pool.TxStatusFailed)
+}
+
+func (s *Sequencer) updateTxsStatus(ctx context.Context, ticker *time.Ticker, hashes []string, status pool.TxStatus) {
+	err := s.pool.UpdateTxsStatus(ctx, hashes, status)
 	for err != nil {
-		log.Errorf("failed to update txs state to selected, err: %w", err)
+		log.Errorf("failed to update txs status to %s, err: %w", status, err)
 		waitTick(ctx, ticker)
-		err = s.pool.UpdateTxsStatus(ctx, processResponse.processedTxsHashes, pool.TxStatusSelected)
+		err = s.pool.UpdateTxsStatus(ctx, hashes, status)
 	}
 }
 
@@ -250,13 +260,14 @@ func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 	s.sequenceInProgress.StateRoot = processBatchResp.NewStateRoot
 	s.sequenceInProgress.LocalExitRoot = processBatchResp.NewLocalExitRoot
 
-	processedTxs, processedTxsHashes, unprocessedTxs := state.DetermineProcessedTransactions(processBatchResp.Responses)
+	processedTxs, processedTxsHashes, unprocessedTxs, unprocessedTxsHashes := state.DetermineProcessedTransactions(processBatchResp.Responses)
 
 	response := processTxResponse{
-		processedTxs:       processedTxs,
-		processedTxsHashes: processedTxsHashes,
-		unprocessedTxs:     unprocessedTxs,
-		isBatchProcessed:   processBatchResp.IsBatchProcessed,
+		processedTxs:         processedTxs,
+		processedTxsHashes:   processedTxsHashes,
+		unprocessedTxs:       unprocessedTxs,
+		unprocessedTxsHashes: unprocessedTxsHashes,
+		isBatchProcessed:     processBatchResp.IsBatchProcessed,
 	}
 
 	return response, nil

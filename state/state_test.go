@@ -852,7 +852,7 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 	for _, tc := range tcs {
 		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
-			actualProcessedTx, _, actualUnprocessedTxs := state.DetermineProcessedTransactions(tc.input)
+			actualProcessedTx, _, actualUnprocessedTxs, _ := state.DetermineProcessedTransactions(tc.input)
 			require.Equal(t, tc.expectedProcessedOutput, actualProcessedTx)
 			require.Equal(t, tc.expectedUnprocessedOutput, actualUnprocessedTxs)
 		})
