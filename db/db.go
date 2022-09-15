@@ -13,9 +13,12 @@ import (
 )
 
 const (
+	// StateMigrationName is the name of the migration used by packr to pack the migration file
 	StateMigrationName = "zkevm-state-db"
-	PoolMigrationName  = "zkevm-pool-db"
-	RPCMigrationName   = "zkevm-rpc-db"
+	// PoolMigrationName is the name of the migration used by packr to pack the migration file
+	PoolMigrationName = "zkevm-pool-db"
+	// RPCMigrationName is the name of the migration used by packr to pack the migration file
+	RPCMigrationName = "zkevm-rpc-db"
 )
 
 var packrMigrations = map[string]*packr.Box{
