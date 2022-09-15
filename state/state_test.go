@@ -41,13 +41,13 @@ const (
 )
 
 var (
-	testState *state.State
-	stateTree *merkletree.StateTree
-	stateDb   *pgxpool.Pool
-	err       error
-	cfg       = dbutils.NewConfigFromEnv()
-	ctx       = context.Background()
-	stateCfg  = state.Config{
+	testState  *state.State
+	stateTree  *merkletree.StateTree
+	stateDb    *pgxpool.Pool
+	err        error
+	stateDBCfg = dbutils.NewStateConfigFromEnv()
+	ctx        = context.Background()
+	stateCfg   = state.Config{
 		MaxCumulativeGasUsed: 800000,
 		ChainID:              1000,
 	}
@@ -57,11 +57,9 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	if err := dbutils.InitOrReset(cfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	stateDb, err = db.NewSQLDB(cfg)
+	stateDb, err = db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -100,8 +98,8 @@ func TestMain(m *testing.M) {
 
 func TestAddBlock(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	// ctx := context.Background()
 	fmt.Println("db: ", stateDb)
 	tx, err := testState.BeginStateTransaction(ctx)
@@ -134,8 +132,8 @@ func TestAddBlock(t *testing.T) {
 
 func TestProcessCloseBatch(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -159,8 +157,8 @@ func TestProcessCloseBatch(t *testing.T) {
 
 func TestOpenCloseBatch(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -265,8 +263,8 @@ func assertBatch(t *testing.T, expected, actual state.Batch) {
 
 func TestAddGlobalExitRoot(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	fmt.Println("db: ", stateDb)
 	tx, err := testState.BeginStateTransaction(ctx)
@@ -301,8 +299,8 @@ func TestAddGlobalExitRoot(t *testing.T) {
 
 func TestAddForcedBatch(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -374,8 +372,8 @@ func TestAddForcedBatch(t *testing.T) {
 
 func TestAddVirtualBatch(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -401,8 +399,8 @@ func TestAddVirtualBatch(t *testing.T) {
 }
 
 func TestGetTxsHashesToDelete(t *testing.T) {
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -465,8 +463,8 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	require.Equal(t, l2Tx1.Hash().Hex(), txHashes[0].Hex())
 }
 func TestVerifiedBatch(t *testing.T) {
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -659,8 +657,8 @@ func TestCheckSupersetBatchTransactions(t *testing.T) {
 
 func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -905,9 +903,7 @@ func TestGenesis(t *testing.T) {
 		Actions: actions,
 	}
 
-	if err := dbutils.InitOrReset(cfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1113,9 +1109,7 @@ func TestExecutorTransfer(t *testing.T) {
 		},
 	}
 
-	if err := dbutils.InitOrReset(cfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1326,9 +1320,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			if err := dbutils.InitOrReset(cfg); err != nil {
-				panic(err)
-			}
+			initOrResetDB()
 
 			// Set Genesis
 			block := state.Block{
@@ -1442,7 +1434,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, dbutils.InitOrReset(cfg))
+	initOrResetDB()
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1622,8 +1614,8 @@ func TestGenesisNewLeafType(t *testing.T) {
 
 func TestExecutorUnsignedTransactions(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
@@ -1745,8 +1737,8 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 
 func TestAddGetL2Block(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1861,9 +1853,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 		},
 	}
 
-	if err := dbutils.InitOrReset(cfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1939,5 +1929,11 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 
 		transactions = transactions[processedTxs:]
 		stateRoot = processBatchResponse.NewStateRoot
+	}
+}
+
+func initOrResetDB() {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
+		panic(err)
 	}
 }

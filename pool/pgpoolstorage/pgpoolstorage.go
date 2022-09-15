@@ -111,15 +111,6 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 	return nil
 }
 
-// MarkReorgedTxsAsPending updated reorged txs status from selected to pending
-func (p *PostgresPoolStorage) MarkReorgedTxsAsPending(ctx context.Context) error {
-	const updateReorgedTxsToPending = "UPDATE pool.txs pt SET status = $1 WHERE status = $2 AND NOT EXISTS (SELECT hash FROM state.transaction WHERE hash = pt.hash)"
-	if _, err := p.db.Exec(ctx, updateReorgedTxsToPending, pool.TxStatusPending, pool.TxStatusSelected); err != nil {
-		return err
-	}
-	return nil
-}
-
 // GetTxsByStatus returns an array of transactions filtered by status
 // limit parameter is used to limit amount txs from the db,
 // if limit = 0, then there is no limit

@@ -4,12 +4,21 @@ IsTrustedSequencer = true
 Level = "debug"
 Outputs = ["stdout"]
 
-[Database]
-User = "test_user"
-Password = "test_password"
-Name = "test_db"
+[StateDB]
+User = "state_user"
+Password = "state_password"
+Name = "state_db"
 Host = "localhost"
 Port = "5432"
+EnableLog = false
+MaxConns = 10
+
+[PoolDB]
+User = "pool_user"
+Password = "pool_password"
+Name = "pool_db"
+Host = "localhost"
+Port = "5433"
 EnableLog = false
 MaxConns = 10
 
@@ -31,6 +40,14 @@ MaxRequestsPerIPAndSecond = 10000
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
+	[RPC.DB]
+		User = "rpc_user"
+		Password = "rpc_password"
+		Name = "rpc_db"
+		Host = "localhost"
+		Port = "5434"
+		EnableLog = false
+		MaxConns = 10
 
 [Synchronizer]
 SyncInterval = "5s"

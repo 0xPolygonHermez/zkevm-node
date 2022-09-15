@@ -7,10 +7,8 @@ services:
     container_name: zkevm-sequencer
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_DATABASE_USER=test_user
-      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
-      - ZKEVM_NODE_DATABASE_NAME=test_db
-      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
@@ -26,10 +24,9 @@ services:
     ports:
       - 8123:8123
     environment:
-      - ZKEVM_NODE_DATABASE_USER=test_user
-      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
-      - ZKEVM_NODE_DATABASE_NAME=test_db
-      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
+      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
     volumes:
       - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
@@ -44,10 +41,9 @@ services:
     ports:
       - 8125:8125
     environment:
-      - ZKEVM_NODE_DATABASE_USER=test_user
-      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
-      - ZKEVM_NODE_DATABASE_NAME=test_db
-      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
+      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
     volumes:
       - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
@@ -60,10 +56,7 @@ services:
     container_name: zkevm-aggregator
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_DATABASE_USER=test_user
-      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
-      - ZKEVM_NODE_DATABASE_NAME=test_db
-      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
@@ -77,10 +70,7 @@ services:
     container_name: zkevm-sync
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_DATABASE_USER=test_user
-      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
-      - ZKEVM_NODE_DATABASE_NAME=test_db
-      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
@@ -94,10 +84,7 @@ services:
     container_name: zkevm-broadcast
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_DATABASE_USER=test_user
-      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
-      - ZKEVM_NODE_DATABASE_NAME=test_db
-      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
     ports:
       - 61090:61090
     volumes:
@@ -107,8 +94,8 @@ services:
       - "-c"
       - "/app/zkevm-node run --network local --cfg /app/config.toml --components broadcast-trusted-state"
 
-  zkevm-db:
-    container_name: zkevm-db
+  zkevm-state-db:
+    container_name: zkevm-state-db
     image: postgres
     deploy:
       resources:
@@ -121,10 +108,43 @@ services:
     volumes:
       - ./config/initproverdb.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
-      # In order to update this values, you may need to run: docker rm -f -v postgres
-      - POSTGRES_USER=test_user
-      - POSTGRES_PASSWORD=test_password
-      - POSTGRES_DB=test_db
+      - POSTGRES_USER=state_user
+      - POSTGRES_PASSWORD=state_password
+      - POSTGRES_DB=state_db
+    command: ["postgres", "-N", "500"]
+
+  zkevm-pool-db:
+    container_name: zkevm-pool-db
+    image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5433:5432
+    environment:
+      - POSTGRES_USER=pool_user
+      - POSTGRES_PASSWORD=pool_password
+      - POSTGRES_DB=pool_db
+    command: ["postgres", "-N", "500"]
+
+  zkevm-rpc-db:
+    container_name: zkevm-rpc-db
+    image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5434:5432
+    environment:
+      - POSTGRES_USER=rpc_user
+      - POSTGRES_PASSWORD=rpc_password
+      - POSTGRES_DB=rpc_db
     command: ["postgres", "-N", "500"]
 
   zkevm-explorer-l1:
@@ -138,7 +158,7 @@ services:
       - COIN=ETH
       - ETHEREUM_JSONRPC_VARIANT=geth
       - ETHEREUM_JSONRPC_HTTP_URL=http://zkevm-mock-l1-network:8545
-      - DATABASE_URL=postgres://test_user:test_password@zkevm-explorer-l1-db:5432/explorer
+      - DATABASE_URL=postgres://l1_explorer_user:l1_explorer_password@zkevm-explorer-l1-db:5432/l1_explorer_db
       - ECTO_USE_SSL=false
       - MIX_ENV=prod
     command:
@@ -148,16 +168,15 @@ services:
     container_name: zkevm-explorer-l1-db
     image: postgres
     ports:
-      - 5433:5432
+      - 5435:5432
     environment:
-      # In order to update this values, you may need to run: docker rm -f -v postgres
-      - POSTGRES_USER=test_user
-      - POSTGRES_PASSWORD=test_password
-      - POSTGRES_DB=explorer
+      - POSTGRES_USER=l1_explorer_user
+      - POSTGRES_PASSWORD=l1_explorer_password
+      - POSTGRES_DB=l1_explorer_db
     command: ["postgres", "-N", "500"]
 
-  zkevm-explorer:
-    container_name: zkevm-explorer
+  zkevm-explorer-l2:
+    container_name: zkevm-explorer-l2
     image: hermeznetwork/hermez-node-blockscout:latest
     ports:
       - 4001:4000
@@ -167,7 +186,7 @@ services:
       - COIN=ETH
       - ETHEREUM_JSONRPC_VARIANT=geth
       - ETHEREUM_JSONRPC_HTTP_URL=http://zkevm-explorer-json-rpc:8124
-      - DATABASE_URL=postgres://test_user:test_password@zkevm-explorer-db:5432/explorer
+      - DATABASE_URL=postgres://l2_explorer_user:l2_explorer_password@zkevm-explorer-l2-db:5432/l2_explorer_db
       - ECTO_USE_SSL=false
       - MIX_ENV=prod
       - LOGO=/images/blockscout_logo.svg
@@ -181,10 +200,9 @@ services:
     ports:
       - 8124:8124
     environment:
-      - ZKEVM_NODE_DATABASE_USER=test_user
-      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
-      - ZKEVM_NODE_DATABASE_NAME=test_db
-      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
+      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_PORT=8124
     volumes:
       - ./config/config.local.toml:/app/config.toml
@@ -193,16 +211,15 @@ services:
       - "-c"
       - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc --http.api eth,net,debug,zkevm,txpool,web3"
 
-  zkevm-explorer-db:
-    container_name: zkevm-explorer-db
+  zkevm-explorer-l2-db:
+    container_name: zkevm-explorer-l2-db
     image: postgres
     ports:
-      - 5434:5432
+      - 5436:5432
     environment:
-      # In order to update this values, you may need to run: docker rm -f -v postgres
-      - POSTGRES_USER=test_user
-      - POSTGRES_PASSWORD=test_password
-      - POSTGRES_DB=explorer
+      - POSTGRES_USER=l2_explorer_user
+      - POSTGRES_PASSWORD=l2_explorer_password
+      - POSTGRES_DB=l2_explorer_db
     command: ["postgres", "-N", "500"]
 
   zkevm-mock-l1-network:
@@ -240,10 +257,7 @@ services:
     container_name: zkevm-approve
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_DATABASE_USER=test_user
-      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
-      - ZKEVM_NODE_DATABASE_NAME=test_db
-      - ZKEVM_NODE_DATABASE_HOST=zkevm-db
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
@@ -263,7 +277,7 @@ services:
         reservations:
           memory: 1G
     ports:
-      - 5434:5432
+      - 5437:5432
     environment:
       - POSTGRES_USER=test_user
       - POSTGRES_PASSWORD=test_password
@@ -277,15 +291,24 @@ services:
       - 8126:8126
     environment:
       - ZKEVM_NODE_TRUSTED=false
-      - ZKEVM_NODE_DATABASE_USER=test_user
-      - ZKEVM_NODE_DATABASE_PASSWORD=test_password
-      - ZKEVM_NODE_DATABASE_NAME=test_db
-      - ZKEVM_NODE_DATABASE_HOST=zkevm-permissionless-db
+      - ZKEVM_NODE_STATEDB_USER=test_user
+      - ZKEVM_NODE_STATEDB_PASSWORD=test_password
+      - ZKEVM_NODE_STATEDB_NAME=state_db
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-permissionless-db
+      - ZKEVM_NODE_POOL_USER=test_user
+      - ZKEVM_NODE_POOL_PASSWORD=test_password
+      - ZKEVM_NODE_POOL_NAME=pool_db
+      - ZKEVM_NODE_POOL_HOST=zkevm-permissionless-db
+      - ZKEVM_NODE_RPC_DB_USER=test_user
+      - ZKEVM_NODE_RPC_DB_PASSWORD=test_password
+      - ZKEVM_NODE_RPC_DB_NAME=rpc_db
+      - ZKEVM_NODE_RPC_DB_HOST=zkevm-permissionless-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
       - ZKEVM_NODE_RPC_PORT=8126
     volumes:
       - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
+      - ./config/single_db_server.sql:/docker-entrypoint-initdb.d/init.sql
     command:
       - "/bin/sh"
       - "-c"
