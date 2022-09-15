@@ -112,15 +112,15 @@ func setupLog(c log.Config) {
 }
 
 func runStateMigrations(c db.Config) {
-	runMigrations(c, "zkevm-state-db")
+	runMigrations(c, db.StateMigrationName)
 }
 
 func runPoolMigrations(c db.Config) {
-	runMigrations(c, "zkevm-pool-db")
+	runMigrations(c, db.PoolMigrationName)
 }
 
 func runRPCMigrations(c db.Config) {
-	runMigrations(c, "zkevm-rpc-db")
+	runMigrations(c, db.RPCMigrationName)
 }
 
 func runMigrations(c db.Config, name string) {

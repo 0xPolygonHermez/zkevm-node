@@ -7,13 +7,7 @@ services:
     container_name: zkevm-sequencer
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_STATEDB_USER=state_user
-      - ZKEVM_NODE_STATEDB_PASSWORD=state_password
-      - ZKEVM_NODE_STATEDB_NAME=state_db
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
-      - ZKEVM_NODE_POOL_USER=pool_user
-      - ZKEVM_NODE_POOL_PASSWORD=pool_password
-      - ZKEVM_NODE_POOL_NAME=pool_db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
@@ -30,17 +24,8 @@ services:
     ports:
       - 8123:8123
     environment:
-      - ZKEVM_NODE_STATEDB_USER=state_user
-      - ZKEVM_NODE_STATEDB_PASSWORD=state_password
-      - ZKEVM_NODE_STATEDB_NAME=state_db
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
-      - ZKEVM_NODE_POOL_USER=pool_user
-      - ZKEVM_NODE_POOL_PASSWORD=pool_password
-      - ZKEVM_NODE_POOL_NAME=pool_db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_RPC_DB_USER=rpc_user
-      - ZKEVM_NODE_RPC_DB_PASSWORD=rpc_password
-      - ZKEVM_NODE_RPC_DB_NAME=rpc_db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
     volumes:
@@ -56,17 +41,8 @@ services:
     ports:
       - 8125:8125
     environment:
-      - ZKEVM_NODE_STATEDB_USER=state_user
-      - ZKEVM_NODE_STATEDB_PASSWORD=state_password
-      - ZKEVM_NODE_STATEDB_NAME=state_db
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
-      - ZKEVM_NODE_POOL_USER=pool_user
-      - ZKEVM_NODE_POOL_PASSWORD=pool_password
-      - ZKEVM_NODE_POOL_NAME=pool_db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_RPC_DB_USER=rpc_user
-      - ZKEVM_NODE_RPC_DB_PASSWORD=rpc_password
-      - ZKEVM_NODE_RPC_DB_NAME=rpc_db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
     volumes:
@@ -80,9 +56,6 @@ services:
     container_name: zkevm-aggregator
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_STATEDB_USER=state_user
-      - ZKEVM_NODE_STATEDB_PASSWORD=state_password
-      - ZKEVM_NODE_STATEDB_NAME=state_db
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
@@ -97,9 +70,6 @@ services:
     container_name: zkevm-sync
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_STATEDB_USER=state_user
-      - ZKEVM_NODE_STATEDB_PASSWORD=state_password
-      - ZKEVM_NODE_STATEDB_NAME=state_db
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
@@ -114,9 +84,6 @@ services:
     container_name: zkevm-broadcast
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_STATEDB_USER=state_user
-      - ZKEVM_NODE_STATEDB_PASSWORD=state_password
-      - ZKEVM_NODE_STATEDB_NAME=state_db
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
     ports:
       - 61090:61090
@@ -233,17 +200,8 @@ services:
     ports:
       - 8124:8124
     environment:
-      - ZKEVM_NODE_STATEDB_USER=state_user
-      - ZKEVM_NODE_STATEDB_PASSWORD=state_password
-      - ZKEVM_NODE_STATEDB_NAME=state_db
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
-      - ZKEVM_NODE_POOL_USER=pool_user
-      - ZKEVM_NODE_POOL_PASSWORD=pool_password
-      - ZKEVM_NODE_POOL_NAME=pool_db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_RPC_DB_USER=rpc_user
-      - ZKEVM_NODE_RPC_DB_PASSWORD=rpc_password
-      - ZKEVM_NODE_RPC_DB_NAME=rpc_db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_PORT=8124
     volumes:
@@ -299,9 +257,6 @@ services:
     container_name: zkevm-approve
     image: zkevm-node
     environment:
-      - ZKEVM_NODE_STATEDB_USER=state_user
-      - ZKEVM_NODE_STATEDB_PASSWORD=state_password
-      - ZKEVM_NODE_STATEDB_NAME=state_db
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:

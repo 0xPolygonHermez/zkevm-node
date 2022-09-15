@@ -12,10 +12,16 @@ import (
 	migrate "github.com/rubenv/sql-migrate"
 )
 
+const (
+	StateMigrationName = "zkevm-state-db"
+	PoolMigrationName  = "zkevm-pool-db"
+	RPCMigrationName   = "zkevm-rpc-db"
+)
+
 var packrMigrations = map[string]*packr.Box{
-	"zkevm-state-db": packr.New("zkevm-state-db", "./migrations/state"),
-	"zkevm-pool-db":  packr.New("zkevm-pool-db", "./migrations/pool"),
-	"zkevm-rpc-db":   packr.New("zkevm-rpc-db", "./migrations/rpc"),
+	StateMigrationName: packr.New(StateMigrationName, "./migrations/state"),
+	PoolMigrationName:  packr.New(PoolMigrationName, "./migrations/pool"),
+	RPCMigrationName:   packr.New(RPCMigrationName, "./migrations/rpc"),
 }
 
 // NewSQLDB creates a new SQL DB
