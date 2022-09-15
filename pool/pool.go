@@ -63,7 +63,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 	poolTx := Transaction{
 		Transaction: tx,
-		State:       TxStatePending,
+		Status:      TxStatusPending,
 		IsClaims:    false,
 		ReceivedAt:  time.Now(),
 	}
@@ -77,12 +77,12 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 // limit parameter is used to limit amount of pending txs from the db,
 // if limit = 0, then there is no limit
 func (p *Pool) GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]Transaction, error) {
-	return p.storage.GetTxsByState(ctx, TxStatePending, isClaims, limit)
+	return p.storage.GetTxsByStatus(ctx, TxStatusPending, isClaims, limit)
 }
 
 // GetSelectedTxs gets selected txs from the pool db
 func (p *Pool) GetSelectedTxs(ctx context.Context, limit uint64) ([]Transaction, error) {
-	return p.storage.GetTxsByState(ctx, TxStateSelected, false, limit)
+	return p.storage.GetTxsByStatus(ctx, TxStatusSelected, false, limit)
 }
 
 // GetPendingTxHashesSince returns the hashes of pending tx since the given date.
@@ -90,10 +90,10 @@ func (p *Pool) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]
 	return p.storage.GetPendingTxHashesSince(ctx, since)
 }
 
-// UpdateTxState updates a transaction state accordingly to the
+// UpdateTxStatus updates a transaction state accordingly to the
 // provided state and hash
-func (p *Pool) UpdateTxState(ctx context.Context, hash common.Hash, newState TxState) error {
-	return p.storage.UpdateTxState(ctx, hash, newState)
+func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus) error {
+	return p.storage.UpdateTxStatus(ctx, hash, newStatus)
 }
 
 // SetGasPrice allows an external component to define the gas price
@@ -109,7 +109,7 @@ func (p *Pool) GetGasPrice(ctx context.Context) (uint64, error) {
 // CountPendingTransactions get number of pending transactions
 // used in bench tests
 func (p *Pool) CountPendingTransactions(ctx context.Context) (uint64, error) {
-	return p.storage.CountTransactionsByState(ctx, TxStatePending)
+	return p.storage.CountTransactionsByStatus(ctx, TxStatusPending)
 }
 
 // IsTxPending check if tx is still pending
@@ -186,6 +186,35 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		if oldTxPrice.Cmp(txPrice) > 0 {
 			return ErrReplaceUnderpriced
 		}
+	}
+
+	return nil
+}
+
+// MarkReorgedTxsAsPending updated reorged txs status from selected to pending
+func (p *Pool) MarkReorgedTxsAsPending(ctx context.Context) error {
+	// get selected transactions from pool
+	selectedTxs, err := p.GetSelectedTxs(ctx, 0)
+	if err != nil {
+		return err
+	}
+
+	txsHashesToUpdate := []string{}
+	// look for non existent transactions on state
+	for _, selectedTx := range selectedTxs {
+		txHash := selectedTx.Hash()
+		_, err := p.state.GetTransactionByHash(ctx, txHash, nil)
+		if errors.Is(err, state.ErrNotFound) {
+			txsHashesToUpdate = append(txsHashesToUpdate, txHash.String())
+		} else if err != nil {
+			return err
+		}
+	}
+
+	// revert pool state from selected to pending on the pool
+	err = p.UpdateTxsStatus(ctx, txsHashesToUpdate, TxStatusPending)
+	if err != nil {
+		return err
 	}
 
 	return nil

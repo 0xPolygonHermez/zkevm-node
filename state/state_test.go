@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,13 +41,13 @@ const (
 )
 
 var (
-	testState *state.State
-	stateTree *merkletree.StateTree
-	stateDb   *pgxpool.Pool
-	err       error
-	cfg       = dbutils.NewConfigFromEnv()
-	ctx       = context.Background()
-	stateCfg  = state.Config{
+	testState  *state.State
+	stateTree  *merkletree.StateTree
+	stateDb    *pgxpool.Pool
+	err        error
+	stateDBCfg = dbutils.NewStateConfigFromEnv()
+	ctx        = context.Background()
+	stateCfg   = state.Config{
 		MaxCumulativeGasUsed: 800000,
 		ChainID:              1000,
 	}
@@ -56,11 +57,9 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	if err := dbutils.InitOrReset(cfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	stateDb, err = db.NewSQLDB(cfg)
+	stateDb, err = db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -99,8 +98,8 @@ func TestMain(m *testing.M) {
 
 func TestAddBlock(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	// ctx := context.Background()
 	fmt.Println("db: ", stateDb)
 	tx, err := testState.BeginStateTransaction(ctx)
@@ -133,8 +132,8 @@ func TestAddBlock(t *testing.T) {
 
 func TestProcessCloseBatch(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -158,8 +157,8 @@ func TestProcessCloseBatch(t *testing.T) {
 
 func TestOpenCloseBatch(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -264,8 +263,8 @@ func assertBatch(t *testing.T, expected, actual state.Batch) {
 
 func TestAddGlobalExitRoot(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	fmt.Println("db: ", stateDb)
 	tx, err := testState.BeginStateTransaction(ctx)
@@ -300,8 +299,8 @@ func TestAddGlobalExitRoot(t *testing.T) {
 
 func TestAddForcedBatch(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -373,8 +372,8 @@ func TestAddForcedBatch(t *testing.T) {
 
 func TestAddVirtualBatch(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -400,8 +399,8 @@ func TestAddVirtualBatch(t *testing.T) {
 }
 
 func TestGetTxsHashesToDelete(t *testing.T) {
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	tx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -464,8 +463,8 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	require.Equal(t, l2Tx1.Hash().Hex(), txHashes[0].Hex())
 }
 func TestVerifiedBatch(t *testing.T) {
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -658,8 +657,8 @@ func TestCheckSupersetBatchTransactions(t *testing.T) {
 
 func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -851,7 +850,7 @@ func TestDetermineProcessedTransactions(t *testing.T) {
 	for _, tc := range tcs {
 		tc := tc
 		t.Run(tc.description, func(t *testing.T) {
-			actualProcessedTx, actualUnprocessedTxs := state.DetermineProcessedTransactions(tc.input)
+			actualProcessedTx, _, actualUnprocessedTxs, _ := state.DetermineProcessedTransactions(tc.input)
 			require.Equal(t, tc.expectedProcessedOutput, actualProcessedTx)
 			require.Equal(t, tc.expectedUnprocessedOutput, actualUnprocessedTxs)
 		})
@@ -904,9 +903,7 @@ func TestGenesis(t *testing.T) {
 		Actions: actions,
 	}
 
-	if err := dbutils.InitOrReset(cfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1112,9 +1109,7 @@ func TestExecutorTransfer(t *testing.T) {
 		},
 	}
 
-	if err := dbutils.InitOrReset(cfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1211,8 +1206,12 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 	require.NoError(t, err)
 
 	for x, testCase := range testCases {
-		var receiverAddress = common.HexToAddress(testCase.To)
 		var stateRoot = state.ZeroHash
+		var receiverAddress = common.HexToAddress(testCase.To)
+		receiver := &receiverAddress
+		if testCase.To == "0x" {
+			receiver = nil
+		}
 
 		v, ok := new(big.Int).SetString(testCase.V, 0)
 		require.Equal(t, true, ok)
@@ -1223,7 +1222,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 		s, ok := new(big.Int).SetString(testCase.S, 0)
 		require.Equal(t, true, ok)
 
-		value := new(big.Int)
+		var value *big.Int
 
 		if testCase.Value != "0x" {
 			value, ok = new(big.Int).SetString(testCase.Value, 0)
@@ -1242,11 +1241,11 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 		// Create transaction
 		tx := types.NewTx(&types.LegacyTx{
 			Nonce:    nonce.Uint64(),
-			To:       &receiverAddress,
+			To:       receiver,
 			Value:    value,
 			Gas:      gasLimit.Uint64(),
 			GasPrice: gasPrice,
-			Data:     common.Hex2Bytes(testCase.Data),
+			Data:     common.Hex2Bytes(strings.TrimPrefix(testCase.Data, "0x")),
 			V:        v,
 			R:        r,
 			S:        s,
@@ -1321,9 +1320,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			if err := dbutils.InitOrReset(cfg); err != nil {
-				panic(err)
-			}
+			initOrResetDB()
 
 			// Set Genesis
 			block := state.Block{
@@ -1437,7 +1434,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, dbutils.InitOrReset(cfg))
+	initOrResetDB()
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1617,8 +1614,8 @@ func TestGenesisNewLeafType(t *testing.T) {
 
 func TestExecutorUnsignedTransactions(t *testing.T) {
 	// Init database instance
-	err := dbutils.InitOrReset(cfg)
-	require.NoError(t, err)
+	initOrResetDB()
+
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var sequencerPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
@@ -1695,7 +1692,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		*signedTxFirstIncrement,
 		*signedTxFirstRetrieve,
 	}
-	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), common.Hash{}, 1, signedTxs, dbTx)
+	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, signedTxs, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
 	assert.Nil(t, processBatchResponse.Responses[0].Error)
@@ -1736,4 +1733,207 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(result.ReturnValue))
+}
+
+func TestAddGetL2Block(t *testing.T) {
+	// Init database instance
+	initOrResetDB()
+
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	block := &state.Block{
+		BlockNumber: 1,
+		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		ReceivedAt:  time.Now(),
+	}
+	err = testState.AddBlock(ctx, block, dbTx)
+	assert.NoError(t, err)
+
+	batchNumber := uint64(1)
+	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+	assert.NoError(t, err)
+
+	time := time.Now()
+	blockNumber := big.NewInt(1)
+
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    0,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      0,
+		GasPrice: big.NewInt(0),
+	})
+
+	receipt := &types.Receipt{
+		Type:              uint8(tx.Type()),
+		PostState:         state.ZeroHash.Bytes(),
+		CumulativeGasUsed: 0,
+		BlockNumber:       blockNumber,
+		GasUsed:           tx.Gas(),
+		TxHash:            tx.Hash(),
+		TransactionIndex:  0,
+		Status:            types.ReceiptStatusSuccessful,
+	}
+
+	header := &types.Header{
+		Number:     big.NewInt(1),
+		ParentHash: state.ZeroHash,
+		Coinbase:   state.ZeroAddress,
+		Root:       state.ZeroHash,
+		GasUsed:    1,
+		GasLimit:   10,
+		Time:       uint64(time.Unix()),
+	}
+	transactions := []*types.Transaction{tx}
+
+	receipts := []*types.Receipt{receipt}
+
+	// Create block to be able to calculate its hash
+	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+	block.ReceivedAt = time
+
+	receipt.BlockHash = l2Block.Hash()
+
+	err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, dbTx)
+	require.NoError(t, err)
+	result, err := testState.GetL2BlockByHash(ctx, l2Block.Hash(), dbTx)
+	require.NoError(t, err)
+
+	assert.Equal(t, l2Block.Hash(), result.Hash())
+
+	result, err = testState.GetL2BlockByNumber(ctx, l2Block.NumberU64(), dbTx)
+	require.NoError(t, err)
+
+	assert.Equal(t, l2Block.Hash(), result.Hash())
+
+	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func TestExecutorUniswapOutOfCounters(t *testing.T) {
+	// Test Case
+	type TxHashTestCase struct {
+		Hash    string `json:"hash"`
+		Encoded string `json:"encoded"`
+	}
+
+	var testCases []TxHashTestCase
+
+	jsonFile, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/uniswap.json"))
+	require.NoError(t, err)
+	defer func() { _ = jsonFile.Close() }()
+
+	bytes, err := ioutil.ReadAll(jsonFile)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(bytes, &testCases)
+	require.NoError(t, err)
+
+	// Set Genesis
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+			{
+				Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+		},
+	}
+
+	initOrResetDB()
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	transactions := make([]types.Transaction, len(testCases))
+
+	for x, testCase := range testCases {
+		log.Debugf("Hash:%v", testCase.Hash)
+		tx, err := state.DecodeTx(strings.TrimLeft(testCase.Encoded, "0x"))
+		require.NoError(t, err)
+		transactions[x] = *tx
+	}
+
+	var numBatch uint64
+
+	for len(transactions) != 0 {
+		numBatch++
+		log.Debugf("# of transactions to process= %d", len(transactions))
+
+		batchL2Data, err := state.EncodeTransactions(transactions)
+		require.NoError(t, err)
+
+		// Create Batch
+		processBatchRequest := &executorclientpb.ProcessBatchRequest{
+			BatchNum:         numBatch,
+			Coinbase:         common.Address{}.String(),
+			BatchL2Data:      batchL2Data,
+			OldStateRoot:     stateRoot,
+			GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			EthTimestamp:     uint64(0),
+			UpdateMerkleTree: 1,
+		}
+
+		// Process batch
+		processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+		require.NoError(t, err)
+
+		processedTxs := len(processBatchResponse.Responses)
+
+		if int32(processBatchResponse.Responses[processedTxs-1].Error) == executor.ERROR_OUT_OF_COUNTERS {
+			newTransactions := transactions[0 : processedTxs-1]
+			log.Debugf("# of transactions to reprocess= %d", len(newTransactions))
+
+			batchL2Data, err := state.EncodeTransactions(newTransactions)
+			require.NoError(t, err)
+
+			// Create Batch
+			processBatchRequest := &executorclientpb.ProcessBatchRequest{
+				BatchNum:         numBatch,
+				Coinbase:         common.Address{}.String(),
+				BatchL2Data:      batchL2Data,
+				OldStateRoot:     processBatchResponse.NewStateRoot,
+				GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+				OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+				EthTimestamp:     uint64(0),
+				UpdateMerkleTree: 1,
+			}
+
+			// Process batch
+			processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
+			require.NoError(t, err)
+
+			processedTxs = len(processBatchResponse.Responses)
+		}
+
+		for _, response := range processBatchResponse.Responses {
+			require.Equal(t, executor.ERROR_NO_ERROR, int32(response.Error))
+		}
+
+		transactions = transactions[processedTxs:]
+		stateRoot = processBatchResponse.NewStateRoot
+	}
+}
+
+func initOrResetDB() {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
+		panic(err)
+	}
 }

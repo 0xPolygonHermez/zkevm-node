@@ -49,9 +49,13 @@ const (
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
 )
 
-var dbConfig = dbutils.NewConfigFromEnv()
-var executorConfig = executor.Config{URI: executorURI}
-var merkletreeConfig = merkletree.Config{URI: merkletreeURI}
+var (
+	stateDBCfg       = dbutils.NewStateConfigFromEnv()
+	poolDBCfg        = dbutils.NewPoolConfigFromEnv()
+	rpcDBCfg         = dbutils.NewPoolConfigFromEnv()
+	executorConfig   = executor.Config{URI: executorURI}
+	merkletreeConfig = merkletree.Config{URI: merkletreeURI}
+)
 
 // SequencerConfig is the configuration for the sequencer operations.
 type SequencerConfig struct {
@@ -78,10 +82,7 @@ type Manager struct {
 // during its creation (which can come from the setup of the db connection).
 func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 	// Init database instance
-	err := dbutils.InitOrReset(dbConfig)
-	if err != nil {
-		return nil, err
-	}
+	initOrResetDB()
 
 	opsman := &Manager{
 		cfg:  cfg,
@@ -285,7 +286,7 @@ func Teardown() error {
 }
 
 func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
-	sqlDB, err := db.NewSQLDB(dbConfig)
+	sqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -453,11 +454,7 @@ func (m *Manager) StartNode() error {
 }
 
 func approveMatic() error {
-	err := StartComponent("approve-matic")
-	if err != nil {
-		return err
-	}
-	return StopComponent("approve-matic")
+	return StartComponent("approve-matic")
 }
 
 func stopNode() error {
@@ -527,4 +524,16 @@ func MustGetClient(URL string) *ethclient.Client {
 		panic(err)
 	}
 	return client
+}
+
+func initOrResetDB() {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
+		panic(err)
+	}
+	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
+		panic(err)
+	}
+	if err := dbutils.InitOrResetRPC(rpcDBCfg); err != nil {
+		panic(err)
+	}
 }
