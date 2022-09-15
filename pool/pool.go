@@ -204,7 +204,7 @@ func (p *Pool) MarkReorgedTxsAsPending(ctx context.Context) error {
 	for _, selectedTx := range selectedTxs {
 		txHash := selectedTx.Hash()
 		_, err := p.state.GetTransactionByHash(ctx, txHash, nil)
-		if err == state.ErrNotFound {
+		if errors.Is(err, state.ErrNotFound) {
 			txsHashesToUpdate = append(txsHashesToUpdate, txHash.String())
 		} else if err != nil {
 			return err
