@@ -3,11 +3,15 @@ package sequencer
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"testing"
+	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -18,82 +22,209 @@ import (
 	st "github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
 )
 
-func init() {
-
-}
-
 func TestSequenceTooBig(t *testing.T) {
 
+	// before running:
+	// make run-db
+	// make run-network
+	// make run-zkprover
+
+	const (
+		CONFIG_MAX_GAS_PER_SEQUENCE     = 200000
+		CONFIG_ENCRYPTION_KEY_FILE_PATH = "./../test/test.keystore"
+		CONFIG_ENCRYPTION_KEY_PASSWORD  = "testonly"
+		CONFIG_CHAIN_ID                 = 1337
+		CONFIG_EXECUTOR_URL             = "localhost:50071"
+		CONFIG_ETH_URL                  = "http://localhost:8545"
+
+		CONFIG_NAME_POE   = "poe"
+		CONFIG_NAME_MATIC = "matic"
+		CONFIG_NAME_GER   = "ger"
+	)
+
+	var (
+		CONFIG_ADDRESSES = map[string]common.Address{
+			CONFIG_NAME_POE:   common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"), // <= PoE
+			CONFIG_NAME_MATIC: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"), // <= Matic
+			CONFIG_NAME_GER:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"), // <= GER
+		}
+		CONFIG_DB = db.Config{
+			User:      "test_user",
+			Password:  "test_password",
+			Name:      "test_db",
+			Host:      "localhost",
+			Port:      "5432",
+			EnableLog: false,
+			MaxConns:  200,
+		}
+	)
+	type TestCase struct {
+		Input  []int // slice of batch sizes
+		Output int   // split into N sequences
+
+	}
+
+	var testcases = []TestCase{
+		{
+			Input: []int{
+				1000,
+				500,
+			},
+			Output: 2, // two sequences (of 1 batch each) fit inside
+		},
+
+		{
+			Input: []int{
+				1,
+			},
+			Output: 1, // only one sequence fits
+		},
+		{
+			Input: []int{
+				100000000,
+				100000000,
+				1000,
+			},
+			Output: 2, // only two sequences fit inside
+		},
+	}
 	ctx := context.Background()
-	privateKey, err := crypto.GenerateKey()
+
+	keystoreEncrypted, err := ioutil.ReadFile(CONFIG_ENCRYPTION_KEY_FILE_PATH)
 	require.NoError(t, err)
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	key, err := keystore.DecryptKey(keystoreEncrypted, CONFIG_ENCRYPTION_KEY_PASSWORD)
 	require.NoError(t, err)
-	eth_man, _, _, _, err := ethman.NewSimulatedEtherman(ethman.Config{}, auth)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, big.NewInt(CONFIG_CHAIN_ID))
 	require.NoError(t, err)
+	//	eth_man, _, _, _, err := ethman.NewSimulatedEtherman(ethman.Config{}, auth)
+	eth_man, err := ethman.NewClient(ethman.Config{
+		URL: CONFIG_ETH_URL,
+	}, auth, CONFIG_ADDRESSES[CONFIG_NAME_POE], CONFIG_ADDRESSES[CONFIG_NAME_MATIC], CONFIG_ADDRESSES[CONFIG_NAME_GER])
+
+	require.NoError(t, err)
+
+	const decimals = 1000000000000000000
+	amount := big.NewFloat(10000000000000000)
+	amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
+	amountB := new(big.Int)
+	amountInWei.Int(amountB)
+	_, err = eth_man.ApproveMatic(amountB, CONFIG_ADDRESSES[CONFIG_NAME_POE])
 
 	pg, err := pricegetter.NewClient(pricegetter.Config{
 		Type: "default",
 	})
 	require.NoError(t, err)
 
-	dbConfig := db.Config{
-		User:      "test_user",
-		Password:  "test_password",
-		Name:      "test_db",
-		Host:      "localhost",
-		Port:      "5432",
-		EnableLog: false,
-		MaxConns:  200,
-	}
-	err = dbutils.InitOrReset(dbConfig)
+	err = dbutils.InitOrReset(CONFIG_DB)
 	require.NoError(t, err)
 
-	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(dbConfig)
+	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(CONFIG_DB)
 	require.NoError(t, err)
 
-	sqlDB, err := db.NewSQLDB(dbConfig)
+	sqlDB, err := db.NewSQLDB(CONFIG_DB)
 	require.NoError(t, err)
 
 	stateDb := st.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{
-		URI: "localhost:50071",
+		URI: CONFIG_EXECUTOR_URL,
 	})
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{
-		URI: "localhost:50071",
+		URI: CONFIG_EXECUTOR_URL,
 	})
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
 	stateCfg := st.Config{
 		MaxCumulativeGasUsed: 30000000,
-		ChainID:              1000,
+		ChainID:              CONFIG_CHAIN_ID,
 	}
 
 	state := st.NewState(stateCfg, stateDb, executorClient, stateTree)
 
-	pool := pool.NewPool(poolDb, state, common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"))
+	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER])
 	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, eth_man)
 
 	seq, err := New(Config{
-		MaxSequenceSize: big.NewInt(1000000),
+		MaxSequenceSize:                          big.NewInt(CONFIG_MAX_GAS_PER_SEQUENCE),
+		LastBatchVirtualizationTimeMaxWaitPeriod: types.NewDuration(1 * time.Second),
+		ProfitabilityChecker: profitabilitychecker.Config{
+			SendBatchesEvenWhenNotProfitable: true,
+		},
 	}, pool, state, eth_man, pg, ethtxmanager)
 	require.NoError(t, err)
 
 	// generate fake data
 
-	dbTx, err := state.BeginStateTransaction(ctx)
+	mainnetExitRoot := common.HexToHash("caffe")
+	rollupExitRoot := common.HexToHash("bead")
+
+	stateDb.Exec(ctx, "DELETE FROM state.block")
+	stateDb.Exec(ctx, "DELETE FROM state.batch")
+	stateDb.Exec(ctx, "DELETE FROM state.exit_root")
+
+	const sqlAddBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
+	_, err = stateDb.Exec(ctx, sqlAddBlock, 1, time.Now(), "")
 	require.NoError(t, err)
 
-	state.PostgresStorage.Pool.Exec(ctx, "INSERT INTO state.batch VALUES(batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data) ")
+	_, err = stateDb.Exec(ctx, sqlAddBlock, 2, time.Now(), "") // for use in lastVirtualized time
+	require.NoError(t, err)
 
-	err = dbTx.Commit(ctx)
+	const sqlAddExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root, global_exit_root_num) VALUES ($1, $2, $3, $4, $5)"
+	_, err = stateDb.Exec(ctx, sqlAddExitRoots, 1, common.Address{}, mainnetExitRoot, rollupExitRoot, 3)
 	require.NoError(t, err)
-	sequences, err := seq.getSequencesToSend(ctx)
-	require.NoError(t, err)
-	fmt.Printf("\n%+v", sequences)
+
+	for _, testCase := range testcases {
+
+		innerDbTx, err := state.BeginStateTransaction(ctx)
+		require.NoError(t, err)
+		err = dbutils.InitOrReset(CONFIG_DB)
+		require.NoError(t, err)
+
+		stateDb.Exec(ctx, "DELETE FROM state.block")
+		stateDb.Exec(ctx, "DELETE FROM state.batch")
+
+		for i := 0; i < len(testCase.Input); i++ {
+			fmt.Printf("\niteration: [%d]: %d", testCase.Output, testCase.Input[i])
+
+			payload := make([]byte, testCase.Input[i]) // 10mb
+
+			_, err = stateDb.Exec(ctx, "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+				i+1,
+				common.Address{}.String(),
+				common.Hash{}.String(),
+				common.Hash{}.String(),
+				time.Unix(9, 0).UTC(),
+				common.HexToAddress("").String(),
+				payload,
+			)
+			require.NoError(t, err)
+
+		}
+
+		//needed for completion: wip batch
+
+		_, err = stateDb.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)",
+			len(testCase.Input)+1,
+		)
+
+		require.NoError(t, err)
+
+		// make L2 equivalences
+
+		err = innerDbTx.Commit(ctx)
+		require.NoError(t, err)
+
+		sequences, err := seq.getSequencesToSend(ctx)
+		require.NoError(t, err)
+
+		fmt.Printf("%+v", sequences)
+
+		require.Equal(t, testCase.Output, len(sequences))
+	}
+
 }
