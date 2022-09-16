@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
@@ -42,7 +43,6 @@ func TestSequenceTooBig(t *testing.T) {
 		CONFIG_ENCRYPTION_KEY_FILE_PATH = "./../test/test.keystore"
 		CONFIG_ENCRYPTION_KEY_PASSWORD  = "testonly"
 		CONFIG_CHAIN_ID                 = 1337
-		CONFIG_EXECUTOR_URL             = "localhost:50071"
 		CONFIG_ETH_URL                  = "http://localhost:8545"
 
 		CONFIG_NAME_POE   = "poe"
@@ -74,6 +74,7 @@ func TestSequenceTooBig(t *testing.T) {
 			EnableLog: false,
 			MaxConns:  200,
 		}
+		CONFIG_EXECUTOR_URL = os.Getenv("ZKPROVER_URI")
 	)
 	type TestCase struct {
 		Input  []int // slice of batch sizes
