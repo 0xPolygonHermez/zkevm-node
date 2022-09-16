@@ -20,11 +20,16 @@ import (
 	st "github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
+
+func networkUpCondition() (done bool, err error) {
+	return operations.NodeUpCondition("http://localhost:8545")
+}
 
 func TestSequenceTooBig(t *testing.T) {
 	// before running:
@@ -110,6 +115,11 @@ func TestSequenceTooBig(t *testing.T) {
 	}
 	ctx := context.Background()
 
+	// start L1 network as its not currently spun up via makefile
+
+	err := operations.StartComponent("network", networkUpCondition)
+	require.NoError(t, err)
+
 	keystoreEncrypted, err := ioutil.ReadFile(CONFIG_ENCRYPTION_KEY_FILE_PATH)
 	require.NoError(t, err)
 	key, err := keystore.DecryptKey(keystoreEncrypted, CONFIG_ENCRYPTION_KEY_PASSWORD)
@@ -124,15 +134,17 @@ func TestSequenceTooBig(t *testing.T) {
 
 	require.NoError(t, err)
 
-	const decimals = 1000000000000000000
-	amount := big.NewFloat(10000000000000000)
-	amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
-	amountB := new(big.Int)
-	amountInWei.Int(amountB)
+	/*
+		const decimals = 1000000000000000000
+		amount := big.NewFloat(10000000000000000)
+		amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
+		amountB := new(big.Int)
+		amountInWei.Int(amountB)
 
-	_, err = eth_man.ApproveMatic(amountB, CONFIG_ADDRESSES[CONFIG_NAME_POE])
-	require.NoError(t, err)
+		_, err = eth_man.ApproveMatic(amountB, CONFIG_ADDRESSES[CONFIG_NAME_POE])
+		require.NoError(t, err)
 
+	*/
 	pg, err := pricegetter.NewClient(pricegetter.Config{
 		Type: "default",
 	})
