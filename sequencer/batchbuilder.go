@@ -13,10 +13,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
-
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 const maxTxsPerBatch uint64 = 150
@@ -233,47 +231,7 @@ func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 		return processTxResponse{}, err
 	}
 
-	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, tx.Transaction)
-
-	// TODO WIP
-	if tx.Transaction.Gas() > s.cfg.MaxBatchSize.Uint64() {
-		if len(s.sequenceInProgress.Txs) == 1 {
-			// set tx as invalid
-			err := s.pool.UpdateTxState(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStateInvalid)
-			if err != nil {
-				log.Errorf("failed to update tx status on the pool, err: %w", err)
-				return nil, nil, err
-			}
-			// rm tx from sequenceInProgress
-			s.sequenceInProgress.Txs = []ethtypes.Transaction{}
-		} else {
-
-			// rm tx from sequenceInProgress
-			s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
-
-			// close batch
-			receipt := state.ProcessingReceipt{
-				BatchNumber:   s.lastBatchNum,
-				StateRoot:     s.lastStateRoot,
-				LocalExitRoot: s.lastLocalExitRoot,
-			}
-			err = s.state.CloseBatch(ctx, receipt, dbTx)
-			if err != nil {
-				if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-					log.Errorf(
-						"failed to rollback dbTx when closing batch that gave err: %v. Rollback err: %v",
-						rollbackErr, err,
-					)
-					return nil, nil, err
-				}
-				log.Errorf("failed to close batch, err: %v", err)
-				return nil, nil, err
-			}
-		}
-		return nil, nil, core.ErrOversizedData
-
-	}
-	previousStateRoot, err := s.state.GetStateRootByBatchNumber(ctx, s.lastBatchNum-1, nil)
+	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
 		if err == state.ErrBatchAlreadyClosed || err == state.ErrInvalidBatchNumber {
 			log.Warnf("unexpected state local vs DB: %w", err)

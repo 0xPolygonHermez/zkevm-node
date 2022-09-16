@@ -87,10 +87,18 @@ func TestSequenceTooBig(t *testing.T) {
 		{
 			Input: []int{
 				100000000,
-				100000000,
+				1000000,
 				1000,
+				100,
+				1,
 			},
 			Output: 2, // only two sequences fit inside
+		},
+		{
+			Input: []int{
+				1, 1, 1, 1,
+			},
+			Output: 4, // all sequences fit inside
 		},
 	}
 	ctx := context.Background()
@@ -121,7 +129,10 @@ func TestSequenceTooBig(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = dbutils.InitOrReset(CONFIG_DB)
+	err = dbutils.InitOrResetState(CONFIG_DB)
+	require.NoError(t, err)
+
+	err = dbutils.InitOrResetPool(CONFIG_DB)
 	require.NoError(t, err)
 
 	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(CONFIG_DB)
@@ -182,14 +193,17 @@ func TestSequenceTooBig(t *testing.T) {
 
 		innerDbTx, err := state.BeginStateTransaction(ctx)
 		require.NoError(t, err)
-		err = dbutils.InitOrReset(CONFIG_DB)
+		err = dbutils.InitOrResetState(CONFIG_DB)
+		require.NoError(t, err)
+
+		err = dbutils.InitOrResetPool(CONFIG_DB)
 		require.NoError(t, err)
 
 		stateDb.Exec(ctx, "DELETE FROM state.block")
 		stateDb.Exec(ctx, "DELETE FROM state.batch")
 
 		for i := 0; i < len(testCase.Input); i++ {
-			fmt.Printf("\niteration: [%d]: %d", testCase.Output, testCase.Input[i])
+			fmt.Printf("\niteration: [%d]: %d\n", testCase.Output, testCase.Input[i])
 
 			payload := make([]byte, testCase.Input[i]) // 10mb
 
