@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"os"
 	"testing"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -74,7 +74,7 @@ func TestSequenceTooBig(t *testing.T) {
 			EnableLog: false,
 			MaxConns:  200,
 		}
-		CONFIG_EXECUTOR_URL = os.Getenv("ZKPROVER_URI")
+		CONFIG_EXECUTOR_URL = fmt.Sprintf("%s:50071", testutils.GetEnv("ZKPROVER_URI", "localhost"))
 	)
 	type TestCase struct {
 		Input  []int // slice of batch sizes
