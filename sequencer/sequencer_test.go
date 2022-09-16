@@ -11,16 +11,15 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
-	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
-
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	st "github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -28,7 +27,6 @@ import (
 )
 
 func TestSequenceTooBig(t *testing.T) {
-
 	// before running:
 	// make run-db
 	// make run-network
@@ -123,6 +121,7 @@ func TestSequenceTooBig(t *testing.T) {
 	amountB := new(big.Int)
 	amountInWei.Int(amountB)
 	_, err = eth_man.ApproveMatic(amountB, CONFIG_ADDRESSES[CONFIG_NAME_POE])
+	require.NoError(t, err)
 
 	pg, err := pricegetter.NewClient(pricegetter.Config{
 		Type: "default",
@@ -174,9 +173,15 @@ func TestSequenceTooBig(t *testing.T) {
 	mainnetExitRoot := common.HexToHash("caffe")
 	rollupExitRoot := common.HexToHash("bead")
 
-	stateDb.Exec(ctx, "DELETE FROM state.block")
-	stateDb.Exec(ctx, "DELETE FROM state.batch")
-	stateDb.Exec(ctx, "DELETE FROM state.exit_root")
+	if _, err := stateDb.Exec(ctx, "DELETE FROM state.block"); err != nil {
+		t.Fail()
+	}
+	if _, err := stateDb.Exec(ctx, "DELETE FROM state.batch"); err != nil {
+		t.Fail()
+	}
+	if _, err := stateDb.Exec(ctx, "DELETE FROM state.exit_root"); err != nil {
+		t.Fail()
+	}
 
 	const sqlAddBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
 	_, err = stateDb.Exec(ctx, sqlAddBlock, 1, time.Now(), "")
@@ -190,7 +195,6 @@ func TestSequenceTooBig(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, testCase := range testcases {
-
 		innerDbTx, err := state.BeginStateTransaction(ctx)
 		require.NoError(t, err)
 		err = dbutils.InitOrResetState(CONFIG_DB)
@@ -199,8 +203,12 @@ func TestSequenceTooBig(t *testing.T) {
 		err = dbutils.InitOrResetPool(CONFIG_DB)
 		require.NoError(t, err)
 
-		stateDb.Exec(ctx, "DELETE FROM state.block")
-		stateDb.Exec(ctx, "DELETE FROM state.batch")
+		if _, err := stateDb.Exec(ctx, "DELETE FROM state.block"); err != nil {
+			t.Fail()
+		}
+		if _, err := stateDb.Exec(ctx, "DELETE FROM state.batch"); err != nil {
+			t.Fail()
+		}
 
 		for i := 0; i < len(testCase.Input); i++ {
 			fmt.Printf("\niteration: [%d]: %d\n", testCase.Output, testCase.Input[i])
@@ -217,7 +225,6 @@ func TestSequenceTooBig(t *testing.T) {
 				payload,
 			)
 			require.NoError(t, err)
-
 		}
 
 		//needed for completion: wip batch
@@ -240,5 +247,4 @@ func TestSequenceTooBig(t *testing.T) {
 
 		require.Equal(t, testCase.Output, len(sequences))
 	}
-
 }

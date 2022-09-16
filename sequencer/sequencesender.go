@@ -11,7 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/core"
-
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
