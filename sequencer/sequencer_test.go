@@ -47,16 +47,25 @@ func TestSequenceTooBig(t *testing.T) {
 
 	var (
 		CONFIG_ADDRESSES = map[string]common.Address{
-			CONFIG_NAME_POE:   common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"), // <= PoE
+			CONFIG_NAME_POE:   common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"), // <= PoE
 			CONFIG_NAME_MATIC: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"), // <= Matic
 			CONFIG_NAME_GER:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"), // <= GER
 		}
-		CONFIG_DB = db.Config{
-			User:      "test_user",
-			Password:  "test_password",
-			Name:      "test_db",
+		CONFIG_DB_STATE = db.Config{
+			User:      "state_user",
+			Password:  "state_password",
+			Name:      "state_db",
 			Host:      "localhost",
 			Port:      "5432",
+			EnableLog: false,
+			MaxConns:  200,
+		}
+		CONFIG_DB_POOL = db.Config{
+			User:      "pool_user",
+			Password:  "pool_password",
+			Name:      "pool_db",
+			Host:      "localhost",
+			Port:      "5433",
 			EnableLog: false,
 			MaxConns:  200,
 		}
@@ -96,7 +105,7 @@ func TestSequenceTooBig(t *testing.T) {
 			Input: []int{
 				1, 1, 1, 1,
 			},
-			Output: 4, // all sequences fit inside
+			Output: 2, // all sequences fit inside
 		},
 	}
 	ctx := context.Background()
@@ -120,6 +129,7 @@ func TestSequenceTooBig(t *testing.T) {
 	amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
 	amountB := new(big.Int)
 	amountInWei.Int(amountB)
+
 	_, err = eth_man.ApproveMatic(amountB, CONFIG_ADDRESSES[CONFIG_NAME_POE])
 	require.NoError(t, err)
 
@@ -128,19 +138,19 @@ func TestSequenceTooBig(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = dbutils.InitOrResetState(CONFIG_DB)
+	err = dbutils.InitOrResetState(CONFIG_DB_STATE)
 	require.NoError(t, err)
 
-	err = dbutils.InitOrResetPool(CONFIG_DB)
+	err = dbutils.InitOrResetPool(CONFIG_DB_STATE)
 	require.NoError(t, err)
 
-	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(CONFIG_DB)
+	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(CONFIG_DB_POOL)
 	require.NoError(t, err)
 
-	sqlDB, err := db.NewSQLDB(CONFIG_DB)
+	sqlStateDB, err := db.NewSQLDB(CONFIG_DB_STATE)
 	require.NoError(t, err)
 
-	stateDb := st.NewPostgresStorage(sqlDB)
+	stateDb := st.NewPostgresStorage(sqlStateDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{
 		URI: CONFIG_EXECUTOR_URL,
 	})
@@ -197,10 +207,10 @@ func TestSequenceTooBig(t *testing.T) {
 	for _, testCase := range testcases {
 		innerDbTx, err := state.BeginStateTransaction(ctx)
 		require.NoError(t, err)
-		err = dbutils.InitOrResetState(CONFIG_DB)
+		err = dbutils.InitOrResetState(CONFIG_DB_STATE)
 		require.NoError(t, err)
 
-		err = dbutils.InitOrResetPool(CONFIG_DB)
+		err = dbutils.InitOrResetPool(CONFIG_DB_POOL)
 		require.NoError(t, err)
 
 		if _, err := stateDb.Exec(ctx, "DELETE FROM state.block"); err != nil {
