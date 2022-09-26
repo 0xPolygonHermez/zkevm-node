@@ -15,7 +15,7 @@ import (
 
 // jsonRPCTxPool contains the methods required to interact with the tx pool.
 type jsonRPCTxPool interface {
-	AddTx(ctx context.Context, tx types.Transaction) error
+	AddTx(ctx context.Context, tx types.Transaction, zkCounters pool.ZkCounters) error
 	GetGasPrice(ctx context.Context) (uint64, error)
 	GetNonce(ctx context.Context, address common.Address) (uint64, error)
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
@@ -56,6 +56,7 @@ type stateInterface interface {
 	IsL2BlockConsolidated(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error)
 	IsL2BlockVirtualized(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error)
 	ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber *uint64, dbTx pgx.Tx) *runtime.ExecutionResult
+	ProcessTx(ctx context.Context, tx types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
 }
 
 type storageInterface interface {

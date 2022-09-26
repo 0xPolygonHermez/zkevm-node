@@ -168,35 +168,31 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 // GetTxs gets txs with the lowest nonce
 func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, limit uint64) ([]*pool.Transaction, error) {
 	query := `
-		SELECT
-			encoded,
-			status,
-			cumulative_gas_used,
-			used_keccak_hashes,
-			used_poseidon_hashes,
-			used_poseidon_paddings,
-			used_mem_aligns,
-			used_arithmetics,
-			used_binaries,
-			used_steps,
-			received_at,
-			nonce
-		FROM
-			pool.txs p1
-		WHERE 
-			status = $1
-		ORDER BY 
-			nonce ASC
-		LIMIT $2
+			SELECT encoded,
+				 status,
+				 cumulative_gas_used,
+				 used_keccak_hashes,
+				 used_poseidon_hashes,
+				 used_poseidon_paddings,
+				 used_mem_aligns,
+				 used_arithmetics,
+				 used_binaries,
+				 used_steps,
+				 received_at,
+				 nonce
+			FROM pool.txs
+			WHERE status = $1
+			ORDER BY gas_price DESC
+			LIMIT $2
 	`
 
 	var (
 		encoded, status   string
 		receivedAt        time.Time
-		cumulativeGasUsed int64
+		cumulativeGasUsed uint64
 
 		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
-		usedMemAligns, usedArithmetics, usedBinaries, usedSteps int32
+		usedMemAligns, usedArithmetics, usedBinaries, usedSteps uint32
 		nonce uint64
 	)
 

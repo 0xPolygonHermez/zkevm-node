@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"math/big"
 	"strings"
 	"testing"
@@ -2628,8 +2629,13 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 					return h1 == h2
 				})
 
+				zkCounters := pool.ZkCounters{}
+				ctx := context.Background()
+				m.State.
+					On("ProcessTx", ctx, txMatchByHash, mock.Anything).
+					Return()
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", ctx, txMatchByHash, zkCounters).
 					Return(nil).
 					Once()
 			},

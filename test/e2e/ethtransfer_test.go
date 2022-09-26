@@ -43,7 +43,7 @@ func TestEthTransfer(t *testing.T) {
 	client, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
 	// Send txs
-	nTxs := 50
+	nTxs := 1000
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)
@@ -71,7 +71,7 @@ func TestEthTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < nTxs; i++ {
-		tx := types.NewTransaction(nonce+uint64(i), toAddress, amount, gasLimit, gasPrice, nil)
+		tx := types.NewTransaction(nonce+uint64(i), toAddress, amount, gasLimit, gasPrice.Add(gasPrice, big.NewInt(int64(i))), nil)
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())

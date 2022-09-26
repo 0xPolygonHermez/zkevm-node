@@ -56,7 +56,7 @@ func NewPool(s storage, st stateInterface, l2GlobalExitRootManagerAddr common.Ad
 }
 
 // AddTx adds a transaction to the pool with the pending state
-func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
+func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, zkCounters ZkCounters) error {
 	if err := p.validateTx(ctx, tx); err != nil {
 		return err
 	}
@@ -65,6 +65,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 		Transaction: tx,
 		Status:      TxStatusPending,
 		IsClaims:    false,
+		ZkCounters:  zkCounters,
 		ReceivedAt:  time.Now(),
 	}
 

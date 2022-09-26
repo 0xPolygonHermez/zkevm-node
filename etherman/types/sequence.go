@@ -3,6 +3,7 @@ package types
 import (
 	"reflect"
 
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -13,6 +14,8 @@ type Sequence struct {
 	GlobalExitRoot, StateRoot, LocalExitRoot common.Hash
 	Timestamp                                int64
 	Txs                                      []types.Transaction
+	ZkCounters                               pool.ZkCounters
+	IsZkCountersReachedMax                   bool
 }
 
 // IsEmpty checks is sequence struct is empty

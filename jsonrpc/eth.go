@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -588,7 +589,9 @@ func (e *Eth) SendRawTransaction(input string) (interface{}, rpcError) {
 	if e.cfg.SequencerNodeURI != "" {
 		return e.relayTxToSequencerNode(input)
 	} else {
-		return e.tryToAddTxToPool(input)
+		return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+			return e.tryToAddTxToPool(input, dbTx)
+		})
 	}
 }
 
@@ -607,14 +610,30 @@ func (e *Eth) relayTxToSequencerNode(input string) (interface{}, rpcError) {
 	return txHash, nil
 }
 
-func (e *Eth) tryToAddTxToPool(input string) (interface{}, rpcError) {
+func (e *Eth) tryToAddTxToPool(input string, dbTx pgx.Tx) (interface{}, rpcError) {
 	tx, err := hexToTx(input)
 	if err != nil {
 		return rpcErrorResponse(invalidParamsErrorCode, "invalid tx input", err)
 	}
+	ctx := context.Background()
+	procResp, err := e.state.ProcessTx(ctx, *tx, dbTx)
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
+	}
+
+	zkCounters := pool.ZkCounters{
+		CumulativeGasUsed:    procResp.CumulativeGasUsed,
+		UsedKeccakHashes:     procResp.CntKeccakHashes,
+		UsedPoseidonHashes:   procResp.CntPoseidonHashes,
+		UsedPoseidonPaddings: procResp.CntPoseidonPaddings,
+		UsedMemAligns:        procResp.CntMemAligns,
+		UsedArithmetics:      procResp.CntArithmetics,
+		UsedBinaries:         procResp.CntBinaries,
+		UsedSteps:            procResp.CntSteps,
+	}
 
 	log.Debugf("adding TX to the pool: %v", tx.Hash().Hex())
-	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
+	if err := e.pool.AddTx(ctx, *tx, zkCounters); err != nil {
 		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
 	}
 	log.Infof("TX added to the pool: %v", tx.Hash().Hex())

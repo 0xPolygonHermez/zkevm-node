@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -78,12 +79,41 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			return
 		}
 	} else if err != nil {
-		log.Errorf("failed to get pending tx, err: %w", err)
+		log.Errorf("failed to get pending txs, err: %w", err)
 		return
 	}
+
+	var (
+		zkCountersBeforeAddition pool.ZkCounters
+		pendTxsPreSelected       []ethTypes.Transaction
+	)
 	for i := 0; i < len(pendTxs); i++ {
-		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, pendTxs[i].Transaction)
+		if s.sequenceInProgress.ZkCounters.IsAnyFieldMoreThan(pool.ZkCounters{
+			CumulativeGasUsed:    s.cfg.MaxCumulativeGasUsed,
+			UsedKeccakHashes:     s.cfg.MaxKeccakHashes,
+			UsedPoseidonHashes:   s.cfg.MaxPoseidonHashes,
+			UsedPoseidonPaddings: s.cfg.MaxPoseidonPaddings,
+			UsedMemAligns:        s.cfg.MaxMemAligns,
+			UsedArithmetics:      s.cfg.MaxArithmetics,
+			UsedBinaries:         s.cfg.MaxBinaries,
+			UsedSteps:            s.cfg.MaxSteps,
+		}) {
+			log.Info("reached max zkCounters, need to close a batch")
+			log.Info("zk counters", s.sequenceInProgress.ZkCounters)
+			s.sequenceInProgress.ZkCounters = zkCountersBeforeAddition
+			s.sequenceInProgress.IsZkCountersReachedMax = true
+			break
+		}
+		zkCountersBeforeAddition = s.sequenceInProgress.ZkCounters
+		s.sequenceInProgress.ZkCounters.SumUpZkCounters(pendTxs[i].ZkCounters)
+		pendTxsPreSelected = append(pendTxsPreSelected, pendTxs[i].Transaction)
 	}
+
+	sort.SliceStable(pendTxsPreSelected, func(i, j int) bool {
+		return pendTxsPreSelected[i].Nonce() < pendTxsPreSelected[j].Nonce()
+	})
+
+	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, pendTxsPreSelected...)
 
 	// process batch
 	log.Infof("processing batch with %d txs. %d txs are new from this iteration", len(s.sequenceInProgress.Txs), len(pendTxs))

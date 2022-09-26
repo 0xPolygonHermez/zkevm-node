@@ -417,6 +417,52 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	return res, err
 }
 
+func (s *State) ProcessTx(ctx context.Context, tx types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	lastBatches, err := s.PostgresStorage.GetLastNBatches(ctx, two, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	lastBatch := lastBatches[0]
+	previousBatch := lastBatches[0]
+	if len(lastBatches) > 1 {
+		previousBatch = lastBatches[1]
+	}
+	//isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, lastBatch.BatchNumber, dbTx)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	batchL2Data, err := EncodeTransactions([]types.Transaction{tx})
+	if err != nil {
+		return nil, err
+	}
+
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:         lastBatch.BatchNumber,
+		Coinbase:         lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     previousBatch.StateRoot.Bytes(),
+		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree: cFalse,
+	}
+	now := time.Now()
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	log.Infof("It took %v for the executor to process the request", time.Since(now))
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := convertToProcessBatchResponse([]types.Transaction{tx}, processBatchResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, err
+}
+
 // StoreTransactions is used by the sequencer to add processed transactions into
 // an open batch. If the batch already has txs, the processedTxs must be a super
 // set of the existing ones, preserving order.

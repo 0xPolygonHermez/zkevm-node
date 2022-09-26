@@ -38,14 +38,14 @@ type Transaction struct {
 
 // ZkCounters counters for the tx
 type ZkCounters struct {
-	CumulativeGasUsed    int64
-	UsedKeccakHashes     int32
-	UsedPoseidonHashes   int32
-	UsedPoseidonPaddings int32
-	UsedMemAligns        int32
-	UsedArithmetics      int32
-	UsedBinaries         int32
-	UsedSteps            int32
+	CumulativeGasUsed    uint64
+	UsedKeccakHashes     uint32
+	UsedPoseidonHashes   uint32
+	UsedPoseidonPaddings uint32
+	UsedMemAligns        uint32
+	UsedArithmetics      uint32
+	UsedBinaries         uint32
+	UsedSteps            uint32
 }
 
 // IsZkCountersBelowZero checks if any of the counters are below zero
@@ -70,6 +70,17 @@ func (zkc *ZkCounters) SumUpZkCounters(txZkCounters ZkCounters) {
 	zkc.UsedArithmetics += txZkCounters.UsedArithmetics
 	zkc.UsedBinaries += txZkCounters.UsedBinaries
 	zkc.UsedSteps += txZkCounters.UsedSteps
+}
+
+func (zkc *ZkCounters) IsAnyFieldMoreThan(otherZkC ZkCounters) bool {
+	return zkc.CumulativeGasUsed > otherZkC.CumulativeGasUsed ||
+		zkc.UsedArithmetics > otherZkC.UsedArithmetics ||
+		zkc.UsedSteps > otherZkC.UsedSteps ||
+		zkc.UsedBinaries > otherZkC.UsedBinaries ||
+		zkc.UsedMemAligns > otherZkC.UsedMemAligns ||
+		zkc.UsedPoseidonPaddings > otherZkC.UsedPoseidonPaddings ||
+		zkc.UsedPoseidonHashes > otherZkC.UsedPoseidonHashes ||
+		zkc.UsedKeccakHashes > otherZkC.UsedKeccakHashes
 }
 
 // IsClaimTx checks, if tx is a claim tx
