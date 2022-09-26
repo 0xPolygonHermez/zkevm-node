@@ -61,6 +61,8 @@ type stateInterface interface {
 	GetStateRootByBatchNumber(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (common.Hash, error)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
+
+	GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
 }
 
 type txManager interface {

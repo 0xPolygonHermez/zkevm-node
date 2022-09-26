@@ -97,9 +97,11 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	// reprocess the batch until:
 	// - all the txs in it are processed, so the batch doesn't include invalid txs
 	// - the batch is processed (certain situations may cause the entire batch to not have effect on the state)
+	var amountOfUnprocessedTxs int
 	for !processResponse.isBatchProcessed || len(processResponse.unprocessedTxs) > 0 {
 		// include only processed txs in the sequence
 		s.sequenceInProgress.Txs = make([]ethTypes.Transaction, 0, len(processResponse.processedTxs))
+		amountOfUnprocessedTxs = len(processResponse.unprocessedTxsHashes)
 		for i := 0; i < len(processResponse.processedTxs); i++ {
 			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, processResponse.processedTxs[i].Tx)
 		}
@@ -108,6 +110,13 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		processResponse, err = s.processTxs(ctx)
 		if err != nil {
 			s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
+			if amountOfUnprocessedTxs == len(processResponse.unprocessedTxsHashes) {
+				log.Errorf("failed to reprocess txs and amount of unprocessed txs is unchanged")
+				for _, tx := range processResponse.unprocessedTxs {
+					s.state.GetNonce(ctx, tx.Tx))
+				}
+
+			}
 			log.Errorf("failed to reprocess txs, err: %w", err)
 			return
 		}
