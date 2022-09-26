@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"math/big"
 	"time"
 
@@ -829,6 +830,8 @@ func (p *PostgresStorage) openBatch(ctx context.Context, batchContext Processing
 
 func (p *PostgresStorage) closeBatch(ctx context.Context, receipt ProcessingReceipt, rawTxs []byte, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
+	// TODO: temp for the debug
+	log.Infof("closing a batch and setting state root, NEWSTATEROOT: %s, BATCHNUM: %d", receipt.StateRoot.String(), receipt.BatchNumber)
 	_, err := e.Exec(ctx, closeBatchSQL, receipt.StateRoot.String(), receipt.LocalExitRoot.String(), rawTxs, receipt.BatchNumber)
 	return err
 }
