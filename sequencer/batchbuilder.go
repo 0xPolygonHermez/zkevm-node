@@ -260,6 +260,8 @@ func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 	s.sequenceInProgress.StateRoot = processBatchResp.NewStateRoot
 	s.sequenceInProgress.LocalExitRoot = processBatchResp.NewLocalExitRoot
 
+	// TODO: temp for the debug
+	log.Infof("batch is processed by the executor, NEWSTATEROOT: %s, BATCHNUM: %d", processBatchResp.NewStateRoot, s.lastBatchNum)
 	processedTxs, processedTxsHashes, unprocessedTxs, unprocessedTxsHashes := state.DetermineProcessedTransactions(processBatchResp.Responses)
 
 	response := processTxResponse{
