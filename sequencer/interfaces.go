@@ -24,6 +24,7 @@ type txPool interface {
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error
 	GetTxs(ctx context.Context, filterStatus pool.TxStatus, limit uint64) ([]*pool.Transaction, error)
+	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)
 }
 
 // etherman contains the methods required to interact with ethereum.
@@ -63,6 +64,7 @@ type stateInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 
 	GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 
 type txManager interface {

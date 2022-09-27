@@ -110,15 +110,27 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		processResponse, err = s.processTxs(ctx)
 		if err != nil {
 			s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
-			if amountOfUnprocessedTxs == len(processResponse.unprocessedTxsHashes) {
-				log.Errorf("failed to reprocess txs and amount of unprocessed txs is unchanged")
-				for _, tx := range processResponse.unprocessedTxs {
-					s.state.GetNonce(ctx, tx.Tx))
-				}
-
-			}
 			log.Errorf("failed to reprocess txs, err: %w", err)
 			return
+		}
+		if amountOfUnprocessedTxs == len(processResponse.unprocessedTxsHashes) {
+			log.Warnf("failed to reprocess txs and amount of unprocessed txs is unchanged")
+			for _, tx := range processResponse.unprocessedTxs {
+				isTxNonceLessThanAccountNonce, err := s.isTxNonceLessThanAccountNonce(ctx, tx)
+				if err != nil {
+					log.Errorf("failed to compare account nonce and tx nonce, err: %w", err)
+					return
+				}
+				if isTxNonceLessThanAccountNonce {
+					log.Infof("tx with hash %s is invalid, account nonce > tx nonce")
+					err = s.pool.UpdateTxStatus(ctx, tx.TxHash, pool.TxStatusInvalid)
+					for err != nil {
+						log.Errorf("failed to update tx with hash %s to invalid status", tx.TxHash)
+						err = s.pool.UpdateTxStatus(ctx, tx.TxHash, pool.TxStatusInvalid)
+						waitTick(ctx, ticker)
+					}
+				}
+			}
 		}
 	}
 	log.Infof("%d txs processed successfully", len(s.sequenceInProgress.Txs))
@@ -158,6 +170,26 @@ func (s *Sequencer) updateTxsStatus(ctx context.Context, ticker *time.Ticker, ha
 		waitTick(ctx, ticker)
 		err = s.pool.UpdateTxsStatus(ctx, hashes, status)
 	}
+}
+
+func (s *Sequencer) isTxNonceLessThanAccountNonce(ctx context.Context, tx *state.ProcessTransactionResponse) (bool, error) {
+	fromAddr, txNonce, err := s.pool.GetTxFromAddressFromByHash(ctx, tx.TxHash)
+	if err != nil {
+		return false, fmt.Errorf("failed to get from addr, err: %w", err)
+	}
+
+	lastL2BlockNumber, err := s.state.GetLastL2BlockNumber(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to get last l2 block number, err: %w", err)
+
+	}
+
+	nonce, err := s.state.GetNonce(ctx, fromAddr, lastL2BlockNumber, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to get nonce for the account, err: %w", err)
+	}
+
+	return txNonce < nonce, nil
 }
 
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
