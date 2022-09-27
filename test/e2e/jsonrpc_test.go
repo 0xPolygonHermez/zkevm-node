@@ -3,6 +3,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -10,8 +11,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
 
@@ -183,4 +189,211 @@ func deployContracts(opsman *operations.Manager) error {
 	// }
 
 	// return bp.ProcessBatch(ctx, batch)
+}
+
+func Test_Filters(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	receiverAddr := common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+
+	for _, network := range networks {
+		log.Debugf(network.Name)
+
+		const (
+			CREATE    = 0
+			UNINSTALL = 1
+			GET       = 2
+		)
+		ids := map[string]string{
+			"newBlockFilter":              "",
+			"newPendingTransactionFilter": "",
+			"newFilter":                   "",
+		}
+		testcases := []struct {
+			name             string
+			action           int
+			description      string
+			payload          struct{}
+			expectedResponse bool
+			id               string
+			shouldErr        bool
+			err              error
+		}{
+			{
+				name:        "eth_newBlockFilter",
+				action:      CREATE,
+				shouldErr:   false,
+				description: "create new block filter successfully",
+			},
+			{
+				name:        "eth_newPendingTransactionFilter",
+				action:      CREATE,
+				shouldErr:   false,
+				description: "create new pending TX filter successfully",
+			},
+			{
+
+				name:             "eth_newFilter",
+				action:           CREATE,
+				shouldErr:        false,
+				description:      "create a filter successfully",
+				id:               "newFilter",
+				expectedResponse: true,
+			},
+			{
+				name:             "eth_uninstallFilter",
+				action:           UNINSTALL,
+				shouldErr:        false,
+				description:      "uninstall a filter successfully",
+				id:               "newFilter",
+				expectedResponse: true,
+			},
+			{
+				name:             "eth_uninstallFilter",
+				action:           UNINSTALL,
+				shouldErr:        false,
+				description:      "uninstall a filter with error because it was already deleted",
+				id:               "newFilter",
+				expectedResponse: false,
+			},
+			{
+
+				name:             "eth_newFilter",
+				action:           CREATE,
+				shouldErr:        false,
+				description:      "create a filter successfully again",
+				id:               "newFilter",
+				expectedResponse: true,
+			},
+			{
+				name:             "eth_getFilterChanges",
+				action:           GET,
+				shouldErr:        false,
+				description:      "get the data from the filter",
+				id:               "newFilter",
+				expectedResponse: false,
+			},
+		}
+
+		for _, tc := range testcases {
+			tc := tc
+			t.Run(tc.name, func(t *testing.T) {
+				var response jsonrpc.Response
+				var err error
+				if tc.action == UNINSTALL || tc.action == GET {
+					response, err = jsonrpc.JSONRPCCall(network.URL, tc.name, ids[strings.Replace(tc.id, "eth_", "", -1)])
+					require.NoError(t, err)
+				} else if tc.action == CREATE && tc.name == "eth_newFilter" {
+					response, err = jsonrpc.JSONRPCCall(network.URL, tc.name, &jsonrpc.LogFilter{
+						Addresses: []common.Address{
+							receiverAddr,
+						},
+					})
+					require.NoError(t, err)
+				} else {
+					response, err = jsonrpc.JSONRPCCall(network.URL, tc.name)
+					require.NoError(t, err)
+				}
+
+				if tc.shouldErr {
+					require.NotNil(t, response.Error)
+					require.Equal(t, tc.err.Error(), response.Error.Message)
+
+				} else {
+					require.Nil(t, response.Error)
+					var result interface{}
+					err = json.Unmarshal(response.Result, &result)
+					require.NoError(t, err)
+
+					require.NotNil(t, result)
+
+					if tc.action == CREATE {
+						fmt.Println("Result " + result.(string))
+						ids[strings.Replace(tc.id, "eth_", "", -1)] = result.(string)
+					}
+					if tc.action == UNINSTALL {
+						var result bool
+						err = json.Unmarshal(response.Result, &result)
+						require.NoError(t, err)
+						require.NotNil(t, result)
+						require.Equal(t, tc.expectedResponse, result)
+					}
+					if tc.action == GET {
+						type filterResponse struct {
+							address, data, blockNumber, transactionHash, transactionIndex, blockHash, logIndex string
+							topics                                                                             []string
+						}
+						var result []filterResponse
+						err = json.Unmarshal(response.Result, &result)
+						require.NoError(t, err)
+						require.NotNil(t, result)
+						fmt.Printf("\n%+v", result)
+					}
+
+				}
+
+				require.Equal(t, float64(1), response.ID)
+				require.Equal(t, "2.0", response.JSONRPC)
+			})
+		}
+	}
+}
+
+func Test_Gas(t *testing.T) {
+
+	err := operations.StartComponent("approve-matic")
+	require.NoError(t, err)
+
+	var Address1 = common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff")
+	var Value = big.NewInt(1000)
+	for _, network := range networks {
+
+		client, err := ethclient.Dial(network.URL)
+		msg := ethereum.CallMsg{From: common.HexToAddress(operations.DefaultSequencerAddress),
+			To:    &Address1,
+			Value: Value}
+
+		balance, err := client.BalanceAt(context.Background(), common.HexToAddress(operations.DefaultSequencerAddress), nil)
+		log.Infof("Balance: %d", balance)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, balance.Cmp(big.NewInt(1)), 1)
+
+		response, err := client.EstimateGas(context.Background(), msg)
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		log.Infof("Estimated gas: %d", response)
+		require.GreaterOrEqual(t, response, uint64(21000))
+
+	}
+}
+
+func Test_Block(t *testing.T) {
+
+	/*
+		func (e *Eth) BlockNumber() (interface{}, rpcError) {
+
+		func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, rpcError) {
+		func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, rpcError) {
+
+		func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (interface{}, rpcError) {
+		func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, rpcError) {
+
+		func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, rpcError) {
+		func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, rpcError) {
+
+		func (e *Eth) GetUncleByBlockHashAndIndex() (interface{}, rpcError) {
+		func (e *Eth) GetUncleByBlockNumberAndIndex() (interface{}, rpcError) {
+		func (e *Eth) GetUncleCountByBlockHash() (interface{}, rpcError) {
+		func (e *Eth) GetUncleCountByBlockNumber() (interface{}, rpcError) {
+	*/
+}
+
+func Test_Transactions(t *testing.T) {
+
+}
+
+func Test_Misc(t *testing.T) {
+
 }
