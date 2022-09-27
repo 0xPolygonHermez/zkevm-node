@@ -525,7 +525,7 @@ func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingRe
 	}
 
 	// TODO: Modification done to bypass situation detected during testnet testing
-	// 		 Further analysis fo this is needed
+	// Further analysis is needed
 	/*
 		if len(txs) == 0 {
 			return ErrClosingBatchWithoutTxs
