@@ -1040,11 +1040,11 @@ func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
 	for _, response := range responses {
 		if response.IsProcessed {
 			processedTxResponses = append(processedTxResponses, response)
-			processedTxsHashes = append(processedTxsHashes, response.TxHash.String())
+			processedTxsHashes = append(processedTxsHashes, response.Tx.Hash().String())
 		} else {
 			log.Infof("Tx %s has not been processed", response.TxHash)
 			unprocessedTxResponses[response.TxHash.String()] = response
-			unprocessedTxsHashes = append(unprocessedTxsHashes, response.TxHash.String())
+			unprocessedTxsHashes = append(unprocessedTxsHashes, response.Tx.Hash().String())
 		}
 	}
 	return processedTxResponses, processedTxsHashes, unprocessedTxResponses, unprocessedTxsHashes
