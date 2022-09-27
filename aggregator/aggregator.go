@@ -104,6 +104,10 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
+	// TODO: temp for the debug
+	log.Infof("sending a batch to the prover, OLDSTATEROOT: %s, NEWSTATEROOT: %s, BATCHNUM: %d",
+		inputProver.PublicInputs.OldStateRoot, inputProver.PublicInputs.NewStateRoot, inputProver.PublicInputs.BatchNum)
+
 	genProofID, err := a.ProverClient.GetGenProofID(ctx, inputProver)
 	if err != nil {
 		log.Warnf("failed to get gen proof id, err: %v", err)
