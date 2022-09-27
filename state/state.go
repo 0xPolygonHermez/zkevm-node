@@ -524,9 +524,13 @@ func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingRe
 		return err
 	}
 
-	if len(txs) == 0 {
-		return ErrClosingBatchWithoutTxs
-	}
+	// TODO: Modification done to bypass situation detected during testnet testing
+	// Further analysis is needed
+	/*
+		if len(txs) == 0 {
+			return ErrClosingBatchWithoutTxs
+		}
+	*/
 
 	batchL2Data, err := EncodeTransactions(txs)
 	if err != nil {
