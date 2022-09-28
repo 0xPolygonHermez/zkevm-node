@@ -224,7 +224,7 @@ services:
 
   zkevm-mock-l1-network:
     container_name: zkevm-mock-l1-network
-    image: hermeznetwork/geth-zkevm-contracts@sha256:b88d03a42ef4975d0b92c0dd192e1bf4d673fc4b761aaf4bcfdd606989c1b006
+    image: hermeznetwork/geth-zkevm-contracts
     ports:
       - 8545:8545
     command: ["--http", "--http.api", "admin,eth,debug,miner,net,txpool,personal,web3",  "--http.addr", "0.0.0.0","--http.corsdomain", "*", "--http.vhosts" ,"*", "--ws", "--ws.origins", "*", "--ws.addr", "0.0.0.0", "--dev", "--datadir", "/geth_data"]

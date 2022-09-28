@@ -12,12 +12,28 @@ This documentation will help you running the following components:
 - Explorer
 
 ## Requirements
-
+### Prerequisites
 The current version of the environment requires `go`, `docker` and `docker-compose` to be previously installed, check the links bellow to understand how to install them:
 
 - <https://go.dev/doc/install>
 - <https://www.docker.com/get-started>
 - <https://docs.docker.com/compose/install/>
+
+### Building local network image with the L1 contracts
+
+Create a local network with the proof of efficiency contracts deployed on it. In order to do that checkout the zkEVM-contracts repository - <https://github.com/0xPolygonHermez/zkevm-contracts> and run the docker generation command.
+
+Assuming you are in the zkEVM-node root directory, you can use the following script to do so:
+
+```bash
+cd ./..
+git clone https://github.com/0xPolygonHermez/zkevm-contracts.git
+cd zkevm-contracts
+npm run docker:contracts
+cd ./../zkevm-node
+```
+
+### Building the zkEVM node docker image
 
 The `zkevm-node` docker image must be built at least once and every time a change is made to the code.
 If you haven't build the `zkevm-node` image yet, you must run:
