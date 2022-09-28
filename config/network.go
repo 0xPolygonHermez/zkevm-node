@@ -14,7 +14,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-//NetworkConfig is the configuration struct for the different environments
+// NetworkConfig is the configuration struct for the different environments
 type NetworkConfig struct {
 	GenBlockNumber                uint64
 	PoEAddr                       common.Address
@@ -133,8 +133,14 @@ var (
 		L1ChainID:                     5, //Goerli
 		L2ChainID:                     1000,
 		Genesis: state.Genesis{
-			Root:    common.HexToHash("0xb33635210b9f5d07769cf70bf5a3cbf241ecbaf79a9b66ef79b28d920da1f776"),
-			Actions: []*state.GenesisAction{},
+			Root: common.HexToHash("0xb33635210b9f5d07769cf70bf5a3cbf241ecbaf79a9b66ef79b28d920da1f776"),
+			Actions: []*state.GenesisAction{
+				{
+					Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+					Type:    int(merkletree.LeafTypeBalance),
+					Value:   "100000000000000000000000",
+				},
+			},
 		},
 	}
 
