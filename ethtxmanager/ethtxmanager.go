@@ -69,8 +69,7 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 // VerifyBatch send VerifyBatch request to ethereum
 func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) {
 	var attempts uint32
-	// TODO: Remove this limit after Testnet testing
-	var gas uint64 = 500000
+	var gas uint64
 	log.Infof("sending batch %d verification to L1", batchNum)
 	for attempts < c.cfg.MaxVerifyBatchTxRetries {
 		tx, err := c.ethMan.VerifyBatch(batchNum, resGetProof, gas)

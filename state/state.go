@@ -514,7 +514,7 @@ func (s *State) isBatchClosable(ctx context.Context, receipt ProcessingReceipt, 
 }
 
 // closeSynchronizedBatch is used by Synchronizer to close the current batch.
-func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingReceipt, txs []types.Transaction, dbTx pgx.Tx) error {
+func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingReceipt, batchL2Data []byte, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
@@ -532,10 +532,10 @@ func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingRe
 		}
 	*/
 
-	batchL2Data, err := EncodeTransactions(txs)
-	if err != nil {
-		return err
-	}
+	// batchL2Data, err := EncodeTransactions(txs)
+	// if err != nil {
+	// 	return err
+	// }
 
 	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
 }
@@ -635,7 +635,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
-	}, decodedTransactions, dbTx)
+	}, encodedTxs, dbTx)
 }
 
 // GetLastBatch gets latest batch (closed or not) on the data base
