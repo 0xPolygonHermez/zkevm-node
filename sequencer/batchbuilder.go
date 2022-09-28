@@ -2,8 +2,10 @@ package sequencer
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -17,7 +19,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-const maxTxsPerBatch uint64 = 150
+const (
+	maxTxsPerBatch    uint64 = 150
+	maxBatchBytesSize        = 30000
+)
 
 type processTxResponse struct {
 	processedTxs         []*state.ProcessTransactionResponse
@@ -83,6 +88,34 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 	for i := 0; i < len(pendTxs); i++ {
 		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, pendTxs[i].Transaction)
+	}
+
+	// clear txs if it bigger than expected
+	encodedTxsBytesSize := math.MaxInt
+	for encodedTxsBytesSize > maxBatchBytesSize && len(s.sequenceInProgress.Txs) > 0 {
+		encodedTxs, err := state.EncodeTransactions(s.sequenceInProgress.Txs)
+		if err != nil {
+			log.Errorf("failed to encode txs, err: %w", err)
+			return
+		}
+		encodedTxsBytesSize = binary.Size(encodedTxs)
+
+		if encodedTxsBytesSize > maxBatchBytesSize && len(s.sequenceInProgress.Txs) > 0 {
+			// if only one tx overflows, than it means, tx is invalid
+			if len(s.sequenceInProgress.Txs) == 1 {
+				err = s.pool.UpdateTxStatus(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStatusInvalid)
+				for err != nil {
+					log.Errorf("failed to update tx with hash: %s to status: %s",
+						s.sequenceInProgress.Txs[0].Hash().String(), pool.TxStatusInvalid)
+					err = s.pool.UpdateTxStatus(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStatusInvalid)
+					waitTick(ctx, ticker)
+				}
+			}
+			log.Infof("decreasing amount of sent txs, bcs encodedTxsBytesSize > maxBatchBytesSize, encodedTxsBytesSize: %d, maxBatchBytesSize: %d",
+				encodedTxsBytesSize, maxBatchBytesSize)
+			s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+			s.isSequenceTooBig = true
+		}
 	}
 
 	// process batch
