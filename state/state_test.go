@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "51.210.116.237")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -76,21 +76,21 @@ func TestMain(m *testing.M) {
 		executorCancel()
 		executorClientConn.Close()
 	}()
-	/*
-		mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
-		var mtDBCancel context.CancelFunc
-		mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
-		s = mtDBClientConn.GetState()
-		log.Infof("stateDbClientConn state: %s", s.String())
-		defer func() {
-			mtDBCancel()
-			mtDBClientConn.Close()
-		}()
 
-		stateTree = merkletree.NewStateTree(mtDBServiceClient)
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+	var mtDBCancel context.CancelFunc
+	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+	s = mtDBClientConn.GetState()
+	log.Infof("stateDbClientConn state: %s", s.String())
+	defer func() {
+		mtDBCancel()
+		mtDBClientConn.Close()
+	}()
 
-		testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
-	*/
+	stateTree = merkletree.NewStateTree(mtDBServiceClient)
+
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
+
 	result := m.Run()
 
 	os.Exit(result)
