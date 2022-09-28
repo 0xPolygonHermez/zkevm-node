@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "51.210.116.237")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -76,21 +76,21 @@ func TestMain(m *testing.M) {
 		executorCancel()
 		executorClientConn.Close()
 	}()
+	/*
+		mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+		var mtDBCancel context.CancelFunc
+		mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+		s = mtDBClientConn.GetState()
+		log.Infof("stateDbClientConn state: %s", s.String())
+		defer func() {
+			mtDBCancel()
+			mtDBClientConn.Close()
+		}()
 
-	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
-	var mtDBCancel context.CancelFunc
-	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
-	s = mtDBClientConn.GetState()
-	log.Infof("stateDbClientConn state: %s", s.String())
-	defer func() {
-		mtDBCancel()
-		mtDBClientConn.Close()
-	}()
+		stateTree = merkletree.NewStateTree(mtDBServiceClient)
 
-	stateTree = merkletree.NewStateTree(mtDBServiceClient)
-
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
-
+		testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree)
+	*/
 	result := m.Run()
 
 	os.Exit(result)
@@ -1195,7 +1195,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 
 	var testCases []TxHashTestCase
 
-	jsonFile, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/tx-hash-goerli.json"))
+	jsonFile, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/uniswap_formated.json"))
 	require.NoError(t, err)
 	defer func() { _ = jsonFile.Close() }()
 
