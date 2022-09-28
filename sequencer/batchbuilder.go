@@ -183,7 +183,7 @@ func (s *Sequencer) updateTxsStatus(ctx context.Context, ticker *time.Ticker, ha
 }
 
 func (s *Sequencer) isTxNonceLessThanAccountNonce(ctx context.Context, tx *state.ProcessTransactionResponse) (bool, error) {
-	fromAddr, txNonce, err := s.pool.GetTxFromAddressFromByHash(ctx, tx.TxHash)
+	fromAddr, txNonce, err := s.pool.GetTxFromAddressFromByHash(ctx, tx.Tx.Hash())
 	if err != nil {
 		return false, fmt.Errorf("failed to get from addr, err: %w", err)
 	}
