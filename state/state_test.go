@@ -1195,7 +1195,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 
 	var testCases []TxHashTestCase
 
-	jsonFile, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/tx-hash-goerli.json"))
+	jsonFile, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/uniswap_formated.json"))
 	require.NoError(t, err)
 	defer func() { _ = jsonFile.Close() }()
 
