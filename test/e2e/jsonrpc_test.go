@@ -387,6 +387,126 @@ func Test_Filters(t *testing.T) {
 	}
 }
 
+func Test_Filters2(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() { require.NoError(t, operations.Teardown()) }()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
+	for _, network := range networks {
+		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		var filterId string
+		err = json.Unmarshal(response.Result, &filterId)
+		require.NoError(t, err)
+		require.NotEmpty(t, filterId)
+
+		////////////////
+
+		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newPendingTransactionFilter")
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		filterId = ""
+		err = json.Unmarshal(response.Result, &filterId)
+		require.NoError(t, err)
+		require.NotEmpty(t, filterId)
+
+		////////////////
+
+		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
+			"BlockHash": common.HexToHash("0x1"),
+			"FromBlock": "0x1",
+			"ToBlock":   "0x2",
+		})
+		require.NoError(t, err)
+		require.NotNil(t, response.Error)
+		require.Equal(t, -32602, response.Error.Code)
+		require.Equal(t, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other", response.Error.Message)
+
+		////////////////
+
+		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
+			"BlockHash": common.HexToHash("0x1"),
+			"Addresses": []common.Address{
+				common.HexToAddress("0x2"),
+			},
+			"Topics": [][]common.Hash{
+				{common.HexToHash("0x3")},
+			},
+		})
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		filterId = ""
+		err = json.Unmarshal(response.Result, &filterId)
+		require.NoError(t, err)
+		require.NotEmpty(t, filterId)
+
+		////////////////
+
+		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
+			"FromBlock": "0x1",
+			"ToBlock":   "0x2",
+			"Addresses": []common.Address{
+				common.HexToAddress("0x2"),
+			},
+			"Topics": [][]common.Hash{
+				{common.HexToHash("0x3")},
+			},
+		})
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		filterId = ""
+		err = json.Unmarshal(response.Result, &filterId)
+		require.NoError(t, err)
+		require.NotEmpty(t, filterId)
+
+		////////////////
+
+		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_uninstallFilter", filterId)
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		var uninstalled bool
+		err = json.Unmarshal(response.Result, &uninstalled)
+		require.NoError(t, err)
+		require.True(t, uninstalled)
+
+		////////////////
+
+		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_uninstallFilter", filterId)
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		uninstalled = true
+		err = json.Unmarshal(response.Result, &uninstalled)
+		require.NoError(t, err)
+		require.False(t, uninstalled)
+	}
+}
+
 func Test_Gas(t *testing.T) {
 
 	var Address1 = common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff")
