@@ -92,7 +92,8 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	// clear txs if it bigger than expected
 	encodedTxsBytesSize := math.MaxInt
-	for encodedTxsBytesSize > maxBatchBytesSize && len(s.sequenceInProgress.Txs) > 0 {
+	numberOfTxsInProcess := len(s.sequenceInProgress.Txs)
+	for encodedTxsBytesSize > maxBatchBytesSize && numberOfTxsInProcess > 0 {
 		encodedTxs, err := state.EncodeTransactions(s.sequenceInProgress.Txs)
 		if err != nil {
 			log.Errorf("failed to encode txs, err: %w", err)
@@ -100,9 +101,9 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		}
 		encodedTxsBytesSize = binary.Size(encodedTxs)
 
-		if encodedTxsBytesSize > maxBatchBytesSize && len(s.sequenceInProgress.Txs) > 0 {
+		if encodedTxsBytesSize > maxBatchBytesSize && numberOfTxsInProcess > 0 {
 			// if only one tx overflows, than it means, tx is invalid
-			if len(s.sequenceInProgress.Txs) == 1 {
+			if numberOfTxsInProcess == 1 {
 				err = s.pool.UpdateTxStatus(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStatusInvalid)
 				for err != nil {
 					log.Errorf("failed to update tx with hash: %s to status: %s",
@@ -113,8 +114,9 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			}
 			log.Infof("decreasing amount of sent txs, bcs encodedTxsBytesSize > maxBatchBytesSize, encodedTxsBytesSize: %d, maxBatchBytesSize: %d",
 				encodedTxsBytesSize, maxBatchBytesSize)
-			s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
+			s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:numberOfTxsInProcess-1]
 			s.isSequenceTooBig = true
+			numberOfTxsInProcess = len(s.sequenceInProgress.Txs)
 		}
 	}
 
