@@ -1811,6 +1811,7 @@ func TestAddGetL2Block(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
+/*
 func TestExecutorUniswapOutOfCounters(t *testing.T) {
 	// Test Case
 	type TxHashTestCase struct {
@@ -1931,6 +1932,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 		stateRoot = processBatchResponse.NewStateRoot
 	}
 }
+*/
 
 func initOrResetDB() {
 	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
