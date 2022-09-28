@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"math/rand"
 	"net/http"
 	"strings"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
@@ -191,6 +193,42 @@ func deployContracts(opsman *operations.Manager) error {
 	// return bp.ProcessBatch(ctx, batch)
 }
 
+func createTX(ethdeployment string, to common.Address, amount *big.Int) error {
+	client, err := ethclient.Dial(ethdeployment)
+	if err != nil {
+		return err
+	}
+	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL1ChainID)
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	nonce, err := client.NonceAt(ctx, auth.From, nil)
+	if err != nil {
+		return err
+	}
+	gasLimit, err := client.EstimateGas(ctx, ethereum.CallMsg{From: auth.From, To: &to, Value: amount})
+	if err != nil {
+		return err
+	}
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	if err != nil {
+		return err
+	}
+
+	tx := types.NewTransaction(nonce+uint64(rand.Intn(1000))/2, to, amount, gasLimit, gasPrice, nil)
+	signedTx, err := auth.Signer(auth.From, tx)
+	if err != nil {
+		return err
+	}
+	log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
+	err = client.SendTransaction(context.Background(), signedTx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func Test_Filters(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -268,7 +306,7 @@ func Test_Filters(t *testing.T) {
 				expectedResponse: true,
 			},
 			{
-				name:             "eth_getFilterChanges",
+				name:             "eth_getFilterLogs",
 				action:           GET,
 				shouldErr:        false,
 				description:      "get the data from the filter",
@@ -291,6 +329,14 @@ func Test_Filters(t *testing.T) {
 							receiverAddr,
 						},
 					})
+					require.NoError(t, err)
+
+					// create a TX so the filter has some data
+					err = createTX(
+						network.URL,
+						receiverAddr,
+						big.NewInt(1),
+					)
 					require.NoError(t, err)
 				} else {
 					response, err = jsonrpc.JSONRPCCall(network.URL, tc.name)
@@ -343,29 +389,34 @@ func Test_Filters(t *testing.T) {
 
 func Test_Gas(t *testing.T) {
 
-	err := operations.StartComponent("approve-matic")
-	require.NoError(t, err)
-
 	var Address1 = common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff")
-	var Value = big.NewInt(1000)
+	var Values = []*big.Int{
+		big.NewInt(1000),
+		big.NewInt(10000000),
+		big.NewInt(100000000000),
+		big.NewInt(1000000000000000),
+	}
 	for _, network := range networks {
 
-		client, err := ethclient.Dial(network.URL)
-		msg := ethereum.CallMsg{From: common.HexToAddress(operations.DefaultSequencerAddress),
-			To:    &Address1,
-			Value: Value}
+		for _, value := range Values {
+			client, err := ethclient.Dial(network.URL)
+			require.NoError(t, err)
+			msg := ethereum.CallMsg{From: common.HexToAddress(operations.DefaultSequencerAddress),
+				To:    &Address1,
+				Value: value}
 
-		balance, err := client.BalanceAt(context.Background(), common.HexToAddress(operations.DefaultSequencerAddress), nil)
-		log.Infof("Balance: %d", balance)
-		require.NoError(t, err)
-		require.GreaterOrEqual(t, balance.Cmp(big.NewInt(1)), 1)
+			balance, err := client.BalanceAt(context.Background(), common.HexToAddress(operations.DefaultSequencerAddress), nil)
+			require.NoError(t, err)
 
-		response, err := client.EstimateGas(context.Background(), msg)
-		require.NoError(t, err)
-		require.NotNil(t, response)
-		log.Infof("Estimated gas: %d", response)
-		require.GreaterOrEqual(t, response, uint64(21000))
+			log.Infof("Balance: %d", balance)
+			require.GreaterOrEqual(t, balance.Cmp(big.NewInt(1)), 1)
 
+			response, err := client.EstimateGas(context.Background(), msg)
+			require.NoError(t, err)
+			require.NotNil(t, response)
+			log.Infof("Estimated gas: %d", response)
+			require.GreaterOrEqual(t, response, uint64(21000))
+		}
 	}
 }
 
