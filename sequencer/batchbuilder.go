@@ -97,6 +97,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	// reprocess the batch until:
 	// - all the txs in it are processed, so the batch doesn't include invalid txs
 	// - the batch is processed (certain situations may cause the entire batch to not have effect on the state)
+	unprocessedTxs := processResponse.unprocessedTxs
 	for !processResponse.isBatchProcessed || len(processResponse.unprocessedTxs) > 0 {
 		// include only processed txs in the sequence
 		s.sequenceInProgress.Txs = make([]ethTypes.Transaction, 0, len(processResponse.processedTxs))
@@ -111,11 +112,16 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			log.Errorf("failed to reprocess txs, err: %w", err)
 			return
 		}
+		if len(processResponse.processedTxsHashes) != 0 {
+			for _, hash := range processResponse.processedTxsHashes {
+				delete(unprocessedTxs, hash)
+			}
+		}
 	}
 	log.Infof("%d txs processed successfully", len(s.sequenceInProgress.Txs))
 
 	// If after processing new txs the sequence is equal or smaller, revert changes and close sequence
-	if len(s.sequenceInProgress.Txs) <= len(sequenceBeforeTryingToProcessNewTxs.Txs) {
+	if len(s.sequenceInProgress.Txs) <= len(sequenceBeforeTryingToProcessNewTxs.Txs) && len(s.sequenceInProgress.Txs) > 0 {
 		log.Infof(
 			"current sequence should be closed because after trying to add txs to it, it went from having %d valid txs to %d",
 			len(sequenceBeforeTryingToProcessNewTxs.Txs), len(s.sequenceInProgress.Txs),
@@ -136,10 +142,35 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 	log.Infof("%d txs stored and added into the trusted state", len(processResponse.processedTxs))
 
+	invalidTxsHashes, failedTxsHashes := s.splitInvalidAndFailedTxs(ctx, unprocessedTxs, ticker)
+
 	// update processed txs
 	s.updateTxsStatus(ctx, ticker, processResponse.processedTxsHashes, pool.TxStatusSelected)
-	// update unprocessed txs
-	s.updateTxsStatus(ctx, ticker, processResponse.unprocessedTxsHashes, pool.TxStatusFailed)
+	// update failed txs
+	s.updateTxsStatus(ctx, ticker, failedTxsHashes, pool.TxStatusFailed)
+	// update invalid txs
+	s.updateTxsStatus(ctx, ticker, invalidTxsHashes, pool.TxStatusInvalid)
+}
+
+func (s *Sequencer) splitInvalidAndFailedTxs(ctx context.Context, unprocessedTxs map[string]*state.ProcessTransactionResponse, ticker *time.Ticker) ([]string, []string) {
+	invalidTxsHashes := []string{}
+	failedTxsHashes := []string{}
+	for _, tx := range unprocessedTxs {
+		isTxNonceLessThanAccountNonce, err := s.isTxNonceLessThanAccountNonce(ctx, tx)
+		for err != nil {
+			log.Errorf("failed to compare account nonce and tx nonce, err: %w", err)
+			isTxNonceLessThanAccountNonce, err = s.isTxNonceLessThanAccountNonce(ctx, tx)
+			waitTick(ctx, ticker)
+		}
+		if isTxNonceLessThanAccountNonce {
+			log.Infof("tx with hash %s is invalid, account nonce > tx nonce")
+			invalidTxsHashes = append(invalidTxsHashes, tx.Tx.Hash().String())
+		} else {
+			failedTxsHashes = append(failedTxsHashes, tx.Tx.Hash().String())
+		}
+	}
+
+	return invalidTxsHashes, failedTxsHashes
 }
 
 func (s *Sequencer) updateTxsStatus(ctx context.Context, ticker *time.Ticker, hashes []string, status pool.TxStatus) {
@@ -149,6 +180,25 @@ func (s *Sequencer) updateTxsStatus(ctx context.Context, ticker *time.Ticker, ha
 		waitTick(ctx, ticker)
 		err = s.pool.UpdateTxsStatus(ctx, hashes, status)
 	}
+}
+
+func (s *Sequencer) isTxNonceLessThanAccountNonce(ctx context.Context, tx *state.ProcessTransactionResponse) (bool, error) {
+	fromAddr, txNonce, err := s.pool.GetTxFromAddressFromByHash(ctx, tx.Tx.Hash())
+	if err != nil {
+		return false, fmt.Errorf("failed to get from addr, err: %w", err)
+	}
+
+	lastL2BlockNumber, err := s.state.GetLastL2BlockNumber(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to get last l2 block number, err: %w", err)
+	}
+
+	accNonce, err := s.state.GetNonce(ctx, fromAddr, lastL2BlockNumber, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to get nonce for the account, err: %w", err)
+	}
+
+	return txNonce < accNonce, nil
 }
 
 func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {

@@ -24,6 +24,7 @@ type storage interface {
 	UpdateTxsStatus(ctx context.Context, hashes []string, newStatus TxStatus) error
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus) error
 	GetTxs(ctx context.Context, filterStatus TxStatus, limit uint64) ([]*Transaction, error)
+	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)
 }
 
 type stateInterface interface {
