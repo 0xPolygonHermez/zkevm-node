@@ -2637,7 +2637,7 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 				m.State.
 					On("ProcessTx", ctx, txMatchByHash, mock.Anything).
 					Return(&state.ProcessBatchResponse{
-						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: gasUsed}},
+						Responses: []*state.ProcessTransactionResponse{{GasUsed: gasUsed}},
 					}, nil).
 					Once()
 
@@ -2677,7 +2677,7 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 
 				m.State.On("ProcessTx", mock.Anything, mock.IsType(types.Transaction{}), m.DbTx).
 					Return(&state.ProcessBatchResponse{
-						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: 21000}},
+						Responses: []*state.ProcessTransactionResponse{{GasUsed: 21000}},
 					}, nil).
 					Once()
 
@@ -2747,7 +2747,7 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 				ctx := context.Background()
 				m.State.On("ProcessTx", mock.Anything, mock.IsType(types.Transaction{}), m.DbTx).
 					Return(&state.ProcessBatchResponse{
-						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: 21000}},
+						Responses: []*state.ProcessTransactionResponse{{GasUsed: 21000}},
 					}, nil).
 					Once()
 
@@ -2792,7 +2792,7 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 
 				m.State.On("ProcessTx", mock.Anything, mock.IsType(types.Transaction{}), m.DbTx).
 					Return(&state.ProcessBatchResponse{
-						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: 21000}},
+						Responses: []*state.ProcessTransactionResponse{{GasUsed: 21000}},
 					}, nil).
 					Once()
 
@@ -2889,7 +2889,7 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 				m.State.
 					On("ProcessTx", ctx, txMatchByHash, mock.Anything).
 					Return(&state.ProcessBatchResponse{
-						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: gasUsed}},
+						Responses: []*state.ProcessTransactionResponse{{GasUsed: gasUsed}},
 					}, nil).
 					Once()
 
@@ -2929,7 +2929,7 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 
 				m.State.On("ProcessTx", mock.Anything, mock.IsType(types.Transaction{}), m.DbTx).
 					Return(&state.ProcessBatchResponse{
-						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: 21000}},
+						Responses: []*state.ProcessTransactionResponse{{GasUsed: 21000}},
 					}, nil).
 					Once()
 
