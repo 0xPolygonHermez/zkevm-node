@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,11 +19,13 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/js"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
 	"github.com/jackc/pgx/v4"
@@ -651,9 +654,136 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 }
 
 // DebugTransaction re-executes a tx to generate its trace
-func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error) {
-	// TODO: Implement
-	return new(runtime.ExecutionResult), nil
+func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, senderAddress common.Address, tracer string, dbTx pgx.Tx) *runtime.ExecutionResult {
+	result := new(runtime.ExecutionResult)
+
+	// Get the transaction
+	tx, err := s.GetTransactionByHash(ctx, transactionHash, dbTx)
+	if err != nil {
+		result.Err = err
+		return result
+	}
+
+	// Get batch including the transaction
+	batch, err := s.GetBatchByTxHash(ctx, transactionHash, dbTx)
+	if err != nil {
+		result.Err = err
+		return result
+	}
+
+	// The previous batch to get OldStateRoot and GlobalExitRoot
+	pBatch, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
+	if err != nil {
+		result.Err = err
+		return result
+	}
+
+	// The previous previous batch to get OldLocalExitRoot
+	ppBatch, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
+	if err != nil {
+		result.Err = err
+		return result
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:                  batch.BatchNumber,
+		BatchL2Data:               batch.BatchL2Data,
+		OldStateRoot:              batch.StateRoot.Bytes(),
+		GlobalExitRoot:            pBatch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot:          ppBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:              uint64(pBatch.Timestamp.Unix()),
+		Coinbase:                  batch.Coinbase.String(),
+		UpdateMerkleTree:          cFalse,
+		TxHashToGenerateCallTrace: tx.Hash().Bytes(),
+	}
+
+	// Send Batch to the Executor
+	startTime := time.Now()
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	if err != nil {
+		result.Err = err
+		return result
+	}
+	endTime := time.Now()
+
+	var response *pb.ProcessTransactionResponse
+
+	// Get the response for the tx
+	for _, response = range processBatchResponse.Responses {
+		if common.BytesToHash(response.TxHash) == tx.Hash() {
+			break
+		}
+	}
+
+	// Sanity check
+	if common.BytesToHash(response.TxHash) != tx.Hash() {
+		result.Err = fmt.Errorf("tx hash not found in executor response")
+		return result
+
+	}
+
+	if tracer == "" {
+		result.Err = fmt.Errorf("tracer is empty")
+		return result
+	}
+
+	// Parse the executor-like trace using the FakeEVM
+	jsTracer, err := js.NewJsTracer(tracer, new(tracers.Context))
+	if err != nil {
+		log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
+		result.Err = fmt.Errorf("failed to create jsTracer, err: %v", err)
+		return result
+	}
+
+	context := instrumentation.Context{}
+
+	// Fill trace context
+	if tx.To() == nil {
+		context.Type = "CREATE"
+		context.To = result.CreateAddress.Hex()
+	} else {
+		context.Type = "CALL"
+		context.To = tx.To().Hex()
+	}
+	context.From = senderAddress.String()
+	context.Input = "0x" + hex.EncodeToString(tx.Data())
+	context.Gas = strconv.FormatUint(tx.Gas(), encoding.Base10)
+	context.Value = tx.Value().String()
+	context.Output = "0x" + hex.EncodeToString(result.ReturnValue)
+	context.GasPrice = tx.GasPrice().String()
+	context.OldStateRoot = batch.StateRoot.String()
+	context.Time = uint64(endTime.Sub(startTime))
+	context.GasUsed = strconv.FormatUint(result.GasUsed, encoding.Base10)
+
+	result.ExecutorTrace.Context = context
+
+	gasPrice, ok := new(big.Int).SetString(context.GasPrice, encoding.Base10)
+	if !ok {
+		log.Errorf("debug transaction: failed to parse gasPrice")
+		result.Err = fmt.Errorf("debug transaction: failed to parse gasPrice")
+		return result
+	}
+
+	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
+	fakeDB := &FakeDB{State: s, stateRoot: batch.StateRoot.Bytes()}
+	env.SetStateDB(fakeDB)
+
+	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, jsTracer)
+	if err != nil {
+		log.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
+		result.Err = fmt.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
+		return result
+	}
+
+	result.ExecutorTraceResult = traceResult
+	result.CreateAddress = common.HexToAddress(response.CreateAddress)
+	result.GasLeft = response.GasLeft
+	result.GasUsed = response.GasUsed
+	result.ReturnValue = response.ReturnValue
+	result.StateRoot = response.StateRoot
+
+	return result
 }
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.

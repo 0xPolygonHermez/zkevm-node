@@ -22,6 +22,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -65,9 +66,9 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.216.26")
 
-	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:51071", zkProverURI)}
 	var executorCancel context.CancelFunc
 	executorClient, executorClientConn, executorCancel = executor.NewExecutorClient(ctx, executorServerConfig)
 	s := executorClientConn.GetState()
@@ -77,7 +78,7 @@ func TestMain(m *testing.M) {
 		executorClientConn.Close()
 	}()
 
-	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:51061", zkProverURI)}
 	var mtDBCancel context.CancelFunc
 	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	s = mtDBClientConn.GetState()
@@ -1163,6 +1164,7 @@ func TestExecutorTransfer(t *testing.T) {
 	// Process batch
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
+	log.Debugf("%v", processBatchResponse)
 
 	// Read Sender Balance
 	balance, err = stateTree.GetBalance(ctx, senderAddress, processBatchResponse.Responses[0].StateRoot)
@@ -1173,6 +1175,7 @@ func TestExecutorTransfer(t *testing.T) {
 	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
 	require.NoError(t, err)
 	require.Equal(t, uint64(21002), balance.Uint64())
+
 }
 
 func TestExecutorTxHashAndRLP(t *testing.T) {
@@ -1936,4 +1939,113 @@ func initOrResetDB() {
 	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
 		panic(err)
 	}
+}
+
+func TestExecutorDebugTransaction(t *testing.T) {
+	// Test Case
+	type TxHashTestCase struct {
+		Hash    string `json:"hash"`
+		Encoded string `json:"encoded"`
+	}
+
+	var testCases []TxHashTestCase
+
+	jsonFile, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/uniswap.json"))
+	require.NoError(t, err)
+	defer func() { _ = jsonFile.Close() }()
+
+	bytes, err := ioutil.ReadAll(jsonFile)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(bytes, &testCases)
+	require.NoError(t, err)
+
+	// Set Genesis
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+			{
+				Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+		},
+	}
+
+	initOrResetDB()
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	transactions := make([]types.Transaction, len(testCases))
+
+	for x, testCase := range testCases {
+		log.Debugf("Hash:%v", testCase.Hash)
+		tx, err := state.DecodeTx(strings.TrimLeft(testCase.Encoded, "0x"))
+		require.NoError(t, err)
+		transactions[x] = *tx
+	}
+
+	tx := transactions[0]
+
+	numBatch := uint64(1)
+
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{tx})
+	require.NoError(t, err)
+
+	// Create Batch
+	processBatchRequest := &executorclientpb.ProcessBatchRequest{
+		BatchNum:         numBatch,
+		Coinbase:         common.Address{}.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     stateRoot,
+		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		EthTimestamp:     uint64(0),
+		UpdateMerkleTree: 1,
+		// TxHashToGenerateExecuteTrace: tx.Hash().Bytes(),
+		TxHashToGenerateCallTrace: tx.Hash().Bytes(),
+	}
+
+	// Process batch
+	_, err = executorClient.ProcessBatch(ctx, processBatchRequest)
+	require.NoError(t, err)
+
+	//log.Debugf("%v", processBatchResponse)
+
+	// Execution Trace
+	// Read tracer from filesystem
+	var tracer instrumentation.Tracer
+	tracerFile, err := os.Open("../test/tracers/tracer.json")
+	require.NoError(t, err)
+	defer tracerFile.Close()
+
+	byteCode, err := ioutil.ReadAll(tracerFile)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(byteCode, &tracer)
+	require.NoError(t, err)
+
+	result := testState.DebugTransaction(context.Background(), tx.Hash(), common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8"), tracer.Code, dbTx)
+	require.NoError(t, result.Err)
+
+	j, err := json.Marshal(result.ExecutorTrace)
+	require.NoError(t, err)
+	log.Debug(string(j))
+
+	log.Debug(string(result.ExecutorTraceResult))
 }
