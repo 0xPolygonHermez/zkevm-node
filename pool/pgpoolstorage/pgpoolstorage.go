@@ -373,6 +373,25 @@ func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from com
 	return txs, nil
 }
 
+// GetTxFromAddressFromByHash gets tx from address by hash
+func (p *PostgresPoolStorage) GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error) {
+	query := `SELECT from_address, nonce
+			  FROM pool.txs
+			  WHERE hash = $1
+	`
+
+	var (
+		fromAddr string
+		nonce    uint64
+	)
+	err := p.db.QueryRow(ctx, query, hash.String()).Scan(&fromAddr, &nonce)
+	if err != nil {
+		return common.Address{}, 0, err
+	}
+
+	return common.HexToAddress(fromAddr), nonce, nil
+}
+
 // GetNonce gets the nonce to the provided address accordingly to the txs in the pool
 func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Address) (uint64, error) {
 	sql := `SELECT MAX(nonce)

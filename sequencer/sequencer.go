@@ -34,6 +34,7 @@ type Sequencer struct {
 	address              common.Address
 	lastBatchNum         uint64
 	lastBatchNumSentToL1 uint64
+	isSequenceTooBig     bool
 
 	sequenceInProgress types.Sequence
 }

@@ -40,6 +40,8 @@ const (
 	ERROR_INVALID_TX
 	// ERROR_INTRINSIC_INVALID_TX indicates the transaction is failing at the intrinsic checks
 	ERROR_INTRINSIC_INVALID_TX
+	// ERROR_BATCH_DATA_TOO_BIG indicates the batch_l2_data is too big to be processed
+	ERROR_BATCH_DATA_TOO_BIG
 )
 
 // Err returns an instance of error related to the ExecutorError
@@ -76,6 +78,8 @@ func Err(errorCode pb.Error) error {
 		return runtime.ErrInvalidTransaction
 	case ERROR_INTRINSIC_INVALID_TX:
 		return runtime.ErrIntrinsicInvalidTransaction
+	case ERROR_BATCH_DATA_TOO_BIG:
+		return runtime.ErrBatchDataTooBig
 	}
 	return fmt.Errorf("unknown error")
 }
