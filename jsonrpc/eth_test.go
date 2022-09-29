@@ -2629,14 +2629,31 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 					return h1 == h2
 				})
 
-				zkCounters := pool.ZkCounters{}
+				gasUsed := uint64(21000)
+				zkCounters := pool.ZkCounters{
+					CumulativeGasUsed: gasUsed,
+				}
 				ctx := context.Background()
 				m.State.
 					On("ProcessTx", ctx, txMatchByHash, mock.Anything).
-					Return()
+					Return(&state.ProcessBatchResponse{
+						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: gasUsed}},
+					}, nil).
+					Once()
+
 				m.Pool.
 					On("AddTx", ctx, txMatchByHash, zkCounters).
 					Return(nil).
+					Once()
+
+				m.DbTx.
+					On("Commit", mock.Anything).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", ctx).
+					Return(m.DbTx, nil).
 					Once()
 			},
 		},
@@ -2651,9 +2668,27 @@ func TestSendRawTransactionViaGeth(t *testing.T) {
 					return h1 == h2
 				})
 
+				ctx := context.Background()
+
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", context.Background(), txMatchByHash, mock.IsType(pool.ZkCounters{})).
 					Return(errors.New("failed to add TX to the pool")).
+					Once()
+
+				m.State.On("ProcessTx", mock.Anything, mock.IsType(types.Transaction{}), m.DbTx).
+					Return(&state.ProcessBatchResponse{
+						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: 21000}},
+					}, nil).
+					Once()
+
+				m.DbTx.
+					On("Rollback", ctx).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", ctx).
+					Return(m.DbTx, nil).
 					Once()
 			},
 		},
@@ -2709,9 +2744,26 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 				tc.ExpectedError = nil
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				ctx := context.Background()
+				m.State.On("ProcessTx", mock.Anything, mock.IsType(types.Transaction{}), m.DbTx).
+					Return(&state.ProcessBatchResponse{
+						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: 21000}},
+					}, nil).
+					Once()
+
 				m.Pool.
-					On("AddTx", context.Background(), mock.IsType(types.Transaction{})).
+					On("AddTx", mock.Anything, mock.IsType(types.Transaction{}), mock.IsType(pool.ZkCounters{})).
 					Return(nil).
+					Once()
+
+				m.DbTx.
+					On("Commit", mock.Anything).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", ctx).
+					Return(m.DbTx, nil).
 					Once()
 			},
 		},
@@ -2731,9 +2783,27 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to add TX to the pool")
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				ctx := context.Background()
+
 				m.Pool.
-					On("AddTx", context.Background(), mock.IsType(types.Transaction{})).
+					On("AddTx", ctx, mock.IsType(types.Transaction{}), mock.IsType(pool.ZkCounters{})).
 					Return(errors.New("failed to add TX to the pool")).
+					Once()
+
+				m.State.On("ProcessTx", mock.Anything, mock.IsType(types.Transaction{}), m.DbTx).
+					Return(&state.ProcessBatchResponse{
+						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: 21000}},
+					}, nil).
+					Once()
+
+				m.DbTx.
+					On("Rollback", ctx).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", ctx).
+					Return(m.DbTx, nil).
 					Once()
 			},
 		},
@@ -2744,7 +2814,19 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 				tc.ExpectedResult = nil
 				tc.ExpectedError = newRPCError(invalidParamsErrorCode, "invalid tx input")
 			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {},
+			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				ctx := context.Background()
+
+				m.DbTx.
+					On("Rollback", ctx).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", ctx).
+					Return(m.DbTx, nil).
+					Once()
+			},
 		},
 	}
 
@@ -2798,10 +2880,32 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 					h2 := tc.Tx.Hash().Hex()
 					return h1 == h2
 				})
+				ctx := context.Background()
+				gasUsed := uint64(21000)
+				zkCounters := pool.ZkCounters{
+					CumulativeGasUsed: gasUsed,
+				}
+
+				m.State.
+					On("ProcessTx", ctx, txMatchByHash, mock.Anything).
+					Return(&state.ProcessBatchResponse{
+						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: gasUsed}},
+					}, nil).
+					Once()
 
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", ctx, txMatchByHash, zkCounters).
 					Return(nil).
+					Once()
+
+				m.DbTx.
+					On("Commit", mock.Anything).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", ctx).
+					Return(m.DbTx, nil).
 					Once()
 			},
 		},
@@ -2816,9 +2920,27 @@ func TestSendRawTransactionViaGethForNonSequencerNode(t *testing.T) {
 					return h1 == h2
 				})
 
+				ctx := context.Background()
+
 				m.Pool.
-					On("AddTx", context.Background(), txMatchByHash).
+					On("AddTx", context.Background(), txMatchByHash, mock.IsType(pool.ZkCounters{})).
 					Return(errors.New("failed to add TX to the pool")).
+					Once()
+
+				m.State.On("ProcessTx", mock.Anything, mock.IsType(types.Transaction{}), m.DbTx).
+					Return(&state.ProcessBatchResponse{
+						Responses: []*state.ProcessTransactionResponse{&state.ProcessTransactionResponse{GasUsed: 21000}},
+					}, nil).
+					Once()
+
+				m.DbTx.
+					On("Rollback", ctx).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", ctx).
+					Return(m.DbTx, nil).
 					Once()
 			},
 		},
