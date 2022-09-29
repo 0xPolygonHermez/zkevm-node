@@ -654,86 +654,86 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 }
 
 // DebugTransaction re-executes a tx to generate its trace
-func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, senderAddress common.Address, tracer string, dbTx pgx.Tx) *runtime.ExecutionResult {
+func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	result := new(runtime.ExecutionResult)
+
+	log.Debugf("TXhas=%v", transactionHash.String())
 
 	// Get the transaction
 	tx, err := s.GetTransactionByHash(ctx, transactionHash, dbTx)
 	if err != nil {
-		result.Err = err
-		return result
+		return nil, err
 	}
 
 	// Get batch including the transaction
 	batch, err := s.GetBatchByTxHash(ctx, transactionHash, dbTx)
 	if err != nil {
-		result.Err = err
-		return result
+		return nil, err
 	}
 
 	// The previous batch to get OldStateRoot and GlobalExitRoot
 	pBatch, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
 	if err != nil {
-		result.Err = err
-		return result
-	}
-
-	// The previous previous batch to get OldLocalExitRoot
-	ppBatch, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
-	if err != nil {
-		result.Err = err
-		return result
+		return nil, err
 	}
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		BatchNum:                  batch.BatchNumber,
 		BatchL2Data:               batch.BatchL2Data,
-		OldStateRoot:              batch.StateRoot.Bytes(),
-		GlobalExitRoot:            pBatch.GlobalExitRoot.Bytes(),
-		OldLocalExitRoot:          ppBatch.LocalExitRoot.Bytes(),
-		EthTimestamp:              uint64(pBatch.Timestamp.Unix()),
+		OldStateRoot:              pBatch.StateRoot.Bytes(),
+		GlobalExitRoot:            batch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot:          pBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:              uint64(batch.Timestamp.Unix()),
 		Coinbase:                  batch.Coinbase.String(),
 		UpdateMerkleTree:          cFalse,
-		TxHashToGenerateCallTrace: tx.Hash().Bytes(),
+		TxHashToGenerateCallTrace: transactionHash.Bytes(),
 	}
 
 	// Send Batch to the Executor
 	startTime := time.Now()
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	if err != nil {
-		result.Err = err
-		return result
+		return nil, err
 	}
 	endTime := time.Now()
 
-	var response *pb.ProcessTransactionResponse
+	convertedResponse, err := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	var response *ProcessTransactionResponse
 
 	// Get the response for the tx
-	for _, response = range processBatchResponse.Responses {
-		if common.BytesToHash(response.TxHash) == tx.Hash() {
+	for _, response = range convertedResponse.Responses {
+		if response.TxHash == transactionHash {
 			break
 		}
 	}
 
 	// Sanity check
-	if common.BytesToHash(response.TxHash) != tx.Hash() {
-		result.Err = fmt.Errorf("tx hash not found in executor response")
-		return result
+	if response.TxHash != transactionHash {
+		return nil, fmt.Errorf("tx hash not found in executor response")
 
 	}
 
+	result.CreateAddress = response.CreateAddress
+	result.GasLeft = response.GasLeft
+	result.GasUsed = response.GasUsed
+	result.ReturnValue = response.ReturnValue
+	result.StateRoot = response.StateRoot.Bytes()
+	result.StructLogs = response.ExecutionTrace
+
 	if tracer == "" {
-		result.Err = fmt.Errorf("tracer is empty")
-		return result
+		return result, nil
 	}
 
 	// Parse the executor-like trace using the FakeEVM
 	jsTracer, err := js.NewJsTracer(tracer, new(tracers.Context))
 	if err != nil {
 		log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
-		result.Err = fmt.Errorf("failed to create jsTracer, err: %v", err)
-		return result
+		return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)
 	}
 
 	context := instrumentation.Context{}
@@ -746,6 +746,12 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		context.Type = "CALL"
 		context.To = tx.To().Hex()
 	}
+
+	senderAddress, err := GetSender(*tx)
+	if err != nil {
+		return nil, err
+	}
+
 	context.From = senderAddress.String()
 	context.Input = "0x" + hex.EncodeToString(tx.Data())
 	context.Gas = strconv.FormatUint(tx.Gas(), encoding.Base10)
@@ -761,8 +767,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	gasPrice, ok := new(big.Int).SetString(context.GasPrice, encoding.Base10)
 	if !ok {
 		log.Errorf("debug transaction: failed to parse gasPrice")
-		result.Err = fmt.Errorf("debug transaction: failed to parse gasPrice")
-		return result
+		return nil, fmt.Errorf("failed to parse gasPrice")
 	}
 
 	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
@@ -772,18 +777,12 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, jsTracer)
 	if err != nil {
 		log.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
-		result.Err = fmt.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
-		return result
+		return nil, fmt.Errorf("failed parse the trace using the tracer: %v", err)
 	}
 
 	result.ExecutorTraceResult = traceResult
-	result.CreateAddress = common.HexToAddress(response.CreateAddress)
-	result.GasLeft = response.GasLeft
-	result.GasUsed = response.GasUsed
-	result.ReturnValue = response.ReturnValue
-	result.StateRoot = response.StateRoot
 
-	return result
+	return result, nil
 }
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.

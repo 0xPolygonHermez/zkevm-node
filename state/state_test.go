@@ -2022,15 +2022,15 @@ func TestExecutorDebugTransaction(t *testing.T) {
 	}
 
 	// Process batch
-	_, err = executorClient.ProcessBatch(ctx, processBatchRequest)
+	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 
-	//log.Debugf("%v", processBatchResponse)
+	log.Debugf("%v", len(processBatchResponse.Responses))
 
 	// Execution Trace
 	// Read tracer from filesystem
 	var tracer instrumentation.Tracer
-	tracerFile, err := os.Open("../test/tracers/tracer.json")
+	tracerFile, err := os.Open("./test/tracers/tracer.json")
 	require.NoError(t, err)
 	defer tracerFile.Close()
 
@@ -2040,8 +2040,14 @@ func TestExecutorDebugTransaction(t *testing.T) {
 	err = json.Unmarshal(byteCode, &tracer)
 	require.NoError(t, err)
 
-	result := testState.DebugTransaction(context.Background(), tx.Hash(), common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8"), tracer.Code, dbTx)
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	result, err := testState.DebugTransaction(context.Background(), tx.Hash(), tracer.Code, dbTx)
+	require.NoError(t, err)
 	require.NoError(t, result.Err)
+
+	require.NoError(t, dbTx.Commit(ctx))
 
 	j, err := json.Marshal(result.ExecutorTrace)
 	require.NoError(t, err)
