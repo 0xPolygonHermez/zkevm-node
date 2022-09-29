@@ -318,7 +318,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	txs, err := p.GetTxs(ctx, pool.TxStatusPending, 10)
 	require.NoError(t, err)
 	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
-	assert.Equal(t, txs[0].Transaction.GasPrice(), big.NewInt(20))
+	assert.Equal(t, txs[0].Transaction.GasPrice(), big.NewInt(19))
 }
 
 func Test_UpdateTxsStatus(t *testing.T) {
