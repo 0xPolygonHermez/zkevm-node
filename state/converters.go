@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// TestConvertToProcessBatchResponse for test purposes
 func TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
 	return convertToProcessBatchResponse(txs, response)
 }

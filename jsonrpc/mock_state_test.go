@@ -49,13 +49,13 @@ func (_m *stateMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) 
 	return r0, r1
 }
 
-// DebugTransaction provides a mock function with given fields: ctx, transactionHash, tracer
-func (_m *stateMock) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error) {
-	ret := _m.Called(ctx, transactionHash, tracer)
+// DebugTransaction provides a mock function with given fields: ctx, transactionHash, tracer, dbTx
+func (_m *stateMock) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
+	ret := _m.Called(ctx, transactionHash, tracer, dbTx)
 
 	var r0 *runtime.ExecutionResult
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, string) *runtime.ExecutionResult); ok {
-		r0 = rf(ctx, transactionHash, tracer)
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, string, pgx.Tx) *runtime.ExecutionResult); ok {
+		r0 = rf(ctx, transactionHash, tracer, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*runtime.ExecutionResult)
@@ -63,8 +63,8 @@ func (_m *stateMock) DebugTransaction(ctx context.Context, transactionHash commo
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, string) error); ok {
-		r1 = rf(ctx, transactionHash, tracer)
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, string, pgx.Tx) error); ok {
+		r1 = rf(ctx, transactionHash, tracer, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -224,7 +224,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		log.Debugf("EstimateGas[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 		log.Debugf("EstimateGas[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
 
+		txExecutionOnExecutorTime := time.Now()
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 		if err != nil {
 			log.Errorf("error processing unsigned transaction ", err)
 			return false, false, err
@@ -253,11 +255,17 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		return false, false, nil
 	}
 
+	txExecutions := []time.Duration{}
+	var totalExecutionTime time.Duration
 	// Start the binary search for the lowest possible gas price
 	for lowEnd < highEnd {
+		txExecutionStart := time.Now()
 		mid := (lowEnd + highEnd) / uint64(two)
 
 		failed, _, testErr := testTransaction(mid, true)
+		executionTime := time.Since(txExecutionStart)
+		totalExecutionTime += executionTime
+		txExecutions = append(txExecutions, executionTime)
 		if testErr != nil &&
 			!isEVMRevertError(testErr) {
 			// Reverts are ignored in the binary search, but are checked later on
@@ -273,6 +281,10 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			highEnd = mid
 		}
 	}
+
+	log.Debugf("EstimateGas executed the TX %v times", len(txExecutions))
+	averageExecutionTime := totalExecutionTime.Milliseconds() / int64(len(txExecutions))
+	log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
 
 	// Check if the highEnd is a good value to make the transaction pass
 	failed, reverted, err := testTransaction(highEnd, false)
@@ -675,10 +687,27 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
+	batchL2Data := batch.BatchL2Data
+	if batchL2Data == nil {
+		txs, err := s.GetTransactionsByBatchNumber(ctx, batch.BatchNumber, dbTx)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, tx := range txs {
+			log.Debugf(tx.Hash().String())
+		}
+
+		batchL2Data, err = EncodeTransactions(txs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
 		BatchNum:                  batch.BatchNumber,
-		BatchL2Data:               batch.BatchL2Data,
+		BatchL2Data:               batchL2Data,
 		OldStateRoot:              pBatch.StateRoot.Bytes(),
 		GlobalExitRoot:            batch.GlobalExitRoot.Bytes(),
 		OldLocalExitRoot:          pBatch.LocalExitRoot.Bytes(),
@@ -696,9 +725,13 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 	endTime := time.Now()
 
-	txs, _, err := DecodeTxs(batch.BatchL2Data)
+	txs, _, err := DecodeTxs(batchL2Data)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, tx := range txs {
+		log.Debugf(tx.Hash().String())
 	}
 
 	convertedResponse, err := convertToProcessBatchResponse(txs, processBatchResponse)
@@ -710,6 +743,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 	// Get the response for the tx
 	for _, response = range convertedResponse.Responses {
+		log.Debugf(response.TxHash.String())
 		if response.TxHash == transactionHash {
 			break
 		}

@@ -1175,7 +1175,6 @@ func TestExecutorTransfer(t *testing.T) {
 	balance, err = stateTree.GetBalance(ctx, receiverAddress, processBatchResponse.Responses[0].StateRoot)
 	require.NoError(t, err)
 	require.Equal(t, uint64(21002), balance.Uint64())
-
 }
 
 func TestExecutorTxHashAndRLP(t *testing.T) {
