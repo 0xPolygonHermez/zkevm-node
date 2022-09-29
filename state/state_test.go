@@ -1177,7 +1177,6 @@ func TestExecutorTransfer(t *testing.T) {
 
 func TestExecutorMultipleTransfer(t *testing.T) {
 	var chainID = new(big.Int).SetInt64(1000)
-	//var senderAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	var senderPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	var receiverAddress = common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB")
 

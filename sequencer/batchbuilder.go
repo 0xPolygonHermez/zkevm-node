@@ -104,7 +104,6 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			UsedSteps:            s.cfg.MaxSteps,
 		}) {
 			log.Info("reached max zkCounters, need to close a batch")
-			log.Info("zk counters", s.sequenceInProgress.ZkCounters)
 			s.sequenceInProgress.ZkCounters = zkCountersBeforeAddition
 			s.sequenceInProgress.IsZkCountersReachedMax = true
 			break
