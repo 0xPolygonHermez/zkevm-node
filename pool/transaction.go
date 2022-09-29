@@ -48,18 +48,6 @@ type ZkCounters struct {
 	UsedSteps            uint32
 }
 
-// IsZkCountersBelowZero checks if any of the counters are below zero
-func (zkc *ZkCounters) IsZkCountersBelowZero() bool {
-	return zkc.CumulativeGasUsed < 0 ||
-		zkc.UsedArithmetics < 0 ||
-		zkc.UsedSteps < 0 ||
-		zkc.UsedBinaries < 0 ||
-		zkc.UsedMemAligns < 0 ||
-		zkc.UsedPoseidonPaddings < 0 ||
-		zkc.UsedPoseidonHashes < 0 ||
-		zkc.UsedKeccakHashes < 0
-}
-
 // SumUpZkCounters sum ups zk counters with passed tx zk counters
 func (zkc *ZkCounters) SumUpZkCounters(txZkCounters ZkCounters) {
 	zkc.CumulativeGasUsed += txZkCounters.CumulativeGasUsed
@@ -72,6 +60,7 @@ func (zkc *ZkCounters) SumUpZkCounters(txZkCounters ZkCounters) {
 	zkc.UsedSteps += txZkCounters.UsedSteps
 }
 
+// IsAnyFieldMoreThan compare zk counters
 func (zkc *ZkCounters) IsAnyFieldMoreThan(otherZkC ZkCounters) bool {
 	return zkc.CumulativeGasUsed > otherZkC.CumulativeGasUsed ||
 		zkc.UsedArithmetics > otherZkC.UsedArithmetics ||
