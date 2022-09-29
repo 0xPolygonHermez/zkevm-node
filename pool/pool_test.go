@@ -112,7 +112,7 @@ func Test_AddTx(t *testing.T) {
 	tx := new(types.Transaction)
 	tx.UnmarshalBinary(b) //nolint:gosec,errcheck
 
-	err = p.AddTx(ctx, *tx)
+	err = p.AddTx(ctx, *tx, pool.ZkCounters{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -187,7 +187,7 @@ func Test_GetPendingTxs(t *testing.T) {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx); err != nil {
+		if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
 			t.Error(err)
 		}
 	}
@@ -249,7 +249,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx); err != nil {
+		if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
 			t.Error(err)
 		}
 	}
@@ -310,7 +310,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10+int64(i)), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx); err != nil {
+		if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
 			t.Error(err)
 		}
 	}
@@ -368,14 +368,14 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx1); err != nil {
+	if err := p.AddTx(ctx, *signedTx1, pool.ZkCounters{}); err != nil {
 		t.Error(err)
 	}
 
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx2); err != nil {
+	if err := p.AddTx(ctx, *signedTx2, pool.ZkCounters{}); err != nil {
 		t.Error(err)
 	}
 
@@ -439,7 +439,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx); err != nil {
+	if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
 		t.Error(err)
 	}
 
@@ -533,14 +533,14 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx1); err != nil {
+	if err := p.AddTx(ctx, *signedTx1, pool.ZkCounters{}); err != nil {
 		t.Error(err)
 	}
 
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx2); err != nil {
+	if err := p.AddTx(ctx, *signedTx2, pool.ZkCounters{}); err != nil {
 		t.Error(err)
 	}
 
@@ -606,7 +606,7 @@ func TestGetPendingTxSince(t *testing.T) {
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		txsAddedTime = append(txsAddedTime, time.Now())
-		if err := p.AddTx(ctx, *signedTx); err != nil {
+		if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
 			t.Error(err)
 		}
 		txsAddedHashes = append(txsAddedHashes, signedTx.Hash())
@@ -700,14 +700,14 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx1); err != nil {
+	if err := p.AddTx(ctx, *signedTx1, pool.ZkCounters{}); err != nil {
 		t.Error(err)
 	}
 
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx2); err != nil {
+	if err := p.AddTx(ctx, *signedTx2, pool.ZkCounters{}); err != nil {
 		t.Error(err)
 	}
 

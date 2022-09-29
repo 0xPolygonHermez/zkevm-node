@@ -417,6 +417,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	return res, err
 }
 
+// ProcessTx send batch with one tx to the executor to get zk counters
 func (s *State) ProcessTx(ctx context.Context, tx types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	lastBatches, err := s.PostgresStorage.GetLastNBatches(ctx, two, dbTx)
 	if err != nil {

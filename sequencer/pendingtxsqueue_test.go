@@ -102,7 +102,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		if err := p.AddTx(ctx, *signedTx); err != nil {
+		if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
 			panic(err)
 		}
 	}
@@ -118,7 +118,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	if err := p.AddTx(ctx, *signedTx); err != nil {
+	if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
 		panic(err)
 	}
 
@@ -179,7 +179,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		if err := p.AddTx(ctx, *signedTx); err != nil {
+		if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
 			panic(err)
 		}
 	}
@@ -194,7 +194,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	if err := p.AddTx(ctx, *signedTx); err != nil {
+	if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
 		panic(err)
 	}
 	time.Sleep(queueCfg.TxPendingInQueueCheckingFrequency.Duration * 2)
