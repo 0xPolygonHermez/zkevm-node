@@ -2001,10 +2001,12 @@ func TestExecutorDebugTransaction(t *testing.T) {
 	}
 
 	tx := transactions[0]
+	tx1 := transactions[1]
+	tx2 := transactions[2]
 
 	numBatch := uint64(1)
 
-	batchL2Data, err := state.EncodeTransactions([]types.Transaction{tx})
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{tx, tx1, tx2})
 	require.NoError(t, err)
 
 	// Create Batch
@@ -2027,6 +2029,38 @@ func TestExecutorDebugTransaction(t *testing.T) {
 
 	log.Debugf("%v", len(processBatchResponse.Responses))
 
+	convertedResponse, err := state.TestConvertToProcessBatchResponse([]types.Transaction{tx, tx1, tx2}, processBatchResponse)
+	require.NoError(t, err)
+	log.Debugf("%v", len(convertedResponse.Responses))
+
+	// Store processed txs into the batch
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	processingContext := state.ProcessingContext{
+		BatchNumber:    processBatchRequest.BatchNum,
+		Coinbase:       common.Address{},
+		Timestamp:      time.Now(),
+		GlobalExitRoot: common.BytesToHash(processBatchRequest.GlobalExitRoot),
+	}
+
+	err = testState.OpenBatch(ctx, processingContext, dbTx)
+	require.NoError(t, err)
+
+	err = testState.StoreTransactions(ctx, processBatchRequest.BatchNum, convertedResponse.Responses, dbTx)
+	require.NoError(t, err)
+
+	processingReceipt := state.ProcessingReceipt{
+		BatchNumber:   processBatchRequest.BatchNum,
+		StateRoot:     convertedResponse.NewStateRoot,
+		LocalExitRoot: convertedResponse.NewLocalExitRoot,
+	}
+
+	err = testState.CloseBatch(ctx, processingReceipt, dbTx)
+	require.NoError(t, err)
+
+	require.NoError(t, dbTx.Commit(ctx))
+
 	// Execution Trace
 	// Read tracer from filesystem
 	var tracer instrumentation.Tracer
@@ -2043,7 +2077,7 @@ func TestExecutorDebugTransaction(t *testing.T) {
 	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 
-	result, err := testState.DebugTransaction(context.Background(), tx.Hash(), tracer.Code, dbTx)
+	result, err := testState.DebugTransaction(context.Background(), tx1.Hash(), tracer.Code, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, result.Err)
 

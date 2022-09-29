@@ -657,8 +657,6 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
 	result := new(runtime.ExecutionResult)
 
-	log.Debugf("TXhas=%v", transactionHash.String())
-
 	// Get the transaction
 	tx, err := s.GetTransactionByHash(ctx, transactionHash, dbTx)
 	if err != nil {
@@ -698,7 +696,12 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 	endTime := time.Now()
 
-	convertedResponse, err := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
+	txs, _, err := DecodeTxs(batch.BatchL2Data)
+	if err != nil {
+		return nil, err
+	}
+
+	convertedResponse, err := convertToProcessBatchResponse(txs, processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -715,7 +718,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	// Sanity check
 	if response.TxHash != transactionHash {
 		return nil, fmt.Errorf("tx hash not found in executor response")
-
 	}
 
 	result.CreateAddress = response.CreateAddress
