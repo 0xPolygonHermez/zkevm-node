@@ -2,8 +2,10 @@ package sequencer
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -18,7 +20,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-const maxTxsPerBatch uint64 = 150
+const (
+	maxTxsPerBatch    uint64 = 150
+	maxBatchBytesSize int    = 30000
+)
 
 type processTxResponse struct {
 	processedTxs         []*state.ProcessTransactionResponse
@@ -114,6 +119,36 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	})
 
 	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, pendTxsPreSelected...)
+
+	// clear txs if it bigger than expected
+	encodedTxsBytesSize := math.MaxInt
+	numberOfTxsInProcess := len(s.sequenceInProgress.Txs)
+	for encodedTxsBytesSize > maxBatchBytesSize && numberOfTxsInProcess > 0 {
+		encodedTxs, err := state.EncodeTransactions(s.sequenceInProgress.Txs)
+		if err != nil {
+			log.Errorf("failed to encode txs, err: %w", err)
+			return
+		}
+		encodedTxsBytesSize = binary.Size(encodedTxs)
+
+		if encodedTxsBytesSize > maxBatchBytesSize && numberOfTxsInProcess > 0 {
+			// if only one tx overflows, than it means, tx is invalid
+			if numberOfTxsInProcess == 1 {
+				err = s.pool.UpdateTxStatus(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStatusInvalid)
+				for err != nil {
+					log.Errorf("failed to update tx with hash: %s to status: %s",
+						s.sequenceInProgress.Txs[0].Hash().String(), pool.TxStatusInvalid)
+					err = s.pool.UpdateTxStatus(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStatusInvalid)
+					waitTick(ctx, ticker)
+				}
+			}
+			log.Infof("decreasing amount of sent txs, bcs encodedTxsBytesSize > maxBatchBytesSize, encodedTxsBytesSize: %d, maxBatchBytesSize: %d",
+				encodedTxsBytesSize, maxBatchBytesSize)
+			s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:numberOfTxsInProcess-1]
+			s.isSequenceTooBig = true
+			numberOfTxsInProcess = len(s.sequenceInProgress.Txs)
+		}
+	}
 
 	// process batch
 	log.Infof("processing batch with %d txs. %d txs are new from this iteration", len(s.sequenceInProgress.Txs), len(pendTxs))

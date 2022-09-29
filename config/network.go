@@ -14,7 +14,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-//NetworkConfig is the configuration struct for the different environments
+// NetworkConfig is the configuration struct for the different environments
 type NetworkConfig struct {
 	GenBlockNumber                uint64
 	PoEAddr                       common.Address
@@ -121,11 +121,11 @@ var (
 	}
 
 	internalTestnetConfig = NetworkConfig{
-		GenBlockNumber:                7559969,
-		PoEAddr:                       common.HexToAddress("0x42592C5De13f15Bf8D17D4B019DD16e4CB1FA7bF"),
-		MaticAddr:                     common.HexToAddress("0xBE097264221865C88BC84c62b903405b99Ad9A40"),
+		GenBlockNumber:                7674348,
+		PoEAddr:                       common.HexToAddress("0x159113e5560c9CC2d8c4e716228CCf92c72E9603"),
+		MaticAddr:                     common.HexToAddress("0x94Ca2BbE1b469f25D3B22BDf17Fc80ad09E7F662"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
-		GlobalExitRootManagerAddr:     common.HexToAddress("0x56943ff1Af72888eAAdE493bb0802aB142C4c805"),
+		GlobalExitRootManagerAddr:     common.HexToAddress("0xA379Dd55Eb12e8FCdb467A814A15DE2b29677066"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
