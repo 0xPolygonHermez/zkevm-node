@@ -1175,6 +1175,86 @@ func TestExecutorTransfer(t *testing.T) {
 	require.Equal(t, uint64(21002), balance.Uint64())
 }
 
+func TestExecutorMultipleTransfer(t *testing.T) {
+	var chainID = new(big.Int).SetInt64(1000)
+	//var senderAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
+	var senderPvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	var receiverAddress = common.HexToAddress("0xb1D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FB")
+
+	// Set Genesis
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "10000000",
+			},
+		},
+	}
+
+	initOrResetDB()
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+	var previousTxCountersBinaries, previousTxCountersArithmetics, previousTxCountersPoseidonHashes uint32
+
+	for i := 0; i < 5; i++ {
+		// Create transaction
+		tx := types.NewTx(&types.LegacyTx{
+			Nonce:    0,
+			To:       &receiverAddress,
+			Value:    new(big.Int).SetUint64(2),
+			Gas:      uint64(30000),
+			GasPrice: new(big.Int).SetUint64(1),
+			Data:     nil,
+		})
+
+		privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPvtKey, "0x"))
+		require.NoError(t, err)
+		auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+		require.NoError(t, err)
+
+		signedTx, err := auth.Signer(auth.From, tx)
+		require.NoError(t, err)
+
+		batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTx})
+		require.NoError(t, err)
+
+		// Create Batch
+		processBatchRequest := &executorclientpb.ProcessBatchRequest{
+			BatchNum:         1,
+			Coinbase:         receiverAddress.String(),
+			BatchL2Data:      batchL2Data,
+			OldStateRoot:     stateRoot,
+			GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			EthTimestamp:     uint64(0),
+			UpdateMerkleTree: 0,
+		}
+		// Process batch
+		processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
+		require.NoError(t, err)
+		if previousTxCountersBinaries != 0 && previousTxCountersArithmetics != 0 && previousTxCountersPoseidonHashes != 0 {
+			require.Equal(t, previousTxCountersBinaries, processBatchResponse.CntBinaries)
+			require.Equal(t, previousTxCountersArithmetics, processBatchResponse.CntArithmetics)
+			require.Equal(t, previousTxCountersPoseidonHashes, processBatchResponse.CntPoseidonHashes)
+		}
+		previousTxCountersBinaries = processBatchResponse.CntBinaries
+		previousTxCountersArithmetics = processBatchResponse.CntArithmetics
+		previousTxCountersPoseidonHashes = processBatchResponse.CntPoseidonHashes
+	}
+}
+
 func TestExecutorTxHashAndRLP(t *testing.T) {
 	// Test Case
 	type TxHashTestCase struct {

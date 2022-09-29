@@ -13,6 +13,7 @@ import (
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	if s.sequenceInProgress.IsZkCountersReachedMax {
 		log.Info("current sequence should be closed because it has reached max zk counters")
+		s.sequenceInProgress.IsZkCountersReachedMax = false
 		return true
 	}
 	// Check if sequence is full

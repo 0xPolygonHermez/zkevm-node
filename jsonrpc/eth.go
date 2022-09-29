@@ -622,7 +622,7 @@ func (e *Eth) tryToAddTxToPool(input string, dbTx pgx.Tx) (interface{}, rpcError
 	}
 
 	zkCounters := pool.ZkCounters{
-		CumulativeGasUsed:    procResp.CumulativeGasUsed,
+		CumulativeGasUsed:    procResp.Responses[0].GasUsed,
 		UsedKeccakHashes:     procResp.CntKeccakHashes,
 		UsedPoseidonHashes:   procResp.CntPoseidonHashes,
 		UsedPoseidonPaddings: procResp.CntPoseidonPaddings,

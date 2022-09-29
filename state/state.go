@@ -428,10 +428,6 @@ func (s *State) ProcessTx(ctx context.Context, tx types.Transaction, dbTx pgx.Tx
 	if len(lastBatches) > 1 {
 		previousBatch = lastBatches[1]
 	}
-	//isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, lastBatch.BatchNumber, dbTx)
-	//if err != nil {
-	//	return nil, err
-	//}
 
 	batchL2Data, err := EncodeTransactions([]types.Transaction{tx})
 	if err != nil {
