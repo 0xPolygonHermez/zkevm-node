@@ -66,31 +66,31 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.MaxKeccakHashes",
-			expectedValue: int32(468),
+			expectedValue: uint32(468),
 		},
 		{
 			path:          "Sequencer.MaxPoseidonHashes",
-			expectedValue: int32(279620),
+			expectedValue: uint32(279620),
 		},
 		{
 			path:          "Sequencer.MaxPoseidonPaddings",
-			expectedValue: int32(149796),
+			expectedValue: uint32(149796),
 		},
 		{
 			path:          "Sequencer.MaxMemAligns",
-			expectedValue: int32(262144),
+			expectedValue: uint32(262144),
 		},
 		{
 			path:          "Sequencer.MaxArithmetics",
-			expectedValue: int32(262144),
+			expectedValue: uint32(262144),
 		},
 		{
 			path:          "Sequencer.MaxBinaries",
-			expectedValue: int32(262144),
+			expectedValue: uint32(262144),
 		},
 		{
 			path:          "Sequencer.MaxSteps",
-			expectedValue: int32(8388608),
+			expectedValue: uint32(8388608),
 		},
 		{
 			path:          "EthTxManager.MaxSendBatchTxRetries",
