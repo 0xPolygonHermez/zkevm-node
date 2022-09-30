@@ -557,6 +557,25 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	return &batch, nil
 }
 
+// GetBatchByTxHash returns the batch including the given tx
+func (p *PostgresStorage) GetBatchByTxHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*Batch, error) {
+	const getBatchByTxHashSQL = `
+		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data
+		  FROM state.transaction t, state.batch b, state.l2block l 
+		  WHERE t.hash = $1 AND l.block_num = t.l2_block_num AND b.batch_num = l.batch_num`
+
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, getBatchByTxHashSQL, transactionHash.String())
+	batch, err := scanBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+	return &batch, nil
+}
+
 // GetBatchByL2BlockNumber returns the batch related to the l2 block accordingly to the provided l2 block number.
 func (p *PostgresStorage) GetBatchByL2BlockNumber(ctx context.Context, l2BlockNumber uint64, dbTx pgx.Tx) (*Batch, error) {
 	const getBatchByL2BlockNumberSQL = `
