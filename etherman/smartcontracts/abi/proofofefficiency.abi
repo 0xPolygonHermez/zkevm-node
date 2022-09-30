@@ -181,6 +181,19 @@
 	},
 	{
 		"inputs": [],
+		"name": "chainID",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "currentLocalExitRoot",
 		"outputs": [
 			{
@@ -314,6 +327,16 @@
 				"internalType": "string",
 				"name": "_trustedSequencerURL",
 				"type": "string"
+			},
+			{
+				"internalType": "uint64",
+				"name": "_chainID",
+				"type": "uint64"
+			},
+			{
+				"internalType": "string",
+				"name": "_networkName",
+				"type": "string"
 			}
 		],
 		"name": "initialize",
@@ -394,6 +417,19 @@
 				"internalType": "contract IERC20Upgradeable",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "networkName",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
 			}
 		],
 		"stateMutability": "view",
