@@ -22,7 +22,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	executorclientpb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -66,9 +65,9 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.216.26")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
-	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:51071", zkProverURI)}
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
 	executorClient, executorClientConn, executorCancel = executor.NewExecutorClient(ctx, executorServerConfig)
 	s := executorClientConn.GetState()
@@ -78,7 +77,7 @@ func TestMain(m *testing.M) {
 		executorClientConn.Close()
 	}()
 
-	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:51061", zkProverURI)}
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	var mtDBCancel context.CancelFunc
 	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	s = mtDBClientConn.GetState()
@@ -2016,6 +2015,7 @@ func initOrResetDB() {
 	}
 }
 
+/*
 func TestExecutorDebugTransaction(t *testing.T) {
 	// Test Case
 	type TxHashTestCase struct {
@@ -2164,3 +2164,4 @@ func TestExecutorDebugTransaction(t *testing.T) {
 
 	log.Debug(string(result.ExecutorTraceResult))
 }
+*/
