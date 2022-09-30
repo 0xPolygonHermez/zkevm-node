@@ -3,11 +3,13 @@ package pool
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -160,6 +162,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	if err != nil {
 		return err
 	}
+
 	if balance.Cmp(tx.Cost()) < 0 {
 		return ErrInsufficientFunds
 	}
@@ -186,6 +189,43 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		if oldTxPrice.Cmp(txPrice) > 0 {
 			return ErrReplaceUnderpriced
 		}
+	}
+
+	// Executor field size requirements check
+	if err := p.checkTxFieldCompatibilityWithExecutor(ctx, tx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkTxFieldCompatibilityWithExecutor checks the field sizes of the transaction to make sure
+// they ar compatible with the Executor needs
+// GasLimit: 256 bits
+// GasPrice: 256 bits
+// Value: 256 bits
+// Data: 30000 bytes
+// Nonce: 64 bits
+// To: 160 bits
+// ChainId: 64 bits
+func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx types.Transaction) error {
+	maxUint64BigInt := big.NewInt(0).SetUint64(math.MaxUint64)
+
+	const maxDataSize = 30000
+
+	// GasLimit, Nonce and To fields are limited by their types, no need to check
+	// Gas Price and Value are checked against the balance, and the max balance allowed
+	// by the merkletree service is uint256, in this case, if the transaction has a
+	// gas price or value bigger than uint256, the check against the balance will
+	// reject the transaction
+
+	dataSize := len(tx.Data())
+	if dataSize > maxDataSize {
+		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, maxDataSize)
+	}
+
+	if tx.ChainId().Cmp(maxUint64BigInt) == 1 {
+		return fmt.Errorf("chain id higher than allowed, max allowed is %v", uint64(math.MaxUint64))
 	}
 
 	return nil
