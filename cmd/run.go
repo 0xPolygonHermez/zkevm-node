@@ -75,6 +75,7 @@ func start(cliCtx *cli.Context) error {
 		switch item {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
+			c.Aggregator.ChainID = c.NetworkConfig.L2ChainID
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, proverClient, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")

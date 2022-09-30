@@ -25,6 +25,7 @@ message ProcessBatchRequest {
     // For testing purposes only
     map<string, string> db = 12;
     map<string, string> contracts_bytecode = 13; // For debug/testing purpposes only. Don't fill this on production
+    uint64 chain_id = 14;
 }
 
 message ProcessBatchResponse {
@@ -59,7 +60,7 @@ message TransactionContext {
     // Gas of the transaction
     uint64 gas = 5;
     // Value of the transaction
-    uint64 value = 6;
+    string value = 6;
     // Hash of the batch in which the transaction was included
     bytes batch = 7;
     // Returned data from the runtime (function result or data supplied with revert opcode)
@@ -67,7 +68,7 @@ message TransactionContext {
     // Total gas used as result of execution
     uint64 gas_used = 9;
     // Gas Price
-    uint64 gas_price = 10;
+    string gas_price = 10;
     // Execution Time
     uint32 execution_time = 11;
     // Starting state root
@@ -103,7 +104,7 @@ message TransactionStep {
 message Contract {
     string address = 1;
     string caller = 2;
-    uint64 value = 3;
+    string value = 3;
     bytes data = 4;
     uint64 gas = 5;
 }
