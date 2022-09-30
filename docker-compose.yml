@@ -28,7 +28,9 @@ services:
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
+      - ./test/test.keystore:/pk/keystore
       - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
     command:
       - "/bin/sh"

@@ -61,11 +61,21 @@ func start(cliCtx *cli.Context) error {
 
 	if strings.Contains(cliCtx.String(config.FlagComponents), AGGREGATOR) ||
 		strings.Contains(cliCtx.String(config.FlagComponents), SEQUENCER) ||
-		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) {
+		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) ||
+		strings.Contains(cliCtx.String(config.FlagComponents), RPC) {
 		var err error
 		etherman, err = newEtherman(*c)
 		if err != nil {
 			log.Fatal(err)
+		}
+
+		// TODO: READ CHAIN ID FROM POE SC
+		// log.Info("VALUE = %v", etherman.GetPublicAddress().String())
+		c.NetworkConfig.L2ChainID = 1001
+		log.Infof("Chain ID read from POE SC = %v", c.NetworkConfig.L2ChainID)
+
+		if strings.Contains(cliCtx.String(config.FlagComponents), RPC) {
+			etherman = nil
 		}
 	}
 
