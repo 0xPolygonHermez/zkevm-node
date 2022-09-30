@@ -49,10 +49,6 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	ctx := context.Background()
-
-	st := newState(ctx, c, stateSqlDB)
-
 	var (
 		grpcClientConns []*grpc.ClientConn
 		cancelFuncs     []context.CancelFunc
@@ -69,7 +65,7 @@ func start(cliCtx *cli.Context) error {
 			log.Fatal(err)
 		}
 
-		// TODO: READ CHAIN ID FROM POE SC
+		// READ CHAIN ID FROM POE SC
 		chainID, err := etherman.GetL2ChainID()
 		if err != nil {
 			log.Fatal(err)
@@ -82,6 +78,9 @@ func start(cliCtx *cli.Context) error {
 			etherman = nil
 		}
 	}
+
+	ctx := context.Background()
+	st := newState(ctx, c, stateSqlDB)
 
 	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman)
 	proverClient, proverConn := newProverClient(c.Prover)
