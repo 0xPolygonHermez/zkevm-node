@@ -751,9 +751,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	}
 
 	initialBalance, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
-	log.Debugf(initialBalance.String())
 	initialBalance = initialBalance.Add(initialBalance, initialBalance)
-	log.Debugf(initialBalance.String())
 	genesis := state.Genesis{
 		Actions: []*state.GenesisAction{
 			{
