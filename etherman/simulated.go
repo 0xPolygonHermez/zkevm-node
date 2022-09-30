@@ -71,7 +71,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	_, err = poe.Initialize(auth, exitManagerAddr, maticAddr, rollupVerifierAddr, genesis, auth.From, true, "http://localhost", 1000, "L2")
+	_, err = poe.Initialize(auth, exitManagerAddr, maticAddr, rollupVerifierAddr, genesis, auth.From, true, "http://localhost", 1000, "L2") //nolint:gomnd
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
