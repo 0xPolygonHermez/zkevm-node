@@ -70,8 +70,12 @@ func start(cliCtx *cli.Context) error {
 		}
 
 		// TODO: READ CHAIN ID FROM POE SC
-		// log.Info("VALUE = %v", etherman.GetPublicAddress().String())
-		c.NetworkConfig.L2ChainID = 1001
+		chainID, err := etherman.GetL2ChainID()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		c.NetworkConfig.L2ChainID = chainID
 		log.Infof("Chain ID read from POE SC = %v", c.NetworkConfig.L2ChainID)
 
 		if strings.Contains(cliCtx.String(config.FlagComponents), RPC) {

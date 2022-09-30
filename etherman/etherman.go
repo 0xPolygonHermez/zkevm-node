@@ -633,6 +633,11 @@ func (etherMan *Client) GetPublicAddress() common.Address {
 	return etherMan.auth.From
 }
 
+// GetL2ChainID returns L2 Chain ID
+func (etherMan *Client) GetL2ChainID() (uint64, error) {
+	return etherMan.PoE.ChainID(&bind.CallOpts{Pending: false})
+}
+
 // VerifyBatch function allows the aggregator send the proof for a batch and consolidate it
 func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64, resGetProof *pb.GetProofResponse) (*types.Transaction, error) {
 	publicInputs := resGetProof.Public.PublicInputs
