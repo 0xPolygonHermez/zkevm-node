@@ -203,6 +203,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 			BatchNum:         uint32(batchToVerify.BatchNumber),
 			EthTimestamp:     uint64(batchToVerify.Timestamp.Unix()),
 			AggregatorAddr:   a.Ethman.GetPublicAddress().String(),
+			ChainId:          a.cfg.ChainID,
 		},
 		GlobalExitRoot:    batchToVerify.GlobalExitRoot.String(),
 		BatchL2Data:       hex.EncodeToString(batchToVerify.BatchL2Data),

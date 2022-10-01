@@ -569,6 +569,7 @@ func TestExecuteTransaction(t *testing.T) {
 		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
+		ChainId:          stateCfg.ChainID,
 	}
 
 	log.Debugf("%v", processBatchRequest)
@@ -956,6 +957,7 @@ func TestExecutor(t *testing.T) {
 		EthTimestamp:     uint64(1944498031),
 		UpdateMerkleTree: 0,
 		Db:               db,
+		ChainId:          stateCfg.ChainID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -1009,6 +1011,7 @@ func TestExecutorRevert(t *testing.T) {
 		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 0,
+		ChainId:          stateCfg.ChainID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -1071,6 +1074,7 @@ func TestExecutorLogs(t *testing.T) {
 		EthTimestamp:     uint64(1944498031),
 		UpdateMerkleTree: 0,
 		Db:               genesisDB,
+		ChainId:          stateCfg.ChainID,
 	}
 
 	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -1148,6 +1152,7 @@ func TestExecutorTransfer(t *testing.T) {
 		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(0),
 		UpdateMerkleTree: 1,
+		ChainId:          stateCfg.ChainID,
 	}
 
 	// Read Sender Balance before execution
@@ -1266,6 +1271,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 			EthTimestamp:     uint64(0),
 			UpdateMerkleTree: 1,
+			ChainId:          stateCfg.ChainID,
 		}
 
 		// Process batch
@@ -1373,6 +1379,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 				OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 				EthTimestamp:     uint64(0),
 				UpdateMerkleTree: 1,
+				ChainId:          stateCfg.ChainID,
 			}
 
 			// Process batch
@@ -1963,6 +1970,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 				OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 				EthTimestamp:     uint64(0),
 				UpdateMerkleTree: 1,
+				ChainId:          stateCfg.ChainID,
 			}
 
 			// Process batch

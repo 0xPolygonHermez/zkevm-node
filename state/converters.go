@@ -183,9 +183,9 @@ func convertToContext(context *pb.TransactionContext) instrumentation.Context {
 		To:           context.To,
 		Input:        string(context.Data),
 		Gas:          fmt.Sprint(context.Gas),
-		Value:        fmt.Sprint(context.Value),
+		Value:        context.Value,
 		Output:       string(context.Output),
-		GasPrice:     fmt.Sprint(context.GasPrice),
+		GasPrice:     context.GasPrice,
 		OldStateRoot: string(context.OldStateRoot),
 		Time:         uint64(context.ExecutionTime),
 		GasUsed:      fmt.Sprint(context.GasUsed),
@@ -222,7 +222,7 @@ func convertToInstrumentationContract(response *pb.Contract) instrumentation.Con
 	return instrumentation.Contract{
 		Address: response.Address,
 		Caller:  response.Caller,
-		Value:   fmt.Sprint(response.Value),
+		Value:   response.Value,
 		Input:   string(response.Data),
 		Gas:     fmt.Sprint(response.Gas),
 	}

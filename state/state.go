@@ -212,6 +212,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 			Coinbase:         lastBatch.Coinbase.String(),
 			UpdateMerkleTree: cFalse,
+			ChainId:          s.cfg.ChainID,
 		}
 
 		log.Debugf("EstimateGas[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
@@ -223,6 +224,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		log.Debugf("EstimateGas[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 		log.Debugf("EstimateGas[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 		log.Debugf("EstimateGas[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+		log.Debugf("EstimateGas[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 
 		txExecutionOnExecutorTime := time.Now()
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -415,6 +417,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cTrue,
+		ChainId:          s.cfg.ChainID,
 	}
 	// Send Batch to the Executor
 	log.Debugf("processBatch[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
@@ -426,6 +429,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	log.Debugf("processBatch[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("processBatch[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("processBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+	log.Debugf("processBatch[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	log.Infof("It took %v for the executor to process the request", time.Since(now))
@@ -997,6 +1001,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		Coinbase:         lastBatch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
+		ChainId:          s.cfg.ChainID,
 	}
 
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
@@ -1008,6 +1013,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)

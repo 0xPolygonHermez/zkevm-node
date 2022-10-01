@@ -26,6 +26,7 @@ var (
 	_ = common.Big1
 	_ = types.BloomLookup
 	_ = event.NewSubscription
+	_ = abi.ConvertType
 )
 
 // UniswapV2MigratorMetaData contains all meta data concerning the UniswapV2Migrator contract.
@@ -156,11 +157,11 @@ func NewUniswapV2MigratorFilterer(address common.Address, filterer bind.Contract
 
 // bindUniswapV2Migrator binds a generic wrapper to an already deployed contract.
 func bindUniswapV2Migrator(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
-	parsed, err := abi.JSON(strings.NewReader(UniswapV2MigratorABI))
+	parsed, err := UniswapV2MigratorMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
-	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
+	return bind.NewBoundContract(address, *parsed, caller, transactor, filterer), nil
 }
 
 // Call invokes the (constant) contract method with params as input values and

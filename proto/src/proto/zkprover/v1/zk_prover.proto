@@ -13,7 +13,7 @@ message Version {
 /**
  * Define all methods implementes by the gRPC
  * GetStatus: get server report about its current state (non-blocking call)
- * GenProof: ask prover to start proof generation. If prover is busy, request is queued (non-blocking call)
+ * GenProof: ask prover to start proof generation. If prover is biusy, request is queued (non-blocking call)
  * Cancel: ask prover to cancel specific proof (non-blocking call)
  * GetProof: retrieve proof information given a timeout (blocking call)
  */
@@ -45,7 +45,7 @@ message GenProofRequest {
  * @dev CancelRequest
  * @param {id} - proof identifier
  */
-message CancelRequest {
+ message CancelRequest {
     string id = 1;
 }
 
@@ -182,6 +182,7 @@ message PublicInputs {
     uint32 batch_num = 7;
     uint64 eth_timestamp = 8;
     string aggregator_addr = 9;
+    uint64 chain_id = 10;
 }
 
 /**

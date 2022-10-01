@@ -191,6 +191,7 @@ func TestAggregatorFlow(t *testing.T) {
 	a := Aggregator{
 		cfg: Config{
 			IntervalToConsolidateState: cfgTypes.NewDuration(1 * time.Second),
+			ChainID:                    1000,
 		},
 		State:                st,
 		EthTxManager:         ethTxManager,
