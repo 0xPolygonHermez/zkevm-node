@@ -463,6 +463,7 @@ func (s *State) ProcessTx(ctx context.Context, tx types.Transaction, dbTx pgx.Tx
 		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cFalse,
+		ChainId:          s.cfg.ChainID,
 	}
 	now := time.Now()
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)

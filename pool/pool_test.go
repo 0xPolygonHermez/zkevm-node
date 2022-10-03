@@ -850,7 +850,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			incompatibleTx := testCase.createIncompatibleTx()
-			err = p.AddTx(ctx, incompatibleTx)
+			err = p.AddTx(ctx, incompatibleTx, pool.ZkCounters{})
 			assert.Equal(t, testCase.expectedError, err)
 		})
 	}
