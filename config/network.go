@@ -26,9 +26,10 @@ type NetworkConfig struct {
 	LocalExitRootStoragePosition  uint64
 	OldStateRootPosition          uint64
 	L1ChainID                     uint64
-	L2ChainID                     uint64
-	Genesis                       state.Genesis
-	MaxCumulativeGasUsed          uint64
+	// L2ChainID is read from POE SC
+	L2ChainID            uint64
+	Genesis              state.Genesis
+	MaxCumulativeGasUsed uint64
 }
 
 type networkConfigFromJSON struct {
@@ -41,7 +42,6 @@ type networkConfigFromJSON struct {
 	LocalExitRootStoragePosition  uint64                   `json:"localExitRootStoragePosition"`
 	OldStateRootPosition          uint64                   `json:"oldStateRootPosition"`
 	L1ChainID                     uint64                   `json:"l1ChainID"`
-	L2ChainID                     uint64                   `json:"l2ChainID"`
 	Root                          string                   `json:"root"`
 	Genesis                       []genesisAccountFromJSON `json:"genesis"`
 }
@@ -76,7 +76,6 @@ var (
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     1, //Mainnet
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Actions: []*state.GenesisAction{
 				{
@@ -103,7 +102,6 @@ var (
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     4, //Rinkeby
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Actions: []*state.GenesisAction{
 				{
@@ -131,7 +129,6 @@ var (
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     5, //Goerli
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Root: common.HexToHash("0xb33635210b9f5d07769cf70bf5a3cbf241ecbaf79a9b66ef79b28d920da1f776"),
 			Actions: []*state.GenesisAction{
@@ -155,7 +152,6 @@ var (
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     1337,
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Root: common.HexToHash("0x5e3d5372166e22ee23b4800aecb491de96f425aa5c7d56f35c96905cc5e12cb8"),
 			Actions: []*state.GenesisAction{
@@ -257,7 +253,6 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfg.LocalExitRootStoragePosition = cfgJSON.LocalExitRootStoragePosition
 	cfg.OldStateRootPosition = cfgJSON.OldStateRootPosition
 	cfg.L1ChainID = cfgJSON.L1ChainID
-	cfg.L2ChainID = cfgJSON.L2ChainID
 
 	if len(cfgJSON.Genesis) == 0 {
 		return cfg, nil
