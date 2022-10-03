@@ -135,9 +135,11 @@ test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race 
 	$(RUNRPCDB)
 	$(RUNZKPROVER); sleep 5
 	$(RUNZKPROVERMOCK)
+	sleep 2
+	$(RUNL1NETWORK)
 	sleep 15
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 60s ./...
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK) && $(STOPNETWORK)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 60s ./...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking race conditions
