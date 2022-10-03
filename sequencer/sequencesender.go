@@ -82,7 +82,6 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		})
 
 		// Check if can be send
-		// TODO refactooooooooooooooooooooor
 		tx, err = s.etherman.EstimateGasSequenceBatches(sequences)
 
 		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize) >= 1 {
