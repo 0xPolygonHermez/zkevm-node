@@ -449,15 +449,9 @@ func Test_Block(t *testing.T) {
 		require.NoError(t, err)
 
 		// check if block number is correct
-		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_getBlockTransactionCountByHash", common.BigToHash(receipt.BlockNumber))
+		count, err := client.TransactionCount(ctx, receipt.BlockHash)
 		require.NoError(t, err)
-		require.Nil(t, response.Error)
-		require.NotNil(t, response.Result)
-
-		var count int64
-		err = json.Unmarshal(response.Result, &count)
-		require.NoError(t, err)
-		require.Equal(t, int64(1), count)
+		require.Equal(t, uint(0x1), count)
 	}
 	/*
 		func (e *Eth) BlockNumber() (interface{}, rpcError) {
