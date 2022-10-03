@@ -1,14 +1,25 @@
 package e2e
 
 import (
+	"context"
+	"math/big"
 	"os"
+	"testing"
+	"time"
+
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/stretchr/testify/require"
 )
 
 func init() {
 	os.Setenv("CONFIG_MODE", "test")
 }
 
-/*
 func TestEthTransfer(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -103,4 +114,3 @@ func TestEthTransfer(t *testing.T) {
 	err = operations.WaitL2BlockToBeConsolidated(l2BlockNumber, 4*time.Minute)
 	require.NoError(t, err)
 }
-*/
