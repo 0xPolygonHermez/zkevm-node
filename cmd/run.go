@@ -49,10 +49,6 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	ctx := context.Background()
-
-	st := newState(ctx, c, stateSqlDB)
-
 	var (
 		grpcClientConns []*grpc.ClientConn
 		cancelFuncs     []context.CancelFunc
@@ -61,13 +57,30 @@ func start(cliCtx *cli.Context) error {
 
 	if strings.Contains(cliCtx.String(config.FlagComponents), AGGREGATOR) ||
 		strings.Contains(cliCtx.String(config.FlagComponents), SEQUENCER) ||
-		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) {
+		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) ||
+		strings.Contains(cliCtx.String(config.FlagComponents), RPC) {
 		var err error
 		etherman, err = newEtherman(*c)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		// READ CHAIN ID FROM POE SC
+		chainID, err := etherman.GetL2ChainID()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		c.NetworkConfig.L2ChainID = chainID
+		log.Infof("Chain ID read from POE SC = %v", c.NetworkConfig.L2ChainID)
+
+		if strings.Contains(cliCtx.String(config.FlagComponents), RPC) {
+			etherman = nil
+		}
 	}
+
+	ctx := context.Background()
+	st := newState(ctx, c, stateSqlDB)
 
 	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman)
 	proverClient, proverConn := newProverClient(c.Prover)
@@ -75,6 +88,7 @@ func start(cliCtx *cli.Context) error {
 		switch item {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
+			c.Aggregator.ChainID = c.NetworkConfig.L2ChainID
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, proverClient, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")

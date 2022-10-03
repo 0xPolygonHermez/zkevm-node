@@ -48,4 +48,7 @@ type Config struct {
 
 	// IntervalAfterWhichBatchConsolidateAnyway this is interval for the main sequencer, that will check if there is no transactions
 	IntervalAfterWhichBatchConsolidateAnyway types.Duration `mapstructure:"IntervalAfterWhichBatchConsolidateAnyway"`
+
+	// ChainID is the L2 ChainID provided by the Network Config
+	ChainID uint64
 }

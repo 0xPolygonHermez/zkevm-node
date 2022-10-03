@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -20,6 +21,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -722,6 +724,136 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 		t.Error(err)
 	}
 	assert.Equal(t, 0, count)
+}
+
+func Test_TryAddIncompatibleTxs(t *testing.T) {
+	initOrResetDB()
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		panic(err)
+	}
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	initialBalance, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
+	initialBalance = initialBalance.Add(initialBalance, initialBalance)
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: operations.DefaultSequencerAddress,
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   initialBalance.String(),
+			},
+		},
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p := pool.NewPool(s, st, common.Address{})
+
+	type testCase struct {
+		name                 string
+		createIncompatibleTx func() types.Transaction
+		expectedError        error
+	}
+
+	auth := operations.MustGetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
+	require.NoError(t, err)
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(operations.DefaultSequencerPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	chainIdOver64Bits := big.NewInt(0).SetUint64(math.MaxUint64)
+	chainIdOver64Bits = chainIdOver64Bits.Add(chainIdOver64Bits, big.NewInt(1))
+	authChainIdOver64Bits, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIdOver64Bits)
+	require.NoError(t, err)
+
+	bigIntOver256Bits, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
+	bigIntOver256Bits = bigIntOver256Bits.Add(bigIntOver256Bits, big.NewInt(1))
+
+	testCases := []testCase{
+		{
+			name: "Gas price over 256 bits",
+			createIncompatibleTx: func() types.Transaction {
+				tx := types.NewTransaction(uint64(0),
+					common.HexToAddress("0x1"),
+					big.NewInt(1), uint64(1), bigIntOver256Bits, nil)
+				signedTx, err := auth.Signer(auth.From, tx)
+				require.NoError(t, err)
+				return *signedTx
+			},
+			expectedError: pool.ErrInsufficientFunds,
+		},
+		{
+			name: "Value over 256 bits",
+			createIncompatibleTx: func() types.Transaction {
+				tx := types.NewTransaction(uint64(0),
+					common.HexToAddress("0x1"),
+					bigIntOver256Bits, uint64(1), big.NewInt(1), nil)
+				signedTx, err := auth.Signer(auth.From, tx)
+				require.NoError(t, err)
+				return *signedTx
+			},
+			expectedError: pool.ErrInsufficientFunds,
+		},
+		{
+			name: "data over 30k bytes",
+			createIncompatibleTx: func() types.Transaction {
+				data := [30001]byte{}
+				tx := types.NewTransaction(uint64(0),
+					common.HexToAddress("0x1"),
+					big.NewInt(1), uint64(1), big.NewInt(1), data[:])
+				signedTx, err := auth.Signer(auth.From, tx)
+				require.NoError(t, err)
+				return *signedTx
+			},
+			expectedError: fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", 30001, 30000),
+		},
+		{
+			name: "chain id over 64 bits",
+			createIncompatibleTx: func() types.Transaction {
+				tx := types.NewTransaction(uint64(0),
+					common.HexToAddress("0x1"),
+					big.NewInt(1), uint64(1), big.NewInt(1), nil)
+				signedTx, err := authChainIdOver64Bits.Signer(authChainIdOver64Bits.From, tx)
+				require.NoError(t, err)
+				return *signedTx
+			},
+			expectedError: fmt.Errorf("chain id higher than allowed, max allowed is %v", uint64(math.MaxUint64)),
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			incompatibleTx := testCase.createIncompatibleTx()
+			err = p.AddTx(ctx, incompatibleTx)
+			assert.Equal(t, testCase.expectedError, err)
+		})
+	}
 }
 
 func newState(sqlDB *pgxpool.Pool) *state.State {
