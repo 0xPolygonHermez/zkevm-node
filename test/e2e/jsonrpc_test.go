@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -22,6 +23,22 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMain(t *testing.T) {
+
+	var err error
+	err = operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() { require.NoError(t, operations.Teardown()) }()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+}
 
 // TestJSONRPC tests JSON RPC methods on a running environment.
 func TestJSONRPC(t *testing.T) {
@@ -193,201 +210,47 @@ func deployContracts(opsman *operations.Manager) error {
 	// return bp.ProcessBatch(ctx, batch)
 }
 
-func createTX(ethdeployment string, to common.Address, amount *big.Int) error {
+func createTX(ethdeployment string, to common.Address, amount *big.Int) (*common.Hash, error) {
 	client, err := ethclient.Dial(ethdeployment)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL1ChainID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ctx := context.Background()
 	nonce, err := client.NonceAt(ctx, auth.From, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	gasLimit, err := client.EstimateGas(ctx, ethereum.CallMsg{From: auth.From, To: &to, Value: amount})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	tx := types.NewTransaction(nonce+uint64(rand.Intn(1000))/2, to, amount, gasLimit, gasPrice, nil)
+	rndSource := rand.NewSource(time.Now().UnixNano())
+	rnd := rand.New(rndSource)
+	tx := types.NewTransaction(nonce+uint64(rnd.Intn(1000)), to, amount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, tx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
 	err = client.SendTransaction(context.Background(), signedTx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	hash := signedTx.Hash()
+	return &hash, nil
 }
+
 func Test_Filters(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
-	receiverAddr := common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
-
-	for _, network := range networks {
-		log.Debugf(network.Name)
-
-		const (
-			CREATE    = 0
-			UNINSTALL = 1
-			GET       = 2
-		)
-		ids := map[string]string{
-			"newBlockFilter":              "",
-			"newPendingTransactionFilter": "",
-			"newFilter":                   "",
-		}
-		testcases := []struct {
-			name             string
-			action           int
-			description      string
-			payload          struct{}
-			expectedResponse bool
-			id               string
-			shouldErr        bool
-			err              error
-		}{
-			{
-				name:        "eth_newBlockFilter",
-				action:      CREATE,
-				shouldErr:   false,
-				description: "create new block filter successfully",
-			},
-			{
-				name:        "eth_newPendingTransactionFilter",
-				action:      CREATE,
-				shouldErr:   false,
-				description: "create new pending TX filter successfully",
-			},
-			{
-
-				name:             "eth_newFilter",
-				action:           CREATE,
-				shouldErr:        false,
-				description:      "create a filter successfully",
-				id:               "newFilter",
-				expectedResponse: true,
-			},
-			{
-				name:             "eth_uninstallFilter",
-				action:           UNINSTALL,
-				shouldErr:        false,
-				description:      "uninstall a filter successfully",
-				id:               "newFilter",
-				expectedResponse: true,
-			},
-			{
-				name:             "eth_uninstallFilter",
-				action:           UNINSTALL,
-				shouldErr:        false,
-				description:      "uninstall a filter with error because it was already deleted",
-				id:               "newFilter",
-				expectedResponse: false,
-			},
-			{
-
-				name:             "eth_newFilter",
-				action:           CREATE,
-				shouldErr:        false,
-				description:      "create a filter successfully again",
-				id:               "newFilter",
-				expectedResponse: true,
-			},
-			{
-				name:             "eth_getFilterLogs",
-				action:           GET,
-				shouldErr:        false,
-				description:      "get the data from the filter",
-				id:               "newFilter",
-				expectedResponse: false,
-			},
-		}
-
-		for _, tc := range testcases {
-			tc := tc
-			t.Run(tc.name, func(t *testing.T) {
-				var response jsonrpc.Response
-				var err error
-				if tc.action == UNINSTALL || tc.action == GET {
-					response, err = jsonrpc.JSONRPCCall(network.URL, tc.name, ids[strings.Replace(tc.id, "eth_", "", -1)])
-					require.NoError(t, err)
-				} else if tc.action == CREATE && tc.name == "eth_newFilter" {
-					response, err = jsonrpc.JSONRPCCall(network.URL, tc.name, &jsonrpc.LogFilter{
-						Addresses: []common.Address{
-							receiverAddr,
-						},
-					})
-					require.NoError(t, err)
-
-					// create a TX so the filter has some data
-					err = createTX(
-						network.URL,
-						receiverAddr,
-						big.NewInt(1),
-					)
-					require.NoError(t, err)
-				} else {
-					response, err = jsonrpc.JSONRPCCall(network.URL, tc.name)
-					require.NoError(t, err)
-				}
-
-				if tc.shouldErr {
-					require.NotNil(t, response.Error)
-					require.Equal(t, tc.err.Error(), response.Error.Message)
-
-				} else {
-					require.Nil(t, response.Error)
-					var result interface{}
-					err = json.Unmarshal(response.Result, &result)
-					require.NoError(t, err)
-
-					require.NotNil(t, result)
-
-					if tc.action == CREATE {
-						fmt.Println("Result " + result.(string))
-						ids[strings.Replace(tc.id, "eth_", "", -1)] = result.(string)
-					}
-					if tc.action == UNINSTALL {
-						var result bool
-						err = json.Unmarshal(response.Result, &result)
-						require.NoError(t, err)
-						require.NotNil(t, result)
-						require.Equal(t, tc.expectedResponse, result)
-					}
-					if tc.action == GET {
-						type filterResponse struct {
-							address, data, blockNumber, transactionHash, transactionIndex, blockHash, logIndex string
-							topics                                                                             []string
-						}
-						var result []filterResponse
-						err = json.Unmarshal(response.Result, &result)
-						require.NoError(t, err)
-						require.NotNil(t, result)
-						fmt.Printf("\n%+v", result)
-					}
-
-				}
-
-				require.Equal(t, float64(1), response.ID)
-				require.Equal(t, "2.0", response.JSONRPC)
-			})
-		}
-	}
-}
-
-func Test_Filters2(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -504,6 +367,7 @@ func Test_Filters2(t *testing.T) {
 		err = json.Unmarshal(response.Result, &uninstalled)
 		require.NoError(t, err)
 		require.False(t, uninstalled)
+
 	}
 }
 
@@ -542,6 +406,51 @@ func Test_Gas(t *testing.T) {
 
 func Test_Block(t *testing.T) {
 
+	ctx := context.Background()
+	for _, network := range networks[0:1] {
+
+		initialBlock := uint64(0x1)
+		client, err := ethclient.Dial(network.URL)
+		require.NoError(t, err)
+
+		// func (e *Eth) BlockNumber() (interface{}, rpcError)
+		blockNumber, err := client.BlockNumber(ctx)
+		require.NoError(t, err)
+		log.Infof("\nBlock num %d", blockNumber)
+		require.Greater(t, blockNumber, initialBlock) // Every second a new block is added, thus the block number will be greater than 1.
+
+		// func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, rpcError)
+		blockHash, err := client.BlockByNumber(ctx, big.NewInt(0))
+		require.NotNil(t, blockHash)
+		require.NoError(t, err)
+
+		blockHash, err = client.BlockByHash(ctx, common.HexToHash("0x0"))
+		require.Nil(t, blockHash)
+		require.Error(t, err)
+
+		blockHash, err = client.BlockByHash(ctx, common.HexToHash("0x2"))
+		require.Nil(t, blockHash)
+		require.Error(t, err)
+
+		madeTx, err := createTX(network.URL, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
+		require.NoError(t, err)
+
+		tx, pending, err := client.TransactionByHash(ctx, *madeTx)
+		require.NotNil(t, tx)
+		require.True(t, pending)
+		require.NoError(t, err)
+
+		// no block number yet...
+		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_getBlockTransactionCountByHash", common.HexToHash("0x0"))
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		var count int64
+		err = json.Unmarshal(response.Result, &count)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), count)
+	}
 	/*
 		func (e *Eth) BlockNumber() (interface{}, rpcError) {
 
