@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"math/rand"
 	"net/http"
 	"strings"
 	"testing"
@@ -234,9 +233,7 @@ func createTX(ethdeployment string, to common.Address, amount *big.Int) (*common
 		return nil, err
 	}
 
-	rndSource := rand.NewSource(time.Now().UnixNano())
-	rnd := rand.New(rndSource)
-	tx := types.NewTransaction(nonce+uint64(rnd.Intn(1000)), to, amount, gasLimit, gasPrice, nil)
+	tx := types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, tx)
 	if err != nil {
 		return nil, err
@@ -440,8 +437,19 @@ func Test_Block(t *testing.T) {
 		require.True(t, pending)
 		require.NoError(t, err)
 
-		// no block number yet...
-		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_getBlockTransactionCountByHash", common.HexToHash("0x0"))
+		// no block number yet... will wait
+
+		for pending {
+			_, pending, err = client.TransactionByHash(ctx, *madeTx)
+			require.NoError(t, err)
+			time.Sleep(1 * time.Second)
+		}
+
+		receipt, err := client.TransactionReceipt(ctx, *madeTx)
+		require.NoError(t, err)
+
+		// check if block number is correct
+		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_getBlockTransactionCountByHash", common.BigToHash(receipt.BlockNumber))
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
 		require.NotNil(t, response.Result)
@@ -449,7 +457,7 @@ func Test_Block(t *testing.T) {
 		var count int64
 		err = json.Unmarshal(response.Result, &count)
 		require.NoError(t, err)
-		require.Equal(t, int64(0), count)
+		require.Equal(t, int64(1), count)
 	}
 	/*
 		func (e *Eth) BlockNumber() (interface{}, rpcError) {
