@@ -1244,6 +1244,7 @@ func TestExecutorMultipleTransfer(t *testing.T) {
 			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 			EthTimestamp:     uint64(0),
 			UpdateMerkleTree: 0,
+			ChainId:          stateCfg.ChainID,
 		}
 		// Process batch
 		processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
