@@ -219,7 +219,9 @@ func l2BlockToRPCBlock(b *types.Block, fullTx bool) *rpcBlock {
 
 	for idx, txn := range b.Transactions() {
 		if fullTx {
-			tx := toRPCTransaction(txn, b.Number(), b.Hash(), uint64(idx))
+			blockHash := b.Hash()
+			txIndex := uint64(idx)
+			tx := toRPCTransaction(txn, b.Number(), &blockHash, &txIndex)
 			res.Transactions = append(
 				res.Transactions,
 				tx,
@@ -256,9 +258,9 @@ type rpcTransaction struct {
 	S           argBig          `json:"s"`
 	Hash        common.Hash     `json:"hash"`
 	From        common.Address  `json:"from"`
-	BlockHash   common.Hash     `json:"blockHash"`
-	BlockNumber argUint64       `json:"blockNumber"`
-	TxIndex     argUint64       `json:"transactionIndex"`
+	BlockHash   *common.Hash    `json:"blockHash"`
+	BlockNumber *argUint64      `json:"blockNumber"`
+	TxIndex     *argUint64      `json:"transactionIndex"`
 }
 
 func (t rpcTransaction) getHash() common.Hash { return t.Hash }
@@ -275,8 +277,8 @@ func (h transactionHash) MarshalText() ([]byte, error) {
 func toRPCTransaction(
 	t *types.Transaction,
 	blockNumber *big.Int,
-	blockHash common.Hash,
-	txIndex uint64,
+	blockHash *common.Hash,
+	txIndex *uint64,
 ) *rpcTransaction {
 	v, r, s := t.RawSignatureValues()
 
@@ -297,11 +299,16 @@ func toRPCTransaction(
 	}
 
 	if blockNumber != nil {
-		res.BlockNumber = argUint64(blockNumber.Uint64())
+		bn := argUint64(blockNumber.Uint64())
+		res.BlockNumber = &bn
 	}
 
 	res.BlockHash = blockHash
-	res.TxIndex = argUint64(txIndex)
+
+	if txIndex != nil {
+		ti := argUint64(*txIndex)
+		res.TxIndex = &ti
+	}
 
 	return res
 }
