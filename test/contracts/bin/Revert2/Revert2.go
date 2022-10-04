@@ -26,7 +26,6 @@ var (
 	_ = common.Big1
 	_ = types.BloomLookup
 	_ = event.NewSubscription
-	_ = abi.ConvertType
 )
 
 // Revert2MetaData contains all meta data concerning the Revert2 contract.
@@ -157,11 +156,11 @@ func NewRevert2Filterer(address common.Address, filterer bind.ContractFilterer) 
 
 // bindRevert2 binds a generic wrapper to an already deployed contract.
 func bindRevert2(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
-	parsed, err := Revert2MetaData.GetAbi()
+	parsed, err := abi.JSON(strings.NewReader(Revert2ABI))
 	if err != nil {
 		return nil, err
 	}
-	return bind.NewBoundContract(address, *parsed, caller, transactor, filterer), nil
+	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
 }
 
 // Call invokes the (constant) contract method with params as input values and

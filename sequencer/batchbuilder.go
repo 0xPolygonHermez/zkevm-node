@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -21,7 +20,7 @@ import (
 
 const (
 	maxTxsPerBatch    uint64 = 150
-	maxBatchBytesSize int    = 60000
+	maxBatchBytesSize int    = 30000
 )
 
 type processTxResponse struct {
@@ -97,7 +96,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			log.Errorf("failed to encode txs, err: %w", err)
 			return
 		}
-		encodedTxsBytesSize = binary.Size(encodedTxs)
+		encodedTxsBytesSize = len(encodedTxs)
 
 		if encodedTxsBytesSize > maxBatchBytesSize && numberOfTxsInProcess > 0 {
 			// if only one tx overflows, than it means, tx is invalid
