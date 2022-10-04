@@ -204,14 +204,14 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 // GasLimit: 256 bits
 // GasPrice: 256 bits
 // Value: 256 bits
-// Data: 30000 bytes
+// Data: 60000 bytes
 // Nonce: 64 bits
 // To: 160 bits
 // ChainId: 64 bits
 func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx types.Transaction) error {
 	maxUint64BigInt := big.NewInt(0).SetUint64(math.MaxUint64)
 
-	const maxDataSize = 30000
+	const maxDataSize = 60000
 
 	// GasLimit, Nonce and To fields are limited by their types, no need to check
 	// Gas Price and Value are checked against the balance, and the max balance allowed
