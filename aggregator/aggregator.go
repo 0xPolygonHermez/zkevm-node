@@ -82,6 +82,7 @@ func (a *Aggregator) Start(ctx context.Context) {
 				a.tryVerifyBatch(ctx, tickerVerifyBatch)
 			}
 		}()
+		time.Sleep(time.Second)
 	}
 
 	go func() {
