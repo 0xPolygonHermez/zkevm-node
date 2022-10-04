@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -425,6 +426,39 @@ func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Addre
 	}
 
 	return *nonce, nil
+}
+
+// GetTxByHash gets a transaction in the pool by its hash
+func (p *PostgresPoolStorage) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+	var (
+		encoded, status string
+		receivedAt      time.Time
+	)
+
+	sql := `SELECT encoded, status, received_at
+	          FROM pool.txs
+			 WHERE hash = $1`
+	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&encoded, &status, &receivedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	b, err := hex.DecodeHex(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+	return &pool.Transaction{
+		ReceivedAt:  receivedAt,
+		Status:      pool.TxStatus(status),
+		Transaction: *tx,
+	}, nil
 }
 
 func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
