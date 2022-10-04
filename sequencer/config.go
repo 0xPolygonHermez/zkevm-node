@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	base "github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 )
 
@@ -70,7 +71,7 @@ type MaxSequenceSize struct {
 
 // UnmarshalText unmarshal token amount from float string to big int
 func (m *MaxSequenceSize) UnmarshalText(data []byte) error {
-	amount, ok := new(big.Int).SetString(string(data), 10)
+	amount, ok := new(big.Int).SetString(string(data), base.Base10)
 	if !ok {
 		return fmt.Errorf("failed to unmarshal string to float")
 	}
