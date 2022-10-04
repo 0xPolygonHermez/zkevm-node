@@ -37,6 +37,8 @@ var (
 	ErrInvalidTransaction = errors.New("invalid transaction")
 	// ErrIntrinsicInvalidTransaction indicates the executor found the transaction to be invalid and this does not affected the state
 	ErrIntrinsicInvalidTransaction = errors.New("intrinsic invalid transaction")
+	// ErrBatchDataTooBig indicates the batch_l2_data is too big to be processed
+	ErrBatchDataTooBig = errors.New("batch data too big")
 )
 
 // ExecutionResult includes all output after executing given evm

@@ -46,7 +46,6 @@ const (
 type Config struct {
 	IsTrustedSequencer bool `mapstructure:"IsTrustedSequencer"`
 	Log                log.Config
-	Database           db.Config
 	Etherman           etherman.Config
 	EthTxManager       ethtxmanager.Config
 	RPC                jsonrpc.Config
@@ -60,6 +59,8 @@ type Config struct {
 	Executor           executor.Config
 	BroadcastServer    broadcast.ServerConfig
 	MTClient           merkletree.Config
+	StateDB            db.Config
+	PoolDB             db.Config
 }
 
 // Load loads the configuration

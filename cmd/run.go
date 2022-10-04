@@ -43,17 +43,8 @@ func start(cliCtx *cli.Context) error {
 		return err
 	}
 	setupLog(c.Log)
-	runMigrations(c.Database)
-
-	sqlDB, err := db.NewSQLDB(c.Database)
-	if err != nil {
-		log.Fatal(err)
-	}
-	ctx := context.Background()
-
-	st := newState(ctx, c, sqlDB)
-
-	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(c.Database)
+	runStateMigrations(c.StateDB)
+	stateSqlDB, err := db.NewSQLDB(c.StateDB)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,34 +57,54 @@ func start(cliCtx *cli.Context) error {
 
 	if strings.Contains(cliCtx.String(config.FlagComponents), AGGREGATOR) ||
 		strings.Contains(cliCtx.String(config.FlagComponents), SEQUENCER) ||
-		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) {
+		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) ||
+		strings.Contains(cliCtx.String(config.FlagComponents), RPC) {
 		var err error
 		etherman, err = newEtherman(*c)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		// READ CHAIN ID FROM POE SC
+		chainID, err := etherman.GetL2ChainID()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		c.NetworkConfig.L2ChainID = chainID
+		log.Infof("Chain ID read from POE SC = %v", c.NetworkConfig.L2ChainID)
+
+		if strings.Contains(cliCtx.String(config.FlagComponents), RPC) {
+			etherman = nil
+		}
 	}
 
-	npool := pool.NewPool(poolDb, st, c.NetworkConfig.L2GlobalExitRootManagerAddr)
-	gpe := createGasPriceEstimator(c.GasPriceEstimator, st, npool)
+	ctx := context.Background()
+	st := newState(ctx, c, stateSqlDB)
+
 	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman)
 	proverClient, proverConn := newProverClient(c.Prover)
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
 		switch item {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
+			c.Aggregator.ChainID = c.NetworkConfig.L2ChainID
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, proverClient, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
-			seq := createSequencer(*c, npool, st, etherman, ethTxManager)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig, st)
+			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
+			runRPCMigrations(c.RPC.DB)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig, st)
+			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
 			}
-			go runJSONRPCServer(*c, npool, st, gpe, apis)
+			go runJSONRPCServer(*c, poolInstance, st, gpe, apis)
 		case SYNCHRONIZER:
 			log.Info("Running synchronizer")
 			go runSynchronizer(*c, etherman, st)
@@ -114,8 +125,20 @@ func setupLog(c log.Config) {
 	log.Init(c)
 }
 
-func runMigrations(c db.Config) {
-	err := db.RunMigrationsUp(c)
+func runStateMigrations(c db.Config) {
+	runMigrations(c, db.StateMigrationName)
+}
+
+func runPoolMigrations(c db.Config) {
+	runMigrations(c, db.PoolMigrationName)
+}
+
+func runRPCMigrations(c db.Config) {
+	runMigrations(c, db.RPCMigrationName)
+}
+
+func runMigrations(c db.Config, name string) {
+	err := db.RunMigrationsUp(c, name)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -144,7 +167,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.Sta
 }
 
 func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gasPriceEstimator, apis map[string]bool) {
-	storage, err := jsonrpc.NewPostgresStorage(c.Database)
+	storage, err := jsonrpc.NewPostgresStorage(c.RPC.DB)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -287,4 +310,14 @@ func newState(ctx context.Context, c *config.Config, sqlDB *pgxpool.Pool) *state
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
 	return st
+}
+
+func createPool(poolDBConfig db.Config, networkConfig config.NetworkConfig, st *state.State) *pool.Pool {
+	runPoolMigrations(poolDBConfig)
+	poolStorage, err := pgpoolstorage.NewPostgresPoolStorage(poolDBConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	poolInstance := pool.NewPool(poolStorage, st, networkConfig.L2GlobalExitRootManagerAddr)
+	return poolInstance
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-//NetworkConfig is the configuration struct for the different environments
+// NetworkConfig is the configuration struct for the different environments
 type NetworkConfig struct {
 	L2GlobalExitRootManagerAddr common.Address
 	Genesis                     state.Genesis

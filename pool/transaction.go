@@ -15,8 +15,8 @@ const (
 	TxStatusInvalid TxStatus = "invalid"
 	// TxStatusSelected represents a tx that has been	 selected
 	TxStatusSelected TxStatus = "selected"
-	// TxStatusPreSelected represents a tx that has been preselected for executor processing
-	TxStatusPreSelected TxStatus = "preselected"
+	// TxStatusFailed represents a tx that has been failed after processing, but can be processed in the future
+	TxStatusFailed TxStatus = "failed"
 )
 
 // TxStatus represents the state of a tx

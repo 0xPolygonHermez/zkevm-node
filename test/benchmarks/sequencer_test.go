@@ -32,7 +32,7 @@ const (
 	gasLimit = 21000
 )
 
-var dbConfig = dbutils.NewConfigFromEnv()
+var dbConfig = dbutils.NewStateConfigFromEnv()
 
 var (
 	ctx                 = context.Background()

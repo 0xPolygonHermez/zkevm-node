@@ -23,12 +23,13 @@ type txPool interface {
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error
-	GetPendingTxsWithLowestNonce(ctx context.Context, limit uint64) ([]*pool.Transaction, error)
+	GetTxs(ctx context.Context, filterStatus pool.TxStatus, limit uint64) ([]*pool.Transaction, error)
+	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)
 }
 
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
-	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error)
+	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error)
 	GetSendSequenceFee() (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
 	GetLatestBatchNumber() (uint64, error)
@@ -61,6 +62,9 @@ type stateInterface interface {
 	GetStateRootByBatchNumber(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (common.Hash, error)
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
+
+	GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 
 type txManager interface {
