@@ -119,5 +119,5 @@ CREATE TABLE state.log
 CREATE TABLE state.proof
 (
     batch_num  BIGINT NOT NULL PRIMARY KEY REFERENCES state.batch (batch_num) ON DELETE CASCADE,
-    proof jsonb,
- );
+    proof jsonb
+);

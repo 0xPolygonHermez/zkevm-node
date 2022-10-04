@@ -85,7 +85,7 @@ Type = "default"
 DefaultGasPriceWei = 1000000000
 
 [Provers]
-ProverURIs = "zkevm-prover:50052, zkevm-prove:50052, zkevm-prove:50052"
+ProverURIs = ["zkevm-prover:50052"]
 
 [MTServer]
 Host = "0.0.0.0"

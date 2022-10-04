@@ -110,6 +110,8 @@ func start(cliCtx *cli.Context) error {
 
 	// grpcClientConns = append(grpcClientConns, proverConn)
 
+	log.Debug("conns=%v", grpcClientConns)
+
 	waitSignal(grpcClientConns, cancelFuncs)
 
 	return nil

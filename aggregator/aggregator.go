@@ -52,6 +52,7 @@ func NewAggregator(
 		proverClient := prover.NewClient(proverURI, cfg.IntervalFrequencyToGetProofGenerationState)
 		proverClients = append(proverClients, proverClient)
 		grpcClientConns = append(grpcClientConns, proverClient.Prover.Conn)
+		log.Infof("Connected to prover %v", proverURI)
 	}
 
 	a := Aggregator{
@@ -75,11 +76,14 @@ func (a *Aggregator) Start(ctx context.Context) {
 	defer tickerVerifyBatch.Stop()
 	defer tickerSendVerifiedBatch.Stop()
 
-	go func() {
-		for {
-			a.tryVerifyBatch(ctx, tickerVerifyBatch)
-		}
-	}()
+	for i := 0; i < len(a.ProverClients); i++ {
+		go func() {
+			for {
+				a.tryVerifyBatch(ctx, tickerVerifyBatch)
+			}
+		}()
+	}
+
 	go func() {
 		for {
 			a.tryToSendVerifiedBatch(ctx, tickerSendVerifiedBatch)
@@ -96,13 +100,17 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 		log.Warnf("failed to get last consolidated batch, err: %v", err)
 		waitTick(ctx, ticker)
 		return
+	} else if err == state.ErrNotFound {
+		log.Warn("no consolidated batch found")
+		waitTick(ctx, ticker)
+		return
 	}
 
 	batchNumberToVerify := lastVerifiedBatch.BatchNumber + 1
 
 	proof, err := a.State.GetGeneratedProofByBatchNumber(ctx, batchNumberToVerify, nil)
 	if err != nil && err != state.ErrNotFound {
-		log.Warnf("failed to get last proof for batch %d, err: %v", batchNumberToVerify, err)
+		log.Warnf("failed to get last proof for batch %v, err: %v", batchNumberToVerify, err)
 		waitTick(ctx, ticker)
 		return
 	}
@@ -110,14 +118,14 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 	if proof != nil {
 		log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchNumberToVerify)
 		a.EthTxManager.VerifyBatch(batchNumberToVerify, proof)
-		log.Infof("proof for the batch was sent, batchNumber: %d", batchNumberToVerify)
+		log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
 		err := a.State.DeleteGeneratedProof(ctx, batchNumberToVerify, nil)
 		if err != nil {
-			log.Warnf("failed to delete generated proof for batchNumber %d, err: %v", batchNumberToVerify, err)
+			log.Warnf("failed to delete generated proof for batchNumber %v, err: %v", batchNumberToVerify, err)
 			return
 		}
 	} else {
-		log.Info("no generated proof for batchNumber %d has been found", batchNumberToVerify)
+		log.Infof("no generated proof for batchNumber %v has been found", batchNumberToVerify)
 		waitTick(ctx, ticker)
 		return
 	}
@@ -125,6 +133,7 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 
 func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	log.Info("checking if network is synced")
+
 	for !a.isSynced(ctx) {
 		log.Infof("waiting for synchronizer to sync...")
 		waitTick(ctx, ticker)
