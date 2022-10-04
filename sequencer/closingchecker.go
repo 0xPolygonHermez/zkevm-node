@@ -75,9 +75,14 @@ func (s *Sequencer) shouldCloseDueToNewDeposits(ctx context.Context) (bool, erro
 // shouldCloseTooLongSinceLastVirtualized returns true if last batch virtualization happened
 // more than MaxTimeForBatchToBeOpen ago and there are transactions in the current sequence
 func (s *Sequencer) shouldCloseTooLongSinceLastVirtualized(ctx context.Context) (bool, error) {
-	isPreviousBatchVirtualized, err := s.state.IsBatchVirtualized(ctx, s.lastBatchNum-1, nil)
+	lastBatchNumber, err := s.state.GetLastBatchNumber(ctx, nil)
 	if err != nil {
-		log.Errorf("failed to get last virtual batch num, err: %v", err)
+		log.Errorf("failed to get last batch number, err: %w", err)
+		return false, err
+	}
+	isPreviousBatchVirtualized, err := s.state.IsBatchVirtualized(ctx, lastBatchNumber-1, nil)
+	if err != nil {
+		log.Errorf("failed to get last virtual batch num, err: %w", err)
 		return false, err
 	}
 	if time.Unix(s.sequenceInProgress.Timestamp, 0).Add(s.cfg.MaxTimeForBatchToBeOpen.Duration).Before(time.Now()) &&

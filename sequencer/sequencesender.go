@@ -3,6 +3,7 @@ package sequencer
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -35,20 +36,30 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 		return
 	}
 
+	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
+	if err != nil {
+		log.Errorf("failed to get last virtual batch num, err: %w", err)
+		return
+	}
+
 	// Send sequences to L1
 	log.Infof(
 		"sending sequences to L1. From batch %d to batch %d",
-		s.lastBatchNumSentToL1+1, s.lastBatchNumSentToL1+uint64(len(sequences)),
+		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(len(sequences)),
 	)
 	s.txManager.SequenceBatches(sequences)
-	s.lastBatchNumSentToL1 += uint64(len(sequences))
 }
 
 // getSequencesToSend generates an array of sequences to be send to L1.
 // If the array is empty, it doesn't necessarily mean that there are no sequences to be sent,
 // it could be that it's not worth it to do so yet.
 func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, error) {
-	currentBatchNumToSequence := s.lastBatchNumSentToL1 + 1
+	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get last virtual batch num, err: %w", err)
+	}
+
+	currentBatchNumToSequence := lastVirtualBatchNum + 1
 	sequences := []types.Sequence{}
 	var estimatedGas uint64
 
@@ -152,8 +163,8 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 		}
 		// Remove the latest item and send the sequences
 		log.Infof(
-			"Done building sequences, selected batches from %d to %d. Batch %d caused the L1 tx to be too big",
-			s.lastBatchNumSentToL1+1, currentBatchNumToSequence, currentBatchNumToSequence+1,
+			"Done building sequences, selected batches to %d. Batch %d caused the L1 tx to be too big",
+			currentBatchNumToSequence, currentBatchNumToSequence+1,
 		)
 		sequences = sequences[:len(sequences)-1]
 		return sequences, nil
@@ -193,8 +204,8 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	}
 	// Remove the latest item and send the sequences
 	log.Infof(
-		"Done building sequences, selected batches from %d to %d. Batch %d excluded due to unknown error: %v",
-		s.lastBatchNumSentToL1+1, currentBatchNumToSequence, currentBatchNumToSequence+1, err,
+		"Done building sequences, selected batches to %d. Batch %d excluded due to unknown error: %v",
+		currentBatchNumToSequence, currentBatchNumToSequence+1, err,
 	)
 	sequences = sequences[:len(sequences)-1]
 	return sequences, nil

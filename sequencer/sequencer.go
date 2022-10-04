@@ -31,10 +31,8 @@ type Sequencer struct {
 	etherman  etherman
 	checker   *profitabilitychecker.Checker
 
-	address              common.Address
-	lastBatchNum         uint64
-	lastBatchNumSentToL1 uint64
-	isSequenceTooBig     bool
+	address          common.Address
+	isSequenceTooBig bool
 
 	sequenceInProgress types.Sequence
 }
@@ -170,12 +168,6 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get last batch, err: %w", err)
 	}
-	s.lastBatchNum = lastBatch.BatchNumber
-	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to get last virtual batch num, err: %w", err)
-	}
-	s.lastBatchNumSentToL1 = lastVirtualBatchNum
 	isClosed, err := s.state.IsBatchClosed(ctx, lastBatch.BatchNumber, nil)
 	if err != nil {
 		return fmt.Errorf("failed to check is batch closed or not, err: %w", err)
@@ -196,7 +188,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 			return fmt.Errorf("failed to get latest global exit root, err: %w", err)
 		}
 		processingCtx := state.ProcessingContext{
-			BatchNumber:    s.lastBatchNum + 1,
+			BatchNumber:    lastBatch.BatchNumber + 1,
 			Coinbase:       s.address,
 			Timestamp:      time.Now(),
 			GlobalExitRoot: ger,
@@ -260,7 +252,6 @@ func (s *Sequencer) createFirstBatch(ctx context.Context) {
 	if err := dbTx.Commit(ctx); err != nil {
 		log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
 	}
-	s.lastBatchNum = processingCtx.BatchNumber
 	s.sequenceInProgress = types.Sequence{
 		GlobalExitRoot: processingCtx.GlobalExitRoot,
 		Timestamp:      processingCtx.Timestamp.Unix(),

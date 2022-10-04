@@ -248,7 +248,12 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	if err != nil {
 		return types.Sequence{}, fmt.Errorf("failed to begin state transaction to close batch, err: %w", err)
 	}
-	err = s.closeBatch(ctx, dbTx)
+
+	lastBatchNumber, err := s.state.GetLastBatchNumber(ctx, dbTx)
+	if err != nil {
+		return types.Sequence{}, fmt.Errorf("failed to get last batch number, err: %w", err)
+	}
+	err = s.closeBatch(ctx, lastBatchNumber, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return types.Sequence{}, fmt.Errorf(
@@ -316,7 +321,13 @@ func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 		return processTxResponse{}, err
 	}
 
-	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, s.lastBatchNum, s.sequenceInProgress.Txs, dbTx)
+	lastBatchNumber, err := s.state.GetLastBatchNumber(ctx, dbTx)
+	if err != nil {
+		log.Errorf("failed to get last batch number, err: %w", err)
+		return processTxResponse{}, err
+	}
+
+	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, lastBatchNumber, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
 		if err == state.ErrBatchAlreadyClosed || err == state.ErrInvalidBatchNumber {
 			log.Warnf("unexpected state local vs DB: %w", err)
@@ -345,8 +356,6 @@ func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 	s.sequenceInProgress.StateRoot = processBatchResp.NewStateRoot
 	s.sequenceInProgress.LocalExitRoot = processBatchResp.NewLocalExitRoot
 
-	// TODO: temp for the debug
-	log.Infof("batch is processed by the executor, NEWSTATEROOT: %s, BATCHNUM: %d", processBatchResp.NewStateRoot, s.lastBatchNum)
 	processedTxs, processedTxsHashes, unprocessedTxs, unprocessedTxsHashes := state.DetermineProcessedTransactions(processBatchResp.Responses)
 
 	response := processTxResponse{
@@ -366,7 +375,14 @@ func (s *Sequencer) storeProcessedTransactions(ctx context.Context, processedTxs
 		log.Errorf("failed to begin state transaction for StoreTransactions, err: %w", err)
 		return err
 	}
-	err = s.state.StoreTransactions(ctx, s.lastBatchNum, processedTxs, dbTx)
+
+	lastBatchNumber, err := s.state.GetLastBatchNumber(ctx, dbTx)
+	if err != nil {
+		log.Errorf("failed to get last batch number, err: %w", err)
+		return err
+	}
+
+	err = s.state.StoreTransactions(ctx, lastBatchNumber, processedTxs, dbTx)
 	if err != nil {
 		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-len(processedTxs)]
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
@@ -424,9 +440,9 @@ func (s *Sequencer) updateGerInBatch(ctx context.Context, lastGer *state.GlobalE
 	return nil
 }
 
-func (s *Sequencer) closeBatch(ctx context.Context, dbTx pgx.Tx) error {
+func (s *Sequencer) closeBatch(ctx context.Context, lastBatchNumber uint64, dbTx pgx.Tx) error {
 	receipt := state.ProcessingReceipt{
-		BatchNumber:   s.lastBatchNum,
+		BatchNumber:   lastBatchNumber,
 		StateRoot:     s.sequenceInProgress.StateRoot,
 		LocalExitRoot: s.sequenceInProgress.LocalExitRoot,
 	}
@@ -465,8 +481,6 @@ func (s *Sequencer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 	if err != nil {
 		return state.ProcessingContext{}, fmt.Errorf("failed to open new batch, err: %w", err)
 	}
-
-	s.lastBatchNum = newBatchNum
 
 	return processingCtx, nil
 }
