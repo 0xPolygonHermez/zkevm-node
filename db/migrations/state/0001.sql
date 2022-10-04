@@ -115,3 +115,9 @@ CREATE TABLE state.log
     topic3    VARCHAR,
     PRIMARY KEY (tx_hash, log_index)
 );
+
+CREATE TABLE state.proof
+(
+    batch_num  BIGINT NOT NULL PRIMARY KEY REFERENCES state.batch (batch_num) ON DELETE CASCADE,
+    proof jsonb,
+ );
