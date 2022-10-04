@@ -167,7 +167,7 @@ func TestSequenceTooBig(t *testing.T) {
 
 	state := st.NewState(stateCfg, stateDb, executorClient, stateTree)
 
-	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER])
+	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER], big.NewInt(CONFIG_CHAIN_ID).Uint64())
 	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, eth_man)
 
 	seq, err := New(Config{

@@ -318,6 +318,6 @@ func createPool(poolDBConfig db.Config, networkConfig config.NetworkConfig, st *
 	if err != nil {
 		log.Fatal(err)
 	}
-	poolInstance := pool.NewPool(poolStorage, st, networkConfig.L2GlobalExitRootManagerAddr)
+	poolInstance := pool.NewPool(poolStorage, st, networkConfig.L2GlobalExitRootManagerAddr, networkConfig.L2ChainID)
 	return poolInstance
 }
