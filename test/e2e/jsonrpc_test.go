@@ -437,6 +437,12 @@ func Test_Block(t *testing.T) {
 		require.True(t, pending)
 		require.NoError(t, err)
 
+		// its pending
+		// func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, rpcError)
+		count, err := client.PendingTransactionCount(ctx)
+		require.NoError(t, err)
+		require.Equal(t, uint(0x0), count) // TODO why 0?
+
 		// no block number yet... will wait
 
 		for pending {
@@ -444,26 +450,37 @@ func Test_Block(t *testing.T) {
 			require.NoError(t, err)
 			time.Sleep(1 * time.Second)
 		}
+		count, err = client.PendingTransactionCount(ctx)
+		require.NoError(t, err)
+		require.Equal(t, uint(0x0), count) // not pending anymore
 
 		receipt, err := client.TransactionReceipt(ctx, *madeTx)
 		require.NoError(t, err)
 
+		// func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, rpcError)
 		// check if block number is correct
-		count, err := client.TransactionCount(ctx, receipt.BlockHash)
+		count, err = client.TransactionCount(ctx, receipt.BlockHash)
 		require.NoError(t, err)
 		require.Equal(t, uint(0x1), count)
+
+		// 	func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (interface{}, rpcError)
+		tx, err = client.TransactionInBlock(ctx, receipt.BlockHash, 0)
+		require.NoError(t, err)
+		require.Equal(t, tx.Hash(), *madeTx)
+
+		// TODO GetTransactionByBlockNumberAndIndex
+
+		raw, err := jsonrpc.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", []string{"0x" + receipt.BlockNumber.String(), "0x0"})
+		require.NoError(t, err)
+		require.Nil(t, raw.Error)
+		require.NotNil(t, raw.Result)
+
+		var newTx types.Transaction
+		err = json.Unmarshal(raw.Result, &newTx)
+		require.NoError(t, err)
+
 	}
 	/*
-		func (e *Eth) BlockNumber() (interface{}, rpcError) {
-
-		func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, rpcError) {
-		func (e *Eth) GetBlockByNumber(number BlockNumber, fullTx bool) (interface{}, rpcError) {
-
-		func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (interface{}, rpcError) {
-		func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Index) (interface{}, rpcError) {
-
-		func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, rpcError) {
-		func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, rpcError) {
 
 		func (e *Eth) GetUncleByBlockHashAndIndex() (interface{}, rpcError) {
 		func (e *Eth) GetUncleByBlockNumberAndIndex() (interface{}, rpcError) {
