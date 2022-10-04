@@ -48,9 +48,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		err := s.closeSequence(ctx)
 		if err != nil {
 			if strings.Contains(err.Error(), state.ErrClosingBatchWithoutTxs.Error()) {
-				log.Info("current sequence can't be closed without transactions")
-				waitTick(ctx, ticker)
-				return
+				log.Warn("Current batch has not been closed since it had no txs. Trying to add more txs to avoid death lock")
 			} else {
 				log.Errorf("error closing sequence: %w", err)
 				log.Info("resetting sequence in progress")
