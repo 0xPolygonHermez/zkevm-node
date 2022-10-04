@@ -70,13 +70,9 @@ func start(cliCtx *cli.Context) error {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		c.NetworkConfig.L2ChainID = chainID
-		log.Infof("Chain ID read from POE SC = %v", c.NetworkConfig.L2ChainID)
-
-		if strings.Contains(cliCtx.String(config.FlagComponents), RPC) {
-			etherman = nil
-		}
+		c.Aggregator.ChainID = chainID
+		c.RPC.ChainID = chainID
+		log.Infof("Chain ID read from POE SC = %v", chainID)
 	}
 
 	ctx := context.Background()
@@ -88,7 +84,6 @@ func start(cliCtx *cli.Context) error {
 		switch item {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
-			c.Aggregator.ChainID = c.NetworkConfig.L2ChainID
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, proverClient, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
@@ -173,7 +168,6 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 	}
 
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
-	// c.RPC.ChainID = c.NetworkConfig.L2ChainID
 
 	if err := jsonrpc.NewServer(c.RPC, pool, st, gpe, storage, apis).Start(); err != nil {
 		log.Fatal(err)

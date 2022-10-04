@@ -25,7 +25,7 @@ type Config struct {
 	MaxCumulativeGasUsed uint64
 
 	// ChainID is the L2 ChainID provided by the Network Config
-	ChainID uint64 `mapstructure:"L2ChainID"`
+	ChainID uint64
 
 	// RPC Database COnfig
 	DB db.Config `mapstructure:"DB"`
