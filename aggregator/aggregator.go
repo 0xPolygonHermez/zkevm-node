@@ -260,7 +260,7 @@ func (a *Aggregator) getBatchToVerify(ctx context.Context) (*state.Batch, error)
 
 	batchNumberToVerify := lastVerifiedBatch.BatchNumber + 1
 
-	// Check is a prover is already working on this batch
+	// Check if a prover is already working on this batch
 	_, err = a.State.GetGeneratedProofByBatchNumber(ctx, batchNumberToVerify, nil)
 	if err != nil && !errors.Is(err, state.ErrNotFound) {
 		return nil, err
