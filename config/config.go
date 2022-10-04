@@ -113,7 +113,10 @@ func Load(ctx *cli.Context) (*Config, error) {
 	// Load genesis parameters
 	cfg.loadNetworkConfig(ctx)
 
-	cfgJSON, _ := json.MarshalIndent(cfg, "", "  ")
+	cfgJSON, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return nil, err
+	}
 	log.Infof("Configuration loaded: \n%s\n", string(cfgJSON))
 	return &cfg, nil
 }

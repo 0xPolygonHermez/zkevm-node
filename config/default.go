@@ -59,6 +59,7 @@ SyncChunkSize = 100
 TrustedSequencerURI = ""
 
 [Sequencer]
+MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "300s"

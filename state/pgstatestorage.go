@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -850,8 +849,6 @@ func (p *PostgresStorage) openBatch(ctx context.Context, batchContext Processing
 
 func (p *PostgresStorage) closeBatch(ctx context.Context, receipt ProcessingReceipt, rawTxs []byte, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
-	// TODO: temp for the debug
-	log.Infof("closing a batch and setting state root, NEWSTATEROOT: %s, BATCHNUM: %d", receipt.StateRoot.String(), receipt.BatchNumber)
 	_, err := e.Exec(ctx, closeBatchSQL, receipt.StateRoot.String(), receipt.LocalExitRoot.String(), rawTxs, receipt.BatchNumber)
 	return err
 }
