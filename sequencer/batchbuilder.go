@@ -21,7 +21,7 @@ import (
 
 const (
 	maxTxsPerBatch    uint64 = 150
-	maxBatchBytesSize int    = 60000
+	maxBatchBytesSize int    = 30000
 )
 
 type processTxResponse struct {
