@@ -169,7 +169,6 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	// TODO: temp for the debug
 	log.Infof("sending a batch to the prover, OLDSTATEROOT: %s, NEWSTATEROOT: %s, BATCHNUM: %d",
 		inputProver.PublicInputs.OldStateRoot, inputProver.PublicInputs.NewStateRoot, inputProver.PublicInputs.BatchNum)
 
@@ -199,6 +198,10 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	genProofID, err := prover.GetGenProofID(ctx, inputProver)
 	if err != nil {
 		log.Warnf("failed to get gen proof id, err: %v", err)
+		err2 := a.State.DeleteGeneratedProof(ctx, batchToVerify.BatchNumber, nil)
+		if err2 != nil {
+			log.Errorf("failed to delete proof generation mark after error, err: %v", err2)
+		}
 		waitTick(ctx, ticker)
 		return
 	}
@@ -206,6 +209,10 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	resGetProof, err := prover.GetResGetProof(ctx, genProofID, batchToVerify.BatchNumber)
 	if err != nil {
 		log.Warnf("failed to get proof from prover, err: %v", err)
+		err2 := a.State.DeleteGeneratedProof(ctx, batchToVerify.BatchNumber, nil)
+		if err2 != nil {
+			log.Errorf("failed to delete proof generation mark after error, err: %v", err2)
+		}
 		waitTick(ctx, ticker)
 		return
 	}
@@ -225,6 +232,10 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	err = a.State.UpdateGeneratedProof(ctx, batchToVerify.BatchNumber, resGetProof, nil)
 	if err != nil {
 		log.Warnf("failed to store generated proof, err: %v", err)
+		err2 := a.State.DeleteGeneratedProof(ctx, batchToVerify.BatchNumber, nil)
+		if err2 != nil {
+			log.Errorf("failed to delete proof generation mark after error, err: %v", err2)
+		}
 		waitTick(ctx, ticker)
 		return
 	}
