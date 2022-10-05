@@ -1,7 +1,7 @@
 package proverclient
 
-// Config represents the configuration of the prover client
+// Config represents the configuration of the prover clients
 type Config struct {
-	// ProverURI URI to get access to the prover client
-	ProverURI string `mapstructure:"ProverURI"`
+	// ProverURIs URIs to get access to the prover clients
+	ProverURIs []string `mapstructure:"ProverURIs"`
 }
