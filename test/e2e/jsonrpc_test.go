@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -266,6 +267,7 @@ func Test_Filters(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
 		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
@@ -378,6 +380,7 @@ func Test_Gas(t *testing.T) {
 		big.NewInt(1000000000000000),
 	}
 	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
 
 		for _, value := range Values {
 			client, err := ethclient.Dial(network.URL)
@@ -402,10 +405,28 @@ func Test_Gas(t *testing.T) {
 }
 
 func Test_Block(t *testing.T) {
-
+	type rpcTx struct {
+		BlockHash        string `json:"blockHash"`
+		BlockNumber      string `json:"blockNumber"`
+		ChainID          string `json:"chainId"`
+		From             string `json:"from"`
+		Gas              string `json:"gas"`
+		GasPrice         string `json:"gasPrice"`
+		Hash             string `json:"hash"`
+		Input            string `json:"input"`
+		Nonce            string `json:"nonce"`
+		PublicKey        string `json:"publicKey"`
+		R                string `json:"r"`
+		Raw              string `json:"raw"`
+		S                string `json:"s"`
+		To               string `json:"to"`
+		TransactionIndex string `json:"transactionIndex"`
+		V                string `json:"v"`
+		Value            string `json:"value"`
+	}
 	ctx := context.Background()
 	for _, network := range networks[0:1] {
-
+		log.Infof("Network %s", network.Name)
 		initialBlock := uint64(0x1)
 		client, err := ethclient.Dial(network.URL)
 		require.NoError(t, err)
@@ -439,9 +460,6 @@ func Test_Block(t *testing.T) {
 
 		// its pending
 		// func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, rpcError)
-		count, err := client.PendingTransactionCount(ctx)
-		require.NoError(t, err)
-		require.Equal(t, uint(0x0), count) // TODO why 0?
 
 		// no block number yet... will wait
 
@@ -450,16 +468,23 @@ func Test_Block(t *testing.T) {
 			require.NoError(t, err)
 			time.Sleep(1 * time.Second)
 		}
-		count, err = client.PendingTransactionCount(ctx)
-		require.NoError(t, err)
-		require.Equal(t, uint(0x0), count) // not pending anymore
 
 		receipt, err := client.TransactionReceipt(ctx, *madeTx)
 		require.NoError(t, err)
 
+		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_getBlockTransactionCountByNumber", fmt.Sprintf("0x%x", receipt.BlockNumber))
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		txCount := ""
+		err = json.Unmarshal(response.Result, &txCount)
+		require.NoError(t, err)
+		require.Equal(t, "0x1", txCount)
+
 		// func (e *Eth) GetBlockTransactionCountByHash(hash common.Hash) (interface{}, rpcError)
 		// check if block number is correct
-		count, err = client.TransactionCount(ctx, receipt.BlockHash)
+		count, err := client.TransactionCount(ctx, receipt.BlockHash)
 		require.NoError(t, err)
 		require.Equal(t, uint(0x1), count)
 
@@ -470,14 +495,37 @@ func Test_Block(t *testing.T) {
 
 		// TODO GetTransactionByBlockNumberAndIndex
 
-		raw, err := jsonrpc.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", []string{"0x" + receipt.BlockNumber.String(), "0x0"})
+		raw, err := jsonrpc.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", fmt.Sprintf("0x%x", receipt.BlockNumber), "0x0")
 		require.NoError(t, err)
 		require.Nil(t, raw.Error)
 		require.NotNil(t, raw.Result)
 
-		var newTx types.Transaction
+		var newTx rpcTx
 		err = json.Unmarshal(raw.Result, &newTx)
 		require.NoError(t, err)
+
+		raw, err = jsonrpc.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", "0x123", "0x865")
+		require.NoError(t, err)
+		require.Nil(t, raw.Error)
+		require.NotNil(t, raw.Result)
+
+		var empty rpcTx
+		err = json.Unmarshal(raw.Result, &empty)
+		require.NoError(t, err)
+
+		// Checks for empty, when the lookup fail we get an empty struct and no errors...
+		v := reflect.ValueOf(empty)
+
+		for i := 0; i < v.NumField(); i++ {
+			require.Empty(t, v.Field(i).Interface())
+		}
+
+		// checks for successful query
+
+		require.Equal(t, fmt.Sprintf("0x%x", receipt.BlockNumber), newTx.BlockNumber)
+		require.Equal(t, receipt.BlockHash.String(), newTx.BlockHash)
+		require.Equal(t, fmt.Sprintf("0x%x", tx.Nonce()), newTx.Nonce)
+		require.Equal(t, fmt.Sprintf("0x%x", tx.ChainId()), newTx.ChainID)
 
 	}
 	/*
