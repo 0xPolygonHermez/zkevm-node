@@ -57,7 +57,7 @@ type Config struct {
 	Sequencer          sequencer.Config
 	PriceGetter        pricegetter.Config
 	Aggregator         aggregator.Config
-	Prover             proverclient.Config
+	Provers            proverclient.Config
 	NetworkConfig      NetworkConfig
 	GasPriceEstimator  gasprice.Config
 	Executor           executor.Config

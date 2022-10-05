@@ -66,10 +66,10 @@ func TestBuildInputProver(t *testing.T) {
 	etherman := new(aggrMocks.Etherman)
 	proverClient := new(aggrMocks.ProverClientMock)
 	a := Aggregator{
-		State:        st,
-		EthTxManager: ethTxManager,
-		Ethman:       etherman,
-		ProverClient: proverClient,
+		State:         st,
+		EthTxManager:  ethTxManager,
+		Ethman:        etherman,
+		ProverClients: []proverClientInterface{proverClient},
 	}
 	var (
 		oldStateRoot     = common.HexToHash("0xbdde84a5932a2f0a1a4c6c51f3b64ea265d4f1461749298cfdd09b31122ce0d6")
@@ -145,10 +145,10 @@ func TestBuildInputProverError(t *testing.T) {
 	etherman := new(aggrMocks.Etherman)
 	proverClient := new(aggrMocks.ProverClientMock)
 	a := Aggregator{
-		State:        st,
-		EthTxManager: ethTxManager,
-		Ethman:       etherman,
-		ProverClient: proverClient,
+		State:         st,
+		EthTxManager:  ethTxManager,
+		Ethman:        etherman,
+		ProverClients: []proverClientInterface{proverClient},
 	}
 	var (
 		newLocalExitRoot = common.HexToHash("0xbdde84a5932a2f0a1a4c6c51f3b64ea265d4f1461749298cfdd09b31122ce0d6")
@@ -196,7 +196,7 @@ func TestAggregatorFlow(t *testing.T) {
 		State:                st,
 		EthTxManager:         ethTxManager,
 		Ethman:               etherman,
-		ProverClient:         proverClient,
+		ProverClients:        []proverClientInterface{proverClient},
 		ProfitabilityChecker: NewTxProfitabilityCheckerAcceptAll(st, 1*time.Second),
 	}
 	var (
