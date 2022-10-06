@@ -1,4 +1,4 @@
-IsTrustedSequencer = true
+IsTrustedSequencer = false
 
 [Log]
 Level = "debug"
@@ -23,7 +23,7 @@ EnableLog = false
 MaxConns = 200
 
 [Etherman]
-URL = "http://zkevm-mock-l1-network:8545"
+URL = "https://geth_goerli.hermez.io"
 PrivateKeyPath = "./test/test.keystore"
 PrivateKeyPassword = "testonly"
 
@@ -35,10 +35,10 @@ FrequencyForResendingFailedVerifyBatch = "1s"
 
 [RPC]
 Host = "0.0.0.0"
-Port = 8123
+Port = 8545
 MaxRequestsPerIPAndSecond = 5000
-SequencerNodeURI = ""
-BroadcastURI = "127.0.0.1:61090"
+SequencerNodeURI = "https://internal.zkevm-test.net:2083/"
+BroadcastURI = "internal.zkevm-test.net:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 	[RPC.DB]
 		User = "rpc_user"

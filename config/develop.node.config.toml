@@ -1,0 +1,58 @@
+IsTrustedSequencer = false
+
+[Log]
+Level = "debug"
+Outputs = ["stdout"]
+
+[StateDB]
+User = "state_user"
+Password = "state_password"
+Name = "state_db"
+Host = "zkevm-state-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
+
+[PoolDB]
+User = "pool_user"
+Password = "pool_password"
+Name = "pool_db"
+Host = "zkevm-pool-db"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
+
+[Etherman]
+URL = "https://geth_goerli.hermez.io"
+PrivateKeyPassword = "testonly"
+
+[RPC]
+Host = "0.0.0.0"
+Port = 8545
+MaxRequestsPerIPAndSecond = 5000
+SequencerNodeURI = "https://develop.zkevm-test.net:2083/"
+BroadcastURI = "develop.zkevm-test.net:61090"
+DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
+	[RPC.DB]
+		User = "rpc_user"
+		Password = "rpc_password"
+		Name = "rpc_db"
+		Host = "zkevm-rpc-db"
+		Port = "5432"
+		EnableLog = false
+		MaxConns = 10
+
+[Synchronizer]
+SyncInterval = "1s"
+SyncChunkSize = 10000
+TrustedSequencerURI = ""
+
+[GasPriceEstimator]
+Type = "default"
+DefaultGasPriceWei = 1000000000
+
+[MTClient]
+URI = "zkevm-prover:50061"
+
+[Executor]
+URI = "zkevm-prover:50071"
