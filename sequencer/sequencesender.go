@@ -11,8 +11,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
@@ -61,8 +61,8 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, u
 
 	currentBatchNumToSequence := lastVirtualBatchNum + 1
 	sequences := []types.Sequence{}
-
-	var tx *ethtypes.Transaction
+	var estimatedGas uint64
+	var txHash common.Hash
 
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	for {
@@ -92,7 +92,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, u
 		})
 
 		// Check if can be send
-		estimatedGas, txHash, err := s.etherman.EstimateGasSequenceBatches(sequences)
+		estimatedGas, txHash, err = s.etherman.EstimateGasSequenceBatches(sequences)
 
 		if err == nil && new(big.Int).SetUint64(estimatedGas).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
 			log.Infof("oversized Data on TX hash %s (%d > %d)", txHash, estimatedGas, s.cfg.MaxSequenceSize)

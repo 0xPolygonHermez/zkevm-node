@@ -14,7 +14,7 @@ type etherman interface {
 	SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64) (*types.Transaction, error)
 	VerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64) (*types.Transaction, error)
 	EstimateGasForVerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse) (uint64, error)
-	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error)
+	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, common.Hash, error)
 	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
 	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	WaitTxToBeMined(hash common.Hash, timeout time.Duration) error
