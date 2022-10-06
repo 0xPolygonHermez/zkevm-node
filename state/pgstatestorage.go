@@ -1744,3 +1744,12 @@ func (p *PostgresStorage) DeleteGeneratedProof(ctx context.Context, batchNumber 
 	_, err := e.Exec(ctx, deleteGeneratedProofSQL, batchNumber)
 	return err
 }
+
+// DeleteProofs empties state.proof table
+// This method is meant to be use during aggregator boot-up sequence
+func (p *PostgresStorage) DeleteProofs(ctx context.Context, dbTx pgx.Tx) error {
+	const deleteGeneratedProofSQL = "DELETE FROM state.proof"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, deleteGeneratedProofSQL)
+	return err
+}

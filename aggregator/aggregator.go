@@ -76,6 +76,12 @@ func (a *Aggregator) Start(ctx context.Context) {
 	defer tickerVerifyBatch.Stop()
 	defer tickerSendVerifiedBatch.Stop()
 
+	// Delete proofs that where being generated during last reboot
+	err := a.State.DeleteProofs(ctx, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Warn("error deleting work in progress proofs from state")
+	}
+
 	for i := 0; i < len(a.ProverClients); i++ {
 		go func() {
 			for {
@@ -126,7 +132,7 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 			return
 		}
 	} else {
-		log.Infof("no generated proof for batchNumber %v has been found", batchNumberToVerify)
+		log.Debugf("no generated proof for batchNumber %v has been found", batchNumberToVerify)
 		waitTick(ctx, ticker)
 		return
 	}

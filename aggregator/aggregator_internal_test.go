@@ -54,6 +54,7 @@ func TestGetBatchToVerify(t *testing.T) {
 
 	st.On("GetLastVerifiedBatch", ctx, nil).Return(verifiedBatch, nil)
 	st.On("GetVirtualBatchByNumber", ctx, verifiedBatch.BatchNumber+1, nil).Return(batchToVerify, nil)
+	st.On("GetGeneratedProofByBatchNumber", ctx, verifiedBatch.BatchNumber+1, nil).Return(nil, state.ErrNotFound)
 
 	res, err := a.getBatchToVerify(ctx)
 	require.NoError(t, err)
@@ -263,7 +264,11 @@ func TestAggregatorFlow(t *testing.T) {
 	))
 	expectedInputProver.PublicInputs.BatchHashData = batchHashData.String()
 	// isSynced
+	proverClient.On("IsIdle", mock.Anything).Return(true)
 	st.On("GetLastVerifiedBatch", mock.Anything, nil).Return(verifiedBatch, nil)
+	st.On("GetGeneratedProofByBatchNumber", mock.Anything, verifiedBatch.BatchNumber+1, nil).Return(nil, state.ErrNotFound)
+	st.On("AddGeneratedProof", mock.Anything, mock.Anything, mock.Anything, nil).Return(nil)
+	st.On("UpdateGeneratedProof", mock.Anything, mock.Anything, mock.Anything, nil).Return(nil)
 	etherman.On("GetLatestVerifiedBatchNum").Return(uint64(1), nil)
 	etherman.On("GetPublicAddress").Return(aggrAddress)
 
