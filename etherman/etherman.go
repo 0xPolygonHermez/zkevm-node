@@ -33,7 +33,12 @@ var (
 	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
 	forceSequencedBatchesSignatureHash = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))
 	verifiedBatchSignatureHash         = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
-	initializedSignatureHash           = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
+
+	// Proxy events
+	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
+	adminChangedSignatureHash   = crypto.Keccak256Hash([]byte("AdminChanged(address,address)"))
+	beaconUpgradedSignatureHash = crypto.Keccak256Hash([]byte("BeaconUpgraded(address)"))
+	upgradedSignatureHash       = crypto.Keccak256Hash([]byte("Upgraded(address)"))
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
@@ -156,6 +161,15 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	case initializedSignatureHash:
 		log.Debug("Initialized event detected")
 		return nil
+	case adminChangedSignatureHash:
+		log.Debug("AdminChanged event detected")
+		return nil
+	case beaconUpgradedSignatureHash:
+		log.Debug("BeaconUpgraded event detected")
+		return nil
+	case upgradedSignatureHash:
+		log.Debug("Upgraded event detected")
+		return nil
 	}
 	log.Warn("Event not registered: ", vLog)
 	return nil
@@ -202,14 +216,15 @@ func (etherMan *Client) WaitTxToBeMined(hash common.Hash, timeout time.Duration)
 }
 
 // EstimateGasSequenceBatches estimates gas for sending batches
-func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error) {
+func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
 	noSendOpts := *etherMan.auth
 	noSendOpts.NoSend = true
 	tx, err := etherMan.sequenceBatches(&noSendOpts, sequences)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return tx.Gas(), nil
+
+	return tx, nil
 }
 
 // SequenceBatches send sequences of batches to the ethereum
@@ -617,6 +632,11 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 // GetPublicAddress returns eth client public address
 func (etherMan *Client) GetPublicAddress() common.Address {
 	return etherMan.auth.From
+}
+
+// GetL2ChainID returns L2 Chain ID
+func (etherMan *Client) GetL2ChainID() (uint64, error) {
+	return etherMan.PoE.ChainID(&bind.CallOpts{Pending: false})
 }
 
 // VerifyBatch function allows the aggregator send the proof for a batch and consolidate it

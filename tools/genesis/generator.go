@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	repoURL    = "https://github.com/0xPolygonHermez/zkevm-commonjs"
-	inputFile  = "tools/fill-genesis/genesis.json"
+	repoURL    = "https://github.com/0xPolygonHermez/zkevm-contracts"
+	inputFile  = "deployment/deployment_v2-0/genesis.json"
 	outputFile = "../../config/genesis.go"
 )
 
@@ -179,7 +179,7 @@ func assertGenesis(expectedRoot string) (err error) {
 	}
 
 	// Get Genesis root using jRPC
-	client, err := ethclient.Dial("http://localhost:8124")
+	client, err := ethclient.Dial("http://localhost:8123")
 	if err != nil {
 		log.Error(err)
 		return

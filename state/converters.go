@@ -14,13 +14,26 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func convertToProcessBatchResponse(oldRoot common.Hash, txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	responses, err := convertToProcessTransactionResponse(oldRoot, txs, response.Responses)
+// TestConvertToProcessBatchResponse for test purposes
+func TestConvertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	return convertToProcessBatchResponse(txs, response)
+}
+
+func convertToProcessBatchResponse(txs []types.Transaction, response *pb.ProcessBatchResponse) (*ProcessBatchResponse, error) {
+	responses, err := convertToProcessTransactionResponse(txs, response.Responses)
 	if err != nil {
 		return nil, err
 	}
+
+	isBatchProcessed := true
+	if len(response.Responses) > 0 {
+		// Check out of counters
+		isBatchProcessed = !(response.Responses[len(response.Responses)-1].Error == pb.Error_ERROR_OUT_OF_COUNTERS)
+	}
+
 	return &ProcessBatchResponse{
 		CumulativeGasUsed:   response.CumulativeGasUsed,
+		IsBatchProcessed:    isBatchProcessed,
 		Responses:           responses,
 		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
 		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
@@ -34,13 +47,11 @@ func convertToProcessBatchResponse(oldRoot common.Hash, txs []types.Transaction,
 	}, nil
 }
 
-func isProcessed(oldRoot common.Hash, newRoot common.Hash, err pb.Error) bool {
-	// temporary commented, bcs prover returns changed state root for invalid txs
-	// return oldRoot.String() != newRoot.String()
-	return err != pb.Error_ERROR_INTRINSIC_INVALID_TX
+func isProcessed(err pb.Error) bool {
+	return err != pb.Error_ERROR_INTRINSIC_INVALID_TX && err != pb.Error_ERROR_OUT_OF_COUNTERS
 }
 
-func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
+func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for i, response := range responses {
 		trace, err := convertToStructLogArray(response.ExecutionTrace)
@@ -59,14 +70,14 @@ func convertToProcessTransactionResponse(oldRoot common.Hash, txs []types.Transa
 		result.CreateAddress = common.HexToAddress(response.CreateAddress)
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
-		result.IsProcessed = isProcessed(oldRoot, result.StateRoot, response.Error)
+		result.IsProcessed = isProcessed(response.Error)
 		result.ExecutionTrace = *trace
 		result.CallTrace = convertToExecutorTrace(response.CallTrace)
 		result.Tx = txs[i]
 		results = append(results, result)
-		oldRoot = result.StateRoot
 
 		log.Debugf("ProcessTransactionResponse[TxHash]: %v", txs[i].Hash().String())
+		log.Debugf("ProcessTransactionResponse[Nonce]: %v", txs[i].Nonce())
 		log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
 		log.Debugf("ProcessTransactionResponse[Error]: %v", result.Error)
 		log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
@@ -172,9 +183,9 @@ func convertToContext(context *pb.TransactionContext) instrumentation.Context {
 		To:           context.To,
 		Input:        string(context.Data),
 		Gas:          fmt.Sprint(context.Gas),
-		Value:        fmt.Sprint(context.Value),
+		Value:        context.Value,
 		Output:       string(context.Output),
-		GasPrice:     fmt.Sprint(context.GasPrice),
+		GasPrice:     context.GasPrice,
 		OldStateRoot: string(context.OldStateRoot),
 		Time:         uint64(context.ExecutionTime),
 		GasUsed:      fmt.Sprint(context.GasUsed),
@@ -211,7 +222,7 @@ func convertToInstrumentationContract(response *pb.Contract) instrumentation.Con
 	return instrumentation.Contract{
 		Address: response.Address,
 		Caller:  response.Caller,
-		Value:   fmt.Sprint(response.Value),
+		Value:   response.Value,
 		Input:   string(response.Data),
 		Gas:     fmt.Sprint(response.Gas),
 	}

@@ -14,7 +14,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-//NetworkConfig is the configuration struct for the different environments
+// NetworkConfig is the configuration struct for the different environments
 type NetworkConfig struct {
 	GenBlockNumber                uint64
 	PoEAddr                       common.Address
@@ -26,9 +26,10 @@ type NetworkConfig struct {
 	LocalExitRootStoragePosition  uint64
 	OldStateRootPosition          uint64
 	L1ChainID                     uint64
-	L2ChainID                     uint64
-	Genesis                       state.Genesis
-	MaxCumulativeGasUsed          uint64
+	// L2ChainID is read from POE SC
+	L2ChainID            uint64
+	Genesis              state.Genesis
+	MaxCumulativeGasUsed uint64
 }
 
 type networkConfigFromJSON struct {
@@ -41,7 +42,7 @@ type networkConfigFromJSON struct {
 	LocalExitRootStoragePosition  uint64                   `json:"localExitRootStoragePosition"`
 	OldStateRootPosition          uint64                   `json:"oldStateRootPosition"`
 	L1ChainID                     uint64                   `json:"l1ChainID"`
-	L2ChainID                     uint64                   `json:"l2ChainID"`
+	Root                          string                   `json:"root"`
 	Genesis                       []genesisAccountFromJSON `json:"genesis"`
 }
 
@@ -75,7 +76,6 @@ var (
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     1, //Mainnet
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Actions: []*state.GenesisAction{
 				{
@@ -102,7 +102,6 @@ var (
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     4, //Rinkeby
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Actions: []*state.GenesisAction{
 				{
@@ -120,18 +119,18 @@ var (
 	}
 
 	internalTestnetConfig = NetworkConfig{
-		GenBlockNumber:                6829370,
-		PoEAddr:                       common.HexToAddress("0x083E10Fc0De5a919Dec514CCD9130cD772D38Bfb"),
-		MaticAddr:                     common.HexToAddress("0x7431FD5ba483f826cAf06B68ae95b2aE738D666D"),
+		GenBlockNumber:                7674348,
+		PoEAddr:                       common.HexToAddress("0x159113e5560c9CC2d8c4e716228CCf92c72E9603"),
+		MaticAddr:                     common.HexToAddress("0x94Ca2BbE1b469f25D3B22BDf17Fc80ad09E7F662"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
-		GlobalExitRootManagerAddr:     common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
+		GlobalExitRootManagerAddr:     common.HexToAddress("0xA379Dd55Eb12e8FCdb467A814A15DE2b29677066"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     5, //Goerli
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
+			Root: common.HexToHash("0xb33635210b9f5d07769cf70bf5a3cbf241ecbaf79a9b66ef79b28d920da1f776"),
 			Actions: []*state.GenesisAction{
 				{
 					Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
@@ -144,17 +143,17 @@ var (
 
 	localConfig = NetworkConfig{
 		GenBlockNumber:                1,
-		PoEAddr:                       common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
+		PoEAddr:                       common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
 		MaticAddr:                     common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
-		GlobalExitRootManagerAddr:     common.HexToAddress("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"),
+		GlobalExitRootManagerAddr:     common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     1337,
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
+			Root: common.HexToHash("0x5e3d5372166e22ee23b4800aecb491de96f425aa5c7d56f35c96905cc5e12cb8"),
 			Actions: []*state.GenesisAction{
 				{
 					Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
@@ -254,13 +253,13 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfg.LocalExitRootStoragePosition = cfgJSON.LocalExitRootStoragePosition
 	cfg.OldStateRootPosition = cfgJSON.OldStateRootPosition
 	cfg.L1ChainID = cfgJSON.L1ChainID
-	cfg.L2ChainID = cfgJSON.L2ChainID
 
 	if len(cfgJSON.Genesis) == 0 {
 		return cfg, nil
 	}
 
 	cfg.Genesis = state.Genesis{
+		Root:    common.HexToHash(cfgJSON.Root),
 		Actions: []*state.GenesisAction{},
 	}
 

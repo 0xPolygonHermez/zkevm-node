@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 const (
@@ -30,10 +31,8 @@ type Sequencer struct {
 	etherman  etherman
 	checker   *profitabilitychecker.Checker
 
-	address                          common.Address
-	lastBatchNum                     uint64
-	lastBatchNumSentToL1             uint64
-	lastStateRoot, lastLocalExitRoot common.Hash
+	address          common.Address
+	isSequenceTooBig bool
 
 	sequenceInProgress types.Sequence
 }
@@ -41,7 +40,7 @@ type Sequencer struct {
 // New init sequencer
 func New(
 	cfg Config,
-	pool txPool,
+	txPool txPool,
 	state stateInterface,
 	etherman etherman,
 	priceGetter priceGetter,
@@ -56,7 +55,7 @@ func New(
 
 	return &Sequencer{
 		cfg:       cfg,
-		pool:      pool,
+		pool:      txPool,
 		state:     state,
 		etherman:  etherman,
 		checker:   checker,
@@ -169,14 +168,6 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get last batch, err: %w", err)
 	}
-	s.lastBatchNum = lastBatch.BatchNumber
-	s.lastStateRoot = lastBatch.StateRoot
-	s.lastLocalExitRoot = lastBatch.LocalExitRoot
-	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to get last virtual batch num, err: %w", err)
-	}
-	s.lastBatchNumSentToL1 = lastVirtualBatchNum
 	isClosed, err := s.state.IsBatchClosed(ctx, lastBatch.BatchNumber, nil)
 	if err != nil {
 		return fmt.Errorf("failed to check is batch closed or not, err: %w", err)
@@ -188,10 +179,16 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 		}
 		ger, err := s.getLatestGer(ctx, dbTx)
 		if err != nil {
+			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+				return fmt.Errorf(
+					"failed to rollback dbTx when getting last GER that gave err: %s. Rollback err: %s",
+					rollbackErr.Error(), err.Error(),
+				)
+			}
 			return fmt.Errorf("failed to get latest global exit root, err: %w", err)
 		}
 		processingCtx := state.ProcessingContext{
-			BatchNumber:    s.lastBatchNum + 1,
+			BatchNumber:    lastBatch.BatchNumber + 1,
 			Coinbase:       s.address,
 			Timestamp:      time.Now(),
 			GlobalExitRoot: ger,
@@ -221,6 +218,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 			Timestamp:      lastBatch.Timestamp.Unix(),
 			Txs:            txs,
 		}
+		// TODO: execute to get state root and LER or change open/closed logic so we always store state root and LER and add an open flag
 	}
 
 	return nil
@@ -254,11 +252,9 @@ func (s *Sequencer) createFirstBatch(ctx context.Context) {
 	if err := dbTx.Commit(ctx); err != nil {
 		log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
 	}
-	s.lastBatchNum = processingCtx.BatchNumber
 	s.sequenceInProgress = types.Sequence{
-		GlobalExitRoot:  processingCtx.GlobalExitRoot,
-		Timestamp:       processingCtx.Timestamp.Unix(),
-		ForceBatchesNum: 0,
-		Txs:             nil,
+		GlobalExitRoot: processingCtx.GlobalExitRoot,
+		Timestamp:      processingCtx.Timestamp.Unix(),
+		Txs:            []ethTypes.Transaction{},
 	}
 }

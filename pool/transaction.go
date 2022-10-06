@@ -9,26 +9,28 @@ import (
 )
 
 const (
-	// TxStatePending represents a tx that has not been processed
-	TxStatePending TxState = "pending"
-	// TxStateInvalid represents an invalid tx
-	TxStateInvalid TxState = "invalid"
-	// TxStateSelected represents a tx that has been selected
-	TxStateSelected TxState = "selected"
+	// TxStatusPending represents a tx that has not been processed
+	TxStatusPending TxStatus = "pending"
+	// TxStatusInvalid represents an invalid tx
+	TxStatusInvalid TxStatus = "invalid"
+	// TxStatusSelected represents a tx that has been	 selected
+	TxStatusSelected TxStatus = "selected"
+	// TxStatusFailed represents a tx that has been failed after processing, but can be processed in the future
+	TxStatusFailed TxStatus = "failed"
 )
 
-// TxState represents the state of a tx
-type TxState string
+// TxStatus represents the state of a tx
+type TxStatus string
 
 // String returns a representation of the tx state in a string format
-func (s TxState) String() string {
+func (s TxStatus) String() string {
 	return string(s)
 }
 
 // Transaction represents a pool tx
 type Transaction struct {
 	types.Transaction
-	State    TxState
+	Status   TxStatus
 	IsClaims bool
 	ZkCounters
 	ReceivedAt time.Time
@@ -56,6 +58,18 @@ func (zkc *ZkCounters) IsZkCountersBelowZero() bool {
 		zkc.UsedPoseidonPaddings < 0 ||
 		zkc.UsedPoseidonHashes < 0 ||
 		zkc.UsedKeccakHashes < 0
+}
+
+// SumUpZkCounters sum ups zk counters with passed tx zk counters
+func (zkc *ZkCounters) SumUpZkCounters(txZkCounters ZkCounters) {
+	zkc.CumulativeGasUsed += txZkCounters.CumulativeGasUsed
+	zkc.UsedKeccakHashes += txZkCounters.UsedKeccakHashes
+	zkc.UsedPoseidonHashes += txZkCounters.UsedPoseidonHashes
+	zkc.UsedPoseidonPaddings += txZkCounters.UsedPoseidonPaddings
+	zkc.UsedMemAligns += txZkCounters.UsedMemAligns
+	zkc.UsedArithmetics += txZkCounters.UsedArithmetics
+	zkc.UsedBinaries += txZkCounters.UsedBinaries
+	zkc.UsedSteps += txZkCounters.UsedSteps
 }
 
 // IsClaimTx checks, if tx is a claim tx

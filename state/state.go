@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,11 +19,13 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/js"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
 	"github.com/jackc/pgx/v4"
@@ -209,6 +212,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 			Coinbase:         lastBatch.Coinbase.String(),
 			UpdateMerkleTree: cFalse,
+			ChainId:          s.cfg.ChainID,
 		}
 
 		log.Debugf("EstimateGas[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
@@ -220,8 +224,11 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		log.Debugf("EstimateGas[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 		log.Debugf("EstimateGas[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 		log.Debugf("EstimateGas[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+		log.Debugf("EstimateGas[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 
+		txExecutionOnExecutorTime := time.Now()
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 		if err != nil {
 			log.Errorf("error processing unsigned transaction ", err)
 			return false, false, err
@@ -250,11 +257,17 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		return false, false, nil
 	}
 
+	txExecutions := []time.Duration{}
+	var totalExecutionTime time.Duration
 	// Start the binary search for the lowest possible gas price
 	for lowEnd < highEnd {
+		txExecutionStart := time.Now()
 		mid := (lowEnd + highEnd) / uint64(two)
 
 		failed, _, testErr := testTransaction(mid, true)
+		executionTime := time.Since(txExecutionStart)
+		totalExecutionTime += executionTime
+		txExecutions = append(txExecutions, executionTime)
 		if testErr != nil &&
 			!isEVMRevertError(testErr) {
 			// Reverts are ignored in the binary search, but are checked later on
@@ -270,6 +283,10 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			highEnd = mid
 		}
 	}
+
+	log.Debugf("EstimateGas executed the TX %v times", len(txExecutions))
+	averageExecutionTime := totalExecutionTime.Milliseconds() / int64(len(txExecutions))
+	log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
 
 	// Check if the highEnd is a good value to make the transaction pass
 	failed, reverted, err := testTransaction(highEnd, false)
@@ -340,7 +357,7 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 }
 
 // ProcessSequencerBatch is used by the sequencers to process transactions into an open batch
-func (s *State) ProcessSequencerBatch(ctx context.Context, oldRoot common.Hash, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessSequencerBatch start")
 	batchL2Data, err := EncodeTransactions(txs)
@@ -351,7 +368,7 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, oldRoot common.Hash, 
 	if err != nil {
 		return nil, err
 	}
-	result, err := convertToProcessBatchResponse(oldRoot, txs, processBatchResponse)
+	result, err := convertToProcessBatchResponse(txs, processBatchResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -400,10 +417,11 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cTrue,
+		ChainId:          s.cfg.ChainID,
 	}
 	// Send Batch to the Executor
 	log.Debugf("processBatch[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
-	log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
+	// log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("processBatch[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("processBatch[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
 	log.Debugf("processBatch[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
@@ -411,7 +429,11 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	log.Debugf("processBatch[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("processBatch[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("processBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
-	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	log.Debugf("processBatch[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
+	now := time.Now()
+	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	log.Infof("It took %v for the executor to process the request", time.Since(now))
+	return res, err
 }
 
 // StoreTransactions is used by the sequencer to add processed transactions into
@@ -466,14 +488,20 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			ParentHash: lastL2Block.Hash(),
 			Coinbase:   processingContext.Coinbase,
 			Root:       processedTx.StateRoot,
+			GasUsed:    processedTx.GasUsed,
+			GasLimit:   s.cfg.MaxCumulativeGasUsed,
+			Time:       uint64(processingContext.Timestamp.Unix()),
 		}
 		transactions := []*types.Transaction{&processedTx.Tx}
 
+		receipt := generateReceipt(header.Number, processedTx)
+		receipts := []*types.Receipt{receipt}
+
 		// Create block to be able to calculate its hash
-		block := types.NewBlock(header, transactions, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
+		block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
 		block.ReceivedAt = processingContext.Timestamp
 
-		receipts := []*types.Receipt{generateReceipt(block, processedTx)}
+		receipt.BlockHash = block.Hash()
 
 		// Store L2 block and its transaction
 		if err := s.AddL2Block(ctx, batchNumber, block, receipts, dbTx); err != nil {
@@ -505,7 +533,7 @@ func (s *State) isBatchClosable(ctx context.Context, receipt ProcessingReceipt, 
 }
 
 // closeSynchronizedBatch is used by Synchronizer to close the current batch.
-func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingReceipt, txs []types.Transaction, dbTx pgx.Tx) error {
+func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingReceipt, batchL2Data []byte, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
@@ -515,14 +543,18 @@ func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingRe
 		return err
 	}
 
-	if len(txs) == 0 {
-		return ErrClosingBatchWithoutTxs
-	}
+	// TODO: Modification done to bypass situation detected during testnet testing
+	// Further analysis is needed
+	/*
+		if len(txs) == 0 {
+			return ErrClosingBatchWithoutTxs
+		}
+	*/
 
-	batchL2Data, err := EncodeTransactions(txs)
-	if err != nil {
-		return err
-	}
+	// batchL2Data, err := EncodeTransactions(txs)
+	// if err != nil {
+	// 	return err
+	// }
 
 	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
 }
@@ -591,15 +623,10 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		return fmt.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
 	}
 
-	previousStateRoot, err := s.GetStateRootByBatchNumber(ctx, processingCtx.BatchNumber-1, dbTx)
-	if err != nil {
-		return err
-	}
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
-		//TODO: Also check this
-		if !isProcessed(previousStateRoot, common.BytesToHash(processed.NewStateRoot), processed.Responses[i].Error) {
+		if !isProcessed(processed.Responses[i].Error) {
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
@@ -612,7 +639,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		}
 	}
 
-	processedBatch, err := convertToProcessBatchResponse(previousStateRoot, decodedTransactions, processed)
+	processedBatch, err := convertToProcessBatchResponse(decodedTransactions, processed)
 	if err != nil {
 		return err
 	}
@@ -627,7 +654,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
-	}, decodedTransactions, dbTx)
+	}, encodedTxs, dbTx)
 }
 
 // GetLastBatch gets latest batch (closed or not) on the data base
@@ -643,9 +670,159 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 }
 
 // DebugTransaction re-executes a tx to generate its trace
-func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error) {
-	// TODO: Implement
-	return new(runtime.ExecutionResult), nil
+func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
+	result := new(runtime.ExecutionResult)
+
+	// Get the transaction
+	tx, err := s.GetTransactionByHash(ctx, transactionHash, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get batch including the transaction
+	batch, err := s.GetBatchByTxHash(ctx, transactionHash, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// The previous batch to get OldStateRoot and GlobalExitRoot
+	pBatch, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	batchL2Data := batch.BatchL2Data
+	if batchL2Data == nil {
+		txs, err := s.GetTransactionsByBatchNumber(ctx, batch.BatchNumber, dbTx)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, tx := range txs {
+			log.Debugf(tx.Hash().String())
+		}
+
+		batchL2Data, err = EncodeTransactions(txs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:                  batch.BatchNumber,
+		BatchL2Data:               batchL2Data,
+		OldStateRoot:              pBatch.StateRoot.Bytes(),
+		GlobalExitRoot:            batch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot:          pBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:              uint64(batch.Timestamp.Unix()),
+		Coinbase:                  batch.Coinbase.String(),
+		UpdateMerkleTree:          cFalse,
+		TxHashToGenerateCallTrace: transactionHash.Bytes(),
+	}
+
+	// Send Batch to the Executor
+	startTime := time.Now()
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	if err != nil {
+		return nil, err
+	}
+	endTime := time.Now()
+
+	txs, _, err := DecodeTxs(batchL2Data)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tx := range txs {
+		log.Debugf(tx.Hash().String())
+	}
+
+	convertedResponse, err := convertToProcessBatchResponse(txs, processBatchResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	var response *ProcessTransactionResponse
+
+	// Get the response for the tx
+	for _, response = range convertedResponse.Responses {
+		log.Debugf(response.TxHash.String())
+		if response.TxHash == transactionHash {
+			break
+		}
+	}
+
+	// Sanity check
+	if response.TxHash != transactionHash {
+		return nil, fmt.Errorf("tx hash not found in executor response")
+	}
+
+	result.CreateAddress = response.CreateAddress
+	result.GasLeft = response.GasLeft
+	result.GasUsed = response.GasUsed
+	result.ReturnValue = response.ReturnValue
+	result.StateRoot = response.StateRoot.Bytes()
+	result.StructLogs = response.ExecutionTrace
+
+	if tracer == "" {
+		return result, nil
+	}
+
+	// Parse the executor-like trace using the FakeEVM
+	jsTracer, err := js.NewJsTracer(tracer, new(tracers.Context))
+	if err != nil {
+		log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
+		return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)
+	}
+
+	context := instrumentation.Context{}
+
+	// Fill trace context
+	if tx.To() == nil {
+		context.Type = "CREATE"
+		context.To = result.CreateAddress.Hex()
+	} else {
+		context.Type = "CALL"
+		context.To = tx.To().Hex()
+	}
+
+	senderAddress, err := GetSender(*tx)
+	if err != nil {
+		return nil, err
+	}
+
+	context.From = senderAddress.String()
+	context.Input = "0x" + hex.EncodeToString(tx.Data())
+	context.Gas = strconv.FormatUint(tx.Gas(), encoding.Base10)
+	context.Value = tx.Value().String()
+	context.Output = "0x" + hex.EncodeToString(result.ReturnValue)
+	context.GasPrice = tx.GasPrice().String()
+	context.OldStateRoot = batch.StateRoot.String()
+	context.Time = uint64(endTime.Sub(startTime))
+	context.GasUsed = strconv.FormatUint(result.GasUsed, encoding.Base10)
+
+	result.ExecutorTrace.Context = context
+
+	gasPrice, ok := new(big.Int).SetString(context.GasPrice, encoding.Base10)
+	if !ok {
+		log.Errorf("debug transaction: failed to parse gasPrice")
+		return nil, fmt.Errorf("failed to parse gasPrice")
+	}
+
+	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
+	fakeDB := &FakeDB{State: s, stateRoot: batch.StateRoot.Bytes()}
+	env.SetStateDB(fakeDB)
+
+	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, jsTracer)
+	if err != nil {
+		log.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
+		return nil, fmt.Errorf("failed parse the trace using the tracer: %v", err)
+	}
+
+	result.ExecutorTraceResult = traceResult
+
+	return result, nil
 }
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
@@ -824,6 +1001,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		Coinbase:         lastBatch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
+		ChainId:          s.cfg.ChainID,
 	}
 
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
@@ -835,6 +1013,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
@@ -843,7 +1022,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		result.Err = err
 		return result
 	}
-	response, err := convertToProcessBatchResponse(l2BlockStateRoot, []types.Transaction{*tx}, processBatchResponse)
+	response, err := convertToProcessBatchResponse([]types.Transaction{*tx}, processBatchResponse)
 	if err != nil {
 		result.Err = err
 		return result
@@ -937,8 +1116,6 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 
 	root.SetBytes(newRoot)
 
-	receivedAt := time.Unix(0, 0)
-
 	// store L1 block related to genesis batch
 	err = s.AddBlock(ctx, &block, dbTx)
 	if err != nil {
@@ -952,7 +1129,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		BatchL2Data:    nil,
 		StateRoot:      root,
 		LocalExitRoot:  ZeroHash,
-		Timestamp:      receivedAt,
+		Timestamp:      block.ReceivedAt,
 		Transactions:   []types.Transaction{},
 		GlobalExitRoot: ZeroHash,
 	}
@@ -992,11 +1169,12 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		ParentHash: ZeroHash,
 		Coinbase:   ZeroAddress,
 		Root:       root,
+		Time:       uint64(block.ReceivedAt.Unix()),
 	}
 	rootHex := root.Hex()
 	log.Info("Genesis root ", rootHex)
 	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, []*types.Receipt{}, &trie.StackTrie{})
-	l2Block.ReceivedAt = receivedAt
+	l2Block.ReceivedAt = block.ReceivedAt
 
 	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, []*types.Receipt{}, dbTx)
 }
@@ -1024,16 +1202,21 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 // DetermineProcessedTransactions splits the given tx process responses
 // returning a slice with only processed and a map unprocessed txs
 // respectively.
-func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) ([]*ProcessTransactionResponse, map[string]*ProcessTransactionResponse) {
+func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
+	[]*ProcessTransactionResponse, []string, map[string]*ProcessTransactionResponse, []string) {
 	processedTxResponses := []*ProcessTransactionResponse{}
+	processedTxsHashes := []string{}
 	unprocessedTxResponses := map[string]*ProcessTransactionResponse{}
+	unprocessedTxsHashes := []string{}
 	for _, response := range responses {
 		if response.IsProcessed {
 			processedTxResponses = append(processedTxResponses, response)
+			processedTxsHashes = append(processedTxsHashes, response.TxHash.String())
 		} else {
 			log.Infof("Tx %s has not been processed", response.TxHash)
 			unprocessedTxResponses[response.TxHash.String()] = response
+			unprocessedTxsHashes = append(unprocessedTxsHashes, response.TxHash.String())
 		}
 	}
-	return processedTxResponses, unprocessedTxResponses
+	return processedTxResponses, processedTxsHashes, unprocessedTxResponses, unprocessedTxsHashes
 }

@@ -4,10 +4,14 @@ DOCKERCOMPOSEAPPAGG := zkevm-aggregator
 DOCKERCOMPOSEAPPRPC := zkevm-json-rpc
 DOCKERCOMPOSEAPPSYNC := zkevm-sync
 DOCKERCOMPOSEAPPBROADCAST := zkevm-broadcast
-DOCKERCOMPOSEDB := zkevm-db
+DOCKERCOMPOSESTATEDB := zkevm-state-db
+DOCKERCOMPOSEPOOLDB := zkevm-pool-db
+DOCKERCOMPOSERPCDB := zkevm-rpc-db
 DOCKERCOMPOSENETWORK := zkevm-mock-l1-network
-DOCKERCOMPOSEEXPLORER := zkevm-explorer
-DOCKERCOMPOSEEXPLORERDB := zkevm-explorer-db
+DOCKERCOMPOSEEXPLORERL1 := zkevm-explorer-l1
+DOCKERCOMPOSEEXPLORERL1DB := zkevm-explorer-l1-db
+DOCKERCOMPOSEEXPLORERL2 := zkevm-explorer-l2
+DOCKERCOMPOSEEXPLORERL2DB := zkevm-explorer-l2-db
 DOCKERCOMPOSEEXPLORERRPC := zkevm-explorer-json-rpc
 DOCKERCOMPOSEZKPROVER := zkevm-prover
 DOCKERCOMPOSEZKPROVERMOCK := zkprover-mock
@@ -15,7 +19,9 @@ DOCKERCOMPOSEPERMISSIONLESSDB := zkevm-permissionless-db
 DOCKERCOMPOSEPERMISSIONLESSNODE := zkevm-permissionless-node
 DOCKERCOMPOSENODEAPPROVE := zkevm-approve
 
-RUNDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEDB)
+RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
+RUNPOOLDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPOOLDB)
+RUNRPCDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSERPCDB)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
 RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
 RUNJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
@@ -23,8 +29,10 @@ RUNSYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
 RUNBROADCAST := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPBROADCAST)
 
 RUNL1NETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
-RUNEXPLORER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORER)
-RUNEXPLORERDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERDB)
+RUNEXPLORERL1 := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL1)
+RUNEXPLORERL1DB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL1DB)
+RUNEXPLORERL2 := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL2)
+RUNEXPLORERL2DB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL2DB)
 RUNEXPLORERJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERRPC)
 RUNZKPROVER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVER)
 RUNZKPROVERMOCK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEZKPROVERMOCK)
@@ -36,7 +44,9 @@ RUNAPPROVE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENODEAPPROVE)
 
 RUN := $(DOCKERCOMPOSE) up -d
 
-STOPDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEDB)
+STOPSTATEDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSESTATEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSESTATEDB)
+STOPPOOLDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPOOLDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPOOLDB)
+STOPRPCDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSERPCDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSERPCDB)
 STOPSEQUENCER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQ)
 STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
 STOPJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
@@ -44,8 +54,10 @@ STOPSYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm
 STOPBROADCAST := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPBROADCAST) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPBROADCAST)
 
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
-STOPEXPLORER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORER)
-STOPEXPLORERDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERDB)
+STOPEXPLORERL1 := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL1) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL1)
+STOPEXPLORERL1DB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL1DB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL1DB)
+STOPEXPLORERL2 := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL2) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL2)
+STOPEXPLORERL2DB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL2DB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL2DB)
 STOPEXPLORERRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERRPC)
 STOPZKPROVER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVER) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVER)
 STOPZKPROVERMOCK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEZKPROVERMOCK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEZKPROVERMOCK)
@@ -87,58 +99,84 @@ build-docker-nc: ## Builds a docker image with the node binary - but without bui
 .PHONY: test
 test: compile-scs ## Runs only short tests without checking race conditions
 	export CONFIG_MODE="test"	
-	$(STOPDB)
+	$(STOPSTATEDB)
+	$(STOPPOOLDB)
+	$(STOPRPCDB)
 	$(STOPZKPROVER)
-	$(RUNDB); sleep 5
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNRPCDB)
 	$(RUNZKPROVER); sleep 5
-	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; go test -short -race -p 1 ./...
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER)' EXIT; go test -short -race -p 1 ./...
 
 .PHONY: test-full
 test-full: build-docker compile-scs ## Runs all tests checking race conditions
 	export CONFIG_MODE="test"
-	$(STOPDB)
+	$(STOPSTATEDB)
+	$(STOPPOOLDB)
+	$(STOPRPCDB)
 	$(STOPZKPROVER)
-	$(RUNDB); sleep 7
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNRPCDB)
 	$(RUNZKPROVER); sleep 5
 	$(RUNZKPROVERMOCK)
-	trap '$(STOPDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
 
 .PHONY: test-full-non-e2e
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
 	export CONFIG_MODE="test"	
-	$(STOPDB)
+	$(STOPSTATEDB)
+	$(STOPPOOLDB)
+	$(STOPRPCDB)
 	$(STOPZKPROVER)
-	$(RUNDB); sleep 7
-	$(RUNZKPROVER)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNRPCDB)
+	$(RUNZKPROVER); sleep 5
 	$(RUNZKPROVERMOCK)
-	sleep 5
+	sleep 2
+	$(RUNL1NETWORK)
+	sleep 15
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOPDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 60s ./...
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK) && $(STOPNETWORK)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 60s ./...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking race conditions
 	export CONFIG_MODE="test"	
-	$(STOPDB)
-	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group1/...
+	$(STOPSTATEDB)
+	$(STOPPOOLDB)
+	$(STOPRPCDB)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNRPCDB); sleep 5
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group1/...
 
 .PHONY: test-e2e-group-2
 test-e2e-group-2: build-docker compile-scs ## Runs group 2 e2e tests checking race conditions
 	export CONFIG_MODE="test"	
-	$(STOPDB)
+	$(STOPSTATEDB)
+	$(STOPPOOLDB)
+	$(STOPRPCDB)
 	$(STOPZKPROVER)
-	$(RUNDB); sleep 7
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNRPCDB); sleep 5
 	CONFIG_MODE="test" $(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOPDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group2/...
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group2/...
 
 .PHONY: test-e2e-group-3
 test-e2e-group-3: build-docker compile-scs ## Runs group 3 e2e tests checking race conditions
 	export CONFIG_MODE="test"	
-	$(STOPDB)
-	$(RUNDB); sleep 7
-	trap '$(STOPDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group3/...
+	$(STOPSTATEDB)
+	$(STOPPOOLDB)
+	$(STOPRPCDB)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNRPCDB); sleep 5
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group3/...
 
 .PHONY: install-linter
 install-linter: ## Installs the linter
@@ -156,11 +194,15 @@ validate: lint build test-full ## lint, build, unit and e2e tests
 
 .PHONY: run-db
 run-db: ## Runs the node database
-	$(RUNDB)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNRPCDB)
 
 .PHONY: stop-db
 stop-db: ## Stops the node database
-	$(STOPDB)
+	$(STOPRPCDB)
+	$(STOPPOOLDB)
+	$(STOPSTATEDB)
 
 .PHONY: run-node
 run-node: ## Runs the node
@@ -202,25 +244,35 @@ stop-zkprover-mock: ## Stops zkprover-mock
 
 .PHONY: run-explorer
 run-explorer: ## Runs the explorer
+	$(RUNEXPLORERL1DB)
+	$(RUNEXPLORERL2DB)
 	$(RUNEXPLORERJSONRPC)
-	$(RUNEXPLORER)
+	$(RUNEXPLORERL1)
+	$(RUNEXPLORERL2)
 
 .PHONY: stop-explorer
 stop-explorer: ## Stops the explorer
-	$(STOPEXPLORER)
+	$(STOPEXPLORERL2)
+	$(STOPEXPLORERL1)
 	$(STOPEXPLORERRPC)
+	$(STOPEXPLORERL2DB)
+	$(STOPEXPLORERL1DB)
 
 .PHONY: run-explorer-db
 run-explorer-db: ## Runs the explorer database
-	$(RUNEXPLORERDB)
+	$(RUNEXPLORERL1DB)
+	$(RUNEXPLORERL2DB)
 
 .PHONY: stop-explorer-db
 stop-explorer-db: ## Stops the explorer database
-	$(STOPEXPLORERDB)
+	$(STOPEXPLORERL2DB)
+	$(STOPEXPLORERL1DB)
 
 .PHONY: run
 run: ## Runs all the services
-	$(RUNDB)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNRPCDB)
 	$(RUNL1NETWORK)
 	sleep 2
 	$(RUNZKPROVER)
@@ -305,7 +357,7 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 
 	## mocks for the aggregator tests
 	mockery --name=stateInterface --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
-	mockery --name=proverClient --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=ProverClientMock --filename=mock_proverclient.go
+	mockery --name=proverClientInterface --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=ProverClientMock --filename=mock_proverclient.go
 	mockery --name=etherman --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=Etherman --filename=mock_etherman.go
 	mockery --name=ethTxManager --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=EthTxManager --filename=mock_ethtxmanager.go
 

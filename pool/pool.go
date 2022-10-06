@@ -3,11 +3,13 @@ package pool
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -63,7 +65,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 
 	poolTx := Transaction{
 		Transaction: tx,
-		State:       TxStatePending,
+		Status:      TxStatusPending,
 		IsClaims:    false,
 		ReceivedAt:  time.Now(),
 	}
@@ -77,12 +79,12 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 // limit parameter is used to limit amount of pending txs from the db,
 // if limit = 0, then there is no limit
 func (p *Pool) GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]Transaction, error) {
-	return p.storage.GetTxsByState(ctx, TxStatePending, isClaims, limit)
+	return p.storage.GetTxsByStatus(ctx, TxStatusPending, isClaims, limit)
 }
 
 // GetSelectedTxs gets selected txs from the pool db
 func (p *Pool) GetSelectedTxs(ctx context.Context, limit uint64) ([]Transaction, error) {
-	return p.storage.GetTxsByState(ctx, TxStateSelected, false, limit)
+	return p.storage.GetTxsByStatus(ctx, TxStatusSelected, false, limit)
 }
 
 // GetPendingTxHashesSince returns the hashes of pending tx since the given date.
@@ -90,10 +92,10 @@ func (p *Pool) GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]
 	return p.storage.GetPendingTxHashesSince(ctx, since)
 }
 
-// UpdateTxState updates a transaction state accordingly to the
+// UpdateTxStatus updates a transaction state accordingly to the
 // provided state and hash
-func (p *Pool) UpdateTxState(ctx context.Context, hash common.Hash, newState TxState) error {
-	return p.storage.UpdateTxState(ctx, hash, newState)
+func (p *Pool) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus TxStatus) error {
+	return p.storage.UpdateTxStatus(ctx, hash, newStatus)
 }
 
 // SetGasPrice allows an external component to define the gas price
@@ -109,7 +111,7 @@ func (p *Pool) GetGasPrice(ctx context.Context) (uint64, error) {
 // CountPendingTransactions get number of pending transactions
 // used in bench tests
 func (p *Pool) CountPendingTransactions(ctx context.Context) (uint64, error) {
-	return p.storage.CountTransactionsByState(ctx, TxStatePending)
+	return p.storage.CountTransactionsByStatus(ctx, TxStatusPending)
 }
 
 // IsTxPending check if tx is still pending
@@ -160,6 +162,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 	if err != nil {
 		return err
 	}
+
 	if balance.Cmp(tx.Cost()) < 0 {
 		return ErrInsufficientFunds
 	}
@@ -186,6 +189,72 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		if oldTxPrice.Cmp(txPrice) > 0 {
 			return ErrReplaceUnderpriced
 		}
+	}
+
+	// Executor field size requirements check
+	if err := p.checkTxFieldCompatibilityWithExecutor(ctx, tx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkTxFieldCompatibilityWithExecutor checks the field sizes of the transaction to make sure
+// they ar compatible with the Executor needs
+// GasLimit: 256 bits
+// GasPrice: 256 bits
+// Value: 256 bits
+// Data: 30000 bytes
+// Nonce: 64 bits
+// To: 160 bits
+// ChainId: 64 bits
+func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx types.Transaction) error {
+	maxUint64BigInt := big.NewInt(0).SetUint64(math.MaxUint64)
+
+	const maxDataSize = 30000
+
+	// GasLimit, Nonce and To fields are limited by their types, no need to check
+	// Gas Price and Value are checked against the balance, and the max balance allowed
+	// by the merkletree service is uint256, in this case, if the transaction has a
+	// gas price or value bigger than uint256, the check against the balance will
+	// reject the transaction
+
+	dataSize := len(tx.Data())
+	if dataSize > maxDataSize {
+		return fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", dataSize, maxDataSize)
+	}
+
+	if tx.ChainId().Cmp(maxUint64BigInt) == 1 {
+		return fmt.Errorf("chain id higher than allowed, max allowed is %v", uint64(math.MaxUint64))
+	}
+
+	return nil
+}
+
+// MarkReorgedTxsAsPending updated reorged txs status from selected to pending
+func (p *Pool) MarkReorgedTxsAsPending(ctx context.Context) error {
+	// get selected transactions from pool
+	selectedTxs, err := p.GetSelectedTxs(ctx, 0)
+	if err != nil {
+		return err
+	}
+
+	txsHashesToUpdate := []string{}
+	// look for non existent transactions on state
+	for _, selectedTx := range selectedTxs {
+		txHash := selectedTx.Hash()
+		_, err := p.state.GetTransactionByHash(ctx, txHash, nil)
+		if errors.Is(err, state.ErrNotFound) {
+			txsHashesToUpdate = append(txsHashesToUpdate, txHash.String())
+		} else if err != nil {
+			return err
+		}
+	}
+
+	// revert pool state from selected to pending on the pool
+	err = p.UpdateTxsStatus(ctx, txsHashesToUpdate, TxStatusPending)
+	if err != nil {
+		return err
 	}
 
 	return nil
