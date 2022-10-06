@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
@@ -20,6 +21,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -35,8 +37,9 @@ const (
 )
 
 var (
-	dbCfg   = dbutils.NewConfigFromEnv()
-	genesis = state.Genesis{
+	stateDBCfg = dbutils.NewStateConfigFromEnv()
+	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
+	genesis    = state.Genesis{
 		Actions: []*state.GenesisAction{
 			{
 				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
@@ -58,17 +61,21 @@ func TestMain(m *testing.M) {
 }
 
 func Test_AddTx(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		panic(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -92,7 +99,7 @@ func Test_AddTx(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -112,7 +119,7 @@ func Test_AddTx(t *testing.T) {
 		t.Error(err)
 	}
 
-	rows, err := sqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.txs")
+	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.txs")
 	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
@@ -138,17 +145,15 @@ func Test_AddTx(t *testing.T) {
 }
 
 func Test_GetPendingTxs(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -163,7 +168,7 @@ func Test_GetPendingTxs(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -202,17 +207,15 @@ func Test_GetPendingTxs(t *testing.T) {
 }
 
 func Test_GetPendingTxsZeroPassed(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -227,7 +230,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -267,17 +270,15 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 
 func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	ctx := context.Background()
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close()
+	defer stateSqlDB.Close()
 
-	st := newState(sqlDB)
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -291,7 +292,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -316,7 +317,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		}
 	}
 
-	txs, err := p.GetPendingTxsWithLowestNonce(ctx, 10)
+	txs, err := p.GetTxs(ctx, pool.TxStatusPending, 10)
 	require.NoError(t, err)
 	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
 	assert.Equal(t, txs[0].Transaction.Nonce(), uint64(0))
@@ -325,17 +326,21 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 func Test_UpdateTxsStatus(t *testing.T) {
 	ctx := context.Background()
 
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -349,7 +354,7 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -382,7 +387,7 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	}
 
 	var count int
-	err = sqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs WHERE status = $1", pool.TxStatusInvalid).Scan(&count)
+	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs WHERE status = $1", pool.TxStatusInvalid).Scan(&count)
 	if err != nil {
 		t.Error(err)
 	}
@@ -392,17 +397,21 @@ func Test_UpdateTxsStatus(t *testing.T) {
 func Test_UpdateTxStatus(t *testing.T) {
 	ctx := context.Background()
 
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -416,7 +425,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -441,7 +450,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 		t.Error(err)
 	}
 
-	rows, err := sqlDB.Query(ctx, "SELECT status FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
+	rows, err := poolSqlDB.Query(ctx, "SELECT status FROM pool.txs WHERE hash = $1", signedTx.Hash().Hex())
 	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
@@ -457,11 +466,9 @@ func Test_UpdateTxStatus(t *testing.T) {
 }
 
 func Test_SetAndGetGasPrice(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -490,17 +497,15 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 }
 
 func TestMarkReorgedTxsAsPending(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 	ctx := context.Background()
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -514,7 +519,7 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -555,17 +560,15 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 }
 
 func TestGetPendingTxSince(t *testing.T) {
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
+	initOrResetDB()
 
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -580,7 +583,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -656,16 +659,20 @@ func TestGetPendingTxSince(t *testing.T) {
 
 func Test_DeleteTxsByHashes(t *testing.T) {
 	ctx := context.Background()
-	if err := dbutils.InitOrReset(dbCfg); err != nil {
-		panic(err)
-	}
-	sqlDB, err := db.NewSQLDB(dbCfg)
+	initOrResetDB()
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
-	defer sqlDB.Close() //nolint:gosec,errcheck
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
 
-	st := newState(sqlDB)
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
 
 	genesisBlock := state.Block{
 		BlockNumber: 0,
@@ -679,7 +686,7 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
-	s, err := pgpoolstorage.NewPostgresPoolStorage(dbCfg)
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -712,11 +719,141 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 	}
 
 	var count int
-	err = sqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs").Scan(&count)
+	err = poolSqlDB.QueryRow(ctx, "SELECT COUNT(*) FROM pool.txs").Scan(&count)
 	if err != nil {
 		t.Error(err)
 	}
 	assert.Equal(t, 0, count)
+}
+
+func Test_TryAddIncompatibleTxs(t *testing.T) {
+	initOrResetDB()
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		panic(err)
+	}
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	st := newState(stateSqlDB)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	initialBalance, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
+	initialBalance = initialBalance.Add(initialBalance, initialBalance)
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: operations.DefaultSequencerAddress,
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   initialBalance.String(),
+			},
+		},
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p := pool.NewPool(s, st, common.Address{})
+
+	type testCase struct {
+		name                 string
+		createIncompatibleTx func() types.Transaction
+		expectedError        error
+	}
+
+	auth := operations.MustGetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
+	require.NoError(t, err)
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(operations.DefaultSequencerPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	chainIdOver64Bits := big.NewInt(0).SetUint64(math.MaxUint64)
+	chainIdOver64Bits = chainIdOver64Bits.Add(chainIdOver64Bits, big.NewInt(1))
+	authChainIdOver64Bits, err := bind.NewKeyedTransactorWithChainID(privateKey, chainIdOver64Bits)
+	require.NoError(t, err)
+
+	bigIntOver256Bits, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
+	bigIntOver256Bits = bigIntOver256Bits.Add(bigIntOver256Bits, big.NewInt(1))
+
+	testCases := []testCase{
+		{
+			name: "Gas price over 256 bits",
+			createIncompatibleTx: func() types.Transaction {
+				tx := types.NewTransaction(uint64(0),
+					common.HexToAddress("0x1"),
+					big.NewInt(1), uint64(1), bigIntOver256Bits, nil)
+				signedTx, err := auth.Signer(auth.From, tx)
+				require.NoError(t, err)
+				return *signedTx
+			},
+			expectedError: pool.ErrInsufficientFunds,
+		},
+		{
+			name: "Value over 256 bits",
+			createIncompatibleTx: func() types.Transaction {
+				tx := types.NewTransaction(uint64(0),
+					common.HexToAddress("0x1"),
+					bigIntOver256Bits, uint64(1), big.NewInt(1), nil)
+				signedTx, err := auth.Signer(auth.From, tx)
+				require.NoError(t, err)
+				return *signedTx
+			},
+			expectedError: pool.ErrInsufficientFunds,
+		},
+		{
+			name: "data over 30k bytes",
+			createIncompatibleTx: func() types.Transaction {
+				data := [30001]byte{}
+				tx := types.NewTransaction(uint64(0),
+					common.HexToAddress("0x1"),
+					big.NewInt(1), uint64(1), big.NewInt(1), data[:])
+				signedTx, err := auth.Signer(auth.From, tx)
+				require.NoError(t, err)
+				return *signedTx
+			},
+			expectedError: fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", 30001, 30000),
+		},
+		{
+			name: "chain id over 64 bits",
+			createIncompatibleTx: func() types.Transaction {
+				tx := types.NewTransaction(uint64(0),
+					common.HexToAddress("0x1"),
+					big.NewInt(1), uint64(1), big.NewInt(1), nil)
+				signedTx, err := authChainIdOver64Bits.Signer(authChainIdOver64Bits.From, tx)
+				require.NoError(t, err)
+				return *signedTx
+			},
+			expectedError: fmt.Errorf("chain id higher than allowed, max allowed is %v", uint64(math.MaxUint64)),
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			incompatibleTx := testCase.createIncompatibleTx()
+			err = p.AddTx(ctx, incompatibleTx)
+			assert.Equal(t, testCase.expectedError, err)
+		})
+	}
 }
 
 func newState(sqlDB *pgxpool.Pool) *state.State {
@@ -731,4 +868,13 @@ func newState(sqlDB *pgxpool.Pool) *state.State {
 	stateTree := merkletree.NewStateTree(stateDBClient)
 	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000}, stateDb, executorClient, stateTree)
 	return st
+}
+
+func initOrResetDB() {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
+		panic(err)
+	}
+	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
+		panic(err)
+	}
 }

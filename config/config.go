@@ -50,7 +50,6 @@ const (
 type Config struct {
 	IsTrustedSequencer bool `mapstructure:"IsTrustedSequencer"`
 	Log                log.Config
-	Database           db.Config
 	Etherman           etherman.Config
 	EthTxManager       ethtxmanager.Config
 	RPC                jsonrpc.Config
@@ -58,12 +57,14 @@ type Config struct {
 	Sequencer          sequencer.Config
 	PriceGetter        pricegetter.Config
 	Aggregator         aggregator.Config
-	Prover             proverclient.Config
+	Provers            proverclient.Config
 	NetworkConfig      NetworkConfig
 	GasPriceEstimator  gasprice.Config
 	Executor           executor.Config
 	BroadcastServer    broadcast.ServerConfig
 	MTClient           merkletree.Config
+	StateDB            db.Config
+	PoolDB             db.Config
 }
 
 // Load loads the configuration
@@ -112,7 +113,10 @@ func Load(ctx *cli.Context) (*Config, error) {
 	// Load genesis parameters
 	cfg.loadNetworkConfig(ctx)
 
-	cfgJSON, _ := json.MarshalIndent(cfg, "", "  ")
+	cfgJSON, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return nil, err
+	}
 	log.Infof("Configuration loaded: \n%s\n", string(cfgJSON))
 	return &cfg, nil
 }

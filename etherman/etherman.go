@@ -216,7 +216,7 @@ func (etherMan *Client) WaitTxToBeMined(hash common.Hash, timeout time.Duration)
 }
 
 // EstimateGasSequenceBatches estimates gas for sending batches
-func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error) {
+func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, common.Hash, error) {
 	// Due to issue #1118 we add 20K gas to avoid and OOG
 	// when the gas estimation is processed before a batch consolidation
 	// in the same block
@@ -226,10 +226,9 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 	noSendOpts.NoSend = true
 	tx, err := etherMan.sequenceBatches(&noSendOpts, sequences)
 	if err != nil {
-		return 0, err
+		return 0, common.Hash{}, err
 	}
-
-	return tx.Gas() + gasLimitIncrease, nil
+	return tx.Gas() + gasLimitIncrease, tx.Hash(), nil
 }
 
 // SequenceBatches send sequences of batches to the ethereum
@@ -637,6 +636,11 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 // GetPublicAddress returns eth client public address
 func (etherMan *Client) GetPublicAddress() common.Address {
 	return etherMan.auth.From
+}
+
+// GetL2ChainID returns L2 Chain ID
+func (etherMan *Client) GetL2ChainID() (uint64, error) {
+	return etherMan.PoE.ChainID(&bind.CallOpts{Pending: false})
 }
 
 // VerifyBatch function allows the aggregator send the proof for a batch and consolidate it

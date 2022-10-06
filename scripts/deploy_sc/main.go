@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/ERC20"
@@ -168,6 +169,11 @@ func ethTransfer(ctx context.Context, client *ethclient.Client, auth *bind.Trans
 	err = client.SendTransaction(ctx, signedTx)
 	chkErr(err)
 	log.Infof("tx sent: %v", signedTx.Hash().Hex())
+
+	rlp, err := signedTx.MarshalBinary()
+	chkErr(err)
+
+	log.Infof("tx rlp: %v", hex.EncodeToHex(rlp))
 
 	return signedTx
 }

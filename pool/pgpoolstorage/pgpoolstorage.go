@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -111,15 +112,6 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 	return nil
 }
 
-// MarkReorgedTxsAsPending updated reorged txs status from selected to pending
-func (p *PostgresPoolStorage) MarkReorgedTxsAsPending(ctx context.Context) error {
-	const updateReorgedTxsToPending = "UPDATE pool.txs pt SET status = $1 WHERE status = $2 AND NOT EXISTS (SELECT hash FROM state.transaction WHERE hash = pt.hash)"
-	if _, err := p.db.Exec(ctx, updateReorgedTxsToPending, pool.TxStatusPending, pool.TxStatusSelected); err != nil {
-		return err
-	}
-	return nil
-}
-
 // GetTxsByStatus returns an array of transactions filtered by status
 // limit parameter is used to limit amount txs from the db,
 // if limit = 0, then there is no limit
@@ -174,8 +166,8 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 	return hashes, nil
 }
 
-// GetPendingTxsWithLowestNonce gets top pending txs with the lowest nonce
-func (p *PostgresPoolStorage) GetPendingTxsWithLowestNonce(ctx context.Context, limit uint64) ([]*pool.Transaction, error) {
+// GetTxs gets txs with the lowest nonce
+func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, limit uint64) ([]*pool.Transaction, error) {
 	query := `
 		SELECT
 			encoded,
@@ -209,7 +201,7 @@ func (p *PostgresPoolStorage) GetPendingTxsWithLowestNonce(ctx context.Context, 
 		nonce uint64
 	)
 
-	args := []interface{}{pool.TxStatusPending, limit}
+	args := []interface{}{filterStatus, limit}
 
 	rows, err := p.db.Query(ctx, query, args...)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -382,6 +374,25 @@ func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from com
 	return txs, nil
 }
 
+// GetTxFromAddressFromByHash gets tx from address by hash
+func (p *PostgresPoolStorage) GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error) {
+	query := `SELECT from_address, nonce
+			  FROM pool.txs
+			  WHERE hash = $1
+	`
+
+	var (
+		fromAddr string
+		nonce    uint64
+	)
+	err := p.db.QueryRow(ctx, query, hash.String()).Scan(&fromAddr, &nonce)
+	if err != nil {
+		return common.Address{}, 0, err
+	}
+
+	return common.HexToAddress(fromAddr), nonce, nil
+}
+
 // GetNonce gets the nonce to the provided address accordingly to the txs in the pool
 func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Address) (uint64, error) {
 	sql := `SELECT MAX(nonce)
@@ -415,6 +426,39 @@ func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Addre
 	}
 
 	return *nonce, nil
+}
+
+// GetTxByHash gets a transaction in the pool by its hash
+func (p *PostgresPoolStorage) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+	var (
+		encoded, status string
+		receivedAt      time.Time
+	)
+
+	sql := `SELECT encoded, status, received_at
+	          FROM pool.txs
+			 WHERE hash = $1`
+	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&encoded, &status, &receivedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	b, err := hex.DecodeHex(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+	return &pool.Transaction{
+		ReceivedAt:  receivedAt,
+		Status:      pool.TxStatus(status),
+		Transaction: *tx,
+	}, nil
 }
 
 func scanTx(rows pgx.Rows) (*pool.Transaction, error) {

@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -93,6 +94,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: int32(8388608),
 		},
 		{
+			path:          "Sequencer.MaxSequenceSize",
+			expectedValue: sequencer.MaxSequenceSize{Int: new(big.Int).SetInt64(2000000)},
+		},
+		{
 			path:          "EthTxManager.MaxSendBatchTxRetries",
 			expectedValue: uint32(10),
 		},
@@ -125,7 +130,59 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: "127.0.0.1:50061",
 		},
 		{
-			path:          "Database.MaxConns",
+			path:          "StateDB.User",
+			expectedValue: "state_user",
+		},
+		{
+			path:          "StateDB.Password",
+			expectedValue: "state_password",
+		},
+		{
+			path:          "StateDB.Name",
+			expectedValue: "state_db",
+		},
+		{
+			path:          "StateDB.Host",
+			expectedValue: "localhost",
+		},
+		{
+			path:          "StateDB.Port",
+			expectedValue: "5432",
+		},
+		{
+			path:          "StateDB.EnableLog",
+			expectedValue: false,
+		},
+		{
+			path:          "StateDB.MaxConns",
+			expectedValue: 200,
+		},
+		{
+			path:          "PoolDB.User",
+			expectedValue: "pool_user",
+		},
+		{
+			path:          "PoolDB.Password",
+			expectedValue: "pool_password",
+		},
+		{
+			path:          "PoolDB.Name",
+			expectedValue: "pool_db",
+		},
+		{
+			path:          "PoolDB.Host",
+			expectedValue: "localhost",
+		},
+		{
+			path:          "PoolDB.Port",
+			expectedValue: "5432",
+		},
+		{
+			path:          "PoolDB.EnableLog",
+			expectedValue: false,
+		},
+		{
+			path:          "PoolDB.MaxConns",
 			expectedValue: 200,
 		},
 		{
@@ -151,6 +208,34 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "RPC.DefaultSenderAddress",
 			expectedValue: "0x1111111111111111111111111111111111111111",
+		},
+		{
+			path:          "RPC.DB.User",
+			expectedValue: "rpc_user",
+		},
+		{
+			path:          "RPC.DB.Password",
+			expectedValue: "rpc_password",
+		},
+		{
+			path:          "RPC.DB.Name",
+			expectedValue: "rpc_db",
+		},
+		{
+			path:          "RPC.DB.Host",
+			expectedValue: "localhost",
+		},
+		{
+			path:          "RPC.DB.Port",
+			expectedValue: "5432",
+		},
+		{
+			path:          "RPC.DB.EnableLog",
+			expectedValue: false,
+		},
+		{
+			path:          "RPC.DB.MaxConns",
+			expectedValue: 200,
 		},
 		{
 			path:          "Executor.URI",
