@@ -821,9 +821,9 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 			expectedError: pool.ErrInsufficientFunds,
 		},
 		{
-			name: "data over 60k bytes",
+			name: "data over 30k bytes",
 			createIncompatibleTx: func() types.Transaction {
-				data := [60001]byte{}
+				data := [30001]byte{}
 				tx := types.NewTransaction(uint64(0),
 					common.HexToAddress("0x1"),
 					big.NewInt(1), uint64(1), big.NewInt(1), data[:])
@@ -831,7 +831,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 				require.NoError(t, err)
 				return *signedTx
 			},
-			expectedError: fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", 60001, 60000),
+			expectedError: fmt.Errorf("data size bigger than allowed, current size is %v bytes and max allowed is %v bytes", 30001, 30000),
 		},
 		{
 			name: "chain id over 64 bits",
