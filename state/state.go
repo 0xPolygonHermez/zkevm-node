@@ -260,11 +260,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	txExecutions := []time.Duration{}
 	var totalExecutionTime time.Duration
 	// Start the binary search for the lowest possible gas price
-	for lowEnd+1 < highEnd {
+	for lowEnd < highEnd {
 		txExecutionStart := time.Now()
 		mid := (lowEnd + highEnd) / uint64(two)
-
-		log.Debugf("Estimate gas. Trying to execute TX with %v gas", mid)
 
 		failed, _, testErr := testTransaction(mid, true)
 		executionTime := time.Since(txExecutionStart)
@@ -279,7 +277,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		if failed {
 			// If the transaction failed => increase the gas
-			lowEnd = mid
+			lowEnd = mid + 1
 		} else {
 			// If the transaction didn't fail => make this ok value the high end
 			highEnd = mid
@@ -292,7 +290,6 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	// Check if the highEnd is a good value to make the transaction pass
 	failed, reverted, err := testTransaction(highEnd, false)
-	log.Debugf("Estimate gas. Trying to execute TX with %v gas", highEnd)
 	if failed {
 		if reverted {
 			return 0, err
