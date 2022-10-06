@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -93,6 +94,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.MaxSteps",
 			expectedValue: int32(8388608),
+		},
+		{
+			path:          "Sequencer.MaxSequenceSize",
+			expectedValue: sequencer.MaxSequenceSize{Int: new(big.Int).SetInt64(2000000)},
 		},
 		{
 			path:          "EthTxManager.MaxSendBatchTxRetries",

@@ -11,18 +11,28 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Client wrapper for the zkprover client
+// Client wrapper for the prover client
 type Client struct {
-	ZkProverClient                             pb.ZKProverServiceClient
+	Prover                                     Prover
 	IntervalFrequencyToGetProofGenerationState types.Duration
 }
 
-// NewClient inits zkprover wrapper client
-func NewClient(pc pb.ZKProverServiceClient, intervalFrequencyToGetProofGenerationState types.Duration) *Client {
+// NewClient inits prover wrapper client
+func NewClient(proverURI string, intervalFrequencyToGetProofGenerationState types.Duration) *Client {
 	return &Client{
-		ZkProverClient: pc,
+		Prover: NewProver(proverURI),
 		IntervalFrequencyToGetProofGenerationState: intervalFrequencyToGetProofGenerationState,
 	}
+}
+
+// IsIdle indicates the prover is ready to process requests
+func (c *Client) IsIdle(ctx context.Context) bool {
+	var opts []grpc.CallOption
+	status, err := c.Prover.Client.GetStatus(ctx, &pb.GetStatusRequest{}, opts...)
+	if err != nil || status.State != pb.GetStatusResponse_STATUS_PROVER_IDLE {
+		return false
+	}
+	return true
 }
 
 // GetGenProofID get id of generation proof request
@@ -30,7 +40,7 @@ func (c *Client) GetGenProofID(ctx context.Context, inputProver *pb.InputProver)
 	genProofRequest := pb.GenProofRequest{Input: inputProver}
 	// init connection to the prover
 	var opts []grpc.CallOption
-	resGenProof, err := c.ZkProverClient.GenProof(ctx, &genProofRequest, opts...)
+	resGenProof, err := c.Prover.Client.GenProof(ctx, &genProofRequest, opts...)
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to the prover to gen proof, err: %v", err)
 	}
@@ -50,7 +60,7 @@ func (c *Client) GetResGetProof(ctx context.Context, genProofID string, batchNum
 	resGetProof := &pb.GetProofResponse{Result: -1}
 	getProofCtx, getProofCtxCancel := context.WithCancel(ctx)
 	defer getProofCtxCancel()
-	getProofClient, err := c.ZkProverClient.GetProof(getProofCtx)
+	getProofClient, err := c.Prover.Client.GetProof(getProofCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init getProofClient, batchNumber: %d, err: %v", batchNumber, err)
 	}

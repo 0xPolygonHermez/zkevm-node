@@ -16,6 +16,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/keccak256"
+	"google.golang.org/grpc"
 )
 
 // Aggregator represents an aggregator
@@ -25,7 +26,7 @@ type Aggregator struct {
 	State                stateInterface
 	EthTxManager         ethTxManager
 	Ethman               etherman
-	ProverClient         proverClient
+	ProverClients        []proverClientInterface
 	ProfitabilityChecker aggregatorTxProfitabilityChecker
 }
 
@@ -35,7 +36,7 @@ func NewAggregator(
 	state stateInterface,
 	ethTxManager ethTxManager,
 	etherman etherman,
-	zkProverClient pb.ZKProverServiceClient,
+	grpcClientConns []*grpc.ClientConn,
 ) (Aggregator, error) {
 	var profitabilityChecker aggregatorTxProfitabilityChecker
 	switch cfg.TxProfitabilityCheckerType {
@@ -45,13 +46,22 @@ func NewAggregator(
 		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration)
 	}
 
+	proverClients := make([]proverClientInterface, 0, len(cfg.ProverURIs))
+
+	for _, proverURI := range cfg.ProverURIs {
+		proverClient := prover.NewClient(proverURI, cfg.IntervalFrequencyToGetProofGenerationState)
+		proverClients = append(proverClients, proverClient)
+		grpcClientConns = append(grpcClientConns, proverClient.Prover.Conn)
+		log.Infof("Connected to prover %v", proverURI)
+	}
+
 	a := Aggregator{
 		cfg: cfg,
 
 		State:                state,
 		EthTxManager:         ethTxManager,
 		Ethman:               etherman,
-		ProverClient:         prover.NewClient(zkProverClient, cfg.IntervalFrequencyToGetProofGenerationState),
+		ProverClients:        proverClients,
 		ProfitabilityChecker: profitabilityChecker,
 	}
 
@@ -61,15 +71,70 @@ func NewAggregator(
 // Start starts the aggregator
 func (a *Aggregator) Start(ctx context.Context) {
 	// define those vars here, bcs it can be used in case <-a.ctx.Done()
-	ticker := time.NewTicker(a.cfg.IntervalToConsolidateState.Duration)
-	defer ticker.Stop()
-	for {
-		a.tryVerifyBatch(ctx, ticker)
+	tickerVerifyBatch := time.NewTicker(a.cfg.IntervalToConsolidateState.Duration)
+	tickerSendVerifiedBatch := time.NewTicker(a.cfg.IntervalToConsolidateState.Duration)
+	defer tickerVerifyBatch.Stop()
+	defer tickerSendVerifiedBatch.Stop()
+
+	for i := 0; i < len(a.ProverClients); i++ {
+		go func() {
+			for {
+				a.tryVerifyBatch(ctx, tickerVerifyBatch)
+			}
+		}()
+		time.Sleep(time.Second)
+	}
+
+	go func() {
+		for {
+			a.tryToSendVerifiedBatch(ctx, tickerSendVerifiedBatch)
+		}
+	}()
+	// Wait until context is done
+	<-ctx.Done()
+}
+
+func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ticker) {
+	log.Info("checking if there is any consolidated batch to be verified")
+	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Warnf("failed to get last consolidated batch, err: %v", err)
+		waitTick(ctx, ticker)
+		return
+	} else if err == state.ErrNotFound {
+		log.Warn("no consolidated batch found")
+		waitTick(ctx, ticker)
+		return
+	}
+
+	batchNumberToVerify := lastVerifiedBatch.BatchNumber + 1
+
+	proof, err := a.State.GetGeneratedProofByBatchNumber(ctx, batchNumberToVerify, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Warnf("failed to get last proof for batch %v, err: %v", batchNumberToVerify, err)
+		waitTick(ctx, ticker)
+		return
+	}
+
+	if proof != nil {
+		log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchNumberToVerify)
+		a.EthTxManager.VerifyBatch(batchNumberToVerify, proof)
+		log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
+		err := a.State.DeleteGeneratedProof(ctx, batchNumberToVerify, nil)
+		if err != nil {
+			log.Warnf("failed to delete generated proof for batchNumber %v, err: %v", batchNumberToVerify, err)
+			return
+		}
+	} else {
+		log.Infof("no generated proof for batchNumber %v has been found", batchNumberToVerify)
+		waitTick(ctx, ticker)
+		return
 	}
 }
 
 func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	log.Info("checking if network is synced")
+
 	for !a.isSynced(ctx) {
 		log.Infof("waiting for synchronizer to sync...")
 		waitTick(ctx, ticker)
@@ -104,20 +169,50 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	// TODO: temp for the debug
 	log.Infof("sending a batch to the prover, OLDSTATEROOT: %s, NEWSTATEROOT: %s, BATCHNUM: %d",
 		inputProver.PublicInputs.OldStateRoot, inputProver.PublicInputs.NewStateRoot, inputProver.PublicInputs.BatchNum)
 
-	genProofID, err := a.ProverClient.GetGenProofID(ctx, inputProver)
-	if err != nil {
-		log.Warnf("failed to get gen proof id, err: %v", err)
+	var prover proverClientInterface
+
+	// Look for a free prover
+	for _, prover = range a.ProverClients {
+		if prover.IsIdle(ctx) {
+			break
+		}
+	}
+
+	if prover == nil {
+		log.Warn("all provers are busy")
 		waitTick(ctx, ticker)
 		return
 	}
 
-	resGetProof, err := a.ProverClient.GetResGetProof(ctx, genProofID, batchToVerify.BatchNumber)
+	// Avoid other thread to process the same batch
+	err = a.State.AddGeneratedProof(ctx, batchToVerify.BatchNumber, nil, nil)
+	if err != nil {
+		log.Warnf("failed to store proof generation mark, err: %v", err)
+		waitTick(ctx, ticker)
+		return
+	}
+
+	genProofID, err := prover.GetGenProofID(ctx, inputProver)
+	if err != nil {
+		log.Warnf("failed to get gen proof id, err: %v", err)
+		err2 := a.State.DeleteGeneratedProof(ctx, batchToVerify.BatchNumber, nil)
+		if err2 != nil {
+			log.Errorf("failed to delete proof generation mark after error, err: %v", err2)
+		}
+		waitTick(ctx, ticker)
+		return
+	}
+
+	resGetProof, err := prover.GetResGetProof(ctx, genProofID, batchToVerify.BatchNumber)
 	if err != nil {
 		log.Warnf("failed to get proof from prover, err: %v", err)
+		err2 := a.State.DeleteGeneratedProof(ctx, batchToVerify.BatchNumber, nil)
+		if err2 != nil {
+			log.Errorf("failed to delete proof generation mark after error, err: %v", err2)
+		}
 		waitTick(ctx, ticker)
 		return
 	}
@@ -133,9 +228,17 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		resGetProof.Public.PublicInputs.NewLocalExitRoot = inputProver.PublicInputs.NewLocalExitRoot
 	}
 
-	log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchToVerify.BatchNumber)
-	a.EthTxManager.VerifyBatch(batchToVerify.BatchNumber, resGetProof)
-	log.Infof("proof for the batch was sent, batchNumber: %d", batchToVerify.BatchNumber)
+	// Store proof
+	err = a.State.UpdateGeneratedProof(ctx, batchToVerify.BatchNumber, resGetProof, nil)
+	if err != nil {
+		log.Warnf("failed to store generated proof, err: %v", err)
+		err2 := a.State.DeleteGeneratedProof(ctx, batchToVerify.BatchNumber, nil)
+		if err2 != nil {
+			log.Errorf("failed to delete proof generation mark after error, err: %v", err2)
+		}
+		waitTick(ctx, ticker)
+		return
+	}
 }
 
 func (a *Aggregator) isSynced(ctx context.Context) bool {
@@ -165,8 +268,24 @@ func (a *Aggregator) getBatchToVerify(ctx context.Context) (*state.Batch, error)
 	if err != nil {
 		return nil, err
 	}
-	batchToVerify, err := a.State.GetVirtualBatchByNumber(ctx, lastVerifiedBatch.BatchNumber+1, nil)
 
+	batchNumberToVerify := lastVerifiedBatch.BatchNumber + 1
+
+	// Check if a prover is already working on this batch
+	_, err = a.State.GetGeneratedProofByBatchNumber(ctx, batchNumberToVerify, nil)
+	if err != nil && !errors.Is(err, state.ErrNotFound) {
+		return nil, err
+	}
+
+	for !errors.Is(err, state.ErrNotFound) {
+		batchNumberToVerify++
+		_, err = a.State.GetGeneratedProofByBatchNumber(ctx, batchNumberToVerify, nil)
+		if err != nil && !errors.Is(err, state.ErrNotFound) {
+			return nil, err
+		}
+	}
+
+	batchToVerify, err := a.State.GetVirtualBatchByNumber(ctx, batchNumberToVerify, nil)
 	if err != nil {
 		if errors.Is(err, state.ErrNotFound) {
 			log.Infof("there are no batches to consolidate")

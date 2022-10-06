@@ -21,6 +21,7 @@ type jsonRPCTxPool interface {
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
 	GetPendingTxs(ctx context.Context, isClaims bool, limit uint64) ([]pool.Transaction, error)
 	CountPendingTransactions(ctx context.Context) (uint64, error)
+	GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
 }
 
 // gasPriceEstimator contains the methods required to interact with gas price estimator

@@ -60,6 +60,7 @@ TrustedSequencerURI = ""
 GenBlockNumber = 1
 
 [Sequencer]
+MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "300s"
@@ -88,8 +89,8 @@ TxProfitabilityMinReward = "1.1"
 Type = "default"
 DefaultGasPriceWei = 1000000000
 
-[Prover]
-ProverURI = "zkevm-prover:50052"
+[Provers]
+ProverURIs = ["zkevm-prover:50052"]
 
 [MTServer]
 Host = "0.0.0.0"

@@ -175,7 +175,7 @@ func TestSequenceTooBig(t *testing.T) {
 	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, eth_man)
 
 	seq, err := New(Config{
-		MaxSequenceSize:                          big.NewInt(CONFIG_MAX_GAS_PER_SEQUENCE),
+		MaxSequenceSize:                          MaxSequenceSize{Int: big.NewInt(CONFIG_MAX_GAS_PER_SEQUENCE)},
 		LastBatchVirtualizationTimeMaxWaitPeriod: types.NewDuration(1 * time.Second),
 		ProfitabilityChecker: profitabilitychecker.Config{
 			SendBatchesEvenWhenNotProfitable: true,
