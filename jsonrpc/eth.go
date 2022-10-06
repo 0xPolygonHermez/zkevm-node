@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -38,11 +39,24 @@ func (e *Eth) BlockNumber() (interface{}, rpcError) {
 	})
 }
 
+var connectionCounter = 0
+var connectionCounterMutex sync.Mutex
+
 // Call executes a new message call immediately and returns the value of
 // executed contract and potential error.
 // Note, this function doesn't make any changes in the state/blockchain and is
 // useful to execute view/pure methods and retrieve values.
 func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
+	connectionCounterMutex.Lock()
+	connectionCounter++
+	connectionCounterMutex.Unlock()
+	defer func() {
+		connectionCounterMutex.Lock()
+		connectionCounter--
+		connectionCounterMutex.Unlock()
+		log.Debugf("Current open connections %d", connectionCounter)
+	}()
+	log.Debugf("Current open connections %d", connectionCounter)
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
 		if arg.Gas == nil || *arg.Gas == argUint64(0) {
