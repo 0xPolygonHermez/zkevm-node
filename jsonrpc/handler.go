@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -42,9 +43,22 @@ func newJSONRpcHandler() *Handler {
 	return handler
 }
 
+var connectionCounter = 0
+var connectionCounterMutex sync.Mutex
+
 // Handle is the function that knows which and how a function should
 // be executed when a JSON RPC request is received
 func (d *Handler) Handle(req Request) Response {
+	connectionCounterMutex.Lock()
+	connectionCounter++
+	connectionCounterMutex.Unlock()
+	defer func() {
+		connectionCounterMutex.Lock()
+		connectionCounter--
+		connectionCounterMutex.Unlock()
+		log.Debugf("Current open connections %d", connectionCounter)
+	}()
+	log.Debugf("Current open connections %d", connectionCounter)
 	log.Debugf("request method %s id %v params %v", req.Method, req.ID, string(req.Params))
 
 	service, fd, err := d.getFnHandler(req)
