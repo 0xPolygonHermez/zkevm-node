@@ -56,12 +56,11 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, uint64, error) {
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last virtual batch num, err: %w", err)
+		return nil, 0, fmt.Errorf("failed to get last virtual batch num, err: %w", err)
 	}
 
 	currentBatchNumToSequence := lastVirtualBatchNum + 1
 	sequences := []types.Sequence{}
-	var estimatedGas uint64
 
 	var tx *ethtypes.Transaction
 
@@ -93,10 +92,10 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, u
 		})
 
 		// Check if can be send
-		tx, err = s.etherman.EstimateGasSequenceBatches(sequences)
+		estimatedGas, txHash, err := s.etherman.EstimateGasSequenceBatches(sequences)
 
-		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
-			log.Infof("oversized Data on TX hash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
+		if err == nil && new(big.Int).SetUint64(estimatedGas).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
+			log.Infof("oversized Data on TX hash %s (%d > %d)", txHash, estimatedGas, s.cfg.MaxSequenceSize)
 			err = core.ErrOversizedData
 		}
 
@@ -104,12 +103,11 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, u
 			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
 			if sequences != nil {
 				// Handling the error gracefully, re-processing the sequence as a sanity check
-				_, err = s.etherman.EstimateGasSequenceBatches(sequences)
+				estimatedGas, _, err = s.etherman.EstimateGasSequenceBatches(sequences)
 				return sequences, estimatedGas, err
 			}
 			return sequences, estimatedGas, err
 		}
-		estimatedGas = tx.Gas()
 
 		// Increase batch num for next iteration
 		currentBatchNumToSequence++
