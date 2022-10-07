@@ -234,7 +234,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		nonce uint64
 	)
 
-	args := []interface{}{filterStatus, isClaims, minGasPrice, limit}
+	args := []interface{}{filterStatus, minGasPrice, isClaims, limit}
 
 	rows, err := p.db.Query(ctx, query, args...)
 	if errors.Is(err, pgx.ErrNoRows) {
