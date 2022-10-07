@@ -70,7 +70,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 			blockNumberToProcessTx = &blockNumber
 		}
 
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, dbTx)
+		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, true, dbTx)
 		if result.Failed() {
 			return rpcErrorResponse(defaultErrorCode, result.Err.Error(), nil)
 		}
