@@ -133,15 +133,6 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, processResponse.processedTxs[i].Tx)
 		}
 
-		// in that case executor meets OOC error, try to reprocess tx with OOC after this error
-		var isOOCError bool
-		if s.isOOCError(processResponse) {
-			lastTx := processResponse.unprocessedTxs[processResponse.unprocessedTxsHashes[len(processResponse.unprocessedTxsHashes)-1]]
-			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, lastTx.Tx)
-			isOOCError = true
-			log.Infof("executor meets OOC error, try to reprocess unprocessed txs after OOC tx")
-		}
-
 		if len(s.sequenceInProgress.Txs) == 0 {
 			log.Infof("sequence in progress doesn't have txs, no need to send a batch")
 			break
@@ -163,12 +154,6 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			if _, ok := unprocessedTxs[txHash]; !ok {
 				unprocessedTxs[txHash] = processResponse.unprocessedTxs[txHash]
 			}
-		}
-
-		// in that case tx is invalid, bcs only one tx gives OOC error
-		// mark tx as invalid
-		if s.isOOCError(processResponse) && isOOCError {
-			s.updateTxsStatus(ctx, ticker, processResponse.unprocessedTxsHashes, pool.TxStatusInvalid)
 		}
 	}
 	log.Infof("%d txs processed successfully", len(processResponse.processedTxsHashes))
@@ -205,10 +190,6 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.updateTxsStatus(ctx, ticker, failedTxsHashes, pool.TxStatusFailed)
 	// increment counter for failed txs
 	s.incrementFailedCounter(ctx, ticker, failedTxsHashes)
-}
-
-func (s *Sequencer) isOOCError(processResponse processTxResponse) bool {
-	return len(s.sequenceInProgress.Txs) == 0 && !processResponse.isBatchProcessed && len(processResponse.unprocessedTxs) > 0
 }
 
 func (s *Sequencer) splitInvalidAndFailedTxs(ctx context.Context, unprocessedTxs map[string]*state.ProcessTransactionResponse, ticker *time.Ticker) ([]string, []string) {
