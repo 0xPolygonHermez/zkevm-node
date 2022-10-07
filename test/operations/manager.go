@@ -44,7 +44,7 @@ const (
 	DefaultL1NetworkURL        = "http://localhost:8545"
 	DefaultL1ChainID    uint64 = 1337
 	DefaultL2NetworkURL        = "http://localhost:8123"
-	DefaultL2ChainID    uint64 = 1000
+	DefaultL2ChainID    uint64 = 1001
 
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
 )
