@@ -49,7 +49,7 @@ var (
 	ctx        = context.Background()
 	stateCfg   = state.Config{
 		MaxCumulativeGasUsed: 800000,
-		ChainID:              1401,
+		ChainID:              1000,
 	}
 	executorClient                     executorclientpb.ExecutorServiceClient
 	mtDBServiceClient                  mtDBclientpb.StateDBServiceClient
