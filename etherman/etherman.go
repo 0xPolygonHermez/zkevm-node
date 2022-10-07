@@ -28,11 +28,14 @@ import (
 )
 
 var (
-	updateGlobalExitRootSignatureHash  = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
-	forcedBatchSignatureHash           = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
-	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
-	forceSequencedBatchesSignatureHash = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))
-	verifiedBatchSignatureHash         = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
+	updateGlobalExitRootSignatureHash   = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
+	forcedBatchSignatureHash            = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
+	sequencedBatchesEventSignatureHash  = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
+	forceSequencedBatchesSignatureHash  = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))
+	verifiedBatchSignatureHash          = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
+	setTrustedSequencerURLSignatureHash = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))
+	setForceBatchAllowedSignatureHash   = crypto.Keccak256Hash([]byte("SetForceBatchAllowed(bool)"))
+	setTrustedSequencerSignatureHash    = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))
 
 	// Proxy events
 	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
@@ -158,6 +161,15 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		return etherMan.verifyBatchEvent(ctx, vLog, blocks, blocksOrder)
 	case forceSequencedBatchesSignatureHash:
 		return etherMan.forceSequencedBatchesEvent(ctx, vLog, blocks, blocksOrder)
+	case setTrustedSequencerURLSignatureHash:
+		log.Debug("SetTrustedSequencerURL event detected")
+		return nil
+	case setForceBatchAllowedSignatureHash:
+		log.Debug("SetForceBatchAllowed event detected")
+		return nil
+	case setTrustedSequencerSignatureHash:
+		log.Debug("SetTrustedSequencer event detected")
+		return nil
 	case initializedSignatureHash:
 		log.Debug("Initialized event detected")
 		return nil
