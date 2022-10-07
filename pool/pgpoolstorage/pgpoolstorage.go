@@ -167,7 +167,7 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 }
 
 // GetTxs gets txs with the lowest nonce
-func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, limit uint64) ([]*pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, minGasPrice, limit uint64) ([]*pool.Transaction, error) {
 	query := `
 		SELECT
 			encoded,
@@ -185,11 +185,42 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		FROM
 			pool.txs p1
 		WHERE 
-			status = $1
+			status = $1 AND
+			gas_price > $2
 		ORDER BY 
 			nonce ASC
-		LIMIT $2
+		LIMIT $3
 	`
+
+	if filterStatus == pool.TxStatusFailed {
+		query = `
+		SELECT * FROM (
+			SELECT
+				encoded,
+				status,
+				cumulative_gas_used,
+				used_keccak_hashes,
+				used_poseidon_hashes,
+				used_poseidon_paddings,
+				used_mem_aligns,
+				used_arithmetics,
+				used_binaries,
+				used_steps,
+				received_at,
+				nonce
+			FROM
+				pool.txs p1
+			WHERE
+				status = $1 AND
+				gas_price > $2
+			ORDER BY 
+				failed_counter ASC
+			FETCH FIRST 1 ROWS WITH TIES
+			) as tmp
+		ORDER BY nonce ASC
+		LIMIT $3
+		`
+	}
 
 	var (
 		encoded, status   string
@@ -201,7 +232,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		nonce uint64
 	)
 
-	args := []interface{}{filterStatus, limit}
+	args := []interface{}{filterStatus, minGasPrice, limit}
 
 	rows, err := p.db.Query(ctx, query, args...)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -391,6 +422,14 @@ func (p *PostgresPoolStorage) GetTxFromAddressFromByHash(ctx context.Context, ha
 	}
 
 	return common.HexToAddress(fromAddr), nonce, nil
+}
+
+func (p *PostgresPoolStorage) IncrementFailedCounter(ctx context.Context, hashes []string) error {
+	sql := "UPDATE pool.txs SET failed_counter = failed_counter + 1 WHERE hash = ANY ($1)"
+	if _, err := p.db.Exec(ctx, sql, hashes); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetNonce gets the nonce to the provided address accordingly to the txs in the pool

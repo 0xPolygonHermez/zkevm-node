@@ -70,10 +70,16 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	getTxsLimit := maxTxsPerBatch - uint64(len(s.sequenceInProgress.Txs))
 
+	minGasPrice, err := s.gpe.GetAvgGasPrice(ctx)
+	if err != nil {
+		log.Errorf("failed to get avg gas price, err: %w", err)
+		return
+	}
+
 	// get txs from the pool
-	pendTxs, err := s.pool.GetTxs(ctx, pool.TxStatusPending, getTxsLimit)
+	pendTxs, err := s.pool.GetTxs(ctx, pool.TxStatusPending, minGasPrice.Uint64(), getTxsLimit)
 	if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
-		pendTxs, err = s.pool.GetTxs(ctx, pool.TxStatusFailed, getTxsLimit)
+		pendTxs, err = s.pool.GetTxs(ctx, pool.TxStatusFailed, minGasPrice.Uint64(), getTxsLimit)
 		if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
 			log.Info("there is no suitable pending or failed txs in the pool, waiting...")
 			waitTick(ctx, ticker)
@@ -136,6 +142,20 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		for i := 0; i < len(processResponse.processedTxs); i++ {
 			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, processResponse.processedTxs[i].Tx)
 		}
+
+		// in that case executor meets OOC error, try to reprocess tx with OOC after this error
+		var isOOCError bool
+		if s.isOOCError(processResponse) {
+			lastTx := processResponse.unprocessedTxs[processResponse.unprocessedTxsHashes[len(processResponse.unprocessedTxsHashes)-1]]
+			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, lastTx.Tx)
+			isOOCError = true
+			log.Infof("executor meets OOC error, try to reprocess unprocessed txs after OOC tx")
+		}
+
+		if len(s.sequenceInProgress.Txs) == 0 {
+			log.Infof("sequence in progress doesn't have txs, no need to send a batch")
+			break
+		}
 		log.Infof("failed to process batch or invalid txs. Retrying with %d txs", len(s.sequenceInProgress.Txs))
 		// reprocess
 		processResponse, err = s.processTxs(ctx)
@@ -149,8 +169,19 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 				delete(unprocessedTxs, hash)
 			}
 		}
+		for _, txHash := range processResponse.unprocessedTxsHashes {
+			if _, ok := unprocessedTxs[txHash]; !ok {
+				unprocessedTxs[txHash] = processResponse.unprocessedTxs[txHash]
+			}
+		}
+
+		// in that case tx is invalid, bcs only one tx gives OOC error
+		// mark tx as invalid
+		if s.isOOCError(processResponse) && isOOCError {
+			s.updateTxsStatus(ctx, ticker, processResponse.unprocessedTxsHashes, pool.TxStatusInvalid)
+		}
 	}
-	log.Infof("%d txs processed successfully", len(s.sequenceInProgress.Txs))
+	log.Infof("%d txs processed successfully", len(processResponse.processedTxsHashes))
 
 	// If after processing new txs the sequence is equal or smaller, revert changes and close sequence
 	if len(s.sequenceInProgress.Txs) <= len(sequenceBeforeTryingToProcessNewTxs.Txs) && len(s.sequenceInProgress.Txs) > 0 {
@@ -178,10 +209,16 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	// update processed txs
 	s.updateTxsStatus(ctx, ticker, processResponse.processedTxsHashes, pool.TxStatusSelected)
-	// update failed txs
-	s.updateTxsStatus(ctx, ticker, failedTxsHashes, pool.TxStatusFailed)
 	// update invalid txs
 	s.updateTxsStatus(ctx, ticker, invalidTxsHashes, pool.TxStatusInvalid)
+	// update failed txs
+	s.updateTxsStatus(ctx, ticker, failedTxsHashes, pool.TxStatusFailed)
+	// increment counter for failed txs
+	s.incrementFailedCounter(ctx, ticker, failedTxsHashes)
+}
+
+func (s *Sequencer) isOOCError(processResponse processTxResponse) bool {
+	return len(s.sequenceInProgress.Txs) == 0 && !processResponse.isBatchProcessed && len(processResponse.unprocessedTxs) > 0
 }
 
 func (s *Sequencer) splitInvalidAndFailedTxs(ctx context.Context, unprocessedTxs map[string]*state.ProcessTransactionResponse, ticker *time.Ticker) ([]string, []string) {
@@ -211,6 +248,15 @@ func (s *Sequencer) updateTxsStatus(ctx context.Context, ticker *time.Ticker, ha
 		log.Errorf("failed to update txs status to %s, err: %w", status, err)
 		waitTick(ctx, ticker)
 		err = s.pool.UpdateTxsStatus(ctx, hashes, status)
+	}
+}
+
+func (s *Sequencer) incrementFailedCounter(ctx context.Context, ticker *time.Ticker, hashes []string) {
+	err := s.pool.IncrementFailedCounter(ctx, hashes)
+	for err != nil {
+		log.Errorf("failed to increment failed tx counter, err: %w", err)
+		waitTick(ctx, ticker)
+		err = s.pool.IncrementFailedCounter(ctx, hashes)
 	}
 }
 

@@ -30,6 +30,7 @@ type Sequencer struct {
 	txManager txManager
 	etherman  etherman
 	checker   *profitabilitychecker.Checker
+	gpe       gasPriceEstimator
 
 	address          common.Address
 	isSequenceTooBig bool
@@ -44,7 +45,8 @@ func New(
 	state stateInterface,
 	etherman etherman,
 	priceGetter priceGetter,
-	manager txManager) (*Sequencer, error) {
+	manager txManager,
+	gpe gasPriceEstimator) (*Sequencer, error) {
 	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
 
 	addr, err := etherman.TrustedSequencer()
@@ -60,6 +62,7 @@ func New(
 		etherman:  etherman,
 		checker:   checker,
 		txManager: manager,
+		gpe:       gpe,
 		address:   addr,
 	}, nil
 }
