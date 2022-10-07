@@ -23,7 +23,7 @@ type txPool interface {
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error
-	GetTxs(ctx context.Context, filterStatus pool.TxStatus, minGasPrice, limit uint64) ([]*pool.Transaction, error)
+	GetTxs(ctx context.Context, filterStatus pool.TxStatus, isClaims bool, minGasPrice, limit uint64) ([]*pool.Transaction, error)
 	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)
 	IncrementFailedCounter(ctx context.Context, hashes []string) error
 }

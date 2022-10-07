@@ -77,22 +77,12 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	// get txs from the pool
-	pendTxs, err := s.pool.GetTxs(ctx, pool.TxStatusPending, minGasPrice.Uint64(), getTxsLimit)
-	if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
-		pendTxs, err = s.pool.GetTxs(ctx, pool.TxStatusFailed, minGasPrice.Uint64(), getTxsLimit)
-		if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
-			log.Info("there is no suitable pending or failed txs in the pool, waiting...")
-			waitTick(ctx, ticker)
-			return
-		}
-	} else if err != nil {
-		log.Errorf("failed to get pending tx, err: %w", err)
+	appendedClaimsTxsAmount := s.appendPendingTxs(ctx, true, 0, getTxsLimit, ticker)
+	appendedTxsAmount := s.appendPendingTxs(ctx, false, minGasPrice.Uint64(), getTxsLimit-appendedClaimsTxsAmount, ticker) + appendedClaimsTxsAmount
+
+	if appendedTxsAmount == 0 {
 		return
 	}
-	for i := 0; i < len(pendTxs); i++ {
-		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, pendTxs[i].Transaction)
-	}
-
 	// clear txs if it bigger than expected
 	encodedTxsBytesSize := math.MaxInt
 	numberOfTxsInProcess := len(s.sequenceInProgress.Txs)
@@ -124,7 +114,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	// process batch
-	log.Infof("processing batch with %d txs. %d txs are new from this iteration", len(s.sequenceInProgress.Txs), len(pendTxs))
+	log.Infof("processing batch with %d txs. %d txs are new from this iteration", len(s.sequenceInProgress.Txs), appendedTxsAmount)
 	processResponse, err := s.processTxs(ctx)
 	if err != nil {
 		s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
@@ -526,4 +516,24 @@ func (s *Sequencer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 	}
 
 	return processingCtx, nil
+}
+
+func (s *Sequencer) appendPendingTxs(ctx context.Context, isClaims bool, minGasPrice, getTxsLimit uint64, ticker *time.Ticker) uint64 {
+	pendTxs, err := s.pool.GetTxs(ctx, pool.TxStatusPending, isClaims, minGasPrice, getTxsLimit)
+	if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
+		pendTxs, err = s.pool.GetTxs(ctx, pool.TxStatusFailed, isClaims, minGasPrice, getTxsLimit)
+		if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
+			log.Info("there is no suitable pending or failed txs in the pool, waiting...")
+			waitTick(ctx, ticker)
+			return 0
+		}
+	} else if err != nil {
+		log.Errorf("failed to get pending tx, err: %w", err)
+		return 0
+	}
+	for i := 0; i < len(pendTxs); i++ {
+		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, pendTxs[i].Transaction)
+	}
+
+	return uint64(len(pendTxs))
 }
