@@ -213,7 +213,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				pool.txs p1
 			WHERE
 				status = $1 AND
-				gas_price > $2 AND 
+				gas_price >= $2 AND 
 				is_claims = $3
 			ORDER BY 
 				failed_counter ASC
