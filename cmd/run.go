@@ -87,7 +87,8 @@ func start(cliCtx *cli.Context) error {
 		case SEQUENCER:
 			log.Info("Running sequencer")
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig, st)
-			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager)
+			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
+			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager, gpe)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
@@ -173,13 +174,13 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 }
 
 func createSequencer(c config.Config, pool *pool.Pool, state *state.State, etherman *etherman.Client,
-	ethTxManager *ethtxmanager.Client) *sequencer.Sequencer {
+	ethTxManager *ethtxmanager.Client, gpe gasPriceEstimator) *sequencer.Sequencer {
 	pg, err := pricegetter.NewClient(c.PriceGetter)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, ethTxManager)
+	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, ethTxManager, gpe)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -295,6 +296,6 @@ func createPool(poolDBConfig db.Config, networkConfig config.NetworkConfig, st *
 	if err != nil {
 		log.Fatal(err)
 	}
-	poolInstance := pool.NewPool(poolStorage, st, networkConfig.L2GlobalExitRootManagerAddr)
+	poolInstance := pool.NewPool(poolStorage, st, networkConfig.L2GlobalExitRootManagerAddr, networkConfig.L2ChainID)
 	return poolInstance
 }

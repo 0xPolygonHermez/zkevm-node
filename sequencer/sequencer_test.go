@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
+	"github.com/0xPolygonHermez/zkevm-node/gasprice"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
@@ -167,16 +168,19 @@ func TestSequenceTooBig(t *testing.T) {
 
 	state := st.NewState(stateCfg, stateDb, executorClient, stateTree)
 
-	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER])
+	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER], big.NewInt(CONFIG_CHAIN_ID).Uint64())
 	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, eth_man)
-
+	gpe := gasprice.NewDefaultEstimator(gasprice.Config{
+		Type:               gasprice.DefaultType,
+		DefaultGasPriceWei: 1000000000,
+	}, pool)
 	seq, err := New(Config{
 		MaxSequenceSize:                          MaxSequenceSize{Int: big.NewInt(CONFIG_MAX_GAS_PER_SEQUENCE)},
 		LastBatchVirtualizationTimeMaxWaitPeriod: types.NewDuration(1 * time.Second),
 		ProfitabilityChecker: profitabilitychecker.Config{
 			SendBatchesEvenWhenNotProfitable: true,
 		},
-	}, pool, state, eth_man, pg, ethtxmanager)
+	}, pool, state, eth_man, pg, ethtxmanager, gpe)
 	require.NoError(t, err)
 
 	// generate fake data

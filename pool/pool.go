@@ -46,14 +46,16 @@ type Pool struct {
 	storage
 	state                       stateInterface
 	l2GlobalExitRootManagerAddr common.Address
+	chainID                     uint64
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(s storage, st stateInterface, l2GlobalExitRootManagerAddr common.Address) *Pool {
+func NewPool(s storage, st stateInterface, l2GlobalExitRootManagerAddr common.Address, chainID uint64) *Pool {
 	return &Pool{
 		storage:                     s,
 		state:                       st,
 		l2GlobalExitRootManagerAddr: l2GlobalExitRootManagerAddr,
+		chainID:                     chainID,
 	}
 }
 
@@ -120,6 +122,11 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 }
 
 func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
+	// check chain id
+	if tx.ChainId().Uint64() != p.chainID {
+		return ErrInvalidChainID
+	}
+
 	// Accept only legacy transactions until EIP-2718/2930 activates.
 	if tx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported

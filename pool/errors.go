@@ -7,6 +7,10 @@ import (
 )
 
 var (
+	// ErrInvalidChainID is returned when the transaction has a different chain id
+	// than the chain id of the network
+	ErrInvalidChainID = errors.New("invalid chain id")
+
 	// ErrTxTypeNotSupported is returned if a transaction is not supported in the
 	// current network configuration.
 	ErrTxTypeNotSupported = types.ErrTxTypeNotSupported

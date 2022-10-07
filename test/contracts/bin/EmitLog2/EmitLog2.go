@@ -26,7 +26,6 @@ var (
 	_ = common.Big1
 	_ = types.BloomLookup
 	_ = event.NewSubscription
-	_ = abi.ConvertType
 )
 
 // EmitLog2MetaData contains all meta data concerning the EmitLog2 contract.
@@ -157,11 +156,11 @@ func NewEmitLog2Filterer(address common.Address, filterer bind.ContractFilterer)
 
 // bindEmitLog2 binds a generic wrapper to an already deployed contract.
 func bindEmitLog2(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
-	parsed, err := EmitLog2MetaData.GetAbi()
+	parsed, err := abi.JSON(strings.NewReader(EmitLog2ABI))
 	if err != nil {
 		return nil, err
 	}
-	return bind.NewBoundContract(address, *parsed, caller, transactor, filterer), nil
+	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
 }
 
 // Call invokes the (constant) contract method with params as input values and
