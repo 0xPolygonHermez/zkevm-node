@@ -44,10 +44,8 @@ func (e *Eth) BlockNumber() (interface{}, rpcError) {
 // useful to execute view/pure methods and retrieve values.
 func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-		var noZKEVMCounters bool
 		// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
 		if arg.Gas == nil || *arg.Gas == argUint64(0) {
-			noZKEVMCounters = true
 			header, err := e.getBlockHeader(ctx, *number, dbTx)
 			if err != nil {
 				return rpcErrorResponse(defaultErrorCode, "failed to get block header", err)
@@ -72,7 +70,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 			blockNumberToProcessTx = &blockNumber
 		}
 
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, noZKEVMCounters, dbTx)
+		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, true, dbTx)
 		if result.Failed() {
 			return rpcErrorResponse(defaultErrorCode, result.Err.Error(), nil)
 		}
