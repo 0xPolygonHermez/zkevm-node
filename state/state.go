@@ -200,7 +200,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID)
 		if err != nil {
 			log.Errorf("error encoding unsigned transaction ", err)
-			return false, false, 0, err
+			return false, false, gasUsed, err
 		}
 
 		// Create a batch to be sent to the executor
