@@ -379,6 +379,7 @@ func Test_GetTopFailedTxsByProfitabilityAndZkCounters(t *testing.T) {
 	err = p.UpdateTxsStatus(ctx, txsHashes, pool.TxStatusFailed)
 	require.NoError(t, err)
 	err = p.IncrementFailedCounter(ctx, txsHashes[0:txsCount/2])
+	require.NoError(t, err)
 	txs, err := p.GetTxs(ctx, pool.TxStatusFailed, false, 1, 10)
 	require.NoError(t, err)
 	// bcs it's sorted by nonce, tx with the lowest nonce is expected here

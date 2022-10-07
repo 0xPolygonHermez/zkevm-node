@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	"github.com/0xPolygonHermez/zkevm-node/gasprice"
 	"io/ioutil"
 	"math/big"
 	"testing"
@@ -13,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
+	"github.com/0xPolygonHermez/zkevm-node/gasprice"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
