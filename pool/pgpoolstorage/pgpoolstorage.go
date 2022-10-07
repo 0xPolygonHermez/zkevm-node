@@ -217,10 +217,9 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				is_claims = $3
 			ORDER BY 
 				failed_counter ASC
-			FETCH FIRST 1 ROWS WITH TIES
+			LIMIT $4
 			) as tmp
 		ORDER BY nonce ASC
-		LIMIT $4
 		`
 	}
 
