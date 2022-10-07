@@ -167,7 +167,7 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 }
 
 // GetTxs gets txs with the lowest nonce
-func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, minGasPrice, limit uint64) ([]*pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, isClaims bool, minGasPrice, limit uint64) ([]*pool.Transaction, error) {
 	query := `
 		SELECT
 			encoded,
@@ -186,10 +186,11 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			pool.txs p1
 		WHERE 
 			status = $1 AND
-			gas_price > $2
+			gas_price >= $2 AND
+			is_claims = $3
 		ORDER BY 
 			nonce ASC
-		LIMIT $3
+		LIMIT $4
 	`
 
 	if filterStatus == pool.TxStatusFailed {
@@ -212,13 +213,14 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				pool.txs p1
 			WHERE
 				status = $1 AND
-				gas_price > $2
+				gas_price > $2 AND 
+				is_claims = $3
 			ORDER BY 
 				failed_counter ASC
 			FETCH FIRST 1 ROWS WITH TIES
 			) as tmp
 		ORDER BY nonce ASC
-		LIMIT $3
+		LIMIT $4
 		`
 	}
 
@@ -232,7 +234,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		nonce uint64
 	)
 
-	args := []interface{}{filterStatus, minGasPrice, limit}
+	args := []interface{}{filterStatus, isClaims, minGasPrice, limit}
 
 	rows, err := p.db.Query(ctx, query, args...)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -424,6 +426,7 @@ func (p *PostgresPoolStorage) GetTxFromAddressFromByHash(ctx context.Context, ha
 	return common.HexToAddress(fromAddr), nonce, nil
 }
 
+// IncrementFailedCounter increment for failed txs failed counter
 func (p *PostgresPoolStorage) IncrementFailedCounter(ctx context.Context, hashes []string) error {
 	sql := "UPDATE pool.txs SET failed_counter = failed_counter + 1 WHERE hash = ANY ($1)"
 	if _, err := p.db.Exec(ctx, sql, hashes); err != nil {
