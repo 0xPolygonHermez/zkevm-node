@@ -7,7 +7,7 @@ services:
     container_name: zkevm-rpc
     image: zkevm-node
     ports:
-      - 8123:8123
+      - 8545:8545
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
@@ -16,8 +16,8 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./config/.keystore:/pk/keystore
-      - ./config/config.local.toml:/app/config.toml
-      - ./config/develop.network.config.json:/app/network.json
+      - ./config/public.node.config.toml:/app/config.toml
+      - ./config/public.network.config.json:/app/network.json
     command:
       - "/bin/sh"
       - "-c"
@@ -31,8 +31,8 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./config/.keystore:/pk/keystore
-      - ./config/config.local.toml:/app/config.toml
-      - ./config/develop.network.config.json:/app/network.json
+      - ./config/public.node.config.toml:/app/config.toml
+      - ./config/public.network.config.json:/app/network.json
     command:
       - "/bin/sh"
       - "-c"

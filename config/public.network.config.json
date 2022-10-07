@@ -1,8 +1,8 @@
 {
-	"proofOfEfficiencyAddress": "0x060318dda0F9A5174D0035DCd26305561e39EE93",
-	"maticTokenAddress": "0x97A668c8376474283D1b12EA4fbE78106769Edd5",
-	"globalExitRootManagerAddress": "0xd3Ae7A0d196dE7dD9B593312973e650b5AcBf57c",
-	"deploymentBlockNumber": 7692293,
+	"proofOfEfficiencyAddress": "0x14cB06e8dE2222912138F9a062E5a4d9F4821409",
+	"maticTokenAddress": "0x4701Aa9471d7bfAc765D87dcb1Ea6BB23AD32733",
+	"globalExitRootManagerAddress": "0x762d09Ed110ace4EaC94acbb67b1C35D16C3297b",
+	"deploymentBlockNumber": 7710669,
 	"l1ChainID": 5,
 	"root": "0x2e74f6d94403b0d39545d0b1e229fd9887f5d82336e71d6597496acd1309e365",
 	"genesis": [

@@ -1,5 +1,3 @@
-IsTrustedSequencer = false
-
 [Log]
 Level = "debug"
 Outputs = ["stdout"]
@@ -24,14 +22,15 @@ MaxConns = 200
 
 [Etherman]
 URL = "https://geth_goerli.hermez.io"
+PrivateKeyPath = "./test/test.keystore"
 PrivateKeyPassword = "testonly"
 
 [RPC]
 Host = "0.0.0.0"
 Port = 8545
 MaxRequestsPerIPAndSecond = 5000
-SequencerNodeURI = "https://develop.zkevm-test.net:2083/"
-BroadcastURI = "develop.zkevm-test.net:61090"
+SequencerNodeURI = "https://public.zkevm-test.net:2083"
+BroadcastURI = "public-grpc.zkevm-test.net:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 	[RPC.DB]
 		User = "rpc_user"
@@ -40,10 +39,10 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 		Host = "zkevm-rpc-db"
 		Port = "5432"
 		EnableLog = false
-		MaxConns = 10
+		MaxConns = 100
 
 [Synchronizer]
-SyncInterval = "1s"
+SyncInterval = "2s"
 SyncChunkSize = 10000
 TrustedSequencerURI = ""
 
