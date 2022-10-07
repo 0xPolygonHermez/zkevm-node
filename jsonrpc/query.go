@@ -30,8 +30,8 @@ type LogFilterRequest struct {
 // LogFilter is a filter for logs
 type LogFilter struct {
 	BlockHash *common.Hash
-	FromBlock BlockNumber
-	ToBlock   BlockNumber
+	FromBlock *BlockNumber
+	ToBlock   *BlockNumber
 	Addresses []common.Address
 	Topics    [][]common.Hash
 	Since     *time.Time
@@ -82,16 +82,16 @@ func (f *LogFilter) MarshalJSON() ([]byte, error) {
 
 	obj.BlockHash = f.BlockHash
 
-	if f.FromBlock == LatestBlockNumber {
+	if f.FromBlock != nil && (*f.FromBlock == LatestBlockNumber) {
 		obj.FromBlock = ""
 	} else {
-		obj.FromBlock = hex.EncodeUint64(uint64(f.FromBlock))
+		obj.FromBlock = hex.EncodeUint64(uint64(*f.FromBlock))
 	}
 
-	if f.ToBlock == LatestBlockNumber {
+	if f.ToBlock != nil && (*f.ToBlock == LatestBlockNumber) {
 		obj.ToBlock = ""
 	} else {
-		obj.ToBlock = hex.EncodeUint64(uint64(f.ToBlock))
+		obj.ToBlock = hex.EncodeUint64(uint64(*f.ToBlock))
 	}
 
 	if f.Addresses != nil {
@@ -127,21 +127,26 @@ func (f *LogFilter) UnmarshalJSON(data []byte) error {
 	}
 
 	f.BlockHash = obj.BlockHash
+	lbb := LatestBlockNumber
 
 	if obj.FromBlock == "" {
-		f.FromBlock = LatestBlockNumber
+		f.FromBlock = &lbb
 	} else {
-		if f.FromBlock, err = stringToBlockNumber(obj.FromBlock); err != nil {
+		bn, err := stringToBlockNumber(obj.FromBlock)
+		if err != nil {
 			return err
 		}
+		f.FromBlock = &bn
 	}
 
 	if obj.ToBlock == "" {
-		f.ToBlock = LatestBlockNumber
+		f.ToBlock = &lbb
 	} else {
-		if f.ToBlock, err = stringToBlockNumber(obj.ToBlock); err != nil {
+		bn, err := stringToBlockNumber(obj.ToBlock)
+		if err != nil {
 			return err
 		}
+		f.ToBlock = &bn
 	}
 
 	if obj.Address != nil {

@@ -11,7 +11,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -23,6 +22,14 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	defaultErrorCode        = -32000
+	invalidRequestErrorCode = -32600
+	notFoundErrorCode       = -32601
+	invalidParamsErrorCode  = -32602
+	parserErrorCode         = -32700
 )
 
 func TestMain(t *testing.T) {
@@ -211,7 +218,7 @@ func deployContracts(opsman *operations.Manager) error {
 	// return bp.ProcessBatch(ctx, batch)
 }
 
-func createTX(ethdeployment string, to common.Address, amount *big.Int) (*common.Hash, error) {
+func createTX(ethdeployment string, to common.Address, amount *big.Int) (*types.Transaction, error) {
 	client, err := ethclient.Dial(ethdeployment)
 	if err != nil {
 		return nil, err
@@ -244,8 +251,7 @@ func createTX(ethdeployment string, to common.Address, amount *big.Int) (*common
 	if err != nil {
 		return nil, err
 	}
-	hash := signedTx.Hash()
-	return &hash, nil
+	return signedTx, nil
 }
 
 func Test_Filters(t *testing.T) {
@@ -253,19 +259,21 @@ func Test_Filters(t *testing.T) {
 		t.Skip()
 	}
 
-	var err error
-	err = operations.Teardown()
-	require.NoError(t, err)
+	/*
 
-	defer func() { require.NoError(t, operations.Teardown()) }()
+		var err error
+		err = operations.Teardown()
+		require.NoError(t, err)
 
-	ctx := context.Background()
-	opsCfg := operations.GetDefaultOperationsConfig()
-	opsMan, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsMan.Setup()
-	require.NoError(t, err)
+		defer func() { require.NoError(t, operations.Teardown()) }()
 
+		ctx := context.Background()
+		opsCfg := operations.GetDefaultOperationsConfig()
+		opsMan, err := operations.NewManager(ctx, opsCfg)
+		require.NoError(t, err)
+		err = opsMan.Setup()
+		require.NoError(t, err)
+	*/
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
@@ -300,11 +308,9 @@ func Test_Filters(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		// require.NotNil(t, response.Error)
-		// require.Equal(t, -32602, response.Error.Code)
-		// require.Equal(t, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other", response.Error.Message)
-
-		////////////////
+		require.NotNil(t, response.Error)
+		require.Equal(t, invalidParamsErrorCode, response.Error.Code)
+		require.Equal(t, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other", response.Error.Message)
 
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
 			"BlockHash": common.HexToHash("0x1"),
@@ -454,8 +460,20 @@ func Test_Block(t *testing.T) {
 		client, err := ethclient.Dial(network.URL)
 		require.NoError(t, err)
 
+		tx, err := createTX(network.URL, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
+		require.NoError(t, err)
+		// no block number yet... will wait
+		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+		require.NoError(t, err)
+
 		// func (e *Eth) BlockNumber() (interface{}, rpcError)
-		// TODO
+		blockNumber, err := client.BlockNumber(ctx)
+		require.NoError(t, err)
+		log.Infof("\nBlock num %d", blockNumber)
+		require.GreaterOrEqual(t, blockNumber, receipt.BlockNumber.Uint64())
 
 		// func (e *Eth) GetBlockByHash(hash common.Hash, fullTx bool) (interface{}, rpcError)
 		blockHash, err := client.BlockByNumber(ctx, big.NewInt(0))
@@ -470,27 +488,7 @@ func Test_Block(t *testing.T) {
 		require.Nil(t, blockHash)
 		require.Error(t, err)
 
-		madeTx, err := createTX(network.URL, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
-		require.NoError(t, err)
-
-		tx, pending, err := client.TransactionByHash(ctx, *madeTx)
-		require.NoError(t, err)
-		require.NotNil(t, tx)
-		require.True(t, pending)
-
 		// its pending
-		// func (e *Eth) GetBlockTransactionCountByNumber(number *BlockNumber) (interface{}, rpcError)
-
-		// no block number yet... will wait
-
-		for pending {
-			_, pending, err = client.TransactionByHash(ctx, *madeTx)
-			require.NoError(t, err)
-			time.Sleep(1 * time.Second)
-		}
-
-		receipt, err := client.TransactionReceipt(ctx, *madeTx)
-		require.NoError(t, err)
 
 		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_getBlockTransactionCountByNumber", hexutil.EncodeBig(receipt.BlockNumber))
 		require.NoError(t, err)
@@ -509,9 +507,9 @@ func Test_Block(t *testing.T) {
 		require.Equal(t, uint(0x1), count)
 
 		// 	func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (interface{}, rpcError)
-		tx, err = client.TransactionInBlock(ctx, receipt.BlockHash, 0)
+		tx, err = client.TransactionInBlock(ctx, receipt.BlockHash, receipt.TransactionIndex)
 		require.NoError(t, err)
-		require.Equal(t, tx.Hash(), *madeTx)
+		require.Equal(t, tx.Hash(), receipt.TxHash)
 
 		raw, err := jsonrpc.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", hexutil.EncodeBig(receipt.BlockNumber), "0x0")
 		require.NoError(t, err)

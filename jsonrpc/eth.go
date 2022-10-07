@@ -561,6 +561,9 @@ func (e *Eth) NewBlockFilter() (interface{}, rpcError) {
 // to notify when the state changes (logs). To check if the state
 // has changed, call eth_getFilterChanges.
 func (e *Eth) NewFilter(filter *LogFilter) (interface{}, rpcError) {
+	if filter.BlockHash != nil && (filter.FromBlock != nil || filter.ToBlock != nil) {
+		return rpcErrorResponse(invalidParamsErrorCode, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other", nil)
+	}
 	id, err := e.storage.NewLogFilter(*filter)
 	if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to create new log filter", err)
