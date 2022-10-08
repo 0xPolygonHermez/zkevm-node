@@ -26,7 +26,6 @@ CREATE TABLE pool.txs
 );
 
 CREATE INDEX idx_state_gas_price_nonce ON pool.txs (status, gas_price, nonce);
-CREATE INDEX idx_failed_counter ON pool.txs (failed_counter);
 
 CREATE TABLE pool.gas_price
 (
