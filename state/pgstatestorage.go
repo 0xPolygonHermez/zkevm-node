@@ -1570,7 +1570,8 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 		 AND (l.topic1 = any($5) OR $5 IS NULL)
 		 AND (l.topic2 = any($6) OR $6 IS NULL)
 		 AND (l.topic3 = any($7) OR $7 IS NULL)
-		 AND (b.received_at >= $8 OR $8 IS NULL)`
+		 AND (b.received_at >= $8 OR $8 IS NULL)
+		ORDER BY b.block_num`
 
 	var err error
 	var rows pgx.Rows
