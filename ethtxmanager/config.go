@@ -13,4 +13,10 @@ type Config struct {
 	MaxVerifyBatchTxRetries uint32 `mapstructure:"MaxVerifyBatchTxRetries"`
 	// FrequencyForResendingFailedVerifyBatch frequency of the resending verify batch function
 	FrequencyForResendingFailedVerifyBatch types.Duration `mapstructure:"FrequencyForResendingFailedVerifyBatch"`
+	// WaitTxToBeMined time to wait after transaction was sent to the ethereum
+	WaitTxToBeMined types.Duration `mapstructure:"WaitTxToBeMined"`
+	// PercentageToIncreaseGasPrice when tx is failed by timeout increase gas price by this percentage
+	PercentageToIncreaseGasPrice uint64 `mapstructure:"PercentageToIncreaseGasPrice"`
+	// PercentageToIncreaseGasLimit when tx is failed by timeout increase gas price by this percentage
+	PercentageToIncreaseGasLimit uint64 `mapstructure:"PercentageToIncreaseGasLimit"`
 }
