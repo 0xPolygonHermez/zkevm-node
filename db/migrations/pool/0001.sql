@@ -22,8 +22,7 @@ CREATE TABLE pool.txs
     used_binaries          INTEGER,
     used_steps             INTEGER,
     received_at            TIMESTAMP WITH TIME ZONE NOT NULL,
-    from_address           varchar                  NOT NULL,
-    failed_counter         DECIMAL(78, 0) DEFAULT 0
+    from_address           varchar                  NOT NULL
 );
 
 CREATE INDEX idx_state_gas_price_nonce ON pool.txs (status, gas_price, nonce);
