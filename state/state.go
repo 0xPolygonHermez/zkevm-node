@@ -377,7 +377,7 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, t
 	if err != nil {
 		return nil, err
 	}
-	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, dbTx)
+	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, true, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +390,7 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, t
 	return result, nil
 }
 
-func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, updateState bool, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -429,9 +429,15 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
-		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 	}
+
+	if updateState {
+		processBatchRequest.UpdateMerkleTree = cTrue
+	} else {
+		processBatchRequest.UpdateMerkleTree = cFalse
+	}
+
 	// Send Batch to the Executor
 	log.Debugf("processBatch[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
 	// log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
@@ -626,7 +632,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
 		return err
 	}
-	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, dbTx)
+	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, true, dbTx)
 	if err != nil {
 		return err
 	}
