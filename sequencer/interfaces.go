@@ -30,7 +30,7 @@ type txPool interface {
 
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
-	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error)
+	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, common.Hash, error)
 	GetSendSequenceFee() (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
 	GetLatestBatchNumber() (uint64, error)
@@ -69,7 +69,7 @@ type stateInterface interface {
 }
 
 type txManager interface {
-	SequenceBatches(sequences []ethmanTypes.Sequence)
+	SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64)
 }
 
 // priceGetter is for getting eth/matic price, used for the tx profitability checker

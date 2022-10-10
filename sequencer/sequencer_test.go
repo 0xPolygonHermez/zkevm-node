@@ -255,10 +255,11 @@ func TestSequenceTooBig(t *testing.T) {
 		err = innerDbTx.Commit(ctx)
 		require.NoError(t, err)
 
-		sequences, err := seq.getSequencesToSend(ctx)
+		sequences, gasLimit, err := seq.getSequencesToSend(ctx)
 		require.NoError(t, err)
 
 		fmt.Printf("%+v", sequences)
+		fmt.Printf("%v", gasLimit)
 
 		require.Equal(t, testCase.Output, len(sequences))
 	}
