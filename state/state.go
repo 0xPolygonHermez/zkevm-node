@@ -124,7 +124,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	var lowEnd uint64
 	var highEnd uint64
-	var reducePrecision bool
+
 	ctx := context.Background()
 
 	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
@@ -146,7 +146,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		return 0, err
 	}
 
-	if lowEnd != ethTransferGas {
+	if lowEnd == ethTransferGas {
 		reducePrecision = true
 
 		if transaction.To() != nil {
@@ -302,7 +302,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	highEnd = (gasUsed * three) / uint64(two)
 
 	// Start the binary search for the lowest possible gas price
-	for (lowEnd < highEnd) && (!reducePrecision || (highEnd-lowEnd) > 4096) {
+	for (lowEnd < highEnd) && (highEnd-lowEnd) > 4096 {
 		txExecutionStart := time.Now()
 		mid := (lowEnd + highEnd) / uint64(two)
 
