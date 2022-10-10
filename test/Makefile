@@ -69,33 +69,6 @@ STOPAPPROVE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENODEAPPROVE) && $(DOCKERCOMP
 
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
-VERSION := $(shell git describe --tags --always)
-COMMIT := $(shell git rev-parse --short HEAD)
-DATE := $(shell date +%Y-%m-%dT%H:%M:%S%z)
-LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
-
-GOBASE := $(shell pwd)
-GOBIN := $(GOBASE)/dist
-GOENVVARS := GOBIN=$(GOBIN)
-GOBINARY := zkevm-node
-GOCMD := $(GOBASE)/cmd
-
-LINT := $$(go env GOPATH)/bin/golangci-lint run
-
-BUILD := $(GOENVVARS) go build $(LDFLAGS) -o $(GOBIN)/$(GOBINARY) $(GOCMD)
-
-.PHONY: build
-build: ## Builds the binary locally into ./dist
-	$(BUILD)
-
-.PHONY: build-docker
-build-docker: ## Builds a docker image with the node binary
-	docker build -t zkevm-node -f ./Dockerfile .
-
-.PHONY: build-docker-nc
-build-docker-nc: ## Builds a docker image with the node binary - but without build cache
-	docker build --no-cache=true -t zkevm-node -f ./Dockerfile .
-
 .PHONY: test
 test: compile-scs ## Runs only short tests without checking race conditions
 	export CONFIG_MODE="test"	
@@ -178,20 +151,6 @@ test-e2e-group-3: build-docker compile-scs ## Runs group 3 e2e tests checking ra
 	$(RUNRPCDB); sleep 5
 	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group3/...
 
-.PHONY: install-linter
-install-linter: ## Installs the linter
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.46.2
-
-.PHONY: lint
-lint: ## Runs the linter
-	$(LINT)
-
-.PHONY: check
-check: stop lint build build-docker test-full-non-e2e test-e2e-group-2 ## lint, build and essential tests
-
-.PHONY: validate
-validate: lint build test-full ## lint, build, unit and e2e tests
-
 .PHONY: run-db
 run-db: ## Runs the node database
 	$(RUNSTATEDB)
@@ -268,26 +227,17 @@ stop-explorer-db: ## Stops the explorer database
 	$(STOPEXPLORERL2DB)
 	$(STOPEXPLORERL1DB)
 
-.PHONY: run
-run: ## Runs all the services
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNRPCDB)
-	$(RUNL1NETWORK)
-	sleep 2
-	$(RUNZKPROVER)
-	sleep 5
+.PHONY: run-seq
+run-seq: ## runs the sequencer
 	$(RUNSEQUENCER)
-	$(RUNAGGREGATOR)
-	$(RUNJSONRPC)
-	$(RUNSYNC)
+
+.PHONY: stop-seq
+stop-seq: ## stops the sequencer
+	$(RUNSEQUENCER)
 
 .PHONY: run-broadcast
 run-broadcast: ## Runs the broadcast service
 	$(RUNBROADCAST)
-
-run-seq:
-	$(RUNSEQUENCER)
 
 .PHONY: stop-broadcast
 stop-broadcast: ## Stops the broadcast service
@@ -311,6 +261,27 @@ run-approve-matic: ## Runs approve in node container
 stop-approve-matic: ## Stops approve in node container
 	$(STOPAPPROVE)
 
+.PHONY: run
+run: ## Runs a full node
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNRPCDB)
+	$(RUNL1NETWORK)
+	sleep 2
+	$(RUNZKPROVER)
+	sleep 5
+	$(RUNSEQUENCER)
+	$(RUNAGGREGATOR)
+	$(RUNJSONRPC)
+	$(RUNSYNC)
+
+.PHONY: stop
+stop: ## Stops all services
+	$(STOP)
+
+.PHONY: restart
+restart: stop run ## Executes `make stop` and `make run` commands
+
 .PHONY: init-network
 init-network: ## Initializes the network
 	go run ./scripts/init_network/main.go .
@@ -323,20 +294,9 @@ deploy-sc: ## deploys some examples of transactions and smart contracts
 deploy-uniswap: ## deploy the uniswap environment to the network
 	go run ./scripts/uniswap/main.go .
 
-.PHONY: stop
-stop: ## Stops all services
-	$(STOP)
-
-.PHONY: restart
-restart: stop run ## Executes `make stop` and `make run` commands
-
 .PHONY: run-db-scripts
 run-db-scripts: ## Executes scripts on the db after it has been initialized, potentially using info from the environment
 	./scripts/postgres/run.sh
-
-.PHONY: install-git-hooks
-install-git-hooks: ## Moves hook files to the .git/hooks directory
-	cp .github/hooks/* .git/hooks
 
 .PHONY: generate-mocks
 generate-mocks: ## Generates mocks for the tests, using mockery tool

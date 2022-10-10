@@ -4,22 +4,14 @@ DATE := $(shell date +%Y-%m-%dT%H:%M:%S%z)
 LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
 
 GOBASE := $(shell pwd)
-GOBIN := $(GOBASE)/dist
+GOBIN := $(GOBASE)/../dist
 GOENVVARS := GOBIN=$(GOBIN)
 GOBINARY := zkevm-node
-GOCMD := $(GOBASE)/cmd
+GOCMD := $(GOBASE)
 
 .PHONY: build
 build: ## Builds the binary locally into ./dist
 	$(GOENVVARS) go build $(LDFLAGS) -o $(GOBIN)/$(GOBINARY) $(GOCMD)
-
-.PHONY: build-docker
-build-docker: ## Builds a docker image with the node binary
-	docker build -t zkevm-node -f ./Dockerfile .
-
-.PHONY: build-docker-nc
-build-docker-nc: ## Builds a docker image with the node binary - but without build cache
-	docker build --no-cache=true -t zkevm-node -f ./Dockerfile .
 
 .PHONY: install-linter
 install-linter: ## Installs the linter
