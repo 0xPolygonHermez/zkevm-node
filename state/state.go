@@ -146,16 +146,12 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		return 0, err
 	}
 
-	if lowEnd == ethTransferGas {
-		reducePrecision = true
-
-		if transaction.To() != nil {
-			code, err := s.tree.GetCode(ctx, *transaction.To(), l2BlockStateRoot.Bytes())
-			if err != nil {
-				log.Warnf("error while getting transaction.to() code %v", err)
-			} else if len(code) == 0 {
-				return lowEnd, nil
-			}
+	if lowEnd == ethTransferGas && transaction.To() != nil {
+		code, err := s.tree.GetCode(ctx, *transaction.To(), l2BlockStateRoot.Bytes())
+		if err != nil {
+			log.Warnf("error while getting transaction.to() code %v", err)
+		} else if len(code) == 0 {
+			return lowEnd, nil
 		}
 	}
 
