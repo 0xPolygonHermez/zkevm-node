@@ -45,7 +45,7 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 			tx *types.Transaction
 			err error
 		)
-		if nonce.Cmp(big.NewInt(0)) == 1 {
+		if nonce.Uint64() > 0 {
 			tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nonce)
 		} else {
 			tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nil)
@@ -55,7 +55,7 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 				attempts, 0, err)
 			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 			attempts++
-			if nonce.Cmp(big.NewInt(0)) == 1 {
+			if nonce.Uint64() > 0 {
 				tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nonce)
 			} else {
 				tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nil)
