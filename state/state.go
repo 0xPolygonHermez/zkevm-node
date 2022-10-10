@@ -402,6 +402,40 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, t
 	return result, nil
 }
 
+// ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
+func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+	if dbTx == nil {
+		return nil, ErrDBTxNil
+	}
+
+	// Get batch from the database to get GER and Timestamp
+	lastBatch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get previous batch to get state root and local exit root
+	previousBatch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber-1, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:         lastBatch.BatchNumber,
+		Coinbase:         lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     previousBatch.StateRoot.Bytes(),
+		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree: cFalse,
+		ChainId:          s.cfg.ChainID,
+	}
+
+	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
+}
+
 func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
@@ -444,6 +478,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 	}
+
 	// Send Batch to the Executor
 	log.Debugf("processBatch[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
 	// log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
