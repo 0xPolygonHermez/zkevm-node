@@ -120,7 +120,6 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 
 // EstimateGas for a transaction
 func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error) {
-
 	const ethTransferGas = 21000
 
 	var lowEnd uint64
