@@ -120,8 +120,11 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 
 // EstimateGas for a transaction
 func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error) {
+	const ethTransferGas = 21000
+
 	var lowEnd uint64
 	var highEnd uint64
+
 	ctx := context.Background()
 
 	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
@@ -141,6 +144,15 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	lowEnd, err = core.IntrinsicGas(transaction.Data(), transaction.AccessList(), s.isContractCreation(transaction), true, false)
 	if err != nil {
 		return 0, err
+	}
+
+	if lowEnd == ethTransferGas && transaction.To() != nil {
+		code, err := s.tree.GetCode(ctx, *transaction.To(), l2BlockStateRoot.Bytes())
+		if err != nil {
+			log.Warnf("error while getting transaction.to() code %v", err)
+		} else if len(code) == 0 {
+			return lowEnd, nil
+		}
 	}
 
 	if transaction.Gas() != 0 && transaction.Gas() > lowEnd {
