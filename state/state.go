@@ -295,7 +295,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		lowEnd = gasUsed
 	}
 
-	highEnd = (gasUsed * three) / uint64(two)
+	if gasUsed > 0 {
+		highEnd = (gasUsed * three) / uint64(two)
+	}
 
 	// Start the binary search for the lowest possible gas price
 	for (lowEnd < highEnd) && (highEnd-lowEnd) > 4096 {
@@ -323,10 +325,12 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 	}
 
-	log.Debugf("EstimateGas executed the TX %v times", len(txExecutions))
-	averageExecutionTime := totalExecutionTime.Milliseconds() / int64(len(txExecutions))
-	log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
-
+	executions := int64(len(txExecutions))
+	if executions > 0 {
+		log.Debugf("EstimateGas executed the TX %v times", executions)
+		averageExecutionTime := totalExecutionTime.Milliseconds() / executions
+		log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
+	}
 	return highEnd, nil
 }
 
