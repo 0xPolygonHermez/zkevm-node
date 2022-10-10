@@ -188,7 +188,7 @@ func Test_GetPendingTxs(t *testing.T) {
 
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
+		tx := types.NewTransaction(uint64(i), common.HexToAddress("0x123"), big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
@@ -921,7 +921,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 func newState(sqlDB *pgxpool.Pool) *state.State {
 	ctx := context.Background()
 	stateDb := state.NewPostgresStorage(sqlDB)
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.216.26")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
