@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -166,7 +167,7 @@ func (p *PostgresPoolStorage) GetPendingTxHashesSince(ctx context.Context, since
 }
 
 // GetTxs gets txs with the lowest nonce
-func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, limit uint64) ([]*pool.Transaction, error) {
+func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxStatus, isClaims bool, minGasPrice, limit uint64) ([]*pool.Transaction, error) {
 	query := `
 		SELECT
 			encoded,
@@ -184,11 +185,43 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		FROM
 			pool.txs p1
 		WHERE 
-			status = $1
+			status = $1 AND
+			gas_price >= $2 AND
+			is_claims = $3
 		ORDER BY 
 			nonce ASC
-		LIMIT $2
+		LIMIT $4
 	`
+
+	if filterStatus == pool.TxStatusFailed {
+		query = `
+		SELECT * FROM (
+			SELECT
+				encoded,
+				status,
+				cumulative_gas_used,
+				used_keccak_hashes,
+				used_poseidon_hashes,
+				used_poseidon_paddings,
+				used_mem_aligns,
+				used_arithmetics,
+				used_binaries,
+				used_steps,
+				received_at,
+				nonce
+			FROM
+				pool.txs p1
+			WHERE
+				status = $1 AND
+				gas_price >= $2 AND 
+				is_claims = $3
+			ORDER BY 
+				failed_counter ASC
+			LIMIT $4
+			) as tmp
+		ORDER BY nonce ASC
+		`
+	}
 
 	var (
 		encoded, status   string
@@ -200,7 +233,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		nonce uint64
 	)
 
-	args := []interface{}{filterStatus, limit}
+	args := []interface{}{filterStatus, minGasPrice, isClaims, limit}
 
 	rows, err := p.db.Query(ctx, query, args...)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -373,6 +406,34 @@ func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from com
 	return txs, nil
 }
 
+// GetTxFromAddressFromByHash gets tx from address by hash
+func (p *PostgresPoolStorage) GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error) {
+	query := `SELECT from_address, nonce
+			  FROM pool.txs
+			  WHERE hash = $1
+	`
+
+	var (
+		fromAddr string
+		nonce    uint64
+	)
+	err := p.db.QueryRow(ctx, query, hash.String()).Scan(&fromAddr, &nonce)
+	if err != nil {
+		return common.Address{}, 0, err
+	}
+
+	return common.HexToAddress(fromAddr), nonce, nil
+}
+
+// IncrementFailedCounter increment for failed txs failed counter
+func (p *PostgresPoolStorage) IncrementFailedCounter(ctx context.Context, hashes []string) error {
+	sql := "UPDATE pool.txs SET failed_counter = failed_counter + 1 WHERE hash = ANY ($1)"
+	if _, err := p.db.Exec(ctx, sql, hashes); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetNonce gets the nonce to the provided address accordingly to the txs in the pool
 func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Address) (uint64, error) {
 	sql := `SELECT MAX(nonce)
@@ -406,6 +467,39 @@ func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Addre
 	}
 
 	return *nonce, nil
+}
+
+// GetTxByHash gets a transaction in the pool by its hash
+func (p *PostgresPoolStorage) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+	var (
+		encoded, status string
+		receivedAt      time.Time
+	)
+
+	sql := `SELECT encoded, status, received_at
+	          FROM pool.txs
+			 WHERE hash = $1`
+	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&encoded, &status, &receivedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	b, err := hex.DecodeHex(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+	return &pool.Transaction{
+		ReceivedAt:  receivedAt,
+		Status:      pool.TxStatus(status),
+		Transaction: *tx,
+	}, nil
 }
 
 func scanTx(rows pgx.Rows) (*pool.Transaction, error) {

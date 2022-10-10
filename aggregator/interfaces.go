@@ -31,7 +31,8 @@ type aggregatorTxProfitabilityChecker interface {
 }
 
 // proverClient is a wrapper to the prover service
-type proverClient interface {
+type proverClientInterface interface {
+	IsIdle(ctx context.Context) bool
 	GetGenProofID(ctx context.Context, inputProver *pb.InputProver) (string, error)
 	GetResGetProof(ctx context.Context, genProofID string, batchNumber uint64) (*pb.GetProofResponse, error)
 }
@@ -41,4 +42,9 @@ type stateInterface interface {
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error)
 	GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
+	AddGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error
+	UpdateGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error
+	GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*pb.GetProofResponse, error)
+	DeleteGeneratedProof(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+	DeleteProofs(ctx context.Context, dbTx pgx.Tx) error
 }

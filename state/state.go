@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,11 +19,13 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/js"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
 	"github.com/jackc/pgx/v4"
@@ -30,10 +33,11 @@ import (
 
 const (
 	// Size of the memory in bytes reserved by the zkEVM
-	zkEVMReservedMemorySize int  = 128
-	two                     uint = 2
-	cTrue                        = 1
-	cFalse                       = 0
+	zkEVMReservedMemorySize int    = 128
+	two                     uint   = 2
+	three                   uint64 = 3
+	cTrue                          = 1
+	cFalse                         = 0
 )
 
 var (
@@ -116,8 +120,11 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 
 // EstimateGas for a transaction
 func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error) {
+	const ethTransferGas = 21000
+
 	var lowEnd uint64
 	var highEnd uint64
+
 	ctx := context.Background()
 
 	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
@@ -137,6 +144,15 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	lowEnd, err = core.IntrinsicGas(transaction.Data(), transaction.AccessList(), s.isContractCreation(transaction), true, false)
 	if err != nil {
 		return 0, err
+	}
+
+	if lowEnd == ethTransferGas && transaction.To() != nil {
+		code, err := s.tree.GetCode(ctx, *transaction.To(), l2BlockStateRoot.Bytes())
+		if err != nil {
+			log.Warnf("error while getting transaction.to() code %v", err)
+		} else if len(code) == 0 {
+			return lowEnd, nil
+		}
 	}
 
 	if transaction.Gas() != 0 && transaction.Gas() > lowEnd {
@@ -182,7 +198,8 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	// Run the transaction with the specified gas value.
 	// Returns a status indicating if the transaction failed, if it was reverted and the accompanying error
-	testTransaction := func(gas uint64, shouldOmitErr bool) (bool, bool, error) {
+	testTransaction := func(gas uint64, shouldOmitErr bool) (bool, bool, uint64, error) {
+		var gasUsed uint64
 		tx := types.NewTx(&types.LegacyTx{
 			Nonce:    transaction.Nonce(),
 			To:       transaction.To(),
@@ -195,7 +212,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID)
 		if err != nil {
 			log.Errorf("error encoding unsigned transaction ", err)
-			return false, false, err
+			return false, false, gasUsed, err
 		}
 
 		// Create a batch to be sent to the executor
@@ -209,6 +226,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 			Coinbase:         lastBatch.Coinbase.String(),
 			UpdateMerkleTree: cFalse,
+			ChainId:          s.cfg.ChainID,
 		}
 
 		log.Debugf("EstimateGas[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
@@ -220,11 +238,15 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		log.Debugf("EstimateGas[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 		log.Debugf("EstimateGas[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 		log.Debugf("EstimateGas[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+		log.Debugf("EstimateGas[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 
+		txExecutionOnExecutorTime := time.Now()
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+		gasUsed = processBatchResponse.Responses[0].GasUsed
+		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 		if err != nil {
 			log.Errorf("error processing unsigned transaction ", err)
-			return false, false, err
+			return false, false, gasUsed, err
 		}
 
 		// Check if an out of gas error happened during EVM execution
@@ -235,28 +257,58 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 				// Specifying the transaction failed, but not providing an error
 				// is an indication that a valid error occurred due to low gas,
 				// which will increase the lower bound for the search
-				return true, false, nil
+				return true, false, gasUsed, nil
 			}
 
 			if isEVMRevertError(err) {
 				// The EVM reverted during execution, attempt to extract the
 				// error message and return it
-				return true, true, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
+				return true, true, gasUsed, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
 			}
 
-			return true, false, err
+			return true, false, gasUsed, err
 		}
 
-		return false, false, nil
+		return false, false, gasUsed, nil
 	}
 
+	txExecutions := []time.Duration{}
+	var totalExecutionTime time.Duration
+
+	// Check if the highEnd is a good value to make the transaction pass
+	failed, reverted, gasUsed, err := testTransaction(highEnd, false)
+	log.Debugf("Estimate gas. Trying to execute TX with %v gas", highEnd)
+	if failed {
+		if reverted {
+			return 0, err
+		}
+
+		// The transaction shouldn't fail, for whatever reason, at highEnd
+		return 0, fmt.Errorf(
+			"unable to apply transaction even for the highest gas limit %d: %w",
+			highEnd,
+			err,
+		)
+	}
+
+	if lowEnd < gasUsed {
+		lowEnd = gasUsed
+	}
+
+	highEnd = (gasUsed * three) / uint64(two)
+
 	// Start the binary search for the lowest possible gas price
-	for lowEnd < highEnd {
+	for (lowEnd < highEnd) && (highEnd-lowEnd) > 4096 {
+		txExecutionStart := time.Now()
 		mid := (lowEnd + highEnd) / uint64(two)
 
-		failed, _, testErr := testTransaction(mid, true)
-		if testErr != nil &&
-			!isEVMRevertError(testErr) {
+		log.Debugf("Estimate gas. Trying to execute TX with %v gas", mid)
+
+		failed, reverted, _, testErr := testTransaction(mid, true)
+		executionTime := time.Since(txExecutionStart)
+		totalExecutionTime += executionTime
+		txExecutions = append(txExecutions, executionTime)
+		if testErr != nil && !reverted {
 			// Reverts are ignored in the binary search, but are checked later on
 			// during the execution for the optimal gas limit found
 			return 0, testErr
@@ -271,20 +323,10 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 	}
 
-	// Check if the highEnd is a good value to make the transaction pass
-	failed, reverted, err := testTransaction(highEnd, false)
-	if failed {
-		if reverted {
-			return 0, err
-		}
+	log.Debugf("EstimateGas executed the TX %v times", len(txExecutions))
+	averageExecutionTime := totalExecutionTime.Milliseconds() / int64(len(txExecutions))
+	log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
 
-		// The transaction shouldn't fail, for whatever reason, at highEnd
-		return 0, fmt.Errorf(
-			"unable to apply transaction even for the highest gas limit %d: %w",
-			highEnd,
-			err,
-		)
-	}
 	return highEnd, nil
 }
 
@@ -360,6 +402,40 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, t
 	return result, nil
 }
 
+// ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
+func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+	if dbTx == nil {
+		return nil, ErrDBTxNil
+	}
+
+	// Get batch from the database to get GER and Timestamp
+	lastBatch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get previous batch to get state root and local exit root
+	previousBatch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber-1, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:         lastBatch.BatchNumber,
+		Coinbase:         lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     previousBatch.StateRoot.Bytes(),
+		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree: cFalse,
+		ChainId:          s.cfg.ChainID,
+	}
+
+	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
+}
+
 func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
@@ -400,7 +476,9 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cTrue,
+		ChainId:          s.cfg.ChainID,
 	}
+
 	// Send Batch to the Executor
 	log.Debugf("processBatch[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
 	// log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
@@ -411,6 +489,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	log.Debugf("processBatch[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("processBatch[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("processBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+	log.Debugf("processBatch[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
 	log.Infof("It took %v for the executor to process the request", time.Since(now))
@@ -514,7 +593,7 @@ func (s *State) isBatchClosable(ctx context.Context, receipt ProcessingReceipt, 
 }
 
 // closeSynchronizedBatch is used by Synchronizer to close the current batch.
-func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingReceipt, txs []types.Transaction, dbTx pgx.Tx) error {
+func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingReceipt, batchL2Data []byte, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
@@ -524,14 +603,18 @@ func (s *State) closeSynchronizedBatch(ctx context.Context, receipt ProcessingRe
 		return err
 	}
 
-	if len(txs) == 0 {
-		return ErrClosingBatchWithoutTxs
-	}
+	// TODO: Modification done to bypass situation detected during testnet testing
+	// Further analysis is needed
+	/*
+		if len(txs) == 0 {
+			return ErrClosingBatchWithoutTxs
+		}
+	*/
 
-	batchL2Data, err := EncodeTransactions(txs)
-	if err != nil {
-		return err
-	}
+	// batchL2Data, err := EncodeTransactions(txs)
+	// if err != nil {
+	// 	return err
+	// }
 
 	return s.PostgresStorage.closeBatch(ctx, receipt, batchL2Data, dbTx)
 }
@@ -631,7 +714,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
-	}, decodedTransactions, dbTx)
+	}, encodedTxs, dbTx)
 }
 
 // GetLastBatch gets latest batch (closed or not) on the data base
@@ -647,9 +730,159 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 }
 
 // DebugTransaction re-executes a tx to generate its trace
-func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string) (*runtime.ExecutionResult, error) {
-	// TODO: Implement
-	return new(runtime.ExecutionResult), nil
+func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Hash, tracer string, dbTx pgx.Tx) (*runtime.ExecutionResult, error) {
+	result := new(runtime.ExecutionResult)
+
+	// Get the transaction
+	tx, err := s.GetTransactionByHash(ctx, transactionHash, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get batch including the transaction
+	batch, err := s.GetBatchByTxHash(ctx, transactionHash, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// The previous batch to get OldStateRoot and GlobalExitRoot
+	pBatch, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	batchL2Data := batch.BatchL2Data
+	if batchL2Data == nil {
+		txs, err := s.GetTransactionsByBatchNumber(ctx, batch.BatchNumber, dbTx)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, tx := range txs {
+			log.Debugf(tx.Hash().String())
+		}
+
+		batchL2Data, err = EncodeTransactions(txs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:                  batch.BatchNumber,
+		BatchL2Data:               batchL2Data,
+		OldStateRoot:              pBatch.StateRoot.Bytes(),
+		GlobalExitRoot:            batch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot:          pBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:              uint64(batch.Timestamp.Unix()),
+		Coinbase:                  batch.Coinbase.String(),
+		UpdateMerkleTree:          cFalse,
+		TxHashToGenerateCallTrace: transactionHash.Bytes(),
+	}
+
+	// Send Batch to the Executor
+	startTime := time.Now()
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	if err != nil {
+		return nil, err
+	}
+	endTime := time.Now()
+
+	txs, _, err := DecodeTxs(batchL2Data)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, tx := range txs {
+		log.Debugf(tx.Hash().String())
+	}
+
+	convertedResponse, err := convertToProcessBatchResponse(txs, processBatchResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	var response *ProcessTransactionResponse
+
+	// Get the response for the tx
+	for _, response = range convertedResponse.Responses {
+		log.Debugf(response.TxHash.String())
+		if response.TxHash == transactionHash {
+			break
+		}
+	}
+
+	// Sanity check
+	if response.TxHash != transactionHash {
+		return nil, fmt.Errorf("tx hash not found in executor response")
+	}
+
+	result.CreateAddress = response.CreateAddress
+	result.GasLeft = response.GasLeft
+	result.GasUsed = response.GasUsed
+	result.ReturnValue = response.ReturnValue
+	result.StateRoot = response.StateRoot.Bytes()
+	result.StructLogs = response.ExecutionTrace
+
+	if tracer == "" {
+		return result, nil
+	}
+
+	// Parse the executor-like trace using the FakeEVM
+	jsTracer, err := js.NewJsTracer(tracer, new(tracers.Context))
+	if err != nil {
+		log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
+		return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)
+	}
+
+	context := instrumentation.Context{}
+
+	// Fill trace context
+	if tx.To() == nil {
+		context.Type = "CREATE"
+		context.To = result.CreateAddress.Hex()
+	} else {
+		context.Type = "CALL"
+		context.To = tx.To().Hex()
+	}
+
+	senderAddress, err := GetSender(*tx)
+	if err != nil {
+		return nil, err
+	}
+
+	context.From = senderAddress.String()
+	context.Input = "0x" + hex.EncodeToString(tx.Data())
+	context.Gas = strconv.FormatUint(tx.Gas(), encoding.Base10)
+	context.Value = tx.Value().String()
+	context.Output = "0x" + hex.EncodeToString(result.ReturnValue)
+	context.GasPrice = tx.GasPrice().String()
+	context.OldStateRoot = batch.StateRoot.String()
+	context.Time = uint64(endTime.Sub(startTime))
+	context.GasUsed = strconv.FormatUint(result.GasUsed, encoding.Base10)
+
+	result.ExecutorTrace.Context = context
+
+	gasPrice, ok := new(big.Int).SetString(context.GasPrice, encoding.Base10)
+	if !ok {
+		log.Errorf("debug transaction: failed to parse gasPrice")
+		return nil, fmt.Errorf("failed to parse gasPrice")
+	}
+
+	env := fakevm.NewFakeEVM(vm.BlockContext{BlockNumber: big.NewInt(1)}, vm.TxContext{GasPrice: gasPrice}, params.TestChainConfig, fakevm.Config{Debug: true, Tracer: jsTracer})
+	fakeDB := &FakeDB{State: s, stateRoot: batch.StateRoot.Bytes()}
+	env.SetStateDB(fakeDB)
+
+	traceResult, err := s.ParseTheTraceUsingTheTracer(env, result.ExecutorTrace, jsTracer)
+	if err != nil {
+		log.Errorf("debug transaction: failed parse the trace using the tracer: %v", err)
+		return nil, fmt.Errorf("failed parse the trace using the tracer: %v", err)
+	}
+
+	result.ExecutorTraceResult = traceResult
+
+	return result, nil
 }
 
 // ParseTheTraceUsingTheTracer parses the given trace with the given tracer.
@@ -792,7 +1025,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
+func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult {
 	result := new(runtime.ExecutionResult)
 
 	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
@@ -828,6 +1061,11 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		Coinbase:         lastBatch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
+		ChainId:          s.cfg.ChainID,
+	}
+
+	if noZKEVMCounters {
+		processBatchRequest.NoCounters = cTrue
 	}
 
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
@@ -839,6 +1077,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 
 	// Send Batch to the Executor
 	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)

@@ -1,3 +1,5 @@
+> WARNING: This documentation is outdated, it will be updated soon
+
 # Steps to run environment locally
 
 ## Overview

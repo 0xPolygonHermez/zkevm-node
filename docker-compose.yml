@@ -28,7 +28,9 @@ services:
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
+      - ./test/test.keystore:/pk/keystore
       - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
     command:
       - "/bin/sh"
@@ -45,7 +47,9 @@ services:
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
+      - ./test/test.keystore:/pk/keystore
       - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
     command:
       - "/bin/sh"
@@ -204,7 +208,9 @@ services:
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_PORT=8124
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
+      - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
     command:
       - "/bin/sh"
@@ -224,15 +230,14 @@ services:
 
   zkevm-mock-l1-network:
     container_name: zkevm-mock-l1-network
-    image: hermeznetwork/geth-zkevm-contracts@sha256:b88d03a42ef4975d0b92c0dd192e1bf4d673fc4b761aaf4bcfdd606989c1b006
+    image: hermeznetwork/geth-zkevm-contracts@sha256:24754a773b803ce0de8278c02bb756757b09fda65dc993e560a0b76a09b88248
     ports:
       - 8545:8545
-    command: ["--http", "--http.api", "admin,eth,debug,miner,net,txpool,personal,web3",  "--http.addr", "0.0.0.0","--http.corsdomain", "*", "--http.vhosts" ,"*", "--ws", "--ws.origins", "*", "--ws.addr", "0.0.0.0", "--dev", "--datadir", "/geth_data"]
+    command: ["--http", "--http.api", "admin,eth,debug,miner,net,txpool,personal,web3",  "--http.addr", "0.0.0.0","--http.corsdomain", "*", "--http.vhosts" ,"*", "--ws", "--ws.origins", "*", "--ws.addr", "0.0.0.0", "--dev", "--datadir", "/geth_data", "--syncmode", "full"]
 
   zkevm-prover:
     container_name: zkevm-prover
-    #image: hermeznetwork/zkprover-local@sha256:7afb29d1922e7312da2bf5a6d844266c9702c61506d15243506483b7e3a2fde3
-    image: hermeznetwork/zkevm-prover:develop@sha256:ec7401b7eb52239118c54feba75a4131b14084ccc1ac0c6578e85db10023f0ac
+    image: hermeznetwork/zkevm-prover:develop@sha256:408855e37f4751260bfb206e6aeb3b53c773a1615e8d675166b3647770700701
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover

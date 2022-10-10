@@ -21,8 +21,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
-	"github.com/0xPolygonHermez/zkevm-node/proverclient"
-	proverclientpb "github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
@@ -34,7 +32,6 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 func start(cliCtx *cli.Context) error {
@@ -49,10 +46,6 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	ctx := context.Background()
-
-	st := newState(ctx, c, stateSqlDB)
-
 	var (
 		grpcClientConns []*grpc.ClientConn
 		cancelFuncs     []context.CancelFunc
@@ -61,25 +54,41 @@ func start(cliCtx *cli.Context) error {
 
 	if strings.Contains(cliCtx.String(config.FlagComponents), AGGREGATOR) ||
 		strings.Contains(cliCtx.String(config.FlagComponents), SEQUENCER) ||
-		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) {
+		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) ||
+		strings.Contains(cliCtx.String(config.FlagComponents), RPC) {
 		var err error
 		etherman, err = newEtherman(*c)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		// READ CHAIN ID FROM POE SC
+		chainID, err := etherman.GetL2ChainID()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		c.NetworkConfig.L2ChainID = chainID
+		log.Infof("Chain ID read from POE SC = %v", c.NetworkConfig.L2ChainID)
 	}
 
+	ctx := context.Background()
+	st := newState(ctx, c, stateSqlDB)
+
 	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman)
-	proverClient, proverConn := newProverClient(c.Prover)
+
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
 		switch item {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
-			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, proverClient, st)
+			c.Aggregator.ChainID = c.NetworkConfig.L2ChainID
+			c.Aggregator.ProverURIs = c.Provers.ProverURIs
+			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, st, grpcClientConns)
 		case SEQUENCER:
 			log.Info("Running sequencer")
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig, st)
-			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager)
+			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
+			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager, gpe)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
@@ -99,8 +108,6 @@ func start(cliCtx *cli.Context) error {
 			go runBroadcastServer(c.BroadcastServer, st)
 		}
 	}
-
-	grpcClientConns = append(grpcClientConns, proverConn)
 
 	waitSignal(grpcClientConns, cancelFuncs)
 
@@ -167,40 +174,25 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 }
 
 func createSequencer(c config.Config, pool *pool.Pool, state *state.State, etherman *etherman.Client,
-	ethTxManager *ethtxmanager.Client) *sequencer.Sequencer {
+	ethTxManager *ethtxmanager.Client, gpe gasPriceEstimator) *sequencer.Sequencer {
 	pg, err := pricegetter.NewClient(c.PriceGetter)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, ethTxManager)
+	seq, err := sequencer.New(c.Sequencer, pool, state, etherman, pg, ethTxManager, gpe)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return seq
 }
 
-func runAggregator(ctx context.Context, c aggregator.Config, ethman *etherman.Client, ethTxManager *ethtxmanager.Client,
-	proverClient proverclientpb.ZKProverServiceClient, state *state.State) {
-	agg, err := aggregator.NewAggregator(c, state, ethTxManager, ethman, proverClient)
+func runAggregator(ctx context.Context, c aggregator.Config, ethman *etherman.Client, ethTxManager *ethtxmanager.Client, state *state.State, grpcClientConns []*grpc.ClientConn) {
+	agg, err := aggregator.NewAggregator(c, state, ethTxManager, ethman, grpcClientConns)
 	if err != nil {
 		log.Fatal(err)
 	}
 	agg.Start(ctx)
-}
-
-func newProverClient(c proverclient.Config) (proverclientpb.ZKProverServiceClient, *grpc.ClientConn) {
-	opts := []grpc.DialOption{
-		// TODO: once we have user and password for prover server, change this
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	proverConn, err := grpc.Dial(c.ProverURI, opts...)
-	if err != nil {
-		log.Fatalf("fail to dial: %v", err)
-	}
-
-	proverClient := proverclientpb.NewZKProverServiceClient(proverConn)
-	return proverClient, proverConn
 }
 
 func runBroadcastServer(c broadcast.ServerConfig, st *state.State) {
@@ -304,6 +296,6 @@ func createPool(poolDBConfig db.Config, networkConfig config.NetworkConfig, st *
 	if err != nil {
 		log.Fatal(err)
 	}
-	poolInstance := pool.NewPool(poolStorage, st, networkConfig.L2GlobalExitRootManagerAddr)
+	poolInstance := pool.NewPool(poolStorage, st, networkConfig.L2BridgeAddr, networkConfig.L2ChainID)
 	return poolInstance
 }

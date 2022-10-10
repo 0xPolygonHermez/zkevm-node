@@ -36,6 +36,9 @@ MaxSendBatchTxRetries = 10
 MaxVerifyBatchTxRetries = 10
 FrequencyForResendingFailedSendBatches = "1s"
 FrequencyForResendingFailedVerifyBatch = "1s"
+WaitTxToBeMined = "2m"
+PercentageToIncreaseGasPrice = 10
+PercentageToIncreaseGasLimit = 10
 
 [RPC]
 Host = "0.0.0.0"
@@ -59,6 +62,7 @@ SyncChunkSize = 100
 TrustedSequencerURI = ""
 
 [Sequencer]
+MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "300s"

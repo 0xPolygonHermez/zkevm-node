@@ -288,11 +288,11 @@ func translateTransactionContext(ctx *testvector.TransactionContext) (*pb.Transa
 		To:            ctx.To,
 		Data:          common.Hex2Bytes(ctx.Data),
 		Gas:           gas,
-		Value:         value,
+		Value:         new(big.Int).SetUint64(value).String(),
 		GasUsed:       gasUsed,
 		Batch:         common.Hex2Bytes(ctx.Batch),
 		Output:        common.Hex2Bytes(ctx.Output),
-		GasPrice:      gasPrice,
+		GasPrice:      new(big.Int).SetUint64(gasPrice).String(),
 		ExecutionTime: uint32(executionTime),
 		OldStateRoot:  common.Hex2Bytes(ctx.OldStateRoot),
 	}, nil
@@ -405,7 +405,7 @@ func translateContract(contract *testvector.Contract) (*pb.Contract, error) {
 		Address: contract.Address,
 		Caller:  contract.Caller,
 		Data:    common.Hex2Bytes(contract.Data),
-		Value:   value,
+		Value:   new(big.Int).SetUint64(value).String(),
 		Gas:     gas,
 	}, nil
 }

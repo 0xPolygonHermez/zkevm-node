@@ -34,7 +34,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
   "localExitRootStoragePosition":  1,
   "oldStateRootPosition":          0,
   "l1ChainID":                     5,
-  "l2ChainID":                     1000,
 
   "genesis": [
     {
@@ -86,7 +85,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				LocalExitRootStoragePosition:  1,
 				OldStateRootPosition:          0,
 				L1ChainID:                     5,
-				L2ChainID:                     1000,
 				Genesis: state.Genesis{
 					Actions: []*state.GenesisAction{
 						{
@@ -163,7 +161,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
   "localExitRootStoragePosition": 2,
   "oldStateRootPosition": 0,
   "l1ChainID":        1337,
-  "l2ChainID":        1000,
   "genesis": [
     {
       "address": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
@@ -191,7 +188,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				LocalExitRootStoragePosition:  2,
 				OldStateRootPosition:          0,
 				L1ChainID:                     1337,
-				L2ChainID:                     1000,
 				Genesis: state.Genesis{
 					Actions: []*state.GenesisAction{
 						{
@@ -253,7 +249,6 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 			require.Equal(t, tc.expectedConfig.LocalExitRootStoragePosition, actualConfig.LocalExitRootStoragePosition)
 			require.Equal(t, tc.expectedConfig.OldStateRootPosition, actualConfig.OldStateRootPosition)
 			require.Equal(t, tc.expectedConfig.L1ChainID, actualConfig.L1ChainID)
-			require.Equal(t, tc.expectedConfig.L2ChainID, actualConfig.L2ChainID)
 
 			require.Equal(t, tc.expectedConfig.Genesis.Actions, actualConfig.Genesis.Actions)
 		})
@@ -301,11 +296,9 @@ func TestMergeNetworkConfig(t *testing.T) {
 			inputBaseConfig: NetworkConfig{
 				PoEAddr:   common.HexToAddress("0xb1Fe4a65D3392df68F96daC8eB4df56B2411afBf"),
 				L1ChainID: 5,
-				L2ChainID: 1000,
 			},
 			expectedOutputConfig: NetworkConfig{
 				L1ChainID:      5,
-				L2ChainID:      1000,
 				GenBlockNumber: 300,
 				PoEAddr:        common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
 				MaticAddr:      common.HexToAddress("0x1D217d81831009a5fE44C9a1Ee2480e48830CbD4"),

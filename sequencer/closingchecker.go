@@ -12,6 +12,11 @@ import (
 // in case it's enough blocks since last GER update, long time since last batch and sequence is profitable
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	// Check if sequence is full
+	if s.isSequenceTooBig {
+		log.Infof("current sequence should be closed because it has reached the maximum data size")
+		s.isSequenceTooBig = false
+		return true
+	}
 	if len(s.sequenceInProgress.Txs) == int(maxTxsPerBatch) {
 		log.Infof("current sequence should be closed because it has reached the maximum capacity (%d txs)", maxTxsPerBatch)
 		return true
@@ -70,9 +75,14 @@ func (s *Sequencer) shouldCloseDueToNewDeposits(ctx context.Context) (bool, erro
 // shouldCloseTooLongSinceLastVirtualized returns true if last batch virtualization happened
 // more than MaxTimeForBatchToBeOpen ago and there are transactions in the current sequence
 func (s *Sequencer) shouldCloseTooLongSinceLastVirtualized(ctx context.Context) (bool, error) {
-	isPreviousBatchVirtualized, err := s.state.IsBatchVirtualized(ctx, s.lastBatchNum-1, nil)
+	lastBatchNumber, err := s.state.GetLastBatchNumber(ctx, nil)
 	if err != nil {
-		log.Errorf("failed to get last virtual batch num, err: %v", err)
+		log.Errorf("failed to get last batch number, err: %w", err)
+		return false, err
+	}
+	isPreviousBatchVirtualized, err := s.state.IsBatchVirtualized(ctx, lastBatchNumber-1, nil)
+	if err != nil {
+		log.Errorf("failed to get last virtual batch num, err: %w", err)
 		return false, err
 	}
 	if time.Unix(s.sequenceInProgress.Timestamp, 0).Add(s.cfg.MaxTimeForBatchToBeOpen.Duration).Before(time.Now()) &&
