@@ -25,15 +25,10 @@ import (
 )
 
 const (
-	defaultErrorCode        = -32000
-	invalidRequestErrorCode = -32600
-	notFoundErrorCode       = -32601
-	invalidParamsErrorCode  = -32602
-	parserErrorCode         = -32700
+	invalidParamsErrorCode = -32602
 )
 
 func TestMain(t *testing.T) {
-
 	var err error
 	err = operations.Teardown()
 	require.NoError(t, err)
@@ -375,7 +370,6 @@ func Test_Filters(t *testing.T) {
 }
 
 func Test_Gas(t *testing.T) {
-
 	var Address1 = common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff")
 	var Values = []*big.Int{
 		big.NewInt(1000),
@@ -512,11 +506,8 @@ func Test_Block(t *testing.T) {
 		require.Equal(t, receipt.BlockHash.String(), newTx.BlockHash)
 		require.Equal(t, hexutil.EncodeUint64(tx.Nonce()), newTx.Nonce)
 		require.Equal(t, hexutil.EncodeBig(tx.ChainId()), newTx.ChainID)
-
 	}
-
 }
-
 func Test_Transactions(t *testing.T) {
 
 }

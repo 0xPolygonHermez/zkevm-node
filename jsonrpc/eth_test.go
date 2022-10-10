@@ -3357,8 +3357,11 @@ func TestGetFilterLogs(t *testing.T) {
 					logs = append(logs, &l)
 				}
 
+				bn1 := BlockNumber(1)
+				bn2 := BlockNumber(2)
 				logFilter := LogFilter{
-					FromBlock: BlockNumber(1), ToBlock: BlockNumber(2),
+					FromBlock: &bn1,
+					ToBlock:   &bn2,
 					Addresses: []common.Address{common.HexToAddress("0x111")},
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
@@ -3390,7 +3393,7 @@ func TestGetFilterLogs(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLogs", context.Background(), uint64(logFilter.FromBlock), uint64(logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, since, m.DbTx).
+					On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, since, m.DbTx).
 					Return(logs, nil).
 					Once()
 			},
@@ -3734,8 +3737,10 @@ func TestGetFilterChanges(t *testing.T) {
 				tc.ExpectedErrors = append(tc.ExpectedErrors, nil)
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				bn1 := BlockNumber(1)
+				bn2 := BlockNumber(2)
 				logFilter := LogFilter{
-					FromBlock: BlockNumber(1), ToBlock: BlockNumber(2),
+					FromBlock: &bn1, ToBlock: &bn2,
 					Addresses: []common.Address{common.HexToAddress("0x111")},
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
@@ -3774,7 +3779,7 @@ func TestGetFilterChanges(t *testing.T) {
 				}
 
 				m.State.
-					On("GetLogs", context.Background(), uint64(logFilter.FromBlock), uint64(logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
+					On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
 					Return(logs, nil).
 					Once()
 
@@ -3806,7 +3811,7 @@ func TestGetFilterChanges(t *testing.T) {
 						}
 
 						m.State.
-							On("GetLogs", context.Background(), uint64(logFilter.FromBlock), uint64(logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
+							On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
 							Return(logs, nil).
 							Once()
 
@@ -3830,7 +3835,7 @@ func TestGetFilterChanges(t *testing.T) {
 									Once()
 
 								m.State.
-									On("GetLogs", context.Background(), uint64(logFilter.FromBlock), uint64(logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
+									On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
 									Return([]*types.Log{}, nil).
 									Once()
 
@@ -4049,8 +4054,11 @@ func TestGetFilterChanges(t *testing.T) {
 				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to get logs from state"))
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				bn1 := BlockNumber(1)
+				bn2 := BlockNumber(2)
 				logFilter := LogFilter{
-					FromBlock: BlockNumber(1), ToBlock: BlockNumber(2),
+
+					FromBlock: &bn1, ToBlock: &bn2,
 					Addresses: []common.Address{common.HexToAddress("0x111")},
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
@@ -4082,7 +4090,7 @@ func TestGetFilterChanges(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLogs", context.Background(), uint64(logFilter.FromBlock), uint64(logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
+					On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
 					Return(nil, errors.New("failed to get logs")).
 					Once()
 			},
@@ -4095,8 +4103,10 @@ func TestGetFilterChanges(t *testing.T) {
 				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to update last time the filter changes were requested"))
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
+				bn1 := BlockNumber(1)
+				bn2 := BlockNumber(2)
 				logFilter := LogFilter{
-					FromBlock: BlockNumber(1), ToBlock: BlockNumber(2),
+					FromBlock: &bn1, ToBlock: &bn2,
 					Addresses: []common.Address{common.HexToAddress("0x111")},
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
@@ -4129,7 +4139,7 @@ func TestGetFilterChanges(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLogs", context.Background(), uint64(logFilter.FromBlock), uint64(logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
+					On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
 					Return([]*types.Log{}, nil).
 					Once()
 
