@@ -311,7 +311,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 
 	// insert pending transactions
 	for i := 0; i < txsCount; i++ {
-		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10+int64(i)), []byte{})
+		tx := types.NewTransaction(uint64(i), common.HexToAddress("0x123"), big.NewInt(10), uint64(1), big.NewInt(10+int64(i)), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
@@ -321,7 +321,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 
 	txs, err := p.GetTxs(ctx, pool.TxStatusPending, false, 1, 10)
 	require.NoError(t, err)
-	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
+	// bcs it's sorted by gas price, tx with the highest gas price is expected here
 	assert.Equal(t, txs[0].Transaction.GasPrice(), big.NewInt(19))
 }
 

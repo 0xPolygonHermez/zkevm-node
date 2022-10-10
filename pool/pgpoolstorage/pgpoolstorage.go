@@ -189,16 +189,30 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			gas_price >= $2 AND
 			is_claims = $3
 		ORDER BY 
-			gas_price ASC
+			gas_price DESC
 		LIMIT $4
 	`
 
 	if filterStatus == pool.TxStatusFailed {
 		query = `
-		SELECT * FROM (
+		SELECT 
+		    	encoded,
+				status,
+				cumulative_gas_used,
+				used_keccak_hashes,
+				used_poseidon_hashes,
+				used_poseidon_paddings,
+				used_mem_aligns,
+				used_arithmetics,
+				used_binaries,
+				used_steps,
+				received_at,
+				nonce
+		    FROM (
 			SELECT
 				encoded,
 				status,
+				gas_price,
 				cumulative_gas_used,
 				used_keccak_hashes,
 				used_poseidon_hashes,
@@ -219,7 +233,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				failed_counter ASC
 			LIMIT $4
 			) as tmp
-		ORDER BY nonce ASC
+		ORDER BY gas_price DESC
 		`
 	}
 
