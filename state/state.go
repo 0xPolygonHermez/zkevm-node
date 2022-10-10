@@ -377,7 +377,7 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, t
 	if err != nil {
 		return nil, err
 	}
-	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, true, dbTx)
+	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +390,41 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, t
 	return result, nil
 }
 
-func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, updateState bool, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+// ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
+func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+	if dbTx == nil {
+		return nil, ErrDBTxNil
+	}
+
+	// Get batch from the database to get GER and Timestamp
+	lastBatch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get previous batch to get state root and local exit root
+	previousBatch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber-1, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:         lastBatch.BatchNumber,
+		Coinbase:         lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     previousBatch.StateRoot.Bytes(),
+		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree: cFalse,
+		ChainId:          s.cfg.ChainID,
+	}
+
+	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
+}
+
+func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -429,13 +463,8 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
-	}
-
-	if updateState {
-		processBatchRequest.UpdateMerkleTree = cTrue
-	} else {
-		processBatchRequest.UpdateMerkleTree = cFalse
 	}
 
 	// Send Batch to the Executor
@@ -632,7 +661,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
 		return err
 	}
-	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, true, dbTx)
+	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, dbTx)
 	if err != nil {
 		return err
 	}
