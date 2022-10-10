@@ -33,10 +33,11 @@ import (
 
 const (
 	// Size of the memory in bytes reserved by the zkEVM
-	zkEVMReservedMemorySize int  = 128
-	two                     uint = 2
-	cTrue                        = 1
-	cFalse                       = 0
+	zkEVMReservedMemorySize int    = 128
+	two                     uint   = 2
+	three                   uint64 = 3
+	cTrue                          = 1
+	cFalse                         = 0
 )
 
 var (
@@ -185,7 +186,8 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	// Run the transaction with the specified gas value.
 	// Returns a status indicating if the transaction failed, if it was reverted and the accompanying error
-	testTransaction := func(gas uint64, shouldOmitErr bool) (bool, bool, error) {
+	testTransaction := func(gas uint64, shouldOmitErr bool) (bool, bool, uint64, error) {
+		var gasUsed uint64
 		tx := types.NewTx(&types.LegacyTx{
 			Nonce:    transaction.Nonce(),
 			To:       transaction.To(),
@@ -198,7 +200,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID)
 		if err != nil {
 			log.Errorf("error encoding unsigned transaction ", err)
-			return false, false, err
+			return false, false, gasUsed, err
 		}
 
 		// Create a batch to be sent to the executor
@@ -228,10 +230,11 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		txExecutionOnExecutorTime := time.Now()
 		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+		gasUsed = processBatchResponse.Responses[0].GasUsed
 		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 		if err != nil {
 			log.Errorf("error processing unsigned transaction ", err)
-			return false, false, err
+			return false, false, gasUsed, err
 		}
 
 		// Check if an out of gas error happened during EVM execution
@@ -242,34 +245,58 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 				// Specifying the transaction failed, but not providing an error
 				// is an indication that a valid error occurred due to low gas,
 				// which will increase the lower bound for the search
-				return true, false, nil
+				return true, false, gasUsed, nil
 			}
 
 			if isEVMRevertError(err) {
 				// The EVM reverted during execution, attempt to extract the
 				// error message and return it
-				return true, true, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
+				return true, true, gasUsed, constructErrorFromRevert(err, processBatchResponse.Responses[0].ReturnValue)
 			}
 
-			return true, false, err
+			return true, false, gasUsed, err
 		}
 
-		return false, false, nil
+		return false, false, gasUsed, nil
 	}
 
 	txExecutions := []time.Duration{}
 	var totalExecutionTime time.Duration
+
+	// Check if the highEnd is a good value to make the transaction pass
+	failed, reverted, gasUsed, err := testTransaction(highEnd, false)
+	log.Debugf("Estimate gas. Trying to execute TX with %v gas", highEnd)
+	if failed {
+		if reverted {
+			return 0, err
+		}
+
+		// The transaction shouldn't fail, for whatever reason, at highEnd
+		return 0, fmt.Errorf(
+			"unable to apply transaction even for the highest gas limit %d: %w",
+			highEnd,
+			err,
+		)
+	}
+
+	if lowEnd < gasUsed {
+		lowEnd = gasUsed
+	}
+
+	highEnd = (gasUsed * three) / uint64(two)
+
 	// Start the binary search for the lowest possible gas price
-	for lowEnd < highEnd {
+	for (lowEnd < highEnd) && (highEnd-lowEnd) > 4096 {
 		txExecutionStart := time.Now()
 		mid := (lowEnd + highEnd) / uint64(two)
 
-		failed, _, testErr := testTransaction(mid, true)
+		log.Debugf("Estimate gas. Trying to execute TX with %v gas", mid)
+
+		failed, reverted, _, testErr := testTransaction(mid, true)
 		executionTime := time.Since(txExecutionStart)
 		totalExecutionTime += executionTime
 		txExecutions = append(txExecutions, executionTime)
-		if testErr != nil &&
-			!isEVMRevertError(testErr) {
+		if testErr != nil && !reverted {
 			// Reverts are ignored in the binary search, but are checked later on
 			// during the execution for the optimal gas limit found
 			return 0, testErr
@@ -288,20 +315,6 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	averageExecutionTime := totalExecutionTime.Milliseconds() / int64(len(txExecutions))
 	log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
 
-	// Check if the highEnd is a good value to make the transaction pass
-	failed, reverted, err := testTransaction(highEnd, false)
-	if failed {
-		if reverted {
-			return 0, err
-		}
-
-		// The transaction shouldn't fail, for whatever reason, at highEnd
-		return 0, fmt.Errorf(
-			"unable to apply transaction even for the highest gas limit %d: %w",
-			highEnd,
-			err,
-		)
-	}
 	return highEnd, nil
 }
 
@@ -1009,7 +1022,7 @@ func (s *State) ParseTheTraceUsingTheTracer(env *fakevm.FakeEVM, trace instrumen
 }
 
 // ProcessUnsignedTransaction processes the given unsigned transaction.
-func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
+func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult {
 	result := new(runtime.ExecutionResult)
 
 	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
@@ -1046,6 +1059,10 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		Coinbase:         lastBatch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
 		ChainId:          s.cfg.ChainID,
+	}
+
+	if noZKEVMCounters {
+		processBatchRequest.NoCounters = cTrue
 	}
 
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)

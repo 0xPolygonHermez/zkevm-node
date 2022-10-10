@@ -1,7 +1,11 @@
 package sequencer
 
 import (
+	"fmt"
+	"math/big"
+
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	base "github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 )
 
@@ -55,4 +59,23 @@ type Config struct {
 
 	// ProfitabilityChecker configuration
 	ProfitabilityChecker profitabilitychecker.Config `mapstructure:"ProfitabilityChecker"`
+
+	// Maximum size, in gas size, a sequence can reach
+	MaxSequenceSize MaxSequenceSize `mapstructure:"MaxSequenceSize"`
+}
+
+// MaxSequenceSize is a wrapper type that parses token amount to big int
+type MaxSequenceSize struct {
+	*big.Int `validate:"required"`
+}
+
+// UnmarshalText unmarshal token amount from float string to big int
+func (m *MaxSequenceSize) UnmarshalText(data []byte) error {
+	amount, ok := new(big.Int).SetString(string(data), base.Base10)
+	if !ok {
+		return fmt.Errorf("failed to unmarshal string to float")
+	}
+	m.Int = amount
+
+	return nil
 }

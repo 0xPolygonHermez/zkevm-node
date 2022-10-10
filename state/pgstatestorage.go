@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -849,8 +849,6 @@ func (p *PostgresStorage) openBatch(ctx context.Context, batchContext Processing
 
 func (p *PostgresStorage) closeBatch(ctx context.Context, receipt ProcessingReceipt, rawTxs []byte, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
-	// TODO: temp for the debug
-	log.Infof("closing a batch and setting state root, NEWSTATEROOT: %s, BATCHNUM: %d", receipt.StateRoot.String(), receipt.BatchNumber)
 	_, err := e.Exec(ctx, closeBatchSQL, receipt.StateRoot.String(), receipt.LocalExitRoot.String(), rawTxs, receipt.BatchNumber)
 	return err
 }
@@ -1572,7 +1570,8 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 		 AND (l.topic1 = any($5) OR $5 IS NULL)
 		 AND (l.topic2 = any($6) OR $6 IS NULL)
 		 AND (l.topic3 = any($7) OR $7 IS NULL)
-		 AND (b.received_at >= $8 OR $8 IS NULL)`
+		 AND (b.received_at >= $8 OR $8 IS NULL)
+		ORDER BY b.block_num ASC`
 
 	var err error
 	var rows pgx.Rows
@@ -1702,4 +1701,56 @@ func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger c
 	}
 	exitRoot.GlobalExitRootNum = new(big.Int).SetUint64(globalNum)
 	return &exitRoot, nil
+}
+
+// AddGeneratedProof adds a generated proof to the storage
+func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error {
+	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof) VALUES ($1, $2)"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, batchNumber, proof)
+	return err
+}
+
+// UpdateGeneratedProof updates a generated proof in the storage
+func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error {
+	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2 WHERE batch_num = $1"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, batchNumber, proof)
+	return err
+}
+
+// GetGeneratedProofByBatchNumber gets a generated proof from the storage
+func (p *PostgresStorage) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*pb.GetProofResponse, error) {
+	var (
+		proof *pb.GetProofResponse
+		err   error
+	)
+
+	const getGeneratedProofSQL = "SELECT proof FROM state.proof WHERE batch_num = $1"
+	e := p.getExecQuerier(dbTx)
+	err = e.QueryRow(ctx, getGeneratedProofSQL, batchNumber).Scan(&proof)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return proof, err
+}
+
+// DeleteGeneratedProof deletes a generated proof from the storage
+func (p *PostgresStorage) DeleteGeneratedProof(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	const deleteGeneratedProofSQL = "DELETE FROM state.proof WHERE batch_num = $1"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, deleteGeneratedProofSQL, batchNumber)
+	return err
+}
+
+// DeleteProofs empties state.proof table
+// This method is meant to be use during aggregator boot-up sequence
+func (p *PostgresStorage) DeleteProofs(ctx context.Context, dbTx pgx.Tx) error {
+	const deleteGeneratedProofSQL = "DELETE FROM state.proof"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, deleteGeneratedProofSQL)
+	return err
 }

@@ -47,6 +47,8 @@ var (
 			},
 		},
 	}
+
+	chainID = big.NewInt(1337)
 )
 
 func TestQueue_AddAndPopTx(t *testing.T) {
@@ -78,7 +80,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 		panic(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
 
@@ -87,7 +89,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 		panic(err)
 	}
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	if err != nil {
 		panic(err)
 	}
@@ -155,7 +157,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 		panic(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 1
 
@@ -164,7 +166,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 		panic(err)
 	}
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	if err != nil {
 		panic(err)
 	}

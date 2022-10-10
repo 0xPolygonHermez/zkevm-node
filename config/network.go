@@ -20,15 +20,17 @@ type NetworkConfig struct {
 	PoEAddr                       common.Address
 	MaticAddr                     common.Address
 	L2GlobalExitRootManagerAddr   common.Address
+	L2BridgeAddr                  common.Address
 	GlobalExitRootManagerAddr     common.Address
 	SystemSCAddr                  common.Address
 	GlobalExitRootStoragePosition uint64
 	LocalExitRootStoragePosition  uint64
 	OldStateRootPosition          uint64
 	L1ChainID                     uint64
-	L2ChainID                     uint64
-	Genesis                       state.Genesis
-	MaxCumulativeGasUsed          uint64
+	// L2ChainID is read from POE SC
+	L2ChainID            uint64
+	Genesis              state.Genesis
+	MaxCumulativeGasUsed uint64
 }
 
 type networkConfigFromJSON struct {
@@ -41,7 +43,6 @@ type networkConfigFromJSON struct {
 	LocalExitRootStoragePosition  uint64                   `json:"localExitRootStoragePosition"`
 	OldStateRootPosition          uint64                   `json:"oldStateRootPosition"`
 	L1ChainID                     uint64                   `json:"l1ChainID"`
-	L2ChainID                     uint64                   `json:"l2ChainID"`
 	Root                          string                   `json:"root"`
 	Genesis                       []genesisAccountFromJSON `json:"genesis"`
 }
@@ -70,13 +71,13 @@ var (
 		PoEAddr:                       common.HexToAddress("0x11D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
 		MaticAddr:                     common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		L2BridgeAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootManagerAddr:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     1, //Mainnet
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Actions: []*state.GenesisAction{
 				{
@@ -97,13 +98,13 @@ var (
 		PoEAddr:                       common.HexToAddress("0x21D0Dc8E2Ce3a93EB2b32f4C7c3fD9dDAf1211FA"),
 		MaticAddr:                     common.HexToAddress("0x37AffAf737C3683aB73F6E1B0933b725Ab9796Aa"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		L2BridgeAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootManagerAddr:     common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     4, //Rinkeby
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Actions: []*state.GenesisAction{
 				{
@@ -125,13 +126,13 @@ var (
 		PoEAddr:                       common.HexToAddress("0x159113e5560c9CC2d8c4e716228CCf92c72E9603"),
 		MaticAddr:                     common.HexToAddress("0x94Ca2BbE1b469f25D3B22BDf17Fc80ad09E7F662"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
+		L2BridgeAddr:                  common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"),
 		GlobalExitRootManagerAddr:     common.HexToAddress("0xA379Dd55Eb12e8FCdb467A814A15DE2b29677066"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     5, //Goerli
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Root: common.HexToHash("0xb33635210b9f5d07769cf70bf5a3cbf241ecbaf79a9b66ef79b28d920da1f776"),
 			Actions: []*state.GenesisAction{
@@ -149,13 +150,13 @@ var (
 		PoEAddr:                       common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
 		MaticAddr:                     common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
 		L2GlobalExitRootManagerAddr:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
+		L2BridgeAddr:                  common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"),
 		GlobalExitRootManagerAddr:     common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
 		SystemSCAddr:                  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		GlobalExitRootStoragePosition: 0,
 		LocalExitRootStoragePosition:  1,
 		OldStateRootPosition:          0,
 		L1ChainID:                     1337,
-		L2ChainID:                     1000,
 		Genesis: state.Genesis{
 			Root: common.HexToHash("0x5e3d5372166e22ee23b4800aecb491de96f425aa5c7d56f35c96905cc5e12cb8"),
 			Actions: []*state.GenesisAction{
@@ -257,7 +258,6 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfg.LocalExitRootStoragePosition = cfgJSON.LocalExitRootStoragePosition
 	cfg.OldStateRootPosition = cfgJSON.OldStateRootPosition
 	cfg.L1ChainID = cfgJSON.L1ChainID
-	cfg.L2ChainID = cfgJSON.L2ChainID
 
 	if len(cfgJSON.Genesis) == 0 {
 		return cfg, nil
@@ -269,10 +269,14 @@ func loadCustomNetworkConfig(ctx *cli.Context) (NetworkConfig, error) {
 	}
 
 	const l2GlobalExitRootManagerSCName = "GlobalExitRootManagerL2"
+	const l2BridgeSCName = "Bridge"
 
 	for _, account := range cfgJSON.Genesis {
 		if account.ContractName == l2GlobalExitRootManagerSCName {
 			cfg.L2GlobalExitRootManagerAddr = common.HexToAddress(account.Address)
+		}
+		if account.ContractName == l2BridgeSCName {
+			cfg.L2BridgeAddr = common.HexToAddress(account.Address)
 		}
 		if account.Balance != "" && account.Balance != "0" {
 			action := &state.GenesisAction{

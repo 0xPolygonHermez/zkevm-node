@@ -27,7 +27,7 @@ const (
 	txMaxSize = 4 * txSlotSize // 128KB
 
 	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
-	bridgeClaimMethodSignature = "0x122650ff"
+	bridgeClaimMethodSignature = "0x25308c93"
 )
 
 var (
@@ -44,16 +44,18 @@ var (
 // that uses a postgres database to store the data
 type Pool struct {
 	storage
-	state                       stateInterface
-	l2GlobalExitRootManagerAddr common.Address
+	state        stateInterface
+	l2BridgeAddr common.Address
+	chainID      uint64
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(s storage, st stateInterface, l2GlobalExitRootManagerAddr common.Address) *Pool {
+func NewPool(s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
 	return &Pool{
-		storage:                     s,
-		state:                       st,
-		l2GlobalExitRootManagerAddr: l2GlobalExitRootManagerAddr,
+		storage:      s,
+		state:        st,
+		l2BridgeAddr: l2BridgeAddr,
+		chainID:      chainID,
 	}
 }
 
@@ -71,7 +73,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, zkCounters ZkCou
 		ReceivedAt:  time.Now(),
 	}
 
-	poolTx.IsClaims = poolTx.IsClaimTx(p.l2GlobalExitRootManagerAddr)
+	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr)
 
 	return p.storage.AddTx(ctx, poolTx)
 }
@@ -121,6 +123,11 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 }
 
 func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
+	// check chain id
+	if tx.ChainId().Uint64() != p.chainID {
+		return ErrInvalidChainID
+	}
+
 	// Accept only legacy transactions until EIP-2718/2930 activates.
 	if tx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported

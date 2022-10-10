@@ -606,13 +606,13 @@ func (_m *stateMock) ProcessTx(ctx context.Context, tx types.Transaction, dbTx p
 	return r0, r1
 }
 
-// ProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, senderAddress, blockNumber, dbTx
-func (_m *stateMock) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber *uint64, dbTx pgx.Tx) *runtime.ExecutionResult {
-	ret := _m.Called(ctx, tx, senderAddress, blockNumber, dbTx)
+// ProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx
+func (_m *stateMock) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult {
+	ret := _m.Called(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 
 	var r0 *runtime.ExecutionResult
-	if rf, ok := ret.Get(0).(func(context.Context, *types.Transaction, common.Address, *uint64, pgx.Tx) *runtime.ExecutionResult); ok {
-		r0 = rf(ctx, tx, senderAddress, blockNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, *types.Transaction, common.Address, *uint64, bool, pgx.Tx) *runtime.ExecutionResult); ok {
+		r0 = rf(ctx, tx, senderAddress, l2BlockNumber, noZKEVMCounters, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*runtime.ExecutionResult)

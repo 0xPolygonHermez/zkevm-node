@@ -54,6 +54,7 @@ func TestGetBatchToVerify(t *testing.T) {
 
 	st.On("GetLastVerifiedBatch", ctx, nil).Return(verifiedBatch, nil)
 	st.On("GetVirtualBatchByNumber", ctx, verifiedBatch.BatchNumber+1, nil).Return(batchToVerify, nil)
+	st.On("GetGeneratedProofByBatchNumber", ctx, verifiedBatch.BatchNumber+1, nil).Return(nil, state.ErrNotFound)
 
 	res, err := a.getBatchToVerify(ctx)
 	require.NoError(t, err)
@@ -66,10 +67,10 @@ func TestBuildInputProver(t *testing.T) {
 	etherman := new(aggrMocks.Etherman)
 	proverClient := new(aggrMocks.ProverClientMock)
 	a := Aggregator{
-		State:        st,
-		EthTxManager: ethTxManager,
-		Ethman:       etherman,
-		ProverClient: proverClient,
+		State:         st,
+		EthTxManager:  ethTxManager,
+		Ethman:        etherman,
+		ProverClients: []proverClientInterface{proverClient},
 	}
 	var (
 		oldStateRoot     = common.HexToHash("0xbdde84a5932a2f0a1a4c6c51f3b64ea265d4f1461749298cfdd09b31122ce0d6")
@@ -145,10 +146,10 @@ func TestBuildInputProverError(t *testing.T) {
 	etherman := new(aggrMocks.Etherman)
 	proverClient := new(aggrMocks.ProverClientMock)
 	a := Aggregator{
-		State:        st,
-		EthTxManager: ethTxManager,
-		Ethman:       etherman,
-		ProverClient: proverClient,
+		State:         st,
+		EthTxManager:  ethTxManager,
+		Ethman:        etherman,
+		ProverClients: []proverClientInterface{proverClient},
 	}
 	var (
 		newLocalExitRoot = common.HexToHash("0xbdde84a5932a2f0a1a4c6c51f3b64ea265d4f1461749298cfdd09b31122ce0d6")
@@ -196,7 +197,7 @@ func TestAggregatorFlow(t *testing.T) {
 		State:                st,
 		EthTxManager:         ethTxManager,
 		Ethman:               etherman,
-		ProverClient:         proverClient,
+		ProverClients:        []proverClientInterface{proverClient},
 		ProfitabilityChecker: NewTxProfitabilityCheckerAcceptAll(st, 1*time.Second),
 	}
 	var (
@@ -263,7 +264,11 @@ func TestAggregatorFlow(t *testing.T) {
 	))
 	expectedInputProver.PublicInputs.BatchHashData = batchHashData.String()
 	// isSynced
+	proverClient.On("IsIdle", mock.Anything).Return(true)
 	st.On("GetLastVerifiedBatch", mock.Anything, nil).Return(verifiedBatch, nil)
+	st.On("GetGeneratedProofByBatchNumber", mock.Anything, verifiedBatch.BatchNumber+1, nil).Return(nil, state.ErrNotFound)
+	st.On("AddGeneratedProof", mock.Anything, mock.Anything, mock.Anything, nil).Return(nil)
+	st.On("UpdateGeneratedProof", mock.Anything, mock.Anything, mock.Anything, nil).Return(nil)
 	etherman.On("GetLatestVerifiedBatchNum").Return(uint64(1), nil)
 	etherman.On("GetPublicAddress").Return(aggrAddress)
 

@@ -12,6 +12,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum"
@@ -1828,7 +1830,7 @@ func TestGetTransactionByHash(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			Name:            "Get TX Successfully",
+			Name:            "Get TX Successfully from state",
 			Hash:            common.HexToHash("0x123"),
 			ExpectedPending: false,
 			ExpectedResult:  types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
@@ -1860,6 +1862,34 @@ func TestGetTransactionByHash(t *testing.T) {
 			},
 		},
 		{
+			Name:            "Get TX Successfully from pool",
+			Hash:            common.HexToHash("0x123"),
+			ExpectedPending: true,
+			ExpectedResult:  types.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{}),
+			ExpectedError:   nil,
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
+					Return(nil, state.ErrNotFound).
+					Once()
+
+				m.Pool.
+					On("GetTxByHash", context.Background(), tc.Hash).
+					Return(&pool.Transaction{Transaction: *tc.ExpectedResult}, nil).
+					Once()
+			},
+		},
+		{
 			Name:            "TX Not Found",
 			Hash:            common.HexToHash("0x123"),
 			ExpectedPending: false,
@@ -1880,10 +1910,15 @@ func TestGetTransactionByHash(t *testing.T) {
 					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(nil, state.ErrNotFound).
 					Once()
+
+				m.Pool.
+					On("GetTxByHash", context.Background(), tc.Hash).
+					Return(nil, pgpoolstorage.ErrNotFound).
+					Once()
 			},
 		},
 		{
-			Name:            "TX failed to load",
+			Name:            "TX failed to load from the state",
 			Hash:            common.HexToHash("0x123"),
 			ExpectedPending: false,
 			ExpectedResult:  nil,
@@ -1906,15 +1941,43 @@ func TestGetTransactionByHash(t *testing.T) {
 			},
 		},
 		{
+			Name:            "TX failed to load from the pool",
+			Hash:            common.HexToHash("0x123"),
+			ExpectedPending: false,
+			ExpectedResult:  nil,
+			ExpectedError:   newRPCError(defaultErrorCode, "failed to load transaction by hash from pool"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
+					Return(nil, state.ErrNotFound).
+					Once()
+
+				m.Pool.
+					On("GetTxByHash", context.Background(), tc.Hash).
+					Return(nil, errors.New("failed to load transaction by hash from pool")).
+					Once()
+			},
+		},
+		{
 			Name:            "TX receipt Not Found",
 			Hash:            common.HexToHash("0x123"),
 			ExpectedPending: false,
 			ExpectedResult:  nil,
-			ExpectedError:   ethereum.NotFound,
+			ExpectedError:   newRPCError(defaultErrorCode, "transaction receipt not found"),
 			SetupMocks: func(m *mocks, tc testCase) {
-				var tx *types.Transaction
+				tx := &types.Transaction{}
 				m.DbTx.
-					On("Commit", context.Background()).
+					On("Rollback", context.Background()).
 					Return(nil).
 					Once()
 
@@ -1941,7 +2004,7 @@ func TestGetTransactionByHash(t *testing.T) {
 			ExpectedResult:  nil,
 			ExpectedError:   newRPCError(defaultErrorCode, "failed to load transaction receipt from state"),
 			SetupMocks: func(m *mocks, tc testCase) {
-				var tx *types.Transaction
+				tx := &types.Transaction{}
 				m.DbTx.
 					On("Rollback", context.Background()).
 					Return(nil).

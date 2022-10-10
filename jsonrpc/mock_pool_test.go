@@ -144,6 +144,29 @@ func (_m *poolMock) GetPendingTxs(ctx context.Context, isClaims bool, limit uint
 	return r0, r1
 }
 
+// GetTxByHash provides a mock function with given fields: ctx, hash
+func (_m *poolMock) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+	ret := _m.Called(ctx, hash)
+
+	var r0 *pool.Transaction
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) *pool.Transaction); ok {
+		r0 = rf(ctx, hash)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*pool.Transaction)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
+		r1 = rf(ctx, hash)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 type mockConstructorTestingTnewPoolMock interface {
 	mock.TestingT
 	Cleanup(func())

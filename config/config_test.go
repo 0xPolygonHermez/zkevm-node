@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -93,6 +94,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint32(8388608),
 		},
 		{
+			path:          "Sequencer.MaxSequenceSize",
+			expectedValue: sequencer.MaxSequenceSize{Int: new(big.Int).SetInt64(2000000)},
+		},
+		{
 			path:          "EthTxManager.MaxSendBatchTxRetries",
 			expectedValue: uint32(10),
 		},
@@ -107,6 +112,18 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "EthTxManager.FrequencyForResendingFailedVerifyBatch",
 			expectedValue: types.NewDuration(1 * time.Second),
+		},
+		{
+			path:          "EthTxManager.WaitTxToBeMined",
+			expectedValue: types.NewDuration(2 * time.Minute),
+		},
+		{
+			path:          "EthTxManager.PercentageToIncreaseGasPrice",
+			expectedValue: uint64(10),
+		},
+		{
+			path:          "EthTxManager.PercentageToIncreaseGasLimit",
+			expectedValue: uint64(10),
 		},
 		{
 			path:          "PriceGetter.Type",

@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -70,7 +71,7 @@ func (e *Eth) Call(arg *txnArgs, number *BlockNumber) (interface{}, rpcError) {
 			blockNumberToProcessTx = &blockNumber
 		}
 
-		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, dbTx)
+		result := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockNumberToProcessTx, true, dbTx)
 		if result.Failed() {
 			return rpcErrorResponse(defaultErrorCode, result.Err.Error(), nil)
 		}
@@ -394,7 +395,8 @@ func (e *Eth) GetTransactionByBlockHashAndIndex(hash common.Hash, index Index) (
 			return rpcErrorResponse(defaultErrorCode, "failed to get transaction receipt", err)
 		}
 
-		return toRPCTransaction(tx, receipt.BlockNumber, receipt.BlockHash, uint64(receipt.TransactionIndex)), nil
+		txIndex := uint64(receipt.TransactionIndex)
+		return toRPCTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
 	})
 }
 
@@ -422,28 +424,41 @@ func (e *Eth) GetTransactionByBlockNumberAndIndex(number *BlockNumber, index Ind
 			return rpcErrorResponse(defaultErrorCode, "failed to get transaction receipt", err)
 		}
 
-		return toRPCTransaction(tx, receipt.BlockNumber, receipt.BlockHash, uint64(receipt.TransactionIndex)), nil
+		txIndex := uint64(receipt.TransactionIndex)
+		return toRPCTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
 	})
 }
 
 // GetTransactionByHash returns a transaction by his hash
 func (e *Eth) GetTransactionByHash(hash common.Hash) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		// try to get tx from state
 		tx, err := e.state.GetTransactionByHash(ctx, hash, dbTx)
-		if errors.Is(err, state.ErrNotFound) {
-			return nil, nil
-		} else if err != nil {
+		if err != nil && !errors.Is(err, state.ErrNotFound) {
 			return rpcErrorResponse(defaultErrorCode, "failed to load transaction by hash from state", err)
 		}
+		if tx != nil {
+			receipt, err := e.state.GetTransactionReceipt(ctx, hash, dbTx)
+			if errors.Is(err, state.ErrNotFound) {
+				return rpcErrorResponse(defaultErrorCode, "transaction receipt not found", err)
+			} else if err != nil {
+				return rpcErrorResponse(defaultErrorCode, "failed to load transaction receipt from state", err)
+			}
 
-		receipt, err := e.state.GetTransactionReceipt(ctx, hash, dbTx)
-		if errors.Is(err, state.ErrNotFound) {
-			return nil, nil
-		} else if err != nil {
-			return rpcErrorResponse(defaultErrorCode, "failed to load transaction receipt from state", err)
+			txIndex := uint64(receipt.TransactionIndex)
+			return toRPCTransaction(tx, receipt.BlockNumber, &receipt.BlockHash, &txIndex), nil
 		}
 
-		return toRPCTransaction(tx, receipt.BlockNumber, receipt.BlockHash, uint64(receipt.TransactionIndex)), nil
+		// if the tx does not exist in the state, look for it in the pool
+		poolTx, err := e.pool.GetTxByHash(ctx, hash)
+		if errors.Is(err, pgpoolstorage.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
+			return rpcErrorResponse(defaultErrorCode, "failed to load transaction by hash from pool", err)
+		}
+		tx = &poolTx.Transaction
+
+		return toRPCTransaction(tx, nil, nil, nil), nil
 	})
 }
 

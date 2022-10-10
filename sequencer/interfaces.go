@@ -23,13 +23,14 @@ type txPool interface {
 	IsTxPending(ctx context.Context, hash common.Hash) (bool, error)
 	DeleteTxsByHashes(ctx context.Context, hashes []common.Hash) error
 	MarkReorgedTxsAsPending(ctx context.Context) error
-	GetTxs(ctx context.Context, filterStatus pool.TxStatus, limit uint64) ([]*pool.Transaction, error)
+	GetTxs(ctx context.Context, filterStatus pool.TxStatus, isClaims bool, minGasPrice, limit uint64) ([]*pool.Transaction, error)
 	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)
+	IncrementFailedCounter(ctx context.Context, hashes []string) error
 }
 
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
-	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, error)
+	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error)
 	GetSendSequenceFee() (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
 	GetLatestBatchNumber() (uint64, error)
@@ -75,4 +76,9 @@ type txManager interface {
 type priceGetter interface {
 	Start(ctx context.Context)
 	GetEthToMaticPrice(ctx context.Context) (*big.Float, error)
+}
+
+// gasPriceEstimator contains the methods required to interact with gas price estimator
+type gasPriceEstimator interface {
+	GetAvgGasPrice(ctx context.Context) (*big.Int, error)
 }
