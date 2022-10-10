@@ -240,11 +240,14 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 }
 
 // SequenceBatches send sequences of batches to the ethereum
-func (etherMan *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	sendSequencesOpts := *etherMan.auth
 	sendSequencesOpts.GasLimit = gasLimit
 	if gasPrice != nil {
 		sendSequencesOpts.GasPrice = gasPrice
+	}
+	if nonce != nil {
+		sendSequencesOpts.Nonce = nonce
 	}
 	return etherMan.sequenceBatches(&sendSequencesOpts, sequences)
 }
