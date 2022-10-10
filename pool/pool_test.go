@@ -370,7 +370,7 @@ func Test_GetTopFailedTxsByProfitabilityAndZkCounters(t *testing.T) {
 		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10+int64(i)), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		if err := p.AddTx(ctx, *signedTx); err != nil {
+		if err := p.AddTx(ctx, *signedTx, pool.ZkCounters{}); err != nil {
 			t.Error(err)
 		}
 		txsHashes = append(txsHashes, signedTx.Hash().String())
