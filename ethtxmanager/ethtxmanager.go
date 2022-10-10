@@ -5,6 +5,7 @@
 package ethtxmanager
 
 import (
+	"math/big"
 	"strings"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 )
+
+const oneHundred = 100
 
 // Client for eth tx manager
 type Client struct {
@@ -29,36 +32,40 @@ func New(cfg Config, ethMan etherman) *Client {
 
 // SequenceBatches send sequences to the channel
 func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
-	var attempts uint32
-	var gas uint64
+	var (
+		attempts uint32
+		gas      uint64
+		gasPrice *big.Int
+	)
 	log.Info("sending sequence to L1")
 	for attempts < c.cfg.MaxSendBatchTxRetries {
-		tx, err := c.ethMan.SequenceBatches(sequences, gas)
+		tx, err := c.ethMan.SequenceBatches(sequences, gas, gasPrice)
 		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
-			log.Errorf("failed to sequence batches, trying once again, retry #%d, gasLimit: %d, err: %v",
+			log.Errorf("failed to sequence batches, trying once again, retry #%d, gasLimit: %d, err: %w",
 				attempts, 0, err)
 			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 			attempts++
-			tx, err = c.ethMan.SequenceBatches(sequences, gas)
+			tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice)
 		}
 		if err != nil {
-			log.Fatalf("failed to sequence batches, maximum attempts exceeded, gasLimit: %d, err: %v",
+			log.Fatalf("failed to sequence batches, maximum attempts exceeded, gasLimit: %d, err: %w",
 				0, err)
 		}
 		// Wait for tx to be mined
 		log.Infof("waiting for sequence to be mined. Tx hash: %s", tx.Hash())
-		// TODO: timeout via config file
-		err = c.ethMan.WaitTxToBeMined(tx.Hash(), time.Minute*2) //nolint:gomnd
+		err = c.ethMan.WaitTxToBeMined(tx.Hash(), c.cfg.WaitTxToBeMined.Duration)
 		if err != nil {
 			attempts++
 			if strings.Contains(err.Error(), "out of gas") {
-				// TODO: percentage gas inncrease via config file
-				gas = uint64(float64(tx.Gas()) * 1.1) //nolint:gomnd
+				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
 				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
 				continue
+			} else if strings.Contains(err.Error(), "timeout has been reached") {
+				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
+				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
+				continue
 			}
-			// TODO: handle timeout by increasing gas price
-			log.Fatalf("tx %s failed, err: %v", tx.Hash(), err)
+			log.Fatalf("tx %s failed, err: %w", tx.Hash(), err)
 		} else {
 			log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
 			return
@@ -68,39 +75,52 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 
 // VerifyBatch send VerifyBatch request to ethereum
 func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) {
-	var attempts uint32
-	var gas uint64
+	var (
+		attempts uint32
+		gas      uint64
+		gasPrice *big.Int
+	)
 	log.Infof("sending batch %d verification to L1", batchNum)
 	for attempts < c.cfg.MaxVerifyBatchTxRetries {
-		tx, err := c.ethMan.VerifyBatch(batchNum, resGetProof, gas)
+		tx, err := c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice)
 		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
-			log.Errorf("failed to send batch verification, trying once again, retry #%d, gasLimit: %d, err: %v",
+			log.Errorf("failed to send batch verification, trying once again, retry #%d, gasLimit: %d, err: %w",
 				attempts, 0, err)
 			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 			attempts++
-			tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas)
+			tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice)
 		}
 		if err != nil {
-			log.Fatalf("failed to send batch verification, maximum attempts exceeded, gasLimit: %d, err: %v",
+			log.Fatalf("failed to send batch verification, maximum attempts exceeded, gasLimit: %d, err: %w",
 				0, err)
 		}
 		// Wait for tx to be mined
 		log.Infof("waiting for tx to be mined. Tx hash: %s", tx.Hash())
-		// TODO: timeout via config file
-		err = c.ethMan.WaitTxToBeMined(tx.Hash(), time.Minute*2) //nolint:gomnd
+		err = c.ethMan.WaitTxToBeMined(tx.Hash(), c.cfg.WaitTxToBeMined.Duration)
 		if err != nil {
 			attempts++
 			if strings.Contains(err.Error(), "out of gas") {
-				// TODO: percentage gas inncrease via config file
-				gas = uint64(float64(tx.Gas()) * 1.1) //nolint:gomnd
+				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
 				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
 				continue
+			} else if strings.Contains(err.Error(), "timeout has been reached") {
+				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
+				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
+				continue
 			}
-			// TODO: handle timeout by increasing gas price
-			log.Fatalf("tx %s failed, err: %v", tx.Hash(), err)
+			log.Fatalf("tx %s failed, err: %w", tx.Hash(), err)
 		} else {
 			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
 			return
 		}
 	}
+}
+
+func increaseGasPrice(currentGasPrice *big.Int, percentageIncrease uint64) *big.Int {
+	gasPrice := big.NewInt(0).Mul(currentGasPrice, new(big.Int).SetUint64(uint64(oneHundred)+percentageIncrease))
+	return gasPrice.Div(gasPrice, big.NewInt(oneHundred))
+}
+
+func increaseGasLimit(currentGasLimit uint64, percentageIncrease uint64) uint64 {
+	return currentGasLimit * (oneHundred + percentageIncrease) / oneHundred
 }
