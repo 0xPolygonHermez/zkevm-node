@@ -135,7 +135,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 		// in that case executor meets OOC error, try to reprocess only tx with OOC after this error
 		// len(s.sequenceInProgress.Txs) == 0 - so it means, there is no valid txs and before OOC there are only
-		// instric invalid txs
+		// intrinsic invalid txs
 		var isOOCError bool
 		if len(s.sequenceInProgress.Txs) == 0 && !processResponse.isBatchProcessed {
 			lastUnprocessedTxHash := processResponse.unprocessedTxsHashes[len(processResponse.unprocessedTxsHashes)-1]
