@@ -94,16 +94,29 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 		attempts uint32
 		gas      uint64
 		gasPrice *big.Int
+		nonce    = big.NewInt(0)
 	)
 	log.Infof("sending batch %d verification to L1", batchNum)
 	for attempts < c.cfg.MaxVerifyBatchTxRetries {
-		tx, err := c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice)
+		var (
+			tx  *types.Transaction
+			err error
+		)
+		if nonce.Uint64() > 0 {
+			tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nonce)
+		} else {
+			tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nil)
+		}
 		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
 			log.Errorf("failed to send batch verification, trying once again, retry #%d, gasLimit: %d, err: %w",
 				attempts, 0, err)
 			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 			attempts++
-			tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice)
+			if nonce.Uint64() > 0 {
+				tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nonce)
+			} else {
+				tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nil)
+			}
 		}
 		if err != nil {
 			log.Fatalf("failed to send batch verification, maximum attempts exceeded, gasLimit: %d, err: %w",
@@ -119,6 +132,7 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
 				continue
 			} else if strings.Contains(err.Error(), "timeout has been reached") {
+				nonce = new(big.Int).SetUint64(tx.Nonce())
 				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
 				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
 				continue

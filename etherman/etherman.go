@@ -283,11 +283,14 @@ func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProo
 }
 
 // VerifyBatch send verifyBatch request to the ethereum
-func (etherMan *Client) VerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) VerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.GasLimit = gasLimit
 	if gasPrice != nil {
 		verifyBatchOpts.GasPrice = gasPrice
+	}
+	if nonce != nil {
+		verifyBatchOpts.Nonce = nonce
 	}
 	return etherMan.verifyBatch(&verifyBatchOpts, batchNumber, resGetProof)
 }
