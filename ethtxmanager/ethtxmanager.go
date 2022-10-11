@@ -66,7 +66,7 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 				0, err)
 		}
 		// Wait for tx to be mined
-		log.Infof("waiting for sequence to be mined. Tx hash: %s", tx.Hash())
+		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
 		err = c.ethMan.WaitTxToBeMined(tx.Hash(), c.cfg.WaitTxToBeMined.Duration)
 		if err != nil {
 			attempts++
@@ -123,7 +123,7 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 				0, err)
 		}
 		// Wait for tx to be mined
-		log.Infof("waiting for tx to be mined. Tx hash: %s", tx.Hash())
+		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
 		err = c.ethMan.WaitTxToBeMined(tx.Hash(), c.cfg.WaitTxToBeMined.Duration)
 		if err != nil {
 			attempts++
