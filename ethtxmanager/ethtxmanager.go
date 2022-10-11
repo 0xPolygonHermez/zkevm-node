@@ -56,12 +56,11 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint
 		if err != nil {
 			attempts++
 			if strings.Contains(err.Error(), "out of gas") {
-				gasLimit = (tx.Gas() * (oneHundred + c.cfg.PercentageToIncreaseGasLimit)) / oneHundred
+				gasLimit = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
 				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gasLimit)
 				continue
 			} else if strings.Contains(err.Error(), "timeout has been reached") {
-				gasPrice.Mul(tx.GasPrice(), new(big.Int).SetUint64(uint64(oneHundred)+c.cfg.PercentageToIncreaseGasPrice))
-				gasPrice.Div(gasPrice, big.NewInt(oneHundred))
+				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
 				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
 				continue
 			}
@@ -100,12 +99,11 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 		if err != nil {
 			attempts++
 			if strings.Contains(err.Error(), "out of gas") {
-				gas = (tx.Gas() * (oneHundred + c.cfg.PercentageToIncreaseGasLimit)) / oneHundred
+				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
 				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
 				continue
 			} else if strings.Contains(err.Error(), "timeout has been reached") {
-				gasPrice.Mul(tx.GasPrice(), new(big.Int).SetUint64(uint64(oneHundred)+c.cfg.PercentageToIncreaseGasPrice))
-				gasPrice.Div(gasPrice, big.NewInt(oneHundred))
+				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
 				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
 				continue
 			}
@@ -115,4 +113,13 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 			return
 		}
 	}
+}
+
+func increaseGasPrice(currentGasPrice *big.Int, percentageIncrease uint64) *big.Int {
+	gasPrice := big.NewInt(0).Mul(currentGasPrice, new(big.Int).SetUint64(uint64(oneHundred)+percentageIncrease))
+	return gasPrice.Div(gasPrice, big.NewInt(oneHundred))
+}
+
+func increaseGasLimit(currentGasLimit uint64, percentageIncrease uint64) uint64 {
+	return currentGasLimit * (oneHundred + percentageIncrease) / oneHundred
 }

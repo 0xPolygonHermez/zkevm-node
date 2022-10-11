@@ -229,7 +229,7 @@ func (etherMan *Client) WaitTxToBeMined(hash common.Hash, timeout time.Duration)
 
 // EstimateGasSequenceBatches estimates gas for sending batches
 func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (uint64, common.Hash, error) {
-	// Due to issue #1118 we add 20K gas to avoid and OOG
+	// Due to issue #1118 we add 20K gas to avoid an OOG error
 	// when the gas estimation is processed before a batch consolidation
 	// in the same block
 	const gasLimitIncrease = 20000
