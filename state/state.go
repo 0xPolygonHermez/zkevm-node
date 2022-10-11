@@ -330,6 +330,8 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		log.Debugf("EstimateGas executed the TX %v times", executions)
 		averageExecutionTime := totalExecutionTime.Milliseconds() / executions
 		log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
+	} else {
+		log.Error("Estimate gas. Tx not executed")
 	}
 	return highEnd, nil
 }
