@@ -133,6 +133,18 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, processResponse.processedTxs[i].Tx)
 		}
 
+		// in that case executor meets OOC error, try to reprocess only tx with OOC after this error
+		// len(s.sequenceInProgress.Txs) == 0 - so it means, there is no valid txs and before OOC there are only
+		// instric invalid txs
+		var isOOCError bool
+		if len(s.sequenceInProgress.Txs) == 0 && !processResponse.isBatchProcessed {
+			lastUnprocessedTxHash := processResponse.unprocessedTxsHashes[len(processResponse.unprocessedTxsHashes)-1]
+			lastUnprocessedTx := processResponse.unprocessedTxs[lastUnprocessedTxHash]
+			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, lastUnprocessedTx.Tx)
+			isOOCError = true
+			log.Infof("executor meets OOC error, try to process unprocessed tx %s with OOC", lastUnprocessedTxHash)
+		}
+
 		if len(s.sequenceInProgress.Txs) == 0 {
 			log.Infof("sequence in progress doesn't have txs, no need to send a batch")
 			break
@@ -154,6 +166,14 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			if _, ok := unprocessedTxs[txHash]; !ok {
 				unprocessedTxs[txHash] = processResponse.unprocessedTxs[txHash]
 			}
+		}
+
+		// in that case tx is invalid, bcs only one tx gives OOC error
+		// mark tx as invalid
+		if !processResponse.isBatchProcessed && isOOCError {
+			s.updateTxsStatus(ctx, ticker, processResponse.unprocessedTxsHashes, pool.TxStatusInvalid)
+			log.Infof("executor failed to reprocess tx, tx %s have OOC error, marking as invalid", processResponse.unprocessedTxsHashes[0])
+			return
 		}
 	}
 	log.Infof("%d txs processed successfully", len(processResponse.processedTxsHashes))
