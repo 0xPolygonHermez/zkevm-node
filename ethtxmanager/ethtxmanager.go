@@ -42,7 +42,7 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 	log.Info("sending sequence to L1")
 	for attempts < c.cfg.MaxSendBatchTxRetries {
 		var (
-			tx *types.Transaction
+			tx  *types.Transaction
 			err error
 		)
 		if nonce.Uint64() > 0 {
