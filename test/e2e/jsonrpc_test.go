@@ -509,8 +509,7 @@ func Test_Block(t *testing.T) {
 		require.Equal(t, hexutil.EncodeBig(receipt.BlockNumber), newTx.BlockNumber)
 		require.Equal(t, receipt.BlockHash.String(), newTx.BlockHash)
 		require.Equal(t, hexutil.EncodeUint64(tx.Nonce()), newTx.Nonce)
-		// TODO FIX: ChainID returns empty string
-		//		require.Equal(t, hexutil.EncodeBig(tx.ChainId()), newTx.ChainID)
+		require.Equal(t, hexutil.EncodeBig(tx.ChainId()), newTx.ChainID)
 	}
 }
 func Test_Transactions(t *testing.T) {

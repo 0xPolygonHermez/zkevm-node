@@ -261,6 +261,7 @@ type rpcTransaction struct {
 	BlockHash   *common.Hash    `json:"blockHash"`
 	BlockNumber *argUint64      `json:"blockNumber"`
 	TxIndex     *argUint64      `json:"transactionIndex"`
+	ChainID     argBig          `json:"chainId"`
 }
 
 func (t rpcTransaction) getHash() common.Hash { return t.Hash }
@@ -296,6 +297,7 @@ func toRPCTransaction(
 		S:        argBig(*s),
 		Hash:     t.Hash(),
 		From:     from,
+		ChainID:  argBig(*t.ChainId()),
 	}
 
 	if blockNumber != nil {
