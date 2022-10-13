@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
@@ -53,28 +52,22 @@ func start(cliCtx *cli.Context) error {
 		etherman        *etherman.Client
 	)
 
-	if strings.Contains(cliCtx.String(config.FlagComponents), AGGREGATOR) ||
-		strings.Contains(cliCtx.String(config.FlagComponents), SEQUENCER) ||
-		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) ||
-		strings.Contains(cliCtx.String(config.FlagComponents), RPC) {
-		var err error
-		etherman, err = newEtherman(*c)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// READ CHAIN ID FROM POE SC
-		chainID, err := etherman.GetL2ChainID()
-		if err != nil {
-			log.Fatal(err)
-		}
-		c.Aggregator.ChainID = chainID
-		c.RPC.ChainID = chainID
-		log.Infof("Chain ID read from POE SC = %v", chainID)
+	etherman, err = newEtherman(*c)
+	if err != nil {
+		log.Fatal(err)
 	}
 
+	// READ CHAIN ID FROM POE SC
+	l2ChainID, err := etherman.GetL2ChainID()
+	if err != nil {
+		log.Fatal(err)
+	}
+	c.Aggregator.ChainID = l2ChainID
+	c.RPC.ChainID = l2ChainID
+	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
+
 	ctx := context.Background()
-	st := newState(ctx, c, stateSqlDB)
+	st := newState(ctx, c, l2ChainID, stateSqlDB)
 
 	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman)
 
@@ -86,14 +79,14 @@ func start(cliCtx *cli.Context) error {
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, st, grpcClientConns)
 		case SEQUENCER:
 			log.Info("Running sequencer")
-			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, c.RPC.ChainID, st)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager, gpe)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
 			runRPCMigrations(c.RPC.DB)
-			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, c.RPC.ChainID, st)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
@@ -274,7 +267,7 @@ func newAuthFromKeystore(path, password string, chainID uint64) (*bind.TransactO
 	return auth, nil
 }
 
-func newState(ctx context.Context, c *config.Config, sqlDB *pgxpool.Pool) *state.State {
+func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)
@@ -282,7 +275,7 @@ func newState(ctx context.Context, c *config.Config, sqlDB *pgxpool.Pool) *state
 
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
-		ChainID:              c.RPC.ChainID,
+		ChainID:              l2ChainID,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
