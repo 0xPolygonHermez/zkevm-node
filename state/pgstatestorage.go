@@ -1746,7 +1746,7 @@ func (p *PostgresStorage) DeleteGeneratedProof(ctx context.Context, batchNumber 
 	return err
 }
 
-// DeleteUngeneratedProofs deletes ungenerated proffs from state.proof table
+// DeleteUngeneratedProofs deletes ungenerated proofs from state.proof table
 // This method is meant to be use during aggregator boot-up sequence
 func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error {
 	const deleteGeneratedProofSQL = "DELETE FROM state.proof WHERE proof is null"
