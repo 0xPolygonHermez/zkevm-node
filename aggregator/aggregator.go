@@ -183,6 +183,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	// Look for a free prover
 	for _, prover = range a.ProverClients {
 		if prover.IsIdle(ctx) {
+			log.Info("Prover %v is going to be used for batchNumber: %d", prover.GetURI(), batchToVerify.BatchNumber)
 			break
 		}
 	}
@@ -211,6 +212,8 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		waitTick(ctx, ticker)
 		return
 	}
+
+	log.Info("Proof ID for batchNumber %d: %v", genProofID)
 
 	resGetProof, err := prover.GetResGetProof(ctx, genProofID, batchToVerify.BatchNumber)
 	if err != nil {
