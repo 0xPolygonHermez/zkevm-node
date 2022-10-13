@@ -49,7 +49,9 @@ services:
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
+      - ./test/test.keystore:/pk/keystore
       - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
       - ./${CONFIG_MODE}/config/genesis.${CONFIG_MODE:-local}.json:/app/genesis.json
     command:
@@ -212,7 +214,9 @@ services:
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_PORT=8124
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
+      - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
       - ./config/genesis.local.json:/app/genesis.json
     command:

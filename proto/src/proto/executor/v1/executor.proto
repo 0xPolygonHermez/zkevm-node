@@ -26,6 +26,7 @@ message ProcessBatchRequest {
     map<string, string> db = 12;
     map<string, string> contracts_bytecode = 13; // For debug/testing purpposes only. Don't fill this on production
     uint64 chain_id = 14;
+    uint64 no_counters = 15;
 }
 
 message ProcessBatchResponse {

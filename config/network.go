@@ -78,10 +78,14 @@ func loadGenesisFileConfig(ctx *cli.Context) (NetworkConfig, error) {
 	}
 
 	const l2GlobalExitRootManagerSCName = "GlobalExitRootManagerL2"
+	const l2BridgeSCName = "Bridge"
 
 	for _, account := range cfgJSON.Genesis {
 		if account.ContractName == l2GlobalExitRootManagerSCName {
 			cfg.L2GlobalExitRootManagerAddr = common.HexToAddress(account.Address)
+		}
+		if account.ContractName == l2BridgeSCName {
+			cfg.L2BridgeAddr = common.HexToAddress(account.Address)
 		}
 		if account.Balance != "" && account.Balance != "0" {
 			action := &state.GenesisAction{
