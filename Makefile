@@ -162,6 +162,7 @@ test-e2e-group-2: build-docker compile-scs ## Runs group 2 e2e tests checking ra
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB); sleep 5
+	${RUNL1NETWORK}
 	CONFIG_MODE="test" $(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)

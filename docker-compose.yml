@@ -94,10 +94,12 @@ services:
     image: zkevm-node
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     ports:
       - 61090:61090
     volumes:
       - ./config/config.local.toml:/app/config.toml
+      - ./test/test.keystore:/pk/keystore
       - ./config/genesis.local.json:/app/genesis.json
     command:
       - "/bin/sh"
