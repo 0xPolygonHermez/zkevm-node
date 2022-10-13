@@ -36,6 +36,7 @@ var (
 	setTrustedSequencerURLSignatureHash = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))
 	setForceBatchAllowedSignatureHash   = crypto.Keccak256Hash([]byte("SetForceBatchAllowed(bool)"))
 	setTrustedSequencerSignatureHash    = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))
+	transferOwnershipSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 
 	// Proxy events
 	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
@@ -181,6 +182,9 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		return nil
 	case upgradedSignatureHash:
 		log.Debug("Upgraded event detected")
+		return nil
+	case transferOwnershipSignatureHash:
+		log.Debug("TransferOwnership event detected")
 		return nil
 	}
 	log.Warn("Event not registered: ", vLog)
