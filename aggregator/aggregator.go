@@ -187,7 +187,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 
 	for i := a.roundRobbinIndex; i < maxProvers; i++ {
 		if a.ProverClients[i].IsIdle(ctx) {
-			log.Info("Prover %s is going to be used for batchNumber: %d", prover.GetURI(), batchToVerify.BatchNumber)
+			log.Infof("Prover %s is going to be used for batchNumber: %d", prover.GetURI(), batchToVerify.BatchNumber)
 			break
 		}
 	}
@@ -223,7 +223,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	log.Info("Proof ID for batchNumber %d: %v", batchToVerify.BatchNumber, genProofID)
+	log.Infof("Proof ID for batchNumber %d: %v", batchToVerify.BatchNumber, genProofID)
 
 	resGetProof, err := prover.GetResGetProof(ctx, genProofID, batchToVerify.BatchNumber)
 	if err != nil {
