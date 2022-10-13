@@ -6,9 +6,9 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/jackc/pgx/v4"
 )
 
