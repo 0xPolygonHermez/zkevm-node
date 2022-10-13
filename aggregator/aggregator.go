@@ -28,6 +28,7 @@ type Aggregator struct {
 	Ethman               etherman
 	ProverClients        []proverClientInterface
 	ProfitabilityChecker aggregatorTxProfitabilityChecker
+	roundRobbinIndex     int
 }
 
 // NewAggregator creates a new aggregator
@@ -63,6 +64,7 @@ func NewAggregator(
 		Ethman:               etherman,
 		ProverClients:        proverClients,
 		ProfitabilityChecker: profitabilityChecker,
+		roundRobbinIndex:     0,
 	}
 
 	return a, nil
@@ -181,11 +183,19 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	var prover proverClientInterface
 
 	// Look for a free prover
-	for _, prover = range a.ProverClients {
-		if prover.IsIdle(ctx) {
+	maxProvers := len(a.ProverClients)
+
+	for i := a.roundRobbinIndex; i < maxProvers; i++ {
+		if a.ProverClients[i].IsIdle(ctx) {
 			log.Info("Prover %s is going to be used for batchNumber: %d", prover.GetURI(), batchToVerify.BatchNumber)
 			break
 		}
+	}
+
+	a.roundRobbinIndex++
+
+	if a.roundRobbinIndex == maxProvers {
+		a.roundRobbinIndex = 0
 	}
 
 	if prover == nil {
