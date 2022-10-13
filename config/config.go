@@ -117,6 +117,6 @@ func Load(ctx *cli.Context) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("Configuration loaded: \n%s\n", string(cfgJSON))
+	log.Debugf("Configuration loaded: \n%s\n", string(cfgJSON))
 	return &cfg, nil
 }

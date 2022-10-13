@@ -32,6 +32,7 @@ type aggregatorTxProfitabilityChecker interface {
 
 // proverClient is a wrapper to the prover service
 type proverClientInterface interface {
+	GetURI() string
 	IsIdle(ctx context.Context) bool
 	GetGenProofID(ctx context.Context, inputProver *pb.InputProver) (string, error)
 	GetResGetProof(ctx context.Context, genProofID string, batchNumber uint64) (*pb.GetProofResponse, error)
