@@ -236,6 +236,10 @@ func createTX(ethdeployment string, chainId uint64, to common.Address, amount *b
 		return nil, err
 	}
 
+	log.Infof("\nTX details:\n\tNonce:    %d\n\tGasLimit: %d\n\tGasPrice: %d", nonce, gasLimit, gasPrice)
+	if gasLimit != uint64(21000) {
+		return nil, fmt.Errorf("gasLimit %d != 21000", gasLimit)
+	}
 	tx := types.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, tx)
 	if err != nil {
@@ -518,4 +522,32 @@ func Test_Transactions(t *testing.T) {
 
 func Test_Misc(t *testing.T) {
 
+	if testing.Short() {
+		t.Skip()
+	}
+
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
+
+		client, err := ethclient.Dial(network.URL)
+		require.NoError(t, err)
+
+		// ChainId()
+		chainId, err := client.ChainID(ctx)
+		require.NoError(t, err)
+		require.Equal(t, network.ChainID, chainId.Uint64())
+
+		// Syncing()
+		progress, err := client.SyncProgress(ctx)
+		require.NoError(t, err)
+		if progress != nil {
+			log.Info("Its syncing")
+			blockNumber, err := client.BlockNumber(ctx)
+			require.NoError(t, err)
+			// if it's actually syncing
+			require.Equal(t, uint64(0x0), progress.StartingBlock)
+			require.Equal(t, blockNumber, progress.CurrentBlock)
+		}
+
+	}
 }
