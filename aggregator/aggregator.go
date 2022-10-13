@@ -77,7 +77,7 @@ func (a *Aggregator) Start(ctx context.Context) {
 	defer tickerSendVerifiedBatch.Stop()
 
 	// Delete proofs that where being generated during last reboot
-	err := a.State.DeleteProofs(ctx, nil)
+	err := a.State.DeleteUngeneratedProofs(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
 		log.Warn("error deleting work in progress proofs from state")
 	}

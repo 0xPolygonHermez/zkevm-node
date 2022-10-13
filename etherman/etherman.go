@@ -36,6 +36,7 @@ var (
 	setTrustedSequencerURLSignatureHash = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))
 	setForceBatchAllowedSignatureHash   = crypto.Keccak256Hash([]byte("SetForceBatchAllowed(bool)"))
 	setTrustedSequencerSignatureHash    = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))
+	transferOwnershipSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 
 	// Proxy events
 	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
@@ -182,6 +183,9 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	case upgradedSignatureHash:
 		log.Debug("Upgraded event detected")
 		return nil
+	case transferOwnershipSignatureHash:
+		log.Debug("TransferOwnership event detected")
+		return nil
 	}
 	log.Warn("Event not registered: ", vLog)
 	return nil
@@ -240,11 +244,14 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 }
 
 // SequenceBatches send sequences of batches to the ethereum
-func (etherMan *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	sendSequencesOpts := *etherMan.auth
 	sendSequencesOpts.GasLimit = gasLimit
 	if gasPrice != nil {
 		sendSequencesOpts.GasPrice = gasPrice
+	}
+	if nonce != nil {
+		sendSequencesOpts.Nonce = nonce
 	}
 	return etherMan.sequenceBatches(&sendSequencesOpts, sequences)
 }
@@ -280,11 +287,14 @@ func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProo
 }
 
 // VerifyBatch send verifyBatch request to the ethereum
-func (etherMan *Client) VerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) VerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.GasLimit = gasLimit
 	if gasPrice != nil {
 		verifyBatchOpts.GasPrice = gasPrice
+	}
+	if nonce != nil {
+		verifyBatchOpts.Nonce = nonce
 	}
 	return etherMan.verifyBatch(&verifyBatchOpts, batchNumber, resGetProof)
 }

@@ -46,5 +46,5 @@ type stateInterface interface {
 	UpdateGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error
 	GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*pb.GetProofResponse, error)
 	DeleteGeneratedProof(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
-	DeleteProofs(ctx context.Context, dbTx pgx.Tx) error
+	DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error
 }
