@@ -29,6 +29,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
@@ -85,14 +86,14 @@ func start(cliCtx *cli.Context) error {
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, st, grpcClientConns)
 		case SEQUENCER:
 			log.Info("Running sequencer")
-			poolInstance := createPool(c.PoolDB, c.NetworkConfig, st)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, c.RPC.ChainID, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager, gpe)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
 			runRPCMigrations(c.RPC.DB)
-			poolInstance := createPool(c.PoolDB, c.NetworkConfig, st)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, c.RPC.ChainID, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
@@ -288,12 +289,12 @@ func newState(ctx context.Context, c *config.Config, sqlDB *pgxpool.Pool) *state
 	return st
 }
 
-func createPool(poolDBConfig db.Config, networkConfig config.NetworkConfig, st *state.State) *pool.Pool {
+func createPool(poolDBConfig db.Config, l2BridgeAddr common.Address, l2ChainID uint64, st *state.State) *pool.Pool {
 	runPoolMigrations(poolDBConfig)
 	poolStorage, err := pgpoolstorage.NewPostgresPoolStorage(poolDBConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-	poolInstance := pool.NewPool(poolStorage, st, networkConfig.L2BridgeAddr, networkConfig.L2ChainID)
+	poolInstance := pool.NewPool(poolStorage, st, l2BridgeAddr, l2ChainID)
 	return poolInstance
 }

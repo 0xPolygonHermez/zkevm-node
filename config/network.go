@@ -15,6 +15,7 @@ import (
 // NetworkConfig is the configuration struct for the different environments
 type NetworkConfig struct {
 	L2GlobalExitRootManagerAddr common.Address
+	L2BridgeAddr                common.Address
 	Genesis                     state.Genesis
 	MaxCumulativeGasUsed        uint64
 }
