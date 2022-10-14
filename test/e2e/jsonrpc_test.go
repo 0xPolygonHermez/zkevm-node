@@ -257,6 +257,18 @@ func Test_Filters(t *testing.T) {
 		t.Skip()
 	}
 
+	err := operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() { require.NoError(t, operations.Teardown()) }()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
@@ -380,6 +392,18 @@ func Test_Gas(t *testing.T) {
 		big.NewInt(100000000000),
 		big.NewInt(1000000000000000),
 	}
+
+	err := operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() { require.NoError(t, operations.Teardown()) }()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 
@@ -425,7 +449,19 @@ func Test_Block(t *testing.T) {
 		V                string `json:"v"`
 		Value            string `json:"value"`
 	}
+
+	err := operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() { require.NoError(t, operations.Teardown()) }()
+
 	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
+
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		client, err := ethclient.Dial(network.URL)
@@ -523,6 +559,18 @@ func Test_Misc(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+
+	err := operations.Teardown()
+	require.NoError(t, err)
+
+	defer func() { require.NoError(t, operations.Teardown()) }()
+
+	ctx := context.Background()
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsMan, err := operations.NewManager(ctx, opsCfg)
+	require.NoError(t, err)
+	err = opsMan.Setup()
+	require.NoError(t, err)
 
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
