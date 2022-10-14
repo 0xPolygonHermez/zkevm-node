@@ -52,7 +52,7 @@ const (
 var (
 	stateDBCfg       = dbutils.NewStateConfigFromEnv()
 	poolDBCfg        = dbutils.NewPoolConfigFromEnv()
-	rpcDBCfg         = dbutils.NewPoolConfigFromEnv()
+	rpcDBCfg         = dbutils.NewRPCConfigFromEnv()
 	executorConfig   = executor.Config{URI: executorURI}
 	merkletreeConfig = merkletree.Config{URI: merkletreeURI}
 )
