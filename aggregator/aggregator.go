@@ -185,16 +185,17 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		inputProver.PublicInputs.OldStateRoot, inputProver.PublicInputs.NewStateRoot, inputProver.PublicInputs.BatchNum)
 
 	var prover proverClientInterface
-
+	var idleProverFound bool
 	// Look for a free prover
 	for _, prover = range a.ProverClients {
 		if prover.IsIdle(ctx) {
 			log.Infof("Prover %s is going to be used for batchNumber: %d", prover.GetURI(), batchToVerify.BatchNumber)
+			idleProverFound = true
 			break
 		}
 	}
 
-	if prover == nil {
+	if !idleProverFound {
 		log.Warn("all provers are busy")
 		waitTick(ctx, ticker)
 		return
