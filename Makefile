@@ -150,7 +150,8 @@ test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking ra
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB); sleep 5
-	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group1/...
+	$(RUNZKPROVER)
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group1/...
 
 .PHONY: test-e2e-group-2
 test-e2e-group-2: build-docker compile-scs ## Runs group 2 e2e tests checking race conditions
@@ -162,6 +163,7 @@ test-e2e-group-2: build-docker compile-scs ## Runs group 2 e2e tests checking ra
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB); sleep 5
+	${RUNL1NETWORK}
 	CONFIG_MODE="test" $(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
@@ -176,6 +178,7 @@ test-e2e-group-3: build-docker compile-scs ## Runs group 3 e2e tests checking ra
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB); sleep 5
+	$(RUNZKPROVER); sleep 2
 	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group3/...
 
 .PHONY: install-linter
@@ -311,9 +314,9 @@ run-approve-matic: ## Runs approve in node container
 stop-approve-matic: ## Stops approve in node container
 	$(STOPAPPROVE)
 
-.PHONY: init-network
-init-network: ## Initializes the network
-	go run ./scripts/init_network/main.go .
+#.PHONY: init-network
+#init-network: ## Initializes the network
+#	go run ./scripts/init_network/main.go .
 
 .PHONY: deploy-sc
 deploy-sc: ## deploys some examples of transactions and smart contracts
