@@ -107,16 +107,17 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 		} else {
 			tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nil)
 		}
-		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
-			log.Errorf("failed to send batch verification, trying once again, retry #%d, gasLimit: %d, err: %w",
-				attempts, 0, err)
-			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
-			attempts++
+		for err != nil && attempts < c.cfg.MaxVerifyBatchTxRetries {
+			log.Errorf("failed to send batch verification, trying once again, retry #%d, gasLimit: %d, err: %w", attempts, 0, err)
+			time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
+
 			if nonce.Uint64() > 0 {
 				tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nonce)
 			} else {
 				tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nil)
 			}
+
+			attempts++
 		}
 		if err != nil {
 			log.Fatalf("failed to send batch verification, maximum attempts exceeded, gasLimit: %d, err: %w", 0, err)
@@ -125,7 +126,6 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
 		err = c.ethMan.WaitTxToBeMined(tx.Hash(), c.cfg.WaitTxToBeMined.Duration)
 		if err != nil {
-			attempts++
 			if strings.Contains(err.Error(), "out of gas") {
 				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
 				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
@@ -137,6 +137,7 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 				continue
 			}
 			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+			return
 		} else {
 			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
 			return
