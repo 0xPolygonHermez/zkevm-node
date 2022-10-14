@@ -46,9 +46,7 @@ func TestMain(t *testing.T) {
 
 // TestJSONRPC tests JSON RPC methods on a running environment.
 func TestJSONRPC(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
+	t.SkipNow()
 
 	ctx := context.Background()
 
