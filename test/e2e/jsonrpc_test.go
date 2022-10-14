@@ -29,6 +29,8 @@ const (
 func TestMain(t *testing.T) {
 	var err error
 	ctx := context.Background()
+	err = operations.Teardown()
+	require.NoError(t, err)
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
@@ -381,6 +383,7 @@ func Test_Misc(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	defer func() { require.NoError(t, operations.Teardown()) }()
 
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
