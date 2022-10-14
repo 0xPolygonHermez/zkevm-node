@@ -58,6 +58,20 @@ func (_m *ProverClientMock) GetResGetProof(ctx context.Context, genProofID strin
 	return r0, r1
 }
 
+// GetURI provides a mock function with given fields:
+func (_m *ProverClientMock) GetURI() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
 // IsIdle provides a mock function with given fields: ctx
 func (_m *ProverClientMock) IsIdle(ctx context.Context) bool {
 	ret := _m.Called(ctx)
