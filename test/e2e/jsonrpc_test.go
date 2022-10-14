@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Double"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Storage"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
@@ -209,7 +210,19 @@ func Test_Filters(t *testing.T) {
 		// logs
 
 		// generate some logs first...
-		TestEmitLog2(t)
+		client := operations.MustGetClient(network.URL)
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		_, scTx, sc, err := EmitLog2.DeployEmitLog2(auth, client)
+		require.NoError(t, err)
+
+		err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		scCallTx, err := sc.EmitLogs(auth)
+		require.NoError(t, err)
+
+		err = operations.WaitTxToBeMined(client, scCallTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
 
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getLogs", map[string]interface{}{
 			"Addresses": []common.Address{common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff")},
