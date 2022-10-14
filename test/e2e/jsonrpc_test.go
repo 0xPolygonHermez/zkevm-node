@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Storage"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -521,7 +522,6 @@ func Test_Transactions(t *testing.T) {
 }
 
 func Test_Misc(t *testing.T) {
-
 	if testing.Short() {
 		t.Skip()
 	}
@@ -549,5 +549,26 @@ func Test_Misc(t *testing.T) {
 			require.Equal(t, blockNumber, progress.CurrentBlock)
 		}
 
+		// GetStorageAt()
+
+		// first deploy sample smart contract
+		sc_payload := int64(42)
+		sc_retrieve := common.HexToHash("0x2a")
+		auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, network.ChainID)
+		require.NoError(t, err)
+		contractAddress, tx, storageSC, err := Storage.DeployStorage(auth, client)
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+		tx, err = storageSC.Store(auth, big.NewInt(sc_payload))
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+		fmt.Println()
+
+		storage, err := client.StorageAt(ctx, contractAddress, common.HexToHash("0x0"), nil)
+		require.NoError(t, err)
+		// in bytes but has to be hash 0x0...42
+		require.Equal(t, sc_retrieve, common.BytesToHash(storage))
 	}
 }
