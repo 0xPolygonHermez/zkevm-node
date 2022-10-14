@@ -383,7 +383,7 @@ func Test_GetTopFailedTxsByProfitabilityAndZkCounters(t *testing.T) {
 	txs, err := p.GetTxs(ctx, pool.TxStatusFailed, false, 1, 10)
 	require.NoError(t, err)
 	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
-	assert.Equal(t, txsCount/2, len(txs))
+	assert.Equal(t, txsCount, len(txs))
 }
 
 func Test_UpdateTxsStatus(t *testing.T) {
