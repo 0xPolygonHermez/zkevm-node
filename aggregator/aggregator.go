@@ -101,20 +101,20 @@ func (a *Aggregator) Start(ctx context.Context) {
 }
 
 func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ticker) {
-	log.Info("checking if network is synced")
+	log.Debug("checking if network is synced")
 	for !a.isSynced(ctx) {
 		log.Infof("waiting for synchronizer to sync...")
 		waitTick(ctx, ticker)
 		continue
 	}
-	log.Info("checking if there is any consolidated batch to be verified")
+	log.Debug("checking if there is any consolidated batch to be verified")
 	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
 		log.Warnf("failed to get last consolidated batch, err: %v", err)
 		waitTick(ctx, ticker)
 		return
 	} else if err == state.ErrNotFound {
-		log.Info("no consolidated batch found")
+		log.Debug("no consolidated batch found")
 		waitTick(ctx, ticker)
 		return
 	}
