@@ -120,7 +120,8 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 			attempts++
 		}
 		if err != nil {
-			log.Fatalf("failed to send batch verification, maximum attempts exceeded, gasLimit: %d, err: %w", 0, err)
+			log.Errorf("failed to send batch verification, maximum attempts exceeded, gasLimit: %d, err: %w", 0, err)
+			return
 		}
 		// Wait for tx to be mined
 		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
