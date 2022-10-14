@@ -38,7 +38,6 @@ func TestMain(t *testing.T) {
 
 // TestJSONRPC tests JSON RPC methods on a running environment.
 func TestJSONRPC(t *testing.T) {
-
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		sc, err := deployContracts(network.URL, operations.DefaultSequencerPrivateKey, network.ChainID)
@@ -52,10 +51,9 @@ func TestJSONRPC(t *testing.T) {
 		expected := big.NewInt(10)
 		require.Equal(t, expected, number)
 	}
-
 }
-func deployContracts(url, privateKey string, chainId uint64) (*Double.Double, error) {
 
+func deployContracts(url, privateKey string, chainId uint64) (*Double.Double, error) {
 	client := operations.MustGetClient(url)
 	auth := operations.MustGetAuth(privateKey, chainId)
 
@@ -69,7 +67,6 @@ func deployContracts(url, privateKey string, chainId uint64) (*Double.Double, er
 	}
 
 	return sc, nil
-
 }
 
 func createTX(ethdeployment string, chainId uint64, to common.Address, amount *big.Int) (*types.Transaction, error) {
