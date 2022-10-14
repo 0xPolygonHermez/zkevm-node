@@ -110,7 +110,7 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
 			log.Errorf("failed to send batch verification, trying once again, retry #%d, gasLimit: %d, err: %w",
 				attempts, 0, err)
-			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
+			time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
 			attempts++
 			if nonce.Uint64() > 0 {
 				tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nonce)
