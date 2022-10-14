@@ -13,7 +13,7 @@ import (
 
 // Client wrapper for the prover client
 type Client struct {
-	Prover                                     Prover
+	Prover                                     *Prover
 	IntervalFrequencyToGetProofGenerationState types.Duration
 }
 
@@ -23,6 +23,11 @@ func NewClient(proverURI string, intervalFrequencyToGetProofGenerationState type
 		Prover: NewProver(proverURI),
 		IntervalFrequencyToGetProofGenerationState: intervalFrequencyToGetProofGenerationState,
 	}
+}
+
+// GetURI return the URI of the prover
+func (c *Client) GetURI() string {
+	return c.Prover.URI
 }
 
 // IsIdle indicates the prover is ready to process requests
