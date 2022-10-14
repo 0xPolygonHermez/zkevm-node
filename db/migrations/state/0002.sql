@@ -1,2 +1,0 @@
--- +migrate Up
--- +migrate Down
