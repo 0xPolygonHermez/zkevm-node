@@ -2,6 +2,7 @@ package pool
 
 import (
 	"time"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -77,8 +78,8 @@ func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address) bool {
 		return false
 	}
 
-	if *tx.To() == l2BridgeAddr { // &&
-		// strings.HasPrefix("0x"+common.Bytes2Hex(tx.Data()), bridgeClaimMethodSignature)  {
+	if *tx.To() == l2BridgeAddr &&
+		strings.HasPrefix("0x"+common.Bytes2Hex(tx.Data()), bridgeClaimMethodSignature)  {
 		return true
 	}
 	return false
