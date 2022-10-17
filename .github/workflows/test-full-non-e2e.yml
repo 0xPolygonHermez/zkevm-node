@@ -41,7 +41,7 @@ jobs:
 
     - name: Compile SCs
       run: make compile-scs
-      working-directory: tests
+      working-directory: ../tests
 
     - name: Test
       env:
