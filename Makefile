@@ -45,6 +45,10 @@ lint: ## Runs the linter
 update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files
 	go run ./scripts/cmd/... updatedeps
 
+.PHONY: install-git-hooks
+install-git-hooks: ## Moves hook files to the .git/hooks directory
+	cp .github/hooks/* .git/hooks
+
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
 ## display with the commands and their usage information.
