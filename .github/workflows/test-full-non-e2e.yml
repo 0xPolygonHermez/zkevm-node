@@ -36,9 +36,6 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Build Docker
-      run: make build-docker
-
     - name: Compile SCs
       run: make compile-scs
       working-directory: test
