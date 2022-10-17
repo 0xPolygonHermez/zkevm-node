@@ -11,7 +11,7 @@ services:
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
-      - ./test/test.keystore:/pk/keystore
+      - ./test.keystore:/pk/keystore
       - ./config/config.test.toml:/app/config.toml
     command:
       - "/bin/sh"
@@ -30,7 +30,7 @@ services:
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
-      - ./test/test.keystore:/pk/keystore
+      - ./test.keystore:/pk/keystore
       - ./config/config.test.toml:/app/config.toml
     command:
       - "/bin/sh"
@@ -61,7 +61,7 @@ services:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
-      - ./test/test.keystore:/pk/keystore
+      - ./test.keystore:/pk/keystore
       - ./config/config.test.toml:/app/config.toml
     command:
       - "/bin/sh"
@@ -75,7 +75,7 @@ services:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
-      - ./test/test.keystore:/pk/keystore
+      - ./test.keystore:/pk/keystore
       - ./config/config.test.toml:/app/config.toml
     command:
       - "/bin/sh"
@@ -262,7 +262,7 @@ services:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
-      - ./test/test.keystore:/pk/keystore
+      - ./test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
     command:
       - "/bin/sh"
@@ -308,7 +308,7 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
       - ZKEVM_NODE_RPC_PORT=8126
     volumes:
-      - ./test/test.keystore:/pk/keystore
+      - ./test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
       - ./config/single_db_server.sql:/docker-entrypoint-initdb.d/init.sql
     command:
