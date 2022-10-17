@@ -147,7 +147,7 @@ func TestSequenceTooBig(t *testing.T) {
 	err = dbutils.InitOrResetState(CONFIG_DB_STATE)
 	require.NoError(t, err)
 
-	err = dbutils.InitOrResetPool(CONFIG_DB_STATE)
+	err = dbutils.InitOrResetPool(CONFIG_DB_POOL)
 	require.NoError(t, err)
 
 	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(CONFIG_DB_POOL)
