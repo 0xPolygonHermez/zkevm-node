@@ -70,11 +70,7 @@ STOPAPPROVE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENODEAPPROVE) && $(DOCKERCOMP
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
 .PHONY: test-full-non-e2e
-test-full-non-e2e: ## Runs non-e2e tests checking race conditions
-	$(STOPSTATEDB)
-	$(STOPPOOLDB)
-	$(STOPRPCDB)
-	$(STOPZKPROVER)
+test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB)
@@ -88,38 +84,28 @@ test-full-non-e2e: ## Runs non-e2e tests checking race conditions
 	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK) && $(STOPNETWORK)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 60s ./...
 
 .PHONY: test-e2e-group-1
-test-e2e-group-1: ## Runs group 1 e2e tests checking race conditions
-	$(STOPSTATEDB)
-	$(STOPPOOLDB)
-	$(STOPRPCDB)
+test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB); sleep 5
-	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group1/...
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
 
 .PHONY: test-e2e-group-2
-test-e2e-group-2: ## Runs group 2 e2e tests checking race conditions
-	$(STOPSTATEDB)
-	$(STOPPOOLDB)
-	$(STOPRPCDB)
-	$(STOPZKPROVER)
+test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB); sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group2/...
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group2/...
 
 .PHONY: test-e2e-group-3
-test-e2e-group-3: ## Runs group 3 e2e tests checking race conditions
-	$(STOPSTATEDB)
-	$(STOPPOOLDB)
-	$(STOPRPCDB)
+test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB); sleep 5
-	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ./ci/e2e-group3/...
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
 
 .PHONY: run-db
 run-db: ## Runs the node database

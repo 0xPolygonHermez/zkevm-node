@@ -108,7 +108,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - ./config/initproverdb.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../config/initproverdb.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
