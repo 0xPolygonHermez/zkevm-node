@@ -44,7 +44,7 @@ const (
 	DefaultL1NetworkURL        = "http://localhost:8545"
 	DefaultL1ChainID    uint64 = 1337
 	DefaultL2NetworkURL        = "http://localhost:8123"
-	DefaultL2ChainID    uint64 = 1000
+	DefaultL2ChainID    uint64 = 1001
 
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
 )
@@ -52,7 +52,7 @@ const (
 var (
 	stateDBCfg       = dbutils.NewStateConfigFromEnv()
 	poolDBCfg        = dbutils.NewPoolConfigFromEnv()
-	rpcDBCfg         = dbutils.NewPoolConfigFromEnv()
+	rpcDBCfg         = dbutils.NewRPCConfigFromEnv()
 	executorConfig   = executor.Config{URI: executorURI}
 	merkletreeConfig = merkletree.Config{URI: merkletreeURI}
 )
@@ -397,7 +397,7 @@ func (m *Manager) SetUpSequencer() error {
 		return err
 	}
 
-	if b.Cmp(maticAmount) <= 0 {
+	if b.Cmp(maticAmount) < 0 {
 		return fmt.Errorf("Minimum amount is: %v but found: %v", maticAmount.Text(encoding.Base10), b.Text(encoding.Base10))
 	}
 

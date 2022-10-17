@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"encoding/json"
 	"path/filepath"
 	"strings"
 
@@ -57,7 +56,7 @@ type Config struct {
 	Sequencer          sequencer.Config
 	PriceGetter        pricegetter.Config
 	Aggregator         aggregator.Config
-	Prover             proverclient.Config
+	Provers            proverclient.Config
 	NetworkConfig      NetworkConfig
 	GasPriceEstimator  gasprice.Config
 	Executor           executor.Config
@@ -112,11 +111,12 @@ func Load(ctx *cli.Context) (*Config, error) {
 	}
 	// Load genesis parameters
 	cfg.loadNetworkConfig(ctx)
-
-	cfgJSON, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("Configuration loaded: \n%s\n", string(cfgJSON))
+	/*
+		cfgJSON, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return nil, err
+		}
+		log.Debugf("Configuration loaded: \n%s\n", string(cfgJSON))
+	*/
 	return &cfg, nil
 }

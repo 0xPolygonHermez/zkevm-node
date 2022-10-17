@@ -26,7 +26,6 @@ var (
 	_ = common.Big1
 	_ = types.BloomLookup
 	_ = event.NewSubscription
-	_ = abi.ConvertType
 )
 
 // StorageOnDeployMetaData contains all meta data concerning the StorageOnDeploy contract.
@@ -157,11 +156,11 @@ func NewStorageOnDeployFilterer(address common.Address, filterer bind.ContractFi
 
 // bindStorageOnDeploy binds a generic wrapper to an already deployed contract.
 func bindStorageOnDeploy(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
-	parsed, err := StorageOnDeployMetaData.GetAbi()
+	parsed, err := abi.JSON(strings.NewReader(StorageOnDeployABI))
 	if err != nil {
 		return nil, err
 	}
-	return bind.NewBoundContract(address, *parsed, caller, transactor, filterer), nil
+	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
 }
 
 // Call invokes the (constant) contract method with params as input values and

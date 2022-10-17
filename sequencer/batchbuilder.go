@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -21,7 +20,7 @@ import (
 
 const (
 	maxTxsPerBatch    uint64 = 150
-	maxBatchBytesSize int    = 60000
+	maxBatchBytesSize int    = 30000
 )
 
 type processTxResponse struct {
@@ -71,23 +70,19 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	getTxsLimit := maxTxsPerBatch - uint64(len(s.sequenceInProgress.Txs))
 
-	// get txs from the pool
-	pendTxs, err := s.pool.GetTxs(ctx, pool.TxStatusPending, getTxsLimit)
-	if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
-		pendTxs, err = s.pool.GetTxs(ctx, pool.TxStatusFailed, getTxsLimit)
-		if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
-			log.Info("there is no suitable pending or failed txs in the pool, waiting...")
-			waitTick(ctx, ticker)
-			return
-		}
-	} else if err != nil {
-		log.Errorf("failed to get pending tx, err: %w", err)
+	minGasPrice, err := s.gpe.GetAvgGasPrice(ctx)
+	if err != nil {
+		log.Errorf("failed to get avg gas price, err: %w", err)
 		return
 	}
-	for i := 0; i < len(pendTxs); i++ {
-		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, pendTxs[i].Transaction)
-	}
 
+	// get txs from the pool
+	appendedClaimsTxsAmount := s.appendPendingTxs(ctx, true, 0, getTxsLimit, ticker)
+	appendedTxsAmount := s.appendPendingTxs(ctx, false, minGasPrice.Uint64(), getTxsLimit-appendedClaimsTxsAmount, ticker) + appendedClaimsTxsAmount
+
+	if appendedTxsAmount == 0 {
+		return
+	}
 	// clear txs if it bigger than expected
 	encodedTxsBytesSize := math.MaxInt
 	numberOfTxsInProcess := len(s.sequenceInProgress.Txs)
@@ -97,7 +92,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 			log.Errorf("failed to encode txs, err: %w", err)
 			return
 		}
-		encodedTxsBytesSize = binary.Size(encodedTxs)
+		encodedTxsBytesSize = len(encodedTxs)
 
 		if encodedTxsBytesSize > maxBatchBytesSize && numberOfTxsInProcess > 0 {
 			// if only one tx overflows, than it means, tx is invalid
@@ -119,7 +114,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	// process batch
-	log.Infof("processing batch with %d txs. %d txs are new from this iteration", len(s.sequenceInProgress.Txs), len(pendTxs))
+	log.Infof("processing batch with %d txs. %d txs are new from this iteration", len(s.sequenceInProgress.Txs), appendedTxsAmount)
 	processResponse, err := s.processTxs(ctx)
 	if err != nil {
 		s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
@@ -137,6 +132,11 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		for i := 0; i < len(processResponse.processedTxs); i++ {
 			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, processResponse.processedTxs[i].Tx)
 		}
+
+		if len(s.sequenceInProgress.Txs) == 0 {
+			log.Infof("sequence in progress doesn't have txs, no need to send a batch")
+			break
+		}
 		log.Infof("failed to process batch or invalid txs. Retrying with %d txs", len(s.sequenceInProgress.Txs))
 		// reprocess
 		processResponse, err = s.processTxs(ctx)
@@ -150,8 +150,13 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 				delete(unprocessedTxs, hash)
 			}
 		}
+		for _, txHash := range processResponse.unprocessedTxsHashes {
+			if _, ok := unprocessedTxs[txHash]; !ok {
+				unprocessedTxs[txHash] = processResponse.unprocessedTxs[txHash]
+			}
+		}
 	}
-	log.Infof("%d txs processed successfully", len(s.sequenceInProgress.Txs))
+	log.Infof("%d txs processed successfully", len(processResponse.processedTxsHashes))
 
 	// If after processing new txs the sequence is equal or smaller, revert changes and close sequence
 	if len(s.sequenceInProgress.Txs) <= len(sequenceBeforeTryingToProcessNewTxs.Txs) && len(s.sequenceInProgress.Txs) > 0 {
@@ -179,10 +184,12 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	// update processed txs
 	s.updateTxsStatus(ctx, ticker, processResponse.processedTxsHashes, pool.TxStatusSelected)
-	// update failed txs
-	s.updateTxsStatus(ctx, ticker, failedTxsHashes, pool.TxStatusFailed)
 	// update invalid txs
 	s.updateTxsStatus(ctx, ticker, invalidTxsHashes, pool.TxStatusInvalid)
+	// update failed txs
+	s.updateTxsStatus(ctx, ticker, failedTxsHashes, pool.TxStatusFailed)
+	// increment counter for failed txs
+	s.incrementFailedCounter(ctx, ticker, failedTxsHashes)
 }
 
 func (s *Sequencer) splitInvalidAndFailedTxs(ctx context.Context, unprocessedTxs map[string]*state.ProcessTransactionResponse, ticker *time.Ticker) ([]string, []string) {
@@ -212,6 +219,15 @@ func (s *Sequencer) updateTxsStatus(ctx context.Context, ticker *time.Ticker, ha
 		log.Errorf("failed to update txs status to %s, err: %w", status, err)
 		waitTick(ctx, ticker)
 		err = s.pool.UpdateTxsStatus(ctx, hashes, status)
+	}
+}
+
+func (s *Sequencer) incrementFailedCounter(ctx context.Context, ticker *time.Ticker, hashes []string) {
+	err := s.pool.IncrementFailedCounter(ctx, hashes)
+	for err != nil {
+		log.Errorf("failed to increment failed tx counter, err: %w", err)
+		waitTick(ctx, ticker)
+		err = s.pool.IncrementFailedCounter(ctx, hashes)
 	}
 }
 
@@ -481,4 +497,24 @@ func (s *Sequencer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 	}
 
 	return processingCtx, nil
+}
+
+func (s *Sequencer) appendPendingTxs(ctx context.Context, isClaims bool, minGasPrice, getTxsLimit uint64, ticker *time.Ticker) uint64 {
+	pendTxs, err := s.pool.GetTxs(ctx, pool.TxStatusPending, isClaims, minGasPrice, getTxsLimit)
+	if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
+		pendTxs, err = s.pool.GetTxs(ctx, pool.TxStatusFailed, isClaims, minGasPrice, getTxsLimit)
+		if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
+			log.Info("there is no suitable pending or failed txs in the pool, waiting...")
+			waitTick(ctx, ticker)
+			return 0
+		}
+	} else if err != nil {
+		log.Errorf("failed to get pending tx, err: %w", err)
+		return 0
+	}
+	for i := 0; i < len(pendTxs); i++ {
+		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, pendTxs[i].Transaction)
+	}
+
+	return uint64(len(pendTxs))
 }

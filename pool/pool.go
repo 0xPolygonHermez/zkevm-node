@@ -27,7 +27,7 @@ const (
 	txMaxSize = 4 * txSlotSize // 128KB
 
 	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
-	bridgeClaimMethodSignature = "0x122650ff"
+	bridgeClaimMethodSignature = "0x25308c93"
 )
 
 var (
@@ -44,16 +44,18 @@ var (
 // that uses a postgres database to store the data
 type Pool struct {
 	storage
-	state                       stateInterface
-	l2GlobalExitRootManagerAddr common.Address
+	state        stateInterface
+	l2BridgeAddr common.Address
+	chainID      uint64
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(s storage, st stateInterface, l2GlobalExitRootManagerAddr common.Address) *Pool {
+func NewPool(s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
 	return &Pool{
-		storage:                     s,
-		state:                       st,
-		l2GlobalExitRootManagerAddr: l2GlobalExitRootManagerAddr,
+		storage:      s,
+		state:        st,
+		l2BridgeAddr: l2BridgeAddr,
+		chainID:      chainID,
 	}
 }
 
@@ -70,7 +72,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 		ReceivedAt:  time.Now(),
 	}
 
-	poolTx.IsClaims = poolTx.IsClaimTx(p.l2GlobalExitRootManagerAddr)
+	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr)
 
 	return p.storage.AddTx(ctx, poolTx)
 }
@@ -120,6 +122,11 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 }
 
 func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
+	// check chain id
+	if tx.ChainId().Uint64() != p.chainID {
+		return ErrInvalidChainID
+	}
+
 	// Accept only legacy transactions until EIP-2718/2930 activates.
 	if tx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported
@@ -204,14 +211,14 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 // GasLimit: 256 bits
 // GasPrice: 256 bits
 // Value: 256 bits
-// Data: 60000 bytes
+// Data: 30000 bytes
 // Nonce: 64 bits
 // To: 160 bits
 // ChainId: 64 bits
 func (p *Pool) checkTxFieldCompatibilityWithExecutor(ctx context.Context, tx types.Transaction) error {
 	maxUint64BigInt := big.NewInt(0).SetUint64(math.MaxUint64)
 
-	const maxDataSize = 60000
+	const maxDataSize = 30000
 
 	// GasLimit, Nonce and To fields are limited by their types, no need to check
 	// Gas Price and Value are checked against the balance, and the max balance allowed

@@ -73,12 +73,12 @@ func (zkc *ZkCounters) SumUpZkCounters(txZkCounters ZkCounters) {
 }
 
 // IsClaimTx checks, if tx is a claim tx
-func (tx *Transaction) IsClaimTx(l2GlobalExitRootManagerAddr common.Address) bool {
+func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address) bool {
 	if tx.To() == nil {
 		return false
 	}
 
-	if *tx.To() == l2GlobalExitRootManagerAddr &&
+	if *tx.To() == l2BridgeAddr &&
 		strings.HasPrefix("0x"+common.Bytes2Hex(tx.Data()), bridgeClaimMethodSignature) {
 		return true
 	}
