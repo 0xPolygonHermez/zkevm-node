@@ -39,9 +39,6 @@ jobs:
     - name: Build Docker
       run: make build-docker
 
-    - name: List Dir
-      run: ls -lah
-
     - name: Compile SCs
       run: make compile-scs
       working-directory: test
