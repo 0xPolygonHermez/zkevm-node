@@ -4,8 +4,8 @@ DATE := $(shell date +%Y-%m-%dT%H:%M:%S%z)
 LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
 
 GOBASE := $(shell pwd)
-GOBIN := $(GOBASE)/../dist
-GOENVVARS := GOBIN=$(GOBIN)
+GOBIN := $(GOBASE)/dist
+GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=0 GOOS=linux GOARCH=amd64
 GOBINARY := zkevm-node
 GOCMD := $(GOBASE)/cmd
 

@@ -12,7 +12,7 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
-      - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
+      - ./config/config.test.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -31,7 +31,7 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
-      - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
+      - ./config/config.test.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -48,7 +48,7 @@ services:
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
     volumes:
-      - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
+      - ./config/config.test.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -62,7 +62,7 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
-      - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
+      - ./config/config.test.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -76,7 +76,7 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test/test.keystore:/pk/keystore
-      - ./${CONFIG_MODE}/config/config.${CONFIG_MODE:-local}.toml:/app/config.toml
+      - ./config/config.test.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -90,7 +90,7 @@ services:
     ports:
       - 61090:61090
     volumes:
-      - ./config/config.local.toml:/app/config.toml
+      - ./config/config.test.toml:/app/config.toml
     command:
       - "/bin/sh"
       - "-c"
@@ -240,7 +240,7 @@ services:
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
-      - ./${CONFIG_MODE}/config/prover.config.${CONFIG_MODE:-local}.json:/usr/src/app/config.json
+      - ./config/prover.config.test.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
 
