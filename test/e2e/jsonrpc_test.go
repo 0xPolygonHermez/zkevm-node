@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"os"
 	"reflect"
 	"testing"
 
@@ -27,16 +28,30 @@ const (
 	invalidParamsErrorCode = -32602
 )
 
-func TestMain(t *testing.T) {
+func TestMain(m *testing.M) {
 	var err error
 	ctx := context.Background()
 	err = operations.Teardown()
-	require.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
+
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
 	err = opsMan.Setup()
-	require.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
+
+	code := m.Run()
+	//err = operations.Teardown()
+	if err != nil {
+		panic(err)
+	}
+	os.Exit(code)
 }
 
 // TestJSONRPC tests JSON RPC methods on a running environment.
@@ -321,18 +336,27 @@ func Test_Block(t *testing.T) {
 		log.Infof("\nBlock num %d", blockNumber)
 		require.GreaterOrEqual(t, blockNumber, receipt.BlockNumber.Uint64())
 
-		blockHash, err := client.BlockByNumber(ctx, big.NewInt(0))
-		require.NotNil(t, blockHash)
+		block, err := client.BlockByNumber(ctx, receipt.BlockNumber)
 		require.NoError(t, err)
+		require.NotNil(t, block)
+		require.Equal(t, receipt.BlockNumber.Uint64(), block.Number().Uint64())
+		require.Equal(t, receipt.BlockHash.String(), block.Hash().String())
 
-		blockHash, err = client.BlockByHash(ctx, common.HexToHash("0x0"))
-		require.Nil(t, blockHash)
+		block, err = client.BlockByHash(ctx, receipt.BlockHash)
+		require.NoError(t, err)
+		require.NotNil(t, block)
+		require.Equal(t, receipt.BlockNumber.Uint64(), block.Number().Uint64())
+		require.Equal(t, receipt.BlockHash.String(), block.Hash().String())
+
+		nonExistantBlockNumber := big.NewInt(0).SetUint64(blockNumber + uint64(1))
+		block, err = client.BlockByNumber(ctx, nonExistantBlockNumber)
 		require.Error(t, err)
+		require.Nil(t, block)
 
-		blockHash, err = client.BlockByHash(ctx, common.HexToHash("0x2"))
-		require.Nil(t, blockHash)
+		nonExistantBlockHash := common.HexToHash("0xFFFFFF")
+		block, err = client.BlockByHash(ctx, nonExistantBlockHash)
 		require.Error(t, err)
-
+		require.Nil(t, block)
 		// its pending
 
 		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_getBlockTransactionCountByNumber", hexutil.EncodeBig(receipt.BlockNumber))
@@ -349,10 +373,15 @@ func Test_Block(t *testing.T) {
 		count, err := client.TransactionCount(ctx, receipt.BlockHash)
 		require.NoError(t, err)
 		require.Equal(t, uint(0x1), count)
+		ogtx, _ := json.MarshalIndent(tx, "", "  ")
 
 		tx = nil
 		tx, err = client.TransactionInBlock(ctx, receipt.BlockHash, receipt.TransactionIndex)
 		require.NoError(t, err)
+		newtx, _ := json.MarshalIndent(tx, "", "  ")
+		rtx, _ := json.MarshalIndent(receipt, "", "  ")
+
+		log.Infof("\nOGTX: %s\nReceived TX: %s\nReceipt TX: %s\n", ogtx, newtx, rtx)
 		require.Equal(t, receipt.TxHash, tx.Hash())
 
 		raw, err := jsonrpc.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", hexutil.EncodeBig(receipt.BlockNumber), "0x0")
@@ -396,7 +425,6 @@ func Test_Misc(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	defer func() { require.NoError(t, operations.Teardown()) }()
 
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
