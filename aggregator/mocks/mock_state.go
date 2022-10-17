@@ -46,8 +46,8 @@ func (_m *StateMock) DeleteGeneratedProof(ctx context.Context, batchNumber uint6
 	return r0
 }
 
-// DeleteProofs provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) DeleteProofs(ctx context.Context, dbTx pgx.Tx) error {
+// DeleteUngeneratedProofs provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, dbTx)
 
 	var r0 error

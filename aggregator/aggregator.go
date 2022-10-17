@@ -77,7 +77,7 @@ func (a *Aggregator) Start(ctx context.Context) {
 	defer tickerSendVerifiedBatch.Stop()
 
 	// Delete proofs that where being generated during last reboot
-	err := a.State.DeleteProofs(ctx, nil)
+	err := a.State.DeleteUngeneratedProofs(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
 		log.Warn("error deleting work in progress proofs from state")
 	}
@@ -101,14 +101,20 @@ func (a *Aggregator) Start(ctx context.Context) {
 }
 
 func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ticker) {
-	log.Info("checking if there is any consolidated batch to be verified")
+	log.Debug("checking if network is synced")
+	for !a.isSynced(ctx) {
+		log.Infof("waiting for synchronizer to sync...")
+		waitTick(ctx, ticker)
+		continue
+	}
+	log.Debug("checking if there is any consolidated batch to be verified")
 	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
 		log.Warnf("failed to get last consolidated batch, err: %v", err)
 		waitTick(ctx, ticker)
 		return
 	} else if err == state.ErrNotFound {
-		log.Warn("no consolidated batch found")
+		log.Debug("no consolidated batch found")
 		waitTick(ctx, ticker)
 		return
 	}
@@ -126,11 +132,13 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 		log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchNumberToVerify)
 		a.EthTxManager.VerifyBatch(batchNumberToVerify, proof)
 		log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
-		err := a.State.DeleteGeneratedProof(ctx, batchNumberToVerify, nil)
-		if err != nil {
-			log.Warnf("failed to delete generated proof for batchNumber %v, err: %v", batchNumberToVerify, err)
-			return
-		}
+		/*
+			err := a.State.DeleteGeneratedProof(ctx, batchNumberToVerify, nil)
+			if err != nil {
+				log.Warnf("failed to delete generated proof for batchNumber %v, err: %v", batchNumberToVerify, err)
+				return
+			}
+		*/
 	} else {
 		log.Debugf("no generated proof for batchNumber %v has been found", batchNumberToVerify)
 		waitTick(ctx, ticker)
@@ -179,15 +187,17 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		inputProver.PublicInputs.OldStateRoot, inputProver.PublicInputs.NewStateRoot, inputProver.PublicInputs.BatchNum)
 
 	var prover proverClientInterface
-
+	var idleProverFound bool
 	// Look for a free prover
 	for _, prover = range a.ProverClients {
 		if prover.IsIdle(ctx) {
+			log.Infof("Prover %s is going to be used for batchNumber: %d", prover.GetURI(), batchToVerify.BatchNumber)
+			idleProverFound = true
 			break
 		}
 	}
 
-	if prover == nil {
+	if !idleProverFound {
 		log.Warn("all provers are busy")
 		waitTick(ctx, ticker)
 		return
@@ -211,6 +221,8 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		waitTick(ctx, ticker)
 		return
 	}
+
+	log.Infof("Proof ID for batchNumber %d: %v", batchToVerify.BatchNumber, genProofID)
 
 	resGetProof, err := prover.GetResGetProof(ctx, genProofID, batchToVerify.BatchNumber)
 	if err != nil {
