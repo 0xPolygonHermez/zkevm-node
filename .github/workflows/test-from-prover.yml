@@ -45,8 +45,8 @@ jobs:
 
     - name: Compile SCs
       run: make compile-scs
-      working-directory: tests
+      working-directory: test
 
     - name: Test
       run: make test-full-non-e2e
-      working-directory: tests
+      working-directory: test

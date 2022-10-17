@@ -42,11 +42,11 @@ jobs:
 
     - name: Compile SCs
       run: make compile-scs
-      working-directory: tests
+      working-directory: test
 
     - name: Test
       run: make test-e2e-group-${{ matrix.e2e-group }}
-      working-directory: tests
+      working-directory: test
 
   from-fork-test-e2e:
     if:
@@ -83,11 +83,11 @@ jobs:
 
     - name: Compile SCs
       run: make compile-scs
-      working-directory: tests
+      working-directory: test
 
     - name: Test
       run: make test-e2e-group-${{ matrix.e2e-group }}
-      working-directory: tests
+      working-directory: test
 
     # Update check run
     - uses: actions/github-script@v5
