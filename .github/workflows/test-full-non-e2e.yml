@@ -37,6 +37,7 @@ jobs:
       env:
         ZKPROVER_URI: 127.0.0.1
       run: make test-full-non-e2e
+      working-directory: tests
 
   from-fork-test-full-non-e2e:
     if:
@@ -68,6 +69,7 @@ jobs:
       env:
         ZKPROVER_URI: 127.0.0.1
       run: make test-full-non-e2e
+      working-directory: tests
 
     # Update check run
     - uses: actions/github-script@v5

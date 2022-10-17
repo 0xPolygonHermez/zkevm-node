@@ -36,6 +36,7 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Test
       run: make test-e2e-group-${{ matrix.e2e-group }}
+      working-directory: tests
 
   from-fork-test-e2e:
     if:

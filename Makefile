@@ -1,14 +1,49 @@
+VERSION := $(shell git describe --tags --always)
+COMMIT := $(shell git rev-parse --short HEAD)
+DATE := $(shell date +%Y-%m-%dT%H:%M:%S%z)
+LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
+
+GOBASE := $(shell pwd)
+GOBIN := $(GOBASE)/../dist
+GOENVVARS := GOBIN=$(GOBIN)
+GOBINARY := zkevm-node
+GOCMD := $(GOBASE)/cmd
+
+.PHONY: build
+build: ## Builds the binary locally into ./dist
+	$(GOENVVARS) go build $(LDFLAGS) -o $(GOBIN)/$(GOBINARY) $(GOCMD)
+
+.PHONY: build-docker
+build-docker: ## Builds a docker image with the node binary
+	docker build -t zkevm-node -f ./Dockerfile .
+
+.PHONY: build-docker-nc
+build-docker-nc: ## Builds a docker image with the node binary - but without build cache
+	docker build --no-cache=true -t zkevm-node -f ./Dockerfile .
+
 .PHONY: run-rpc
 run-rpc: ## Runs all the services need to run a local zkEMV RPC node
-	docker-compose -f docker-compose.yml up -d zkevm-state-db zkevm-pool-db zkevm-rpc-db
+	docker-compose up -d zkevm-state-db zkevm-pool-db zkevm-rpc-db
 	sleep 2
-	docker-compose -f docker-compose.yml up -d zkevm-prover
+	docker-compose up -d zkevm-prover
 	sleep 5
-	docker-compose -f docker-compose.yml up -d zkevm-sync zkevm-rpc
+	docker-compose up -d zkevm-sync zkevm-rpc
 
 .PHONY: stop
 stop: ## Stops all services
 	docker-compose down
+
+.PHONY: install-linter
+install-linter: ## Installs the linter
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.46.2
+
+.PHONY: lint
+lint: ## Runs the linter
+	$$(go env GOPATH)/bin/golangci-lint run
+
+.PHONY: update-external-dependencies
+update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files
+	go run ./scripts/cmd/... updatedeps
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted

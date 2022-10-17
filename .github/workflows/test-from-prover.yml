@@ -42,3 +42,4 @@ jobs:
 
     - name: Test
       run: make test-full-non-e2e
+      working-directory: tests

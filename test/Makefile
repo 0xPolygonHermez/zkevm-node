@@ -69,33 +69,6 @@ STOPAPPROVE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENODEAPPROVE) && $(DOCKERCOMP
 
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
-.PHONY: test
-test: compile-scs ## Runs only short tests without checking race conditions
-	export CONFIG_MODE="test"	
-	$(STOPSTATEDB)
-	$(STOPPOOLDB)
-	$(STOPRPCDB)
-	$(STOPZKPROVER)
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNRPCDB)
-	$(RUNZKPROVER); sleep 5
-	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER)' EXIT; go test -short -race -p 1 ./...
-
-.PHONY: test-full
-test-full: build-docker compile-scs ## Runs all tests checking race conditions
-	export CONFIG_MODE="test"
-	$(STOPSTATEDB)
-	$(STOPPOOLDB)
-	$(STOPRPCDB)
-	$(STOPZKPROVER)
-	$(RUNSTATEDB)
-	$(RUNPOOLDB)
-	$(RUNRPCDB)
-	$(RUNZKPROVER); sleep 5
-	$(RUNZKPROVERMOCK)
-	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 1200s `go list ./... | grep -v \/ci\/e2e-group`
-
 .PHONY: test-full-non-e2e
 test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race conditions
 	export CONFIG_MODE="test"	
@@ -106,13 +79,15 @@ test-full-non-e2e: build-docker compile-scs ## Runs non-e2e tests checking race 
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB)
-	$(RUNZKPROVER); sleep 5
+	$(RUNZKPROVER)
+	sleep 5
 	$(RUNZKPROVERMOCK)
 	sleep 2
 	$(RUNL1NETWORK)
 	sleep 15
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK) && $(STOPNETWORK)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 60s ./...
+	trap '$(STOPSTATEDB) && $(STOPPOOLDB) && $(STOPRPCDB) && $(STOPZKPROVER) && $(STOPZKPROVERMOCK) && $(STOPNETWORK)' EXIT
+	go test -short -race -p 1 -timeout 60s ./...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: build-docker compile-scs ## Runs group 1 e2e tests checking race conditions
@@ -300,37 +275,26 @@ run-db-scripts: ## Executes scripts on the db after it has been initialized, pot
 
 .PHONY: generate-mocks
 generate-mocks: ## Generates mocks for the tests, using mockery tool
-	mockery --name=storageInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=storageMock --filename=mock_storage_test.go
-	mockery --name=jsonRPCTxPool --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=poolMock --filename=mock_pool_test.go
-	mockery --name=gasPriceEstimator --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
-	mockery --name=stateInterface --dir=jsonrpc --output=jsonrpc --outpkg=jsonrpc --inpackage --structname=stateMock --filename=mock_state_test.go
-	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=jsonrpc --outpkg=jsonrpc --structname=dbTxMock --filename=mock_dbtx_test.go
+	mockery --name=storageInterface --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=storageMock --filename=mock_storage_test.go
+	mockery --name=jsonRPCTxPool --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=poolMock --filename=mock_pool_test.go
+	mockery --name=gasPriceEstimator --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=gasPriceEstimatorMock --filename=mock_gasPriceEstimator_test.go
+	mockery --name=stateInterface --dir=../jsonrpc --output=../jsonrpc --outpkg=jsonrpc --inpackage --structname=stateMock --filename=mock_state_test.go
+	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../jsonrpc --outpkg=jsonrpc --structname=dbTxMock --filename=mock_dbtx_test.go
 
-	mockery --name=txManager --dir=sequencer --output=sequencer/mocks --outpkg=mocks --structname=TxmanagerMock --filename=mock_txmanager.go
-	mockery --name=etherman --dir=sequencer --output=sequencer/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
-	mockery --name=etherman --dir=sequencer/profitabilitychecker --output=sequencer/profitabilitychecker/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
-	mockery --name=stateInterface --dir=sequencer/broadcast --output=sequencer/broadcast/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
+	mockery --name=txManager --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=TxmanagerMock --filename=mock_txmanager.go
+	mockery --name=etherman --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
+	mockery --name=etherman --dir=../sequencer/profitabilitychecker --output=../sequencer/profitabilitychecker/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
+	mockery --name=stateInterface --dir=../sequencer/broadcast --output=../sequencer/broadcast/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 
-	mockery --name=ethermanInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=ethermanMock --filename=mock_etherman.go
-	mockery --name=stateInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=stateMock --filename=mock_state.go
-	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=synchronizer --outpkg=synchronizer --structname=dbTxMock --filename=mock_dbtx.go
+	mockery --name=ethermanInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=ethermanMock --filename=mock_etherman.go
+	mockery --name=stateInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=stateMock --filename=mock_state.go
+	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../synchronizer --outpkg=synchronizer --structname=dbTxMock --filename=mock_dbtx.go
 
 	## mocks for the aggregator tests
-	mockery --name=stateInterface --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
-	mockery --name=proverClientInterface --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=ProverClientMock --filename=mock_proverclient.go
-	mockery --name=etherman --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=Etherman --filename=mock_etherman.go
-	mockery --name=ethTxManager --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=EthTxManager --filename=mock_ethtxmanager.go
-
-.PHONY: generate-code-from-proto
-generate-code-from-proto: ## Generates code from proto files
-	cd proto/src/proto/statedb/v1 && protoc --proto_path=. --proto_path=../../../../include --go_out=../../../../../merkletree/pb --go-grpc_out=../../../../../merkletree/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative statedb.proto
-	cd proto/src/proto/zkprover/v1 && protoc --proto_path=. --go_out=../../../../../proverclient/pb --go-grpc_out=../../../../../proverclient/pb --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative zk_prover.proto
-	cd proto/src/proto/executor/v1 && protoc --proto_path=. --go_out=../../../../../state/runtime/executor/pb --go-grpc_out=../../../../../state/runtime/executor/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative executor.proto
-	cd proto/src/proto/broadcast/v1 && protoc --proto_path=. --proto_path=../../../../include --go_out=../../../../../sequencer/broadcast/pb --go-grpc_out=../../../../../sequencer/broadcast/pb --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative broadcast.proto
-
-.PHONY: update-external-dependencies
-update-external-dependencies: ## Updates external dependencies like images, test vectors or proto files
-	go run ./scripts/cmd/... updatedeps
+	mockery --name=stateInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
+	mockery --name=proverClientInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProverClientMock --filename=mock_proverclient.go
+	mockery --name=etherman --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=Etherman --filename=mock_etherman.go
+	mockery --name=ethTxManager --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManager --filename=mock_ethtxmanager.go
 
 .PHONY: run-benchmarks
 run-benchmarks: run-db ## Runs benchmars
@@ -338,7 +302,7 @@ run-benchmarks: run-db ## Runs benchmars
 
 .PHONY: compile-scs
 compile-scs: ## Compiles smart contracts, configuration in test/contracts/index.yaml
-	go run ./scripts/cmd... compilesc --input ./test/contracts
+	go run ./scripts/cmd... compilesc --input ./contracts
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
