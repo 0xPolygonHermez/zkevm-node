@@ -31,13 +31,13 @@ func TestTrustedStateReorg(t *testing.T) {
 	}
 
 	setupMocks := func(m *mocks, tc *testCase) Synchronizer {
-		genBlockNumber := uint64(123456)
 		genesis := state.Genesis{}
 		cfg := Config{
-			SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
-			SyncChunkSize: 10,
+			SyncInterval:   cfgTypes.Duration{Duration: 1 * time.Second},
+			SyncChunkSize:  10,
+			GenBlockNumber: uint64(123456),
 		}
-		sync, err := NewSynchronizer(true, m.Etherman, m.State, genBlockNumber, genesis, cfg)
+		sync, err := NewSynchronizer(true, m.Etherman, m.State, genesis, cfg)
 		require.NoError(t, err)
 
 		// state preparation
