@@ -12,11 +12,12 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test.keystore:/pk/keystore
-      - ./config/config.test.toml:/app/config.toml
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.toml:/app/genesis.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network local --cfg /app/config.toml --components sequencer"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components sequencer"
 
   zkevm-json-rpc:
     container_name: zkevm-json-rpc
@@ -31,11 +32,12 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test.keystore:/pk/keystore
-      - ./config/config.test.toml:/app/config.toml
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.toml:/app/genesis.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc"
 
   zkevm-non-sequencer-json-rpc:
     container_name: zkevm-non-sequencer-json-rpc
@@ -48,11 +50,12 @@ services:
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
     volumes:
-      - ./config/config.test.toml:/app/config.toml
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.toml:/app/genesis.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc"
 
   zkevm-aggregator:
     container_name: zkevm-aggregator
@@ -62,11 +65,12 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test.keystore:/pk/keystore
-      - ./config/config.test.toml:/app/config.toml
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.toml:/app/genesis.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network local --cfg /app/config.toml --components aggregator"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components aggregator"
 
   zkevm-sync:
     container_name: zkevm-sync
@@ -76,11 +80,12 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test.keystore:/pk/keystore
-      - ./config/config.test.toml:/app/config.toml
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.toml:/app/genesis.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network local --cfg /app/config.toml --components synchronizer"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components synchronizer"
 
   zkevm-broadcast:
     container_name: zkevm-broadcast
@@ -90,11 +95,12 @@ services:
     ports:
       - 61090:61090
     volumes:
-      - ./config/config.test.toml:/app/config.toml
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.toml:/app/genesis.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network local --cfg /app/config.toml --components broadcast-trusted-state"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components broadcast-trusted-state"
 
   zkevm-state-db:
     container_name: zkevm-state-db
@@ -108,7 +114,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - ../config/initproverdb.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../db/scripts/init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
@@ -207,11 +213,12 @@ services:
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_PORT=8124
     volumes:
-      - ./config/config.local.toml:/app/config.toml
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.toml:/app/genesis.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network local --cfg /app/config.toml --components rpc --http.api eth,net,debug,zkevm,txpool,web3"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc --http.api eth,net,debug,zkevm,txpool,web3"
 
   zkevm-explorer-l2-db:
     container_name: zkevm-explorer-l2-db
@@ -240,7 +247,7 @@ services:
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
-      - ./config/prover.config.test.json:/usr/src/app/config.json
+      - ./config/test.prover.config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
 
@@ -263,11 +270,12 @@ services:
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test.keystore:/pk/keystore
-      - ./config/config.local.toml:/app/config.toml
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.toml:/app/genesis.toml
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node approve --am 10000000000000000 -y --network local --cfg /app/config.toml"
+      - "/app/zkevm-node approve --am 10000000000000000 -y --genesis /app/genesis.json --cfg /app/config.toml"
 
   zkevm-permissionless-db:
     container_name: zkevm-permissionless-db
@@ -309,9 +317,10 @@ services:
       - ZKEVM_NODE_RPC_PORT=8126
     volumes:
       - ./test.keystore:/pk/keystore
-      - ./config/config.local.toml:/app/config.toml
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.toml:/app/genesis.toml
       - ./config/single_db_server.sql:/docker-entrypoint-initdb.d/init.sql
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node run --network local --cfg /app/config.toml --components \"rpc,synchronizer\""
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components \"rpc,synchronizer\""
