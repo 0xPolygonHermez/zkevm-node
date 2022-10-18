@@ -444,13 +444,13 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 			latestBlock, err = s.state.GetPreviousBlock(s.ctx, depth, dbTx)
 			errC := dbTx.Commit(s.ctx)
 			if errC != nil {
-				log.Errorf("error committing dbTx, err: %s", errC.Error())
+				log.Errorf("error committing dbTx, err: %w", errC)
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
-					log.Fatalf("error rolling back state. RollbackErr: %s, err: %s",
-						rollbackErr.Error(), errC.Error())
+					log.Fatalf("error rolling back state. RollbackErr: %w, err: %w",
+						rollbackErr, errC)
 				}
-				log.Fatalf("error committing dbTx, err: %s", errC.Error())
+				log.Fatalf("error committing dbTx, err: %w", errC)
 			}
 			if errors.Is(err, state.ErrNotFound) {
 				log.Warn("error checking reorg: previous block not found in db: ", err)
@@ -480,11 +480,21 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, dbTx pgx.Tx) (
 	if err != nil {
 		return false, err
 	}
+
+	// Reprocess batch and compare the stateRoot with tBatch.StateRoot
+	p, err := s.state.ExecuteBatch(s.ctx, batch.BatchNumber, batch.BatchL2Data, dbTx)
+	if err != nil {
+		log.Errorf("error executing L1 batch: %+v, error: %w", batch, err)
+		return false, err
+	}
+	newRoot := common.BytesToHash(p.NewStateRoot)
+
 	//Compare virtual state with trusted state
 	if hex.EncodeToString(batch.BatchL2Data) == hex.EncodeToString(tBatch.BatchL2Data) &&
 		batch.GlobalExitRoot.String() == tBatch.GlobalExitRoot.String() &&
 		batch.Timestamp.Unix() == tBatch.Timestamp.Unix() &&
-		batch.Coinbase.String() == tBatch.Coinbase.String() {
+		batch.Coinbase.String() == tBatch.Coinbase.String() &&
+		newRoot == tBatch.StateRoot {
 		return true, nil
 	}
 	return false, nil
