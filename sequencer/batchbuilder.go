@@ -84,35 +84,10 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 	// clear txs if it bigger than expected
-	encodedTxsBytesSize := math.MaxInt
-	numberOfTxsInProcess := len(s.sequenceInProgress.Txs)
-	for encodedTxsBytesSize > maxBatchBytesSize && numberOfTxsInProcess > 0 {
-		encodedTxs, err := state.EncodeTransactions(s.sequenceInProgress.Txs)
-		if err != nil {
-			log.Errorf("failed to encode txs, err: %w", err)
-			return
-		}
-		encodedTxsBytesSize = len(encodedTxs)
-
-		if encodedTxsBytesSize > maxBatchBytesSize && numberOfTxsInProcess > 0 {
-			// if only one tx overflows, than it means, tx is invalid
-			if numberOfTxsInProcess == 1 {
-				err = s.pool.UpdateTxStatus(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStatusInvalid)
-				for err != nil {
-					log.Errorf("failed to update tx with hash: %s to status: %s",
-						s.sequenceInProgress.Txs[0].Hash().String(), pool.TxStatusInvalid)
-					err = s.pool.UpdateTxStatus(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStatusInvalid)
-					waitTick(ctx, ticker)
-				}
-			}
-			log.Infof("decreasing amount of sent txs, bcs encodedTxsBytesSize > maxBatchBytesSize, encodedTxsBytesSize: %d, maxBatchBytesSize: %d",
-				encodedTxsBytesSize, maxBatchBytesSize)
-			s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:numberOfTxsInProcess-1]
-			s.isSequenceTooBig = true
-			numberOfTxsInProcess = len(s.sequenceInProgress.Txs)
-		}
+	err = s.cleanTxsIfTxsDataIsBiggerThanExpected(ctx, ticker)
+	if err != nil {
+		return
 	}
-
 	// process batch
 	log.Infof("processing batch with %d txs. %d txs are new from this iteration", len(s.sequenceInProgress.Txs), appendedTxsAmount)
 	processResponse, err := s.processTxs(ctx)
@@ -125,37 +100,11 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	// reprocess the batch until:
 	// - all the txs in it are processed, so the batch doesn't include invalid txs
 	// - the batch is processed (certain situations may cause the entire batch to not have effect on the state)
-	unprocessedTxs := processResponse.unprocessedTxs
-	for !processResponse.isBatchProcessed || len(processResponse.unprocessedTxs) > 0 {
-		// include only processed txs in the sequence
-		s.sequenceInProgress.Txs = make([]ethTypes.Transaction, 0, len(processResponse.processedTxs))
-		for i := 0; i < len(processResponse.processedTxs); i++ {
-			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, processResponse.processedTxs[i].Tx)
-		}
-
-		if len(s.sequenceInProgress.Txs) == 0 {
-			log.Infof("sequence in progress doesn't have txs, no need to send a batch")
-			break
-		}
-		log.Infof("failed to process batch or invalid txs. Retrying with %d txs", len(s.sequenceInProgress.Txs))
-		// reprocess
-		processResponse, err = s.processTxs(ctx)
-		if err != nil {
-			s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
-			log.Errorf("failed to reprocess txs, err: %w", err)
-			return
-		}
-		if len(processResponse.processedTxsHashes) != 0 {
-			for _, hash := range processResponse.processedTxsHashes {
-				delete(unprocessedTxs, hash)
-			}
-		}
-		for _, txHash := range processResponse.unprocessedTxsHashes {
-			if _, ok := unprocessedTxs[txHash]; !ok {
-				unprocessedTxs[txHash] = processResponse.unprocessedTxs[txHash]
-			}
-		}
+	unprocessedTxs, err := s.reprocessBatch(ctx, processResponse, sequenceBeforeTryingToProcessNewTxs)
+	if err != nil {
+		return
 	}
+
 	log.Infof("%d txs processed successfully", len(processResponse.processedTxsHashes))
 
 	// If after processing new txs the sequence is equal or smaller, revert changes and close sequence
@@ -190,6 +139,77 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	s.updateTxsStatus(ctx, ticker, failedTxsHashes, pool.TxStatusFailed)
 	// increment counter for failed txs
 	s.incrementFailedCounter(ctx, ticker, failedTxsHashes)
+}
+
+func (s *Sequencer) reprocessBatch(ctx context.Context, processResponse processTxResponse, sequenceBeforeTryingToProcessNewTxs types.Sequence) (map[string]*state.ProcessTransactionResponse, error) {
+	unprocessedTxs := processResponse.unprocessedTxs
+	var err error
+	for !processResponse.isBatchProcessed || len(processResponse.unprocessedTxs) > 0 {
+		// include only processed txs in the sequence
+		s.sequenceInProgress.Txs = make([]ethTypes.Transaction, 0, len(processResponse.processedTxs))
+		for i := 0; i < len(processResponse.processedTxs); i++ {
+			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, processResponse.processedTxs[i].Tx)
+		}
+
+		if len(s.sequenceInProgress.Txs) == 0 {
+			log.Infof("sequence in progress doesn't have txs, no need to send a batch")
+			break
+		}
+		log.Infof("failed to process batch or invalid txs. Retrying with %d txs", len(s.sequenceInProgress.Txs))
+		// reprocess
+		processResponse, err = s.processTxs(ctx)
+		if err != nil {
+			s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
+			log.Errorf("failed to reprocess txs, err: %w", err)
+			return unprocessedTxs, err
+		}
+		if len(processResponse.processedTxsHashes) != 0 {
+			for _, hash := range processResponse.processedTxsHashes {
+				delete(unprocessedTxs, hash)
+			}
+		}
+		for _, txHash := range processResponse.unprocessedTxsHashes {
+			if _, ok := unprocessedTxs[txHash]; !ok {
+				unprocessedTxs[txHash] = processResponse.unprocessedTxs[txHash]
+			}
+		}
+	}
+
+	return unprocessedTxs, nil
+}
+
+func (s *Sequencer) cleanTxsIfTxsDataIsBiggerThanExpected(ctx context.Context, ticker *time.Ticker) error {
+	encodedTxsBytesSize := math.MaxInt
+	numberOfTxsInProcess := len(s.sequenceInProgress.Txs)
+	for encodedTxsBytesSize > maxBatchBytesSize && numberOfTxsInProcess > 0 {
+		encodedTxs, err := state.EncodeTransactions(s.sequenceInProgress.Txs)
+		if err != nil {
+			log.Errorf("failed to encode txs, err: %w", err)
+			return err
+		}
+		encodedTxsBytesSize = len(encodedTxs)
+		if encodedTxsBytesSize > maxBatchBytesSize && numberOfTxsInProcess > 0 {
+			// if only one tx overflows, that it means, tx is invalid
+			if numberOfTxsInProcess == 1 {
+				err = s.pool.UpdateTxStatus(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStatusInvalid)
+				for err != nil {
+					log.Errorf("failed to update tx with hash: %s to status: %s",
+						s.sequenceInProgress.Txs[0].Hash().String(), pool.TxStatusInvalid)
+					err = s.pool.UpdateTxStatus(ctx, s.sequenceInProgress.Txs[0].Hash(), pool.TxStatusInvalid)
+					waitTick(ctx, ticker)
+				}
+			}
+			log.Infof("decreasing amount of sent txs, bcs encodedTxsBytesSize > maxBatchBytesSize, encodedTxsBytesSize: %d, maxBatchBytesSize: %d",
+				encodedTxsBytesSize, maxBatchBytesSize)
+			s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:numberOfTxsInProcess-1]
+			updatedNumberTxsInProgress := len(s.sequenceInProgress.Txs)
+			if updatedNumberTxsInProgress != 0 {
+				s.sequenceInProgress.IsSequenceTooBig = true
+			}
+			numberOfTxsInProcess = updatedNumberTxsInProgress
+		}
+	}
+	return nil
 }
 
 func (s *Sequencer) splitInvalidAndFailedTxs(ctx context.Context, unprocessedTxs map[string]*state.ProcessTransactionResponse, ticker *time.Ticker) ([]string, []string) {
