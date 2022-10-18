@@ -15,9 +15,9 @@ services:
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
-      - ./config/.keystore:/pk/keystore
-      - ./config/public.node.config.toml:/app/config.toml
-      - ./config/public.genesis.config.json:/app/genesis.json
+      - ./config/example.keystore:/pk/keystore
+      - ./config/environments/public/public.node.config.toml:/app/config.toml
+      - ./config/environments/public/public.genesis.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -30,9 +30,9 @@ services:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
-      - ./config/.keystore:/pk/keystore
-      - ./config/public.node.config.toml:/app/config.toml
-      - ./config/public.genesis.config.json:/app/genesis.json
+      - ./config/example.keystore:/pk/keystore
+      - ./config/environments/public/public.node.config.toml:/app/config.toml
+      - ./config/environments/public/public.genesis.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -50,7 +50,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - ./config/initproverdb.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db/scripts/init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
@@ -98,6 +98,6 @@ services:
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
-      - ./config/prover.config.local.json:/usr/src/app/config.json
+      - ./config/environments/public/public.prover.config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
