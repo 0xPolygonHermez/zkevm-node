@@ -459,6 +459,7 @@ func (s *Sequencer) closeBatch(ctx context.Context, lastBatchNumber uint64, dbTx
 		BatchNumber:   lastBatchNumber,
 		StateRoot:     s.sequenceInProgress.StateRoot,
 		LocalExitRoot: s.sequenceInProgress.LocalExitRoot,
+		Txs:           s.sequenceInProgress.Txs,
 	}
 	err := s.state.CloseBatch(ctx, receipt, dbTx)
 	if err != nil {
