@@ -9,7 +9,6 @@ services:
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
@@ -29,7 +28,6 @@ services:
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
-      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
@@ -62,7 +60,6 @@ services:
     image: zkevm-node
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
-      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
@@ -77,7 +74,6 @@ services:
     image: zkevm-node
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
-      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
@@ -95,6 +91,7 @@ services:
     ports:
       - 61090:61090
     volumes:
+      - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
     command:
@@ -267,7 +264,6 @@ services:
     image: zkevm-node
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
-      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
     volumes:
       - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
@@ -313,7 +309,6 @@ services:
       - ZKEVM_NODE_RPC_DB_PASSWORD=test_password
       - ZKEVM_NODE_RPC_DB_NAME=rpc_db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-permissionless-db
-      - ZKEVM_NODE_ETHERMAN_PRIVATEKEYPATH=/pk/keystore
       - ZKEVM_NODE_RPC_PORT=8126
     volumes:
       - ./test.keystore:/pk/keystore
