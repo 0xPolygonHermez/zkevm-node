@@ -475,7 +475,7 @@ func Test_Transactions(t *testing.T) {
 			Data:     nil,
 		})
 		err = client.SendTransaction(context.Background(), invalidTx)
-		require.ErrorContains(t, err, "only replay-protected (EIP-155) transactions allowed over RPC")
+		require.Error(t, err)
 		// End Test Case
 
 		// Test Case: TX with amount being higher than balance
