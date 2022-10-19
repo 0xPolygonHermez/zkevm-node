@@ -535,5 +535,11 @@ func Test_Misc(t *testing.T) {
 		require.NoError(t, err)
 		// in bytes but has to be hash 0x0...42
 		require.Equal(t, sc_retrieve, common.BytesToHash(storage))
+
+		// eth_getCode
+
+		scBytecode, err := client.CodeAt(ctx, contractAddress, nil)
+		require.NoError(t, err)
+		require.Contains(t, Storage.StorageMetaData.Bin, common.Bytes2Hex(scBytecode))
 	}
 }
