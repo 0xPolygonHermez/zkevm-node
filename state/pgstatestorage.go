@@ -1704,17 +1704,17 @@ func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger c
 
 // AddGeneratedProof adds a generated proof to the storage
 func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof, proof_id, prover) VALUES ($1, $2, $3, $4)"
+	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof, proof_id, input_prover, prover) VALUES ($1, $2, $3, $4, $5)"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.Prover)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
 	return err
 }
 
 // UpdateGeneratedProof updates a generated proof in the storage
 func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2, proof_id = $3, prover = $4 WHERE batch_num = $1"
+	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2, proof_id = $3, input_prover = $4, prover = $5 WHERE batch_num = $1"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.Prover)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
 	return err
 }
 
