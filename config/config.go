@@ -29,12 +29,8 @@ const (
 	FlagYes = "yes"
 	// FlagCfg is the flag for cfg.
 	FlagCfg = "cfg"
-	// FlagNetwork is the flag for network.
-	FlagNetwork = "network"
-	// FlagNetworkCfg is the flag for network-cfg.
-	FlagNetworkCfg = "network-cfg"
-	// FlagNetworkBase is the flag for netwotk-base.
-	FlagNetworkBase = "network-base"
+	// FlagGenesisFile is the flag for genesis file.
+	FlagGenesisFile = "genesis"
 	// FlagAmount is the flag for amount.
 	FlagAmount = "amount"
 	// FlagRemoteMT is the flag for remote-merkletree.
