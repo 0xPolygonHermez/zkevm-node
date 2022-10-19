@@ -98,12 +98,14 @@ func main() {
 			Aliases: []string{"ap"},
 			Usage:   "Approve tokens to be spent by the smart contract",
 			Action:  approveTokens,
-			Flags: append(flags, &cli.StringFlag{
-				Name:     config.FlagAmount,
-				Aliases:  []string{"am"},
-				Usage:    "Amount that is gonna be approved",
-				Required: true,
-			},
+			Flags: append(flags,
+				&cli.StringFlag{
+					Name:     config.FlagAmount,
+					Aliases:  []string{"am"},
+					Usage:    "Amount that is gonna be approved",
+					Required: true,
+				},
+				&genesisFlag,
 			),
 		},
 		{

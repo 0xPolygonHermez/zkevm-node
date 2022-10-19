@@ -277,10 +277,11 @@ services:
     volumes:
       - ./test/test.keystore:/pk/keystore
       - ./config/config.local.toml:/app/config.toml
+      - ./config/genesis.local.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node approve --am 10000000000000000 -y --network local --cfg /app/config.toml"
+      - "/app/zkevm-node approve --am 10000000000000000 -y --genesis /app/genesis.json --cfg /app/config.toml"
 
   zkevm-permissionless-db:
     container_name: zkevm-permissionless-db
