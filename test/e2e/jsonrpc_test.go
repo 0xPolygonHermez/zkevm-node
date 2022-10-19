@@ -49,7 +49,6 @@ func Setup() {
 
 // TestJSONRPC tests JSON RPC methods on a running environment.
 func TestJSONRPC(t *testing.T) {
-
 	Setup()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
@@ -367,6 +366,8 @@ func Test_Block(t *testing.T) {
 		count, err := client.TransactionCount(ctx, receipt.BlockHash)
 		require.NoError(t, err)
 		require.Equal(t, uint(0x1), count)
+
+		// TODO FIXME Investigate discrepancy
 		/*
 			ogtx, _ := json.MarshalIndent(tx, "", "  ")
 
