@@ -95,8 +95,8 @@ func TestSequenceTooBig(t *testing.T) {
 		},
 		{
 			Input: []int{
-				100000000,
-				1000000,
+				100000,
+				10000,
 				1000,
 				100,
 				1,
