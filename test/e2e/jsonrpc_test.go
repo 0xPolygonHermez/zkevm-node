@@ -541,5 +541,9 @@ func Test_Misc(t *testing.T) {
 		scBytecode, err := client.CodeAt(ctx, contractAddress, nil)
 		require.NoError(t, err)
 		require.Contains(t, Storage.StorageMetaData.Bin, common.Bytes2Hex(scBytecode))
+
+		emptyBytecode, err := client.CodeAt(ctx, common.HexToAddress("0xdeadbeef"), nil)
+		require.NoError(t, err)
+		require.Empty(t, emptyBytecode)
 	}
 }
