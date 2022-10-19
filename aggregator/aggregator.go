@@ -73,6 +73,7 @@ func NewAggregator(
 		}
 
 		if proof != nil {
+			log.Infof("Resuming WIP proof generation for batchNumber %v in prover %v", proof.BatchNumber, proof.Prover)
 			go func() {
 				a.resumeWIPProofGeneration(ctx, proof, proverClient)
 			}()
@@ -145,7 +146,7 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 		return
 	}
 
-	if proof != nil {
+	if proof.Proof != nil {
 		log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchNumberToVerify)
 		a.EthTxManager.VerifyBatch(batchNumberToVerify, proof.Proof)
 		log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
