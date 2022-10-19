@@ -7,6 +7,6 @@ type Proof struct {
 	BatchNumber uint64
 	Proof       *pb.GetProofResponse
 	InputProver *pb.InputProver
-	ProofID     string
-	Prover      string
+	ProofID     *string
+	Prover      *string
 }

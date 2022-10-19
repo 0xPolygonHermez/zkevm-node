@@ -219,7 +219,8 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	proof := &state.Proof{BatchNumber: batchToVerify.BatchNumber, Prover: prover.GetURI(), InputProver: inputProver}
+	proverURI := prover.GetURI()
+	proof := &state.Proof{BatchNumber: batchToVerify.BatchNumber, Prover: &proverURI, InputProver: inputProver}
 
 	genProofID, err := prover.GetGenProofID(ctx, inputProver)
 	if err != nil {
@@ -232,7 +233,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	proof.ProofID = genProofID
+	proof.ProofID = &genProofID
 
 	// Avoid other thread to process the same batch
 	err = a.State.AddGeneratedProof(ctx, proof, nil)
@@ -252,7 +253,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 }
 
 func (a *Aggregator) getAndStoreProof(ctx context.Context, proof *state.Proof, prover proverClientInterface) error {
-	resGetProof, err := prover.GetResGetProof(ctx, proof.ProofID, proof.BatchNumber)
+	resGetProof, err := prover.GetResGetProof(ctx, *proof.ProofID, proof.BatchNumber)
 	if err != nil {
 		log.Warnf("failed to get proof from prover, err: %v", err)
 		err2 := a.State.DeleteGeneratedProof(ctx, proof.BatchNumber, nil)
