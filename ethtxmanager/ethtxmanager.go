@@ -5,6 +5,7 @@
 package ethtxmanager
 
 import (
+	"context"
 	"math/big"
 	"strings"
 	"time"
@@ -32,7 +33,7 @@ func New(cfg Config, ethMan etherman) *Client {
 }
 
 // SequenceBatches send sequences to the channel
-func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
+func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) {
 	var (
 		attempts uint32
 		gas      uint64
@@ -46,9 +47,9 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 			err error
 		)
 		if nonce.Uint64() > 0 {
-			tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nonce)
+			tx, err = c.ethMan.SequenceBatches(ctx, sequences, gas, gasPrice, nonce)
 		} else {
-			tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nil)
+			tx, err = c.ethMan.SequenceBatches(ctx, sequences, gas, gasPrice, nil)
 		}
 		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
 			log.Errorf("failed to sequence batches, trying once again, retry #%d, gasLimit: %d, err: %w",
@@ -56,9 +57,9 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 			attempts++
 			if nonce.Uint64() > 0 {
-				tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nonce)
+				tx, err = c.ethMan.SequenceBatches(ctx, sequences, gas, gasPrice, nonce)
 			} else {
-				tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nil)
+				tx, err = c.ethMan.SequenceBatches(ctx, sequences, gas, gasPrice, nil)
 			}
 		}
 		if err != nil {
@@ -89,7 +90,7 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 }
 
 // VerifyBatch send VerifyBatch request to ethereum
-func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) {
+func (c *Client) VerifyBatch(ctx context.Context, batchNum uint64, resGetProof *pb.GetProofResponse) {
 	var (
 		attempts uint32
 		gas      uint64
@@ -103,18 +104,18 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 			err error
 		)
 		if nonce.Uint64() > 0 {
-			tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nonce)
+			tx, err = c.ethMan.VerifyBatch(ctx, batchNum, resGetProof, gas, gasPrice, nonce)
 		} else {
-			tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nil)
+			tx, err = c.ethMan.VerifyBatch(ctx, batchNum, resGetProof, gas, gasPrice, nil)
 		}
 		for err != nil && attempts < c.cfg.MaxVerifyBatchTxRetries {
 			log.Errorf("failed to send batch verification, trying once again, retry #%d, gasLimit: %d, err: %w", attempts, 0, err)
 			time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
 
 			if nonce.Uint64() > 0 {
-				tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nonce)
+				tx, err = c.ethMan.VerifyBatch(ctx, batchNum, resGetProof, gas, gasPrice, nonce)
 			} else {
-				tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nil)
+				tx, err = c.ethMan.VerifyBatch(ctx, batchNum, resGetProof, gas, gasPrice, nil)
 			}
 
 			attempts++
