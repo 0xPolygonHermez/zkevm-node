@@ -3,6 +3,7 @@ package operations
 import (
 	"context"
 	"fmt"
+	"github.com/0xPolygonHermez/zkevm-node/test/utils"
 	"math/big"
 	"os"
 	"os/exec"
@@ -24,9 +25,6 @@ import (
 )
 
 const (
-	executorURI   = "127.0.0.1:50071"
-	merkletreeURI = "127.0.0.1:50061"
-
 	poeAddress        = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
 	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
 
@@ -50,11 +48,14 @@ const (
 )
 
 var (
-	stateDBCfg       = dbutils.NewStateConfigFromEnv()
-	poolDBCfg        = dbutils.NewPoolConfigFromEnv()
-	rpcDBCfg         = dbutils.NewRPCConfigFromEnv()
+	stateDBCfg = dbutils.NewStateConfigFromEnv()
+	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
+	rpcDBCfg   = dbutils.NewRPCConfigFromEnv()
+
+	executorURI      = utils.Getenv("ZKPROVER_URI", "127.0.0.1:50071")
+	merkleTreeURI    = utils.Getenv("MERKLETREE_URI", "127.0.0.1:50061")
 	executorConfig   = executor.Config{URI: executorURI}
-	merkletreeConfig = merkletree.Config{URI: merkletreeURI}
+	merkleTreeConfig = merkletree.Config{URI: merkleTreeURI}
 )
 
 // SequencerConfig is the configuration for the sequencer operations.
@@ -294,7 +295,7 @@ func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 	ctx := context.Background()
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executorConfig)
-	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletreeConfig)
+	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkleTreeConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
 	stateCfg := state.Config{

@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"github.com/0xPolygonHermez/zkevm-node/test/utils"
 	"math/big"
 	"testing"
 	"time"
@@ -87,8 +88,10 @@ func initState() (*state.State, error) {
 		return nil, err
 	}
 	stateDb := state.NewPostgresStorage(sqlDB)
-	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: "127.0.0.1:50071"})
-	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: "127.0.0.1:50061"})
+	executorUri := utils.Getenv("ZKPROVER_URI", "127.0.0.1:50071")
+	merkleTreeUri := utils.Getenv("MERKLETREE_URI", "127.0.0.1:50061")
+	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorUri})
+	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: merkleTreeUri})
 	stateTree := merkletree.NewStateTree(mtDBClient)
 	return state.NewState(state.Config{}, stateDb, executorClient, stateTree), nil
 }
