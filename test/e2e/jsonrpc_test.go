@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"os"
 	"reflect"
 	"testing"
 
@@ -29,7 +28,7 @@ const (
 	invalidParamsErrorCode = -32602
 )
 
-func TestMain(m *testing.M) {
+func Setup() {
 	var err error
 	ctx := context.Background()
 	err = operations.Teardown()
@@ -46,17 +45,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-
-	code := m.Run()
-	//err = operations.Teardown()
-	if err != nil {
-		panic(err)
-	}
-	os.Exit(code)
 }
 
 // TestJSONRPC tests JSON RPC methods on a running environment.
 func TestJSONRPC(t *testing.T) {
+
+	Setup()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		sc, err := deployContracts(network.URL, operations.DefaultSequencerPrivateKey, network.ChainID)
@@ -129,10 +123,7 @@ func createTX(ethdeployment string, chainId uint64, to common.Address, amount *b
 }
 
 func Test_Filters(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
+	Setup()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
@@ -261,6 +252,7 @@ func Test_Filters(t *testing.T) {
 }
 
 func Test_Gas(t *testing.T) {
+	Setup()
 	var Address1 = common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff")
 	var Values = []*big.Int{
 		big.NewInt(1000),
@@ -295,6 +287,7 @@ func Test_Gas(t *testing.T) {
 }
 
 func Test_Block(t *testing.T) {
+	Setup()
 	type rpcTx struct {
 		BlockHash        string `json:"blockHash"`
 		BlockNumber      string `json:"blockNumber"`
@@ -421,10 +414,7 @@ func Test_Block(t *testing.T) {
 	}
 }
 func Test_Transactions(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
+	Setup()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		client, err := ethclient.Dial(network.URL)
@@ -499,10 +489,7 @@ func Test_Transactions(t *testing.T) {
 }
 
 func Test_Misc(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
+	Setup()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 
