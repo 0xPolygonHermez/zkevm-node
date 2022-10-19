@@ -56,6 +56,9 @@ func Teardown() {
 
 // TestJSONRPC tests JSON RPC methods on a running environment.
 func TestJSONRPC(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	Setup()
 	defer Teardown()
 	for _, network := range networks {
@@ -130,6 +133,9 @@ func createTX(ethdeployment string, chainId uint64, to common.Address, amount *b
 }
 
 func Test_Filters(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	Setup()
 	defer Teardown()
 	for _, network := range networks {
@@ -260,6 +266,9 @@ func Test_Filters(t *testing.T) {
 }
 
 func Test_Gas(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	Setup()
 	defer Teardown()
 	var Address1 = common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff")
@@ -296,6 +305,9 @@ func Test_Gas(t *testing.T) {
 }
 
 func Test_Block(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	Setup()
 	defer Teardown()
 	type rpcTx struct {
@@ -426,6 +438,9 @@ func Test_Block(t *testing.T) {
 	}
 }
 func Test_Transactions(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	Setup()
 	defer Teardown()
 	for _, network := range networks {
@@ -502,6 +517,9 @@ func Test_Transactions(t *testing.T) {
 }
 
 func Test_Misc(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	Setup()
 	defer Teardown()
 	for _, network := range networks {
