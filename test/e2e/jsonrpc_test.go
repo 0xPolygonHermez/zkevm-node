@@ -47,9 +47,17 @@ func Setup() {
 	}
 }
 
+func Teardown() {
+	err := operations.Teardown()
+	if err != nil {
+		panic(err)
+	}
+}
+
 // TestJSONRPC tests JSON RPC methods on a running environment.
 func TestJSONRPC(t *testing.T) {
 	Setup()
+	defer Teardown()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		sc, err := deployContracts(network.URL, operations.DefaultSequencerPrivateKey, network.ChainID)
@@ -123,6 +131,7 @@ func createTX(ethdeployment string, chainId uint64, to common.Address, amount *b
 
 func Test_Filters(t *testing.T) {
 	Setup()
+	defer Teardown()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
@@ -252,6 +261,7 @@ func Test_Filters(t *testing.T) {
 
 func Test_Gas(t *testing.T) {
 	Setup()
+	defer Teardown()
 	var Address1 = common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff")
 	var Values = []*big.Int{
 		big.NewInt(1000),
@@ -287,6 +297,7 @@ func Test_Gas(t *testing.T) {
 
 func Test_Block(t *testing.T) {
 	Setup()
+	defer Teardown()
 	type rpcTx struct {
 		BlockHash        string `json:"blockHash"`
 		BlockNumber      string `json:"blockNumber"`
@@ -341,13 +352,13 @@ func Test_Block(t *testing.T) {
 		require.Equal(t, receipt.BlockNumber.Uint64(), block.Number().Uint64())
 		require.Equal(t, receipt.BlockHash.String(), block.Hash().String())
 
-		nonExistantBlockNumber := big.NewInt(0).SetUint64(blockNumber + uint64(1))
-		block, err = client.BlockByNumber(ctx, nonExistantBlockNumber)
+		nonExistentBlockNumber := big.NewInt(0).SetUint64(blockNumber + uint64(1))
+		block, err = client.BlockByNumber(ctx, nonExistentBlockNumber)
 		require.Error(t, err)
 		require.Nil(t, block)
 
-		nonExistantBlockHash := common.HexToHash("0xFFFFFF")
-		block, err = client.BlockByHash(ctx, nonExistantBlockHash)
+		nonExistentBlockHash := common.HexToHash("0xFFFFFF")
+		block, err = client.BlockByHash(ctx, nonExistentBlockHash)
 		require.Error(t, err)
 		require.Nil(t, block)
 		// its pending
@@ -365,7 +376,7 @@ func Test_Block(t *testing.T) {
 		// check if block number is correct
 		count, err := client.TransactionCount(ctx, receipt.BlockHash)
 		require.NoError(t, err)
-		require.Equal(t, uint(0x1), count)
+		require.Equal(t, uint(1), count)
 
 		// TODO FIXME Investigate discrepancy
 		/*
@@ -416,6 +427,7 @@ func Test_Block(t *testing.T) {
 }
 func Test_Transactions(t *testing.T) {
 	Setup()
+	defer Teardown()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		client, err := ethclient.Dial(network.URL)
@@ -491,6 +503,7 @@ func Test_Transactions(t *testing.T) {
 
 func Test_Misc(t *testing.T) {
 	Setup()
+	defer Teardown()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 
