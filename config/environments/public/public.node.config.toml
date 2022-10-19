@@ -22,7 +22,7 @@ MaxConns = 200
 
 [Etherman]
 URL = "https://geth_goerli.hermez.io"
-PrivateKeyPath = "./test/test.keystore"
+PrivateKeyPath = "/pk/keystore"
 PrivateKeyPassword = "testonly"
 
 [RPC]
