@@ -1721,7 +1721,7 @@ func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, proof *Proof
 // GetGeneratedProofByBatchNumber gets a generated proof from the storage
 func (p *PostgresStorage) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Proof, error) {
 	var (
-		proof *Proof
+		proof *Proof = &Proof{}
 		err   error
 	)
 
@@ -1757,7 +1757,7 @@ func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.
 // GetWIPProofByProver gets a generated proof from its prover URI
 func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string, dbTx pgx.Tx) (*Proof, error) {
 	var (
-		proof *Proof
+		proof *Proof = &Proof{}
 		err   error
 	)
 
