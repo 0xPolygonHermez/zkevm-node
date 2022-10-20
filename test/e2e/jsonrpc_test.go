@@ -390,20 +390,11 @@ func Test_Block(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, uint(1), count)
 
-		// TODO FIXME Investigate discrepancy
-		/*
-			ogtx, _ := json.MarshalIndent(tx, "", "  ")
+		tx = nil
+		tx, err = client.TransactionInBlock(ctx, receipt.BlockHash, receipt.TransactionIndex)
+		require.NoError(t, err)
+		require.Equal(t, receipt.TxHash, tx.Hash())
 
-
-			tx = nil
-			tx, err = client.TransactionInBlock(ctx, receipt.BlockHash, receipt.TransactionIndex)
-			require.NoError(t, err)
-			newtx, _ := json.MarshalIndent(tx, "", "  ")
-			rtx, _ := json.MarshalIndent(receipt, "", "  ")
-
-			log.Infof("\nOGTX: %s\nReceived TX: %s\nReceipt TX: %s\n", ogtx, newtx, rtx)
-			require.Equal(t, receipt.TxHash, tx.Hash())
-		*/
 		raw, err := jsonrpc.JSONRPCCall(network.URL, "eth_getTransactionByBlockNumberAndIndex", hexutil.EncodeBig(receipt.BlockNumber), "0x0")
 		require.NoError(t, err)
 		require.Nil(t, raw.Error)
