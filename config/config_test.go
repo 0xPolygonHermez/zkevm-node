@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -102,6 +103,38 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.MaxAllowedFailedCounter",
 			expectedValue: uint64(50),
+		},
+		{
+			path:          "Etherman.URL",
+			expectedValue: "http://localhost:8545",
+		},
+		{
+			path:          "Etherman.L1ChainID",
+			expectedValue: uint64(1337),
+		},
+		{
+			path:          "Etherman.PrivateKeyPath",
+			expectedValue: "./test/test.keystore",
+		},
+		{
+			path:          "Etherman.PrivateKeyPassword",
+			expectedValue: "testonly",
+		},
+		{
+			path:          "Etherman.PoEAddr",
+			expectedValue: common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
+		},
+		{
+			path:          "Etherman.MaticAddr",
+			expectedValue: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+		},
+		{
+			path:          "Etherman.GlobalExitRootManagerAddr",
+			expectedValue: common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
+		},
+		{
+			path:          "Etherman.ReadOnly",
+			expectedValue: false,
 		},
 		{
 			path:          "EthTxManager.MaxSendBatchTxRetries",

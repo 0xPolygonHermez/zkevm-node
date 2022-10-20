@@ -125,7 +125,7 @@ func TestBuildInputProver(t *testing.T) {
 		BatchL2Data:    hex.EncodeToString(batchL2Data),
 	}
 
-	etherman.On("GetPublicAddress").Return(common.HexToAddress("0x123"))
+	etherman.On("GetPublicAddress").Return(common.HexToAddress("0x123"), nil)
 	ip, err := a.buildInputProver(ctx, batchToVerify)
 	require.NoError(t, err)
 	require.NotNil(t, ip)
@@ -271,7 +271,7 @@ func TestAggregatorFlow(t *testing.T) {
 	st.On("AddGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil)
 	st.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil)
 	etherman.On("GetLatestVerifiedBatchNum").Return(uint64(1), nil)
-	etherman.On("GetPublicAddress").Return(aggrAddress)
+	etherman.On("GetPublicAddress").Return(aggrAddress, nil)
 
 	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(context.Background(), nil)
 	require.NoError(t, err)

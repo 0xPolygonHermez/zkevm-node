@@ -131,9 +131,15 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.Etherman.L1ChainID)
-	if err != nil {
-		return nil, err
+	var (
+		auth *bind.TransactOpts
+		err  error
+	)
+	if !c.Etherman.ReadOnly {
+		auth, err = newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.Etherman.L1ChainID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	etherman, err := etherman.NewClient(c.Etherman, auth)
 	if err != nil {
