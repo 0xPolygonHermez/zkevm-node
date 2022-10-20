@@ -88,7 +88,7 @@ func NewAggregator(
 func (a *Aggregator) resumeWIPProofGeneration(ctx context.Context, proof *state.Proof, prover proverClientInterface) {
 	err := a.getAndStoreProof(ctx, proof, prover)
 	if err != nil {
-		log.Warnf("Could not resume WIP Proof Generation por prover %v and batchNumber %v", *proof.Prover, proof.BatchNumber)
+		log.Warnf("Could not resume WIP Proof Generation for prover %v and batchNumber %v", *proof.Prover, proof.BatchNumber)
 	}
 }
 
@@ -244,7 +244,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	log.Infof("Proof ID for batchNumber %d: %v", proof.BatchNumber, proof.ProofID)
+	log.Infof("Proof ID for batchNumber %d: %v", proof.BatchNumber, *proof.ProofID)
 
 	err = a.getAndStoreProof(ctx, proof, prover)
 	if err != nil {
