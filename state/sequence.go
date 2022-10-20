@@ -21,14 +21,18 @@ type SequenceStatus string
 // Sequence represents an operation sent to the PoE smart contract to be
 // processed.
 type Sequence struct {
-	BatchNumber                              uint64
-	GlobalExitRoot, StateRoot, LocalExitRoot common.Hash
-	Timestamp                                time.Time
-	Txs                                      []types.Transaction
+	BatchNumber    uint64
+	StateRoot      common.Hash
+	GlobalExitRoot common.Hash
+	LocalExitRoot  common.Hash
+	Timestamp      time.Time
+	Txs            []types.Transaction
 
-	Status     SequenceStatus
-	L1Tx       *types.Transaction
-	SentToL1At *time.Time
+	Status SequenceStatus
+	L1Tx   *types.Transaction
+
+	CreatedAt *time.Time
+	UpdatedAt *time.Time
 }
 
 // IsEmpty checks is sequence struct is empty

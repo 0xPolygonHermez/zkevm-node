@@ -295,7 +295,7 @@ func TestSendSequences(t *testing.T) {
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	sequence := state.Sequence{
 		GlobalExitRoot: ger,
-		Timestamp:      int64(currentBlock.Time() - 1),
+		Timestamp:      time.Unix(int64(currentBlock.Time()-1), 0),
 		Txs:            []types.Transaction{*tx1},
 	}
 	tx, err := etherman.sequenceBatches(etherman.auth, []state.Sequence{sequence})

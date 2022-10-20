@@ -265,7 +265,7 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []sta
 		batch := proofofefficiency.ProofOfEfficiencyBatchData{
 			Transactions:          batchL2Data,
 			GlobalExitRoot:        seq.GlobalExitRoot,
-			Timestamp:             uint64(seq.Timestamp),
+			Timestamp:             uint64(seq.Timestamp.Unix()),
 			ForceBatchesTimestamp: nil,
 		}
 

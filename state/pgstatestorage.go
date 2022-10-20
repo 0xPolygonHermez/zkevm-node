@@ -1772,20 +1772,22 @@ func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string
 	return proof, err
 }
 
+// GetPendingSequences returns all the pending sequences
 func (p *PostgresStorage) GetPendingSequences(ctx context.Context, dbTx pgx.Tx) ([]Sequence, error) {
 	e := p.getExecQuerier(dbTx)
 
 	const getPendingSequences = `
 		SELECT batch_num
-			 , global_exit_root
 			 , state_root
+			 , global_exit_root
 			 , local_exit_root
 			 , timestamp
 			 , txs
 			 , status
 			 , l1_tx_hash
 			 , l1_tx_encoded
-			 , sent_to_l1_at
+			 , created_at
+			 , updated_at
 		  FROM state.sequences
 		 WHERE status = $1
 		 ORDER BY batch_num`
@@ -1803,8 +1805,8 @@ func (p *PostgresStorage) GetPendingSequences(ctx context.Context, dbTx pgx.Tx) 
 		var status string
 		var l1TxRlp string
 
-		if err := rows.Scan(&sequence.BatchNumber, &globalExitRoot, &stateRoot, &localExitRoot,
-			&sequence.Timestamp, &txsRLPs, &status, &l1TxRlp, &sequence.SentToL1At); err != nil {
+		if err := rows.Scan(&sequence.BatchNumber, &stateRoot, &globalExitRoot, &localExitRoot,
+			&sequence.Timestamp, &txsRLPs, &status, &l1TxRlp, &sequence.CreatedAt, &sequence.UpdatedAt); err != nil {
 			return nil, err
 		}
 
@@ -1844,13 +1846,13 @@ func (p *PostgresStorage) GetPendingSequences(ctx context.Context, dbTx pgx.Tx) 
 	return sequences, nil
 }
 
-// AddSequence adds a new sequence to the State
+// CreateSequence persists a new sequence into the State database
 func (p *PostgresStorage) CreateSequence(ctx context.Context, batchNumber uint64, globalExitRoot, stateRoot,
 	localExitRoot common.Hash, timestamp time.Time, txs []types.Transaction, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
-	const addSequenceSQL = `INSERT INTO state.sequences (batch_num, global_exit_root, state_root, local_exit_root, timestamp, txs)
-							 					 VALUES (       $1,               $2,         $3,              $4,        $5,  $6)`
+	const addSequenceSQL = `INSERT INTO state.sequences (batch_num, state_root, global_exit_root, local_exit_root, timestamp, txs, status, created_at)
+												 VALUES (       $1,         $2,               $3,              $4,        $5,  $6,     $7,         $8)`
 
 	txsRLPs := make([]string, 0, len(txs))
 
@@ -1864,22 +1866,21 @@ func (p *PostgresStorage) CreateSequence(ctx context.Context, batchNumber uint64
 	}
 
 	_, err := e.Exec(ctx, addSequenceSQL,
-		batchNumber, globalExitRoot.String(), stateRoot.String(),
-		localExitRoot.String(), timestamp, txsRLPs)
+		batchNumber, stateRoot.String(), globalExitRoot.String(),
+		localExitRoot.String(), timestamp, txsRLPs, time.Now())
 
 	return err
 }
 
-// UpdateSequence update sequence information
-func (p *PostgresStorage) SetSequenceAsPending(ctx context.Context, batchNumber uint64, tx types.Transaction, dbTx pgx.Tx) error {
+// UpdateSequenceL1Tx updates sequence l1 tx information
+func (p *PostgresStorage) UpdateSequenceL1Tx(ctx context.Context, batchNumber uint64, tx types.Transaction, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
 	const setSequenceAsPendingSQL = `
 		UPDATE state.sequence
-		   SET status        = $2,
-			   l1_tx_hash    = $3,
+		   SET l1_tx_hash    = $3,
 			   l1_tx_encoded = $4,
-			   sent_to_l1_at = $5,
+			   updated_at = $5
 		WHERE batch_num = $1`
 
 	b, err := tx.MarshalBinary()
@@ -1892,16 +1893,17 @@ func (p *PostgresStorage) SetSequenceAsPending(ctx context.Context, batchNumber 
 	return err
 }
 
-// UpdateSequence update sequence information
+// SetSequenceAsConfirmed updates the sequence to confirmed
 func (p *PostgresStorage) SetSequenceAsConfirmed(ctx context.Context, batchNumber uint64, txHash common.Hash, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
 	const setSequenceAsConfirmedSQL = `
 		UPDATE state.sequence
 		   SET status = $3,
+		       updated_at = $4
 		 WHERE batch_num = $1
 		   AND l1_tx_hash = $2`
 
-	_, err := e.Exec(ctx, setSequenceAsConfirmedSQL, batchNumber, txHash.String(), string(SequenceStatusConfirmed))
+	_, err := e.Exec(ctx, setSequenceAsConfirmedSQL, batchNumber, txHash.String(), string(SequenceStatusConfirmed), time.Now())
 	return err
 }
