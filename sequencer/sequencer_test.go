@@ -40,6 +40,7 @@ func TestSequenceTooBig(t *testing.T) {
 		CONFIG_ENCRYPTION_KEY_PASSWORD  = "testonly"
 		CONFIG_CHAIN_ID                 = 1337
 		CONFIG_ETH_URL                  = "http://localhost:8545"
+		CONFIG_ETHMAN_READONLY          = false
 
 		CONFIG_NAME_POE   = "poe"
 		CONFIG_NAME_MATIC = "matic"
@@ -126,6 +127,7 @@ func TestSequenceTooBig(t *testing.T) {
 		PoEAddr:                   CONFIG_ADDRESSES[CONFIG_NAME_POE],
 		MaticAddr:                 CONFIG_ADDRESSES[CONFIG_NAME_MATIC],
 		GlobalExitRootManagerAddr: CONFIG_ADDRESSES[CONFIG_NAME_GER],
+		ReadOnly:                  CONFIG_ETHMAN_READONLY,
 	}, auth)
 
 	require.NoError(t, err)

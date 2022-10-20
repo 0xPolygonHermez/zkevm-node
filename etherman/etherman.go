@@ -90,6 +90,10 @@ type Client struct {
 
 	GasProviders externalGasProviders
 
+	// readOnly if `true` the client won't have an account.
+	// Check this field before trying to access the `auth` field.
+	readOnly bool
+
 	auth *bind.TransactOpts
 }
 
@@ -265,6 +269,9 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 
 // EstimateGasSequenceBatches estimates gas for sending batches
 func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
+	if etherMan.readOnly {
+		return nil, errors.New("etherman client in read-only mode, cannot estimate gas for sending batches")
+	}
 	noSendOpts := *etherMan.auth
 	noSendOpts.NoSend = true
 	tx, err := etherMan.sequenceBatches(&noSendOpts, sequences)
@@ -277,6 +284,9 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 
 // SequenceBatches send sequences of batches to the ethereum
 func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+	if etherMan.readOnly {
+		return nil, errors.New("etherman client in read-only mode, cannot send sequences of batches")
+	}
 	sendSequencesOpts := *etherMan.auth
 	sendSequencesOpts.GasLimit = gasLimit
 	if gasPrice != nil {
@@ -319,6 +329,9 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 
 // EstimateGasForVerifyBatch estimates gas for verify batch smart contract call
 func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse) (uint64, error) {
+	if etherMan.readOnly {
+		return 0, errors.New("etherman client in read-only mode, cannot estimate gas for verify batch")
+	}
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.NoSend = true
 	tx, err := etherMan.verifyBatch(&verifyBatchOpts, batchNumber, resGetProof)
@@ -330,6 +343,9 @@ func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProo
 
 // VerifyBatch send verifyBatch request to the ethereum
 func (etherMan *Client) VerifyBatch(ctx context.Context, batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+	if etherMan.readOnly {
+		return nil, errors.New("etherman client in read-only mode, cannot send verifyBatch request")
+	}
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.GasLimit = gasLimit
 	if gasPrice != nil {
@@ -689,6 +705,9 @@ func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 
 // ApproveMatic function allow to approve tokens in matic smc
 func (etherMan *Client) ApproveMatic(ctx context.Context, maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
+	if etherMan.readOnly {
+		return nil, errors.New("etherman client in read-only mode, cannot approve matic tokens")
+	}
 	opts := *etherMan.auth
 	if etherMan.GasProviders.MultiGasProvider {
 		opts.GasPrice = etherMan.getGasPrice(ctx)
@@ -710,8 +729,11 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 }
 
 // GetPublicAddress returns eth client public address
-func (etherMan *Client) GetPublicAddress() common.Address {
-	return etherMan.auth.From
+func (etherMan *Client) GetPublicAddress() (common.Address, error) {
+	if etherMan.readOnly {
+		return common.Address{}, errors.New("etherman client in read-only mode, cannot provide public address")
+	}
+	return etherMan.auth.From, nil
 }
 
 // GetL2ChainID returns L2 Chain ID
