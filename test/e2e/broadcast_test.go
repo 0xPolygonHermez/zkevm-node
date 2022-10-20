@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
@@ -88,8 +89,8 @@ func initState() (*state.State, error) {
 		return nil, err
 	}
 	stateDb := state.NewPostgresStorage(sqlDB)
-	executorUri := testutils.GetEnv("ZKPROVER_URI", "127.0.0.1:50071")
-	merkleTreeUri := testutils.GetEnv("MERKLETREE_URI", "127.0.0.1:50061")
+	executorUri := testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1:50071")
+	merkleTreeUri := testutils.GetEnv(constants.ENV_MERKLETREE_URI, "127.0.0.1:50061")
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorUri})
 	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: merkleTreeUri})
 	stateTree := merkletree.NewStateTree(mtDBClient)

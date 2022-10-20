@@ -116,13 +116,9 @@ require (
 
 require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/daixiang0/gci v0.8.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/hexops/gotextdiff v1.0.3 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/lib/pq v1.10.7 // indirect
-	github.com/spf13/cobra v1.3.0 // indirect
 	github.com/umbracle/fastrlp v0.0.0-20220527094140-59d5dd30e722 // indirect
 	github.com/valyala/fastjson v1.4.1 // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect

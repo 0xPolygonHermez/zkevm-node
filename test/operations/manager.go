@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
@@ -51,8 +52,8 @@ var (
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 	rpcDBCfg   = dbutils.NewRPCConfigFromEnv()
 
-	executorURI      = testutils.GetEnv("ZKPROVER_URI", "127.0.0.1:50071")
-	merkleTreeURI    = testutils.GetEnv("MERKLETREE_URI", "127.0.0.1:50061")
+	executorURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1:50071")
+	merkleTreeURI    = testutils.GetEnv(constants.ENV_MERKLETREE_URI, "127.0.0.1:50061")
 	executorConfig   = executor.Config{URI: executorURI}
 	merkleTreeConfig = merkletree.Config{URI: merkleTreeURI}
 )
