@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"github.com/0xPolygonHermez/zkevm-node/test/utils"
 	"math/big"
 	"testing"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
@@ -88,8 +88,8 @@ func initState() (*state.State, error) {
 		return nil, err
 	}
 	stateDb := state.NewPostgresStorage(sqlDB)
-	executorUri := utils.Getenv("ZKPROVER_URI", "127.0.0.1:50071")
-	merkleTreeUri := utils.Getenv("MERKLETREE_URI", "127.0.0.1:50061")
+	executorUri := testutils.GetEnv("ZKPROVER_URI", "127.0.0.1:50071")
+	merkleTreeUri := testutils.GetEnv("MERKLETREE_URI", "127.0.0.1:50061")
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorUri})
 	mtDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletree.Config{URI: merkleTreeUri})
 	stateTree := merkletree.NewStateTree(mtDBClient)

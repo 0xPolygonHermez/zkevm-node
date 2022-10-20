@@ -3,7 +3,6 @@ package operations
 import (
 	"context"
 	"fmt"
-	"github.com/0xPolygonHermez/zkevm-node/test/utils"
 	"math/big"
 	"os"
 	"os/exec"
@@ -16,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -25,9 +25,8 @@ import (
 )
 
 const (
-	poeAddress        = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
-	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
-
+	poeAddress         = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+	maticTokenAddress  = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 )
@@ -52,8 +51,8 @@ var (
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 	rpcDBCfg   = dbutils.NewRPCConfigFromEnv()
 
-	executorURI      = utils.Getenv("ZKPROVER_URI", "127.0.0.1:50071")
-	merkleTreeURI    = utils.Getenv("MERKLETREE_URI", "127.0.0.1:50061")
+	executorURI      = testutils.GetEnv("ZKPROVER_URI", "127.0.0.1:50071")
+	merkleTreeURI    = testutils.GetEnv("MERKLETREE_URI", "127.0.0.1:50061")
 	executorConfig   = executor.Config{URI: executorURI}
 	merkleTreeConfig = merkletree.Config{URI: merkleTreeURI}
 )
