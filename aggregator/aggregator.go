@@ -73,7 +73,7 @@ func NewAggregator(
 		}
 
 		if proof != nil {
-			log.Infof("Resuming WIP proof generation for batchNumber %v in prover %v", proof.BatchNumber, proof.Prover)
+			log.Infof("Resuming WIP proof generation for batchNumber %v in prover %v", proof.BatchNumber, *proof.Prover)
 			go func() {
 				a.resumeWIPProofGeneration(ctx, proof, proverClient)
 			}()
@@ -88,7 +88,7 @@ func NewAggregator(
 func (a *Aggregator) resumeWIPProofGeneration(ctx context.Context, proof *state.Proof, prover proverClientInterface) {
 	err := a.getAndStoreProof(ctx, proof, prover)
 	if err != nil {
-		log.Warnf("Could not resume WIP Proof Generation por prover %v and batchNumber %v", proof.Prover, proof.BatchNumber)
+		log.Warnf("Could not resume WIP Proof Generation por prover %v and batchNumber %v", *proof.Prover, proof.BatchNumber)
 	}
 }
 
