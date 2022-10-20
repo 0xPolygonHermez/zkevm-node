@@ -1570,7 +1570,8 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 		 AND (l.topic1 = any($5) OR $5 IS NULL)
 		 AND (l.topic2 = any($6) OR $6 IS NULL)
 		 AND (l.topic3 = any($7) OR $7 IS NULL)
-		 AND (b.received_at >= $8 OR $8 IS NULL)`
+		 AND (b.received_at >= $8 OR $8 IS NULL)
+		ORDER BY b.block_num ASC`
 
 	var err error
 	var rows pgx.Rows
@@ -1745,11 +1746,11 @@ func (p *PostgresStorage) DeleteGeneratedProof(ctx context.Context, batchNumber 
 	return err
 }
 
-// DeleteProofs empties state.proof table
+// DeleteUngeneratedProofs deletes ungenerated proofs from state.proof table
 // This method is meant to be use during aggregator boot-up sequence
-func (p *PostgresStorage) DeleteProofs(ctx context.Context, dbTx pgx.Tx) error {
-	const deleteGeneratedProofSQL = "DELETE FROM state.proof"
+func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error {
+	const deleteUngeneratedProofsSQL = "DELETE FROM state.proof WHERE proof is null"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, deleteGeneratedProofSQL)
+	_, err := e.Exec(ctx, deleteUngeneratedProofsSQL)
 	return err
 }

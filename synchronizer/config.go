@@ -11,4 +11,6 @@ type Config struct {
 
 	// SyncChunkSize is the number of blocks to sync on each chunk
 	SyncChunkSize uint64 `mapstructure:"SyncChunkSize"`
+
+	GenBlockNumber uint64 `mapstructure:"GenBlockNumber"`
 }

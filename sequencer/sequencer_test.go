@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
+	"github.com/0xPolygonHermez/zkevm-node/gasprice"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
@@ -120,8 +121,12 @@ func TestSequenceTooBig(t *testing.T) {
 	require.NoError(t, err)
 	//	eth_man, _, _, _, err := ethman.NewSimulatedEtherman(ethman.Config{}, auth)
 	eth_man, err := ethman.NewClient(ethman.Config{
-		URL: CONFIG_ETH_URL,
-	}, auth, CONFIG_ADDRESSES[CONFIG_NAME_POE], CONFIG_ADDRESSES[CONFIG_NAME_MATIC], CONFIG_ADDRESSES[CONFIG_NAME_GER])
+		URL:                       CONFIG_ETH_URL,
+		L1ChainID:                 CONFIG_CHAIN_ID,
+		PoEAddr:                   CONFIG_ADDRESSES[CONFIG_NAME_POE],
+		MaticAddr:                 CONFIG_ADDRESSES[CONFIG_NAME_MATIC],
+		GlobalExitRootManagerAddr: CONFIG_ADDRESSES[CONFIG_NAME_GER],
+	}, auth)
 
 	require.NoError(t, err)
 
@@ -142,7 +147,7 @@ func TestSequenceTooBig(t *testing.T) {
 	err = dbutils.InitOrResetState(CONFIG_DB_STATE)
 	require.NoError(t, err)
 
-	err = dbutils.InitOrResetPool(CONFIG_DB_STATE)
+	err = dbutils.InitOrResetPool(CONFIG_DB_POOL)
 	require.NoError(t, err)
 
 	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(CONFIG_DB_POOL)
@@ -167,16 +172,19 @@ func TestSequenceTooBig(t *testing.T) {
 
 	state := st.NewState(stateCfg, stateDb, executorClient, stateTree)
 
-	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER])
+	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER], big.NewInt(CONFIG_CHAIN_ID).Uint64())
 	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, eth_man)
-
+	gpe := gasprice.NewDefaultEstimator(gasprice.Config{
+		Type:               gasprice.DefaultType,
+		DefaultGasPriceWei: 1000000000,
+	}, pool)
 	seq, err := New(Config{
 		MaxSequenceSize:                          MaxSequenceSize{Int: big.NewInt(CONFIG_MAX_GAS_PER_SEQUENCE)},
 		LastBatchVirtualizationTimeMaxWaitPeriod: types.NewDuration(1 * time.Second),
 		ProfitabilityChecker: profitabilitychecker.Config{
 			SendBatchesEvenWhenNotProfitable: true,
 		},
-	}, pool, state, eth_man, pg, ethtxmanager)
+	}, pool, state, eth_man, pg, ethtxmanager, gpe)
 	require.NoError(t, err)
 
 	// generate fake data

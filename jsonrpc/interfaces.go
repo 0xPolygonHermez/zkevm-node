@@ -56,7 +56,7 @@ type stateInterface interface {
 	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error)
 	IsL2BlockConsolidated(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error)
 	IsL2BlockVirtualized(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error)
-	ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, blockNumber *uint64, dbTx pgx.Tx) *runtime.ExecutionResult
+	ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult
 }
 
 type storageInterface interface {

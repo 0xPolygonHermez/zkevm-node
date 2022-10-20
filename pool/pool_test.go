@@ -48,6 +48,7 @@ var (
 			},
 		},
 	}
+	chainID = big.NewInt(1337)
 )
 
 func TestMain(m *testing.M) {
@@ -104,7 +105,8 @@ func Test_AddTx(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
+	const chainID = 2576980377
+	p := pool.NewPool(s, st, common.Address{}, chainID)
 
 	txRLPHash := "0xf86e8212658082520894fd8b27a263e19f0e9592180e61f0f8c9dfeb1ff6880de0b6b3a764000080850133333355a01eac4c2defc7ed767ae36bbd02613c581b8fb87d0e4f579c9ee3a7cfdb16faa7a043ce30f43d952b9d034cf8f04fecb631192a5dbc7ee2a47f1f49c0d022a8849d"
 	b, err := hex.DecodeHex(txRLPHash)
@@ -173,7 +175,7 @@ func Test_GetPendingTxs(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
 	const limit = 5
@@ -181,7 +183,7 @@ func Test_GetPendingTxs(t *testing.T) {
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
 	// insert pending transactions
@@ -235,7 +237,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
 	const limit = 0
@@ -243,7 +245,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
 	// insert pending transactions
@@ -297,14 +299,14 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
 	// insert pending transactions
@@ -317,10 +319,71 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		}
 	}
 
-	txs, err := p.GetTxs(ctx, pool.TxStatusPending, 10)
+	txs, err := p.GetTxs(ctx, pool.TxStatusPending, false, 1, 10)
 	require.NoError(t, err)
 	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
 	assert.Equal(t, txs[0].Transaction.Nonce(), uint64(0))
+}
+
+func Test_GetTopFailedTxsByProfitabilityAndZkCounters(t *testing.T) {
+	ctx := context.Background()
+	initOrResetDB()
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+	defer stateSqlDB.Close()
+
+	st := newState(stateSqlDB)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+
+	const txsCount = 10
+
+	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	txsHashes := make([]string, 0, txsCount)
+	// insert pending transactions
+	for i := 0; i < txsCount; i++ {
+		tx := types.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10+int64(i)), []byte{})
+		signedTx, err := auth.Signer(auth.From, tx)
+		require.NoError(t, err)
+		if err := p.AddTx(ctx, *signedTx); err != nil {
+			t.Error(err)
+		}
+		txsHashes = append(txsHashes, signedTx.Hash().String())
+	}
+
+	err = p.UpdateTxsStatus(ctx, txsHashes, pool.TxStatusFailed)
+	require.NoError(t, err)
+	err = p.IncrementFailedCounter(ctx, txsHashes[0:txsCount/2])
+	require.NoError(t, err)
+	txs, err := p.GetTxs(ctx, pool.TxStatusFailed, false, 1, 10)
+	require.NoError(t, err)
+	// bcs it's sorted by nonce, tx with the lowest nonce is expected here
+	assert.Equal(t, txsCount, len(txs))
 }
 
 func Test_UpdateTxsStatus(t *testing.T) {
@@ -359,12 +422,12 @@ func Test_UpdateTxsStatus(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
@@ -430,12 +493,12 @@ func Test_UpdateTxStatus(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
 	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
@@ -473,7 +536,7 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, nil, common.Address{})
+	p := pool.NewPool(s, nil, common.Address{}, chainID.Uint64())
 
 	nBig, err := rand.Int(rand.Reader, big.NewInt(0).SetUint64(math.MaxUint64))
 	if err != nil {
@@ -524,12 +587,12 @@ func TestMarkReorgedTxsAsPending(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
@@ -588,14 +651,14 @@ func TestGetPendingTxSince(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
 
 	const txsCount = 10
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
 	txsAddedHashes := []common.Hash{}
@@ -691,12 +754,12 @@ func Test_DeleteTxsByHashes(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
 
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPrivateKey, "0x"))
 	require.NoError(t, err)
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1337))
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
 	require.NoError(t, err)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
@@ -773,8 +836,6 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 		t.Error(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{})
-
 	type testCase struct {
 		name                 string
 		createIncompatibleTx func() types.Transaction
@@ -850,6 +911,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			incompatibleTx := testCase.createIncompatibleTx()
+			p := pool.NewPool(s, st, common.Address{}, incompatibleTx.ChainId().Uint64())
 			err = p.AddTx(ctx, incompatibleTx)
 			assert.Equal(t, testCase.expectedError, err)
 		})
