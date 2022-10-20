@@ -60,13 +60,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	// backup current sequence
-	sequenceBeforeTryingToProcessNewTxs := types.Sequence{
-		GlobalExitRoot: s.sequenceInProgress.GlobalExitRoot,
-		StateRoot:      s.sequenceInProgress.StateRoot,
-		LocalExitRoot:  s.sequenceInProgress.LocalExitRoot,
-		Timestamp:      s.sequenceInProgress.Timestamp,
-	}
-	copy(sequenceBeforeTryingToProcessNewTxs.Txs, s.sequenceInProgress.Txs)
+	sequenceBeforeTryingToProcessNewTxs := s.backupSequence()
 
 	getTxsLimit := maxTxsPerBatch - uint64(len(s.sequenceInProgress.Txs))
 
@@ -129,6 +123,15 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 	log.Infof("%d txs stored and added into the trusted state", len(processResponse.processedTxs))
 
+	s.updateTxsInPool(ctx, ticker, processResponse, unprocessedTxs)
+}
+
+func (s *Sequencer) updateTxsInPool(
+	ctx context.Context,
+	ticker *time.Ticker,
+	processResponse processTxResponse,
+	unprocessedTxs map[string]*state.ProcessTransactionResponse,
+) {
 	invalidTxsHashes, failedTxsHashes := s.splitInvalidAndFailedTxs(ctx, unprocessedTxs, ticker)
 
 	// update processed txs
@@ -234,6 +237,9 @@ func (s *Sequencer) splitInvalidAndFailedTxs(ctx context.Context, unprocessedTxs
 }
 
 func (s *Sequencer) updateTxsStatus(ctx context.Context, ticker *time.Ticker, hashes []string, status pool.TxStatus) {
+	if len(hashes) == 0 {
+		return
+	}
 	err := s.pool.UpdateTxsStatus(ctx, hashes, status)
 	for err != nil {
 		log.Errorf("failed to update txs status to %s, err: %w", status, err)
@@ -243,6 +249,9 @@ func (s *Sequencer) updateTxsStatus(ctx context.Context, ticker *time.Ticker, ha
 }
 
 func (s *Sequencer) incrementFailedCounter(ctx context.Context, ticker *time.Ticker, hashes []string) {
+	if len(hashes) == 0 {
+		return
+	}
 	err := s.pool.IncrementFailedCounter(ctx, hashes)
 	for err != nil {
 		log.Errorf("failed to increment failed tx counter, err: %w", err)
@@ -537,4 +546,17 @@ func (s *Sequencer) appendPendingTxs(ctx context.Context, isClaims bool, minGasP
 	}
 
 	return uint64(len(pendTxs))
+}
+
+func (s *Sequencer) backupSequence() types.Sequence {
+	backupSequence := types.Sequence{
+		GlobalExitRoot: s.sequenceInProgress.GlobalExitRoot,
+		StateRoot:      s.sequenceInProgress.StateRoot,
+		LocalExitRoot:  s.sequenceInProgress.LocalExitRoot,
+		Timestamp:      s.sequenceInProgress.Timestamp,
+	}
+
+	copy(backupSequence.Txs, s.sequenceInProgress.Txs)
+
+	return backupSequence
 }

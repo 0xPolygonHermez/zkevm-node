@@ -205,24 +205,25 @@ func TestReprocessBatch(t *testing.T) {
 	dbTx.On("Commit", ctx).Return(nil)
 	tx1 := *types.NewTransaction(0, common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	tx2 := *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
-	s.sequenceInProgress.Txs = []types.Transaction{tx1, tx2}
+	txs := []types.Transaction{tx1, tx2}
+	s.sequenceInProgress.Txs = txs
 
 	txsBatch1 := []*state.ProcessTransactionResponse{
 		{
-			TxHash:      tx1.Hash(),
-			Tx:          tx1,
+			TxHash:      txs[0].Hash(),
+			Tx:          txs[0],
 			IsProcessed: true,
 		},
 		{
-			TxHash:      tx2.Hash(),
-			Tx:          tx2,
+			TxHash:      txs[1].Hash(),
+			Tx:          txs[1],
 			IsProcessed: true,
 		},
 	}
 
 	processBatchResponse := &state.ProcessBatchResponse{
 		CumulativeGasUsed: 100000,
-		IsBatchProcessed:  false,
+		IsBatchProcessed:  true,
 		Responses:         txsBatch1,
 		NewStateRoot:      common.HexToHash("0x123"),
 		NewLocalExitRoot:  common.HexToHash("0x123"),
@@ -237,13 +238,14 @@ func TestReprocessBatch(t *testing.T) {
 		unprocessedTxsHashes: unprocessedTxsHashes,
 		isBatchProcessed:     false,
 	}
+	txsResponseToReturn := txsResponse
+	txsResponseToReturn.isBatchProcessed = true
 	lastBatchNumber := uint64(10)
 	st.On("GetLastBatchNumber", ctx, dbTx).Return(lastBatchNumber, nil)
-	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, s.sequenceInProgress.Txs, dbTx).Return(processBatchResponse, nil)
+	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, txs, dbTx).Return(processBatchResponse, nil)
 
 	unprocessedTxsAfterReprocess, err := s.reprocessBatch(ctx, txsResponse, ethManTypes.Sequence{})
 	require.NoError(t, err)
 	require.Equal(t, 0, len(unprocessedTxsAfterReprocess))
 	require.Equal(t, 2, len(s.sequenceInProgress.Txs))
-
 }
