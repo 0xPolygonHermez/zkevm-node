@@ -52,7 +52,7 @@ const (
 var (
 	stateDBCfg       = dbutils.NewStateConfigFromEnv()
 	poolDBCfg        = dbutils.NewPoolConfigFromEnv()
-	rpcDBCfg         = dbutils.NewPoolConfigFromEnv()
+	rpcDBCfg         = dbutils.NewRPCConfigFromEnv()
 	executorConfig   = executor.Config{URI: executorURI}
 	merkletreeConfig = merkletree.Config{URI: merkletreeURI}
 )
@@ -397,7 +397,7 @@ func (m *Manager) SetUpSequencer() error {
 		return err
 	}
 
-	if b.Cmp(maticAmount) <= 0 {
+	if b.Cmp(maticAmount) < 0 {
 		return fmt.Errorf("Minimum amount is: %v but found: %v", maticAmount.Text(encoding.Base10), b.Text(encoding.Base10))
 	}
 

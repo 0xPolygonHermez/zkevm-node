@@ -34,9 +34,6 @@ var dumpStateFlags = []cli.Flag{
 		Required: true,
 	},
 	&configFileFlag,
-	&networkFlag,
-	&customNetworkFlag,
-	&baseNetworkFlag,
 }
 
 type dumpedState struct {

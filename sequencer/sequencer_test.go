@@ -121,8 +121,12 @@ func TestSequenceTooBig(t *testing.T) {
 	require.NoError(t, err)
 	//	eth_man, _, _, _, err := ethman.NewSimulatedEtherman(ethman.Config{}, auth)
 	eth_man, err := ethman.NewClient(ethman.Config{
-		URL: CONFIG_ETH_URL,
-	}, auth, CONFIG_ADDRESSES[CONFIG_NAME_POE], CONFIG_ADDRESSES[CONFIG_NAME_MATIC], CONFIG_ADDRESSES[CONFIG_NAME_GER])
+		URL:                       CONFIG_ETH_URL,
+		L1ChainID:                 CONFIG_CHAIN_ID,
+		PoEAddr:                   CONFIG_ADDRESSES[CONFIG_NAME_POE],
+		MaticAddr:                 CONFIG_ADDRESSES[CONFIG_NAME_MATIC],
+		GlobalExitRootManagerAddr: CONFIG_ADDRESSES[CONFIG_NAME_GER],
+	}, auth)
 
 	require.NoError(t, err)
 
@@ -143,7 +147,7 @@ func TestSequenceTooBig(t *testing.T) {
 	err = dbutils.InitOrResetState(CONFIG_DB_STATE)
 	require.NoError(t, err)
 
-	err = dbutils.InitOrResetPool(CONFIG_DB_STATE)
+	err = dbutils.InitOrResetPool(CONFIG_DB_POOL)
 	require.NoError(t, err)
 
 	poolDb, err := pgpoolstorage.NewPostgresPoolStorage(CONFIG_DB_POOL)
