@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -1703,31 +1702,31 @@ func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger c
 }
 
 // AddGeneratedProof adds a generated proof to the storage
-func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof) VALUES ($1, $2)"
+func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
+	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof, proof_id, input_prover, prover) VALUES ($1, $2, $3, $4, $5)"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, batchNumber, proof)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
 	return err
 }
 
 // UpdateGeneratedProof updates a generated proof in the storage
-func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2 WHERE batch_num = $1"
+func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
+	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2, proof_id = $3, input_prover = $4, prover = $5 WHERE batch_num = $1"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, batchNumber, proof)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
 	return err
 }
 
 // GetGeneratedProofByBatchNumber gets a generated proof from the storage
-func (p *PostgresStorage) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*pb.GetProofResponse, error) {
+func (p *PostgresStorage) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Proof, error) {
 	var (
-		proof *pb.GetProofResponse
+		proof *Proof = &Proof{}
 		err   error
 	)
 
-	const getGeneratedProofSQL = "SELECT proof FROM state.proof WHERE batch_num = $1"
+	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE batch_num = $1"
 	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, getGeneratedProofSQL, batchNumber).Scan(&proof)
+	err = e.QueryRow(ctx, getGeneratedProofSQL, batchNumber).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -1752,4 +1751,23 @@ func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, deleteUngeneratedProofsSQL)
 	return err
+}
+
+// GetWIPProofByProver gets a generated proof from its prover URI
+func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string, dbTx pgx.Tx) (*Proof, error) {
+	var (
+		proof *Proof = &Proof{}
+		err   error
+	)
+
+	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE prover = $1 and proof is null"
+	e := p.getExecQuerier(dbTx)
+	err = e.QueryRow(ctx, getGeneratedProofSQL, prover).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return proof, err
 }
