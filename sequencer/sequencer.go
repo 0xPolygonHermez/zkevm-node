@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 const (
@@ -35,7 +34,7 @@ type Sequencer struct {
 	address          common.Address
 	isSequenceTooBig bool
 
-	sequenceInProgress types.Sequence
+	sequenceInProgress state.Sequence
 }
 
 // New init sequencer
@@ -106,7 +105,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}()
 	go func() {
 		for {
-			s.tryToSendSequence(ctx, tickerSendSequence)
+			s.tryToCreateSequence(ctx, tickerSendSequence)
 		}
 	}()
 	// Wait until context is done
@@ -211,18 +210,18 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 		if err = dbTx.Commit(ctx); err != nil {
 			return fmt.Errorf("failed to commit a state tx to open a batch, err: %w", err)
 		}
-		s.sequenceInProgress = types.Sequence{
+		s.sequenceInProgress = state.Sequence{
 			GlobalExitRoot: processingCtx.GlobalExitRoot,
-			Timestamp:      processingCtx.Timestamp.Unix(),
+			Timestamp:      processingCtx.Timestamp,
 		}
 	} else {
 		txs, err := s.state.GetTransactionsByBatchNumber(ctx, lastBatch.BatchNumber, nil)
 		if err != nil {
 			return fmt.Errorf("failed to get tx by batch number, err: %w", err)
 		}
-		s.sequenceInProgress = types.Sequence{
+		s.sequenceInProgress = state.Sequence{
 			GlobalExitRoot: lastBatch.GlobalExitRoot,
-			Timestamp:      lastBatch.Timestamp.Unix(),
+			Timestamp:      lastBatch.Timestamp,
 			Txs:            txs,
 		}
 		// TODO: execute to get state root and LER or change open/closed logic so we always store state root and LER and add an open flag
@@ -259,9 +258,9 @@ func (s *Sequencer) createFirstBatch(ctx context.Context) {
 	if err := dbTx.Commit(ctx); err != nil {
 		log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
 	}
-	s.sequenceInProgress = types.Sequence{
+	s.sequenceInProgress = state.Sequence{
 		GlobalExitRoot: processingCtx.GlobalExitRoot,
-		Timestamp:      processingCtx.Timestamp.Unix(),
-		Txs:            []ethTypes.Transaction{},
+		Timestamp:      processingCtx.Timestamp,
+		Txs:            []types.Transaction{},
 	}
 }

@@ -1771,3 +1771,137 @@ func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string
 
 	return proof, err
 }
+
+func (p *PostgresStorage) GetPendingSequences(ctx context.Context, dbTx pgx.Tx) ([]Sequence, error) {
+	e := p.getExecQuerier(dbTx)
+
+	const getPendingSequences = `
+		SELECT batch_num
+			 , global_exit_root
+			 , state_root
+			 , local_exit_root
+			 , timestamp
+			 , txs
+			 , status
+			 , l1_tx_hash
+			 , l1_tx_encoded
+			 , sent_to_l1_at
+		  FROM state.sequences
+		 WHERE status = $1
+		 ORDER BY batch_num`
+	rows, err := e.Query(ctx, getPendingSequences, string(SequenceStatusPending))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sequences := make([]Sequence, 0, len(rows.RawValues()))
+	for rows.Next() {
+		sequence := Sequence{}
+		var globalExitRoot, stateRoot, localExitRoot string
+		var txsRLPs []string
+		var status string
+		var l1TxRlp string
+
+		if err := rows.Scan(&sequence.BatchNumber, &globalExitRoot, &stateRoot, &localExitRoot,
+			&sequence.Timestamp, &txsRLPs, &status, &l1TxRlp, &sequence.SentToL1At); err != nil {
+			return nil, err
+		}
+
+		txs := make([]types.Transaction, 0, len(txsRLPs))
+		for _, txRLP := range txsRLPs {
+			tx := types.Transaction{}
+			b, err := hex.DecodeHex(txRLP)
+			if err != nil {
+				return nil, err
+			}
+			if err := tx.UnmarshalBinary(b); err != nil {
+				return nil, err
+			}
+
+			txs = append(txs, tx)
+		}
+
+		l1Tx := new(types.Transaction)
+		b, err := hex.DecodeHex(l1TxRlp)
+		if err != nil {
+			return nil, err
+		}
+		if err := l1Tx.UnmarshalBinary(b); err != nil {
+			return nil, err
+		}
+
+		sequence.GlobalExitRoot = common.HexToHash(globalExitRoot)
+		sequence.StateRoot = common.HexToHash(stateRoot)
+		sequence.LocalExitRoot = common.HexToHash(localExitRoot)
+		sequence.Txs = txs
+		sequence.Status = SequenceStatus(status)
+		sequence.L1Tx = l1Tx
+
+		sequences = append(sequences, sequence)
+	}
+
+	return sequences, nil
+}
+
+// AddSequence adds a new sequence to the State
+func (p *PostgresStorage) CreateSequence(ctx context.Context, batchNumber uint64, globalExitRoot, stateRoot,
+	localExitRoot common.Hash, timestamp time.Time, txs []types.Transaction, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+
+	const addSequenceSQL = `INSERT INTO state.sequences (batch_num, global_exit_root, state_root, local_exit_root, timestamp, txs)
+							 					 VALUES (       $1,               $2,         $3,              $4,        $5,  $6)`
+
+	txsRLPs := make([]string, 0, len(txs))
+
+	for _, tx := range txs {
+		b, err := tx.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		txRLP := hex.EncodeToHex(b)
+		txsRLPs = append(txsRLPs, txRLP)
+	}
+
+	_, err := e.Exec(ctx, addSequenceSQL,
+		batchNumber, globalExitRoot.String(), stateRoot.String(),
+		localExitRoot.String(), timestamp, txsRLPs)
+
+	return err
+}
+
+// UpdateSequence update sequence information
+func (p *PostgresStorage) SetSequenceAsPending(ctx context.Context, batchNumber uint64, tx types.Transaction, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+
+	const setSequenceAsPendingSQL = `
+		UPDATE state.sequence
+		   SET status        = $2,
+			   l1_tx_hash    = $3,
+			   l1_tx_encoded = $4,
+			   sent_to_l1_at = $5,
+		WHERE batch_num = $1`
+
+	b, err := tx.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	txRLP := hex.EncodeToHex(b)
+
+	_, err = e.Exec(ctx, setSequenceAsPendingSQL, batchNumber, string(SequenceStatusPending), tx.Hash().String(), txRLP, time.Now())
+	return err
+}
+
+// UpdateSequence update sequence information
+func (p *PostgresStorage) SetSequenceAsConfirmed(ctx context.Context, batchNumber uint64, txHash common.Hash, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+
+	const setSequenceAsConfirmedSQL = `
+		UPDATE state.sequence
+		   SET status = $3,
+		 WHERE batch_num = $1
+		   AND l1_tx_hash = $2`
+
+	_, err := e.Exec(ctx, setSequenceAsConfirmedSQL, batchNumber, txHash.String(), string(SequenceStatusConfirmed))
+	return err
+}

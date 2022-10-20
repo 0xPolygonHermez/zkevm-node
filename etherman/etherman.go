@@ -12,7 +12,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/globalexitrootmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
-	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -232,7 +231,7 @@ func (etherMan *Client) WaitTxToBeMined(hash common.Hash, timeout time.Duration)
 }
 
 // EstimateGasSequenceBatches estimates gas for sending batches
-func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
+func (etherMan *Client) EstimateGasSequenceBatches(sequences []state.Sequence) (*types.Transaction, error) {
 	noSendOpts := *etherMan.auth
 	noSendOpts.NoSend = true
 	tx, err := etherMan.sequenceBatches(&noSendOpts, sequences)
@@ -244,7 +243,7 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 }
 
 // SequenceBatches send sequences of batches to the ethereum
-func (etherMan *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) SequenceBatches(sequences []state.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	sendSequencesOpts := *etherMan.auth
 	sendSequencesOpts.GasLimit = gasLimit
 	if gasPrice != nil {
@@ -256,7 +255,7 @@ func (etherMan *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLim
 	return etherMan.sequenceBatches(&sendSequencesOpts, sequences)
 }
 
-func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
+func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []state.Sequence) (*types.Transaction, error) {
 	var batches []proofofefficiency.ProofOfEfficiencyBatchData
 	for _, seq := range sequences {
 		batchL2Data, err := state.EncodeTransactions(seq.Txs)

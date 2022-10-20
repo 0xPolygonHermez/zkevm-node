@@ -8,14 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/core"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
+func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker) {
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
@@ -38,7 +37,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
-		log.Errorf("failed to get last virtual batch num, err: %w", err)
+		log.Errorf("failed to get last virtual batch num, err: %v", err)
 		return
 	}
 
@@ -47,23 +46,37 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 		"sending sequences to L1. From batch %d to batch %d",
 		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(len(sequences)),
 	)
-	s.txManager.SequenceBatches(sequences)
+	dbTx, err := s.state.BeginStateTransaction(ctx)
+	if err != nil {
+		log.Errorf("failed to begin a tx on state, err: %v", err)
+		return
+	}
+
+	for _, sequence := range sequences {
+		err = s.state.CreateSequence(ctx, sequence.BatchNumber,
+			sequence.GlobalExitRoot, sequence.StateRoot, sequence.LocalExitRoot,
+			sequence.Timestamp, sequence.Txs, dbTx)
+		if err != nil {
+			log.Errorf("failed to create a sequence for batch %v, err: %v", sequence.BatchNumber, err)
+			return
+		}
+	}
 }
 
 // getSequencesToSend generates an array of sequences to be send to L1.
 // If the array is empty, it doesn't necessarily mean that there are no sequences to be sent,
 // it could be that it's not worth it to do so yet.
-func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, error) {
+func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]state.Sequence, error) {
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last virtual batch num, err: %w", err)
 	}
 
 	currentBatchNumToSequence := lastVirtualBatchNum + 1
-	sequences := []types.Sequence{}
+	sequences := []state.Sequence{}
 	var estimatedGas uint64
 
-	var tx *ethtypes.Transaction
+	var tx *types.Transaction
 
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	for {
@@ -85,9 +98,10 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		if err != nil {
 			return nil, err
 		}
-		sequences = append(sequences, types.Sequence{
+		sequences = append(sequences, state.Sequence{
+			BatchNumber:    batch.BatchNumber,
 			GlobalExitRoot: batch.GlobalExitRoot,
-			Timestamp:      batch.Timestamp.Unix(),
+			Timestamp:      batch.Timestamp,
 			// ForceBatchesNum: TODO,
 			Txs: txs,
 		})
@@ -144,10 +158,10 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 // nil, nil: a situation that requires waiting
 func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	ctx context.Context,
-	sequences []types.Sequence,
+	sequences []state.Sequence,
 	currentBatchNumToSequence uint64,
 	err error,
-) ([]types.Sequence, error) {
+) ([]state.Sequence, error) {
 	// Insufficient allowance
 	if strings.Contains(err.Error(), errInsufficientAllowance) {
 		return nil, err
@@ -180,11 +194,11 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 		}
 		// check POE SC lastTimestamp against sequences' one
 		for _, seq := range sequences {
-			if seq.Timestamp < int64(lastTimestamp) {
+			if seq.Timestamp.Unix() < int64(lastTimestamp) {
 				// TODO: gracefully handle this situation by creating an L2 reorg
 				log.Fatalf("sequence timestamp %d is < POE SC lastTimestamp %d", seq.Timestamp, lastTimestamp)
 			}
-			lastTimestamp = uint64(seq.Timestamp)
+			lastTimestamp = uint64(seq.Timestamp.Unix())
 		}
 		blockTimestamp, err := s.etherman.GetLatestBlockTimestamp(ctx)
 		if err != nil {

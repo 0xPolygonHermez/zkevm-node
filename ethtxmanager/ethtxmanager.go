@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -32,7 +32,7 @@ func New(cfg Config, ethMan etherman) *Client {
 }
 
 // SequenceBatches send sequences to the channel
-func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
+func (c *Client) SequenceBatches(sequences []state.Sequence) {
 	var (
 		attempts uint32
 		gas      uint64
