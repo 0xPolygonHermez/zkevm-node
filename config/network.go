@@ -44,83 +44,84 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 
 func loadGenesisFileConfig(ctx *cli.Context) (NetworkConfig, error) {
 	cfgPath := ctx.String(FlagGenesisFile)
-
-	f, err := os.Open(cfgPath) //nolint:gosec
-	if err != nil {
-		return NetworkConfig{}, err
-	}
-	defer func() {
-		err := f.Close()
-		if err != nil {
-			log.Error(err)
-		}
-	}()
-
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		return NetworkConfig{}, err
-	}
-
-	var cfgJSON genesisFromJSON
-	err = json.Unmarshal([]byte(b), &cfgJSON)
-	if err != nil {
-		return NetworkConfig{}, err
-	}
-
 	var cfg NetworkConfig
 
-	if len(cfgJSON.Genesis) == 0 {
-		return cfg, nil
-	}
-
-	cfg.Genesis = state.Genesis{
-		Root:    common.HexToHash(cfgJSON.Root),
-		Actions: []*state.GenesisAction{},
-	}
-
-	const l2GlobalExitRootManagerSCName = "GlobalExitRootManagerL2"
-	const l2BridgeSCName = "Bridge"
-
-	for _, account := range cfgJSON.Genesis {
-		if account.ContractName == l2GlobalExitRootManagerSCName {
-			cfg.L2GlobalExitRootManagerAddr = common.HexToAddress(account.Address)
+	if cfgPath != "" {
+		f, err := os.Open(cfgPath) //nolint:gosec
+		if err != nil {
+			return NetworkConfig{}, err
 		}
-		if account.ContractName == l2BridgeSCName {
-			cfg.L2BridgeAddr = common.HexToAddress(account.Address)
-		}
-		if account.Balance != "" && account.Balance != "0" {
-			action := &state.GenesisAction{
-				Address: account.Address,
-				Type:    int(merkletree.LeafTypeBalance),
-				Value:   account.Balance,
+		defer func() {
+			err := f.Close()
+			if err != nil {
+				log.Error(err)
 			}
-			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
+		}()
+
+		b, err := ioutil.ReadAll(f)
+		if err != nil {
+			return NetworkConfig{}, err
 		}
-		if account.Nonce != "" && account.Nonce != "0" {
-			action := &state.GenesisAction{
-				Address: account.Address,
-				Type:    int(merkletree.LeafTypeNonce),
-				Value:   account.Nonce,
+
+		var cfgJSON genesisFromJSON
+		err = json.Unmarshal([]byte(b), &cfgJSON)
+		if err != nil {
+			return NetworkConfig{}, err
+		}
+
+		if len(cfgJSON.Genesis) == 0 {
+			return cfg, nil
+		}
+
+		cfg.Genesis = state.Genesis{
+			Root:    common.HexToHash(cfgJSON.Root),
+			Actions: []*state.GenesisAction{},
+		}
+
+		const l2GlobalExitRootManagerSCName = "GlobalExitRootManagerL2"
+		const l2BridgeSCName = "Bridge"
+
+		for _, account := range cfgJSON.Genesis {
+			if account.ContractName == l2GlobalExitRootManagerSCName {
+				cfg.L2GlobalExitRootManagerAddr = common.HexToAddress(account.Address)
 			}
-			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
-		}
-		if account.Bytecode != "" {
-			action := &state.GenesisAction{
-				Address:  account.Address,
-				Type:     int(merkletree.LeafTypeCode),
-				Bytecode: account.Bytecode,
+			if account.ContractName == l2BridgeSCName {
+				cfg.L2BridgeAddr = common.HexToAddress(account.Address)
 			}
-			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
-		}
-		if len(account.Storage) > 0 {
-			for storageKey, storageValue := range account.Storage {
+			if account.Balance != "" && account.Balance != "0" {
 				action := &state.GenesisAction{
-					Address:         account.Address,
-					Type:            int(merkletree.LeafTypeStorage),
-					StoragePosition: storageKey,
-					Value:           storageValue,
+					Address: account.Address,
+					Type:    int(merkletree.LeafTypeBalance),
+					Value:   account.Balance,
 				}
 				cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
+			}
+			if account.Nonce != "" && account.Nonce != "0" {
+				action := &state.GenesisAction{
+					Address: account.Address,
+					Type:    int(merkletree.LeafTypeNonce),
+					Value:   account.Nonce,
+				}
+				cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
+			}
+			if account.Bytecode != "" {
+				action := &state.GenesisAction{
+					Address:  account.Address,
+					Type:     int(merkletree.LeafTypeCode),
+					Bytecode: account.Bytecode,
+				}
+				cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
+			}
+			if len(account.Storage) > 0 {
+				for storageKey, storageValue := range account.Storage {
+					action := &state.GenesisAction{
+						Address:         account.Address,
+						Type:            int(merkletree.LeafTypeStorage),
+						StoragePosition: storageKey,
+						Value:           storageValue,
+					}
+					cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
+				}
 			}
 		}
 	}

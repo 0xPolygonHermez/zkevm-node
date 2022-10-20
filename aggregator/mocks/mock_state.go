@@ -5,10 +5,8 @@ package mocks
 import (
 	context "context"
 
-	pb "github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
-	mock "github.com/stretchr/testify/mock"
-
 	pgx "github.com/jackc/pgx/v4"
+	mock "github.com/stretchr/testify/mock"
 
 	state "github.com/0xPolygonHermez/zkevm-node/state"
 )
@@ -18,13 +16,13 @@ type StateMock struct {
 	mock.Mock
 }
 
-// AddGeneratedProof provides a mock function with given fields: ctx, batchNumber, proof, dbTx
-func (_m *StateMock) AddGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, proof, dbTx)
+// AddGeneratedProof provides a mock function with given fields: ctx, proof, dbTx
+func (_m *StateMock) AddGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, proof, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *pb.GetProofResponse, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, proof, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, *state.Proof, pgx.Tx) error); ok {
+		r0 = rf(ctx, proof, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -84,15 +82,15 @@ func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 }
 
 // GetGeneratedProofByBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *StateMock) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*pb.GetProofResponse, error) {
+func (_m *StateMock) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Proof, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
 
-	var r0 *pb.GetProofResponse
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *pb.GetProofResponse); ok {
+	var r0 *state.Proof
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.Proof); ok {
 		r0 = rf(ctx, batchNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*pb.GetProofResponse)
+			r0 = ret.Get(0).(*state.Proof)
 		}
 	}
 
@@ -152,13 +150,36 @@ func (_m *StateMock) GetVirtualBatchByNumber(ctx context.Context, batchNumber ui
 	return r0, r1
 }
 
-// UpdateGeneratedProof provides a mock function with given fields: ctx, batchNumber, proof, dbTx
-func (_m *StateMock) UpdateGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, proof, dbTx)
+// GetWIPProofByProver provides a mock function with given fields: ctx, prover, dbTx
+func (_m *StateMock) GetWIPProofByProver(ctx context.Context, prover string, dbTx pgx.Tx) (*state.Proof, error) {
+	ret := _m.Called(ctx, prover, dbTx)
+
+	var r0 *state.Proof
+	if rf, ok := ret.Get(0).(func(context.Context, string, pgx.Tx) *state.Proof); ok {
+		r0 = rf(ctx, prover, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.Proof)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, pgx.Tx) error); ok {
+		r1 = rf(ctx, prover, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateGeneratedProof provides a mock function with given fields: ctx, proof, dbTx
+func (_m *StateMock) UpdateGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, proof, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *pb.GetProofResponse, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, proof, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, *state.Proof, pgx.Tx) error); ok {
+		r0 = rf(ctx, proof, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
