@@ -60,6 +60,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 
 	// backup current sequence
 	sequenceBeforeTryingToProcessNewTxs := state.Sequence{
+		BatchNumber:    s.sequenceInProgress.BatchNumber,
 		GlobalExitRoot: s.sequenceInProgress.GlobalExitRoot,
 		StateRoot:      s.sequenceInProgress.StateRoot,
 		LocalExitRoot:  s.sequenceInProgress.LocalExitRoot,
@@ -302,6 +303,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (state.Sequence, error) {
 		return state.Sequence{}, err
 	}
 	return state.Sequence{
+		BatchNumber:    lastBatchNumber,
 		GlobalExitRoot: processingCtx.GlobalExitRoot,
 		Timestamp:      processingCtx.Timestamp,
 		Txs:            []types.Transaction{},

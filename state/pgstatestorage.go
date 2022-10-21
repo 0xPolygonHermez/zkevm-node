@@ -1865,9 +1865,9 @@ func (p *PostgresStorage) CreateSequence(ctx context.Context, batchNumber uint64
 		txsRLPs = append(txsRLPs, txRLP)
 	}
 
-	_, err := e.Exec(ctx, addSequenceSQL,
-		batchNumber, stateRoot.String(), globalExitRoot.String(),
-		localExitRoot.String(), timestamp, txsRLPs, time.Now())
+	_, err := e.Exec(ctx, addSequenceSQL, batchNumber,
+		stateRoot.String(), globalExitRoot.String(), localExitRoot.String(),
+		timestamp, txsRLPs, string(SequenceStatusPending), time.Now())
 
 	return err
 }
@@ -1877,7 +1877,7 @@ func (p *PostgresStorage) UpdateSequenceL1Tx(ctx context.Context, batchNumber ui
 	e := p.getExecQuerier(dbTx)
 
 	const setSequenceAsPendingSQL = `
-		UPDATE state.sequence
+		UPDATE state.sequences
 		   SET l1_tx_hash    = $3,
 			   l1_tx_encoded = $4,
 			   updated_at = $5
@@ -1898,7 +1898,7 @@ func (p *PostgresStorage) SetSequenceAsConfirmed(ctx context.Context, batchNumbe
 	e := p.getExecQuerier(dbTx)
 
 	const setSequenceAsConfirmedSQL = `
-		UPDATE state.sequence
+		UPDATE state.sequences
 		   SET status = $3,
 		       updated_at = $4
 		 WHERE batch_num = $1
@@ -1906,4 +1906,19 @@ func (p *PostgresStorage) SetSequenceAsConfirmed(ctx context.Context, batchNumbe
 
 	_, err := e.Exec(ctx, setSequenceAsConfirmedSQL, batchNumber, txHash.String(), string(SequenceStatusConfirmed), time.Now())
 	return err
+}
+
+// GetLastSequenceBatchNum gets last sequence batch num
+func (p *PostgresStorage) GetLastSequenceBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	var batchNum uint64
+	e := p.getExecQuerier(dbTx)
+
+	const getLastSequenceBatchNumSQL = "SELECT COALESCE(MAX(batch_num), 0) FROM state.sequences"
+
+	err := e.QueryRow(ctx, getLastSequenceBatchNumSQL).Scan(&batchNum)
+
+	if err != nil {
+		return 0, err
+	}
+	return batchNum, nil
 }

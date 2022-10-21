@@ -35,16 +35,16 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 		return
 	}
 
-	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
+	lastSequenceBatchNum, err := s.state.GetLastSequenceBatchNum(ctx, nil)
 	if err != nil {
-		log.Errorf("failed to get last virtual batch num, err: %v", err)
+		log.Errorf("failed to get last sequence batch num, err: %v", err)
 		return
 	}
 
 	// Send sequences to L1
 	log.Infof(
 		"sending sequences to L1. From batch %d to batch %d",
-		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(len(sequences)),
+		lastSequenceBatchNum+1, lastSequenceBatchNum+uint64(len(sequences)),
 	)
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
@@ -58,8 +58,15 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 			sequence.Timestamp, sequence.Txs, dbTx)
 		if err != nil {
 			log.Errorf("failed to create a sequence for batch %v, err: %v", sequence.BatchNumber, err)
+			if err := dbTx.Rollback(ctx); err != nil {
+				log.Errorf("failed to rollback dbTx to create sequences: %v", err)
+			}
 			return
 		}
+	}
+
+	if err := dbTx.Commit(ctx); err != nil {
+		log.Errorf("failed to commit dbTx to create sequences: %v", err)
 	}
 }
 
@@ -67,12 +74,12 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 // If the array is empty, it doesn't necessarily mean that there are no sequences to be sent,
 // it could be that it's not worth it to do so yet.
 func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]state.Sequence, error) {
-	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
+	lastSequenceBatchNum, err := s.state.GetLastSequenceBatchNum(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last virtual batch num, err: %w", err)
+		return nil, fmt.Errorf("failed to get last sequence batch num, err: %w", err)
 	}
 
-	currentBatchNumToSequence := lastVirtualBatchNum + 1
+	currentBatchNumToSequence := lastSequenceBatchNum + 1
 	sequences := []state.Sequence{}
 	var estimatedGas uint64
 

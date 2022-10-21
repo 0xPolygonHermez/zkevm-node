@@ -68,6 +68,7 @@ type stateInterface interface {
 
 	CreateSequence(ctx context.Context, batchNumber uint64, globalExitRoot, stateRoot,
 		localExitRoot common.Hash, timestamp time.Time, txs []types.Transaction, dbTx pgx.Tx) error
+	GetLastSequenceBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 
 type txManager interface {

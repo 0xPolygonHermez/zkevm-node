@@ -1,7 +1,7 @@
--- +migrate Up
-drop table state.sequences
-
 -- +migrate Down
+DROP TABLE state.sequences;
+
+-- +migrate Up
 CREATE TABLE state.sequences
 (
     batch_num        BIGINT NOT NULL PRIMARY KEY REFERENCES state.batch (batch_num) ON DELETE CASCADE,
@@ -15,6 +15,6 @@ CREATE TABLE state.sequences
     l1_tx_hash    VARCHAR,
     l1_tx_encoded jsonb[],
 
-    created_at TIMESTAMP WITH TIME ZONE
+    created_at TIMESTAMP WITH TIME ZONE,
     updated_at TIMESTAMP WITH TIME ZONE
 );

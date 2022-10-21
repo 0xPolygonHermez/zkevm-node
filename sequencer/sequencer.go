@@ -211,6 +211,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 			return fmt.Errorf("failed to commit a state tx to open a batch, err: %w", err)
 		}
 		s.sequenceInProgress = state.Sequence{
+			BatchNumber:    processingCtx.BatchNumber,
 			GlobalExitRoot: processingCtx.GlobalExitRoot,
 			Timestamp:      processingCtx.Timestamp,
 		}
@@ -220,6 +221,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 			return fmt.Errorf("failed to get tx by batch number, err: %w", err)
 		}
 		s.sequenceInProgress = state.Sequence{
+			BatchNumber:    lastBatch.BatchNumber,
 			GlobalExitRoot: lastBatch.GlobalExitRoot,
 			Timestamp:      lastBatch.Timestamp,
 			Txs:            txs,
@@ -259,6 +261,7 @@ func (s *Sequencer) createFirstBatch(ctx context.Context) {
 		log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
 	}
 	s.sequenceInProgress = state.Sequence{
+		BatchNumber:    processingCtx.BatchNumber,
 		GlobalExitRoot: processingCtx.GlobalExitRoot,
 		Timestamp:      processingCtx.Timestamp,
 		Txs:            []types.Transaction{},
