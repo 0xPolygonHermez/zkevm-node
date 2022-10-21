@@ -286,6 +286,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			UsedBinaries:         usedBinaries,
 			UsedSteps:            usedSteps,
 		}
+		tx.FailedCounter = failedCounter
 
 		txs = append(txs, tx)
 	}
