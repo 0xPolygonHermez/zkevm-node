@@ -79,7 +79,7 @@ func WaitTxToBeMined(parentCtx context.Context, client ethClienter, tx *types.Tr
 	defer cancel()
 	_, err := bind.WaitMined(ctx, client, tx)
 	if err != nil {
-		log.Error("error waiting tx to be mined: ", err)
+		log.Errorf("error waiting tx %s to be mined: %w", tx.Hash(), err)
 		return err
 	}
 	log.Debug("Transaction successfully mined: ", tx.Hash())
