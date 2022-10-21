@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -201,7 +202,10 @@ func txMinedCondition(ctx context.Context, client ethClienter, hash common.Hash)
 	}
 	if receipt.Status == types.ReceiptStatusFailed {
 		// Get revert reason
-		_, reasonErr := revertReason(ctx, client, tx, receipt.BlockNumber)
+		reason, reasonErr := revertReason(ctx, client, tx, receipt.BlockNumber)
+		if reasonErr == nil {
+			reasonErr = errors.New(reason)
+		}
 		return false, fmt.Errorf("transaction has failed, reason: %w, receipt: %+v. tx: %+v, gas: %v", reasonErr, receipt, tx, tx.Gas())
 	}
 	return true, nil
