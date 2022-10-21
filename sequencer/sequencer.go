@@ -14,13 +14,6 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
-const (
-	errGasRequiredExceedsAllowance = "gas required exceeds allowance"
-	errContentLengthTooLarge       = "content length too large"
-	errTimestampMustBeInsideRange  = "Timestamp must be inside range"
-	errInsufficientAllowance       = "insufficient allowance"
-)
-
 // Sequencer represents a sequencer
 type Sequencer struct {
 	cfg Config

@@ -272,7 +272,15 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 
 		batches = append(batches, batch)
 	}
-	return etherMan.PoE.SequenceBatches(opts, batches)
+
+	transaction, err := etherMan.PoE.SequenceBatches(opts, batches)
+	if err != nil {
+		if parsedErr, ok := tryParseContractPoEError(err); ok {
+			err = parsedErr
+		}
+	}
+
+	return transaction, err
 }
 
 // EstimateGasForVerifyBatch estimates gas for verify batch smart contract call
