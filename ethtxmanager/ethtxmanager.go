@@ -34,7 +34,7 @@ func New(cfg Config, ethMan etherman) *Client {
 }
 
 // SequenceBatches send sequences to the channel
-func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) {
+func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) error {
 	var (
 		attempts uint32
 		gas      uint64
@@ -53,8 +53,7 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 			tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nil)
 		}
 		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
-			log.Errorf("failed to sequence batches, trying once again, retry #%d, gasLimit: %d, err: %w",
-				attempts, 0, err)
+			log.Errorf("failed to sequence batches, trying once again, retry #%d, err: %w", attempts, 0, err)
 			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
 			attempts++
 			if nonce.Uint64() > 0 {
@@ -64,9 +63,8 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 			}
 		}
 		if err != nil {
-			log.Errorf("failed to sequence batches, maximum attempts exceeded, gasLimit: %d, err: %w",
-				0, err)
-			return
+			log.Errorf("failed to sequence batches, maximum attempts exceeded, err: %w", err)
+			return fmt.Errorf("failed to sequence batches, maximum attempts exceeded, err: %w", err)
 		}
 		// Wait for tx to be mined
 		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
@@ -84,12 +82,13 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 				continue
 			}
 			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-			return
+			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
 		} else {
 			log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // VerifyBatch send VerifyBatch request to ethereum
