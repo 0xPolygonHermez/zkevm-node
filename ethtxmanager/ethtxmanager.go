@@ -75,7 +75,7 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
 				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
 				continue
-			} else if strings.Contains(err.Error(), "timeout has been reached") {
+			} else if strings.Contains(err.Error(), "context deadline exceeded") {
 				nonce = new(big.Int).SetUint64(tx.Nonce())
 				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
 				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
@@ -132,7 +132,7 @@ func (c *Client) VerifyBatch(ctx context.Context, batchNum uint64, resGetProof *
 				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
 				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
 				continue
-			} else if strings.Contains(err.Error(), "timeout has been reached") {
+			} else if strings.Contains(err.Error(), "context deadline exceeded") {
 				nonce = new(big.Int).SetUint64(tx.Nonce())
 				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
 				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)

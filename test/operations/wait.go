@@ -77,28 +77,13 @@ type ethClienter interface {
 func WaitTxToBeMined(parentCtx context.Context, client ethClienter, tx *types.Transaction, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
-
-	processDone := make(chan bool)
-	go func() {
-		_, err := bind.WaitMined(ctx, client, tx)
-		if err != nil {
-			log.Error("error waiting tx to be mined: ", err)
-			processDone <- false
-		} else {
-			log.Debug("Transaction successfully mined: ", tx.Hash())
-			processDone <- true
-		}
-	}()
-	var res bool
-	select {
-	case <-ctx.Done():
-		return ErrTimeoutReached
-	case res = <-processDone:
-		if !res {
-			return fmt.Errorf("error waiting tx to be mined")
-		}
-		return nil
+	_, err := bind.WaitMined(ctx, client, tx)
+	if err != nil {
+		log.Error("error waiting tx to be mined: ", err)
+		return err
 	}
+	log.Debug("Transaction successfully mined: ", tx.Hash())
+	return nil
 }
 
 // WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
