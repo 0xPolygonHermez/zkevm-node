@@ -36,6 +36,7 @@ var (
 	setTrustedSequencerURLSignatureHash = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))
 	setForceBatchAllowedSignatureHash   = crypto.Keccak256Hash([]byte("SetForceBatchAllowed(bool)"))
 	setTrustedSequencerSignatureHash    = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))
+	transferOwnershipSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 
 	// Proxy events
 	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
@@ -82,7 +83,7 @@ type Client struct {
 }
 
 // NewClient creates a new etherman.
-func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, maticAddr common.Address, globalExitRootManAddr common.Address) (*Client, error) {
+func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -90,20 +91,20 @@ func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, mati
 		return nil, err
 	}
 	// Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(PoEAddr, ethClient)
+	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
-	globalExitRoot, err := globalexitrootmanager.NewGlobalexitrootmanager(globalExitRootManAddr, ethClient)
+	globalExitRoot, err := globalexitrootmanager.NewGlobalexitrootmanager(cfg.GlobalExitRootManagerAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
-	matic, err := matic.NewMatic(maticAddr, ethClient)
+	matic, err := matic.NewMatic(cfg.MaticAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, PoEAddr, globalExitRootManAddr)
+	scAddresses = append(scAddresses, cfg.PoEAddr, cfg.GlobalExitRootManagerAddr)
 
 	return &Client{EtherClient: ethClient, PoE: poe, Matic: matic, GlobalExitRootManager: globalExitRoot, SCAddresses: scAddresses, auth: auth}, nil
 }
@@ -181,6 +182,9 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		return nil
 	case upgradedSignatureHash:
 		log.Debug("Upgraded event detected")
+		return nil
+	case transferOwnershipSignatureHash:
+		log.Debug("TransferOwnership event detected")
 		return nil
 	}
 	log.Warn("Event not registered: ", vLog)

@@ -9,6 +9,8 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
+	pb "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+
 	pgx "github.com/jackc/pgx/v4"
 
 	state "github.com/0xPolygonHermez/zkevm-node/state"
@@ -140,6 +142,29 @@ func (_m *stateMock) CloseBatch(ctx context.Context, receipt state.ProcessingRec
 	}
 
 	return r0
+}
+
+// ExecuteBatch provides a mock function with given fields: ctx, batchNumber, batchL2Data, dbTx
+func (_m *stateMock) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, batchNumber, batchL2Data, dbTx)
+
+	var r0 *pb.ProcessBatchResponse
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, pgx.Tx) *pb.ProcessBatchResponse); ok {
+		r0 = rf(ctx, batchNumber, batchL2Data, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*pb.ProcessBatchResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, []byte, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, batchL2Data, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx

@@ -116,15 +116,19 @@ func (s *Sequencer) trackOldTxs(ctx context.Context) {
 	ticker := time.NewTicker(s.cfg.FrequencyToCheckTxsForDelete.Duration)
 	for {
 		waitTick(ctx, ticker)
+		log.Infof("trying to get txs to delete from the pool...")
 		txHashes, err := s.state.GetTxsOlderThanNL1Blocks(ctx, s.cfg.BlocksAmountForTxsToBeDeleted, nil)
 		if err != nil {
 			log.Errorf("failed to get txs hashes to delete, err: %v", err)
 			continue
 		}
+		log.Infof("will try to delete %d redundant txs", len(txHashes))
 		err = s.pool.DeleteTxsByHashes(ctx, txHashes)
 		if err != nil {
 			log.Errorf("failed to delete txs from the pool, err: %v", err)
+			continue
 		}
+		log.Infof("deleted %d selected txs from the pool", len(txHashes))
 	}
 }
 

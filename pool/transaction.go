@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -32,7 +33,8 @@ type Transaction struct {
 	Status   TxStatus
 	IsClaims bool
 	ZkCounters
-	ReceivedAt time.Time
+	FailedCounter uint64
+	ReceivedAt    time.Time
 }
 
 // ZkCounters counters for the tx
@@ -77,8 +79,8 @@ func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address) bool {
 		return false
 	}
 
-	if *tx.To() == l2BridgeAddr { // &&
-		// strings.HasPrefix("0x"+common.Bytes2Hex(tx.Data()), bridgeClaimMethodSignature)  {
+	if *tx.To() == l2BridgeAddr &&
+		strings.HasPrefix("0x"+common.Bytes2Hex(tx.Data()), bridgeClaimMethodSignature) {
 		return true
 	}
 	return false

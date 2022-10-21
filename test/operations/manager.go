@@ -14,7 +14,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -24,12 +26,8 @@ import (
 )
 
 const (
-	executorURI   = "127.0.0.1:50071"
-	merkletreeURI = "127.0.0.1:50061"
-
-	poeAddress        = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
-	maticTokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
-
+	poeAddress         = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+	maticTokenAddress  = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 )
@@ -50,11 +48,14 @@ const (
 )
 
 var (
-	stateDBCfg       = dbutils.NewStateConfigFromEnv()
-	poolDBCfg        = dbutils.NewPoolConfigFromEnv()
-	rpcDBCfg         = dbutils.NewPoolConfigFromEnv()
+	stateDBCfg = dbutils.NewStateConfigFromEnv()
+	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
+	rpcDBCfg   = dbutils.NewRPCConfigFromEnv()
+
+	executorURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1:50071")
+	merkleTreeURI    = testutils.GetEnv(constants.ENV_MERKLETREE_URI, "127.0.0.1:50061")
 	executorConfig   = executor.Config{URI: executorURI}
-	merkletreeConfig = merkletree.Config{URI: merkletreeURI}
+	merkleTreeConfig = merkletree.Config{URI: merkleTreeURI}
 )
 
 // SequencerConfig is the configuration for the sequencer operations.
@@ -294,7 +295,7 @@ func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 	ctx := context.Background()
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executorConfig)
-	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkletreeConfig)
+	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkleTreeConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
 	stateCfg := state.Config{
@@ -397,7 +398,7 @@ func (m *Manager) SetUpSequencer() error {
 		return err
 	}
 
-	if b.Cmp(maticAmount) <= 0 {
+	if b.Cmp(maticAmount) < 0 {
 		return fmt.Errorf("Minimum amount is: %v but found: %v", maticAmount.Text(encoding.Base10), b.Text(encoding.Base10))
 	}
 
