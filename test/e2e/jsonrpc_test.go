@@ -27,7 +27,6 @@ import (
 const (
 	invalidParamsErrorCode = -32602
 	defaultErrorCode       = -32000
-	notFoundErrorCode      = -32601
 )
 
 func Setup() {
@@ -310,10 +309,9 @@ func Test_Filters(t *testing.T) {
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getFilterChanges", common.HexToHash("0x42"))
 		require.NoError(t, err)
 		require.NotNil(t, response.Error)
-		require.Equal(t, notFoundErrorCode, response.Error.Code)
+		require.Equal(t, defaultErrorCode, response.Error.Code)
 		require.Equal(t, "filter not found", response.Error.Message)
 		require.Nil(t, response.Result)
-
 	}
 }
 

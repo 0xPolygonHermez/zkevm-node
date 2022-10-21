@@ -3920,7 +3920,7 @@ func TestGetFilterChanges(t *testing.T) {
 				tc.FilterID = argUint64(1)
 				// first call
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
-				tc.ExpectedErrors = append(tc.ExpectedErrors, nil)
+				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(notFoundErrorCode, "filter not found"))
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				m.Storage.
