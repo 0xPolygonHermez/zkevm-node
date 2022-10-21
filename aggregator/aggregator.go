@@ -151,8 +151,9 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 		err := a.EthTxManager.VerifyBatch(ctx, batchNumberToVerify, proof.Proof)
 		if err != nil {
 			log.Errorf("error verifying batch %d. Error: %w", batchNumberToVerify, err)
+		} else {
+			log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
 		}
-		log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
 		/*
 			err := a.State.DeleteGeneratedProof(ctx, batchNumberToVerify, nil)
 			if err != nil {
