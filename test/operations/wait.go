@@ -201,11 +201,8 @@ func txMinedCondition(ctx context.Context, client ethClienter, hash common.Hash)
 	}
 	if receipt.Status == types.ReceiptStatusFailed {
 		// Get revert reason
-		reason, reasonErr := revertReason(ctx, client, tx, receipt.BlockNumber)
-		if reasonErr != nil {
-			reason = reasonErr.Error()
-		}
-		return false, fmt.Errorf("transaction has failed, reason: %s, receipt: %+v. tx: %+v, gas: %v", reason, receipt, tx, tx.Gas())
+		_, reasonErr := revertReason(ctx, client, tx, receipt.BlockNumber)
+		return false, fmt.Errorf("transaction has failed, reason: %w, receipt: %+v. tx: %+v, gas: %v", reasonErr, receipt, tx, tx.Gas())
 	}
 	return true, nil
 }

@@ -10,6 +10,8 @@ import (
 var (
 	// ErrInvalidBatchHeader indicates the batch header is invalid
 	ErrInvalidBatchHeader = errors.New("invalid batch header")
+	// ErrUnexpectedBatch indicates that the batch is unexpected
+	ErrUnexpectedBatch = errors.New("unexpected batch")
 	// ErrStateNotSynchronized indicates the state database may be empty
 	ErrStateNotSynchronized = errors.New("state not synchronized")
 	// ErrNotFound indicates an object has not been found for the search criteria used
