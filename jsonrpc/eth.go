@@ -230,7 +230,7 @@ func (e *Eth) GetCompilers() (interface{}, rpcError) {
 func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, rpcError) {
 	filter, err := e.storage.GetFilter(uint64(filterID))
 	if errors.Is(err, ErrNotFound) {
-		return rpcErrorResponse(notFoundErrorCode, "filter not found", err)
+		return rpcErrorResponse(defaultErrorCode, "filter not found", err)
 	} else if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to get filter from storage", err)
 	}

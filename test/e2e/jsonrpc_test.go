@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -282,6 +283,7 @@ func Test_Filters(t *testing.T) {
 		require.NoError(t, err)
 		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
+		time.Sleep(2 * time.Second)
 
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
 		require.NoError(t, err)

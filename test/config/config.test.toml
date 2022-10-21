@@ -60,10 +60,10 @@ TrustedSequencerURI = ""
 [Sequencer]
 MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
-WaitPeriodSendSequence = "15s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
+WaitPeriodSendSequence = "1s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "1s"
 WaitBlocksToUpdateGER = 10
-MaxTimeForBatchToBeOpen = "15s"
+MaxTimeForBatchToBeOpen = "1s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxCumulativeGasUsed = 30000000
