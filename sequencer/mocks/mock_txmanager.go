@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	mock "github.com/stretchr/testify/mock"
 
 	types "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -13,9 +15,9 @@ type TxmanagerMock struct {
 	mock.Mock
 }
 
-// SequenceBatches provides a mock function with given fields: sequences
-func (_m *TxmanagerMock) SequenceBatches(sequences []types.Sequence) {
-	_m.Called(sequences)
+// SequenceBatches provides a mock function with given fields: ctx, sequences
+func (_m *TxmanagerMock) SequenceBatches(ctx context.Context, sequences []types.Sequence) {
+	_m.Called(ctx, sequences)
 }
 
 type mockConstructorTestingTNewTxmanagerMock interface {

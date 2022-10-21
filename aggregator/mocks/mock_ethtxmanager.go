@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	pb "github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -12,9 +14,9 @@ type EthTxManager struct {
 	mock.Mock
 }
 
-// VerifyBatch provides a mock function with given fields: batchNum, proof
-func (_m *EthTxManager) VerifyBatch(batchNum uint64, proof *pb.GetProofResponse) {
-	_m.Called(batchNum, proof)
+// VerifyBatch provides a mock function with given fields: ctx, batchNum, proof
+func (_m *EthTxManager) VerifyBatch(ctx context.Context, batchNum uint64, proof *pb.GetProofResponse) {
+	_m.Called(ctx, batchNum, proof)
 }
 
 type mockConstructorTestingTNewEthTxManager interface {

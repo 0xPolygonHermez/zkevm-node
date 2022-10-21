@@ -148,7 +148,7 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 
 	if proof != nil && proof.Proof != nil {
 		log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchNumberToVerify)
-		a.EthTxManager.VerifyBatch(batchNumberToVerify, proof.Proof)
+		a.EthTxManager.VerifyBatch(ctx, batchNumberToVerify, proof.Proof)
 		log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
 		/*
 			err := a.State.DeleteGeneratedProof(ctx, batchNumberToVerify, nil)

@@ -5,6 +5,7 @@
 package ethtxmanager
 
 import (
+	"context"
 	"math/big"
 	"strings"
 	"time"
@@ -32,7 +33,7 @@ func New(cfg Config, ethMan etherman) *Client {
 }
 
 // SequenceBatches send sequences to the channel
-func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
+func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) {
 	var (
 		attempts uint32
 		gas      uint64
@@ -67,7 +68,7 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 		}
 		// Wait for tx to be mined
 		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
-		err = c.ethMan.WaitTxToBeMined(tx.Hash(), c.cfg.WaitTxToBeMined.Duration)
+		err = c.ethMan.WaitTxToBeMined(ctx, tx, c.cfg.WaitTxToBeMined.Duration)
 		if err != nil {
 			attempts++
 			if strings.Contains(err.Error(), "out of gas") {
@@ -89,7 +90,7 @@ func (c *Client) SequenceBatches(sequences []ethmanTypes.Sequence) {
 }
 
 // VerifyBatch send VerifyBatch request to ethereum
-func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) {
+func (c *Client) VerifyBatch(ctx context.Context, batchNum uint64, resGetProof *pb.GetProofResponse) {
 	var (
 		attempts uint32
 		gas      uint64
@@ -125,7 +126,7 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 		}
 		// Wait for tx to be mined
 		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
-		err = c.ethMan.WaitTxToBeMined(tx.Hash(), c.cfg.WaitTxToBeMined.Duration)
+		err = c.ethMan.WaitTxToBeMined(ctx, tx, c.cfg.WaitTxToBeMined.Duration)
 		if err != nil {
 			if strings.Contains(err.Error(), "out of gas") {
 				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)

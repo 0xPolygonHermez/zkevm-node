@@ -47,7 +47,7 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 		"sending sequences to L1. From batch %d to batch %d",
 		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(len(sequences)),
 	)
-	s.txManager.SequenceBatches(sequences)
+	s.txManager.SequenceBatches(ctx, sequences)
 }
 
 // getSequencesToSend generates an array of sequences to be send to L1.
