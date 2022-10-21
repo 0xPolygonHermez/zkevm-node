@@ -108,6 +108,12 @@ func (s *Sequencer) Start(ctx context.Context) {
 			s.tryToCreateSequence(ctx, tickerSendSequence)
 		}
 	}()
+	go func() {
+		for {
+			s.txManager.SyncPendingSequences()
+		}
+	}()
+
 	// Wait until context is done
 	<-ctx.Done()
 }

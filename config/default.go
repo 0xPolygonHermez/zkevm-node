@@ -36,13 +36,7 @@ MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
 
 [EthTxManager]
-MaxSendBatchTxRetries = 10
-MaxVerifyBatchTxRetries = 10
-FrequencyForResendingFailedSendBatches = "1s"
-FrequencyForResendingFailedVerifyBatch = "1s"
-WaitTxToBeMined = "2m"
-PercentageToIncreaseGasPrice = 10
-PercentageToIncreaseGasLimit = 10
+IntervalToReviewSendBatchTx = "1s"
 
 [RPC]
 Host = "0.0.0.0"

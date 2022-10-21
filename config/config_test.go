@@ -100,32 +100,8 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: sequencer.MaxSequenceSize{Int: new(big.Int).SetInt64(2000000)},
 		},
 		{
-			path:          "EthTxManager.MaxSendBatchTxRetries",
-			expectedValue: uint32(10),
-		},
-		{
-			path:          "EthTxManager.MaxVerifyBatchTxRetries",
-			expectedValue: uint32(10),
-		},
-		{
-			path:          "EthTxManager.FrequencyForResendingFailedSendBatches",
+			path:          "EthTxManager.IntervalToReviewSendBatchTx",
 			expectedValue: types.NewDuration(1 * time.Second),
-		},
-		{
-			path:          "EthTxManager.FrequencyForResendingFailedVerifyBatch",
-			expectedValue: types.NewDuration(1 * time.Second),
-		},
-		{
-			path:          "EthTxManager.WaitTxToBeMined",
-			expectedValue: types.NewDuration(2 * time.Minute),
-		},
-		{
-			path:          "EthTxManager.PercentageToIncreaseGasPrice",
-			expectedValue: uint64(10),
-		},
-		{
-			path:          "EthTxManager.PercentageToIncreaseGasLimit",
-			expectedValue: uint64(10),
 		},
 		{
 			path:          "PriceGetter.Type",

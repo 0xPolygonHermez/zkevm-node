@@ -35,7 +35,7 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 		return
 	}
 
-	lastSequenceBatchNum, err := s.state.GetLastSequenceBatchNum(ctx, nil)
+	lastSequence, err := s.state.GetLastSequence(ctx, nil)
 	if err != nil {
 		log.Errorf("failed to get last sequence batch num, err: %v", err)
 		return
@@ -44,7 +44,7 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 	// Send sequences to L1
 	log.Infof(
 		"sending sequences to L1. From batch %d to batch %d",
-		lastSequenceBatchNum+1, lastSequenceBatchNum+uint64(len(sequences)),
+		lastSequence.BatchNumber+1, lastSequence.BatchNumber+uint64(len(sequences)),
 	)
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
@@ -74,12 +74,12 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 // If the array is empty, it doesn't necessarily mean that there are no sequences to be sent,
 // it could be that it's not worth it to do so yet.
 func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]state.Sequence, error) {
-	lastSequenceBatchNum, err := s.state.GetLastSequenceBatchNum(ctx, nil)
+	lastSequence, err := s.state.GetLastSequence(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last sequence batch num, err: %w", err)
 	}
 
-	currentBatchNumToSequence := lastSequenceBatchNum + 1
+	currentBatchNumToSequence := lastSequence.BatchNumber + 1
 	sequences := []state.Sequence{}
 	var estimatedGas uint64
 

@@ -1790,8 +1790,8 @@ func (p *PostgresStorage) GetPendingSequences(ctx context.Context, dbTx pgx.Tx) 
 			 , updated_at
 		  FROM state.sequences
 		 WHERE status = $1
-		 ORDER BY batch_num`
-	rows, err := e.Query(ctx, getPendingSequences, string(SequenceStatusPending))
+		 ORDER BY batch_num;`
+	rows, err := e.Query(ctx, getPendingSequences, string(SequenceGroupStatusPending))
 	if err != nil {
 		return nil, err
 	}
@@ -1799,48 +1799,12 @@ func (p *PostgresStorage) GetPendingSequences(ctx context.Context, dbTx pgx.Tx) 
 
 	sequences := make([]Sequence, 0, len(rows.RawValues()))
 	for rows.Next() {
-		sequence := Sequence{}
-		var globalExitRoot, stateRoot, localExitRoot string
-		var txsRLPs []string
-		var status string
-		var l1TxRlp string
-
-		if err := rows.Scan(&sequence.BatchNumber, &stateRoot, &globalExitRoot, &localExitRoot,
-			&sequence.Timestamp, &txsRLPs, &status, &l1TxRlp, &sequence.CreatedAt, &sequence.UpdatedAt); err != nil {
-			return nil, err
-		}
-
-		txs := make([]types.Transaction, 0, len(txsRLPs))
-		for _, txRLP := range txsRLPs {
-			tx := types.Transaction{}
-			b, err := hex.DecodeHex(txRLP)
-			if err != nil {
-				return nil, err
-			}
-			if err := tx.UnmarshalBinary(b); err != nil {
-				return nil, err
-			}
-
-			txs = append(txs, tx)
-		}
-
-		l1Tx := new(types.Transaction)
-		b, err := hex.DecodeHex(l1TxRlp)
+		sequence, err := scanSequence(rows)
 		if err != nil {
 			return nil, err
 		}
-		if err := l1Tx.UnmarshalBinary(b); err != nil {
-			return nil, err
-		}
 
-		sequence.GlobalExitRoot = common.HexToHash(globalExitRoot)
-		sequence.StateRoot = common.HexToHash(stateRoot)
-		sequence.LocalExitRoot = common.HexToHash(localExitRoot)
-		sequence.Txs = txs
-		sequence.Status = SequenceStatus(status)
-		sequence.L1Tx = l1Tx
-
-		sequences = append(sequences, sequence)
+		sequences = append(sequences, *sequence)
 	}
 
 	return sequences, nil
@@ -1852,7 +1816,7 @@ func (p *PostgresStorage) CreateSequence(ctx context.Context, batchNumber uint64
 	e := p.getExecQuerier(dbTx)
 
 	const addSequenceSQL = `INSERT INTO state.sequences (batch_num, state_root, global_exit_root, local_exit_root, timestamp, txs, status, created_at)
-												 VALUES (       $1,         $2,               $3,              $4,        $5,  $6,     $7,         $8)`
+												 VALUES (       $1,         $2,               $3,              $4,        $5,  $6,     $7,         $8);`
 
 	txsRLPs := make([]string, 0, len(txs))
 
@@ -1867,7 +1831,7 @@ func (p *PostgresStorage) CreateSequence(ctx context.Context, batchNumber uint64
 
 	_, err := e.Exec(ctx, addSequenceSQL, batchNumber,
 		stateRoot.String(), globalExitRoot.String(), localExitRoot.String(),
-		timestamp, txsRLPs, string(SequenceStatusPending), time.Now())
+		timestamp, txsRLPs, string(SequenceGroupStatusPending), time.Now())
 
 	return err
 }
@@ -1881,7 +1845,7 @@ func (p *PostgresStorage) UpdateSequenceL1Tx(ctx context.Context, batchNumber ui
 		   SET l1_tx_hash    = $3,
 			   l1_tx_encoded = $4,
 			   updated_at = $5
-		WHERE batch_num = $1`
+		WHERE batch_num = $1;`
 
 	b, err := tx.MarshalBinary()
 	if err != nil {
@@ -1889,7 +1853,7 @@ func (p *PostgresStorage) UpdateSequenceL1Tx(ctx context.Context, batchNumber ui
 	}
 	txRLP := hex.EncodeToHex(b)
 
-	_, err = e.Exec(ctx, setSequenceAsPendingSQL, batchNumber, string(SequenceStatusPending), tx.Hash().String(), txRLP, time.Now())
+	_, err = e.Exec(ctx, setSequenceAsPendingSQL, batchNumber, string(SequenceGroupStatusPending), tx.Hash().String(), txRLP, time.Now())
 	return err
 }
 
@@ -1902,23 +1866,79 @@ func (p *PostgresStorage) SetSequenceAsConfirmed(ctx context.Context, batchNumbe
 		   SET status = $3,
 		       updated_at = $4
 		 WHERE batch_num = $1
-		   AND l1_tx_hash = $2`
+		   AND l1_tx_hash = $2;`
 
-	_, err := e.Exec(ctx, setSequenceAsConfirmedSQL, batchNumber, txHash.String(), string(SequenceStatusConfirmed), time.Now())
+	_, err := e.Exec(ctx, setSequenceAsConfirmedSQL, batchNumber, txHash.String(), string(SequenceGroupStatusConfirmed), time.Now())
 	return err
 }
 
 // GetLastSequenceBatchNum gets last sequence batch num
-func (p *PostgresStorage) GetLastSequenceBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
-	var batchNum uint64
+func (p *PostgresStorage) GetLastSequence(ctx context.Context, dbTx pgx.Tx) (*Sequence, error) {
 	e := p.getExecQuerier(dbTx)
 
-	const getLastSequenceBatchNumSQL = "SELECT COALESCE(MAX(batch_num), 0) FROM state.sequences"
+	const getLastSequenceSQL = `
+		SELECT batch_num
+			 , state_root
+			 , global_exit_root
+			 , local_exit_root
+			 , timestamp
+			 , txs
+			 , status
+			 , l1_tx_hash
+			 , l1_tx_encoded
+			 , created_at
+			 , updated_at 
+		  FROM state.sequences
+		 ORDER BY batch_num DESC
+		 LIMIT 1;`
 
-	err := e.QueryRow(ctx, getLastSequenceBatchNumSQL).Scan(&batchNum)
+	row := e.QueryRow(ctx, getLastSequenceSQL)
 
-	if err != nil {
-		return 0, err
+	return scanSequence(row)
+}
+
+func scanSequence(row pgx.Row) (*Sequence, error) {
+	sequence := &Sequence{}
+
+	var globalExitRoot, stateRoot, localExitRoot string
+	var txsRLPs []string
+	var status string
+	var l1TxRlp string
+
+	if err := row.Scan(&sequence.BatchNumber, &stateRoot, &globalExitRoot, &localExitRoot,
+		&sequence.Timestamp, &txsRLPs, &status, &l1TxRlp, &sequence.CreatedAt, &sequence.UpdatedAt); err != nil {
+		return nil, err
 	}
-	return batchNum, nil
+
+	txs := make([]types.Transaction, 0, len(txsRLPs))
+	for _, txRLP := range txsRLPs {
+		tx := types.Transaction{}
+		b, err := hex.DecodeHex(txRLP)
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.UnmarshalBinary(b); err != nil {
+			return nil, err
+		}
+
+		txs = append(txs, tx)
+	}
+
+	l1Tx := new(types.Transaction)
+	b, err := hex.DecodeHex(l1TxRlp)
+	if err != nil {
+		return nil, err
+	}
+	if err := l1Tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+
+	sequence.GlobalExitRoot = common.HexToHash(globalExitRoot)
+	sequence.StateRoot = common.HexToHash(stateRoot)
+	sequence.LocalExitRoot = common.HexToHash(localExitRoot)
+	sequence.Txs = txs
+	sequence.Status = SequenceGroupStatus(status)
+	sequence.L1Tx = l1Tx
+
+	return sequence, nil
 }

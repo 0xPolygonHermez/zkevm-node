@@ -9,14 +9,14 @@ import (
 )
 
 const (
-	// SequenceStatusPending represents a sequence that has not been mined yet on L1
-	SequenceStatusPending SequenceStatus = "pending"
-	// SequenceStatusConfirmed represents a sequence that has been mined and the state is now virtualized
-	SequenceStatusConfirmed SequenceStatus = "confirmed"
+	// SequenceGroupStatusPending represents a sequence that has not been mined yet on L1
+	SequenceGroupStatusPending SequenceGroupStatus = "pending"
+	// SequenceGroupStatusConfirmed represents a sequence that has been mined and the state is now virtualized
+	SequenceGroupStatusConfirmed SequenceGroupStatus = "confirmed"
 )
 
-// SequenceStatus represents the state of a tx
-type SequenceStatus string
+// SequenceGroupStatus represents the state of a tx
+type SequenceGroupStatus string
 
 // Sequence represents an operation sent to the PoE smart contract to be
 // processed.
@@ -27,12 +27,14 @@ type Sequence struct {
 	LocalExitRoot  common.Hash
 	Timestamp      time.Time
 	Txs            []types.Transaction
+}
 
-	Status SequenceStatus
-	L1Tx   *types.Transaction
-
-	CreatedAt *time.Time
-	UpdatedAt *time.Time
+type SequenceGroup struct {
+	Tx           types.Transaction
+	BatchNumbers []string
+	Status       SequenceGroupStatus
+	CreatedAt    time.Time
+	UpdatedAt    *time.Time
 }
 
 // IsEmpty checks is sequence struct is empty

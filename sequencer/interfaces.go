@@ -68,11 +68,11 @@ type stateInterface interface {
 
 	CreateSequence(ctx context.Context, batchNumber uint64, globalExitRoot, stateRoot,
 		localExitRoot common.Hash, timestamp time.Time, txs []types.Transaction, dbTx pgx.Tx) error
-	GetLastSequenceBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetLastSequence(ctx context.Context, dbTx pgx.Tx) (*state.Sequence, error)
 }
 
 type txManager interface {
-	SequenceBatches(sequences []state.Sequence)
+	SyncPendingSequences()
 }
 
 // priceGetter is for getting eth/matic price, used for the tx profitability checker

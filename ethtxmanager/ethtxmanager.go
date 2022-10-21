@@ -5,152 +5,133 @@
 package ethtxmanager
 
 import (
+	"context"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-const oneHundred = 100
-
 // Client for eth tx manager
 type Client struct {
 	cfg    Config
+	state  stateInterface
 	ethMan etherman
 }
 
 // New creates new eth tx manager
-func New(cfg Config, ethMan etherman) *Client {
+func New(cfg Config, st stateInterface, ethMan etherman) *Client {
 	return &Client{
 		cfg:    cfg,
+		state:  st,
 		ethMan: ethMan,
 	}
 }
 
-// SequenceBatches send sequences to the channel
-func (c *Client) SequenceBatches(sequences []state.Sequence) {
-	var (
-		attempts uint32
-		gas      uint64
-		gasPrice *big.Int
-		nonce    = big.NewInt(0)
-	)
-	log.Info("sending sequence to L1")
-	for attempts < c.cfg.MaxSendBatchTxRetries {
-		var (
-			tx  *types.Transaction
-			err error
-		)
-		if nonce.Uint64() > 0 {
-			tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nonce)
-		} else {
-			tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nil)
-		}
-		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
-			log.Errorf("failed to sequence batches, trying once again, retry #%d, gasLimit: %d, err: %w",
-				attempts, 0, err)
-			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
-			attempts++
-			if nonce.Uint64() > 0 {
-				tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nonce)
-			} else {
-				tx, err = c.ethMan.SequenceBatches(sequences, gas, gasPrice, nil)
-			}
-		}
-		if err != nil {
-			log.Fatalf("failed to sequence batches, maximum attempts exceeded, gasLimit: %d, err: %w",
-				0, err)
-		}
-		// Wait for tx to be mined
-		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
-		err = c.ethMan.WaitTxToBeMined(tx.Hash(), c.cfg.WaitTxToBeMined.Duration)
-		if err != nil {
-			attempts++
-			if strings.Contains(err.Error(), "out of gas") {
-				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
-				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
-				continue
-			} else if strings.Contains(err.Error(), "timeout has been reached") {
-				nonce = new(big.Int).SetUint64(tx.Nonce())
-				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
-				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
-				continue
-			}
-			log.Fatalf("tx %s failed, err: %w", tx.Hash(), err)
-		} else {
-			log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
-			return
-		}
+// SyncPendingSequences loads pending sequences from the state and
+// sync them with PoE on L1
+func (c *Client) SyncPendingSequences() {
+	groupSequences()
+	syncSequences()
+}
+
+// groupSequences build sequence groups with sequences without group
+func (c *Client) groupSequences() {
+	ctx := context.Background()
+
+	// get sequences without group
+	sequencesWithoutGroup, err := c.state.GetSequencesWithoutGroup(ctx, nil)
+	if err != nil {
+		log.Errorf("failed to get sequences without group: %v", err)
+		return
+	}
+
+	// if there is no sequence without group, returns
+	if len(sequencesWithoutGroup) == 0 {
+		return
+	}
+
+	// compute tx gas for sequences without group
+	gas, err := c.ethMan.EstimateGasSequenceBatches(sequencesWithoutGroup)
+	if err != nil {
+		log.Errorf("failed to estimate gas for sequence batches: %v", err)
+		return
+	}
+
+	// get last sequence to read the nonce
+	lastSequenceGroup, err := c.state.GetLastSequenceGroupWithTx(ctx, nil)
+	if err != nil {
+		log.Errorf("failed to get last sequence group: %v", err)
+	}
+	lastNonce := big.NewInt(0)
+	if lastSequenceGroup != nil {
+		lastNonce = lastSequenceGroup.Tx.Nonce()
+	}
+
+	// set the next nonce
+	nonce := big.NewInt(0).Add(lastNonce, big.NewInt(1))
+
+	// send the sequences to create the tx
+	tx, err := c.ethMan.SequenceBatches(sequencesWithoutGroup, gas, nonce)
+	if err != nil {
+		log.Errorf("failed to send sequence batches: %v", err)
+		return
+	}
+
+	// create a pending sequence group with sequences and tx
+	sequenceGroup := state.SequenceGroup{
+		Tx:           tx,
+		Status:       state.SequenceGroupStatusPending,
+		CreatedAt:    time.Now(),
+		BatchNumbers: make([]string, 0, len(sequencesWithoutGroup)),
+	}
+	for _, sequence := range sequencesWithoutGroup {
+		sequenceGroup.BatchNumbers = append(sequenceGroup.BatchNumbers, sequence.BatchNumber)
+	}
+
+	// persist sequence group to start monitoring this tx
+	err := c.state.AddSequenceGroup(ctx, sequenceGroup, nil)
+	if err != nil {
+		log.Errorf("failed to create sequence group: %v", err)
+		return
 	}
 }
 
-// VerifyBatch send VerifyBatch request to ethereum
-func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) {
-	var (
-		attempts uint32
-		gas      uint64
-		gasPrice *big.Int
-		nonce    = big.NewInt(0)
-	)
-	log.Infof("sending batch %d verification to L1", batchNum)
-	for attempts < c.cfg.MaxVerifyBatchTxRetries {
-		var (
-			tx  *types.Transaction
-			err error
-		)
-		if nonce.Uint64() > 0 {
-			tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nonce)
-		} else {
-			tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nil)
-		}
-		for err != nil && attempts < c.cfg.MaxVerifyBatchTxRetries {
-			log.Errorf("failed to send batch verification, trying once again, retry #%d, gasLimit: %d, err: %w", attempts, 0, err)
-			time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
+func (c *Client) syncSequences() {
+	ctx := context.Background()
 
-			if nonce.Uint64() > 0 {
-				tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nonce)
-			} else {
-				tx, err = c.ethMan.VerifyBatch(batchNum, resGetProof, gas, gasPrice, nil)
-			}
+	pendingSequenceGroups, err := c.state.GetPendingSequenceGroups(ctx, nil)
+	if err != nil {
+		log.Errorf("failed to get pending sequence groups")
+		return
+	}
 
-			attempts++
-		}
+	for _, pendingSequenceGroup := range pendingSequenceGroups {
+		// check if the tx was already mined
+		receipt, err := c.ethMan.GetTxReceipt(ctx, pendingSequenceGroup.Tx.Hash())
 		if err != nil {
-			log.Errorf("failed to send batch verification, maximum attempts exceeded, gasLimit: %d, err: %w", 0, err)
+			log.Errorf("failed to get send batch tx receipt, hash %v: %v", pendingSequenceGroup.Tx.Hash().String(), err)
 			return
 		}
-		// Wait for tx to be mined
-		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
-		err = c.ethMan.WaitTxToBeMined(tx.Hash(), c.cfg.WaitTxToBeMined.Duration)
-		if err != nil {
-			if strings.Contains(err.Error(), "out of gas") {
-				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
-				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
-				continue
-			} else if strings.Contains(err.Error(), "timeout has been reached") {
-				nonce = new(big.Int).SetUint64(tx.Nonce())
-				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
-				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
-				continue
+		if receipt.Status == types.ReceiptStatusSuccessful {
+			err := c.state.SetSequenceGroupAsConfirmed(ctx, pendingSequenceGroup.Tx.Hash(), nil)
+			if err != nil {
+				log.Errorf("failed to set sequence group as confirmed for tx %v: %v", pendingSequenceGroup.Tx.Hash().String(), err)
 			}
-			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
 			return
-		} else {
-			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
-			return
+		}
+
+		// if it was not mined yet, check it against the rules to improve the tx in order to get it mined
+		//
+		// check if the timeout since the last time the group was update has expired, if so, update the tx
+		lastTimeSequenceWasUpdated := pendingSequenceGroup.CreatedAt
+		if pendingSequenceGroup.UpdatedAt != nil {
+			lastTimeSequenceWasUpdated = *pendingSequenceGroup.UpdatedAt
+		}
+		if time.Since(lastTimeSequenceWasUpdated) >= c.cfg.IntervalToReviewSendBatchTx.Duration {
+			// TODO improve the current tx to make it mineable
 		}
 	}
-}
-
-func increaseGasPrice(currentGasPrice *big.Int, percentageIncrease uint64) *big.Int {
-	gasPrice := big.NewInt(0).Mul(currentGasPrice, new(big.Int).SetUint64(uint64(oneHundred)+percentageIncrease))
-	return gasPrice.Div(gasPrice, big.NewInt(oneHundred))
-}
-
-func increaseGasLimit(currentGasLimit uint64, percentageIncrease uint64) uint64 {
-	return currentGasLimit * (oneHundred + percentageIncrease) / oneHundred
 }
