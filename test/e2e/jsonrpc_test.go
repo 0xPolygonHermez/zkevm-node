@@ -314,7 +314,6 @@ func Test_Filters(t *testing.T) {
 		require.Equal(t, defaultErrorCode, response.Error.Code)
 		require.Equal(t, "filter not found", response.Error.Message)
 		require.Nil(t, response.Result)
-
 	}
 }
 
