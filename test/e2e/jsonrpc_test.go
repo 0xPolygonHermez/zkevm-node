@@ -286,8 +286,6 @@ func Test_Filters(t *testing.T) {
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
 		require.NoError(t, err)
 
-		log.Infof("\nBlockNumber is %d", receipt.BlockNumber)
-
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getFilterChanges", blockFilterId)
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
