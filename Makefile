@@ -358,6 +358,9 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	mockery --name=stateInterface --dir=synchronizer --output=synchronizer --outpkg=synchronizer --structname=stateMock --filename=mock_state.go
 	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=synchronizer --outpkg=synchronizer --structname=dbTxMock --filename=mock_dbtx.go
 
+	mockery --name=EtherscanI --dir=etherman/etherscan --output=etherman --outpkg=etherman --structname=etherscanMock --filename=mock_etherscan.go
+	mockery --name=EthGasStationI --dir=etherman/ethgasstation --output=etherman --outpkg=etherman --structname=ethGasStationMock --filename=mock_ethgasstation.go
+
 	## mocks for the aggregator tests
 	mockery --name=stateInterface --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 	mockery --name=proverClientInterface --dir=aggregator --output=aggregator/mocks --outpkg=mocks --structname=ProverClientMock --filename=mock_proverclient.go

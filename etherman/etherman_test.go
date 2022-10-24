@@ -3,6 +3,7 @@ package etherman
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -315,4 +316,59 @@ func TestSendSequences(t *testing.T) {
 	assert.Equal(t, ger, blocks[1].SequencedBatches[0][0].GlobalExitRoot)
 	assert.Equal(t, []uint64{}, blocks[1].SequencedBatches[0][0].ForceBatchesTimestamp)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
+}
+
+func TestGasPrice(t *testing.T) {
+	// Set up testing environment
+	etherman, _, _, _ := newTestingEnv()
+	etherscanM := new(etherscanMock)
+	ethGasStationM := new(ethGasStationMock)
+	etherman.GasProviders.EtherScan = etherscanM
+	etherman.GasProviders.EthGasStation = ethGasStationM
+	ctx := context.Background()
+
+	etherscanM.On("GetGasPrice", ctx).Return(big.NewInt(765625003), nil)
+	ethGasStationM.On("GetGasPrice", ctx).Return(big.NewInt(765625002), nil)
+	gp := etherman.getGasPrice(ctx)
+	assert.Equal(t, big.NewInt(765625003), gp)
+
+	etherman.GasProviders.EtherScan = nil
+
+	gp = etherman.getGasPrice(ctx)
+	assert.Equal(t, big.NewInt(765625002), gp)
+}
+
+func TestErrorEthGasStationPrice(t *testing.T) {
+	// Set up testing environment
+	etherman, _, _, _ := newTestingEnv()
+	etherscanM := new(etherscanMock)
+	ethGasStationM := new(ethGasStationMock)
+	etherman.GasProviders.EtherScan = nil
+	etherman.GasProviders.EthGasStation = ethGasStationM
+	ctx := context.Background()
+
+	ethGasStationM.On("GetGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from ethGasStation"))
+	gp := etherman.getGasPrice(ctx)
+	assert.Equal(t, big.NewInt(765625001), gp)
+
+	etherman.GasProviders.EtherScan = etherscanM
+
+	etherscanM.On("GetGasPrice", ctx).Return(big.NewInt(765625003), nil)
+	gp = etherman.getGasPrice(ctx)
+	assert.Equal(t, big.NewInt(765625003), gp)
+}
+
+func TestErrorEtherScanPrice(t *testing.T) {
+	// Set up testing environment
+	etherman, _, _, _ := newTestingEnv()
+	etherscanM := new(etherscanMock)
+	ethGasStationM := new(ethGasStationMock)
+	etherman.GasProviders.EtherScan = etherscanM
+	etherman.GasProviders.EthGasStation = ethGasStationM
+	ctx := context.Background()
+
+	etherscanM.On("GetGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from etherscan"))
+	ethGasStationM.On("GetGasPrice", ctx).Return(big.NewInt(765625002), nil)
+	gp := etherman.getGasPrice(ctx)
+	assert.Equal(t, big.NewInt(765625002), gp)
 }

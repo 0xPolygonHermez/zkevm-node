@@ -28,6 +28,11 @@ type gasPriceEthGasStation struct {
 type Client struct {
 }
 
+type EthGasStationI interface {
+	// Returns the gas price.
+	GetGasPrice(ctx context.Context) (*big.Int, error)
+}
+
 // NewEthGasStationService is the constructor that creates an ethGasStationService
 func NewEthGasStationService() *Client {
 	return &Client{}
@@ -39,20 +44,20 @@ func (e *Client) GetGasPrice(ctx context.Context) (*big.Int, error) {
 	url := "https://api.ethgasstation.info/api/fee-estimate"
 	res, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return big.NewInt(0), err
 	}
 	defer res.Body.Close()
     body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		return big.NewInt(0), err
 	}
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("http response is %d", res.StatusCode)
+		return big.NewInt(0), fmt.Errorf("http response is %d", res.StatusCode)
 	}
 	// Unmarshal result
 	err = json.Unmarshal(body, &resBody)
 	if err != nil {
-	   return nil, fmt.Errorf("Reading body failed: %w", err)
+	   return big.NewInt(0), fmt.Errorf("Reading body failed: %w", err)
 	}
 	fgp := big.NewInt(0).SetUint64(resBody.GasPrice.Instant)
 	return new(big.Int).Mul(fgp, big.NewInt(encoding.Gwei)), nil

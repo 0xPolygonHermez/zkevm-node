@@ -76,8 +76,8 @@ type ethClienter interface {
 }
 
 type externalGasProviders struct {
-	EtherScan     *etherscan.Client
-	EthGasStation *ethgasstation.Client
+	EtherScan     etherscan.EtherscanI
+	EthGasStation ethgasstation.EthGasStationI
 }
 
 // Client is a simple implementation of EtherMan.
@@ -755,7 +755,7 @@ func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
 	// Get gasPrice from Etherscan
 	etherscanGasPrice := big.NewInt(0)
 	if etherMan.GasProviders.EtherScan != nil {
-		etherscanGasPrice, err = etherMan.EtherClient.SuggestGasPrice(ctx)
+		etherscanGasPrice, err = etherMan.GasProviders.EtherScan.GetGasPrice(ctx)
 		if err != nil {
 			log.Warn("error getting gas price from Etherscan. Error: ", err)
 		} else {
