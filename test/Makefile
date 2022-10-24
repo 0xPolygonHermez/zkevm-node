@@ -88,6 +88,9 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB); sleep 5
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
 
 .PHONY: test-e2e-group-2
@@ -105,6 +108,9 @@ test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB); sleep 5
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
 
 .PHONY: run-db

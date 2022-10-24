@@ -266,6 +266,7 @@ func Test_Filters(t *testing.T) {
 
 		// GetFilterChanges - passing an ID from newBlockFilter
 
+		// TODO FIXME comparison between GetFilterChanges L1 vs L2
 		/*
 			response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
 			require.NoError(t, err)
