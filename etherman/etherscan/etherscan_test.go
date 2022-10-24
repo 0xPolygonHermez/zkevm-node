@@ -1,12 +1,12 @@
 package etherscan
 
 import (
-	"context"
-	"math/big"
-	"testing"
-	"net/http"
 	"bytes"
+	"context"
 	"io/ioutil"
+	"math/big"
+	"net/http"
+	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/stretchr/testify/assert"

@@ -1,9 +1,11 @@
 package restclient
+
 // This package has been created to mock the http requests in unit tests
 import (
 	"net/http"
 )
 
+// HttpI is the restClient interface
 type HttpI interface {
 	Get(url string) (*http.Response, error)
 }
@@ -14,8 +16,7 @@ type Client struct {
 
 // NewClient is the constructor that creates an etherscanService
 func NewClient() *Client {
-	return &Client{
-	}
+	return &Client{}
 }
 
 // Get sends a Get request to the URL with the body

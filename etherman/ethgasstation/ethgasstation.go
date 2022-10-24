@@ -27,7 +27,7 @@ type gasPriceEthGasStation struct {
 
 // Client for ethGasStation
 type Client struct {
-	Http   restclient.HttpI
+	Http restclient.HttpI
 }
 
 // EthGasStationI is the interface of the ethGasStation methods
