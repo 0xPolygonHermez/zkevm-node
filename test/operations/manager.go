@@ -464,7 +464,7 @@ func stopNode() error {
 }
 
 func runCmd(c *exec.Cmd) error {
-	c.Dir = "../.."
+	c.Dir = "../../test"
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c.Run()

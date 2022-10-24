@@ -1,4 +1,4 @@
-IsTrustedSequencer = true
+IsTrustedSequencer = false
 
 [Log]
 Level = "debug"
@@ -8,24 +8,24 @@ Outputs = ["stdout"]
 User = "state_user"
 Password = "state_password"
 Name = "state_db"
-Host = "localhost"
+Host = "zkevm-state-db"
 Port = "5432"
 EnableLog = false
-MaxConns = 10
+MaxConns = 200
 
 [PoolDB]
 User = "pool_user"
 Password = "pool_password"
 Name = "pool_db"
-Host = "localhost"
-Port = "5433"
+Host = "zkevm-pool-db"
+Port = "5432"
 EnableLog = false
-MaxConns = 10
+MaxConns = 200
 
 [Etherman]
-URL = "http://localhost:8545"
-L1ChainID = 1337
-PrivateKeyPath = "../test/test.keystore"
+URL = "https://geth_goerli.hermez.io"
+L1ChainID = 5
+PrivateKeyPath = "/pk/keystore"
 PrivateKeyPassword = "testonly"
 PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
@@ -42,22 +42,22 @@ PercentageToIncreaseGasLimit = 10
 
 [RPC]
 Host = "0.0.0.0"
-Port = 8123
-MaxRequestsPerIPAndSecond = 10000
-SequencerNodeURI = ""
-BroadcastURI = "127.0.0.1:61090"
+Port = 8545
+MaxRequestsPerIPAndSecond = 5000
+SequencerNodeURI = "https://internal.zkevm-test.net:2083/"
+BroadcastURI = "internal.zkevm-test.net:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 	[RPC.DB]
 		User = "rpc_user"
 		Password = "rpc_password"
 		Name = "rpc_db"
-		Host = "localhost"
-		Port = "5434"
+		Host = "zkevm-rpc-db"
+		Port = "5432"
 		EnableLog = false
 		MaxConns = 10
 
 [Synchronizer]
-SyncInterval = "5s"
+SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURI = ""
 GenBlockNumber = 1
@@ -94,7 +94,7 @@ Type = "default"
 DefaultGasPriceWei = 1000000000
 
 [Provers]
-ProverURIs = ["localhost:50052"]
+ProverURIs = ["zkevm-prover:50052"]
 
 [MTServer]
 Host = "0.0.0.0"
@@ -102,10 +102,10 @@ Port = 50060
 StoreBackend = "PostgreSQL"
 
 [MTClient]
-URI = "127.0.0.1:50061"
+URI = "zkevm-prover:50061"
 
 [Executor]
-URI = "127.0.0.1:50071"
+URI = "zkevm-prover:50071"
 
 [BroadcastServer]
 Host = "0.0.0.0"

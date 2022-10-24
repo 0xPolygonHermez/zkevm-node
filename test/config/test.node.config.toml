@@ -24,7 +24,7 @@ MaxConns = 200
 
 [Etherman]
 URL = "http://zkevm-mock-l1-network:8545"
-PrivateKeyPath = "./test/test.keystore"
+PrivateKeyPath = "/pk/keystore"
 PrivateKeyPassword = "testonly"
 
 [EthTxManager]
