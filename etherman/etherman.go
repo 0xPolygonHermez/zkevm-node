@@ -754,7 +754,9 @@ func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
 
 	// Get gasPrice from Etherscan
 	etherscanGasPrice := big.NewInt(0)
-	if etherMan.GasProviders.EtherScan != nil {
+	var emptC *etherscan.Client = nil 
+	var emptI etherscan.EtherscanI = emptC
+	if etherMan.GasProviders.EtherScan != emptI {
 		etherscanGasPrice, err = etherMan.GasProviders.EtherScan.GetGasPrice(ctx)
 		if err != nil {
 			log.Warn("error getting gas price from Etherscan. Error: ", err)
