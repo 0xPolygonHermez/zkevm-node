@@ -100,6 +100,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: sequencer.MaxSequenceSize{Int: new(big.Int).SetInt64(2000000)},
 		},
 		{
+			path:          "Sequencer.MaxAllowedFailedCounter",
+			expectedValue: uint64(50),
+		},
+		{
 			path:          "EthTxManager.MaxSendBatchTxRetries",
 			expectedValue: uint32(10),
 		},

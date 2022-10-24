@@ -81,6 +81,7 @@ MaxMemAligns = 262144
 MaxArithmetics = 262144
 MaxBinaries = 262144
 MaxSteps = 8388608
+MaxAllowedFailedCounter = 50
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 
@@ -94,8 +95,8 @@ TxProfitabilityMinReward = "1.1"
 Type = "default"
 DefaultGasPriceWei = 1000000000
 
-[Prover]
-ProverURI = "localhost:50052"
+[Provers]
+ProverURIs = ["localhost:50052"]
 
 [MTServer]
 Host = "0.0.0.0"

@@ -655,6 +655,24 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 		}
 		txs = append(txs, *tx)
 	}
+
+	// todo: temporary check, remove if don't face this error anymore https://github.com/0xPolygonHermez/zkevm-node/issues/1303
+	// check the order of the txs
+	if len(receipt.Txs) != len(txs) {
+		log.Warnf("when closing a batch amount of txs in memory: %d is differs from amount in db: %d",
+			len(receipt.Txs), len(txs))
+	}
+	var isOrderNotCorrect bool
+	for i, tx := range receipt.Txs {
+		if tx.Hash().Hex() != txs[i].Hash().Hex() {
+			isOrderNotCorrect = true
+		}
+	}
+	if isOrderNotCorrect {
+		log.Warnf("order in memory of the sequence and order in data from request database is different," +
+			" change to the order in memory")
+		txs = receipt.Txs
+	}
 	batchL2Data, err := EncodeTransactions(txs)
 	if err != nil {
 		return err
@@ -1257,7 +1275,7 @@ func CheckSupersetBatchTransactions(existingTxHashes []common.Hash, processedTxs
 		return ErrExistingTxGreaterThanProcessedTx
 	}
 	for i, existingTxHash := range existingTxHashes {
-		if existingTxHash != processedTxs[i].Tx.Hash() {
+		if existingTxHash != processedTxs[i].TxHash {
 			return ErrOutOfOrderProcessedTx
 		}
 	}

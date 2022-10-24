@@ -60,6 +60,7 @@ func approveTokens(ctx *cli.Context) error {
 		mainnet = 1
 		rinkeby = 4
 		goerli  = 5
+		local   = 1337
 	)
 	switch c.Etherman.L1ChainID {
 	case mainnet:
@@ -68,6 +69,10 @@ func approveTokens(ctx *cli.Context) error {
 		fmt.Println("Check tx status: https://rinkeby.etherscan.io/tx/" + tx.Hash().String())
 	case goerli:
 		fmt.Println("Check tx status: https://goerli.etherscan.io/tx/" + tx.Hash().String())
+	case local:
+		fmt.Println("Local network. Tx Hash: " + tx.Hash().String())
+	default:
+		fmt.Println("Unknown network. Tx Hash: " + tx.Hash().String())
 	}
 	return nil
 }

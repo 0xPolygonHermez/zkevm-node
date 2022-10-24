@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -36,21 +37,9 @@ func TestTrustedStateReorg(t *testing.T) {
 			SyncChunkSize:  10,
 			GenBlockNumber: uint64(123456),
 		}
-		reorgTrustedStateChan := make(chan struct{})
 		sync, err := NewSynchronizer(true, m.Etherman, m.State, genesis, cfg)
 		require.NoError(t, err)
 
-		go func() {
-			for {
-				select {
-				case <-reorgTrustedStateChan:
-					t.Log("Trusted reorg receive in the channel")
-					return
-				case <-context.Background().Done():
-					return
-				}
-			}
-		}()
 		// state preparation
 		ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
 		m.State.
@@ -140,6 +129,11 @@ func TestTrustedStateReorg(t *testing.T) {
 					On("GetBatchByNumber", ctx, sequencedBatch.BatchNumber, m.DbTx).
 					Return(trustedBatch, nil).
 					Once()
+
+				m.State. //ExecuteBatch(s.ctx, batch.BatchNumber, batch.BatchL2Data, dbTx
+						On("ExecuteBatch", ctx, sequencedBatch.BatchNumber, sequencedBatch.Transactions, m.DbTx).
+						Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
+						Once()
 
 				m.State.
 					On("ResetTrustedState", ctx, sequencedBatch.BatchNumber-1, m.DbTx).

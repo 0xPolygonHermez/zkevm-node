@@ -459,6 +459,7 @@ func (s *Sequencer) closeBatch(ctx context.Context, lastBatchNumber uint64, dbTx
 		BatchNumber:   lastBatchNumber,
 		StateRoot:     s.sequenceInProgress.StateRoot,
 		LocalExitRoot: s.sequenceInProgress.LocalExitRoot,
+		Txs:           s.sequenceInProgress.Txs,
 	}
 	err := s.state.CloseBatch(ctx, receipt, dbTx)
 	if err != nil {
@@ -513,6 +514,13 @@ func (s *Sequencer) appendPendingTxs(ctx context.Context, isClaims bool, minGasP
 		return 0
 	}
 	for i := 0; i < len(pendTxs); i++ {
+		if pendTxs[i].FailedCounter > s.cfg.MaxAllowedFailedCounter {
+			hash := pendTxs[i].Transaction.Hash().String()
+			log.Warnf("mark tx with hash %s as invalid, failed counter %d exceeded max %d from config",
+				hash, pendTxs[i].FailedCounter, s.cfg.MaxAllowedFailedCounter)
+			s.updateTxsStatus(ctx, ticker, []string{hash}, pool.TxStatusInvalid)
+			continue
+		}
 		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, pendTxs[i].Transaction)
 	}
 

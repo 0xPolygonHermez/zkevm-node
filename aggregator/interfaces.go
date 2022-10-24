@@ -15,7 +15,7 @@ import (
 // ethTxManager contains the methods required to send txs to
 // ethereum.
 type ethTxManager interface {
-	VerifyBatch(ctx context.Context, batchNum uint64, proof *pb.GetProofResponse)
+	VerifyBatch(ctx context.Context, batchNum uint64, proof *pb.GetProofResponse) error
 }
 
 // etherman contains the methods required to interact with ethereum
@@ -43,9 +43,10 @@ type stateInterface interface {
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error)
 	GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
-	AddGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error
-	UpdateGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error
-	GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*pb.GetProofResponse, error)
+	AddGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error
+	UpdateGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error
+	GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Proof, error)
 	DeleteGeneratedProof(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error
+	GetWIPProofByProver(ctx context.Context, prover string, dbTx pgx.Tx) (*state.Proof, error)
 }

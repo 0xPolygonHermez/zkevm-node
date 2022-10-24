@@ -280,7 +280,7 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/zkevm-node approve --am 10000000000000000 -y --network local --cfg /app/config.toml"
+      - "/app/zkevm-node approve --am 10000000000000000 -y --cfg /app/config.toml"
 
   zkevm-permissionless-db:
     container_name: zkevm-permissionless-db
