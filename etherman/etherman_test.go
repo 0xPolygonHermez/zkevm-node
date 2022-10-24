@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/bridge"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -333,7 +333,7 @@ func TestGasPrice(t *testing.T) {
 	gp := etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625003), gp)
 
-	var emptC *etherscan.Client = nil 
+	var emptC *etherscan.Client = nil
 	var emptI etherscan.EtherscanI = emptC
 	etherman.GasProviders.EtherScan = emptI
 
@@ -346,7 +346,7 @@ func TestErrorEthGasStationPrice(t *testing.T) {
 	etherman, _, _, _ := newTestingEnv()
 	etherscanM := new(etherscanMock)
 	ethGasStationM := new(ethGasStationMock)
-	var emptC *etherscan.Client = nil 
+	var emptC *etherscan.Client = nil
 	var emptI etherscan.EtherscanI = emptC
 	etherman.GasProviders.EtherScan = emptI
 	etherman.GasProviders.EthGasStation = ethGasStationM
