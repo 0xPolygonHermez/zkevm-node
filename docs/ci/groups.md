@@ -46,6 +46,7 @@ and looks like this:
 ```
 - name: Test
   run: make test-e2e-group-${{ matrix.e2e-group }}
+  working-directory: test
 ```
 If you want to disable a group, we just need to remove it from the `e2e-group`
 array in the matrix strategy. Given the configuration above, if we want to disable

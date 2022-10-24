@@ -10,24 +10,29 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
+
     - name: Install Go
       uses: actions/setup-go@v1
       with:
         go-version: "1.17.x"
       env:
         GOARCH: "amd64"
+
     - name: Install Protoc
       uses: arduino/setup-protoc@v1
+
     - name: Install protoc-gen-go
       run: |
         go install github.com/golang/protobuf/protoc-gen-go@latest
         go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
     - name: Update deps
       env:
         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       run: make update-external-dependencies
+
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v3
       with:

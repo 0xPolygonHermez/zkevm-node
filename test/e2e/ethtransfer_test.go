@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"math/big"
-	"os"
 	"testing"
 	"time"
 
@@ -15,10 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
-
-func init() {
-	os.Setenv("CONFIG_MODE", "test")
-}
 
 func TestEthTransfer(t *testing.T) {
 	if testing.Short() {
