@@ -29,9 +29,11 @@ type Sequence struct {
 	Txs            []types.Transaction
 }
 
+// SequenceGroup is a struct used to control which sequences were sent
+// in the same transaction to L1
 type SequenceGroup struct {
 	Tx           types.Transaction
-	BatchNumbers []string
+	BatchNumbers []uint64
 	Status       SequenceGroupStatus
 	CreatedAt    time.Time
 	UpdatedAt    *time.Time

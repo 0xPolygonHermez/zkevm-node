@@ -40,10 +40,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
-			path:          "Sequencer.LastBatchVirtualizationTimeMaxWaitPeriod",
-			expectedValue: types.NewDuration(300 * time.Second),
-		},
-		{
 			path:          "Sequencer.WaitBlocksToUpdateGER",
 			expectedValue: uint64(10),
 		},

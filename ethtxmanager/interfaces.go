@@ -25,4 +25,7 @@ type etherman interface {
 type stateInterface interface {
 	GetSequencesWithoutGroup(context.Context, pgx.Tx) ([]state.Sequence, error)
 	GetPendingSequenceGroups(context.Context, pgx.Tx) ([]state.SequenceGroup, error)
+	GetLastSequenceGroup(context.Context, pgx.Tx) (*state.SequenceGroup, error)
+	AddSequenceGroup(ctx context.Context, sequenceGroup state.SequenceGroup, dbTx pgx.Tx) error
+	SetSequenceGroupAsConfirmed(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) error
 }

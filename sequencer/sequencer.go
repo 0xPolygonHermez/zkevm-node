@@ -105,12 +105,13 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}()
 	go func() {
 		for {
-			s.tryToCreateSequence(ctx, tickerSendSequence)
+			s.tryToCreateSequence(ctx, tickerProcessTxs)
 		}
 	}()
 	go func() {
 		for {
 			s.txManager.SyncPendingSequences()
+			waitTick(ctx, tickerSendSequence)
 		}
 	}()
 
