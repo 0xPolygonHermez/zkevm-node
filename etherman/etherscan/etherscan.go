@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/restclient"
 )
 
 type etherscanResponse struct {
@@ -33,6 +34,7 @@ type Config struct {
 // Client for etherscan
 type Client struct {
 	config Config
+	Http   restclient.HttpI
 }
 
 // EtherscanI is the interface of the etherscan methods
@@ -47,6 +49,7 @@ func NewEtherscanService(apikey string) *Client {
 		config: Config{
 			ApiKey: apikey,
 		},
+		Http: restclient.NewClient(),
 	}
 }
 
@@ -54,7 +57,7 @@ func NewEtherscanService(apikey string) *Client {
 func (e *Client) GetGasPrice(ctx context.Context) (*big.Int, error) {
 	var resBody etherscanResponse
 	url := "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=" + e.config.ApiKey
-	res, err := http.Get(url) //nolint
+	res, err := e.Http.Get(url)
 	if err != nil {
 		return big.NewInt(0), err
 	}

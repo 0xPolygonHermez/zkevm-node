@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/restclient"
 )
 
 type ethGasStationResponse struct {
@@ -26,6 +27,7 @@ type gasPriceEthGasStation struct {
 
 // Client for ethGasStation
 type Client struct {
+	Http   restclient.HttpI
 }
 
 // EthGasStationI is the interface of the ethGasStation methods
@@ -36,14 +38,16 @@ type EthGasStationI interface {
 
 // NewEthGasStationService is the constructor that creates an ethGasStationService
 func NewEthGasStationService() *Client {
-	return &Client{}
+	return &Client{
+		Http: restclient.NewClient(),
+	}
 }
 
 // GetGasPrice retrieves the gas price estimation from ethGasStation
 func (e *Client) GetGasPrice(ctx context.Context) (*big.Int, error) {
 	var resBody ethGasStationResponse
 	url := "https://api.ethgasstation.info/api/fee-estimate"
-	res, err := http.Get(url)
+	res, err := e.Http.Get(url)
 	if err != nil {
 		return big.NewInt(0), err
 	}
