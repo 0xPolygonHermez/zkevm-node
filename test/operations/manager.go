@@ -317,6 +317,7 @@ func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 
 // SetUpSequencer provide ETH, Matic to and register the sequencer
 func (m *Manager) SetUpSequencer() error {
+	ctx := context.Background()
 	// Eth client
 	client, err := ethclient.Dial(DefaultL1NetworkURL)
 	if err != nil {
@@ -364,7 +365,7 @@ func (m *Manager) SetUpSequencer() error {
 	}
 
 	// Wait eth transfer to be mined
-	err = WaitTxToBeMined(client, signedTx.Hash(), DefaultTxMinedDeadline)
+	err = WaitTxToBeMined(ctx, client, signedTx, DefaultTxMinedDeadline)
 	if err != nil {
 		return err
 	}
@@ -387,7 +388,7 @@ func (m *Manager) SetUpSequencer() error {
 	}
 
 	// wait matic transfer to be mined
-	err = WaitTxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
+	err = WaitTxToBeMined(ctx, client, tx, DefaultTxMinedDeadline)
 	if err != nil {
 		return err
 	}
@@ -414,7 +415,7 @@ func (m *Manager) SetUpSequencer() error {
 		return err
 	}
 
-	err = WaitTxToBeMined(client, tx.Hash(), DefaultTxMinedDeadline)
+	err = WaitTxToBeMined(ctx, client, tx, DefaultTxMinedDeadline)
 	if err != nil {
 		return err
 	}
@@ -463,7 +464,7 @@ func stopNode() error {
 }
 
 func runCmd(c *exec.Cmd) error {
-	c.Dir = "../.."
+	c.Dir = "../../test"
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c.Run()

@@ -19,7 +19,7 @@ type etherman interface {
 	EstimateGasSequenceBatches(sequences []state.Sequence) (*types.Transaction, error)
 	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
 	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
-	WaitTxToBeMined(hash common.Hash, timeout time.Duration) error
+	WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) error
 }
 
 type stateInterface interface {

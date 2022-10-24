@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	mock "github.com/stretchr/testify/mock"
 
 	state "github.com/0xPolygonHermez/zkevm-node/state"

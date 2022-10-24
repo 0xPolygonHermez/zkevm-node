@@ -79,6 +79,7 @@ func (c *Client) groupSequences() {
 		log.Errorf("failed to create sequence group: %v", err)
 		return
 	}
+	return
 }
 
 func (c *Client) syncSequences() {
@@ -116,6 +117,7 @@ func (c *Client) syncSequences() {
 			// TODO improve the current tx to make it mineable
 		}
 	}
+	return
 }
 
 // VerifyBatch TODO REMOVE

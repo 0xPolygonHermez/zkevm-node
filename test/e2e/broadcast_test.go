@@ -46,8 +46,10 @@ func TestBroadcast(t *testing.T) {
 		t.Skip()
 	}
 
+	require.NoError(t, operations.StartComponent("network"))
 	require.NoError(t, operations.StartComponent("broadcast"))
 	defer func() {
+		require.NoError(t, operations.StopComponent("network"))
 		require.NoError(t, operations.StopComponent("broadcast"))
 	}()
 	st, err := initState()
