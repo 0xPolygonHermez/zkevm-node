@@ -88,7 +88,7 @@ func NewAggregator(
 func (a *Aggregator) resumeWIPProofGeneration(ctx context.Context, proof *state.Proof, prover proverClientInterface) {
 	err := a.getAndStoreProof(ctx, proof, prover)
 	if err != nil {
-		log.Warnf("Could not resume WIP Proof Generation por prover %v and batchNumber %v", *proof.Prover, proof.BatchNumber)
+		log.Warnf("Could not resume WIP Proof Generation for prover %v and batchNumber %v", *proof.Prover, proof.BatchNumber)
 	}
 }
 
@@ -148,19 +148,19 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 
 	if proof != nil && proof.Proof != nil {
 		log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchNumberToVerify)
-		a.EthTxManager.VerifyBatch(batchNumberToVerify, proof.Proof)
-		log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
-		/*
+		err := a.EthTxManager.VerifyBatch(ctx, batchNumberToVerify, proof.Proof)
+		if err != nil {
+			log.Errorf("error verifying batch %d. Error: %w", batchNumberToVerify, err)
+		} else {
+			log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
 			err := a.State.DeleteGeneratedProof(ctx, batchNumberToVerify, nil)
 			if err != nil {
 				log.Warnf("failed to delete generated proof for batchNumber %v, err: %v", batchNumberToVerify, err)
-				return
 			}
-		*/
+		}
 	} else {
 		log.Debugf("no generated proof for batchNumber %v has been found", batchNumberToVerify)
 		waitTick(ctx, ticker)
-		return
 	}
 }
 
@@ -244,7 +244,7 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	log.Infof("Proof ID for batchNumber %d: %v", proof.BatchNumber, proof.ProofID)
+	log.Infof("Proof ID for batchNumber %d: %v", proof.BatchNumber, *proof.ProofID)
 
 	err = a.getAndStoreProof(ctx, proof, prover)
 	if err != nil {

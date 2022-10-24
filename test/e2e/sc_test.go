@@ -44,14 +44,14 @@ func TestEmitLog2(t *testing.T) {
 		require.NoError(t, err)
 
 		logTx(scTx)
-		err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		scCallTx, err := sc.EmitLogs(auth)
 		require.NoError(t, err)
 
 		logTx(scCallTx)
-		err = operations.WaitTxToBeMined(client, scCallTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scCallTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		scCallTxReceipt, err := client.TransactionReceipt(ctx, scCallTx.Hash())
@@ -107,7 +107,7 @@ func TestFailureTest(t *testing.T) {
 		require.NoError(t, err)
 
 		logTx(scTx)
-		err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		log.Debug("storing value")
@@ -115,7 +115,7 @@ func TestFailureTest(t *testing.T) {
 		require.NoError(t, err)
 
 		logTx(scCallTx)
-		err = operations.WaitTxToBeMined(client, scCallTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scCallTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		log.Debug("storing value with revert")
@@ -155,7 +155,7 @@ func TestRead(t *testing.T) {
 		require.NoError(t, err)
 
 		logTx(scTx)
-		err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		log.Debug("read string public variable directly")
@@ -184,14 +184,14 @@ func TestRead(t *testing.T) {
 		tx, err := sc.PublicAddToken(auth, tA)
 		require.NoError(t, err)
 		logTx(tx)
-		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		log.Debug("external add token")
 		tx, err = sc.ExternalAddToken(auth, tB)
 		require.NoError(t, err)
 		logTx(tx)
-		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		log.Debug("read mapping public variable directly")

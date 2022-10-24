@@ -181,7 +181,8 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			used_binaries,
 			used_steps,
 			received_at,
-			nonce
+			nonce,
+			failed_counter
 		FROM
 			pool.txs p1
 		WHERE 
@@ -208,7 +209,8 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				used_binaries,
 				used_steps,
 				received_at,
-				nonce
+				nonce,
+				failed_counter
 			FROM
 				pool.txs p1
 			WHERE
@@ -230,7 +232,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 
 		usedKeccakHashes, usedPoseidonHashes, usedPoseidonPaddings,
 		usedMemAligns, usedArithmetics, usedBinaries, usedSteps int32
-		nonce uint64
+		nonce, failedCounter uint64
 	)
 
 	args := []interface{}{filterStatus, minGasPrice, isClaims, limit}
@@ -256,7 +258,9 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			&usedBinaries,
 			&usedSteps,
 			&receivedAt,
-			&nonce)
+			&nonce,
+			&failedCounter,
+		)
 
 		if err != nil {
 			return nil, err
@@ -282,6 +286,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			UsedBinaries:         usedBinaries,
 			UsedSteps:            usedSteps,
 		}
+		tx.FailedCounter = failedCounter
 
 		txs = append(txs, tx)
 	}

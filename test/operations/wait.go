@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -16,7 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -71,14 +70,20 @@ func Poll(interval, deadline time.Duration, condition ConditionFunc) error {
 type ethClienter interface {
 	ethereum.TransactionReader
 	ethereum.ContractCaller
+	bind.DeployBackend
 }
 
 // WaitTxToBeMined waits until a tx has been mined or the given timeout expires.
-func WaitTxToBeMined(client ethClienter, hash common.Hash, timeout time.Duration) error {
-	ctx := context.Background()
-	return Poll(DefaultInterval, timeout, func() (bool, error) {
-		return txMinedCondition(ctx, client, hash)
-	})
+func WaitTxToBeMined(parentCtx context.Context, client ethClienter, tx *types.Transaction, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+	_, err := bind.WaitMined(ctx, client, tx)
+	if err != nil {
+		log.Errorf("error waiting tx %s to be mined: %w", tx.Hash(), err)
+		return err
+	}
+	log.Debug("Transaction successfully mined: ", tx.Hash())
+	return nil
 }
 
 // WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the
@@ -183,59 +188,6 @@ func grpcHealthyCondition(address string) (bool, error) {
 	done := state.Status == grpc_health_v1.HealthCheckResponse_SERVING
 
 	return done, nil
-}
-
-// txMinedCondition
-func txMinedCondition(ctx context.Context, client ethClienter, hash common.Hash) (bool, error) {
-	// Get tx status
-	tx, isPending, err := client.TransactionByHash(ctx, hash)
-	if err == ethereum.NotFound || isPending {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	// Check if tx has failed
-	receipt, err := client.TransactionReceipt(ctx, hash)
-	if err != nil {
-		return false, err
-	}
-	if receipt.Status == types.ReceiptStatusFailed {
-		// Get revert reason
-		reason, reasonErr := revertReason(ctx, client, tx, receipt.BlockNumber)
-		if reasonErr == nil {
-			reasonErr = errors.New(reason)
-		}
-		return false, fmt.Errorf("transaction has failed, reason: %w, receipt: %+v. tx: %+v, gas: %v", reasonErr, receipt, tx, tx.Gas())
-	}
-	return true, nil
-}
-
-func revertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blockNumber *big.Int) (string, error) {
-	from, err := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
-	if err != nil {
-		signer := types.LatestSignerForChainID(tx.ChainId())
-		from, err = types.Sender(signer, tx)
-		if err != nil {
-			return "", err
-		}
-	}
-	msg := ethereum.CallMsg{
-		From: from,
-		To:   tx.To(),
-		Gas:  tx.Gas(),
-
-		Value: tx.Value(),
-		Data:  tx.Data(),
-	}
-	hex, err := c.CallContract(ctx, msg, blockNumber)
-	if err != nil {
-		return "", err
-	}
-
-	reasonOffset := new(big.Int).SetBytes(hex[4 : 4+32])
-	reason := string(hex[4+32+int(reasonOffset.Uint64()):])
-	return reason, nil
 }
 
 // l2BlockConsolidationCondition
