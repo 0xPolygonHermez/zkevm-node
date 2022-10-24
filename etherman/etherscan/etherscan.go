@@ -25,16 +25,17 @@ type gasPriceEtherscan struct {
 	FastGasPrice    string `json:"FastGasPrice"`
 }
 
-// Configuration structure
+// Config structure
 type Config struct {
 	ApiKey string `mapstructure:"ApiKey"`
 }
 
 // Client for etherscan
 type Client struct {
-	config          Config
+	config Config
 }
 
+// EtherscanI is the interface of the etherscan methods
 type EtherscanI interface {
 	// Returns the gas price.
 	GetGasPrice(ctx context.Context) (*big.Int, error)
@@ -43,7 +44,7 @@ type EtherscanI interface {
 // NewEtherscanService is the constructor that creates an etherscanService
 func NewEtherscanService(apikey string) *Client {
 	return &Client{
-		config: Config {
+		config: Config{
 			ApiKey: apikey,
 		},
 	}
@@ -53,12 +54,12 @@ func NewEtherscanService(apikey string) *Client {
 func (e *Client) GetGasPrice(ctx context.Context) (*big.Int, error) {
 	var resBody etherscanResponse
 	url := "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=" + e.config.ApiKey
-	res, err := http.Get(url)
+	res, err := http.Get(url) //nolint
 	if err != nil {
 		return big.NewInt(0), err
 	}
 	defer res.Body.Close()
-    body, err := ioutil.ReadAll(res.Body)
+	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return big.NewInt(0), err
 	}
@@ -68,7 +69,7 @@ func (e *Client) GetGasPrice(ctx context.Context) (*big.Int, error) {
 	// Unmarshal result
 	err = json.Unmarshal(body, &resBody)
 	if err != nil {
-	   return big.NewInt(0), fmt.Errorf("Reading body failed: %w", err)
+		return big.NewInt(0), fmt.Errorf("Reading body failed: %w", err)
 	}
 	fgp, _ := big.NewInt(0).SetString(resBody.Result.FastGasPrice, encoding.Base10)
 	return new(big.Int).Mul(fgp, big.NewInt(encoding.Gwei)), nil

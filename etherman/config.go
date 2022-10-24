@@ -1,8 +1,8 @@
 package etherman
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // Config represents the configuration of the etherman

@@ -12,9 +12,9 @@ import (
 )
 
 type ethGasStationResponse struct {
-	BaseFee  uint64            `json:"baseFee"`
-	BlockNumber uint64            `json:"blockNumber"`
-	GasPrice  gasPriceEthGasStation `json:"gasPrice"`
+	BaseFee     uint64                `json:"baseFee"`
+	BlockNumber uint64                `json:"blockNumber"`
+	GasPrice    gasPriceEthGasStation `json:"gasPrice"`
 }
 
 // gasPriceEthGasStation definition
@@ -28,6 +28,7 @@ type gasPriceEthGasStation struct {
 type Client struct {
 }
 
+// EthGasStationI is the interface of the ethGasStation methods
 type EthGasStationI interface {
 	// Returns the gas price.
 	GetGasPrice(ctx context.Context) (*big.Int, error)
@@ -47,7 +48,7 @@ func (e *Client) GetGasPrice(ctx context.Context) (*big.Int, error) {
 		return big.NewInt(0), err
 	}
 	defer res.Body.Close()
-    body, err := ioutil.ReadAll(res.Body)
+	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return big.NewInt(0), err
 	}
@@ -57,9 +58,8 @@ func (e *Client) GetGasPrice(ctx context.Context) (*big.Int, error) {
 	// Unmarshal result
 	err = json.Unmarshal(body, &resBody)
 	if err != nil {
-	   return big.NewInt(0), fmt.Errorf("Reading body failed: %w", err)
+		return big.NewInt(0), fmt.Errorf("Reading body failed: %w", err)
 	}
 	fgp := big.NewInt(0).SetUint64(resBody.GasPrice.Instant)
 	return new(big.Int).Mul(fgp, big.NewInt(encoding.Gwei)), nil
 }
-

@@ -9,14 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/globalexitrootmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
@@ -127,13 +127,13 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 	ethGasSt := ethgasstation.NewEthGasStationService()
 
 	return &Client{
-		EtherClient: ethClient,
-		PoE: poe,
-		Matic: matic,
+		EtherClient:           ethClient,
+		PoE:                   poe,
+		Matic:                 matic,
 		GlobalExitRootManager: globalExitRoot,
-		SCAddresses: scAddresses,
-		GasProviders: externalGasProviders {
-			EtherScan: ethscan,
+		SCAddresses:           scAddresses,
+		GasProviders: externalGasProviders{
+			EtherScan:     ethscan,
 			EthGasStation: ethGasSt,
 		},
 		auth: auth}, nil
