@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -42,7 +41,7 @@ const (
 	getBlockTimeByNumSQL                     = "SELECT received_at FROM state.block WHERE block_num = $1"
 	getForcedBatchByBatchNumSQL              = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num from state.forced_batch WHERE batch_num = $1"
 	getProcessingContextSQL                  = "SELECT batch_num, global_exit_root, timestamp, coinbase from state.batch WHERE batch_num = $1"
-	getEncodedTransactionsByBatchNumberSQL   = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1"
+	getEncodedTransactionsByBatchNumberSQL   = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
 	getTransactionHashesByBatchNumberSQL     = "SELECT hash FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
 	getLastBatchSeenSQL                      = "SELECT last_batch_num_seen FROM state.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                   = "UPDATE state.sync_info SET last_batch_num_seen = $1"
@@ -83,7 +82,7 @@ const (
 			ON consolidated_blocks.batch_num = sy.last_batch_num_consolidated;
 	`
 	addTransactionSQL          = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4)"
-	getBatchNumByBlockNum      = "SELECT batch_num FROM state.virtual_batch WHERE block_num = $1 ORDER BY batch_num ASC LIMIT 1"
+	getBatchNumByBlockNum      = "SELECT batch_num FROM state.virtual_batch WHERE block_num <= $1 ORDER BY batch_num DESC LIMIT 1"
 	getTxsHashesBeforeBatchNum = "SELECT hash FROM state.transaction JOIN state.l2block ON state.transaction.l2_block_num = state.l2block.block_num AND state.l2block.batch_num <= $1"
 	isL2BlockVirtualized       = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
 	isL2BlockConsolidated      = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.verified_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
@@ -160,7 +159,6 @@ func (p *PostgresStorage) GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Block
 	} else if err != nil {
 		return nil, err
 	}
-
 	rows, err := e.Query(ctx, getTxsHashesBeforeBatchNum, batchNum)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -1704,31 +1702,31 @@ func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger c
 }
 
 // AddGeneratedProof adds a generated proof to the storage
-func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof) VALUES ($1, $2)"
+func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
+	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof, proof_id, input_prover, prover) VALUES ($1, $2, $3, $4, $5)"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, batchNumber, proof)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
 	return err
 }
 
 // UpdateGeneratedProof updates a generated proof in the storage
-func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2 WHERE batch_num = $1"
+func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
+	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2, proof_id = $3, input_prover = $4, prover = $5 WHERE batch_num = $1"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, batchNumber, proof)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
 	return err
 }
 
 // GetGeneratedProofByBatchNumber gets a generated proof from the storage
-func (p *PostgresStorage) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*pb.GetProofResponse, error) {
+func (p *PostgresStorage) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Proof, error) {
 	var (
-		proof *pb.GetProofResponse
+		proof *Proof = &Proof{}
 		err   error
 	)
 
-	const getGeneratedProofSQL = "SELECT proof FROM state.proof WHERE batch_num = $1"
+	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE batch_num = $1"
 	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, getGeneratedProofSQL, batchNumber).Scan(&proof)
+	err = e.QueryRow(ctx, getGeneratedProofSQL, batchNumber).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -1753,4 +1751,23 @@ func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, deleteUngeneratedProofsSQL)
 	return err
+}
+
+// GetWIPProofByProver gets a generated proof from its prover URI
+func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string, dbTx pgx.Tx) (*Proof, error) {
+	var (
+		proof *Proof = &Proof{}
+		err   error
+	)
+
+	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE prover = $1 and proof is null"
+	e := p.getExecQuerier(dbTx)
+	err = e.QueryRow(ctx, getGeneratedProofSQL, prover).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return proof, err
 }

@@ -33,7 +33,7 @@ type Aggregator struct {
 // NewAggregator creates a new aggregator
 func NewAggregator(
 	cfg Config,
-	state stateInterface,
+	stateInterface stateInterface,
 	ethTxManager ethTxManager,
 	etherman etherman,
 	grpcClientConns []*grpc.ClientConn,
@@ -41,31 +41,55 @@ func NewAggregator(
 	var profitabilityChecker aggregatorTxProfitabilityChecker
 	switch cfg.TxProfitabilityCheckerType {
 	case ProfitabilityBase:
-		profitabilityChecker = NewTxProfitabilityCheckerBase(state, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration, cfg.TxProfitabilityMinReward.Int)
+		profitabilityChecker = NewTxProfitabilityCheckerBase(stateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration, cfg.TxProfitabilityMinReward.Int)
 	case ProfitabilityAcceptAll:
-		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(state, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration)
+		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(stateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration)
 	}
 
 	proverClients := make([]proverClientInterface, 0, len(cfg.ProverURIs))
-
-	for _, proverURI := range cfg.ProverURIs {
-		proverClient := prover.NewClient(proverURI, cfg.IntervalFrequencyToGetProofGenerationState)
-		proverClients = append(proverClients, proverClient)
-		grpcClientConns = append(grpcClientConns, proverClient.Prover.Conn)
-		log.Infof("Connected to prover %v", proverURI)
-	}
+	ctx := context.Background()
 
 	a := Aggregator{
 		cfg: cfg,
 
-		State:                state,
+		State:                stateInterface,
 		EthTxManager:         ethTxManager,
 		Ethman:               etherman,
 		ProverClients:        proverClients,
 		ProfitabilityChecker: profitabilityChecker,
 	}
 
+	for _, proverURI := range cfg.ProverURIs {
+		proverClient := prover.NewClient(proverURI, cfg.IntervalFrequencyToGetProofGenerationState)
+		proverClients = append(proverClients, proverClient)
+		grpcClientConns = append(grpcClientConns, proverClient.Prover.Conn)
+		log.Infof("Connected to prover %v", proverURI)
+
+		// Check if prover is already working in a proof generation
+		proof, err := stateInterface.GetWIPProofByProver(ctx, proverURI, nil)
+		if err != nil && err != state.ErrNotFound {
+			log.Errorf("Error while getting WIP proof for prover %v", proverURI)
+			continue
+		}
+
+		if proof != nil {
+			log.Infof("Resuming WIP proof generation for batchNumber %v in prover %v", proof.BatchNumber, *proof.Prover)
+			go func() {
+				a.resumeWIPProofGeneration(ctx, proof, proverClient)
+			}()
+		}
+	}
+
+	a.ProverClients = proverClients
+
 	return a, nil
+}
+
+func (a *Aggregator) resumeWIPProofGeneration(ctx context.Context, proof *state.Proof, prover proverClientInterface) {
+	err := a.getAndStoreProof(ctx, proof, prover)
+	if err != nil {
+		log.Warnf("Could not resume WIP Proof Generation for prover %v and batchNumber %v", *proof.Prover, proof.BatchNumber)
+	}
 }
 
 // Start starts the aggregator
@@ -75,12 +99,6 @@ func (a *Aggregator) Start(ctx context.Context) {
 	tickerSendVerifiedBatch := time.NewTicker(a.cfg.IntervalToConsolidateState.Duration)
 	defer tickerVerifyBatch.Stop()
 	defer tickerSendVerifiedBatch.Stop()
-
-	// Delete proofs that where being generated during last reboot
-	err := a.State.DeleteUngeneratedProofs(ctx, nil)
-	if err != nil && err != state.ErrNotFound {
-		log.Warn("error deleting work in progress proofs from state")
-	}
 
 	for i := 0; i < len(a.ProverClients); i++ {
 		go func() {
@@ -128,27 +146,26 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 		return
 	}
 
-	if proof != nil {
+	if proof != nil && proof.Proof != nil {
 		log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchNumberToVerify)
-		a.EthTxManager.VerifyBatch(batchNumberToVerify, proof)
-		log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
-		/*
+		err := a.EthTxManager.VerifyBatch(ctx, batchNumberToVerify, proof.Proof)
+		if err != nil {
+			log.Errorf("error verifying batch %d. Error: %w", batchNumberToVerify, err)
+		} else {
+			log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
 			err := a.State.DeleteGeneratedProof(ctx, batchNumberToVerify, nil)
 			if err != nil {
 				log.Warnf("failed to delete generated proof for batchNumber %v, err: %v", batchNumberToVerify, err)
-				return
 			}
-		*/
+		}
 	} else {
 		log.Debugf("no generated proof for batchNumber %v has been found", batchNumberToVerify)
 		waitTick(ctx, ticker)
-		return
 	}
 }
 
 func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	log.Info("checking if network is synced")
-
 	for !a.isSynced(ctx) {
 		log.Infof("waiting for synchronizer to sync...")
 		waitTick(ctx, ticker)
@@ -203,60 +220,78 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
+	proverURI := prover.GetURI()
+	proof := &state.Proof{BatchNumber: batchToVerify.BatchNumber, Prover: &proverURI, InputProver: inputProver}
+
+	genProofID, err := prover.GetGenProofID(ctx, inputProver)
+	if err != nil {
+		log.Warnf("failed to get gen proof id, err: %v", err)
+		err2 := a.State.DeleteGeneratedProof(ctx, proof.BatchNumber, nil)
+		if err2 != nil {
+			log.Errorf("failed to delete proof generation mark after error, err: %v", err2)
+		}
+		waitTick(ctx, ticker)
+		return
+	}
+
+	proof.ProofID = &genProofID
+
 	// Avoid other thread to process the same batch
-	err = a.State.AddGeneratedProof(ctx, batchToVerify.BatchNumber, nil, nil)
+	err = a.State.AddGeneratedProof(ctx, proof, nil)
 	if err != nil {
 		log.Warnf("failed to store proof generation mark, err: %v", err)
 		waitTick(ctx, ticker)
 		return
 	}
 
-	genProofID, err := prover.GetGenProofID(ctx, inputProver)
+	log.Infof("Proof ID for batchNumber %d: %v", proof.BatchNumber, *proof.ProofID)
+
+	err = a.getAndStoreProof(ctx, proof, prover)
 	if err != nil {
-		log.Warnf("failed to get gen proof id, err: %v", err)
-		err2 := a.State.DeleteGeneratedProof(ctx, batchToVerify.BatchNumber, nil)
-		if err2 != nil {
-			log.Errorf("failed to delete proof generation mark after error, err: %v", err2)
-		}
 		waitTick(ctx, ticker)
 		return
 	}
+}
 
-	log.Infof("Proof ID for batchNumber %d: %v", batchToVerify.BatchNumber, genProofID)
-
-	resGetProof, err := prover.GetResGetProof(ctx, genProofID, batchToVerify.BatchNumber)
+func (a *Aggregator) getAndStoreProof(ctx context.Context, proof *state.Proof, prover proverClientInterface) error {
+	resGetProof, err := prover.GetResGetProof(ctx, *proof.ProofID, proof.BatchNumber)
 	if err != nil {
 		log.Warnf("failed to get proof from prover, err: %v", err)
-		err2 := a.State.DeleteGeneratedProof(ctx, batchToVerify.BatchNumber, nil)
+		err2 := a.State.DeleteGeneratedProof(ctx, proof.BatchNumber, nil)
 		if err2 != nil {
 			log.Errorf("failed to delete proof generation mark after error, err: %v", err2)
+			return err2
 		}
-		waitTick(ctx, ticker)
-		return
+		return err
 	}
-	a.compareInputHashes(inputProver, resGetProof)
+
+	proof.Proof = resGetProof
+
+	a.compareInputHashes(proof.InputProver, proof.Proof)
 
 	// Handle local exit root in the case of the mock prover
-	if resGetProof.Public.PublicInputs.NewLocalExitRoot == "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e" {
+	if proof.Proof.Public.PublicInputs.NewLocalExitRoot == "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e" {
 		// This local exit root comes from the mock, use the one captured by the executor instead
 		log.Warnf(
 			"NewLocalExitRoot looks like a mock value, using value from executor instead: %v",
-			inputProver.PublicInputs.NewLocalExitRoot,
+			proof.InputProver.PublicInputs.NewLocalExitRoot,
 		)
-		resGetProof.Public.PublicInputs.NewLocalExitRoot = inputProver.PublicInputs.NewLocalExitRoot
+		resGetProof.Public.PublicInputs.NewLocalExitRoot = proof.InputProver.PublicInputs.NewLocalExitRoot
 	}
 
 	// Store proof
-	err = a.State.UpdateGeneratedProof(ctx, batchToVerify.BatchNumber, resGetProof, nil)
+	err = a.State.UpdateGeneratedProof(ctx, proof, nil)
 	if err != nil {
 		log.Warnf("failed to store generated proof, err: %v", err)
-		err2 := a.State.DeleteGeneratedProof(ctx, batchToVerify.BatchNumber, nil)
+		err2 := a.State.DeleteGeneratedProof(ctx, proof.BatchNumber, nil)
 		if err2 != nil {
 			log.Errorf("failed to delete proof generation mark after error, err: %v", err2)
+			return err2
 		}
-		waitTick(ctx, ticker)
-		return
+		return err
 	}
+
+	return nil
 }
 
 func (a *Aggregator) isSynced(ctx context.Context) bool {
