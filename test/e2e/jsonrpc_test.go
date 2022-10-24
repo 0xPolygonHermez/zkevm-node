@@ -85,7 +85,7 @@ func deployContracts(url, privateKey string, chainId uint64) (*Double.Double, er
 	if err != nil {
 		return nil, err
 	}
-	err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+	err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
 	if err != nil {
 		return nil, err
 	}
@@ -237,13 +237,13 @@ func Test_Filters(t *testing.T) {
 		_, scTx, sc, err := EmitLog2.DeployEmitLog2(auth, client)
 		require.NoError(t, err)
 
-		err = operations.WaitTxToBeMined(client, scTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		scCallTx, err := sc.EmitLogs(auth)
 		require.NoError(t, err)
 
-		err = operations.WaitTxToBeMined(client, scCallTx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, scCallTx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getLogs", map[string]interface{}{
@@ -280,7 +280,7 @@ func Test_Filters(t *testing.T) {
 
 		tx, err := createTX(network.URL, network.ChainID, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
@@ -388,7 +388,7 @@ func Test_Block(t *testing.T) {
 		tx, err := createTX(network.URL, network.ChainID, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
 		require.NoError(t, err)
 		// no block number yet... will wait
-		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
@@ -494,7 +494,7 @@ func Test_Transactions(t *testing.T) {
 
 		tx, err := createTX(network.URL, network.ChainID, destination, big.NewInt(100000))
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		// Setup for test cases
@@ -595,11 +595,11 @@ func Test_Misc(t *testing.T) {
 		require.NoError(t, err)
 		contractAddress, tx, storageSC, err := Storage.DeployStorage(auth, client)
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 		tx, err = storageSC.Store(auth, big.NewInt(sc_payload))
 		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(client, tx.Hash(), operations.DefaultTimeoutTxToBeMined)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
 		storage, err := client.StorageAt(ctx, contractAddress, common.HexToHash("0x0"), nil)
