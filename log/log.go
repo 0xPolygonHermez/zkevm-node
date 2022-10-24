@@ -8,6 +8,7 @@ import (
 	"github.com/hermeznetwork/tracerr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 var log *zap.SugaredLogger
@@ -36,6 +37,27 @@ func Init(cfg Config) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// InitTestLogger initializes a logger for testing purposes. The returned logs
+// can be filtered against test assertions.
+// Call DeinitTestLogger to restore the default logger.
+func InitTestLogger(cfg Config) (*observer.ObservedLogs, error) {
+	var (
+		err          error
+		observedLogs *observer.ObservedLogs
+	)
+	log, observedLogs, err = NewTestLogger(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return observedLogs, nil
+}
+
+// DeinitTestLogger deinitializes the test logger and restore the default one.
+func DeinitTestLogger() {
+	log = nil
+	getDefaultLog()
 }
 
 // NewLogger creates the logger with defined level. outputs defines the outputs where the
@@ -83,6 +105,16 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 	defer logger.Sync() //nolint:gosec,errcheck
 	withOptions := logger.WithOptions(zap.AddCallerSkip(1))
 	return withOptions.Sugar(), &level, nil
+}
+
+// NewTestLogger returns a new logger for testing purposes and the logs it observed.
+func NewTestLogger(cfg Config) (*zap.SugaredLogger, *observer.ObservedLogs, error) {
+	level, err := zapcore.ParseLevel(cfg.Level)
+	if err != nil {
+		return nil, nil, err
+	}
+	observedLogger, observedLogs := observer.New(level)
+	return zap.New(observedLogger).Sugar(), observedLogs, nil
 }
 
 func sprintStackTrace(st []tracerr.Frame) string {
