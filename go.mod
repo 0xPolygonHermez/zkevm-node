@@ -17,9 +17,9 @@ require (
 	github.com/rubenv/sql-migrate v0.0.0-20211023115951-9f02b1e13857
 	github.com/spf13/afero v1.9.2
 	github.com/spf13/viper v1.13.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/umbracle/ethgo v0.1.3
-	github.com/urfave/cli/v2 v2.20.2
+	github.com/urfave/cli/v2 v2.20.3
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
@@ -95,7 +95,7 @@ require (
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/objx v0.4.0 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect

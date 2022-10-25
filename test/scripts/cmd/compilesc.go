@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/0xPolygonHermez/zkevm-node/scripts/cmd/compilesc"
+	"github.com/0xPolygonHermez/zkevm-node/test/scripts/cmd/compilesc"
 	"github.com/urfave/cli/v2"
 )
 
