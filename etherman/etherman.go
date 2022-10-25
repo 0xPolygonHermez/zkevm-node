@@ -68,6 +68,7 @@ type ethClienter interface {
 	ethereum.LogFilterer
 	ethereum.TransactionReader
 	ethereum.ContractCaller
+	ethereum.ChainStateReader
 	bind.DeployBackend
 }
 
@@ -701,4 +702,11 @@ func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64,
 		return nil, err
 	}
 	return tx, nil
+}
+
+// CurrentNonce returns the Nonce at the latest block in the chain for the account used
+// to send l1 txs
+func (etherMan *Client) CurrentNonce() (uint64, error) {
+	ctx := context.Background()
+	return etherMan.EtherClient.NonceAt(ctx, etherMan.auth.From, nil)
 }

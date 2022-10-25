@@ -32,7 +32,8 @@ type Sequence struct {
 // SequenceGroup is a struct used to control which sequences were sent
 // in the same transaction to L1
 type SequenceGroup struct {
-	Tx           types.Transaction
+	TxHash       common.Hash
+	TxNonce      uint64
 	BatchNumbers []uint64
 	Status       SequenceGroupStatus
 	CreatedAt    time.Time

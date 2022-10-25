@@ -108,12 +108,12 @@ func (s *Sequencer) Start(ctx context.Context) {
 			s.tryToCreateSequence(ctx, tickerProcessTxs)
 		}
 	}()
-	go func() {
-		for {
-			s.txManager.SyncPendingSequences()
-			waitTick(ctx, tickerSendSequence)
-		}
-	}()
+	// go func() {
+	// 	for {
+	// 		s.txManager.SyncPendingSequences()
+	// 		waitTick(ctx, tickerSendSequence)
+	// 	}
+	// }()
 
 	// Wait until context is done
 	<-ctx.Done()
@@ -149,16 +149,27 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 }
 
 func (s *Sequencer) isSynced(ctx context.Context) bool {
-	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
-	if err != nil && err != state.ErrNotFound {
-		log.Errorf("failed to get last synced batch, err: %v", err)
+	lastSyncedBatchNum := uint64(0)
+	lastSequence, err := s.state.GetLastSequence(ctx, nil)
+	if errors.Is(err, state.ErrNotFound) {
+		lastSyncedBatchNum, err = s.state.GetLastVirtualBatchNum(ctx, nil)
+		if err != nil {
+			log.Errorf("failed to get last virtual batch num, err: %v", err)
+			return false
+		}
+	} else if err != nil {
+		log.Errorf("failed to get last sequence, err: %v", err)
 		return false
+	} else {
+		lastSyncedBatchNum = lastSequence.BatchNumber
 	}
+
 	lastEthBatchNum, err := s.etherman.GetLatestBatchNumber()
 	if err != nil {
 		log.Errorf("failed to get last eth batch, err: %v", err)
 		return false
 	}
+
 	if lastSyncedBatchNum < lastEthBatchNum {
 		log.Infof("waiting for the state to be synced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
 		return false

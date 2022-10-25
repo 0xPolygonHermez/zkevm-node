@@ -20,12 +20,15 @@ type etherman interface {
 	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)
 	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) error
+	CurrentNonce() (uint64, error)
 }
 
 type stateInterface interface {
-	GetSequencesWithoutGroup(context.Context, pgx.Tx) ([]state.Sequence, error)
-	GetPendingSequenceGroups(context.Context, pgx.Tx) ([]state.SequenceGroup, error)
-	GetLastSequenceGroup(context.Context, pgx.Tx) (*state.SequenceGroup, error)
+	GetSequencesWithoutGroup(ctx context.Context, dbTx pgx.Tx) ([]state.Sequence, error)
+	GetPendingSequenceGroups(ctx context.Context, dbTx pgx.Tx) ([]state.SequenceGroup, error)
+	GetLastSequenceGroup(ctx context.Context, dbTx pgx.Tx) (*state.SequenceGroup, error)
+	GetSequencesByBatchNums(ctx context.Context, batchNumbers []uint64, dbTx pgx.Tx) ([]state.Sequence, error)
 	AddSequenceGroup(ctx context.Context, sequenceGroup state.SequenceGroup, dbTx pgx.Tx) error
 	SetSequenceGroupAsConfirmed(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) error
+	UpdateSequenceGroupTx(ctx context.Context, oldTxHash common.Hash, newTx types.Transaction, dbTx pgx.Tx) error
 }

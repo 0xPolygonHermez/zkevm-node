@@ -1818,7 +1818,8 @@ func (p *PostgresStorage) GetPendingSequenceGroups(ctx context.Context, dbTx pgx
 	e := p.getExecQuerier(dbTx)
 
 	const getPendingSequences = `
-		SELECT tx_encoded
+		SELECT tx_hash
+			 , tx_nonce
 			 , batch_nums
 			 , status
 			 , created_at
@@ -1875,17 +1876,11 @@ func (p *PostgresStorage) CreateSequence(ctx context.Context, batchNumber uint64
 func (p *PostgresStorage) AddSequenceGroup(ctx context.Context, sequenceGroup SequenceGroup, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
-	const addSequenceGroupSQL = `INSERT INTO state.sequence_group (tx_hash, tx_encoded, batch_nums, status, created_at)
-												           VALUES (      $1,        $2,         $3,     $4,         $5);`
+	const addSequenceGroupSQL = `INSERT INTO state.sequence_group (tx_hash, tx_nonce, batch_nums, status, created_at)
+												           VALUES (     $1,       $2,         $3,     $4,         $5);`
 
-	b, err := sequenceGroup.Tx.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	txRLP := hex.EncodeToHex(b)
-
-	_, err = e.Exec(ctx, addSequenceGroupSQL, sequenceGroup.Tx.Hash().String(), txRLP,
-		sequenceGroup.BatchNumbers, sequenceGroup.Status, time.Now())
+	_, err := e.Exec(ctx, addSequenceGroupSQL, sequenceGroup.TxHash.String(),
+		sequenceGroup.TxNonce, sequenceGroup.BatchNumbers, sequenceGroup.Status, time.Now())
 
 	return err
 }
@@ -1953,12 +1948,49 @@ func (p *PostgresStorage) GetLastSequence(ctx context.Context, dbTx pgx.Tx) (*Se
 	return seq, nil
 }
 
+// GetSequencesByBatchNums get the sequences accordingly to the batch numbers provided
+func (p *PostgresStorage) GetSequencesByBatchNums(ctx context.Context, batchNumbers []uint64, dbTx pgx.Tx) ([]Sequence, error) {
+	e := p.getExecQuerier(dbTx)
+
+	const getLastSequenceSQL = `
+		SELECT batch_num
+			 , state_root
+			 , global_exit_root
+			 , local_exit_root
+			 , timestamp
+			 , txs
+		  FROM state.sequence
+		 WHERE batch_num = ANY($1::BIGINT[])
+		 ORDER BY batch_num DESC;`
+
+	rows, err := e.Query(ctx, getLastSequenceSQL, batchNumbers)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sequences := make([]Sequence, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		seq, err := scanSequence(rows)
+		if err != nil {
+			return nil, err
+		}
+		sequences = append(sequences, *seq)
+	}
+
+	return sequences, nil
+}
+
 // GetLastSequenceGroup gets last sequence group
 func (p *PostgresStorage) GetLastSequenceGroup(ctx context.Context, dbTx pgx.Tx) (*SequenceGroup, error) {
 	e := p.getExecQuerier(dbTx)
 
 	const getLastSequenceGroupSQL = `
-		SELECT tx_encoded
+		SELECT tx_hash
+			 , tx_nonce
 			 , batch_nums
 			 , status
 			 , created_at
@@ -2014,23 +2046,14 @@ func scanSequence(row pgx.Row) (*Sequence, error) {
 func scanSequenceGroup(row pgx.Row) (*SequenceGroup, error) {
 	sequenceGroup := &SequenceGroup{}
 
-	var status string
-	var TxRlp string
+	var txHash, status string
 
-	if err := row.Scan(&TxRlp, &sequenceGroup.BatchNumbers, &status, &sequenceGroup.CreatedAt, &sequenceGroup.UpdatedAt); err != nil {
+	if err := row.Scan(&txHash, &sequenceGroup.TxNonce, &sequenceGroup.BatchNumbers,
+		&status, &sequenceGroup.CreatedAt, &sequenceGroup.UpdatedAt); err != nil {
 		return nil, err
 	}
 
-	tx := new(types.Transaction)
-	b, err := hex.DecodeHex(TxRlp)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.UnmarshalBinary(b); err != nil {
-		return nil, err
-	}
-
-	sequenceGroup.Tx = *tx
+	sequenceGroup.TxHash = common.HexToHash(txHash)
 	sequenceGroup.Status = SequenceGroupStatus(status)
 
 	return sequenceGroup, nil
