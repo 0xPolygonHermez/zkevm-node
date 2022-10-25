@@ -656,8 +656,12 @@ func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 func (etherMan *Client) ApproveMatic(maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
 	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
 	if err != nil {
+		if parsedErr, ok := tryParseContractPoEError(err); ok {
+			err = parsedErr
+		}
 		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
 	}
+
 	return tx, nil
 }
 
@@ -715,9 +719,6 @@ func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64,
 		if parsedErr, ok := tryParseContractPoEError(err); ok {
 			err = parsedErr
 		}
-	}
-
-	if err != nil {
 		return nil, err
 	}
 
