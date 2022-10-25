@@ -1,6 +1,7 @@
 package ethtxmanager
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
@@ -31,11 +32,11 @@ func TestVerifyBatchWithROEthman(t *testing.T) {
 	ethManRO, _, _, _, _ := ethman.NewSimulatedEtherman(ethman.Config{}, nil)
 	txMan := New(Config{MaxVerifyBatchTxRetries: 2}, ethManRO) // 3 executions in total
 
-	txMan.VerifyBatch(42, nil)
+	txMan.VerifyBatch(context.Background(), 42, nil)
 
 	observedLogs = observedLogs.
 		FilterLevelExact(zapcore.ErrorLevel).
-		FilterMessageSnippet("etherman client in read-only mode, cannot send verifyBatch request")
+		FilterMessageSnippet(ethman.ErrIsReadOnlyMode.Error())
 	logs := observedLogs.All()
 	assert.Len(t, logs, 3)
 }
