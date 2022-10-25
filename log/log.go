@@ -40,7 +40,7 @@ func Init(cfg Config) {
 }
 
 // InitTestLogger initializes a logger for testing purposes. The returned logs
-// can be filtered against test assertions.
+// can be matched against test assertions.
 // Call DeinitTestLogger to restore the default logger.
 func InitTestLogger(cfg Config) (*observer.ObservedLogs, error) {
 	var (
