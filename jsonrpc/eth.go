@@ -578,7 +578,7 @@ func (e *Eth) NewBlockFilter() (interface{}, rpcError) {
 func (e *Eth) NewFilter(filter *LogFilter) (interface{}, rpcError) {
 	id, err := e.storage.NewLogFilter(*filter)
 	if errors.Is(err, ErrFilterInvalidPayload) {
-		return rpcErrorResponse(invalidParamsErrorCode, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other", nil)
+		return rpcErrorResponse(invalidParamsErrorCode, err.Error(), nil)
 	} else if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to create new log filter", err)
 	}
