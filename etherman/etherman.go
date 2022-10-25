@@ -92,11 +92,7 @@ type Client struct {
 
 	GasProviders externalGasProviders
 
-	// readOnly if `true` the client won't have an account.
-	// Check this field before trying to access the `auth` field.
-	readOnly bool
-
-	auth *bind.TransactOpts
+	auth *bind.TransactOpts // nil in case of read-only client
 }
 
 // NewClient creates a new etherman.
@@ -144,8 +140,13 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 			MultiGasProvider: cfg.MultiGasProvider,
 			Providers:        gProviders,
 		},
-		auth: auth}, nil
+		auth: auth,
+	}, nil
 }
+
+// IsReadOnly returns whether the EtherMan client is in read-only mode.
+// Call this before trying to access the `auth` field.
+func (c *Client) IsReadOnly() bool { return c.auth == nil }
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
 // from block x to block y.
@@ -271,7 +272,7 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 
 // EstimateGasSequenceBatches estimates gas for sending batches
 func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
-	if etherMan.readOnly {
+	if etherMan.IsReadOnly() {
 		return nil, ErrIsReadOnlyMode
 	}
 	noSendOpts := *etherMan.auth
@@ -286,7 +287,7 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 
 // SequenceBatches send sequences of batches to the ethereum
 func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
-	if etherMan.readOnly {
+	if etherMan.IsReadOnly() {
 		return nil, ErrIsReadOnlyMode
 	}
 	sendSequencesOpts := *etherMan.auth
@@ -331,7 +332,7 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 
 // EstimateGasForVerifyBatch estimates gas for verify batch smart contract call
 func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse) (uint64, error) {
-	if etherMan.readOnly {
+	if etherMan.IsReadOnly() {
 		return 0, ErrIsReadOnlyMode
 	}
 	verifyBatchOpts := *etherMan.auth
@@ -345,7 +346,7 @@ func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProo
 
 // VerifyBatch send verifyBatch request to the ethereum
 func (etherMan *Client) VerifyBatch(ctx context.Context, batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
-	if etherMan.readOnly {
+	if etherMan.IsReadOnly() {
 		return nil, ErrIsReadOnlyMode
 	}
 	verifyBatchOpts := *etherMan.auth
@@ -707,7 +708,7 @@ func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 
 // ApproveMatic function allow to approve tokens in matic smc
 func (etherMan *Client) ApproveMatic(ctx context.Context, maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
-	if etherMan.readOnly {
+	if etherMan.IsReadOnly() {
 		return nil, ErrIsReadOnlyMode
 	}
 	opts := *etherMan.auth
@@ -732,7 +733,7 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 
 // GetPublicAddress returns eth client public address
 func (etherMan *Client) GetPublicAddress() (common.Address, error) {
-	if etherMan.readOnly {
+	if etherMan.IsReadOnly() {
 		return common.Address{}, ErrIsReadOnlyMode
 	}
 	return etherMan.auth.From, nil
