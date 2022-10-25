@@ -133,7 +133,6 @@ func (s *Sequencer) updateTxsInPool(
 	unprocessedTxs map[string]*state.ProcessTransactionResponse,
 ) {
 	invalidTxsHashes, failedTxsHashes := s.splitInvalidAndFailedTxs(ctx, unprocessedTxs, ticker)
-
 	// update processed txs
 	s.updateTxsStatus(ctx, ticker, processResponse.processedTxsHashes, pool.TxStatusSelected)
 	// update invalid txs
@@ -534,26 +533,30 @@ func (s *Sequencer) appendPendingTxs(ctx context.Context, isClaims bool, minGasP
 	if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
 		pendTxs, err = s.pool.GetTxs(ctx, pool.TxStatusFailed, isClaims, minGasPrice, getTxsLimit)
 		if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
-			log.Info("there is no suitable pending or failed txs in the pool, waiting...")
-			waitTick(ctx, ticker)
+			log.Infof("there is no suitable pending or failed txs in the pool, isClaims: %t, minGasPrice: %d, waiting...", isClaims, minGasPrice)
+			if !isClaims {
+				waitTick(ctx, ticker)
+			}
 			return 0
 		}
 	} else if err != nil {
 		log.Errorf("failed to get pending tx, err: %w", err)
 		return 0
 	}
+	var invalidTxsCounter int
 	for i := 0; i < len(pendTxs); i++ {
 		if pendTxs[i].FailedCounter > s.cfg.MaxAllowedFailedCounter {
 			hash := pendTxs[i].Transaction.Hash().String()
 			log.Warnf("mark tx with hash %s as invalid, failed counter %d exceeded max %d from config",
 				hash, pendTxs[i].FailedCounter, s.cfg.MaxAllowedFailedCounter)
 			s.updateTxsStatus(ctx, ticker, []string{hash}, pool.TxStatusInvalid)
+			invalidTxsCounter++
 			continue
 		}
 		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, pendTxs[i].Transaction)
 	}
 
-	return uint64(len(pendTxs))
+	return uint64(len(pendTxs) - invalidTxsCounter)
 }
 
 func (s *Sequencer) backupSequence() types.Sequence {
