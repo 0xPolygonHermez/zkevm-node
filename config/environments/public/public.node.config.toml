@@ -21,7 +21,7 @@ EnableLog = false
 MaxConns = 200
 
 [Etherman]
-URL = "https://geth_goerli.hermez.io"
+URL = "https://goerli.infura.io/v3/$YOUR_API_KEY"
 PrivateKeyPath = "/pk/keystore"
 PrivateKeyPassword = "testonly"
 PoEAddr = "0x14cB06e8dE2222912138F9a062E5a4d9F4821409"
