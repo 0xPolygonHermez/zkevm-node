@@ -1,3 +1,4 @@
+//nolint:deadcode,unused,varcheck
 package e2e
 
 import (
