@@ -711,9 +711,15 @@ func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64,
 		proofB,
 		proofC,
 	)
+	if err != nil {
+		if parsedErr, ok := tryParseContractPoEError(err); ok {
+			err = parsedErr
+		}
+	}
 
 	if err != nil {
 		return nil, err
 	}
+
 	return tx, nil
 }
