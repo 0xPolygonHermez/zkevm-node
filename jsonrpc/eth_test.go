@@ -2968,6 +2968,8 @@ func TestNewFilter(t *testing.T) {
 		SetupMocks     func(m *mocks, tc testCase)
 	}
 
+	hash := common.HexToHash("0x42")
+	blockNumber := BlockNumber(8)
 	testCases := []testCase{
 		{
 			Name:           "New filter created successfully",
@@ -2990,6 +2992,21 @@ func TestNewFilter(t *testing.T) {
 				m.Storage.
 					On("NewLogFilter", *tc.LogFilter).
 					Return(uint64(0), errors.New("failed to add new filter")).
+					Once()
+			},
+		},
+		{
+			Name: "failed to create new filter because BlockHash and ToBlock are present",
+			LogFilter: &LogFilter{
+				BlockHash: &hash,
+				ToBlock:   &blockNumber,
+			},
+			ExpectedResult: argUint64(0),
+			ExpectedError:  newRPCError(invalidParamsErrorCode, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other"),
+			SetupMocks: func(m *mocks, tc testCase) {
+				m.Storage.
+					On("NewLogFilter", *tc.LogFilter).
+					Return(uint64(0), ErrFilterInvalidPayload).
 					Once()
 			},
 		},
