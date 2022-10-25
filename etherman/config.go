@@ -13,6 +13,4 @@ type Config struct {
 
 	PrivateKeyPath     string `mapstructure:"PrivateKeyPath"`
 	PrivateKeyPassword string `mapstructure:"PrivateKeyPassword"`
-
-	ReadOnly bool `mapstructure:"ReadOnly"`
 }
