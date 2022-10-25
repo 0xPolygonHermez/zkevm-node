@@ -11,16 +11,25 @@ var (
 	ErrTimestampMustBeInsideRange = errors.New("Timestamp must be inside range")
 	//ErrInsufficientAllowance insufficient allowance
 	ErrInsufficientAllowance = errors.New("insufficient allowance")
+	//ErrBothGasPriceAndMaxFeeGasAreSpecified both gasPrice and (maxFeePerGas or maxPriorityFeePerGas) specified
+	ErrBothGasPriceAndMaxFeeGasAreSpecified = errors.New("both gasPrice and (maxFeePerGas or maxPriorityFeePerGas) specified")
+	//ErrMaxFeeGasAreSpecifiedButLondonNotActive maxFeePerGas or maxPriorityFeePerGas specified but london is not active yet
+	ErrMaxFeeGasAreSpecifiedButLondonNotActive = errors.New("maxFeePerGas or maxPriorityFeePerGas specified but london is not active yet")
+	//ErrNoSigner no signer to authorize the transaction with
+	ErrNoSigner = errors.New("no signer to authorize the transaction with")
 
 	errorsFromPoEContract = map[string]error{
-		ErrGasRequiredExceedsAllowance.Error(): ErrGasRequiredExceedsAllowance,
-		ErrContentLengthTooLarge.Error():       ErrContentLengthTooLarge,
-		ErrTimestampMustBeInsideRange.Error():  ErrTimestampMustBeInsideRange,
-		ErrInsufficientAllowance.Error():       ErrInsufficientAllowance,
+		ErrGasRequiredExceedsAllowance.Error():             ErrGasRequiredExceedsAllowance,
+		ErrContentLengthTooLarge.Error():                   ErrContentLengthTooLarge,
+		ErrTimestampMustBeInsideRange.Error():              ErrTimestampMustBeInsideRange,
+		ErrInsufficientAllowance.Error():                   ErrInsufficientAllowance,
+		ErrBothGasPriceAndMaxFeeGasAreSpecified.Error():    ErrBothGasPriceAndMaxFeeGasAreSpecified,
+		ErrMaxFeeGasAreSpecifiedButLondonNotActive.Error(): ErrMaxFeeGasAreSpecifiedButLondonNotActive,
+		ErrNoSigner.Error():                                ErrNoSigner,
 	}
 )
 
-func tryParseContractPoEError(err error) (error, bool) {
+func tryParseError(err error) (error, bool) {
 	parsedError, exists := errorsFromPoEContract[err.Error()]
 	return parsedError, exists
 }

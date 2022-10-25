@@ -276,7 +276,7 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 
 	transaction, err := etherMan.PoE.SequenceBatches(opts, batches)
 	if err != nil {
-		if parsedErr, ok := tryParseContractPoEError(err); ok {
+		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
 		}
 	}
@@ -656,7 +656,7 @@ func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 func (etherMan *Client) ApproveMatic(maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
 	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
 	if err != nil {
-		if parsedErr, ok := tryParseContractPoEError(err); ok {
+		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
 		}
 		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
@@ -716,7 +716,7 @@ func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64,
 		proofC,
 	)
 	if err != nil {
-		if parsedErr, ok := tryParseContractPoEError(err); ok {
+		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
 		}
 		return nil, err
