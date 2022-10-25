@@ -156,11 +156,12 @@ func (c *Client) syncSequences() {
 				return
 			}
 
-			log.Infof("updating tx for sequence group related to batches %v", pendingSequenceGroup.BatchNumbers)
+			log.Infof("updating tx for sequence group related to batches %v from %v to %v",
+				pendingSequenceGroup.BatchNumbers, pendingSequenceGroup.TxHash.String(), tx.Hash().String())
 
 			err = c.state.UpdateSequenceGroupTx(ctx, pendingSequenceGroup.TxHash, *tx, nil)
 			if err != nil {
-				log.Errorf("failed to update sequence group from %v to %v: %v", err)
+				log.Errorf("failed to update sequence group from %v to %v: %v", pendingSequenceGroup.TxHash.String(), tx.Hash().String(), err)
 				return
 			}
 		}
