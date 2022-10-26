@@ -2,7 +2,6 @@ package config_test
 
 import (
 	"flag"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"reflect"
@@ -212,6 +211,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: int(8123),
 		},
 		{
+			path:          "RPC.ReadTimeoutInSec",
+			expectedValue: time.Duration(1),
+		},
+		{
+			path:          "RPC.WriteTimeoutInSec",
+			expectedValue: time.Duration(1),
+		},
+		{
 			path:          "RPC.SequencerNodeURI",
 			expectedValue: "",
 		},
@@ -268,7 +275,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 61090,
 		},
 	}
-	file, err := ioutil.TempFile("", "genesisConfig")
+	file, err := os.CreateTemp("", "genesisConfig")
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, os.Remove(file.Name()))

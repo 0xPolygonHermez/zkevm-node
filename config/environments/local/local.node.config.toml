@@ -43,6 +43,8 @@ PercentageToIncreaseGasLimit = 10
 [RPC]
 Host = "0.0.0.0"
 Port = 8545
+ReadTimeoutInSec = 1
+WriteTimeoutInSec = 1
 MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://internal.zkevm-test.net:2083/"
 BroadcastURI = "internal.zkevm-test.net:61090"

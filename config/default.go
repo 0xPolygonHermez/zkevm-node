@@ -47,6 +47,8 @@ PercentageToIncreaseGasLimit = 10
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
+ReadTimeoutInSec = 1
+WriteTimeoutInSec = 1
 MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
