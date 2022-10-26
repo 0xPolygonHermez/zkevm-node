@@ -7,17 +7,21 @@ package ethtxmanager
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 )
+
+// ErrTimestampOutsideRange represents an error when a tx to send a sequence
+// to the roll-up contains a sequence that doesn't match the expected timestamp
+// stored in the roll-up
+const ErrTimestampOutsideRange = "Timestamp must be inside range"
 
 // Client for eth tx manager
 type Client struct {
@@ -42,6 +46,40 @@ func (c *Client) SyncPendingSequences() {
 	c.syncSequences()
 }
 
+// SyncPendingProofs loads pending proofs from the state and
+// sync them with PoE on L1
+func (c *Client) SyncPendingProofs() {
+	ctx := context.Background()
+	// get all pending proofs
+	pendingProofs, err := c.state.GetPendingProofs(ctx, nil)
+	if err != nil {
+		log.Errorf("failed to get pending proofs: %v", err)
+		return
+	}
+	// generate a l1 transaction for all pending proofs
+	for _, pendingProof := range pendingProofs {
+		if pendingProof.TxHash == nil {
+			tx, err := c.ethMan.VerifyBatch(pendingProof.BatchNumber, pendingProof.Proof, 0, nil)
+			if err != nil {
+				log.Errorf("failed to send tx to verify batch for batch number %v: %v", pendingProof.BatchNumber, err)
+				continue
+			}
+
+			err = c.state.UpdateProofTx(ctx, pendingProof.BatchNumber, tx.Hash(), nil)
+			if err != nil {
+				log.Errorf("failed to update tx to verify batch for batch number %v, new tx hash %v, nonce %v, err: %v", pendingProof.BatchNumber, tx.Hash().String(), tx.Nonce(), err)
+				continue
+			}
+
+			continue
+		}
+
+		if confirmed := c.checkProofConfirmation(ctx, pendingProof); !confirmed {
+			c.tryReviewProofTx(ctx, pendingProof)
+		}
+	}
+}
+
 // groupSequences build sequence groups with sequences without group
 func (c *Client) groupSequences() {
 	ctx := context.Background()
@@ -60,16 +98,24 @@ func (c *Client) groupSequences() {
 
 	// send the sequences to create the tx
 	var tx *types.Transaction
+	confirmed := false
 	for {
-		// TODO: force the low gas in order to make this tx to be discarded
-		// and replaced by a good one by the tx review processing
-		gas := uint64(1)
-		tx, err = c.ethMan.SequenceBatches(sequencesWithoutGroup, gas, nil)
-		if err != nil && err.Error() == core.ErrOversizedData.Error() {
-			sequencesWithoutGroup = sequencesWithoutGroup[:len(sequencesWithoutGroup)-1]
-		} else if err != nil {
-			log.Errorf("failed to send sequence batches: %v", err)
-			return
+		tx, err = c.ethMan.SequenceBatches(sequencesWithoutGroup, 0, nil)
+		if err != nil {
+			// is the amount of sequences causes oversized, reduce the sequences by one
+			if err.Error() == core.ErrOversizedData.Error() {
+				sequencesWithoutGroup = sequencesWithoutGroup[:len(sequencesWithoutGroup)-1]
+				// if the error is the timestamp outside the range and there are multiple sequences, try to send only one
+			} else if strings.Contains(err.Error(), ErrTimestampOutsideRange) && len(sequencesWithoutGroup) > 1 {
+				sequencesWithoutGroup = sequencesWithoutGroup[0:1]
+				// if the error is the timestamp outside the range and there is a single sequence, mark it as confirmed because it was already sequenced
+			} else if strings.Contains(err.Error(), ErrTimestampOutsideRange) && len(sequencesWithoutGroup) == 1 {
+				confirmed = true
+				break
+			} else {
+				log.Errorf("failed to send sequence batches: %v", err)
+				return
+			}
 		} else {
 			break
 		}
@@ -93,6 +139,15 @@ func (c *Client) groupSequences() {
 		log.Errorf("failed to create sequence group: %v", err)
 		return
 	}
+	log.Infof("sequence group created for batches %v: %v", sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String())
+
+	if confirmed {
+		err := c.state.SetSequenceGroupAsConfirmed(ctx, sequenceGroup.TxHash, nil)
+		if err != nil {
+			log.Errorf("failed to set sequence group as confirmed for tx %v: %v", sequenceGroup.TxHash.String(), err)
+		}
+		return
+	}
 }
 
 func (c *Client) syncSequences() {
@@ -105,70 +160,130 @@ func (c *Client) syncSequences() {
 	}
 
 	for _, pendingSequenceGroup := range pendingSequenceGroups {
-		// check if the tx was already mined
-		receipt, err := c.ethMan.GetTxReceipt(ctx, pendingSequenceGroup.TxHash)
-		if err != nil && !errors.Is(err, ethereum.NotFound) {
-			log.Errorf("failed to get send batch tx receipt, hash %v: %v", pendingSequenceGroup.TxHash.String(), err)
-			return
-		}
-		if receipt != nil && receipt.Status == types.ReceiptStatusSuccessful {
-			err := c.state.SetSequenceGroupAsConfirmed(ctx, pendingSequenceGroup.TxHash, nil)
-			if err != nil {
-				log.Errorf("failed to set sequence group as confirmed for tx %v: %v", pendingSequenceGroup.TxHash.String(), err)
-			}
-			return
-		}
-
-		// if it was not mined yet, check it against the rules to improve the tx in order to get it mined
-		//
-		// - check if the timeout since the last time the group was update has expired, if so, update the tx
-		lastTimeSequenceWasUpdated := pendingSequenceGroup.CreatedAt
-		if pendingSequenceGroup.UpdatedAt != nil {
-			lastTimeSequenceWasUpdated = *pendingSequenceGroup.UpdatedAt
-		}
-		if time.Since(lastTimeSequenceWasUpdated) >= c.cfg.IntervalToReviewSendBatchTx.Duration {
-			sequences, err := c.state.GetSequencesByBatchNums(ctx, pendingSequenceGroup.BatchNumbers, nil)
-			if err != nil {
-				log.Errorf("failed to get sequences by batch numbers: %v", err)
-				return
-			}
-
-			// use the same nonce
-			nonce := big.NewInt(0).SetUint64(pendingSequenceGroup.TxNonce)
-
-			// gets the current nonce to check if the tx nonce is already used
-			currentNonce, err := c.ethMan.CurrentNonce()
-			if err != nil {
-				log.Errorf("failed to get current nonce to check the sequence group tx nonce: %v", err)
-				return
-			}
-
-			// if the tx nonce was already used, we update it to the current one, so the txs can get mined
-			if pendingSequenceGroup.TxNonce <= currentNonce {
-				nonce = big.NewInt(0).SetUint64(currentNonce)
-			}
-
-			// use 0 gas to allow the system to get the suggestion from the network
-			gas := uint64(0)
-			tx, err := c.ethMan.SequenceBatches(sequences, gas, nonce)
-			if err != nil {
-				log.Errorf("failed to send sequence batches: %v", err)
-				return
-			}
-
-			log.Infof("updating tx for sequence group related to batches %v from %v to %v",
-				pendingSequenceGroup.BatchNumbers, pendingSequenceGroup.TxHash.String(), tx.Hash().String())
-
-			err = c.state.UpdateSequenceGroupTx(ctx, pendingSequenceGroup.TxHash, *tx, nil)
-			if err != nil {
-				log.Errorf("failed to update sequence group from %v to %v: %v", pendingSequenceGroup.TxHash.String(), tx.Hash().String(), err)
-				return
-			}
+		if confirmed := c.checkSequenceGroupConfirmation(ctx, pendingSequenceGroup); !confirmed {
+			c.tryReviewSequenceGroupTx(ctx, pendingSequenceGroup)
 		}
 	}
 }
 
-// VerifyBatch TODO REMOVE
-func (c *Client) VerifyBatch(ctx context.Context, batchNum uint64, proof *pb.GetProofResponse) error {
-	return fmt.Errorf("not implemented yet")
+func (c *Client) checkSequenceGroupConfirmation(ctx context.Context, sequenceGroup state.SequenceGroup) bool {
+	log.Infof("trying to confirm sequence for batches %v: %v", sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String())
+	receipt, err := c.ethMan.GetTxReceipt(ctx, sequenceGroup.TxHash)
+	if err != nil && !errors.Is(err, ethereum.NotFound) {
+		log.Errorf("failed to get sequence group for batches %v tx receipt, hash %v: %v", sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String(), err)
+		return false
+	}
+	if receipt != nil && receipt.Status == types.ReceiptStatusSuccessful {
+		err := c.state.SetSequenceGroupAsConfirmed(ctx, sequenceGroup.TxHash, nil)
+		if err != nil {
+			log.Errorf("failed to set sequence group as confirmed for batches %v tx %v: %v", sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String(), err)
+			return false
+		}
+		log.Infof("sequence group for batches %v confirmed", sequenceGroup.BatchNumbers)
+		return true
+	}
+	log.Infof("sequence group for batches %v not confirmed yet", sequenceGroup.BatchNumbers)
+	return false
+}
+
+func (c *Client) tryReviewSequenceGroupTx(ctx context.Context, sequenceGroup state.SequenceGroup) {
+	// if it was not mined yet, check if the timeout since the last time the group was update has expired
+	lastTimeSequenceWasUpdated := sequenceGroup.CreatedAt
+	if sequenceGroup.UpdatedAt != nil {
+		lastTimeSequenceWasUpdated = *sequenceGroup.UpdatedAt
+	}
+	// if the time to review the tx has expired, we review it
+	if time.Since(lastTimeSequenceWasUpdated) >= c.cfg.IntervalToReviewSendBatchTx.Duration {
+		log.Infof("reviewing sequence group tx for batches %v due to long time waiting for it to be confirmed", sequenceGroup.BatchNumbers)
+
+		sequences, err := c.state.GetSequencesByBatchNums(ctx, sequenceGroup.BatchNumbers, nil)
+		if err != nil {
+			log.Errorf("failed to get sequences by batch numbers: %v", err)
+			return
+		}
+
+		nonce := big.NewInt(0).SetUint64(sequenceGroup.TxNonce)
+		// using the same nonce, create a new transaction, this will make the gas to be
+		// recalculated with the current prices of the network
+		tx, err := c.ethMan.SequenceBatches(sequences, 0, nonce)
+		if err != nil {
+			// if the tx is already know, refresh the update date to give it more time to get mined
+			if errors.Is(err, core.ErrAlreadyKnown) {
+				err := c.state.UpdateSequenceGroupTx(ctx, sequenceGroup.TxHash, sequenceGroup.TxHash, nil)
+				if err != nil {
+					log.Errorf("give it more time to the sequence group related to the batches %v to get mined: %v", sequenceGroup.BatchNumbers, err)
+				}
+				return
+			}
+			log.Errorf("failed to resend sequence tx for batches %v: %v", sequenceGroup.BatchNumbers, err)
+			return
+		}
+
+		log.Infof("updating tx for sequence group related to batches %v from %v to %v",
+			sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String(), tx.Hash().String())
+
+		err = c.state.UpdateSequenceGroupTx(ctx, sequenceGroup.TxHash, tx.Hash(), nil)
+		if err != nil {
+			log.Errorf("failed to update sequence group from %v to %v: %v", sequenceGroup.TxHash.String(), tx.Hash().String(), err)
+			return
+		}
+	}
+}
+
+func (c *Client) checkProofConfirmation(ctx context.Context, proof state.Proof) bool {
+	log.Infof("trying to confirm proof for batch %v: %v", proof.BatchNumber, proof.TxHash.String())
+	receipt, err := c.ethMan.GetTxReceipt(ctx, *proof.TxHash)
+	if err != nil && !errors.Is(err, ethereum.NotFound) {
+		log.Errorf("failed to get tx receipt for proof for batch %v, hash %v: %v", proof.BatchNumber, proof.TxHash.String(), err)
+		return false
+	}
+	if receipt != nil && receipt.Status == types.ReceiptStatusSuccessful {
+		err := c.state.SetProofAsConfirmed(ctx, proof.BatchNumber, nil)
+		if err != nil {
+			log.Errorf("failed to set proof as confirmed for batch %v tx %v: %v", proof.BatchNumber, proof.TxHash.String(), err)
+			return false
+		}
+		log.Infof("proof for batch %v confirmed", proof.BatchNumber)
+		return true
+	}
+	log.Infof("proof for batch %v not confirmed yet", proof.BatchNumber)
+	return false
+}
+
+func (c *Client) tryReviewProofTx(ctx context.Context, proof state.Proof) {
+	// if it was not mined yet, check if the timeout since the last time the proof was update has expired
+	lastTimeSequenceWasUpdated := proof.CreatedAt
+	if proof.UpdatedAt != nil {
+		lastTimeSequenceWasUpdated = *proof.UpdatedAt
+	}
+	// if the time to review the tx has expired, we review it
+	if time.Since(lastTimeSequenceWasUpdated) >= c.cfg.IntervalToReviewVerifyBatchTx.Duration {
+		log.Infof("reviewing proof tx for batch %v due to long time waiting for it to be confirmed", proof.BatchNumber)
+
+		nonce := big.NewInt(0).SetUint64(proof.TxNonce)
+		// using the same nonce, create a new transaction, this will make the gas to be
+		// recalculated with the current prices of the network
+		tx, err := c.ethMan.VerifyBatch(proof.BatchNumber, proof.Proof, 0, nonce)
+		if err != nil {
+			// if the tx is already know, refresh the update date to give it more time to get mined
+			if errors.Is(err, core.ErrAlreadyKnown) {
+				err := c.state.UpdateProofTx(ctx, proof.BatchNumber, *proof.TxHash, nil)
+				if err != nil {
+					log.Errorf("give it more time to the proof related to the batch %v to get mined: %v", proof.BatchNumber, err)
+				}
+				return
+			}
+			log.Errorf("failed to resend tx to verify batch %v: %v", proof.BatchNumber, err)
+			return
+		}
+
+		log.Infof("updating tx for proof related to batch %v from %v to %v",
+			proof.BatchNumber, proof.TxHash.String(), tx.Hash().String())
+
+		err = c.state.UpdateSequenceGroupTx(ctx, *proof.TxHash, tx.Hash(), nil)
+		if err != nil {
+			log.Errorf("failed to update proof tx from %v to %v: %v", proof.TxHash.String(), tx.Hash().String(), err)
+			return
+		}
+	}
 }

@@ -28,7 +28,8 @@ PrivateKeyPath = "/pk/keystore"
 PrivateKeyPassword = "testonly"
 
 [EthTxManager]
-IntervalToReviewSendBatchTx = "1s"
+IntervalToReviewSendBatchTx = "1m"
+IntervalToReviewVerifyBatchTx = "1m"
 
 [RPC]
 Host = "0.0.0.0"

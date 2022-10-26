@@ -1886,23 +1886,16 @@ func (p *PostgresStorage) AddSequenceGroup(ctx context.Context, sequenceGroup Se
 }
 
 // UpdateSequenceGroupTx updates the sequence group transaction
-func (p *PostgresStorage) UpdateSequenceGroupTx(ctx context.Context, oldTxHash common.Hash, newTx types.Transaction, dbTx pgx.Tx) error {
+func (p *PostgresStorage) UpdateSequenceGroupTx(ctx context.Context, oldTxHash, newTxHash common.Hash, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
 	const setSequenceAsPendingSQL = `
-		UPDATE state.sequence
+		UPDATE state.sequence_group
 		   SET tx_hash    = $2,
-			   tx_encoded = $3,
-			   updated_at = $4
+			   updated_at = $3
 		 WHERE tx_hash = $1;`
 
-	b, err := newTx.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	txRLP := hex.EncodeToHex(b)
-
-	_, err = e.Exec(ctx, setSequenceAsPendingSQL, oldTxHash.String(), newTx.Hash().String(), txRLP, time.Now())
+	_, err := e.Exec(ctx, setSequenceAsPendingSQL, oldTxHash.String(), newTxHash.String(), time.Now())
 	return err
 }
 
@@ -2057,4 +2050,19 @@ func scanSequenceGroup(row pgx.Row) (*SequenceGroup, error) {
 	sequenceGroup.Status = SequenceGroupStatus(status)
 
 	return sequenceGroup, nil
+}
+
+// GetPendingProofs returns all the pending proofs
+func (p *PostgresStorage) GetPendingProofs(ctx context.Context, dbTx pgx.Tx) ([]Proof, error) {
+	panic("not implemented yet")
+}
+
+// UpdateProofTx updates the proof transaction
+func (p *PostgresStorage) UpdateProofTx(ctx context.Context, batchNumber uint64, newTxHash common.Hash, dbTx pgx.Tx) error {
+	panic("not implemented yet")
+}
+
+// SetProofAsConfirmed updates the proof to confirmed
+func (p *PostgresStorage) SetProofAsConfirmed(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	panic("not implemented yet")
 }

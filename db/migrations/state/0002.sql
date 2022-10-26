@@ -7,5 +7,3 @@ ALTER TABLE state.proof DROP COLUMN proof_id;
 ALTER TABLE state.proof ADD COLUMN proof_id VARCHAR;
 ALTER TABLE state.proof ADD COLUMN input_prover jsonb;
 ALTER TABLE state.proof ADD COLUMN prover VARCHAR;
-
-

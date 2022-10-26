@@ -30,5 +30,9 @@ type stateInterface interface {
 	GetSequencesByBatchNums(ctx context.Context, batchNumbers []uint64, dbTx pgx.Tx) ([]state.Sequence, error)
 	AddSequenceGroup(ctx context.Context, sequenceGroup state.SequenceGroup, dbTx pgx.Tx) error
 	SetSequenceGroupAsConfirmed(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) error
-	UpdateSequenceGroupTx(ctx context.Context, oldTxHash common.Hash, newTx types.Transaction, dbTx pgx.Tx) error
+	UpdateSequenceGroupTx(ctx context.Context, oldTxHash, newTxHash common.Hash, dbTx pgx.Tx) error
+
+	GetPendingProofs(ctx context.Context, dbTx pgx.Tx) ([]state.Proof, error)
+	UpdateProofTx(ctx context.Context, batchNumber uint64, newTxHash common.Hash, dbTx pgx.Tx) error
+	SetProofAsConfirmed(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 }

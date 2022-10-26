@@ -1,8 +1,12 @@
 -- +migrate Down
-DROP TRIGGER state.tr_del_sequence_group_cascade_batch;
-DROP FUNCTION state.fn_del_sequence_group_cascade_batch;
 DROP TABLE state.sequence_group;
 DROP TABLE state.sequence;
+
+ALTER TABLE state.proof DROP COLUMN tx_hash;
+ALTER TABLE state.proof DROP COLUMN tx_nonce;
+ALTER TABLE state.proof DROP COLUMN status;
+ALTER TABLE state.proof DROP COLUMN created_at;
+ALTER TABLE state.proof DROP COLUMN updated_at;
 
 -- +migrate Up
 CREATE TABLE state.sequence
@@ -26,15 +30,8 @@ CREATE TABLE state.sequence_group
     PRIMARY KEY  (tx_hash)
 );
 
--- -- +migrate StatementBegin
--- CREATE FUNCTION state.fn_del_sequence_group_cascade_batch() RETURNS trigger AS $fn_del_sequence_group_cascade_batch$
---     BEGIN
---         DELETE FROM state.sequence_group
---          WHERE OLD.batch_num = ANY(batch_nums);
---         RETURN OLD;
---     END;
--- $fn_del_sequence_group_cascade_batch$ LANGUAGE plpgsql;
--- -- +migrate StatementEnd
-
--- CREATE TRIGGER state.tr_del_sequence_group_cascade_batch BEFORE DELETE ON state.batch
---    FOR EACH ROW EXECUTE FUNCTION state.fn_del_sequence_group_cascade_batch();
+ALTER TABLE state.proof ADD COLUMN tx_hash    VARCHAR;
+ALTER TABLE state.proof ADD COLUMN tx_nonce   DECIMAL(78, 0);
+ALTER TABLE state.proof ADD COLUMN status     VARCHAR(15) NOT NULL;
+ALTER TABLE state.proof ADD COLUMN created_at TIMESTAMP WITH TIME ZONE NOT NULL;
+ALTER TABLE state.proof ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE;

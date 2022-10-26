@@ -97,7 +97,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "EthTxManager.IntervalToReviewSendBatchTx",
-			expectedValue: types.NewDuration(1 * time.Second),
+			expectedValue: types.NewDuration(1 * time.Minute),
+		},
+		{
+			path:          "EthTxManager.IntervalToReviewVerifyBatchTx",
+			expectedValue: types.NewDuration(1 * time.Minute),
 		},
 		{
 			path:          "PriceGetter.Type",
