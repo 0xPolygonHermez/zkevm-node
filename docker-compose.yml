@@ -14,7 +14,6 @@ services:
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
     volumes:
-      - ./config/example.keystore:/pk/keystore
       - ./config/environments/public/public.node.config.toml:/app/config.toml
       - ./config/environments/public/public.genesis.config.json:/app/genesis.json
     command:
@@ -28,7 +27,6 @@ services:
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
     volumes:
-      - ./config/example.keystore:/pk/keystore
       - ./config/environments/public/public.node.config.toml:/app/config.toml
       - ./config/environments/public/public.genesis.config.json:/app/genesis.json
     command:
