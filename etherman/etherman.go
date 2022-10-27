@@ -49,7 +49,8 @@ var (
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
 	// ErrIsReadOnlyMode is used when the EtherMan client is in read-only mode.
-	ErrIsReadOnlyMode = errors.New("etherman client in read-only mode")
+	ErrIsReadOnlyMode = errors.New("Etherman client in read-only mode: no account configured to send transactions to L1. " +
+		"Please check the [Etherman] PrivateKeyPath and PrivateKeyPassword configuration.")
 )
 
 // EventOrder is the the type used to identify the events order
