@@ -9,7 +9,6 @@ import (
 	"net/http"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/restclient"
 )
 
 type etherscanResponse struct {
@@ -34,7 +33,7 @@ type Config struct {
 // Client for etherscan
 type Client struct {
 	config Config
-	Http   restclient.HttpI
+	Http   HttpI
 }
 
 // NewEtherscanService is the constructor that creates an etherscanService
@@ -43,7 +42,7 @@ func NewEtherscanService(apikey string) *Client {
 		config: Config{
 			ApiKey: apikey,
 		},
-		Http: restclient.NewClient(),
+		Http: http.DefaultClient,
 	}
 }
 

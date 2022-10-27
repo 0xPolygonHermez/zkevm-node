@@ -9,7 +9,6 @@ import (
 	"net/http"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/restclient"
 )
 
 type ethGasStationResponse struct {
@@ -27,13 +26,13 @@ type gasPriceEthGasStation struct {
 
 // Client for ethGasStation
 type Client struct {
-	Http restclient.HttpI
+	Http HttpI
 }
 
 // NewEthGasStationService is the constructor that creates an ethGasStationService
 func NewEthGasStationService() *Client {
 	return &Client{
-		Http: restclient.NewClient(),
+		Http: http.DefaultClient,
 	}
 }
 
