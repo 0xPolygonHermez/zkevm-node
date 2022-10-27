@@ -36,7 +36,10 @@ func Setup() {
 	if err != nil {
 		panic(err)
 	}
-
+	err = operations.StartComponent("zkprover")
+	if err != nil {
+		panic(err)
+	}
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	if err != nil {

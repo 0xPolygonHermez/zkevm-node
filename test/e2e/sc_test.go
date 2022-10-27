@@ -26,9 +26,14 @@ func TestEmitLog2(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	defer func() { require.NoError(t, operations.Teardown()) }()
+	require.NoError(t, operations.StartComponent("zkprover"))
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent("zkprover"))
+	}()
 
 	ctx := context.Background()
+
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsMan, err := operations.NewManager(ctx, opsCfg)
 	require.NoError(t, err)
@@ -88,7 +93,11 @@ func TestFailureTest(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	defer func() { require.NoError(t, operations.Teardown()) }()
+	require.NoError(t, operations.StartComponent("zkprover"))
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent("zkprover"))
+	}()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
@@ -133,7 +142,11 @@ func TestRead(t *testing.T) {
 	err = operations.Teardown()
 	require.NoError(t, err)
 
-	defer func() { require.NoError(t, operations.Teardown()) }()
+	require.NoError(t, operations.StartComponent("zkprover"))
+	defer func() {
+		require.NoError(t, operations.Teardown())
+		require.NoError(t, operations.StopComponent("zkprover"))
+	}()
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
