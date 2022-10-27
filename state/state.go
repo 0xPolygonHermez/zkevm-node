@@ -166,7 +166,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	if senderAddress != ZeroAddress {
 		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, l2BlockStateRoot.Bytes())
 		if err != nil {
-			if err == ErrNotFound {
+			if errors.Is(err, ErrNotFound) {
 				senderBalance = big.NewInt(0)
 			} else {
 				return 0, err
@@ -366,7 +366,7 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 		return err
 	}
 	if lastBatchNum+1 != processingContext.BatchNumber {
-		return fmt.Errorf("unexpected batch number %v, should be %v", processingContext.BatchNumber, lastBatchNum+1)
+		return fmt.Errorf("%w number %d, should be %d", ErrUnexpectedBatch, processingContext.BatchNumber, lastBatchNum+1)
 	}
 	// Check if last batch is closed
 	isLastBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, lastBatchNum, dbTx)
@@ -584,7 +584,7 @@ func (s *State) isBatchClosable(ctx context.Context, receipt ProcessingReceipt, 
 		return err
 	}
 	if lastBatchNum != receipt.BatchNumber {
-		return fmt.Errorf("unexpected batch number %v, should be %v", receipt.BatchNumber, lastBatchNum)
+		return fmt.Errorf("%w number %d, should be %d", ErrUnexpectedBatch, receipt.BatchNumber, lastBatchNum)
 	}
 	// Check if last batch is closed
 	isLastBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, lastBatchNum, dbTx)

@@ -305,7 +305,15 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 
 		batches = append(batches, batch)
 	}
-	return etherMan.PoE.SequenceBatches(opts, batches)
+
+	transaction, err := etherMan.PoE.SequenceBatches(opts, batches)
+	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			err = parsedErr
+		}
+	}
+
+	return transaction, err
 }
 
 // EstimateGasForVerifyBatch estimates gas for verify batch smart contract call
@@ -683,8 +691,12 @@ func (etherMan *Client) ApproveMatic(ctx context.Context, maticAmount *big.Int, 
 	etherMan.auth.GasPrice = etherMan.getGasPrice(ctx)
 	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
 	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			err = parsedErr
+		}
 		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
 	}
+
 	return tx, nil
 }
 
@@ -738,10 +750,13 @@ func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64,
 		proofB,
 		proofC,
 	)
-
 	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			err = parsedErr
+		}
 		return nil, err
 	}
+
 	return tx, nil
 }
 

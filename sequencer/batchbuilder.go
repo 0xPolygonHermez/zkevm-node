@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -46,7 +45,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		log.Infof("current sequence should be closed")
 		err := s.closeSequence(ctx)
 		if err != nil {
-			if strings.Contains(err.Error(), state.ErrClosingBatchWithoutTxs.Error()) {
+			if errors.Is(err, state.ErrClosingBatchWithoutTxs) {
 				log.Warn("Current batch has not been closed since it had no txs. Trying to add more txs to avoid death lock")
 			} else {
 				log.Errorf("error closing sequence: %w", err)
@@ -271,8 +270,8 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return types.Sequence{}, fmt.Errorf(
-				"failed to rollback dbTx when closing batch that gave err: %s. Rollback err: %s",
-				rollbackErr.Error(), err.Error(),
+				"failed to rollback dbTx when closing batch that gave err: %s. Rollback err: %w",
+				rollbackErr.Error(), err,
 			)
 		}
 		return types.Sequence{}, err
