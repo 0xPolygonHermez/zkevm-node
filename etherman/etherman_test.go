@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/bridge"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -333,10 +332,7 @@ func TestGasPrice(t *testing.T) {
 	gp := etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625003), gp)
 
-	var (
-		emptC *etherscan.Client
-		emptI gasPricer = emptC
-	)
+	var emptI gasPricer
 	etherman.GasProviders.EtherScan = emptI
 
 	gp = etherman.getGasPrice(ctx)
@@ -348,10 +344,7 @@ func TestErrorEthGasStationPrice(t *testing.T) {
 	etherman, _, _, _ := newTestingEnv()
 	etherscanM := new(etherscanMock)
 	ethGasStationM := new(ethGasStationMock)
-	var (
-		emptC *etherscan.Client
-		emptI gasPricer = emptC
-	)
+	var emptI gasPricer
 	etherman.GasProviders.EtherScan = emptI
 	etherman.GasProviders.EthGasStation = ethGasStationM
 	ctx := context.Background()
