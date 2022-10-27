@@ -619,5 +619,14 @@ func Test_Misc(t *testing.T) {
 		emptyBytecode, err := client.CodeAt(ctx, common.HexToAddress("0xdeadbeef"), nil)
 		require.NoError(t, err)
 		require.Empty(t, emptyBytecode)
+
+		// check for request having more params than required:
+
+		response, err := jsonrpc.JSONRPCCall(network.URL, "eth_chainId", common.HexToHash("0x70997970C51812dc3A010C7d01b50e0d17dc79C8"), "latest")
+		require.NoError(t, err)
+		require.NotNil(t, response.Error)
+		require.Nil(t, response.Result)
+		require.Equal(t, invalidParamsErrorCode, response.Error.Code)
+		require.Equal(t, "too many arguments, want at most 0", response.Error.Message)
 	}
 }
