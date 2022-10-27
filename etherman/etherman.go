@@ -76,8 +76,8 @@ type ethClienter interface {
 }
 
 type externalGasProviders struct {
-	EtherScan     etherscan.EtherscanI
-	EthGasStation ethgasstation.EthGasStationI
+	EtherScan     gasPricer
+	EthGasStation gasPricer
 }
 
 // Client is a simple implementation of EtherMan.
@@ -117,14 +117,15 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, cfg.PoEAddr, cfg.GlobalExitRootManagerAddr)
 
-	var ethscan *etherscan.Client = nil
+	var ethscan gasPricer = nil
+	var ethGasSt gasPricer
 	if cfg.Etherscan.ApiKey == "" {
 		log.Info("No ApiKey provided for etherscan. Ignoring provider...")
 	} else {
 		log.Info("ApiKey detected for etherscan")
 		ethscan = etherscan.NewEtherscanService(cfg.Etherscan.ApiKey)
 	}
-	ethGasSt := ethgasstation.NewEthGasStationService()
+	ethGasSt = ethgasstation.NewEthGasStationService()
 
 	return &Client{
 		EtherClient:           ethClient,
@@ -754,8 +755,10 @@ func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
 
 	// Get gasPrice from Etherscan
 	etherscanGasPrice := big.NewInt(0)
-	var emptC *etherscan.Client = nil
-	var emptI etherscan.EtherscanI = emptC
+	var (
+		emptC *etherscan.Client
+	    emptI gasPricer = emptC
+	)
 	if etherMan.GasProviders.EtherScan != emptI {
 		etherscanGasPrice, err = etherMan.GasProviders.EtherScan.GetGasPrice(ctx)
 		if err != nil {

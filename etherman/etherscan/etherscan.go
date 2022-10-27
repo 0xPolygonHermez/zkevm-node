@@ -37,12 +37,6 @@ type Client struct {
 	Http   restclient.HttpI
 }
 
-// EtherscanI is the interface of the etherscan methods
-type EtherscanI interface {
-	// Returns the gas price.
-	GetGasPrice(ctx context.Context) (*big.Int, error)
-}
-
 // NewEtherscanService is the constructor that creates an etherscanService
 func NewEtherscanService(apikey string) *Client {
 	return &Client{

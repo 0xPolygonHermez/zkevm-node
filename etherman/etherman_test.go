@@ -333,8 +333,10 @@ func TestGasPrice(t *testing.T) {
 	gp := etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625003), gp)
 
-	var emptC *etherscan.Client = nil
-	var emptI etherscan.EtherscanI = emptC
+	var (
+		emptC *etherscan.Client
+		emptI gasPricer = emptC
+	)
 	etherman.GasProviders.EtherScan = emptI
 
 	gp = etherman.getGasPrice(ctx)
@@ -346,8 +348,10 @@ func TestErrorEthGasStationPrice(t *testing.T) {
 	etherman, _, _, _ := newTestingEnv()
 	etherscanM := new(etherscanMock)
 	ethGasStationM := new(ethGasStationMock)
-	var emptC *etherscan.Client = nil
-	var emptI etherscan.EtherscanI = emptC
+	var (
+		emptC *etherscan.Client
+		emptI gasPricer = emptC
+	)
 	etherman.GasProviders.EtherScan = emptI
 	etherman.GasProviders.EthGasStation = ethGasStationM
 	ctx := context.Background()

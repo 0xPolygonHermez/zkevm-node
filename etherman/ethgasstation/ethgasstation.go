@@ -30,12 +30,6 @@ type Client struct {
 	Http restclient.HttpI
 }
 
-// EthGasStationI is the interface of the ethGasStation methods
-type EthGasStationI interface {
-	// Returns the gas price.
-	GetGasPrice(ctx context.Context) (*big.Int, error)
-}
-
 // NewEthGasStationService is the constructor that creates an ethGasStationService
 func NewEthGasStationService() *Client {
 	return &Client{
