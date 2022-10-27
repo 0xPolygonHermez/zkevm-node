@@ -12,12 +12,12 @@ import (
 // in case it's enough blocks since last GER update, long time since last batch and sequence is profitable
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 	// Check if sequence is full
-	if s.isSequenceTooBig {
+	if s.sequenceInProgress.IsSequenceTooBig {
 		log.Infof("current sequence should be closed because it has reached the maximum data size")
-		s.isSequenceTooBig = false
+		s.sequenceInProgress.IsSequenceTooBig = false
 		return true
 	}
-	if len(s.sequenceInProgress.Txs) == int(maxTxsPerBatch) {
+	if len(s.sequenceInProgress.Txs) >= int(maxTxsPerBatch) {
 		log.Infof("current sequence should be closed because it has reached the maximum capacity (%d txs)", maxTxsPerBatch)
 		return true
 	}

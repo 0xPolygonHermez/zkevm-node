@@ -21,12 +21,13 @@ type SequenceGroupStatus string
 // Sequence represents an operation sent to the PoE smart contract to be
 // processed.
 type Sequence struct {
-	BatchNumber    uint64
-	StateRoot      common.Hash
-	GlobalExitRoot common.Hash
-	LocalExitRoot  common.Hash
-	Timestamp      time.Time
-	Txs            []types.Transaction
+	BatchNumber      uint64
+	StateRoot        common.Hash
+	GlobalExitRoot   common.Hash
+	LocalExitRoot    common.Hash
+	Timestamp        time.Time
+	Txs              []types.Transaction
+	IsSequenceTooBig bool
 }
 
 // SequenceGroup is a struct used to control which sequences were sent

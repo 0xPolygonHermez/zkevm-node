@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
+	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/core"
@@ -179,7 +179,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 	err error,
 ) ([]state.Sequence, error) {
 	// Insufficient allowance
-	if strings.Contains(err.Error(), errInsufficientAllowance) {
+	if errors.Is(err, ethman.ErrInsufficientAllowance) {
 		return nil, err
 	}
 
@@ -202,7 +202,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 
 	// while estimating gas a new block is not created and the POE SC may return
 	// an error regarding timestamp verification, this must be handled
-	if strings.Contains(err.Error(), errTimestampMustBeInsideRange) {
+	if errors.Is(err, ethman.ErrTimestampMustBeInsideRange) {
 		// query the sc about the value of its lastTimestamp variable
 		lastTimestamp, err := s.etherman.GetLastBatchTimestamp()
 		if err != nil {
@@ -242,7 +242,7 @@ func (s *Sequencer) handleEstimateGasSendSequenceErr(
 }
 
 func isDataForEthTxTooBig(err error) bool {
-	return strings.Contains(err.Error(), errGasRequiredExceedsAllowance) ||
+	return errors.Is(err, ethman.ErrGasRequiredExceedsAllowance) ||
 		errors.Is(err, core.ErrOversizedData) ||
-		strings.Contains(err.Error(), errContentLengthTooLarge)
+		errors.Is(err, ethman.ErrContentLengthTooLarge)
 }

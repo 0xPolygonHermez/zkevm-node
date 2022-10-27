@@ -21,8 +21,8 @@ type Filter struct {
 // LogFilterRequest represents a log filter request.
 type LogFilterRequest struct {
 	BlockHash *common.Hash  `json:"blockHash,omitempty"`
-	FromBlock string        `json:"fromBlock,omitempty"`
-	ToBlock   string        `json:"toBlock,omitempty"`
+	FromBlock *string       `json:"fromBlock,omitempty"`
+	ToBlock   *string       `json:"toBlock,omitempty"`
 	Address   interface{}   `json:"address,omitempty"`
 	Topics    []interface{} `json:"topics,omitempty"`
 }
@@ -30,8 +30,8 @@ type LogFilterRequest struct {
 // LogFilter is a filter for logs
 type LogFilter struct {
 	BlockHash *common.Hash
-	FromBlock BlockNumber
-	ToBlock   BlockNumber
+	FromBlock *BlockNumber
+	ToBlock   *BlockNumber
 	Addresses []common.Address
 	Topics    [][]common.Hash
 	Since     *time.Time
@@ -82,16 +82,20 @@ func (f *LogFilter) MarshalJSON() ([]byte, error) {
 
 	obj.BlockHash = f.BlockHash
 
-	if f.FromBlock == LatestBlockNumber {
-		obj.FromBlock = ""
-	} else {
-		obj.FromBlock = hex.EncodeUint64(uint64(f.FromBlock))
+	if f.FromBlock != nil && (*f.FromBlock == LatestBlockNumber) {
+		fromblock := ""
+		obj.FromBlock = &fromblock
+	} else if f.FromBlock != nil {
+		fromblock := hex.EncodeUint64(uint64(*f.FromBlock))
+		obj.FromBlock = &fromblock
 	}
 
-	if f.ToBlock == LatestBlockNumber {
-		obj.ToBlock = ""
-	} else {
-		obj.ToBlock = hex.EncodeUint64(uint64(f.ToBlock))
+	if f.ToBlock != nil && (*f.ToBlock == LatestBlockNumber) {
+		toblock := ""
+		obj.ToBlock = &toblock
+	} else if f.ToBlock != nil {
+		toblock := hex.EncodeUint64(uint64(*f.ToBlock))
+		obj.ToBlock = &toblock
 	}
 
 	if f.Addresses != nil {
@@ -127,21 +131,26 @@ func (f *LogFilter) UnmarshalJSON(data []byte) error {
 	}
 
 	f.BlockHash = obj.BlockHash
+	lbb := LatestBlockNumber
 
-	if obj.FromBlock == "" {
-		f.FromBlock = LatestBlockNumber
-	} else {
-		if f.FromBlock, err = stringToBlockNumber(obj.FromBlock); err != nil {
+	if obj.FromBlock != nil && *obj.FromBlock == "" {
+		f.FromBlock = &lbb
+	} else if obj.FromBlock != nil {
+		bn, err := stringToBlockNumber(*obj.FromBlock)
+		if err != nil {
 			return err
 		}
+		f.FromBlock = &bn
 	}
 
-	if obj.ToBlock == "" {
-		f.ToBlock = LatestBlockNumber
-	} else {
-		if f.ToBlock, err = stringToBlockNumber(obj.ToBlock); err != nil {
+	if obj.ToBlock != nil && *obj.ToBlock == "" {
+		f.ToBlock = &lbb
+	} else if obj.ToBlock != nil {
+		bn, err := stringToBlockNumber(*obj.ToBlock)
+		if err != nil {
 			return err
 		}
+		f.ToBlock = &bn
 	}
 
 	if obj.Address != nil {
