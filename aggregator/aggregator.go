@@ -101,6 +101,7 @@ func (a *Aggregator) Start(ctx context.Context) {
 	defer tickerSendVerifiedBatch.Stop()
 
 	for i := 0; i < len(a.ProverClients); i++ {
+		// persist proofs into the DB
 		go func() {
 			for {
 				a.tryVerifyBatch(ctx, tickerVerifyBatch)
@@ -109,6 +110,7 @@ func (a *Aggregator) Start(ctx context.Context) {
 		time.Sleep(time.Second)
 	}
 
+	// send and monitor persisted proofs to L1
 	go func() {
 		for {
 			a.EthTxManager.SyncPendingProofs()

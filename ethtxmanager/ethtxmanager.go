@@ -260,7 +260,7 @@ func (c *Client) tryReviewProofTx(ctx context.Context, proof state.Proof) {
 	if time.Since(lastTimeSequenceWasUpdated) >= c.cfg.IntervalToReviewVerifyBatchTx.Duration {
 		log.Infof("reviewing proof tx for batch %v due to long time waiting for it to be confirmed", proof.BatchNumber)
 
-		nonce := big.NewInt(0).SetUint64(proof.TxNonce)
+		nonce := big.NewInt(0).SetUint64(*proof.TxNonce)
 		// using the same nonce, create a new transaction, this will make the gas to be
 		// recalculated with the current prices of the network
 		tx, err := c.ethMan.VerifyBatch(proof.BatchNumber, proof.Proof, 0, nonce)

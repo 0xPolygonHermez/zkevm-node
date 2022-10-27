@@ -98,16 +98,19 @@ func (s *Sequencer) Start(ctx context.Context) {
 	tickerSendSequence := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
 	defer tickerProcessTxs.Stop()
 	defer tickerSendSequence.Stop()
+	// select transactions from the pool to create sequences
 	go func() {
 		for {
 			s.tryToProcessTx(ctx, tickerProcessTxs)
 		}
 	}()
+	// persist sequences into the DB
 	go func() {
 		for {
 			s.tryToCreateSequence(ctx, tickerProcessTxs)
 		}
 	}()
+	// send and monitor persisted sequences to L1
 	go func() {
 		for {
 			s.txManager.SyncPendingSequences()

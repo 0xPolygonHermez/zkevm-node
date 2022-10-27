@@ -1711,30 +1711,47 @@ func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger c
 
 // AddGeneratedProof adds a generated proof to the storage
 func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof, proof_id, input_prover, prover) VALUES ($1, $2, $3, $4, $5)"
+	const query = `
+		INSERT INTO state.proof (batch_num, proof, proof_id, input_prover, prover, status, created_at)
+						 VALUES (       $1,    $2,       $3,           $4,     $5,     $6,         $7)`
+
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
+
+	_, err := e.Exec(ctx, query, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, string(ProofStatusPending), time.Now())
 	return err
 }
 
 // UpdateGeneratedProof updates a generated proof in the storage
 func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2, proof_id = $3, input_prover = $4, prover = $5 WHERE batch_num = $1"
+	const query = `
+		UPDATE state.proof
+		   SET proof = $2, proof_id = $3, input_prover = $4, prover = $5
+		 WHERE batch_num = $1`
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
+	_, err := e.Exec(ctx, query, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
 	return err
 }
 
 // GetGeneratedProofByBatchNumber gets a generated proof from the storage
 func (p *PostgresStorage) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Proof, error) {
-	var (
-		proof *Proof = &Proof{}
-		err   error
-	)
+	const query = `
+		SELECT batch_num
+			 , proof
+			 , proof_id
+			 , input_prover
+			 , prover
+			 , tx_hash
+			 , tx_nonce
+			 , status
+			 , created_at
+			 , updated_at
+		  FROM state.proof
+		 WHERE batch_num = $1`
 
-	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE batch_num = $1"
 	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, getGeneratedProofSQL, batchNumber).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
+
+	row := e.QueryRow(ctx, query, batchNumber)
+	proof, err := scanProof(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -1763,14 +1780,24 @@ func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.
 
 // GetWIPProofByProver gets a generated proof from its prover URI
 func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string, dbTx pgx.Tx) (*Proof, error) {
-	var (
-		proof *Proof = &Proof{}
-		err   error
-	)
+	const query = `
+		SELECT batch_num
+			 , proof
+			 , proof_id
+			 , input_prover
+			 , prover
+			 , tx_hash
+			 , tx_nonce
+			 , status
+			 , created_at
+			 , updated_at
+		 WHERE prover = $1
+		   AND proof IS NULL`
 
-	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE prover = $1 and proof is null"
 	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, getGeneratedProofSQL, prover).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
+
+	row := e.QueryRow(ctx, query, prover)
+	proof, err := scanProof(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -1851,8 +1878,9 @@ func (p *PostgresStorage) CreateSequence(ctx context.Context, batchNumber uint64
 	localExitRoot common.Hash, timestamp time.Time, txs []types.Transaction, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
-	const addSequenceSQL = `INSERT INTO state.sequence (batch_num, state_root, global_exit_root, local_exit_root, timestamp, txs)
-												VALUES (       $1,         $2,               $3,              $4,        $5,  $6);`
+	const query = `
+		INSERT INTO state.sequence (batch_num, state_root, global_exit_root, local_exit_root, timestamp, txs)
+							VALUES (       $1,         $2,               $3,              $4,        $5,  $6);`
 
 	txsRLPs := make([]string, 0, len(txs))
 
@@ -1865,7 +1893,7 @@ func (p *PostgresStorage) CreateSequence(ctx context.Context, batchNumber uint64
 		txsRLPs = append(txsRLPs, txRLP)
 	}
 
-	_, err := e.Exec(ctx, addSequenceSQL, batchNumber,
+	_, err := e.Exec(ctx, query, batchNumber,
 		stateRoot.String(), globalExitRoot.String(), localExitRoot.String(),
 		timestamp, txsRLPs)
 
@@ -1876,10 +1904,11 @@ func (p *PostgresStorage) CreateSequence(ctx context.Context, batchNumber uint64
 func (p *PostgresStorage) AddSequenceGroup(ctx context.Context, sequenceGroup SequenceGroup, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
-	const addSequenceGroupSQL = `INSERT INTO state.sequence_group (tx_hash, tx_nonce, batch_nums, status, created_at)
-												           VALUES (     $1,       $2,         $3,     $4,         $5);`
+	const query = `
+		INSERT INTO state.sequence_group (tx_hash, tx_nonce, batch_nums, status, created_at)
+								  VALUES (     $1,       $2,         $3,     $4,         $5);`
 
-	_, err := e.Exec(ctx, addSequenceGroupSQL, sequenceGroup.TxHash.String(),
+	_, err := e.Exec(ctx, query, sequenceGroup.TxHash.String(),
 		sequenceGroup.TxNonce, sequenceGroup.BatchNumbers, sequenceGroup.Status, time.Now())
 
 	return err
@@ -1889,13 +1918,13 @@ func (p *PostgresStorage) AddSequenceGroup(ctx context.Context, sequenceGroup Se
 func (p *PostgresStorage) UpdateSequenceGroupTx(ctx context.Context, oldTxHash, newTxHash common.Hash, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
-	const setSequenceAsPendingSQL = `
+	const query = `
 		UPDATE state.sequence_group
 		   SET tx_hash    = $2,
 			   updated_at = $3
 		 WHERE tx_hash = $1;`
 
-	_, err := e.Exec(ctx, setSequenceAsPendingSQL, oldTxHash.String(), newTxHash.String(), time.Now())
+	_, err := e.Exec(ctx, query, oldTxHash.String(), newTxHash.String(), time.Now())
 	return err
 }
 
@@ -1903,13 +1932,13 @@ func (p *PostgresStorage) UpdateSequenceGroupTx(ctx context.Context, oldTxHash, 
 func (p *PostgresStorage) SetSequenceGroupAsConfirmed(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
-	const setSequenceAsConfirmedSQL = `
+	const query = `
 		UPDATE state.sequence_group
 		   SET status     = $2,
 		       updated_at = $3
 		 WHERE tx_hash = $1;`
 
-	_, err := e.Exec(ctx, setSequenceAsConfirmedSQL, txHash.String(), string(SequenceGroupStatusConfirmed), time.Now())
+	_, err := e.Exec(ctx, query, txHash.String(), string(SequenceGroupStatusConfirmed), time.Now())
 	return err
 }
 
@@ -1917,7 +1946,7 @@ func (p *PostgresStorage) SetSequenceGroupAsConfirmed(ctx context.Context, txHas
 func (p *PostgresStorage) GetLastSequence(ctx context.Context, dbTx pgx.Tx) (*Sequence, error) {
 	e := p.getExecQuerier(dbTx)
 
-	const getLastSequenceSQL = `
+	const query = `
 		SELECT batch_num
 			 , state_root
 			 , global_exit_root
@@ -1928,7 +1957,7 @@ func (p *PostgresStorage) GetLastSequence(ctx context.Context, dbTx pgx.Tx) (*Se
 		 ORDER BY batch_num DESC
 		 LIMIT 1;`
 
-	row := e.QueryRow(ctx, getLastSequenceSQL)
+	row := e.QueryRow(ctx, query)
 
 	seq, err := scanSequence(row)
 
@@ -1945,7 +1974,7 @@ func (p *PostgresStorage) GetLastSequence(ctx context.Context, dbTx pgx.Tx) (*Se
 func (p *PostgresStorage) GetSequencesByBatchNums(ctx context.Context, batchNumbers []uint64, dbTx pgx.Tx) ([]Sequence, error) {
 	e := p.getExecQuerier(dbTx)
 
-	const getLastSequenceSQL = `
+	const query = `
 		SELECT batch_num
 			 , state_root
 			 , global_exit_root
@@ -1956,7 +1985,7 @@ func (p *PostgresStorage) GetSequencesByBatchNums(ctx context.Context, batchNumb
 		 WHERE batch_num = ANY($1::BIGINT[])
 		 ORDER BY batch_num DESC;`
 
-	rows, err := e.Query(ctx, getLastSequenceSQL, batchNumbers)
+	rows, err := e.Query(ctx, query, batchNumbers)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -1981,7 +2010,7 @@ func (p *PostgresStorage) GetSequencesByBatchNums(ctx context.Context, batchNumb
 func (p *PostgresStorage) GetLastSequenceGroup(ctx context.Context, dbTx pgx.Tx) (*SequenceGroup, error) {
 	e := p.getExecQuerier(dbTx)
 
-	const getLastSequenceGroupSQL = `
+	const query = `
 		SELECT tx_hash
 			 , tx_nonce
 			 , batch_nums
@@ -1992,7 +2021,7 @@ func (p *PostgresStorage) GetLastSequenceGroup(ctx context.Context, dbTx pgx.Tx)
 		 ORDER BY created_at DESC
 		 LIMIT 1;`
 
-	row := e.QueryRow(ctx, getLastSequenceGroupSQL)
+	row := e.QueryRow(ctx, query)
 	group, err := scanSequenceGroup(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -2054,15 +2083,86 @@ func scanSequenceGroup(row pgx.Row) (*SequenceGroup, error) {
 
 // GetPendingProofs returns all the pending proofs
 func (p *PostgresStorage) GetPendingProofs(ctx context.Context, dbTx pgx.Tx) ([]Proof, error) {
-	panic("not implemented yet")
+	e := p.getExecQuerier(dbTx)
+
+	const query = `
+		SELECT batch_num
+			 , proof
+			 , proof_id
+			 , input_prover
+			 , prover
+			 , tx_hash
+			 , tx_nonce
+			 , status
+			 , created_at
+			 , updated_at
+		  FROM state.proof
+		 WHERE status = $1
+		 ORDER BY created_at;`
+	rows, err := e.Query(ctx, query, string(ProofStatusPending))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	proofs := make([]Proof, 0, len(rows.RawValues()))
+	for rows.Next() {
+		proof, err := scanProof(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		proofs = append(proofs, *proof)
+	}
+
+	return proofs, nil
 }
 
 // UpdateProofTx updates the proof transaction
 func (p *PostgresStorage) UpdateProofTx(ctx context.Context, batchNumber uint64, newTxHash common.Hash, dbTx pgx.Tx) error {
-	panic("not implemented yet")
+	e := p.getExecQuerier(dbTx)
+
+	const query = `
+		UPDATE state.proof
+		   SET tx_hash    = $2,
+			   updated_at = $3
+		 WHERE batch_num = $1;`
+
+	_, err := e.Exec(ctx, query, batchNumber, newTxHash.String(), time.Now())
+	return err
 }
 
 // SetProofAsConfirmed updates the proof to confirmed
 func (p *PostgresStorage) SetProofAsConfirmed(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	panic("not implemented yet")
+	e := p.getExecQuerier(dbTx)
+
+	const query = `
+		UPDATE state.proof
+		   SET status     = $2,
+		       updated_at = $3
+		 WHERE batch_num = $1;`
+
+	_, err := e.Exec(ctx, query, batchNumber, string(ProofStatusConfirmed), time.Now())
+	return err
+}
+
+func scanProof(row pgx.Row) (*Proof, error) {
+	proof := &Proof{}
+
+	var txHash, status *string
+
+	if err := row.Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover,
+		&txHash, &proof.TxNonce, &status, &proof.CreatedAt, &proof.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	if txHash != nil {
+		proofTxHash := common.HexToHash(*txHash)
+		proof.TxHash = &proofTxHash
+	}
+	if status != nil {
+		proof.Status = ProofStatus(*status)
+	}
+
+	return proof, nil
 }

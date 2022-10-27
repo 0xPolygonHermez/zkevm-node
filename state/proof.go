@@ -26,7 +26,7 @@ type Proof struct {
 	Prover      *string
 
 	TxHash    *common.Hash
-	TxNonce   uint64
+	TxNonce   *uint64
 	CreatedAt time.Time
 	UpdatedAt *time.Time
 	Status    ProofStatus

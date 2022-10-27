@@ -60,9 +60,9 @@ GenBlockNumber = 1
 [Sequencer]
 MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
-WaitPeriodSendSequence = "15s"
+WaitPeriodSendSequence = "10s"
 WaitBlocksToUpdateGER = 10
-MaxTimeForBatchToBeOpen = "15s"
+MaxTimeForBatchToBeOpen = "10s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxCumulativeGasUsed = 30000000
