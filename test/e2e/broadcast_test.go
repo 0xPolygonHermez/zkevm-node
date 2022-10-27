@@ -48,11 +48,9 @@ func TestBroadcast(t *testing.T) {
 
 	require.NoError(t, operations.StartComponent("network"))
 	require.NoError(t, operations.StartComponent("broadcast"))
-	require.NoError(t, operations.StartComponent("zkprover"))
 	defer func() {
 		require.NoError(t, operations.StopComponent("network"))
 		require.NoError(t, operations.StopComponent("broadcast"))
-		require.NoError(t, operations.StopComponent("zkprover"))
 	}()
 	st, err := initState()
 	require.NoError(t, err)
