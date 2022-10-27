@@ -540,7 +540,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		// if the transaction has an intrinsic invalid tx error it means
 		// the transaction has not changed the state, so we don't store it
 		// and just move to the next
-		if errors.Is(processedTx.Error, runtime.ErrIntrinsicInvalidTransaction) {
+		if executor.IsIntrinsicError(executor.ErrorCode(processedTx.Error)) {
 			continue
 		}
 

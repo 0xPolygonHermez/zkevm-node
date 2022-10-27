@@ -28,7 +28,8 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 	isBatchProcessed := true
 	if len(response.Responses) > 0 {
 		// Check out of counters
-		isBatchProcessed = !(response.Responses[len(response.Responses)-1].Error == pb.Error_ERROR_OUT_OF_COUNTERS)
+		errorToCheck := response.Responses[len(response.Responses)-1].Error
+		isBatchProcessed = !executor.IsOutOfCountersError(errorToCheck)
 	}
 
 	return &ProcessBatchResponse{
@@ -48,7 +49,7 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 }
 
 func isProcessed(err pb.Error) bool {
-	return err != pb.Error_ERROR_INTRINSIC_INVALID_TX && err != pb.Error_ERROR_OUT_OF_COUNTERS
+	return !executor.IsIntrinsicError(err) && !executor.IsOutOfCountersError(err)
 }
 
 func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {

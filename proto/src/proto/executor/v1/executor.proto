@@ -212,13 +212,37 @@ enum Error {
     ERROR_EXECUTION_REVERTED = 11;
     // ERROR_CODE_STORE_OUT_OF_GAS indicates there is not enough gas for the storage
     ERROR_CODE_STORE_OUT_OF_GAS = 12;
-    // ERROR_OUT_OF_COUNTERS indicates there is not enough counters to continue the execution
-    ERROR_OUT_OF_COUNTERS = 13;
-    // ERROR_INVALID_TX indicates the transaction is invalid because of invalid jump dest, invalid opcode, invalid deploy
+    // ERROR_OUT_OF_COUNTERS_STEP indicates there are not enough step counters to continue the execution
+    ERROR_OUT_OF_COUNTERS_STEP = 13;
+    // ERROR_OUT_OF_COUNTERS_KECCAK indicates there are not enough keccak counters to continue the execution
+    ERROR_OUT_OF_COUNTERS_KECCAK = 14;
+    // ERROR_OUT_OF_COUNTERS_BINARY indicates there are not enough binary counters to continue the execution
+    ERROR_OUT_OF_COUNTERS_BINARY = 15;
+    // ERROR_OUT_OF_COUNTERS_MEM indicates there are not enough memory aligncounters to continue the execution
+    ERROR_OUT_OF_COUNTERS_MEM = 16;
+    // ERROR_OUT_OF_COUNTERS_ARITH indicates there are not enough arith counters to continue the execution
+    ERROR_OUT_OF_COUNTERS_ARITH = 17;
+    // ERROR_OUT_OF_COUNTERS_PADDING indicates there are not enough padding counters to continue the execution
+    ERROR_OUT_OF_COUNTERS_PADDING = 18;
+    // ERROR_OUT_OF_COUNTERS_POSEIDON indicates there are not enough poseidon counters to continue the execution
+    ERROR_OUT_OF_COUNTERS_POSEIDON = 19;
+    // ERROR_INVALID_TX indicates the transaction are invalid because of invalid jump dest, invalid opcode, invalid deploy
     // or invalid static tx
-    ERROR_INVALID_TX = 14;
-    // ERROR_INTRINSIC_INVALID_TX indicates the transaction is failing at the intrinsic checks
-    ERROR_INTRINSIC_INVALID_TX = 15;
+    ERROR_INVALID_TX = 20;
+    // ERROR_INTRINSIC_INVALID_SIGNATURE indicates the transaction is failing at the signature intrinsic check
+    ERROR_INTRINSIC_INVALID_SIGNATURE = 21;
+    // ERROR_INTRINSIC_INVALID_CHAIN_ID indicates the transaction is failing at the chain id intrinsic check
+    ERROR_INTRINSIC_INVALID_CHAIN_ID = 22;
+    // ERROR_INTRINSIC_INVALID_NONCE indicates the transaction is failing at the nonce intrinsic check
+    ERROR_INTRINSIC_INVALID_NONCE = 23;
+    // ERROR_INTRINSIC_INVALID_GAS indicates the transaction is failing at the gas limit intrinsic check
+    ERROR_INTRINSIC_INVALID_GAS_LIMIT = 24;
+    // ERROR_INTRINSIC_INVALID_BALANCE indicates the transaction is failing at balance intrinsic check
+    ERROR_INTRINSIC_INVALID_BALANCE = 25;
+    // ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT indicates the batch is exceeding the batch gas limit
+    ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT = 26; 
+    // ERROR_INTRINSIC_INVALID_SENDER_CODE indicates the batch is exceeding the batch gas limit
+    ERROR_INTRINSIC_INVALID_SENDER_CODE = 27; 
     // ERROR_BATCH_DATA_TOO_BIG indicates the batch_l2_data is too big to be processed
-    ERROR_BATCH_DATA_TOO_BIG = 16;
+    ERROR_BATCH_DATA_TOO_BIG = 28;
 }

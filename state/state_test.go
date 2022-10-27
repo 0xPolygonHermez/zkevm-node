@@ -1385,7 +1385,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 			require.NoError(t, err)
 
 			transactionResponses := processBatchResponse.GetResponses()
-			assert.Equal(t, executorclientpb.Error_ERROR_INTRINSIC_INVALID_TX, transactionResponses[0].Error, "invalid tx Error, it is expected to be INVALID TX")
+			assert.Equal(t, true, executor.IsIntrinsicError(transactionResponses[0].Error), "invalid tx Error, it is expected to be INVALID TX")
 		})
 	}
 }
