@@ -6,14 +6,16 @@ package ethtxmanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -71,11 +73,11 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 		err = c.ethMan.WaitTxToBeMined(ctx, tx, c.cfg.WaitTxToBeMined.Duration)
 		if err != nil {
 			attempts++
-			if strings.Contains(err.Error(), "out of gas") {
+			if errors.Is(err, runtime.ErrOutOfGas) {
 				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
 				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
 				continue
-			} else if strings.Contains(err.Error(), "context deadline exceeded") {
+			} else if errors.Is(err, operations.ErrTimeoutReached) {
 				nonce = new(big.Int).SetUint64(tx.Nonce())
 				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
 				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
@@ -130,11 +132,11 @@ func (c *Client) VerifyBatch(ctx context.Context, batchNum uint64, resGetProof *
 		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
 		err = c.ethMan.WaitTxToBeMined(ctx, tx, c.cfg.WaitTxToBeMined.Duration)
 		if err != nil {
-			if strings.Contains(err.Error(), "out of gas") {
+			if errors.Is(err, runtime.ErrOutOfGas) {
 				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
 				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
 				continue
-			} else if strings.Contains(err.Error(), "context deadline exceeded") {
+			} else if errors.Is(err, operations.ErrTimeoutReached) {
 				nonce = new(big.Int).SetUint64(tx.Nonce())
 				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
 				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
