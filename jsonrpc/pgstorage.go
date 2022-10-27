@@ -23,6 +23,9 @@ const (
 // ErrNotFound represent a not found error.
 var ErrNotFound = errors.New("object not found")
 
+// ErrFilterInvalidPayload indicates there is an invalid payload when creating a filter
+var ErrFilterInvalidPayload = errors.New("invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other")
+
 // PostgresStorage uses a postgres database to store the data
 // related to the json rpc server
 type PostgresStorage struct {
@@ -43,6 +46,9 @@ func NewPostgresStorage(cfg db.Config) (*PostgresStorage, error) {
 
 // NewLogFilter persists a new log filter
 func (s *PostgresStorage) NewLogFilter(filter LogFilter) (uint64, error) {
+	if filter.BlockHash != nil && (filter.FromBlock != nil || filter.ToBlock != nil) {
+		return 0, ErrFilterInvalidPayload
+	}
 	parametersBytes, err := json.Marshal(&filter)
 	if err != nil {
 		return 0, err
