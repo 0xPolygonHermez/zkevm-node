@@ -135,7 +135,8 @@ func convertToStructLogArray(responses []*pb.ExecutionTraceStep) (*[]instrumenta
 		result.Stack = convertedStack
 		result.ReturnData = response.ReturnData
 		result.Storage = convertToProperMap(response.Storage)
-		result.Depth = int(response.Depth)
+		// TODO: Remove +1 once executor properly returns these values
+		result.Depth = int(response.Depth + 1)
 		result.RefundCounter = response.GasRefund
 		result.Err = executor.Err(response.Error)
 
