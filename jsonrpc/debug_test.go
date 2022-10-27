@@ -1,5 +1,9 @@
 package jsonrpc_test
 
+// Test to be run with full node working and synchronized
+// to compare result of debug_traceTransaction between geth and zkevm-node
+
+/*
 import (
 	"bytes"
 	"context"
@@ -123,87 +127,12 @@ func TestTraceTransaction(t *testing.T) {
 	require.NoError(t, err)
 	log.Debugf("L2 nonce = %v", nonceL2)
 
-	/*
-			// Set Genesis
-			block := state.Block{
-				BlockNumber: 0,
-				BlockHash:   state.ZeroHash,
-				ParentHash:  state.ZeroHash,
-				ReceivedAt:  time.Now(),
-			}
-
-			genesis := state.Genesis{
-				Actions: []*state.GenesisAction{
-					{
-						Address: senderAddress.String(),
-						Type:    int(merkletree.LeafTypeBalance),
-						Value:   "999977784139164252154",
-					},
-					{
-						Address: senderAddress.String(),
-						Type:    int(merkletree.LeafTypeNonce),
-						Value:   fmt.Sprintf("%v", nonceL1),
-					},
-				},
-			}
-
-			dbTx, err := testState.BeginStateTransaction(ctx)
-			require.NoError(t, err)
-			stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
-			require.NoError(t, err)
-			require.NoError(t, dbTx.Commit(ctx))
-
-		nonceL2, err := l2Client.PendingNonceAt(ctx, senderAddress)
-		require.NoError(t, err)
-		log.Debugf("L2 nonce = %v", nonceL2)
-
-		// Create transaction
-		tx := types.NewTx(&types.LegacyTx{
-			Nonce:    nonceL2,
-			To:       &senderAddress,
-			Value:    new(big.Int).SetUint64(2),
-			Gas:      uint64(30000),
-			GasPrice: new(big.Int).SetUint64(1),
-			Data:     nil,
-		})
-	*/
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(senderPvtKey, "0x"))
 	require.NoError(t, err)
 	authL1, err := bind.NewKeyedTransactorWithChainID(privateKey, l1ChainID)
 	require.NoError(t, err)
 	authL2, err := bind.NewKeyedTransactorWithChainID(privateKey, l2ChainID)
 	require.NoError(t, err)
-	/*
-		signedTxL2, err := authL2.Signer(authL2.From, tx)
-		require.NoError(t, err)
-
-		batchL2Data, err := state.EncodeTransactions([]types.Transaction{*signedTxL2})
-		require.NoError(t, err)
-
-		// Create Batch
-		processBatchRequest := &executorclientpb.ProcessBatchRequest{
-			BatchNum:         1,
-			Coinbase:         senderAddress.String(),
-			BatchL2Data:      batchL2Data,
-			OldStateRoot:     common.HexToHash("0x2f6faa6d4df6548625caca49d4b474e7283173bcedd37480c7c88a221e739399").Bytes(),
-			GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-			EthTimestamp:     uint64(0),
-			UpdateMerkleTree: 1,
-			ChainId:          l2ChainID.Uint64(),
-		}
-
-		// Process batch
-		_, err = executorClient.ProcessBatch(ctx, processBatchRequest)
-		require.NoError(t, err)
-	*/
-
-	/*
-		// L1
-		balance, err := l1Client.BalanceAt(context.Background(), senderAddress, nil)
-		require.NoError(t, err)
-		require.Equal(t, "999977784139164252154", balance.String())
-	*/
 
 	// L2
 	balance, err := l2Client.BalanceAt(context.Background(), senderAddress, nil)
@@ -213,13 +142,7 @@ func TestTraceTransaction(t *testing.T) {
 	// Deploy SC
 	scRevertByteCode, err := testutils.ReadBytecode("Revert2/Revert2.bin")
 	require.NoError(t, err)
-	/*
-		nonceL2, err = l2Client.NonceAt(ctx, senderAddress, nil)
-		require.NoError(t, err)
-		log.Debugf("L2 nonce = %v", nonceL2)
 
-		require.Equal(t, nonceL1, nonceL2)
-	*/
 	gasPrice, err := l1Client.SuggestGasPrice(ctx)
 	require.NoError(t, err)
 
@@ -277,9 +200,6 @@ func TestTraceTransaction(t *testing.T) {
 	_, err = debugTransaction(t, l2URL, signedTxL2.Hash().String())
 	require.NoError(t, err)
 
-	// Try it directly against state
-	// _, err = testState.DebugTransaction(ctx, tx.Hash(), tracer, nil)
-	// require.NoError(t, err)
 }
 
 func debugTransaction(t *testing.T, nodeURL string, hash string) (string, error) {
@@ -299,8 +219,7 @@ func debugTransaction(t *testing.T, nodeURL string, hash string) (string, error)
 	err = json.Unmarshal(byteCode, &tracer)
 	require.NoError(t, err)
 
-	// json := `{"jsonrpc": "2.0", "id": 1, "method": "debug_traceTransaction", "params": ["` + hash + `", {"tracer":"` + strings.ReplaceAll(tracer.Code, "\n", " ") + `", "disableStack": true, "disableMemory": true, "disableStorage": true}]}`
-	json := `{"jsonrpc": "2.0", "id": 1, "method": "debug_traceTransaction", "params": ["` + hash + `", {"disableStack": true, "disableMemory": true, "disableStorage": true}]}`
+	json := `{"jsonrpc": "2.0", "id": 1, "method": "debug_traceTransaction", "params": ["` + hash + `", {"tracer":"` + tracer.Code + `", "disableStack": false, "disableMemory": false, "disableStorage": false}]}`
 
 	// log.Debugf("Request with:", json)
 	jsonByte := []byte(json)
@@ -313,3 +232,4 @@ func debugTransaction(t *testing.T, nodeURL string, hash string) (string, error)
 	log.Debugf("Response info: " + resp.Status + " " + string(body))
 	return string(body), err
 }
+*/
