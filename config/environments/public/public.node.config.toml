@@ -31,8 +31,8 @@ GlobalExitRootManagerAddr = "0x762d09Ed110ace4EaC94acbb67b1C35D16C3297b"
 [RPC]
 Host = "0.0.0.0"
 Port = 8545
-ReadTimeoutInSec = 1
-WriteTimeoutInSec = 1
+ReadTimeoutInSec = 60
+WriteTimeoutInSec = 60
 MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://public.zkevm-test.net:2083"
 BroadcastURI = "public-grpc.zkevm-test.net:61090"
