@@ -763,10 +763,8 @@ func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
 		etherscanGasPrice, err = etherMan.GasProviders.EtherScan.GetGasPrice(ctx)
 		if err != nil {
 			log.Warn("error getting gas price from Etherscan. Error: ", err)
-		} else {
-			if gp.Cmp(etherscanGasPrice) == -1 { // gp < etherscanGasPrice
-				gp = etherscanGasPrice
-			}
+		} else if gp.Cmp(etherscanGasPrice) == -1 { // gp < etherscanGasPrice
+			gp = etherscanGasPrice
 		}
 	}
 	log.Debug("etherscanGasPrice: ", etherscanGasPrice)
@@ -775,10 +773,8 @@ func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
 	ethGasStationGasPrice, err := etherMan.GasProviders.EthGasStation.GetGasPrice(ctx)
 	if err != nil {
 		log.Warn("error getting gas price from EthGasStation. Error: ", err)
-	} else {
-		if gp.Cmp(ethGasStationGasPrice) == -1 { // gp < ethGasStationGasPrice
-			gp = ethGasStationGasPrice
-		}
+	} else if gp.Cmp(ethGasStationGasPrice) == -1 { // gp < ethGasStationGasPrice
+		gp = ethGasStationGasPrice
 	}
 	log.Debug("ethGasStationGasPrice: ", ethGasStationGasPrice)
 	log.Debug("gasPrice choosed: ", gp)
