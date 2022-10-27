@@ -270,6 +270,10 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 
 	mockery --name=txManager --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=TxmanagerMock --filename=mock_txmanager.go
 	mockery --name=etherman --dir=../sequencer --output=../sequencer/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
+	mockery --name=stateInterface --dir=sequencer --output=sequencer/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
+	mockery --name=txPool --dir=sequencer --output=sequencer/mocks --outpkg=mocks --structname=PoolMock --filename=mock_pool.go
+	mockery --name=gasPriceEstimator --dir=sequencer --output=sequencer/mocks --outpkg=mocks --structname=GasPriceEstimatorMock --filename=mock_gaspriceestimator.go
+	mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=sequencer/mocks --outpkg=mocks --structname=DbTxMock --filename=mock_dbtx.go
 	mockery --name=etherman --dir=../sequencer/profitabilitychecker --output=../sequencer/profitabilitychecker/mocks --outpkg=mocks --structname=EthermanMock --filename=mock_etherman.go
 	mockery --name=stateInterface --dir=../sequencer/broadcast --output=../sequencer/broadcast/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
 

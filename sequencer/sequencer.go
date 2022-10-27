@@ -25,8 +25,7 @@ type Sequencer struct {
 	checker   *profitabilitychecker.Checker
 	gpe       gasPriceEstimator
 
-	address          common.Address
-	isSequenceTooBig bool
+	address common.Address
 
 	sequenceInProgress types.Sequence
 }

@@ -13,6 +13,7 @@ type Sequence struct {
 	GlobalExitRoot, StateRoot, LocalExitRoot common.Hash
 	Timestamp                                int64
 	Txs                                      []types.Transaction
+	IsSequenceTooBig                         bool
 }
 
 // IsEmpty checks is sequence struct is empty
