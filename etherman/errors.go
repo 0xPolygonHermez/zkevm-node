@@ -18,7 +18,7 @@ var (
 	//ErrNoSigner no signer to authorize the transaction with
 	ErrNoSigner = errors.New("no signer to authorize the transaction with")
 
-	errorsFromPoEContract = map[string]error{
+	errorsCache = map[string]error{
 		ErrGasRequiredExceedsAllowance.Error():             ErrGasRequiredExceedsAllowance,
 		ErrContentLengthTooLarge.Error():                   ErrContentLengthTooLarge,
 		ErrTimestampMustBeInsideRange.Error():              ErrTimestampMustBeInsideRange,
@@ -30,6 +30,6 @@ var (
 )
 
 func tryParseError(err error) (error, bool) {
-	parsedError, exists := errorsFromPoEContract[err.Error()]
+	parsedError, exists := errorsCache[err.Error()]
 	return parsedError, exists
 }
