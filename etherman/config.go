@@ -17,5 +17,6 @@ type Config struct {
 	PrivateKeyPath     string `mapstructure:"PrivateKeyPath"`
 	PrivateKeyPassword string `mapstructure:"PrivateKeyPassword"`
 
-	Etherscan etherscan.Config
+	MultiGasProvider bool `mapstructure:"MultiGasProvider"`
+	Etherscan        etherscan.Config
 }

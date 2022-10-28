@@ -76,8 +76,9 @@ type ethClienter interface {
 }
 
 type externalGasProviders struct {
-	EtherScan     gasPricer
-	EthGasStation gasPricer
+	MultiGasProvider bool
+	EtherScan        gasPricer
+	EthGasStation    gasPricer
 }
 
 // Client is a simple implementation of EtherMan.
@@ -117,15 +118,19 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, cfg.PoEAddr, cfg.GlobalExitRootManagerAddr)
 
-	var ethscan gasPricer = nil
-	var ethGasSt gasPricer
-	if cfg.Etherscan.ApiKey == "" {
-		log.Info("No ApiKey provided for etherscan. Ignoring provider...")
-	} else {
-		log.Info("ApiKey detected for etherscan")
-		ethscan = etherscan.NewEtherscanService(cfg.Etherscan.ApiKey)
+	var (
+		ethscan  gasPricer
+		ethGasSt gasPricer
+	)
+	if cfg.MultiGasProvider {
+		if cfg.Etherscan.ApiKey == "" {
+			log.Info("No ApiKey provided for etherscan. Ignoring provider...")
+		} else {
+			log.Info("ApiKey detected for etherscan")
+			ethscan = etherscan.NewEtherscanService(cfg.Etherscan.ApiKey)
+		}
+		ethGasSt = ethgasstation.NewEthGasStationService()
 	}
-	ethGasSt = ethgasstation.NewEthGasStationService()
 
 	return &Client{
 		EtherClient:           ethClient,
@@ -134,8 +139,9 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 		GlobalExitRootManager: globalExitRoot,
 		SCAddresses:           scAddresses,
 		GasProviders: externalGasProviders{
-			EtherScan:     ethscan,
-			EthGasStation: ethGasSt,
+			MultiGasProvider: cfg.MultiGasProvider,
+			EtherScan:        ethscan,
+			EthGasStation:    ethGasSt,
 		},
 		auth: auth}, nil
 }
@@ -280,7 +286,7 @@ func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanT
 	sendSequencesOpts.GasLimit = gasLimit
 	if gasPrice != nil {
 		sendSequencesOpts.GasPrice = gasPrice
-	} else {
+	} else if etherMan.GasProviders.MultiGasProvider {
 		sendSequencesOpts.GasPrice = etherMan.getGasPrice(ctx)
 	}
 	if nonce != nil {
@@ -333,7 +339,7 @@ func (etherMan *Client) VerifyBatch(ctx context.Context, batchNumber uint64, res
 	verifyBatchOpts.GasLimit = gasLimit
 	if gasPrice != nil {
 		verifyBatchOpts.GasPrice = gasPrice
-	} else {
+	} else if etherMan.GasProviders.MultiGasProvider {
 		verifyBatchOpts.GasPrice = etherMan.getGasPrice(ctx)
 	}
 	if nonce != nil {
@@ -688,8 +694,11 @@ func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 
 // ApproveMatic function allow to approve tokens in matic smc
 func (etherMan *Client) ApproveMatic(ctx context.Context, maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
-	etherMan.auth.GasPrice = etherMan.getGasPrice(ctx)
-	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
+	opts := *etherMan.auth
+	if etherMan.GasProviders.MultiGasProvider {
+		opts.GasPrice = etherMan.getGasPrice(ctx)
+	}
+	tx, err := etherMan.Matic.Approve(&opts, etherMan.SCAddresses[0], maticAmount)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
