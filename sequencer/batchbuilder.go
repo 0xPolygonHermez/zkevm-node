@@ -341,16 +341,6 @@ func (s *Sequencer) closeSequence(ctx context.Context) error {
 	return nil
 }
 
-func (s *Sequencer) isSequenceProfitable(ctx context.Context) bool {
-	isProfitable, err := s.checker.IsSequenceProfitable(ctx, s.sequenceInProgress)
-	if err != nil {
-		log.Errorf("failed to check is sequence profitable, err: %w", err)
-		return false
-	}
-
-	return isProfitable
-}
-
 func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
@@ -441,36 +431,6 @@ func (s *Sequencer) storeProcessedTransactions(ctx context.Context, processedTxs
 
 	if err := dbTx.Commit(ctx); err != nil {
 		log.Errorf("failed to commit dbTx when StoreTransactions, err: %w", err)
-		return err
-	}
-
-	return nil
-}
-
-func (s *Sequencer) updateGerInBatch(ctx context.Context, lastGer *state.GlobalExitRoot) error {
-	log.Info("update GER without closing batch as no txs have been added yet")
-
-	dbTx, err := s.state.BeginStateTransaction(ctx)
-	if err != nil {
-		log.Errorf("failed to begin state transaction for UpdateGERInOpenBatch tx, err: %w", err)
-		return err
-	}
-
-	err = s.state.UpdateGERInOpenBatch(ctx, lastGer.GlobalExitRoot, dbTx)
-	if err != nil {
-		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-			log.Errorf(
-				"failed to rollback dbTx when UpdateGERInOpenBatch that gave err: %w. Rollback err: %w",
-				rollbackErr, err,
-			)
-			return err
-		}
-		log.Errorf("failed to update ger in open batch, err: %w", err)
-		return err
-	}
-
-	if err := dbTx.Commit(ctx); err != nil {
-		log.Errorf("failed to commit dbTx when processing UpdateGERInOpenBatch, err: %w", err.Error())
 		return err
 	}
 
