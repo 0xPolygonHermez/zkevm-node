@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -506,7 +505,7 @@ func (s *Sequencer) appendPendingTxs(ctx context.Context, isClaims bool, minGasP
 		return 0
 	}
 	var (
-		invalidTxsCounter int
+		invalidTxsCounter        int
 		zkCountersBeforeAddition pool.ZkCounters
 		pendTxsPreSelected       []ethTypes.Transaction
 	)

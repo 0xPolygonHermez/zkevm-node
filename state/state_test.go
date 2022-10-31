@@ -194,7 +194,7 @@ func TestOpenCloseBatch(t *testing.T) {
 		LocalExitRoot: common.HexToHash("1"),
 	}
 	err = testState.CloseBatch(ctx, receipt1, dbTx)
-	require.Equal(t, state.ErrClosingBatchWithoutTxs, err)
+	require.NoError(t, err)
 	require.NoError(t, dbTx.Rollback(ctx))
 	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -287,7 +287,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	}
 	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, tx)
 	require.NoError(t, err)
-	exit, _, err := testState.GetLatestGlobalExitRoot(ctx, math.MaxUint64, tx)
+	exit, _, err := testState.GetLatestGlobalExitRoot(ctx, math.MaxInt, tx)
 	require.NoError(t, err)
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
