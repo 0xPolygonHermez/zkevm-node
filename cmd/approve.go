@@ -24,7 +24,7 @@ func approveTokens(ctx *cli.Context) error {
 
 	if !ctx.Bool(config.FlagYes) {
 		fmt.Print("*WARNING* Are you sure you want to approve ", amount,
-			" tokens to be spent by the smc <Name: PoE. Address: "+c.NetworkConfig.PoEAddr.String()+">? [y/N]: ")
+			" tokens to be spent by the smc <Name: PoE. Address: "+c.Etherman.PoEAddr.String()+">? [y/N]: ")
 		var input string
 		if _, err := fmt.Scanln(&input); err != nil {
 			return err
@@ -37,10 +37,6 @@ func approveTokens(ctx *cli.Context) error {
 
 	setupLog(c.Log)
 
-	runStateMigrations(c.StateDB)
-	runPoolMigrations(c.PoolDB)
-	runRPCMigrations(c.RPC.DB)
-
 	// Check if it is already registered
 	etherman, err := newEtherman(*c)
 	if err != nil {
@@ -52,7 +48,7 @@ func approveTokens(ctx *cli.Context) error {
 	amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
 	amountB := new(big.Int)
 	amountInWei.Int(amountB)
-	tx, err := etherman.ApproveMatic(amountB, c.NetworkConfig.PoEAddr)
+	tx, err := etherman.ApproveMatic(ctx.Context, amountB, c.Etherman.PoEAddr)
 	if err != nil {
 		return err
 	}
@@ -60,14 +56,19 @@ func approveTokens(ctx *cli.Context) error {
 		mainnet = 1
 		rinkeby = 4
 		goerli  = 5
+		local   = 1337
 	)
-	switch c.NetworkConfig.L1ChainID {
+	switch c.Etherman.L1ChainID {
 	case mainnet:
 		fmt.Println("Check tx status: https://etherscan.io/tx/" + tx.Hash().String())
 	case rinkeby:
 		fmt.Println("Check tx status: https://rinkeby.etherscan.io/tx/" + tx.Hash().String())
 	case goerli:
 		fmt.Println("Check tx status: https://goerli.etherscan.io/tx/" + tx.Hash().String())
+	case local:
+		fmt.Println("Local network. Tx Hash: " + tx.Hash().String())
+	default:
+		fmt.Println("Unknown network. Tx Hash: " + tx.Hash().String())
 	}
 	return nil
 }

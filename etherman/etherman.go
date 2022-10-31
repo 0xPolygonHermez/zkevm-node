@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/globalexitrootmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
@@ -36,6 +38,7 @@ var (
 	setTrustedSequencerURLSignatureHash = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))
 	setForceBatchAllowedSignatureHash   = crypto.Keccak256Hash([]byte("SetForceBatchAllowed(bool)"))
 	setTrustedSequencerSignatureHash    = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))
+	transferOwnershipSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 
 	// Proxy events
 	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
@@ -68,6 +71,13 @@ type ethClienter interface {
 	ethereum.LogFilterer
 	ethereum.TransactionReader
 	ethereum.ContractCaller
+	ethereum.GasPricer
+	bind.DeployBackend
+}
+
+type externalGasProviders struct {
+	MultiGasProvider bool
+	Providers        []ethereum.GasPricer
 }
 
 // Client is a simple implementation of EtherMan.
@@ -78,11 +88,13 @@ type Client struct {
 	Matic                 *matic.Matic
 	SCAddresses           []common.Address
 
+	GasProviders externalGasProviders
+
 	auth *bind.TransactOpts
 }
 
 // NewClient creates a new etherman.
-func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, maticAddr common.Address, globalExitRootManAddr common.Address) (*Client, error) {
+func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -90,22 +102,43 @@ func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, mati
 		return nil, err
 	}
 	// Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(PoEAddr, ethClient)
+	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
-	globalExitRoot, err := globalexitrootmanager.NewGlobalexitrootmanager(globalExitRootManAddr, ethClient)
+	globalExitRoot, err := globalexitrootmanager.NewGlobalexitrootmanager(cfg.GlobalExitRootManagerAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
-	matic, err := matic.NewMatic(maticAddr, ethClient)
+	matic, err := matic.NewMatic(cfg.MaticAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, PoEAddr, globalExitRootManAddr)
+	scAddresses = append(scAddresses, cfg.PoEAddr, cfg.GlobalExitRootManagerAddr)
 
-	return &Client{EtherClient: ethClient, PoE: poe, Matic: matic, GlobalExitRootManager: globalExitRoot, SCAddresses: scAddresses, auth: auth}, nil
+	gProviders := []ethereum.GasPricer{ethClient}
+	if cfg.MultiGasProvider {
+		if cfg.Etherscan.ApiKey == "" {
+			log.Info("No ApiKey provided for etherscan. Ignoring provider...")
+		} else {
+			log.Info("ApiKey detected for etherscan")
+			gProviders = append(gProviders, etherscan.NewEtherscanService(cfg.Etherscan.ApiKey))
+		}
+		gProviders = append(gProviders, ethgasstation.NewEthGasStationService())
+	}
+
+	return &Client{
+		EtherClient:           ethClient,
+		PoE:                   poe,
+		Matic:                 matic,
+		GlobalExitRootManager: globalExitRoot,
+		SCAddresses:           scAddresses,
+		GasProviders: externalGasProviders{
+			MultiGasProvider: cfg.MultiGasProvider,
+			Providers:        gProviders,
+		},
+		auth: auth}, nil
 }
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
@@ -182,6 +215,9 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	case upgradedSignatureHash:
 		log.Debug("Upgraded event detected")
 		return nil
+	case transferOwnershipSignatureHash:
+		log.Debug("TransferOwnership event detected")
+		return nil
 	}
 	log.Warn("Event not registered: ", vLog)
 	return nil
@@ -223,8 +259,8 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 }
 
 // WaitTxToBeMined waits for an L1 tx to be mined. It will return error if the tx is reverted or timeout is exceeded
-func (etherMan *Client) WaitTxToBeMined(hash common.Hash, timeout time.Duration) error {
-	return operations.WaitTxToBeMined(etherMan.EtherClient, hash, timeout)
+func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) error {
+	return operations.WaitTxToBeMined(ctx, etherMan.EtherClient, tx, timeout)
 }
 
 // EstimateGasSequenceBatches estimates gas for sending batches
@@ -240,11 +276,16 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 }
 
 // SequenceBatches send sequences of batches to the ethereum
-func (etherMan *Client) SequenceBatches(sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	sendSequencesOpts := *etherMan.auth
 	sendSequencesOpts.GasLimit = gasLimit
 	if gasPrice != nil {
 		sendSequencesOpts.GasPrice = gasPrice
+	} else if etherMan.GasProviders.MultiGasProvider {
+		sendSequencesOpts.GasPrice = etherMan.getGasPrice(ctx)
+	}
+	if nonce != nil {
+		sendSequencesOpts.Nonce = nonce
 	}
 	return etherMan.sequenceBatches(&sendSequencesOpts, sequences)
 }
@@ -265,7 +306,15 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 
 		batches = append(batches, batch)
 	}
-	return etherMan.PoE.SequenceBatches(opts, batches)
+
+	transaction, err := etherMan.PoE.SequenceBatches(opts, batches)
+	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			err = parsedErr
+		}
+	}
+
+	return transaction, err
 }
 
 // EstimateGasForVerifyBatch estimates gas for verify batch smart contract call
@@ -280,11 +329,16 @@ func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProo
 }
 
 // VerifyBatch send verifyBatch request to the ethereum
-func (etherMan *Client) VerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) VerifyBatch(ctx context.Context, batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.GasLimit = gasLimit
 	if gasPrice != nil {
 		verifyBatchOpts.GasPrice = gasPrice
+	} else if etherMan.GasProviders.MultiGasProvider {
+		verifyBatchOpts.GasPrice = etherMan.getGasPrice(ctx)
+	}
+	if nonce != nil {
+		verifyBatchOpts.Nonce = nonce
 	}
 	return etherMan.verifyBatch(&verifyBatchOpts, batchNumber, resGetProof)
 }
@@ -634,11 +688,19 @@ func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 }
 
 // ApproveMatic function allow to approve tokens in matic smc
-func (etherMan *Client) ApproveMatic(maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
-	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
+func (etherMan *Client) ApproveMatic(ctx context.Context, maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
+	opts := *etherMan.auth
+	if etherMan.GasProviders.MultiGasProvider {
+		opts.GasPrice = etherMan.getGasPrice(ctx)
+	}
+	tx, err := etherMan.Matic.Approve(&opts, etherMan.SCAddresses[0], maticAmount)
 	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			err = parsedErr
+		}
 		return nil, fmt.Errorf("error approving balance to send the batch. Error: %w", err)
 	}
+
 	return tx, nil
 }
 
@@ -692,9 +754,27 @@ func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64,
 		proofB,
 		proofC,
 	)
-
 	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			err = parsedErr
+		}
 		return nil, err
 	}
+
 	return tx, nil
+}
+
+func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
+	// Get gasPrice from providers
+	gasPrice := big.NewInt(0)
+	for i, prov := range etherMan.GasProviders.Providers {
+		gp, err := prov.SuggestGasPrice(ctx)
+		if err != nil {
+			log.Warnf("error getting gas price from provider %d. Error: %s", i+1, err.Error())
+		} else if gasPrice.Cmp(gp) == -1 { // gasPrice < gp
+			gasPrice = gp
+		}
+	}
+	log.Debug("gasPrice choosed: ", gasPrice)
+	return gasPrice
 }

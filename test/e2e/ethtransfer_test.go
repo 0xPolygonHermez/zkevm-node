@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"math/big"
-	"os"
 	"testing"
 	"time"
 
@@ -16,14 +15,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func init() {
-	os.Setenv("CONFIG_MODE", "test")
-}
-
 func TestEthTransfer(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+
+	ctx := context.Background()
 
 	defer func() { require.NoError(t, operations.Teardown()) }()
 
@@ -85,7 +82,7 @@ func TestEthTransfer(t *testing.T) {
 	timeout := 180 * time.Second
 	for _, tx := range sentTxs {
 		log.Infof("Waiting Tx %s to be mined", tx.Hash())
-		err = operations.WaitTxToBeMined(client, tx.Hash(), timeout)
+		err = operations.WaitTxToBeMined(ctx, client, tx, timeout)
 		require.NoError(t, err)
 		log.Infof("Tx %s mined successfully", tx.Hash())
 

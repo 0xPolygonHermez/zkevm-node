@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -65,9 +66,9 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.216.26")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
-	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:51071", zkProverURI)}
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
 	executorClient, executorClientConn, executorCancel = executor.NewExecutorClient(ctx, executorServerConfig)
 	s := executorClientConn.GetState()
@@ -77,7 +78,7 @@ func TestMain(m *testing.M) {
 		executorClientConn.Close()
 	}()
 
-	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:51061", zkProverURI)}
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
 	var mtDBCancel context.CancelFunc
 	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	s = mtDBClientConn.GetState()
@@ -226,7 +227,7 @@ func TestOpenCloseBatch(t *testing.T) {
 		GlobalExitRoot: common.HexToHash("c"),
 	}
 	err = testState.OpenBatch(ctx, processingCtx3, dbTx)
-	require.True(t, strings.Contains(err.Error(), "unexpected batch"))
+	require.ErrorIs(t, err, state.ErrUnexpectedBatch)
 	// Fail opening batch #2 (invalid timestamp)
 	processingCtx2.Timestamp = processingCtx1.Timestamp.Add(-1 * time.Second)
 	err = testState.OpenBatch(ctx, processingCtx2, dbTx)
@@ -286,7 +287,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	}
 	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, tx)
 	require.NoError(t, err)
-	exit, err := testState.GetLatestGlobalExitRoot(ctx, tx)
+	exit, _, err := testState.GetLatestGlobalExitRoot(ctx, math.MaxUint64, tx)
 	require.NoError(t, err)
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
@@ -580,7 +581,6 @@ func TestExecuteTransaction(t *testing.T) {
 	// TODO: assert processBatchResponse to make sure that the response makes sense
 }
 
-/*
 func TestCheckSupersetBatchTransactions(t *testing.T) {
 	tcs := []struct {
 		description      string
@@ -654,7 +654,6 @@ func TestCheckSupersetBatchTransactions(t *testing.T) {
 		})
 	}
 }
-*/
 
 func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	// Init database instance

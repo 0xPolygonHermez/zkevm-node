@@ -42,7 +42,7 @@ type etherman interface {
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*state.GlobalExitRoot, error)
+	GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error)
 	GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uint64, dbTx pgx.Tx) ([]common.Hash, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
@@ -69,7 +69,7 @@ type stateInterface interface {
 }
 
 type txManager interface {
-	SequenceBatches(sequences []ethmanTypes.Sequence)
+	SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) error
 }
 
 // priceGetter is for getting eth/matic price, used for the tx profitability checker

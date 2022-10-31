@@ -28,8 +28,15 @@ MaxConns = 200
 
 [Etherman]
 URL = "http://localhost:8545"
-PrivateKeyPath = "./test/test.keystore"
+L1ChainID = 1337
+PrivateKeyPath = "/pk/keystore"
 PrivateKeyPassword = "testonly"
+PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+MultiGasProvider = true
+	[Etherscan]
+		ApiKey = ""
 
 [EthTxManager]
 MaxSendBatchTxRetries = 10
@@ -60,6 +67,7 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 SyncInterval = "0s"
 SyncChunkSize = 100
 TrustedSequencerURI = ""
+GenBlockNumber = 1
 
 [Sequencer]
 MaxSequenceSize = "2000000"
@@ -67,6 +75,8 @@ WaitPeriodPoolIsEmpty = "1s"
 WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "300s"
 WaitBlocksToUpdateGER = 10
+WaitBlocksToConsiderGerFinal = 10
+ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
 MaxTimeForBatchToBeOpen = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
@@ -78,6 +88,7 @@ MaxMemAligns = 262144
 MaxArithmetics = 262144
 MaxBinaries = 262144
 MaxSteps = 8388608
+MaxAllowedFailedCounter = 50
 	[Sequencer.ProfitabilityChecker]
 		SendBatchesEvenWhenNotProfitable = "true"
 

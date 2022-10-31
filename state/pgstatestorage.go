@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -20,7 +19,6 @@ const maxTopics = 4
 
 const (
 	addGlobalExitRootSQL                     = "INSERT INTO state.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root) VALUES ($1, $2, $3, $4, $5)"
-	getLatestExitRootSQL                     = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM state.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
 	getLatestExitRootBlockNumSQL             = "SELECT block_num FROM state.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
 	addVirtualBatchSQL                       = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num) VALUES ($1, $2, $3, $4)"
 	addForcedBatchSQL                        = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
@@ -42,7 +40,7 @@ const (
 	getBlockTimeByNumSQL                     = "SELECT received_at FROM state.block WHERE block_num = $1"
 	getForcedBatchByBatchNumSQL              = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num from state.forced_batch WHERE batch_num = $1"
 	getProcessingContextSQL                  = "SELECT batch_num, global_exit_root, timestamp, coinbase from state.batch WHERE batch_num = $1"
-	getEncodedTransactionsByBatchNumberSQL   = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1"
+	getEncodedTransactionsByBatchNumberSQL   = "SELECT encoded FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
 	getTransactionHashesByBatchNumberSQL     = "SELECT hash FROM state.transaction t INNER JOIN state.l2block b ON t.l2_block_num = b.block_num WHERE b.batch_num = $1 ORDER BY l2_block_num ASC"
 	getLastBatchSeenSQL                      = "SELECT last_batch_num_seen FROM state.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                   = "UPDATE state.sync_info SET last_batch_num_seen = $1"
@@ -83,7 +81,7 @@ const (
 			ON consolidated_blocks.batch_num = sy.last_batch_num_consolidated;
 	`
 	addTransactionSQL          = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4)"
-	getBatchNumByBlockNum      = "SELECT batch_num FROM state.virtual_batch WHERE block_num = $1 ORDER BY batch_num ASC LIMIT 1"
+	getBatchNumByBlockNum      = "SELECT batch_num FROM state.virtual_batch WHERE block_num <= $1 ORDER BY batch_num DESC LIMIT 1"
 	getTxsHashesBeforeBatchNum = "SELECT hash FROM state.transaction JOIN state.l2block ON state.transaction.l2_block_num = state.l2block.block_num AND state.l2block.batch_num <= $1"
 	isL2BlockVirtualized       = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
 	isL2BlockConsolidated      = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.verified_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
@@ -160,7 +158,6 @@ func (p *PostgresStorage) GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Block
 	} else if err != nil {
 		return nil, err
 	}
-
 	rows, err := e.Query(ctx, getTxsHashesBeforeBatchNum, batchNum)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -224,23 +221,33 @@ func (p *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *Globa
 }
 
 // GetLatestGlobalExitRoot get the latest global ExitRoot synced.
-func (p *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*GlobalExitRoot, error) {
+func (p *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (GlobalExitRoot, time.Time, error) {
+	const getLatestExitRootSQL = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM state.exit_root WHERE block_num <= $1 ORDER BY global_exit_root_num DESC LIMIT 1"
+
 	var (
-		exitRoot  GlobalExitRoot
-		globalNum uint64
-		err       error
+		exitRoot   GlobalExitRoot
+		globalNum  uint64
+		err        error
+		receivedAt time.Time
 	)
 
 	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, getLatestExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot, &exitRoot.GlobalExitRoot)
+	err = e.QueryRow(ctx, getLatestExitRootSQL, maxBlockNumber).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot, &exitRoot.GlobalExitRoot)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
+		return GlobalExitRoot{}, time.Time{}, ErrNotFound
 	} else if err != nil {
-		return nil, err
+		return GlobalExitRoot{}, time.Time{}, err
 	}
 	exitRoot.GlobalExitRootNum = new(big.Int).SetUint64(globalNum)
-	return &exitRoot, nil
+
+	err = e.QueryRow(ctx, getBlockTimeByNumSQL, exitRoot.BlockNumber).Scan(&receivedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return GlobalExitRoot{}, time.Time{}, ErrNotFound
+	} else if err != nil {
+		return GlobalExitRoot{}, time.Time{}, err
+	}
+	return exitRoot, receivedAt, nil
 }
 
 // GetNumberOfBlocksSinceLastGERUpdate gets number of blocks since last global exit root update
@@ -813,7 +820,7 @@ func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *Vir
 
 func (p *PostgresStorage) storeGenesisBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
 	if batch.BatchNumber != 0 {
-		return fmt.Errorf("unexpected batch number. Got %d, should be 0", batch.BatchNumber)
+		return fmt.Errorf("%w. Got %d, should be 0", ErrUnexpectedBatch, batch.BatchNumber)
 	}
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(
@@ -1704,31 +1711,31 @@ func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger c
 }
 
 // AddGeneratedProof adds a generated proof to the storage
-func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof) VALUES ($1, $2)"
+func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
+	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof, proof_id, input_prover, prover) VALUES ($1, $2, $3, $4, $5)"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, batchNumber, proof)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
 	return err
 }
 
 // UpdateGeneratedProof updates a generated proof in the storage
-func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, batchNumber uint64, proof *pb.GetProofResponse, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2 WHERE batch_num = $1"
+func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
+	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2, proof_id = $3, input_prover = $4, prover = $5 WHERE batch_num = $1"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, batchNumber, proof)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
 	return err
 }
 
 // GetGeneratedProofByBatchNumber gets a generated proof from the storage
-func (p *PostgresStorage) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*pb.GetProofResponse, error) {
+func (p *PostgresStorage) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Proof, error) {
 	var (
-		proof *pb.GetProofResponse
+		proof *Proof = &Proof{}
 		err   error
 	)
 
-	const getGeneratedProofSQL = "SELECT proof FROM state.proof WHERE batch_num = $1"
+	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE batch_num = $1"
 	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, getGeneratedProofSQL, batchNumber).Scan(&proof)
+	err = e.QueryRow(ctx, getGeneratedProofSQL, batchNumber).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -1746,11 +1753,30 @@ func (p *PostgresStorage) DeleteGeneratedProof(ctx context.Context, batchNumber 
 	return err
 }
 
-// DeleteProofs empties state.proof table
+// DeleteUngeneratedProofs deletes ungenerated proofs from state.proof table
 // This method is meant to be use during aggregator boot-up sequence
-func (p *PostgresStorage) DeleteProofs(ctx context.Context, dbTx pgx.Tx) error {
-	const deleteGeneratedProofSQL = "DELETE FROM state.proof"
+func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error {
+	const deleteUngeneratedProofsSQL = "DELETE FROM state.proof WHERE proof is null"
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, deleteGeneratedProofSQL)
+	_, err := e.Exec(ctx, deleteUngeneratedProofsSQL)
 	return err
+}
+
+// GetWIPProofByProver gets a generated proof from its prover URI
+func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string, dbTx pgx.Tx) (*Proof, error) {
+	var (
+		proof *Proof = &Proof{}
+		err   error
+	)
+
+	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE prover = $1 and proof is null"
+	e := p.getExecQuerier(dbTx)
+	err = e.QueryRow(ctx, getGeneratedProofSQL, prover).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return proof, err
 }

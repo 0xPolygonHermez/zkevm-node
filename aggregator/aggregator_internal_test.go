@@ -265,10 +265,11 @@ func TestAggregatorFlow(t *testing.T) {
 	expectedInputProver.PublicInputs.BatchHashData = batchHashData.String()
 	// isSynced
 	proverClient.On("IsIdle", mock.Anything).Return(true)
+	proverClient.On("GetURI", mock.Anything).Return("mockProver:MockPort")
 	st.On("GetLastVerifiedBatch", mock.Anything, nil).Return(verifiedBatch, nil)
 	st.On("GetGeneratedProofByBatchNumber", mock.Anything, verifiedBatch.BatchNumber+1, nil).Return(nil, state.ErrNotFound)
-	st.On("AddGeneratedProof", mock.Anything, mock.Anything, mock.Anything, nil).Return(nil)
-	st.On("UpdateGeneratedProof", mock.Anything, mock.Anything, mock.Anything, nil).Return(nil)
+	st.On("AddGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil)
+	st.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil)
 	etherman.On("GetLatestVerifiedBatchNum").Return(uint64(1), nil)
 	etherman.On("GetPublicAddress").Return(aggrAddress)
 
@@ -283,9 +284,9 @@ func TestAggregatorFlow(t *testing.T) {
 	// get proof
 	proverClient.On("GetResGetProof", mock.Anything, "1", batchToVerify.BatchNumber).Return(getProofResponse, nil)
 	// send proof to the eth
-	ethTxManager.On("VerifyBatch", batchToVerify.BatchNumber, getProofResponse).Return(nil)
+	ctx := context.Background()
+	ethTxManager.On("VerifyBatch", ctx, batchToVerify.BatchNumber, getProofResponse).Return(nil)
 	ticker := time.NewTicker(a.cfg.IntervalToConsolidateState.Duration)
 	defer ticker.Stop()
-	ctx := context.Background()
 	a.tryVerifyBatch(ctx, ticker)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/urfave/cli/v2"
 )
 
@@ -15,8 +16,6 @@ const (
 	appName = "zkevm-node"
 	// version represents the program based on the git tag
 	version = "v0.1.0"
-	// commit represents the program based on the git commit
-	commit = "dev"
 	// date represents the date of application was built
 	date = ""
 )
@@ -34,30 +33,25 @@ const (
 	BROADCAST = "broadcast-trusted-state"
 )
 
+const (
+	//envCommitHash environment variable name for COMMIT_HASH
+	envCommitHash = "COMMIT_HASH"
+)
+
 var (
+	// commit represents the program based on the git commit
+	commit         = testutils.GetEnv(envCommitHash, "dev")
 	configFileFlag = cli.StringFlag{
 		Name:     config.FlagCfg,
 		Aliases:  []string{"c"},
 		Usage:    "Configuration `FILE`",
 		Required: false,
 	}
-	networkFlag = cli.StringFlag{
-		Name:     config.FlagNetwork,
-		Aliases:  []string{"n"},
-		Usage:    "Network: mainnet, testnet, internaltestnet, local, custom, merge. By default it uses mainnet",
-		Required: false,
-	}
-	customNetworkFlag = cli.StringFlag{
-		Name:    config.FlagNetworkCfg,
-		Aliases: []string{"nc"},
-		Usage:   "Custom network configuration `FILE` when using --network custom parameter",
-	}
-	baseNetworkFlag = cli.StringFlag{
-		Name:     config.FlagNetworkBase,
-		Aliases:  []string{"nb"},
-		Usage:    "Base existing network configuration to be merged with the custom configuration passed with --network-cfg, by default it uses internaltestnet",
-		Value:    "internaltestnet",
-		Required: false,
+	genesisFlag = cli.StringFlag{
+		Name:     config.FlagGenesisFile,
+		Aliases:  []string{"gen"},
+		Usage:    "Loads the genesis `FILE`",
+		Required: true,
 	}
 	yesFlag = cli.BoolFlag{
 		Name:     config.FlagYes,
@@ -87,13 +81,11 @@ func main() {
 	app.Version = version
 	flags := []cli.Flag{
 		&configFileFlag,
-		&networkFlag,
-		&customNetworkFlag,
-		&baseNetworkFlag,
 		&yesFlag,
 		&componentsFlag,
 		&httpAPIFlag,
 	}
+	log.Infof("Starting application [Commit Hash: %s, Version: %s] ...", commit, version)
 	app.Commands = []*cli.Command{
 		{
 			Name:    "version",
@@ -106,7 +98,7 @@ func main() {
 			Aliases: []string{},
 			Usage:   "Run the zkevm-node",
 			Action:  start,
-			Flags:   flags,
+			Flags:   append(flags, &genesisFlag),
 		},
 		{
 			Name:    "approve",

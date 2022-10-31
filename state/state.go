@@ -120,8 +120,11 @@ func (s *State) GetStorageAt(ctx context.Context, address common.Address, positi
 
 // EstimateGas for a transaction
 func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, error) {
+	const ethTransferGas = 21000
+
 	var lowEnd uint64
 	var highEnd uint64
+
 	ctx := context.Background()
 
 	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
@@ -143,6 +146,15 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		return 0, err
 	}
 
+	if lowEnd == ethTransferGas && transaction.To() != nil {
+		code, err := s.tree.GetCode(ctx, *transaction.To(), l2BlockStateRoot.Bytes())
+		if err != nil {
+			log.Warnf("error while getting transaction.to() code %v", err)
+		} else if len(code) == 0 {
+			return lowEnd, nil
+		}
+	}
+
 	if transaction.Gas() != 0 && transaction.Gas() > lowEnd {
 		highEnd = transaction.Gas()
 	} else {
@@ -154,7 +166,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	if senderAddress != ZeroAddress {
 		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, l2BlockStateRoot.Bytes())
 		if err != nil {
-			if err == ErrNotFound {
+			if errors.Is(err, ErrNotFound) {
 				senderBalance = big.NewInt(0)
 			} else {
 				return 0, err
@@ -283,7 +295,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		lowEnd = gasUsed
 	}
 
-	highEnd = (gasUsed * three) / uint64(two)
+	if gasUsed > 0 {
+		highEnd = (gasUsed * three) / uint64(two)
+	}
 
 	// Start the binary search for the lowest possible gas price
 	for (lowEnd < highEnd) && (highEnd-lowEnd) > 4096 {
@@ -311,10 +325,14 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 	}
 
-	log.Debugf("EstimateGas executed the TX %v times", len(txExecutions))
-	averageExecutionTime := totalExecutionTime.Milliseconds() / int64(len(txExecutions))
-	log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
-
+	executions := int64(len(txExecutions))
+	if executions > 0 {
+		log.Debugf("EstimateGas executed the TX %v times", executions)
+		averageExecutionTime := totalExecutionTime.Milliseconds() / executions
+		log.Debugf("EstimateGas tx execution average time is %v milliseconds", averageExecutionTime)
+	} else {
+		log.Error("Estimate gas. Tx not executed")
+	}
 	return highEnd, nil
 }
 
@@ -348,7 +366,7 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 		return err
 	}
 	if lastBatchNum+1 != processingContext.BatchNumber {
-		return fmt.Errorf("unexpected batch number %v, should be %v", processingContext.BatchNumber, lastBatchNum+1)
+		return fmt.Errorf("%w number %d, should be %d", ErrUnexpectedBatch, processingContext.BatchNumber, lastBatchNum+1)
 	}
 	// Check if last batch is closed
 	isLastBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, lastBatchNum, dbTx)
@@ -388,6 +406,40 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, t
 	log.Debugf("ProcessSequencerBatch end")
 	log.Debugf("*******************************************")
 	return result, nil
+}
+
+// ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
+func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+	if dbTx == nil {
+		return nil, ErrDBTxNil
+	}
+
+	// Get batch from the database to get GER and Timestamp
+	lastBatch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get previous batch to get state root and local exit root
+	previousBatch, err := s.PostgresStorage.GetBatchByNumber(ctx, batchNumber-1, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:         lastBatch.BatchNumber,
+		Coinbase:         lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     previousBatch.StateRoot.Bytes(),
+		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree: cFalse,
+		ChainId:          s.cfg.ChainID,
+	}
+
+	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
 }
 
 func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
@@ -432,6 +484,7 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 	}
+
 	// Send Batch to the Executor
 	log.Debugf("processBatch[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
 	// log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
@@ -575,7 +628,7 @@ func (s *State) isBatchClosable(ctx context.Context, receipt ProcessingReceipt, 
 		return err
 	}
 	if lastBatchNum != receipt.BatchNumber {
-		return fmt.Errorf("unexpected batch number %v, should be %v", receipt.BatchNumber, lastBatchNum)
+		return fmt.Errorf("%w number %d, should be %d", ErrUnexpectedBatch, receipt.BatchNumber, lastBatchNum)
 	}
 	// Check if last batch is closed
 	isLastBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, lastBatchNum, dbTx)
@@ -635,9 +688,6 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	if err != nil {
 		return err
 	}
-	if len(encodedTxsArray) == 0 {
-		return ErrClosingBatchWithoutTxs
-	}
 	txs := []types.Transaction{}
 	for i := 0; i < len(encodedTxsArray); i++ {
 		tx, err := DecodeTx(encodedTxsArray[i])
@@ -645,6 +695,24 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 			return err
 		}
 		txs = append(txs, *tx)
+	}
+
+	// todo: temporary check, remove if don't face this error anymore https://github.com/0xPolygonHermez/zkevm-node/issues/1303
+	// check the order of the txs
+	if len(receipt.Txs) != len(txs) {
+		log.Warnf("when closing a batch amount of txs in memory: %d is differs from amount in db: %d",
+			len(receipt.Txs), len(txs))
+	}
+	var isOrderNotCorrect bool
+	for i, tx := range receipt.Txs {
+		if tx.Hash().Hex() != txs[i].Hash().Hex() {
+			isOrderNotCorrect = true
+		}
+	}
+	if isOrderNotCorrect {
+		log.Warnf("order in memory of the sequence and order in data from request database is different," +
+			" change to the order in memory")
+		txs = receipt.Txs
 	}
 	batchL2Data, err := EncodeTransactions(txs)
 	if err != nil {
@@ -1248,7 +1316,7 @@ func CheckSupersetBatchTransactions(existingTxHashes []common.Hash, processedTxs
 		return ErrExistingTxGreaterThanProcessedTx
 	}
 	for i, existingTxHash := range existingTxHashes {
-		if existingTxHash != processedTxs[i].Tx.Hash() {
+		if existingTxHash != processedTxs[i].TxHash {
 			return ErrOutOfOrderProcessedTx
 		}
 	}

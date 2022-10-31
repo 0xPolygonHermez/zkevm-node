@@ -1,3 +1,5 @@
+> WARNING: This documentation is outdated, it will be updated soon
+
 # Production Setup
 
 This document will guide you through all the steps needed to setup your own `zkEVM-Node` for production.

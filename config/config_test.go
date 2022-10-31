@@ -2,7 +2,9 @@ package config_test
 
 import (
 	"flag"
+	"io/ioutil"
 	"math/big"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -46,8 +48,16 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(10),
 		},
 		{
+			path:          "Sequencer.WaitBlocksToConsiderGerFinal",
+			expectedValue: uint64(10),
+		},
+		{
 			path:          "Sequencer.MaxTimeForBatchToBeOpen",
 			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
+			path:          "Sequencer.ElapsedTimeToCloseBatchWithoutTxsDueToNewGER",
+			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
@@ -96,6 +106,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.MaxSequenceSize",
 			expectedValue: sequencer.MaxSequenceSize{Int: new(big.Int).SetInt64(2000000)},
+		},
+		{
+			path:          "Sequencer.MaxAllowedFailedCounter",
+			expectedValue: uint64(50),
 		},
 		{
 			path:          "EthTxManager.MaxSendBatchTxRetries",
@@ -262,8 +276,16 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 61090,
 		},
 	}
+	file, err := ioutil.TempFile("", "genesisConfig")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, os.Remove(file.Name()))
+	}()
+	require.NoError(t, os.WriteFile(file.Name(), []byte("{}"), 0600))
 
-	ctx := cli.NewContext(cli.NewApp(), flag.NewFlagSet("", flag.PanicOnError), nil)
+	flagSet := flag.NewFlagSet("", flag.PanicOnError)
+	flagSet.String(config.FlagGenesisFile, file.Name(), "")
+	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
 	cfg, err := config.Load(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error loading default config: %v", err)

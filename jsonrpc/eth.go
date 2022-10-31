@@ -231,7 +231,7 @@ func (e *Eth) GetCompilers() (interface{}, rpcError) {
 func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, rpcError) {
 	filter, err := e.storage.GetFilter(uint64(filterID))
 	if errors.Is(err, ErrNotFound) {
-		return nil, nil
+		return rpcErrorResponse(defaultErrorCode, "filter not found", err)
 	} else if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to get filter from storage", err)
 	}
@@ -578,7 +578,9 @@ func (e *Eth) NewBlockFilter() (interface{}, rpcError) {
 // has changed, call eth_getFilterChanges.
 func (e *Eth) NewFilter(filter *LogFilter) (interface{}, rpcError) {
 	id, err := e.storage.NewLogFilter(*filter)
-	if err != nil {
+	if errors.Is(err, ErrFilterInvalidPayload) {
+		return rpcErrorResponse(invalidParamsErrorCode, err.Error(), nil)
+	} else if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to create new log filter", err)
 	}
 

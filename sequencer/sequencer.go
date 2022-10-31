@@ -14,13 +14,6 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
-const (
-	errGasRequiredExceedsAllowance = "gas required exceeds allowance"
-	errContentLengthTooLarge       = "content length too large"
-	errTimestampMustBeInsideRange  = "Timestamp must be inside range"
-	errInsufficientAllowance       = "insufficient allowance"
-)
-
 // Sequencer represents a sequencer
 type Sequencer struct {
 	cfg Config
@@ -32,8 +25,7 @@ type Sequencer struct {
 	checker   *profitabilitychecker.Checker
 	gpe       gasPriceEstimator
 
-	address          common.Address
-	isSequenceTooBig bool
+	address common.Address
 
 	sequenceInProgress types.Sequence
 }
@@ -117,15 +109,19 @@ func (s *Sequencer) trackOldTxs(ctx context.Context) {
 	ticker := time.NewTicker(s.cfg.FrequencyToCheckTxsForDelete.Duration)
 	for {
 		waitTick(ctx, ticker)
+		log.Infof("trying to get txs to delete from the pool...")
 		txHashes, err := s.state.GetTxsOlderThanNL1Blocks(ctx, s.cfg.BlocksAmountForTxsToBeDeleted, nil)
 		if err != nil {
 			log.Errorf("failed to get txs hashes to delete, err: %v", err)
 			continue
 		}
+		log.Infof("will try to delete %d redundant txs", len(txHashes))
 		err = s.pool.DeleteTxsByHashes(ctx, txHashes)
 		if err != nil {
 			log.Errorf("failed to delete txs from the pool, err: %v", err)
+			continue
 		}
+		log.Infof("deleted %d selected txs from the pool", len(txHashes))
 	}
 }
 
@@ -180,7 +176,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to begin state tx to open a batch, err: %w", err)
 		}
-		ger, err := s.getLatestGer(ctx, dbTx)
+		ger, _, err := s.getLatestGer(ctx, dbTx)
 		if err != nil {
 			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 				return fmt.Errorf(
@@ -194,7 +190,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 			BatchNumber:    lastBatch.BatchNumber + 1,
 			Coinbase:       s.address,
 			Timestamp:      time.Now(),
-			GlobalExitRoot: ger,
+			GlobalExitRoot: ger.GlobalExitRoot,
 		}
 		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
 		if err != nil {
