@@ -141,6 +141,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
 		},
 		{
+			path:          "Etherman.MultiGasProvider",
+			expectedValue: true,
+		},
+		{
 			path:          "EthTxManager.MaxSendBatchTxRetries",
 			expectedValue: uint32(10),
 		},
