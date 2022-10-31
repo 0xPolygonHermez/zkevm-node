@@ -124,7 +124,7 @@
 				"type": "address"
 			}
 		],
-		"name": "VerifyBatch",
+		"name": "VerifyBatches",
 		"type": "event"
 	},
 	{
@@ -181,12 +181,12 @@
 	},
 	{
 		"inputs": [],
-		"name": "chainID",
+		"name": "calculateRewardPerBatch",
 		"outputs": [
 			{
-				"internalType": "uint64",
+				"internalType": "uint256",
 				"name": "",
-				"type": "uint64"
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -194,12 +194,12 @@
 	},
 	{
 		"inputs": [],
-		"name": "currentLocalExitRoot",
+		"name": "chainID",
 		"outputs": [
 			{
-				"internalType": "bytes32",
+				"internalType": "uint64",
 				"name": "",
-				"type": "bytes32"
+				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -261,18 +261,42 @@
 		"outputs": [
 			{
 				"internalType": "bytes32",
-				"name": "batchHashData",
+				"name": "",
 				"type": "bytes32"
-			},
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "maticFee",
-				"type": "uint256"
+				"internalType": "uint64",
+				"name": "_lastVerifiedBatch",
+				"type": "uint64"
 			},
 			{
 				"internalType": "uint64",
-				"name": "minTimestamp",
+				"name": "newVerifiedBatch",
 				"type": "uint64"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "newLocalExitRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "newStateRoot",
+				"type": "bytes32"
+			}
+		],
+		"name": "getInputSnarkBytes",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
 			}
 		],
 		"stateMutability": "view",
@@ -468,9 +492,9 @@
 						"type": "uint64"
 					},
 					{
-						"internalType": "uint64[]",
-						"name": "forceBatchesTimestamp",
-						"type": "uint64[]"
+						"internalType": "uint64",
+						"name": "minForcedTimestamp",
+						"type": "uint64"
 					}
 				],
 				"internalType": "struct ProofOfEfficiency.BatchData[]",
@@ -486,9 +510,26 @@
 	{
 		"inputs": [
 			{
-				"internalType": "uint64",
-				"name": "numForcedBatches",
-				"type": "uint64"
+				"components": [
+					{
+						"internalType": "bytes",
+						"name": "transactions",
+						"type": "bytes"
+					},
+					{
+						"internalType": "bytes32",
+						"name": "globalExitRoot",
+						"type": "bytes32"
+					},
+					{
+						"internalType": "uint64",
+						"name": "minForcedTimestamp",
+						"type": "uint64"
+					}
+				],
+				"internalType": "struct ProofOfEfficiency.ForceBatchData[]",
+				"name": "batches",
+				"type": "tuple[]"
 			}
 		],
 		"name": "sequenceForceBatches",
@@ -508,18 +549,8 @@
 		"outputs": [
 			{
 				"internalType": "bytes32",
-				"name": "batchHashData",
+				"name": "",
 				"type": "bytes32"
-			},
-			{
-				"internalType": "uint64",
-				"name": "timestamp",
-				"type": "uint64"
-			},
-			{
-				"internalType": "uint64",
-				"name": "forceBatchNum",
-				"type": "uint64"
 			}
 		],
 		"stateMutability": "view",
@@ -593,6 +624,16 @@
 	{
 		"inputs": [
 			{
+				"internalType": "uint64",
+				"name": "_lastVerifiedBatch",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "newVerifiedBatch",
+				"type": "uint64"
+			},
+			{
 				"internalType": "bytes32",
 				"name": "newLocalExitRoot",
 				"type": "bytes32"
@@ -601,11 +642,6 @@
 				"internalType": "bytes32",
 				"name": "newStateRoot",
 				"type": "bytes32"
-			},
-			{
-				"internalType": "uint64",
-				"name": "numBatch",
-				"type": "uint64"
 			},
 			{
 				"internalType": "uint256[2]",
@@ -623,7 +659,7 @@
 				"type": "uint256[2]"
 			}
 		],
-		"name": "verifyBatch",
+		"name": "verifyBatches",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
