@@ -40,7 +40,7 @@ func NewEthGasStationService() *Client {
 }
 
 // GetGasPrice retrieves the gas price estimation from ethGasStation
-func (e *Client) GetGasPrice(ctx context.Context) (*big.Int, error) {
+func (e *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 	var resBody ethGasStationResponse
 	res, err := e.Http.Get(e.Url)
 	if err != nil {

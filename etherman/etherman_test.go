@@ -327,8 +327,8 @@ func TestGasPrice(t *testing.T) {
 	etherman.GasProviders.EthGasStation = ethGasStationM
 	ctx := context.Background()
 
-	etherscanM.On("GetGasPrice", ctx).Return(big.NewInt(765625003), nil)
-	ethGasStationM.On("GetGasPrice", ctx).Return(big.NewInt(765625002), nil)
+	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625003), nil)
+	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625002), nil)
 	gp := etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625003), gp)
 
@@ -349,13 +349,13 @@ func TestErrorEthGasStationPrice(t *testing.T) {
 	etherman.GasProviders.EthGasStation = ethGasStationM
 	ctx := context.Background()
 
-	ethGasStationM.On("GetGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from ethGasStation"))
+	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from ethGasStation"))
 	gp := etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625001), gp)
 
 	etherman.GasProviders.EtherScan = etherscanM
 
-	etherscanM.On("GetGasPrice", ctx).Return(big.NewInt(765625003), nil)
+	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625003), nil)
 	gp = etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625003), gp)
 }
@@ -369,8 +369,8 @@ func TestErrorEtherScanPrice(t *testing.T) {
 	etherman.GasProviders.EthGasStation = ethGasStationM
 	ctx := context.Background()
 
-	etherscanM.On("GetGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from etherscan"))
-	ethGasStationM.On("GetGasPrice", ctx).Return(big.NewInt(765625002), nil)
+	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from etherscan"))
+	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625002), nil)
 	gp := etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625002), gp)
 }

@@ -32,7 +32,7 @@ func TestGetGasPrice(t *testing.T) {
 	c := NewEtherscanService(apiKey)
 	c.config.Url = svr.URL
 
-	gp, err := c.GetGasPrice(ctx)
+	gp, err := c.SuggestGasPrice(ctx)
 	require.NoError(t, err)
 	log.Debug("Etherscan GasPrice: ", gp)
 	assert.Equal(t, big.NewInt(55000000000), gp)

@@ -6,6 +6,6 @@ import (
 )
 
 type gasPricer interface {
-	// GetGasPrice returns the gas price
-	GetGasPrice(ctx context.Context) (*big.Int, error)
+	// SuggestGasPrice returns the gas price
+	SuggestGasPrice(ctx context.Context) (*big.Int, error)
 }

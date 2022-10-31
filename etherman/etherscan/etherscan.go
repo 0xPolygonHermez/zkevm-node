@@ -49,8 +49,8 @@ func NewEtherscanService(apikey string) *Client {
 	}
 }
 
-// GetGasPrice retrieves the gas price estimation from etherscan
-func (e *Client) GetGasPrice(ctx context.Context) (*big.Int, error) {
+// SuggestGasPrice retrieves the gas price estimation from etherscan
+func (e *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 	var resBody etherscanResponse
 	url := e.config.Url + e.config.ApiKey
 	res, err := e.Http.Get(url)

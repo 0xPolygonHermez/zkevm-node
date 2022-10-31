@@ -30,7 +30,7 @@ func TestGetGasPrice(t *testing.T) {
 	c := NewEthGasStationService()
 	c.Url = svr.URL
 
-	gp, err := c.GetGasPrice(ctx)
+	gp, err := c.SuggestGasPrice(ctx)
 	require.NoError(t, err)
 	log.Debug("EthGasStation GasPrice: ", gp)
 	assert.Equal(t, big.NewInt(66000000000), gp)
