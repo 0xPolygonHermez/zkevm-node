@@ -69,6 +69,12 @@ func (d *Handler) Handle(req Request) Response {
 	inArgs := make([]reflect.Value, fd.inNum)
 	inArgs[0] = service.sv
 
+	// check params passed by request match function params
+	var testStruct []interface{}
+	if err := json.Unmarshal(req.Params, &testStruct); err == nil && len(testStruct) > fd.numParams() {
+		return NewResponse(req, nil, newRPCError(invalidParamsErrorCode, fmt.Sprintf("too many arguments, want at most %d", fd.numParams())))
+	}
+
 	inputs := make([]interface{}, fd.numParams())
 	for i := 0; i < fd.inNum-1; i++ {
 		val := reflect.New(fd.reqt[i+1])

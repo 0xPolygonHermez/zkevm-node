@@ -284,9 +284,9 @@ func TestAggregatorFlow(t *testing.T) {
 	// get proof
 	proverClient.On("GetResGetProof", mock.Anything, "1", batchToVerify.BatchNumber).Return(getProofResponse, nil)
 	// send proof to the eth
-	ethTxManager.On("VerifyBatch", batchToVerify.BatchNumber, getProofResponse).Return(nil)
+	ctx := context.Background()
+	ethTxManager.On("VerifyBatch", ctx, batchToVerify.BatchNumber, getProofResponse).Return(nil)
 	ticker := time.NewTicker(a.cfg.IntervalToConsolidateState.Duration)
 	defer ticker.Stop()
-	ctx := context.Background()
 	a.tryVerifyBatch(ctx, ticker)
 }
