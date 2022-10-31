@@ -1,6 +1,9 @@
 package etherman
 
-import "github.com/ethereum/go-ethereum/common"
+import (
+	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
+	"github.com/ethereum/go-ethereum/common"
+)
 
 // Config represents the configuration of the etherman
 type Config struct {
@@ -13,4 +16,7 @@ type Config struct {
 
 	PrivateKeyPath     string `mapstructure:"PrivateKeyPath"`
 	PrivateKeyPassword string `mapstructure:"PrivateKeyPassword"`
+
+	MultiGasProvider bool `mapstructure:"MultiGasProvider"`
+	Etherscan        etherscan.Config
 }

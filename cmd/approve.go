@@ -48,7 +48,7 @@ func approveTokens(ctx *cli.Context) error {
 	amountInWei := new(big.Float).Mul(amount, big.NewFloat(decimals))
 	amountB := new(big.Int)
 	amountInWei.Int(amountB)
-	tx, err := etherman.ApproveMatic(amountB, c.Etherman.PoEAddr)
+	tx, err := etherman.ApproveMatic(ctx.Context, amountB, c.Etherman.PoEAddr)
 	if err != nil {
 		return err
 	}
