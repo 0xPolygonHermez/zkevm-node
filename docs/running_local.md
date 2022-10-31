@@ -86,10 +86,10 @@ To deploy a full a uniswap environment:
 make deploy-uniswap
 ```
 
-To grant the smart contract a set amount of tokens, run:
+To grant the Matic smart contract a set amount of tokens, run:
 
 ```bash
-make run-approve
+make run-approve-matic
 ```
 
 ## Accessing the environment
