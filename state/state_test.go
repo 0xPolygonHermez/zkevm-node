@@ -227,7 +227,7 @@ func TestOpenCloseBatch(t *testing.T) {
 		GlobalExitRoot: common.HexToHash("c"),
 	}
 	err = testState.OpenBatch(ctx, processingCtx3, dbTx)
-	require.True(t, strings.Contains(err.Error(), "unexpected batch"))
+	require.ErrorIs(t, err, state.ErrUnexpectedBatch)
 	// Fail opening batch #2 (invalid timestamp)
 	processingCtx2.Timestamp = processingCtx1.Timestamp.Add(-1 * time.Second)
 	err = testState.OpenBatch(ctx, processingCtx2, dbTx)

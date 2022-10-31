@@ -20,6 +20,8 @@ func TestEthTransfer(t *testing.T) {
 		t.Skip()
 	}
 
+	ctx := context.Background()
+
 	defer func() { require.NoError(t, operations.Teardown()) }()
 
 	err := operations.Teardown()

@@ -820,7 +820,7 @@ func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *Vir
 
 func (p *PostgresStorage) storeGenesisBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
 	if batch.BatchNumber != 0 {
-		return fmt.Errorf("unexpected batch number. Got %d, should be 0", batch.BatchNumber)
+		return fmt.Errorf("%w. Got %d, should be 0", ErrUnexpectedBatch, batch.BatchNumber)
 	}
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(
