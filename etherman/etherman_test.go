@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
@@ -323,8 +324,7 @@ func TestGasPrice(t *testing.T) {
 	etherman, _, _, _ := newTestingEnv()
 	etherscanM := new(etherscanMock)
 	ethGasStationM := new(ethGasStationMock)
-	etherman.GasProviders.EtherScan = etherscanM
-	etherman.GasProviders.EthGasStation = ethGasStationM
+	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EtherClient, etherscanM, ethGasStationM}
 	ctx := context.Background()
 
 	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625003), nil)
@@ -332,8 +332,7 @@ func TestGasPrice(t *testing.T) {
 	gp := etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625003), gp)
 
-	var emptI gasPricer
-	etherman.GasProviders.EtherScan = emptI
+	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EtherClient, ethGasStationM}
 
 	gp = etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625002), gp)
@@ -342,18 +341,16 @@ func TestGasPrice(t *testing.T) {
 func TestErrorEthGasStationPrice(t *testing.T) {
 	// Set up testing environment
 	etherman, _, _, _ := newTestingEnv()
-	etherscanM := new(etherscanMock)
 	ethGasStationM := new(ethGasStationMock)
-	var emptI gasPricer
-	etherman.GasProviders.EtherScan = emptI
-	etherman.GasProviders.EthGasStation = ethGasStationM
+	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EtherClient, ethGasStationM}
 	ctx := context.Background()
 
 	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from ethGasStation"))
 	gp := etherman.getGasPrice(ctx)
 	assert.Equal(t, big.NewInt(765625001), gp)
 
-	etherman.GasProviders.EtherScan = etherscanM
+	etherscanM := new(etherscanMock)
+	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EtherClient, etherscanM, ethGasStationM}
 
 	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625003), nil)
 	gp = etherman.getGasPrice(ctx)
@@ -365,8 +362,7 @@ func TestErrorEtherScanPrice(t *testing.T) {
 	etherman, _, _, _ := newTestingEnv()
 	etherscanM := new(etherscanMock)
 	ethGasStationM := new(ethGasStationMock)
-	etherman.GasProviders.EtherScan = etherscanM
-	etherman.GasProviders.EthGasStation = ethGasStationM
+	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EtherClient, etherscanM, ethGasStationM}
 	ctx := context.Background()
 
 	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from etherscan"))

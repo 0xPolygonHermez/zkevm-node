@@ -77,8 +77,7 @@ type ethClienter interface {
 
 type externalGasProviders struct {
 	MultiGasProvider bool
-	EtherScan        ethereum.GasPricer
-	EthGasStation    ethereum.GasPricer
+	Providers        []ethereum.GasPricer
 }
 
 // Client is a simple implementation of EtherMan.
@@ -118,18 +117,15 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, cfg.PoEAddr, cfg.GlobalExitRootManagerAddr)
 
-	var (
-		ethscan  gasPricer
-		ethGasSt gasPricer
-	)
+	gProviders := []ethereum.GasPricer{ethClient}
 	if cfg.MultiGasProvider {
 		if cfg.Etherscan.ApiKey == "" {
 			log.Info("No ApiKey provided for etherscan. Ignoring provider...")
 		} else {
 			log.Info("ApiKey detected for etherscan")
-			ethscan = etherscan.NewEtherscanService(cfg.Etherscan.ApiKey)
+			gProviders = append(gProviders, etherscan.NewEtherscanService(cfg.Etherscan.ApiKey))
 		}
-		ethGasSt = ethgasstation.NewEthGasStationService()
+		gProviders = append(gProviders, ethgasstation.NewEthGasStationService())
 	}
 
 	return &Client{
@@ -140,8 +136,7 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 		SCAddresses:           scAddresses,
 		GasProviders: externalGasProviders{
 			MultiGasProvider: cfg.MultiGasProvider,
-			EtherScan:        ethscan,
-			EthGasStation:    ethGasSt,
+			Providers:        gProviders,
 		},
 		auth: auth}, nil
 }
@@ -770,34 +765,16 @@ func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64,
 }
 
 func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
-	// Get gasPrice from L1 node
-	gp, err := etherMan.EtherClient.SuggestGasPrice(ctx)
-	if err != nil {
-		log.Warn("error getting gas price from L1 node. Error: ", err)
-	}
-	log.Debug("L1 node gasPrice: ", gp)
-
-	// Get gasPrice from Etherscan
-	etherscanGasPrice := big.NewInt(0)
-	var emptI gasPricer
-	if etherMan.GasProviders.EtherScan != emptI {
-		etherscanGasPrice, err = etherMan.GasProviders.EtherScan.SuggestGasPrice(ctx)
+	// Get gasPrice from providers
+	gasPrice := big.NewInt(0)
+	for i, prov := range etherMan.GasProviders.Providers {
+		gp, err := prov.SuggestGasPrice(ctx)
 		if err != nil {
-			log.Warn("error getting gas price from Etherscan. Error: ", err)
-		} else if gp.Cmp(etherscanGasPrice) == -1 { // gp < etherscanGasPrice
-			gp = etherscanGasPrice
+			log.Warnf("error getting gas price from provider %d. Error: %s", i+1, err.Error())
+		} else if gasPrice.Cmp(gp) == -1 { // gasPrice < gp
+			gasPrice = gp
 		}
 	}
-	log.Debug("etherscanGasPrice: ", etherscanGasPrice)
-
-	// Get gasPrice from ethGasStation
-	ethGasStationGasPrice, err := etherMan.GasProviders.EthGasStation.SuggestGasPrice(ctx)
-	if err != nil {
-		log.Warn("error getting gas price from EthGasStation. Error: ", err)
-	} else if gp.Cmp(ethGasStationGasPrice) == -1 { // gp < ethGasStationGasPrice
-		gp = ethGasStationGasPrice
-	}
-	log.Debug("ethGasStationGasPrice: ", ethGasStationGasPrice)
-	log.Debug("gasPrice choosed: ", gp)
-	return gp
+	log.Debug("gasPrice choosed: ", gasPrice)
+	return gasPrice
 }

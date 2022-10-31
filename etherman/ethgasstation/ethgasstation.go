@@ -35,11 +35,11 @@ func NewEthGasStationService() *Client {
 	const url = "https://api.ethgasstation.info/api/fee-estimate"
 	return &Client{
 		Http: http.Client{},
-		Url: url,
+		Url:  url,
 	}
 }
 
-// GetGasPrice retrieves the gas price estimation from ethGasStation
+// SuggestGasPrice retrieves the gas price estimation from ethGasStation
 func (e *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 	var resBody ethGasStationResponse
 	res, err := e.Http.Get(e.Url)
