@@ -199,27 +199,32 @@ func (_m *StateMock) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (u
 	return r0, r1
 }
 
-// GetLatestGlobalExitRoot provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*state.GlobalExitRoot, error) {
-	ret := _m.Called(ctx, dbTx)
+// GetLatestGlobalExitRoot provides a mock function with given fields: ctx, maxBlockNumber, dbTx
+func (_m *StateMock) GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error) {
+	ret := _m.Called(ctx, maxBlockNumber, dbTx)
 
-	var r0 *state.GlobalExitRoot
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.GlobalExitRoot); ok {
-		r0 = rf(ctx, dbTx)
+	var r0 state.GlobalExitRoot
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) state.GlobalExitRoot); ok {
+		r0 = rf(ctx, maxBlockNumber, dbTx)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*state.GlobalExitRoot)
-		}
+		r0 = ret.Get(0).(state.GlobalExitRoot)
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
-		r1 = rf(ctx, dbTx)
+	var r1 time.Time
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) time.Time); ok {
+		r1 = rf(ctx, maxBlockNumber, dbTx)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(time.Time)
 	}
 
-	return r0, r1
+	var r2 error
+	if rf, ok := ret.Get(2).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r2 = rf(ctx, maxBlockNumber, dbTx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetNonce provides a mock function with given fields: ctx, address, blockNumber, dbTx

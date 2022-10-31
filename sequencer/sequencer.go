@@ -176,7 +176,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to begin state tx to open a batch, err: %w", err)
 		}
-		ger, err := s.getLatestGer(ctx, dbTx)
+		ger, _, err := s.getLatestGer(ctx, dbTx)
 		if err != nil {
 			if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 				return fmt.Errorf(
@@ -190,7 +190,7 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 			BatchNumber:    lastBatch.BatchNumber + 1,
 			Coinbase:       s.address,
 			Timestamp:      time.Now(),
-			GlobalExitRoot: ger,
+			GlobalExitRoot: ger.GlobalExitRoot,
 		}
 		err = s.state.OpenBatch(ctx, processingCtx, dbTx)
 		if err != nil {

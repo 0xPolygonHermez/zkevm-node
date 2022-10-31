@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -286,7 +287,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	}
 	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, tx)
 	require.NoError(t, err)
-	exit, err := testState.GetLatestGlobalExitRoot(ctx, tx)
+	exit, _, err := testState.GetLatestGlobalExitRoot(ctx, math.MaxUint64, tx)
 	require.NoError(t, err)
 	err = tx.Commit(ctx)
 	require.NoError(t, err)

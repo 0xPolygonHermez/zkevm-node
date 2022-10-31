@@ -45,16 +45,12 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		log.Infof("current sequence should be closed")
 		err := s.closeSequence(ctx)
 		if err != nil {
-			if errors.Is(err, state.ErrClosingBatchWithoutTxs) {
-				log.Warn("Current batch has not been closed since it had no txs. Trying to add more txs to avoid death lock")
-			} else {
-				log.Errorf("error closing sequence: %w", err)
-				log.Info("resetting sequence in progress")
-				if err = s.loadSequenceFromState(ctx); err != nil {
-					log.Errorf("error loading sequence from state: %w", err)
-				}
-				return
+			log.Errorf("error closing sequence: %w", err)
+			log.Info("resetting sequence in progress")
+			if err = s.loadSequenceFromState(ctx); err != nil {
+				log.Errorf("error loading sequence from state: %w", err)
 			}
+			return
 		}
 	}
 
@@ -305,7 +301,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		return types.Sequence{}, err
 	}
 	// open next batch
-	gerHash, err := s.getLatestGer(ctx, dbTx)
+	gerHash, _, err := s.getLatestGer(ctx, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return types.Sequence{}, fmt.Errorf(
@@ -316,7 +312,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		return types.Sequence{}, err
 	}
 
-	processingCtx, err := s.openBatch(ctx, gerHash, dbTx)
+	processingCtx, err := s.openBatch(ctx, gerHash.GlobalExitRoot, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return types.Sequence{}, fmt.Errorf(
@@ -343,16 +339,6 @@ func (s *Sequencer) closeSequence(ctx context.Context) error {
 	}
 	s.sequenceInProgress = newSequence
 	return nil
-}
-
-func (s *Sequencer) isSequenceProfitable(ctx context.Context) bool {
-	isProfitable, err := s.checker.IsSequenceProfitable(ctx, s.sequenceInProgress)
-	if err != nil {
-		log.Errorf("failed to check is sequence profitable, err: %w", err)
-		return false
-	}
-
-	return isProfitable
 }
 
 func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
@@ -451,36 +437,6 @@ func (s *Sequencer) storeProcessedTransactions(ctx context.Context, processedTxs
 	return nil
 }
 
-func (s *Sequencer) updateGerInBatch(ctx context.Context, lastGer *state.GlobalExitRoot) error {
-	log.Info("update GER without closing batch as no txs have been added yet")
-
-	dbTx, err := s.state.BeginStateTransaction(ctx)
-	if err != nil {
-		log.Errorf("failed to begin state transaction for UpdateGERInOpenBatch tx, err: %w", err)
-		return err
-	}
-
-	err = s.state.UpdateGERInOpenBatch(ctx, lastGer.GlobalExitRoot, dbTx)
-	if err != nil {
-		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-			log.Errorf(
-				"failed to rollback dbTx when UpdateGERInOpenBatch that gave err: %w. Rollback err: %w",
-				rollbackErr, err,
-			)
-			return err
-		}
-		log.Errorf("failed to update ger in open batch, err: %w", err)
-		return err
-	}
-
-	if err := dbTx.Commit(ctx); err != nil {
-		log.Errorf("failed to commit dbTx when processing UpdateGERInOpenBatch, err: %w", err.Error())
-		return err
-	}
-
-	return nil
-}
-
 func (s *Sequencer) closeBatch(ctx context.Context, lastBatchNumber uint64, dbTx pgx.Tx) error {
 	receipt := state.ProcessingReceipt{
 		BatchNumber:   lastBatchNumber,
@@ -496,14 +452,19 @@ func (s *Sequencer) closeBatch(ctx context.Context, lastBatchNumber uint64, dbTx
 	return nil
 }
 
-func (s *Sequencer) getLatestGer(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
-	ger, err := s.state.GetLatestGlobalExitRoot(ctx, dbTx)
+func (s *Sequencer) getLatestGer(ctx context.Context, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error) {
+	lastBlockNumber, err := s.etherman.GetLatestBlockNumber(ctx)
+	if err != nil {
+		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest eth block number, err: %w", err)
+	}
+	maxBlockNumber := lastBlockNumber - s.cfg.WaitBlocksToConsiderGerFinal
+	ger, receivedAt, err := s.state.GetLatestGlobalExitRoot(ctx, maxBlockNumber, dbTx)
 	if err != nil && errors.Is(err, state.ErrNotFound) {
-		return state.ZeroHash, nil
+		return state.GlobalExitRoot{}, time.Time{}, nil
 	} else if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
+		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
 	} else {
-		return ger.GlobalExitRoot, nil
+		return ger, receivedAt, nil
 	}
 }
 
