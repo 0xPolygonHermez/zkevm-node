@@ -26,21 +26,23 @@ type gasPriceEthGasStation struct {
 
 // Client for ethGasStation
 type Client struct {
-	Http HttpI
+	Http http.Client
+	Url  string
 }
 
 // NewEthGasStationService is the constructor that creates an ethGasStationService
 func NewEthGasStationService() *Client {
+	const url = "https://api.ethgasstation.info/api/fee-estimate"
 	return &Client{
-		Http: http.DefaultClient,
+		Http: http.Client{},
+		Url: url,
 	}
 }
 
 // GetGasPrice retrieves the gas price estimation from ethGasStation
 func (e *Client) GetGasPrice(ctx context.Context) (*big.Int, error) {
 	var resBody ethGasStationResponse
-	url := "https://api.ethgasstation.info/api/fee-estimate"
-	res, err := e.Http.Get(url)
+	res, err := e.Http.Get(e.Url)
 	if err != nil {
 		return big.NewInt(0), err
 	}

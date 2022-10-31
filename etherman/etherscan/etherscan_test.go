@@ -1,11 +1,11 @@
 package etherscan
 
 import (
-	"bytes"
+	"fmt"
 	"context"
-	"io/ioutil"
 	"math/big"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -22,13 +22,15 @@ func init() {
 
 func TestGetGasPrice(t *testing.T) {
 	ctx := context.Background()
+	data := `{"status":"1","message":"OK","result":{"LastBlock":"15816910","SafeGasPrice":"10","ProposeGasPrice":"11","FastGasPrice":"55","suggestBaseFee":"9.849758735","gasUsedRatio":"0.779364333333333,0.2434028,0.610012833333333,0.1246597,0.995500566666667"}}`
+    svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintf(w, data)
+    }))
+    defer svr.Close()
+
 	apiKey := ""
 	c := NewEtherscanService(apiKey)
-	httpM := new(httpMock)
-	c.Http = httpM
-	data := []byte(`{"status":"1","message":"OK","result":{"LastBlock":"15816910","SafeGasPrice":"10","ProposeGasPrice":"11","FastGasPrice":"55","suggestBaseFee":"9.849758735","gasUsedRatio":"0.779364333333333,0.2434028,0.610012833333333,0.1246597,0.995500566666667"}}`)
-	body := ioutil.NopCloser(bytes.NewReader(data))
-	httpM.On("Get", "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=").Return(&http.Response{StatusCode: http.StatusOK, Body: body}, nil)
+	c.config.Url = svr.URL
 
 	gp, err := c.GetGasPrice(ctx)
 	require.NoError(t, err)

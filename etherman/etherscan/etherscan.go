@@ -28,28 +28,31 @@ type gasPriceEtherscan struct {
 // Config structure
 type Config struct {
 	ApiKey string `mapstructure:"ApiKey"`
+	Url    string
 }
 
 // Client for etherscan
 type Client struct {
 	config Config
-	Http   HttpI
+	Http   http.Client
 }
 
 // NewEtherscanService is the constructor that creates an etherscanService
 func NewEtherscanService(apikey string) *Client {
+	const url = "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey="
 	return &Client{
 		config: Config{
+			Url:    url,
 			ApiKey: apikey,
 		},
-		Http: http.DefaultClient,
+		Http: http.Client{},
 	}
 }
 
 // GetGasPrice retrieves the gas price estimation from etherscan
 func (e *Client) GetGasPrice(ctx context.Context) (*big.Int, error) {
 	var resBody etherscanResponse
-	url := "https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=" + e.config.ApiKey
+	url := e.config.Url + e.config.ApiKey
 	res, err := e.Http.Get(url)
 	if err != nil {
 		return big.NewInt(0), err
