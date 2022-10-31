@@ -644,9 +644,6 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	if err != nil {
 		return err
 	}
-	if len(encodedTxsArray) == 0 {
-		return ErrClosingBatchWithoutTxs
-	}
 	txs := []types.Transaction{}
 	for i := 0; i < len(encodedTxsArray); i++ {
 		tx, err := DecodeTx(encodedTxsArray[i])

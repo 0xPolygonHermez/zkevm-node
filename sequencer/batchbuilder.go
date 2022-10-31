@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -46,16 +45,12 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		log.Infof("current sequence should be closed")
 		err := s.closeSequence(ctx)
 		if err != nil {
-			if strings.Contains(err.Error(), state.ErrClosingBatchWithoutTxs.Error()) {
-				log.Warn("Current batch has not been closed since it had no txs. Trying to add more txs to avoid death lock")
-			} else {
-				log.Errorf("error closing sequence: %w", err)
-				log.Info("resetting sequence in progress")
-				if err = s.loadSequenceFromState(ctx); err != nil {
-					log.Errorf("error loading sequence from state: %w", err)
-				}
-				return
+			log.Errorf("error closing sequence: %w", err)
+			log.Info("resetting sequence in progress")
+			if err = s.loadSequenceFromState(ctx); err != nil {
+				log.Errorf("error loading sequence from state: %w", err)
 			}
+			return
 		}
 	}
 
@@ -278,7 +273,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		return types.Sequence{}, err
 	}
 	// open next batch
-	gerHash, err := s.getLatestGer(ctx, dbTx)
+	gerHash, _, err := s.getLatestGer(ctx, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return types.Sequence{}, fmt.Errorf(
@@ -289,7 +284,7 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		return types.Sequence{}, err
 	}
 
-	processingCtx, err := s.openBatch(ctx, gerHash, dbTx)
+	processingCtx, err := s.openBatch(ctx, gerHash.GlobalExitRoot, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
 			return types.Sequence{}, fmt.Errorf(
@@ -469,14 +464,19 @@ func (s *Sequencer) closeBatch(ctx context.Context, lastBatchNumber uint64, dbTx
 	return nil
 }
 
-func (s *Sequencer) getLatestGer(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
-	ger, err := s.state.GetLatestGlobalExitRoot(ctx, dbTx)
+func (s *Sequencer) getLatestGer(ctx context.Context, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error) {
+	lastBlockNumber, err := s.etherman.GetLatestBlockNumber(ctx)
+	if err != nil {
+		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest eth block number, err: %w", err)
+	}
+	maxBlockNumber := lastBlockNumber - s.cfg.WaitBlocksToConsiderGerFinal
+	ger, receivedAt, err := s.state.GetLatestGlobalExitRoot(ctx, maxBlockNumber, dbTx)
 	if err != nil && errors.Is(err, state.ErrNotFound) {
-		return state.ZeroHash, nil
+		return state.GlobalExitRoot{}, time.Time{}, nil
 	} else if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
+		return state.GlobalExitRoot{}, time.Time{}, fmt.Errorf("failed to get latest global exit root, err: %w", err)
 	} else {
-		return ger.GlobalExitRoot, nil
+		return ger, receivedAt, nil
 	}
 }
 
