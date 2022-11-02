@@ -52,6 +52,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(10),
 		},
 		{
+			path:          "Sequencer.MaxTxsPerBatch",
+			expectedValue: uint64(150),
+		},
+		{
+			path:          "Sequencer.MaxBatchBytesSize",
+			expectedValue: 30000,
+		},
+		{
 			path:          "Sequencer.MaxTimeForBatchToBeOpen",
 			expectedValue: types.NewDuration(15 * time.Second),
 		},
