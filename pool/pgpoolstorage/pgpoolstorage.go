@@ -190,7 +190,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 			gas_price >= $2 AND
 			is_claims = $3
 		ORDER BY 
-			gas_price DESC
+			nonce ASC
 		LIMIT $4
 	`
 
@@ -236,7 +236,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 				failed_counter ASC
 			LIMIT $4
 			) as tmp
-		ORDER BY gas_price DESC
+		ORDER BY nonce ASC
 		`
 	}
 

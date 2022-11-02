@@ -67,10 +67,16 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	// get txs from the pool
-	appendedClaimsTxsAmount := s.appendPendingTxs(ctx, true, 0, getTxsLimit, ticker)
-	appendedTxsAmount := s.appendPendingTxs(ctx, false, minGasPrice.Uint64(), getTxsLimit-appendedClaimsTxsAmount, ticker) + appendedClaimsTxsAmount
+	claimsTxs := s.getPendingTxs(ctx, true, 0, getTxsLimit, ticker)
+	txs := s.getPendingTxs(ctx, false, minGasPrice.Uint64(), getTxsLimit-uint64(len(claimsTxs)), ticker)
 
-	if appendedTxsAmount == 0 {
+	sort.SliceStable(txs, func(i, j int) bool {
+		return txs[i].Nonce() < txs[j].Nonce()
+	})
+
+	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, txs...)
+
+	if len(txs) == 0 {
 		return
 	}
 	// clear txs if it bigger than expected
@@ -79,7 +85,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 	// process batch
-	log.Infof("processing batch with %d txs. %d txs are new from this iteration", len(s.sequenceInProgress.Txs), appendedTxsAmount)
+	log.Infof("processing batch with %d txs. %d txs are new from this iteration", len(s.sequenceInProgress.Txs), len(txs))
 	processResponse, err := s.processTxs(ctx)
 	if err != nil {
 		s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
@@ -489,7 +495,7 @@ func (s *Sequencer) openBatch(ctx context.Context, gerHash common.Hash, dbTx pgx
 	return processingCtx, nil
 }
 
-func (s *Sequencer) appendPendingTxs(ctx context.Context, isClaims bool, minGasPrice, getTxsLimit uint64, ticker *time.Ticker) uint64 {
+func (s *Sequencer) getPendingTxs(ctx context.Context, isClaims bool, minGasPrice, getTxsLimit uint64, ticker *time.Ticker) []ethTypes.Transaction {
 	pendTxs, err := s.pool.GetTxs(ctx, pool.TxStatusPending, isClaims, minGasPrice, getTxsLimit)
 	if err == pgpoolstorage.ErrNotFound || len(pendTxs) == 0 {
 		pendTxs, err = s.pool.GetTxs(ctx, pool.TxStatusFailed, isClaims, minGasPrice, getTxsLimit)
@@ -498,14 +504,13 @@ func (s *Sequencer) appendPendingTxs(ctx context.Context, isClaims bool, minGasP
 			if !isClaims {
 				waitTick(ctx, ticker)
 			}
-			return 0
+			return nil
 		}
 	} else if err != nil {
 		log.Errorf("failed to get pending tx, err: %w", err)
-		return 0
+		return nil
 	}
 	var (
-		invalidTxsCounter        int
 		zkCountersBeforeAddition pool.ZkCounters
 		pendTxsPreSelected       []ethTypes.Transaction
 	)
@@ -515,7 +520,6 @@ func (s *Sequencer) appendPendingTxs(ctx context.Context, isClaims bool, minGasP
 			log.Warnf("mark tx with hash %s as invalid, failed counter %d exceeded max %d from config",
 				hash, pendTxs[i].FailedCounter, s.cfg.MaxAllowedFailedCounter)
 			s.updateTxsStatus(ctx, ticker, []string{hash}, pool.TxStatusInvalid)
-			invalidTxsCounter++
 			continue
 		}
 		if s.sequenceInProgress.ZkCounters.IsAnyFieldMoreThan(pool.ZkCounters{
@@ -538,13 +542,7 @@ func (s *Sequencer) appendPendingTxs(ctx context.Context, isClaims bool, minGasP
 		pendTxsPreSelected = append(pendTxsPreSelected, pendTxs[i].Transaction)
 	}
 
-	sort.SliceStable(pendTxsPreSelected, func(i, j int) bool {
-		return pendTxsPreSelected[i].Nonce() < pendTxsPreSelected[j].Nonce()
-	})
-
-	s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, pendTxsPreSelected...)
-
-	return uint64(len(pendTxs) - invalidTxsCounter)
+	return pendTxsPreSelected
 }
 
 func (s *Sequencer) backupSequence() types.Sequence {

@@ -156,9 +156,8 @@ func TestAppendPendingTxs(t *testing.T) {
 	poolTxs = append(poolTxs, &pool.Transaction{Transaction: *poolTx})
 
 	pl.On("GetTxs", ctx, pool.TxStatusPending, false, minGasPrice.Uint64(), uint64(150)).Return(poolTxs, nil)
-	pendTxsAmount := s.appendPendingTxs(ctx, false, minGasPrice.Uint64(), 150, ticker)
-	require.Equal(t, uint64(1), pendTxsAmount)
-	require.Equal(t, 1, len(s.sequenceInProgress.Txs))
+	pendTxs := s.getPendingTxs(ctx, false, minGasPrice.Uint64(), 150, ticker)
+	require.Equal(t, uint64(1), len(pendTxs))
 	pl.AssertExpectations(t)
 }
 
@@ -175,9 +174,8 @@ func TestAppendPendingTxsFailedCounter(t *testing.T) {
 
 	pl.On("GetTxs", ctx, pool.TxStatusPending, false, minGasPrice.Uint64(), uint64(150)).Return(poolTxs, nil)
 	pl.On("UpdateTxsStatus", ctx, []string{poolTxs[0].Hash().String()}, pool.TxStatusInvalid).Return(nil)
-	pendTxsAmount := s.appendPendingTxs(ctx, false, minGasPrice.Uint64(), 150, ticker)
-	require.Equal(t, uint64(0), pendTxsAmount)
-	require.Equal(t, 0, len(s.sequenceInProgress.Txs))
+	pendTxs := s.getPendingTxs(ctx, false, minGasPrice.Uint64(), 150, ticker)
+	require.Equal(t, uint64(0), pendTxs)
 	pl.AssertExpectations(t)
 }
 
