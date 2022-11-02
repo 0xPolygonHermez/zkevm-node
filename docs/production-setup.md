@@ -2,6 +2,10 @@
 
 This document will guide you through all the steps needed to setup your own `zkEVM-Node` for production.
 
+# Warning:
+
+>Currently the Executor/Prover does not run on ARM-powered Macs. For Windows users, WSL/WSL2 use is not recommended. 
+
 ## Network Components
 
 Required:

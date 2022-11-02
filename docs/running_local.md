@@ -1,5 +1,9 @@
 # Steps to run/develop on the environment locally
 
+# Warning:
+
+>Currently the Executor/Prover does not run on ARM-powered Macs. For Windows users, WSL/WSL2 use is not recommended. 
+
 ## Overview
 
 This documentation will help you running the following components:
