@@ -28,7 +28,9 @@ run-rpc: ## Runs all the services need to run a local zkEMV RPC node
 	sleep 2
 	docker-compose up -d zkevm-prover
 	sleep 5
-	docker-compose up -d zkevm-sync zkevm-rpc
+	docker-compose up -d zkevm-sync
+	sleep 2
+	docker-compose up -d zkevm-rpc
 
 .PHONY: stop
 stop: ## Stops all services
