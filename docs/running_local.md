@@ -68,25 +68,19 @@ The `make run` will execute the containers needed to run the environment but thi
 
 If you need sample data already deployed to the network, we have the following scripts:
 
-First initialize the network for the L2 node:
-
-```bash
-make init-network
-```
-
-To add some examples of transactions and smart contracts:
+**To add some examples of transactions and smart contracts:**
 
 ```bash
 make deploy-sc
 ```
 
-To deploy a full a uniswap environment:
+**To deploy a full a uniswap environment:**
 
 ```bash
 make deploy-uniswap
 ```
 
-To grant the Matic smart contract a set amount of tokens, run:
+**To grant the Matic smart contract a set amount of tokens, run:**
 
 ```bash
 make run-approve-matic

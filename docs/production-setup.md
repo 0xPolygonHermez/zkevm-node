@@ -128,6 +128,8 @@ mkdir -p /$HOME/zkevm-node/.postgres-pool
 mkdir -p /$HOME/zkevm-node/.postgres-rpc
 ```
 
+Download the init schema for the prover DB: [./db/scripts/init_prover_db.sql](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/db/scripts/init_prover_db.sql) to the directory `zkevm-node`.
+
 In order to run the Postgres instance, create a file called `docker-compose.yml` inside of the directory `zkevm-node`
 
 > We recommend you to customize the ENVIRONMENT variables values in the file below to your preference:
@@ -148,8 +150,8 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - ./db/scripts/init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
-      - /$HOME/zkevm-node/.postgres-state:./postgres-data
+      - ./init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
+      - /$HOME/zkevm-node/.postgres-state:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=state_user
       - POSTGRES_PASSWORD=state_password
@@ -168,7 +170,7 @@ services:
     ports:
       - 5433:5432
     volumes:
-      - /$HOME/zkevm-node/.postgres-pool:./postgres-data
+      - /$HOME/zkevm-node/.postgres-pool:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=pool_user
       - POSTGRES_PASSWORD=pool_password
@@ -187,7 +189,7 @@ services:
     ports:
       - 5434:5432
     volumes:
-      - /$HOME/zkevm-node/.postgres-rpc:./postgres-data
+      - /$HOME/zkevm-node/.postgres-rpc:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=rpc_user
       - POSTGRES_PASSWORD=rpc_password
@@ -282,14 +284,20 @@ In order to be able to propose batches we are going to register our Ethereum acc
 to do this execute this command:
 
 ```bash
-docker run --rm -v /$HOME/zkevm-node/config.toml:/app/config.toml hermeznetwork/zkevm-node:latest sh -c "./zkevm-node register --cfg=/app/config.toml --y <public IP or URL for users to access the sequencer> "
+docker run --rm -v /$HOME/zkevm-node/config.toml:/app/config.toml \
+    -v /$HOME/zkevm-node/genesis.json:/app/genesis.json \
+    hermeznetwork/zkevm-node:latest \
+    sh -c "./zkevm-node register --cfg=/app/config.toml --y <public IP or URL for users to access the sequencer> "
 ```
 
 In order to propose new batches, you must approve the Tokens to be used by the Roll-up on your behalf, to do this execute this command:
 > remember to set the value of the parameter amount before executing
 
 ```bash
-docker run --rm -v /$HOME/zkevm-node/config.toml:/app/config.toml hermeznetwork/zkevm-node:latest sh -c "./zkevm-node approve --cfg=/app/config.toml --address=poe --amount=0 --y"
+docker run --rm -v /$HOME/zkevm-node/config.toml:/app/config.toml \
+    -v /$HOME/zkevm-node/genesis.json:/app/genesis.json \
+    hermeznetwork/zkevm-node:latest \
+    sh -c "./app/zkevm-node approve --am [amount] -y --genesis /app/genesis.json --cfg /app/config.toml""
 ```
 
 Now we are going to put everything together in order to run the `zkEVM-Node` instance.
