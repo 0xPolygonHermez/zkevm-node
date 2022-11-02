@@ -122,11 +122,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Etherman.PrivateKeyPath",
-			expectedValue: "./test/test.keystore",
+			expectedValue: "",
 		},
 		{
 			path:          "Etherman.PrivateKeyPassword",
-			expectedValue: "testonly",
+			expectedValue: "",
 		},
 		{
 			path:          "Etherman.PoEAddr",
