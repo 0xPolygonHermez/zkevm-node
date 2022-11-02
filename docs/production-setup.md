@@ -54,7 +54,7 @@ mkdir -p /$HOME/zkevm-node/.ethereum
 
 In order to run the Ethereum node instance, create a file called `docker-compose.yml` inside of the directory `zkevm-node`
 
-```dockercompose
+```yaml
 version: '3'
 
 services:
@@ -134,7 +134,7 @@ In order to run the Postgres instance, create a file called `docker-compose.yml`
 
 > We recommend you to customize the ENVIRONMENT variables values in the file below to your preference:
 
-```docker-compose
+```yaml
 version: '3'
 
 services:
@@ -304,7 +304,7 @@ Now we are going to put everything together in order to run the `zkEVM-Node` ins
 
 Add the following entries to the `docker-compose.yml` file
 
-```docker-compose
+```yaml 
   zkevm-rpc:
     container_name: zkevm-rpc
     image: zkevm-node
@@ -364,7 +364,7 @@ Create a file called `docker-compose.yml` inside of the `zkevm-node` directory.
 > to the DB in the Explorer environment variable called DATABASE_URL
 > Remember to set the environment variable ETHEREUM_JSONRPC_HTTP_URL with the `zkEVM-Node` IP and PORT
 
-```docker-compose
+```yaml 
 version: '3'
 
 services:
@@ -402,7 +402,7 @@ To run the Explorer, execute the following command:
 
 ```bash
 docker-compose up -d zkevm-explorer-db
-sleep5
+sleep 5
 docker-compose up -d zkevm-explorer
 ```
 
