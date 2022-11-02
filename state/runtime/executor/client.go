@@ -32,6 +32,7 @@ func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient,
 		executorConn, err = grpc.DialContext(ctx, c.URI, opts...)
 		if err != nil {
 			log.Infof("Retrying connection to executor #%d", connectionRetries)
+			time.Sleep(2 * time.Second)
 			connectionRetries = connectionRetries + 1
 		} else {
 			log.Infof("connected to executor")
