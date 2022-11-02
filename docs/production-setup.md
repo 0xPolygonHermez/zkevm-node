@@ -282,28 +282,6 @@ Remember to:
 - set the `Etherman Password` to allow the node to decrypt the `keystore file`
 - set the `Prover URI` the `IP and port` of the `Prover Instance`
 
-
-
-In order to be able to propose batches we are going to register our Ethereum account as a Sequencer,
-to do this execute this command:
-
-```bash
-docker run --rm -v /$HOME/zkevm-node/config.toml:/app/config.toml \
-    -v /$HOME/zkevm-node/genesis.json:/app/genesis.json \
-    hermeznetwork/zkevm-node:latest \
-    sh -c "./zkevm-node register --cfg=/app/config.toml --y <public IP or URL for users to access the sequencer> "
-```
-
-In order to propose new batches, you must approve the Tokens to be used by the Roll-up on your behalf, to do this execute this command:
-> remember to set the value of the parameter amount before executing
-
-```bash
-docker run --rm -v /$HOME/zkevm-node/config.toml:/app/config.toml \
-    -v /$HOME/zkevm-node/genesis.json:/app/genesis.json \
-    hermeznetwork/zkevm-node:latest \
-    sh -c "./app/zkevm-node approve --am [amount] -y --genesis /app/genesis.json --cfg /app/config.toml""
-```
-
 Now we are going to put everything together in order to run the `zkEVM-Node` instance.
 
 Add the following entries to the `docker-compose.yml` file
