@@ -2,7 +2,6 @@ package config_test
 
 import (
 	"flag"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"reflect"
@@ -14,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -44,8 +44,16 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(10),
 		},
 		{
+			path:          "Sequencer.WaitBlocksToConsiderGerFinal",
+			expectedValue: uint64(10),
+		},
+		{
 			path:          "Sequencer.MaxTimeForBatchToBeOpen",
 			expectedValue: types.NewDuration(15 * time.Second),
+		},
+		{
+			path:          "Sequencer.ElapsedTimeToCloseBatchWithoutTxsDueToNewGER",
+			expectedValue: types.NewDuration(60 * time.Second),
 		},
 		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
@@ -94,6 +102,42 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.MaxSequenceSize",
 			expectedValue: sequencer.MaxSequenceSize{Int: new(big.Int).SetInt64(2000000)},
+		},
+		{
+			path:          "Sequencer.MaxAllowedFailedCounter",
+			expectedValue: uint64(50),
+		},
+		{
+			path:          "Etherman.URL",
+			expectedValue: "http://localhost:8545",
+		},
+		{
+			path:          "Etherman.L1ChainID",
+			expectedValue: uint64(1337),
+		},
+		{
+			path:          "Etherman.PrivateKeyPath",
+			expectedValue: "",
+		},
+		{
+			path:          "Etherman.PrivateKeyPassword",
+			expectedValue: "",
+		},
+		{
+			path:          "Etherman.PoEAddr",
+			expectedValue: common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
+		},
+		{
+			path:          "Etherman.MaticAddr",
+			expectedValue: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+		},
+		{
+			path:          "Etherman.GlobalExitRootManagerAddr",
+			expectedValue: common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
+		},
+		{
+			path:          "Etherman.MultiGasProvider",
+			expectedValue: true,
 		},
 		{
 			path:          "EthTxManager.IntervalToReviewSendBatchTx",
@@ -184,6 +228,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: int(8123),
 		},
 		{
+			path:          "RPC.ReadTimeoutInSec",
+			expectedValue: time.Duration(1),
+		},
+		{
+			path:          "RPC.WriteTimeoutInSec",
+			expectedValue: time.Duration(1),
+		},
+		{
 			path:          "RPC.SequencerNodeURI",
 			expectedValue: "",
 		},
@@ -240,7 +292,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: 61090,
 		},
 	}
-	file, err := ioutil.TempFile("", "genesisConfig")
+	file, err := os.CreateTemp("", "genesisConfig")
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, os.Remove(file.Name()))

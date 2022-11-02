@@ -36,39 +36,33 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 // shouldCloseDueToNewDeposits return true if there has been new deposits on L1 for more than WaitBlocksToUpdateGER
 // and the sequence is profitable (if profitability check is enabled)
 func (s *Sequencer) shouldCloseDueToNewDeposits(ctx context.Context) (bool, error) {
+	lastGer, gerReceivedAt, err := s.getLatestGer(ctx, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Errorf("failed to get latest global exit root, err: %w", err)
+		return false, err
+	}
+
+	// get current ger and compare it with the last ger
 	blockNum, mainnetExitRoot, err := s.state.GetBlockNumAndMainnetExitRootByGER(ctx, s.sequenceInProgress.GlobalExitRoot, nil)
 	if err != nil && err != state.ErrNotFound {
-		log.Errorf("failed to get mainnetExitRoot and blockNum by ger, err: %v", err)
+		log.Errorf("failed to get mainnetExitRoot and blockNum by ger, err: %w", err)
 		return false, err
 	}
 
-	lastGer, err := s.state.GetLatestGlobalExitRoot(ctx, nil)
-	if err != nil && err != state.ErrNotFound {
-		log.Errorf("failed to get latest global exit root, err: %v", err)
-		return false, err
-	}
-
-	if lastGer != nil && lastGer.MainnetExitRoot != mainnetExitRoot {
+	if lastGer.MainnetExitRoot != mainnetExitRoot {
 		latestBlockNumber, err := s.etherman.GetLatestBlockNumber(ctx)
 		if err != nil {
-			log.Errorf("failed to get latest batch number from ethereum, err: %v", err)
+			log.Errorf("failed to get latest batch number from ethereum, err: %w", err)
 			return false, err
 		}
-		if latestBlockNumber-blockNum > s.cfg.WaitBlocksToUpdateGER {
-			if len(s.sequenceInProgress.Txs) == 0 {
-				err := s.updateGerInBatch(ctx, lastGer)
-				if err != nil {
-					return false, err
-				}
-			} else {
-				isProfitable := s.isSequenceProfitable(ctx)
-				if isProfitable {
-					log.Infof("current sequence should be closed because blocks have been mined since last GER and tx is profitable")
-					return true, nil
-				}
-			}
+
+		if latestBlockNumber-blockNum > s.cfg.WaitBlocksToUpdateGER &&
+			gerReceivedAt.Before(time.Now().Add(-s.cfg.ElapsedTimeToCloseBatchWithoutTxsDueToNewGER.Duration)) {
+			log.Info("current sequence should be closed because blocks have been mined since last GER")
+			return true, nil
 		}
 	}
+
 	return false, nil
 }
 

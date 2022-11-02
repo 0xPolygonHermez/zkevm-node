@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/globalexitrootmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
@@ -45,6 +47,9 @@ var (
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
+	// ErrIsReadOnlyMode is used when the EtherMan client is in read-only mode.
+	ErrIsReadOnlyMode = errors.New("Etherman client in read-only mode: no account configured to send transactions to L1. " +
+		"Please check the [Etherman] PrivateKeyPath and PrivateKeyPassword configuration.")
 )
 
 // EventOrder is the the type used to identify the events order
@@ -68,7 +73,13 @@ type ethClienter interface {
 	ethereum.LogFilterer
 	ethereum.TransactionReader
 	ethereum.ContractCaller
+	ethereum.GasPricer
 	bind.DeployBackend
+}
+
+type externalGasProviders struct {
+	MultiGasProvider bool
+	Providers        []ethereum.GasPricer
 }
 
 // Client is a simple implementation of EtherMan.
@@ -79,7 +90,9 @@ type Client struct {
 	Matic                 *matic.Matic
 	SCAddresses           []common.Address
 
-	auth *bind.TransactOpts
+	GasProviders externalGasProviders
+
+	auth *bind.TransactOpts // nil in case of read-only client
 }
 
 // NewClient creates a new etherman.
@@ -106,8 +119,34 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, cfg.PoEAddr, cfg.GlobalExitRootManagerAddr)
 
-	return &Client{EtherClient: ethClient, PoE: poe, Matic: matic, GlobalExitRootManager: globalExitRoot, SCAddresses: scAddresses, auth: auth}, nil
+	gProviders := []ethereum.GasPricer{ethClient}
+	if cfg.MultiGasProvider {
+		if cfg.Etherscan.ApiKey == "" {
+			log.Info("No ApiKey provided for etherscan. Ignoring provider...")
+		} else {
+			log.Info("ApiKey detected for etherscan")
+			gProviders = append(gProviders, etherscan.NewEtherscanService(cfg.Etherscan.ApiKey))
+		}
+		gProviders = append(gProviders, ethgasstation.NewEthGasStationService())
+	}
+
+	return &Client{
+		EtherClient:           ethClient,
+		PoE:                   poe,
+		Matic:                 matic,
+		GlobalExitRootManager: globalExitRoot,
+		SCAddresses:           scAddresses,
+		GasProviders: externalGasProviders{
+			MultiGasProvider: cfg.MultiGasProvider,
+			Providers:        gProviders,
+		},
+		auth: auth,
+	}, nil
 }
+
+// IsReadOnly returns whether the EtherMan client is in read-only mode.
+// Call this before trying to access the `auth` field.
+func (c *Client) IsReadOnly() bool { return c.auth == nil }
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
 // from block x to block y.
@@ -233,6 +272,9 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 
 // EstimateGasSequenceBatches estimates gas for sending batches
 func (etherMan *Client) EstimateGasSequenceBatches(sequences []state.Sequence) (*types.Transaction, error) {
+	if etherMan.IsReadOnly() {
+		return nil, ErrIsReadOnlyMode
+	}
 	noSendOpts := *etherMan.auth
 	noSendOpts.NoSend = true
 	tx, err := etherMan.sequenceBatches(&noSendOpts, sequences)
@@ -244,9 +286,17 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []state.Sequence) (
 }
 
 // SequenceBatches send sequences of batches to the ethereum
-func (etherMan *Client) SequenceBatches(sequences []state.Sequence, gasLimit uint64, nonce *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []state.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+	if etherMan.IsReadOnly() {
+		return nil, ErrIsReadOnlyMode
+	}
 	sendSequencesOpts := *etherMan.auth
 	sendSequencesOpts.GasLimit = gasLimit
+	if gasPrice != nil {
+		sendSequencesOpts.GasPrice = gasPrice
+	} else if etherMan.GasProviders.MultiGasProvider {
+		sendSequencesOpts.GasPrice = etherMan.getGasPrice(ctx)
+	}
 	if nonce != nil {
 		sendSequencesOpts.Nonce = nonce
 	}
@@ -282,6 +332,9 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []sta
 
 // EstimateGasForVerifyBatch estimates gas for verify batch smart contract call
 func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse) (uint64, error) {
+	if etherMan.IsReadOnly() {
+		return 0, ErrIsReadOnlyMode
+	}
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.NoSend = true
 	tx, err := etherMan.verifyBatch(&verifyBatchOpts, batchNumber, resGetProof)
@@ -292,9 +345,17 @@ func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProo
 }
 
 // VerifyBatch send verifyBatch request to the ethereum
-func (etherMan *Client) VerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, nonce *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) VerifyBatch(ctx context.Context, batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+	if etherMan.IsReadOnly() {
+		return nil, ErrIsReadOnlyMode
+	}
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.GasLimit = gasLimit
+	if gasPrice != nil {
+		verifyBatchOpts.GasPrice = gasPrice
+	} else if etherMan.GasProviders.MultiGasProvider {
+		verifyBatchOpts.GasPrice = etherMan.getGasPrice(ctx)
+	}
 	if nonce != nil {
 		verifyBatchOpts.Nonce = nonce
 	}
@@ -646,8 +707,15 @@ func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 }
 
 // ApproveMatic function allow to approve tokens in matic smc
-func (etherMan *Client) ApproveMatic(maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
-	tx, err := etherMan.Matic.Approve(etherMan.auth, etherMan.SCAddresses[0], maticAmount)
+func (etherMan *Client) ApproveMatic(ctx context.Context, maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
+	if etherMan.IsReadOnly() {
+		return nil, ErrIsReadOnlyMode
+	}
+	opts := *etherMan.auth
+	if etherMan.GasProviders.MultiGasProvider {
+		opts.GasPrice = etherMan.getGasPrice(ctx)
+	}
+	tx, err := etherMan.Matic.Approve(&opts, etherMan.SCAddresses[0], maticAmount)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
@@ -664,8 +732,11 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 }
 
 // GetPublicAddress returns eth client public address
-func (etherMan *Client) GetPublicAddress() common.Address {
-	return etherMan.auth.From
+func (etherMan *Client) GetPublicAddress() (common.Address, error) {
+	if etherMan.IsReadOnly() {
+		return common.Address{}, ErrIsReadOnlyMode
+	}
+	return etherMan.auth.From, nil
 }
 
 // GetL2ChainID returns L2 Chain ID
@@ -716,4 +787,19 @@ func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64,
 	}
 
 	return tx, nil
+}
+
+func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
+	// Get gasPrice from providers
+	gasPrice := big.NewInt(0)
+	for i, prov := range etherMan.GasProviders.Providers {
+		gp, err := prov.SuggestGasPrice(ctx)
+		if err != nil {
+			log.Warnf("error getting gas price from provider %d. Error: %s", i+1, err.Error())
+		} else if gasPrice.Cmp(gp) == -1 { // gasPrice < gp
+			gasPrice = gp
+		}
+	}
+	log.Debug("gasPrice choosed: ", gasPrice)
+	return gasPrice
 }

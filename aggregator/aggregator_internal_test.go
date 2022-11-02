@@ -125,7 +125,7 @@ func TestBuildInputProver(t *testing.T) {
 		BatchL2Data:    hex.EncodeToString(batchL2Data),
 	}
 
-	etherman.On("GetPublicAddress").Return(common.HexToAddress("0x123"))
+	etherman.On("GetPublicAddress").Return(common.HexToAddress("0x123"), nil)
 	ip, err := a.buildInputProver(ctx, batchToVerify)
 	require.NoError(t, err)
 	require.NotNil(t, ip)
@@ -271,7 +271,7 @@ func TestAggregatorFlow(t *testing.T) {
 	st.On("AddGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil)
 	st.On("UpdateGeneratedProof", mock.Anything, mock.Anything, nil).Return(nil)
 	etherman.On("GetLatestVerifiedBatchNum").Return(uint64(1), nil)
-	etherman.On("GetPublicAddress").Return(aggrAddress)
+	etherman.On("GetPublicAddress").Return(aggrAddress, nil)
 
 	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(context.Background(), nil)
 	require.NoError(t, err)
@@ -284,9 +284,9 @@ func TestAggregatorFlow(t *testing.T) {
 	// get proof
 	proverClient.On("GetResGetProof", mock.Anything, "1", batchToVerify.BatchNumber).Return(getProofResponse, nil)
 	// send proof to the eth
-	ethTxManager.On("VerifyBatch", batchToVerify.BatchNumber, getProofResponse).Return(nil)
+	ctx := context.Background()
+	ethTxManager.On("VerifyBatch", ctx, batchToVerify.BatchNumber, getProofResponse).Return(nil)
 	ticker := time.NewTicker(a.cfg.IntervalToConsolidateState.Duration)
 	defer ticker.Stop()
-	ctx := context.Background()
 	a.tryVerifyBatch(ctx, ticker)
 }

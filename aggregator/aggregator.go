@@ -310,7 +310,7 @@ func (a *Aggregator) getBatchToVerify(ctx context.Context) (*state.Batch, error)
 func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.Batch) (*pb.InputProver, error) {
 	previousBatch, err := a.State.GetBatchByNumber(ctx, batchToVerify.BatchNumber-1, nil)
 	if err != nil && err != state.ErrStateNotSynchronized {
-		return nil, fmt.Errorf("failed to get previous batch, err: %v", err)
+		return nil, fmt.Errorf("failed to get previous batch, err: %w", err)
 	}
 
 	blockTimestampByte := make([]byte, 8) //nolint:gomnd
@@ -321,6 +321,10 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		blockTimestampByte,
 		batchToVerify.Coinbase[:],
 	))
+	pubAddr, err := a.Ethman.GetPublicAddress()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get public address, err: %w", err)
+	}
 	inputProver := &pb.InputProver{
 		PublicInputs: &pb.PublicInputs{
 			OldStateRoot:     previousBatch.StateRoot.String(),
@@ -331,7 +335,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 			BatchHashData:    batchHashData.String(),
 			BatchNum:         uint32(batchToVerify.BatchNumber),
 			EthTimestamp:     uint64(batchToVerify.Timestamp.Unix()),
-			AggregatorAddr:   a.Ethman.GetPublicAddress().String(),
+			AggregatorAddr:   pubAddr.String(),
 			ChainId:          a.cfg.ChainID,
 		},
 		GlobalExitRoot:    batchToVerify.GlobalExitRoot.String(),

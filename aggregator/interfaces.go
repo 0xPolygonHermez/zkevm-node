@@ -21,7 +21,7 @@ type ethTxManager interface {
 // etherman contains the methods required to interact with ethereum
 type etherman interface {
 	GetLatestVerifiedBatchNum() (uint64, error)
-	GetPublicAddress() common.Address
+	GetPublicAddress() (common.Address, error)
 }
 
 // aggregatorTxProfitabilityChecker interface for different profitability

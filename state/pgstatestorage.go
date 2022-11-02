@@ -19,7 +19,6 @@ const maxTopics = 4
 
 const (
 	addGlobalExitRootSQL                     = "INSERT INTO state.exit_root (block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root) VALUES ($1, $2, $3, $4, $5)"
-	getLatestExitRootSQL                     = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM state.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
 	getLatestExitRootBlockNumSQL             = "SELECT block_num FROM state.exit_root ORDER BY global_exit_root_num DESC LIMIT 1"
 	addVirtualBatchSQL                       = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num) VALUES ($1, $2, $3, $4)"
 	addForcedBatchSQL                        = "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num) VALUES ($1, $2, $3, $4, $5, $6, $7)"
@@ -221,23 +220,33 @@ func (p *PostgresStorage) AddGlobalExitRoot(ctx context.Context, exitRoot *Globa
 }
 
 // GetLatestGlobalExitRoot get the latest global ExitRoot synced.
-func (p *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (*GlobalExitRoot, error) {
+func (p *PostgresStorage) GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (GlobalExitRoot, time.Time, error) {
+	const getLatestExitRootSQL = "SELECT block_num, global_exit_root_num, mainnet_exit_root, rollup_exit_root, global_exit_root FROM state.exit_root WHERE block_num <= $1 ORDER BY global_exit_root_num DESC LIMIT 1"
+
 	var (
-		exitRoot  GlobalExitRoot
-		globalNum uint64
-		err       error
+		exitRoot   GlobalExitRoot
+		globalNum  uint64
+		err        error
+		receivedAt time.Time
 	)
 
 	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, getLatestExitRootSQL).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot, &exitRoot.GlobalExitRoot)
+	err = e.QueryRow(ctx, getLatestExitRootSQL, maxBlockNumber).Scan(&exitRoot.BlockNumber, &globalNum, &exitRoot.MainnetExitRoot, &exitRoot.RollupExitRoot, &exitRoot.GlobalExitRoot)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
+		return GlobalExitRoot{}, time.Time{}, ErrNotFound
 	} else if err != nil {
-		return nil, err
+		return GlobalExitRoot{}, time.Time{}, err
 	}
 	exitRoot.GlobalExitRootNum = new(big.Int).SetUint64(globalNum)
-	return &exitRoot, nil
+
+	err = e.QueryRow(ctx, getBlockTimeByNumSQL, exitRoot.BlockNumber).Scan(&receivedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return GlobalExitRoot{}, time.Time{}, ErrNotFound
+	} else if err != nil {
+		return GlobalExitRoot{}, time.Time{}, err
+	}
+	return exitRoot, receivedAt, nil
 }
 
 // GetNumberOfBlocksSinceLastGERUpdate gets number of blocks since last global exit root update

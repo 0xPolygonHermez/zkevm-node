@@ -9,7 +9,6 @@ import (
 	cfgTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	sequencerMocks "github.com/0xPolygonHermez/zkevm-node/sequencer/mocks"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -64,14 +63,14 @@ func TestShouldCloseSequenceReachedMaxAmountOfTxs(t *testing.T) {
 	require.True(t, shouldClose)
 }
 
-func TestShouldCloseDueToNewDepositsUpdateGER(t *testing.T) {
+func TestShouldCloseDueToNewDeposits(t *testing.T) {
 	st := new(sequencerMocks.StateMock)
 	eth := new(sequencerMocks.EthermanMock)
 	dbTx := new(sequencerMocks.DbTxMock)
-	s := Sequencer{cfg: Config{WaitBlocksToUpdateGER: 10}, state: st, etherman: eth}
+	s := Sequencer{cfg: Config{WaitBlocksToUpdateGER: 10, WaitBlocksToConsiderGerFinal: 6}, state: st, etherman: eth}
 	ctx := context.Background()
 	mainnetExitRoot := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1")
-	lastGer := &state.GlobalExitRoot{
+	lastGer := state.GlobalExitRoot{
 		BlockNumber:       1,
 		GlobalExitRootNum: big.NewInt(2),
 		MainnetExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
@@ -80,45 +79,14 @@ func TestShouldCloseDueToNewDepositsUpdateGER(t *testing.T) {
 	}
 	s.sequenceInProgress.GlobalExitRoot = lastGer.GlobalExitRoot
 	st.On("GetBlockNumAndMainnetExitRootByGER", ctx, s.sequenceInProgress.GlobalExitRoot, nil).Return(lastGer.BlockNumber, mainnetExitRoot, nil)
-	st.On("GetLatestGlobalExitRoot", ctx, nil).Return(lastGer, nil)
+	st.On("GetLatestGlobalExitRoot", ctx, uint64(6), nil).Return(lastGer, time.Now(), nil)
 	eth.On("GetLatestBlockNumber", ctx).Return(uint64(12), nil)
-	st.On("BeginStateTransaction", ctx).Return(dbTx, nil)
-	dbTx.On("Commit", ctx).Return(nil)
-	st.On("UpdateGERInOpenBatch", ctx, lastGer.GlobalExitRoot, dbTx).Return(nil).Once()
-	isShouldCloseDueToNewDeposits, err := s.shouldCloseDueToNewDeposits(ctx)
-	require.NoError(t, err)
-	require.Equal(t, false, isShouldCloseDueToNewDeposits)
-	st.AssertExpectations(t)
-	eth.AssertExpectations(t)
-	dbTx.AssertExpectations(t)
-}
-
-func TestShouldCloseDueToNewDepositsSequenceProfitable(t *testing.T) {
-	st := new(sequencerMocks.StateMock)
-	eth := new(sequencerMocks.EthermanMock)
-	profitabilityChecker := profitabilitychecker.New(profitabilitychecker.Config{SendBatchesEvenWhenNotProfitable: true}, nil, nil)
-	s := Sequencer{cfg: Config{WaitBlocksToUpdateGER: 10}, state: st, etherman: eth, checker: profitabilityChecker}
-	ctx := context.Background()
-	mainnetExitRoot := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1")
-	lastGer := &state.GlobalExitRoot{
-		BlockNumber:       1,
-		GlobalExitRootNum: big.NewInt(2),
-		MainnetExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		RollupExitRoot:    common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
-		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
-	}
-	s.sequenceInProgress.GlobalExitRoot = lastGer.GlobalExitRoot
-	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	s.sequenceInProgress.Txs = []types.Transaction{*tx}
-	st.On("GetBlockNumAndMainnetExitRootByGER", ctx, s.sequenceInProgress.GlobalExitRoot, nil).Return(lastGer.BlockNumber, mainnetExitRoot, nil)
-	st.On("GetLatestGlobalExitRoot", ctx, nil).Return(lastGer, nil)
-	eth.On("GetLatestBlockNumber", ctx).Return(uint64(12), nil)
-
 	isShouldCloseDueToNewDeposits, err := s.shouldCloseDueToNewDeposits(ctx)
 	require.NoError(t, err)
 	require.Equal(t, true, isShouldCloseDueToNewDeposits)
 	st.AssertExpectations(t)
 	eth.AssertExpectations(t)
+	dbTx.AssertExpectations(t)
 }
 
 func TestShouldCloseTooLongSinceLastVirtualized(t *testing.T) {
@@ -187,7 +155,7 @@ func TestAppendPendingTxs(t *testing.T) {
 
 	pl.On("GetTxs", ctx, pool.TxStatusPending, false, minGasPrice.Uint64(), uint64(150)).Return(poolTxs, nil)
 	pendTxsAmount := s.appendPendingTxs(ctx, false, minGasPrice.Uint64(), 150, ticker)
-	require.Equal(t, 1, pendTxsAmount)
+	require.Equal(t, uint64(1), pendTxsAmount)
 	require.Equal(t, 1, len(s.sequenceInProgress.Txs))
 	pl.AssertExpectations(t)
 }
@@ -390,7 +358,7 @@ func TestTryToProcessTxs(t *testing.T) {
 	require.Equal(t, true, isSynced)
 
 	mainnetExitRoot := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1")
-	lastGer := &state.GlobalExitRoot{
+	lastGer := state.GlobalExitRoot{
 		BlockNumber:       1,
 		GlobalExitRootNum: big.NewInt(2),
 		MainnetExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1"),
@@ -398,8 +366,9 @@ func TestTryToProcessTxs(t *testing.T) {
 		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 	}
 	s.sequenceInProgress.GlobalExitRoot = lastGer.GlobalExitRoot
+	eth.On("GetLatestBlockNumber", ctx).Return(uint64(1), nil)
 	st.On("GetBlockNumAndMainnetExitRootByGER", ctx, s.sequenceInProgress.GlobalExitRoot, nil).Return(lastGer.BlockNumber, mainnetExitRoot, nil)
-	st.On("GetLatestGlobalExitRoot", ctx, nil).Return(lastGer, nil)
+	st.On("GetLatestGlobalExitRoot", ctx, uint64(1), nil).Return(lastGer, time.Now(), nil)
 	st.On("BeginStateTransaction", ctx).Return(dbTx, nil)
 	dbTx.On("Commit", ctx).Return(nil)
 

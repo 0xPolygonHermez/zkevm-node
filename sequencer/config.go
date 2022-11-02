@@ -21,6 +21,12 @@ type Config struct {
 	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
 	WaitBlocksToUpdateGER uint64 `mapstructure:"WaitBlocksToUpdateGER"`
 
+	// WaitBlocksToConsiderGerFinal is number of blocks for sequencer to consider GER final
+	WaitBlocksToConsiderGerFinal uint64 `mapstructure:"WaitBlocksToConsiderGerFinal"`
+
+	// ElapsedTimeToCloseBatchWithoutTxsDueToNewGER it's time to close a batch bcs new GER appeared
+	ElapsedTimeToCloseBatchWithoutTxsDueToNewGER types.Duration `mapstructure:"ElapsedTimeToCloseBatchWithoutTxsDueToNewGER"`
+
 	// MaxTimeForBatchToBeOpen is time after which new batch should be closed
 	MaxTimeForBatchToBeOpen types.Duration `mapstructure:"MaxTimeForBatchToBeOpen"`
 

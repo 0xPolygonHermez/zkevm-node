@@ -135,7 +135,7 @@ func TestSequenceTooBig(t *testing.T) {
 	amountB := new(big.Int)
 	amountInWei.Int(amountB)
 
-	_, err = eth_man.ApproveMatic(amountB, CONFIG_ADDRESSES[CONFIG_NAME_POE])
+	_, err = eth_man.ApproveMatic(ctx, amountB, CONFIG_ADDRESSES[CONFIG_NAME_POE])
 	require.NoError(t, err)
 
 	pg, err := pricegetter.NewClient(pricegetter.Config{

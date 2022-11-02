@@ -13,8 +13,8 @@ import (
 )
 
 type etherman interface {
-	SequenceBatches(sequences []state.Sequence, gas uint64, nonce *big.Int) (*types.Transaction, error)
-	VerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, nonce *big.Int) (*types.Transaction, error)
+	SequenceBatches(ctx context.Context, sequences []state.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error)
+	VerifyBatch(ctx context.Context, batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error)
 	EstimateGasForVerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse) (uint64, error)
 	EstimateGasSequenceBatches(sequences []state.Sequence) (*types.Transaction, error)
 	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)

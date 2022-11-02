@@ -59,7 +59,7 @@ func (c *Client) SyncPendingProofs() {
 	// generate a l1 transaction for all pending proofs
 	for _, pendingProof := range pendingProofs {
 		if pendingProof.TxHash == nil {
-			tx, err := c.ethMan.VerifyBatch(pendingProof.BatchNumber, pendingProof.Proof, 0, nil)
+			tx, err := c.ethMan.VerifyBatch(ctx, pendingProof.BatchNumber, pendingProof.Proof, 0, nil, nil)
 			if err != nil {
 				log.Errorf("failed to send tx to verify batch for batch number %v: %v", pendingProof.BatchNumber, err)
 				continue
@@ -100,7 +100,7 @@ func (c *Client) groupSequences() {
 	var tx *types.Transaction
 	confirmed := false
 	for {
-		tx, err = c.ethMan.SequenceBatches(sequencesWithoutGroup, 0, nil)
+		tx, err = c.ethMan.SequenceBatches(ctx, sequencesWithoutGroup, 0, nil, nil)
 		if err != nil {
 			// is the amount of sequences causes oversized, reduce the sequences by one
 			if err.Error() == core.ErrOversizedData.Error() {
@@ -205,7 +205,7 @@ func (c *Client) tryReviewSequenceGroupTx(ctx context.Context, sequenceGroup sta
 		nonce := big.NewInt(0).SetUint64(sequenceGroup.TxNonce)
 		// using the same nonce, create a new transaction, this will make the gas to be
 		// recalculated with the current prices of the network
-		tx, err := c.ethMan.SequenceBatches(sequences, 0, nonce)
+		tx, err := c.ethMan.SequenceBatches(ctx, sequences, 0, nil, nonce)
 		if err != nil {
 			// if the tx is already know, refresh the update date to give it more time to get mined
 			if errors.Is(err, core.ErrAlreadyKnown) {
@@ -263,7 +263,7 @@ func (c *Client) tryReviewProofTx(ctx context.Context, proof state.Proof) {
 		nonce := big.NewInt(0).SetUint64(*proof.TxNonce)
 		// using the same nonce, create a new transaction, this will make the gas to be
 		// recalculated with the current prices of the network
-		tx, err := c.ethMan.VerifyBatch(proof.BatchNumber, proof.Proof, 0, nonce)
+		tx, err := c.ethMan.VerifyBatch(ctx, proof.BatchNumber, proof.Proof, 0, nil, nonce)
 		if err != nil {
 			// if the tx is already know, refresh the update date to give it more time to get mined
 			if errors.Is(err, core.ErrAlreadyKnown) {
