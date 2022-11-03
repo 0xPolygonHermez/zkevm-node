@@ -34,7 +34,7 @@ var (
 	forcedBatchSignatureHash            = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
 	sequencedBatchesEventSignatureHash  = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
 	forceSequencedBatchesSignatureHash  = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))
-	verifiedBatchSignatureHash          = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
+	verifyBatchesSignatureHash          = crypto.Keccak256Hash([]byte("VerifyBatches(uint64,address)"))
 	setTrustedSequencerURLSignatureHash = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))
 	setForceBatchAllowedSignatureHash   = crypto.Keccak256Hash([]byte("SetForceBatchAllowed(bool)"))
 	setTrustedSequencerSignatureHash    = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))
@@ -190,8 +190,8 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		return etherMan.updateGlobalExitRootEvent(ctx, vLog, blocks, blocksOrder)
 	case forcedBatchSignatureHash:
 		return etherMan.forcedBatchEvent(ctx, vLog, blocks, blocksOrder)
-	case verifiedBatchSignatureHash:
-		return etherMan.verifyBatchEvent(ctx, vLog, blocks, blocksOrder)
+	case verifyBatchesSignatureHash:
+		return etherMan.verifyBatchesEvent(ctx, vLog, blocks, blocksOrder)
 	case forceSequencedBatchesSignatureHash:
 		return etherMan.forceSequencedBatchesEvent(ctx, vLog, blocks, blocksOrder)
 	case setTrustedSequencerURLSignatureHash:
@@ -301,7 +301,7 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 			Transactions:          batchL2Data,
 			GlobalExitRoot:        seq.GlobalExitRoot,
 			Timestamp:             uint64(seq.Timestamp),
-			ForceBatchesTimestamp: nil,
+			MinForcedTimestamp:    0, // TODO If this batch is forced, this value must be different to zero. If it is a non forced sequence, then the valio will be valid
 		}
 
 		batches = append(batches, batch)
@@ -318,10 +318,10 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 }
 
 // EstimateGasForVerifyBatch estimates gas for verify batch smart contract call
-func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProof *pb.GetProofResponse) (uint64, error) {
+func (etherMan *Client) EstimateGasForVerifyBatch(lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) (uint64, error) {
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.NoSend = true
-	tx, err := etherMan.verifyBatch(&verifyBatchOpts, batchNumber, resGetProof)
+	tx, err := etherMan.verifyBatch(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, resGetProof)
 	if err != nil {
 		return 0, err
 	}
@@ -329,7 +329,7 @@ func (etherMan *Client) EstimateGasForVerifyBatch(batchNumber uint64, resGetProo
 }
 
 // VerifyBatch send verifyBatch request to the ethereum
-func (etherMan *Client) VerifyBatch(ctx context.Context, batchNumber uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) VerifyBatch(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.GasLimit = gasLimit
 	if gasPrice != nil {
@@ -340,7 +340,7 @@ func (etherMan *Client) VerifyBatch(ctx context.Context, batchNumber uint64, res
 	if nonce != nil {
 		verifyBatchOpts.Nonce = nonce
 	}
-	return etherMan.verifyBatch(&verifyBatchOpts, batchNumber, resGetProof)
+	return etherMan.verifyBatch(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, resGetProof)
 }
 
 // GetSendSequenceFee get super/trusted sequencer fee
@@ -376,7 +376,27 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 		return err
 	}
 	if fb.Sequencer == msg.From() {
-		forcedBatch.RawTxsData = tx.Data()
+		txData := tx.Data()
+		// Extract coded txs.
+		// Load contract ABI
+		abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
+		if err != nil {
+			return err
+		}
+
+		// Recover Method from signature and ABI
+		method, err := abi.MethodById(txData[:4])
+		if err != nil {
+			return err
+		}
+
+		// Unpack method inputs
+		data, err := method.Inputs.Unpack(txData[4:])
+		if err != nil {
+			return err
+		}
+		bytedata := data[0].([]byte)
+		forcedBatch.RawTxsData = bytedata
 	} else {
 		forcedBatch.RawTxsData = fb.Transactions
 	}
@@ -481,23 +501,22 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	}
 
 	sequencedBatches := make([]SequencedBatch, len(sequences))
-	for i := len(sequences) - 1; i >= 0; i-- {
-		lastBatchNumber -= uint64(len(sequences[i].ForceBatchesTimestamp))
+	for i, seq := range sequences {
+		bn := lastBatchNumber - uint64(len(sequences) - (i + 1))
 		sequencedBatches[i] = SequencedBatch{
-			BatchNumber:                lastBatchNumber,
+			BatchNumber:                bn,
 			Coinbase:                   sequencer,
 			TxHash:                     txHash,
-			ProofOfEfficiencyBatchData: sequences[i],
+			ProofOfEfficiencyBatchData: seq,
 		}
-		lastBatchNumber--
 	}
 
 	return sequencedBatches, nil
 }
 
-func (etherMan *Client) verifyBatchEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+func (etherMan *Client) verifyBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("VerifyBatch event detected")
-	vb, err := etherMan.PoE.ParseVerifyBatch(vLog)
+	vb, err := etherMan.PoE.ParseVerifyBatches(vLog)
 	if err != nil {
 		return err
 	}
@@ -537,11 +556,6 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 		return err
 	}
 
-	var sequencedForceBatch SequencedForceBatch
-	sequencedForceBatch.LastBatchSequenced = fsb.NumBatch
-	if err != nil {
-		return err
-	}
 	// Read the tx for this batch.
 	tx, isPending, err := etherMan.EtherClient.TransactionByHash(ctx, vLog.TxHash)
 	if err != nil {
@@ -554,9 +568,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 		log.Error(err)
 		return err
 	}
-	sequencedForceBatch.Coinbase = msg.From()
-	sequencedForceBatch.ForceBatchNumber, err = decodeForceBatchNumber(tx.Data())
-	sequencedForceBatch.TxHash = vLog.TxHash
+	sequencedForceBatch, err := decodeSequencedForceBatches(tx.Data(), fsb.NumBatch, msg.From(), vLog.TxHash)
 	if err != nil {
 		return err
 	}
@@ -567,10 +579,10 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
 		}
 		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
-		block.SequencedForceBatches = append(block.SequencedForceBatches, sequencedForceBatch)
+		block.SequencedForceBatches = append(block.SequencedForceBatches, sequencedForceBatch...)
 		*blocks = append(*blocks, block)
 	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].SequencedForceBatches = append((*blocks)[len(*blocks)-1].SequencedForceBatches, sequencedForceBatch)
+		(*blocks)[len(*blocks)-1].SequencedForceBatches = append((*blocks)[len(*blocks)-1].SequencedForceBatches, sequencedForceBatch...)
 	} else {
 		log.Error("Error processing ForceSequencedBatches event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
 		return fmt.Errorf("error processing ForceSequencedBatches event")
@@ -584,27 +596,47 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 	return nil
 }
 
-func decodeForceBatchNumber(txData []byte) (uint64, error) {
+func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash) ([]SequencedForceBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
 	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	// Recover Method from signature and ABI
 	method, err := abi.MethodById(txData[:4])
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	// Unpack method inputs
 	data, err := method.Inputs.Unpack(txData[4:])
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return data[0].(uint64), nil
+	var forceBatches []proofofefficiency.ProofOfEfficiencyForceBatchData
+	bytedata, err := json.Marshal(data[0])
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(bytedata, &forceBatches)
+	if err != nil {
+		return nil, err
+	}
+
+	sequencedForcedBatches := make([]SequencedForceBatch, len(forceBatches))
+	for i, force := range forceBatches {
+		bn := lastBatchNumber - uint64(len(forceBatches) - (i + 1))
+		sequencedForcedBatches[i] = SequencedForceBatch{
+			BatchNumber:                bn,
+			Coinbase:                   sequencer,
+			TxHash:                     txHash,
+			ProofOfEfficiencyForceBatchData: force,
+		}
+	}
+	return sequencedForcedBatches, nil
 }
 
 func prepareBlock(vLog types.Log, t time.Time, fullBlock *types.Block) Block {
@@ -720,7 +752,7 @@ func (etherMan *Client) GetL2ChainID() (uint64, error) {
 }
 
 // VerifyBatch function allows the aggregator send the proof for a batch and consolidate it
-func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64, resGetProof *pb.GetProofResponse) (*types.Transaction, error) {
+func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) (*types.Transaction, error) {
 	publicInputs := resGetProof.Public.PublicInputs
 	newLocalExitRoot, err := stringToFixedByteArray(publicInputs.NewLocalExitRoot)
 	if err != nil {
@@ -745,11 +777,12 @@ func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, batchNumber uint64,
 		return nil, err
 	}
 
-	tx, err := etherMan.PoE.VerifyBatch(
+	tx, err := etherMan.PoE.VerifyBatches(
 		opts,
+		lastVerifiedBatch,
+		newVerifiedBatch,
 		newLocalExitRoot,
 		newStateRoot,
-		batchNumber,
 		proofA,
 		proofB,
 		proofC,

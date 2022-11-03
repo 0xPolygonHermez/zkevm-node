@@ -58,8 +58,8 @@ type VerifiedBatch struct {
 
 // SequencedForceBatch is a sturct to track the ForceSequencedBatches event.
 type SequencedForceBatch struct {
-	LastBatchSequenced uint64
-	ForceBatchNumber   uint64
-	Coinbase           common.Address
-	TxHash             common.Hash
+	BatchNumber uint64
+	Coinbase    common.Address
+	TxHash      common.Hash
+	proofofefficiency.ProofOfEfficiencyForceBatchData
 }
