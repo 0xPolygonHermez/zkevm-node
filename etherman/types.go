@@ -17,7 +17,7 @@ type Block struct {
 	ForcedBatches         []ForcedBatch
 	SequencedBatches      [][]SequencedBatch
 	VerifiedBatches       []VerifiedBatch
-	SequencedForceBatches []SequencedForceBatch
+	SequencedForceBatches [][]SequencedForceBatch
 	ReceivedAt            time.Time
 }
 
@@ -61,5 +61,6 @@ type SequencedForceBatch struct {
 	BatchNumber uint64
 	Coinbase    common.Address
 	TxHash      common.Hash
+	Timestamp   time.Time
 	proofofefficiency.ProofOfEfficiencyForceBatchData
 }

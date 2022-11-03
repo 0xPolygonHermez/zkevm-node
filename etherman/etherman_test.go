@@ -276,8 +276,8 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	blocks, order, err = etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(4), blocks[1].BlockNumber)
-	assert.Equal(t, uint64(1), blocks[1].SequencedForceBatches[0].BatchNumber)
-	assert.Equal(t, uint64(20), blocks[1].SequencedForceBatches[0].MinForcedTimestamp)
+	assert.Equal(t, uint64(1), blocks[1].SequencedForceBatches[0][0].BatchNumber)
+	assert.Equal(t, uint64(20), blocks[1].SequencedForceBatches[0][0].MinForcedTimestamp)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
 
