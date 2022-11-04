@@ -399,7 +399,7 @@
 			},
 			{
 				"internalType": "address",
-				"name": "originTokenAddress",
+				"name": "originAddress",
 				"type": "address"
 			},
 			{
