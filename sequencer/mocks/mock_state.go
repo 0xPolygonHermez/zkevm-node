@@ -23,6 +23,20 @@ type StateMock struct {
 	mock.Mock
 }
 
+// AddSequenceGroup provides a mock function with given fields: ctx, sequenceGroup, dbTx
+func (_m *StateMock) AddSequenceGroup(ctx context.Context, sequenceGroup state.SequenceGroup, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, sequenceGroup, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.SequenceGroup, pgx.Tx) error); ok {
+		r0 = rf(ctx, sequenceGroup, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // BeginStateTransaction provides a mock function with given fields: ctx
 func (_m *StateMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	ret := _m.Called(ctx)

@@ -27,7 +27,6 @@ type stateInterface interface {
 	GetPendingSequenceGroups(ctx context.Context, dbTx pgx.Tx) ([]state.SequenceGroup, error)
 	GetLastSequenceGroup(ctx context.Context, dbTx pgx.Tx) (*state.SequenceGroup, error)
 	GetSequencesByBatchNums(ctx context.Context, batchNumbers []uint64, dbTx pgx.Tx) ([]state.Sequence, error)
-	AddSequenceGroup(ctx context.Context, sequenceGroup state.SequenceGroup, dbTx pgx.Tx) error
 	SetSequenceGroupAsConfirmed(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) error
 	UpdateSequenceGroupTx(ctx context.Context, oldTxHash, newTxHash common.Hash, dbTx pgx.Tx) error
 

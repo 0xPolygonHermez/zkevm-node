@@ -55,6 +55,21 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 		"creating sequences from batch %d to batch %d",
 		lastBatchNumber+1, lastBatchNumber+uint64(len(sequences)),
 	)
+
+	tx, err := s.etherman.SequenceBatches(ctx, sequences, 0, nil, nil)
+	if err != nil {
+		log.Errorf("failed to send sequence batches: %v", err)
+		return
+	}
+
+	sequenceGroup := state.SequenceGroup{
+		TxHash:       tx.Hash(),
+		TxNonce:      tx.Nonce(),
+		Status:       state.SequenceGroupStatusPending,
+		CreatedAt:    time.Now(),
+		BatchNumbers: make([]uint64, 0, len(sequences)),
+	}
+
 	dbTx, err := s.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin a tx on state, err: %v", err)
@@ -72,11 +87,19 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 			}
 			return
 		}
+		sequenceGroup.BatchNumbers = append(sequenceGroup.BatchNumbers, sequence.BatchNumber)
 	}
 
+	err = s.state.AddSequenceGroup(ctx, sequenceGroup, dbTx)
+	if err != nil {
+		log.Errorf("failed to create sequence group: %v", err)
+		return
+	}
 	if err := dbTx.Commit(ctx); err != nil {
 		log.Errorf("failed to commit dbTx to create sequences: %v", err)
 	}
+
+	log.Infof("sequence group created for batches %v: %v", sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String())
 }
 
 // getSequencesToSend generates an array of sequences to be send to L1.

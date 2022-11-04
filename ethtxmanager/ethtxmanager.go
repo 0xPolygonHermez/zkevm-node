@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -42,7 +41,6 @@ func New(cfg Config, st stateInterface, ethMan etherman) *Client {
 // SyncPendingSequences loads pending sequences from the state and
 // sync them with PoE on L1
 func (c *Client) SyncPendingSequences() {
-	c.groupSequences()
 	c.syncSequences()
 }
 
@@ -77,76 +75,6 @@ func (c *Client) SyncPendingProofs() {
 		if confirmed := c.checkProofConfirmation(ctx, pendingProof); !confirmed {
 			c.tryReviewProofTx(ctx, pendingProof)
 		}
-	}
-}
-
-// groupSequences build sequence groups with sequences without group
-func (c *Client) groupSequences() {
-	ctx := context.Background()
-
-	// get sequences without group
-	sequencesWithoutGroup, err := c.state.GetSequencesWithoutGroup(ctx, nil)
-	if err != nil {
-		log.Errorf("failed to get sequences without group: %v", err)
-		return
-	}
-
-	// if there is no sequence without group, returns
-	if len(sequencesWithoutGroup) == 0 {
-		return
-	}
-
-	// send the sequences to create the tx
-	var tx *types.Transaction
-	confirmed := false
-	for {
-		tx, err = c.ethMan.SequenceBatches(ctx, sequencesWithoutGroup, 0, nil, nil)
-		if err != nil {
-			// is the amount of sequences causes oversized, reduce the sequences by one
-			if err.Error() == core.ErrOversizedData.Error() {
-				sequencesWithoutGroup = sequencesWithoutGroup[:len(sequencesWithoutGroup)-1]
-				// if the error is the timestamp outside the range and there are multiple sequences, try to send only one
-			} else if strings.Contains(err.Error(), ErrTimestampOutsideRange) && len(sequencesWithoutGroup) > 1 {
-				sequencesWithoutGroup = sequencesWithoutGroup[0:1]
-				// if the error is the timestamp outside the range and there is a single sequence, mark it as confirmed because it was already sequenced
-			} else if strings.Contains(err.Error(), ErrTimestampOutsideRange) && len(sequencesWithoutGroup) == 1 {
-				confirmed = true
-				break
-			} else {
-				log.Errorf("failed to send sequence batches: %v", err)
-				return
-			}
-		} else {
-			break
-		}
-	}
-
-	// create a pending sequence group with sequences and tx
-	sequenceGroup := state.SequenceGroup{
-		TxHash:       tx.Hash(),
-		TxNonce:      tx.Nonce(),
-		Status:       state.SequenceGroupStatusPending,
-		CreatedAt:    time.Now(),
-		BatchNumbers: make([]uint64, 0, len(sequencesWithoutGroup)),
-	}
-	for _, sequence := range sequencesWithoutGroup {
-		sequenceGroup.BatchNumbers = append(sequenceGroup.BatchNumbers, sequence.BatchNumber)
-	}
-
-	// persist sequence group to start monitoring this tx
-	err = c.state.AddSequenceGroup(ctx, sequenceGroup, nil)
-	if err != nil {
-		log.Errorf("failed to create sequence group: %v", err)
-		return
-	}
-	log.Infof("sequence group created for batches %v: %v", sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String())
-
-	if confirmed {
-		err := c.state.SetSequenceGroupAsConfirmed(ctx, sequenceGroup.TxHash, nil)
-		if err != nil {
-			log.Errorf("failed to set sequence group as confirmed for tx %v: %v", sequenceGroup.TxHash.String(), err)
-		}
-		return
 	}
 }
 

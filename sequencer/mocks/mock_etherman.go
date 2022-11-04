@@ -150,6 +150,29 @@ func (_m *EthermanMock) GetSendSequenceFee() (*big.Int, error) {
 	return r0, r1
 }
 
+// SequenceBatches provides a mock function with given fields: ctx, sequences, gasLimit, gasPrice, nonce
+func (_m *EthermanMock) SequenceBatches(ctx context.Context, sequences []state.Sequence, gasLimit uint64, gasPrice *big.Int, nonce *big.Int) (*types.Transaction, error) {
+	ret := _m.Called(ctx, sequences, gasLimit, gasPrice, nonce)
+
+	var r0 *types.Transaction
+	if rf, ok := ret.Get(0).(func(context.Context, []state.Sequence, uint64, *big.Int, *big.Int) *types.Transaction); ok {
+		r0 = rf(ctx, sequences, gasLimit, gasPrice, nonce)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*types.Transaction)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, []state.Sequence, uint64, *big.Int, *big.Int) error); ok {
+		r1 = rf(ctx, sequences, gasLimit, gasPrice, nonce)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // TrustedSequencer provides a mock function with given fields:
 func (_m *EthermanMock) TrustedSequencer() (common.Address, error) {
 	ret := _m.Called()
