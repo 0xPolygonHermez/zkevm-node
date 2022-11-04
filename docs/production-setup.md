@@ -278,7 +278,7 @@ Remember to:
 
 - replace the database information if you set it differently while setting up the Postgres instance
 - set the `Database Host` with the `Postgres instance IP`
-- set the `Etherman URL` with the `JSON RPC URL` of the `Ethereum node` you created earlier *or* use the Infura URL with your API key like so: `https://goerli.infura.io/v3/$YOUR_API_KEY`
+- set the `Etherman URL` with the `JSON RPC URL` of the `Ethereum node` you created earlier *or* use any L1 Goerli service such as Infura. Set Infura URL with your API key like so: `https://goerli.infura.io/v3/$YOUR_API_KEY`
 - set the `Etherman Password` to allow the node to decrypt the `keystore file`
 - set the `Prover URI` the `IP and port` of the `Prover Instance`
 
