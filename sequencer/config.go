@@ -36,6 +36,12 @@ type Config struct {
 	// FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
 	FrequencyToCheckTxsForDelete types.Duration `mapstructure:"FrequencyToCheckTxsForDelete"`
 
+	// MaxTxsPerBatch is the maximum amount of transactions in the batch
+	MaxTxsPerBatch uint64 `mapstructure:"MaxTxsPerBatch"`
+
+	// MaxBatchBytesSize is the maximum batch size in bytes
+	MaxBatchBytesSize int `mapstructure:"MaxBatchBytesSize"`
+
 	// MaxCumulativeGasUsed is max gas amount used by batch
 	MaxCumulativeGasUsed uint64 `mapstructure:"MaxCumulativeGasUsed"`
 

@@ -17,8 +17,8 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 		s.sequenceInProgress.IsSequenceTooBig = false
 		return true
 	}
-	if len(s.sequenceInProgress.Txs) >= int(maxTxsPerBatch) {
-		log.Infof("current sequence should be closed because it has reached the maximum capacity (%d txs)", maxTxsPerBatch)
+	if len(s.sequenceInProgress.Txs) >= int(s.cfg.MaxTxsPerBatch) {
+		log.Infof("current sequence should be closed because it has reached the maximum capacity (%d txs)", s.cfg.MaxTxsPerBatch)
 		return true
 	}
 	// Check if there are any deposits or GER needs to be updated

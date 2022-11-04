@@ -21,7 +21,7 @@ EnableLog = false
 MaxConns = 200
 
 [Etherman]
-URL = "https://geth_goerli.hermez.io"
+URL = "http://your.L1node.url"
 L1ChainID = 5
 PrivateKeyPath = "/pk/keystore"
 PrivateKeyPassword = "testonly"
