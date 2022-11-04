@@ -48,6 +48,9 @@ var (
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("Not found")
+	// ErrIsReadOnlyMode is used when the EtherMan client is in read-only mode.
+	ErrIsReadOnlyMode = errors.New("Etherman client in read-only mode: no account configured to send transactions to L1. " +
+		"Please check the [Etherman] PrivateKeyPath and PrivateKeyPassword configuration.")
 )
 
 // EventOrder is the the type used to identify the events order
@@ -90,7 +93,7 @@ type Client struct {
 
 	GasProviders externalGasProviders
 
-	auth *bind.TransactOpts
+	auth *bind.TransactOpts // nil in case of read-only client
 }
 
 // NewClient creates a new etherman.
@@ -138,8 +141,13 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 			MultiGasProvider: cfg.MultiGasProvider,
 			Providers:        gProviders,
 		},
-		auth: auth}, nil
+		auth: auth,
+	}, nil
 }
+
+// IsReadOnly returns whether the EtherMan client is in read-only mode.
+// Call this before trying to access the `auth` field.
+func (c *Client) IsReadOnly() bool { return c.auth == nil }
 
 // GetRollupInfoByBlockRange function retrieves the Rollup information that are included in all this ethereum blocks
 // from block x to block y.
@@ -265,6 +273,9 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 
 // EstimateGasSequenceBatches estimates gas for sending batches
 func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
+	if etherMan.IsReadOnly() {
+		return nil, ErrIsReadOnlyMode
+	}
 	noSendOpts := *etherMan.auth
 	noSendOpts.NoSend = true
 	tx, err := etherMan.sequenceBatches(&noSendOpts, sequences)
@@ -277,6 +288,9 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 
 // SequenceBatches send sequences of batches to the ethereum
 func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+	if etherMan.IsReadOnly() {
+		return nil, ErrIsReadOnlyMode
+	}
 	sendSequencesOpts := *etherMan.auth
 	sendSequencesOpts.GasLimit = gasLimit
 	if gasPrice != nil {
@@ -319,6 +333,9 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 
 // EstimateGasForVerifyBatches estimates gas for verify batch smart contract call
 func (etherMan *Client) EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) (uint64, error) {
+	if etherMan.IsReadOnly() {
+		return 0, ErrIsReadOnlyMode
+	}
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.NoSend = true
 	tx, err := etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, resGetProof)
@@ -330,6 +347,9 @@ func (etherMan *Client) EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifi
 
 // VerifyBatches send verifyBatches request to the ethereum
 func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+	if etherMan.IsReadOnly() {
+		return nil, ErrIsReadOnlyMode
+	}
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.GasLimit = gasLimit
 	if gasPrice != nil {
@@ -722,6 +742,9 @@ func (etherMan *Client) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 
 // ApproveMatic function allow to approve tokens in matic smc
 func (etherMan *Client) ApproveMatic(ctx context.Context, maticAmount *big.Int, to common.Address) (*types.Transaction, error) {
+	if etherMan.IsReadOnly() {
+		return nil, ErrIsReadOnlyMode
+	}
 	opts := *etherMan.auth
 	if etherMan.GasProviders.MultiGasProvider {
 		opts.GasPrice = etherMan.getGasPrice(ctx)
@@ -743,8 +766,11 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 }
 
 // GetPublicAddress returns eth client public address
-func (etherMan *Client) GetPublicAddress() common.Address {
-	return etherMan.auth.From
+func (etherMan *Client) GetPublicAddress() (common.Address, error) {
+	if etherMan.IsReadOnly() {
+		return common.Address{}, ErrIsReadOnlyMode
+	}
+	return etherMan.auth.From, nil
 }
 
 // GetL2ChainID returns L2 Chain ID

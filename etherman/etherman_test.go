@@ -29,7 +29,7 @@ func init() {
 	})
 }
 
-//This function prepare the blockchain, the wallet with funds and deploy the smc
+// This function prepare the blockchain, the wallet with funds and deploy the smc
 func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, maticAddr common.Address, br *bridge.Bridge) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
