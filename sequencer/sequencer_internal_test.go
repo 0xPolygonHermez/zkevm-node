@@ -52,9 +52,9 @@ func TestShouldCloseSequenceTooBig(t *testing.T) {
 }
 
 func TestShouldCloseSequenceReachedMaxAmountOfTxs(t *testing.T) {
-	s := Sequencer{}
-	txs := make([]types.Transaction, 0, maxTxsPerBatch)
-	for i := uint64(0); i < maxTxsPerBatch; i++ {
+	s := Sequencer{cfg: Config{MaxTxsPerBatch: 150}}
+	txs := make([]types.Transaction, 0, s.cfg.MaxTxsPerBatch)
+	for i := uint64(0); i < s.cfg.MaxTxsPerBatch; i++ {
 		tx := types.NewTransaction(i, common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 		txs = append(txs, *tx)
 	}
@@ -107,7 +107,7 @@ func TestShouldCloseTooLongSinceLastVirtualized(t *testing.T) {
 }
 
 func TestCleanTxsIfTxsDataIsBiggerThanExpected(t *testing.T) {
-	s := &Sequencer{}
+	s := &Sequencer{cfg: Config{MaxTxsPerBatch: 150, MaxBatchBytesSize: 30000}}
 	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	for i := 0; i < 300; i++ {
 		s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, *tx)
@@ -348,7 +348,11 @@ func TestTryToProcessTxs(t *testing.T) {
 	pl := new(sequencerMocks.PoolMock)
 
 	gpe := new(sequencerMocks.GasPriceEstimatorMock)
-	s := Sequencer{cfg: Config{MaxTimeForBatchToBeOpen: cfgTypes.NewDuration(5 * time.Second)}, state: st, etherman: eth, gpe: gpe, pool: pl}
+	s := Sequencer{cfg: Config{
+		MaxTimeForBatchToBeOpen: cfgTypes.NewDuration(5 * time.Second),
+		MaxBatchBytesSize:       30000,
+		MaxTxsPerBatch:          150,
+	}, state: st, etherman: eth, gpe: gpe, pool: pl}
 	ctx := context.Background()
 	// Check if synchronizer is up to date
 	st.On("GetLastVirtualBatchNum", ctx, nil).Return(uint64(1), nil)

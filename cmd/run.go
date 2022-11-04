@@ -257,12 +257,15 @@ func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 func newAuthFromKeystore(path, password string, chainID uint64) (*bind.TransactOpts, error) {
 	key, err := newKeyFromKeystore(path, password)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
+	}
+	if key == nil {
+		return nil, nil
 	}
 	log.Info("addr: ", key.Address.Hex())
 	auth, err := bind.NewKeyedTransactorWithChainID(key.PrivateKey, new(big.Int).SetUint64(chainID))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	return auth, nil
 }

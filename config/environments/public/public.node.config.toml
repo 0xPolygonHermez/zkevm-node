@@ -21,7 +21,7 @@ EnableLog = false
 MaxConns = 200
 
 [Etherman]
-URL = "https://geth_goerli.hermez.io"
+URL = "http://your.L1node.url"
 L1ChainID = 5
 PrivateKeyPath = "/pk/keystore"
 PrivateKeyPassword = "testonly"
@@ -35,6 +35,8 @@ MultiGasProvider = false
 [RPC]
 Host = "0.0.0.0"
 Port = 8545
+ReadTimeoutInSec = 60
+WriteTimeoutInSec = 60
 MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://public.zkevm-test.net:2083"
 BroadcastURI = "public-grpc.zkevm-test.net:61090"
