@@ -200,7 +200,7 @@ func ApplyTxs(ctx context.Context, txs []*types.Transaction) error {
 	}
 
 	// wait for TX to be mined
-	timeout := 180 * time.Second
+	timeout := 180 * time.Second //nolint:gomnd
 	for _, tx := range sentTxs {
 		log.Infof("Waiting Tx %s to be mined", tx.Hash())
 		err = WaitTxToBeMined(ctx, client, tx, timeout)
@@ -237,14 +237,14 @@ func ApplyTxs(ctx context.Context, txs []*types.Transaction) error {
 
 	// wait for l2 block to be virtualized
 	log.Infof("waiting for the block number %v to be virtualized", l2BlockNumber.String())
-	err = WaitL2BlockToBeVirtualized(l2BlockNumber, 4*time.Minute)
+	err = WaitL2BlockToBeVirtualized(l2BlockNumber, 4*time.Minute) //nolint:gomnd
 	if err != nil {
 		return err
 	}
 
 	// wait for l2 block number to be consolidated
 	log.Infof("waiting for the block number %v to be consolidated", l2BlockNumber.String())
-	err = WaitL2BlockToBeConsolidated(l2BlockNumber, 4*time.Minute)
+	err = WaitL2BlockToBeConsolidated(l2BlockNumber, 4*time.Minute) //nolint:gomnd
 	if err != nil {
 		return err
 	}

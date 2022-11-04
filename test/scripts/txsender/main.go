@@ -43,7 +43,7 @@ func main() {
 	}
 
 	// Send txs
-	amount := big.NewInt(10000)
+	amount := big.NewInt(10000) //nolint:gomnd
 	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)
 	if err != nil {
