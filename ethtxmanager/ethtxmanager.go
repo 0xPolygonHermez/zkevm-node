@@ -94,32 +94,32 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 }
 
 // VerifyBatch send VerifyBatch request to ethereum
-func (c *Client) VerifyBatch(ctx context.Context, batchNum uint64, resGetProof *pb.GetProofResponse) error {
+func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) error {
 	var (
 		attempts uint32
 		gas      uint64
 		gasPrice *big.Int
 		nonce    = big.NewInt(0)
 	)
-	log.Infof("sending batch %d verification to L1", batchNum)
+	log.Infof("sending batch %d verification to L1", newVerifiedBatch)
 	for attempts < c.cfg.MaxVerifyBatchTxRetries {
 		var (
 			tx  *types.Transaction
 			err error
 		)
 		if nonce.Uint64() > 0 {
-			tx, err = c.ethMan.VerifyBatch(ctx, batchNum, resGetProof, gas, gasPrice, nonce)
+			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, newVerifiedBatch, resGetProof, gas, gasPrice, nonce)
 		} else {
-			tx, err = c.ethMan.VerifyBatch(ctx, batchNum, resGetProof, gas, gasPrice, nil)
+			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, newVerifiedBatch, resGetProof, gas, gasPrice, nil)
 		}
 		for err != nil && attempts < c.cfg.MaxVerifyBatchTxRetries {
 			log.Errorf("failed to send batch verification, trying once again, retry #%d, err: %w", attempts, err)
 			time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
 
 			if nonce.Uint64() > 0 {
-				tx, err = c.ethMan.VerifyBatch(ctx, batchNum, resGetProof, gas, gasPrice, nonce)
+				tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, newVerifiedBatch, resGetProof, gas, gasPrice, nonce)
 			} else {
-				tx, err = c.ethMan.VerifyBatch(ctx, batchNum, resGetProof, gas, gasPrice, nil)
+				tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, newVerifiedBatch, resGetProof, gas, gasPrice, nil)
 			}
 
 			attempts++

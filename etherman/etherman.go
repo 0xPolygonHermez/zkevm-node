@@ -318,10 +318,10 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 }
 
 // EstimateGasForVerifyBatch estimates gas for verify batch smart contract call
-func (etherMan *Client) EstimateGasForVerifyBatch(lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) (uint64, error) {
+func (etherMan *Client) EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) (uint64, error) {
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.NoSend = true
-	tx, err := etherMan.verifyBatch(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, resGetProof)
+	tx, err := etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, resGetProof)
 	if err != nil {
 		return 0, err
 	}
@@ -329,7 +329,7 @@ func (etherMan *Client) EstimateGasForVerifyBatch(lastVerifiedBatch, newVerified
 }
 
 // VerifyBatch send verifyBatch request to the ethereum
-func (etherMan *Client) VerifyBatch(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.GasLimit = gasLimit
 	if gasPrice != nil {
@@ -340,7 +340,7 @@ func (etherMan *Client) VerifyBatch(ctx context.Context, lastVerifiedBatch, newV
 	if nonce != nil {
 		verifyBatchOpts.Nonce = nonce
 	}
-	return etherMan.verifyBatch(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, resGetProof)
+	return etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, resGetProof)
 }
 
 // GetSendSequenceFee get super/trusted sequencer fee
@@ -753,7 +753,7 @@ func (etherMan *Client) GetL2ChainID() (uint64, error) {
 }
 
 // VerifyBatch function allows the aggregator send the proof for a batch and consolidate it
-func (etherMan *Client) verifyBatch(opts *bind.TransactOpts, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) (*types.Transaction, error) {
+func (etherMan *Client) verifyBatches(opts *bind.TransactOpts, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) (*types.Transaction, error) {
 	publicInputs := resGetProof.Public.PublicInputs
 	newLocalExitRoot, err := stringToFixedByteArray(publicInputs.NewLocalExitRoot)
 	if err != nil {

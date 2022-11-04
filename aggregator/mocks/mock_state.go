@@ -127,6 +127,29 @@ func (_m *StateMock) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*st
 	return r0, r1
 }
 
+// GetSequences provides a mock function with given fields: ctx, lastVerifiedBatchNumber, dbTx
+func (_m *StateMock) GetSequences(ctx context.Context, lastVerifiedBatchNumber uint64, dbTx pgx.Tx) ([]state.Sequence, error) {
+	ret := _m.Called(ctx, lastVerifiedBatchNumber, dbTx)
+
+	var r0 []state.Sequence
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []state.Sequence); ok {
+		r0 = rf(ctx, lastVerifiedBatchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]state.Sequence)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, lastVerifiedBatchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetVirtualBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
 func (_m *StateMock) GetVirtualBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
