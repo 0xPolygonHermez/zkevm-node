@@ -1,10 +1,10 @@
-package e2e
+package main
 
 import (
 	"context"
 	"math/big"
-	"testing"
-	"time"
+	"os"
+	"strconv"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
@@ -12,41 +12,40 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/stretchr/testify/require"
 )
 
-func TestEthTransfer(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
+func main() {
 	ctx := context.Background()
 
-	defer func() { require.NoError(t, operations.Teardown()) }()
-
-	err := operations.Teardown()
-	require.NoError(t, err)
-	opsCfg := operations.GetDefaultOperationsConfig()
-	opsCfg.State.MaxCumulativeGasUsed = 80000000000
-	opsman, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsman.Setup()
-	require.NoError(t, err)
-	time.Sleep(5 * time.Second)
 	// Load account with balance on local genesis
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
-	require.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Load eth client
 	client, err := ethclient.Dial(operations.DefaultL2NetworkURL)
-	require.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Send 1 tx by default or read the number of txs from args
+	nTxs := 1
+	if len(os.Args) > 1 {
+		nTxs, _ = strconv.Atoi(os.Args[1])
+	}
+
 	// Send txs
-	nTxs := 50
 	amount := big.NewInt(10000)
 	toAddress := common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8")
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)
-	require.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 	senderNonce, err := client.PendingNonceAt(ctx, auth.From)
-	require.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	log.Infof("Receiver Addr: %v", toAddress.String())
 	log.Infof("Sender Addr: %v", auth.From.String())
@@ -54,13 +53,19 @@ func TestEthTransfer(t *testing.T) {
 	log.Infof("Sender Nonce: %v", senderNonce)
 
 	gasLimit, err := client.EstimateGas(ctx, ethereum.CallMsg{From: auth.From, To: &toAddress, Value: amount})
-	require.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
-	require.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
-	require.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	txs := make([]*types.Transaction, 0, nTxs)
 	for i := 0; i < nTxs; i++ {
@@ -69,5 +74,7 @@ func TestEthTransfer(t *testing.T) {
 	}
 
 	err = operations.ApplyTxs(ctx, txs)
-	require.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

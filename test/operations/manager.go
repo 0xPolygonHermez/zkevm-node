@@ -11,13 +11,13 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
-	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -158,74 +158,103 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 
 // ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
 // the final state.
-func (m *Manager) ApplyTxs(vectorTxs []vectors.Tx, initialRoot, finalRoot, globalExitRoot string) error {
-	panic("not implemented yet")
-	// // store current batch number to check later when the state is updated
-	// currentBatchNumber, err := m.st.GetLastBatchNumberSeenOnEthereum(m.ctx, nil)
-	// if err != nil {
-	// 	return err
-	// }
+func ApplyTxs(ctx context.Context, txs []*types.Transaction) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
-	// var txs []*types.Transaction
-	// for _, vectorTx := range vectorTxs {
-	// 	if string(vectorTx.RawTx) != "" && vectorTx.Overwrite.S == "" {
-	// 		var tx types.LegacyTx
-	// 		bytes, err := hex.DecodeHex(vectorTx.RawTx)
-	// 		if err != nil {
-	// 			return err
-	// 		}
+	// Load account with balance on local genesis
+	auth, err := GetAuth(DefaultSequencerPrivateKey, DefaultL2ChainID)
+	if err != nil {
+		return err
+	}
 
-	// 		err = rlp.DecodeBytes(bytes, &tx)
-	// 		if err == nil {
-	// 			txs = append(txs, types.NewTx(&tx))
-	// 		}
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	}
-	// }
-	// // Create Batch
-	// batch := &state.Batch{
-	// 	BlockNumber:        uint64(0),
-	// 	Sequencer:          common.HexToAddress(m.cfg.Sequencer.Address),
-	// 	Aggregator:         common.HexToAddress(aggregatorAddress),
-	// 	ConsolidatedTxHash: common.Hash{},
-	// 	Header:             &types.Header{Number: big.NewInt(0).SetUint64(1)},
-	// 	Uncles:             nil,
-	// 	Transactions:       txs,
-	// 	RawTxsData:         nil,
-	// 	MaticCollateral:    big.NewInt(1),
-	// 	ChainID:            big.NewInt(int64(m.cfg.NetworkConfig.ChainID)),
-	// 	GlobalExitRoot:     common.HexToHash(globalExitRoot),
-	// }
+	// Load eth client
+	client, err := ethclient.Dial(DefaultL2NetworkURL)
+	if err != nil {
+		return err
+	}
 
-	// // Create Batch Processor
-	// bp, err := m.st.NewBatchProcessor(m.ctx, common.HexToAddress(m.cfg.Sequencer.Address), common.Hex2Bytes(strings.TrimPrefix(initialRoot, "0x")), "")
-	// if err != nil {
-	// 	return err
-	// }
+	nTxs := len(txs)
 
-	// err = bp.ProcessBatch(m.ctx, batch)
-	// if err != nil {
-	// 	return err
-	// }
+	log.Infof("Sending %d transactions...", nTxs)
 
-	// // Wait for sequencer to select txs from pool and propose a new batch
-	// // Wait for the synchronizer to update state
-	// err = Poll(DefaultInterval, DefaultDeadline, func() (bool, error) {
-	// 	// using a closure here to capture st and currentBatchNumber
-	// 	latestBatchNumber, err := m.st.GetLastBatchNumberConsolidatedOnEthereum(m.ctx, "")
-	// 	if err != nil {
-	// 		return false, err
-	// 	}
-	// 	done := latestBatchNumber > currentBatchNumber
-	// 	return done, nil
-	// })
-	// // if the state is not expected to change waitPoll can timeout
-	// if initialRoot != "" && finalRoot != "" && initialRoot != finalRoot && err != nil {
-	// 	return err
-	// }
-	// return nil
+	var (
+		lastTxHash common.Hash
+		sentTxs    []*types.Transaction
+	)
+
+	for i := 0; i < len(txs); i++ {
+		signedTx, err := auth.Signer(auth.From, txs[i])
+		if err != nil {
+			return err
+		}
+		log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
+		err = client.SendTransaction(context.Background(), signedTx)
+		if err != nil {
+			return err
+		}
+		lastTxHash = signedTx.Hash()
+
+		sentTxs = append(sentTxs, signedTx)
+	}
+
+	// wait for TX to be mined
+	timeout := 180 * time.Second
+	for _, tx := range sentTxs {
+		log.Infof("Waiting Tx %s to be mined", tx.Hash())
+		err = WaitTxToBeMined(ctx, client, tx, timeout)
+		if err != nil {
+			return err
+		}
+		log.Infof("Tx %s mined successfully", tx.Hash())
+
+		// check transaction nonce against transaction reported L2 block number
+		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+		if err != nil {
+			return err
+		}
+
+		// get block L2 number
+		blockL2Number := receipt.BlockNumber
+		expectedNonce := blockL2Number.Uint64() - 1
+		if tx.Nonce() != expectedNonce {
+			return fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
+		}
+	}
+	if nTxs > 1 {
+		log.Infof("%d transactions added into the trusted state successfully.", nTxs)
+	} else {
+		log.Info("transaction added into the trusted state successfully.")
+	}
+
+	// get block L2 number of the last transaction sent
+	receipt, err := client.TransactionReceipt(ctx, lastTxHash)
+	if err != nil {
+		return err
+	}
+	l2BlockNumber := receipt.BlockNumber
+
+	// wait for l2 block to be virtualized
+	log.Infof("waiting for the block number %v to be virtualized", l2BlockNumber.String())
+	err = WaitL2BlockToBeVirtualized(l2BlockNumber, 4*time.Minute)
+	if err != nil {
+		return err
+	}
+
+	// wait for l2 block number to be consolidated
+	log.Infof("waiting for the block number %v to be consolidated", l2BlockNumber.String())
+	err = WaitL2BlockToBeConsolidated(l2BlockNumber, 4*time.Minute)
+	if err != nil {
+		return err
+	}
+
+	if nTxs > 1 {
+		log.Infof("transactions successfully included in block number %v", l2BlockNumber.String())
+	} else {
+		log.Infof("transaction successfully included in block number %v", l2BlockNumber.String())
+	}
+	return nil
 }
 
 // GetAuth configures and returns an auth object.
