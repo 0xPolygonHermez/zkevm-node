@@ -93,7 +93,7 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 	return nil
 }
 
-// VerifyBatch send VerifyBatch request to ethereum
+// VerifyBatches send VerifyBatches request to ethereum
 func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) error {
 	var (
 		attempts uint32

@@ -52,7 +52,8 @@ type VirtualBatch struct {
 	BlockNumber uint64
 }
 
+// Sequence represents the sequence interval
 type Sequence struct {
 	LastVerifiedBatchNumber uint64
-	NewVerifiedBatchNumber   uint64
+	NewVerifiedBatchNumber  uint64
 }

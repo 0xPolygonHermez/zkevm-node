@@ -2205,21 +2205,21 @@ func TestAddAndGetSequences(t *testing.T) {
 
 	sequence := state.Sequence{
 		LastVerifiedBatchNumber: 0,
-		NewVerifiedBatchNumber: 3,
+		NewVerifiedBatchNumber:  3,
 	}
 	err = testState.AddSequence(ctx, sequence, dbTx)
 	require.NoError(t, err)
 
 	sequence2 := state.Sequence{
 		LastVerifiedBatchNumber: 3,
-		NewVerifiedBatchNumber: 7,
+		NewVerifiedBatchNumber:  7,
 	}
 	err = testState.AddSequence(ctx, sequence2, dbTx)
 	require.NoError(t, err)
 
 	sequence3 := state.Sequence{
 		LastVerifiedBatchNumber: 7,
-		NewVerifiedBatchNumber: 8,
+		NewVerifiedBatchNumber:  8,
 	}
 	err = testState.AddSequence(ctx, sequence3, dbTx)
 	require.NoError(t, err)

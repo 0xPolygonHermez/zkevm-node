@@ -257,7 +257,7 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
-	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
+	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 
 	forceBatchData := proofofefficiency.ProofOfEfficiencyForceBatchData{
@@ -273,7 +273,7 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	finalBlock, err = etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber = finalBlock.NumberU64()
-	blocks, order, err = etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
+	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(4), blocks[1].BlockNumber)
 	assert.Equal(t, uint64(1), blocks[1].SequencedForceBatches[0][0].BatchNumber)

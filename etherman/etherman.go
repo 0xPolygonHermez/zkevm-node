@@ -298,10 +298,10 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 			return nil, fmt.Errorf("failed to encode transactions, err: %v", err)
 		}
 		batch := proofofefficiency.ProofOfEfficiencyBatchData{
-			Transactions:          batchL2Data,
-			GlobalExitRoot:        seq.GlobalExitRoot,
-			Timestamp:             uint64(seq.Timestamp),
-			MinForcedTimestamp:    0, // TODO If this batch is forced, this value must be different to zero. If it is a non forced sequence, then the valio will be valid
+			Transactions:       batchL2Data,
+			GlobalExitRoot:     seq.GlobalExitRoot,
+			Timestamp:          uint64(seq.Timestamp),
+			MinForcedTimestamp: 0, // TODO If this batch is forced, this value must be different to zero. If it is a non forced sequence, then the valio will be valid
 		}
 
 		batches = append(batches, batch)
@@ -317,7 +317,7 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 	return transaction, err
 }
 
-// EstimateGasForVerifyBatch estimates gas for verify batch smart contract call
+// EstimateGasForVerifyBatches estimates gas for verify batch smart contract call
 func (etherMan *Client) EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) (uint64, error) {
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.NoSend = true
@@ -328,7 +328,7 @@ func (etherMan *Client) EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifi
 	return tx.Gas(), nil
 }
 
-// VerifyBatch send verifyBatch request to the ethereum
+// VerifyBatches send verifyBatches request to the ethereum
 func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.GasLimit = gasLimit
@@ -502,7 +502,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 
 	sequencedBatches := make([]SequencedBatch, len(sequences))
 	for i, seq := range sequences {
-		bn := lastBatchNumber - uint64(len(sequences) - (i + 1))
+		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
 		sequencedBatches[i] = SequencedBatch{
 			BatchNumber:                bn,
 			Coinbase:                   sequencer,
@@ -628,7 +628,7 @@ func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequence
 
 	sequencedForcedBatches := make([]SequencedForceBatch, len(forceBatches))
 	for i, force := range forceBatches {
-		bn := lastBatchNumber - uint64(len(forceBatches) - (i + 1))
+		bn := lastBatchNumber - uint64(len(forceBatches)-(i+1))
 		sequencedForcedBatches[i] = SequencedForceBatch{
 			BatchNumber:                     bn,
 			Coinbase:                        sequencer,

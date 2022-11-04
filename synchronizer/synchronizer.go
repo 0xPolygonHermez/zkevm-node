@@ -502,9 +502,9 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, dbTx pgx.Tx) (
 
 func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) {
 	// Insert the sequence to allow the aggregator verify the sequence batches
-	seq := state.Sequence {
+	seq := state.Sequence{
 		LastVerifiedBatchNumber: sequencedBatches[0].BatchNumber - 1,
-		NewVerifiedBatchNumber: sequencedBatches[len(sequencedBatches)-1].BatchNumber,
+		NewVerifiedBatchNumber:  sequencedBatches[len(sequencedBatches)-1].BatchNumber,
 	}
 	err := s.state.AddSequence(s.ctx, seq, dbTx)
 	if err != nil {
@@ -545,12 +545,12 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				forcedBatches[0].GlobalExitRoot != sbatch.GlobalExitRoot ||
 				common.Bytes2Hex(forcedBatches[0].RawTxsData) != common.Bytes2Hex(sbatch.Transactions) ||
 				forcedBatches[0].Sequencer != sbatch.Coinbase {
-					log.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
-					rollbackErr := dbTx.Rollback(s.ctx)
-					if rollbackErr != nil {
-						log.Fatalf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %w", virtualBatch.BatchNumber, blockNumber, rollbackErr)
-					}
-					log.Fatalf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
+				log.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil {
+					log.Fatalf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %w", virtualBatch.BatchNumber, blockNumber, rollbackErr)
+				}
+				log.Fatalf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
 			}
 			// Store batchNumber in forced_batch table
 			err = s.state.AddBatchNumberInForcedBatch(s.ctx, forcedBatches[0].ForcedBatchNumber, sbatch.BatchNumber, dbTx)
@@ -670,9 +670,9 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 		log.Fatal("error number of forced batches doesn't match")
 	}
 	// Insert the sequence to allow the aggregator verify the sequence batches
-	seq := state.Sequence {
+	seq := state.Sequence{
 		LastVerifiedBatchNumber: sequenceForceBatch[0].BatchNumber - 1,
-		NewVerifiedBatchNumber: sequenceForceBatch[len(sequenceForceBatch)-1].BatchNumber,
+		NewVerifiedBatchNumber:  sequenceForceBatch[len(sequenceForceBatch)-1].BatchNumber,
 	}
 	err = s.state.AddSequence(s.ctx, seq, dbTx)
 	if err != nil {
@@ -793,8 +793,8 @@ func (s *ClientSynchronizer) processVerifyBatches(lastVerifiedBatch etherman.Ver
 		log.Fatalf("error getting lastVerifiedBatch stored in db in processVerifyBatches. Processing synced blockNumber: %d, error: %w", lastVerifiedBatch.BlockNumber, err)
 	}
 	nbatches := lastVerifiedBatch.BatchNumber - lastVBatch.BatchNumber
-	var i uint64;
-	for i=1; i<=nbatches; i++ {
+	var i uint64
+	for i = 1; i <= nbatches; i++ {
 		verifiedB := state.VerifiedBatch{
 			BlockNumber: lastVerifiedBatch.BlockNumber,
 			BatchNumber: lastVBatch.BatchNumber + i,
