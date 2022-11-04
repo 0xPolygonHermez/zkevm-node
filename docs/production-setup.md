@@ -334,17 +334,12 @@ To have a visual access to the network we are going to setup a Block Scout insta
 
 For more details about Block Scout, check it here: <https://docs.blockscout.com/>
 
-Block Scout requires access to the `zkEVM-Node` instance to have access to the network
+Block Scout requires access to its own `zkEVM-Node` RPC-only instance to have access to the network
 via the JSON RPC Server and a dedicated Postgres Instance in order to save its own data.
-
-We recommend you use a dedicated machine for the Explorer.
-
-Create a file called `docker-compose.yml` inside of the `zkevm-node` directory.
 
 > Feel free to customize the environment variables to set the user, password and
 > database for the Explore Postgres instance, but make sure to also update the url to connect
 > to the DB in the Explorer environment variable called DATABASE_URL
-> Remember to set the environment variable ETHEREUM_JSONRPC_HTTP_URL with the `zkEVM-Node` IP and PORT
 
 ```yaml 
 version: '3'
@@ -371,13 +366,32 @@ services:
             - SUBNETWORK=Polygon Hermez
             - COIN=ETH
             - ETHEREUM_JSONRPC_VARIANT=geth
-            - ETHEREUM_JSONRPC_HTTP_URL=http://:8545 # Set the IP and PORT of the zkEVM-Node
+            - ETHEREUM_JSONRPC_HTTP_URL=http://zkevm-explorer-zknode:8124
             - DATABASE_URL=postgres://test_user:test_password@zkevm-explorer-db:5432/explorer
             - ECTO_USE_SSL=false
             - MIX_ENV=prod
             - LOGO=/images/blockscout_logo.svg
             - LOGO_FOOTER=/images/blockscout_logo.svg
         command: ["/bin/sh", "-c", "mix do ecto.create, ecto.migrate; mix phx.server"]
+
+
+    zkevm-explorer-zknode:
+      container_name: zkevm-explorer-zknode
+      image: zkevm-node
+      ports:
+        - 8124:8124
+      environment:
+        - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+        - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
+        - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
+        - ZKEVM_NODE_RPC_PORT=8124
+      volumes:
+        - ./config/test.node.config.toml:/app/config.toml
+        - ./config/test.genesis.config.json:/app/genesis.json
+      command:
+        - "/bin/sh"
+        - "-c"
+        - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc --http.api eth,net,debug,zkevm,txpool,web3"
 ```
 
 To run the Explorer, execute the following command:
@@ -386,6 +400,8 @@ To run the Explorer, execute the following command:
 docker-compose up -d zkevm-explorer-db
 sleep 5
 docker-compose up -d zkevm-explorer
+sleep 5
+docker-compose up -d zkevm-explorer-zknode
 ```
 
 ## Setup Metamask
