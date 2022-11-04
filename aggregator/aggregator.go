@@ -147,12 +147,12 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 	}
 
 	if proof != nil && proof.Proof != nil {
-		log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchNumberToVerify)
+		log.Infof("sending verified proof with id [%s] to the ethereum smart contract, batchNumber [%d]", *proof.ProofID, batchNumberToVerify)
 		err := a.EthTxManager.VerifyBatch(ctx, batchNumberToVerify, proof.Proof)
 		if err != nil {
 			log.Errorf("error verifying batch %d. Error: %w", batchNumberToVerify, err)
 		} else {
-			log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
+			log.Infof("proof with id [%s] for the batch was sent, batchNumber: [%v]", *proof.ProofID, batchNumberToVerify)
 			err := a.State.DeleteGeneratedProof(ctx, batchNumberToVerify, nil)
 			if err != nil {
 				log.Warnf("failed to delete generated proof for batchNumber %v, err: %v", batchNumberToVerify, err)
