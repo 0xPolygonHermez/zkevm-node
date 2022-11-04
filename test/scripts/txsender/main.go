@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"os"
 	"strconv"
@@ -14,7 +15,19 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+const maxTxs int = 1e6
+
 func main() {
+	// Send 1 tx by default or read the number of txs from args
+	nTxs := 1
+	if len(os.Args) > 1 {
+		nTxs, _ = strconv.Atoi(os.Args[1])
+		if nTxs > maxTxs {
+			fmt.Printf("too many transactions, please input a number between 1 (default) and %d\n", maxTxs)
+			os.Exit(1)
+		}
+	}
+
 	ctx := context.Background()
 
 	// Load account with balance on local genesis
@@ -27,12 +40,6 @@ func main() {
 	client, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	// Send 1 tx by default or read the number of txs from args
-	nTxs := 1
-	if len(os.Args) > 1 {
-		nTxs, _ = strconv.Atoi(os.Args[1])
 	}
 
 	// Send txs
