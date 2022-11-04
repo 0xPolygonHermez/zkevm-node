@@ -501,6 +501,20 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, dbTx pgx.Tx) (
 }
 
 func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) {
+	// Insert the sequence to allow the aggregator verify the sequence batches
+	seq := state.Sequence {
+		LastVerifiedBatchNumber: sequencedBatches[0].BatchNumber - 1,
+		NewVerifiedBatchNumber: sequencedBatches[len(sequencedBatches)-1].BatchNumber,
+	}
+	err := s.state.AddSequence(s.ctx, seq, dbTx)
+	if err != nil {
+		log.Errorf("error adding sequence. Sequence: %+v", seq)
+		rollbackErr := dbTx.Rollback(s.ctx)
+		if rollbackErr != nil {
+			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %w", blockNumber, rollbackErr.Error(), err)
+		}
+		log.Fatalf("error getting adding sequence. BlockNumber: %d, error: %w", blockNumber, err)
+	}
 	for _, sbatch := range sequencedBatches {
 		virtualBatch := state.VirtualBatch{
 			BatchNumber: sbatch.BatchNumber,
@@ -655,7 +669,20 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 		}
 		log.Fatal("error number of forced batches doesn't match")
 	}
- 
+	// Insert the sequence to allow the aggregator verify the sequence batches
+	seq := state.Sequence {
+		LastVerifiedBatchNumber: sequenceForceBatch[0].BatchNumber - 1,
+		NewVerifiedBatchNumber: sequenceForceBatch[len(sequenceForceBatch)-1].BatchNumber,
+	}
+	err = s.state.AddSequence(s.ctx, seq, dbTx)
+	if err != nil {
+		log.Errorf("error adding sequence. Sequence: %+v", seq)
+		rollbackErr := dbTx.Rollback(s.ctx)
+		if rollbackErr != nil {
+			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %w", block.BlockNumber, rollbackErr.Error(), err)
+		}
+		log.Fatalf("error getting adding sequence. BlockNumber: %d, error: %w", block.BlockNumber, err)
+	}
 	for i, fbatch := range sequenceForceBatch {
 		if uint64(forcedBatches[i].ForcedAt.Unix()) != fbatch.MinForcedTimestamp ||
 			forcedBatches[i].GlobalExitRoot != fbatch.GlobalExitRoot ||

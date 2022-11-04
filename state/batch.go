@@ -51,3 +51,8 @@ type VirtualBatch struct {
 	Coinbase    common.Address
 	BlockNumber uint64
 }
+
+type Sequence struct {
+	LastVerifiedBatchNumber uint64
+	NewVerifiedBatchNumber   uint64
+}

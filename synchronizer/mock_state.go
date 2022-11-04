@@ -79,6 +79,20 @@ func (_m *stateMock) AddGlobalExitRoot(ctx context.Context, exitRoot *state.Glob
 	return r0
 }
 
+// AddSequence provides a mock function with given fields: ctx, sequence, dbTx
+func (_m *stateMock) AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, sequence, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.Sequence, pgx.Tx) error); ok {
+		r0 = rf(ctx, sequence, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // AddVerifiedBatch provides a mock function with given fields: ctx, verifiedBatch, dbTx
 func (_m *stateMock) AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, verifiedBatch, dbTx)

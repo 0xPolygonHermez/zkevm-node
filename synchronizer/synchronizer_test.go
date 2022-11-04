@@ -135,6 +135,15 @@ func TestTrustedStateReorg(t *testing.T) {
 						Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
 						Once()
 
+				seq := state.Sequence {
+					LastVerifiedBatchNumber: 0,
+					NewVerifiedBatchNumber: 1,
+				}
+				m.State.
+						On("AddSequence", ctx, seq, m.DbTx).
+						Return(nil).
+						Once()
+
 				m.State.
 					On("ResetTrustedState", ctx, sequencedBatch.BatchNumber-1, m.DbTx).
 					Return(nil).
