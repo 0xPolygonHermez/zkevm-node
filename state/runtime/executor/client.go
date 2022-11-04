@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"os/exec"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -35,6 +36,10 @@ func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient,
 			log.Infof("Retrying connection to executor #%d", connectionRetries)
 			time.Sleep(time.Duration(delay) * time.Second)
 			connectionRetries = connectionRetries + 1
+			out, err := exec.Command("docker", []string{"logs", "zkevm-prover"}...).Output()
+			if err == nil {
+				log.Infof("Prover logs:\n%s\n", out)
+			}
 		} else {
 			log.Infof("connected to executor")
 			break
