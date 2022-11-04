@@ -27,6 +27,9 @@ Optional:
 
 - The examples on this document assume you have `docker-compose` installed, if you need help with the installation, please check the link below:
   - [docker-compose: Install](https://docs.docker.com/compose/install/)
+- **Hardware specifications**:
+  - [x] Recommended specs: 16G RAM 4 cores
+  - [x] Unfortunately, M1 chips are not supported - for now since some optimizations on the prover require specific Intel instructions, this means some non-M1 computers won't work regardless of the OS, eg: ARM Ryzen
 
 ## Recommendations
 
