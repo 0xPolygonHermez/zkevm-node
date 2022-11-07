@@ -657,7 +657,7 @@ func (e *Eth) tryToAddTxToPool(input string, dbTx pgx.Tx) (interface{}, rpcError
 
 	// if batch is not processed, then it means that tx meet OOC error and can't be processed
 	if procResp.IsBatchProcessed {
-		return rpcErrorResponse(defaultErrorCode, fmt.Sprintf("tx is unprocessabe, OOC error happened"), nil)
+		return rpcErrorResponse(defaultErrorCode, "tx is unprocessable, OOC error happened", nil)
 	}
 
 	zkCounters := pool.ZkCounters{
