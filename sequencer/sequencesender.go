@@ -67,7 +67,8 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 		TxNonce:      tx.Nonce(),
 		Status:       state.SequenceGroupStatusPending,
 		CreatedAt:    time.Now(),
-		BatchNumbers: make([]uint64, 0, len(sequences)),
+		FromBatchNum: sequences[0].BatchNumber,
+		ToBatchNum:   sequences[len(sequences)-1].BatchNumber,
 	}
 
 	dbTx, err := s.state.BeginStateTransaction(ctx)
@@ -87,7 +88,6 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 			}
 			return
 		}
-		sequenceGroup.BatchNumbers = append(sequenceGroup.BatchNumbers, sequence.BatchNumber)
 	}
 
 	err = s.state.AddSequenceGroup(ctx, sequenceGroup, dbTx)
@@ -99,7 +99,7 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 		log.Errorf("failed to commit dbTx to create sequences: %v", err)
 	}
 
-	log.Infof("sequence group created for batches %v: %v", sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String())
+	log.Infof("sequence group created for batches from %d to %d: %s", sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum, sequenceGroup.TxHash.String())
 }
 
 // getSequencesToSend generates an array of sequences to be send to L1.

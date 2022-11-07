@@ -21,12 +21,14 @@ CREATE TABLE state.sequence
 
 CREATE TABLE state.sequence_group
 (
-    tx_hash      VARCHAR,
-    tx_nonce     DECIMAL(78, 0),
-    batch_nums   BIGINT[],
-    status       VARCHAR(15) NOT NULL,
-    created_at   TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at   TIMESTAMP WITH TIME ZONE,
+    tx_hash        VARCHAR,
+    tx_nonce       DECIMAL(78, 0),
+    batch_nums     BIGINT[],
+    from_batch_num BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
+    to_batch_num   BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
+    status         VARCHAR(15) NOT NULL,
+    created_at     TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at     TIMESTAMP WITH TIME ZONE,
     PRIMARY KEY  (tx_hash)
 );
 

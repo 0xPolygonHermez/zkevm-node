@@ -1828,7 +1828,7 @@ func (p *PostgresStorage) GetSequencesWithoutGroup(ctx context.Context, dbTx pgx
 			 , timestamp
 			 , txs
 		  FROM state.sequence s
-		 WHERE NOT EXISTS (SELECT * FROM state.sequence_group sg WHERE s.batch_num = ANY(sg.batch_nums))
+		 WHERE NOT EXISTS (SELECT * FROM state.sequence_group sg WHERE s.batch_num >= sg.from_batch_num AND s.batch_num <= sg.to_batch_num)
 		 ORDER BY batch_num;`
 	rows, err := e.Query(ctx, getSequencesWithoutGroupSQL)
 	if err != nil {
@@ -1856,7 +1856,8 @@ func (p *PostgresStorage) GetPendingSequenceGroups(ctx context.Context, dbTx pgx
 	const getPendingSequences = `
 		SELECT tx_hash
 			 , tx_nonce
-			 , batch_nums
+			 , from_batch_num
+			 , to_batch_num
 			 , status
 			 , created_at
 			 , updated_at
@@ -1914,11 +1915,11 @@ func (p *PostgresStorage) AddSequenceGroup(ctx context.Context, sequenceGroup Se
 	e := p.getExecQuerier(dbTx)
 
 	const query = `
-		INSERT INTO state.sequence_group (tx_hash, tx_nonce, batch_nums, status, created_at)
-								  VALUES (     $1,       $2,         $3,     $4,         $5);`
+		INSERT INTO state.sequence_group (tx_hash, tx_nonce, from_batch_num, to_batch_num, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6);`
 
 	_, err := e.Exec(ctx, query, sequenceGroup.TxHash.String(),
-		sequenceGroup.TxNonce, sequenceGroup.BatchNumbers, sequenceGroup.Status, time.Now())
+		sequenceGroup.TxNonce, sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum, sequenceGroup.Status, time.Now())
 
 	return err
 }
@@ -1980,7 +1981,7 @@ func (p *PostgresStorage) GetLastSequence(ctx context.Context, dbTx pgx.Tx) (*Se
 }
 
 // GetSequencesByBatchNums get the sequences accordingly to the batch numbers provided
-func (p *PostgresStorage) GetSequencesByBatchNums(ctx context.Context, batchNumbers []uint64, dbTx pgx.Tx) ([]Sequence, error) {
+func (p *PostgresStorage) GetSequencesByBatchNums(ctx context.Context, fromBatchNumber, toBatchNumber uint64, dbTx pgx.Tx) ([]Sequence, error) {
 	e := p.getExecQuerier(dbTx)
 
 	const query = `
@@ -1991,10 +1992,10 @@ func (p *PostgresStorage) GetSequencesByBatchNums(ctx context.Context, batchNumb
 			 , timestamp
 			 , txs
 		  FROM state.sequence
-		 WHERE batch_num = ANY($1::BIGINT[])
+		 WHERE batch_num >= $1 AND batch_num <= $2
 		 ORDER BY batch_num DESC;`
 
-	rows, err := e.Query(ctx, query, batchNumbers)
+	rows, err := e.Query(ctx, query, fromBatchNumber, toBatchNumber)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -2022,7 +2023,8 @@ func (p *PostgresStorage) GetLastSequenceGroup(ctx context.Context, dbTx pgx.Tx)
 	const query = `
 		SELECT tx_hash
 			 , tx_nonce
-			 , batch_nums
+			 , from_batch_num
+			 , to_batch_num
 			 , status
 			 , created_at
 			 , updated_at
@@ -2079,7 +2081,7 @@ func scanSequenceGroup(row pgx.Row) (*SequenceGroup, error) {
 
 	var txHash, status string
 
-	if err := row.Scan(&txHash, &sequenceGroup.TxNonce, &sequenceGroup.BatchNumbers,
+	if err := row.Scan(&txHash, &sequenceGroup.TxNonce, &sequenceGroup.FromBatchNum, &sequenceGroup.ToBatchNum,
 		&status, &sequenceGroup.CreatedAt, &sequenceGroup.UpdatedAt); err != nil {
 		return nil, err
 	}

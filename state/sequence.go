@@ -35,7 +35,8 @@ type Sequence struct {
 type SequenceGroup struct {
 	TxHash       common.Hash
 	TxNonce      uint64
-	BatchNumbers []uint64
+	FromBatchNum uint64
+	ToBatchNum   uint64
 	Status       SequenceGroupStatus
 	CreatedAt    time.Time
 	UpdatedAt    *time.Time

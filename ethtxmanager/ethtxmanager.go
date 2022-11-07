@@ -65,7 +65,8 @@ func (c *Client) SyncPendingProofs() {
 
 			err = c.state.UpdateProofTx(ctx, pendingProof.BatchNumber, tx.Hash(), nil)
 			if err != nil {
-				log.Errorf("failed to update tx to verify batch for batch number %v, new tx hash %v, nonce %v, err: %v", pendingProof.BatchNumber, tx.Hash().String(), tx.Nonce(), err)
+				log.Errorf("failed to update tx to verify batch for batch number %v, new tx hash %v, nonce %v, err: %v",
+					pendingProof.BatchNumber, tx.Hash().String(), tx.Nonce(), err)
 				continue
 			}
 
@@ -95,22 +96,25 @@ func (c *Client) syncSequences() {
 }
 
 func (c *Client) checkSequenceGroupConfirmation(ctx context.Context, sequenceGroup state.SequenceGroup) bool {
-	log.Infof("trying to confirm sequence for batches %v: %v", sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String())
+	log.Infof("trying to confirm sequence for batches from %d to %d. TxHash: %s", sequenceGroup.FromBatchNum,
+		sequenceGroup.ToBatchNum, sequenceGroup.TxHash.String())
 	receipt, err := c.ethMan.GetTxReceipt(ctx, sequenceGroup.TxHash)
 	if err != nil && !errors.Is(err, ethereum.NotFound) {
-		log.Errorf("failed to get sequence group for batches %v tx receipt, hash %v: %v", sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String(), err)
+		log.Errorf("failed to get sequence group for batches from %d to %d, tx receipt, hash %s. Error: %w",
+			sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum, sequenceGroup.TxHash.String(), err)
 		return false
 	}
 	if receipt != nil && receipt.Status == types.ReceiptStatusSuccessful {
 		err := c.state.SetSequenceGroupAsConfirmed(ctx, sequenceGroup.TxHash, nil)
 		if err != nil {
-			log.Errorf("failed to set sequence group as confirmed for batches %v tx %v: %v", sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String(), err)
+			log.Errorf("failed to set sequence group as confirmed for batches from %d to %d, tx %s. Error: %w",
+				sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum, sequenceGroup.TxHash.String(), err)
 			return false
 		}
-		log.Infof("sequence group for batches %v confirmed", sequenceGroup.BatchNumbers)
+		log.Infof("sequence group for batches from %d to %d confirmed", sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum)
 		return true
 	}
-	log.Infof("sequence group for batches %v not confirmed yet", sequenceGroup.BatchNumbers)
+	log.Infof("sequence group for batches from %d to %d not confirmed yet", sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum)
 	return false
 }
 
@@ -122,9 +126,10 @@ func (c *Client) tryReviewSequenceGroupTx(ctx context.Context, sequenceGroup sta
 	}
 	// if the time to review the tx has expired, we review it
 	if time.Since(lastTimeSequenceWasUpdated) >= c.cfg.IntervalToReviewSendBatchTx.Duration {
-		log.Infof("reviewing sequence group tx for batches %v due to long time waiting for it to be confirmed", sequenceGroup.BatchNumbers)
+		log.Infof("reviewing sequence group tx for batches from %d to %d due to long time waiting for it to be confirmed",
+			sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum)
 
-		sequences, err := c.state.GetSequencesByBatchNums(ctx, sequenceGroup.BatchNumbers, nil)
+		sequences, err := c.state.GetSequencesByBatchNums(ctx, sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum, nil)
 		if err != nil {
 			log.Errorf("failed to get sequences by batch numbers: %v", err)
 			return
@@ -139,16 +144,17 @@ func (c *Client) tryReviewSequenceGroupTx(ctx context.Context, sequenceGroup sta
 			if errors.Is(err, core.ErrAlreadyKnown) {
 				err := c.state.UpdateSequenceGroupTx(ctx, sequenceGroup.TxHash, sequenceGroup.TxHash, nil)
 				if err != nil {
-					log.Errorf("give it more time to the sequence group related to the batches %v to get mined: %v", sequenceGroup.BatchNumbers, err)
+					log.Errorf("give it more time to the sequence group related to the batches from %d to %d to get mined. Error: %w",
+						sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum, err)
 				}
 				return
 			}
-			log.Errorf("failed to resend sequence tx for batches %v: %v", sequenceGroup.BatchNumbers, err)
+			log.Errorf("failed to resend sequence tx for batches from %d to %d: %w", sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum, err)
 			return
 		}
 
-		log.Infof("updating tx for sequence group related to batches %v from %v to %v",
-			sequenceGroup.BatchNumbers, sequenceGroup.TxHash.String(), tx.Hash().String())
+		log.Infof("updating tx for sequence group related to batches from %d to %d with txhashes from %s to %s",
+			sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum, sequenceGroup.TxHash.String(), tx.Hash().String())
 
 		err = c.state.UpdateSequenceGroupTx(ctx, sequenceGroup.TxHash, tx.Hash(), nil)
 		if err != nil {
