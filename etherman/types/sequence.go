@@ -16,7 +16,6 @@ type Sequence struct {
 	Txs                                      []types.Transaction
 	IsSequenceTooBig                         bool
 	ZkCounters                               pool.ZkCounters
-	IsZkCountersReachedMax                   bool
 }
 
 // IsEmpty checks is sequence struct is empty

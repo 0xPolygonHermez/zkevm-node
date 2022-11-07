@@ -322,7 +322,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	txs, err := p.GetTxs(ctx, pool.TxStatusPending, false, 1, 10)
 	require.NoError(t, err)
 	// bcs it's sorted by gas price, tx with the highest gas price is expected here
-	assert.Equal(t, txs[0].Transaction.GasPrice(), big.NewInt(19))
+	assert.Equal(t, txs[0].Transaction.Nonce(), uint64(0))
 }
 
 func Test_GetTopFailedTxsByProfitabilityAndZkCounters(t *testing.T) {

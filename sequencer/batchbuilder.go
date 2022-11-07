@@ -524,7 +524,6 @@ func (s *Sequencer) getPendingTxs(ctx context.Context, isClaims bool, minGasPric
 		}) {
 			log.Info("reached max zkCounters, need to close a batch")
 			s.sequenceInProgress.ZkCounters = zkCountersBeforeAddition
-			s.sequenceInProgress.IsZkCountersReachedMax = true
 			break
 		}
 		zkCountersBeforeAddition = s.sequenceInProgress.ZkCounters

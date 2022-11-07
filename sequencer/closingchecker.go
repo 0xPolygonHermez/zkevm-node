@@ -11,11 +11,6 @@ import (
 // shouldCloseSequenceInProgress checks if sequence should be closed or not
 // in case it's enough blocks since last GER update, long time since last batch and sequence is profitable
 func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
-	if s.sequenceInProgress.IsZkCountersReachedMax {
-		log.Info("current sequence should be closed because it has reached max zk counters")
-		s.sequenceInProgress.IsZkCountersReachedMax = false
-		return true
-	}
 	// Check if sequence is full
 	if s.sequenceInProgress.IsSequenceTooBig {
 		log.Infof("current sequence should be closed because it has reached the maximum data size")
