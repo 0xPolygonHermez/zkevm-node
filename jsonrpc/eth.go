@@ -635,21 +635,6 @@ func (e *Eth) tryToAddTxToPool(input string, dbTx pgx.Tx) (interface{}, rpcError
 	}
 	ctx := context.Background()
 
-	fromAddress, err := state.GetSender(*tx)
-	if err != nil {
-		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
-	}
-
-	accNonce, err := e.state.GetNonce(ctx, fromAddress, nil)
-	if err != nil {
-		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
-	}
-
-	if accNonce > tx.Nonce() {
-		return rpcErrorResponse(defaultErrorCode,
-			fmt.Sprintf("tx is unprocessable: acc nonce %d is more than than tx nonce %d", accNonce, tx.Nonce()), nil)
-	}
-
 	procResp, err := e.state.ProcessTx(ctx, *tx, dbTx)
 	if err != nil {
 		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)

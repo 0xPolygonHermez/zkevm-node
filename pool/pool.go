@@ -159,7 +159,7 @@ func (p *Pool) validateTx(ctx context.Context, tx types.Transaction) error {
 		return err
 	}
 
-	nonce, err := p.state.GetNonce(ctx, from, lastL2BlockNumber, nil)
+	nonce, err := p.state.GetNonceAtGivenBlockNumber(ctx, from, lastL2BlockNumber, nil)
 	if err != nil {
 		return err
 	}
