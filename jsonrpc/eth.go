@@ -479,7 +479,8 @@ func (e *Eth) GetTransactionCount(address common.Address, number *BlockNumber) (
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
-		nonce, err = e.state.GetNonce(ctx, address, blockNumber, dbTx)
+
+		nonce, err = e.state.GetNonceAtGivenBlockNumber(ctx, address, blockNumber, dbTx)
 
 		if errors.Is(err, state.ErrNotFound) {
 			return hex.EncodeUint64(0), nil
@@ -633,9 +634,30 @@ func (e *Eth) tryToAddTxToPool(input string, dbTx pgx.Tx) (interface{}, rpcError
 		return rpcErrorResponse(invalidParamsErrorCode, "invalid tx input", err)
 	}
 	ctx := context.Background()
+
+	fromAddress, err := state.GetSender(*tx)
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
+	}
+
+	accNonce, err := e.state.GetNonce(ctx, fromAddress, nil)
+	if err != nil {
+		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
+	}
+
+	if accNonce > tx.Nonce() {
+		return rpcErrorResponse(defaultErrorCode,
+			fmt.Sprintf("tx is unprocessable: acc nonce %d is more than than tx nonce %d", accNonce, tx.Nonce()), nil)
+	}
+
 	procResp, err := e.state.ProcessTx(ctx, *tx, dbTx)
 	if err != nil {
 		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
+	}
+
+	// if batch is not processed, then it means that tx meet OOC error and can't be processed
+	if procResp.IsBatchProcessed {
+		return rpcErrorResponse(defaultErrorCode, fmt.Sprintf("tx is unprocessabe, OOC error happened"), nil)
 	}
 
 	zkCounters := pool.ZkCounters{
@@ -650,7 +672,7 @@ func (e *Eth) tryToAddTxToPool(input string, dbTx pgx.Tx) (interface{}, rpcError
 	}
 
 	log.Debugf("adding TX to the pool: %v", tx.Hash().Hex())
-	if err := e.pool.AddTx(ctx, *tx, zkCounters); err != nil {
+	if err := e.pool.AddTx(ctx, *tx, zkCounters, procResp.Responses[0].IsProcessed); err != nil {
 		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
 	}
 	log.Infof("TX added to the pool: %v", tx.Hash().Hex())

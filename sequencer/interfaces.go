@@ -64,7 +64,7 @@ type stateInterface interface {
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 
-	GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetNonce(ctx context.Context, address common.Address, dbTx pgx.Tx) (uint64, error)
 	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 

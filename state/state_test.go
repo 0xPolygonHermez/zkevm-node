@@ -1652,7 +1652,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 
 // 	// Check Nonces
 // 	for address, expectedNonce := range nonces {
-// 		actualNonce, err := stateTree.GetNonce(ctx, address, stateRoot)
+// 		actualNonce, err := stateTree.GetNonceAtGivenBlockNumber(ctx, address, stateRoot)
 // 		require.NoError(t, err)
 // 		require.Equal(t, expectedNonce, actualNonce)
 // 	}

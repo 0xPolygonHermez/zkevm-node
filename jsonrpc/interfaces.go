@@ -15,7 +15,7 @@ import (
 
 // jsonRPCTxPool contains the methods required to interact with the tx pool.
 type jsonRPCTxPool interface {
-	AddTx(ctx context.Context, tx types.Transaction, zkCounters pool.ZkCounters) error
+	AddTx(ctx context.Context, tx types.Transaction, zkCounters pool.ZkCounters, isProcessed bool) error
 	GetGasPrice(ctx context.Context) (uint64, error)
 	GetNonce(ctx context.Context, address common.Address) (uint64, error)
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
@@ -47,7 +47,8 @@ type stateInterface interface {
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
 	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error)
-	GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetNonce(ctx context.Context, address common.Address, dbTx pgx.Tx) (uint64, error)
+	GetNonceAtGivenBlockNumber(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
 	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, blockNumber uint64, dbTx pgx.Tx) (*big.Int, error)
 	GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (state.SyncingInfo, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)

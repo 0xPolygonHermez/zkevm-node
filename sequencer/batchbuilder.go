@@ -262,12 +262,7 @@ func (s *Sequencer) isTxNonceLessThanAccountNonce(ctx context.Context, tx *state
 		return false, fmt.Errorf("failed to get from addr, err: %w", err)
 	}
 
-	lastL2BlockNumber, err := s.state.GetLastL2BlockNumber(ctx, nil)
-	if err != nil {
-		return false, fmt.Errorf("failed to get last l2 block number, err: %w", err)
-	}
-
-	accNonce, err := s.state.GetNonce(ctx, fromAddr, lastL2BlockNumber, nil)
+	accNonce, err := s.state.GetNonce(ctx, fromAddr, nil)
 	if err != nil {
 		return false, fmt.Errorf("failed to get nonce for the account, err: %w", err)
 	}

@@ -94,8 +94,8 @@ func (s *State) GetCode(ctx context.Context, address common.Address, blockNumber
 	return s.tree.GetCode(ctx, address, l2Block.Root().Bytes())
 }
 
-// GetNonce returns the nonce of the given account at the given block number
-func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+// GetNonceAtGivenBlockNumber returns the nonce of the given account at the given block number
+func (s *State) GetNonceAtGivenBlockNumber(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	l2Block, err := s.GetL2BlockByNumber(ctx, blockNumber, dbTx)
 	if err != nil {
 		return 0, err
@@ -106,6 +106,21 @@ func (s *State) GetNonce(ctx context.Context, address common.Address, blockNumbe
 		return 0, err
 	}
 	return nonce.Uint64(), nil
+}
+
+// GetNonce get the latest nonce for the address
+func (s *State) GetNonce(ctx context.Context, address common.Address, dbTx pgx.Tx) (uint64, error) {
+	lastL2BlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last l2 block number, err: %w", err)
+	}
+
+	accNonce, err := s.GetNonceAtGivenBlockNumber(ctx, address, lastL2BlockNumber, dbTx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get nonce for the account, err: %w", err)
+	}
+
+	return accNonce, nil
 }
 
 // GetStorageAt from a given address

@@ -60,14 +60,18 @@ func NewPool(s storage, st stateInterface, l2BridgeAddr common.Address, chainID 
 }
 
 // AddTx adds a transaction to the pool with the pending state
-func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, zkCounters ZkCounters) error {
+func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, zkCounters ZkCounters, isProcessed bool) error {
 	if err := p.validateTx(ctx, tx); err != nil {
 		return err
 	}
 
+	status := TxStatusPending
+	if !isProcessed {
+		status = TxStatusFailed
+	}
 	poolTx := Transaction{
 		Transaction: tx,
-		Status:      TxStatusPending,
+		Status:      status,
 		IsClaims:    false,
 		ZkCounters:  zkCounters,
 		ReceivedAt:  time.Now(),

@@ -139,7 +139,7 @@ func (args *txnArgs) ToUnsignedTransaction(ctx context.Context, st stateInterfac
 			gasPrice.SetUint64(uint64(*args.GasPrice))
 		}
 
-		n, err := st.GetNonce(ctx, sender, blockNumber, dbTx)
+		n, err := st.GetNonceAtGivenBlockNumber(ctx, sender, blockNumber, dbTx)
 		if err != nil {
 			return common.Address{}, nil, err
 		}

@@ -333,7 +333,7 @@ func TestUpdateTxsInPool(t *testing.T) {
 	l2BlockNumber := uint64(3)
 	st.On("GetLastL2BlockNumber", ctx, nil).Return(l2BlockNumber, nil)
 	accNonce := uint64(2)
-	st.On("GetNonce", ctx, fromAddress, l2BlockNumber, nil).Return(accNonce, nil)
+	st.On("GetNonceAtGivenBlockNumber", ctx, fromAddress, l2BlockNumber, nil).Return(accNonce, nil)
 	pl.On("UpdateTxsStatus", ctx, unprocessedTxsHashes, pool.TxStatusFailed).Return(nil)
 	pl.On("IncrementFailedCounter", ctx, unprocessedTxsHashes).Return(nil)
 	s.updateTxsInPool(ctx, ticker, txsResponse, unprocessedTxs)

@@ -70,7 +70,7 @@ func TestStateTransition(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, 0, leaf.Balance.Cmp(actualBalance), fmt.Sprintf("addr: %s expected: %s found: %s", addr.Hex(), leaf.Balance.Text(encoding.Base10), actualBalance.Text(encoding.Base10)))
 
-				actualNonce, err := st.GetNonce(ctx, addr, l2BlockNumber, nil)
+				actualNonce, err := st.GetNonceAtGivenBlockNumber(ctx, addr, l2BlockNumber, nil)
 				require.NoError(t, err)
 				require.Equal(t, leaf.Nonce, strconv.FormatUint(actualNonce, encoding.Base10), fmt.Sprintf("addr: %s expected: %s found: %d", addr.Hex(), leaf.Nonce, actualNonce))
 			}

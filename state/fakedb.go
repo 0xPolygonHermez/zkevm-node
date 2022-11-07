@@ -38,11 +38,11 @@ func (f *FakeDB) GetNonce(address common.Address) uint64 {
 	nonce, err := f.State.GetTree().GetNonce(ctx, address, f.stateRoot)
 
 	if err != nil {
-		log.Errorf("error on FakeDB GetNonce for address %v", address)
+		log.Errorf("error on FakeDB GetNonceAtGivenBlockNumber for address %v", address)
 		return 0
 	}
 
-	log.Debugf("FakeDB GetNonce for address %v", address)
+	log.Debugf("FakeDB GetNonceAtGivenBlockNumber for address %v", address)
 	return nonce.Uint64()
 }
 

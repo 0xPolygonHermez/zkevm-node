@@ -227,20 +227,20 @@ func (_m *StateMock) GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber
 	return r0, r1, r2
 }
 
-// GetNonce provides a mock function with given fields: ctx, address, blockNumber, dbTx
-func (_m *StateMock) GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	ret := _m.Called(ctx, address, blockNumber, dbTx)
+// GetNonce provides a mock function with given fields: ctx, address, dbTx
+func (_m *StateMock) GetNonce(ctx context.Context, address common.Address, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, address, dbTx)
 
 	var r0 uint64
-	if rf, ok := ret.Get(0).(func(context.Context, common.Address, uint64, pgx.Tx) uint64); ok {
-		r0 = rf(ctx, address, blockNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, address, dbTx)
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, common.Address, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, address, blockNumber, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, common.Address, pgx.Tx) error); ok {
+		r1 = rf(ctx, address, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

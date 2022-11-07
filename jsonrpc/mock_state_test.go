@@ -384,8 +384,29 @@ func (_m *stateMock) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint
 	return r0, r1
 }
 
-// GetNonce provides a mock function with given fields: ctx, address, blockNumber, dbTx
-func (_m *stateMock) GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+// GetNonce provides a mock function with given fields: ctx, address, dbTx
+func (_m *stateMock) GetNonce(ctx context.Context, address common.Address, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, address, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, address, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, common.Address, pgx.Tx) error); ok {
+		r1 = rf(ctx, address, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetNonceAtGivenBlockNumber provides a mock function with given fields: ctx, address, blockNumber, dbTx
+func (_m *stateMock) GetNonceAtGivenBlockNumber(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, address, blockNumber, dbTx)
 
 	var r0 uint64

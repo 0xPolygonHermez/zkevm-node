@@ -147,7 +147,7 @@ func TestCall(t *testing.T) {
 						hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(testCase.data) &&
 						tx.Nonce() == nonce
 				})
-				m.State.On("GetNonce", context.Background(), testCase.from, blockNumber, m.DbTx).Return(nonce, nil).Once()
+				m.State.On("GetNonceAtGivenBlockNumber", context.Background(), testCase.from, blockNumber, m.DbTx).Return(nonce, nil).Once()
 				var nilBlockNumber *uint64
 				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, nilBlockNumber, true, m.DbTx).Return(&runtime.ExecutionResult{ReturnValue: testCase.expectedResult}).Once()
 			},
@@ -280,7 +280,7 @@ func TestCall(t *testing.T) {
 					nonceMatch := tx.Nonce() == nonce
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch && nonceMatch
 				})
-				m.State.On("GetNonce", context.Background(), testCase.from, blockNumber, m.DbTx).Return(nonce, nil).Once()
+				m.State.On("GetNonceAtGivenBlockNumber", context.Background(), testCase.from, blockNumber, m.DbTx).Return(nonce, nil).Once()
 				var nilBlockNumber *uint64
 				m.State.On("ProcessUnsignedTransaction", context.Background(), txMatchBy, testCase.from, nilBlockNumber, true, m.DbTx).Return(&runtime.ExecutionResult{Err: errors.New("failed to process unsigned transaction")}).Once()
 			},
@@ -370,7 +370,7 @@ func TestEstimateGas(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetNonce", context.Background(), testCase.from, blockNumber, m.DbTx).
+					On("GetNonceAtGivenBlockNumber", context.Background(), testCase.from, blockNumber, m.DbTx).
 					Return(nonce, nil).
 					Once()
 
@@ -2333,7 +2333,7 @@ func TestGetTransactionCount(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetNonce", context.Background(), address, blockNumber, m.DbTx).
+					On("GetNonceAtGivenBlockNumber", context.Background(), address, blockNumber, m.DbTx).
 					Return(uint64(10), nil).
 					Once()
 			},
@@ -2363,7 +2363,7 @@ func TestGetTransactionCount(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetNonce", context.Background(), address, blockNumber, m.DbTx).
+					On("GetNonceAtGivenBlockNumber", context.Background(), address, blockNumber, m.DbTx).
 					Return(uint64(0), state.ErrNotFound).
 					Once()
 			},
@@ -2416,7 +2416,7 @@ func TestGetTransactionCount(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetNonce", context.Background(), address, blockNumber, m.DbTx).
+					On("GetNonceAtGivenBlockNumber", context.Background(), address, blockNumber, m.DbTx).
 					Return(uint64(0), errors.New("failed to get nonce")).
 					Once()
 			},
