@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/didip/tollbooth/v6"
@@ -99,7 +100,9 @@ func (s *Server) Start() error {
 	mux.Handle("/", tollbooth.LimitFuncHandler(lmt, s.handle))
 
 	s.srv = &http.Server{
-		Handler: mux,
+		Handler:      mux,
+		ReadTimeout:  s.config.ReadTimeoutInSec * time.Second,
+		WriteTimeout: s.config.WriteTimeoutInSec * time.Second,
 	}
 	if err := s.srv.Serve(lis); err != nil {
 		if err == http.ErrServerClosed {

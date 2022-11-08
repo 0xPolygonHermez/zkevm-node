@@ -644,9 +644,6 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	if err != nil {
 		return err
 	}
-	if len(encodedTxsArray) == 0 {
-		return ErrClosingBatchWithoutTxs
-	}
 	txs := []types.Transaction{}
 	for i := 0; i < len(encodedTxsArray); i++ {
 		tx, err := DecodeTx(encodedTxsArray[i])
@@ -794,15 +791,17 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		BatchNum:                  batch.BatchNumber,
-		BatchL2Data:               batchL2Data,
-		OldStateRoot:              pBatch.StateRoot.Bytes(),
-		GlobalExitRoot:            batch.GlobalExitRoot.Bytes(),
-		OldLocalExitRoot:          pBatch.LocalExitRoot.Bytes(),
-		EthTimestamp:              uint64(batch.Timestamp.Unix()),
-		Coinbase:                  batch.Coinbase.String(),
-		UpdateMerkleTree:          cFalse,
-		TxHashToGenerateCallTrace: transactionHash.Bytes(),
+		BatchNum:                     batch.BatchNumber,
+		BatchL2Data:                  batchL2Data,
+		OldStateRoot:                 pBatch.StateRoot.Bytes(),
+		GlobalExitRoot:               batch.GlobalExitRoot.Bytes(),
+		OldLocalExitRoot:             pBatch.LocalExitRoot.Bytes(),
+		EthTimestamp:                 uint64(batch.Timestamp.Unix()),
+		Coinbase:                     batch.Coinbase.String(),
+		UpdateMerkleTree:             cFalse,
+		TxHashToGenerateCallTrace:    transactionHash.Bytes(),
+		TxHashToGenerateExecuteTrace: transactionHash.Bytes(),
+		ChainId:                      s.cfg.ChainID,
 	}
 
 	// Send Batch to the Executor

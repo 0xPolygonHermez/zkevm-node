@@ -77,13 +77,48 @@ type ethClienter interface {
 func WaitTxToBeMined(parentCtx context.Context, client ethClienter, tx *types.Transaction, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
-	_, err := bind.WaitMined(ctx, client, tx)
+	receipt, err := bind.WaitMined(ctx, client, tx)
 	if err != nil {
 		log.Errorf("error waiting tx %s to be mined: %w", tx.Hash(), err)
 		return err
 	}
+	if receipt.Status == types.ReceiptStatusFailed {
+		// Get revert reason
+		reason, reasonErr := revertReason(ctx, client, tx, receipt.BlockNumber)
+		if reasonErr != nil {
+			reason = reasonErr.Error()
+		}
+		return fmt.Errorf("transaction has failed, reason: %s, receipt: %+v. tx: %+v, gas: %v", reason, receipt, tx, tx.Gas())
+	}
 	log.Debug("Transaction successfully mined: ", tx.Hash())
 	return nil
+}
+
+func revertReason(ctx context.Context, c ethClienter, tx *types.Transaction, blockNumber *big.Int) (string, error) {
+	from, err := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
+	if err != nil {
+		signer := types.LatestSignerForChainID(tx.ChainId())
+		from, err = types.Sender(signer, tx)
+		if err != nil {
+			return "", err
+		}
+	}
+	msg := ethereum.CallMsg{
+		From: from,
+		To:   tx.To(),
+		Gas:  tx.Gas(),
+
+		Value: tx.Value(),
+		Data:  tx.Data(),
+	}
+	hex, err := c.CallContract(ctx, msg, blockNumber)
+	if err != nil {
+		return "", err
+	}
+
+	reasonOffset := new(big.Int).SetBytes(hex[4 : 4+32])
+	reason := string(hex[4+32+int(reasonOffset.Uint64()):])
+	return reason, nil
 }
 
 // WaitGRPCHealthy waits for a gRPC endpoint to be responding according to the

@@ -113,7 +113,7 @@ func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{
 		resp := traceTransactionResponse{
 			Gas:         result.GasUsed,
 			Failed:      failed,
-			ReturnValue: result.ReturnValue,
+			ReturnValue: common.Bytes2Hex(result.ReturnValue),
 			StructLogs:  structLogs,
 		}
 

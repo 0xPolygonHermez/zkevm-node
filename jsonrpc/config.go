@@ -1,11 +1,17 @@
 package jsonrpc
 
-import "github.com/0xPolygonHermez/zkevm-node/db"
+import (
+	"time"
+
+	"github.com/0xPolygonHermez/zkevm-node/db"
+)
 
 // Config represents the configuration of the json rpc
 type Config struct {
-	Host string `mapstructure:"Host"`
-	Port int    `mapstructure:"Port"`
+	Host              string        `mapstructure:"Host"`
+	Port              int           `mapstructure:"Port"`
+	ReadTimeoutInSec  time.Duration `mapstructure:"ReadTimeoutInSec"`
+	WriteTimeoutInSec time.Duration `mapstructure:"WriteTimeoutInSec"`
 
 	MaxRequestsPerIPAndSecond float64 `mapstructure:"MaxRequestsPerIPAndSecond"`
 
