@@ -10,6 +10,7 @@ import (
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/core"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -43,10 +44,12 @@ func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) 
 	}
 
 	// Send sequences to L1
+	sequenceCount := len(sequences)
 	log.Infof(
 		"sending sequences to L1. From batch %d to batch %d",
-		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(len(sequences)),
+		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(sequenceCount),
 	)
+	metrics.SequencesSentToL1(float64(sequenceCount))
 	err = s.txManager.SequenceBatches(ctx, sequences)
 	if err != nil {
 		log.Error("error sending new sequenceBatches: ", err)
@@ -99,6 +102,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		tx, err = s.etherman.EstimateGasSequenceBatches(sequences)
 
 		if err == nil && new(big.Int).SetUint64(tx.Gas()).Cmp(s.cfg.MaxSequenceSize.Int) >= 1 {
+			metrics.SequencesOvesizedDataError()
 			log.Infof("oversized Data on TX hash %s (%d > %d)", tx.Hash(), tx.Gas(), s.cfg.MaxSequenceSize)
 			err = core.ErrOversizedData
 		}

@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -55,6 +56,7 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	getTxsLimit := s.cfg.MaxTxsPerBatch - uint64(len(s.sequenceInProgress.Txs))
 
 	minGasPrice, err := s.gpe.GetAvgGasPrice(ctx)
+	metrics.AverageGasPrice(float64(minGasPrice.Uint64()))
 	if err != nil {
 		log.Errorf("failed to get avg gas price, err: %w", err)
 		return
@@ -123,6 +125,11 @@ func (s *Sequencer) updateTxsInPool(
 	unprocessedTxs map[string]*state.ProcessTransactionResponse,
 ) {
 	invalidTxsHashes, failedTxsHashes := s.splitInvalidAndFailedTxs(ctx, unprocessedTxs, ticker)
+
+	metrics.TxProcessed(metrics.TxProcessedLabelSuccessful, float64(len(processResponse.processedTxsHashes)))
+	metrics.TxProcessed(metrics.TxProcessedLabelInvalid, float64(len(invalidTxsHashes)))
+	metrics.TxProcessed(metrics.TxProcessedLabelFailed, float64(len(failedTxsHashes)))
+
 	// update processed txs
 	s.updateTxsStatus(ctx, ticker, processResponse.processedTxsHashes, pool.TxStatusSelected)
 	// update invalid txs
