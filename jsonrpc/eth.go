@@ -103,7 +103,8 @@ func (e *Eth) EstimateGas(arg *txnArgs, number *BlockNumber) (interface{}, rpcEr
 		}
 
 		var blockNumberToProcessTx *uint64
-		if number != nil && *number != LatestBlockNumber && *number != PendingBlockNumber {
+
+		if number == nil || (*number != LatestBlockNumber && *number != PendingBlockNumber) {
 			blockNumberToProcessTx = &blockNumber
 		}
 
