@@ -5,6 +5,10 @@ This document will guide you through all the steps needed to setup your own `zkE
 # Warning:
 
 >Currently the Executor/Prover does not run on ARM-powered Macs. For Windows users, WSL/WSL2 use is not recommended. 
+> - Recommended specs: 
+>    - Node: 16G RAM 4 cores
+>    - Prover: 1TB RAM 128 cores
+> - Unfortunately, M1 chips are not supported - for now since some optimizations on the prover require specific Intel instructions, this means some non-M1 computers won't work regardless of the OS, eg: AMD
 
 ## Network Components
 
@@ -27,9 +31,6 @@ Optional:
 
 - The examples on this document assume you have `docker-compose` installed, if you need help with the installation, please check the link below:
   - [docker-compose: Install](https://docs.docker.com/compose/install/)
-- **Hardware specifications**:
-  - [x] Recommended specs: 16G RAM 4 cores
-  - [x] Unfortunately, M1 chips are not supported - for now since some optimizations on the prover require specific Intel instructions, this means some non-M1 computers won't work regardless of the OS, eg: ARM Ryzen
 
 ## Recommendations
 
@@ -210,7 +211,7 @@ To run the postgres instance, go to the `zkevm-node` directory in your terminal 
 docker-compose up -d
 ```
 
-Congratulations, your postgres instance is ready!
+Congratulations, your postgres instances are ready!
 
 ## Prover Setup
 
@@ -273,15 +274,15 @@ docker run --rm hermeznetwork/zkevm-node:latest sh -c "/app/zkevm-node encryptKe
 
 The command above will create the file `acc.keystore` inside of the `zkevm-node` directory.
 
-After it we need to create a configuration file to provide the configurations to the node, to achieve this create a file called `config.toml` inside of the `zkevm-node` directory, then go to the example [config file](./config/environments/public/public.node.config.toml) (`./config/environments/public/public.node.config.toml`) and `copy/paste` the content into the `config.toml` you'll actually use.
+After it we need to create a configuration file to provide the configurations to the node, to achieve this create a file called `config.toml` inside of the `zkevm-node` directory, then go to the example [config file](../config/environments/public/public.node.config.toml) (`./config/environments/public/public.node.config.toml`) and `copy/paste` the content into the `config.toml` you'll actually use.
 
-Do the same for the `genesis` file: [genesis file](./config/environments/public/public.genesis.config.json) (`./config/environments/public/public.genesis.config.json`)
+Do the same for the `genesis` file: [genesis file](../config/environments/public/public.genesis.config.json) (`./config/environments/public/public.genesis.config.json`)
 
 Remember to:
 
 - replace the database information if you set it differently while setting up the Postgres instance
 - set the `Database Host` with the `Postgres instance IP`
-- set the `Etherman URL` with the `JSON RPC URL` of the `Ethereum node` you created earlier *or* use any L1 Goerli service such as Infura. Set Infura URL with your API key like so: `https://goerli.infura.io/v3/$YOUR_API_KEY`
+- set the `Etherman URL` with the `JSON RPC URL` of the `Ethereum node` you created earlier *or* use any L1 Goerli service
 - set the `Etherman Password` to allow the node to decrypt the `keystore file`
 - set the `Prover URI` the `IP and port` of the `Prover Instance`
 
