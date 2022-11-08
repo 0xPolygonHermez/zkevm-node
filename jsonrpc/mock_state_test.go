@@ -116,6 +116,27 @@ func (_m *stateMock) GetBalance(ctx context.Context, address common.Address, blo
 	return r0, r1
 }
 
+// GetBatchNumberOfL2Block provides a mock function with given fields: ctx, blockNumber, dbTx
+func (_m *stateMock) GetBatchNumberOfL2Block(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, blockNumber, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, blockNumber, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, blockNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetCode provides a mock function with given fields: ctx, address, blockNumber, dbTx
 func (_m *stateMock) GetCode(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) ([]byte, error) {
 	ret := _m.Called(ctx, address, blockNumber, dbTx)
