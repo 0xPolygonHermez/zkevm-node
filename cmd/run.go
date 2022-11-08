@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -44,8 +45,8 @@ func start(cliCtx *cli.Context) error {
 		return err
 	}
 	setupLog(c.Log)
-	if c.Metrics.URI != "" {
-		metrics.Initialize()
+	if c.Metrics.Enabled {
+		metrics.Init()
 	}
 	runStateMigrations(c.StateDB)
 	stateSqlDB, err := db.NewSQLDB(c.StateDB)
@@ -109,7 +110,7 @@ func start(cliCtx *cli.Context) error {
 		}
 	}
 
-	if c.Metrics.URI != "" {
+	if c.Metrics.Enabled {
 		go startMetricsHttpServer(c)
 	}
 
@@ -308,19 +309,23 @@ func createPool(poolDBConfig db.Config, l2BridgeAddr common.Address, l2ChainID u
 
 func startMetricsHttpServer(c *config.Config) {
 	mux := http.NewServeMux()
-	lis, err := net.Listen("tcp", c.Metrics.URI)
+	address := fmt.Sprintf("%s:%d", c.Metrics.Host, c.Metrics.Port)
+	lis, err := net.Listen("tcp", address)
 	if err != nil {
-		log.Fatalf("failed to create tcp listener for metrics: %v", err)
+		log.Errorf("failed to create tcp listener for metrics: %v", err)
 		return
 	}
 	mux.Handle("/metrics", promhttp.Handler())
 	metricsServer := &http.Server{
 		Handler: mux,
 	}
+	log.Infof("metrics server listening on port %d", c.Metrics.Port)
 	if err := metricsServer.Serve(lis); err != nil {
 		if err == http.ErrServerClosed {
-			log.Infof("http server for metrics stopped")
+			log.Warnf("http server for metrics stopped")
+			return
 		}
-		log.Fatalf("closed http connection for metrics server: %v", err)
+		log.Errorf("closed http connection for metrics server: %v", err)
+		return
 	}
 }

@@ -27,8 +27,8 @@ type CounterVecOpts struct {
 	Labels []string
 }
 
-// Initialize initializes the package variables.
-func Initialize() {
+// Init initializes the package variables.
+func Init() {
 	initOnce.Do(func() {
 		storageMutex = sync.RWMutex{}
 		registerer = prometheus.DefaultRegisterer

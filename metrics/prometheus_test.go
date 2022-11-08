@@ -32,7 +32,7 @@ var (
 )
 
 func setup() {
-	Initialize()
+	Init()
 	gauge = prometheus.NewGauge(gaugeOpts)
 	counter = prometheus.NewCounter(counterOpts)
 	counterVec = prometheus.NewCounterVec(counterVecOpts.CounterOpts, counterVecOpts.Labels)
