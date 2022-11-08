@@ -29,6 +29,26 @@ type mocks struct {
 	DbTx              *dbTxMock
 }
 
+func TestServerMetrics(t *testing.T) {
+	pool := newPoolMock(t)
+	state := newStateMock(t)
+	gasPriceEstimator := newGasPriceEstimatorMock(t)
+	storage := newStorageMock(t)
+	apis := map[string]bool{
+		APIEth:    true,
+		APINet:    true,
+		APIDebug:  true,
+		APIZKEVM:  true,
+		APITxPool: true,
+		APIWeb3:   true,
+	}
+	s := NewServer(getDefaultConfig(), pool, state, gasPriceEstimator, storage, apis)
+	err := s.Start()
+	if err != nil {
+		panic(err)
+	}
+}
+
 func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocks, *ethclient.Client) {
 	pool := newPoolMock(t)
 	state := newStateMock(t)
