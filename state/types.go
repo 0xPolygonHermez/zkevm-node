@@ -6,27 +6,12 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// ProcessBatchRequest represents a request to process a batch.
-type ProcessBatchRequest struct {
-	BatchNum             uint64
-	Coinbase             common.Address
-	BatchL2Data          []byte
-	OldStateRoot         common.Hash
-	GlobalExitRoot       common.Hash
-	OldLocalExitRoot     common.Hash
-	EthTimestamp         uint64
-	UpdateMerkleTree     bool
-	GenerateExecuteTrace bool
-	GenerateCallTrace    bool
-}
-
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	CumulativeGasUsed   uint64
-	IsBatchProcessed    bool
-	Responses           []*ProcessTransactionResponse
 	NewStateRoot        common.Hash
+	NewAccInputHash     common.Hash
 	NewLocalExitRoot    common.Hash
+	NewBatchNumber      uint64
 	CntKeccakHashes     uint32
 	CntPoseidonHashes   uint32
 	CntPoseidonPaddings uint32
@@ -34,6 +19,10 @@ type ProcessBatchResponse struct {
 	CntArithmetics      uint32
 	CntBinaries         uint32
 	CntSteps            uint32
+	CumulativeGasUsed   uint64
+	Responses           []*ProcessTransactionResponse
+	Error               error
+	IsBatchProcessed    bool
 }
 
 // ProcessTransactionResponse represents the response of a tx process.

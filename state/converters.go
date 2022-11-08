@@ -33,11 +33,10 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 	}
 
 	return &ProcessBatchResponse{
-		CumulativeGasUsed:   response.CumulativeGasUsed,
-		IsBatchProcessed:    isBatchProcessed,
-		Responses:           responses,
 		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
+		NewAccInputHash:     common.BytesToHash(response.NewAccInputHash),
 		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
+		NewBatchNumber:      response.NewBatchNum,
 		CntKeccakHashes:     response.CntKeccakHashes,
 		CntPoseidonHashes:   response.CntPoseidonHashes,
 		CntPoseidonPaddings: response.CntPoseidonPaddings,
@@ -45,6 +44,10 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 		CntArithmetics:      response.CntArithmetics,
 		CntBinaries:         response.CntBinaries,
 		CntSteps:            response.CntSteps,
+		CumulativeGasUsed:   response.CumulativeGasUsed,
+		Responses:           responses,
+		Error:               executor.Err(response.Error),
+		IsBatchProcessed:    isBatchProcessed,
 	}, nil
 }
 

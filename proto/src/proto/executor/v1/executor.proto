@@ -10,30 +10,31 @@ service ExecutorService {
 }
 
 message ProcessBatchRequest {
-    uint64 batch_num = 1;
-    string coinbase = 2;
-    bytes batch_l2_data = 3;
-    // from is used for unsigned transactions with sender
-    string from = 4;
-    bytes old_state_root = 5;
+    bytes old_state_root = 1;
+    bytes old_acc_input_hash = 2;
+    uint64 old_batch_num = 3;
+    uint64 chain_id = 4;
+    bytes batch_l2_data = 5;
     bytes global_exit_root = 6;
-    bytes old_local_exit_root = 7;
-    uint64 eth_timestamp = 8;
+    uint64 eth_timestamp = 7;
+    string coinbase = 8;
     uint32 update_merkle_tree = 9;
     bytes tx_hash_to_generate_execute_trace = 10;
     bytes tx_hash_to_generate_call_trace = 11;
+    // flag to indicate that counters should not be taken into account
+    uint64 no_counters = 12;
+    // from is used for unsigned transactions with sender
+    string from = 13;
     // For testing purposes only
-    map<string, string> db = 12;
-    map<string, string> contracts_bytecode = 13; // For debug/testing purpposes only. Don't fill this on production
-    uint64 chain_id = 14;
-    uint64 no_counters = 15;
+    map<string, string> db = 14;
+    map<string, string> contracts_bytecode = 15; // For debug/testing purpposes only. Don't fill this on production
 }
 
 message ProcessBatchResponse {
-    uint64 cumulative_gas_used = 1;
-    repeated ProcessTransactionResponse responses = 2;
-    bytes new_state_root = 3;
-    bytes new_local_exit_root = 4;
+    bytes new_state_root = 1;
+    bytes new_acc_input_hash = 2;
+    bytes new_local_exit_root = 3;
+    uint64 new_batch_num = 4;
     uint32 cnt_keccak_hashes = 5;
     uint32 cnt_poseidon_hashes = 6;
     uint32 cnt_poseidon_paddings = 7;
@@ -41,7 +42,9 @@ message ProcessBatchResponse {
     uint32 cnt_arithmetics = 9;
     uint32 cnt_binaries = 10;
     uint32 cnt_steps = 11;
-    Error error = 12;
+    uint64 cumulative_gas_used = 12;
+    repeated ProcessTransactionResponse responses = 13;
+    Error error = 14;
 }
 
 message CallTrace {
@@ -212,21 +215,21 @@ enum Error {
     ERROR_EXECUTION_REVERTED = 11;
     // ERROR_CODE_STORE_OUT_OF_GAS indicates there is not enough gas for the storage
     ERROR_CODE_STORE_OUT_OF_GAS = 12;
-    // ERROR_OUT_OF_COUNTERS_STEP indicates there are not enough step counters to continue the execution
+    // ERROR_OUT_OF_COUNTERS_STEP indicates there is not enough step counters to continue the execution
     ERROR_OUT_OF_COUNTERS_STEP = 13;
-    // ERROR_OUT_OF_COUNTERS_KECCAK indicates there are not enough keccak counters to continue the execution
+    // ERROR_OUT_OF_COUNTERS_KECCAK indicates there is not enough keccak counters to continue the execution
     ERROR_OUT_OF_COUNTERS_KECCAK = 14;
-    // ERROR_OUT_OF_COUNTERS_BINARY indicates there are not enough binary counters to continue the execution
+    // ERROR_OUT_OF_COUNTERS_BINARY indicates there is not enough binary counters to continue the execution
     ERROR_OUT_OF_COUNTERS_BINARY = 15;
-    // ERROR_OUT_OF_COUNTERS_MEM indicates there are not enough memory aligncounters to continue the execution
+    // ERROR_OUT_OF_COUNTERS_MEM indicates there is not enough memory aligncounters to continue the execution
     ERROR_OUT_OF_COUNTERS_MEM = 16;
-    // ERROR_OUT_OF_COUNTERS_ARITH indicates there are not enough arith counters to continue the execution
+    // ERROR_OUT_OF_COUNTERS_ARITH indicates there is not enough arith counters to continue the execution
     ERROR_OUT_OF_COUNTERS_ARITH = 17;
-    // ERROR_OUT_OF_COUNTERS_PADDING indicates there are not enough padding counters to continue the execution
+    // ERROR_OUT_OF_COUNTERS_PADDING indicates there is not enough padding counters to continue the execution
     ERROR_OUT_OF_COUNTERS_PADDING = 18;
-    // ERROR_OUT_OF_COUNTERS_POSEIDON indicates there are not enough poseidon counters to continue the execution
+    // ERROR_OUT_OF_COUNTERS_POSEIDON indicates there is not enough poseidon counters to continue the execution
     ERROR_OUT_OF_COUNTERS_POSEIDON = 19;
-    // ERROR_INVALID_TX indicates the transaction are invalid because of invalid jump dest, invalid opcode, invalid deploy
+    // ERROR_INVALID_TX indicates the transaction is invalid because of invalid jump dest, invalid opcode, invalid deploy
     // or invalid static tx
     ERROR_INVALID_TX = 20;
     // ERROR_INTRINSIC_INVALID_SIGNATURE indicates the transaction is failing at the signature intrinsic check
@@ -240,9 +243,9 @@ enum Error {
     // ERROR_INTRINSIC_INVALID_BALANCE indicates the transaction is failing at balance intrinsic check
     ERROR_INTRINSIC_INVALID_BALANCE = 25;
     // ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT indicates the batch is exceeding the batch gas limit
-    ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT = 26; 
+    ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT = 26;
     // ERROR_INTRINSIC_INVALID_SENDER_CODE indicates the batch is exceeding the batch gas limit
-    ERROR_INTRINSIC_INVALID_SENDER_CODE = 27; 
+    ERROR_INTRINSIC_INVALID_SENDER_CODE = 27;
     // ERROR_BATCH_DATA_TOO_BIG indicates the batch_l2_data is too big to be processed
     ERROR_BATCH_DATA_TOO_BIG = 28;
 }
