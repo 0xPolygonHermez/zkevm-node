@@ -267,45 +267,44 @@ func Test_Filters(t *testing.T) {
 		// GetFilterChanges - passing an ID from newBlockFilter
 
 		// TODO FIXME comparison between GetFilterChanges L1 vs L2
-		/*
-			response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
-			require.NoError(t, err)
-			require.Nil(t, response.Error)
-			require.NotNil(t, response.Result)
 
-			var blockFilterId string
-			err = json.Unmarshal(response.Result, &blockFilterId)
-			require.NoError(t, err)
-			require.NotEmpty(t, filterId)
+		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newBlockFilter")
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
 
-			// Create TX: new block on L2 (l1 block generated every 1s)
+		var blockFilterId string
+		err = json.Unmarshal(response.Result, &blockFilterId)
+		require.NoError(t, err)
+		require.NotEmpty(t, filterId)
 
-			tx, err := createTX(network.URL, network.ChainID, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
-			require.NoError(t, err)
-			err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
-			require.NoError(t, err)
+		// Create TX: new block on L2 (l1 block generated every 1s)
 
-			receipt, err := client.TransactionReceipt(ctx, tx.Hash())
-			require.NoError(t, err)
+		tx, err := createTX(network.URL, network.ChainID, common.HexToAddress("0x4d5Cf5032B2a844602278b01199ED191A86c93ff"), big.NewInt(1000))
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
 
-			response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getFilterChanges", blockFilterId)
-			require.NoError(t, err)
-			require.Nil(t, response.Error)
-			require.NotNil(t, response.Result)
+		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
+		require.NoError(t, err)
 
-			var changes []common.Hash
-			err = json.Unmarshal(response.Result, &changes)
-			require.NoError(t, err)
-			log.Infof("\nHow many changes: %d\n", len(changes))
-			require.NotEmpty(t, changes)
+		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_getFilterChanges", blockFilterId)
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
 
-			if len(changes) >= 1 {
-				for _, change := range changes {
-					log.Infof("\n> %s => %s", change, receipt.BlockHash)
-				}
+		var changes []common.Hash
+		err = json.Unmarshal(response.Result, &changes)
+		require.NoError(t, err)
+		log.Infof("\nHow many changes: %d\n", len(changes))
+		require.NotEmpty(t, changes)
+
+		if len(changes) >= 1 {
+			for _, change := range changes {
+				log.Infof("\n> %s => %s", change, receipt.BlockHash)
 			}
-			require.Contains(t, changes, receipt.BlockHash)
-		*/
+		}
+		require.Contains(t, changes, receipt.BlockHash)
 
 		// Wrong [any]FilterID
 
