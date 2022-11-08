@@ -110,7 +110,7 @@ docker logs -f eth-node
 
 ---
 
-Alternatively, use a service such as [Infura](https://infura.io/) to access the **Goerli** L1 network. Create an API key, you'll need it later. We tested Infura extensively and found it to work best, but theoretically, any Goerli node should work.
+We suggest using geth, but any Goerli node should work.
 
 ## Postgres Setup
 
