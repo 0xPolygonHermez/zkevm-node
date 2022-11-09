@@ -53,7 +53,7 @@ func (c *Client) GetGenProofID(ctx context.Context, inputProver *pb.InputProver)
 	log.Debugf("Data sent to the prover: %+v", inputProver)
 	genProofRes := resGenProof.GetResult()
 	if genProofRes != pb.GenProofResponse_RESULT_GEN_PROOF_OK {
-		return "", fmt.Errorf("failed to get result from the prover, batchNumber: %d, err: %v", inputProver.PublicInputs.BatchNum, err)
+		return "", fmt.Errorf("failed to get result from the prover, OdlBatchNumber: %d, err: %v", inputProver.PublicInputs.OldBatchNum, err)
 	}
 	genProofID := resGenProof.GetId()
 
