@@ -14,13 +14,13 @@ type EthTxManager struct {
 	mock.Mock
 }
 
-// VerifyBatch provides a mock function with given fields: ctx, batchNum, proof
-func (_m *EthTxManager) VerifyBatch(ctx context.Context, batchNum uint64, proof *pb.GetProofResponse) error {
-	ret := _m.Called(ctx, batchNum, proof)
+// VerifyBatches provides a mock function with given fields: ctx, lastVerifiedBatch, newVerifiedBatch, resGetProof
+func (_m *EthTxManager) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) error {
+	ret := _m.Called(ctx, lastVerifiedBatch, newVerifiedBatch, resGetProof)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *pb.GetProofResponse) error); ok {
-		r0 = rf(ctx, batchNum, proof)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, *pb.GetProofResponse) error); ok {
+		r0 = rf(ctx, lastVerifiedBatch, newVerifiedBatch, resGetProof)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -4,6 +4,12 @@
 		"inputs": [
 			{
 				"indexed": false,
+				"internalType": "uint8",
+				"name": "leafType",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
 				"internalType": "uint32",
 				"name": "originNetwork",
 				"type": "uint32"
@@ -11,7 +17,7 @@
 			{
 				"indexed": false,
 				"internalType": "address",
-				"name": "originTokenAddress",
+				"name": "originAddress",
 				"type": "address"
 			},
 			{
@@ -66,7 +72,7 @@
 			{
 				"indexed": false,
 				"internalType": "address",
-				"name": "originTokenAddress",
+				"name": "originAddress",
 				"type": "address"
 			},
 			{
@@ -125,6 +131,32 @@
 	},
 	{
 		"inputs": [],
+		"name": "LEAF_TYPE_ASSET",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "LEAF_TYPE_MESSAGE",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "MAINNET_NETWORK_ID",
 		"outputs": [
 			{
@@ -164,7 +196,30 @@
 				"type": "bytes"
 			}
 		],
-		"name": "bridge",
+		"name": "bridgeAsset",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint32",
+				"name": "destinationNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "destinationAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "bytes",
+				"name": "metadata",
+				"type": "bytes"
+			}
+		],
+		"name": "bridgeMessage",
 		"outputs": [],
 		"stateMutability": "payable",
 		"type": "function"
@@ -222,7 +277,65 @@
 				"type": "bytes"
 			}
 		],
-		"name": "claim",
+		"name": "claimAsset",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32[]",
+				"name": "smtProof",
+				"type": "bytes32[]"
+			},
+			{
+				"internalType": "uint32",
+				"name": "index",
+				"type": "uint32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "mainnetExitRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "rollupExitRoot",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint32",
+				"name": "originNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "originAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "uint32",
+				"name": "destinationNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "destinationAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes",
+				"name": "metadata",
+				"type": "bytes"
+			}
+		],
+		"name": "claimMessage",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -275,13 +388,18 @@
 	{
 		"inputs": [
 			{
+				"internalType": "uint8",
+				"name": "leafType",
+				"type": "uint8"
+			},
+			{
 				"internalType": "uint32",
 				"name": "originNetwork",
 				"type": "uint32"
 			},
 			{
 				"internalType": "address",
-				"name": "originTokenAddress",
+				"name": "originAddress",
 				"type": "address"
 			},
 			{

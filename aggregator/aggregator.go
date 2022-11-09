@@ -137,29 +137,40 @@ func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ti
 		return
 	}
 
-	batchNumberToVerify := lastVerifiedBatch.BatchNumber + 1
-
-	proof, err := a.State.GetGeneratedProofByBatchNumber(ctx, batchNumberToVerify, nil)
+	sequences, err := a.State.GetSequences(ctx, lastVerifiedBatch.BatchNumber, nil)
 	if err != nil && err != state.ErrNotFound {
-		log.Warnf("failed to get last proof for batch %v, err: %v", batchNumberToVerify, err)
+		log.Warnf("failed to get last sequence to consolidate, err: %v", err)
+		waitTick(ctx, ticker)
+		return
+	} else if err == state.ErrNotFound || len(sequences) == 0 {
+		log.Debug("no sequence found")
+		waitTick(ctx, ticker)
+		return
+	}
+
+	newBatchNumberToVerify := sequences[0].NewVerifiedBatchNumber
+
+	proof, err := a.State.GetGeneratedProofByBatchNumber(ctx, newBatchNumberToVerify, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Warnf("failed to get last proof for batch %v, err: %v", newBatchNumberToVerify, err)
 		waitTick(ctx, ticker)
 		return
 	}
 
 	if proof != nil && proof.Proof != nil {
-		log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", batchNumberToVerify)
-		err := a.EthTxManager.VerifyBatch(ctx, batchNumberToVerify, proof.Proof)
+		log.Infof("sending verified proof to the ethereum smart contract, batchNumber %d", newBatchNumberToVerify)
+		err := a.EthTxManager.VerifyBatches(ctx, lastVerifiedBatch.BatchNumber, newBatchNumberToVerify, proof.Proof)
 		if err != nil {
-			log.Errorf("error verifying batch %d. Error: %w", batchNumberToVerify, err)
+			log.Errorf("error verifying batch %d. Error: %w", newBatchNumberToVerify, err)
 		} else {
-			log.Infof("proof for the batch was sent, batchNumber: %v", batchNumberToVerify)
-			err := a.State.DeleteGeneratedProof(ctx, batchNumberToVerify, nil)
+			log.Infof("proof for the batch was sent, batchNumber: %v", newBatchNumberToVerify)
+			err := a.State.DeleteGeneratedProof(ctx, newBatchNumberToVerify, nil)
 			if err != nil {
-				log.Warnf("failed to delete generated proof for batchNumber %v, err: %v", batchNumberToVerify, err)
+				log.Warnf("failed to delete generated proof for batchNumber %v, err: %v", newBatchNumberToVerify, err)
 			}
 		}
 	} else {
-		log.Debugf("no generated proof for batchNumber %v has been found", batchNumberToVerify)
+		log.Debugf("no generated proof for batchNumber %v has been found", newBatchNumberToVerify)
 		waitTick(ctx, ticker)
 	}
 }

@@ -49,7 +49,7 @@ const (
 	addGenesisBatchSQL                       = `INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	openBatchSQL                             = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase) VALUES ($1, $2, $3, $4)"
 	closeBatchSQL                            = "UPDATE state.batch SET state_root = $1, local_exit_root = $2, raw_txs_data = $3 WHERE batch_num = $4"
-	getNextForcedBatchesSQL                  = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num FROM state.forced_batch WHERE batch_num IS NULL LIMIT $1"
+	getNextForcedBatchesSQL                  = "SELECT forced_batch_num, global_exit_root, timestamp, raw_txs_data, coinbase, batch_num, block_num FROM state.forced_batch WHERE batch_num IS NULL ORDER BY forced_batch_num ASC LIMIT $1"
 	addBatchNumberInForcedBatchSQL           = "UPDATE state.forced_batch SET batch_num = $2 WHERE forced_batch_num = $1"
 	getL2BlockByNumberSQL                    = "SELECT header, uncles, received_at FROM state.l2block b WHERE b.block_num = $1"
 	getL2BlockHeaderByNumberSQL              = "SELECT header FROM state.l2block b WHERE b.block_num = $1"
@@ -85,6 +85,8 @@ const (
 	getTxsHashesBeforeBatchNum = "SELECT hash FROM state.transaction JOIN state.l2block ON state.transaction.l2_block_num = state.l2block.block_num AND state.l2block.batch_num <= $1"
 	isL2BlockVirtualized       = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
 	isL2BlockConsolidated      = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.verified_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
+	addSequenceSQL             = "INSERT INTO state.sequences (last_verified_batch_num, new_verified_batch_num) VALUES($1, $2)"
+	getSequencesSQL            = "SELECT last_verified_batch_num, new_verified_batch_num FROM state.sequences WHERE last_verified_batch_num >= $1 ORDER BY last_verified_batch_num ASC"
 )
 
 // PostgresStorage implements the Storage interface
@@ -1779,4 +1781,38 @@ func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string
 	}
 
 	return proof, err
+}
+
+// AddSequence stores the sequence information to allow the aggregator verify sequences.
+func (p *PostgresStorage) AddSequence(ctx context.Context, sequence Sequence, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addSequenceSQL, sequence.LastVerifiedBatchNumber, sequence.NewVerifiedBatchNumber)
+	return err
+}
+
+// GetSequences get the next sequences higher than an specify batch number
+func (p *PostgresStorage) GetSequences(ctx context.Context, lastVerifiedBatchNumber uint64, dbTx pgx.Tx) ([]Sequence, error) {
+	q := p.getExecQuerier(dbTx)
+
+	rows, err := q.Query(ctx, getSequencesSQL, lastVerifiedBatchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sequences := make([]Sequence, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		var sequence Sequence
+		if err := rows.Scan(
+			&sequence.LastVerifiedBatchNumber,
+			&sequence.NewVerifiedBatchNumber,
+		); err != nil {
+			return sequences, err
+		}
+		sequences = append(sequences, sequence)
+	}
+	return sequences, err
 }
