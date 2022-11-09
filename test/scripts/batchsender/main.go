@@ -56,16 +56,16 @@ func main() {
 	ethMan, err := etherman.NewClient(cfg.Etherman, auth)
 	checkErr(err)
 
+	seqAddr, err := ethMan.GetPublicAddress()
+	checkErr(err)
+	log.Info("Using address: ", seqAddr)
+
 	ctx := context.Background()
 
 	for i := 0; i < nBatches; i++ {
 		currentBlock, err := client.BlockByNumber(ctx, nil)
 		checkErr(err)
 		log.Debug("currentBlock.Time(): ", currentBlock.Time())
-
-		seqAddr, err := ethMan.GetPublicAddress()
-		checkErr(err)
-		log.Info("Using address: ", seqAddr)
 
 		seqs := []types.Sequence{{
 			GlobalExitRoot: common.HexToHash("0x"),
