@@ -541,6 +541,14 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				}
 				log.Fatalf("error getting forcedBatches. BatchNumber: %d, BlockNumber: %d, error: %w", virtualBatch.BatchNumber, blockNumber, err)
 			}
+			if len(forcedBatches) == 0 {
+				log.Errorf("error: empty forcedBatches array read from db. BatchNumber: %d", sbatch.BatchNumber)
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil {
+					log.Fatalf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %w", sbatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+				}
+				log.Fatal("error: empty forcedBatches array read from db. BatchNumber: %d", sbatch.BatchNumber)
+			}
 			if uint64(forcedBatches[0].ForcedAt.Unix()) != sbatch.MinForcedTimestamp ||
 				forcedBatches[0].GlobalExitRoot != sbatch.GlobalExitRoot ||
 				common.Bytes2Hex(forcedBatches[0].RawTxsData) != common.Bytes2Hex(sbatch.Transactions) ||
