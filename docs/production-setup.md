@@ -219,10 +219,8 @@ Before we start:
 
 > It's very important to say that the Prover is a software that requires a lot of technology power to be executed properly, with that said, we recommend you to have a dedicated machine with the following configuration to run the prover:
 
-- TBD
-- TBD
-- TBD
-- TBD
+- 128 CPU cores
+- 1TB RAM
 
 Also: 
 
@@ -238,7 +236,7 @@ Then download [the sample Prover config file](./config/environments/public/publi
 
 Finally, add the following entry to the `docker-compose.yml` file:
 
-```
+```yaml
   zkevm-prover:
     container_name: zkevm-prover
     image: hermeznetwork/zkevm-prover:develop
@@ -425,7 +423,7 @@ To configure a custom network follow these steps:
 5. Fill up the following fields:
     1. Network Name: Polygon Hermez - Goerli
     2. New RPC URL: <http://IP-And-Port-of-zkEVM-Node-Instance>
-    3. Chain ID: TBD
+    3. Chain ID: 1001
     4. Currency Symbol: ETH
     5. Block Explorer URL: <http://IP-And-Port-of-Explorer-Instance>
 6. Click on Save
