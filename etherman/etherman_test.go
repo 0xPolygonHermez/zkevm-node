@@ -147,7 +147,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	currentBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	currentBlockNumber := currentBlock.NumberU64()
-	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &currentBlockNumber)
+	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &currentBlockNumber)
 	require.NoError(t, err)
 	var sequences []proofofefficiency.ProofOfEfficiencyBatchData
 	sequences = append(sequences, proofofefficiency.ProofOfEfficiencyBatchData{
