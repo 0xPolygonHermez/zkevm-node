@@ -261,11 +261,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.ReadTimeoutInSec",
-			expectedValue: time.Duration(1),
+			expectedValue: time.Duration(60),
 		},
 		{
 			path:          "RPC.WriteTimeoutInSec",
-			expectedValue: time.Duration(1),
+			expectedValue: time.Duration(60),
 		},
 		{
 			path:          "RPC.SequencerNodeURI",
