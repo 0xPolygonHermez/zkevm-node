@@ -123,10 +123,10 @@ Also:
 
 > It's not required to have a backup, since all the data is available on L1 to be resynchronized if it was lost, but it's strongly recommended to have a backup in order to avoid resynchronizing the whole network in case of a problem with the db, because the synchronization is a process that can take a lot of time and this time is going to ever increase as the network continues to roll.
 
-With that said, we must setup several Postgres instances to be shared between the Node and the Prover.
+With that said, we must setup several Postgres instances to be shared between the Node and the Prover/Executor.
 
 - Node requires a full access user to run the migrations and control the data.
-- Prover only needs a readonly user to access the Merkletree data and compute the proofs.
+- Prover only needs a readonly user to access the Merkletree data and compute the proofs. Executor will need read/write access. Migration file `init_prover_db.sql` will create the merkle tree table in state DB.
 
 We need to create several directories to store the Postgres data outside of the container, in order to not lose all the data if the container is restarted.
 
@@ -213,7 +213,7 @@ docker-compose up -d
 
 Congratulations, your postgres instances are ready!
 
-## Prover Setup
+## Executor Setup
 
 Before we start:
 
@@ -248,6 +248,7 @@ Finally, add the following entry to the `docker-compose.yml` file:
     command: >
       zkProver -c /usr/src/app/config.json
 ```
+
 ## zkEVM-Node Setup
 
 Very well, we already have the Postgres, Prover and Ethereum Node instances running, now it's time so setup the zkEVM-Node.
