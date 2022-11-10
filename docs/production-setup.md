@@ -315,7 +315,7 @@ Add the following entries to the `docker-compose.yml` file
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
-      - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
+      - ZKEVM_NODE_RPC_BROADCASTURI=public-grpc.zkevm-test.net:61090
     volumes:
       - ./acc.keystore:/pk/keystore
       - ./config.toml:/app/config.toml
