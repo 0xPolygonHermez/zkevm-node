@@ -57,6 +57,20 @@ func (h *ZKEVM) IsL2BlockVirtualized(blockNumber int) (interface{}, rpcError) {
 	})
 }
 
+// BatchNumberOfL2Block returns the batch number from which the passed block number is created
+func (h *ZKEVM) BatchNumberOfL2Block(blockNumber uint64) (interface{}, rpcError) {
+	return h.txMan.NewDbTxScope(h.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
+		batchNum, err := h.state.GetBatchNumberOfL2Block(ctx, blockNumber, dbTx)
+		if err != nil {
+			const errorMessage = "failed to get batch number of l2 batchNum"
+			log.Errorf("%v:%v", errorMessage, err)
+			return nil, newRPCError(defaultErrorCode, errorMessage)
+		}
+
+		return batchNum, nil
+	})
+}
+
 // GetBroadcastURI returns the IP:PORT of the broadcast service provided
 // by the Trusted Sequencer JSON RPC server
 func (h *ZKEVM) GetBroadcastURI() (interface{}, rpcError) {

@@ -79,11 +79,11 @@ const (
 		 INNER JOIN state.l2block consolidated_blocks
 			ON consolidated_blocks.batch_num = sy.last_batch_num_consolidated;
 	`
-	addTransactionSQL          = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4)"
-	getBatchNumByBlockNum      = "SELECT batch_num FROM state.virtual_batch WHERE block_num <= $1 ORDER BY batch_num DESC LIMIT 1"
-	getTxsHashesBeforeBatchNum = "SELECT hash FROM state.transaction JOIN state.l2block ON state.transaction.l2_block_num = state.l2block.block_num AND state.l2block.batch_num <= $1"
-	isL2BlockVirtualized       = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
-	isL2BlockConsolidated      = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.verified_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
+	addTransactionSQL                     = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4)"
+	getBatchNumByBlockNumFromVirtualBatch = "SELECT batch_num FROM state.virtual_batch WHERE block_num <= $1 ORDER BY batch_num DESC LIMIT 1"
+	getTxsHashesBeforeBatchNum            = "SELECT hash FROM state.transaction JOIN state.l2block ON state.transaction.l2_block_num = state.l2block.block_num AND state.l2block.batch_num <= $1"
+	isL2BlockVirtualized                  = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
+	isL2BlockConsolidated                 = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.verified_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
 )
 
 // PostgresStorage implements the Storage interface
@@ -151,7 +151,7 @@ func (p *PostgresStorage) GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Block
 		return nil, errors.New("blockNumDiff is too big, there are no txs to delete")
 	}
 
-	err = e.QueryRow(ctx, getBatchNumByBlockNum, blockNum).Scan(&batchNum)
+	err = e.QueryRow(ctx, getBatchNumByBlockNumFromVirtualBatch, blockNum).Scan(&batchNum)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -955,6 +955,22 @@ func (p *PostgresStorage) AddBatchNumberInForcedBatch(ctx context.Context, force
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addBatchNumberInForcedBatchSQL, forceBatchNumber, batchNumber)
 	return err
+}
+
+// GetBatchNumberOfL2Block gets a batch number for l2 block by its number
+func (p *PostgresStorage) GetBatchNumberOfL2Block(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	getBatchNumByBlockNum := "SELECT batch_num FROM state.l2block WHERE block_num = $1"
+	batchNumber := uint64(0)
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getBatchNumByBlockNum, blockNumber).
+		Scan(&batchNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return batchNumber, ErrNotFound
+	} else if err != nil {
+		return batchNumber, err
+	}
+	return batchNumber, nil
 }
 
 // GetL2BlockByNumber gets a l2 block by its number
