@@ -2,8 +2,8 @@ package main
 
 import (
 	"bytes"
-	"context"
-	"fmt"
+	"errors"
+	"math/big"
 	"os"
 	"strconv"
 	"time"
@@ -13,29 +13,81 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
+	"github.com/urfave/cli/v2"
+)
+
+const (
+	flagWaitName    = "wait"
+	flagVerboseName = "verbose"
+)
+
+var (
+	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
+	verifiedBatchSignatureHash         = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
+
+	flagWait = cli.BoolFlag{
+		Name:     flagWaitName,
+		Aliases:  []string{"w"},
+		Usage:    "wait batch transaction to be confirmed",
+		Required: false,
+	}
+	flagVerbose = cli.BoolFlag{
+		Name:     flagVerboseName,
+		Aliases:  []string{"v"},
+		Usage:    "output verbose logs",
+		Required: false,
+	}
 )
 
 func main() {
-	// send 1 batch by default or read the number of batches from args
-	nBatches := 1
-	usage := `Usage: batchsender <nbatches>
- nbatches	Number of batches to be sent (defaults to 1)`
-	if len(os.Args) > 1 {
-		var err error
-		arg := os.Args[1]
-		if arg == "--help" || arg == "-h" {
-			fmt.Println(usage)
-			os.Exit(0)
-		}
-		nBatches, err = strconv.Atoi(arg)
-		if err != nil {
-			fmt.Println(usage)
-			os.Exit(1)
+	batchsender := cli.NewApp()
+	batchsender.Name = "batchsender"
+	batchsender.Usage = "send batch transactions to L1"
+	batchsender.Description = `This tool allows to send a specified number of batch transactions to L1. 
+Optionally it can wait for the batches to be validated.`
+	batchsender.DefaultCommand = "send"
+	batchsender.Flags = []cli.Flag{&flagWait, &flagVerbose}
+	batchsender.Commands = []*cli.Command{
+		{
+			Name:    "send",
+			Aliases: []string{},
+			Usage:   "Sends the specified number of batch transactions to L1",
+			Description: `This command sends the specified number of transactions to L1.
+If --wait flag is used, it waits for the corresponding validation transaction.`,
+			ArgsUsage: "number of batches to be sent (default: 1)",
+			Action:    sendBatches,
+		},
+	}
+
+	err := batchsender.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+}
+
+func sendBatches(cliCtx *cli.Context) error {
+	ctx := cliCtx.Context
+
+	logLevel := "info"
+	if cliCtx.Bool(flagVerboseName) {
+		logLevel = "debug"
+	}
+
+	log.Init(log.Config{Level: logLevel, Outputs: []string{"stdout"}})
+
+	nBatches := 1 // send 1 batch by default
+	if cliCtx.NArg() > 0 {
+		nBatchesArgStr := cliCtx.Args().Get(0)
+		nBatchesArg, err := strconv.Atoi(nBatchesArgStr)
+		if err == nil {
+			nBatches = nBatchesArg
 		}
 	}
 
@@ -43,28 +95,43 @@ func main() {
 	var cfg config.Config
 	viper.SetConfigType("toml")
 	err := viper.ReadConfig(bytes.NewBuffer([]byte(config.DefaultValues)))
-	checkErr(err)
+	if err != nil {
+		return err
+	}
 	err = viper.Unmarshal(&cfg, viper.DecodeHook(mapstructure.TextUnmarshallerHookFunc()))
-	checkErr(err)
-
-	client, err := ethclient.Dial(operations.DefaultL1NetworkURL)
-	checkErr(err)
+	if err != nil {
+		return err
+	}
 
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL1ChainID)
-	checkErr(err)
+	if err != nil {
+		return err
+	}
 
 	ethMan, err := etherman.NewClient(cfg.Etherman, auth)
-	checkErr(err)
+	if err != nil {
+		return err
+	}
 
 	seqAddr, err := ethMan.GetPublicAddress()
-	checkErr(err)
+	if err != nil {
+		return err
+	}
 	log.Info("Using address: ", seqAddr)
 
-	ctx := context.Background()
+	wait := cliCtx.Bool(flagWaitName)
+
+	var sentTxs []*ethtypes.Transaction
+	var duration time.Duration
+	if nBatches > 1 {
+		duration = 500
+	}
 
 	for i := 0; i < nBatches; i++ {
-		currentBlock, err := client.BlockByNumber(ctx, nil)
-		checkErr(err)
+		currentBlock, err := ethMan.EtherClient.BlockByNumber(ctx, nil)
+		if err != nil {
+			return err
+		}
 		log.Debug("currentBlock.Time(): ", currentBlock.Time())
 
 		seqs := []types.Sequence{{
@@ -72,25 +139,96 @@ func main() {
 			Txs:            []ethtypes.Transaction{},
 			Timestamp:      int64(currentBlock.Time() - 1), // fit in latest-sequence < > current-block rage
 		}}
-		tx, err := ethMan.SequenceBatches(ctx, seqs, 0, nil, nil)
-		checkErr(err)
-		log.Info("TxHash: ", tx.Hash())
 
-		var duration time.Duration
-		if nBatches > 1 {
-			duration = 1
+		// send empty rollup to L1
+		tx, err := ethMan.SequenceBatches(ctx, seqs, 0, nil, nil)
+		if err != nil {
+			return err
 		}
-		time.Sleep(duration * time.Second)
+
+		log.Info("TxHash: ", tx.Hash())
+		sentTxs = append(sentTxs, tx)
+
+		time.Sleep(duration * time.Millisecond)
 	}
+
+	if wait { // wait proofs
+		log.Info("Waiting for txs to be confirmed...")
+		time.Sleep(10 * time.Second) //nolint:gomnd
+
+		virtualBatches := make(map[uint64]struct{})
+		verifiedBatches := make(map[uint64]common.Hash)
+
+		// wait rollup txs to be mined
+		timeout := 180 * time.Second //nolint:gomnd
+
+		for _, tx := range sentTxs {
+			err := operations.WaitTxToBeMined(ctx, ethMan.EtherClient, tx, timeout)
+			if err != nil {
+				return err
+			}
+
+			// get rollup tx block number
+			receipt, err := ethMan.EtherClient.TransactionReceipt(ctx, tx.Hash())
+			if err != nil {
+				return err
+			}
+
+			fromBlock := receipt.BlockNumber
+			toBlock := new(big.Int).Add(fromBlock, new(big.Int).SetUint64(cfg.Synchronizer.SyncChunkSize))
+			query := ethereum.FilterQuery{
+				FromBlock: fromBlock,
+				ToBlock:   toBlock,
+				Addresses: ethMan.SCAddresses,
+			}
+			logs, err := ethMan.EtherClient.FilterLogs(ctx, query)
+			if err != nil {
+				return err
+			}
+			for _, vLog := range logs {
+				switch vLog.Topics[0] {
+				case sequencedBatchesEventSignatureHash:
+					if vLog.TxHash == tx.Hash() { // ignore other txs happening on L1
+						sb, err := ethMan.PoE.ParseSequenceBatches(vLog)
+						if err != nil {
+							return err
+						}
+						virtualBatches[sb.NumBatch] = struct{}{}
+						log.Infof("Batch [%d] virtualized in TxHash [%v]", sb.NumBatch, vLog.TxHash)
+					}
+				case verifiedBatchSignatureHash:
+					vb, err := ethMan.PoE.ParseVerifyBatch(vLog)
+					if err != nil {
+						return err
+					}
+					verifiedBatches[vb.NumBatch] = vLog.TxHash
+				}
+			}
+
+			// wait for verifications
+			time.Sleep(3 * time.Second) //nolint:gomnd
+		}
+
+		// check if all virtual batches are verified
+		failed := false
+		for batch := range virtualBatches {
+			if vHash, ok := verifiedBatches[batch]; ok {
+				log.Infof("Batch [%d] verified in TxHash [%v]", batch, vHash)
+			} else {
+				log.Errorf("Proof for batch [%d] not found", batch)
+				failed = true
+			}
+		}
+		if failed {
+			return errors.New("Some of the proofs are missing")
+		}
+	}
+
 	if nBatches > 1 {
 		log.Infof("Successfully sent %d batches", nBatches)
 	} else {
 		log.Info("Successfully sent 1 batch")
 	}
-}
 
-func checkErr(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
+	return nil
 }
