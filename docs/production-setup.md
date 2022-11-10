@@ -232,7 +232,7 @@ The prover is available on Docker Registry, start by pulling the image:
 docker pull hermeznetwork/zkevm-prover
 ```
 
-Then download [the sample Prover config file](./config/environments/public/public.prover.config.json) (`./config/environments/public/public.prover.config.json`) and store it as `prover-config.json` inside the `zkevm-node` directory.
+Then download [the sample Prover config file](../config/environments/public/public.prover.config.json) (`./config/environments/public/public.prover.config.json`) and store it as `prover-config.json` inside the `zkevm-node` directory.
 
 Finally, add the following entry to the `docker-compose.yml` file:
 
