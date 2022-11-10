@@ -249,6 +249,22 @@ Finally, add the following entry to the `docker-compose.yml` file:
       zkProver -c /usr/src/app/config.json
 ```
 
+This will spin up the Executor and MT, for a prover setup, exposing the `50051` port is needed:
+
+```yaml
+  zkevm-prover:
+    container_name: zkevm-prover
+    image: hermeznetwork/zkevm-prover:develop
+    ports:
+      - 50051:50051 # Prover
+      - 50061:50061 # MT
+      - 50071:50071 # Executor
+    volumes:
+      - ./prover-config.json:/usr/src/app/config.json
+    command: >
+      zkProver -c /usr/src/app/config.json
+```
+
 ## zkEVM-Node Setup
 
 Very well, we already have the Postgres, Prover and Ethereum Node instances running, now it's time so setup the zkEVM-Node.
