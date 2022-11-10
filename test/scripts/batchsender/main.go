@@ -122,6 +122,8 @@ func sendBatches(cliCtx *cli.Context) error {
 	wait := cliCtx.Bool(flagWaitName)
 
 	var sentTxs []*ethtypes.Transaction
+	sentTxsMap := make(map[common.Hash]struct{})
+
 	var duration time.Duration
 	if nBatches > 1 {
 		duration = 500
@@ -148,87 +150,108 @@ func sendBatches(cliCtx *cli.Context) error {
 
 		log.Info("TxHash: ", tx.Hash())
 		sentTxs = append(sentTxs, tx)
+		sentTxsMap[tx.Hash()] = struct{}{}
 
 		time.Sleep(duration * time.Millisecond)
 	}
 
+	sentBatches := len(sentTxs)
+
 	if wait { // wait proofs
 		log.Info("Waiting for txs to be confirmed...")
-		time.Sleep(10 * time.Second) //nolint:gomnd
+		time.Sleep(time.Second)
 
-		virtualBatches := make(map[uint64]struct{})
-		verifiedBatches := make(map[uint64]common.Hash)
+		virtualBatches := make(map[uint64]common.Hash)
+		verifiedBatches := make(map[uint64]struct{})
+		loggedBatches := make(map[uint64]struct{})
 
-		// wait rollup txs to be mined
-		timeout := 180 * time.Second //nolint:gomnd
+		miningTimeout := 180 * time.Second                           //nolint:gomnd
+		waitTimeout := time.Duration(180*len(sentTxs)) * time.Second //nolint:gomnd
+		done := make(chan struct{})
 
-		for _, tx := range sentTxs {
-			err := operations.WaitTxToBeMined(ctx, ethMan.EtherClient, tx, timeout)
-			if err != nil {
-				return err
-			}
-
-			// get rollup tx block number
-			receipt, err := ethMan.EtherClient.TransactionReceipt(ctx, tx.Hash())
-			if err != nil {
-				return err
-			}
-
-			fromBlock := receipt.BlockNumber
-			toBlock := new(big.Int).Add(fromBlock, new(big.Int).SetUint64(cfg.Synchronizer.SyncChunkSize))
-			query := ethereum.FilterQuery{
-				FromBlock: fromBlock,
-				ToBlock:   toBlock,
-				Addresses: ethMan.SCAddresses,
-			}
-			logs, err := ethMan.EtherClient.FilterLogs(ctx, query)
-			if err != nil {
-				return err
-			}
-			for _, vLog := range logs {
-				switch vLog.Topics[0] {
-				case sequencedBatchesEventSignatureHash:
-					if vLog.TxHash == tx.Hash() { // ignore other txs happening on L1
-						sb, err := ethMan.PoE.ParseSequenceBatches(vLog)
-						if err != nil {
-							return err
-						}
-						virtualBatches[sb.NumBatch] = struct{}{}
-						log.Infof("Batch [%d] virtualized in TxHash [%v]", sb.NumBatch, vLog.TxHash)
-					}
-				case verifiedBatchSignatureHash:
-					vb, err := ethMan.PoE.ParseVerifyBatch(vLog)
+		for {
+			select {
+			case <-time.After(waitTimeout):
+				return errors.New("Deadline exceeded")
+			case <-done:
+				success(sentBatches)
+				return nil
+			default:
+			txLoop:
+				for _, tx := range sentTxs {
+					err := operations.WaitTxToBeMined(ctx, ethMan.EtherClient, tx, miningTimeout)
 					if err != nil {
 						return err
 					}
-					verifiedBatches[vb.NumBatch] = vLog.TxHash
+
+					// get rollup tx block number
+					receipt, err := ethMan.EtherClient.TransactionReceipt(ctx, tx.Hash())
+					if err != nil {
+						return err
+					}
+
+					fromBlock := receipt.BlockNumber
+					toBlock := new(big.Int).Add(fromBlock, new(big.Int).SetUint64(cfg.Synchronizer.SyncChunkSize))
+					query := ethereum.FilterQuery{
+						FromBlock: fromBlock,
+						ToBlock:   toBlock,
+						Addresses: ethMan.SCAddresses,
+					}
+					logs, err := ethMan.EtherClient.FilterLogs(ctx, query)
+					if err != nil {
+						return err
+					}
+					for _, vLog := range logs {
+						switch vLog.Topics[0] {
+						case sequencedBatchesEventSignatureHash:
+							if vLog.TxHash == tx.Hash() { // ignore other txs happening on L1
+								sb, err := ethMan.PoE.ParseSequenceBatches(vLog)
+								if err != nil {
+									return err
+								}
+
+								virtualBatches[sb.NumBatch] = vLog.TxHash
+
+								if _, logged := loggedBatches[sb.NumBatch]; !logged {
+									log.Infof("Batch [%d] virtualized in TxHash [%v]", sb.NumBatch, vLog.TxHash)
+									loggedBatches[sb.NumBatch] = struct{}{}
+								}
+							}
+						case verifiedBatchSignatureHash:
+							vb, err := ethMan.PoE.ParseVerifyBatch(vLog)
+							if err != nil {
+								return err
+							}
+
+							if _, verified := verifiedBatches[vb.NumBatch]; !verified {
+								log.Infof("Batch [%d] verified in TxHash [%v]", vb.NumBatch, vLog.TxHash)
+								verifiedBatches[vb.NumBatch] = struct{}{}
+							}
+
+							// batch is verified, remove it from the txs set
+							delete(sentTxsMap, virtualBatches[vb.NumBatch])
+							if len(sentTxsMap) == 0 {
+								close(done)
+								break txLoop
+							}
+						}
+					}
+
+					// wait for verifications
+					time.Sleep(time.Second) //nolint:gomnd
 				}
 			}
-
-			// wait for verifications
-			time.Sleep(3 * time.Second) //nolint:gomnd
-		}
-
-		// check if all virtual batches are verified
-		failed := false
-		for batch := range virtualBatches {
-			if vHash, ok := verifiedBatches[batch]; ok {
-				log.Infof("Batch [%d] verified in TxHash [%v]", batch, vHash)
-			} else {
-				log.Errorf("Proof for batch [%d] not found", batch)
-				failed = true
-			}
-		}
-		if failed {
-			return errors.New("Some of the proofs are missing")
 		}
 	}
 
+	success(sentBatches)
+	return nil
+}
+
+func success(nBatches int) {
 	if nBatches > 1 {
 		log.Infof("Successfully sent %d batches", nBatches)
 	} else {
 		log.Info("Successfully sent 1 batch")
 	}
-
-	return nil
 }
