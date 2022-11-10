@@ -1827,8 +1827,8 @@ func (p *PostgresStorage) GetSequencesWithoutGroup(ctx context.Context, dbTx pgx
 			 , local_exit_root
 			 , timestamp
 			 , txs
-		  FROM state.sequence s
-		 WHERE NOT EXISTS (SELECT * FROM state.sequence_group sg WHERE s.batch_num >= sg.from_batch_num AND s.batch_num <= sg.to_batch_num)
+		  FROM state.batch b
+		 WHERE NOT EXISTS (SELECT * FROM state.sequence_group sg WHERE b.batch_num >= sg.from_batch_num AND b.batch_num <= sg.to_batch_num)
 		 ORDER BY batch_num;`
 	rows, err := e.Query(ctx, getSequencesWithoutGroupSQL)
 	if err != nil {
@@ -1883,33 +1883,6 @@ func (p *PostgresStorage) GetPendingSequenceGroups(ctx context.Context, dbTx pgx
 	return sequenceGroups, nil
 }
 
-// CreateSequence persists a new sequence into the State database
-func (p *PostgresStorage) CreateSequence(ctx context.Context, batchNumber uint64, globalExitRoot, stateRoot,
-	localExitRoot common.Hash, timestamp time.Time, txs []types.Transaction, dbTx pgx.Tx) error {
-	e := p.getExecQuerier(dbTx)
-
-	const query = `
-		INSERT INTO state.sequence (batch_num, state_root, global_exit_root, local_exit_root, timestamp, txs)
-							VALUES (       $1,         $2,               $3,              $4,        $5,  $6);`
-
-	txsRLPs := make([]string, 0, len(txs))
-
-	for _, tx := range txs {
-		b, err := tx.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		txRLP := hex.EncodeToHex(b)
-		txsRLPs = append(txsRLPs, txRLP)
-	}
-
-	_, err := e.Exec(ctx, query, batchNumber,
-		stateRoot.String(), globalExitRoot.String(), localExitRoot.String(),
-		timestamp, txsRLPs)
-
-	return err
-}
-
 // AddSequenceGroup persists a new sequence group into the State database
 func (p *PostgresStorage) AddSequenceGroup(ctx context.Context, sequenceGroup SequenceGroup, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
@@ -1952,34 +1925,6 @@ func (p *PostgresStorage) SetSequenceGroupAsConfirmed(ctx context.Context, txHas
 	return err
 }
 
-// GetLastSequence gets last sequence
-func (p *PostgresStorage) GetLastSequence(ctx context.Context, dbTx pgx.Tx) (*Sequence, error) {
-	e := p.getExecQuerier(dbTx)
-
-	const query = `
-		SELECT batch_num
-			 , state_root
-			 , global_exit_root
-			 , local_exit_root
-			 , timestamp
-			 , txs
-		  FROM state.sequence
-		 ORDER BY batch_num DESC
-		 LIMIT 1;`
-
-	row := e.QueryRow(ctx, query)
-
-	seq, err := scanSequence(row)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
-	}
-
-	return seq, nil
-}
-
 // GetSequencesByBatchNums get the sequences accordingly to the batch numbers provided
 func (p *PostgresStorage) GetSequencesByBatchNums(ctx context.Context, fromBatchNumber, toBatchNumber uint64, dbTx pgx.Tx) ([]Sequence, error) {
 	e := p.getExecQuerier(dbTx)
@@ -1991,7 +1936,7 @@ func (p *PostgresStorage) GetSequencesByBatchNums(ctx context.Context, fromBatch
 			 , local_exit_root
 			 , timestamp
 			 , txs
-		  FROM state.sequence
+		  FROM state.batch
 		 WHERE batch_num >= $1 AND batch_num <= $2
 		 ORDER BY batch_num DESC;`
 

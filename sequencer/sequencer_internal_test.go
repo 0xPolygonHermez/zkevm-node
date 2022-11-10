@@ -20,6 +20,7 @@ func TestIsSynced(t *testing.T) {
 	eth := new(sequencerMocks.EthermanMock)
 	s := Sequencer{state: st, etherman: eth}
 	ctx := context.Background()
+	st.On("GetLastSequenceGroup", ctx, nil).Return(nil, state.ErrNotFound)
 	st.On("GetLastVirtualBatchNum", ctx, nil).Return(uint64(1), nil)
 	eth.On("GetLatestBatchNumber").Return(uint64(1), nil)
 	isSynced := s.isSynced(ctx)
@@ -33,6 +34,7 @@ func TestIsNotSynced(t *testing.T) {
 	eth := new(sequencerMocks.EthermanMock)
 	s := Sequencer{state: st, etherman: eth}
 	ctx := context.Background()
+	st.On("GetLastSequenceGroup", ctx, nil).Return(nil, state.ErrNotFound)
 	st.On("GetLastVirtualBatchNum", ctx, nil).Return(uint64(1), nil)
 	eth.On("GetLatestBatchNumber").Return(uint64(2), nil)
 	isSynced := s.isSynced(ctx)
@@ -96,9 +98,6 @@ func TestShouldCloseTooLongSinceLastVirtualized(t *testing.T) {
 	s.sequenceInProgress.Txs = []types.Transaction{*tx}
 	s.sequenceInProgress.Timestamp = time.Now().Add(-s.cfg.MaxTimeForBatchToBeOpen.Duration)
 	ctx := context.Background()
-	lastBatchNumber := uint64(10)
-	st.On("GetLastBatchNumber", ctx, nil).Return(lastBatchNumber, nil)
-	st.On("IsBatchVirtualized", ctx, lastBatchNumber-1, nil).Return(true, nil)
 	isShouldCloseTooLongSinceLastSequence := s.shouldCloseTooLongSinceLastSequence(ctx)
 	require.True(t, isShouldCloseTooLongSinceLastSequence)
 	st.AssertExpectations(t)
@@ -355,6 +354,7 @@ func TestTryToProcessTxs(t *testing.T) {
 	}, state: st, etherman: eth, gpe: gpe, pool: pl}
 	ctx := context.Background()
 	// Check if synchronizer is up to date
+	st.On("GetLastSequenceGroup", ctx, nil).Return(nil, state.ErrNotFound)
 	st.On("GetLastVirtualBatchNum", ctx, nil).Return(uint64(1), nil)
 	eth.On("GetLatestBatchNumber").Return(uint64(1), nil)
 
@@ -381,10 +381,7 @@ func TestTryToProcessTxs(t *testing.T) {
 	s.sequenceInProgress.Timestamp = time.Now()
 
 	lastBatchNumber := uint64(10)
-	st.On("GetLastBatchNumber", ctx, nil).Return(lastBatchNumber, nil)
 	st.On("GetLastBatchNumber", ctx, dbTx).Return(lastBatchNumber, nil)
-
-	st.On("IsBatchVirtualized", ctx, lastBatchNumber-1, nil).Return(true, nil)
 
 	minGasPrice := big.NewInt(1)
 	gpe.On("GetAvgGasPrice", ctx).Return(minGasPrice, nil)

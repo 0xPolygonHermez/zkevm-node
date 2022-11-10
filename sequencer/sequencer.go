@@ -145,7 +145,7 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 
 func (s *Sequencer) isSynced(ctx context.Context) bool {
 	lastSyncedBatchNum := uint64(0)
-	lastSequence, err := s.state.GetLastSequence(ctx, nil)
+	lastSequence, err := s.state.GetLastSequenceGroup(ctx, nil)
 	if errors.Is(err, state.ErrNotFound) {
 		lastSyncedBatchNum, err = s.state.GetLastVirtualBatchNum(ctx, nil)
 		if err != nil {
@@ -156,7 +156,7 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 		log.Errorf("failed to get last sequence, err: %v", err)
 		return false
 	} else {
-		lastSyncedBatchNum = lastSequence.BatchNumber
+		lastSyncedBatchNum = lastSequence.ToBatchNum
 	}
 
 	lastEthBatchNum, err := s.etherman.GetLatestBatchNumber()

@@ -36,7 +36,7 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 	}
 
 	lastBatchNumber := uint64(0)
-	lastSequence, err := s.state.GetLastSequence(ctx, nil)
+	lastSequence, err := s.state.GetLastSequenceGroup(ctx, nil)
 	if errors.Is(err, state.ErrNotFound) {
 		lastBatchNumber, err = s.state.GetLastVirtualBatchNum(ctx, nil)
 		if err != nil {
@@ -47,7 +47,7 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 		log.Errorf("failed to get last sequence, err: %v", err)
 		return
 	} else {
-		lastBatchNumber = lastSequence.BatchNumber
+		lastBatchNumber = lastSequence.ToBatchNum
 	}
 
 	// Send sequences to L1
@@ -77,19 +77,6 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 		return
 	}
 
-	for _, sequence := range sequences {
-		err = s.state.CreateSequence(ctx, sequence.BatchNumber,
-			sequence.GlobalExitRoot, sequence.StateRoot, sequence.LocalExitRoot,
-			sequence.Timestamp, sequence.Txs, dbTx)
-		if err != nil {
-			log.Errorf("failed to create a sequence for batch %v, err: %v", sequence.BatchNumber, err)
-			if err := dbTx.Rollback(ctx); err != nil {
-				log.Errorf("failed to rollback dbTx to create sequences: %v", err)
-			}
-			return
-		}
-	}
-
 	err = s.state.AddSequenceGroup(ctx, sequenceGroup, dbTx)
 	if err != nil {
 		log.Errorf("failed to create sequence group: %v", err)
@@ -107,7 +94,7 @@ func (s *Sequencer) tryToCreateSequence(ctx context.Context, ticker *time.Ticker
 // it could be that it's not worth it to do so yet.
 func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]state.Sequence, error) {
 	lastBatchNumber := uint64(0)
-	lastSequence, err := s.state.GetLastSequence(ctx, nil)
+	lastSequence, err := s.state.GetLastSequenceGroup(ctx, nil)
 	if errors.Is(err, state.ErrNotFound) {
 		lastBatchNumber, err = s.state.GetLastVirtualBatchNum(ctx, nil)
 		if err != nil {
@@ -116,7 +103,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]state.Sequence, e
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to get last sequence, err: %v", err)
 	} else {
-		lastBatchNumber = lastSequence.BatchNumber
+		lastBatchNumber = lastSequence.ToBatchNum
 	}
 
 	currentBatchNumToSequence := lastBatchNumber + 1

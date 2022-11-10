@@ -74,20 +74,6 @@ func (_m *StateMock) CloseBatch(ctx context.Context, receipt state.ProcessingRec
 	return r0
 }
 
-// CreateSequence provides a mock function with given fields: ctx, batchNumber, globalExitRoot, stateRoot, localExitRoot, timestamp, txs, dbTx
-func (_m *StateMock) CreateSequence(ctx context.Context, batchNumber uint64, globalExitRoot common.Hash, stateRoot common.Hash, localExitRoot common.Hash, timestamp time.Time, txs []types.Transaction, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, globalExitRoot, stateRoot, localExitRoot, timestamp, txs, dbTx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, common.Hash, common.Hash, common.Hash, time.Time, []types.Transaction, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, globalExitRoot, stateRoot, localExitRoot, timestamp, txs, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // GetBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
 func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
@@ -206,16 +192,16 @@ func (_m *StateMock) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uin
 	return r0, r1
 }
 
-// GetLastSequence provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) GetLastSequence(ctx context.Context, dbTx pgx.Tx) (*state.Sequence, error) {
+// GetLastSequenceGroup provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) GetLastSequenceGroup(ctx context.Context, dbTx pgx.Tx) (*state.SequenceGroup, error) {
 	ret := _m.Called(ctx, dbTx)
 
-	var r0 *state.Sequence
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.Sequence); ok {
+	var r0 *state.SequenceGroup
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.SequenceGroup); ok {
 		r0 = rf(ctx, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*state.Sequence)
+			r0 = ret.Get(0).(*state.SequenceGroup)
 		}
 	}
 

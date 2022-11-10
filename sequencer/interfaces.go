@@ -67,10 +67,8 @@ type stateInterface interface {
 	GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
 	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 
-	CreateSequence(ctx context.Context, batchNumber uint64, globalExitRoot, stateRoot,
-		localExitRoot common.Hash, timestamp time.Time, txs []types.Transaction, dbTx pgx.Tx) error
 	AddSequenceGroup(ctx context.Context, sequenceGroup state.SequenceGroup, dbTx pgx.Tx) error
-	GetLastSequence(ctx context.Context, dbTx pgx.Tx) (*state.Sequence, error)
+	GetLastSequenceGroup(ctx context.Context, dbTx pgx.Tx) (*state.SequenceGroup, error)
 }
 
 type txManager interface {

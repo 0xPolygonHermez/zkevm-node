@@ -1,6 +1,5 @@
 -- +migrate Down
 DROP TABLE state.sequence_group;
-DROP TABLE state.sequence;
 
 ALTER TABLE state.proof DROP COLUMN tx_hash;
 ALTER TABLE state.proof DROP COLUMN tx_nonce;
@@ -9,21 +8,10 @@ ALTER TABLE state.proof DROP COLUMN created_at;
 ALTER TABLE state.proof DROP COLUMN updated_at;
 
 -- +migrate Up
-CREATE TABLE state.sequence
-(
-    batch_num        BIGINT NOT NULL PRIMARY KEY REFERENCES state.batch (batch_num) ON DELETE CASCADE,
-    state_root       VARCHAR NOT NULL,
-    global_exit_root VARCHAR NOT NULL,
-    local_exit_root  VARCHAR NOT NULL,
-    timestamp        TIMESTAMP NOT NULL,
-    txs              VARCHAR[] NOT NULL
-);
-
 CREATE TABLE state.sequence_group
 (
     tx_hash        VARCHAR,
     tx_nonce       DECIMAL(78, 0),
-    batch_nums     BIGINT[],
     from_batch_num BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
     to_batch_num   BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
     status         VARCHAR(15) NOT NULL,
