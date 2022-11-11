@@ -298,8 +298,8 @@ Remember to:
 - replace the database information if you set it differently while setting up the Postgres instance
 - set the `Database Host` with the `Postgres instance IP`
 - set the `Etherman URL` with the `JSON RPC URL` of the `Ethereum node` you created earlier *or* use any L1 Goerli service
-- set the `Etherman Password` to allow the node to decrypt the `keystore file`
-- set the `Prover URI` the `IP and port` of the `Prover Instance`
+- set the `Etherman Password` (`config.json` => `PrivateKeyPassword` field, defaults to `testonly`) to allow the node to decrypt the `keystore file`
+- set the `MT / Executor URIs` the `IP and port` of the `MT/Executor Instances` and change the array of provers if a prover was spun up
 
 Now we are going to put everything together in order to run the `zkEVM-Node` instance.
 
