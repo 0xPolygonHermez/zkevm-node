@@ -31,6 +31,6 @@ type stateInterface interface {
 	UpdateSequenceGroupTx(ctx context.Context, oldTxHash, newTxHash common.Hash, dbTx pgx.Tx) error
 
 	GetPendingProofs(ctx context.Context, dbTx pgx.Tx) ([]state.Proof, error)
-	UpdateProofTx(ctx context.Context, batchNumber uint64, newTxHash common.Hash, dbTx pgx.Tx) error
+	UpdateProofTx(ctx context.Context, batchNumber uint64, newTxHash common.Hash, nonce uint64, dbTx pgx.Tx) error
 	SetProofAsConfirmed(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 }

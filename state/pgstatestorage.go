@@ -1822,6 +1822,7 @@ func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string
 			 , status
 			 , created_at
 			 , updated_at
+		 FROM state.proof
 		 WHERE prover = $1
 		   AND proof IS NULL`
 
@@ -2075,8 +2076,8 @@ func (p *PostgresStorage) GetPendingProofs(ctx context.Context, dbTx pgx.Tx) ([]
 			 , created_at
 			 , updated_at
 		  FROM state.proof
-		 WHERE status = $1
-		 ORDER BY created_at;`
+		 WHERE status = $1 AND proof IS NOT NULL
+		 ORDER BY batch_num;`
 	rows, err := e.Query(ctx, query, string(ProofStatusPending))
 	if err != nil {
 		return nil, err
@@ -2097,16 +2098,17 @@ func (p *PostgresStorage) GetPendingProofs(ctx context.Context, dbTx pgx.Tx) ([]
 }
 
 // UpdateProofTx updates the proof transaction
-func (p *PostgresStorage) UpdateProofTx(ctx context.Context, batchNumber uint64, newTxHash common.Hash, dbTx pgx.Tx) error {
+func (p *PostgresStorage) UpdateProofTx(ctx context.Context, batchNumber uint64, newTxHash common.Hash, nonce uint64, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
 	const query = `
 		UPDATE state.proof
 		   SET tx_hash    = $2,
-			   updated_at = $3
+			   updated_at = $3,
+			   tx_nonce   = $4
 		 WHERE batch_num = $1;`
 
-	_, err := e.Exec(ctx, query, batchNumber, newTxHash.String(), time.Now())
+	_, err := e.Exec(ctx, query, batchNumber, newTxHash.String(), time.Now(), nonce)
 	return err
 }
 

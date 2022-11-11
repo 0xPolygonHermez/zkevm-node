@@ -68,7 +68,7 @@ func NewAggregator(
 		// Check if prover is already working in a proof generation
 		proof, err := stateInterface.GetWIPProofByProver(ctx, proverURI, nil)
 		if err != nil && err != state.ErrNotFound {
-			log.Errorf("Error while getting WIP proof for prover %v", proverURI)
+			log.Errorf("Error while getting WIP proof for prover %v, error: %w", proverURI, err)
 			continue
 		}
 

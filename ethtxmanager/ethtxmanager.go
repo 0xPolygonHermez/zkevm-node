@@ -60,17 +60,24 @@ func (c *Client) SyncPendingProofs() {
 			tx, err := c.ethMan.VerifyBatch(ctx, pendingProof.BatchNumber, pendingProof.Proof, 0, nil, nil)
 			if err != nil {
 				log.Errorf("failed to send tx to verify batch for batch number %v: %v", pendingProof.BatchNumber, err)
-				continue
+				break
 			}
-
-			err = c.state.UpdateProofTx(ctx, pendingProof.BatchNumber, tx.Hash(), nil)
+			err = c.state.UpdateProofTx(ctx, pendingProof.BatchNumber, tx.Hash(), tx.Nonce(), nil)
 			if err != nil {
 				log.Errorf("failed to update tx to verify batch for batch number %v, new tx hash %v, nonce %v, err: %v",
 					pendingProof.BatchNumber, tx.Hash().String(), tx.Nonce(), err)
-				continue
+				break
 			}
-
-			continue
+			err = c.ethMan.WaitTxToBeMined(ctx, tx, c.cfg.IntervalToReviewVerifyBatchTx.Duration)
+			if err != nil {
+				log.Errorf("error waiting tx to be mined: %s, error: %w", tx.Hash(), err)
+				break
+			}
+			txHash := tx.Hash()
+			pendingProof.TxHash = &txHash
+			nonce := tx.Nonce()
+			pendingProof.TxNonce = &nonce
+			time.Sleep(time.Second * 2) // nolint
 		}
 
 		if confirmed := c.checkProofConfirmation(ctx, pendingProof); !confirmed {
@@ -170,8 +177,11 @@ func (c *Client) checkProofConfirmation(ctx context.Context, proof state.Proof) 
 	if err != nil && !errors.Is(err, ethereum.NotFound) {
 		log.Errorf("failed to get tx receipt for proof for batch %v, hash %v: %v", proof.BatchNumber, proof.TxHash.String(), err)
 		return false
+	} else if errors.Is(err, ethereum.NotFound) {
+		log.Errorf("receipt not found for batch %d, %s", proof.BatchNumber, proof.TxHash.String())
 	}
 	if receipt != nil && receipt.Status == types.ReceiptStatusSuccessful {
+		log.Infof("Setting batch %d as confirmed", proof.BatchNumber)
 		err := c.state.SetProofAsConfirmed(ctx, proof.BatchNumber, nil)
 		if err != nil {
 			log.Errorf("failed to set proof as confirmed for batch %v tx %v: %v", proof.BatchNumber, proof.TxHash.String(), err)
@@ -179,6 +189,8 @@ func (c *Client) checkProofConfirmation(ctx context.Context, proof state.Proof) 
 		}
 		log.Infof("proof for batch %v confirmed", proof.BatchNumber)
 		return true
+	} else if receipt != nil {
+		log.Warnf("receipt status = %+v", receipt)
 	}
 	log.Infof("proof for batch %v not confirmed yet", proof.BatchNumber)
 	return false
@@ -201,7 +213,7 @@ func (c *Client) tryReviewProofTx(ctx context.Context, proof state.Proof) {
 		if err != nil {
 			// if the tx is already know, refresh the update date to give it more time to get mined
 			if errors.Is(err, core.ErrAlreadyKnown) {
-				err := c.state.UpdateProofTx(ctx, proof.BatchNumber, *proof.TxHash, nil)
+				err := c.state.UpdateProofTx(ctx, proof.BatchNumber, *proof.TxHash, tx.Nonce(), nil)
 				if err != nil {
 					log.Errorf("give it more time to the proof related to the batch %v to get mined: %v", proof.BatchNumber, err)
 				}
