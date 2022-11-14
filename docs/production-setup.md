@@ -265,6 +265,8 @@ This will spin up the Executor and MT, for a prover setup, exposing the `50051` 
       zkProver -c /usr/src/app/config.json
 ```
 
+For more information visit [the Prover repository](https://github.com/0xPolygonHermez/zkevm-prover)
+
 ## zkEVM-Node Setup
 
 Very well, we already have the Postgres, Prover and Ethereum Node instances running, now it's time so setup the zkEVM-Node.
