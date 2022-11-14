@@ -212,7 +212,7 @@ func (c *Client) tryReviewProofTx(ctx context.Context, proof state.Proof) {
 		tx, err := c.ethMan.VerifyBatch(ctx, proof.BatchNumber, proof.Proof, 0, nil, nonce)
 		if err != nil {
 			// if the tx is already know, refresh the update date to give it more time to get mined
-			if errors.Is(err, core.ErrAlreadyKnown) {
+			if err.Error() == core.ErrAlreadyKnown.Error() {
 				err := c.state.UpdateProofTx(ctx, proof.BatchNumber, *proof.TxHash, tx.Nonce(), nil)
 				if err != nil {
 					log.Errorf("give it more time to the proof related to the batch %v to get mined: %v", proof.BatchNumber, err)
@@ -226,6 +226,10 @@ func (c *Client) tryReviewProofTx(ctx context.Context, proof state.Proof) {
 		log.Infof("updating tx for proof related to batch %v from %v to %v",
 			proof.BatchNumber, proof.TxHash.String(), tx.Hash().String())
 
+		err = c.state.UpdateProofTx(ctx, proof.BatchNumber, tx.Hash(), tx.Nonce(), nil)
+		if err != nil {
+			log.Errorf("give it more time to the proof related to the batch %v to get mined: %v", proof.BatchNumber, err)
+		}
 		err = c.state.UpdateSequenceGroupTx(ctx, *proof.TxHash, tx.Hash(), nil)
 		if err != nil {
 			log.Errorf("failed to update proof tx from %v to %v: %v", proof.TxHash.String(), tx.Hash().String(), err)
