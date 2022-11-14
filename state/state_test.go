@@ -562,12 +562,12 @@ func TestExecuteTransaction(t *testing.T) {
 
 	// Create Batch
 	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		BatchNum:         1,
+		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
@@ -947,12 +947,12 @@ func TestExecutor(t *testing.T) {
 
 	// Create Batch
 	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		BatchNum:         1,
+		OldBatchNum:      0,
 		Coinbase:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").String(),
 		BatchL2Data:      common.Hex2Bytes("ee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b"),
 		OldStateRoot:     common.Hex2Bytes("2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90"),
 		GlobalExitRoot:   common.Hex2Bytes("090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"),
-		OldLocalExitRoot: common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
+		OldAccInputHash:  common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
 		EthTimestamp:     uint64(1944498031),
 		UpdateMerkleTree: 0,
 		Db:               db,
@@ -1002,12 +1002,12 @@ func TestExecutorRevert(t *testing.T) {
 
 	// Create Batch
 	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		BatchNum:         1,
+		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 0,
 		ChainId:          stateCfg.ChainID,
@@ -1064,12 +1064,12 @@ func TestExecutorLogs(t *testing.T) {
 
 	// Create Batch
 	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		BatchNum:         1,
+		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     common.Hex2Bytes("2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90"),
 		GlobalExitRoot:   common.Hex2Bytes("090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"),
-		OldLocalExitRoot: common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
+		OldAccInputHash:  common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
 		EthTimestamp:     uint64(1944498031),
 		UpdateMerkleTree: 0,
 		Db:               genesisDB,
@@ -1143,12 +1143,12 @@ func TestExecutorTransfer(t *testing.T) {
 
 	// Create Batch
 	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		BatchNum:         1,
+		OldBatchNum:      0,
 		Coinbase:         receiverAddress.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     stateRoot,
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(0),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
@@ -1262,12 +1262,12 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 
 		// Create Batch
 		processBatchRequest := &executorclientpb.ProcessBatchRequest{
-			BatchNum:         uint64(x + 1),
+			OldBatchNum:      uint64(x),
 			Coinbase:         receiverAddress.String(),
 			BatchL2Data:      batchL2Data,
 			OldStateRoot:     stateRoot.Bytes(),
 			GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-			OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+			OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 			EthTimestamp:     uint64(0),
 			UpdateMerkleTree: 1,
 			ChainId:          stateCfg.ChainID,
@@ -1370,12 +1370,12 @@ func TestExecutorInvalidNonce(t *testing.T) {
 
 			// Create Batch
 			processBatchRequest := &executorclientpb.ProcessBatchRequest{
-				BatchNum:         1,
+				OldBatchNum:      0,
 				Coinbase:         receiverAddress.String(),
 				BatchL2Data:      batchL2Data,
 				OldStateRoot:     stateRoot,
 				GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-				OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+				OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 				EthTimestamp:     uint64(0),
 				UpdateMerkleTree: 1,
 				ChainId:          stateCfg.ChainID,
@@ -1386,7 +1386,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 			require.NoError(t, err)
 
 			transactionResponses := processBatchResponse.GetResponses()
-			assert.Equal(t, executorclientpb.Error_ERROR_INTRINSIC_INVALID_TX, transactionResponses[0].Error, "invalid tx Error, it is expected to be INVALID TX")
+			assert.Equal(t, true, executor.IsIntrinsicError(transactionResponses[0].Error), "invalid tx Error, it is expected to be INVALID TX")
 		})
 	}
 }
@@ -2097,12 +2097,12 @@ func TestExecutorEstimateGas(t *testing.T) {
 
 	// Create Batch
 	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		BatchNum:         1,
+		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     stateRoot,
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 0,
 		ChainId:          stateCfg.ChainID,
@@ -2121,7 +2121,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 
 	processingContext := state.ProcessingContext{
-		BatchNumber:    processBatchRequest.BatchNum,
+		BatchNumber:    processBatchRequest.OldBatchNum + 1,
 		Coinbase:       common.Address{},
 		Timestamp:      time.Now(),
 		GlobalExitRoot: common.BytesToHash(processBatchRequest.GlobalExitRoot),
@@ -2130,11 +2130,11 @@ func TestExecutorEstimateGas(t *testing.T) {
 	err = testState.OpenBatch(ctx, processingContext, dbTx)
 	require.NoError(t, err)
 
-	err = testState.StoreTransactions(ctx, processBatchRequest.BatchNum, convertedResponse.Responses, dbTx)
+	err = testState.StoreTransactions(ctx, processBatchRequest.OldBatchNum+1, convertedResponse.Responses, dbTx)
 	require.NoError(t, err)
 
 	processingReceipt := state.ProcessingReceipt{
-		BatchNumber:   processBatchRequest.BatchNum,
+		BatchNumber:   processBatchRequest.OldBatchNum + 1,
 		StateRoot:     convertedResponse.NewStateRoot,
 		LocalExitRoot: convertedResponse.NewLocalExitRoot,
 	}
