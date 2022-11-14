@@ -26,7 +26,9 @@ ALTER TABLE state.proof ADD COLUMN status     VARCHAR(15);
 ALTER TABLE state.proof ADD COLUMN created_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE state.proof ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE;
 
-UPDATE state.proof SET status = 'confirmed', created_at = NOW(), updated_at = NOW();
+UPDATE state.proof SET created_at = NOW();
+UPDATE state.proof SET status = 'pending' WHERE batch_num > (SELECT batch_num from state.verified_batch ORDER BY batch_num DESC LIMIT 1);
+UPDATE state.proof SET status = 'confirmed', updated_at = NOW() WHERE batch_num <= (SELECT batch_num from state.verified_batch ORDER BY batch_num DESC LIMIT 1);
 
 ALTER TABLE state.proof ALTER COLUMN status SET NOT NULL;
 ALTER TABLE state.proof ALTER COLUMN created_at SET NOT NULL;
