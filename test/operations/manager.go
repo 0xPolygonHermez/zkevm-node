@@ -156,84 +156,51 @@ func (m *Manager) SetGenesis(genesisAccounts map[string]big.Int) error {
 	return err
 }
 
-// ApplyTxs sends the given L2 txs, waits for them to be consolidated and checks
-// the final state.
-func ApplyTxs(ctx context.Context, txs []*types.Transaction) error {
-	if ctx == nil {
-		ctx = context.Background()
+// ApplyL1Txs sends the given L1 txs, waits for them to be consolidated and
+// checks the final state.
+func ApplyL1Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) error {
+	_, err := applyTxs(ctx, txs, auth, client)
+	return err
+}
+
+// ApplyL2Txs sends the given L2 txs, waits for them to be consolidated and
+// checks the final state.
+func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) error {
+	var err error
+	if auth == nil {
+		auth, err = GetAuth(DefaultSequencerPrivateKey, DefaultL2ChainID)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Load account with balance on local genesis
-	auth, err := GetAuth(DefaultSequencerPrivateKey, DefaultL2ChainID)
+	if client == nil {
+		client, err = ethclient.Dial(DefaultL2NetworkURL)
+		if err != nil {
+			return err
+		}
+	}
+
+	sentTxs, err := applyTxs(ctx, txs, auth, client)
 	if err != nil {
 		return err
 	}
 
-	// Load eth client
-	client, err := ethclient.Dial(DefaultL2NetworkURL)
-	if err != nil {
-		return err
-	}
-
-	nTxs := len(txs)
-
-	log.Infof("Sending %d transactions...", nTxs)
-
-	var (
-		lastTxHash common.Hash
-		sentTxs    []*types.Transaction
-	)
-
-	for i := 0; i < len(txs); i++ {
-		signedTx, err := auth.Signer(auth.From, txs[i])
-		if err != nil {
-			return err
-		}
-		log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
-		err = client.SendTransaction(context.Background(), signedTx)
-		if err != nil {
-			return err
-		}
-		lastTxHash = signedTx.Hash()
-
-		sentTxs = append(sentTxs, signedTx)
-	}
-
-	// wait for TX to be mined
-	timeout := 180 * time.Second //nolint:gomnd
+	var l2BlockNumber *big.Int
 	for _, tx := range sentTxs {
-		log.Infof("Waiting Tx %s to be mined", tx.Hash())
-		err = WaitTxToBeMined(ctx, client, tx, timeout)
-		if err != nil {
-			return err
-		}
-		log.Infof("Tx %s mined successfully", tx.Hash())
-
 		// check transaction nonce against transaction reported L2 block number
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
 		if err != nil {
 			return err
 		}
 
-		// get block L2 number
-		blockL2Number := receipt.BlockNumber
-		expectedNonce := blockL2Number.Uint64() - 1
+		// get L2 block number
+		l2BlockNumber = receipt.BlockNumber
+		expectedNonce := l2BlockNumber.Uint64() - 1
 		if tx.Nonce() != expectedNonce {
 			return fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
 		}
 	}
-	if nTxs > 1 {
-		log.Infof("%d transactions added into the trusted state successfully.", nTxs)
-	} else {
-		log.Info("transaction added into the trusted state successfully.")
-	}
-
-	// get block L2 number of the last transaction sent
-	receipt, err := client.TransactionReceipt(ctx, lastTxHash)
-	if err != nil {
-		return err
-	}
-	l2BlockNumber := receipt.BlockNumber
 
 	// wait for l2 block to be virtualized
 	log.Infof("waiting for the block number %v to be virtualized", l2BlockNumber.String())
@@ -249,12 +216,44 @@ func ApplyTxs(ctx context.Context, txs []*types.Transaction) error {
 		return err
 	}
 
-	if nTxs > 1 {
-		log.Infof("transactions successfully included in block number %v", l2BlockNumber.String())
-	} else {
-		log.Infof("transaction successfully included in block number %v", l2BlockNumber.String())
-	}
 	return nil
+}
+
+func applyTxs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) ([]*types.Transaction, error) {
+	var sentTxs []*types.Transaction
+
+	for i := 0; i < len(txs); i++ {
+		signedTx, err := auth.Signer(auth.From, txs[i])
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
+		err = client.SendTransaction(context.Background(), signedTx)
+		if err != nil {
+			return nil, err
+		}
+
+		sentTxs = append(sentTxs, signedTx)
+	}
+
+	// wait for TX to be mined
+	timeout := 180 * time.Second //nolint:gomnd
+	for _, tx := range sentTxs {
+		log.Infof("Waiting Tx %s to be mined", tx.Hash())
+		err := WaitTxToBeMined(ctx, client, tx, timeout)
+		if err != nil {
+			return nil, err
+		}
+		log.Infof("Tx %s mined successfully", tx.Hash())
+	}
+	nTxs := len(txs)
+	if nTxs > 1 {
+		log.Infof("%d transactions added into the trusted state successfully.", nTxs)
+	} else {
+		log.Info("transaction added into the trusted state successfully.")
+	}
+
+	return sentTxs, nil
 }
 
 // GetAuth configures and returns an auth object.
