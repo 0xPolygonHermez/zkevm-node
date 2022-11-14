@@ -31,8 +31,13 @@ MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
 
 [EthTxManager]
-IntervalToReviewSendBatchTx = "1m"
-IntervalToReviewVerifyBatchTx = "1m"
+MaxSendBatchTxRetries = 10
+MaxVerifyBatchTxRetries = 10
+FrequencyForResendingFailedSendBatches = "1s"
+FrequencyForResendingFailedVerifyBatch = "1s"
+WaitTxToBeMined = "2m"
+PercentageToIncreaseGasPrice = 10
+PercentageToIncreaseGasLimit = 10
 
 [RPC]
 Host = "0.0.0.0"
@@ -60,7 +65,7 @@ TrustedSequencerURI = ""
 [Sequencer]
 MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
-WaitPeriodSendSequence = "10s"
+WaitPeriodSendSequence = "15s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 WaitBlocksToUpdateGER = 10
 WaitBlocksToConsiderGerFinal = 10
@@ -83,7 +88,7 @@ MaxAllowedFailedCounter = 50
 		SendBatchesEvenWhenNotProfitable = "true"
 
 [Aggregator]
-IntervalToConsolidateState = "10s"
+IntervalToConsolidateState = "1s"
 IntervalFrequencyToGetProofGenerationState = "100ms"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"

@@ -4,9 +4,19 @@ import "github.com/0xPolygonHermez/zkevm-node/config/types"
 
 // Config is configuration for ethereum transaction manager
 type Config struct {
-	// IntervalToReviewSendBatchTx is the time limit we wait in order to review a send batch tx sent to l1
-	IntervalToReviewSendBatchTx types.Duration `mapstructure:"IntervalToReviewSendBatchTx"`
+	// MaxSendBatchTxRetries amount of how many tries for sending sendBatch tx to the ethereum
+	MaxSendBatchTxRetries uint32 `mapstructure:"MaxSendBatchTxRetries"`
+	// FrequencyForResendingFailedSendBatches frequency of the resending batches
+	FrequencyForResendingFailedSendBatches types.Duration `mapstructure:"FrequencyForResendingFailedSendBatches"`
 
-	// IntervalToReviewVerifyBatchTx is the time limit we wait in order to review a verify batch tx sent to l1
-	IntervalToReviewVerifyBatchTx types.Duration `mapstructure:"IntervalToReviewVerifyBatchTx"`
+	// MaxVerifyBatchTxRetries amount of how many tries for sending verifyBatch tx to the ethereum
+	MaxVerifyBatchTxRetries uint32 `mapstructure:"MaxVerifyBatchTxRetries"`
+	// FrequencyForResendingFailedVerifyBatch frequency of the resending verify batch function
+	FrequencyForResendingFailedVerifyBatch types.Duration `mapstructure:"FrequencyForResendingFailedVerifyBatch"`
+	// WaitTxToBeMined time to wait after transaction was sent to the ethereum
+	WaitTxToBeMined types.Duration `mapstructure:"WaitTxToBeMined"`
+	// PercentageToIncreaseGasPrice when tx is failed by timeout increase gas price by this percentage
+	PercentageToIncreaseGasPrice uint64 `mapstructure:"PercentageToIncreaseGasPrice"`
+	// PercentageToIncreaseGasLimit when tx is failed by timeout increase gas price by this percentage
+	PercentageToIncreaseGasLimit uint64 `mapstructure:"PercentageToIncreaseGasLimit"`
 }
