@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // Sequencer represents a sequencer
@@ -27,7 +26,7 @@ type Sequencer struct {
 
 	address common.Address
 
-	sequenceInProgress types.Sequence
+	sequenceInProgress state.Sequence
 }
 
 // New init sequencer
@@ -91,16 +90,26 @@ func (s *Sequencer) Start(ctx context.Context) {
 	tickerSendSequence := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
 	defer tickerProcessTxs.Stop()
 	defer tickerSendSequence.Stop()
+	// select transactions from the pool to create sequences
 	go func() {
 		for {
 			s.tryToProcessTx(ctx, tickerProcessTxs)
 		}
 	}()
+	// persist sequences into the DB
 	go func() {
 		for {
-			s.tryToSendSequence(ctx, tickerSendSequence)
+			s.tryToCreateSequence(ctx, tickerProcessTxs)
 		}
 	}()
+	// send and monitor persisted sequences to L1
+	go func() {
+		for {
+			s.txManager.SyncPendingSequences()
+			waitTick(ctx, tickerSendSequence)
+		}
+	}()
+
 	// Wait until context is done
 	<-ctx.Done()
 }
@@ -135,16 +144,27 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 }
 
 func (s *Sequencer) isSynced(ctx context.Context) bool {
-	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
-	if err != nil && err != state.ErrNotFound {
-		log.Errorf("failed to get last synced batch, err: %v", err)
+	lastSyncedBatchNum := uint64(0)
+	lastSequence, err := s.state.GetLastSequenceGroup(ctx, nil)
+	if errors.Is(err, state.ErrNotFound) {
+		lastSyncedBatchNum, err = s.state.GetLastVirtualBatchNum(ctx, nil)
+		if err != nil {
+			log.Errorf("failed to get last virtual batch num, err: %v", err)
+			return false
+		}
+	} else if err != nil {
+		log.Errorf("failed to get last sequence, err: %v", err)
 		return false
+	} else {
+		lastSyncedBatchNum = lastSequence.ToBatchNum
 	}
+
 	lastEthBatchNum, err := s.etherman.GetLatestBatchNumber()
 	if err != nil {
 		log.Errorf("failed to get last eth batch, err: %v", err)
 		return false
 	}
+
 	if lastSyncedBatchNum < lastEthBatchNum {
 		log.Infof("waiting for the state to be synced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
 		return false
@@ -203,18 +223,20 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 		if err = dbTx.Commit(ctx); err != nil {
 			return fmt.Errorf("failed to commit a state tx to open a batch, err: %w", err)
 		}
-		s.sequenceInProgress = types.Sequence{
+		s.sequenceInProgress = state.Sequence{
+			BatchNumber:    processingCtx.BatchNumber,
 			GlobalExitRoot: processingCtx.GlobalExitRoot,
-			Timestamp:      processingCtx.Timestamp.Unix(),
+			Timestamp:      processingCtx.Timestamp,
 		}
 	} else {
 		txs, err := s.state.GetTransactionsByBatchNumber(ctx, lastBatch.BatchNumber, nil)
 		if err != nil {
 			return fmt.Errorf("failed to get tx by batch number, err: %w", err)
 		}
-		s.sequenceInProgress = types.Sequence{
+		s.sequenceInProgress = state.Sequence{
+			BatchNumber:    lastBatch.BatchNumber,
 			GlobalExitRoot: lastBatch.GlobalExitRoot,
-			Timestamp:      lastBatch.Timestamp.Unix(),
+			Timestamp:      lastBatch.Timestamp,
 			Txs:            txs,
 		}
 		// TODO: execute to get state root and LER or change open/closed logic so we always store state root and LER and add an open flag
@@ -251,9 +273,10 @@ func (s *Sequencer) createFirstBatch(ctx context.Context) {
 	if err := dbTx.Commit(ctx); err != nil {
 		log.Fatalf("failed to commit dbTx when opening batch, err: %v", err)
 	}
-	s.sequenceInProgress = types.Sequence{
+	s.sequenceInProgress = state.Sequence{
+		BatchNumber:    processingCtx.BatchNumber,
 		GlobalExitRoot: processingCtx.GlobalExitRoot,
-		Timestamp:      processingCtx.Timestamp.Unix(),
-		Txs:            []ethTypes.Transaction{},
+		Timestamp:      processingCtx.Timestamp,
+		Txs:            []types.Transaction{},
 	}
 }

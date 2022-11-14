@@ -18,9 +18,6 @@ type Config struct {
 	// trying to add new txs to the state
 	WaitPeriodPoolIsEmpty types.Duration `mapstructure:"WaitPeriodPoolIsEmpty"`
 
-	// LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
-	LastBatchVirtualizationTimeMaxWaitPeriod types.Duration `mapstructure:"LastBatchVirtualizationTimeMaxWaitPeriod"`
-
 	// WaitBlocksToUpdateGER is number of blocks for sequencer to wait
 	WaitBlocksToUpdateGER uint64 `mapstructure:"WaitBlocksToUpdateGER"`
 

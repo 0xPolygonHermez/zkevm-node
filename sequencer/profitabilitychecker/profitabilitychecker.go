@@ -4,8 +4,8 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
 // Checker checks profitability to send sequences
@@ -28,7 +28,7 @@ func New(
 }
 
 // IsSequenceProfitable check if sequence is profitable by comparing L1 tx gas cost and collateral with fee rewards
-func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Sequence) (bool, error) {
+func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence state.Sequence) (bool, error) {
 	if c.Config.SendBatchesEvenWhenNotProfitable {
 		return true, nil
 	}
@@ -63,7 +63,7 @@ func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Seque
 }
 
 // IsSendSequencesProfitable checks profitability to send sequences to the ethereum
-func (c *Checker) IsSendSequencesProfitable(estimatedGas *big.Int, sequences []types.Sequence) bool {
+func (c *Checker) IsSendSequencesProfitable(estimatedGas *big.Int, sequences []state.Sequence) bool {
 	if len(sequences) == 0 {
 		return false
 	}

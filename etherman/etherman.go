@@ -14,7 +14,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/globalexitrootmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
-	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -272,7 +271,7 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 }
 
 // EstimateGasSequenceBatches estimates gas for sending batches
-func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
+func (etherMan *Client) EstimateGasSequenceBatches(sequences []state.Sequence) (*types.Transaction, error) {
 	if etherMan.IsReadOnly() {
 		return nil, ErrIsReadOnlyMode
 	}
@@ -287,7 +286,7 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 }
 
 // SequenceBatches send sequences of batches to the ethereum
-func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []state.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	if etherMan.IsReadOnly() {
 		return nil, ErrIsReadOnlyMode
 	}
@@ -304,7 +303,7 @@ func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanT
 	return etherMan.sequenceBatches(&sendSequencesOpts, sequences)
 }
 
-func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
+func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []state.Sequence) (*types.Transaction, error) {
 	var batches []proofofefficiency.ProofOfEfficiencyBatchData
 	for _, seq := range sequences {
 		batchL2Data, err := state.EncodeTransactions(seq.Txs)
@@ -314,7 +313,7 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 		batch := proofofefficiency.ProofOfEfficiencyBatchData{
 			Transactions:          batchL2Data,
 			GlobalExitRoot:        seq.GlobalExitRoot,
-			Timestamp:             uint64(seq.Timestamp),
+			Timestamp:             uint64(seq.Timestamp.Unix()),
 			ForceBatchesTimestamp: nil,
 		}
 

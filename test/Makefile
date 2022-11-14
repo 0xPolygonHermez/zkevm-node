@@ -200,7 +200,7 @@ run-seq: ## runs the sequencer
 
 .PHONY: stop-seq
 stop-seq: ## stops the sequencer
-	$(RUNSEQUENCER)
+	$(STOPSEQUENCER)
 
 .PHONY: run-broadcast
 run-broadcast: ## Runs the broadcast service
@@ -264,6 +264,10 @@ init-network: ## Initializes the network
 .PHONY: deploy-sc
 deploy-sc: ## deploys some examples of transactions and smart contracts
 	go run ./scripts/deploy_sc/main.go .
+
+.PHONY: send-transfers
+send-transfers: ## deploys some ETH transfers
+	go run ./scripts/send_transfers/main.go .
 
 .PHONY: deploy-uniswap
 deploy-uniswap: ## deploy the uniswap environment to the network

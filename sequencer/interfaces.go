@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"time"
 
-	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -30,7 +29,8 @@ type txPool interface {
 
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
-	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error)
+	SequenceBatches(ctx context.Context, sequences []state.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error)
+	EstimateGasSequenceBatches(sequences []state.Sequence) (*types.Transaction, error)
 	GetSendSequenceFee() (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
 	GetLatestBatchNumber() (uint64, error)
@@ -66,10 +66,13 @@ type stateInterface interface {
 
 	GetNonce(ctx context.Context, address common.Address, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
 	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+
+	AddSequenceGroup(ctx context.Context, sequenceGroup state.SequenceGroup, dbTx pgx.Tx) error
+	GetLastSequenceGroup(ctx context.Context, dbTx pgx.Tx) (*state.SequenceGroup, error)
 }
 
 type txManager interface {
-	SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) error
+	SyncPendingSequences()
 }
 
 // priceGetter is for getting eth/matic price, used for the tx profitability checker
