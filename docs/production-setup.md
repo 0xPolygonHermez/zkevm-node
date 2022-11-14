@@ -440,7 +440,7 @@ To configure a custom network follow these steps:
 5. Fill up the following fields:
     1. Network Name: Polygon Hermez - Goerli
     2. New RPC URL: <http://IP-And-Port-of-zkEVM-Node-Instance>
-    3. Chain ID: 1001
+    3. Chain ID: `1402`
     4. Currency Symbol: ETH
     5. Block Explorer URL: <http://IP-And-Port-of-Explorer-Instance>
 6. Click on Save
