@@ -136,11 +136,11 @@ func TestTrustedStateReorg(t *testing.T) {
 						Once()
 
 				seq := state.SequenceGroup{
-					TxHash: common.HexToHash("0x333"),
-					TxNonce: 0,
+					TxHash:       common.HexToHash("0x333"),
+					TxNonce:      0,
 					FromBatchNum: 1,
-					ToBatchNum: 1,
-					Status: state.SequenceGroupStatusPending,
+					ToBatchNum:   1,
+					Status:       state.SequenceGroupStatusPending,
 				}
 				m.State.
 					On("GetSequenceGroupByTxHash", ctx, seq.TxHash, m.DbTx).

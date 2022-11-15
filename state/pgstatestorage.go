@@ -45,7 +45,6 @@ const (
 	getLastBatchSeenSQL                      = "SELECT last_batch_num_seen FROM state.sync_info LIMIT 1"
 	updateLastBatchSeenSQL                   = "UPDATE state.sync_info SET last_batch_num_seen = $1"
 	resetTrustedBatchSQL                     = "DELETE FROM state.batch WHERE batch_num > $1"
-	isBatchClosedSQL                         = "SELECT global_exit_root IS NOT NULL AND state_root IS NOT NULL FROM state.batch WHERE batch_num = $1 LIMIT 1"
 	addGenesisBatchSQL                       = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
 	openBatchSQL                             = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase) VALUES ($1, $2, $3, $4)"
 	closeBatchSQL                            = "UPDATE state.batch SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4 WHERE batch_num = $5"
@@ -81,12 +80,9 @@ const (
 			ON consolidated_blocks.batch_num = sy.last_batch_num_consolidated;
 	`
 	addTransactionSQL                     = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4)"
-	getBatchNumByBlockNum                 = "SELECT batch_num FROM state.virtual_batch WHERE block_num <= $1 ORDER BY batch_num DESC LIMIT 1"
 	getTxsHashesBeforeBatchNum            = "SELECT hash FROM state.transaction JOIN state.l2block ON state.transaction.l2_block_num = state.l2block.block_num AND state.l2block.batch_num <= $1"
 	isL2BlockVirtualized                  = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
 	isL2BlockConsolidated                 = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.verified_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
-	addSequenceSQL                        = "INSERT INTO state.sequences (last_verified_batch_num, new_verified_batch_num) VALUES($1, $2)"
-	getSequencesSQL                       = "SELECT last_verified_batch_num, new_verified_batch_num FROM state.sequences WHERE last_verified_batch_num >= $1 ORDER BY last_verified_batch_num ASC"
 	getBatchNumByBlockNumFromVirtualBatch = "SELECT batch_num FROM state.virtual_batch WHERE block_num <= $1 ORDER BY batch_num DESC LIMIT 1"
 )
 
@@ -1923,7 +1919,7 @@ func (p *PostgresStorage) GetPendingSequenceGroups(ctx context.Context, dbTx pgx
 	return sequenceGroups, nil
 }
 
-// GetPendingSequenceGroups returns all the pending sequence groups
+// GetSequenceGroupByTxHash returns sequence group by txHash
 func (p *PostgresStorage) GetSequenceGroupByTxHash(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) (*SequenceGroup, error) {
 	var seqGroup SequenceGroup
 	e := p.getExecQuerier(dbTx)

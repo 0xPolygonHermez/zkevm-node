@@ -506,11 +506,11 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		return
 	}
 	seq := state.SequenceGroup{
-		TxHash: sequencedBatches[0].TxHash,
-		TxNonce: sequencedBatches[0].Nonce,
+		TxHash:       sequencedBatches[0].TxHash,
+		TxNonce:      sequencedBatches[0].Nonce,
 		FromBatchNum: sequencedBatches[0].BatchNumber,
-		ToBatchNum: sequencedBatches[len(sequencedBatches)-1].BatchNumber,
-		Status: state.SequenceGroupStatusPending,
+		ToBatchNum:   sequencedBatches[len(sequencedBatches)-1].BatchNumber,
+		Status:       state.SequenceGroupStatusPending,
 	}
 	seqGroup, err := s.state.GetSequenceGroupByTxHash(s.ctx, sequencedBatches[0].TxHash, dbTx)
 	if errors.Is(err, state.ErrNotFound) {
@@ -539,7 +539,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %w", blockNumber, rollbackErr)
 		}
 		log.Fatalf("error: seqGroup stored in db does not match with synced info. BlockNumber: %d", blockNumber)
-	}	
+	}
 	for _, sbatch := range sequencedBatches {
 		virtualBatch := state.VirtualBatch{
 			BatchNumber: sbatch.BatchNumber,
@@ -708,11 +708,11 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 	}
 	// Insert the sequenceGroup to allow the aggregator verify the sequence batches
 	seq := state.SequenceGroup{
-		TxHash: sequenceForceBatch[0].TxHash,
-		TxNonce: sequenceForceBatch[0].Nonce,
+		TxHash:       sequenceForceBatch[0].TxHash,
+		TxNonce:      sequenceForceBatch[0].Nonce,
 		FromBatchNum: sequenceForceBatch[0].BatchNumber,
-		ToBatchNum: sequenceForceBatch[len(sequenceForceBatch)-1].BatchNumber,
-		Status: state.SequenceGroupStatusPending,
+		ToBatchNum:   sequenceForceBatch[len(sequenceForceBatch)-1].BatchNumber,
+		Status:       state.SequenceGroupStatusPending,
 	}
 	err = s.state.AddSequenceGroup(s.ctx, seq, dbTx)
 	if err != nil {
