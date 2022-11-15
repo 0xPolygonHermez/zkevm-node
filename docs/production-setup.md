@@ -1,8 +1,14 @@
-> WARNING: This documentation is outdated, it will be updated soon
-
-# Production Setup
+# Production Setup for an RPC node:
 
 This document will guide you through all the steps needed to setup your own `zkEVM-Node` for production.
+
+# Warning:
+
+>Currently the Executor/Prover does not run on ARM-powered Macs. For Windows users, WSL/WSL2 use is not recommended. 
+> - Recommended specs: 
+>    - Node: 16G RAM 4 cores
+>    - Prover: 1TB RAM 128 cores
+> - Unfortunately, M1 chips are not supported - for now since some optimizations on the prover require specific Intel instructions, this means some non-M1 computers won't work regardless of the OS, eg: AMD
 
 ## Network Components
 
@@ -23,16 +29,6 @@ Optional:
 
 ## Requirements
 
-- All components have docker images available on docker hub, so it's important that you have an account to download and use them, please check the links below for more details:
-  - [docker: Get-started](https://www.docker.com/get-started)
-  - [docker hub](https://hub.docker.com)
-
-Some of the images are still private, so make sure to login and check if you have access to the [Hermez organization](https://hub.docker.com/orgs/hermeznetwork) before trying to download them. Once you have docker installed on your machine, run the following command to login:
-
-```bash
-docker login
-```
-
 - The examples on this document assume you have `docker-compose` installed, if you need help with the installation, please check the link below:
   - [docker-compose: Install](https://docs.docker.com/compose/install/)
 
@@ -46,6 +42,8 @@ mkdir -p /$HOME/zkevm-node
 
 ## Ethereum Node Setup
 
+<details>
+  <summary>Running your own Ethereum L1 network Geth node:</summary>
 Let's go!
 
 The first component we are going to setup is the Ethereum Node, it is the first because this is going to take a lot of time to synchronize the Ethereum network, so we will keep it synchronizing while we setup the others components to take advantage of this required time.
@@ -64,7 +62,7 @@ mkdir -p /$HOME/zkevm-node/.ethereum
 
 In order to run the Ethereum node instance, create a file called `docker-compose.yml` inside of the directory `zkevm-node`
 
-```dockercompose
+```yaml
 version: '3'
 
 services:
@@ -109,47 +107,102 @@ If you want to follow the logs of the synchronization, run the following command
 docker logs -f eth-node
 ```
 
+</details>
+
+---
+
+We suggest using geth, but any Goerli node should work.
+
 ## Postgres Setup
 
 Before we start:
 
-> It's important to say that running the instance of Postgres in a docker container is just one way of running it. We strongly recommend you to have a specialized infrastructure to the DB like AWS RDS, a On-site server or any other Postgres DB dedicated infrastructure.
+> It's important to say that running the instances of Postgres in a docker container is just one way of running it. We strongly recommend you to have a specialized infrastructure to the DB like AWS RDS, a On-site server or any other Postgres DB dedicated infrastructure.
 
 Also:
 
 > It's not required to have a backup, since all the data is available on L1 to be resynchronized if it was lost, but it's strongly recommended to have a backup in order to avoid resynchronizing the whole network in case of a problem with the db, because the synchronization is a process that can take a lot of time and this time is going to ever increase as the network continues to roll.
 
-With that said, we must setup a Postgres instance to be shared between the Node and the Prover.
+With that said, we must setup several Postgres instances to be shared between the Node and the Prover/Executor.
 
 - Node requires a full access user to run the migrations and control the data.
-- Prover only needs a readonly user to access the Merkletree data and compute the proofs.
+- Prover only needs a readonly user to access the Merkletree data and compute the proofs. Executor will need read/write access. Migration file `init_prover_db.sql` will create the merkle tree table in state DB.
 
-We need to create a folder to store the Postgres data outside of the container, in order to not lose all the data if the container is restarted.
+We need to create several directories to store the Postgres data outside of the container, in order to not lose all the data if the container is restarted.
 
 ```bash
-mkdir -p /$HOME/zkevm-node/.postgres
+mkdir -p /$HOME/zkevm-node/.postgres-state
+mkdir -p /$HOME/zkevm-node/.postgres-pool
+mkdir -p /$HOME/zkevm-node/.postgres-rpc
 ```
+
+Download the init schema for the prover DB: [./db/scripts/init_prover_db.sql](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/db/scripts/init_prover_db.sql) to the directory `zkevm-node`.
 
 In order to run the Postgres instance, create a file called `docker-compose.yml` inside of the directory `zkevm-node`
 
 > We recommend you to customize the ENVIRONMENT variables values in the file below to your preference:
 
-```docker-compose
+```yaml
 version: '3'
 
 services:
-
-  zkevm-db:
-    container_name: zkevm-db
+  zkevm-state-db:
+    container_name: zkevm-state-db
     image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
     ports:
       - 5432:5432
-    environment:
-      - POSTGRES_USER=test_user
-      - POSTGRES_PASSWORD=test_password
-      - POSTGRES_DB=test_db
     volumes:
-      - /$HOME/zkevm-node/.postgres:./postgres-data
+      - ./init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
+      - /$HOME/zkevm-node/.postgres-state:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=state_user
+      - POSTGRES_PASSWORD=state_password
+      - POSTGRES_DB=state_db
+    command: ["postgres", "-N", "500"]
+
+  zkevm-pool-db:
+    container_name: zkevm-pool-db
+    image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5433:5432
+    volumes:
+      - /$HOME/zkevm-node/.postgres-pool:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=pool_user
+      - POSTGRES_PASSWORD=pool_password
+      - POSTGRES_DB=pool_db
+    command: ["postgres", "-N", "500"]
+
+  zkevm-rpc-db:
+    container_name: zkevm-rpc-db
+    image: postgres
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    ports:
+      - 5434:5432
+    volumes:
+      - /$HOME/zkevm-node/.postgres-rpc:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=rpc_user
+      - POSTGRES_PASSWORD=rpc_password
+      - POSTGRES_DB=rpc_db
+    command: ["postgres", "-N", "500"]
 ```
 
 To run the postgres instance, go to the `zkevm-node` directory in your terminal and run the following command:
@@ -158,24 +211,61 @@ To run the postgres instance, go to the `zkevm-node` directory in your terminal 
 docker-compose up -d
 ```
 
-Congratulations, your postgres instance is ready!
+Congratulations, your postgres instances are ready!
 
-## Prover Setup
+## Executor Setup
 
 Before we start:
 
 > It's very important to say that the Prover is a software that requires a lot of technology power to be executed properly, with that said, we recommend you to have a dedicated machine with the following configuration to run the prover:
 
-- TBD
-- TBD
-- TBD
-- TBD
+- 128 CPU cores
+- 1TB RAM
 
 Also: 
 
 > The prover depends on the Postgres instance we created before, so make sure it has network access to this.
 
-- TDB how to setup de prover, docker, downloads, dependencies, etc
+The prover is available on Docker Registry, start by pulling the image:
+
+```bash
+docker pull hermeznetwork/zkevm-prover
+```
+
+Then download [the sample Prover config file](../config/environments/public/public.prover.config.json) (`./config/environments/public/public.prover.config.json`) and store it as `prover-config.json` inside the `zkevm-node` directory.
+
+Finally, add the following entry to the `docker-compose.yml` file:
+
+```yaml
+  zkevm-prover:
+    container_name: zkevm-prover
+    image: hermeznetwork/zkevm-prover:develop
+    ports:
+      - 50061:50061 # MT
+      - 50071:50071 # Executor
+    volumes:
+      - ./prover-config.json:/usr/src/app/config.json
+    command: >
+      zkProver -c /usr/src/app/config.json
+```
+
+This will spin up the Executor and MT, for a prover setup, exposing the `50051` port is needed:
+
+```yaml
+  zkevm-prover:
+    container_name: zkevm-prover
+    image: hermeznetwork/zkevm-prover:develop
+    ports:
+      - 50051:50051 # Prover
+      - 50061:50061 # MT
+      - 50071:50071 # Executor
+    volumes:
+      - ./prover-config.json:/usr/src/app/config.json
+    command: >
+      zkProver -c /usr/src/app/config.json
+```
+
+For more information visit [the Prover repository](https://github.com/0xPolygonHermez/zkevm-prover)
 
 ## zkEVM-Node Setup
 
@@ -201,50 +291,56 @@ docker run --rm hermeznetwork/zkevm-node:latest sh -c "/app/zkevm-node encryptKe
 
 The command above will create the file `acc.keystore` inside of the `zkevm-node` directory.
 
-After it we need to create a configuration file to provide the configurations to the node, to achieve this create a file called `config.toml` inside of the `zkevm-node` directory, then go to the example [config file](config/config.debug.toml) and `copy/paste` the content into the `config.toml` you'll actually use.
+After it we need to create a configuration file to provide the configurations to the node, to achieve this create a file called `config.toml` inside of the `zkevm-node` directory, then go to the example [config file](../config/environments/public/public.node.config.toml) (`./config/environments/public/public.node.config.toml`) and `copy/paste` the content into the `config.toml` you'll actually use.
+
+Do the same for the `genesis` file: [genesis file](../config/environments/public/public.genesis.config.json) (`./config/environments/public/public.genesis.config.json`)
 
 Remember to:
 
 - replace the database information if you set it differently while setting up the Postgres instance
 - set the `Database Host` with the `Postgres instance IP`
-- set the `Etherman URL` with the `JSON RPC URL` of the `Ethereum node`
-- set the `Etherman Password` to allow the node to decrypt the `keystore file`
-- set the `Prover URI` the `IP and port` of the `Prover Instance`
-
-
-
-In order to be able to propose batches we are going to register our Ethereum account as a Sequencer,
-to do this execute this command:
-
-```bash
-docker run --rm -v /$HOME/zkevm-node/config.toml:/app/config.toml hermeznetwork/zkevm-node:latest sh -c "./zkevm-node register --cfg=/app/config.toml --network=internaltestnet --y <public IP or URL for users to access the sequencer> "
-```
-
-In order to propose new batches, you must approve the Tokens to be used by the Roll-up on your behalf, to do this execute this command:
-> remember to set the value of the parameter amount before executing
-
-```bash
-docker run --rm -v /$HOME/zkevm-node/config.toml:/app/config.toml hermeznetwork/zkevm-node:latest sh -c "./zkevm-node approve --cfg=/app/config.toml --network=internaltestnet --address=poe --amount=0 --y"
-```
+- set the `Etherman URL` with the `JSON RPC URL` of the `Ethereum node` you created earlier *or* use any L1 Goerli service
+- set the `Etherman Password` (`config.json` => `PrivateKeyPassword` field, defaults to `testonly`) to allow the node to decrypt the `keystore file`
+- set the `MT / Executor URIs` the `IP and port` of the `MT/Executor Instances` and change the array of provers if a prover was spun up
 
 Now we are going to put everything together in order to run the `zkEVM-Node` instance.
 
-Create a file called `docker-compose.yml` inside of the directory `zkevm-node`.
+Add the following entries to the `docker-compose.yml` file
 
-```docker-compose
-version: '3'
-
-services:
-  
-  zkevm-node:
-    container_name: zkevm-node
+```yaml 
+  zkevm-rpc:
+    container_name: zkevm-rpc
     image: zkevm-node
     ports:
-        - 8545:8545
+      - 8545:8545
+    environment:
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+      - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
+      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
+      - ZKEVM_NODE_RPC_BROADCASTURI=public-grpc.zkevm-test.net:61090
     volumes:
-      - /$HOME/zkevm-node/acc/keystore:/pk/keystore
-      - /$HOME/zkevm-node/config.toml:/app/config.toml
-    command: ["./zkevm-node", "run", "--network", "internaltestnet", "--cfg", "/app/config.toml"]
+      - ./acc.keystore:/pk/keystore
+      - ./config.toml:/app/config.toml
+      - ./genesis.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc"
+
+  zkevm-sync:
+    container_name: zkevm-sync
+    image: zkevm-node
+    environment:
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+    volumes:
+      - ./acc.keystore:/pk/keystore
+      - ./config.toml:/app/config.toml
+      - ./genesis.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components synchronizer"
+
 ```
 
 To run the `zkEVM-Node` instance, go to the `zkevm-node` directory in your terminal and run the following command:
@@ -259,19 +355,14 @@ To have a visual access to the network we are going to setup a Block Scout insta
 
 For more details about Block Scout, check it here: <https://docs.blockscout.com/>
 
-Block Scout requires access to the `zkEVM-Node` instance to have access to the network
+Block Scout requires access to its own `zkEVM-Node` RPC-only instance to have access to the network
 via the JSON RPC Server and a dedicated Postgres Instance in order to save its own data.
-
-We recommend you use a dedicated machine for the Explorer.
-
-Create a file called `docker-compose.yml` inside of the `zkevm-node` directory.
 
 > Feel free to customize the environment variables to set the user, password and
 > database for the Explore Postgres instance, but make sure to also update the url to connect
 > to the DB in the Explorer environment variable called DATABASE_URL
-> Remember to set the environment variable ETHEREUM_JSONRPC_HTTP_URL with the `zkEVM-Node` IP and PORT
 
-```docker-compose
+```yaml 
 version: '3'
 
 services:
@@ -296,21 +387,42 @@ services:
             - SUBNETWORK=Polygon Hermez
             - COIN=ETH
             - ETHEREUM_JSONRPC_VARIANT=geth
-            - ETHEREUM_JSONRPC_HTTP_URL=http://:8545 # Set the IP and PORT of the zkEVM-Node
+            - ETHEREUM_JSONRPC_HTTP_URL=http://zkevm-explorer-zknode:8124
             - DATABASE_URL=postgres://test_user:test_password@zkevm-explorer-db:5432/explorer
             - ECTO_USE_SSL=false
             - MIX_ENV=prod
             - LOGO=/images/blockscout_logo.svg
             - LOGO_FOOTER=/images/blockscout_logo.svg
         command: ["/bin/sh", "-c", "mix do ecto.create, ecto.migrate; mix phx.server"]
+
+
+    zkevm-explorer-zknode:
+      container_name: zkevm-explorer-zknode
+      image: zkevm-node
+      ports:
+        - 8124:8124
+      environment:
+        - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+        - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
+        - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
+        - ZKEVM_NODE_RPC_PORT=8124
+      volumes:
+        - ./config/test.node.config.toml:/app/config.toml
+        - ./config/test.genesis.config.json:/app/genesis.json
+      command:
+        - "/bin/sh"
+        - "-c"
+        - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc --http.api eth,net,debug,zkevm,txpool,web3"
 ```
 
 To run the Explorer, execute the following command:
 
 ```bash
 docker-compose up -d zkevm-explorer-db
-sleep5
+sleep 5
 docker-compose up -d zkevm-explorer
+sleep 5
+docker-compose up -d zkevm-explorer-zknode
 ```
 
 ## Setup Metamask
@@ -330,7 +442,7 @@ To configure a custom network follow these steps:
 5. Fill up the following fields:
     1. Network Name: Polygon Hermez - Goerli
     2. New RPC URL: <http://IP-And-Port-of-zkEVM-Node-Instance>
-    3. Chain ID: TBD
+    3. Chain ID: `1402`
     4. Currency Symbol: ETH
     5. Block Explorer URL: <http://IP-And-Port-of-Explorer-Instance>
 6. Click on Save
