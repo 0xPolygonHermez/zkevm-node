@@ -18,6 +18,7 @@ DOCKERCOMPOSEZKPROVERMOCK := zkprover-mock
 DOCKERCOMPOSEPERMISSIONLESSDB := zkevm-permissionless-db
 DOCKERCOMPOSEPERMISSIONLESSNODE := zkevm-permissionless-node
 DOCKERCOMPOSENODEAPPROVE := zkevm-approve
+DOCKERCOMPOSEMETRICS := zkevm-metrics
 
 RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
 RUNPOOLDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPOOLDB)
@@ -41,6 +42,8 @@ RUNPERMISSIONLESSDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSDB)
 RUNPERMISSIONLESSNODE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPERMISSIONLESSNODE)
 
 RUNAPPROVE := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENODEAPPROVE)
+
+RUNMETRICS := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEMETRICS)
 
 RUN := $(DOCKERCOMPOSE) up -d
 
@@ -67,6 +70,8 @@ STOPPERMISSIONLESSNODE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPERMISSIONLESSNOD
 
 STOPAPPROVE := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENODEAPPROVE) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENODEAPPROVE)
 
+STOPMETRICS := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEMETRICS) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEMETRICS)
+
 STOP := $(DOCKERCOMPOSE) down --remove-orphans
 
 .PHONY: test-full-non-e2e
@@ -81,7 +86,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNL1NETWORK)
 	sleep 15
 	docker logs $(DOCKERCOMPOSEZKPROVER)
-	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 60s ./...
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -short -race -p 1 -timeout 60s ../...
 
 .PHONY: test-e2e-group-1
 test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
@@ -195,7 +200,7 @@ run-seq: ## runs the sequencer
 
 .PHONY: stop-seq
 stop-seq: ## stops the sequencer
-	$(RUNSEQUENCER)
+	$(STOPSEQUENCER)
 
 .PHONY: run-broadcast
 run-broadcast: ## Runs the broadcast service
@@ -244,6 +249,14 @@ stop: ## Stops all services
 .PHONY: restart
 restart: stop run ## Executes `make stop` and `make run` commands
 
+.PHONY: run-metrics
+run-metrics: ## Runs the metrics container
+	$(RUNMETRICS)
+
+.PHONY: stop-metrics
+stop-metrics: ## Stops the metrics container
+	$(STOPMETRICS)
+
 .PHONY: init-network
 init-network: ## Initializes the network
 	go run ./scripts/init_network/main.go .
@@ -251,6 +264,10 @@ init-network: ## Initializes the network
 .PHONY: deploy-sc
 deploy-sc: ## deploys some examples of transactions and smart contracts
 	go run ./scripts/deploy_sc/main.go .
+
+.PHONY: send-transfers
+send-transfers: ## deploys some ETH transfers
+	go run ./scripts/send_transfers/main.go .
 
 .PHONY: deploy-uniswap
 deploy-uniswap: ## deploy the uniswap environment to the network

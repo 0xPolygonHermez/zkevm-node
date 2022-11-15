@@ -194,7 +194,7 @@ func TestOpenCloseBatch(t *testing.T) {
 		LocalExitRoot: common.HexToHash("1"),
 	}
 	err = testState.CloseBatch(ctx, receipt1, dbTx)
-	require.Equal(t, state.ErrClosingBatchWithoutTxs, err)
+	require.NoError(t, err)
 	require.NoError(t, dbTx.Rollback(ctx))
 	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -287,7 +287,7 @@ func TestAddGlobalExitRoot(t *testing.T) {
 	}
 	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, tx)
 	require.NoError(t, err)
-	exit, _, err := testState.GetLatestGlobalExitRoot(ctx, math.MaxUint64, tx)
+	exit, _, err := testState.GetLatestGlobalExitRoot(ctx, math.MaxInt64, tx)
 	require.NoError(t, err)
 	err = tx.Commit(ctx)
 	require.NoError(t, err)
@@ -2166,81 +2166,4 @@ func TestExecutorEstimateGas(t *testing.T) {
 	require.NoError(t, err)
 	_, err = testState.EstimateGas(signedTx3, sequencerAddress, nil, nil)
 	require.Error(t, err)
-}
-
-func TestAddAndGetSequences(t *testing.T) {
-	initOrResetDB()
-
-	ctx := context.Background()
-	dbTx, err := testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-
-	block := &state.Block{
-		BlockNumber: 1,
-		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ReceivedAt:  time.Now(),
-	}
-	err = testState.AddBlock(ctx, block, dbTx)
-	assert.NoError(t, err)
-
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (0)")
-	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
-	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (2)")
-	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (3)")
-	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (4)")
-	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (5)")
-	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (6)")
-	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (7)")
-	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (8)")
-	require.NoError(t, err)
-
-	sequence := state.Sequence{
-		LastVerifiedBatchNumber: 0,
-		NewVerifiedBatchNumber:  3,
-	}
-	err = testState.AddSequence(ctx, sequence, dbTx)
-	require.NoError(t, err)
-
-	sequence2 := state.Sequence{
-		LastVerifiedBatchNumber: 3,
-		NewVerifiedBatchNumber:  7,
-	}
-	err = testState.AddSequence(ctx, sequence2, dbTx)
-	require.NoError(t, err)
-
-	sequence3 := state.Sequence{
-		LastVerifiedBatchNumber: 7,
-		NewVerifiedBatchNumber:  8,
-	}
-	err = testState.AddSequence(ctx, sequence3, dbTx)
-	require.NoError(t, err)
-
-	sequences, err := testState.GetSequences(ctx, 0, dbTx)
-	require.NoError(t, err)
-	require.Equal(t, 3, len(sequences))
-	require.Equal(t, uint64(0), sequences[0].LastVerifiedBatchNumber)
-	require.Equal(t, uint64(3), sequences[1].LastVerifiedBatchNumber)
-	require.Equal(t, uint64(7), sequences[2].LastVerifiedBatchNumber)
-	require.Equal(t, uint64(3), sequences[0].NewVerifiedBatchNumber)
-	require.Equal(t, uint64(7), sequences[1].NewVerifiedBatchNumber)
-	require.Equal(t, uint64(8), sequences[2].NewVerifiedBatchNumber)
-
-	sequences, err = testState.GetSequences(ctx, 3, dbTx)
-	require.NoError(t, err)
-	require.Equal(t, 2, len(sequences))
-	require.Equal(t, uint64(3), sequences[0].LastVerifiedBatchNumber)
-	require.Equal(t, uint64(7), sequences[1].LastVerifiedBatchNumber)
-	require.Equal(t, uint64(7), sequences[0].NewVerifiedBatchNumber)
-	require.Equal(t, uint64(8), sequences[1].NewVerifiedBatchNumber)
-
-	require.NoError(t, dbTx.Commit(ctx))
 }

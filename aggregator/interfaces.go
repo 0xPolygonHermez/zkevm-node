@@ -15,7 +15,7 @@ import (
 // ethTxManager contains the methods required to send txs to
 // ethereum.
 type ethTxManager interface {
-	VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) error
+	SyncPendingProofs()
 }
 
 // etherman contains the methods required to interact with ethereum
@@ -49,5 +49,4 @@ type stateInterface interface {
 	DeleteGeneratedProof(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error
 	GetWIPProofByProver(ctx context.Context, prover string, dbTx pgx.Tx) (*state.Proof, error)
-	GetSequences(ctx context.Context, lastVerifiedBatchNumber uint64, dbTx pgx.Tx) ([]state.Sequence, error)
 }

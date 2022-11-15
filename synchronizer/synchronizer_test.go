@@ -135,12 +135,20 @@ func TestTrustedStateReorg(t *testing.T) {
 						Return(&pb.ProcessBatchResponse{NewStateRoot: trustedBatch.StateRoot.Bytes()}, nil).
 						Once()
 
-				seq := state.Sequence{
-					LastVerifiedBatchNumber: 0,
-					NewVerifiedBatchNumber:  1,
+				seq := state.SequenceGroup{
+					TxHash: common.HexToHash("0x333"),
+					TxNonce: 0,
+					FromBatchNum: 1,
+					ToBatchNum: 1,
+					Status: state.SequenceGroupStatusPending,
 				}
 				m.State.
-					On("AddSequence", ctx, seq, m.DbTx).
+					On("GetSequenceGroupByTxHash", ctx, seq.TxHash, m.DbTx).
+					Return(nil, state.ErrNotFound).
+					Once()
+
+				m.State.
+					On("AddSequenceGroup", ctx, seq, m.DbTx).
 					Return(nil).
 					Once()
 

@@ -37,13 +37,8 @@ MultiGasProvider = true
 		ApiKey = ""
 
 [EthTxManager]
-MaxSendBatchTxRetries = 10
-MaxVerifyBatchTxRetries = 10
-FrequencyForResendingFailedSendBatches = "1s"
-FrequencyForResendingFailedVerifyBatch = "1s"
-WaitTxToBeMined = "2m"
-PercentageToIncreaseGasPrice = 10
-PercentageToIncreaseGasLimit = 10
+IntervalToReviewSendBatchTx = "1m"
+IntervalToReviewVerifyBatchTx = "1m"
 
 [RPC]
 Host = "0.0.0.0"
@@ -73,7 +68,6 @@ GenBlockNumber = 1
 MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
 WaitPeriodSendSequence = "15s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "300s"
 WaitBlocksToUpdateGER = 10
 WaitBlocksToConsiderGerFinal = 10
 ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
@@ -125,4 +119,9 @@ URI = "127.0.0.1:50071"
 [BroadcastServer]
 Host = "0.0.0.0"
 Port = 61090
+
+[Metrics]
+Host = "0.0.0.0"
+Port = 9091
+Enabled = false
 `

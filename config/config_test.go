@@ -40,10 +40,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
-			path:          "Sequencer.LastBatchVirtualizationTimeMaxWaitPeriod",
-			expectedValue: types.NewDuration(300 * time.Second),
-		},
-		{
 			path:          "Sequencer.WaitBlocksToUpdateGER",
 			expectedValue: uint64(10),
 		},
@@ -152,32 +148,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
-			path:          "EthTxManager.MaxSendBatchTxRetries",
-			expectedValue: uint32(10),
+			path:          "EthTxManager.IntervalToReviewSendBatchTx",
+			expectedValue: types.NewDuration(1 * time.Minute),
 		},
 		{
-			path:          "EthTxManager.MaxVerifyBatchTxRetries",
-			expectedValue: uint32(10),
-		},
-		{
-			path:          "EthTxManager.FrequencyForResendingFailedSendBatches",
-			expectedValue: types.NewDuration(1 * time.Second),
-		},
-		{
-			path:          "EthTxManager.FrequencyForResendingFailedVerifyBatch",
-			expectedValue: types.NewDuration(1 * time.Second),
-		},
-		{
-			path:          "EthTxManager.WaitTxToBeMined",
-			expectedValue: types.NewDuration(2 * time.Minute),
-		},
-		{
-			path:          "EthTxManager.PercentageToIncreaseGasPrice",
-			expectedValue: uint64(10),
-		},
-		{
-			path:          "EthTxManager.PercentageToIncreaseGasLimit",
-			expectedValue: uint64(10),
+			path:          "EthTxManager.IntervalToReviewVerifyBatchTx",
+			expectedValue: types.NewDuration(1 * time.Minute),
 		},
 		{
 			path:          "PriceGetter.Type",
@@ -261,11 +237,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.ReadTimeoutInSec",
-			expectedValue: time.Duration(1),
+			expectedValue: time.Duration(60),
 		},
 		{
 			path:          "RPC.WriteTimeoutInSec",
-			expectedValue: time.Duration(1),
+			expectedValue: time.Duration(60),
 		},
 		{
 			path:          "RPC.SequencerNodeURI",
@@ -322,6 +298,18 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "BroadcastServer.Port",
 			expectedValue: 61090,
+		},
+		{
+			path:          "Metrics.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
+			path:          "Metrics.Port",
+			expectedValue: 9091,
+		},
+		{
+			path:          "Metrics.Enabled",
+			expectedValue: false,
 		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")

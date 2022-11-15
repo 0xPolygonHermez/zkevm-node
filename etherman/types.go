@@ -35,6 +35,7 @@ type SequencedBatch struct {
 	BatchNumber uint64
 	Coinbase    common.Address
 	TxHash      common.Hash
+	Nonce       uint64
 	proofofefficiency.ProofOfEfficiencyBatchData
 }
 
@@ -62,5 +63,6 @@ type SequencedForceBatch struct {
 	Coinbase    common.Address
 	TxHash      common.Hash
 	Timestamp   time.Time
+	Nonce       uint64
 	proofofefficiency.ProofOfEfficiencyForceBatchData
 }

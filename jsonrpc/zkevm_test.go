@@ -244,6 +244,86 @@ func TestIsL2BlockVirtualized(t *testing.T) {
 	}
 }
 
+func TestBatchNumberOfL2Block(t *testing.T) {
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+	blockNumber := uint64(1)
+	batchNumber := uint64(1)
+
+	type testCase struct {
+		Name           string
+		ExpectedResult uint64
+		ExpectedError  rpcError
+		SetupMocks     func(m *mocks)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "Query status of batch number of l2 block by its number successfully",
+			ExpectedResult: batchNumber,
+			SetupMocks: func(m *mocks) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetBatchNumberOfL2Block", context.Background(), blockNumber, m.DbTx).
+					Return(batchNumber, nil).
+					Once()
+			},
+		},
+		{
+			Name:           "Failed to query the consolidation status",
+			ExpectedResult: uint64(0),
+			ExpectedError:  newRPCError(defaultErrorCode, "failed to get batch number of l2 batchNum"),
+			SetupMocks: func(m *mocks) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetBatchNumberOfL2Block", context.Background(), blockNumber, m.DbTx).
+					Return(uint64(0), errors.New("failed to get batch number of l2 batchNum")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m)
+
+			res, err := s.JSONRPCCall("zkevm_batchNumberOfL2Block", blockNumber)
+			require.NoError(t, err)
+
+			if res.Result != nil {
+				var result uint64
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+				assert.Equal(t, tc.ExpectedResult, result)
+			}
+
+			if res.Error != nil || tc.ExpectedError != nil {
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			}
+		})
+	}
+}
+
 func ptrUint64(n uint64) *uint64 {
 	return &n
 }

@@ -80,13 +80,14 @@ const (
 		 INNER JOIN state.l2block consolidated_blocks
 			ON consolidated_blocks.batch_num = sy.last_batch_num_consolidated;
 	`
-	addTransactionSQL          = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4)"
-	getBatchNumByBlockNum      = "SELECT batch_num FROM state.virtual_batch WHERE block_num <= $1 ORDER BY batch_num DESC LIMIT 1"
-	getTxsHashesBeforeBatchNum = "SELECT hash FROM state.transaction JOIN state.l2block ON state.transaction.l2_block_num = state.l2block.block_num AND state.l2block.batch_num <= $1"
-	isL2BlockVirtualized       = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
-	isL2BlockConsolidated      = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.verified_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
-	addSequenceSQL             = "INSERT INTO state.sequences (last_verified_batch_num, new_verified_batch_num) VALUES($1, $2)"
-	getSequencesSQL            = "SELECT last_verified_batch_num, new_verified_batch_num FROM state.sequences WHERE last_verified_batch_num >= $1 ORDER BY last_verified_batch_num ASC"
+	addTransactionSQL                     = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num) VALUES($1, $2, $3, $4)"
+	getBatchNumByBlockNum                 = "SELECT batch_num FROM state.virtual_batch WHERE block_num <= $1 ORDER BY batch_num DESC LIMIT 1"
+	getTxsHashesBeforeBatchNum            = "SELECT hash FROM state.transaction JOIN state.l2block ON state.transaction.l2_block_num = state.l2block.block_num AND state.l2block.batch_num <= $1"
+	isL2BlockVirtualized                  = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
+	isL2BlockConsolidated                 = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.verified_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
+	addSequenceSQL                        = "INSERT INTO state.sequences (last_verified_batch_num, new_verified_batch_num) VALUES($1, $2)"
+	getSequencesSQL                       = "SELECT last_verified_batch_num, new_verified_batch_num FROM state.sequences WHERE last_verified_batch_num >= $1 ORDER BY last_verified_batch_num ASC"
+	getBatchNumByBlockNumFromVirtualBatch = "SELECT batch_num FROM state.virtual_batch WHERE block_num <= $1 ORDER BY batch_num DESC LIMIT 1"
 )
 
 // PostgresStorage implements the Storage interface
@@ -154,7 +155,7 @@ func (p *PostgresStorage) GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Block
 		return nil, errors.New("blockNumDiff is too big, there are no txs to delete")
 	}
 
-	err = e.QueryRow(ctx, getBatchNumByBlockNum, blockNum).Scan(&batchNum)
+	err = e.QueryRow(ctx, getBatchNumByBlockNumFromVirtualBatch, blockNum).Scan(&batchNum)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -285,7 +286,7 @@ func (p *PostgresStorage) GetBlockNumAndMainnetExitRootByGER(ctx context.Context
 	)
 	e := p.getExecQuerier(dbTx)
 	const getMainnetExitRoot = "SELECT block_num, mainnet_exit_root FROM state.exit_root WHERE global_exit_root = $1"
-	err := e.QueryRow(ctx, getMainnetExitRoot, ger.String()).Scan(&blockNum, &mainnetExitRoot)
+	err := e.QueryRow(ctx, getMainnetExitRoot, ger.Bytes()).Scan(&blockNum, &mainnetExitRoot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, common.Hash{}, ErrNotFound
 	} else if err != nil {
@@ -469,6 +470,7 @@ func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2
 	defer rows.Close()
 
 	batches := make([]*Batch, 0, len(rows.RawValues()))
+	emptyHash := common.Hash{}
 
 	for rows.Next() {
 		batch, _l2BlockStateRoot, err := scanBatchWithL2BlockStateRoot(rows)
@@ -478,6 +480,11 @@ func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2
 		batches = append(batches, &batch)
 		if l2BlockStateRoot == nil && _l2BlockStateRoot != nil {
 			l2BlockStateRoot = _l2BlockStateRoot
+		}
+		// if there is no corresponding l2_block, it will use the latest batch state_root
+		// it is related to https://github.com/0xPolygonHermez/zkevm-node/issues/1299
+		if l2BlockStateRoot == nil && batch.StateRoot != emptyHash {
+			l2BlockStateRoot = &batch.StateRoot
 		}
 	}
 
@@ -915,7 +922,16 @@ func (p *PostgresStorage) UpdateGERInOpenBatch(ctx context.Context, ger common.H
 func (p *PostgresStorage) IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error) {
 	q := p.getExecQuerier(dbTx)
 	var isClosed bool
+	const isBatchClosedSQL = `
+		SELECT global_exit_root IS NOT NULL AND state_root IS NOT NULL 
+		  FROM state.batch
+		 WHERE batch_num = $1
+		 LIMIT 1`
 	err := q.QueryRow(ctx, isBatchClosedSQL, batchNum).Scan(&isClosed)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+
 	return isClosed, err
 }
 
@@ -962,6 +978,22 @@ func (p *PostgresStorage) AddBatchNumberInForcedBatch(ctx context.Context, force
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addBatchNumberInForcedBatchSQL, forceBatchNumber, batchNumber)
 	return err
+}
+
+// GetBatchNumberOfL2Block gets a batch number for l2 block by its number
+func (p *PostgresStorage) GetBatchNumberOfL2Block(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	getBatchNumByBlockNum := "SELECT batch_num FROM state.l2block WHERE block_num = $1"
+	batchNumber := uint64(0)
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getBatchNumByBlockNum, blockNumber).
+		Scan(&batchNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return batchNumber, ErrNotFound
+	} else if err != nil {
+		return batchNumber, err
+	}
+	return batchNumber, nil
 }
 
 // GetL2BlockByNumber gets a l2 block by its number
@@ -1727,30 +1759,47 @@ func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger c
 
 // AddGeneratedProof adds a generated proof to the storage
 func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof, proof_id, input_prover, prover) VALUES ($1, $2, $3, $4, $5)"
+	const query = `
+		INSERT INTO state.proof (batch_num, proof, proof_id, input_prover, prover, status, created_at)
+						 VALUES (       $1,    $2,       $3,           $4,     $5,     $6,         $7)`
+
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
+
+	_, err := e.Exec(ctx, query, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, string(ProofStatusPending), time.Now())
 	return err
 }
 
 // UpdateGeneratedProof updates a generated proof in the storage
 func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2, proof_id = $3, input_prover = $4, prover = $5 WHERE batch_num = $1"
+	const query = `
+		UPDATE state.proof
+		   SET proof = $2, proof_id = $3, input_prover = $4, prover = $5
+		 WHERE batch_num = $1`
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
+	_, err := e.Exec(ctx, query, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
 	return err
 }
 
 // GetGeneratedProofByBatchNumber gets a generated proof from the storage
 func (p *PostgresStorage) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Proof, error) {
-	var (
-		proof *Proof = &Proof{}
-		err   error
-	)
+	const query = `
+		SELECT batch_num
+			 , proof
+			 , proof_id
+			 , input_prover
+			 , prover
+			 , tx_hash
+			 , tx_nonce
+			 , status
+			 , created_at
+			 , updated_at
+		  FROM state.proof
+		 WHERE batch_num = $1`
 
-	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE batch_num = $1"
 	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, getGeneratedProofSQL, batchNumber).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
+
+	row := e.QueryRow(ctx, query, batchNumber)
+	proof, err := scanProof(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -1779,14 +1828,25 @@ func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.
 
 // GetWIPProofByProver gets a generated proof from its prover URI
 func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string, dbTx pgx.Tx) (*Proof, error) {
-	var (
-		proof *Proof = &Proof{}
-		err   error
-	)
+	const query = `
+		SELECT batch_num
+			 , proof
+			 , proof_id
+			 , input_prover
+			 , prover
+			 , tx_hash
+			 , tx_nonce
+			 , status
+			 , created_at
+			 , updated_at
+		 FROM state.proof
+		 WHERE prover = $1
+		   AND proof IS NULL`
 
-	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE prover = $1 and proof is null"
 	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, getGeneratedProofSQL, prover).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
+
+	row := e.QueryRow(ctx, query, prover)
+	proof, err := scanProof(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	} else if err != nil {
@@ -1796,20 +1856,157 @@ func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string
 	return proof, err
 }
 
-// AddSequence stores the sequence information to allow the aggregator verify sequences.
-func (p *PostgresStorage) AddSequence(ctx context.Context, sequence Sequence, dbTx pgx.Tx) error {
+// GetSequencesWithoutGroup returns all the sequences that doest not have sequence group yet
+func (p *PostgresStorage) GetSequencesWithoutGroup(ctx context.Context, dbTx pgx.Tx) ([]Sequence, error) {
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addSequenceSQL, sequence.LastVerifiedBatchNumber, sequence.NewVerifiedBatchNumber)
+
+	const getSequencesWithoutGroupSQL = `
+		SELECT batch_num
+			 , state_root
+			 , global_exit_root
+			 , local_exit_root
+			 , timestamp
+			 , txs
+		  FROM state.batch b
+		 WHERE NOT EXISTS (SELECT * FROM state.sequence_group sg WHERE b.batch_num >= sg.from_batch_num AND b.batch_num <= sg.to_batch_num)
+		 ORDER BY batch_num;`
+	rows, err := e.Query(ctx, getSequencesWithoutGroupSQL)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sequences := make([]Sequence, 0, len(rows.RawValues()))
+	for rows.Next() {
+		sequence, err := scanSequence(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		sequences = append(sequences, *sequence)
+	}
+
+	return sequences, nil
+}
+
+// GetPendingSequenceGroups returns all the pending sequence groups
+func (p *PostgresStorage) GetPendingSequenceGroups(ctx context.Context, dbTx pgx.Tx) ([]SequenceGroup, error) {
+	e := p.getExecQuerier(dbTx)
+
+	const getPendingSequences = `
+		SELECT tx_hash
+			 , tx_nonce
+			 , from_batch_num
+			 , to_batch_num
+			 , status
+			 , created_at
+			 , updated_at
+		  FROM state.sequence_group
+		 WHERE status = $1
+		 ORDER BY from_batch_num ASC;`
+	rows, err := e.Query(ctx, getPendingSequences, string(SequenceGroupStatusPending))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sequenceGroups := make([]SequenceGroup, 0, len(rows.RawValues()))
+	for rows.Next() {
+		sequenceGroup, err := scanSequenceGroup(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		sequenceGroups = append(sequenceGroups, *sequenceGroup)
+	}
+
+	return sequenceGroups, nil
+}
+
+// GetPendingSequenceGroups returns all the pending sequence groups
+func (p *PostgresStorage) GetSequenceGroupByTxHash(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) (*SequenceGroup, error) {
+	var seqGroup SequenceGroup
+	e := p.getExecQuerier(dbTx)
+	const getSequences = `
+		SELECT tx_hash
+			 , tx_nonce
+			 , from_batch_num
+			 , to_batch_num
+			 , status
+			 , created_at
+			 , updated_at
+		  FROM state.sequence_group
+		 WHERE tx_hash = $1;`
+	err := e.QueryRow(ctx, getSequences, txHash.String()).Scan(&seqGroup)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &seqGroup, nil
+}
+
+// AddSequenceGroup persists a new sequence group into the State database
+func (p *PostgresStorage) AddSequenceGroup(ctx context.Context, sequenceGroup SequenceGroup, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+
+	const query = `
+		INSERT INTO state.sequence_group (tx_hash, tx_nonce, from_batch_num, to_batch_num, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6);`
+
+	_, err := e.Exec(ctx, query, sequenceGroup.TxHash.String(),
+		sequenceGroup.TxNonce, sequenceGroup.FromBatchNum, sequenceGroup.ToBatchNum, sequenceGroup.Status, time.Now())
+
 	return err
 }
 
-// GetSequences get the next sequences higher than an specify batch number
-func (p *PostgresStorage) GetSequences(ctx context.Context, lastVerifiedBatchNumber uint64, dbTx pgx.Tx) ([]Sequence, error) {
-	q := p.getExecQuerier(dbTx)
+// UpdateSequenceGroupTx updates the sequence group transaction
+func (p *PostgresStorage) UpdateSequenceGroupTx(ctx context.Context, oldTxHash, newTxHash common.Hash, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
 
-	rows, err := q.Query(ctx, getSequencesSQL, lastVerifiedBatchNumber)
+	const query = `
+		UPDATE state.sequence_group
+		   SET tx_hash    = $2,
+			   updated_at = $3
+		 WHERE tx_hash = $1;`
+
+	_, err := e.Exec(ctx, query, oldTxHash.String(), newTxHash.String(), time.Now())
+	return err
+}
+
+// SetSequenceGroupAsConfirmed updates the sequence group to confirmed
+func (p *PostgresStorage) SetSequenceGroupAsConfirmed(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+
+	const query = `
+		UPDATE state.sequence_group
+		   SET status     = $2,
+		       updated_at = $3
+		 WHERE tx_hash = $1;`
+
+	_, err := e.Exec(ctx, query, txHash.String(), string(SequenceGroupStatusConfirmed), time.Now())
+	return err
+}
+
+// GetSequencesByBatchNums get the sequences accordingly to the batch numbers provided
+func (p *PostgresStorage) GetSequencesByBatchNums(ctx context.Context, fromBatchNumber, toBatchNumber uint64, dbTx pgx.Tx) ([]Sequence, error) {
+	e := p.getExecQuerier(dbTx)
+
+	const query = `
+		SELECT batch_num
+			 , state_root
+			 , global_exit_root
+			 , local_exit_root
+			 , timestamp
+			 , txs
+		  FROM state.batch
+		 WHERE batch_num >= $1 AND batch_num <= $2
+		 ORDER BY batch_num DESC;`
+
+	rows, err := e.Query(ctx, query, fromBatchNumber, toBatchNumber)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrStateNotSynchronized
+		return nil, ErrNotFound
 	} else if err != nil {
 		return nil, err
 	}
@@ -1818,14 +2015,175 @@ func (p *PostgresStorage) GetSequences(ctx context.Context, lastVerifiedBatchNum
 	sequences := make([]Sequence, 0, len(rows.RawValues()))
 
 	for rows.Next() {
-		var sequence Sequence
-		if err := rows.Scan(
-			&sequence.LastVerifiedBatchNumber,
-			&sequence.NewVerifiedBatchNumber,
-		); err != nil {
-			return sequences, err
+		seq, err := scanSequence(rows)
+		if err != nil {
+			return nil, err
 		}
-		sequences = append(sequences, sequence)
+		sequences = append(sequences, *seq)
 	}
-	return sequences, err
+
+	return sequences, nil
+}
+
+// GetLastSequenceGroup gets last sequence group
+func (p *PostgresStorage) GetLastSequenceGroup(ctx context.Context, dbTx pgx.Tx) (*SequenceGroup, error) {
+	e := p.getExecQuerier(dbTx)
+
+	const query = `
+		SELECT tx_hash
+			 , tx_nonce
+			 , from_batch_num
+			 , to_batch_num
+			 , status
+			 , created_at
+			 , updated_at
+		  FROM state.sequence_group
+		 ORDER BY from_batch_num DESC
+		 LIMIT 1;`
+
+	row := e.QueryRow(ctx, query)
+	group, err := scanSequenceGroup(row)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return group, nil
+}
+
+func scanSequence(row pgx.Row) (*Sequence, error) {
+	sequence := &Sequence{}
+
+	var globalExitRoot, stateRoot, localExitRoot string
+	var txsRLPs []string
+
+	if err := row.Scan(&sequence.BatchNumber, &stateRoot, &globalExitRoot, &localExitRoot,
+		&sequence.Timestamp, &txsRLPs); err != nil {
+		return nil, err
+	}
+
+	txs := make([]types.Transaction, 0, len(txsRLPs))
+	for _, txRLP := range txsRLPs {
+		tx := types.Transaction{}
+		b, err := hex.DecodeHex(txRLP)
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.UnmarshalBinary(b); err != nil {
+			return nil, err
+		}
+
+		txs = append(txs, tx)
+	}
+
+	sequence.GlobalExitRoot = common.HexToHash(globalExitRoot)
+	sequence.StateRoot = common.HexToHash(stateRoot)
+	sequence.LocalExitRoot = common.HexToHash(localExitRoot)
+	sequence.Txs = txs
+
+	return sequence, nil
+}
+
+func scanSequenceGroup(row pgx.Row) (*SequenceGroup, error) {
+	sequenceGroup := &SequenceGroup{}
+
+	var txHash, status string
+
+	if err := row.Scan(&txHash, &sequenceGroup.TxNonce, &sequenceGroup.FromBatchNum, &sequenceGroup.ToBatchNum,
+		&status, &sequenceGroup.CreatedAt, &sequenceGroup.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	sequenceGroup.TxHash = common.HexToHash(txHash)
+	sequenceGroup.Status = SequenceGroupStatus(status)
+
+	return sequenceGroup, nil
+}
+
+// GetPendingProofs returns all the pending proofs
+func (p *PostgresStorage) GetPendingProofs(ctx context.Context, dbTx pgx.Tx) ([]Proof, error) {
+	e := p.getExecQuerier(dbTx)
+
+	const query = `
+		SELECT batch_num
+			 , proof
+			 , proof_id
+			 , input_prover
+			 , prover
+			 , tx_hash
+			 , tx_nonce
+			 , status
+			 , created_at
+			 , updated_at
+		  FROM state.proof
+		 WHERE status = $1 AND proof IS NOT NULL
+		 ORDER BY batch_num ASC;`
+	rows, err := e.Query(ctx, query, string(ProofStatusPending))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	proofs := make([]Proof, 0, len(rows.RawValues()))
+	for rows.Next() {
+		proof, err := scanProof(rows)
+		if err != nil {
+			return nil, err
+		}
+
+		proofs = append(proofs, *proof)
+	}
+
+	return proofs, nil
+}
+
+// UpdateProofTx updates the proof transaction
+func (p *PostgresStorage) UpdateProofTx(ctx context.Context, batchNumber uint64, newTxHash common.Hash, nonce uint64, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+
+	const query = `
+		UPDATE state.proof
+		   SET tx_hash    = $2,
+			   updated_at = $3,
+			   tx_nonce   = $4
+		 WHERE batch_num = $1;`
+
+	_, err := e.Exec(ctx, query, batchNumber, newTxHash.String(), time.Now(), nonce)
+	return err
+}
+
+// SetProofAsConfirmed updates the proof to confirmed
+func (p *PostgresStorage) SetProofAsConfirmed(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	e := p.getExecQuerier(dbTx)
+
+	const query = `
+		UPDATE state.proof
+		   SET status     = $2,
+		       updated_at = $3
+		 WHERE batch_num = $1;`
+
+	_, err := e.Exec(ctx, query, batchNumber, string(ProofStatusConfirmed), time.Now())
+	return err
+}
+
+func scanProof(row pgx.Row) (*Proof, error) {
+	proof := &Proof{}
+
+	var txHash, status *string
+
+	if err := row.Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover,
+		&txHash, &proof.TxNonce, &status, &proof.CreatedAt, &proof.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	if txHash != nil {
+		proofTxHash := common.HexToHash(*txHash)
+		proof.TxHash = &proofTxHash
+	}
+	if status != nil {
+		proof.Status = ProofStatus(*status)
+	}
+
+	return proof, nil
 }

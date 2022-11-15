@@ -10,8 +10,8 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/bridge"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
-	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
@@ -309,12 +309,12 @@ func TestSendSequences(t *testing.T) {
 	require.NoError(t, err)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	sequence := ethmanTypes.Sequence{
+	sequence := state.Sequence{
 		GlobalExitRoot: ger,
-		Timestamp:      int64(currentBlock.Time() - 1),
+		Timestamp:      time.Unix(int64(currentBlock.Time()-1), 0),
 		Txs:            []types.Transaction{*tx1},
 	}
-	tx, err := etherman.sequenceBatches(etherman.auth, []ethmanTypes.Sequence{sequence})
+	tx, err := etherman.sequenceBatches(etherman.auth, []state.Sequence{sequence})
 	require.NoError(t, err)
 	log.Debug("TX: ", tx.Hash())
 	ethBackend.Commit()
