@@ -55,6 +55,7 @@ Optionally it can wait for the batches to be validated.`
 	batchsender.Flags = []cli.Flag{&flagWait, &flagVerbose}
 	batchsender.Commands = []*cli.Command{
 		{
+			Before:  setLogLevel,
 			Name:    "send",
 			Aliases: []string{},
 			Usage:   "Sends the specified number of batch transactions to L1",
@@ -72,15 +73,18 @@ If --wait flag is used, it waits for the corresponding validation transaction.`,
 	}
 }
 
-func sendBatches(cliCtx *cli.Context) error {
-	ctx := cliCtx.Context
-
+func setLogLevel(ctx *cli.Context) error {
 	logLevel := "info"
-	if cliCtx.Bool(flagVerboseName) {
+	if ctx.Bool(flagVerboseName) {
 		logLevel = "debug"
 	}
 
 	log.Init(log.Config{Level: logLevel, Outputs: []string{"stdout"}})
+	return nil
+}
+
+func sendBatches(cliCtx *cli.Context) error {
+	ctx := cliCtx.Context
 
 	nBatches := 1 // send 1 batch by default
 	if cliCtx.NArg() > 0 {
@@ -169,6 +173,13 @@ func sendBatches(cliCtx *cli.Context) error {
 		waitTimeout := time.Duration(180*len(sentTxs)) * time.Second //nolint:gomnd
 		done := make(chan struct{})
 
+		for _, tx := range sentTxs {
+			err := operations.WaitTxToBeMined(ctx, ethMan.EtherClient, tx, miningTimeout)
+			if err != nil {
+				return err
+			}
+		}
+
 		for {
 			select {
 			case <-time.After(waitTimeout):
@@ -179,11 +190,6 @@ func sendBatches(cliCtx *cli.Context) error {
 			default:
 			txLoop:
 				for _, tx := range sentTxs {
-					err := operations.WaitTxToBeMined(ctx, ethMan.EtherClient, tx, miningTimeout)
-					if err != nil {
-						return err
-					}
-
 					// get rollup tx block number
 					receipt, err := ethMan.EtherClient.TransactionReceipt(ctx, tx.Hash())
 					if err != nil {
