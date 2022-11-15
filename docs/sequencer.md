@@ -76,11 +76,13 @@ After (successfuly) executing transactions the finalizer will:
 
 On the other hand if the execution fails (this case is only considered when consuming data from the `Ready Manager` source), the failed transactions will be sent to the `Blocked Manager` (note that this component is ommited in the diagram, more on this later)
 
-> QUESTION: is it really possible to update GER, timestamp and process transactions **without being aware of the batch number**
+> QUESTION: is it really possible to update GER, timestamp and process transactions **without being aware of the batch number**?
+
+AMSWER: YES, after the bridge L2 SC is updated to not link GERs with batch numbers, batch numbers will stop having an impact on the L2 state.
 
 ### State mod log
 
-This component is a sorted list of logs that communicate changes on the state. The main purpose of it it's to help other components understanding if a given transaction can be processed without actualy executing it.
+This component is a sorted list of logs that communicate changes on the state. The main purpose of it is to help other components understand if a given transaction can be processed without actualy executing it.
 
 The content of this log should be something like this
 
@@ -117,4 +119,44 @@ The content of this log should be something like this
 
 Note that:
 
-- 
+- For each root (1 new root == 1 tx), there is a list of all addresses that has been modified
+- A mechanism to navigate from one log to the following one, in the example this is represented by linking to the `nextRoot`, but this could be done in a different way. The advantadge of doing it like this is re-org safetyiness
+
+### Ready manager
+
+The purpose of this component is to provide txs to the `finalizer` as soon as it has finished executing the transaction that is WIP. Ideally the order in which this txs will be sent should:
+
+- Maximize the hit ratio
+- Maximize fees
+
+In other words the performance of this component can be evaluated from these points of view:
+
+- Response time
+- Accuracy
+
+This factors can ofthe be opposed, a trade off. To ilustrate this let's see two examples of possible strategies:
+
+- Return the first transaction of the list: super fast, unexpected results
+- Execute all the pontential combinations of transactions and return the best transaction: super slow, best result
+
+In order to have a balanced solution, the two problems can be splitted:
+
+- A routine keeps the list of txs sorted
+- The first tx of the list should always be quite accurate and ready to be consumed by the `finalizer` as soon as it requests it. Alternatively, there could be a timeout, the `ready manager` would have this timeout as limit to find the most safe/accurate transaction
+
+With all of this in mind let's jump into a more detailed explanation of how this works
+
+![img](sequencer-ready.drawio.png)
+
+TODO: (ideas and so...)
+
+- If balance, nonce and SC dependencies are not modified since last check, the tx will be executed successfuly
+- The NFT mint as worst case
+- The consecutive nonce as bad handled case
+- Other dependendies (tx A depends on tx B)... how do we deal with it?
+  - Depends on tx
+- Chenge ZK Counter behaviour ==> same as OOG?
+- Make call data expensive
+- If we're going to pay for deposit claims (0 fee), why not do it directly on behalf of the user?
+- Finality for L1 stuff (forced/deposit): https://www.alchemy.com/overviews/ethereum-commitment-levels
+  - https://ethereum.github.io/beacon-APIs/#/Beacon/getStateFinalityCheckpoints
