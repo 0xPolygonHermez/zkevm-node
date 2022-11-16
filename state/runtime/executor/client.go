@@ -7,6 +7,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
+	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
