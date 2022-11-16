@@ -60,14 +60,14 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 
 	zapCfg := zap.Config{
 		Level:            level,
-		Encoding:         "console",
+		Encoding:         "json",
 		OutputPaths:      cfg.Outputs,
 		ErrorOutputPaths: []string{"stderr"},
 		EncoderConfig: zapcore.EncoderConfig{
 			MessageKey: "message",
 
 			LevelKey:    "level",
-			EncodeLevel: zapcore.CapitalColorLevelEncoder,
+			EncodeLevel: zapcore.CapitalLevelEncoder,
 
 			TimeKey: "timestamp",
 			EncodeTime: func(ts time.Time, encoder zapcore.PrimitiveArrayEncoder) {
