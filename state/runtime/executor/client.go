@@ -29,6 +29,7 @@ func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient,
 	var executorConn *grpc.ClientConn
 	var err error
 	delay := 2
+	sleepAfterReboot := 15
 	for connectionRetries < maxRetries {
 		log.Infof("trying to connect to executor: %v", c.URI)
 		executorConn, err = grpc.DialContext(ctx, c.URI, opts...)
@@ -40,6 +41,11 @@ func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient,
 			if err == nil {
 				log.Infof("Prover logs:\n%s\n", out)
 			}
+			// Rebooting zkprover container
+			log.Infof("Bringing executor docker service down and up")
+			_ = operations.StartComponent("stop-zkprover")
+			_ = operations.StartComponent("start-zkprover")
+			time.Sleep(time.Duration(sleepAfterReboot) * time.Second)
 		} else {
 			log.Infof("connected to executor")
 			break
