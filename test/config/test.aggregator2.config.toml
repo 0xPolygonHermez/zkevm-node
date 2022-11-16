@@ -1,0 +1,117 @@
+IsTrustedSequencer = true
+
+[Log]
+Level = "debug"
+Outputs = ["stdout"]
+
+[StateDB]
+User = "state_user"
+Password = "state_password"
+Name = "state_db"
+Host = "localhost"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
+
+[PoolDB]
+User = "pool_user"
+Password = "pool_password"
+Name = "pool_db"
+Host = "localhost"
+Port = "5432"
+EnableLog = false
+MaxConns = 200
+
+[Etherman]
+URL = "http://localhost:8545"
+PrivateKeyPath = "../test/test.keystore"
+PrivateKeyPassword = "testonly"
+
+[EthTxManager]
+MaxSendBatchTxRetries = 10
+MaxVerifyBatchTxRetries = 10
+FrequencyForResendingFailedSendBatches = "1s"
+FrequencyForResendingFailedVerifyBatch = "1s"
+WaitTxToBeMined = "2m"
+PercentageToIncreaseGasPrice = 10
+PercentageToIncreaseGasLimit = 10
+
+[RPC]
+Host = "0.0.0.0"
+Port = 8123
+MaxRequestsPerIPAndSecond = 5000
+SequencerNodeURI = ""
+BroadcastURI = "127.0.0.1:61090"
+DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
+	[RPC.DB]
+		User = "rpc_user"
+		Password = "rpc_password"
+		Name = "rpc_db"
+		Host = "localhost"
+		Port = "5432"
+		EnableLog = false
+		MaxConns = 10
+
+[Synchronizer]
+SyncInterval = "1s"
+SyncChunkSize = 100
+TrustedSequencerURI = ""
+
+[Sequencer]
+MaxSequenceSize = "2000000"
+WaitPeriodPoolIsEmpty = "1s"
+WaitPeriodSendSequence = "15s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
+WaitBlocksToUpdateGER = 10
+MaxTimeForBatchToBeOpen = "15s"
+BlocksAmountForTxsToBeDeleted = 100
+FrequencyToCheckTxsForDelete = "12h"
+MaxCumulativeGasUsed = 30000000
+MaxKeccakHashes = 468
+MaxPoseidonHashes = 279620
+MaxPoseidonPaddings = 149796
+MaxMemAligns = 262144
+MaxArithmetics = 262144
+MaxBinaries = 262144
+MaxSteps = 8388608
+MaxAllowedFailedCounter = 50
+	[Sequencer.ProfitabilityChecker]
+		SendBatchesEvenWhenNotProfitable = "true"
+
+[Aggregator]
+IntervalToConsolidateState = "5s"
+IntervalToSendFinalProof = "90s"
+IntervalFrequencyToGetProofGenerationState = "100ms"
+TxProfitabilityCheckerType = "acceptall"
+TxProfitabilityMinReward = "1.1"
+
+[Aggregator2]
+Host = "127.0.0.1"
+Port = 50081
+IntervalToConsolidateState = "5s"
+IntervalToSendFinalProof = "90s"
+TxProfitabilityCheckerType = "acceptall"
+TxProfitabilityMinReward = "1.1"
+IntervalFrequencyToGetProofGenerationState = "5s"
+
+[GasPriceEstimator]
+Type = "default"
+DefaultGasPriceWei = 1000000000
+
+[Provers]
+ProverURIs = ["localhost:50052","localhost:50152"]
+
+[MTServer]
+Host = "0.0.0.0"
+Port = 50060
+StoreBackend = "PostgreSQL"
+
+[MTClient]
+URI  = "localhost:50061"
+
+[Executor]
+URI = "localhost:50071"
+
+[BroadcastServer]
+Host = "0.0.0.0"
+Port = 61090

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	pb2 "github.com/0xPolygonHermez/zkevm-node/aggregator2/pb"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/globalexitrootmanager"
@@ -857,4 +858,65 @@ func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
 	}
 	log.Debug("gasPrice choosed: ", gasPrice)
 	return gasPrice
+}
+
+// VerifyBatches2 send verifyBatches2 request to the ethereum
+func (etherMan *Client) VerifyBatches2(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb2.GetProofResponse_FinalProof, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+	if etherMan.IsReadOnly() {
+		return nil, ErrIsReadOnlyMode
+	}
+	verifyBatchOpts := *etherMan.auth
+	verifyBatchOpts.GasLimit = gasLimit
+	if gasPrice != nil {
+		verifyBatchOpts.GasPrice = gasPrice
+	} else if etherMan.GasProviders.MultiGasProvider {
+		verifyBatchOpts.GasPrice = etherMan.getGasPrice(ctx)
+	}
+	if nonce != nil {
+		verifyBatchOpts.Nonce = nonce
+	}
+	return etherMan.verifyBatches2(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, resGetProof)
+}
+
+// verifyBatches2 function allows the aggregator send the proof for a batch and consolidate it
+func (etherMan *Client) verifyBatches2(opts *bind.TransactOpts, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb2.GetProofResponse_FinalProof) (*types.Transaction, error) {
+	publicInputs := resGetProof.FinalProof.Public
+
+	var newLocalExitRoot [32]byte
+	copy(newLocalExitRoot[:], publicInputs.NewLocalExitRoot)
+
+	var newStateRoot [32]byte
+	copy(newStateRoot[:], publicInputs.NewStateRoot)
+
+	proofA, err := strSliceToBigIntArray(resGetProof.FinalProof.Proof.ProofA)
+	if err != nil {
+		return nil, err
+	}
+	proofB, err := proofSlcToIntArray2(resGetProof.FinalProof.Proof.ProofB)
+	if err != nil {
+		return nil, err
+	}
+	proofC, err := strSliceToBigIntArray(resGetProof.FinalProof.Proof.ProofC)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := etherMan.PoE.VerifyBatches(
+		opts,
+		lastVerifiedBatch,
+		newVerifiedBatch,
+		newLocalExitRoot,
+		newStateRoot,
+		proofA,
+		proofB,
+		proofC,
+	)
+	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			err = parsedErr
+		}
+		return nil, err
+	}
+
+	return tx, nil
 }

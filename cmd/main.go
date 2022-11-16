@@ -23,6 +23,8 @@ const (
 const (
 	// AGGREGATOR is the aggregator component identifier.
 	AGGREGATOR = "aggregator"
+	// AGGREGATOR2 is the aggregator v2 component identifier.
+	AGGREGATOR2 = "aggregator2"
 	// SEQUENCER is the sequencer component identifier.
 	SEQUENCER = "sequencer"
 	// RPC is the RPC component identifier.

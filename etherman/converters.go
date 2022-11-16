@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	pb2 "github.com/0xPolygonHermez/zkevm-node/aggregator2/pb"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
@@ -42,6 +43,29 @@ func strSliceToBigIntArray(data []string) ([2]*big.Int, error) {
 }
 
 func proofSlcToIntArray(proofs []*pb.ProofB) ([2][2]*big.Int, error) {
+	if len(proofs) < minProofLen || len(proofs) > maxProofLen {
+		return [2][2]*big.Int{}, fmt.Errorf("wrong slice length, current %d, expected between %d or %d", len(proofs), minProofLen, maxProofLen)
+	}
+
+	var res [2][2]*big.Int
+	for i, v := range proofs {
+		if i < minProofLen {
+			for j, b := range proofs[i].Proofs {
+				if j < minProofLen {
+					bigInt, ok := new(big.Int).SetString(b, encoding.Base10)
+					if !ok {
+						return [2][2]*big.Int{}, fmt.Errorf("failed to convert string to big int, str: %s", v)
+					}
+					res[i][1-j] = bigInt
+				}
+			}
+		}
+	}
+
+	return res, nil
+}
+
+func proofSlcToIntArray2(proofs []*pb2.ProofB) ([2][2]*big.Int, error) {
 	if len(proofs) < minProofLen || len(proofs) > maxProofLen {
 		return [2][2]*big.Int{}, fmt.Errorf("wrong slice length, current %d, expected between %d or %d", len(proofs), minProofLen, maxProofLen)
 	}

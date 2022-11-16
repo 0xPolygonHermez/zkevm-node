@@ -1849,3 +1849,145 @@ func (p *PostgresStorage) GetSequences(ctx context.Context, lastVerifiedBatchNum
 	}
 	return sequences, err
 }
+
+// New Aggregator2 functions
+// GetVirtualBatchToRecursiveProve return the next batch that is not proved, neither in proved process
+func (p *PostgresStorage) GetVirtualBatchToRecursiveProve(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+	const query = `
+		SELECT
+			b.batch_num,
+			b.global_exit_root,
+			b.local_exit_root,
+			b.state_root,
+			b.timestamp,
+			b.coinbase,
+			b.raw_txs_data
+		FROM
+			state.batch b,
+			state.virtual_batch v
+		WHERE
+			b.batch_num > $1 AND b.batch_num = v.batch_num AND
+			NOT EXISTS (
+				SELECT p.batch_num FROM state.recursive_proof p 
+				WHERE v.batch_num >= p.batch_num AND v.batch_num <= p.batch_num_final
+			)
+		ORDER BY b.batch_num ASC LIMIT 1
+		`
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, query, lastVerfiedBatchNumber)
+	batch, err := scanBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	return &batch, nil
+}
+
+// CheckProofContainsCompleteSequences checks if a recursive proof contains complete sequences
+func (p *PostgresStorage) CheckProofContainsCompleteSequences(ctx context.Context, proof *RecursiveProof, dbTx pgx.Tx) (bool, error) {
+	const getProofContainsCompleteSequencesSQL = `
+		SELECT EXISTS (SELECT 1 FROM state.sequence_group s1 WHERE s1.from_batch_num = $1) AND
+			   EXISTS (SELECT 1 FROM state.sequence_group s2 WHERE s2.to_batch_num = $2)
+		`
+	e := p.getExecQuerier(dbTx)
+	var exists bool
+	err := e.QueryRow(ctx, getProofContainsCompleteSequencesSQL, proof.BatchNumber, proof.BatchNumberFinal).Scan(&exists)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return exists, err
+	}
+	return exists, nil
+}
+
+// GetRecursiveProofsToAggregate return the next to proof that it is possible to aggregate
+func (p *PostgresStorage) GetRecursiveProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*RecursiveProof, *RecursiveProof, error) {
+	var (
+		proof1 *RecursiveProof = &RecursiveProof{}
+		proof2 *RecursiveProof = &RecursiveProof{}
+	)
+
+	const getProofsToAggregateSQL = `
+		SELECT 
+			p1.batch_num as p1_batch_num, 
+			p1.batch_num_final as p1_batch_num_final, 
+			p1.proof as p1_proof,	
+			p1.proof_id as p1_proof_id, 
+			p1.input_prover as p1_input_prover, 
+			p1.prover as p1_prover,
+			p2.batch_num as p2_batch_num, 
+			p2.batch_num_final as p2_batch_num_final, 
+			p2.proof as p2_proof,	
+			p2.proof_id as p2_proof_id, 
+			p2.input_prover as p2_input_prover, 
+			p2.prover as p2_prover
+		FROM state.recursive_proof p1 INNER JOIN state.recursive_proof p2 ON p1.batch_num_final = p2.batch_num - 1
+		WHERE p1.generating = FALSE AND p2.generating = FALSE AND 
+		 	  p1.proof IS NOT NULL AND p2.proof IS NOT NULL AND
+			  (
+					EXISTS (
+					SELECT tx_hash FROM state.sequence_group s
+					WHERE p1.batch_num >= s.from_batch_num AND p1.batch_num <= s.to_batch_num AND
+						p1.batch_num_final >= s.from_batch_num AND p1.batch_num_final <= s.to_batch_num AND
+						p2.batch_num >= s.from_batch_num AND p2.batch_num <= s.to_batch_num AND
+						p2.batch_num_final >= s.from_batch_num AND p2.batch_num_final <= s.to_batch_num
+					)
+					OR
+					(
+						EXISTS ( SELECT tx_hash FROM state.sequence_group s WHERE p1.batch_num = s.from_batch_num) AND
+						EXISTS ( SELECT tx_hash FROM state.sequence_group s WHERE p1.batch_num_final = s.to_batch_num) AND
+						EXISTS ( SELECT tx_hash FROM state.sequence_group s WHERE p2.batch_num = s.from_batch_num) AND
+						EXISTS ( SELECT tx_hash FROM state.sequence_group s WHERE p2.batch_num_final = s.to_batch_num)
+					)
+				)
+		ORDER BY p1.batch_num ASC
+		LIMIT 1
+		`
+
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, getProofsToAggregateSQL)
+	err := row.Scan(
+		&proof1.BatchNumber, &proof1.BatchNumberFinal, &proof1.Proof, &proof1.ProofID, &proof1.InputProver, &proof1.Prover,
+		&proof2.BatchNumber, &proof2.BatchNumberFinal, &proof2.Proof, &proof2.ProofID, &proof2.InputProver, &proof2.Prover)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil, ErrNotFound
+	} else if err != nil {
+		return nil, nil, err
+	}
+
+	return proof1, proof2, err
+}
+
+// AddGeneratedRecursiveProof adds a generated proof to the storage
+func (p *PostgresStorage) AddGeneratedRecursiveProof(ctx context.Context, proof *RecursiveProof, dbTx pgx.Tx) error {
+	const addGeneratedProofSQL = "INSERT INTO state.recursive_proof (batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, proof.Generating)
+	return err
+}
+
+// UpdateGeneratedRecursiveProof updates a generated proof in the storage
+func (p *PostgresStorage) UpdateGeneratedRecursiveProof(ctx context.Context, proof *RecursiveProof, dbTx pgx.Tx) error {
+	const addGeneratedProofSQL = "UPDATE state.recursive_proof SET proof = $3, proof_id = $4, input_prover = $5, prover = $6, generating = $7 WHERE batch_num = $1 AND batch_num_final = $2"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, proof.Generating)
+	return err
+}
+
+// DeleteGeneratedRecursiveProof deletes a generated proof from the storage
+func (p *PostgresStorage) DeleteGeneratedRecursiveProof(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
+	const deleteGeneratedProofSQL = "DELETE FROM state.recursive_proof WHERE batch_num = $1 AND batch_num_final = $2"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, deleteGeneratedProofSQL, batchNumber, batchNumberFinal)
+	return err
+}
+
+// DeleteUngeneratedRecursiveProofs deletes ungenerated proofs from state.proof table
+// This method is meant to be use during aggregator boot-up sequence
+func (p *PostgresStorage) DeleteUngeneratedRecursiveProofs(ctx context.Context, dbTx pgx.Tx) error {
+	const deleteUngeneratedProofsSQL = "DELETE FROM state.recursive_proof WHERE generating IS TRUE"
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, deleteUngeneratedProofsSQL)
+	return err
+}
