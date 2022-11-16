@@ -7,7 +7,6 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
-	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -44,8 +43,14 @@ func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient,
 			}
 			// Rebooting zkprover container
 			log.Infof("Bringing executor docker service down and up")
-			_ = operations.StartComponent("stop-zkprover")
-			_ = operations.StartComponent("start-zkprover")
+			out, err = exec.Command("docker-compose", []string{"stop", "zkevm-prover"}...).Output()
+			if err == nil {
+				log.Infof("Stopping zkprover:\n%s\n", out)
+			}
+			out, err = exec.Command("docker-compose", []string{"up", "-d", "zkevm-prover"}...).Output()
+			if err == nil {
+				log.Infof("Retarting zkprover:\n%s\n", out)
+			}
 			time.Sleep(time.Duration(sleepAfterReboot) * time.Second)
 		} else {
 			log.Infof("connected to executor")
