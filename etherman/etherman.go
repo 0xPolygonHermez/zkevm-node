@@ -314,7 +314,7 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 		batch := proofofefficiency.ProofOfEfficiencyBatchData{
 			Transactions:       batchL2Data,
 			GlobalExitRoot:     seq.GlobalExitRoot,
-			Timestamp:             uint64(seq.Timestamp),
+			Timestamp:          uint64(seq.Timestamp),
 			MinForcedTimestamp: 0, // TODO If this batch is forced, this value must be different to zero. If it is a non forced sequence, then the valio will be valid
 		}
 
