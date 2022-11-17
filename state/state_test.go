@@ -1083,9 +1083,9 @@ func TestExecutorLogs(t *testing.T) {
 
 	assert.Equal(t, 0, len(processBatchResponse.Responses[0].Logs))
 	assert.Equal(t, 3, len(processBatchResponse.Responses[1].Logs))
-	assert.Equal(t, 1, len(processBatchResponse.Responses[1].Logs[0].Topics))
+	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs[0].Topics))
 	assert.Equal(t, 2, len(processBatchResponse.Responses[1].Logs[1].Topics))
-	assert.Equal(t, 4, len(processBatchResponse.Responses[1].Logs[2].Topics))
+	assert.Equal(t, 1, len(processBatchResponse.Responses[1].Logs[2].Topics))
 }
 
 func TestExecutorTransfer(t *testing.T) {
@@ -1735,6 +1735,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 		Data:     retrieveFnSignature,
 	})
 	l2BlockNumber := uint64(3)
+
 	result := testState.ProcessUnsignedTransaction(context.Background(), unsignedTxSecondRetrieve, common.HexToAddress("0x1000000000000000000000000000000000000000"), &l2BlockNumber, true, nil)
 	// assert unsigned tx
 	assert.Nil(t, result.Err)
