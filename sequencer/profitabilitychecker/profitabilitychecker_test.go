@@ -5,10 +5,10 @@ import (
 	"math/big"
 	"testing"
 
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker/mocks"
-	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
@@ -30,7 +30,7 @@ func Test_IsSequenceProfitable(t *testing.T) {
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	tx3 := types.NewTransaction(uint64(2), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 
-	sequence := state.Sequence{
+	sequence := ethmanTypes.Sequence{
 		Txs: []types.Transaction{*tx1, *tx2, *tx3},
 	}
 	ctx := context.Background()
@@ -55,7 +55,7 @@ func Test_IsSequenceProfitableFalse(t *testing.T) {
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	tx3 := types.NewTransaction(uint64(2), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 
-	sequence := state.Sequence{
+	sequence := ethmanTypes.Sequence{
 		Txs: []types.Transaction{*tx1, *tx2, *tx3},
 	}
 	ctx := context.Background()
@@ -79,12 +79,12 @@ func Test_IsSendSequencesProfitable(t *testing.T) {
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(1000), []byte{})
 	tx3 := types.NewTransaction(uint64(2), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(1000), []byte{})
 
-	sequence := state.Sequence{
+	sequence := ethmanTypes.Sequence{
 		Txs: []types.Transaction{*tx1, *tx2, *tx3},
 	}
 
 	estGas := big.NewInt(100)
-	isProfitable := pc.IsSendSequencesProfitable(estGas, []state.Sequence{sequence})
+	isProfitable := pc.IsSendSequencesProfitable(estGas, []ethmanTypes.Sequence{sequence})
 
 	require.True(t, isProfitable)
 }
@@ -104,12 +104,12 @@ func Test_IsSendSequencesFalse(t *testing.T) {
 	tx2 := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	tx3 := types.NewTransaction(uint64(2), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 
-	sequence := state.Sequence{
+	sequence := ethmanTypes.Sequence{
 		Txs: []types.Transaction{*tx1, *tx2, *tx3},
 	}
 
 	estGas := big.NewInt(100)
-	isProfitable := pc.IsSendSequencesProfitable(estGas, []state.Sequence{sequence})
+	isProfitable := pc.IsSendSequencesProfitable(estGas, []ethmanTypes.Sequence{sequence})
 
 	require.False(t, isProfitable)
 }

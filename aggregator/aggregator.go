@@ -68,7 +68,7 @@ func NewAggregator(
 		// Check if prover is already working in a proof generation
 		proof, err := stateInterface.GetWIPProofByProver(ctx, proverURI, nil)
 		if err != nil && err != state.ErrNotFound {
-			log.Errorf("Error while getting WIP proof for prover %v, error: %w", proverURI, err)
+			log.Errorf("Error while getting WIP proof for prover %v", proverURI)
 			continue
 		}
 
@@ -101,7 +101,6 @@ func (a *Aggregator) Start(ctx context.Context) {
 	defer tickerSendVerifiedBatch.Stop()
 
 	for i := 0; i < len(a.ProverClients); i++ {
-		// persist proofs into the DB
 		go func() {
 			for {
 				a.tryVerifyBatch(ctx, tickerVerifyBatch)
@@ -110,15 +109,59 @@ func (a *Aggregator) Start(ctx context.Context) {
 		time.Sleep(time.Second)
 	}
 
-	// send and monitor persisted proofs to L1
 	go func() {
 		for {
-			a.EthTxManager.SyncPendingProofs()
-			waitTick(ctx, tickerSendVerifiedBatch)
+			a.tryToSendVerifiedBatch(ctx, tickerSendVerifiedBatch)
 		}
 	}()
 	// Wait until context is done
 	<-ctx.Done()
+}
+
+func (a *Aggregator) tryToSendVerifiedBatch(ctx context.Context, ticker *time.Ticker) {
+	log.Debug("checking if network is synced")
+	for !a.isSynced(ctx) {
+		log.Infof("waiting for synchronizer to sync...")
+		waitTick(ctx, ticker)
+		continue
+	}
+	log.Debug("checking if there is any consolidated batch to be verified")
+	lastVerifiedBatch, err := a.State.GetLastVerifiedBatch(ctx, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Warnf("failed to get last consolidated batch, err: %v", err)
+		waitTick(ctx, ticker)
+		return
+	} else if err == state.ErrNotFound {
+		log.Debug("no consolidated batch found")
+		waitTick(ctx, ticker)
+		return
+	}
+
+	batchNumberToVerify := lastVerifiedBatch.BatchNumber + 1
+
+	proof, err := a.State.GetGeneratedProofByBatchNumber(ctx, batchNumberToVerify, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Warnf("failed to get last proof for batch %v, err: %v", batchNumberToVerify, err)
+		waitTick(ctx, ticker)
+		return
+	}
+
+	if proof != nil && proof.Proof != nil {
+		log.Infof("sending verified proof with id [%s] to the ethereum smart contract, batchNumber [%d]", *proof.ProofID, batchNumberToVerify)
+		err := a.EthTxManager.VerifyBatch(ctx, batchNumberToVerify, proof.Proof)
+		if err != nil {
+			log.Errorf("error verifying batch %d. Error: %w", batchNumberToVerify, err)
+		} else {
+			log.Infof("proof with id [%s] for the batch was sent, batchNumber: [%v]", *proof.ProofID, batchNumberToVerify)
+			err := a.State.DeleteGeneratedProof(ctx, batchNumberToVerify, nil)
+			if err != nil {
+				log.Warnf("failed to delete generated proof for batchNumber %v, err: %v", batchNumberToVerify, err)
+			}
+		}
+	} else {
+		log.Debugf("no generated proof for batchNumber %v has been found", batchNumberToVerify)
+		waitTick(ctx, ticker)
+	}
 }
 
 func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {

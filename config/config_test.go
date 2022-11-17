@@ -40,6 +40,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
 		{
+			path:          "Sequencer.LastBatchVirtualizationTimeMaxWaitPeriod",
+			expectedValue: types.NewDuration(300 * time.Second),
+		},
+		{
 			path:          "Sequencer.WaitBlocksToUpdateGER",
 			expectedValue: uint64(10),
 		},
@@ -148,12 +152,32 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
-			path:          "EthTxManager.IntervalToReviewSendBatchTx",
-			expectedValue: types.NewDuration(1 * time.Minute),
+			path:          "EthTxManager.MaxSendBatchTxRetries",
+			expectedValue: uint32(10),
 		},
 		{
-			path:          "EthTxManager.IntervalToReviewVerifyBatchTx",
-			expectedValue: types.NewDuration(1 * time.Minute),
+			path:          "EthTxManager.MaxVerifyBatchTxRetries",
+			expectedValue: uint32(10),
+		},
+		{
+			path:          "EthTxManager.FrequencyForResendingFailedSendBatches",
+			expectedValue: types.NewDuration(1 * time.Second),
+		},
+		{
+			path:          "EthTxManager.FrequencyForResendingFailedVerifyBatch",
+			expectedValue: types.NewDuration(1 * time.Second),
+		},
+		{
+			path:          "EthTxManager.WaitTxToBeMined",
+			expectedValue: types.NewDuration(2 * time.Minute),
+		},
+		{
+			path:          "EthTxManager.PercentageToIncreaseGasPrice",
+			expectedValue: uint64(10),
+		},
+		{
+			path:          "EthTxManager.PercentageToIncreaseGasLimit",
+			expectedValue: uint64(10),
 		},
 		{
 			path:          "PriceGetter.Type",
