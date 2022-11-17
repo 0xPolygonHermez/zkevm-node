@@ -42,7 +42,7 @@ The max throughput is
 ## Assumptions and perspective
 
 - All transactions **must** be processed sequentialy before considering them final. Therfore in order to reach the goals described above, the design should aim at:
-  - Having a great hit ratio (successfuly processed txs / total processed txs)
+  - Having a great hit ratio (successfuly processed txs / total processed txs). Note that a reverted tx is considered successful, a not successful tx would mean that either it violates the intrinsic checks or it out of counters
   - Minimizing time between txs are processed (as soon as one tx has been processed the next one starts)
   - Txs are sorted by max gas price
 - Although there is a point in the system which can't be run in paralel there is no reason to have a system which is 100% sequential
@@ -50,6 +50,8 @@ The max throughput is
 - The system should be able to resume operations after any of it's components crashes. This is an important consideration whenever thinking wich pieces of data will be stored only in memory
 
 ## Architecture propposal
+
+![img](sequencer.drawio.png)
 
 In order to follow the full concept, different parts of the system will be introduced separetly, and then will be put together at the end of the document.
 
@@ -90,6 +92,8 @@ The content of this log should be something like this
 {
     "0xOldRoot0": {
         "nextRoot": "0xOldRoot1",
+        "timestamp": 7389545793,
+        "GER": "0x42399847972",
         "0xAddr0": {
             "nonce": 1337,
             "balance": "100000000000000000000000000",
@@ -99,10 +103,12 @@ The content of this log should be something like this
             "nonce": null,
             "balance": "0",
             "storageModified": true
-        } 
+        }
     },
     "0xOldRootN": {
         "nextRoot": "0xOldRootN+1",
+        "timestamp": null,
+        "GER": null,
         "0xAddr0": {
             "nonce": 7331,
             "balance": "22222222222222",
@@ -124,14 +130,14 @@ Note that:
 
 ### Ready manager
 
-The purpose of this component is to provide txs to the `finalizer` as soon as it has finished executing the transaction that is WIP. Ideally the order in which this txs will be sent should:
+The purpose of this component is to provide txs to the `finalizer` as soon as it has finished executing the transaction that is WIP. Ideally the order in which this txs will be picked up by the executor will:
 
 - Maximize the hit ratio
 - Maximize fees
 
 In other words the performance of this component can be evaluated from these points of view:
 
-- Response time
+- Response time:
 - Accuracy
 
 This factors can ofthe be opposed, a trade off. To ilustrate this let's see two examples of possible strategies:
@@ -142,21 +148,93 @@ This factors can ofthe be opposed, a trade off. To ilustrate this let's see two 
 In order to have a balanced solution, the two problems can be splitted:
 
 - A routine keeps the list of txs sorted
-- The first tx of the list should always be quite accurate and ready to be consumed by the `finalizer` as soon as it requests it. Alternatively, there could be a timeout, the `ready manager` would have this timeout as limit to find the most safe/accurate transaction
+- The first tx of the list should always be quite accurate and ready to be consumed by the `finalizer` as soon as it requests it. Alternatively, there could be a timeout, the `ready manager` would have this timeout as deathline to find the most safe/accurate and profitable transaction
 
-With all of this in mind let's jump into a more detailed explanation of how this works
+With all of this in mind let's jump into a more detailed explanation of how it works
 
 ![img](sequencer-ready.drawio.png)
 
-TODO: (ideas and so...)
+In terms of flow, the `ready manager` has three key interactions:
+
+1. **Add transactions:** will receive transactions form the `blocked manager` and the `pool manager`, more on them later. After receiving a transaction, it will be stored on a queue of ready txs sorted. The sorted algorithm will go as follows:
+
+```go
+func (rm *ReadyMan) AddSortedTx(tx PoolTx) error {
+    for i := len(rm.readyTxs)-1; i >= 0; i-- {
+        if newTx.needs(rm.readyTxs[i]) {
+            // execute tx on top of rm.readyTxs[i]
+            // if success add tx at position i+1
+            // else discard tx and return err
+        }
+        if newTx.GasPrice < rm.readyTxs[i].GasPrice {
+            if newTx.dependsOn(rm.readyTxs[i]) {
+                // execute tx on top of rm.readyTxs[i]
+                // if success add tx at position i+1
+                // else discard tx and return err
+            } else {
+                // add tx at position i+1
+            }
+        }
+        if i == 0 {
+            // add tx at position 0
+        }
+    }
+    return nil
+}
+```
+
+Note that:
+- this algorithm has O(N), which is nice because it needs to go faster when there are fewer txs in the queue. Keep in mind that a tx will be only executed once (or not at all), therefore it's extremely unlikely that the `finalizer` can consume txs faster than the `ready manager` can add them sorted.
+- It should take into consideration ANY tx dependency except timestamp [nonce, balance, SC]
+- The tx may fail at being added, in that case it should go to the `blocked manager` or be completley deleted
+- Consecutive nonce txs that play with the concept of having the tx with the greatest nonce with the bigger fee will be fully deprioritaized with this algorithm. However this can be take into account by slightly complicating the algorithm: when adding a tx push down the queue txs if they're from the same account and have higher fee
+- *TODO:* PoolTx assumes that it has `txDependency` and `stateMod` inside in order to be able to implement `needs` and `dependsOn`
+
+2. **Pop transactions:** it's the mechanism in which the `finalizer` request the best tx. A reasonable first iteration could be to inmedaitley pop the first tx in the queue
+3. **Maintainance:** this is a mechanism that tries to ensure that all the txs will be executed successfuly in the current order. There are a few situations that may alter the execution (having in mind that dependency on transactions bellow the queue have already been taken into consideration when adding them into the queue):
+
+- When a transaction is added into the queue, the existing transactions above could be affected and hance become invalid
+- Timestamp/blockheader is changed
+- Forced batch is executed
+
+With this in mind, an algorithm that identifies what transactions need to be reprocessed, and sanitize de queue can be done:
+
+```go
+func (rm *ReadyMan) CleanQueue(tx PoolTx) error {
+    for i := 0; i < len(rm.readyTxs); i++ {
+        rm.readyTxs[i].updateStatus() 
+        switch rm.readyTxs[i].status {
+		case readyWithMod:
+		case ready:
+		case blocked:
+		case invalid:
+        }
+    }
+}
+```
+
+## TODO: (ideas and so...)
+
+- Batchbuilder is finalizer, finalizer is QA ==> they need to work close
 
 - If balance, nonce and SC dependencies are not modified since last check, the tx will be executed successfuly
 - The NFT mint as worst case
 - The consecutive nonce as bad handled case
 - Other dependendies (tx A depends on tx B)... how do we deal with it?
-  - Depends on tx
+  - Depends on tx ==> Execute on top of
 - Chenge ZK Counter behaviour ==> same as OOG?
+  - IF EXECUTED IN A SINGLE BATCH SLASH GAS LIMIT
 - Make call data expensive
-- If we're going to pay for deposit claims (0 fee), why not do it directly on behalf of the user?
+- If we're going to pay for deposit claims (0 fee), why not do it directly on behalf of the user? ==> YASSU
+  - MERGE bridge service?
 - Finality for L1 stuff (forced/deposit): https://www.alchemy.com/overviews/ethereum-commitment-levels
   - https://ethereum.github.io/beacon-APIs/#/Beacon/getStateFinalityCheckpoints
+
+## Request for executor / protocol
+
+- Light trace: option to return:
+  - Read addrs and type
+  - Write addrs and type
+  - Uses timestamp?
+- Batch num doesn't affect the state
+- GER update can be ommited / doesn't affect the state
