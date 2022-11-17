@@ -15,7 +15,7 @@ import (
 // ethTxManager contains the methods required to send txs to
 // ethereum.
 type ethTxManager interface {
-	SyncPendingProofs()
+	VerifyBatch(ctx context.Context, batchNum uint64, proof *pb.GetProofResponse) error
 }
 
 // etherman contains the methods required to interact with ethereum

@@ -79,13 +79,13 @@ func (_m *stateMock) AddGlobalExitRoot(ctx context.Context, exitRoot *state.Glob
 	return r0
 }
 
-// AddSequenceGroup provides a mock function with given fields: ctx, sequenceGroup, dbTx
-func (_m *stateMock) AddSequenceGroup(ctx context.Context, sequenceGroup state.SequenceGroup, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, sequenceGroup, dbTx)
+// AddSequence provides a mock function with given fields: ctx, sequence, dbTx
+func (_m *stateMock) AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, sequence, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.SequenceGroup, pgx.Tx) error); ok {
-		r0 = rf(ctx, sequenceGroup, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Sequence, pgx.Tx) error); ok {
+		r0 = rf(ctx, sequence, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -331,29 +331,6 @@ func (_m *stateMock) GetPreviousBlock(ctx context.Context, offset uint64, dbTx p
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
 		r1 = rf(ctx, offset, dbTx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetSequenceGroupByTxHash provides a mock function with given fields: ctx, txHash, dbTx
-func (_m *stateMock) GetSequenceGroupByTxHash(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) (*state.SequenceGroup, error) {
-	ret := _m.Called(ctx, txHash, dbTx)
-
-	var r0 *state.SequenceGroup
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) *state.SequenceGroup); ok {
-		r0 = rf(ctx, txHash, dbTx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*state.SequenceGroup)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, pgx.Tx) error); ok {
-		r1 = rf(ctx, txHash, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

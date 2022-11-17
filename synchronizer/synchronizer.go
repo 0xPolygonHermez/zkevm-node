@@ -505,40 +505,19 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
 		return
 	}
-	seq := state.SequenceGroup{
-		TxHash:       sequencedBatches[0].TxHash,
-		TxNonce:      sequencedBatches[0].Nonce,
-		FromBatchNum: sequencedBatches[0].BatchNumber,
-		ToBatchNum:   sequencedBatches[len(sequencedBatches)-1].BatchNumber,
-		Status:       state.SequenceGroupStatusPending,
+	// Insert the sequence to allow the aggregator verify the sequence batches
+	seq := state.Sequence{
+		LastVerifiedBatchNumber: sequencedBatches[0].BatchNumber - 1,
+		NewVerifiedBatchNumber:  sequencedBatches[len(sequencedBatches)-1].BatchNumber,
 	}
-	seqGroup, err := s.state.GetSequenceGroupByTxHash(s.ctx, sequencedBatches[0].TxHash, dbTx)
-	if errors.Is(err, state.ErrNotFound) {
-		// Insert the sequenceGroup to allow the aggregator verify the sequence batches
-		log.Debug("Adding new SequenceGroup")
-		err := s.state.AddSequenceGroup(s.ctx, seq, dbTx)
-		if err != nil {
-			log.Errorf("error adding sequenceGroup. sequenceGroup: %+v", seq)
-			rollbackErr := dbTx.Rollback(s.ctx)
-			if rollbackErr != nil {
-				log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %w", blockNumber, rollbackErr.Error(), err)
-			}
-			log.Fatalf("error getting adding sequenceGroup. BlockNumber: %d, error: %w", blockNumber, err)
-		}
-		seqGroup = &seq
-	} else if err != nil {
-		log.Warn("error getting sequenceGroup, storing it... TxHash: %s, error: %w", sequencedBatches[0].TxHash, err)
-	}
-	if seqGroup.FromBatchNum != seq.FromBatchNum ||
-		seqGroup.ToBatchNum != seq.ToBatchNum ||
-		seqGroup.TxHash != seq.TxHash ||
-		seqGroup.TxNonce != seq.TxNonce {
-		log.Error("error: seqGroup stored in db does not match with synced info. seqGroup: %+v, seq: %+v", seqGroup, seq)
+	err := s.state.AddSequence(s.ctx, seq, dbTx)
+	if err != nil {
+		log.Errorf("error adding sequence. Sequence: %+v", seq)
 		rollbackErr := dbTx.Rollback(s.ctx)
 		if rollbackErr != nil {
-			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %w", blockNumber, rollbackErr)
+			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %w", blockNumber, rollbackErr.Error(), err)
 		}
-		log.Fatalf("error: seqGroup stored in db does not match with synced info. BlockNumber: %d", blockNumber)
+		log.Fatalf("error getting adding sequence. BlockNumber: %d, error: %w", blockNumber, err)
 	}
 	for _, sbatch := range sequencedBatches {
 		virtualBatch := state.VirtualBatch{
@@ -706,22 +685,19 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 		}
 		log.Fatal("error number of forced batches doesn't match")
 	}
-	// Insert the sequenceGroup to allow the aggregator verify the sequence batches
-	seq := state.SequenceGroup{
-		TxHash:       sequenceForceBatch[0].TxHash,
-		TxNonce:      sequenceForceBatch[0].Nonce,
-		FromBatchNum: sequenceForceBatch[0].BatchNumber,
-		ToBatchNum:   sequenceForceBatch[len(sequenceForceBatch)-1].BatchNumber,
-		Status:       state.SequenceGroupStatusPending,
+	// Insert the sequence to allow the aggregator verify the sequence batches
+	seq := state.Sequence{
+		LastVerifiedBatchNumber: sequenceForceBatch[0].BatchNumber - 1,
+		NewVerifiedBatchNumber:  sequenceForceBatch[len(sequenceForceBatch)-1].BatchNumber,
 	}
-	err = s.state.AddSequenceGroup(s.ctx, seq, dbTx)
+	err = s.state.AddSequence(s.ctx, seq, dbTx)
 	if err != nil {
-		log.Errorf("error adding sequenceGroup. sequenceGroup: %+v", seq)
+		log.Errorf("error adding sequence. Sequence: %+v", seq)
 		rollbackErr := dbTx.Rollback(s.ctx)
 		if rollbackErr != nil {
 			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %w", block.BlockNumber, rollbackErr.Error(), err)
 		}
-		log.Fatalf("error getting adding sequenceGroup. BlockNumber: %d, error: %w", block.BlockNumber, err)
+		log.Fatalf("error getting adding sequence. BlockNumber: %d, error: %w", block.BlockNumber, err)
 	}
 	for i, fbatch := range sequenceForceBatch {
 		if uint64(forcedBatches[i].ForcedAt.Unix()) != fbatch.MinForcedTimestamp ||

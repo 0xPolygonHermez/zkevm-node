@@ -26,8 +26,8 @@ func (s *Sequencer) shouldCloseSequenceInProgress(ctx context.Context) bool {
 		return err == nil
 	}
 	// Check if it has been too long since a previous batch was virtualized
-	if shouldClose := s.shouldCloseTooLongSinceLastSequence(ctx); shouldClose {
-		return true
+	if isBatchVirtualized, err := s.shouldCloseTooLongSinceLastVirtualized(ctx); err != nil || isBatchVirtualized {
+		return err == nil
 	}
 
 	return false
@@ -66,15 +66,23 @@ func (s *Sequencer) shouldCloseDueToNewDeposits(ctx context.Context) (bool, erro
 	return false, nil
 }
 
-// shouldCloseTooLongSinceLastSequence returns true if last batch virtualization happened
+// shouldCloseTooLongSinceLastVirtualized returns true if last batch virtualization happened
 // more than MaxTimeForBatchToBeOpen ago and there are transactions in the current sequence
-func (s *Sequencer) shouldCloseTooLongSinceLastSequence(ctx context.Context) bool {
-	timeoutExpired := s.sequenceInProgress.Timestamp.Add(s.cfg.MaxTimeForBatchToBeOpen.Duration).Before(time.Now())
-	hasSequences := len(s.sequenceInProgress.Txs) > 0
-
-	if timeoutExpired && hasSequences {
-		log.Info("current sequence should be closed because because there are enough time to close a batch, previous batch is virtualized and batch has txs")
-		return true
+func (s *Sequencer) shouldCloseTooLongSinceLastVirtualized(ctx context.Context) (bool, error) {
+	lastBatchNumber, err := s.state.GetLastBatchNumber(ctx, nil)
+	if err != nil {
+		log.Errorf("failed to get last batch number, err: %w", err)
+		return false, err
 	}
-	return false
+	isPreviousBatchVirtualized, err := s.state.IsBatchVirtualized(ctx, lastBatchNumber-1, nil)
+	if err != nil {
+		log.Errorf("failed to get last virtual batch num, err: %w", err)
+		return false, err
+	}
+	if time.Unix(s.sequenceInProgress.Timestamp, 0).Add(s.cfg.MaxTimeForBatchToBeOpen.Duration).Before(time.Now()) &&
+		isPreviousBatchVirtualized && len(s.sequenceInProgress.Txs) > 0 {
+		log.Info("current sequence should be closed because because there are enough time to close a batch, previous batch is virtualized and batch has txs")
+		return true, nil
+	}
+	return false, nil
 }

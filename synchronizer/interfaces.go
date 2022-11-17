@@ -47,8 +47,7 @@ type stateInterface interface {
 	ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error)
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error)
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetSequenceGroupByTxHash(ctx context.Context, txHash common.Hash, dbTx pgx.Tx) (*state.SequenceGroup, error)
-	AddSequenceGroup(ctx context.Context, sequenceGroup state.SequenceGroup, dbTx pgx.Tx) error
+	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
 
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 }

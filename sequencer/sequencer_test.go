@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -172,13 +173,14 @@ func TestSequenceTooBig(t *testing.T) {
 	state := st.NewState(stateCfg, stateDb, executorClient, stateTree)
 
 	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER], big.NewInt(CONFIG_CHAIN_ID).Uint64())
-	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, state, eth_man)
+	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, eth_man)
 	gpe := gasprice.NewDefaultEstimator(gasprice.Config{
 		Type:               gasprice.DefaultType,
 		DefaultGasPriceWei: 1000000000,
 	}, pool)
 	seq, err := New(Config{
-		MaxSequenceSize: MaxSequenceSize{Int: big.NewInt(CONFIG_MAX_GAS_PER_SEQUENCE)},
+		MaxSequenceSize:                          MaxSequenceSize{Int: big.NewInt(CONFIG_MAX_GAS_PER_SEQUENCE)},
+		LastBatchVirtualizationTimeMaxWaitPeriod: types.NewDuration(1 * time.Second),
 		ProfitabilityChecker: profitabilitychecker.Config{
 			SendBatchesEvenWhenNotProfitable: true,
 		},

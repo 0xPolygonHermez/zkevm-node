@@ -7,12 +7,13 @@ import (
 	"math"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -132,12 +133,12 @@ func (s *Sequencer) updateTxsInPool(
 	s.incrementFailedCounter(ctx, ticker, failedTxsHashes)
 }
 
-func (s *Sequencer) reprocessBatch(ctx context.Context, processResponse processTxResponse, sequenceBeforeTryingToProcessNewTxs state.Sequence) (map[string]*state.ProcessTransactionResponse, error) {
+func (s *Sequencer) reprocessBatch(ctx context.Context, processResponse processTxResponse, sequenceBeforeTryingToProcessNewTxs types.Sequence) (map[string]*state.ProcessTransactionResponse, error) {
 	unprocessedTxs := processResponse.unprocessedTxs
 	var err error
 	for !processResponse.isBatchProcessed || len(processResponse.unprocessedTxs) > 0 {
 		// include only processed txs in the sequence
-		s.sequenceInProgress.Txs = make([]types.Transaction, 0, len(processResponse.processedTxs))
+		s.sequenceInProgress.Txs = make([]ethTypes.Transaction, 0, len(processResponse.processedTxs))
 		for i := 0; i < len(processResponse.processedTxs); i++ {
 			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, processResponse.processedTxs[i].Tx)
 		}
@@ -267,7 +268,7 @@ func (s *Sequencer) isTxNonceLessThanAccountNonce(ctx context.Context, tx *state
 	return txNonce < accNonce, nil
 }
 
-func (s *Sequencer) newSequence(ctx context.Context) (state.Sequence, error) {
+func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 	var (
 		dbTx pgx.Tx
 		err  error
@@ -286,57 +287,56 @@ func (s *Sequencer) newSequence(ctx context.Context) (state.Sequence, error) {
 	}
 
 	if s.sequenceInProgress.StateRoot.String() == "" || s.sequenceInProgress.LocalExitRoot.String() == "" {
-		return state.Sequence{}, errors.New("state root and local exit root must have value to close batch")
+		return types.Sequence{}, errors.New("state root and local exit root must have value to close batch")
 	}
 	dbTx, err = s.state.BeginStateTransaction(ctx)
 	if err != nil {
-		return state.Sequence{}, fmt.Errorf("failed to begin state transaction to close batch, err: %w", err)
+		return types.Sequence{}, fmt.Errorf("failed to begin state transaction to close batch, err: %w", err)
 	}
 
 	lastBatchNumber, err := s.state.GetLastBatchNumber(ctx, dbTx)
 	if err != nil {
-		return state.Sequence{}, fmt.Errorf("failed to get last batch number, err: %w", err)
+		return types.Sequence{}, fmt.Errorf("failed to get last batch number, err: %w", err)
 	}
 	err = s.closeBatch(ctx, lastBatchNumber, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-			return state.Sequence{}, fmt.Errorf(
+			return types.Sequence{}, fmt.Errorf(
 				"failed to rollback dbTx when closing batch that gave err: %s. Rollback err: %w",
 				rollbackErr.Error(), err,
 			)
 		}
-		return state.Sequence{}, err
+		return types.Sequence{}, err
 	}
 	// open next batch
 	gerHash, _, err := s.getLatestGer(ctx, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-			return state.Sequence{}, fmt.Errorf(
+			return types.Sequence{}, fmt.Errorf(
 				"failed to rollback dbTx when getting last GER that gave err: %s. Rollback err: %s",
 				rollbackErr.Error(), err.Error(),
 			)
 		}
-		return state.Sequence{}, err
+		return types.Sequence{}, err
 	}
 
 	processingCtx, err := s.openBatch(ctx, gerHash.GlobalExitRoot, dbTx)
 	if err != nil {
 		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-			return state.Sequence{}, fmt.Errorf(
+			return types.Sequence{}, fmt.Errorf(
 				"failed to rollback dbTx when getting last batch num that gave err: %s. Rollback err: %s",
 				rollbackErr.Error(), err.Error(),
 			)
 		}
-		return state.Sequence{}, err
+		return types.Sequence{}, err
 	}
 	if err := dbTx.Commit(ctx); err != nil {
-		return state.Sequence{}, err
+		return types.Sequence{}, err
 	}
-	return state.Sequence{
-		BatchNumber:    lastBatchNumber,
+	return types.Sequence{
 		GlobalExitRoot: processingCtx.GlobalExitRoot,
-		Timestamp:      processingCtx.Timestamp,
-		Txs:            []types.Transaction{},
+		Timestamp:      processingCtx.Timestamp.Unix(),
+		Txs:            []ethTypes.Transaction{},
 	}, nil
 }
 
@@ -527,9 +527,8 @@ func (s *Sequencer) appendPendingTxs(ctx context.Context, isClaims bool, minGasP
 	return uint64(len(pendTxs) - invalidTxsCounter)
 }
 
-func (s *Sequencer) backupSequence() state.Sequence {
-	backupSequence := state.Sequence{
-		BatchNumber:    s.sequenceInProgress.BatchNumber,
+func (s *Sequencer) backupSequence() types.Sequence {
+	backupSequence := types.Sequence{
 		GlobalExitRoot: s.sequenceInProgress.GlobalExitRoot,
 		StateRoot:      s.sequenceInProgress.StateRoot,
 		LocalExitRoot:  s.sequenceInProgress.LocalExitRoot,
