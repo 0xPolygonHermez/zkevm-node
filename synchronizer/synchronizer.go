@@ -507,8 +507,8 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 	}
 	// Insert the sequence to allow the aggregator verify the sequence batches
 	seq := state.Sequence{
-		LastVerifiedBatchNumber: sequencedBatches[0].BatchNumber - 1,
-		NewVerifiedBatchNumber:  sequencedBatches[len(sequencedBatches)-1].BatchNumber,
+		FromBatchNumber: sequencedBatches[0].BatchNumber,
+		ToBatchNumber:   sequencedBatches[len(sequencedBatches)-1].BatchNumber,
 	}
 	err := s.state.AddSequence(s.ctx, seq, dbTx)
 	if err != nil {
@@ -687,8 +687,8 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 	}
 	// Insert the sequence to allow the aggregator verify the sequence batches
 	seq := state.Sequence{
-		LastVerifiedBatchNumber: sequenceForceBatch[0].BatchNumber - 1,
-		NewVerifiedBatchNumber:  sequenceForceBatch[len(sequenceForceBatch)-1].BatchNumber,
+		FromBatchNumber: sequenceForceBatch[0].BatchNumber,
+		ToBatchNumber:   sequenceForceBatch[len(sequenceForceBatch)-1].BatchNumber,
 	}
 	err = s.state.AddSequence(s.ctx, seq, dbTx)
 	if err != nil {

@@ -136,8 +136,8 @@ func TestTrustedStateReorg(t *testing.T) {
 						Once()
 
 				seq := state.Sequence{
-					LastVerifiedBatchNumber: 0,
-					NewVerifiedBatchNumber:  1,
+					FromBatchNumber: 1,
+					ToBatchNumber:   1,
 				}
 				m.State.
 					On("AddSequence", ctx, seq, m.DbTx).

@@ -123,22 +123,22 @@ func TestAddAndGetSequences(t *testing.T) {
 	require.NoError(t, err)
 
 	sequence := state.Sequence{
-		LastVerifiedBatchNumber: 0,
-		NewVerifiedBatchNumber:  3,
+		FromBatchNumber: 0,
+		ToBatchNumber:   3,
 	}
 	err = testState.AddSequence(ctx, sequence, dbTx)
 	require.NoError(t, err)
 
 	sequence2 := state.Sequence{
-		LastVerifiedBatchNumber: 3,
-		NewVerifiedBatchNumber:  7,
+		FromBatchNumber: 3,
+		ToBatchNumber:   7,
 	}
 	err = testState.AddSequence(ctx, sequence2, dbTx)
 	require.NoError(t, err)
 
 	sequence3 := state.Sequence{
-		LastVerifiedBatchNumber: 7,
-		NewVerifiedBatchNumber:  8,
+		FromBatchNumber: 7,
+		ToBatchNumber:   8,
 	}
 	err = testState.AddSequence(ctx, sequence3, dbTx)
 	require.NoError(t, err)
@@ -146,20 +146,20 @@ func TestAddAndGetSequences(t *testing.T) {
 	sequences, err := testState.GetSequences(ctx, 0, dbTx)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(sequences))
-	require.Equal(t, uint64(0), sequences[0].LastVerifiedBatchNumber)
-	require.Equal(t, uint64(3), sequences[1].LastVerifiedBatchNumber)
-	require.Equal(t, uint64(7), sequences[2].LastVerifiedBatchNumber)
-	require.Equal(t, uint64(3), sequences[0].NewVerifiedBatchNumber)
-	require.Equal(t, uint64(7), sequences[1].NewVerifiedBatchNumber)
-	require.Equal(t, uint64(8), sequences[2].NewVerifiedBatchNumber)
+	require.Equal(t, uint64(0), sequences[0].FromBatchNumber)
+	require.Equal(t, uint64(3), sequences[1].FromBatchNumber)
+	require.Equal(t, uint64(7), sequences[2].FromBatchNumber)
+	require.Equal(t, uint64(3), sequences[0].ToBatchNumber)
+	require.Equal(t, uint64(7), sequences[1].ToBatchNumber)
+	require.Equal(t, uint64(8), sequences[2].ToBatchNumber)
 
 	sequences, err = testState.GetSequences(ctx, 3, dbTx)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(sequences))
-	require.Equal(t, uint64(3), sequences[0].LastVerifiedBatchNumber)
-	require.Equal(t, uint64(7), sequences[1].LastVerifiedBatchNumber)
-	require.Equal(t, uint64(7), sequences[0].NewVerifiedBatchNumber)
-	require.Equal(t, uint64(8), sequences[1].NewVerifiedBatchNumber)
+	require.Equal(t, uint64(3), sequences[0].FromBatchNumber)
+	require.Equal(t, uint64(7), sequences[1].FromBatchNumber)
+	require.Equal(t, uint64(7), sequences[0].ToBatchNumber)
+	require.Equal(t, uint64(8), sequences[1].ToBatchNumber)
 
 	require.NoError(t, dbTx.Commit(ctx))
 }

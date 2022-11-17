@@ -1821,7 +1821,7 @@ func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string
 // AddSequence stores the sequence information to allow the aggregator verify sequences.
 func (p *PostgresStorage) AddSequence(ctx context.Context, sequence Sequence, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addSequenceSQL, sequence.LastVerifiedBatchNumber, sequence.NewVerifiedBatchNumber)
+	_, err := e.Exec(ctx, addSequenceSQL, sequence.FromBatchNumber, sequence.ToBatchNumber)
 	return err
 }
 
@@ -1842,8 +1842,8 @@ func (p *PostgresStorage) GetSequences(ctx context.Context, lastVerifiedBatchNum
 	for rows.Next() {
 		var sequence Sequence
 		if err := rows.Scan(
-			&sequence.LastVerifiedBatchNumber,
-			&sequence.NewVerifiedBatchNumber,
+			&sequence.FromBatchNumber,
+			&sequence.ToBatchNumber,
 		); err != nil {
 			return sequences, err
 		}
