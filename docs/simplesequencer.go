@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -120,10 +121,12 @@ type Sequencer struct {
 	lastPoolTxLoaded common.Hash
 	brokerCh         chan PoolTx
 	txGroups         []TxGroup // Only one group at the beginning
+	updateGERCh      chan common.Hash
+	forcedBatchCh    chan state.Batch
 }
 
 type TxGroup struct {
-	Ready             []PoolTx                    // Txs that should get successfuly executed given it's order. Order should maximize profit
+	Ready             []*PoolTx                   // Txs that should get successfuly executed given it's order. Order should maximize profit
 	BlockedByNonce    map[common.Address][]PoolTx // Each account may have many txs with a future noce (when nonce gap)
 	BlockedByBalance  map[common.Address]PoolTx   // Each account can only have one tx blocked by balance (current nonce assumed)
 	BlockedByGasPrice []PoolTx                    // Txs that won't be executed due to gas price too low
@@ -133,6 +136,15 @@ func (g *TxGroup) Add(tx PoolTx) error {
 	// Add tx in corrct queue [Ready,BlockedByNonce, BlockedByBalance, BlockedByGasPrice] in correct order
 	// If same nonce exists with higer gas price return error "must delete tx"
 	return nil
+}
+
+func (g *TxGroup) PopBestTx() *PoolTx {
+	old := g.Ready
+	n := len(old)
+	tx := old[0]
+	old[n-1] = nil // avoid memory leak
+	g.Ready = old[0 : n-1]
+	return tx
 }
 
 func (g *TxGroup) Start() {
@@ -178,8 +190,26 @@ func (s *Sequencer) groupBroker() {
 	}
 }
 
-func (s *Sequencer) processNextTx() {
-	// Check if should process forced batch
-	// if batch WIP is not full, can we wait a bit?
-	// Check if should use a new GER
+func (s *Sequencer) finalizer() {
+	for {
+		select {
+		case <-s.forcedBatchCh:
+			// If batch WIP is not full, can we wait a bit? (deathline to execute forced batch update)
+			// Process forced batch
+		case <-s.updateGERCh:
+			// If batch WIP is not full, can we wait a bit? (deathline to update GER/timestamp)
+			// Close batch, open batch (process wit no txs and new GER / timestamp)
+		default:
+			// When having multiple groups this could be refactored to use a selector that keeps popping txs from the different groups
+			// and comunicate with the finalizer through channel
+			tx := s.txGroups[0].PopBestTx()
+			if tx != nil {
+				// execute tx
+				// if failed, send to group broker through chan
+				// if ok:
+				// send to statedb manager through chan
+				// send state mod log update through chan
+			}
+		}
+	}
 }
