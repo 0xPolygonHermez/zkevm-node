@@ -8,6 +8,7 @@ services:
     image: zkevm-node
     ports:
       - 8545:8545
+      - 9091:9091 # needed if metrics enabled
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db

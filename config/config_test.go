@@ -261,11 +261,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "RPC.ReadTimeoutInSec",
-			expectedValue: time.Duration(1),
+			expectedValue: time.Duration(60),
 		},
 		{
 			path:          "RPC.WriteTimeoutInSec",
-			expectedValue: time.Duration(1),
+			expectedValue: time.Duration(60),
 		},
 		{
 			path:          "RPC.SequencerNodeURI",
@@ -322,6 +322,18 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "BroadcastServer.Port",
 			expectedValue: 61090,
+		},
+		{
+			path:          "Metrics.Host",
+			expectedValue: "0.0.0.0",
+		},
+		{
+			path:          "Metrics.Port",
+			expectedValue: 9091,
+		},
+		{
+			path:          "Metrics.Enabled",
+			expectedValue: false,
 		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")

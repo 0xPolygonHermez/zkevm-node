@@ -557,6 +557,19 @@ func Test_Transactions(t *testing.T) {
 		log.Infof("Sending Tx %v Nonce %v", signedTx.Hash(), signedTx.Nonce())
 		err = client.SendTransaction(context.Background(), signedTx)
 		require.ErrorContains(t, err, pool.ErrInsufficientFunds.Error())
+
+		// no contract code at given address test
+
+		// deploy contract with not enough gas for storage, just execution
+		address := common.HexToAddress("0xDEADBEEF596a836C9063a7EE35dA94DDA3b57B62")
+		instance, err := Double.NewDouble(address, client)
+		require.NoError(t, err)
+
+		callOpts := &bind.CallOpts{Pending: false}
+
+		payload := big.NewInt(5)
+		_, err = instance.Double(callOpts, payload)
+		require.ErrorContains(t, err, "no contract code at given address")
 	}
 }
 

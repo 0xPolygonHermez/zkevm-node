@@ -501,6 +501,10 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, dbTx pgx.Tx) (
 }
 
 func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) {
+	if len(sequencedBatches) == 0 {
+		log.Warn("Empty sequencedBatches array detected, ignoring...")
+		return
+	}
 	// Insert the sequence to allow the aggregator verify the sequence batches
 	seq := state.Sequence{
 		LastVerifiedBatchNumber: sequencedBatches[0].BatchNumber - 1,
@@ -640,6 +644,10 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 }
 
 func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []etherman.SequencedForceBatch, block etherman.Block, dbTx pgx.Tx) {
+	if len(sequenceForceBatch) == 0 {
+		log.Warn("Empty sequenceForceBatch array detected, ignoring...")
+		return
+	}
 	// First, get last virtual batch number
 	lastVirtualizedBatchNumber, err := s.state.GetLastVirtualBatchNum(s.ctx, dbTx)
 	if err != nil {

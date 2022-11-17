@@ -1,6 +1,6 @@
 {
     "runProverServer": false,
-    "runProverServerMock": true,
+    "runProverServerMock": false,
     "runProverClient": false,
 
     "runExecutorServer": true,

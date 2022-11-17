@@ -33,7 +33,7 @@ func TestVerifyBatchWithROEthman(t *testing.T) {
 	ethManRO, _, _, _, _ := ethman.NewSimulatedEtherman(ethman.Config{}, nil)
 	txMan := New(Config{MaxVerifyBatchTxRetries: 2}, ethManRO) // 3 executions in total
 
-	err := txMan.VerifyBatches(context.Background(), 41, 42, nil)
+	err := txMan.VerifyBatch(context.Background(), 42, nil)
 
 	assert.ErrorIs(t, err, ethman.ErrIsReadOnlyMode)
 }

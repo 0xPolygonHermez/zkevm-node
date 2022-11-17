@@ -314,7 +314,7 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 		batch := proofofefficiency.ProofOfEfficiencyBatchData{
 			Transactions:       batchL2Data,
 			GlobalExitRoot:     seq.GlobalExitRoot,
-			Timestamp:          uint64(seq.Timestamp),
+			Timestamp:             uint64(seq.Timestamp),
 			MinForcedTimestamp: 0, // TODO If this batch is forced, this value must be different to zero. If it is a non forced sequence, then the valio will be valid
 		}
 
@@ -464,7 +464,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 		log.Error(err)
 		return err
 	}
-	sequences, err := decodeSequences(tx.Data(), sb.NumBatch, msg.From(), vLog.TxHash)
+	sequences, err := decodeSequences(tx.Data(), sb.NumBatch, msg.From(), vLog.TxHash, msg.Nonce())
 	if err != nil {
 		return fmt.Errorf("error decoding the sequences: %v", err)
 	}
@@ -491,7 +491,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 	return nil
 }
 
-func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash) ([]SequencedBatch, error) {
+func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
 	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
@@ -527,6 +527,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 			BatchNumber:                bn,
 			Coinbase:                   sequencer,
 			TxHash:                     txHash,
+			Nonce:                      nonce,
 			ProofOfEfficiencyBatchData: seq,
 		}
 	}
@@ -592,7 +593,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 	if err != nil {
 		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
 	}
-	sequencedForceBatch, err := decodeSequencedForceBatches(tx.Data(), fsb.NumBatch, msg.From(), vLog.TxHash, fullBlock)
+	sequencedForceBatch, err := decodeSequencedForceBatches(tx.Data(), fsb.NumBatch, msg.From(), vLog.TxHash, fullBlock, msg.Nonce())
 	if err != nil {
 		return err
 	}
@@ -616,7 +617,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 	return nil
 }
 
-func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, block *types.Block) ([]SequencedForceBatch, error) {
+func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, block *types.Block, nonce uint64) ([]SequencedForceBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
 	abi, err := abi.JSON(strings.NewReader(proofofefficiency.ProofofefficiencyABI))
@@ -654,6 +655,7 @@ func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequence
 			Coinbase:                        sequencer,
 			TxHash:                          txHash,
 			Timestamp:                       time.Unix(int64(block.Time()), 0),
+			Nonce:                           nonce,
 			ProofOfEfficiencyForceBatchData: force,
 		}
 	}

@@ -273,6 +273,19 @@ func (s *Sequencer) newSequence(ctx context.Context) (types.Sequence, error) {
 		dbTx pgx.Tx
 		err  error
 	)
+
+	// It is necessary to pass the batch without txs to the executor in order to update the State
+	if len(s.sequenceInProgress.Txs) == 0 {
+		// backup current sequence
+		sequenceBeforeTryingToProcessNewTxs := s.backupSequence()
+		_, err = s.processTxs(ctx)
+		for err != nil {
+			s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
+			log.Errorf("failed to process txs, err: %w", err)
+			_, err = s.processTxs(ctx)
+		}
+	}
+
 	if s.sequenceInProgress.StateRoot.String() == "" || s.sequenceInProgress.LocalExitRoot.String() == "" {
 		return types.Sequence{}, errors.New("state root and local exit root must have value to close batch")
 	}
