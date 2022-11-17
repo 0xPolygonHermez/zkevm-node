@@ -85,8 +85,8 @@ const (
 	isL2BlockVirtualized                  = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.virtual_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
 	isL2BlockConsolidated                 = "SELECT l2b.block_num FROM state.l2block l2b INNER JOIN state.verified_batch vb ON vb.batch_num = l2b.batch_num WHERE l2b.block_num = $1"
 	getBatchNumByBlockNumFromVirtualBatch = "SELECT batch_num FROM state.virtual_batch WHERE block_num <= $1 ORDER BY batch_num DESC LIMIT 1"
-	addSequenceSQL                        = "INSERT INTO state.sequences (last_verified_batch_num, new_verified_batch_num) VALUES($1, $2)"
-	getSequencesSQL                       = "SELECT last_verified_batch_num, new_verified_batch_num FROM state.sequences WHERE last_verified_batch_num >= $1 ORDER BY last_verified_batch_num ASC"
+	addSequenceSQL                        = "INSERT INTO state.sequences (from_batch_num, to_batch_num) VALUES($1, $2)"
+	getSequencesSQL                       = "SELECT from_batch_num, to_batch_num FROM state.sequences WHERE from_batch_num >= $1 ORDER BY from_batch_num ASC"
 )
 
 // PostgresStorage implements the Storage interface
@@ -557,7 +557,7 @@ func (p *PostgresStorage) GetLastBatchNumberSeenOnEthereum(ctx context.Context, 
 // GetBatchByNumber returns the batch with the given number.
 func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
 	const getBatchByNumberSQL = `
-		SELECT batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data
+		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data
 		  FROM state.batch 
 		 WHERE batch_num = $1`
 

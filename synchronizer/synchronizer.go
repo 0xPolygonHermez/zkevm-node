@@ -505,20 +505,6 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
 		return
 	}
-	// Insert the sequence to allow the aggregator verify the sequence batches
-	seq := state.Sequence{
-		FromBatchNumber: sequencedBatches[0].BatchNumber,
-		ToBatchNumber:   sequencedBatches[len(sequencedBatches)-1].BatchNumber,
-	}
-	err := s.state.AddSequence(s.ctx, seq, dbTx)
-	if err != nil {
-		log.Errorf("error adding sequence. Sequence: %+v", seq)
-		rollbackErr := dbTx.Rollback(s.ctx)
-		if rollbackErr != nil {
-			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %w", blockNumber, rollbackErr.Error(), err)
-		}
-		log.Fatalf("error getting adding sequence. BlockNumber: %d, error: %w", blockNumber, err)
-	}
 	for _, sbatch := range sequencedBatches {
 		virtualBatch := state.VirtualBatch{
 			BatchNumber: sbatch.BatchNumber,
@@ -641,6 +627,20 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			log.Fatalf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %w", virtualBatch.BatchNumber, blockNumber, err)
 		}
 	}
+	// Insert the sequence to allow the aggregator verify the sequence batches
+	seq := state.Sequence{
+		FromBatchNumber: sequencedBatches[0].BatchNumber,
+		ToBatchNumber:   sequencedBatches[len(sequencedBatches)-1].BatchNumber,
+	}
+	err := s.state.AddSequence(s.ctx, seq, dbTx)
+	if err != nil {
+		log.Errorf("error adding sequence. Sequence: %+v", seq)
+		rollbackErr := dbTx.Rollback(s.ctx)
+		if rollbackErr != nil {
+			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %w", blockNumber, rollbackErr.Error(), err)
+		}
+		log.Fatalf("error getting adding sequence. BlockNumber: %d, error: %w", blockNumber, err)
+	}
 }
 
 func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []etherman.SequencedForceBatch, block etherman.Block, dbTx pgx.Tx) {
@@ -684,20 +684,6 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %w", block.BlockNumber, rollbackErr.Error(), err)
 		}
 		log.Fatal("error number of forced batches doesn't match")
-	}
-	// Insert the sequence to allow the aggregator verify the sequence batches
-	seq := state.Sequence{
-		FromBatchNumber: sequenceForceBatch[0].BatchNumber,
-		ToBatchNumber:   sequenceForceBatch[len(sequenceForceBatch)-1].BatchNumber,
-	}
-	err = s.state.AddSequence(s.ctx, seq, dbTx)
-	if err != nil {
-		log.Errorf("error adding sequence. Sequence: %+v", seq)
-		rollbackErr := dbTx.Rollback(s.ctx)
-		if rollbackErr != nil {
-			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %w", block.BlockNumber, rollbackErr.Error(), err)
-		}
-		log.Fatalf("error getting adding sequence. BlockNumber: %d, error: %w", block.BlockNumber, err)
 	}
 	for i, fbatch := range sequenceForceBatch {
 		if uint64(forcedBatches[i].ForcedAt.Unix()) != fbatch.MinForcedTimestamp ||
@@ -753,6 +739,20 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 			}
 			log.Fatalf("error adding the batchNumber to forcedBatch in processSequenceForceBatch. BlockNumber: %d, error: %w", block.BlockNumber, err)
 		}
+	}
+	// Insert the sequence to allow the aggregator verify the sequence batches
+	seq := state.Sequence{
+		FromBatchNumber: sequenceForceBatch[0].BatchNumber,
+		ToBatchNumber:   sequenceForceBatch[len(sequenceForceBatch)-1].BatchNumber,
+	}
+	err = s.state.AddSequence(s.ctx, seq, dbTx)
+	if err != nil {
+		log.Errorf("error adding sequence. Sequence: %+v", seq)
+		rollbackErr := dbTx.Rollback(s.ctx)
+		if rollbackErr != nil {
+			log.Fatalf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %w", block.BlockNumber, rollbackErr.Error(), err)
+		}
+		log.Fatalf("error getting adding sequence. BlockNumber: %d, error: %w", block.BlockNumber, err)
 	}
 }
 
