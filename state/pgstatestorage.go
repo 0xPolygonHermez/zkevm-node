@@ -1926,7 +1926,7 @@ func (p *PostgresStorage) GetRecursiveProofsToAggregate(ctx context.Context, dbT
 		 	  p1.proof IS NOT NULL AND p2.proof IS NOT NULL AND
 			  (
 					EXISTS (
-					SELECT tx_hash FROM state.sequence_group s
+					SELECT tx_hash FROM state.sequences s
 					WHERE p1.batch_num >= s.from_batch_num AND p1.batch_num <= s.to_batch_num AND
 						p1.batch_num_final >= s.from_batch_num AND p1.batch_num_final <= s.to_batch_num AND
 						p2.batch_num >= s.from_batch_num AND p2.batch_num <= s.to_batch_num AND
