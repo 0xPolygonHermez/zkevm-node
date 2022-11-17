@@ -10,8 +10,8 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -136,10 +136,10 @@ func sendBatches(cliCtx *cli.Context) error {
 		}
 		log.Debug("currentBlock.Time(): ", currentBlock.Time())
 
-		seqs := []state.Sequence{{
+		seqs := []ethmanTypes.Sequence{{
 			GlobalExitRoot: common.HexToHash("0x"),
 			Txs:            []ethtypes.Transaction{},
-			Timestamp:      time.Unix(int64(currentBlock.Time()-1), 0), // fit in latest-sequence < > current-block rage
+			Timestamp:      int64(currentBlock.Time() - 1), // fit in latest-sequence < > current-block rage
 		}}
 
 		// send empty rollup to L1
