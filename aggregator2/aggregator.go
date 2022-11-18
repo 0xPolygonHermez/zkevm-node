@@ -2,7 +2,6 @@ package aggregator2
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,8 +14,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/aggregator2/prover"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/iden3/go-iden3-crypto/keccak256"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -265,25 +262,6 @@ func (a *Aggregator2) trySendFinalProof(ctx context.Context, prover *prover.Prov
 				return false, err
 			}
 
-			/* · Is needed to do this additional steps??
-			err = c.state.UpdateProofTx(ctx, pendingProof.BatchNumber, tx.Hash(), tx.Nonce(), nil)
-			if err != nil {
-				log.Errorf("failed to update tx to verify batch for batch number %v, new tx hash %v, nonce %v, err: %v",
-					pendingProof.BatchNumber, tx.Hash().String(), tx.Nonce(), err)
-				break
-			}
-			err = c.ethMan.WaitTxToBeMined(ctx, tx, c.cfg.IntervalToReviewVerifyBatchTx.Duration)
-			if err != nil {
-				log.Errorf("error waiting tx to be mined: %s, error: %w", tx.Hash(), err)
-				break
-			}
-			txHash := tx.Hash()
-			pendingProof.TxHash = &txHash
-			nonce := tx.Nonce()
-			pendingProof.TxNonce = &nonce
-			time.Sleep(time.Second * 2) // nolint
-			*/
-
 			log.Infof("Final proof for batches %d-%d verified", proof.BatchNumber, proof.BatchNumberFinal)
 			a.TimeSendFinalProof = time.Now().Add(a.cfg.IntervalToSendFinalProof.Duration)
 			return true, nil
@@ -492,8 +470,8 @@ func (a *Aggregator2) tryGenerateBatchProof(ctx context.Context, prover *prover.
 
 	batchToProve, proof, err0 := a.getAndLockBatchToProve(ctx, prover, ticker)
 	if errors.Is(err0, state.ErrNotFound) {
-		// nothing to aggregate, swallow the error
-		log.Debug("Nothing to aggregate")
+		// nothing to proof, swallow the error
+		log.Debug("Nothing to generate proof")
 		return false, nil
 	}
 	if err0 != nil {
@@ -598,22 +576,15 @@ func (a *Aggregator2) buildInputProver(ctx context.Context, batchToVerify *state
 		return nil, fmt.Errorf("Failed to get previous batch, err: %v", err)
 	}
 
-	blockTimestampByte := make([]byte, 8) //nolint:gomnd
-	binary.BigEndian.PutUint64(blockTimestampByte, uint64(batchToVerify.Timestamp.Unix()))
-	batchHashData := common.BytesToHash(keccak256.Hash(
-		batchToVerify.BatchL2Data,
-		batchToVerify.GlobalExitRoot[:],
-		blockTimestampByte,
-		batchToVerify.Coinbase[:],
-	))
 	pubAddr, err := a.Ethman.GetPublicAddress()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get public address, err: %w", err)
 	}
+
 	inputProver := &pb.InputProver{
 		PublicInputs: &pb.PublicInputs{
 			OldStateRoot:    previousBatch.StateRoot.Bytes(),
-			OldAccInputHash: []byte(batchHashData.String()), //previousBatch.acc_input_hash
+			OldAccInputHash: previousBatch.AccInputHash.Bytes(),
 			OldBatchNum:     previousBatch.BatchNumber,
 			ChainId:         a.cfg.ChainID,
 			BatchL2Data:     batchToVerify.BatchL2Data,

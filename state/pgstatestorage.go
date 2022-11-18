@@ -1888,8 +1888,8 @@ func (p *PostgresStorage) GetVirtualBatchToRecursiveProve(ctx context.Context, l
 // CheckProofContainsCompleteSequences checks if a recursive proof contains complete sequences
 func (p *PostgresStorage) CheckProofContainsCompleteSequences(ctx context.Context, proof *RecursiveProof, dbTx pgx.Tx) (bool, error) {
 	const getProofContainsCompleteSequencesSQL = `
-		SELECT EXISTS (SELECT 1 FROM state.sequence_group s1 WHERE s1.from_batch_num = $1) AND
-			   EXISTS (SELECT 1 FROM state.sequence_group s2 WHERE s2.to_batch_num = $2)
+		SELECT EXISTS (SELECT 1 FROM state.sequences s1 WHERE s1.from_batch_num = $1) AND
+			   EXISTS (SELECT 1 FROM state.sequences s2 WHERE s2.to_batch_num = $2)
 		`
 	e := p.getExecQuerier(dbTx)
 	var exists bool
@@ -1926,7 +1926,7 @@ func (p *PostgresStorage) GetRecursiveProofsToAggregate(ctx context.Context, dbT
 		 	  p1.proof IS NOT NULL AND p2.proof IS NOT NULL AND
 			  (
 					EXISTS (
-					SELECT tx_hash FROM state.sequences s
+					SELECT 1 FROM state.sequences s
 					WHERE p1.batch_num >= s.from_batch_num AND p1.batch_num <= s.to_batch_num AND
 						p1.batch_num_final >= s.from_batch_num AND p1.batch_num_final <= s.to_batch_num AND
 						p2.batch_num >= s.from_batch_num AND p2.batch_num <= s.to_batch_num AND
@@ -1934,10 +1934,10 @@ func (p *PostgresStorage) GetRecursiveProofsToAggregate(ctx context.Context, dbT
 					)
 					OR
 					(
-						EXISTS ( SELECT tx_hash FROM state.sequence_group s WHERE p1.batch_num = s.from_batch_num) AND
-						EXISTS ( SELECT tx_hash FROM state.sequence_group s WHERE p1.batch_num_final = s.to_batch_num) AND
-						EXISTS ( SELECT tx_hash FROM state.sequence_group s WHERE p2.batch_num = s.from_batch_num) AND
-						EXISTS ( SELECT tx_hash FROM state.sequence_group s WHERE p2.batch_num_final = s.to_batch_num)
+						EXISTS ( SELECT 1 FROM state.sequences s WHERE p1.batch_num = s.from_batch_num) AND
+						EXISTS ( SELECT 1 FROM state.sequences s WHERE p1.batch_num_final = s.to_batch_num) AND
+						EXISTS ( SELECT 1 FROM state.sequences s WHERE p2.batch_num = s.from_batch_num) AND
+						EXISTS ( SELECT 1 FROM state.sequences s WHERE p2.batch_num_final = s.to_batch_num)
 					)
 				)
 		ORDER BY p1.batch_num ASC
