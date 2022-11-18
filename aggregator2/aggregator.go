@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -131,6 +132,7 @@ func (a *Aggregator2) Channel(stream pb.AggregatorService_ChannelServer) error {
 	tickerVerifyBatch := time.NewTicker(a.cfg.IntervalToConsolidateState.Duration)
 	defer tickerVerifyBatch.Stop()
 
+	errChan := make(chan error)
 	go func() {
 		for {
 			select {
@@ -142,9 +144,23 @@ func (a *Aggregator2) Channel(stream pb.AggregatorService_ChannelServer) error {
 				return
 			case <-tickerVerifyBatch.C:
 				if prover.IsIdle() {
-					proofGenerated, _ := a.tryAggregateProofs(ctx, prover, tickerVerifyBatch)
+					var (
+						proofGenerated bool
+						err            error
+					)
+					proofGenerated, err = a.tryAggregateProofs(ctx, prover, tickerVerifyBatch)
+					if err != nil {
+						log.Errorf("Error trying to aggregate proofs: %v", err)
+						errChan <- err
+						return
+					}
 					if !proofGenerated {
-						proofGenerated, _ = a.tryGenerateBatchProof(ctx, prover, tickerVerifyBatch)
+						proofGenerated, err = a.tryGenerateBatchProof(ctx, prover, tickerVerifyBatch)
+						if err != nil {
+							log.Errorf("Error trying to generate proof: %v", err)
+							errChan <- err
+							return
+						}
 					}
 					if !proofGenerated {
 						// if no proof was generated (aggregated or batch) wait some time waiting before retry
@@ -168,6 +184,9 @@ func (a *Aggregator2) Channel(stream pb.AggregatorService_ChannelServer) error {
 			// client disconnected
 			// TODO(pg): reconnect?
 			return nil
+		case err := <-errChan:
+			a.Stop()
+			return err
 		}
 	}
 }
@@ -341,6 +360,11 @@ func (a *Aggregator2) tryAggregateProofs(ctx context.Context, prover *prover.Pro
 	log.Debugf("tryAggregateProofs start %s", prover.ID())
 
 	proof1, proof2, err0 := a.getAndLockProofsToAggregate(ctx, prover, ticker)
+	if errors.Is(err0, state.ErrNotFound) {
+		// nothing to aggregate, swallow the error
+		log.Debug("Nothing to aggregate")
+		return false, nil
+	}
 	if err0 != nil {
 		return false, err0
 	}
@@ -467,6 +491,11 @@ func (a *Aggregator2) tryGenerateBatchProof(ctx context.Context, prover *prover.
 	log.Debugf("tryGenerateBatchProof start %s", prover.ID())
 
 	batchToProve, proof, err0 := a.getAndLockBatchToProve(ctx, prover, ticker)
+	if errors.Is(err0, state.ErrNotFound) {
+		// nothing to aggregate, swallow the error
+		log.Debug("Nothing to aggregate")
+		return false, nil
+	}
 	if err0 != nil {
 		return false, err0
 	}
