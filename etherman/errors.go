@@ -1,6 +1,9 @@
 package etherman
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 var (
 	//ErrGasRequiredExceedsAllowance gas required exceeds the allowance
@@ -31,5 +34,12 @@ var (
 
 func tryParseError(err error) (error, bool) {
 	parsedError, exists := errorsCache[err.Error()]
+	if !exists {
+		for errStr, actualErr := range errorsCache {
+			if strings.Contains(err.Error(), errStr) {
+				return actualErr, true
+			}
+		}
+	}
 	return parsedError, exists
 }
