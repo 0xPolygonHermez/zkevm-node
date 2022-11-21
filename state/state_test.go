@@ -67,7 +67,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "34.245.216.26")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI)}
 	var executorCancel context.CancelFunc
@@ -2178,6 +2178,42 @@ func TestExecutorGasRefund(t *testing.T) {
 	scRevertByteCode, err := testutils.ReadBytecode("Storage/Storage.bin")
 	require.NoError(t, err)
 
+	// Set Genesis
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+			{
+				Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+			{
+				Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+		},
+	}
+
+	initOrResetDB()
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	stateRoot, err := testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
 	// Deploy contract
 	tx0 := types.NewTx(&types.LegacyTx{
 		Nonce:    0,
@@ -2209,7 +2245,7 @@ func TestExecutorGasRefund(t *testing.T) {
 		BatchNum:         1,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
-		OldStateRoot:     common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldStateRoot:     stateRoot,
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
@@ -2222,9 +2258,49 @@ func TestExecutorGasRefund(t *testing.T) {
 	assert.Equal(t, pb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
 	assert.Equal(t, pb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[1].Error)
 
+	// Preparation to be able to estimate gas
+	convertedResponse, err := state.TestConvertToProcessBatchResponse([]types.Transaction{*signedTx0, *signedTx1}, processBatchResponse)
+	require.NoError(t, err)
+	log.Debugf("%v", len(convertedResponse.Responses))
+
+	// Store processed txs into the batch
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	processingContext := state.ProcessingContext{
+		BatchNumber:    processBatchRequest.BatchNum,
+		Coinbase:       common.Address{},
+		Timestamp:      time.Now(),
+		GlobalExitRoot: common.BytesToHash(processBatchRequest.GlobalExitRoot),
+	}
+
+	err = testState.OpenBatch(ctx, processingContext, dbTx)
+	require.NoError(t, err)
+
+	err = testState.StoreTransactions(ctx, processBatchRequest.BatchNum, convertedResponse.Responses, dbTx)
+	require.NoError(t, err)
+
+	processingReceipt := state.ProcessingReceipt{
+		BatchNumber:   processBatchRequest.BatchNum,
+		StateRoot:     convertedResponse.NewStateRoot,
+		LocalExitRoot: convertedResponse.NewLocalExitRoot,
+	}
+
+	err = testState.CloseBatch(ctx, processingReceipt, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
 	// Retrieve Value
 	tx2 := types.NewTransaction(2, scAddress, new(big.Int), 80000, new(big.Int).SetUint64(0), common.Hex2Bytes("2e64cec1"))
 	signedTx2, err := auth.Signer(auth.From, tx2)
+	require.NoError(t, err)
+
+	estimatedGas, err := testState.EstimateGas(signedTx2, sequencerAddress, nil, nil)
+	require.NoError(t, err)
+	log.Debugf("Estimated gas = %v", estimatedGas)
+
+	tx2 = types.NewTransaction(2, scAddress, new(big.Int), estimatedGas, new(big.Int).SetUint64(0), common.Hex2Bytes("2e64cec1"))
+	signedTx2, err = auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
 
 	batchL2Data, err = state.EncodeTransactions([]types.Transaction{*signedTx2})
@@ -2245,6 +2321,7 @@ func TestExecutorGasRefund(t *testing.T) {
 	processBatchResponse, err = executorClient.ProcessBatch(ctx, processBatchRequest)
 	require.NoError(t, err)
 	assert.Equal(t, pb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
+	assert.LessOrEqual(t, processBatchResponse.Responses[0].GasUsed, estimatedGas)
 	assert.NotEqual(t, uint64(0), processBatchResponse.Responses[0].GasRefunded)
 	assert.Equal(t, new(big.Int).SetInt64(123456), new(big.Int).SetBytes(processBatchResponse.Responses[0].ReturnValue))
 }
