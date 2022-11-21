@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -139,22 +140,21 @@ func (g *TxGroup) Add(tx PoolTx) error {
 }
 
 func (g *TxGroup) PopBestTx() *PoolTx {
-	old := g.Ready
-	n := len(old)
-	tx := old[0]
-	old[n-1] = nil // avoid memory leak
-	g.Ready = old[0 : n-1]
-	return tx
+	// get best tx
+	// remove from the queue
+	// return best tx
+	return nil
 }
 
 func (g *TxGroup) Start() {
+	// TODO: sorting magic
 	for {
 
 	}
 }
 
 func (s *Sequencer) Start(ctx context.Context) {
-	// Put group to work, when having multiple/dynamic groups this may change
+	// Put group to work, when having multiple/dynamic groups this will change
 	go s.txGroups[0].Start()
 	// Start broker
 	go s.groupBroker()
@@ -165,6 +165,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 			s.loadFromPool(ctx, tickerLoadFromPool)
 		}
 	}()
+	go s.finalizer()
 }
 
 func (s *Sequencer) loadFromPool(ctx context.Context, ticker *time.Ticker) {
@@ -191,25 +192,81 @@ func (s *Sequencer) groupBroker() {
 }
 
 func (s *Sequencer) finalizer() {
-	for {
-		select {
-		case <-s.forcedBatchCh:
-			// If batch WIP is not full, can we wait a bit? (deathline to execute forced batch update)
-			// Process forced batch
-		case <-s.updateGERCh:
-			// If batch WIP is not full, can we wait a bit? (deathline to update GER/timestamp)
-			// Close batch, open batch (process wit no txs and new GER / timestamp)
-		default:
+	type batch struct {
+		initialStateRoot      common.Hash
+		intermediaryStateRoot common.Hash
+		timestamp             uint64
+		GER                   *common.Hash // optional: will only have value when an update is needed
+		txs                   []PoolTx
+		accumulatedCounters   pool.ZkCounters
+	}
+	currentBatch := batch{}
+
+	// Most of this will need mutex since gorutines (Finalize txs, L1 requirements) can modify concurrenlty
+	var (
+		stateRoot                common.Hash // intermediary root after executing single txs
+		nextGER                  common.Hash
+		nextGERDeathline         int64
+		nextForcedBatches        []state.Batch
+		nextForcedBatchDeathline int64
+	)
+	// L1 requirements
+	go func() {
+		for {
+			select {
+			case fb := <-s.forcedBatchCh:
+				nextForcedBatches = append(nextForcedBatches, fb)
+				if nextForcedBatchDeathline > 0 {
+					nextForcedBatchDeathline = time.Now().Unix() // + configurable delay
+				}
+			case ger := <-s.updateGERCh:
+				nextGER = ger
+				if nextGERDeathline > 0 {
+					nextGERDeathline = time.Now().Unix() // + configurable delay
+				}
+			}
+		}
+	}()
+
+	// Finalize txs
+	go func() {
+		for {
 			// When having multiple groups this could be refactored to use a selector that keeps popping txs from the different groups
 			// and comunicate with the finalizer through channel
 			tx := s.txGroups[0].PopBestTx()
 			if tx != nil {
 				// execute tx
-				// if failed, send to group broker through chan
+				// if ko:
+				// // send to group broker through chan
 				// if ok:
-				// send to statedb manager through chan
-				// send state mod log update through chan
+				// // add accumulated ZKCounters
+				// // if ZKCounter overflows:
+				// WARNING: HEAVY ASSUMPTION ON ZKCOUNTERS WORKING FLAWLESSLY, MAY BE WORTH DOING SANITY CHECK
+				// // // close batch
+				// // // consider executing forced batches
+				// // // open batch (updating GER if needed)
+				// // // re-execute tx, as GER / timestamp update could modify execution
+				// // add tx to current batch
+				// // send tx to the DB (alreadt finalized) through channel (async store)
+				// // remove tx from pool (alreadt finalized) through channel (async store)
+				// // send state mod log update through chan
+				if time.Now().Unix() >= nextForcedBatchDeathline {
+					// close batch
+					for len(nextForcedBatches) > 0 {
+						// forced batch = pop forced batch
+						// execute forced batch
+						// send state mod log update through chan
+					}
+					nextForcedBatchDeathline = 0
+					// open batch
+				}
+				if time.Now().Unix() >= nextGERDeathline {
+					// close batch
+					// open batch (with new GER)
+					nextGER = common.Hash{}
+					nextGERDeathline = 0
+				}
 			}
 		}
-	}
+	}()
 }
