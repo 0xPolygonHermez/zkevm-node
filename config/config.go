@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
-	aggregator2 "github.com/0xPolygonHermez/zkevm-node/aggregator2"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -16,7 +15,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
-	"github.com/0xPolygonHermez/zkevm-node/proverclient"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -54,8 +52,6 @@ type Config struct {
 	Sequencer          sequencer.Config
 	PriceGetter        pricegetter.Config
 	Aggregator         aggregator.Config
-	Aggregator2        aggregator2.Config
-	Provers            proverclient.Config
 	NetworkConfig      NetworkConfig
 	GasPriceEstimator  gasprice.Config
 	Executor           executor.Config

@@ -30,9 +30,18 @@ func (t *TokenAmountWithDecimals) UnmarshalText(data []byte) error {
 
 // Config represents the configuration of the aggregator
 type Config struct {
+	// Host for the grpc server
+	Host string `mapstructure:"Host"`
+	// Port for the grpc server
+	Port int `mapstructure:"Port"`
+
 	// IntervalToConsolidateState is the time the aggregator waits until
 	// trying to consolidate a new state
 	IntervalToConsolidateState types.Duration `mapstructure:"IntervalToConsolidateState"`
+
+	// IntervalToSendFinalProof is the time the aggregator waits until
+	// trying to send a final aggregated proof
+	IntervalToSendFinalProof types.Duration `mapstructure:"IntervalToSendFinalProof"`
 
 	// IntervalFrequencyToGetProofGenerationState is the time the aggregator waits until
 	// trying to get proof generation status, in case prover client returns PENDING state

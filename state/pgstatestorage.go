@@ -1745,77 +1745,6 @@ func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger c
 	return &exitRoot, nil
 }
 
-// AddGeneratedProof adds a generated proof to the storage
-func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, proof, proof_id, input_prover, prover) VALUES ($1, $2, $3, $4, $5)"
-	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
-	return err
-}
-
-// UpdateGeneratedProof updates a generated proof in the storage
-func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
-	const addGeneratedProofSQL = "UPDATE state.proof SET proof = $2, proof_id = $3, input_prover = $4, prover = $5 WHERE batch_num = $1"
-	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover)
-	return err
-}
-
-// GetGeneratedProofByBatchNumber gets a generated proof from the storage
-func (p *PostgresStorage) GetGeneratedProofByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Proof, error) {
-	var (
-		proof *Proof = &Proof{}
-		err   error
-	)
-
-	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE batch_num = $1"
-	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, getGeneratedProofSQL, batchNumber).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
-	}
-
-	return proof, err
-}
-
-// DeleteGeneratedProof deletes a generated proof from the storage
-func (p *PostgresStorage) DeleteGeneratedProof(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	const deleteGeneratedProofSQL = "DELETE FROM state.proof WHERE batch_num = $1"
-	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, deleteGeneratedProofSQL, batchNumber)
-	return err
-}
-
-// DeleteUngeneratedProofs deletes ungenerated proofs from state.proof table
-// This method is meant to be use during aggregator boot-up sequence
-func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error {
-	const deleteUngeneratedProofsSQL = "DELETE FROM state.proof WHERE proof is null"
-	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, deleteUngeneratedProofsSQL)
-	return err
-}
-
-// GetWIPProofByProver gets a generated proof from its prover URI
-func (p *PostgresStorage) GetWIPProofByProver(ctx context.Context, prover string, dbTx pgx.Tx) (*Proof, error) {
-	var (
-		proof *Proof = &Proof{}
-		err   error
-	)
-
-	const getGeneratedProofSQL = "SELECT batch_num, proof, proof_id, input_prover, prover FROM state.proof WHERE prover = $1 and proof is null"
-	e := p.getExecQuerier(dbTx)
-	err = e.QueryRow(ctx, getGeneratedProofSQL, prover).Scan(&proof.BatchNumber, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
-	}
-
-	return proof, err
-}
-
 // AddSequence stores the sequence information to allow the aggregator verify sequences.
 func (p *PostgresStorage) AddSequence(ctx context.Context, sequence Sequence, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
@@ -1850,19 +1779,19 @@ func (p *PostgresStorage) GetSequences(ctx context.Context, lastVerifiedBatchNum
 	return sequences, err
 }
 
-// New Aggregator2 functions
-// GetVirtualBatchToRecursiveProve return the next batch that is not proved, neither in proved process
-func (p *PostgresStorage) GetVirtualBatchToRecursiveProve(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+// GetVirtualBatchToProve return the next batch that is not proved, neither in
+// proved process.
+func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
 	const query = `
 		SELECT
 			b.batch_num,
 			b.global_exit_root,
 			b.local_exit_root,
+			b.acc_input_hash,
 			b.state_root,
 			b.timestamp,
 			b.coinbase,
-			b.raw_txs_data,
-			b.acc_input_hash
+			b.raw_txs_data
 		FROM
 			state.batch b,
 			state.virtual_batch v
@@ -1886,7 +1815,7 @@ func (p *PostgresStorage) GetVirtualBatchToRecursiveProve(ctx context.Context, l
 }
 
 // CheckProofContainsCompleteSequences checks if a recursive proof contains complete sequences
-func (p *PostgresStorage) CheckProofContainsCompleteSequences(ctx context.Context, proof *RecursiveProof, dbTx pgx.Tx) (bool, error) {
+func (p *PostgresStorage) CheckProofContainsCompleteSequences(ctx context.Context, proof *Proof, dbTx pgx.Tx) (bool, error) {
 	const getProofContainsCompleteSequencesSQL = `
 		SELECT EXISTS (SELECT 1 FROM state.sequences s1 WHERE s1.from_batch_num = $1) AND
 			   EXISTS (SELECT 1 FROM state.sequences s2 WHERE s2.to_batch_num = $2)
@@ -1900,11 +1829,11 @@ func (p *PostgresStorage) CheckProofContainsCompleteSequences(ctx context.Contex
 	return exists, nil
 }
 
-// GetRecursiveProofsToAggregate return the next to proof that it is possible to aggregate
-func (p *PostgresStorage) GetRecursiveProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*RecursiveProof, *RecursiveProof, error) {
+// GetProofsToAggregate return the next to proof that it is possible to aggregate
+func (p *PostgresStorage) GetProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*Proof, *Proof, error) {
 	var (
-		proof1 *RecursiveProof = &RecursiveProof{}
-		proof2 *RecursiveProof = &RecursiveProof{}
+		proof1 *Proof = &Proof{}
+		proof2 *Proof = &Proof{}
 	)
 
 	const getProofsToAggregateSQL = `
@@ -1959,33 +1888,33 @@ func (p *PostgresStorage) GetRecursiveProofsToAggregate(ctx context.Context, dbT
 	return proof1, proof2, err
 }
 
-// AddGeneratedRecursiveProof adds a generated proof to the storage
-func (p *PostgresStorage) AddGeneratedRecursiveProof(ctx context.Context, proof *RecursiveProof, dbTx pgx.Tx) error {
+// AddGeneratedProof adds a generated proof to the storage
+func (p *PostgresStorage) AddGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
 	const addGeneratedProofSQL = "INSERT INTO state.recursive_proof (batch_num, batch_num_final, proof, proof_id, input_prover, prover, generating) VALUES ($1, $2, $3, $4, $5, $6, $7)"
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, proof.Generating)
 	return err
 }
 
-// UpdateGeneratedRecursiveProof updates a generated proof in the storage
-func (p *PostgresStorage) UpdateGeneratedRecursiveProof(ctx context.Context, proof *RecursiveProof, dbTx pgx.Tx) error {
+// UpdateGeneratedProof updates a generated proof in the storage
+func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error {
 	const addGeneratedProofSQL = "UPDATE state.recursive_proof SET proof = $3, proof_id = $4, input_prover = $5, prover = $6, generating = $7 WHERE batch_num = $1 AND batch_num_final = $2"
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, addGeneratedProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, proof.Generating)
 	return err
 }
 
-// DeleteGeneratedRecursiveProof deletes a generated proof from the storage
-func (p *PostgresStorage) DeleteGeneratedRecursiveProof(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
+// DeleteGeneratedProof deletes a generated proof from the storage
+func (p *PostgresStorage) DeleteGeneratedProof(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
 	const deleteGeneratedProofSQL = "DELETE FROM state.recursive_proof WHERE batch_num = $1 AND batch_num_final = $2"
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, deleteGeneratedProofSQL, batchNumber, batchNumberFinal)
 	return err
 }
 
-// DeleteUngeneratedRecursiveProofs deletes ungenerated proofs from state.proof table
+// DeleteUngeneratedProofs deletes ungenerated proofs from state.proof table
 // This method is meant to be use during aggregator boot-up sequence
-func (p *PostgresStorage) DeleteUngeneratedRecursiveProofs(ctx context.Context, dbTx pgx.Tx) error {
+func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error {
 	const deleteUngeneratedProofsSQL = "DELETE FROM state.recursive_proof WHERE generating IS TRUE"
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, deleteUngeneratedProofsSQL)
