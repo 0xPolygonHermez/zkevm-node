@@ -30,8 +30,8 @@ var (
 
 // GlobalexitrootmanagerMetaData contains all meta data concerning the Globalexitrootmanager contract.
 var GlobalexitrootmanagerMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"version\",\"type\":\"uint8\"}],\"name\":\"Initialized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"globalExitRootNum\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"mainnetExitRoot\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"rollupExitRoot\",\"type\":\"bytes32\"}],\"name\":\"UpdateGlobalExitRoot\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"bridgeAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastGlobalExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"globalExitRootMap\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_rollupAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_bridgeAddress\",\"type\":\"address\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastGlobalExitRootNum\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastMainnetExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastRollupExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rollupAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"newRoot\",\"type\":\"bytes32\"}],\"name\":\"updateExitRoot\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
-	Bin: "0x608060405234801561001057600080fd5b50610aa3806100206000396000f3fe608060405234801561001057600080fd5b50600436106100935760003560e01c806333d6247d1161006657806333d6247d146101225780633ed691ef1461013e578063485cc9551461015c5780635ec6a8df14610178578063a3c573eb1461019657610093565b806301fd904414610098578063029f2793146100b6578063257b3632146100d4578063319cf73514610104575b600080fd5b6100a06101b4565b6040516100ad9190610692565b60405180910390f35b6100be6101ba565b6040516100cb91906106c6565b60405180910390f35b6100ee60048036038101906100e99190610712565b6101c0565b6040516100fb91906106c6565b60405180910390f35b61010c6101d8565b6040516101199190610692565b60405180910390f35b61013c60048036038101906101379190610712565b6101de565b005b61014661041c565b6040516101539190610692565b60405180910390f35b6101766004803603810190610171919061079d565b610450565b005b61018061060a565b60405161018d91906107ec565b60405180910390f35b61019e610630565b6040516101ab91906107ec565b60405180910390f35b60015481565b60045481565b60036020528060005260406000206000915090505481565b60025481565b600660009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614806102875750600560009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16145b6102c6576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016102bd9061088a565b60405180910390fd5b600660009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff160361032357806001819055505b600560009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff160361038057806002819055505b60046000815480929190610393906108d9565b919050555060006002546001546040516020016103b1929190610942565b60405160208183030381529060405280519060200120905060045460036000838152602001908152602001600020819055506001546002546004547fb7c409af8cb511116b88f38824d48a0196194596241fdb2d177210d3d3b89fbf60405160405180910390a45050565b6000600254600154604051602001610435929190610942565b60405160208183030381529060405280519060200120905090565b60008060019054906101000a900460ff161590508080156104815750600160008054906101000a900460ff1660ff16105b806104ae575061049030610656565b1580156104ad5750600160008054906101000a900460ff1660ff16145b5b6104ed576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016104e4906109e0565b60405180910390fd5b60016000806101000a81548160ff021916908360ff160217905550801561052a576001600060016101000a81548160ff0219169083151502179055505b82600660006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555081600560006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555080156106055760008060016101000a81548160ff0219169083151502179055507f7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb384740249860016040516105fc9190610a52565b60405180910390a15b505050565b600660009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b600560009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000808273ffffffffffffffffffffffffffffffffffffffff163b119050919050565b6000819050919050565b61068c81610679565b82525050565b60006020820190506106a76000830184610683565b92915050565b6000819050919050565b6106c0816106ad565b82525050565b60006020820190506106db60008301846106b7565b92915050565b600080fd5b6106ef81610679565b81146106fa57600080fd5b50565b60008135905061070c816106e6565b92915050565b600060208284031215610728576107276106e1565b5b6000610736848285016106fd565b91505092915050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b600061076a8261073f565b9050919050565b61077a8161075f565b811461078557600080fd5b50565b60008135905061079781610771565b92915050565b600080604083850312156107b4576107b36106e1565b5b60006107c285828601610788565b92505060206107d385828601610788565b9150509250929050565b6107e68161075f565b82525050565b600060208201905061080160008301846107dd565b92915050565b600082825260208201905092915050565b7f476c6f62616c45786974526f6f744d616e616765723a3a75706461746545786960008201527f74526f6f743a204f4e4c595f414c4c4f5745445f434f4e545241435453000000602082015250565b6000610874603d83610807565b915061087f82610818565b604082019050919050565b600060208201905081810360008301526108a381610867565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b60006108e4826106ad565b91507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8203610916576109156108aa565b5b600182019050919050565b6000819050919050565b61093c61093782610679565b610921565b82525050565b600061094e828561092b565b60208201915061095e828461092b565b6020820191508190509392505050565b7f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160008201527f647920696e697469616c697a6564000000000000000000000000000000000000602082015250565b60006109ca602e83610807565b91506109d58261096e565b604082019050919050565b600060208201905081810360008301526109f9816109bd565b9050919050565b6000819050919050565b600060ff82169050919050565b6000819050919050565b6000610a3c610a37610a3284610a00565b610a17565b610a0a565b9050919050565b610a4c81610a21565b82525050565b6000602082019050610a676000830184610a43565b9291505056fea264697066735822122022fcdcf31bdbbb889799bb0e6f80e58483dc2ca8b05be7a8b958bdc2eb7fc96964736f6c634300080f0033",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"version\",\"type\":\"uint8\"}],\"name\":\"Initialized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"mainnetExitRoot\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"rollupExitRoot\",\"type\":\"bytes32\"}],\"name\":\"UpdateGlobalExitRoot\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"bridgeAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastGlobalExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"globalExitRootMap\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_rollupAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_bridgeAddress\",\"type\":\"address\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastMainnetExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastRollupExitRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rollupAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"newRoot\",\"type\":\"bytes32\"}],\"name\":\"updateExitRoot\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b506109fc806100206000396000f3fe608060405234801561001057600080fd5b50600436106100885760003560e01c80633ed691ef1161005b5780633ed691ef14610115578063485cc955146101335780635ec6a8df1461014f578063a3c573eb1461016d57610088565b806301fd90441461008d578063257b3632146100ab578063319cf735146100db57806333d6247d146100f9575b600080fd5b61009561018b565b6040516100a29190610662565b60405180910390f35b6100c560048036038101906100c091906106ae565b610191565b6040516100d291906106f4565b60405180910390f35b6100e36101a9565b6040516100f09190610662565b60405180910390f35b610113600480360381019061010e91906106ae565b6101af565b005b61011d6103ec565b60405161012a9190610662565b60405180910390f35b61014d6004803603810190610148919061076d565b610420565b005b6101576105da565b60405161016491906107bc565b60405180910390f35b610175610600565b60405161018291906107bc565b60405180910390f35b60015481565b60036020528060005260406000206000915090505481565b60025481565b600560009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614806102585750600460009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16145b610297576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161028e9061085a565b60405180910390fd5b600560009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16036102f457806001819055505b600460009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff160361035157806002819055505b600060025460015460405160200161036a92919061089b565b60405160208183030381529060405280519060200120905060006003600083815260200190815260200160002054036103e8574260036000838152602001908152602001600020819055506001546002547f61014378f82a0d809aefaf87a8ac9505b89c321808287a6e7810f29304c1fce360405160405180910390a35b5050565b600060025460015460405160200161040592919061089b565b60405160208183030381529060405280519060200120905090565b60008060019054906101000a900460ff161590508080156104515750600160008054906101000a900460ff1660ff16105b8061047e575061046030610626565b15801561047d5750600160008054906101000a900460ff1660ff16145b5b6104bd576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016104b490610939565b60405180910390fd5b60016000806101000a81548160ff021916908360ff16021790555080156104fa576001600060016101000a81548160ff0219169083151502179055505b82600560006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555081600460006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555080156105d55760008060016101000a81548160ff0219169083151502179055507f7f26b83ff96e1f2b6a682f133852f6798a09c465da95921460cefb384740249860016040516105cc91906109ab565b60405180910390a15b505050565b600560009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b600460009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000808273ffffffffffffffffffffffffffffffffffffffff163b119050919050565b6000819050919050565b61065c81610649565b82525050565b60006020820190506106776000830184610653565b92915050565b600080fd5b61068b81610649565b811461069657600080fd5b50565b6000813590506106a881610682565b92915050565b6000602082840312156106c4576106c361067d565b5b60006106d284828501610699565b91505092915050565b6000819050919050565b6106ee816106db565b82525050565b600060208201905061070960008301846106e5565b92915050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b600061073a8261070f565b9050919050565b61074a8161072f565b811461075557600080fd5b50565b60008135905061076781610741565b92915050565b600080604083850312156107845761078361067d565b5b600061079285828601610758565b92505060206107a385828601610758565b9150509250929050565b6107b68161072f565b82525050565b60006020820190506107d160008301846107ad565b92915050565b600082825260208201905092915050565b7f476c6f62616c45786974526f6f744d616e616765723a3a75706461746545786960008201527f74526f6f743a204f4e4c595f414c4c4f5745445f434f4e545241435453000000602082015250565b6000610844603d836107d7565b915061084f826107e8565b604082019050919050565b6000602082019050818103600083015261087381610837565b9050919050565b6000819050919050565b61089561089082610649565b61087a565b82525050565b60006108a78285610884565b6020820191506108b78284610884565b6020820191508190509392505050565b7f496e697469616c697a61626c653a20636f6e747261637420697320616c72656160008201527f647920696e697469616c697a6564000000000000000000000000000000000000602082015250565b6000610923602e836107d7565b915061092e826108c7565b604082019050919050565b6000602082019050818103600083015261095281610916565b9050919050565b6000819050919050565b600060ff82169050919050565b6000819050919050565b600061099561099061098b84610959565b610970565b610963565b9050919050565b6109a58161097a565b82525050565b60006020820190506109c0600083018461099c565b9291505056fea2646970667358221220ce90ec27b6a17fb89184bc1febbcbe40c138e347ca03dfb64936c2918411dbe864736f6c634300080f0033",
 }
 
 // GlobalexitrootmanagerABI is the input ABI used to generate the binding from.
@@ -292,37 +292,6 @@ func (_Globalexitrootmanager *GlobalexitrootmanagerSession) GlobalExitRootMap(ar
 // Solidity: function globalExitRootMap(bytes32 ) view returns(uint256)
 func (_Globalexitrootmanager *GlobalexitrootmanagerCallerSession) GlobalExitRootMap(arg0 [32]byte) (*big.Int, error) {
 	return _Globalexitrootmanager.Contract.GlobalExitRootMap(&_Globalexitrootmanager.CallOpts, arg0)
-}
-
-// LastGlobalExitRootNum is a free data retrieval call binding the contract method 0x029f2793.
-//
-// Solidity: function lastGlobalExitRootNum() view returns(uint256)
-func (_Globalexitrootmanager *GlobalexitrootmanagerCaller) LastGlobalExitRootNum(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _Globalexitrootmanager.contract.Call(opts, &out, "lastGlobalExitRootNum")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// LastGlobalExitRootNum is a free data retrieval call binding the contract method 0x029f2793.
-//
-// Solidity: function lastGlobalExitRootNum() view returns(uint256)
-func (_Globalexitrootmanager *GlobalexitrootmanagerSession) LastGlobalExitRootNum() (*big.Int, error) {
-	return _Globalexitrootmanager.Contract.LastGlobalExitRootNum(&_Globalexitrootmanager.CallOpts)
-}
-
-// LastGlobalExitRootNum is a free data retrieval call binding the contract method 0x029f2793.
-//
-// Solidity: function lastGlobalExitRootNum() view returns(uint256)
-func (_Globalexitrootmanager *GlobalexitrootmanagerCallerSession) LastGlobalExitRootNum() (*big.Int, error) {
-	return _Globalexitrootmanager.Contract.LastGlobalExitRootNum(&_Globalexitrootmanager.CallOpts)
 }
 
 // LastMainnetExitRoot is a free data retrieval call binding the contract method 0x319cf735.
@@ -663,21 +632,16 @@ func (it *GlobalexitrootmanagerUpdateGlobalExitRootIterator) Close() error {
 
 // GlobalexitrootmanagerUpdateGlobalExitRoot represents a UpdateGlobalExitRoot event raised by the Globalexitrootmanager contract.
 type GlobalexitrootmanagerUpdateGlobalExitRoot struct {
-	GlobalExitRootNum *big.Int
-	MainnetExitRoot   [32]byte
-	RollupExitRoot    [32]byte
-	Raw               types.Log // Blockchain specific contextual infos
+	MainnetExitRoot [32]byte
+	RollupExitRoot  [32]byte
+	Raw             types.Log // Blockchain specific contextual infos
 }
 
-// FilterUpdateGlobalExitRoot is a free log retrieval operation binding the contract event 0xb7c409af8cb511116b88f38824d48a0196194596241fdb2d177210d3d3b89fbf.
+// FilterUpdateGlobalExitRoot is a free log retrieval operation binding the contract event 0x61014378f82a0d809aefaf87a8ac9505b89c321808287a6e7810f29304c1fce3.
 //
-// Solidity: event UpdateGlobalExitRoot(uint256 indexed globalExitRootNum, bytes32 indexed mainnetExitRoot, bytes32 indexed rollupExitRoot)
-func (_Globalexitrootmanager *GlobalexitrootmanagerFilterer) FilterUpdateGlobalExitRoot(opts *bind.FilterOpts, globalExitRootNum []*big.Int, mainnetExitRoot [][32]byte, rollupExitRoot [][32]byte) (*GlobalexitrootmanagerUpdateGlobalExitRootIterator, error) {
+// Solidity: event UpdateGlobalExitRoot(bytes32 indexed mainnetExitRoot, bytes32 indexed rollupExitRoot)
+func (_Globalexitrootmanager *GlobalexitrootmanagerFilterer) FilterUpdateGlobalExitRoot(opts *bind.FilterOpts, mainnetExitRoot [][32]byte, rollupExitRoot [][32]byte) (*GlobalexitrootmanagerUpdateGlobalExitRootIterator, error) {
 
-	var globalExitRootNumRule []interface{}
-	for _, globalExitRootNumItem := range globalExitRootNum {
-		globalExitRootNumRule = append(globalExitRootNumRule, globalExitRootNumItem)
-	}
 	var mainnetExitRootRule []interface{}
 	for _, mainnetExitRootItem := range mainnetExitRoot {
 		mainnetExitRootRule = append(mainnetExitRootRule, mainnetExitRootItem)
@@ -687,22 +651,18 @@ func (_Globalexitrootmanager *GlobalexitrootmanagerFilterer) FilterUpdateGlobalE
 		rollupExitRootRule = append(rollupExitRootRule, rollupExitRootItem)
 	}
 
-	logs, sub, err := _Globalexitrootmanager.contract.FilterLogs(opts, "UpdateGlobalExitRoot", globalExitRootNumRule, mainnetExitRootRule, rollupExitRootRule)
+	logs, sub, err := _Globalexitrootmanager.contract.FilterLogs(opts, "UpdateGlobalExitRoot", mainnetExitRootRule, rollupExitRootRule)
 	if err != nil {
 		return nil, err
 	}
 	return &GlobalexitrootmanagerUpdateGlobalExitRootIterator{contract: _Globalexitrootmanager.contract, event: "UpdateGlobalExitRoot", logs: logs, sub: sub}, nil
 }
 
-// WatchUpdateGlobalExitRoot is a free log subscription operation binding the contract event 0xb7c409af8cb511116b88f38824d48a0196194596241fdb2d177210d3d3b89fbf.
+// WatchUpdateGlobalExitRoot is a free log subscription operation binding the contract event 0x61014378f82a0d809aefaf87a8ac9505b89c321808287a6e7810f29304c1fce3.
 //
-// Solidity: event UpdateGlobalExitRoot(uint256 indexed globalExitRootNum, bytes32 indexed mainnetExitRoot, bytes32 indexed rollupExitRoot)
-func (_Globalexitrootmanager *GlobalexitrootmanagerFilterer) WatchUpdateGlobalExitRoot(opts *bind.WatchOpts, sink chan<- *GlobalexitrootmanagerUpdateGlobalExitRoot, globalExitRootNum []*big.Int, mainnetExitRoot [][32]byte, rollupExitRoot [][32]byte) (event.Subscription, error) {
+// Solidity: event UpdateGlobalExitRoot(bytes32 indexed mainnetExitRoot, bytes32 indexed rollupExitRoot)
+func (_Globalexitrootmanager *GlobalexitrootmanagerFilterer) WatchUpdateGlobalExitRoot(opts *bind.WatchOpts, sink chan<- *GlobalexitrootmanagerUpdateGlobalExitRoot, mainnetExitRoot [][32]byte, rollupExitRoot [][32]byte) (event.Subscription, error) {
 
-	var globalExitRootNumRule []interface{}
-	for _, globalExitRootNumItem := range globalExitRootNum {
-		globalExitRootNumRule = append(globalExitRootNumRule, globalExitRootNumItem)
-	}
 	var mainnetExitRootRule []interface{}
 	for _, mainnetExitRootItem := range mainnetExitRoot {
 		mainnetExitRootRule = append(mainnetExitRootRule, mainnetExitRootItem)
@@ -712,7 +672,7 @@ func (_Globalexitrootmanager *GlobalexitrootmanagerFilterer) WatchUpdateGlobalEx
 		rollupExitRootRule = append(rollupExitRootRule, rollupExitRootItem)
 	}
 
-	logs, sub, err := _Globalexitrootmanager.contract.WatchLogs(opts, "UpdateGlobalExitRoot", globalExitRootNumRule, mainnetExitRootRule, rollupExitRootRule)
+	logs, sub, err := _Globalexitrootmanager.contract.WatchLogs(opts, "UpdateGlobalExitRoot", mainnetExitRootRule, rollupExitRootRule)
 	if err != nil {
 		return nil, err
 	}
@@ -744,9 +704,9 @@ func (_Globalexitrootmanager *GlobalexitrootmanagerFilterer) WatchUpdateGlobalEx
 	}), nil
 }
 
-// ParseUpdateGlobalExitRoot is a log parse operation binding the contract event 0xb7c409af8cb511116b88f38824d48a0196194596241fdb2d177210d3d3b89fbf.
+// ParseUpdateGlobalExitRoot is a log parse operation binding the contract event 0x61014378f82a0d809aefaf87a8ac9505b89c321808287a6e7810f29304c1fce3.
 //
-// Solidity: event UpdateGlobalExitRoot(uint256 indexed globalExitRootNum, bytes32 indexed mainnetExitRoot, bytes32 indexed rollupExitRoot)
+// Solidity: event UpdateGlobalExitRoot(bytes32 indexed mainnetExitRoot, bytes32 indexed rollupExitRoot)
 func (_Globalexitrootmanager *GlobalexitrootmanagerFilterer) ParseUpdateGlobalExitRoot(log types.Log) (*GlobalexitrootmanagerUpdateGlobalExitRoot, error) {
 	event := new(GlobalexitrootmanagerUpdateGlobalExitRoot)
 	if err := _Globalexitrootmanager.contract.UnpackLog(event, "UpdateGlobalExitRoot", log); err != nil {
