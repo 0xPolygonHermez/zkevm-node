@@ -43,13 +43,15 @@ func NewExecutorClient(ctx context.Context, c Config) (pb.ExecutorServiceClient,
 			}
 			// Rebooting zkprover container
 			log.Infof("Bringing executor docker service down and up")
-			out, err = exec.Command("docker-compose", []string{"stop", "zkevm-prover"}...).Output()
-			if err == nil {
-				log.Infof("Stopping zkprover:\n%s\n", out)
+			if _, err := exec.Command("docker-compose", []string{"stop", "zkevm-prover"}...).Output(); err != nil {
+				log.Infof("Error zkprover:\n%s\n", err.Error())
 			}
-			out, err = exec.Command("docker-compose", []string{"up", "-d", "zkevm-prover"}...).Output()
-			if err == nil {
-				log.Infof("Retarting zkprover:\n%s\n", out)
+
+			if _, err := exec.Command("docker-compose", []string{"up", "-d", "zkevm-prover"}...).Output(); err != nil {
+				log.Infof("Error zkprover:\n%s\n", err.Error())
+			}
+			if out, err := exec.Command("docker", []string{"ps"}...).Output(); err == nil {
+				log.Infof("Containers running:\n%s\n", out)
 			}
 			time.Sleep(time.Duration(sleepAfterReboot) * time.Second)
 		} else {
