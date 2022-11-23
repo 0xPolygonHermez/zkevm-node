@@ -72,11 +72,11 @@ func TestShouldCloseDueToNewDeposits(t *testing.T) {
 	ctx := context.Background()
 	mainnetExitRoot := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1")
 	lastGer := state.GlobalExitRoot{
-		BlockNumber:       1,
-		Timestamp: time.Now(),
-		MainnetExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		RollupExitRoot:    common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
-		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+		BlockNumber:     1,
+		Timestamp:       time.Now(),
+		MainnetExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		RollupExitRoot:  common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+		GlobalExitRoot:  common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 	}
 	s.sequenceInProgress.GlobalExitRoot = lastGer.GlobalExitRoot
 	st.On("GetBlockNumAndMainnetExitRootByGER", ctx, s.sequenceInProgress.GlobalExitRoot, nil).Return(lastGer.BlockNumber, mainnetExitRoot, nil)
@@ -365,11 +365,11 @@ func TestTryToProcessTxs(t *testing.T) {
 
 	mainnetExitRoot := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1")
 	lastGer := state.GlobalExitRoot{
-		BlockNumber:       1,
-		Timestamp: time.Now(),
-		MainnetExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1"),
-		RollupExitRoot:    common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
-		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+		BlockNumber:     1,
+		Timestamp:       time.Now(),
+		MainnetExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1"),
+		RollupExitRoot:  common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+		GlobalExitRoot:  common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 	}
 	s.sequenceInProgress.GlobalExitRoot = lastGer.GlobalExitRoot
 	eth.On("GetLatestBlockNumber", ctx).Return(uint64(1), nil)

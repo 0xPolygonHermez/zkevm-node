@@ -781,11 +781,11 @@ func (s *ClientSynchronizer) processForcedBatch(forcedBatch etherman.ForcedBatch
 func (s *ClientSynchronizer) processGlobalExitRoot(globalExitRoot etherman.GlobalExitRoot, dbTx pgx.Tx) {
 	// Store GlobalExitRoot
 	ger := state.GlobalExitRoot{
-		BlockNumber:       globalExitRoot.BlockNumber,
-		Timestamp:         globalExitRoot.Timestamp,
-		MainnetExitRoot:   globalExitRoot.MainnetExitRoot,
-		RollupExitRoot:    globalExitRoot.RollupExitRoot,
-		GlobalExitRoot:    globalExitRoot.GlobalExitRoot,
+		BlockNumber:     globalExitRoot.BlockNumber,
+		Timestamp:       globalExitRoot.Timestamp,
+		MainnetExitRoot: globalExitRoot.MainnetExitRoot,
+		RollupExitRoot:  globalExitRoot.RollupExitRoot,
+		GlobalExitRoot:  globalExitRoot.GlobalExitRoot,
 	}
 	err := s.state.AddGlobalExitRoot(s.ctx, &ger, dbTx)
 	if err != nil {

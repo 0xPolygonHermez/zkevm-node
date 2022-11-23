@@ -1728,8 +1728,8 @@ func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx)
 // a global exit root number.
 func (p *PostgresStorage) GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*GlobalExitRoot, error) {
 	var (
-		exitRoot  GlobalExitRoot
-		err       error
+		exitRoot GlobalExitRoot
+		err      error
 	)
 
 	const sql = "SELECT block_num, timestamp, mainnet_exit_root, rollup_exit_root, global_exit_root FROM state.exit_root WHERE global_exit_root = $1 ORDER BY block_num DESC LIMIT 1"
