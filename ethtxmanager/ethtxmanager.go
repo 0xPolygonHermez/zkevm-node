@@ -95,6 +95,11 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 
 // VerifyBatch send VerifyBatch request to ethereum
 func (c *Client) VerifyBatch(ctx context.Context, batchNum uint64, resGetProof *pb.FinalProof) error {
+	return c.VerifyBatches(ctx, batchNum-1, batchNum, resGetProof)
+}
+
+// VerifyBatch send VerifyBatch request to ethereum
+func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, batchNum uint64, resGetProof *pb.FinalProof) error {
 	var (
 		attempts uint32
 		gas      uint64

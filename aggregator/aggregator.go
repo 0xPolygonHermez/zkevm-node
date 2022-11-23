@@ -264,13 +264,13 @@ func (a *Aggregator) trySendFinalProof(ctx context.Context, prover *prover.Prove
 		}
 
 		log.Infof("Verfiying final proof with ethereum smart contract, batches %d-%d", proof.BatchNumber, proof.BatchNumberFinal)
-		tx, err := a.Ethman.VerifyBatches(ctx, proof.BatchNumber-1, proof.BatchNumberFinal, resGetProof.FinalProof, 0, nil, nil)
+		err = a.EthTxManager.VerifyBatches(ctx, proof.BatchNumber-1, proof.BatchNumberFinal, resGetProof.FinalProof)
 		if err != nil {
 			log.Errorf("Error verifiying final proof for batches %d-%d, err: %w", proof.BatchNumber, proof.BatchNumberFinal, err)
 			return false, err
 		}
 
-		log.Infof("Final proof for batches %d-%d verified in transaction %v", proof.BatchNumber, proof.BatchNumberFinal, tx.Hash())
+		log.Infof("Final proof for batches %d-%d verified", proof.BatchNumber, proof.BatchNumberFinal)
 		a.TimeSendFinalProof = time.Now().Add(a.cfg.IntervalToSendFinalProof.Duration)
 
 		go func() {
