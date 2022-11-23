@@ -142,7 +142,7 @@ func (c *Client) VerifyBatch(ctx context.Context, batchNum uint64, resGetProof *
 				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
 				continue
 			}
-			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+			log.Infof("tx %s failed, err: %w", tx.Hash(), err)
 			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
 		} else {
 			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
