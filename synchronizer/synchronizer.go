@@ -782,7 +782,7 @@ func (s *ClientSynchronizer) processGlobalExitRoot(globalExitRoot etherman.Globa
 	// Store GlobalExitRoot
 	ger := state.GlobalExitRoot{
 		BlockNumber:       globalExitRoot.BlockNumber,
-		GlobalExitRootNum: globalExitRoot.GlobalExitRootNum,
+		Timestamp:         globalExitRoot.Timestamp,
 		MainnetExitRoot:   globalExitRoot.MainnetExitRoot,
 		RollupExitRoot:    globalExitRoot.RollupExitRoot,
 		GlobalExitRoot:    globalExitRoot.GlobalExitRoot,
@@ -815,6 +815,7 @@ func (s *ClientSynchronizer) processVerifyBatches(lastVerifiedBatch etherman.Ver
 			BlockNumber: lastVerifiedBatch.BlockNumber,
 			BatchNumber: lastVBatch.BatchNumber + i,
 			Aggregator:  lastVerifiedBatch.Aggregator,
+			StateRoot:   lastVerifiedBatch.StateRoot,
 			TxHash:      lastVerifiedBatch.TxHash,
 		}
 		err := s.state.AddVerifiedBatch(s.ctx, &verifiedB, dbTx)

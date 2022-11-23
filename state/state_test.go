@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -262,42 +261,6 @@ func assertBatch(t *testing.T, expected, actual state.Batch) {
 	assert.Equal(t, expected, actual)
 }
 
-func TestAddGlobalExitRoot(t *testing.T) {
-	// Init database instance
-	initOrResetDB()
-
-	ctx := context.Background()
-	fmt.Println("db: ", stateDb)
-	tx, err := testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	block := &state.Block{
-		BlockNumber: 1,
-		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ReceivedAt:  time.Now(),
-	}
-	err = testState.AddBlock(ctx, block, tx)
-	assert.NoError(t, err)
-	globalExitRoot := state.GlobalExitRoot{
-		BlockNumber:       1,
-		GlobalExitRootNum: big.NewInt(2),
-		MainnetExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		RollupExitRoot:    common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
-		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
-	}
-	err = testState.AddGlobalExitRoot(ctx, &globalExitRoot, tx)
-	require.NoError(t, err)
-	exit, _, err := testState.GetLatestGlobalExitRoot(ctx, math.MaxInt64, tx)
-	require.NoError(t, err)
-	err = tx.Commit(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, globalExitRoot.BlockNumber, exit.BlockNumber)
-	assert.Equal(t, globalExitRoot.GlobalExitRootNum, exit.GlobalExitRootNum)
-	assert.Equal(t, globalExitRoot.MainnetExitRoot, exit.MainnetExitRoot)
-	assert.Equal(t, globalExitRoot.RollupExitRoot, exit.RollupExitRoot)
-	assert.Equal(t, globalExitRoot.GlobalExitRoot, exit.GlobalExitRoot)
-}
-
 func TestAddForcedBatch(t *testing.T) {
 	// Init database instance
 	initOrResetDB()
@@ -462,54 +425,6 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	txHashes, err := testState.GetTxsOlderThanNL1Blocks(ctx, 1, nil)
 	require.NoError(t, err)
 	require.Equal(t, l2Tx1.Hash().Hex(), txHashes[0].Hex())
-}
-func TestVerifiedBatch(t *testing.T) {
-	initOrResetDB()
-
-	ctx := context.Background()
-	dbTx, err := testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-
-	block := &state.Block{
-		BlockNumber: 1,
-		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ParentHash:  common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		ReceivedAt:  time.Now(),
-	}
-	err = testState.AddBlock(ctx, block, dbTx)
-	assert.NoError(t, err)
-	//require.NoError(t, tx.Commit(ctx))
-
-	lastBlock, err := testState.GetLastBlock(ctx, dbTx)
-	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), lastBlock.BlockNumber)
-
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
-
-	require.NoError(t, err)
-	virtualBatch := state.VirtualBatch{
-		BlockNumber: 1,
-		BatchNumber: 1,
-		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-	}
-	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
-	require.NoError(t, err)
-	expectedVerifiedBatch := state.VerifiedBatch{
-		BlockNumber: 1,
-		BatchNumber: 1,
-		Aggregator:  common.HexToAddress("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		TxHash:      common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-	}
-	err = testState.AddVerifiedBatch(ctx, &expectedVerifiedBatch, dbTx)
-	require.NoError(t, err)
-
-	// Step to create done, retrieve it
-
-	actualVerifiedBatch, err := testState.GetVerifiedBatch(ctx, 1, dbTx)
-	require.NoError(t, err)
-	require.Equal(t, expectedVerifiedBatch, *actualVerifiedBatch)
-
-	require.NoError(t, dbTx.Commit(ctx))
 }
 
 func TestExecuteTransaction(t *testing.T) {

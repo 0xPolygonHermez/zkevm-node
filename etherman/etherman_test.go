@@ -72,7 +72,7 @@ func TestGEREvent(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, uint64(2), blocks[0].GlobalExitRoots[0].BlockNumber)
-	assert.Equal(t, big.NewInt(1), blocks[0].GlobalExitRoots[0].GlobalExitRootNum)
+	assert.Equal(t, int64(finalBlock.Time()), blocks[0].GlobalExitRoots[0].Timestamp.Unix())
 	assert.NotEqual(t, common.Hash{}, blocks[0].GlobalExitRoots[0].MainnetExitRoot)
 	assert.Equal(t, common.Hash{}, blocks[0].GlobalExitRoots[0].RollupExitRoot)
 }

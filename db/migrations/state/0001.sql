@@ -18,7 +18,8 @@ CREATE TABLE state.batch
     global_exit_root VARCHAR,
     local_exit_root  VARCHAR,
     state_root       VARCHAR,
-    timestamp        TIMESTAMP,
+    acc_input_hash   VARCHAR,
+    timestamp        TIMESTAMP WITH TIME ZONE,
     coinbase         VARCHAR,
     raw_txs_data     BYTEA
 );
@@ -36,6 +37,7 @@ CREATE TABLE state.verified_batch
     batch_num  BIGINT PRIMARY KEY REFERENCES state.virtual_batch (batch_num) ON DELETE CASCADE,
     tx_hash    VARCHAR,
     aggregator VARCHAR,
+    state_root VARCHAR,
     block_num  BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE
 );
 
@@ -43,7 +45,7 @@ CREATE TABLE state.forced_batch
 (
     forced_batch_num BIGINT PRIMARY KEY,
     global_exit_root VARCHAR,
-    timestamp        TIMESTAMP,
+    timestamp        TIMESTAMP WITH TIME ZONE NOT NULL,
     raw_txs_data     VARCHAR,
     coinbase         VARCHAR,
     batch_num        BIGINT, -- It can be null if the batch state is not trusted
@@ -73,7 +75,7 @@ CREATE TABLE state.transaction
 CREATE TABLE state.exit_root
 (
     block_num            BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE,
-    global_exit_root_num BIGINT PRIMARY KEY,
+    timestamp            TIMESTAMP WITH TIME ZONE NOT NULL,
     mainnet_exit_root    BYTEA,
     rollup_exit_root     BYTEA,
     global_exit_root     BYTEA
@@ -119,5 +121,14 @@ CREATE TABLE state.log
 CREATE TABLE state.proof
 (
     batch_num  BIGINT NOT NULL PRIMARY KEY REFERENCES state.batch (batch_num) ON DELETE CASCADE,
-    proof jsonb
+    proof jsonb,
+    proof_id VARCHAR,
+    input_prover jsonb,
+    prover VARCHAR
+);
+
+CREATE TABLE IF NOT EXISTS state.sequences
+( --Allowed Verifications
+    from_batch_num BIGINT REFERENCES state.batch (batch_num) ON DELETE CASCADE,
+    to_batch_num   BIGINT REFERENCES state.batch (batch_num) ON DELETE CASCADE
 );
