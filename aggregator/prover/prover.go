@@ -56,7 +56,7 @@ func (p *Prover) Status() (*pb.GetStatusResponse, error) {
 func (p *Prover) IsIdle() bool {
 	status, err := p.Status()
 	if err != nil {
-		log.Warnf("Error asking status for prover ID %s: %w", p.ID, err)
+		log.Warnf("Error asking status for prover ID %s: %w", p.ID(), err)
 		return false
 	}
 	return status.Status == pb.GetStatusResponse_IDLE

@@ -108,12 +108,6 @@ func (a *Aggregator) Start(ctx context.Context) {
 		}
 	}()
 
-	// define those vars here, bcs it can be used in case <-a.ctx.Done()
-	tickerVerifyBatch := time.NewTicker(a.cfg.IntervalToConsolidateState.Duration)
-	tickerSendVerifiedBatch := time.NewTicker(a.cfg.IntervalToSendFinalProof.Duration)
-	defer tickerVerifyBatch.Stop()
-	defer tickerSendVerifiedBatch.Stop()
-
 	a.TimeSendFinalProof = time.Now().Add(a.cfg.IntervalToSendFinalProof.Duration)
 
 	go a.sendFinalProof()
@@ -160,7 +154,8 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 					)
 					proofGenerated, err = a.tryAggregateProofs(ctx, prover, tickerVerifyBatch)
 					if err != nil {
-						log.Errorf("Error trying to aggregate proofs: %v", err)
+						err = fmt.Errorf("Error trying to aggregate proofs: %v", err)
+						log.Error(err)
 						errChan <- err
 						return
 					}
@@ -195,12 +190,16 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 			// TODO(pg): reconnect?
 			return nil
 		case err := <-errChan:
-			a.Stop()
 			return err
 		}
 	}
 }
 
+// This function waits to receive a final proof from a prover. Once it receives
+// the proof, it performs these steps in order:
+// - send the final proof to L1
+// - wait for the synchronizer to catch up
+// - clean up the cache of recursive proofs
 func (a *Aggregator) sendFinalProof() {
 	for {
 		select {
@@ -240,7 +239,7 @@ func (a *Aggregator) sendFinalProof() {
 	}
 }
 
-func (a *Aggregator) buildFinalProof(ctx context.Context, prover *prover.Prover, proof *state.Proof, ticker *time.Ticker) (*pb.FinalProof, error) {
+func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover *prover.Prover, proof *state.Proof, ticker *time.Ticker) (*pb.FinalProof, error) {
 	if !a.TimeSendFinalProof.Before(time.Now()) {
 		return nil, nil
 	}
@@ -430,38 +429,51 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover *prover.Prov
 
 	proof.Proof = resGetProof
 
-	finalProof, err := a.buildFinalProof(ctx, prover, proof, ticker)
+	finalProof, err := a.tryBuildFinalProof(ctx, prover, proof, ticker)
 	if err != nil {
 		return false, fmt.Errorf("Failed trying to send final proof: %w", err)
 	}
 
-	// If the final proof has not been generated we store the recursive proof
-	if finalProof == nil {
-		err = a.State.AddGeneratedProof(a.ctx, proof, nil)
-		if err != nil {
-			return false, fmt.Errorf("Failed to store the recursive proof: %w", err)
+	if finalProof != nil {
+		msg := finalProofMsg{
+			proverID:       prover.ID(),
+			recursiveProof: proof,
+			finalProof:     finalProof,
 		}
-		log.Debug("tryAggregateProofs end")
 
+		select {
+		case <-a.ctx.Done():
+			return false, a.ctx.Err()
+		case a.finalProof <- msg:
+		}
+
+		log.Debug("tryAggregateProofs end")
 		return true, nil
 	}
 
-	msg := finalProofMsg{
-		proverID:       prover.ID(),
-		recursiveProof: proof,
-		finalProof:     finalProof,
+	// NOTE(pg): prover is done, use a.ctx from now on
+
+	// the final proof has not been generated, store the recursive proof
+	// and delete the two aggregated proofs
+	dbTx, err := a.State.BeginStateTransaction(a.ctx)
+	if err != nil {
+		return false, fmt.Errorf("Failed to begin transaction to update proof aggregation state, err: %W", err)
 	}
 
-	go func() {
-		select {
-		case <-a.ctx.Done():
-			return
-		case a.finalProof <- msg:
-		}
-	}()
+	err = a.State.DeleteGeneratedProofs(a.ctx, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx)
+	if err != nil {
+		dbTx.Rollback(a.ctx)
+		return false, fmt.Errorf("Failed to delete previously aggregated proofs, err: %w", err)
+	}
+	err = a.State.AddGeneratedProof(a.ctx, proof, dbTx)
+	if err != nil {
+		dbTx.Rollback(a.ctx)
+		return false, fmt.Errorf("Failed to store the recursive proof: %w", err)
+	}
+
+	dbTx.Commit(a.ctx)
 
 	log.Debug("tryAggregateProofs end")
-
 	return true, nil
 }
 
@@ -552,7 +564,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 
 	genProofID, err := prover.BatchProof(inputProver)
 	if err != nil {
-		return false, fmt.Errorf("Failed to get batch proof id, err: %w", err)
+		return false, fmt.Errorf("Failed to get batch proof id %w", err)
 	}
 
 	proof.ProofID = &genProofID
@@ -561,7 +573,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 
 	resGetProof, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
 	if err != nil {
-		return false, fmt.Errorf("Failed to get proof from prover, err: %w", err)
+		return false, fmt.Errorf("Failed to get proof from prover %w", err)
 	}
 
 	log.Infof("Batch proof %s generated", *proof.ProofID)
@@ -569,36 +581,37 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 	proof.Proof = resGetProof
 	proof.Generating = false
 
-	finalProof, err := a.buildFinalProof(ctx, prover, proof, ticker)
+	finalProof, err := a.tryBuildFinalProof(ctx, prover, proof, ticker)
 	if err != nil {
-		return false, fmt.Errorf("Failed trying to send final proof: %w", err)
+		return false, fmt.Errorf("Failed trying to build final proof %w", err)
 	}
 
-	if finalProof == nil {
-		// final proof has not been generated, update the recursive proof
-		err = a.State.UpdateGeneratedProof(a.ctx, proof, nil)
-		if err != nil {
-			log.Errorf("Failed to store batch proof result, err: %v", err)
-			return false, err
+	if finalProof != nil {
+		// we have a final proof, send it to the
+		msg := finalProofMsg{
+			proverID:       prover.ID(),
+			recursiveProof: proof,
+			finalProof:     finalProof,
+		}
+
+		select {
+		case <-a.ctx.Done():
+			return false, a.ctx.Err()
+		case a.finalProof <- msg:
 		}
 
 		log.Debug("tryGenerateBatchProof end")
 		return true, nil
 	}
 
-	msg := finalProofMsg{
-		proverID:       prover.ID(),
-		recursiveProof: proof,
-		finalProof:     finalProof,
-	}
+	// NOTE(pg): prover is done, use a.ctx from now on
 
-	go func() {
-		select {
-		case <-a.ctx.Done():
-			return
-		case a.finalProof <- msg:
-		}
-	}()
+	// final proof has not been generated, update the recursive proof
+	err = a.State.UpdateGeneratedProof(a.ctx, proof, nil)
+	if err != nil {
+		log.Errorf("Failed to store batch proof result, err %v", err)
+		return false, err
+	}
 
 	log.Debug("tryGenerateBatchProof end")
 	return true, nil
