@@ -296,7 +296,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	}
 
 	if gasUsed > 0 {
-		highEnd = (gasUsed * three) / uint64(two)
+		highEnd = gasUsed * uint64(two)
 	}
 
 	// Start the binary search for the lowest possible gas price
