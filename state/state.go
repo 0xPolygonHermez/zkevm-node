@@ -1311,10 +1311,11 @@ func (s *State) WaitTxToBeSynched(parentCtx context.Context, tx *types.Transacti
 	for {
 		tx, err := s.GetTransactionByHash(ctx, tx.Hash(), nil)
 		if err != nil && err != ErrNotFound {
+			log.Errorf("error waiting tx %s to be synched: %w", tx.Hash(), err)
 			return err
-		}
-
-		if tx != nil || ctx.Err() != nil {
+		} else if ctx.Err() != nil {
+			log.Errorf("error waiting tx %s to be synched: %w", tx.Hash(), ctx.Err())
+		} else if tx != nil {
 			break
 		}
 
