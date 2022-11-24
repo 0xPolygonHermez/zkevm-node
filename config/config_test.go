@@ -172,6 +172,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(2 * time.Minute),
 		},
 		{
+			path:          "EthTxManager.WaitTxToBeSynched",
+			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
 			path:          "EthTxManager.PercentageToIncreaseGasPrice",
 			expectedValue: uint64(10),
 		},

@@ -20,3 +20,7 @@ type etherman interface {
 	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) error
 }
+
+type state interface {
+	WaitTxToBeSynched(ctx context.Context, tx *types.Transaction, timeout time.Duration) error
+}

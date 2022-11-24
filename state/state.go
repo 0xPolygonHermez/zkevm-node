@@ -1302,3 +1302,25 @@ func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
 	}
 	return processedTxResponses, processedTxsHashes, unprocessedTxResponses, unprocessedTxsHashes
 }
+
+// WaitTxToBeSynched waits for an L1 tx synched into the state
+func (s *State) WaitTxToBeSynched(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+
+	for {
+		tx, err := s.GetTransactionByHash(ctx, tx.Hash(), nil)
+		if err != nil && err != ErrNotFound {
+			return err
+		}
+
+		if tx != nil || ctx.Err() != nil {
+			break
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	log.Debug("Transaction successfully synched: ", tx.Hash())
+	return nil
+}

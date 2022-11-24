@@ -42,6 +42,7 @@ MaxVerifyBatchTxRetries = 10
 FrequencyForResendingFailedSendBatches = "1s"
 FrequencyForResendingFailedVerifyBatch = "1s"
 WaitTxToBeMined = "2m"
+WaitTxToBeSynched = "10s"
 PercentageToIncreaseGasPrice = 10
 PercentageToIncreaseGasLimit = 10
 

@@ -25,13 +25,15 @@ const oneHundred = 100
 type Client struct {
 	cfg    Config
 	ethMan etherman
+	state  state
 }
 
 // New creates new eth tx manager
-func New(cfg Config, ethMan etherman) *Client {
+func New(cfg Config, ethMan etherman, state state) *Client {
 	return &Client{
 		cfg:    cfg,
 		ethMan: ethMan,
+		state:  state,
 	}
 }
 
@@ -87,7 +89,7 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
 		} else {
 			log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
-			return nil
+			return c.state.WaitTxToBeSynched(ctx, tx, c.cfg.WaitTxToBeSynched.Duration)
 		}
 	}
 	return nil
@@ -146,8 +148,7 @@ func (c *Client) VerifyBatch(ctx context.Context, batchNum uint64, resGetProof *
 			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
 		} else {
 			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
-			time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
-			return nil
+			return c.state.WaitTxToBeSynched(ctx, tx, c.cfg.WaitTxToBeSynched.Duration)
 		}
 	}
 	return nil
