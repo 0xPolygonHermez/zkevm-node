@@ -1315,6 +1315,7 @@ func (s *State) WaitTxToBeSynched(parentCtx context.Context, tx *types.Transacti
 			return err
 		} else if ctx.Err() != nil {
 			log.Errorf("error waiting tx %s to be synched: %w", tx.Hash(), ctx.Err())
+			return ctx.Err()
 		} else if tx != nil {
 			break
 		}
