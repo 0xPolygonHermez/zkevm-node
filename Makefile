@@ -3,7 +3,6 @@ COMMIT := $(shell git rev-parse --short HEAD)
 DATE := $(shell date +%Y-%m-%dT%H:%M:%S%z)
 LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
 ARCH := $(shell arch)
-
 ifeq ($(ARCH),aarch64)
 	ARCH = "arm64"
 endif
