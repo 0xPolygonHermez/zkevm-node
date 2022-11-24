@@ -6,7 +6,6 @@ ARCH := $(shell arch)
 
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/dist
-GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH)
 GOBINARY := zkevm-node
 GOCMD := $(GOBASE)/cmd
 GOARCH := amd64
@@ -14,6 +13,8 @@ GOARCH := amd64
 ifeq ($(ARCH),aarch64)
 	GOARCH = "arm64"
 endif
+
+GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=0 GOOS=linux GOARCH=$(GOARCH)
 
 $(eval BUILD_COMMIT:=$(shell git rev-parse --short HEAD))
 
