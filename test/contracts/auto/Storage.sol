@@ -25,4 +25,8 @@ contract Storage {
     function retrieve() public view returns (uint256){
         return number;
     }
+
+    function release() public{
+        number = 0;
+    }
 }
