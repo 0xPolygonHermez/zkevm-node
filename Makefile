@@ -2,10 +2,15 @@ VERSION := $(shell git describe --tags --always)
 COMMIT := $(shell git rev-parse --short HEAD)
 DATE := $(shell date +%Y-%m-%dT%H:%M:%S%z)
 LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
+ARCH := $(shell arch)
+
+ifeq ($(ARCH),x86_64)
+	ARCH = amd64
+endif
 
 GOBASE := $(shell pwd)
 GOBIN := $(GOBASE)/dist
-GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=0 GOOS=linux GOARCH=$(shell arch)
+GOENVVARS := GOBIN=$(GOBIN) CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH)
 GOBINARY := zkevm-node
 GOCMD := $(GOBASE)/cmd
 $(eval BUILD_COMMIT:=$(shell git rev-parse --short HEAD))
