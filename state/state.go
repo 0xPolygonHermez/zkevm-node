@@ -33,11 +33,10 @@ import (
 
 const (
 	// Size of the memory in bytes reserved by the zkEVM
-	zkEVMReservedMemorySize int    = 128
-	two                     uint   = 2
-	three                   uint64 = 3
-	cTrue                          = 1
-	cFalse                         = 0
+	zkEVMReservedMemorySize int  = 128
+	two                     uint = 2
+	cTrue                        = 1
+	cFalse                       = 0
 )
 
 var (
