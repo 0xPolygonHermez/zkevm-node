@@ -1904,15 +1904,16 @@ func (p *PostgresStorage) UpdateGeneratedProof(ctx context.Context, proof *Proof
 	return err
 }
 
-// DeleteGeneratedProof deletes a generated proof from the storage
-func (p *PostgresStorage) DeleteGeneratedProof(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
-	const deleteGeneratedProofSQL = "DELETE FROM state.recursive_proof WHERE batch_num = $1 AND batch_num_final = $2"
+// DeleteGeneratedProofs deletes from the storage the generated proofs falling
+// inside the batch numbers range.
+func (p *PostgresStorage) DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
+	const deleteGeneratedProofSQL = "DELETE FROM state.recursive_proof WHERE batch_num >= $1 AND batch_num_final <= $2"
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, deleteGeneratedProofSQL, batchNumber, batchNumberFinal)
 	return err
 }
 
-// DeleteUngeneratedProofs deletes ungenerated proofs from state.proof table
+// DeleteUngeneratedProofs deletes ungenerated proofs.
 // This method is meant to be use during aggregator boot-up sequence
 func (p *PostgresStorage) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error {
 	const deleteUngeneratedProofsSQL = "DELETE FROM state.recursive_proof WHERE generating IS TRUE"

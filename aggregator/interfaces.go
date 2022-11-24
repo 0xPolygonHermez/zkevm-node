@@ -7,6 +7,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -24,7 +25,7 @@ type proverInterface interface {
 // ethTxManager contains the methods required to send txs to
 // ethereum.
 type ethTxManager interface {
-	VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, batchNum uint64, resGetProof *pb.FinalProof) error
+	VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, batchNum uint64, resGetProof *pb.FinalProof) (*types.Transaction, error)
 }
 
 // etherman contains the methods required to interact with ethereum
@@ -49,6 +50,6 @@ type stateInterface interface {
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	AddGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error
 	UpdateGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error
-	DeleteGeneratedProof(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error
+	DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error
 	DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error
 }
