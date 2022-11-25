@@ -1303,18 +1303,18 @@ func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
 	return processedTxResponses, processedTxsHashes, unprocessedTxResponses, unprocessedTxsHashes
 }
 
-// WaitSequencingTxToBeSynched waits for a sequencing transaction to be synched into the state
-func (s *State) WaitSequencingTxToBeSynched(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) error {
+// WaitSequencingTxToBeSynced waits for a sequencing transaction to be synced into the state
+func (s *State) WaitSequencingTxToBeSynced(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
 
 	for {
-		virtualized, err := s.IsSequencingTXSynched(ctx, tx.Hash(), nil)
+		virtualized, err := s.IsSequencingTXSynced(ctx, tx.Hash(), nil)
 		if err != nil && err != ErrNotFound {
-			log.Errorf("error waiting sequencing tx %s to be synched: %w", tx.Hash().String(), err)
+			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
 			return err
 		} else if ctx.Err() != nil {
-			log.Errorf("error waiting sequencing tx %s to be synched: %w", tx.Hash().String(), err)
+			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
 			return ctx.Err()
 		} else if virtualized {
 			break
@@ -1323,22 +1323,22 @@ func (s *State) WaitSequencingTxToBeSynched(parentCtx context.Context, tx *types
 		time.Sleep(time.Second)
 	}
 
-	log.Debug("Sequencing txh successfully synched: ", tx.Hash().String())
+	log.Debug("Sequencing txh successfully synced: ", tx.Hash().String())
 	return nil
 }
 
-// WaitVerifiedBatchToBeSynched waits for a sequenced batch to be synched into the state
-func (s *State) WaitVerifiedBatchToBeSynched(parentCtx context.Context, batchNumber uint64, timeout time.Duration) error {
+// WaitVerifiedBatchToBeSynced waits for a sequenced batch to be synced into the state
+func (s *State) WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumber uint64, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
 
 	for {
 		batch, err := s.GetVerifiedBatch(ctx, batchNumber, nil)
 		if err != nil && err != ErrNotFound {
-			log.Errorf("error waiting verified batch %s to be synched: %w", batchNumber, err)
+			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
 			return err
 		} else if ctx.Err() != nil {
-			log.Errorf("error waiting verified batch %s to be synched: %w", batchNumber, err)
+			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
 			return ctx.Err()
 		} else if batch != nil {
 			break
@@ -1347,6 +1347,6 @@ func (s *State) WaitVerifiedBatchToBeSynched(parentCtx context.Context, batchNum
 		time.Sleep(time.Second)
 	}
 
-	log.Debug("Verified batch successfully synched: ", batchNumber)
+	log.Debug("Verified batch successfully synced: ", batchNumber)
 	return nil
 }

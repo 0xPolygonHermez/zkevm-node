@@ -652,8 +652,8 @@ func (p *PostgresStorage) IsBatchVirtualized(ctx context.Context, batchNumber ui
 	return exists, nil
 }
 
-// IsSequencingTXSynched checks if sequencing tx has been synched into the state
-func (p *PostgresStorage) IsSequencingTXSynched(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (bool, error) {
+// IsSequencingTXSynced checks if sequencing tx has been synced into the state
+func (p *PostgresStorage) IsSequencingTXSynced(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (bool, error) {
 	const query = `SELECT EXISTS (SELECT 1 FROM state.virtual_batch WHERE tx_hash = $1)`
 	e := p.getExecQuerier(dbTx)
 	var exists bool
