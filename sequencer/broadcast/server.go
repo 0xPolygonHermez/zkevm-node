@@ -102,7 +102,7 @@ func (s *Server) genericGetBatch(ctx context.Context, batch *state.Batch) (*pb.G
 
 	var (
 		mainnetExitRoot, rollupExitRoot string
-		globalExitRootTimestamp uint64
+		globalExitRootTimestamp         uint64
 	)
 	ger, err := s.state.GetExitRootByGlobalExitRoot(ctx, batch.GlobalExitRoot, nil)
 	if err == nil {

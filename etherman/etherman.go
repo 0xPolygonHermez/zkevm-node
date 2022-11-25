@@ -41,8 +41,8 @@ var (
 	transferOwnershipSignatureHash         = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
 	setSecurityCouncilSignatureHash        = crypto.Keccak256Hash([]byte("SetSecurityCouncil(address)"))
 	proofDifferentStateSignatureHash       = crypto.Keccak256Hash([]byte("ProofDifferentState(bytes32,bytes32)"))
-	EmergencyStateActivatedSignatureHash   = crypto.Keccak256Hash([]byte("EmergencyStateActivated()"))
-	EmergencyStateDeactivatedSignatureHash = crypto.Keccak256Hash([]byte("EmergencyStateDeactivated()"))
+	emergencyStateActivatedSignatureHash   = crypto.Keccak256Hash([]byte("EmergencyStateActivated()"))
+	emergencyStateDeactivatedSignatureHash = crypto.Keccak256Hash([]byte("EmergencyStateDeactivated()"))
 
 	// Proxy events
 	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
@@ -236,10 +236,10 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	case proofDifferentStateSignatureHash:
 		log.Debug("ProofDifferentState event detected")
 		return nil
-	case EmergencyStateActivatedSignatureHash:
+	case emergencyStateActivatedSignatureHash:
 		log.Debug("EmergencyStateActivated event detected")
 		return nil
-	case EmergencyStateDeactivatedSignatureHash:
+	case emergencyStateDeactivatedSignatureHash:
 		log.Debug("EmergencyStateDeactivated event detected")
 		return nil
 	}
