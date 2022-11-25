@@ -30,15 +30,19 @@ import (
 )
 
 var (
-	updateGlobalExitRootSignatureHash   = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(uint256,bytes32,bytes32)"))
-	forcedBatchSignatureHash            = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
-	sequencedBatchesEventSignatureHash  = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
-	forceSequencedBatchesSignatureHash  = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))
-	verifyBatchesSignatureHash          = crypto.Keccak256Hash([]byte("VerifyBatches(uint64,address)"))
-	setTrustedSequencerURLSignatureHash = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))
-	setForceBatchAllowedSignatureHash   = crypto.Keccak256Hash([]byte("SetForceBatchAllowed(bool)"))
-	setTrustedSequencerSignatureHash    = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))
-	transferOwnershipSignatureHash      = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+	updateGlobalExitRootSignatureHash      = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
+	forcedBatchSignatureHash               = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)"))
+	sequencedBatchesEventSignatureHash     = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
+	forceSequencedBatchesSignatureHash     = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))
+	verifyBatchesSignatureHash             = crypto.Keccak256Hash([]byte("VerifyBatches(uint64,bytes32,address)"))
+	setTrustedSequencerURLSignatureHash    = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))
+	setForceBatchAllowedSignatureHash      = crypto.Keccak256Hash([]byte("SetForceBatchAllowed(bool)"))
+	setTrustedSequencerSignatureHash       = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))
+	transferOwnershipSignatureHash         = crypto.Keccak256Hash([]byte("OwnershipTransferred(address,address)"))
+	setSecurityCouncilSignatureHash        = crypto.Keccak256Hash([]byte("SetSecurityCouncil(address)"))
+	proofDifferentStateSignatureHash       = crypto.Keccak256Hash([]byte("ProofDifferentState(bytes32,bytes32)"))
+	emergencyStateActivatedSignatureHash   = crypto.Keccak256Hash([]byte("EmergencyStateActivated()"))
+	emergencyStateDeactivatedSignatureHash = crypto.Keccak256Hash([]byte("EmergencyStateDeactivated()"))
 
 	// Proxy events
 	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
@@ -226,6 +230,18 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	case transferOwnershipSignatureHash:
 		log.Debug("TransferOwnership event detected")
 		return nil
+	case setSecurityCouncilSignatureHash:
+		log.Debug("SetSecurityCouncil event detected")
+		return nil
+	case proofDifferentStateSignatureHash:
+		log.Debug("ProofDifferentState event detected")
+		return nil
+	case emergencyStateActivatedSignatureHash:
+		log.Debug("EmergencyStateActivated event detected")
+		return nil
+	case emergencyStateDeactivatedSignatureHash:
+		log.Debug("EmergencyStateDeactivated event detected")
+		return nil
 	}
 	log.Warn("Event not registered: ", vLog)
 	return nil
@@ -237,19 +253,20 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 	if err != nil {
 		return err
 	}
+	fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
+	if err != nil {
+		return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+	}
+	t := time.Unix(int64(fullBlock.Time()), 0)
 	var gExitRoot GlobalExitRoot
 	gExitRoot.MainnetExitRoot = common.BytesToHash(globalExitRoot.MainnetExitRoot[:])
 	gExitRoot.RollupExitRoot = common.BytesToHash(globalExitRoot.RollupExitRoot[:])
-	gExitRoot.GlobalExitRootNum = globalExitRoot.GlobalExitRootNum
+	gExitRoot.Timestamp = t
 	gExitRoot.BlockNumber = vLog.BlockNumber
 	gExitRoot.GlobalExitRoot = hash(globalExitRoot.MainnetExitRoot, globalExitRoot.RollupExitRoot)
 
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
-		fullBlock, err := etherMan.EtherClient.BlockByHash(ctx, vLog.BlockHash)
-		if err != nil {
-			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-		}
-		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
+		block := prepareBlock(vLog, t, fullBlock)
 		block.GlobalExitRoots = append(block.GlobalExitRoots, gExitRoot)
 		*blocks = append(*blocks, block)
 	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
@@ -545,6 +562,7 @@ func (etherMan *Client) verifyBatchesEvent(ctx context.Context, vLog types.Log, 
 	verifyBatch.BlockNumber = vLog.BlockNumber
 	verifyBatch.BatchNumber = vb.NumBatch
 	verifyBatch.TxHash = vLog.TxHash
+	verifyBatch.StateRoot = vb.StateRoot
 	verifyBatch.Aggregator = vb.Aggregator
 
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {

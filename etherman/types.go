@@ -1,7 +1,6 @@
 package etherman
 
 import (
-	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
@@ -23,11 +22,11 @@ type Block struct {
 
 // GlobalExitRoot struct
 type GlobalExitRoot struct {
-	BlockNumber       uint64
-	GlobalExitRootNum *big.Int
-	MainnetExitRoot   common.Hash
-	RollupExitRoot    common.Hash
-	GlobalExitRoot    common.Hash
+	BlockNumber     uint64
+	Timestamp       time.Time
+	MainnetExitRoot common.Hash
+	RollupExitRoot  common.Hash
+	GlobalExitRoot  common.Hash
 }
 
 // SequencedBatch represents virtual batch
@@ -54,6 +53,7 @@ type VerifiedBatch struct {
 	BlockNumber uint64
 	BatchNumber uint64
 	Aggregator  common.Address
+	StateRoot   common.Hash
 	TxHash      common.Hash
 }
 

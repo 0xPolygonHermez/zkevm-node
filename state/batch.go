@@ -44,6 +44,7 @@ type VerifiedBatch struct {
 	BatchNumber uint64
 	Aggregator  common.Address
 	TxHash      common.Hash
+	StateRoot   common.Hash
 }
 
 // VirtualBatch represents a VirtualBatch

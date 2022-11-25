@@ -497,6 +497,17 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, dbTx pgx.Tx) (
 		newRoot == tBatch.StateRoot {
 		return true, nil
 	}
+	log.Warn("Trusted Reorg detected")
+	log.Debug("batch.BatchL2Data: ", hex.EncodeToString(batch.BatchL2Data))
+	log.Debug("batch.GlobalExitRoot: ", batch.GlobalExitRoot)
+	log.Debug("batch.Timestamp: ", batch.Timestamp)
+	log.Debug("batch.Coinbase: ", batch.Coinbase)
+	log.Debug("newRoot: ", newRoot)
+	log.Debug("tBatch.BatchL2Data: ", hex.EncodeToString(tBatch.BatchL2Data))
+	log.Debug("tBatch.GlobalExitRoot: ", tBatch.GlobalExitRoot)
+	log.Debug("tBatch.Timestamp: ", tBatch.Timestamp)
+	log.Debug("tBatch.Coinbase: ", tBatch.Coinbase)
+	log.Debug("tBatch.StateRoot: ", tBatch.StateRoot)
 	return false, nil
 }
 
@@ -596,7 +607,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		if !status {
 			// Reset trusted state
 			previousBatchNumber := batch.BatchNumber - 1
-			log.Infof("Trusted reorg detected, discarding batches until batchNum %d", previousBatchNumber)
+			log.Warnf("Trusted reorg detected, discarding batches until batchNum %d", previousBatchNumber)
 			err := s.state.ResetTrustedState(s.ctx, previousBatchNumber, dbTx) // This method has to reset the forced batches deleting the batchNumber for higher batchNumbers
 			if err != nil {
 				log.Errorf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %w", batch.BatchNumber, blockNumber, err)
@@ -781,11 +792,11 @@ func (s *ClientSynchronizer) processForcedBatch(forcedBatch etherman.ForcedBatch
 func (s *ClientSynchronizer) processGlobalExitRoot(globalExitRoot etherman.GlobalExitRoot, dbTx pgx.Tx) {
 	// Store GlobalExitRoot
 	ger := state.GlobalExitRoot{
-		BlockNumber:       globalExitRoot.BlockNumber,
-		GlobalExitRootNum: globalExitRoot.GlobalExitRootNum,
-		MainnetExitRoot:   globalExitRoot.MainnetExitRoot,
-		RollupExitRoot:    globalExitRoot.RollupExitRoot,
-		GlobalExitRoot:    globalExitRoot.GlobalExitRoot,
+		BlockNumber:     globalExitRoot.BlockNumber,
+		Timestamp:       globalExitRoot.Timestamp,
+		MainnetExitRoot: globalExitRoot.MainnetExitRoot,
+		RollupExitRoot:  globalExitRoot.RollupExitRoot,
+		GlobalExitRoot:  globalExitRoot.GlobalExitRoot,
 	}
 	err := s.state.AddGlobalExitRoot(s.ctx, &ger, dbTx)
 	if err != nil {
@@ -815,6 +826,7 @@ func (s *ClientSynchronizer) processVerifyBatches(lastVerifiedBatch etherman.Ver
 			BlockNumber: lastVerifiedBatch.BlockNumber,
 			BatchNumber: lastVBatch.BatchNumber + i,
 			Aggregator:  lastVerifiedBatch.Aggregator,
+			StateRoot:   lastVerifiedBatch.StateRoot,
 			TxHash:      lastVerifiedBatch.TxHash,
 		}
 		err := s.state.AddVerifiedBatch(s.ctx, &verifiedB, dbTx)
