@@ -16,6 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	nilProcessBatchResponse *state.ProcessBatchResponse
+)
+
 func TestIsSynced(t *testing.T) {
 	st := new(sequencerMocks.StateMock)
 	eth := new(sequencerMocks.EthermanMock)
@@ -190,21 +194,14 @@ func TestProcessBatch(t *testing.T) {
 	dbTx.On("Commit", ctx).Return(nil)
 	lastBatchNumber := uint64(10)
 	tx1 := *types.NewTransaction(0, common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	tx2 := *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
 
-	s.sequenceInProgress.Txs = []types.Transaction{tx1, tx2}
-
+	s.sequenceInProgress.Txs = []types.Transaction{tx1}
 	txsBatch1 := []*state.ProcessTransactionResponse{
 		{
 			TxHash:      tx1.Hash(),
 			Tx:          tx1,
 			IsProcessed: true,
 		},
-		{
-			TxHash:      tx2.Hash(),
-			Tx:          tx2,
-			IsProcessed: true,
-		},
 	}
 
 	processBatchResponse := &state.ProcessBatchResponse{
@@ -214,67 +211,13 @@ func TestProcessBatch(t *testing.T) {
 		NewStateRoot:      common.HexToHash("0x123"),
 		NewLocalExitRoot:  common.HexToHash("0x123"),
 	}
+
 	st.On("GetLastBatchNumber", ctx, dbTx).Return(lastBatchNumber, nil)
-	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, s.sequenceInProgress.Txs, dbTx).Return(processBatchResponse, nil)
+	st.On("ProcessSingleTransaction", ctx, lastBatchNumber, s.sequenceInProgress.Txs[0], true, nilProcessBatchResponse, dbTx).Return(processBatchResponse, nil)
 	procResponse, err := s.processTxs(ctx)
 	require.NoError(t, err)
 	require.True(t, procResponse.isBatchProcessed)
-	require.Equal(t, 2, len(procResponse.processedTxs))
-	st.AssertExpectations(t)
-}
-
-func TestReprocessBatch(t *testing.T) {
-	st := new(sequencerMocks.StateMock)
-	s := &Sequencer{state: st}
-	dbTx := new(sequencerMocks.DbTxMock)
-	ctx := context.Background()
-	st.On("BeginStateTransaction", ctx).Return(dbTx, nil)
-	dbTx.On("Commit", ctx).Return(nil)
-	tx1 := *types.NewTransaction(0, common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	tx2 := *types.NewTransaction(1, common.HexToAddress("1"), big.NewInt(1), 0, big.NewInt(1), []byte("bbb"))
-	txs := []types.Transaction{tx1, tx2}
-	s.sequenceInProgress.Txs = txs
-
-	txsBatch1 := []*state.ProcessTransactionResponse{
-		{
-			TxHash:      txs[0].Hash(),
-			Tx:          txs[0],
-			IsProcessed: true,
-		},
-		{
-			TxHash:      txs[1].Hash(),
-			Tx:          txs[1],
-			IsProcessed: true,
-		},
-	}
-
-	processBatchResponse := &state.ProcessBatchResponse{
-		CumulativeGasUsed: 100000,
-		IsBatchProcessed:  true,
-		Responses:         txsBatch1,
-		NewStateRoot:      common.HexToHash("0x123"),
-		NewLocalExitRoot:  common.HexToHash("0x123"),
-	}
-
-	processedTxs, processedTxsHashes, unprocessedTxs, unprocessedTxsHashes := state.DetermineProcessedTransactions(processBatchResponse.Responses)
-
-	txsResponse := processTxResponse{
-		processedTxs:         processedTxs,
-		processedTxsHashes:   processedTxsHashes,
-		unprocessedTxs:       unprocessedTxs,
-		unprocessedTxsHashes: unprocessedTxsHashes,
-		isBatchProcessed:     false,
-	}
-	txsResponseToReturn := txsResponse
-	txsResponseToReturn.isBatchProcessed = true
-	lastBatchNumber := uint64(10)
-	st.On("GetLastBatchNumber", ctx, dbTx).Return(lastBatchNumber, nil)
-	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, txs, dbTx).Return(processBatchResponse, nil)
-
-	unprocessedTxsAfterReprocess, err := s.reprocessBatch(ctx, txsResponse, ethManTypes.Sequence{})
-	require.NoError(t, err)
-	require.Equal(t, 0, len(unprocessedTxsAfterReprocess))
-	require.Equal(t, 2, len(s.sequenceInProgress.Txs))
+	require.Equal(t, 1, len(procResponse.processedTxs))
 	st.AssertExpectations(t)
 }
 
@@ -378,8 +321,6 @@ func TestTryToProcessTxs(t *testing.T) {
 	st.On("BeginStateTransaction", ctx).Return(dbTx, nil)
 	dbTx.On("Commit", ctx).Return(nil)
 
-	tx := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	s.sequenceInProgress.Txs = []types.Transaction{*tx}
 	s.sequenceInProgress.Timestamp = time.Now().Unix()
 
 	lastBatchNumber := uint64(10)
@@ -395,20 +336,15 @@ func TestTryToProcessTxs(t *testing.T) {
 	poolTx := types.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	var poolTxs []*pool.Transaction
 	poolTxs = append(poolTxs, &pool.Transaction{Transaction: *poolTx})
-	pl.On("GetTxs", ctx, pool.TxStatusPending, true, uint64(0), uint64(149)).Return([]*pool.Transaction{}, nil)
-	pl.On("GetTxs", ctx, pool.TxStatusFailed, true, uint64(0), uint64(149)).Return([]*pool.Transaction{}, nil)
 
-	pl.On("GetTxs", ctx, pool.TxStatusPending, false, minGasPrice.Uint64(), uint64(149)).Return(poolTxs, nil)
+	pl.On("GetTxs", ctx, pool.TxStatusPending, true, uint64(0), uint64(1)).Return([]*pool.Transaction{}, nil)
+	pl.On("GetTxs", ctx, pool.TxStatusFailed, true, uint64(0), uint64(1)).Return([]*pool.Transaction{}, nil)
 
+	pl.On("GetTxs", ctx, pool.TxStatusPending, false, minGasPrice.Uint64(), uint64(1)).Return(poolTxs, nil)
 	txsBatch1 := []*state.ProcessTransactionResponse{
 		{
-			TxHash:      s.sequenceInProgress.Txs[0].Hash(),
-			Tx:          s.sequenceInProgress.Txs[0],
-			IsProcessed: true,
-		},
-		{
-			TxHash:      poolTxs[0].Transaction.Hash(),
-			Tx:          poolTxs[0].Transaction,
+			TxHash:      poolTx.Hash(),
+			Tx:          *poolTx,
 			IsProcessed: true,
 		},
 	}
@@ -420,9 +356,8 @@ func TestTryToProcessTxs(t *testing.T) {
 		NewStateRoot:      common.HexToHash("0x123"),
 		NewLocalExitRoot:  common.HexToHash("0x123"),
 	}
-	var txs = s.sequenceInProgress.Txs
-	txs = append(txs, poolTxs[0].Transaction)
-	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, txs, dbTx).Return(processBatchResponse, nil)
+
+	st.On("ProcessSingleTransaction", ctx, lastBatchNumber, poolTxs[0].Transaction, true, nilProcessBatchResponse, dbTx).Return(processBatchResponse, nil)
 
 	processedTxs, processedTxsHashes, _, _ := state.DetermineProcessedTransactions(processBatchResponse.Responses)
 

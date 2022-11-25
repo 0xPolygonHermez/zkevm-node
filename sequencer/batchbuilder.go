@@ -17,6 +17,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+var (
+	getTxsLimit = uint64(1)
+)
+
 type processTxResponse struct {
 	processedTxs         []*state.ProcessTransactionResponse
 	processedTxsHashes   []string
@@ -52,8 +56,6 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	// backup current sequence
 	sequenceBeforeTryingToProcessNewTxs := s.backupSequence()
 
-	getTxsLimit := s.cfg.MaxTxsPerBatch - uint64(len(s.sequenceInProgress.Txs))
-
 	minGasPrice, err := s.gpe.GetAvgGasPrice(ctx)
 	if err != nil {
 		log.Errorf("failed to get avg gas price, err: %w", err)
@@ -61,10 +63,12 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	}
 
 	// get txs from the pool
-	appendedClaimsTxsAmount := s.appendPendingTxs(ctx, true, 0, getTxsLimit, ticker)
-	appendedTxsAmount := s.appendPendingTxs(ctx, false, minGasPrice.Uint64(), getTxsLimit-appendedClaimsTxsAmount, ticker) + appendedClaimsTxsAmount
+	txAmount := s.appendPendingTxs(ctx, true, 0, getTxsLimit, ticker)
+	if txAmount == 0 {
+		txAmount = s.appendPendingTxs(ctx, false, minGasPrice.Uint64(), getTxsLimit, ticker)
+	}
 
-	if appendedTxsAmount == 0 {
+	if txAmount == 0 {
 		return
 	}
 	// clear txs if it bigger than expected
@@ -73,23 +77,18 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 	// process batch
-	log.Infof("processing batch with %d txs. %d txs are new from this iteration", len(s.sequenceInProgress.Txs), appendedTxsAmount)
+	log.Infof("processing tx number [%d] for current batch...", len(s.sequenceInProgress.Txs))
 	processResponse, err := s.processTxs(ctx)
 	if err != nil {
 		s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
-		log.Errorf("failed to process txs, err: %w", err)
+		log.Errorf("failed to process tx number: [%d], err: %w", err)
 		return
 	}
-
-	// reprocess the batch until:
-	// - all the txs in it are processed, so the batch doesn't include invalid txs
-	// - the batch is processed (certain situations may cause the entire batch to not have effect on the state)
-	unprocessedTxs, err := s.reprocessBatch(ctx, processResponse, sequenceBeforeTryingToProcessNewTxs)
-	if err != nil {
-		return
+	if len(processResponse.unprocessedTxs) > 0 {
+		// removing last tx as it failed processing
+		s.sequenceInProgress.Txs = s.sequenceInProgress.Txs[:len(s.sequenceInProgress.Txs)-1]
 	}
-
-	log.Infof("%d txs processed successfully", len(processResponse.processedTxsHashes))
+	log.Infof("tx number [%d] processed successfully", len(processResponse.processedTxsHashes))
 
 	// If after processing new txs the sequence is equal or smaller, revert changes and close sequence
 	if len(s.sequenceInProgress.Txs) <= len(sequenceBeforeTryingToProcessNewTxs.Txs) && len(s.sequenceInProgress.Txs) > 0 {
@@ -104,16 +103,18 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 
-	// only save in DB processed transactions.
-	err = s.storeProcessedTransactions(ctx, processResponse.processedTxs)
-	if err != nil {
-		s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
-		log.Errorf("failed to store processed txs, err: %w", err)
-		return
+	if len(processResponse.processedTxs) > 0 {
+		// only save in DB processed transactions.
+		err = s.storeProcessedTransactions(ctx, processResponse.processedTxs)
+		if err != nil {
+			s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
+			log.Errorf("failed to store processed txs, err: %w", err)
+			return
+		}
+		log.Infof("tx number [%d] stored and added into the trusted state", len(s.sequenceInProgress.Txs))
 	}
-	log.Infof("%d txs stored and added into the trusted state", len(processResponse.processedTxs))
 
-	s.updateTxsInPool(ctx, ticker, processResponse, unprocessedTxs)
+	s.updateTxsInPool(ctx, ticker, processResponse, processResponse.unprocessedTxs)
 }
 
 func (s *Sequencer) updateTxsInPool(
@@ -131,43 +132,6 @@ func (s *Sequencer) updateTxsInPool(
 	s.updateTxsStatus(ctx, ticker, failedTxsHashes, pool.TxStatusFailed)
 	// increment counter for failed txs
 	s.incrementFailedCounter(ctx, ticker, failedTxsHashes)
-}
-
-func (s *Sequencer) reprocessBatch(ctx context.Context, processResponse processTxResponse, sequenceBeforeTryingToProcessNewTxs types.Sequence) (map[string]*state.ProcessTransactionResponse, error) {
-	unprocessedTxs := processResponse.unprocessedTxs
-	var err error
-	for !processResponse.isBatchProcessed || len(processResponse.unprocessedTxs) > 0 {
-		// include only processed txs in the sequence
-		s.sequenceInProgress.Txs = make([]ethTypes.Transaction, 0, len(processResponse.processedTxs))
-		for i := 0; i < len(processResponse.processedTxs); i++ {
-			s.sequenceInProgress.Txs = append(s.sequenceInProgress.Txs, processResponse.processedTxs[i].Tx)
-		}
-
-		if len(s.sequenceInProgress.Txs) == 0 {
-			log.Infof("sequence in progress doesn't have txs, no need to send a batch")
-			break
-		}
-		log.Infof("failed to process batch or invalid txs. Retrying with %d txs", len(s.sequenceInProgress.Txs))
-		// reprocess
-		processResponse, err = s.processTxs(ctx)
-		if err != nil {
-			s.sequenceInProgress = sequenceBeforeTryingToProcessNewTxs
-			log.Errorf("failed to reprocess txs, err: %w", err)
-			return unprocessedTxs, err
-		}
-		if len(processResponse.processedTxsHashes) != 0 {
-			for _, hash := range processResponse.processedTxsHashes {
-				delete(unprocessedTxs, hash)
-			}
-		}
-		for _, txHash := range processResponse.unprocessedTxsHashes {
-			if _, ok := unprocessedTxs[txHash]; !ok {
-				unprocessedTxs[txHash] = processResponse.unprocessedTxs[txHash]
-			}
-		}
-	}
-
-	return unprocessedTxs, nil
 }
 
 func (s *Sequencer) cleanTxsIfTxsDataIsBiggerThanExpected(ctx context.Context, ticker *time.Ticker) error {
@@ -361,8 +325,11 @@ func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 		log.Errorf("failed to get last batch number, err: %w", err)
 		return processTxResponse{}, err
 	}
+	lenOfTxs := len(s.sequenceInProgress.Txs)
+	isFirstTx := lenOfTxs == 1
+	lastTx := s.sequenceInProgress.Txs[len(s.sequenceInProgress.Txs)-1]
+	s.lastProcessBatchResp, err = s.state.ProcessSingleTransaction(ctx, lastBatchNumber, lastTx, isFirstTx, s.lastProcessBatchResp, dbTx)
 
-	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, lastBatchNumber, s.sequenceInProgress.Txs, dbTx)
 	if err != nil {
 		if err == state.ErrBatchAlreadyClosed || err == state.ErrInvalidBatchNumber {
 			log.Warnf("unexpected state local vs DB: %w", err)
@@ -388,17 +355,17 @@ func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 		return processTxResponse{}, err
 	}
 
-	s.sequenceInProgress.StateRoot = processBatchResp.NewStateRoot
-	s.sequenceInProgress.LocalExitRoot = processBatchResp.NewLocalExitRoot
+	s.sequenceInProgress.StateRoot = s.lastProcessBatchResp.NewStateRoot
+	s.sequenceInProgress.LocalExitRoot = s.lastProcessBatchResp.NewLocalExitRoot
 
-	processedTxs, processedTxsHashes, unprocessedTxs, unprocessedTxsHashes := state.DetermineProcessedTransactions(processBatchResp.Responses)
+	processedTxs, processedTxsHashes, unprocessedTxs, unprocessedTxsHashes := state.DetermineProcessedTransactions(s.lastProcessBatchResp.Responses)
 
 	response := processTxResponse{
 		processedTxs:         processedTxs,
 		processedTxsHashes:   processedTxsHashes,
 		unprocessedTxs:       unprocessedTxs,
 		unprocessedTxsHashes: unprocessedTxsHashes,
-		isBatchProcessed:     processBatchResp.IsBatchProcessed,
+		isBatchProcessed:     s.lastProcessBatchResp.IsBatchProcessed,
 	}
 
 	return response, nil

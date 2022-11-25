@@ -27,7 +27,8 @@ type Sequencer struct {
 
 	address common.Address
 
-	sequenceInProgress types.Sequence
+	sequenceInProgress   types.Sequence
+	lastProcessBatchResp *state.ProcessBatchResponse
 }
 
 // New init sequencer

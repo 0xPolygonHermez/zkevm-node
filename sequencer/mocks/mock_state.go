@@ -417,6 +417,29 @@ func (_m *StateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint
 	return r0, r1
 }
 
+// ProcessSingleTransaction provides a mock function with given fields: ctx, batchNumber, tx, isFirst, oldResponse, dbTx
+func (_m *StateMock) ProcessSingleTransaction(ctx context.Context, batchNumber uint64, tx types.Transaction, isFirst bool, oldResponse *state.ProcessBatchResponse, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, batchNumber, tx, isFirst, oldResponse, dbTx)
+
+	var r0 *state.ProcessBatchResponse
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, types.Transaction, bool, *state.ProcessBatchResponse, pgx.Tx) *state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, batchNumber, tx, isFirst, oldResponse, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.ProcessBatchResponse)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, types.Transaction, bool, *state.ProcessBatchResponse, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, tx, isFirst, oldResponse, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // StoreTransactions provides a mock function with given fields: ctx, batchNum, processedTxs, dbTx
 func (_m *StateMock) StoreTransactions(ctx context.Context, batchNum uint64, processedTxs []*state.ProcessTransactionResponse, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNum, processedTxs, dbTx)

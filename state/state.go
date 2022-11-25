@@ -52,6 +52,8 @@ type State struct {
 	*PostgresStorage
 	executorClient pb.ExecutorServiceClient
 	tree           *merkletree.StateTree
+	previousBatch  *Batch
+	lastBatch      *Batch
 }
 
 // NewState creates a new State
@@ -403,6 +405,97 @@ func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, t
 	return result, nil
 }
 
+// ProcessSingleTransaction is used by the sequencers to process a single transaction into an open batch
+func (s *State) ProcessSingleTransaction(ctx context.Context, batchNumber uint64, tx types.Transaction, isFirstTx bool, oldResponse *ProcessBatchResponse, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	log.Debugf("*******************************************")
+	log.Debugf("ProcessSingleTransaction start")
+	txs := []types.Transaction{tx}
+	batchL2Data, err := EncodeTransactions(txs)
+	if err != nil {
+		return nil, err
+	}
+
+	if dbTx == nil {
+		return nil, ErrDBTxNil
+	}
+
+	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+	if isBatchClosed {
+		return nil, ErrBatchAlreadyClosed
+	}
+
+	gerBytes := ZeroHash.Bytes()
+	var oldStateRootBytes, oldLocalExitRoot []byte
+	if isFirstTx {
+		lastBatches, err := s.PostgresStorage.GetLastNBatches(ctx, two, dbTx)
+		if err != nil {
+			return nil, err
+		}
+		// Get latest batch from the database to get GER and Timestamp
+		s.lastBatch = lastBatches[0]
+
+		// Get batch before latest to get state root and local exit root
+		s.previousBatch = lastBatches[0]
+		if len(lastBatches) > 1 {
+			s.previousBatch = lastBatches[1]
+		}
+
+		gerBytes = s.lastBatch.GlobalExitRoot.Bytes()
+		oldStateRootBytes = s.previousBatch.StateRoot.Bytes()
+		oldLocalExitRoot = s.previousBatch.LocalExitRoot.Bytes()
+	} else {
+		oldStateRootBytes = oldResponse.NewStateRoot.Bytes()
+		oldLocalExitRoot = oldResponse.NewLocalExitRoot.Bytes()
+	}
+
+	// Check provided batch number is the latest in db
+	if s.lastBatch.BatchNumber != batchNumber {
+		return nil, ErrInvalidBatchNumber
+	}
+
+	// Create Batch
+	processBatchRequest := &pb.ProcessBatchRequest{
+		BatchNum:         s.lastBatch.BatchNumber,
+		Coinbase:         s.lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     oldStateRootBytes,
+		GlobalExitRoot:   gerBytes,
+		OldLocalExitRoot: oldLocalExitRoot,
+		EthTimestamp:     uint64(s.lastBatch.Timestamp.Unix()),
+		UpdateMerkleTree: cTrue,
+		ChainId:          s.cfg.ChainID,
+	}
+
+	// Send Batch to the Executor
+	log.Debugf("ProcessSingleTransaction[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
+	// log.Debugf("ProcessSingleTransaction[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
+	log.Debugf("ProcessSingleTransaction[processBatchRequest.From]: %v", processBatchRequest.From)
+	log.Debugf("ProcessSingleTransaction[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
+	log.Debugf("ProcessSingleTransaction[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
+	log.Debugf("ProcessSingleTransaction[processBatchRequest.OldLocalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.OldLocalExitRoot))
+	log.Debugf("ProcessSingleTransaction[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
+	log.Debugf("ProcessSingleTransaction[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
+	log.Debugf("ProcessSingleTransaction[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+	log.Debugf("ProcessSingleTransaction[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
+	now := time.Now()
+	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	log.Infof("It took %v for the executor to process the request", time.Since(now))
+
+	if err != nil {
+		return nil, err
+	}
+	result, err := convertToProcessBatchResponse(txs, res)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("ProcessSingleTransaction end")
+	log.Debugf("*******************************************")
+	return result, nil
+}
+
 // ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
 func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
@@ -505,14 +598,10 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		return ErrDBTxNil
 	}
 
-	// check existing txs vs parameter txs
-	existingTxs, err := s.GetTxsHashesByBatchNumber(ctx, batchNumber, dbTx)
-	if err != nil {
-		return err
-	}
-	if err := CheckSupersetBatchTransactions(existingTxs, processedTxs); err != nil {
-		return err
-	}
+	// TODO: Change to check if the transaction is one of the existing transactions in the database
+	//if err := CheckSupersetBatchTransactions(existingTxs, processedTxs); err != nil {
+	//	return err
+	//}
 
 	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
 	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
@@ -528,7 +617,15 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		return err
 	}
 
-	firstTxToInsert := len(existingTxs)
+	firstTxToInsert := 0
+	if len(processedTxs) > 1 {
+		// check existing txs vs parameter txs
+		existingTxs, err := s.GetTxsHashesByBatchNumber(ctx, batchNumber, dbTx)
+		if err != nil {
+			return err
+		}
+		firstTxToInsert = len(existingTxs)
+	}
 
 	for i := firstTxToInsert; i < len(processedTxs); i++ {
 		processedTx := processedTxs[i]
