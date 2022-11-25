@@ -22,5 +22,6 @@ type etherman interface {
 }
 
 type state interface {
-	WaitTxToBeSynched(ctx context.Context, tx *types.Transaction, timeout time.Duration) error
+	WaitSequencingTxToBeSynched(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) error
+	WaitVerifiedBatchToBeSynched(parentCtx context.Context, batchNumber uint64, timeout time.Duration) error
 }

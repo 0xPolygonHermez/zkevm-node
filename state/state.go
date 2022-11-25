@@ -1303,26 +1303,50 @@ func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
 	return processedTxResponses, processedTxsHashes, unprocessedTxResponses, unprocessedTxsHashes
 }
 
-// WaitTxToBeSynched waits for an L1 tx synched into the state
-func (s *State) WaitTxToBeSynched(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) error {
+// WaitSequencingTxToBeSynched waits for a sequencing transaction to be synched into the state
+func (s *State) WaitSequencingTxToBeSynched(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
 
 	for {
-		tx, err := s.GetTransactionByHash(ctx, tx.Hash(), nil)
+		virtualized, err := s.IsSequencingTXSynched(ctx, tx.Hash(), nil)
 		if err != nil && err != ErrNotFound {
-			log.Errorf("error waiting tx %s to be synched: %w", tx.Hash(), err)
+			log.Errorf("error waiting sequencing tx %s to be synched: %w", tx.Hash().String(), err)
 			return err
 		} else if ctx.Err() != nil {
-			log.Errorf("error waiting tx %s to be synched: %w", tx.Hash(), ctx.Err())
+			log.Errorf("error waiting sequencing tx %s to be synched: %w", tx.Hash().String(), err)
 			return ctx.Err()
-		} else if tx != nil {
+		} else if virtualized {
 			break
 		}
 
 		time.Sleep(time.Second)
 	}
 
-	log.Debug("Transaction successfully synched: ", tx.Hash())
+	log.Debug("Sequencing txh successfully synched: ", tx.Hash().String())
+	return nil
+}
+
+// WaitVerifiedBatchToBeSynched waits for a sequenced batch to be synched into the state
+func (s *State) WaitVerifiedBatchToBeSynched(parentCtx context.Context, batchNumber uint64, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+
+	for {
+		batch, err := s.GetVerifiedBatch(ctx, batchNumber, nil)
+		if err != nil && err != ErrNotFound {
+			log.Errorf("error waiting verified batch %s to be synched: %w", batchNumber, err)
+			return err
+		} else if ctx.Err() != nil {
+			log.Errorf("error waiting verified batch %s to be synched: %w", batchNumber, err)
+			return ctx.Err()
+		} else if batch != nil {
+			break
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	log.Debug("Verified batch successfully synched: ", batchNumber)
 	return nil
 }
