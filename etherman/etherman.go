@@ -57,6 +57,12 @@ var (
 		"Please check the [Etherman] PrivateKeyPath and PrivateKeyPassword configuration.")
 )
 
+// SequencedBatchesSigHash returns the hash for the `SequenceBatches` event.
+func SequencedBatchesSigHash() common.Hash { return sequencedBatchesEventSignatureHash }
+
+// VerifyBatchesSigHash returns the hash for the `VerifyBatches` event.
+func VerifyBatchesSigHash() common.Hash { return verifyBatchesSignatureHash }
+
 // EventOrder is the the type used to identify the events order
 type EventOrder string
 
