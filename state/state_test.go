@@ -2541,3 +2541,112 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	assert.Equal(t, executorclientpb.Error_ERROR_NO_ERROR, processBatchResponse.Responses[0].Error)
 	log.Debugf("Used gas = %v", processBatchResponse.Responses[0].GasUsed)
 }
+
+func TestWaitSequencingTxToBeSyncedAndWaitVerifiedBatchToBeSynced(t *testing.T) {
+	ctx := context.Background()
+
+	// Set Genesis
+	block := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+			{
+				Address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+			{
+				Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "100000000000000000000000",
+			},
+		},
+	}
+
+	initOrResetDB()
+
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = testState.SetGenesis(ctx, block, genesis, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	// Dummy transaction
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    1,
+		To:       nil,
+		Value:    new(big.Int),
+		Gas:      uint64(1234),
+		GasPrice: new(big.Int).SetUint64(0),
+		Data:     common.Hex2Bytes("0x00"),
+	})
+
+	err = testState.WaitSequencingTxToBeSynced(ctx, tx, 1*time.Second)
+	require.Error(t, err)
+
+	processingContext := state.ProcessingContext{
+		BatchNumber:    1,
+		Coinbase:       common.Address{},
+		Timestamp:      time.Now(),
+		GlobalExitRoot: common.Hash{},
+	}
+
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	err = testState.OpenBatch(ctx, processingContext, dbTx)
+	require.NoError(t, err)
+
+	err = testState.StoreTransactions(ctx, 1, nil, dbTx)
+	require.NoError(t, err)
+
+	processingReceipt := state.ProcessingReceipt{
+		BatchNumber:   1,
+		StateRoot:     common.Hash{},
+		LocalExitRoot: common.Hash{},
+	}
+
+	err = testState.CloseBatch(ctx, processingReceipt, dbTx)
+	require.NoError(t, err)
+
+	virtualBatch := state.VirtualBatch{
+		BatchNumber: 1,
+		TxHash:      tx.Hash(),
+		Coinbase:    common.HexToAddress("0x00"),
+		BlockNumber: 0,
+	}
+
+	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	err = testState.WaitSequencingTxToBeSynced(ctx, tx, 5*time.Second)
+	require.NoError(t, err)
+
+	// VerifiedBatch
+	err = testState.WaitVerifiedBatchToBeSynced(ctx, 1, 1*time.Second)
+	require.Error(t, err)
+
+	verifiedBatch := state.VerifiedBatch{
+		BlockNumber: 0,
+		BatchNumber: 1,
+		Aggregator:  common.Address{},
+		TxHash:      common.Hash{},
+	}
+
+	err = testState.AddVerifiedBatch(ctx, &verifiedBatch, nil)
+	require.NoError(t, err)
+
+	err = testState.WaitVerifiedBatchToBeSynced(ctx, 1, 5*time.Second)
+	require.NoError(t, err)
+}
