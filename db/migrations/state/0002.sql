@@ -3,7 +3,7 @@ CREATE TABLE state.recursive_proof
 (
     batch_num  BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
     batch_num_final BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
-    proof jsonb,
+    proof VARCHAR,
     proof_id VARCHAR,
     input_prover VARCHAR,
     prover VARCHAR,

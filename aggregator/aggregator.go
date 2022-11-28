@@ -209,7 +209,7 @@ func (a *Aggregator) sendFinalProof() {
 			ctx := a.ctx
 			proof := msg.recursiveProof
 
-			log.Infof("Verfiying final proof with ethereum smart contract, batches %d-%d", proof.BatchNumber, proof.BatchNumberFinal)
+			log.Infof("Verifying final proof with ethereum smart contract, batches %d-%d", proof.BatchNumber, proof.BatchNumberFinal)
 
 			tx, err := a.EthTxManager.VerifyBatches(ctx, proof.BatchNumber-1, proof.BatchNumberFinal, msg.finalProof)
 			if err != nil {
@@ -239,7 +239,7 @@ func (a *Aggregator) sendFinalProof() {
 	}
 }
 
-func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover *prover.Prover, proof *state.Proof, ticker *time.Ticker) (*pb.FinalProof, error) {
+func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof, ticker *time.Ticker) (*pb.FinalProof, error) {
 	if !a.TimeSendFinalProof.Before(time.Now()) {
 		return nil, nil
 	}
@@ -278,7 +278,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover *prover.Prov
 
 	log.Infof("Prover %s is going to be used to generate final proof for batches: %d-%d", prover.ID(), proof.BatchNumber, proof.BatchNumberFinal)
 
-	finalProofID, err := prover.FinalProof(proof.Proof.RecursiveProof)
+	finalProofID, err := prover.FinalProof(proof.Proof)
 	if err != nil {
 		log.Warnf("Failed to get final proof id, err: %v", err)
 		return nil, err
@@ -288,7 +288,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover *prover.Prov
 
 	log.Infof("Proof ID for final proof %d-%d: %s", proof.BatchNumber, proof.BatchNumberFinal, *proof.ProofID)
 
-	resGetProof, err := prover.WaitFinalProof(ctx, *proof.ProofID)
+	finalProof, err := prover.WaitFinalProof(ctx, *proof.ProofID)
 	if err != nil {
 		log.Errorf("Failed to get final proof from prover, err: %v", err)
 		return nil, err
@@ -297,22 +297,25 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover *prover.Prov
 	//b, err := json.Marshal(resGetProof.FinalProof)
 	log.Infof("Final proof %s generated", *proof.ProofID)
 
-	var inputProver *pb.InputProver
-	json.Unmarshal([]byte(proof.InputProver), inputProver)
-	a.compareInputHashes(inputProver, resGetProof)
+	// var inputProver *pb.InputProver
+	// err = json.Unmarshal([]byte(proof.InputProver), inputProver) // FIXME(pg) this fails!
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Failed to deserialize input prover, err: %w", err)
+	// }
+	// a.compareInputHashes(inputProver, finalProof)
 
-	// Handle local exit root in the case of the mock prover
-	if string(resGetProof.FinalProof.Public.NewLocalExitRoot[:]) == "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e" {
-		// This local exit root comes from the mock, use the one captured by the executor instead
-		log.Warnf("NewLocalExitRoot looks like a mock value")
-		/*log.Warnf(
-			"NewLocalExitRoot looks like a mock value, using value from executor instead: %v",
-			proof.InputProver.PublicInputs.NewLocalExitRoot,
-		)*/
-		//resGetProof.Public.PublicInputs.NewLocalExitRoot = proof.InputProver.PublicInputs.NewLocalExitRoot
-	}
+	// // Handle local exit root in the case of the mock prover
+	// if string(finalProof.Public.NewLocalExitRoot[:]) == "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e" {
+	// 	// This local exit root comes from the mock, use the one captured by the executor instead
+	// 	log.Warnf("NewLocalExitRoot looks like a mock value")
+	// 	/*log.Warnf(
+	// 		"NewLocalExitRoot looks like a mock value, using value from executor instead: %v",
+	// 		proof.InputProver.PublicInputs.NewLocalExitRoot,
+	// 	)*/
+	// 	//resGetProof.Public.PublicInputs.NewLocalExitRoot = proof.InputProver.PublicInputs.NewLocalExitRoot
+	// }
 
-	return resGetProof.FinalProof, nil
+	return finalProof, nil
 }
 
 func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.Proof, proof2 *state.Proof, ticker *time.Ticker) error {
@@ -331,12 +334,14 @@ func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.
 	}
 
 	if err != nil {
-		log.Warnf("Failed to release proof aggregation state, err: %v", err)
-		dbTx.Rollback(ctx)
-		return err
+		dbTx.Rollback(ctx) //nolint:errcheck
+		return fmt.Errorf("Failed to release proof aggregation state %w", err)
 	}
 
-	dbTx.Commit(ctx)
+	err = dbTx.Commit(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to release proof aggregation state %w", err)
+	}
 
 	return nil
 }
@@ -365,12 +370,14 @@ func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover *pr
 	}
 
 	if err != nil {
-		log.Errorf("Failed to set proof aggregation state, err: %v", err)
-		dbTx.Rollback(ctx)
-		return nil, nil, err
+		dbTx.Rollback(ctx) //nolint:errcheck
+		return nil, nil, fmt.Errorf("Failed to set proof aggregation state %w", err)
 	}
 
-	dbTx.Commit(ctx)
+	err = dbTx.Commit(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to set proof aggregation state %w", err)
+	}
 
 	return proof1, proof2, nil
 }
@@ -403,13 +410,16 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover *prover.Prov
 
 	proverID := prover.ID()
 	inputProver := map[string]interface{}{
-		"recursive_proof_1": proof1.Proof.RecursiveProof,
-		"recursive_proof_2": proof2.Proof.RecursiveProof,
+		"recursive_proof_1": proof1.Proof,
+		"recursive_proof_2": proof2.Proof,
 	}
 	b, err := json.Marshal(inputProver)
+	if err != nil {
+		return false, fmt.Errorf("Failed to serialize input prover, err: %w", err)
+	}
 	proof := &state.Proof{BatchNumber: proof1.BatchNumber, BatchNumberFinal: proof2.BatchNumberFinal, Prover: &proverID, InputProver: string(b), Generating: false}
 
-	aggrProofID, err := prover.AggregatedProof(proof1.Proof.RecursiveProof, proof2.Proof.RecursiveProof)
+	aggrProofID, err := prover.AggregatedProof(proof1.Proof, proof2.Proof)
 	if err != nil {
 		log.Warnf("Failed to get aggregated proof id, err: %v", err)
 		return false, err
@@ -419,7 +429,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover *prover.Prov
 
 	log.Infof("Proof ID for aggregated proof %d-%d: %v", proof.BatchNumber, proof.BatchNumberFinal, *proof.ProofID)
 
-	resGetProof, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
+	recursiveProof, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
 	if err != nil {
 		log.Errorf("Failed to get aggregated proof from prover, err: %v", err)
 		return false, err
@@ -427,7 +437,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover *prover.Prov
 
 	log.Infof("Aggregated proof %s generated", *proof.ProofID)
 
-	proof.Proof = resGetProof
+	proof.Proof = recursiveProof
 
 	finalProof, err := a.tryBuildFinalProof(ctx, prover, proof, ticker)
 	if err != nil {
@@ -457,21 +467,24 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover *prover.Prov
 	// and delete the two aggregated proofs
 	dbTx, err := a.State.BeginStateTransaction(a.ctx)
 	if err != nil {
-		return false, fmt.Errorf("Failed to begin transaction to update proof aggregation state, err: %W", err)
+		return false, fmt.Errorf("Failed to begin transaction to update proof aggregation state %w", err)
 	}
 
 	err = a.State.DeleteGeneratedProofs(a.ctx, proof1.BatchNumber, proof2.BatchNumberFinal, dbTx)
 	if err != nil {
-		dbTx.Rollback(a.ctx)
-		return false, fmt.Errorf("Failed to delete previously aggregated proofs, err: %w", err)
+		dbTx.Rollback(a.ctx) //nolint:errcheck
+		return false, fmt.Errorf("Failed to delete previously aggregated proofs %w", err)
 	}
 	err = a.State.AddGeneratedProof(a.ctx, proof, dbTx)
 	if err != nil {
-		dbTx.Rollback(a.ctx)
-		return false, fmt.Errorf("Failed to store the recursive proof: %w", err)
+		dbTx.Rollback(a.ctx) //nolint:errcheck
+		return false, fmt.Errorf("Failed to store the recursive proof %w", err)
 	}
 
-	dbTx.Commit(a.ctx)
+	err = dbTx.Commit(a.ctx)
+	if err != nil {
+		return false, fmt.Errorf("Failed to store the recursive proof %w", err)
+	}
 
 	log.Debug("tryAggregateProofs end")
 	return true, nil
@@ -669,7 +682,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 	return inputProver, nil
 }
 
-func (a *Aggregator) compareInputHashes(ip *pb.InputProver, resGetProof *pb.GetProofResponse_FinalProof) {
+func (a *Aggregator) compareInputHashes(ip *pb.InputProver, finalProof *pb.FinalProof) {
 	/*	// Calc inputHash
 		batchNumberByte := make([]byte, 8) //nolint:gomnd
 		binary.BigEndian.PutUint64(batchNumberByte, ip.PublicInputs.OldBatchNum)
