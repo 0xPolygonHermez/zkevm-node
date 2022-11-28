@@ -106,7 +106,7 @@ func (a *Aggregator) Start(ctx context.Context) {
 				a.tryVerifyBatch(ctx, tickerVerifyBatch)
 			}
 		}()
-		time.Sleep(10 * time.Second)
+		time.Sleep(10 * time.Second) //:gomnd
 	}
 
 	go func() {
@@ -369,7 +369,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		return nil, fmt.Errorf("failed to get previous batch, err: %v", err)
 	}
 
-	blockTimestampByte := make([]byte, 8) //nolint:gomnd
+	blockTimestampByte := make([]byte, 8) //:gomnd
 	binary.BigEndian.PutUint64(blockTimestampByte, uint64(batchToVerify.Timestamp.Unix()))
 	batchHashData := common.BytesToHash(keccak256.Hash(
 		batchToVerify.BatchL2Data,
