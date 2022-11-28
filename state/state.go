@@ -703,14 +703,21 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	}
 
 	// Sanity check
-	if len(decodedTransactions) != len(processed.Responses) {
-		return fmt.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
-	}
+	/*
+		if len(decodedTransactions) != len(processed.Responses) {
+			return fmt.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
+		}
+	*/
 
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
 		if !isProcessed(processed.Responses[i].Error) {
+			if isOOC(processed.Responses[i].Error) {
+				processed.Responses = []*pb.ProcessTransactionResponse{}
+				break
+			}
+
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
@@ -727,10 +734,13 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	if err != nil {
 		return err
 	}
-	// Store processed txs into the batch
-	err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
-	if err != nil {
-		return err
+
+	if len(processedBatch.Responses) > 0 {
+		// Store processed txs into the batch
+		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Close batch
