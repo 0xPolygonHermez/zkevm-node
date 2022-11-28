@@ -51,6 +51,10 @@ func isProcessed(err pb.Error) bool {
 	return err != pb.Error_ERROR_INTRINSIC_INVALID_TX && err != pb.Error_ERROR_OUT_OF_COUNTERS
 }
 
+func isOOC(err pb.Error) bool {
+	return err == pb.Error_ERROR_OUT_OF_COUNTERS
+}
+
 func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for i, response := range responses {
