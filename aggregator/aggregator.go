@@ -369,7 +369,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		return nil, fmt.Errorf("failed to get previous batch, err: %v", err)
 	}
 
-	blockTimestampByte := make([]byte, 8) //:gomnd
+	blockTimestampByte := make([]byte, 8) //nolint:gomnd
 	binary.BigEndian.PutUint64(blockTimestampByte, uint64(batchToVerify.Timestamp.Unix()))
 	batchHashData := common.BytesToHash(keccak256.Hash(
 		batchToVerify.BatchL2Data,
