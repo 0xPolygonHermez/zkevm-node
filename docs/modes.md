@@ -55,3 +55,21 @@ Prover Config:
     "runStateDBServer": true
 }
 ```
+
+A new port will need to be exposed via Docker, since the Prover runs separately from *Merkle Tree* and *Executor* services within the `zkevm prover` image.
+
+*docker-compose.yaml*:
+
+```yaml
+  zkevm-prover:
+    container_name: zkevm-prover
+    image: hermeznetwork/zkevm-prover:develop
+    ports:
+      - 50051:50051 # Prover
+      - 50061:50061 # MT
+      - 50071:50071 # Executor
+    volumes:
+      - ./prover-config.json:/usr/src/app/config.json
+    command: >
+      zkProver -c /usr/src/app/config.json
+```
