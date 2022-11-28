@@ -75,7 +75,7 @@ func New(
 }
 
 // Start starts the aggregator
-func (a *Aggregator) Start(ctx context.Context) {
+func (a *Aggregator) Start(ctx context.Context) error {
 	var cancel context.CancelFunc
 	if ctx == nil {
 		ctx = context.Background()
@@ -85,7 +85,10 @@ func (a *Aggregator) Start(ctx context.Context) {
 	a.exit = cancel
 
 	// Delete ungenerated recursive proofs
-	a.State.DeleteUngeneratedProofs(ctx, nil)
+	err := a.State.DeleteUngeneratedProofs(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to initialize proofs cache %w", err)
+	}
 
 	address := fmt.Sprintf("%s:%d", a.cfg.Host, a.cfg.Port)
 	lis, err := net.Listen("tcp", address)
@@ -112,6 +115,7 @@ func (a *Aggregator) Start(ctx context.Context) {
 	go a.sendFinalProof()
 
 	<-ctx.Done()
+	return ctx.Err()
 }
 
 // Stop stops the Aggregator server.
@@ -301,6 +305,8 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 	// if err != nil {
 	// 	return nil, fmt.Errorf("Failed to deserialize input prover, err: %w", err)
 	// }
+
+	// TODO(pg): restore this?
 	// a.compareInputHashes(inputProver, finalProof)
 
 	// // Handle local exit root in the case of the mock prover
@@ -681,8 +687,8 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 	return inputProver, nil
 }
 
-func (a *Aggregator) compareInputHashes(ip *pb.InputProver, finalProof *pb.FinalProof) {
-	/*	// Calc inputHash
+/* func (a *Aggregator) compareInputHashes(ip *pb.InputProver, finalProof *pb.FinalProof) {
+		// Calc inputHash
 		batchNumberByte := make([]byte, 8) //nolint:gomnd
 		binary.BigEndian.PutUint64(batchNumberByte, ip.PublicInputs.OldBatchNum)
 		blockTimestampByte := make([]byte, 8) //nolint:gomnd
@@ -718,8 +724,8 @@ func (a *Aggregator) compareInputHashes(ip *pb.InputProver, finalProof *pb.Final
 			log.Debug("inputProver.PublicInputs.BatchHashData: ", ip.PublicInputs.BatchHashData)
 			log.Debug("inputProver.PublicInputs.BatchNum: ", ip.PublicInputs.BatchNum)
 			log.Debug("inputProver.PublicInputs.EthTimestamp: ", ip.PublicInputs.EthTimestamp)
-		}*/
-}
+		}
+}*/
 
 func waitTick(ctx context.Context, ticker *time.Ticker) {
 	select {

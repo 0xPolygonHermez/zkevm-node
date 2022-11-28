@@ -194,7 +194,10 @@ func runAggregator(ctx context.Context, c aggregator.Config, ethman *etherman.Cl
 	if err != nil {
 		log.Fatal(err)
 	}
-	agg.Start(ctx)
+	err = agg.Start(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func runBroadcastServer(c broadcast.ServerConfig, st *state.State) {

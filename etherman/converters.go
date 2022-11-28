@@ -6,23 +6,12 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/hex"
 )
 
 const (
 	minProofLen = 2
 	maxProofLen = 3
 )
-
-func stringToFixedByteArray(str string) ([32]byte, error) {
-	var res [32]byte
-	data, err := hex.DecodeHex(str)
-	if err != nil {
-		return [32]byte{}, err
-	}
-	copy(res[:], data)
-	return res, nil
-}
 
 func strSliceToBigIntArray(data []string) ([2]*big.Int, error) {
 	if len(data) < minProofLen || len(data) > maxProofLen {
