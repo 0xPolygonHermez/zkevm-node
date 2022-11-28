@@ -4,7 +4,9 @@
 
 By default the config files found in the repository will spin up the Node in `sync-only` mode, which will not require a Prover (but will require a MT and Executor service).
 
-It will syncronize with the Trusted Sequencer (run by Polygon Hermez).
+**This is considered to be the base, all modes require a Synchronizer Node container to be spun up*
+
+This will syncronize with the Trusted Sequencer (run by Polygon Hermez).
 
 Config:
 
@@ -29,9 +31,15 @@ Prover Config:
 }
 ```
 
-### With Prover:
+### RPC:
 
-This will act as a Trusted Sequencer:
+The `zkevm-rpc` component will act as a relay between the Trusted Sequencer and the Synchronizer (`zkevm-sync`). 
+
+The [`production-setup.md`](./production-setup.md) goes through the setup of both a synchronizer and RPC components of the node.
+
+### With Prover: Aggregator mode:
+
+Node Config:
 
 ```toml
 [RPC]
@@ -42,7 +50,9 @@ BroadcastURI = "zkevm-broadcast:61090"
 
 You will need to spin up the `zkevm-broadcast` service, which is a subcommand of the Node (`broadcast-trusted-state`). Find how to do it via the `test/docker-compose.yaml` file.
 
-Prover Config:
+Use stock Prover config for Merkle Tree and Executor `zkevm-prover` image.
+
+For *only* Prover Config (`only-prover-config.json`):
 
 ```json
 {
@@ -50,26 +60,24 @@ Prover Config:
     "runProverServer": true,
     "runProverServerMock": false,
     "runProverClient": false,
-    "runExecutorServer": true,
+    "runExecutorServer": false,
     "runExecutorClient": false,
-    "runStateDBServer": true
+    "runStateDBServer": false
 }
 ```
 
-A new port will need to be exposed via Docker, since the Prover runs separately from *Merkle Tree* and *Executor* services within the `zkevm prover` image.
+Run the Prover separately from the MerkleTree/Executor.
 
 *docker-compose.yaml*:
 
 ```yaml
-  zkevm-prover:
+  zkevm-only-prover:
     container_name: zkevm-prover
     image: hermeznetwork/zkevm-prover:develop
     ports:
       - 50051:50051 # Prover
-      - 50061:50061 # MT
-      - 50071:50071 # Executor
     volumes:
-      - ./prover-config.json:/usr/src/app/config.json
+      - ./only-prover-config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
 ```
