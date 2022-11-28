@@ -52,7 +52,7 @@ CREATE TABLE state.forced_batch
     block_num        BIGINT NOT NULL REFERENCES state.block (block_num) ON DELETE CASCADE
 );
 
-CREATE TABLE state.recursive_proof
+CREATE TABLE state.proof
 (
     batch_num  BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
     batch_num_final BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
@@ -128,15 +128,6 @@ CREATE TABLE state.log
     topic2    VARCHAR,
     topic3    VARCHAR,
     PRIMARY KEY (tx_hash, log_index)
-);
-
-CREATE TABLE state.proof
-(
-    batch_num  BIGINT NOT NULL PRIMARY KEY REFERENCES state.batch (batch_num) ON DELETE CASCADE,
-    proof jsonb,
-    proof_id VARCHAR,
-    input_prover jsonb,
-    prover VARCHAR
 );
 
 CREATE TABLE IF NOT EXISTS state.sequences
