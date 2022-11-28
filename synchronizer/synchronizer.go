@@ -34,6 +34,7 @@ type ClientSynchronizer struct {
 	state              stateInterface
 	ctx                context.Context
 	cancelCtx          context.CancelFunc
+	genBlockNumber     uint64
 	genesis            state.Genesis
 	cfg                Config
 }
@@ -43,6 +44,7 @@ func NewSynchronizer(
 	isTrustedSequencer bool,
 	ethMan ethermanInterface,
 	st stateInterface,
+	genBlockNumber uint64,
 	genesis state.Genesis,
 	cfg Config) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -53,6 +55,7 @@ func NewSynchronizer(
 		etherMan:           ethMan,
 		ctx:                ctx,
 		cancelCtx:          cancel,
+		genBlockNumber:     genBlockNumber,
 		genesis:            genesis,
 		cfg:                cfg,
 	}, nil
@@ -74,9 +77,9 @@ func (s *ClientSynchronizer) Sync() error {
 	if err != nil {
 		if errors.Is(err, state.ErrStateNotSynchronized) {
 			log.Info("State is empty, setting genesis block")
-			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.cfg.GenBlockNumber))
+			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.genBlockNumber))
 			if err != nil {
-				log.Fatal("error getting l1 block header for block ", s.cfg.GenBlockNumber, " : ", err)
+				log.Fatal("error getting l1 block header for block ", s.genBlockNumber, " : ", err)
 			}
 			lastEthBlockSynced = &state.Block{
 				BlockNumber: header.Number.Uint64(),
@@ -427,7 +430,7 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 			return nil, err
 		}
 		// Compare hashes
-		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > s.cfg.GenBlockNumber {
+		if (block.Hash() != latestBlock.BlockHash || block.ParentHash() != latestBlock.ParentHash) && latestBlock.BlockNumber > s.genBlockNumber {
 			log.Debug("[checkReorg function] => latestBlockNumber: ", latestBlock.BlockNumber)
 			log.Debug("[checkReorg function] => latestBlockHash: ", latestBlock.BlockHash)
 			log.Debug("[checkReorg function] => latestBlockHashParent: ", latestBlock.ParentHash)
@@ -444,13 +447,13 @@ func (s *ClientSynchronizer) checkReorg(latestBlock *state.Block) (*state.Block,
 			latestBlock, err = s.state.GetPreviousBlock(s.ctx, depth, dbTx)
 			errC := dbTx.Commit(s.ctx)
 			if errC != nil {
-				log.Errorf("error committing dbTx, err: %w", errC)
+				log.Errorf("error committing dbTx, err: %s", errC.Error())
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
-					log.Fatalf("error rolling back state. RollbackErr: %w, err: %w",
-						rollbackErr, errC)
+					log.Fatalf("error rolling back state. RollbackErr: %s, err: %s",
+						rollbackErr.Error(), errC.Error())
 				}
-				log.Fatalf("error committing dbTx, err: %w", errC)
+				log.Fatalf("error committing dbTx, err: %s", errC.Error())
 			}
 			if errors.Is(err, state.ErrNotFound) {
 				log.Warn("error checking reorg: previous block not found in db: ", err)
@@ -480,21 +483,11 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, dbTx pgx.Tx) (
 	if err != nil {
 		return false, err
 	}
-
-	// Reprocess batch and compare the stateRoot with tBatch.StateRoot
-	p, err := s.state.ExecuteBatch(s.ctx, batch.BatchNumber, batch.BatchL2Data, dbTx)
-	if err != nil {
-		log.Errorf("error executing L1 batch: %+v, error: %w", batch, err)
-		return false, err
-	}
-	newRoot := common.BytesToHash(p.NewStateRoot)
-
 	//Compare virtual state with trusted state
 	if hex.EncodeToString(batch.BatchL2Data) == hex.EncodeToString(tBatch.BatchL2Data) &&
 		batch.GlobalExitRoot.String() == tBatch.GlobalExitRoot.String() &&
 		batch.Timestamp.Unix() == tBatch.Timestamp.Unix() &&
-		batch.Coinbase.String() == tBatch.Coinbase.String() &&
-		newRoot == tBatch.StateRoot {
+		batch.Coinbase.String() == tBatch.Coinbase.String() {
 		return true, nil
 	}
 	return false, nil

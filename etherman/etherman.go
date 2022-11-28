@@ -83,7 +83,7 @@ type Client struct {
 }
 
 // NewClient creates a new etherman.
-func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
+func NewClient(cfg Config, auth *bind.TransactOpts, PoEAddr common.Address, maticAddr common.Address, globalExitRootManAddr common.Address) (*Client, error) {
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -91,20 +91,20 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 		return nil, err
 	}
 	// Create smc clients
-	poe, err := proofofefficiency.NewProofofefficiency(cfg.PoEAddr, ethClient)
+	poe, err := proofofefficiency.NewProofofefficiency(PoEAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
-	globalExitRoot, err := globalexitrootmanager.NewGlobalexitrootmanager(cfg.GlobalExitRootManagerAddr, ethClient)
+	globalExitRoot, err := globalexitrootmanager.NewGlobalexitrootmanager(globalExitRootManAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
-	matic, err := matic.NewMatic(cfg.MaticAddr, ethClient)
+	matic, err := matic.NewMatic(maticAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	var scAddresses []common.Address
-	scAddresses = append(scAddresses, cfg.PoEAddr, cfg.GlobalExitRootManagerAddr)
+	scAddresses = append(scAddresses, PoEAddr, globalExitRootManAddr)
 
 	return &Client{EtherClient: ethClient, PoE: poe, Matic: matic, GlobalExitRootManager: globalExitRoot, SCAddresses: scAddresses, auth: auth}, nil
 }

@@ -141,7 +141,6 @@ func (c *Client) VerifyBatch(batchNum uint64, resGetProof *pb.GetProofResponse) 
 			return
 		} else {
 			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
-			time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
 			return
 		}
 	}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
@@ -28,7 +29,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
@@ -52,22 +52,28 @@ func start(cliCtx *cli.Context) error {
 		etherman        *etherman.Client
 	)
 
-	etherman, err = newEtherman(*c)
-	if err != nil {
-		log.Fatal(err)
-	}
+	if strings.Contains(cliCtx.String(config.FlagComponents), AGGREGATOR) ||
+		strings.Contains(cliCtx.String(config.FlagComponents), SEQUENCER) ||
+		strings.Contains(cliCtx.String(config.FlagComponents), SYNCHRONIZER) ||
+		strings.Contains(cliCtx.String(config.FlagComponents), RPC) {
+		var err error
+		etherman, err = newEtherman(*c)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	// READ CHAIN ID FROM POE SC
-	l2ChainID, err := etherman.GetL2ChainID()
-	if err != nil {
-		log.Fatal(err)
+		// READ CHAIN ID FROM POE SC
+		chainID, err := etherman.GetL2ChainID()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		c.NetworkConfig.L2ChainID = chainID
+		log.Infof("Chain ID read from POE SC = %v", c.NetworkConfig.L2ChainID)
 	}
-	c.Aggregator.ChainID = l2ChainID
-	c.RPC.ChainID = l2ChainID
-	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 
 	ctx := context.Background()
-	st := newState(ctx, c, l2ChainID, stateSqlDB)
+	st := newState(ctx, c, stateSqlDB)
 
 	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman)
 
@@ -75,18 +81,19 @@ func start(cliCtx *cli.Context) error {
 		switch item {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
+			c.Aggregator.ChainID = c.NetworkConfig.L2ChainID
 			c.Aggregator.ProverURIs = c.Provers.ProverURIs
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, st, grpcClientConns)
 		case SEQUENCER:
 			log.Info("Running sequencer")
-			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager, gpe)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
 			runRPCMigrations(c.RPC.DB)
-			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
@@ -131,11 +138,11 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.Etherman.L1ChainID)
+	auth, err := newAuthFromKeystore(c.Etherman.PrivateKeyPath, c.Etherman.PrivateKeyPassword, c.NetworkConfig.L1ChainID)
 	if err != nil {
 		return nil, err
 	}
-	etherman, err := etherman.NewClient(c.Etherman, auth)
+	etherman, err := etherman.NewClient(c.Etherman, auth, c.NetworkConfig.PoEAddr, c.NetworkConfig.MaticAddr, c.NetworkConfig.GlobalExitRootManagerAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +150,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 }
 
 func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.State) {
-	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
+	sy, err := synchronizer.NewSynchronizer(cfg.IsTrustedSequencer, etherman, st, cfg.NetworkConfig.GenBlockNumber, cfg.NetworkConfig.Genesis, cfg.Synchronizer)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -159,6 +166,7 @@ func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gas
 	}
 
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
+	c.RPC.ChainID = c.NetworkConfig.L2ChainID
 
 	if err := jsonrpc.NewServer(c.RPC, pool, st, gpe, storage, apis).Start(); err != nil {
 		log.Fatal(err)
@@ -267,7 +275,7 @@ func newAuthFromKeystore(path, password string, chainID uint64) (*bind.TransactO
 	return auth, nil
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.State {
+func newState(ctx context.Context, c *config.Config, sqlDB *pgxpool.Pool) *state.State {
 	stateDb := state.NewPostgresStorage(sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, c.Executor)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, c.MTClient)
@@ -275,19 +283,19 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pg
 
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: c.Sequencer.MaxCumulativeGasUsed,
-		ChainID:              l2ChainID,
+		ChainID:              c.NetworkConfig.L2ChainID,
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree)
 	return st
 }
 
-func createPool(poolDBConfig db.Config, l2BridgeAddr common.Address, l2ChainID uint64, st *state.State) *pool.Pool {
+func createPool(poolDBConfig db.Config, networkConfig config.NetworkConfig, st *state.State) *pool.Pool {
 	runPoolMigrations(poolDBConfig)
 	poolStorage, err := pgpoolstorage.NewPostgresPoolStorage(poolDBConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-	poolInstance := pool.NewPool(poolStorage, st, l2BridgeAddr, l2ChainID)
+	poolInstance := pool.NewPool(poolStorage, st, networkConfig.L2BridgeAddr, networkConfig.L2ChainID)
 	return poolInstance
 }

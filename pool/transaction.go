@@ -33,8 +33,7 @@ type Transaction struct {
 	Status   TxStatus
 	IsClaims bool
 	ZkCounters
-	FailedCounter uint64
-	ReceivedAt    time.Time
+	ReceivedAt time.Time
 }
 
 // ZkCounters counters for the tx
