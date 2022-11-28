@@ -1,3 +1,9 @@
+ARCH := $(shell arch)
+
+ifeq ($(ARCH),aarch64)
+	ARCH = "arm64"
+endif
+
 VERSION := $(shell git describe --tags --always)
 COMMIT := $(shell git rev-parse --short HEAD)
 DATE := $(shell date +%Y-%m-%dT%H:%M:%S%z)
