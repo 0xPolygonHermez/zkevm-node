@@ -50,7 +50,6 @@ func New(
 	stateInterface stateInterface,
 	ethTxManager ethTxManager,
 	etherman etherman,
-	grpcClientConns []*grpc.ClientConn,
 ) (Aggregator, error) {
 	var profitabilityChecker aggregatorTxProfitabilityChecker
 	switch cfg.TxProfitabilityCheckerType {
