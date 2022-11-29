@@ -24,7 +24,7 @@ var (
 // Prover abstraction of the grpc prover client.
 type Prover struct {
 	id                                         string
-	IntervalFrequencyToGetProofGenerationState types.Duration
+	intervalFrequencyToGetProofGenerationState types.Duration
 	stream                                     pb.AggregatorService_ChannelServer
 }
 
@@ -32,7 +32,7 @@ type Prover struct {
 func New(stream pb.AggregatorService_ChannelServer, intervalFrequencyToGetProofGenerationState types.Duration) (*Prover, error) {
 	p := &Prover{
 		stream: stream,
-		IntervalFrequencyToGetProofGenerationState: intervalFrequencyToGetProofGenerationState,
+		intervalFrequencyToGetProofGenerationState: intervalFrequencyToGetProofGenerationState,
 	}
 	status, err := p.Status()
 	if err != nil {
@@ -251,7 +251,7 @@ func (p *Prover) waitProof(ctx context.Context, proofID string) (*pb.GetProofRes
 			if msg, ok := res.Response.(*pb.ProverMessage_GetProofResponse); ok {
 				switch msg.GetProofResponse.Result {
 				case pb.GetProofResponse_PENDING:
-					time.Sleep(p.IntervalFrequencyToGetProofGenerationState.Duration)
+					time.Sleep(p.intervalFrequencyToGetProofGenerationState.Duration)
 					continue
 				case pb.GetProofResponse_UNSPECIFIED:
 					return nil, fmt.Errorf("Failed to get proof ID: %s, %w, prover response: %s",
