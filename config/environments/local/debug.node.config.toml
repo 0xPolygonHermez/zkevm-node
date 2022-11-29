@@ -105,9 +105,6 @@ IntervalFrequencyToGetProofGenerationState = "5s"
 Type = "default"
 DefaultGasPriceWei = 1000000000
 
-[Provers]
-ProverURIs = ["localhost:50052"]
-
 [MTServer]
 Host = "0.0.0.0"
 Port = 50060
