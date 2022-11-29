@@ -20,8 +20,3 @@ type etherman interface {
 	GetTxReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 	WaitTxToBeMined(hash common.Hash, timeout time.Duration) error
 }
-
-type state interface {
-	WaitSequencingTxToBeSynced(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) error
-	WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumber uint64, timeout time.Duration) error
-}
