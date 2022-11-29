@@ -1,6 +1,6 @@
 ## Configure the Node: Different modes of execution
 
-### Sync-only:
+### Sync-only (*read-only*):
 
 By default the config files found in the repository will spin up the Node in `sync-only` mode, which will not require a Prover (but will require a MT and Executor service).
 
@@ -31,26 +31,26 @@ Prover Config:
 }
 ```
 
-### RPC:
+ZKEVM RPC component is also needed.
 
 The `zkevm-rpc` component will act as a relay between the Trusted Sequencer and the Synchronizer (`zkevm-sync`). 
 
 The [`production-setup.md`](./production-setup.md) goes through the setup of both a synchronizer and RPC components of the node.
 
-### With Prover: Aggregator mode:
+##### Docker services:
 
-Node Config:
+- `zkevm-sync`
+- `zkevm-prover` (`Merkle Tree`, `Executor`)
+- `zkevm-rpc` 
+- Databases
 
-```toml
-[RPC]
-...
-SequencerNodeURI = ""
-BroadcastURI = "zkevm-broadcast:61090"
-```
+### Create Proofs: Base + RPC + Aggregator + Prover:
 
-You will need to spin up the `zkevm-broadcast` service, which is a subcommand of the Node (`broadcast-trusted-state`). Find how to do it via the `test/docker-compose.yaml` file.
+Use an Aggregator with a Prover to create proofs.
 
-Use stock Prover config for Merkle Tree and Executor `zkevm-prover` image.
+On a separate machine from the *Merkle Tree/Executor* `zkevm-prover` container, spin up a Prover:
+
+Use stock Prover config for Merkle Tree and Executor `zkevm-prover` image on the other machine.
 
 For *only* Prover Config (`only-prover-config.json`):
 
@@ -66,8 +66,6 @@ For *only* Prover Config (`only-prover-config.json`):
 }
 ```
 
-Run the Prover separately from the MerkleTree/Executor.
-
 *docker-compose.yaml*:
 
 ```yaml
@@ -80,4 +78,21 @@ Run the Prover separately from the MerkleTree/Executor.
       - ./only-prover-config.json:/usr/src/app/config.json
     command: >
       zkProver -c /usr/src/app/config.json
+```
+
+For aggregator, here's how to spin it up using docker compose:
+
+```yaml
+  zkevm-aggregator:
+    container_name: zkevm-aggregator
+    image: zkevm-node
+    environment:
+      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
+    volumes:
+      - ./config.toml:/app/config.toml
+      - ./genesis.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components aggregator"
 ```
