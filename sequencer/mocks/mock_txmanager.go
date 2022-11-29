@@ -14,8 +14,17 @@ type TxmanagerMock struct {
 }
 
 // SequenceBatches provides a mock function with given fields: sequences
-func (_m *TxmanagerMock) SequenceBatches(sequences []types.Sequence) {
-	_m.Called(sequences)
+func (_m *TxmanagerMock) SequenceBatches(sequences []types.Sequence) error {
+	ret := _m.Called(sequences)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]types.Sequence) error); ok {
+		r0 = rf(sequences)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 type mockConstructorTestingTNewTxmanagerMock interface {

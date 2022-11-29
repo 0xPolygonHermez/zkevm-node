@@ -1318,3 +1318,51 @@ func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
 	}
 	return processedTxResponses, processedTxsHashes, unprocessedTxResponses, unprocessedTxsHashes
 }
+
+// WaitSequencingTxToBeSynced waits for a sequencing transaction to be synced into the state
+func (s *State) WaitSequencingTxToBeSynced(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+
+	for {
+		virtualized, err := s.IsSequencingTXSynced(ctx, tx.Hash(), nil)
+		if err != nil && err != ErrNotFound {
+			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
+			return err
+		} else if ctx.Err() != nil {
+			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
+			return ctx.Err()
+		} else if virtualized {
+			break
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	log.Debug("Sequencing txh successfully synced: ", tx.Hash().String())
+	return nil
+}
+
+// WaitVerifiedBatchToBeSynced waits for a sequenced batch to be synced into the state
+func (s *State) WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumber uint64, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+
+	for {
+		batch, err := s.GetVerifiedBatch(ctx, batchNumber, nil)
+		if err != nil && err != ErrNotFound {
+			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
+			return err
+		} else if ctx.Err() != nil {
+			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
+			return ctx.Err()
+		} else if batch != nil {
+			break
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	log.Debug("Verified batch successfully synced: ", batchNumber)
+	return nil
+}

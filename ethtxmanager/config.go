@@ -15,6 +15,8 @@ type Config struct {
 	FrequencyForResendingFailedVerifyBatch types.Duration `mapstructure:"FrequencyForResendingFailedVerifyBatch"`
 	// WaitTxToBeMined time to wait after transaction was sent to the ethereum
 	WaitTxToBeMined types.Duration `mapstructure:"WaitTxToBeMined"`
+	// WaitTxToBeSynced time to wait after transaction was sent to the ethereum to get into the state
+	WaitTxToBeSynced types.Duration `mapstructure:"WaitTxToBeSynced"`
 	// PercentageToIncreaseGasPrice when tx is failed by timeout increase gas price by this percentage
 	PercentageToIncreaseGasPrice uint64 `mapstructure:"PercentageToIncreaseGasPrice"`
 	// PercentageToIncreaseGasLimit when tx is failed by timeout increase gas price by this percentage

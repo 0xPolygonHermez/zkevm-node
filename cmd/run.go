@@ -69,7 +69,7 @@ func start(cliCtx *cli.Context) error {
 	ctx := context.Background()
 	st := newState(ctx, c, l2ChainID, stateSqlDB)
 
-	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman)
+	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman, st)
 
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
 		switch item {
