@@ -32,6 +32,9 @@ func (c *Client) GetURI() string {
 
 // IsIdle indicates the prover is ready to process requests
 func (c *Client) IsIdle(ctx context.Context) bool {
+	if !c.Prover.Working {
+		return false
+	}
 	var opts []grpc.CallOption
 	status, err := c.Prover.Client.GetStatus(ctx, &pb.GetStatusRequest{}, opts...)
 	if err != nil || status.State != pb.GetStatusResponse_STATUS_PROVER_IDLE {
