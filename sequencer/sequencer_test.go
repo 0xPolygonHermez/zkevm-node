@@ -35,7 +35,7 @@ func TestSequenceTooBig(t *testing.T) {
 	// make run-zkprover
 
 	const (
-		CONFIG_MAX_GAS_PER_SEQUENCE     = 200000
+		CONFIG_MAX_GAS_PER_SEQUENCE     = 100000
 		CONFIG_ENCRYPTION_KEY_FILE_PATH = "./../test/test.keystore"
 		CONFIG_ENCRYPTION_KEY_PASSWORD  = "testonly"
 		CONFIG_CHAIN_ID                 = 1337
@@ -48,9 +48,9 @@ func TestSequenceTooBig(t *testing.T) {
 
 	var (
 		CONFIG_ADDRESSES = map[string]common.Address{
-			CONFIG_NAME_POE:   common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"), // <= PoE
-			CONFIG_NAME_MATIC: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"), // <= Matic
-			CONFIG_NAME_GER:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"), // <= GER
+			CONFIG_NAME_POE:   common.HexToAddress("0x03039Ead602CD675980bc24E18011CDaBeAea3df"), // <= PoE
+			CONFIG_NAME_MATIC: common.HexToAddress("0x47aafd5d8C9a784eE4Cb69076d6cBc468119B9fB"), // <= Matic
+			CONFIG_NAME_GER:   common.HexToAddress("0xd899fDF65C81F75C891F6D29C81bC000bB1262b7"), // <= GER
 		}
 		CONFIG_DB_STATE = db.Config{
 			User:      "state_user",
@@ -101,13 +101,13 @@ func TestSequenceTooBig(t *testing.T) {
 				100,
 				1,
 			},
-			Output: 2, // only two sequences fit inside
+			Output: 3, // only two sequences fit inside
 		},
 		{
 			Input: []int{
 				1, 1, 1, 1,
 			},
-			Output: 2, // all sequences fit inside
+			Output: 3, // all sequences fit inside
 		},
 	}
 	ctx := context.Background()
@@ -261,8 +261,6 @@ func TestSequenceTooBig(t *testing.T) {
 
 		sequences, err := seq.getSequencesToSend(ctx)
 		require.NoError(t, err)
-
-		fmt.Printf("%+v", sequences)
 
 		require.Equal(t, testCase.Output, len(sequences))
 	}
