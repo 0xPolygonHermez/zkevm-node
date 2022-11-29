@@ -829,7 +829,27 @@ func (s *ClientSynchronizer) processVerifyBatches(lastVerifiedBatch etherman.Ver
 			StateRoot:   lastVerifiedBatch.StateRoot,
 			TxHash:      lastVerifiedBatch.TxHash,
 		}
-		err := s.state.AddVerifiedBatch(s.ctx, &verifiedB, dbTx)
+		batch, err := s.state.GetBatchByNumber(s.ctx, verifiedB.BatchNumber, dbTx)
+		if err != nil {
+			log.Errorf("error getting GetBatchByNumber stored in db in processVerifyBatches. Processing blockNumber: %d", verifiedB.BatchNumber)
+			rollbackErr := dbTx.Rollback(s.ctx)
+			if rollbackErr != nil {
+				log.Fatalf("error rolling back state. Processing blockNumber: %d, rollbackErr: %s, error : %w", verifiedB.BatchNumber, rollbackErr.Error(), err)
+			}
+			log.Fatalf("error getting GetBatchByNumber stored in db in processVerifyBatches. Processing blockNumber: %d, error: %w", verifiedB.BatchNumber, err)
+		}
+
+		// Checks that calculated state root matches with the verified state root in the smc
+		if batch.StateRoot != verifiedB.StateRoot {
+			log.Errorf("error: stateRoot calculated and state root verified don't match in processVerifyBatches. Processing blockNumber: %d, error: %w", verifiedB.BatchNumber, err)
+			rollbackErr := dbTx.Rollback(s.ctx)
+			if rollbackErr != nil {
+				log.Fatalf("error rolling back state. Processing blockNumber: %d, rollbackErr: %s, error : %w", verifiedB.BatchNumber, rollbackErr.Error(), err)
+			}
+			log.Fatalf("error: stateRoot calculated and state root verified don't match in processVerifyBatches. Processing blockNumber: %d, error: %w", verifiedB.BatchNumber, err)
+		}
+
+		err = s.state.AddVerifiedBatch(s.ctx, &verifiedB, dbTx)
 		if err != nil {
 			log.Errorf("error storing the verifiedB in processVerifyBatches. verifiedBatch: %+v, lastVerifiedBatch: %+v", verifiedB, lastVerifiedBatch)
 			rollbackErr := dbTx.Rollback(s.ctx)
