@@ -11,6 +11,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
+var ErrBadProverResponse = errors.New("Prover returned wrong type for response")
+
 // Prover abstraction of the grpc prover client.
 type Prover struct {
 	id                                         string
@@ -26,7 +28,7 @@ func New(stream pb.AggregatorService_ChannelServer, intervalFrequencyToGetProofG
 	}
 	status, err := p.Status()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to retrieve prover id %w", err)
 	}
 	p.id = status.ProverId
 	return p, nil
@@ -49,7 +51,7 @@ func (p *Prover) Status() (*pb.GetStatusResponse, error) {
 	if msg, ok := res.Response.(*pb.ProverMessage_GetStatusResponse); ok {
 		return msg.GetStatusResponse, nil
 	}
-	return nil, errors.New("Bad response") // FIXME(pg)
+	return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_GetStatusResponse{}, res.Response)
 }
 
 // IsIdle returns true if the prover is idling.
@@ -76,20 +78,20 @@ func (p *Prover) BatchProof(input *pb.InputProver) (string, error) {
 	}
 	if msg, ok := res.Response.(*pb.ProverMessage_GenBatchProofResponse); ok {
 		switch msg.GenBatchProofResponse.Result {
+		case pb.Result_UNSPECIFIED:
+			return "", fmt.Errorf("Failed to generate proof %s, input %v", msg.GenBatchProofResponse.String(), input)
 		case pb.Result_OK:
 			return msg.GenBatchProofResponse.Id, nil
 		case pb.Result_ERROR:
-			return "", errors.New("GenBatchProofResponse.Result: ERROR")
+			return "", fmt.Errorf("Failed to generate proof %s, input %v", msg.GenBatchProofResponse.String(), input)
 		case pb.Result_INTERNAL_ERROR:
-			return "", errors.New("GenBatchProofResponse.Result: INTERNAL_ERROR")
-		case pb.Result_UNSPECIFIED:
-			return "", errors.New("GenBatchProofResponse.Result: UNSPECIFIED")
+			return "", fmt.Errorf("Failed to generate proof %s, input %v", msg.GenBatchProofResponse.String(), input)
 		default:
-			return "", errors.New("GenBatchProofResponse.Result: UNKNOWN")
+			return "", fmt.Errorf("Failed to generate proof %s, input %v", msg.GenBatchProofResponse.String(), input)
 		}
 	}
 
-	return "", errors.New("GenBatchProofResponse.Result: UNKNOWN")
+	return "", fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_GenBatchProofResponse{}, res.Response)
 }
 
 // AggregatedProof instructs the prover to generate an aggregated proof from
@@ -110,16 +112,18 @@ func (p *Prover) AggregatedProof(inputProof1, inputProof2 string) (string, error
 	if msg, ok := res.Response.(*pb.ProverMessage_GenAggregatedProofResponse); ok {
 		switch msg.GenAggregatedProofResponse.Result {
 		case pb.Result_UNSPECIFIED:
-			// TODO(pg): handle this case
+			return "", fmt.Errorf("Failed to aggregate proofs %s, input 1 %s, input 2 %s", msg.GenAggregatedProofResponse.String(), inputProof1, inputProof2)
 		case pb.Result_OK:
 			return msg.GenAggregatedProofResponse.Id, nil
 		case pb.Result_ERROR:
-			return "", errors.New("Prover error")
+			return "", fmt.Errorf("Failed to aggregate proofs %s, input 1 %s, input 2 %s", msg.GenAggregatedProofResponse.String(), inputProof1, inputProof2)
 		case pb.Result_INTERNAL_ERROR:
-			return "", errors.New("Prover internal error")
+			return "", fmt.Errorf("Failed to aggregate proofs %s, input 1 %s, input 2 %s", msg.GenAggregatedProofResponse.String(), inputProof1, inputProof2)
+		default:
+			return "", fmt.Errorf("Failed to aggregate proofs %s, input 1 %s, input 2 %s", msg.GenAggregatedProofResponse.String(), inputProof1, inputProof2)
 		}
 	}
-	return "", errors.New("Bad response") // FIXME(pg)
+	return "", fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_GenAggregatedProofResponse{}, res.Response)
 }
 
 // FinalProof instructs the prover to generate a final proof for the given
@@ -137,16 +141,18 @@ func (p *Prover) FinalProof(inputProof string) (string, error) {
 	if msg, ok := res.Response.(*pb.ProverMessage_GenFinalProofResponse); ok {
 		switch msg.GenFinalProofResponse.Result {
 		case pb.Result_UNSPECIFIED:
-			// TODO(pg): handle this case
+			return "", fmt.Errorf("Failed to generate final proof %s, input %s", msg.GenFinalProofResponse.String(), inputProof)
 		case pb.Result_OK:
 			return msg.GenFinalProofResponse.Id, nil
 		case pb.Result_ERROR:
-			return "", errors.New("Prover error")
+			return "", fmt.Errorf("Failed to generate final proof %s, input %s", msg.GenFinalProofResponse.String(), inputProof)
 		case pb.Result_INTERNAL_ERROR:
-			return "", errors.New("Prover internal error")
+			return "", fmt.Errorf("Failed to generate final proof %s, input %s", msg.GenFinalProofResponse.String(), inputProof)
+		default:
+			return "", fmt.Errorf("Failed to generate final proof %s, input %s", msg.GenFinalProofResponse.String(), inputProof)
 		}
 	}
-	return "", errors.New("Bad response") // FIXME(pg)
+	return "", fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_GenFinalProofResponse{}, res.Response)
 }
 
 // CancelProofRequest asks the prover to stop the generation of the proof
@@ -165,15 +171,18 @@ func (p *Prover) CancelProofRequest(proofID string) error {
 		// TODO(pg): handle all cases
 		switch msg.CancelResponse.Result {
 		case pb.Result_UNSPECIFIED:
+			return fmt.Errorf("Failed to cancel proof id [%s] %s", proofID, msg.CancelResponse.String())
 		case pb.Result_OK:
 			return nil
 		case pb.Result_ERROR:
-			return errors.New("Prover error")
+			return fmt.Errorf("Failed to cancel proof id [%s] %s", proofID, msg.CancelResponse.String())
 		case pb.Result_INTERNAL_ERROR:
-			return errors.New("Prover internal error")
+			return fmt.Errorf("Failed to cancel proof id [%s] %s", proofID, msg.CancelResponse.String())
+		default:
+			return fmt.Errorf("Failed to cancel proof id [%s] %s", proofID, msg.CancelResponse.String())
 		}
 	}
-	return errors.New("Bad response") // FIXME(pg)
+	return fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_CancelResponse{}, res.Response)
 }
 
 // WaitRecursiveProof waits for a recursive proof to be generated by the prover
@@ -225,18 +234,20 @@ func (p *Prover) waitProof(ctx context.Context, proofID string) (*pb.GetProofRes
 					time.Sleep(p.IntervalFrequencyToGetProofGenerationState.Duration)
 					continue
 				case pb.GetProofResponse_UNSPECIFIED:
-					return nil, fmt.Errorf("Failed to generate proof ID: %s, ResGetProofState: %v", proofID, msg.GetProofResponse)
+					return nil, fmt.Errorf("Failed to get proof ID: %s, prover response: %s", proofID, msg.GetProofResponse.String())
 				case pb.GetProofResponse_COMPLETED_OK:
 					return msg.GetProofResponse, nil
 				case pb.GetProofResponse_ERROR, pb.GetProofResponse_COMPLETED_ERROR:
-					log.Fatalf("Failed to get proof with ID %s", proofID)
+					return nil, fmt.Errorf("Failed to get proof with ID %s, prover response: %s", proofID, msg.GetProofResponse.String())
 				case pb.GetProofResponse_INTERNAL_ERROR:
-					return nil, fmt.Errorf("Failed to generate proof ID: %s, ResGetProofState: %v", proofID, msg.GetProofResponse)
+					return nil, fmt.Errorf("Failed to get proof ID: %s, prover response: %s", proofID, msg.GetProofResponse.String())
 				case pb.GetProofResponse_CANCEL:
-					log.Warnf("Proof generation was cancelled for proof ID %s", proofID)
-					return msg.GetProofResponse, nil
+					return nil, fmt.Errorf("Proof generation was cancelled for proof ID %s, prover response: %s", proofID, msg.GetProofResponse.String())
+				default:
+					return nil, fmt.Errorf("Failed to get proof ID: %s, prover response: %s", proofID, msg.GetProofResponse.String())
 				}
 			}
+			return nil, fmt.Errorf("%w, wanted %T, got %T", ErrBadProverResponse, &pb.ProverMessage_GetProofResponse{}, res.Response)
 		}
 	}
 }
