@@ -1,6 +1,15 @@
 ## Configure the Node: Different modes of execution
 
-### Sync-only (*read-only*):
+### Sync-only:
+
+#### Services needed:
+
+*Please perform each of these steps (downloading and running) before continuing!*
+
+- [Synchronizer](./components/synchronizer.md)
+- [RPC](./components/rpc.md)
+- [RPC and StateDB Database](./components/databases.md)
+- [MT and Executor](./components/prover.md)
 
 By default the config files found in the repository will spin up the Node in `sync-only` mode, which will not require a Prover (but will require a MT and Executor service).
 
@@ -8,7 +17,7 @@ By default the config files found in the repository will spin up the Node in `sy
 
 This will syncronize with the Trusted Sequencer (run by Polygon Hermez).
 
-Config:
+Use the default [public config file](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/public/public.node.config.toml), and make sure the following values are set to:
 
 ```toml
 [RPC]
@@ -17,7 +26,7 @@ SequencerNodeURI = "https://public.zkevm-test.net:2083"
 BroadcastURI = "public-grpc.zkevm-test.net:61090"
 ```
 
-Prover Config:
+Same goes for the Prover Config ([prover-config.json](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/public/public.prover.config.json)):
 
 ```json
 {
@@ -31,11 +40,7 @@ Prover Config:
 }
 ```
 
-ZKEVM RPC component is also needed.
-
-The `zkevm-rpc` component will act as a relay between the Trusted Sequencer and the Synchronizer (`zkevm-sync`). 
-
-The [`production-setup.md`](./production-setup.md) goes through the setup of both a synchronizer and RPC components of the node.
+Additionally, the [`production-setup.md`](./production-setup.md) goes through the setup of both a synchronizer and RPC components of the node.
 
 ##### Docker services:
 
@@ -44,13 +49,39 @@ The [`production-setup.md`](./production-setup.md) goes through the setup of bot
 - `zkevm-rpc` 
 - Databases
 
-### Create Proofs: Base + RPC + Aggregator + Prover:
+### If you want to create Proofs:
 
-Use an Aggregator with a Prover to create proofs.
+This mode is a tad more complicated, as it will require more services and more machines:
 
-On a separate machine from the *Merkle Tree/Executor* `zkevm-prover` container, spin up a Prover:
+Requirements for the Prover service (sans MT/Executor): 1TB RAM 128 cores
 
-Use stock Prover config for Merkle Tree and Executor `zkevm-prover` image on the other machine.
+#### Services needed: 
+
+*Please perform each of these steps (downloading and running) before continuing!*
+
+- [Synchronizer](./components/synchronizer.md)
+- [RPC](./components/rpc.md)
+- [Sequencer](./components/sequencer.md)
+- [Aggregator](./components/aggregator.md)
+- [Pool, RPC and StateDB Database](./components/databases.md)
+- [Prover, MT and Executor](./components/prover.md)
+
+Machine 0:
+
+- Synchronizer
+- RPC
+- Sequencer
+- Aggregator
+- MT and Executor
+- Databases
+
+Machine 1:
+
+- Prover only
+
+### Machine 1
+
+Use default [prover config](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/public/public.prover.config.json) but change the following values (`runProverServer` set to true, rest false):
 
 For *only* Prover Config (`only-prover-config.json`):
 
@@ -66,33 +97,3 @@ For *only* Prover Config (`only-prover-config.json`):
 }
 ```
 
-*docker-compose.yaml*:
-
-```yaml
-  zkevm-only-prover:
-    container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:develop
-    ports:
-      - 50051:50051 # Prover
-    volumes:
-      - ./only-prover-config.json:/usr/src/app/config.json
-    command: >
-      zkProver -c /usr/src/app/config.json
-```
-
-For aggregator, here's how to spin it up using docker compose:
-
-```yaml
-  zkevm-aggregator:
-    container_name: zkevm-aggregator
-    image: zkevm-node
-    environment:
-      - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
-    volumes:
-      - ./config.toml:/app/config.toml
-      - ./genesis.json:/app/genesis.json
-    command:
-      - "/bin/sh"
-      - "-c"
-      - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components aggregator"
-```
