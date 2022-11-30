@@ -208,7 +208,6 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	// Look for a free prover
 	for _, prover = range a.ProverClients {
 		if prover.IsIdle(ctx) {
-			log.Infof("Prover %s is going to be used for batchNumber: %d", prover.GetURI(), batchToVerify.BatchNumber)
 			idleProverFound = true
 			break
 		}
@@ -223,6 +222,16 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 	proverURI := prover.GetURI()
 	proof := &state.Proof{BatchNumber: batchToVerify.BatchNumber, Prover: &proverURI, InputProver: inputProver}
 
+	// Avoid other thread to process the same batch
+	err = a.State.AddGeneratedProof(ctx, proof, nil)
+	if err != nil {
+		log.Warnf("failed to create proof generation mark, err: %v", err)
+		waitTick(ctx, ticker)
+		return
+	}
+
+	log.Infof("Prover %s is going to be used for batchNumber: %d", prover.GetURI(), batchToVerify.BatchNumber)
+
 	genProofID, err := prover.GetGenProofID(ctx, inputProver)
 	if err != nil {
 		log.Warnf("failed to get gen proof id, err: %v", err)
@@ -236,10 +245,10 @@ func (a *Aggregator) tryVerifyBatch(ctx context.Context, ticker *time.Ticker) {
 
 	proof.ProofID = &genProofID
 
-	// Avoid other thread to process the same batch
-	err = a.State.AddGeneratedProof(ctx, proof, nil)
+	// Update Proof
+	err = a.State.UpdateGeneratedProof(ctx, proof, nil)
 	if err != nil {
-		log.Warnf("failed to store proof generation mark, err: %v", err)
+		log.Warnf("failed to update proof generation mark, err: %v", err)
 		waitTick(ctx, ticker)
 		return
 	}

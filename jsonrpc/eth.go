@@ -630,7 +630,7 @@ func (e *Eth) tryToAddTxToPool(input string) (interface{}, rpcError) {
 		return rpcErrorResponse(invalidParamsErrorCode, "invalid tx input", err)
 	}
 
-	log.Debugf("adding TX to the pool: %v", tx.Hash().Hex())
+	log.Infof("adding TX to the pool: %v", tx.Hash().Hex())
 	if err := e.pool.AddTx(context.Background(), *tx); err != nil {
 		return rpcErrorResponse(defaultErrorCode, err.Error(), nil)
 	}

@@ -90,7 +90,7 @@ func (d *Handler) Handle(req Request) Response {
 
 	output := fd.fv.Call(inArgs)
 	if err := getError(output[1]); err != nil {
-		log.Errorf("failed to call method %s: [%v]%v. Params: %v", req.Method, err.ErrorCode(), err.Error(), string(req.Params))
+		log.Infof("failed to call method %s: [%v]%v. Params: %v", req.Method, err.ErrorCode(), err.Error(), string(req.Params))
 		return NewResponse(req, nil, err)
 	}
 

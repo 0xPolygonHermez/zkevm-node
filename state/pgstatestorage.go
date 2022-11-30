@@ -283,7 +283,7 @@ func (p *PostgresStorage) GetBlockNumAndMainnetExitRootByGER(ctx context.Context
 	)
 	e := p.getExecQuerier(dbTx)
 	const getMainnetExitRoot = "SELECT block_num, mainnet_exit_root FROM state.exit_root WHERE global_exit_root = $1"
-	err := e.QueryRow(ctx, getMainnetExitRoot, ger.String()).Scan(&blockNum, &mainnetExitRoot)
+	err := e.QueryRow(ctx, getMainnetExitRoot, ger.Bytes()).Scan(&blockNum, &mainnetExitRoot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, common.Hash{}, ErrNotFound
 	} else if err != nil {
@@ -466,6 +466,7 @@ func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2
 	defer rows.Close()
 
 	batches := make([]*Batch, 0, len(rows.RawValues()))
+	emptyHash := common.Hash{}
 
 	for rows.Next() {
 		batch, _l2BlockStateRoot, err := scanBatchWithL2BlockStateRoot(rows)
@@ -475,6 +476,11 @@ func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2
 		batches = append(batches, &batch)
 		if l2BlockStateRoot == nil && _l2BlockStateRoot != nil {
 			l2BlockStateRoot = _l2BlockStateRoot
+		}
+		// if there is no corresponding l2_block, it will use the latest batch state_root
+		// it is related to https://github.com/0xPolygonHermez/zkevm-node/issues/1299
+		if l2BlockStateRoot == nil && batch.StateRoot != emptyHash {
+			l2BlockStateRoot = &batch.StateRoot
 		}
 	}
 
@@ -640,6 +646,18 @@ func (p *PostgresStorage) IsBatchVirtualized(ctx context.Context, batchNumber ui
 	e := p.getExecQuerier(dbTx)
 	var exists bool
 	err := e.QueryRow(ctx, query, batchNumber).Scan(&exists)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return exists, err
+	}
+	return exists, nil
+}
+
+// IsSequencingTXSynced checks if sequencing tx has been synced into the state
+func (p *PostgresStorage) IsSequencingTXSynced(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (bool, error) {
+	const query = `SELECT EXISTS (SELECT 1 FROM state.virtual_batch WHERE tx_hash = $1)`
+	e := p.getExecQuerier(dbTx)
+	var exists bool
+	err := e.QueryRow(ctx, query, transactionHash.String()).Scan(&exists)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return exists, err
 	}

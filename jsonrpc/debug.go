@@ -51,7 +51,7 @@ func (d *Debug) TraceTransaction(hash common.Hash, cfg *traceConfig) (interface{
 		result, err := d.state.DebugTransaction(ctx, hash, tracer, dbTx)
 		if err != nil {
 			const errorMessage = "failed to debug trace the transaction"
-			log.Debugf("%v: %v", errorMessage, err)
+			log.Infof("%v: %v", errorMessage, err)
 			return nil, newRPCError(defaultErrorCode, errorMessage)
 		}
 
