@@ -1829,6 +1829,38 @@ func (p *PostgresStorage) CheckProofContainsCompleteSequences(ctx context.Contex
 	return exists, nil
 }
 
+// GetProofReadyToVerify return the proof that is ready to verify
+func (p *PostgresStorage) GetProofReadyToVerify(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*Proof, error) {
+	const getProofReadyToVerifySQL = `
+		SELECT 
+			p.batch_num, 
+			p.batch_num_final,
+			p.proof,
+			p.proof_id,
+			p.input_prover,
+			p.prover,
+			p.generating
+		FROM state.proof p
+		WHERE batch_num = $1 AND generating = FALSE AND
+			EXISTS (SELECT 1 FROM state.sequences s1 WHERE s1.from_batch_num = p.batch_num) AND
+			EXISTS (SELECT 1 FROM state.sequences s2 WHERE s2.to_batch_num = p.batch_num_final)		
+		`
+
+	var proof *Proof = &Proof{}
+
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, getProofReadyToVerifySQL, lastVerfiedBatchNumber+1)
+	err := row.Scan(&proof.BatchNumber, &proof.BatchNumberFinal, &proof.Proof, &proof.ProofID, &proof.InputProver, &proof.Prover, &proof.Generating)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return proof, err
+}
+
 // GetProofsToAggregate return the next to proof that it is possible to aggregate
 func (p *PostgresStorage) GetProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*Proof, *Proof, error) {
 	var (

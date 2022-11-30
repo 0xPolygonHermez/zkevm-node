@@ -1,5 +1,5 @@
 -- +migrate Up
-DROP TABLE state.proof
+DROP TABLE state.proof;
 CREATE TABLE state.proof
 (
     batch_num  BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
@@ -13,7 +13,7 @@ CREATE TABLE state.proof
 );
 
 -- +migrate Down
-DROP TABLE state.proof
+DROP TABLE state.proof;
 CREATE TABLE state.proof
 (
     batch_num  BIGINT NOT NULL PRIMARY KEY REFERENCES state.batch (batch_num) ON DELETE CASCADE,
