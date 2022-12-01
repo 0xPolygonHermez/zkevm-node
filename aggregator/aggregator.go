@@ -18,6 +18,11 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
+const (
+	mockedStateRoot     = "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"
+	mockedLocalExitRoot = "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"
+)
+
 type finalProofMsg struct {
 	proverID       string
 	recursiveProof *state.Proof
@@ -204,11 +209,13 @@ func (a *Aggregator) sendFinalProof() {
 			ctx := a.ctx
 			proof := msg.recursiveProof
 
-			a.resetVerifyProofTime()
-
 			log.Infof("Verifying final proof with ethereum smart contract, batches %d-%d", proof.BatchNumber, proof.BatchNumberFinal)
 
 			tx, err := a.EthTxManager.VerifyBatches(ctx, proof.BatchNumber-1, proof.BatchNumberFinal, msg.finalProof)
+			// toss := rand.Intn(5)
+			// if toss == 3 {
+			// 	err = errors.New("BANANA")
+			// }
 			if err != nil {
 				log.Errorf("Error verifiying final proof for batches %d-%d, err: %v", proof.BatchNumber, proof.BatchNumberFinal, err)
 
@@ -230,6 +237,8 @@ func (a *Aggregator) sendFinalProof() {
 				time.Sleep(a.cfg.IntervalToConsolidateState.Duration)
 				continue
 			}
+
+			a.resetVerifyProofTime()
 
 			// network is synced with the final proof, we can safely delete the recursive proofs
 			err = a.State.DeleteGeneratedProofs(ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
@@ -281,6 +290,17 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 	// 	)*/
 	// 	//resGetProof.Public.PublicInputs.NewLocalExitRoot = proof.InputProver.PublicInputs.NewLocalExitRoot
 	// }
+
+	if string(finalProof.Public.NewStateRoot) == mockedStateRoot && string(finalProof.Public.NewLocalExitRoot) == mockedLocalExitRoot {
+		finalBatch, err := a.State.GetBatchByNumber(ctx, proof.BatchNumberFinal, nil)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to retrieve batch with number [%d]", proof.BatchNumberFinal)
+		}
+		log.Warnf("NewLocalExitRoot and NewStateRoot look like a mock values, using values from executor instead: LER: %v, SR: %v",
+			finalBatch.LocalExitRoot.TerminalString(), finalBatch.StateRoot.TerminalString())
+		finalProof.Public.NewStateRoot = finalBatch.StateRoot.Bytes()
+		finalProof.Public.NewLocalExitRoot = finalBatch.LocalExitRoot.Bytes()
+	}
 
 	return finalProof, nil
 }
