@@ -46,7 +46,7 @@ mkdir -p /$HOME/zkevm-node
   <summary>Running your own Ethereum L1 network Geth node:</summary>
 Let's go!
 
-The first component we are going to setup is the Ethereum Node, it is the first because this is going to take a lot of time to synchronize the Ethereum network, so we will keep it synchronizing while we setup the others components to take advantage of this required time.
+The first component we are going to setup is the Ethereum Node, it is the first because this is going to take a lot of time to synchronize the Ethereum network, so we will keep it synchronizing while we setup the other components to take advantage of this required time.
 
 Before we start:
 
@@ -269,7 +269,7 @@ For more information visit [the Prover repository](https://github.com/0xPolygonH
 
 ## zkEVM-Node Setup
 
-Very well, we already have the Postgres, Prover and Ethereum Node instances running, now it's time so setup the zkEVM-Node.
+Very well, we already have the Postgres, Prover and Ethereum Node instances running, now it's time to setup the zkEVM-Node.
 
 > The node depends on the Postgres, Prover and Ethereum Node instances, so make sure it has network access to them. We also expect the node to have its own dedicated machine
 
@@ -435,7 +435,7 @@ To be able to use the Network via Metamask, a custom network must be configured.
 
 To configure a custom network follow these steps:
 
-1. Login to you Metamask account
+1. Login to your Metamask account
 2. Click in the circle with a picture on the top right side to open the Menu
 3. Click on Settings
 4. On the Left menu click com Networks
