@@ -363,7 +363,7 @@ services:
             - 4000:4000
         environment:
             - NETWORK=POE
-            - SUBNETWORK=Polygon Hermez
+            - SUBNETWORK=Polygon ZKEVM
             - COIN=ETH
             - ETHEREUM_JSONRPC_VARIANT=geth
             - ETHEREUM_JSONRPC_HTTP_URL=http://zkevm-explorer-zknode:8124
@@ -419,7 +419,7 @@ To configure a custom network follow these steps:
 3. Click on Settings
 4. On the Left menu click com Networks
 5. Fill up the following fields:
-    1. Network Name: Polygon Hermez - Goerli
+    1. Network Name: Polygon ZKEVM - Goerli
     2. New RPC URL: <http://IP-And-Port-of-zkEVM-Node-Instance>
     3. Chain ID: `1402`
     4. Currency Symbol: ETH
@@ -427,4 +427,4 @@ To configure a custom network follow these steps:
 6. Click on Save
 7. Click on the X in the right top corner to close the Settings
 8. Click in the list of networks on the top right corner
-9. Select Polygon Hermez - Goerli
+9. Select Polygon ZKEVM - Goerli

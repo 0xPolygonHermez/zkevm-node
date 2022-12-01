@@ -17,7 +17,7 @@ By default the config files found in the repository will spin up the Node in JSO
 
 **This is considered to be the base, all modes require a Synchronizer Node container to be spun up*
 
-This will syncronize with the Trusted Sequencer (run by Polygon Hermez).
+This will syncronize with the Trusted Sequencer (run by Polygon).
 
 Use the default [public config file](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/public/public.node.config.toml), and make sure the following values are set to:
 

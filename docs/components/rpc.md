@@ -2,7 +2,7 @@
 
 ## ZKEVM RPC:
 
-The ZKEVM RPC relays transactions to the Trusted sequencer (Hermez L2 network).
+The ZKEVM RPC relays transactions to the Trusted sequencer.
 
 ## Hard dependencies:
 

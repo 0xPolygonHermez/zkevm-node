@@ -2,7 +2,7 @@
 
 ## ZKEVM Aggregator:
 
-The ZKEVM Aggregator is an optional module to allow for communication between the sequencer, smart contract and Prover service.
+The ZKEVM Aggregator is an optional module responsible for orchestrating the available provers in order to generate the proofs for the batches not proven yet.
 
 ## Hard dependencies:
 
