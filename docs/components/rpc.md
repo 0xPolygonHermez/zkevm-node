@@ -4,6 +4,12 @@
 
 The ZKEVM RPC relays transactions to the Trusted sequencer (Hermez L2 network).
 
+## Hard dependencies:
+
+- [Synchronizer](./synchronizer.md)
+- [StateDB Database](./databases.md)
+- [RPCDB Database](./databases.md)
+- [Merkle Tree and Executor](./prover.md)
 
 ## Running:
 

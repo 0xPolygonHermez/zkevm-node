@@ -1,10 +1,16 @@
 # Component: Aggregator
 
-### ZKEVM Aggregator:
+## ZKEVM Aggregator:
 
 The ZKEVM Aggregator is an optional module to allow for communication between the sequencer, smart contract and Prover service.
 
-### Running:
+## Hard dependencies:
+
+- [Synchronizer](./synchronizer.md)
+- [StateDB Database](./databases.md)
+- [Merkle Tree and Executor](./prover.md)
+
+## Running:
 
 The preferred way to run the ZKEVM Aggregator component is via Docker and Docker Compose.
 
