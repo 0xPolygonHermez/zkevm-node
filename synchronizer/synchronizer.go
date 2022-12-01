@@ -14,7 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
-	"github.com/0xPolygonHermez/zkevm-node/state"
+	state "github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -588,7 +588,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 				if errors.Is(err, state.ErrNotFound) || errors.Is(err, state.ErrStateNotSynchronized) {
 					log.Debugf("BatchNumber: %d, not found in trusted state. Storing it...", batch.BatchNumber)
 					// If it is not found, store batch
-					err = s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx)
+					err = s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, state.SynchronizerCallerLabel)
 					if err != nil {
 						log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %s", batch.BatchNumber, blockNumber, err.Error())
 						rollbackErr := dbTx.Rollback(s.ctx)
@@ -619,7 +619,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 					}
 					log.Fatalf("error resetting trusted state. BatchNumber: %d, BlockNumber: %d, error: %s", batch.BatchNumber, blockNumber, err.Error())
 				}
-				err = s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx)
+				err = s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batch.BatchL2Data, dbTx, state.SynchronizerCallerLabel)
 				if err != nil {
 					log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %s", batch.BatchNumber, blockNumber, err.Error())
 					rollbackErr := dbTx.Rollback(s.ctx)
@@ -687,7 +687,7 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch etherm
 			Coinbase:       fbatch.Sequencer,
 		}
 		// Process batch
-		err := s.state.ProcessAndStoreClosedBatch(s.ctx, b, fbatch.RawTxsData, dbTx)
+		err := s.state.ProcessAndStoreClosedBatch(s.ctx, b, fbatch.RawTxsData, dbTx, state.SynchronizerCallerLabel)
 		if err != nil {
 			log.Errorf("error processing batch in processSequenceForceBatch. BatchNumber: %d, BlockNumber: %d, error: %s", b.BatchNumber, blockNumber, err.Error())
 			rollbackErr := dbTx.Rollback(s.ctx)
@@ -841,7 +841,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *pb.GetBatchRespon
 
 	log.Debugf("processing sequencer for batch %v", trustedBatch.BatchNumber)
 
-	processBatchResp, err := s.state.ProcessSequencerBatch(s.ctx, trustedBatch.BatchNumber, txs, dbTx)
+	processBatchResp, err := s.state.ProcessSequencerBatch(s.ctx, trustedBatch.BatchNumber, txs, dbTx, state.SynchronizerCallerLabel)
 	if err != nil {
 		log.Errorf("error processing sequencer batch for batch: %d", trustedBatch.BatchNumber)
 		return err

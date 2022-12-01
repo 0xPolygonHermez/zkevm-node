@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"time"
+
 	"github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -14,6 +16,7 @@ const (
 	sequencesOvesizedDataErrorName = prefix + "sequences_oversized_data_error"
 	ethToMaticPriceName            = prefix + "eth_to_matic_price"
 	sequenceRewardInMaticName      = prefix + "sequence_reward_in_matic"
+	processingTime                 = prefix + "processing_time"
 
 	txProcessedLabelName = "status"
 )
@@ -37,6 +40,7 @@ func Register() {
 		counters    []prometheus.CounterOpts
 		counterVecs []metrics.CounterVecOpts
 		gauges      []prometheus.GaugeOpts
+		histograms  []prometheus.HistogramOpts
 	)
 
 	counters = []prometheus.CounterOpts{
@@ -79,9 +83,17 @@ func Register() {
 		},
 	}
 
+	histograms = []prometheus.HistogramOpts{
+		{
+			Name: processingTime,
+			Help: "[SEQUENCER] processing time",
+		},
+	}
+
 	metrics.RegisterCounters(counters...)
 	metrics.RegisterCounterVecs(counterVecs...)
 	metrics.RegisterGauges(gauges...)
+	metrics.RegisterHistograms(histograms...)
 }
 
 // LastSyncedBatchNumber sets the gauge to the provided batch number.
@@ -120,4 +132,10 @@ func EthToMaticPrice(price float64) {
 // SequenceRewardInMatic sets the gauge for the reward in Matic of a sequence.
 func SequenceRewardInMatic(reward float64) {
 	metrics.GaugeSet(sequenceRewardInMaticName, reward)
+}
+
+// ProcessingTime observes the last iteration processing time on the histogram.
+func ProcessingTime(lastProcessTime time.Duration) {
+	execTimeInSeconds := float64(lastProcessTime) / float64(time.Second)
+	metrics.HistogramObserve(processingTime, execTimeInSeconds)
 }

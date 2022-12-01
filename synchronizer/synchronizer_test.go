@@ -148,7 +148,7 @@ func TestTrustedStateReorg(t *testing.T) {
 				}
 
 				m.State.
-					On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedBatch.Transactions, m.DbTx).
+					On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedBatch.Transactions, m.DbTx, state.SynchronizerCallerLabel).
 					Return(nil).
 					Once()
 

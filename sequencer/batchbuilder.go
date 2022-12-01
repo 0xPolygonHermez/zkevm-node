@@ -27,6 +27,9 @@ type processTxResponse struct {
 }
 
 func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
+	start := time.Now()
+	defer s.observeProcessingTime(start)
+
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
@@ -116,6 +119,11 @@ func (s *Sequencer) tryToProcessTx(ctx context.Context, ticker *time.Ticker) {
 	log.Infof("%d txs stored and added into the trusted state", len(processResponse.processedTxs))
 
 	s.updateTxsInPool(ctx, ticker, processResponse, unprocessedTxs)
+}
+
+func (s *Sequencer) observeProcessingTime(start time.Time) {
+	elapsed := time.Since(start)
+	metrics.ProcessingTime(elapsed)
 }
 
 func (s *Sequencer) updateTxsInPool(
@@ -369,7 +377,7 @@ func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 		return processTxResponse{}, err
 	}
 
-	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, lastBatchNumber, s.sequenceInProgress.Txs, dbTx)
+	processBatchResp, err := s.state.ProcessSequencerBatch(ctx, lastBatchNumber, s.sequenceInProgress.Txs, dbTx, state.SequencerCallerLabel)
 	if err != nil {
 		if err == state.ErrBatchAlreadyClosed || err == state.ErrInvalidBatchNumber {
 			log.Warnf("unexpected state local vs DB: %w", err)

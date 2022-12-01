@@ -317,13 +317,13 @@ func (_m *stateMock) OpenBatch(ctx context.Context, processingContext state.Proc
 	return r0
 }
 
-// ProcessAndStoreClosedBatch provides a mock function with given fields: ctx, processingCtx, encodedTxs, dbTx
-func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, processingCtx, encodedTxs, dbTx)
+// ProcessAndStoreClosedBatch provides a mock function with given fields: ctx, processingCtx, encodedTxs, dbTx, caller
+func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller state.CallerLabel) error {
+	ret := _m.Called(ctx, processingCtx, encodedTxs, dbTx, caller)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx) error); ok {
-		r0 = rf(ctx, processingCtx, encodedTxs, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, state.CallerLabel) error); ok {
+		r0 = rf(ctx, processingCtx, encodedTxs, dbTx, caller)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -331,13 +331,13 @@ func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingC
 	return r0
 }
 
-// ProcessSequencerBatch provides a mock function with given fields: ctx, batchNumber, txs, dbTx
-func (_m *stateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
-	ret := _m.Called(ctx, batchNumber, txs, dbTx)
+// ProcessSequencerBatch provides a mock function with given fields: ctx, batchNumber, txs, dbTx, caller
+func (_m *stateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx, caller state.CallerLabel) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, batchNumber, txs, dbTx, caller)
 
 	var r0 *state.ProcessBatchResponse
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []types.Transaction, pgx.Tx) *state.ProcessBatchResponse); ok {
-		r0 = rf(ctx, batchNumber, txs, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []types.Transaction, pgx.Tx, state.CallerLabel) *state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, batchNumber, txs, dbTx, caller)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.ProcessBatchResponse)
@@ -345,8 +345,8 @@ func (_m *stateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, []types.Transaction, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, txs, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, []types.Transaction, pgx.Tx, state.CallerLabel) error); ok {
+		r1 = rf(ctx, batchNumber, txs, dbTx, caller)
 	} else {
 		r1 = ret.Error(1)
 	}
