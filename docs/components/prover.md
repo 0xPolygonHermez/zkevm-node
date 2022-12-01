@@ -1,5 +1,7 @@
 # Component: Prover
 
+NOTE: The Prover is not considered part of the ZKEVM Node and all issues and suggestions should be sent to the [Prover repo](https://github.com/0xPolygonHermez/zkevm-prover/).
+
 ## ZKEVM Prover:
 
 The ZKEVM Prover image hosts different components, *Merkle Tree*, *Executor* and finally the actual *Prover*.
