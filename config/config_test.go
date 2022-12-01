@@ -137,15 +137,15 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Etherman.PoEAddr",
-			expectedValue: common.HexToAddress("0x03039Ead602CD675980bc24E18011CDaBeAea3df"),
+			expectedValue: common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
 		},
 		{
 			path:          "Etherman.MaticAddr",
-			expectedValue: common.HexToAddress("0x47aafd5d8C9a784eE4Cb69076d6cBc468119B9fB"),
+			expectedValue: common.HexToAddress("0x0165878A594ca255338adfa4d48449f69242Eb8F"),
 		},
 		{
 			path:          "Etherman.GlobalExitRootManagerAddr",
-			expectedValue: common.HexToAddress("0xd899fDF65C81F75C891F6D29C81bC000bB1262b7"),
+			expectedValue: common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"),
 		},
 		{
 			path:          "Etherman.MultiGasProvider",
