@@ -1868,6 +1868,7 @@ func (p *PostgresStorage) GetProofsToAggregate(ctx context.Context, dbTx pgx.Tx)
 		proof2 *Proof = &Proof{}
 	)
 
+	// TODO: add comments to explain the query
 	const getProofsToAggregateSQL = `
 		SELECT 
 			p1.batch_num as p1_batch_num, 
