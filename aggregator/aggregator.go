@@ -23,9 +23,17 @@ const (
 	mockedLocalExitRoot = "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"
 )
 
+type proverJobType int
+
+const (
+	proverJobTypeAggregation proverJobType = iota
+	proverJobTypeGeneration
+	proverJobTypeIdleing
+)
+
 type finalProofMsg struct {
 	proverID       string
-	lockedProofs   []*state.Proof
+	proverJobType  proverJobType
 	recursiveProof *state.Proof
 	finalProof     *pb.FinalProof
 }
@@ -161,7 +169,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 					continue
 				}
 
-				_, err := a.tryBuildFinalProof(ctx, prover, nil, nil)
+				_, err := a.tryBuildFinalProof(ctx, prover, proverJobTypeIdleing, nil)
 				if err != nil {
 					log.Errorf("Error checking proofs to verify: %v", err)
 				}
@@ -218,14 +226,22 @@ func (a *Aggregator) sendFinalProof() {
 			if err != nil {
 				log.Errorf("Error verifiying final proof for batches %d-%d, err: %v", proof.BatchNumber, proof.BatchNumberFinal, err)
 
-				// If error verifying the batch then we need to "unlock" (generating=false) the underlying proofs
-				for _, proof := range msg.lockedProofs {
-					proof.Generating = false
+				// unlock the underlying proof (generating=false)
+				proof.Generating = false
+
+				switch msg.proverJobType {
+				case proverJobTypeGeneration, proverJobTypeIdleing:
 					err := a.State.UpdateGeneratedProof(ctx, proof, nil)
 					if err != nil {
-						log.Errorf("Failed to update proof generating state (false) for proof ID [%v], err: %v", proof.ProofID, err)
+						log.Errorf("Rollback failed updating proof state (false) for proof ID [%v], err: %v", proof.ProofID, err)
 					}
-					continue
+				case proverJobTypeAggregation:
+					// in case of an aggregated proof, it is not stored yet, then store it
+					// as free to be taken
+					err := a.State.AddGeneratedProof(ctx, proof, nil)
+					if err != nil {
+						log.Errorf("Rollback failed adding aggregated proof (false) for proof ID [%v], err: %v", proof.ProofID, err)
+					}
 				}
 				continue
 			}
@@ -237,7 +253,6 @@ func (a *Aggregator) sendFinalProof() {
 			for !a.isSynced(a.ctx) {
 				log.Info("Waiting for synchronizer to sync...")
 				time.Sleep(a.cfg.IntervalToConsolidateState.Duration)
-				continue
 			}
 
 			a.resetVerifyProofTime()
@@ -246,7 +261,6 @@ func (a *Aggregator) sendFinalProof() {
 			err = a.State.DeleteGeneratedProofs(ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
 			if err != nil {
 				log.Errorf("Failed to store proof aggregation result, err: %v", err)
-				continue
 			}
 		}
 	}
@@ -272,15 +286,6 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 
 	//b, err := json.Marshal(resGetProof.FinalProof)
 	log.Infof("Final proof %s generated", *proof.ProofID)
-
-	// var inputProver *pb.InputProver
-	// err = json.Unmarshal([]byte(proof.InputProver), inputProver) // FIXME(pg) this fails!
-	// if err != nil {
-	// 	return nil, fmt.Errorf("Failed to deserialize input prover, err: %w", err)
-	// }
-
-	// TODO(pg): restore this?
-	// a.compareInputHashes(inputProver, finalProof)
 
 	// // Handle local exit root in the case of the mock prover
 	// if string(finalProof.Public.NewLocalExitRoot[:]) == "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e" {
@@ -314,7 +319,7 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 // build the final proof.  If no proof is provided it looks for a previously
 // generated proof.  If the proof is eligible, then the final proof generation
 // is triggered.
-func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof, lockedProofs []*state.Proof) (bool, error) {
+func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proverJobType proverJobType, proof *state.Proof) (bool, error) {
 	log.Debugf("tryBuildFinalProof start %s", prover.ID())
 
 	if !a.verifyProofTimeReached() {
@@ -389,7 +394,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 
 	msg := finalProofMsg{
 		proverID:       prover.ID(),
-		lockedProofs:   lockedProofs,
+		proverJobType:  proverJobType,
 		recursiveProof: proof,
 		finalProof:     finalProof,
 	}
@@ -564,9 +569,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover *prover.Prov
 
 	proof.Proof = recursiveProof
 
-	lockedProofs := []*state.Proof{proof1, proof2}
-
-	finalProofBuilt, err := a.tryBuildFinalProof(ctx, prover, proof, lockedProofs)
+	finalProofBuilt, err := a.tryBuildFinalProof(ctx, prover, proverJobTypeAggregation, proof)
 	if err != nil {
 		return false, fmt.Errorf("Failed trying to check if recursive proof can be verified: %w", err)
 	}
@@ -710,9 +713,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 
 	proof.Proof = resGetProof
 
-	lockedProofs := []*state.Proof{proof}
-
-	finalProofBuilt, err := a.tryBuildFinalProof(ctx, prover, proof, lockedProofs)
+	finalProofBuilt, err := a.tryBuildFinalProof(ctx, prover, proverJobTypeGeneration, proof)
 	if err != nil {
 		return false, fmt.Errorf("Failed trying to build final proof %w", err)
 	}
@@ -798,46 +799,6 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 
 	return inputProver, nil
 }
-
-/* func (a *Aggregator) compareInputHashes(ip *pb.InputProver, finalProof *pb.FinalProof) {
-		// Calc inputHash
-		batchNumberByte := make([]byte, 8) //nolint:gomnd
-		binary.BigEndian.PutUint64(batchNumberByte, ip.PublicInputs.OldBatchNum)
-		blockTimestampByte := make([]byte, 8) //nolint:gomnd
-		binary.BigEndian.PutUint64(blockTimestampByte, ip.PublicInputs.EthTimestamp)
-		hash := keccak256.Hash(
-			[]byte(ip.PublicInputs.OldStateRoot)[:],
-			[]byte(ip.PublicInputs.OldLocalExitRoot)[:],
-			[]byte(ip.PublicInputs.NewStateRoot)[:],
-			[]byte(ip.PublicInputs.NewLocalExitRoot)[:],
-			[]byte(ip.PublicInputs.SequencerAddr)[:],
-			[]byte(ip.PublicInputs.BatchHashData)[:],
-			batchNumberByte[:],
-			blockTimestampByte[:],
-		)
-		// Prime field. It is the prime number used as the order in our elliptic curve
-		const fr = "21888242871839275222246405745257275088548364400416034343698204186575808495617"
-		frB, _ := new(big.Int).SetString(fr, encoding.Base10)
-		inputHashMod := new(big.Int).Mod(new(big.Int).SetBytes(hash), frB)
-		internalInputHash := inputHashMod.Bytes()
-
-		// InputHash must match
-		internalInputHashS := fmt.Sprintf("0x%064s", hex.EncodeToString(internalInputHash))
-		publicInputsExtended := resGetProof.GetPublic()
-		if resGetProof.GetPublic().InputHash != internalInputHashS {
-			log.Error("inputHash received from the prover (", publicInputsExtended.InputHash,
-				") doesn't match with the internal value: ", internalInputHashS)
-			log.Debug("internalBatchHashData: ", ip.PublicInputs.BatchHashData, " externalBatchHashData: ", publicInputsExtended.PublicInputs.BatchHashData)
-			log.Debug("inputProver.PublicInputs.OldStateRoot: ", ip.PublicInputs.OldStateRoot)
-			log.Debug("inputProver.PublicInputs.OldLocalExitRoot:", ip.PublicInputs.OldLocalExitRoot)
-			log.Debug("inputProver.PublicInputs.NewStateRoot: ", ip.PublicInputs.NewStateRoot)
-			log.Debug("inputProver.PublicInputs.NewLocalExitRoot: ", ip.PublicInputs.NewLocalExitRoot)
-			log.Debug("inputProver.PublicInputs.SequencerAddr: ", ip.PublicInputs.SequencerAddr)
-			log.Debug("inputProver.PublicInputs.BatchHashData: ", ip.PublicInputs.BatchHashData)
-			log.Debug("inputProver.PublicInputs.BatchNum: ", ip.PublicInputs.BatchNum)
-			log.Debug("inputProver.PublicInputs.EthTimestamp: ", ip.PublicInputs.EthTimestamp)
-		}
-}*/
 
 // healthChecker will provide an implementation of the HealthCheck interface.
 type healthChecker struct{}
