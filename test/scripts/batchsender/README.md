@@ -11,18 +11,12 @@ rollup.  It can be useful to test the Synchronizer and the Aggregator.
 
 The script can be installed running `go install` from this folder.
 
-## Examples
+### Examples
 
 - Send 1 batch:
 
 ```sh
 $ batchsender 
-```
-
-- Send 1 batch and wait for its proof:
-
-```sh
-$ batchsender -w send
 ```
 
 - Send 42 batches:
@@ -31,11 +25,44 @@ $ batchsender -w send
 $ batchsender send 42
 ```
 
-- Send 42 batches and wait for the proofs:
+## Flags
+
+### `--sequences, -s <nsequences>` 
+
+Send the specified number of sequences, each one filled with the provided
+number of batches.
+
+### Examples
+
+- Send 2 sequences with 42 batches each:
 
 ```sh
-$ batchsender -w send 42
+$ batchsender -s 2 send 42
 ```
+
+### `--wait, -w` 
+
+Wait for batches to be verified on L1.
+
+### Examples
+
+- Send 1 batch and wait for its proof:
+
+```sh
+$ batchsender -w send
+```
+
+- Send 2 sequences with 42 batches each and wait for the proofs:
+
+```sh
+$ batchsender -w -s 2 send 42
+```
+
+### `--verbose, -v` 
+
+Prints verbose output to the console.
+
+### Examples
 
 - Send 42 batches with verbose logs and wait for the proofs:
 
