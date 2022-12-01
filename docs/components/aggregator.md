@@ -7,8 +7,9 @@ The ZKEVM Aggregator is an optional module to allow for communication between th
 ## Hard dependencies:
 
 - [Synchronizer](./synchronizer.md)
+- [Sequencer](./sequencer.md)
 - [StateDB Database](./databases.md)
-- [Merkle Tree and Executor](./prover.md)
+- [Prover, Merkle Tree and Executor](./prover.md)
 
 ## Running:
 
