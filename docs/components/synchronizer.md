@@ -1,12 +1,12 @@
-## Component: Synchronizer
+# Component: Synchronizer
 
-### ZKEVM Synchronizer:
+## ZKEVM Synchronizer:
 
 The ZKEVM Synchronizer is the **base** component for which all others will depend on. You can *mix and match* different components to achieve a different outcome, be it sending transactions or computing proofs, but the Sync module will need to be up and running.
 
 This module syncs data between the Layer 1 Ethereum network and ZKEVM L2 network.
 
-### Running:
+## Running:
 
 The preferred way to run the ZKEVM Synchronizer component is via Docker and Docker Compose.
 

@@ -1,10 +1,10 @@
-## Component: Prover
+# Component: Prover
 
-### ZKEVM Prover:
+## ZKEVM Prover:
 
 The ZKEVM Prover image hosts different components, *Merkle Tree*, *Executor* and finally the actual *Prover*.
 
-### Running:
+## Running:
 
 The preferred way to run the ZKEVM Prover component is via Docker and Docker Compose.
 

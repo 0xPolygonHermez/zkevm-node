@@ -1,12 +1,11 @@
-## Component: RPC
+# Component: RPC
 
-### ZKEVM RPC:
+## ZKEVM RPC:
 
 The ZKEVM RPC relays transactions to the Trusted sequencer (Hermez L2 network).
 
-**As all other components, it depends on the `Synchronizer`.**
 
-### Running:
+## Running:
 
 The preferred way to run the ZKEVM RPC component is via Docker and Docker Compose.
 

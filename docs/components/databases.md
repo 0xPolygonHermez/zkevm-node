@@ -1,4 +1,4 @@
-## Component: Databases
+# Component: Databases
 
 Different services rely on several standard PostgresQL databases, the most important one being the State Database.
 

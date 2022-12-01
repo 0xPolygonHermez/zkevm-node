@@ -1,17 +1,19 @@
-## Configure the Node: Different modes of execution
+# Configure the Node: Different modes of execution
 
-### Sync-only:
+## JSON RPC Service:
 
-#### Services needed:
+This service will sync transactions from L2 to L1, it does not require a Prover to be working, just an RPC and Synchronizer. 
+
+### Services needed:
 
 *Please perform each of these steps (downloading and running) before continuing!*
 
+- [RPCDB and StateDB Database](./components/databases.md)
 - [Synchronizer](./components/synchronizer.md)
 - [RPC](./components/rpc.md)
-- [RPC and StateDB Database](./components/databases.md)
 - [MT and Executor](./components/prover.md)
 
-By default the config files found in the repository will spin up the Node in `sync-only` mode, which will not require a Prover (but will require a MT and Executor service).
+By default the config files found in the repository will spin up the Node in JSON RPC Service mode, which will not require a Prover (but will require a MT and Executor service).
 
 **This is considered to be the base, all modes require a Synchronizer Node container to be spun up*
 
@@ -42,35 +44,31 @@ Same goes for the Prover Config ([prover-config.json](https://github.com/0xPolyg
 
 Additionally, the [`production-setup.md`](./production-setup.md) goes through the setup of both a synchronizer and RPC components of the node.
 
-##### Docker services:
+### Docker services:
 
 - `zkevm-sync`
 - `zkevm-prover` (`Merkle Tree`, `Executor`)
 - `zkevm-rpc` 
 - Databases
 
-### If you want to create Proofs:
+## If you want to create Proofs:
 
 This mode is a tad more complicated, as it will require more services and more machines:
 
 Requirements for the Prover service (sans MT/Executor): 1TB RAM 128 cores
 
-#### Services needed: 
+### Services needed: 
 
 *Please perform each of these steps (downloading and running) before continuing!*
 
+- [StateDB Database](./components/databases.md)
 - [Synchronizer](./components/synchronizer.md)
-- [RPC](./components/rpc.md)
-- [Sequencer](./components/sequencer.md)
 - [Aggregator](./components/aggregator.md)
-- [Pool, RPC and StateDB Database](./components/databases.md)
 - [Prover, MT and Executor](./components/prover.md)
 
 Machine 0:
 
 - Synchronizer
-- RPC
-- Sequencer
 - Aggregator
 - MT and Executor
 - Databases
@@ -79,7 +77,7 @@ Machine 1:
 
 - Prover only
 
-### Machine 1
+#### Machine 1
 
 Use default [prover config](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/public/public.prover.config.json) but change the following values (`runProverServer` set to true, rest false):
 
@@ -97,3 +95,9 @@ For *only* Prover Config (`only-prover-config.json`):
 }
 ```
 
+### Docker services:
+
+- `zkevm-sync`
+- `zkevm-prover` (`Prover`, `Merkle Tree`, `Executor`)
+- `zkevm-aggregator` 
+- Databases

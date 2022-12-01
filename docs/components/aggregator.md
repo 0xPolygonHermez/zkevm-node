@@ -1,4 +1,4 @@
-## Component: Aggregator
+# Component: Aggregator
 
 ### ZKEVM Aggregator:
 
@@ -36,6 +36,6 @@ The container alone needs some parameters configured, access to certain configur
 
 ### The Account Keystore file:
 
-Since the `Aggregator` will depend on a `Sequencer` service, it must use the same Account Keystore file and same password.
+Since the Aggregator will send transactions to L1 you'll need to generate an account keystore:
 
-[Generate an Account Keystore file](./sequencer.md)
+[Generate an Account Keystore file](./account_keystore.md)
