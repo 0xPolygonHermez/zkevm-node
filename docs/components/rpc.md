@@ -25,22 +25,22 @@ To orchestrate multiple deployments of the different ZKEVM Node components, a `d
   zkevm-rpc:
     container_name: zkevm-rpc
     image: zkevm-node
-	command:
-		- "/bin/sh"
-		- "-c"
-		- "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc"
+    command:
+        - "/bin/sh"
+        - "-c"
+        - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components rpc"
 ```
 
 The container alone needs some parameters configured, access to certain configuration files and the appropiate ports exposed.
 
 - ports:
-	- `8545:8545`: RPC Port
-	- `9091:9091`: Neded if Prometheus metrics are enabled
+    - `8545:8545`: RPC Port
+    - `9091:9091`: Neded if Prometheus metrics are enabled
 - environment: Env variables that supersede the config file
-	- `ZKEVM_NODE_STATEDB_HOST`: Name of StateDB Database Host
-	- `ZKEVM_NODE_POOL_HOST`: Name of PoolDB Database Host 
-	- `ZKEVM_NODE_RPC_DB_HOST`: Name of RPCDB Database Host
-	- `ZKEVM_NODE_RPC_BROADCASTURI`: String to return when a client requests the following resource: `zkevm_getBroadcastURI`
+    - `ZKEVM_NODE_STATEDB_HOST`: Name of StateDB Database Host
+    - `ZKEVM_NODE_POOL_HOST`: Name of PoolDB Database Host 
+    - `ZKEVM_NODE_RPC_DB_HOST`: Name of RPCDB Database Host
+    - `ZKEVM_NODE_RPC_BROADCASTURI`: String to return when a client requests the following resource: `zkevm_getBroadcastURI`
 - volumes:
-	- [your config.toml file]:/app/config.toml
-	- [your genesis file]:/app/genesis.json
+    - [your config.toml file]:/app/config.toml
+    - [your genesis file]:/app/genesis.json

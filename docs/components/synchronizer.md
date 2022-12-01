@@ -22,16 +22,16 @@ To orchestrate multiple deployments of the different ZKEVM Node components, a `d
   zkevm-sync:
     container_name: zkevm-sync
     image: zkevm-node
-	command:
-		- "/bin/sh"
-		- "-c"
-		- "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components synchronizer"
+    command:
+        - "/bin/sh"
+        - "-c"
+        - "/app/zkevm-node run --genesis /app/genesis.json --cfg /app/config.toml --components synchronizer"
 ```
 
 The container alone needs some parameters configured, access to certain configuration files and the appropiate ports exposed.
 
 - environment: Env variables that supersede the config file
-	- `ZKEVM_NODE_STATEDB_HOST`: Name of StateDB Database Host
+    - `ZKEVM_NODE_STATEDB_HOST`: Name of StateDB Database Host
 - volumes:
-	- [your config.toml file]:/app/config.toml
-	- [your genesis.json file]:/app/genesis.json
+    - [your config.toml file]:/app/config.toml
+    - [your genesis.json file]:/app/genesis.json
