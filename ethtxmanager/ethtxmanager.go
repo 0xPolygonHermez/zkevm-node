@@ -25,13 +25,15 @@ const oneHundred = 100
 type Client struct {
 	cfg    Config
 	ethMan etherman
+	state  state
 }
 
 // New creates new eth tx manager
-func New(cfg Config, ethMan etherman) *Client {
+func New(cfg Config, ethMan etherman, state state) *Client {
 	return &Client{
 		cfg:    cfg,
 		ethMan: ethMan,
+		state:  state,
 	}
 }
 
@@ -87,7 +89,7 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
 		} else {
 			log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
-			return nil
+			return c.state.WaitSequencingTxToBeSynced(ctx, tx, c.cfg.WaitTxToBeSynced.Duration)
 		}
 	}
 	return nil
@@ -145,7 +147,10 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 				continue
 			}
 			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-			return nil, fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+		} else {
+			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
+			return c.state.WaitVerifiedBatchToBeSynced(ctx, batchNum, c.cfg.WaitTxToBeSynced.Duration)
 		}
 
 		log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())

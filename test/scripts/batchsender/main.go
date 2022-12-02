@@ -28,6 +28,9 @@ const (
 )
 
 var (
+	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
+	verifiedBatchSignatureHash         = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
+
 	flagSequences = cli.Uint64Flag{
 		Name:     flagSequencesName,
 		Aliases:  []string{"s"},

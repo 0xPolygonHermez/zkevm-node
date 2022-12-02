@@ -33,11 +33,10 @@ import (
 
 const (
 	// Size of the memory in bytes reserved by the zkEVM
-	zkEVMReservedMemorySize int    = 128
-	two                     uint   = 2
-	three                   uint64 = 3
-	cTrue                          = 1
-	cFalse                         = 0
+	zkEVMReservedMemorySize int  = 128
+	two                     uint = 2
+	cTrue                        = 1
+	cFalse                       = 0
 )
 
 var (
@@ -293,10 +292,6 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	if lowEnd < gasUsed {
 		lowEnd = gasUsed
-	}
-
-	if gasUsed > 0 {
-		highEnd = (gasUsed * three) / uint64(two)
 	}
 
 	// Start the binary search for the lowest possible gas price
@@ -701,13 +696,18 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 
 	// Sanity check
 	if len(decodedTransactions) != len(processed.Responses) {
-		return fmt.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
+		log.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
 	}
 
 	// Filter unprocessed txs and decode txs to store metadata
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
 		if !isProcessed(processed.Responses[i].Error) {
+			if isOOC(processed.Responses[i].Error) {
+				processed.Responses = []*pb.ProcessTransactionResponse{}
+				break
+			}
+
 			// Remove unprocessed tx
 			if i == len(processed.Responses)-1 {
 				processed.Responses = processed.Responses[:i]
@@ -724,10 +724,13 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	if err != nil {
 		return err
 	}
-	// Store processed txs into the batch
-	err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
-	if err != nil {
-		return err
+
+	if len(processedBatch.Responses) > 0 {
+		// Store processed txs into the batch
+		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.Responses, dbTx)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Close batch
@@ -1307,4 +1310,52 @@ func DetermineProcessedTransactions(responses []*ProcessTransactionResponse) (
 		}
 	}
 	return processedTxResponses, processedTxsHashes, unprocessedTxResponses, unprocessedTxsHashes
+}
+
+// WaitSequencingTxToBeSynced waits for a sequencing transaction to be synced into the state
+func (s *State) WaitSequencingTxToBeSynced(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+
+	for {
+		virtualized, err := s.IsSequencingTXSynced(ctx, tx.Hash(), nil)
+		if err != nil && err != ErrNotFound {
+			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
+			return err
+		} else if ctx.Err() != nil {
+			log.Errorf("error waiting sequencing tx %s to be synced: %w", tx.Hash().String(), err)
+			return ctx.Err()
+		} else if virtualized {
+			break
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	log.Debug("Sequencing txh successfully synced: ", tx.Hash().String())
+	return nil
+}
+
+// WaitVerifiedBatchToBeSynced waits for a sequenced batch to be synced into the state
+func (s *State) WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumber uint64, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+
+	for {
+		batch, err := s.GetVerifiedBatch(ctx, batchNumber, nil)
+		if err != nil && err != ErrNotFound {
+			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
+			return err
+		} else if ctx.Err() != nil {
+			log.Errorf("error waiting verified batch %s to be synced: %w", batchNumber, err)
+			return ctx.Err()
+		} else if batch != nil {
+			break
+		}
+
+		time.Sleep(time.Second)
+	}
+
+	log.Debug("Verified batch successfully synced: ", batchNumber)
+	return nil
 }
