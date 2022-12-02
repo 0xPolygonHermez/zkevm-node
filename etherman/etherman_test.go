@@ -58,7 +58,7 @@ func TestGEREvent(t *testing.T) {
 	amount := big.NewInt(1000000000000000)
 	a := etherman.auth
 	a.Value = amount
-	_, err = br.Bridge(a, common.Address{}, 1, etherman.auth.From, amount, []byte{})
+	_, err = br.BridgeAsset(a, common.Address{}, 1, etherman.auth.From, amount, []byte{})
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -72,7 +72,7 @@ func TestGEREvent(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, uint64(2), blocks[0].GlobalExitRoots[0].BlockNumber)
-	assert.Equal(t, big.NewInt(1), blocks[0].GlobalExitRoots[0].GlobalExitRootNum)
+	assert.Equal(t, int64(finalBlock.Time()), blocks[0].GlobalExitRoots[0].Timestamp.Unix())
 	assert.NotEqual(t, common.Hash{}, blocks[0].GlobalExitRoots[0].MainnetExitRoot)
 	assert.Equal(t, common.Hash{}, blocks[0].GlobalExitRoots[0].RollupExitRoot)
 }
@@ -108,8 +108,7 @@ func TestForcedBatchEvent(t *testing.T) {
 	assert.NotEqual(t, common.Hash{}, blocks[0].ForcedBatches[0].GlobalExitRoot)
 	assert.NotEqual(t, time.Time{}, blocks[0].ForcedBatches[0].ForcedAt)
 	assert.Equal(t, uint64(1), blocks[0].ForcedBatches[0].ForcedBatchNumber)
-	dataFromSmc := "eaeb077b00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000de0b6b3a7640000000000000000000000000000000000000000000000000000000000000000008cf84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c0000000000000000000000000000000000000000"
-	assert.Equal(t, dataFromSmc, hex.EncodeToString(blocks[0].ForcedBatches[0].RawTxsData))
+	assert.Equal(t, rawTxs, hex.EncodeToString(blocks[0].ForcedBatches[0].RawTxsData))
 	assert.Equal(t, etherman.auth.From, blocks[0].ForcedBatches[0].Sequencer)
 }
 
@@ -125,7 +124,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	// Make a bridge tx
 	a := etherman.auth
 	a.Value = big.NewInt(1000000000000000)
-	_, err = br.Bridge(a, common.Address{}, 1, a.From, a.Value, []byte{})
+	_, err = br.BridgeAsset(a, common.Address{}, 1, a.From, a.Value, []byte{})
 	require.NoError(t, err)
 	ethBackend.Commit()
 	a.Value = big.NewInt(0)
@@ -144,21 +143,24 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	require.NoError(t, err)
 	ethBackend.Commit()
 
+	// Now read the event
 	currentBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
-
+	currentBlockNumber := currentBlock.NumberU64()
+	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &currentBlockNumber)
+	require.NoError(t, err)
 	var sequences []proofofefficiency.ProofOfEfficiencyBatchData
 	sequences = append(sequences, proofofefficiency.ProofOfEfficiencyBatchData{
-		GlobalExitRoot:        ger,
-		Timestamp:             currentBlock.Time() - 1,
-		ForceBatchesTimestamp: []uint64{30},
-		Transactions:          common.Hex2Bytes(rawTxs),
+		GlobalExitRoot:     ger,
+		Timestamp:          currentBlock.Time(),
+		MinForcedTimestamp: uint64(blocks[1].ForcedBatches[0].ForcedAt.Unix()),
+		Transactions:       common.Hex2Bytes(rawTxs),
 	})
 	sequences = append(sequences, proofofefficiency.ProofOfEfficiencyBatchData{
-		GlobalExitRoot:        ger,
-		Timestamp:             currentBlock.Time() + 1,
-		ForceBatchesTimestamp: []uint64{},
-		Transactions:          common.Hex2Bytes(rawTxs),
+		GlobalExitRoot:     ger,
+		Timestamp:          currentBlock.Time() + 1,
+		MinForcedTimestamp: 0,
+		Transactions:       common.Hex2Bytes(rawTxs),
 	})
 	_, err = etherman.PoE.SequenceBatches(etherman.auth, sequences)
 	require.NoError(t, err)
@@ -175,9 +177,9 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	assert.Equal(t, 3, len(blocks))
 	assert.Equal(t, 1, len(blocks[2].SequencedBatches))
 	assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[2].SequencedBatches[0][1].Transactions)
-	assert.Equal(t, currentBlock.Time()-1, blocks[2].SequencedBatches[0][0].Timestamp)
+	assert.Equal(t, currentBlock.Time(), blocks[2].SequencedBatches[0][0].Timestamp)
 	assert.Equal(t, ger, blocks[2].SequencedBatches[0][0].GlobalExitRoot)
-	assert.Equal(t, []uint64{currentBlock.Time()}, blocks[2].SequencedBatches[0][0].ForceBatchesTimestamp)
+	assert.Equal(t, currentBlock.Time(), blocks[2].SequencedBatches[0][0].MinForcedTimestamp)
 	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
 }
 
@@ -193,10 +195,10 @@ func TestVerifyBatchEvent(t *testing.T) {
 
 	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
 	tx := proofofefficiency.ProofOfEfficiencyBatchData{
-		GlobalExitRoot:        common.Hash{},
-		Timestamp:             initBlock.Time(),
-		ForceBatchesTimestamp: []uint64{},
-		Transactions:          common.Hex2Bytes(rawTxs),
+		GlobalExitRoot:     common.Hash{},
+		Timestamp:          initBlock.Time(),
+		MinForcedTimestamp: 0,
+		Transactions:       common.Hex2Bytes(rawTxs),
 	}
 	_, err = etherman.PoE.SequenceBatches(etherman.auth, []proofofefficiency.ProofOfEfficiencyBatchData{tx})
 	require.NoError(t, err)
@@ -209,7 +211,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 		proofC = [2]*big.Int{big.NewInt(1), big.NewInt(1)}
 		proofB = [2][2]*big.Int{proofC, proofC}
 	)
-	_, err = etherman.PoE.VerifyBatch(etherman.auth, common.Hash{}, common.Hash{}, 1, proofA, proofB, proofC)
+	_, err = etherman.PoE.VerifyBatches(etherman.auth, uint64(0), uint64(1), [32]byte{}, [32]byte{}, proofA, proofB, proofC)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -254,19 +256,31 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	require.NoError(t, err)
 	ethBackend.Commit()
 
-	_, err = etherman.PoE.SequenceForceBatches(etherman.auth, 1)
-	require.NoError(t, err)
-	ethBackend.Commit()
-
 	// Now read the event
 	finalBlock, err := etherman.EtherClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 	finalBlockNumber := finalBlock.NumberU64()
+	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
+	require.NoError(t, err)
+
+	forceBatchData := proofofefficiency.ProofOfEfficiencyForceBatchData{
+		Transactions:       blocks[0].ForcedBatches[0].RawTxsData,
+		GlobalExitRoot:     blocks[0].ForcedBatches[0].GlobalExitRoot,
+		MinForcedTimestamp: uint64(blocks[0].ForcedBatches[0].ForcedAt.Unix()),
+	}
+	_, err = etherman.PoE.SequenceForceBatches(etherman.auth, []proofofefficiency.ProofOfEfficiencyForceBatchData{forceBatchData})
+	require.NoError(t, err)
+	ethBackend.Commit()
+
+	// Now read the event
+	finalBlock, err = etherman.EtherClient.BlockByNumber(ctx, nil)
+	require.NoError(t, err)
+	finalBlockNumber = finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(4), blocks[1].BlockNumber)
-	assert.Equal(t, uint64(1), blocks[1].SequencedForceBatches[0].LastBatchSequenced)
-	assert.Equal(t, uint64(1), blocks[1].SequencedForceBatches[0].ForceBatchNumber)
+	assert.Equal(t, uint64(1), blocks[1].SequencedForceBatches[0][0].BatchNumber)
+	assert.Equal(t, uint64(20), blocks[1].SequencedForceBatches[0][0].MinForcedTimestamp)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
 
@@ -282,7 +296,7 @@ func TestSendSequences(t *testing.T) {
 	// Make a bridge tx
 	a := etherman.auth
 	a.Value = big.NewInt(1000000000000000)
-	_, err = br.Bridge(a, common.Address{}, 1, a.From, a.Value, []byte{})
+	_, err = br.BridgeAsset(a, common.Address{}, 1, a.From, a.Value, []byte{})
 	require.NoError(t, err)
 	ethBackend.Commit()
 	a.Value = big.NewInt(0)
@@ -315,7 +329,7 @@ func TestSendSequences(t *testing.T) {
 	assert.Equal(t, 1, len(blocks[1].SequencedBatches))
 	assert.Equal(t, currentBlock.Time()-1, blocks[1].SequencedBatches[0][0].Timestamp)
 	assert.Equal(t, ger, blocks[1].SequencedBatches[0][0].GlobalExitRoot)
-	assert.Equal(t, []uint64{}, blocks[1].SequencedBatches[0][0].ForceBatchesTimestamp)
+	assert.Equal(t, uint64(0), blocks[1].SequencedBatches[0][0].MinForcedTimestamp)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
 

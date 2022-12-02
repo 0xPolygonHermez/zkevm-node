@@ -1,7 +1,6 @@
 package etherman
 
 import (
-	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
@@ -17,17 +16,17 @@ type Block struct {
 	ForcedBatches         []ForcedBatch
 	SequencedBatches      [][]SequencedBatch
 	VerifiedBatches       []VerifiedBatch
-	SequencedForceBatches []SequencedForceBatch
+	SequencedForceBatches [][]SequencedForceBatch
 	ReceivedAt            time.Time
 }
 
 // GlobalExitRoot struct
 type GlobalExitRoot struct {
-	BlockNumber       uint64
-	GlobalExitRootNum *big.Int
-	MainnetExitRoot   common.Hash
-	RollupExitRoot    common.Hash
-	GlobalExitRoot    common.Hash
+	BlockNumber     uint64
+	Timestamp       time.Time
+	MainnetExitRoot common.Hash
+	RollupExitRoot  common.Hash
+	GlobalExitRoot  common.Hash
 }
 
 // SequencedBatch represents virtual batch
@@ -35,6 +34,7 @@ type SequencedBatch struct {
 	BatchNumber uint64
 	Coinbase    common.Address
 	TxHash      common.Hash
+	Nonce       uint64
 	proofofefficiency.ProofOfEfficiencyBatchData
 }
 
@@ -53,13 +53,16 @@ type VerifiedBatch struct {
 	BlockNumber uint64
 	BatchNumber uint64
 	Aggregator  common.Address
+	StateRoot   common.Hash
 	TxHash      common.Hash
 }
 
 // SequencedForceBatch is a sturct to track the ForceSequencedBatches event.
 type SequencedForceBatch struct {
-	LastBatchSequenced uint64
-	ForceBatchNumber   uint64
-	Coinbase           common.Address
-	TxHash             common.Hash
+	BatchNumber uint64
+	Coinbase    common.Address
+	TxHash      common.Hash
+	Timestamp   time.Time
+	Nonce       uint64
+	proofofefficiency.ProofOfEfficiencyForceBatchData
 }

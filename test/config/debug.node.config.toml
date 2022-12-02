@@ -94,17 +94,17 @@ MaxAllowedFailedCounter = 50
 		SendBatchesEvenWhenNotProfitable = "true"
 
 [Aggregator]
+Host = "0.0.0.0"
+Port = 50081
 IntervalToConsolidateState = "10s"
-IntervalFrequencyToGetProofGenerationState = "5s"
+IntervalToSendFinalProof = "90s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
+IntervalFrequencyToGetProofGenerationState = "5s"
 
 [GasPriceEstimator]
 Type = "default"
 DefaultGasPriceWei = 1000000000
-
-[Provers]
-ProverURIs = ["localhost:50052"]
 
 [MTServer]
 Host = "0.0.0.0"

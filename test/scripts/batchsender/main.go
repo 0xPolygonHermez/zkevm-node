@@ -16,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
@@ -29,9 +28,6 @@ const (
 )
 
 var (
-	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
-	verifiedBatchSignatureHash         = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
-
 	flagSequences = cli.Uint64Flag{
 		Name:     flagSequencesName,
 		Aliases:  []string{"s"},
@@ -235,7 +231,7 @@ func sendBatches(cliCtx *cli.Context) error {
 					}
 					for _, vLog := range logs {
 						switch vLog.Topics[0] {
-						case sequencedBatchesEventSignatureHash:
+						case etherman.SequencedBatchesSigHash():
 							if vLog.TxHash == tx.Hash() { // ignore other txs happening on L1
 								sb, err := ethMan.PoE.ParseSequenceBatches(vLog)
 								if err != nil {
@@ -249,8 +245,8 @@ func sendBatches(cliCtx *cli.Context) error {
 									loggedBatches[sb.NumBatch] = struct{}{}
 								}
 							}
-						case verifiedBatchSignatureHash:
-							vb, err := ethMan.PoE.ParseVerifyBatch(vLog)
+						case etherman.VerifyBatchesSigHash():
+							vb, err := ethMan.PoE.ParseVerifyBatches(vLog)
 							if err != nil {
 								return err
 							}
