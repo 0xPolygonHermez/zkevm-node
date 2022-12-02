@@ -35,7 +35,7 @@ func TestSequenceTooBig(t *testing.T) {
 	// make run-zkprover
 
 	const (
-		CONFIG_MAX_GAS_PER_SEQUENCE     = 100000
+		CONFIG_MAX_GAS_PER_SEQUENCE     = 135000
 		CONFIG_ENCRYPTION_KEY_FILE_PATH = "./../test/test.keystore"
 		CONFIG_ENCRYPTION_KEY_PASSWORD  = "testonly"
 		CONFIG_CHAIN_ID                 = 1337
