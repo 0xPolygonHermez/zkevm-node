@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/globalexitrootmanager"
@@ -16,7 +17,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/proverclient/pb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
@@ -56,6 +56,12 @@ var (
 	ErrIsReadOnlyMode = errors.New("Etherman client in read-only mode: no account configured to send transactions to L1. " +
 		"Please check the [Etherman] PrivateKeyPath and PrivateKeyPassword configuration.")
 )
+
+// SequencedBatchesSigHash returns the hash for the `SequenceBatches` event.
+func SequencedBatchesSigHash() common.Hash { return sequencedBatchesEventSignatureHash }
+
+// VerifyBatchesSigHash returns the hash for the `VerifyBatches` event.
+func VerifyBatchesSigHash() common.Hash { return verifyBatchesSignatureHash }
 
 // EventOrder is the the type used to identify the events order
 type EventOrder string
@@ -348,22 +354,22 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 	return transaction, err
 }
 
-// EstimateGasForVerifyBatches estimates gas for verify batch smart contract call
-func (etherMan *Client) EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) (uint64, error) {
+// EstimateGasForVerifyBatches estimates gas for verify batches smart contract call.
+func (etherMan *Client) EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, finalProof *pb.FinalProof) (uint64, error) {
 	if etherMan.IsReadOnly() {
 		return 0, ErrIsReadOnlyMode
 	}
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.NoSend = true
-	tx, err := etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, resGetProof)
+	tx, err := etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, finalProof)
 	if err != nil {
 		return 0, err
 	}
 	return tx.Gas(), nil
 }
 
-// VerifyBatches send verifyBatches request to the ethereum
-func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+// VerifyBatches function allows the aggregator send the final proof to L1.
+func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, finalProof *pb.FinalProof, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	if etherMan.IsReadOnly() {
 		return nil, ErrIsReadOnlyMode
 	}
@@ -377,7 +383,49 @@ func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, ne
 	if nonce != nil {
 		verifyBatchOpts.Nonce = nonce
 	}
-	return etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, resGetProof)
+	return etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, finalProof)
+}
+
+func (etherMan *Client) verifyBatches(opts *bind.TransactOpts, lastVerifiedBatch, newVerifiedBatch uint64, finalProof *pb.FinalProof) (*types.Transaction, error) {
+	publicInputs := finalProof.Public
+
+	var newLocalExitRoot [32]byte
+	copy(newLocalExitRoot[:], publicInputs.NewLocalExitRoot)
+
+	var newStateRoot [32]byte
+	copy(newStateRoot[:], publicInputs.NewStateRoot)
+
+	proofA, err := strSliceToBigIntArray(finalProof.Proof.ProofA)
+	if err != nil {
+		return nil, err
+	}
+	proofB, err := proofSlcToIntArray(finalProof.Proof.ProofB)
+	if err != nil {
+		return nil, err
+	}
+	proofC, err := strSliceToBigIntArray(finalProof.Proof.ProofC)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := etherMan.PoE.VerifyBatches(
+		opts,
+		lastVerifiedBatch,
+		newVerifiedBatch,
+		newLocalExitRoot,
+		newStateRoot,
+		proofA,
+		proofB,
+		proofC,
+	)
+	if err != nil {
+		if parsedErr, ok := tryParseError(err); ok {
+			err = parsedErr
+		}
+		return nil, err
+	}
+
+	return tx, nil
 }
 
 // GetSendSequenceFee get super/trusted sequencer fee
@@ -553,7 +601,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 }
 
 func (etherMan *Client) verifyBatchesEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("VerifyBatch event detected")
+	log.Debug("VerifyBatches event detected")
 	vb, err := etherMan.PoE.ParseVerifyBatches(vLog)
 	if err != nil {
 		return err
@@ -571,7 +619,6 @@ func (etherMan *Client) verifyBatchesEvent(ctx context.Context, vLog types.Log, 
 			return fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
 		}
 		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
-		*blocks = append(*blocks, block)
 		block.VerifiedBatches = append(block.VerifiedBatches, verifyBatch)
 		*blocks = append(*blocks, block)
 	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
@@ -796,52 +843,6 @@ func (etherMan *Client) GetPublicAddress() (common.Address, error) {
 // GetL2ChainID returns L2 Chain ID
 func (etherMan *Client) GetL2ChainID() (uint64, error) {
 	return etherMan.PoE.ChainID(&bind.CallOpts{Pending: false})
-}
-
-// VerifyBatch function allows the aggregator send the proof for a batch and consolidate it
-func (etherMan *Client) verifyBatches(opts *bind.TransactOpts, lastVerifiedBatch, newVerifiedBatch uint64, resGetProof *pb.GetProofResponse) (*types.Transaction, error) {
-	publicInputs := resGetProof.Public.PublicInputs
-	newLocalExitRoot, err := stringToFixedByteArray(publicInputs.NewLocalExitRoot)
-	if err != nil {
-		return nil, err
-	}
-	newStateRoot, err := stringToFixedByteArray(publicInputs.NewStateRoot)
-	if err != nil {
-		return nil, err
-	}
-
-	proofA, err := strSliceToBigIntArray(resGetProof.Proof.ProofA)
-	if err != nil {
-		return nil, err
-	}
-
-	proofB, err := proofSlcToIntArray(resGetProof.Proof.ProofB)
-	if err != nil {
-		return nil, err
-	}
-	proofC, err := strSliceToBigIntArray(resGetProof.Proof.ProofC)
-	if err != nil {
-		return nil, err
-	}
-
-	tx, err := etherMan.PoE.VerifyBatches(
-		opts,
-		lastVerifiedBatch,
-		newVerifiedBatch,
-		newLocalExitRoot,
-		newStateRoot,
-		proofA,
-		proofB,
-		proofC,
-	)
-	if err != nil {
-		if parsedErr, ok := tryParseError(err); ok {
-			err = parsedErr
-		}
-		return nil, err
-	}
-
-	return tx, nil
 }
 
 func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {

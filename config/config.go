@@ -15,7 +15,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
-	"github.com/0xPolygonHermez/zkevm-node/proverclient"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -53,7 +52,6 @@ type Config struct {
 	Sequencer          sequencer.Config
 	PriceGetter        pricegetter.Config
 	Aggregator         aggregator.Config
-	Provers            proverclient.Config
 	NetworkConfig      NetworkConfig
 	GasPriceEstimator  gasprice.Config
 	Executor           executor.Config

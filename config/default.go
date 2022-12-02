@@ -29,9 +29,9 @@ MaxConns = 200
 [Etherman]
 URL = "http://localhost:8545"
 L1ChainID = 1337
-PoEAddr = "0x03039Ead602CD675980bc24E18011CDaBeAea3df"
-MaticAddr = "0x47aafd5d8C9a784eE4Cb69076d6cBc468119B9fB"
-GlobalExitRootManagerAddr = "0xd899fDF65C81F75C891F6D29C81bC000bB1262b7"
+PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
 MultiGasProvider = true
 	[Etherscan]
 		ApiKey = ""
@@ -99,10 +99,13 @@ Type = "default"
 DefaultPrice = "2000"
 
 [Aggregator]
-IntervalFrequencyToGetProofGenerationState = "5s"
-IntervalToConsolidateState = "3s"
+Host = "0.0.0.0"
+Port = 50081
+RetryTime = "5s"
+VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
+ProofStatePollingInterval = "5s"
 
 [GasPriceEstimator]
 Type = "default"

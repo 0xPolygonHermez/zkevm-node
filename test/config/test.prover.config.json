@@ -1,8 +1,4 @@
 {
-    "runProverServer": false,
-    "runProverServerMock": false,
-    "runProverClient": false,
-
     "runExecutorServer": true,
     "runExecutorClient": false,
     "runExecutorClientMultithread": false,
@@ -12,8 +8,8 @@
 
     "runAggregatorServer": false,
     "runAggregatorClient": false,
-
-    "runFileGenProof": false,
+    "runAggregatorClientMock": true, 
+    
     "runFileGenBatchProof": false,
     "runFileGenAggregatedProof": false,
     "runFileGenFinalProof": false,
@@ -34,7 +30,8 @@
     "saveInputToFile": false,
     "saveDbReadsToFile": false,
     "saveDbReadsToFileOnChange": false,
-    "saveOutputToFile": false,
+    "saveOutputToFile": true,
+    "saveProofToFile": true,
     "saveResponseToFile": false,
     "loadDBToMemCache": true,
     "opcodeTracer": false,
@@ -57,43 +54,20 @@
 
     "aggregatorServerPort": 50081,
     "aggregatorClientPort": 50081,
-    "aggregatorClientHost": "127.0.0.1",
+    "aggregatorClientHost": "zkevm-aggregator",
 
-    "inputFile": "input_executor.json",
-    "outputPath": "output",
-    "romFile": "rom.json",
-    "cmPolsFile_disabled": "zkevm.commit",
-    "cmPolsFileC12a_disabled": "zkevm.c12a.commit",
-    "cmPolsFileRecursive1_disabled": "zkevm.recursive1.commit",
-    "constPolsFile": "zkevm.const",
-    "constPolsC12aFile": "zkevm.c12a.const",
-    "constPolsRecursive1File": "zkevm.recursive1.const",
     "mapConstPolsFile": false,
-    "constantsTreeFile": "zkevm.consttree",
-    "constantsTreeC12aFile": "zkevm.c12a.consttree",
-    "constantsTreeRecursive1File": "zkevm.recursive1.consttree",
     "mapConstantsTreeFile": false,
-    "starkFile": "zkevm.prove.json",
-    "starkZkIn": "zkevm.proof.zkin.json",
-    "starkZkInC12a":"zkevm.c12a.zkin.proof.json",
-    "starkFileRecursive1": "zkevm.recursive1.proof.json",
-    "verifierFile": "zkevm.verifier.dat",
-    "verifierFileRecursive1": "zkevm.recursive1.verifier.dat",
-    "witnessFile_disabled": "zkevm.witness.wtns",
-    "witnessFileRecursive1": "zkevm.recursive1.witness.wtns",
-    "execC12aFile": "zkevm.c12a.exec",
-    "execRecursive1File": "zkevm.recursive1.exec",
-    "starkVerifierFile": "zkevm.g16.0001.zkey",
-    "publicStarkFile": "zkevm.public.json",
-    "publicFile": "public.json",
-    "proofFile": "proof.json",
-    "keccakScriptFile": "keccak_script.json",
-    "keccakPolsFile_DISABLED": "keccak_pols.json",
-    "keccakConnectionsFile": "keccak_connections.json",
-    "storageRomFile": "storage_sm_rom.json",
-    "starkInfoFile": "zkevm.starkinfo.json",
-    "starkInfoC12aFile": "zkevm.c12a.starkinfo.json",
-    "starkInfoRecursive1File": "zkevm.recursive1.starkinfo.json",
+
+    "inputFile": "input_executor_0.json",
+    "inputFile2": "input_executor_1.json",
+
+    "rom": "config/scripts/rom.json",
+    "keccakScriptFile": "config/scripts/keccak_script.json",
+    "storageRomFile": "config/scripts/storage_sm_rom.json",
+
+    "outputPath": "output",
+
     "databaseURL": "postgresql://prover_user:prover_pass@zkevm-state-db:5432/prover_db",
     "dbNodesTableName": "state.nodes",
     "dbProgramTableName": "state.program",
@@ -104,3 +78,4 @@
     "maxProverThreads": 8,
     "maxStateDBThreads": 8
 }
+
