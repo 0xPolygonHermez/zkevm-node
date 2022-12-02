@@ -6,6 +6,7 @@ IsTrustedSequencer = false
 
 [Log]
 Level = "debug"
+Encoding = "console" # valid values are "console" or "json"
 Outputs = ["stdout"]
 
 [StateDB]

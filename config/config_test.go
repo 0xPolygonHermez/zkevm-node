@@ -24,6 +24,18 @@ func Test_Defaults(t *testing.T) {
 		expectedValue interface{}
 	}{
 		{
+			path:          "Log.Level",
+			expectedValue: "debug",
+		},
+		{
+			path:          "Log.Encoding",
+			expectedValue: "console",
+		},
+		{
+			path:          "Log.Outputs",
+			expectedValue: []string{"stdout"},
+		},
+		{
 			path:          "Synchronizer.SyncChunkSize",
 			expectedValue: uint64(100),
 		},

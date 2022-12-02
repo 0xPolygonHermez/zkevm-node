@@ -25,7 +25,11 @@ func getDefaultLog() *Logger {
 		return log
 	}
 	// default level: debug
-	zapLogger, _, err := NewLogger(Config{"debug", []string{"stdout"}})
+	zapLogger, _, err := NewLogger(Config{
+		Level:    "debug",
+		Encoding: "console",
+		Outputs:  []string{"stdout"},
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -60,7 +64,7 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 
 	zapCfg := zap.Config{
 		Level:            level,
-		Encoding:         "json",
+		Encoding:         cfg.Encoding,
 		OutputPaths:      cfg.Outputs,
 		ErrorOutputPaths: []string{"stderr"},
 		EncoderConfig: zapcore.EncoderConfig{
