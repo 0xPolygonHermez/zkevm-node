@@ -49,7 +49,7 @@ func TestSequenceTooBig(t *testing.T) {
 	var (
 		CONFIG_ADDRESSES = map[string]common.Address{
 			CONFIG_NAME_POE:   common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"), // <= PoE
-			CONFIG_NAME_MATIC: common.HexToAddress("0x0165878A594ca255338adfa4d48449f69242Eb8F"), // <= Matic
+			CONFIG_NAME_MATIC: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"), // <= Matic
 			CONFIG_NAME_GER:   common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"), // <= GER
 		}
 		CONFIG_DB_STATE = db.Config{
@@ -101,13 +101,13 @@ func TestSequenceTooBig(t *testing.T) {
 				100,
 				1,
 			},
-			Output: 3, // only two sequences fit inside
+			Output: 3, // only three sequences fit inside
 		},
 		{
 			Input: []int{
 				1, 1, 1, 1,
 			},
-			Output: 3, // all sequences fit inside
+			Output: 3, // only three sequences fit inside
 		},
 	}
 	ctx := context.Background()
