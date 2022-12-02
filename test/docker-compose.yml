@@ -29,7 +29,6 @@ services:
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_BROADCASTURI=zkevm-broadcast:61090
     volumes:
       - ./test.keystore:/pk/keystore
@@ -48,7 +47,6 @@ services:
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://zkevm-json-rpc:8123
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
@@ -138,23 +136,6 @@ services:
       - POSTGRES_DB=pool_db
     command: ["postgres", "-N", "500"]
 
-  zkevm-rpc-db:
-    container_name: zkevm-rpc-db
-    image: postgres
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
-    ports:
-      - 5434:5432
-    environment:
-      - POSTGRES_USER=rpc_user
-      - POSTGRES_PASSWORD=rpc_password
-      - POSTGRES_DB=rpc_db
-    command: ["postgres", "-N", "500"]
-
   zkevm-explorer-l1:
     container_name: zkevm-explorer-l1
     image: hermeznetwork/hermez-node-blockscout:latest
@@ -210,7 +191,6 @@ services:
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
-      - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_PORT=8124
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
@@ -308,10 +288,6 @@ services:
       - ZKEVM_NODE_POOL_PASSWORD=test_password
       - ZKEVM_NODE_POOL_NAME=pool_db
       - ZKEVM_NODE_POOL_HOST=zkevm-permissionless-db
-      - ZKEVM_NODE_RPC_DB_USER=test_user
-      - ZKEVM_NODE_RPC_DB_PASSWORD=test_password
-      - ZKEVM_NODE_RPC_DB_NAME=rpc_db
-      - ZKEVM_NODE_RPC_DB_HOST=zkevm-permissionless-db
       - ZKEVM_NODE_RPC_PORT=8126
     volumes:
       - ./test.keystore:/pk/keystore

@@ -50,7 +50,6 @@ const (
 var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
-	rpcDBCfg   = dbutils.NewRPCConfigFromEnv()
 
 	executorURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1:50071")
 	merkleTreeURI    = testutils.GetEnv(constants.ENV_MERKLETREE_URI, "127.0.0.1:50061")
@@ -533,9 +532,6 @@ func initOrResetDB() {
 		panic(err)
 	}
 	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
-		panic(err)
-	}
-	if err := dbutils.InitOrResetRPC(rpcDBCfg); err != nil {
 		panic(err)
 	}
 }
