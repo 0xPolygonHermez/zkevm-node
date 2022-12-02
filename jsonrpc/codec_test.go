@@ -174,11 +174,11 @@ func TestResponseMarshal(t *testing.T) {
 				JSONRPC: testCase.JSONRPC,
 				ID:      testCase.ID,
 			}
-			var result *[]byte
+			var result []byte
 			if testCase.Result != nil {
 				r, err := json.Marshal(testCase.Result)
 				require.NoError(t, err)
-				result = &r
+				result = r
 			}
 
 			res := NewResponse(req, result, testCase.Error)

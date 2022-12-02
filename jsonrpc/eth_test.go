@@ -21,6 +21,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/gorilla/websocket"
+	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -2970,51 +2972,56 @@ func TestNewFilter(t *testing.T) {
 
 	type testCase struct {
 		Name           string
-		LogFilter      *LogFilter
-		ExpectedResult argUint64
+		Request        LogFilterRequest
+		ExpectedResult string
 		ExpectedError  rpcError
 		SetupMocks     func(m *mocks, tc testCase)
 	}
 
 	hash := common.HexToHash("0x42")
-	blockNumber := BlockNumber(8)
+	blockNumber := "8"
 	testCases := []testCase{
 		{
-			Name:           "New filter created successfully",
-			LogFilter:      &LogFilter{},
-			ExpectedResult: argUint64(1),
+			Name: "New filter created successfully",
+			Request: LogFilterRequest{
+				ToBlock: &blockNumber,
+			},
+			ExpectedResult: "1",
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
-					On("NewLogFilter", *tc.LogFilter).
-					Return(uint64(1), nil).
+					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					Return("1", nil).
 					Once()
 			},
 		},
 		{
-			Name:           "failed to create new filter",
-			LogFilter:      &LogFilter{},
-			ExpectedResult: argUint64(0),
+			Name: "failed to create new filter",
+			Request: LogFilterRequest{
+				BlockHash: &hash,
+			},
+			ExpectedResult: "",
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to create new log filter"),
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
-					On("NewLogFilter", *tc.LogFilter).
-					Return(uint64(0), errors.New("failed to add new filter")).
+					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					Return("", errors.New("failed to add new filter")).
 					Once()
 			},
 		},
 		{
 			Name: "failed to create new filter because BlockHash and ToBlock are present",
-			LogFilter: &LogFilter{
+			Request: LogFilterRequest{
 				BlockHash: &hash,
 				ToBlock:   &blockNumber,
 			},
-			ExpectedResult: argUint64(0),
+			ExpectedResult: "",
 			ExpectedError:  newRPCError(invalidParamsErrorCode, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other"),
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
-					On("NewLogFilter", *tc.LogFilter).
-					Return(uint64(0), ErrFilterInvalidPayload).
+					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					Once().
+					Return("", ErrFilterInvalidPayload).
 					Once()
 			},
 		},
@@ -3025,14 +3032,14 @@ func TestNewFilter(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m, tc)
 
-			res, err := s.JSONRPCCall("eth_newFilter", tc.LogFilter)
+			res, err := s.JSONRPCCall("eth_newFilter", tc.Request)
 			require.NoError(t, err)
 
 			assert.Equal(t, float64(1), res.ID)
 			assert.Equal(t, "2.0", res.JSONRPC)
 
 			if res.Result != nil {
-				var result argUint64
+				var result string
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
 				assert.Equal(t, tc.ExpectedResult, result)
@@ -3052,7 +3059,7 @@ func TestNewBlockFilter(t *testing.T) {
 
 	type testCase struct {
 		Name           string
-		ExpectedResult argUint64
+		ExpectedResult string
 		ExpectedError  rpcError
 		SetupMocks     func(m *mocks, tc testCase)
 	}
@@ -3060,23 +3067,23 @@ func TestNewBlockFilter(t *testing.T) {
 	testCases := []testCase{
 		{
 			Name:           "New block filter created successfully",
-			ExpectedResult: argUint64(1),
+			ExpectedResult: "1",
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter").
-					Return(uint64(1), nil).
+					On("NewBlockFilter", mock.IsType(&websocket.Conn{})).
+					Return("1", nil).
 					Once()
 			},
 		},
 		{
 			Name:           "failed to create new block filter",
-			ExpectedResult: argUint64(0),
+			ExpectedResult: "",
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to create new block filter"),
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter").
-					Return(uint64(0), errors.New("failed to add new block filter")).
+					On("NewBlockFilter", mock.IsType(&websocket.Conn{})).
+					Return("", errors.New("failed to add new block filter")).
 					Once()
 			},
 		},
@@ -3094,7 +3101,7 @@ func TestNewBlockFilter(t *testing.T) {
 			assert.Equal(t, "2.0", res.JSONRPC)
 
 			if res.Result != nil {
-				var result argUint64
+				var result string
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
 				assert.Equal(t, tc.ExpectedResult, result)
@@ -3114,7 +3121,7 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 
 	type testCase struct {
 		Name           string
-		ExpectedResult argUint64
+		ExpectedResult string
 		ExpectedError  rpcError
 		SetupMocks     func(m *mocks, tc testCase)
 	}
@@ -3122,23 +3129,23 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 	testCases := []testCase{
 		{
 			Name:           "New pending transaction filter created successfully",
-			ExpectedResult: argUint64(1),
+			ExpectedResult: "1",
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
-					On("NewPendingTransactionFilter").
-					Return(uint64(1), nil).
+					On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
+					Return("1", nil).
 					Once()
 			},
 		},
 		{
 			Name:           "failed to create new pending transaction filter",
-			ExpectedResult: argUint64(0),
+			ExpectedResult: "",
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to create new pending transaction filter"),
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
-					On("NewPendingTransactionFilter").
-					Return(uint64(0), errors.New("failed to add new pending transaction filter")).
+					On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
+					Return("", errors.New("failed to add new pending transaction filter")).
 					Once()
 			},
 		},
@@ -3156,7 +3163,7 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 			assert.Equal(t, "2.0", res.JSONRPC)
 
 			if res.Result != nil {
-				var result argUint64
+				var result string
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
 				assert.Equal(t, tc.ExpectedResult, result)
@@ -3176,7 +3183,7 @@ func TestUninstallFilter(t *testing.T) {
 
 	type testCase struct {
 		Name           string
-		FilterID       argUint64
+		FilterID       string
 		ExpectedResult bool
 		ExpectedError  rpcError
 		SetupMocks     func(m *mocks, tc testCase)
@@ -3185,36 +3192,36 @@ func TestUninstallFilter(t *testing.T) {
 	testCases := []testCase{
 		{
 			Name:           "Uninstalls filter successfully",
-			FilterID:       argUint64(1),
+			FilterID:       "1",
 			ExpectedResult: true,
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
-					On("UninstallFilter", uint64(tc.FilterID)).
+					On("UninstallFilter", tc.FilterID).
 					Return(true, nil).
 					Once()
 			},
 		},
 		{
 			Name:           "filter already uninstalled",
-			FilterID:       argUint64(1),
+			FilterID:       "1",
 			ExpectedResult: false,
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
-					On("UninstallFilter", uint64(tc.FilterID)).
+					On("UninstallFilter", tc.FilterID).
 					Return(false, nil).
 					Once()
 			},
 		},
 		{
 			Name:           "failed to uninstall filter",
-			FilterID:       argUint64(1),
+			FilterID:       "1",
 			ExpectedResult: false,
 			ExpectedError:  newRPCError(defaultErrorCode, "failed to uninstall filter"),
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
-					On("UninstallFilter", uint64(tc.FilterID)).
+					On("UninstallFilter", tc.FilterID).
 					Return(false, errors.New("failed to uninstall filter")).
 					Once()
 			},
@@ -3418,7 +3425,7 @@ func TestGetFilterLogs(t *testing.T) {
 
 	type testCase struct {
 		Name           string
-		FilterID       argUint64
+		FilterID       string
 		ExpectedResult []types.Log
 		ExpectedError  rpcError
 		Prepare        func(t *testing.T, tc *testCase)
@@ -3429,7 +3436,7 @@ func TestGetFilterLogs(t *testing.T) {
 		{
 			Name: "Get filter logs successfully",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(1)
+				tc.FilterID = "1"
 				tc.ExpectedResult = []types.Log{{
 					Address: common.Address{}, Topics: []common.Hash{}, Data: []byte{},
 					BlockNumber: uint64(1), TxHash: common.Hash{}, TxIndex: uint(1),
@@ -3454,17 +3461,13 @@ func TestGetFilterLogs(t *testing.T) {
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
 
-				logFilterJSON, err := json.Marshal(&logFilter)
-				require.NoError(t, err)
-
-				parameters := string(logFilterJSON)
-
 				filter := &Filter{
-					ID:         uint64(tc.FilterID),
+					ID:         tc.FilterID,
 					Type:       FilterTypeLog,
 					LastPoll:   time.Now(),
-					Parameters: parameters,
+					Parameters: logFilter,
 				}
+
 				m.DbTx.
 					On("Commit", context.Background()).
 					Return(nil).
@@ -3476,7 +3479,7 @@ func TestGetFilterLogs(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 
@@ -3489,13 +3492,13 @@ func TestGetFilterLogs(t *testing.T) {
 		{
 			Name: "Get filter logs filter not found",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(1)
+				tc.FilterID = "1"
 				tc.ExpectedResult = nil
 				tc.ExpectedError = nil
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(nil, ErrNotFound).
 					Once()
 			},
@@ -3503,13 +3506,13 @@ func TestGetFilterLogs(t *testing.T) {
 		{
 			Name: "Get filter logs failed to get filter",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(1)
+				tc.FilterID = "1"
 				tc.ExpectedResult = nil
 				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to get filter from storage")
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(nil, errors.New("failed to get filter")).
 					Once()
 			},
@@ -3517,41 +3520,20 @@ func TestGetFilterLogs(t *testing.T) {
 		{
 			Name: "Get filter logs is a valid filter but its not a log filter",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(1)
+				tc.FilterID = "1"
 				tc.ExpectedResult = nil
 				tc.ExpectedError = nil
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				filter := &Filter{
-					ID:         uint64(tc.FilterID),
+					ID:         tc.FilterID,
 					Type:       FilterTypeBlock,
 					LastPoll:   time.Now(),
 					Parameters: "",
 				}
 
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
-					Return(filter, nil).
-					Once()
-			},
-		},
-		{
-			Name: "Get filter logs failed to parse filter parameters",
-			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(1)
-				tc.ExpectedResult = nil
-				tc.ExpectedError = newRPCError(defaultErrorCode, "failed to read filter parameters")
-			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
-				filter := &Filter{
-					ID:         uint64(tc.FilterID),
-					Type:       FilterTypeLog,
-					LastPoll:   time.Now(),
-					Parameters: "invalid parameters",
-				}
-
-				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 			},
@@ -3564,7 +3546,7 @@ func TestGetFilterLogs(t *testing.T) {
 			tc.Prepare(t, &tc)
 			tc.SetupMocks(t, m, tc)
 
-			res, err := s.JSONRPCCall("eth_getFilterLogs", hex.EncodeUint64(uint64(tc.FilterID)))
+			res, err := s.JSONRPCCall("eth_getFilterLogs", tc.FilterID)
 			require.NoError(t, err)
 			assert.Equal(t, float64(1), res.ID)
 			assert.Equal(t, "2.0", res.JSONRPC)
@@ -3596,18 +3578,19 @@ func TestGetFilterChanges(t *testing.T) {
 
 	type testCase struct {
 		Name            string
-		FilterID        argUint64
+		FilterID        string
 		ExpectedResults []interface{}
 		ExpectedErrors  []rpcError
 		Prepare         func(t *testing.T, tc *testCase)
 		SetupMocks      func(t *testing.T, m *mocks, tc testCase)
 	}
 
+	var nilTx pgx.Tx
 	testCases := []testCase{
 		{
 			Name: "Get block filter changes multiple times successfully",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(2)
+				tc.FilterID = "2"
 				// first call
 				tc.ExpectedResults = append(tc.ExpectedResults, []common.Hash{
 					common.HexToHash("0x111"),
@@ -3627,84 +3610,54 @@ func TestGetFilterChanges(t *testing.T) {
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				filter := &Filter{
-					ID:         uint64(tc.FilterID),
+					ID:         tc.FilterID,
 					Type:       FilterTypeBlock,
 					LastPoll:   time.Now(),
 					Parameters: "{}",
 				}
 
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 
-				m.DbTx.
-					On("Commit", context.Background()).
-					Return(nil).
-					Once()
-
 				m.State.
-					On("BeginStateTransaction", context.Background()).
-					Return(m.DbTx, nil).
-					Once()
-
-				m.State.
-					On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
+					On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, mock.IsType(nilTx)).
 					Return(tc.ExpectedResults[0].([]common.Hash), nil).
 					Once()
 
 				m.Storage.
-					On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+					On("UpdateFilterLastPoll", tc.FilterID).
 					Run(func(args mock.Arguments) {
 						filter.LastPoll = time.Now()
 
 						m.Storage.
-							On("GetFilter", uint64(tc.FilterID)).
+							On("GetFilter", tc.FilterID).
 							Return(filter, nil).
 							Once()
 
-						m.DbTx.
-							On("Commit", context.Background()).
-							Return(nil).
-							Once()
-
 						m.State.
-							On("BeginStateTransaction", context.Background()).
-							Return(m.DbTx, nil).
-							Once()
-
-						m.State.
-							On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
+							On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, mock.IsType(nilTx)).
 							Return(tc.ExpectedResults[1].([]common.Hash), nil).
 							Once()
 
 						m.Storage.
-							On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+							On("UpdateFilterLastPoll", tc.FilterID).
 							Run(func(args mock.Arguments) {
 								filter.LastPoll = time.Now()
 
 								m.Storage.
-									On("GetFilter", uint64(tc.FilterID)).
+									On("GetFilter", tc.FilterID).
 									Return(filter, nil).
 									Once()
 
-								m.DbTx.
-									On("Commit", context.Background()).
-									Return(nil).
-									Once()
-
 								m.State.
-									On("BeginStateTransaction", context.Background()).
-									Return(m.DbTx, nil).
-									Once()
-
-								m.State.
-									On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
+									On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, mock.IsType(nilTx)).
 									Return(tc.ExpectedResults[2].([]common.Hash), nil).
 									Once()
 
 								m.Storage.
-									On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+									On("UpdateFilterLastPoll", tc.FilterID).
 									Return(nil).
 									Once()
 							}).
@@ -3718,7 +3671,7 @@ func TestGetFilterChanges(t *testing.T) {
 		{
 			Name: "Get pending transactions filter changes multiple times successfully",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(3)
+				tc.FilterID = "3"
 				// first call
 				tc.ExpectedResults = append(tc.ExpectedResults, []common.Hash{
 					common.HexToHash("0x444"),
@@ -3738,14 +3691,14 @@ func TestGetFilterChanges(t *testing.T) {
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				filter := &Filter{
-					ID:         uint64(tc.FilterID),
+					ID:         tc.FilterID,
 					Type:       FilterTypePendingTx,
 					LastPoll:   time.Now(),
 					Parameters: "{}",
 				}
 
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 
@@ -3755,12 +3708,12 @@ func TestGetFilterChanges(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+					On("UpdateFilterLastPoll", tc.FilterID).
 					Run(func(args mock.Arguments) {
 						filter.LastPoll = time.Now()
 
 						m.Storage.
-							On("GetFilter", uint64(tc.FilterID)).
+							On("GetFilter", tc.FilterID).
 							Return(filter, nil).
 							Once()
 
@@ -3770,12 +3723,12 @@ func TestGetFilterChanges(t *testing.T) {
 							Once()
 
 						m.Storage.
-							On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+							On("UpdateFilterLastPoll", tc.FilterID).
 							Run(func(args mock.Arguments) {
 								filter.LastPoll = time.Now()
 
 								m.Storage.
-									On("GetFilter", uint64(tc.FilterID)).
+									On("GetFilter", tc.FilterID).
 									Return(filter, nil).
 									Once()
 
@@ -3785,7 +3738,7 @@ func TestGetFilterChanges(t *testing.T) {
 									Once()
 
 								m.Storage.
-									On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+									On("UpdateFilterLastPoll", tc.FilterID).
 									Return(nil).
 									Once()
 							}).
@@ -3799,7 +3752,7 @@ func TestGetFilterChanges(t *testing.T) {
 		{
 			Name: "Get log filter changes multiple times successfully",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(1)
+				tc.FilterID = "1"
 				// first call
 				tc.ExpectedResults = append(tc.ExpectedResults, []types.Log{{
 					Address: common.Address{}, Topics: []common.Hash{}, Data: []byte{},
@@ -3833,29 +3786,15 @@ func TestGetFilterChanges(t *testing.T) {
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
 
-				logFilterJSON, err := json.Marshal(&logFilter)
-				require.NoError(t, err)
-
-				parameters := string(logFilterJSON)
-
 				filter := &Filter{
-					ID:         uint64(tc.FilterID),
+					ID:         tc.FilterID,
 					Type:       FilterTypeLog,
 					LastPoll:   time.Now(),
-					Parameters: parameters,
+					Parameters: logFilter,
 				}
-				m.DbTx.
-					On("Commit", context.Background()).
-					Return(nil).
-					Once()
-
-				m.State.
-					On("BeginStateTransaction", context.Background()).
-					Return(m.DbTx, nil).
-					Once()
 
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 
@@ -3867,27 +3806,17 @@ func TestGetFilterChanges(t *testing.T) {
 				}
 
 				m.State.
-					On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
+					On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, mock.IsType(nilTx)).
 					Return(logs, nil).
 					Once()
 
 				m.Storage.
-					On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+					On("UpdateFilterLastPoll", tc.FilterID).
 					Run(func(args mock.Arguments) {
 						filter.LastPoll = time.Now()
 
-						m.DbTx.
-							On("Commit", context.Background()).
-							Return(nil).
-							Once()
-
-						m.State.
-							On("BeginStateTransaction", context.Background()).
-							Return(m.DbTx, nil).
-							Once()
-
 						m.Storage.
-							On("GetFilter", uint64(tc.FilterID)).
+							On("GetFilter", tc.FilterID).
 							Return(filter, nil).
 							Once()
 
@@ -3899,36 +3828,27 @@ func TestGetFilterChanges(t *testing.T) {
 						}
 
 						m.State.
-							On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
+							On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, mock.IsType(nilTx)).
 							Return(logs, nil).
 							Once()
 
 						m.Storage.
-							On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+							On("UpdateFilterLastPoll", tc.FilterID).
 							Run(func(args mock.Arguments) {
 								filter.LastPoll = time.Now()
-								m.DbTx.
-									On("Commit", context.Background()).
-									Return(nil).
-									Once()
-
-								m.State.
-									On("BeginStateTransaction", context.Background()).
-									Return(m.DbTx, nil).
-									Once()
 
 								m.Storage.
-									On("GetFilter", uint64(tc.FilterID)).
+									On("GetFilter", tc.FilterID).
 									Return(filter, nil).
 									Once()
 
 								m.State.
-									On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
+									On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, mock.IsType(nilTx)).
 									Return([]*types.Log{}, nil).
 									Once()
 
 								m.Storage.
-									On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+									On("UpdateFilterLastPoll", tc.FilterID).
 									Return(nil).
 									Once()
 							}).
@@ -3942,14 +3862,14 @@ func TestGetFilterChanges(t *testing.T) {
 		{
 			Name: "Get filter changes when filter is not found",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(1)
+				tc.FilterID = "1"
 				// first call
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
 				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "filter not found"))
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(nil, ErrNotFound).
 					Once()
 			},
@@ -3957,81 +3877,40 @@ func TestGetFilterChanges(t *testing.T) {
 		{
 			Name: "Get filter changes fails to get filter",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(1)
+				tc.FilterID = "1"
 				// first call
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
 				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to get filter from storage"))
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(nil, errors.New("failed to get filter")).
-					Once()
-			},
-		},
-		{
-			Name: "Get log filter changes fails to parse parameters",
-			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(1)
-				// first call
-				tc.ExpectedResults = append(tc.ExpectedResults, nil)
-				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to read filter parameters"))
-			},
-			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
-				filter := &Filter{
-					ID:         uint64(tc.FilterID),
-					Type:       FilterTypeLog,
-					LastPoll:   time.Now(),
-					Parameters: "invalid parameters",
-				}
-
-				m.DbTx.
-					On("Rollback", context.Background()).
-					Return(nil).
-					Once()
-
-				m.State.
-					On("BeginStateTransaction", context.Background()).
-					Return(m.DbTx, nil).
-					Once()
-
-				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
-					Return(filter, nil).
 					Once()
 			},
 		},
 		{
 			Name: "Get block filter changes fails to get block hashes",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(2)
+				tc.FilterID = "2"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
 				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to get block hashes"))
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				filter := &Filter{
-					ID:         uint64(tc.FilterID),
+					ID:         tc.FilterID,
 					Type:       FilterTypeBlock,
 					LastPoll:   time.Now(),
-					Parameters: "{}",
+					Parameters: LogFilter{},
 				}
-				m.DbTx.
-					On("Rollback", context.Background()).
-					Return(nil).
-					Once()
-
-				m.State.
-					On("BeginStateTransaction", context.Background()).
-					Return(m.DbTx, nil).
-					Once()
 
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 
 				m.State.
-					On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
+					On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, mock.IsType(nilTx)).
 					Return([]common.Hash{}, errors.New("failed to get hashes")).
 					Once()
 			},
@@ -4039,40 +3918,30 @@ func TestGetFilterChanges(t *testing.T) {
 		{
 			Name: "Get block filter changes fails to update the last time it was requested",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(2)
+				tc.FilterID = "2"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
 				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to update last time the filter changes were requested"))
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				filter := &Filter{
-					ID:         uint64(tc.FilterID),
+					ID:         tc.FilterID,
 					Type:       FilterTypeBlock,
 					LastPoll:   time.Now(),
-					Parameters: "{}",
+					Parameters: LogFilter{},
 				}
 
-				m.DbTx.
-					On("Rollback", context.Background()).
-					Return(nil).
-					Once()
-
-				m.State.
-					On("BeginStateTransaction", context.Background()).
-					Return(m.DbTx, nil).
-					Once()
-
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 
 				m.State.
-					On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, m.DbTx).
+					On("GetL2BlockHashesSince", context.Background(), filter.LastPoll, mock.IsType(nilTx)).
 					Return([]common.Hash{}, nil).
 					Once()
 
 				m.Storage.
-					On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+					On("UpdateFilterLastPoll", tc.FilterID).
 					Return(errors.New("failed to update filter last poll")).
 					Once()
 			},
@@ -4080,20 +3949,20 @@ func TestGetFilterChanges(t *testing.T) {
 		{
 			Name: "Get pending transactions filter fails to get the hashes",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(3)
+				tc.FilterID = "3"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
 				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to get pending transaction hashes"))
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				filter := &Filter{
-					ID:         uint64(tc.FilterID),
+					ID:         tc.FilterID,
 					Type:       FilterTypePendingTx,
 					LastPoll:   time.Now(),
-					Parameters: "{}",
+					Parameters: LogFilter{},
 				}
 
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 
@@ -4106,20 +3975,20 @@ func TestGetFilterChanges(t *testing.T) {
 		{
 			Name: "Get pending transactions fails to update the last time it was requested",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(3)
+				tc.FilterID = "3"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
 				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to update last time the filter changes were requested"))
 			},
 			SetupMocks: func(t *testing.T, m *mocks, tc testCase) {
 				filter := &Filter{
-					ID:         uint64(tc.FilterID),
+					ID:         tc.FilterID,
 					Type:       FilterTypePendingTx,
 					LastPoll:   time.Now(),
-					Parameters: "{}",
+					Parameters: LogFilter{},
 				}
 
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 
@@ -4129,7 +3998,7 @@ func TestGetFilterChanges(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+					On("UpdateFilterLastPoll", tc.FilterID).
 					Return(errors.New("failed to update filter last poll")).
 					Once()
 			},
@@ -4137,7 +4006,7 @@ func TestGetFilterChanges(t *testing.T) {
 		{
 			Name: "Get log filter changes fails to get logs",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(1)
+				tc.FilterID = "1"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
 				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to get logs from state"))
 			},
@@ -4151,34 +4020,20 @@ func TestGetFilterChanges(t *testing.T) {
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
 
-				logFilterJSON, err := json.Marshal(&logFilter)
-				require.NoError(t, err)
-
-				parameters := string(logFilterJSON)
-
 				filter := &Filter{
-					ID:         uint64(tc.FilterID),
+					ID:         tc.FilterID,
 					Type:       FilterTypeLog,
 					LastPoll:   time.Now(),
-					Parameters: parameters,
+					Parameters: logFilter,
 				}
-				m.DbTx.
-					On("Rollback", context.Background()).
-					Return(nil).
-					Once()
-
-				m.State.
-					On("BeginStateTransaction", context.Background()).
-					Return(m.DbTx, nil).
-					Once()
 
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 
 				m.State.
-					On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
+					On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, mock.IsType(nilTx)).
 					Return(nil, errors.New("failed to get logs")).
 					Once()
 			},
@@ -4186,7 +4041,7 @@ func TestGetFilterChanges(t *testing.T) {
 		{
 			Name: "Get log filter changes fails to update the last time it was requested",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(1)
+				tc.FilterID = "1"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
 				tc.ExpectedErrors = append(tc.ExpectedErrors, newRPCError(defaultErrorCode, "failed to update last time the filter changes were requested"))
 			},
@@ -4199,40 +4054,25 @@ func TestGetFilterChanges(t *testing.T) {
 					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
 				}
 
-				logFilterJSON, err := json.Marshal(&logFilter)
-				require.NoError(t, err)
-
-				parameters := string(logFilterJSON)
-
 				filter := &Filter{
-					ID:         uint64(tc.FilterID),
+					ID:         tc.FilterID,
 					Type:       FilterTypeLog,
 					LastPoll:   time.Now(),
-					Parameters: parameters,
+					Parameters: logFilter,
 				}
 
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 
-				m.DbTx.
-					On("Rollback", context.Background()).
-					Return(nil).
-					Once()
-
 				m.State.
-					On("BeginStateTransaction", context.Background()).
-					Return(m.DbTx, nil).
-					Once()
-
-				m.State.
-					On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, m.DbTx).
+					On("GetLogs", context.Background(), uint64(*logFilter.FromBlock), uint64(*logFilter.ToBlock), logFilter.Addresses, logFilter.Topics, logFilter.BlockHash, &filter.LastPoll, mock.IsType(nilTx)).
 					Return([]*types.Log{}, nil).
 					Once()
 
 				m.Storage.
-					On("UpdateFilterLastPoll", uint64(tc.FilterID)).
+					On("UpdateFilterLastPoll", tc.FilterID).
 					Return(errors.New("failed to update filter last poll")).
 					Once()
 			},
@@ -4240,7 +4080,7 @@ func TestGetFilterChanges(t *testing.T) {
 		{
 			Name: "Get filter changes for a unknown log type",
 			Prepare: func(t *testing.T, tc *testCase) {
-				tc.FilterID = argUint64(4)
+				tc.FilterID = "4"
 				tc.ExpectedResults = append(tc.ExpectedResults, nil)
 				tc.ExpectedErrors = append(tc.ExpectedErrors, nil)
 			},
@@ -4250,7 +4090,7 @@ func TestGetFilterChanges(t *testing.T) {
 				}
 
 				m.Storage.
-					On("GetFilter", uint64(tc.FilterID)).
+					On("GetFilter", tc.FilterID).
 					Return(filter, nil).
 					Once()
 			},

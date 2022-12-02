@@ -8,15 +8,20 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/gorilla/websocket"
 )
 
 // Filter represents a filter.
 type Filter struct {
-	ID         uint64
-	Type       string
-	Parameters string
+	ID         string
+	Type       FilterType
+	Parameters interface{}
 	LastPoll   time.Time
+	WsConn     *websocket.Conn
 }
+
+// FilterType express the type of the filter, block, logs, pending transactions
+type FilterType string
 
 // LogFilterRequest represents a log filter request.
 type LogFilterRequest struct {

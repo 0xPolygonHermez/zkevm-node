@@ -27,7 +27,7 @@ PoEAddr = "0x14cB06e8dE2222912138F9a062E5a4d9F4821409"
 MaticAddr = "0x4701Aa9471d7bfAc765D87dcb1Ea6BB23AD32733"
 GlobalExitRootManagerAddr = "0x762d09Ed110ace4EaC94acbb67b1C35D16C3297b"
 MultiGasProvider = false
-	[Etherscan]
+	[Etherman.Etherscan]
 		ApiKey = ""
 
 [RPC]
@@ -39,14 +39,9 @@ MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://public.zkevm-test.net:2083"
 BroadcastURI = "public-grpc.zkevm-test.net:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
-	[RPC.DB]
-		User = "rpc_user"
-		Password = "rpc_password"
-		Name = "rpc_db"
-		Host = "zkevm-rpc-db"
-		Port = "5432"
-		EnableLog = false
-		MaxConns = 100
+	[RPC.WebSockets]
+		Enabled = true
+		Port = 8546
 
 [Synchronizer]
 SyncInterval = "2s"

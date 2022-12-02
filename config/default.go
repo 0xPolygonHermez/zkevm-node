@@ -33,7 +33,7 @@ PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
 MultiGasProvider = true
-	[Etherscan]
+	[Etherman.Etherscan]
 		ApiKey = ""
 
 [EthTxManager]
@@ -55,14 +55,9 @@ MaxRequestsPerIPAndSecond = 50
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
-	[RPC.DB]
-		User = "rpc_user"
-		Password = "rpc_password"
-		Name = "rpc_db"
-		Host = "localhost"
-		Port = "5432"
-		EnableLog = false
-		MaxConns = 200
+	[RPC.WebSockets]
+		Enabled = false
+		Port = 8133
 
 [Synchronizer]
 SyncInterval = "0s"
@@ -93,7 +88,7 @@ MaxBinaries = 262144
 MaxSteps = 8388608
 MaxAllowedFailedCounter = 50
 	[Sequencer.ProfitabilityChecker]
-		SendBatchesEvenWhenNotProfitable = "true"
+		SendBatchesEvenWhenNotProfitable = true
 
 [PriceGetter]
 Type = "default"

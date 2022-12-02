@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -61,10 +62,10 @@ type stateInterface interface {
 }
 
 type storageInterface interface {
-	GetFilter(filterID uint64) (*Filter, error)
-	NewBlockFilter() (uint64, error)
-	NewLogFilter(filter LogFilter) (uint64, error)
-	NewPendingTransactionFilter() (uint64, error)
-	UninstallFilter(filterID uint64) (bool, error)
-	UpdateFilterLastPoll(filterID uint64) error
+	GetFilter(filterID string) (*Filter, error)
+	NewBlockFilter(wsConn *websocket.Conn) (string, error)
+	NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (string, error)
+	NewPendingTransactionFilter(wsConn *websocket.Conn) (string, error)
+	UninstallFilter(filterID string) (bool, error)
+	UpdateFilterLastPoll(filterID string) error
 }

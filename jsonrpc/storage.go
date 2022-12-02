@@ -1,0 +1,123 @@
+package jsonrpc
+
+import (
+	"errors"
+	"time"
+
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+)
+
+const (
+	// FilterTypeLog represents a filter of type log.
+	FilterTypeLog = "log"
+	// FilterTypeBlock represents a filter of type block.
+	FilterTypeBlock = "block"
+	// FilterTypePendingTx represent a filter of type pending Tx.
+	FilterTypePendingTx = "pendingTx"
+)
+
+// ErrNotFound represent a not found error.
+var ErrNotFound = errors.New("object not found")
+
+// ErrFilterInvalidPayload indicates there is an invalid payload when creating a filter
+var ErrFilterInvalidPayload = errors.New("invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other")
+
+// Storage uses memory to store the data
+// related to the json rpc server
+type Storage struct {
+	filters map[string]Filter
+}
+
+// NewStorage creates and initializes an instance of Storage
+func NewStorage() (*Storage, error) {
+	return &Storage{
+		filters: make(map[string]Filter),
+	}, nil
+}
+
+// NewLogFilter persists a new log filter
+func (s *Storage) NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (string, error) {
+	if filter.BlockHash != nil && (filter.FromBlock != nil || filter.ToBlock != nil) {
+		return "", ErrFilterInvalidPayload
+	}
+
+	return s.createFilter(FilterTypeLog, filter, wsConn)
+}
+
+// NewBlockFilter persists a new block log filter
+func (s *Storage) NewBlockFilter(wsConn *websocket.Conn) (string, error) {
+	return s.createFilter(FilterTypeBlock, nil, wsConn)
+}
+
+// NewPendingTransactionFilter persists a new pending transaction filter
+func (s *Storage) NewPendingTransactionFilter(wsConn *websocket.Conn) (string, error) {
+	return s.createFilter(FilterTypePendingTx, nil, wsConn)
+}
+
+// create persists the filter to the memory and provides the filter id
+func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *websocket.Conn) (string, error) {
+	lastPoll := time.Now().UTC()
+	id, err := s.generateFilterID()
+	if err != nil {
+		return "", err
+	}
+	s.filters[id] = Filter{
+		ID:         id,
+		Type:       t,
+		Parameters: parameters,
+		LastPoll:   lastPoll,
+		WsConn:     wsConn,
+	}
+
+	return id, nil
+}
+
+func (s *Storage) generateFilterID() (string, error) {
+	r, err := uuid.NewRandom()
+	if err != nil {
+		return "", err
+	}
+
+	b, err := r.MarshalBinary()
+	if err != nil {
+		return "", err
+	}
+
+	id := hex.EncodeToHex(b)
+	return id, nil
+}
+
+// GetFilter gets a filter by its id
+func (s *Storage) GetFilter(filterID string) (*Filter, error) {
+	filter, found := s.filters[filterID]
+	if !found {
+		return nil, ErrNotFound
+	}
+
+	return &filter, nil
+}
+
+// UpdateFilterLastPoll updates the last poll to now
+func (s *Storage) UpdateFilterLastPoll(filterID string) error {
+	filter, found := s.filters[filterID]
+	if !found {
+		return nil
+	}
+
+	filter.LastPoll = time.Now().UTC()
+	s.filters[filterID] = filter
+	return nil
+}
+
+// UninstallFilter deletes a filter by its id
+func (s *Storage) UninstallFilter(filterID string) (bool, error) {
+	_, found := s.filters[filterID]
+	if !found {
+		return false, nil
+	}
+
+	delete(s.filters, filterID)
+	return true, nil
+}

@@ -2,7 +2,6 @@ package jsonrpc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -13,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -227,8 +227,8 @@ func (e *Eth) GetCompilers() (interface{}, rpcError) {
 
 // GetFilterChanges polling method for a filter, which returns
 // an array of logs which occurred since last poll.
-func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, rpcError) {
-	filter, err := e.storage.GetFilter(uint64(filterID))
+func (e *Eth) GetFilterChanges(filterID string) (interface{}, rpcError) {
+	filter, err := e.storage.GetFilter(filterID)
 	if errors.Is(err, ErrNotFound) {
 		return rpcErrorResponse(defaultErrorCode, "filter not found", err)
 	} else if err != nil {
@@ -238,20 +238,18 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, rpcError) {
 	switch filter.Type {
 	case FilterTypeBlock:
 		{
-			return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-				res, err := e.state.GetL2BlockHashesSince(ctx, filter.LastPoll, dbTx)
-				if err != nil {
-					return rpcErrorResponse(defaultErrorCode, "failed to get block hashes", err)
-				}
-				rpcErr := e.updateFilterLastPoll(filter.ID)
-				if rpcErr != nil {
-					return nil, rpcErr
-				}
-				if len(res) == 0 {
-					return nil, nil
-				}
-				return res, nil
-			})
+			res, err := e.state.GetL2BlockHashesSince(context.Background(), filter.LastPoll, nil)
+			if err != nil {
+				return rpcErrorResponse(defaultErrorCode, "failed to get block hashes", err)
+			}
+			rpcErr := e.updateFilterLastPoll(filter.ID)
+			if rpcErr != nil {
+				return nil, rpcErr
+			}
+			if len(res) == 0 {
+				return nil, nil
+			}
+			return res, nil
 		}
 	case FilterTypePendingTx:
 		{
@@ -270,29 +268,22 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, rpcError) {
 		}
 	case FilterTypeLog:
 		{
-			return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
-				filterParameters := &LogFilter{}
-				err = json.Unmarshal([]byte(filter.Parameters), filterParameters)
-				if err != nil {
-					return rpcErrorResponse(defaultErrorCode, "failed to read filter parameters", err)
-				}
+			filterParameters := filter.Parameters.(LogFilter)
+			filterParameters.Since = &filter.LastPoll
 
-				filterParameters.Since = &filter.LastPoll
-
-				resInterface, err := e.internalGetLogs(ctx, dbTx, filterParameters)
-				if err != nil {
-					return nil, err
-				}
-				rpcErr := e.updateFilterLastPoll(filter.ID)
-				if rpcErr != nil {
-					return nil, rpcErr
-				}
-				res := resInterface.([]rpcLog)
-				if len(res) == 0 {
-					return nil, nil
-				}
-				return res, nil
-			})
+			resInterface, err := e.internalGetLogs(context.Background(), nil, filterParameters)
+			if err != nil {
+				return nil, err
+			}
+			rpcErr := e.updateFilterLastPoll(filter.ID)
+			if rpcErr != nil {
+				return nil, rpcErr
+			}
+			res := resInterface.([]rpcLog)
+			if len(res) == 0 {
+				return nil, nil
+			}
+			return res, nil
 		}
 	default:
 		return nil, nil
@@ -301,8 +292,8 @@ func (e *Eth) GetFilterChanges(filterID argUint64) (interface{}, rpcError) {
 
 // GetFilterLogs returns an array of all logs mlocking filter
 // with given id.
-func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, rpcError) {
-	filter, err := e.storage.GetFilter(uint64(filterID))
+func (e *Eth) GetFilterLogs(filterID string) (interface{}, rpcError) {
+	filter, err := e.storage.GetFilter(filterID)
 	if errors.Is(err, ErrNotFound) {
 		return nil, nil
 	} else if err != nil {
@@ -313,25 +304,20 @@ func (e *Eth) GetFilterLogs(filterID argUint64) (interface{}, rpcError) {
 		return nil, nil
 	}
 
-	filterParameters := &LogFilter{}
-	err = json.Unmarshal([]byte(filter.Parameters), filterParameters)
-	if err != nil {
-		return rpcErrorResponse(defaultErrorCode, "failed to read filter parameters", err)
-	}
-
+	filterParameters := filter.Parameters.(LogFilter)
 	filterParameters.Since = nil
 
 	return e.GetLogs(filterParameters)
 }
 
 // GetLogs returns a list of logs accordingly to the provided filter
-func (e *Eth) GetLogs(filter *LogFilter) (interface{}, rpcError) {
+func (e *Eth) GetLogs(filter LogFilter) (interface{}, rpcError) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, rpcError) {
 		return e.internalGetLogs(ctx, dbTx, filter)
 	})
 }
 
-func (e *Eth) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter *LogFilter) (interface{}, rpcError) {
+func (e *Eth) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter) (interface{}, rpcError) {
 	var err error
 	fromBlock, rpcErr := filter.FromBlock.getNumericBlockNumber(ctx, e.state, dbTx)
 	if rpcErr != nil {
@@ -564,38 +550,53 @@ func (e *Eth) GetTransactionReceipt(hash common.Hash) (interface{}, rpcError) {
 // a new block arrives. To check if the state has changed,
 // call eth_getFilterChanges.
 func (e *Eth) NewBlockFilter() (interface{}, rpcError) {
-	id, err := e.storage.NewBlockFilter()
+	return e.newBlockFilter(nil)
+}
+
+// internal
+func (e *Eth) newBlockFilter(wsConn *websocket.Conn) (interface{}, rpcError) {
+	id, err := e.storage.NewBlockFilter(wsConn)
 	if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to create new block filter", err)
 	}
 
-	return argUint64(id), nil
+	return id, nil
 }
 
 // NewFilter creates a filter object, based on filter options,
 // to notify when the state changes (logs). To check if the state
 // has changed, call eth_getFilterChanges.
-func (e *Eth) NewFilter(filter *LogFilter) (interface{}, rpcError) {
-	id, err := e.storage.NewLogFilter(*filter)
+func (e *Eth) NewFilter(filter LogFilter) (interface{}, rpcError) {
+	return e.newFilter(nil, filter)
+}
+
+// internal
+func (e *Eth) newFilter(wsConn *websocket.Conn, filter LogFilter) (interface{}, rpcError) {
+	id, err := e.storage.NewLogFilter(wsConn, filter)
 	if errors.Is(err, ErrFilterInvalidPayload) {
 		return rpcErrorResponse(invalidParamsErrorCode, err.Error(), nil)
 	} else if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to create new log filter", err)
 	}
 
-	return argUint64(id), nil
+	return id, nil
 }
 
 // NewPendingTransactionFilter creates a filter in the node, to
 // notify when new pending transactions arrive. To check if the
 // state has changed, call eth_getFilterChanges.
-func (e *Eth) NewPendingTransactionFilter(filterID argUint64) (interface{}, rpcError) {
-	id, err := e.storage.NewPendingTransactionFilter()
+func (e *Eth) NewPendingTransactionFilter() (interface{}, rpcError) {
+	return e.newPendingTransactionFilter(nil)
+}
+
+// internal
+func (e *Eth) newPendingTransactionFilter(wsConn *websocket.Conn) (interface{}, rpcError) {
+	id, err := e.storage.NewPendingTransactionFilter(wsConn)
 	if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to create new pending transaction filter", err)
 	}
 
-	return argUint64(id), nil
+	return id, nil
 }
 
 // SendRawTransaction has two different ways to handle new transactions:
@@ -639,12 +640,9 @@ func (e *Eth) tryToAddTxToPool(input string) (interface{}, rpcError) {
 	return tx.Hash().Hex(), nil
 }
 
-// UninstallFilter uninstalls a filter with given id. Should
-// always be called when wlock is no longer needed. Additionally
-// Filters timeout when they aren’t requested with
-// eth_getFilterChanges for a period of time.
-func (e *Eth) UninstallFilter(filterID argUint64) (interface{}, rpcError) {
-	uninstalled, err := e.storage.UninstallFilter(uint64(filterID))
+// UninstallFilter uninstalls a filter with given id.
+func (e *Eth) UninstallFilter(filterID string) (interface{}, rpcError) {
+	uninstalled, err := e.storage.UninstallFilter(filterID)
 	if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to uninstall filter", err)
 	}
@@ -758,10 +756,32 @@ func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.T
 	}
 }
 
-func (e *Eth) updateFilterLastPoll(filterID uint64) rpcError {
+func (e *Eth) updateFilterLastPoll(filterID string) rpcError {
 	err := e.storage.UpdateFilterLastPoll(filterID)
 	if err != nil {
 		return newRPCError(defaultErrorCode, "failed to update last time the filter changes were requested")
 	}
 	return nil
+}
+
+// Subscribe Creates a new subscription over particular events.
+// The node will return a subscription id.
+// For each event that matches the subscription a notification with relevant
+// data is sent together with the subscription id.
+func (e *Eth) Subscribe(wsConn *websocket.Conn, name string, data interface{}) (interface{}, rpcError) {
+	switch name {
+	case "newHeads":
+		return e.newBlockFilter(wsConn)
+	case "logs":
+		return e.newFilter(wsConn, data.(LogFilter))
+	case "pendingTransactions", "newPendingTransactions":
+		return e.newPendingTransactionFilter(wsConn)
+	default:
+		return nil, newRPCError(defaultErrorCode, "invalid filter name")
+	}
+}
+
+// Unsubscribe uninstalls the filter based on the provided filterID
+func (e *Eth) Unsubscribe(wsConn *websocket.Conn, filterID string) (interface{}, rpcError) {
+	return e.UninstallFilter(filterID)
 }

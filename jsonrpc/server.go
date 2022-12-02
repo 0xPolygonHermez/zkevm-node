@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/didip/tollbooth/v6"
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -29,13 +30,17 @@ const (
 	APITxPool = "txpool"
 	// APIWeb3 represents the web3 API prefix.
 	APIWeb3 = "web3"
+
+	wsBufferSizeLimitInBytes = 1024
 )
 
 // Server is an API backend to handle RPC requests
 type Server struct {
-	config  Config
-	handler *Handler
-	srv     *http.Server
+	config     Config
+	handler    *Handler
+	srv        *http.Server
+	wsSrv      *http.Server
+	wsUpgrader websocket.Upgrader
 }
 
 // NewServer returns the JsonRPC server
@@ -88,12 +93,22 @@ func NewServer(
 
 // Start initializes the JSON RPC server to listen for request
 func (s *Server) Start() error {
+	metrics.Register()
+
+	// if s.config.WebSockets.Enabled {
+	// 	go s.startWS()
+	// }
+
+	return s.startHTTP()
+}
+
+// startHTTP starts a server to respond http requests
+func (s *Server) startHTTP() error {
 	if s.srv != nil {
 		return fmt.Errorf("server already started")
 	}
 
 	address := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
-	log.Infof("http server started: %s", address)
 
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
@@ -106,13 +121,12 @@ func (s *Server) Start() error {
 	lmt := tollbooth.NewLimiter(s.config.MaxRequestsPerIPAndSecond, nil)
 	mux.Handle("/", tollbooth.LimitFuncHandler(lmt, s.handle))
 
-	metrics.Register()
-
 	s.srv = &http.Server{
 		Handler:      mux,
 		ReadTimeout:  s.config.ReadTimeoutInSec * time.Second,
 		WriteTimeout: s.config.WriteTimeoutInSec * time.Second,
 	}
+	log.Infof("http server started: %s", address)
 	if err := s.srv.Serve(lis); err != nil {
 		if err == http.ErrServerClosed {
 			log.Infof("http server stopped")
@@ -122,6 +136,46 @@ func (s *Server) Start() error {
 		return err
 	}
 	return nil
+}
+
+// startWS starts a server to respond WebSockets connections
+func (s *Server) startWS() {
+	log.Infof("starting websocket server")
+
+	if s.wsSrv != nil {
+		log.Errorf("websocket server already started")
+		return
+	}
+
+	address := fmt.Sprintf("%s:%d", s.config.Host, s.config.WebSockets.Port)
+
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		log.Errorf("failed to create tcp listener: %v", err)
+		return
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", s.handleWs)
+
+	s.wsSrv = &http.Server{
+		Handler:      mux,
+		ReadTimeout:  s.config.ReadTimeoutInSec * time.Second,
+		WriteTimeout: s.config.WriteTimeoutInSec * time.Second,
+	}
+	s.wsUpgrader = websocket.Upgrader{
+		ReadBufferSize:  wsBufferSizeLimitInBytes,
+		WriteBufferSize: wsBufferSizeLimitInBytes,
+	}
+	log.Infof("websocket server started: %s", address)
+	if err := s.srv.Serve(lis); err != nil {
+		if err == http.ErrServerClosed {
+			log.Infof("websocket server stopped")
+			return
+		}
+		log.Errorf("closed websocket connection: %v", err)
+		return
+	}
 }
 
 // Stop shutdown the rpc server
@@ -207,8 +261,8 @@ func (s *Server) handleSingleRequest(w http.ResponseWriter, data []byte) {
 		handleError(w, err)
 		return
 	}
-
-	response := s.handler.Handle(request)
+	req := handleRequest{Request: request}
+	response := s.handler.Handle(req)
 
 	respBytes, err := json.Marshal(response)
 	if err != nil {
@@ -234,7 +288,8 @@ func (s *Server) handleBatchRequest(w http.ResponseWriter, data []byte) {
 	responses := make([]Response, 0, len(requests))
 
 	for _, request := range requests {
-		response := s.handler.Handle(request)
+		req := handleRequest{Request: request}
+		response := s.handler.Handle(req)
 		responses = append(responses, response)
 	}
 
@@ -268,6 +323,56 @@ func (s *Server) parseRequests(data []byte) ([]Request, error) {
 func (s *Server) handleInvalidRequest(w http.ResponseWriter, err error) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelInvalid)
 	handleError(w, err)
+}
+
+func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
+	// CORS rule - Allow requests from anywhere
+	s.wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
+
+	// Upgrade the connection to a WS one
+	ws, err := s.wsUpgrader.Upgrade(w, req, nil)
+	if err != nil {
+		log.Error(fmt.Sprintf("Unable to upgrade to a WS connection, %s", err.Error()))
+
+		return
+	}
+
+	// Defer WS closure
+	defer func(ws *websocket.Conn) {
+		err = ws.Close()
+		if err != nil {
+			log.Error(fmt.Sprintf("Unable to gracefully close WS connection, %s", err.Error()))
+		}
+	}(ws)
+
+	log.Info("Websocket connection established")
+	for {
+		msgType, message, err := ws.ReadMessage()
+		if err != nil {
+			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
+				log.Info("Closing WS connection gracefully")
+			} else {
+				log.Error(fmt.Sprintf("Unable to read WS message, %s", err.Error()))
+				log.Info("Closing WS connection with error")
+			}
+
+			s.handler.RemoveFilterByWs(ws)
+
+			break
+		}
+
+		if msgType == websocket.TextMessage || msgType == websocket.BinaryMessage {
+			go func() {
+				resp, err := s.handler.HandleWs(message, ws)
+				if err != nil {
+					log.Error(fmt.Sprintf("Unable to handle WS request, %s", err.Error()))
+					_ = ws.WriteMessage(msgType, []byte(fmt.Sprintf("WS Handle error: %s", err.Error())))
+				} else {
+					_ = ws.WriteMessage(msgType, resp)
+				}
+			}()
+		}
+	}
 }
 
 func handleError(w http.ResponseWriter, err error) {
