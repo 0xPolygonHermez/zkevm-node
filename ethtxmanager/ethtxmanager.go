@@ -147,17 +147,13 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 				continue
 			}
 			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+			return nil, fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
 		} else {
 			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
-			return c.state.WaitVerifiedBatchToBeSynced(ctx, batchNum, c.cfg.WaitTxToBeSynced.Duration)
+			return nil, c.state.WaitVerifiedBatchToBeSynced(ctx, finalBatchNum, c.cfg.WaitTxToBeSynced.Duration)
 		}
-
-		log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
-		time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
-		return tx, nil
 	}
-	return tx, err
+	return tx, nil
 }
 
 func increaseGasPrice(currentGasPrice *big.Int, percentageIncrease uint64) *big.Int {

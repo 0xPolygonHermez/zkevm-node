@@ -2358,12 +2358,12 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 
 	// Create Batch
 	processBatchRequest := &executorclientpb.ProcessBatchRequest{
-		BatchNum:         1,
+		OldBatchNum:      0,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     stateRoot,
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,
@@ -2402,7 +2402,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	require.NoError(t, err)
 
 	processingContext := state.ProcessingContext{
-		BatchNumber:    processBatchRequest.BatchNum,
+		BatchNumber:    processBatchRequest.OldBatchNum + 1,
 		Coinbase:       common.Address{},
 		Timestamp:      time.Now(),
 		GlobalExitRoot: common.BytesToHash(processBatchRequest.GlobalExitRoot),
@@ -2411,11 +2411,11 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	err = testState.OpenBatch(ctx, processingContext, dbTx)
 	require.NoError(t, err)
 
-	err = testState.StoreTransactions(ctx, processBatchRequest.BatchNum, convertedResponse.Responses, dbTx)
+	err = testState.StoreTransactions(ctx, processBatchRequest.OldBatchNum+1, convertedResponse.Responses, dbTx)
 	require.NoError(t, err)
 
 	processingReceipt := state.ProcessingReceipt{
-		BatchNumber:   processBatchRequest.BatchNum,
+		BatchNumber:   processBatchRequest.OldBatchNum + 1,
 		StateRoot:     convertedResponse.NewStateRoot,
 		LocalExitRoot: convertedResponse.NewLocalExitRoot,
 	}
@@ -2441,12 +2441,12 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	require.NoError(t, err)
 
 	processBatchRequest = &executorclientpb.ProcessBatchRequest{
-		BatchNum:         2,
+		OldBatchNum:      1,
 		Coinbase:         sequencerAddress.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     processBatchResponse.NewStateRoot,
 		GlobalExitRoot:   common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
-		OldLocalExitRoot: common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
+		OldAccInputHash:  common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000"),
 		EthTimestamp:     uint64(time.Now().Unix()),
 		UpdateMerkleTree: 1,
 		ChainId:          stateCfg.ChainID,

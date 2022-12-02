@@ -703,7 +703,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
 		if !isProcessed(processed.Responses[i].Error) {
-			if isOOC(processed.Responses[i].Error) {
+			if executor.IsOutOfCountersError(processed.Responses[i].Error) {
 				processed.Responses = []*pb.ProcessTransactionResponse{}
 				break
 			}
