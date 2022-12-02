@@ -406,18 +406,19 @@ func UnregisterSummaries(names ...string) {
 
 // registerGaugeIfNotExists registers single gauge metric if not exists
 func registerGaugeIfNotExists(opts prometheus.GaugeOpts) {
+	log := log.WithFields("metricName", opts.Name)
 	if _, exist := gauges[opts.Name]; exist {
-		log.Warnf("Gauge metric '%v' already exists.", opts.Name)
+		log.Warn("Gauge metric already exists.")
 		return
 	}
 
-	log.Debugf("Creating Gauge Metric '%v' ...", opts.Name)
+	log.Debug("Creating Gauge Metric...")
 	gauge := prometheus.NewGauge(opts)
-	log.Debugf("Gauge Metric '%v' successfully created! Labels: %p", opts.Name, opts.ConstLabels)
+	log.Debugf("Gauge Metric successfully created! Labels: %p", opts.ConstLabels)
 
-	log.Debugf("Registering Gauge Metric '%v' ...", opts.Name)
+	log.Debug("Registering Gauge Metric...")
 	registerer.MustRegister(gauge)
-	log.Debugf("Gauge Metric '%v' successfully registered!", opts.Name)
+	log.Debug("Gauge Metric successfully registered!")
 
 	gauges[opts.Name] = gauge
 }
@@ -429,35 +430,37 @@ func unregisterGaugeIfExists(name string) {
 		ok    bool
 	)
 
+	log := log.WithFields("metricName", name)
 	if gauge, ok = gauges[name]; !ok {
-		log.Warnf("Trying to delete non-existing Gauge gauge '%v'.", name)
+		log.Warn("Trying to delete non-existing Gauge metrics.")
 		return
 	}
 
-	log.Debugf("Unregistering Gauge Metric '%v' ...", name)
+	log.Debug("Unregistering Gauge Metric...")
 	ok = registerer.Unregister(gauge)
 	if !ok {
-		log.Errorf("Failed to unregister Gauge Metric '%v'.", name)
+		log.Error("Failed to unregister Gauge Metric.")
 		return
 	}
 	delete(gauges, name)
-	log.Debugf("Gauge Metric '%v' successfully unregistered!", name)
+	log.Debug("Gauge Metric successfully unregistered!")
 }
 
 // registerCounterIfNotExists registers single counter metric if not exists
 func registerCounterIfNotExists(opts prometheus.CounterOpts) {
+	log := log.WithFields("metricName", opts.Name)
 	if _, exist := counters[opts.Name]; exist {
-		log.Warnf("Counter metric '%v' already exists.", opts.Name)
+		log.Warn("Counter metric already exists.")
 		return
 	}
 
-	log.Debugf("Creating Counter Metric '%v' ...", opts.Name)
+	log.Debug("Creating Counter Metric...")
 	counter := prometheus.NewCounter(opts)
-	log.Debugf("Counter Metric '%v' successfully created! Labels: %p", opts.Name, opts.ConstLabels)
+	log.Debugf("Counter Metric successfully created! Labels: %p", opts.ConstLabels)
 
-	log.Debugf("Registering Counter Metric '%v' ...", opts.Name)
+	log.Debug("Registering Counter Metric...")
 	registerer.MustRegister(counter)
-	log.Debugf("Counter Metric '%v' successfully registered!", opts.Name)
+	log.Debug("Counter Metric successfully registered!")
 
 	counters[opts.Name] = counter
 }
@@ -469,15 +472,16 @@ func unregisterCounterIfExists(name string) {
 		ok      bool
 	)
 
+	log := log.WithFields("metricName", name)
 	if counter, ok = counters[name]; !ok {
-		log.Warnf("Trying to delete non-existing Counter counter '%v'.", name)
+		log.Warn("Trying to delete non-existing Counter counter.")
 		return
 	}
 
-	log.Debugf("Unregistering Counter Metric '%v' ...", name)
+	log.Debug("Unregistering Counter Metric...")
 	ok = registerer.Unregister(counter)
 	if !ok {
-		log.Errorf("Failed to unregister Counter Metric '%v'.", name)
+		log.Error("Failed to unregister Counter Metric.")
 		return
 	}
 	delete(counters, name)
@@ -486,18 +490,19 @@ func unregisterCounterIfExists(name string) {
 
 // registerCounterVecIfNotExists registers single counter vec metric if not exists
 func registerCounterVecIfNotExists(opts CounterVecOpts) {
+	log := log.WithFields("metricName", opts.Name)
 	if _, exist := counterVecs[opts.Name]; exist {
-		log.Warnf("Counter vec metric '%v' already exists.", opts.Name)
+		log.Warn("Counter vec metric already exists.")
 		return
 	}
 
-	log.Debugf("Creating Counter Vec Metric '%v' ...", opts.Name)
+	log.Debug("Creating Counter Vec Metric...")
 	counterVec := prometheus.NewCounterVec(opts.CounterOpts, opts.Labels)
-	log.Debugf("Counter Vec Metric '%v' successfully created! Labels: %p", opts.Name, opts.ConstLabels)
+	log.Debugf("Counter Vec Metric successfully created! Labels: %p", opts.ConstLabels)
 
-	log.Debugf("Registering Counter Vec Metric '%v' ...", opts.Name)
+	log.Debug("Registering Counter Vec Metric...")
 	registerer.MustRegister(counterVec)
-	log.Debugf("Counter Vec Metric '%v' successfully registered!", opts.Name)
+	log.Debug("Counter Vec Metric successfully registered!")
 
 	counterVecs[opts.Name] = counterVec
 }
@@ -509,35 +514,37 @@ func unregisterCounterVecIfExists(name string) {
 		ok         bool
 	)
 
+	log := log.WithFields("metricName", name)
 	if counterVec, ok = counterVecs[name]; !ok {
-		log.Warnf("Trying to delete non-existing Counter Vec counter '%v'.", name)
+		log.Warn("Trying to delete non-existing Counter Vec counter.")
 		return
 	}
 
-	log.Debugf("Unregistering Counter Vec Metric '%v' ...", name)
+	log.Debug("Unregistering Counter Vec Metric...")
 	ok = registerer.Unregister(counterVec)
 	if !ok {
-		log.Errorf("Failed to unregister Counter Vec Metric '%v'.", name)
+		log.Error("Failed to unregister Counter Vec Metric.")
 		return
 	}
 	delete(counterVecs, name)
-	log.Debugf("Counter Vec Metric '%v' successfully unregistered!", name)
+	log.Debug("Counter Vec Metric successfully unregistered!")
 }
 
 // registerHistogramIfNotExists registers single histogram metric if not exists
 func registerHistogramIfNotExists(opts prometheus.HistogramOpts) {
+	log := log.WithFields("metricName", opts.Name)
 	if _, exist := histograms[opts.Name]; exist {
-		log.Warnf("Histogram metric '%v' already exists.", opts.Name)
+		log.Warn("Histogram metric already exists.")
 		return
 	}
 
-	log.Debugf("Creating Histogram Metric '%v' ...", opts.Name)
+	log.Debug("Creating Histogram Metric...")
 	histogram := prometheus.NewHistogram(opts)
-	log.Debugf("Histogram Metric '%v' successfully created! Labels: %p", opts.Name, opts.ConstLabels)
+	log.Debugf("Histogram Metric successfully created! Labels: %p", opts.ConstLabels)
 
-	log.Debugf("Registering Histogram Metric '%v' ...", opts.Name)
+	log.Debug("Registering Histogram Metric...")
 	registerer.MustRegister(histogram)
-	log.Debugf("Histogram Metric '%v' successfully registered!", opts.Name)
+	log.Debug("Histogram Metric successfully registered!")
 
 	histograms[opts.Name] = histogram
 }
@@ -549,19 +556,20 @@ func unregisterHistogramIfExists(name string) {
 		ok        bool
 	)
 
+	log := log.WithFields("metricName", name)
 	if histogram, ok = histograms[name]; !ok {
-		log.Warnf("Trying to delete non-existing Histogram histogram '%v'.", name)
+		log.Warn("Trying to delete non-existing Histogram histogram.")
 		return
 	}
 
-	log.Debugf("Unregistering Histogram Metric '%v' ...", name)
+	log.Debug("Unregistering Histogram Metric...")
 	ok = registerer.Unregister(histogram)
 	if !ok {
-		log.Errorf("Failed to unregister Histogram Metric '%v'.", name)
+		log.Error("Failed to unregister Histogram Metric.")
 		return
 	}
 	delete(histograms, name)
-	log.Debugf("Histogram Metric '%v' successfully unregistered!", name)
+	log.Debug("Histogram Metric successfully unregistered!")
 }
 
 // registerHistogramVecIfNotExists unregisters single counter metric if exists
@@ -606,18 +614,19 @@ func unregisterHistogramVecIfExists(name string) {
 
 // registerSummaryIfNotExists registers single summary metric if not exists
 func registerSummaryIfNotExists(opts prometheus.SummaryOpts) {
+	log := log.WithFields("metricName", opts.Name)
 	if _, exist := summaries[opts.Name]; exist {
-		log.Warnf("Summary metric '%v' already exists.", opts.Name)
+		log.Warn("Summary metric already exists.")
 		return
 	}
 
-	log.Debugf("Creating Summary Metric '%v' ...", opts.Name)
+	log.Debug("Creating Summary Metric...")
 	summary := prometheus.NewSummary(opts)
-	log.Debugf("Summary Metric '%v' successfully created! Labels: %p", opts.Name, opts.ConstLabels)
+	log.Debugf("Summary Metric successfully created! Labels: %p", opts.ConstLabels)
 
-	log.Debugf("Registering Summary Metric '%v' ...", opts.Name)
+	log.Debug("Registering Summary Metric...")
 	registerer.MustRegister(summary)
-	log.Debugf("Summary Metric '%v' successfully registered!", opts.Name)
+	log.Debug("Summary Metric successfully registered!")
 
 	summaries[opts.Name] = summary
 }
@@ -629,17 +638,18 @@ func unregisterSummaryIfExists(name string) {
 		ok      bool
 	)
 
+	log := log.WithFields("metricName", name)
 	if summary, ok = summaries[name]; !ok {
-		log.Warnf("Trying to delete non-existing Summary summary '%v'.", name)
+		log.Warn("Trying to delete non-existing Summary summary.")
 		return
 	}
 
-	log.Debugf("Unregistering Summary Metric '%v' ...", name)
+	log.Debug("Unregistering Summary Metric...")
 	ok = registerer.Unregister(summary)
 	if !ok {
-		log.Errorf("Failed to unregister Summary Metric '%v'.", name)
+		log.Error("Failed to unregister Summary Metric.")
 		return
 	}
 	delete(summaries, name)
-	log.Debugf("Summary Metric '%v' successfully unregistered!", name)
+	log.Debug("Summary Metric successfully unregistered!")
 }
