@@ -93,11 +93,11 @@ MaxAllowedFailedCounter = 50
 [Aggregator]
 Host = "0.0.0.0"
 Port = 50081
-IntervalToConsolidateState = "5s"
-IntervalToSendFinalProof = "90s"
+RetryTime = "5s"
+VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
-IntervalFrequencyToGetProofGenerationState = "5s"
+ProofStatePollingInterval = "5s"
 
 [GasPriceEstimator]
 Type = "default"

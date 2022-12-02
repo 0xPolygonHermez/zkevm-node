@@ -99,10 +99,13 @@ Type = "default"
 DefaultPrice = "2000"
 
 [Aggregator]
-IntervalFrequencyToGetProofGenerationState = "5s"
-IntervalToConsolidateState = "3s"
+Host = "0.0.0.0"
+Port = 50081
+RetryTime = "5s"
+VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
+ProofStatePollingInterval = "5s"
 
 [GasPriceEstimator]
 Type = "default"
