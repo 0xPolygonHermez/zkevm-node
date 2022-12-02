@@ -240,7 +240,7 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 		return nil, fmt.Errorf("Failed to get final proof id, %w", err)
 	}
 
-	proof.ProofID = &finalProofID
+	proof.ProofID = finalProofID
 
 	log.Infof("Proof ID for final proof %d-%d: %s", proof.BatchNumber, proof.BatchNumberFinal, *proof.ProofID)
 
@@ -429,7 +429,7 @@ func (a *Aggregator) unlockProofsToAggregate(ctx context.Context, proof1 *state.
 	return nil
 }
 
-func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover *prover.Prover) (*state.Proof, *state.Proof, error) {
+func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover proverInterface) (*state.Proof, *state.Proof, error) {
 	a.StateDBMutex.Lock()
 	defer a.StateDBMutex.Unlock()
 
@@ -465,7 +465,7 @@ func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover *pr
 	return proof1, proof2, nil
 }
 
-func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover *prover.Prover) (bool, error) {
+func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterface) (bool, error) {
 	log.Debugf("tryAggregateProofs start %s", prover.ID())
 
 	proof1, proof2, err0 := a.getAndLockProofsToAggregate(ctx, prover)
@@ -516,7 +516,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover *prover.Prov
 		return false, fmt.Errorf("Failed to get aggregated proof id, %w", err)
 	}
 
-	proof.ProofID = &aggrProofID
+	proof.ProofID = aggrProofID
 
 	log.Infof("Proof ID for aggregated proof %d-%d: %v", proof.BatchNumber, proof.BatchNumberFinal, *proof.ProofID)
 
@@ -672,7 +672,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 		return false, fmt.Errorf("Failed to get batch proof id %w", err)
 	}
 
-	proof.ProofID = &genProofID
+	proof.ProofID = genProofID
 
 	log.Infof("Proof ID for batch %d: %v", proof.BatchNumber, *proof.ProofID)
 
