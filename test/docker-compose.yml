@@ -25,6 +25,7 @@ services:
     image: zkevm-node
     ports:
       - 8123:8123
+      - 8133:8133 # needed if WebSockets enabled
       - 9091:9091 # needed if metrics enabled
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
@@ -188,10 +189,12 @@ services:
     image: zkevm-node
     ports:
       - 8124:8124
+      - 8134:8134 # needed if WebSockets enabled
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
       - ZKEVM_NODE_POOL_HOST=zkevm-pool-db
       - ZKEVM_NODE_RPC_PORT=8124
+      - ZKEVM_NODE_RPC_WEBSOCKETS_PORT=8134
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json

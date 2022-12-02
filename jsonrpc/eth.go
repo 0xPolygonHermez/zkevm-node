@@ -768,12 +768,16 @@ func (e *Eth) updateFilterLastPoll(filterID string) rpcError {
 // The node will return a subscription id.
 // For each event that matches the subscription a notification with relevant
 // data is sent together with the subscription id.
-func (e *Eth) Subscribe(wsConn *websocket.Conn, name string, data interface{}) (interface{}, rpcError) {
+func (e *Eth) Subscribe(wsConn *websocket.Conn, name string, logFilter *LogFilter) (interface{}, rpcError) {
 	switch name {
 	case "newHeads":
 		return e.newBlockFilter(wsConn)
 	case "logs":
-		return e.newFilter(wsConn, data.(LogFilter))
+		var lf LogFilter
+		if logFilter != nil {
+			lf = *logFilter
+		}
+		return e.newFilter(wsConn, lf)
 	case "pendingTransactions", "newPendingTransactions":
 		return e.newPendingTransactionFilter(wsConn)
 	default:

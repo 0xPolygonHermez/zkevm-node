@@ -72,11 +72,18 @@ func (h *Handler) Handle(req handleRequest) Response {
 		return NewResponse(req.Request, nil, err)
 	}
 
-	inArgsOffset := 1
+	inArgsOffset := 0
 	inArgs := make([]reflect.Value, fd.inNum)
 	inArgs[0] = service.sv
-	if req.wsConn != nil {
-		inArgs[1] = reflect.ValueOf(req.wsConn).Elem()
+
+	requestHasWebSocketConn := req.wsConn != nil
+	funcHasMoreThanOneInputParams := len(fd.reqt) > 1
+	firstFuncParamIsWebSocketConn := false
+	if funcHasMoreThanOneInputParams {
+		firstFuncParamIsWebSocketConn = fd.reqt[1].AssignableTo(reflect.TypeOf(&websocket.Conn{}))
+	}
+	if requestHasWebSocketConn && firstFuncParamIsWebSocketConn {
+		inArgs[1] = reflect.ValueOf(req.wsConn)
 		inArgsOffset++
 	}
 
@@ -86,12 +93,12 @@ func (h *Handler) Handle(req handleRequest) Response {
 		return NewResponse(req.Request, nil, newRPCError(invalidParamsErrorCode, fmt.Sprintf("too many arguments, want at most %d", fd.numParams())))
 	}
 
-	inputs := make([]interface{}, fd.numParams())
+	inputs := make([]interface{}, fd.numParams()-inArgsOffset)
 
-	for i := 0; i < fd.inNum-1; i++ {
+	for i := inArgsOffset; i < fd.inNum-1; i++ {
 		val := reflect.New(fd.reqt[i+1])
-		inputs[i] = val.Interface()
-		inArgs[i+inArgsOffset] = val.Elem()
+		inputs[i-inArgsOffset] = val.Interface()
+		inArgs[i+1] = val.Elem()
 	}
 
 	if fd.numParams() > 0 {

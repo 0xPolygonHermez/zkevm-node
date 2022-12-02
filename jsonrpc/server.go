@@ -95,9 +95,9 @@ func NewServer(
 func (s *Server) Start() error {
 	metrics.Register()
 
-	// if s.config.WebSockets.Enabled {
-	// 	go s.startWS()
-	// }
+	if s.config.WebSockets.Enabled {
+		go s.startWS()
+	}
 
 	return s.startHTTP()
 }
@@ -168,7 +168,7 @@ func (s *Server) startWS() {
 		WriteBufferSize: wsBufferSizeLimitInBytes,
 	}
 	log.Infof("websocket server started: %s", address)
-	if err := s.srv.Serve(lis); err != nil {
+	if err := s.wsSrv.Serve(lis); err != nil {
 		if err == http.ErrServerClosed {
 			log.Infof("websocket server stopped")
 			return
