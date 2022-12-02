@@ -273,25 +273,7 @@ Very well, we already have the Postgres, Prover and Ethereum Node instances runn
 
 > The node depends on the Postgres, Prover and Ethereum Node instances, so make sure it has network access to them. We also expect the node to have its own dedicated machine
 
-Before we start, the node requires an Ethereum account with:
-
-- Funds on L1 in order to propose new batches and consolidate the state
-- Tokens to pay the collateral for batch proposal
-- Approval of these tokens to be used by the roll-up SC on behalf of the Ethereum account owner
-- Register this account as a sequencer
-
-The node expected to read a `keystore` file, which is an encrypted file containing your credentials.
-To create this file, go to the `zkevm-node` directory and run the following command:
-
-> Remember to replace the `--pk` and `--pw` parameter values by the L1 account private key and the password you want to use to encrypt the file, the password will be required in the future to configure the node, so make sure you will remember it.
-
-```bash
-docker run --rm hermeznetwork/zkevm-node:latest sh -c "/app/zkevm-node encryptKey --pk=<account private key> --pw=<password to encrypt> --output=./keystore; cat ./keystore/*" > acc.keystore
-```
-
-The command above will create the file `acc.keystore` inside of the `zkevm-node` directory.
-
-After it we need to create a configuration file to provide the configurations to the node, to achieve this create a file called `config.toml` inside of the `zkevm-node` directory, then go to the example [config file](../config/environments/public/public.node.config.toml) (`./config/environments/public/public.node.config.toml`) and `copy/paste` the content into the `config.toml` you'll actually use.
+We need to create a configuration file to provide the configurations to the node, to achieve this create a file called `config.toml` inside of the `zkevm-node` directory, then go to the example [config file](../config/environments/public/public.node.config.toml) (`./config/environments/public/public.node.config.toml`) and `copy/paste` the content into the `config.toml` you'll actually use.
 
 Do the same for the `genesis` file: [genesis file](../config/environments/public/public.genesis.config.json) (`./config/environments/public/public.genesis.config.json`)
 
@@ -300,7 +282,6 @@ Remember to:
 - replace the database information if you set it differently while setting up the Postgres instance
 - set the `Database Host` with the `Postgres instance IP`
 - set the `Etherman URL` with the `JSON RPC URL` of the `Ethereum node` you created earlier *or* use any L1 Goerli service
-- set the `Etherman Password` (`config.json` => `PrivateKeyPassword` field, defaults to `testonly`) to allow the node to decrypt the `keystore file`
 - set the `MT / Executor URIs` the `IP and port` of the `MT/Executor Instances` and change the array of provers if a prover was spun up
 
 Now we are going to put everything together in order to run the `zkEVM-Node` instance.
@@ -319,7 +300,6 @@ Add the following entries to the `docker-compose.yml` file
       - ZKEVM_NODE_RPC_DB_HOST=zkevm-rpc-db
       - ZKEVM_NODE_RPC_BROADCASTURI=public-grpc.zkevm-test.net:61090
     volumes:
-      - ./acc.keystore:/pk/keystore
       - ./config.toml:/app/config.toml
       - ./genesis.json:/app/genesis.json
     command:
@@ -333,7 +313,6 @@ Add the following entries to the `docker-compose.yml` file
     environment:
       - ZKEVM_NODE_STATEDB_HOST=zkevm-state-db
     volumes:
-      - ./acc.keystore:/pk/keystore
       - ./config.toml:/app/config.toml
       - ./genesis.json:/app/genesis.json
     command:
@@ -384,7 +363,7 @@ services:
             - 4000:4000
         environment:
             - NETWORK=POE
-            - SUBNETWORK=Polygon Hermez
+            - SUBNETWORK=Polygon ZKEVM
             - COIN=ETH
             - ETHEREUM_JSONRPC_VARIANT=geth
             - ETHEREUM_JSONRPC_HTTP_URL=http://zkevm-explorer-zknode:8124
@@ -440,7 +419,7 @@ To configure a custom network follow these steps:
 3. Click on Settings
 4. On the Left menu click com Networks
 5. Fill up the following fields:
-    1. Network Name: Polygon Hermez - Goerli
+    1. Network Name: Polygon ZKEVM - Goerli
     2. New RPC URL: <http://IP-And-Port-of-zkEVM-Node-Instance>
     3. Chain ID: `1402`
     4. Currency Symbol: ETH
@@ -448,4 +427,4 @@ To configure a custom network follow these steps:
 6. Click on Save
 7. Click on the X in the right top corner to close the Settings
 8. Click in the list of networks on the top right corner
-9. Select Polygon Hermez - Goerli
+9. Select Polygon ZKEVM - Goerli
