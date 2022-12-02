@@ -15,7 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health/grpc_health_v1"
+	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 const (
@@ -107,7 +107,7 @@ func (a *Aggregator) Start(ctx context.Context) error {
 	pb.RegisterAggregatorServiceServer(a.srv, a)
 
 	healthService := newHealthChecker()
-	grpc_health_v1.RegisterHealthServer(a.srv, healthService)
+	grpchealth.RegisterHealthServer(a.srv, healthService)
 
 	go func() {
 		log.Infof("Server listening on port %d", a.cfg.Port)
@@ -786,18 +786,18 @@ func newHealthChecker() *healthChecker {
 
 // Check returns the current status of the server for unary gRPC health requests,
 // for now if the server is up and able to respond we will always return SERVING.
-func (hc *healthChecker) Check(ctx context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
+func (hc *healthChecker) Check(ctx context.Context, req *grpchealth.HealthCheckRequest) (*grpchealth.HealthCheckResponse, error) {
 	log.Info("Serving the Check request for health check")
-	return &grpc_health_v1.HealthCheckResponse{
-		Status: grpc_health_v1.HealthCheckResponse_SERVING,
+	return &grpchealth.HealthCheckResponse{
+		Status: grpchealth.HealthCheckResponse_SERVING,
 	}, nil
 }
 
 // Watch returns the current status of the server for stream gRPC health requests,
 // for now if the server is up and able to respond we will always return SERVING.
-func (hc *healthChecker) Watch(req *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) error {
+func (hc *healthChecker) Watch(req *grpchealth.HealthCheckRequest, server grpchealth.Health_WatchServer) error {
 	log.Info("Serving the Watch request for health check")
-	return server.Send(&grpc_health_v1.HealthCheckResponse{
-		Status: grpc_health_v1.HealthCheckResponse_SERVING,
+	return server.Send(&grpchealth.HealthCheckResponse{
+		Status: grpchealth.HealthCheckResponse_SERVING,
 	})
 }
