@@ -14,6 +14,7 @@ var (
 	BuildDate = "Fri, 17 Jun 1988 01:58:00 +0200"
 )
 
+// PrintVersion prints version info into the provided io.Writer.
 func PrintVersion(w io.Writer) {
 	fmt.Fprintf(w, "Version:      %s\n", Version)
 	fmt.Fprintf(w, "Git revision: %s\n", GitRev)
