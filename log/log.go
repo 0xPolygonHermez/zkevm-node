@@ -62,6 +62,10 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 		return nil, nil, fmt.Errorf("error on setting log level: %s", err)
 	}
 
+	encodeLevel := zapcore.CapitalColorLevelEncoder
+	if cfg.Encoding == "json" {
+		encodeLevel = zapcore.CapitalLevelEncoder
+	}
 	zapCfg := zap.Config{
 		Level:            level,
 		Encoding:         cfg.Encoding,
@@ -71,7 +75,7 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 			MessageKey: "message",
 
 			LevelKey:    "level",
-			EncodeLevel: zapcore.CapitalLevelEncoder,
+			EncodeLevel: encodeLevel,
 
 			TimeKey: "timestamp",
 			EncodeTime: func(ts time.Time, encoder zapcore.PrimitiveArrayEncoder) {
