@@ -35,17 +35,15 @@ type Config struct {
 	// Port for the grpc server
 	Port int `mapstructure:"Port"`
 
-	// IntervalToConsolidateState is the time the aggregator waits until
-	// trying to consolidate a new state
-	IntervalToConsolidateState types.Duration `mapstructure:"IntervalToConsolidateState"`
+	// RetryTime is the time the aggregator main loop sleeps if there are no proofs to aggregate
+	// or batches to generate proofs. It is also used in the isSynced loop
+	RetryTime types.Duration `mapstructure:"RetryTime"`
 
-	// IntervalToSendFinalProof is the time the aggregator waits until
-	// trying to send a final aggregated proof
-	IntervalToSendFinalProof types.Duration `mapstructure:"IntervalToSendFinalProof"`
+	// VerifyProofInterval is the interval of time to verify/send an proof in L1
+	VerifyProofInterval types.Duration `mapstructure:"VerifyProofInterval"`
 
-	// IntervalFrequencyToGetProofGenerationState is the time the aggregator waits until
-	// trying to get proof generation status, in case prover client returns PENDING state
-	IntervalFrequencyToGetProofGenerationState types.Duration `mapstructure:"IntervalFrequencyToGetProofGenerationState"`
+	// ProofStatePollingInterval is the interval time to polling the prover about the generation state of a proof
+	ProofStatePollingInterval types.Duration `mapstructure:"ProofStatePollingInterval"`
 
 	// TxProfitabilityCheckerType type for checking is it profitable for aggregator to validate batch
 	// possible values: base/acceptall
@@ -60,7 +58,4 @@ type Config struct {
 
 	// ChainID is the L2 ChainID provided by the Network Config
 	ChainID uint64
-
-	// Array of Prover URIs read from configuration file
-	ProverURIs []string
 }

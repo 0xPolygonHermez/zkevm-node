@@ -143,7 +143,7 @@ func (a *Aggregator) Stop() {
 // Channel implements the bi-directional communication channel between the
 // Prover client and the Aggregator server.
 func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
-	prover, err := prover.New(stream, a.cfg.IntervalFrequencyToGetProofGenerationState)
+	prover, err := prover.New(stream, a.cfg.ProofStatePollingInterval)
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 			default:
 				if !prover.IsIdle() {
 					log.Debug("Prover ID %s is not idle", prover.ID())
-					time.Sleep(a.cfg.IntervalToConsolidateState.Duration)
+					time.Sleep(a.cfg.RetryTime.Duration)
 					continue
 				}
 
@@ -186,7 +186,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 				}
 				if !proofGenerated {
 					// if no proof was generated (aggregated or batch) wait some time before retry
-					time.Sleep(a.cfg.IntervalToConsolidateState.Duration)
+					time.Sleep(a.cfg.RetryTime.Duration)
 				} // if proof was generated we retry immediately as probably we have more proofs to process
 			}
 		}
@@ -226,11 +226,10 @@ func (a *Aggregator) sendFinalProof() {
 			if err != nil {
 				log.Errorf("Error verifiying final proof for batches %d-%d, err: %v", proof.BatchNumber, proof.BatchNumberFinal, err)
 
-				// unlock the underlying proof (generating=false)
-				proof.Generating = false
-
 				switch msg.proverJobType {
 				case proverJobTypeGeneration, proverJobTypeIdleing:
+					// unlock the underlying proof (generating=false)
+					proof.Generating = false
 					err := a.State.UpdateGeneratedProof(ctx, proof, nil)
 					if err != nil {
 						log.Errorf("Rollback failed updating proof state (false) for proof ID [%v], err: %v", proof.ProofID, err)
@@ -240,7 +239,7 @@ func (a *Aggregator) sendFinalProof() {
 					// as free to be taken
 					err := a.State.AddGeneratedProof(ctx, proof, nil)
 					if err != nil {
-						log.Errorf("Rollback failed adding aggregated proof (false) for proof ID [%v], err: %v", proof.ProofID, err)
+						log.Errorf("Rollback failed adding aggregated proof for proof ID [%v], err: %v", proof.ProofID, err)
 					}
 				}
 				continue
@@ -252,7 +251,7 @@ func (a *Aggregator) sendFinalProof() {
 			log.Debug("A final proof has been sent, waiting for the network to be synced")
 			for !a.isSynced(a.ctx) {
 				log.Info("Waiting for synchronizer to sync...")
-				time.Sleep(a.cfg.IntervalToConsolidateState.Duration)
+				time.Sleep(a.cfg.RetryTime.Duration)
 			}
 
 			a.resetVerifyProofTime()
@@ -287,17 +286,6 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 	//b, err := json.Marshal(resGetProof.FinalProof)
 	log.Infof("Final proof %s generated", *proof.ProofID)
 
-	// // Handle local exit root in the case of the mock prover
-	// if string(finalProof.Public.NewLocalExitRoot[:]) == "0x17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e" {
-	// 	// This local exit root comes from the mock, use the one captured by the executor instead
-	// 	log.Warnf("NewLocalExitRoot looks like a mock value")
-	// 	/*log.Warnf(
-	// 		"NewLocalExitRoot looks like a mock value, using value from executor instead: %v",
-	// 		proof.InputProver.PublicInputs.NewLocalExitRoot,
-	// 	)*/
-	// 	//resGetProof.Public.PublicInputs.NewLocalExitRoot = proof.InputProver.PublicInputs.NewLocalExitRoot
-	// }
-
 	// mock prover sanity check
 	if string(finalProof.Public.NewStateRoot) == mockedStateRoot && string(finalProof.Public.NewLocalExitRoot) == mockedLocalExitRoot {
 		// This local exit root and state root come from the mock
@@ -330,7 +318,7 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 
 	for !a.isSynced(ctx) {
 		log.Info("Waiting for synchronizer to sync...")
-		time.Sleep(a.cfg.IntervalToConsolidateState.Duration)
+		time.Sleep(a.cfg.RetryTime.Duration)
 		continue
 	}
 
@@ -745,7 +733,7 @@ func (a *Aggregator) verifyProofTimeReached() bool {
 func (a *Aggregator) resetVerifyProofTime() {
 	a.TimeSendFinalProofMutex.Lock()
 	defer a.TimeSendFinalProofMutex.Unlock()
-	a.TimeSendFinalProof = time.Now().Add(a.cfg.IntervalToSendFinalProof.Duration)
+	a.TimeSendFinalProof = time.Now().Add(a.cfg.VerifyProofInterval.Duration)
 }
 
 func (a *Aggregator) isSynced(ctx context.Context) bool {
