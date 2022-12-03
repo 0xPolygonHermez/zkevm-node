@@ -110,7 +110,7 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 // WithFields returns a new Logger (derived from the root one) with additional
 // fields as per keyValuePairs.  The root Logger instance is not affected.
 func WithFields(keyValuePairs ...interface{}) *Logger {
-	l := log.WithFields(keyValuePairs...)
+	l := getDefaultLog().WithFields(keyValuePairs...)
 
 	// since we are returning a new instance, remove one caller from the
 	// stack, because we'll be calling the retruned Logger methods
