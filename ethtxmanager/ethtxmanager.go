@@ -150,7 +150,10 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 			return nil, fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
 		} else {
 			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
-			return nil, c.state.WaitVerifiedBatchToBeSynced(ctx, finalBatchNum, c.cfg.WaitTxToBeSynced.Duration)
+			err = c.state.WaitVerifiedBatchToBeSynced(ctx, finalBatchNum, c.cfg.WaitTxToBeSynced.Duration)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return tx, nil
