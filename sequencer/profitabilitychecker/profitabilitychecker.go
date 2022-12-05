@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 )
 
 // Checker checks profitability to send sequences
@@ -44,6 +45,8 @@ func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Seque
 		reward.Add(reward, new(big.Int).Mul(tx.GasPrice(), new(big.Int).SetUint64(tx.Gas())))
 	}
 
+	metrics.SequenceRewardInMatic(float64(reward.Int64()))
+
 	// get price of matic (1 eth = x matic)
 	price, err := c.PriceGetter.GetEthToMaticPrice(ctx)
 	if err != nil {
@@ -58,6 +61,8 @@ func (c *Checker) IsSequenceProfitable(ctx context.Context, sequence types.Seque
 	if reward.Cmp(fee) < 0 {
 		return false, nil
 	}
+
+	metrics.EthToMaticPrice(float64(priceInt.Int64()))
 
 	return true, nil
 }

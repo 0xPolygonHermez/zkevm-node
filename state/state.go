@@ -8,12 +8,14 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor/pb"
@@ -40,13 +42,27 @@ const (
 )
 
 var (
+	once sync.Once
+)
+
+// CallerLabel is used to point which entity is the caller of a given function
+type CallerLabel string
+
+const (
+	// SequencerCallerLabel is used when sequencer is calling the function
+	SequencerCallerLabel CallerLabel = "sequencer"
+	// SynchronizerCallerLabel is used when synchronizer is calling the function
+	SynchronizerCallerLabel CallerLabel = "synchronizer"
+)
+
+var (
 	// ZeroHash is the hash 0x0000000000000000000000000000000000000000000000000000000000000000
 	ZeroHash = common.Hash{}
 	// ZeroAddress is the address 0x0000000000000000000000000000000000000000
 	ZeroAddress = common.Address{}
 )
 
-// State is a implementation of the state
+// State is an implementation of the state
 type State struct {
 	cfg Config
 	*PostgresStorage
@@ -56,6 +72,10 @@ type State struct {
 
 // NewState creates a new State
 func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorServiceClient, stateTree *merkletree.StateTree) *State {
+	once.Do(func() {
+		metrics.Register()
+	})
+
 	return &State{
 		cfg:             cfg,
 		PostgresStorage: storage,
@@ -383,14 +403,20 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 }
 
 // ProcessSequencerBatch is used by the sequencers to process transactions into an open batch
-func (s *State) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) ProcessSequencerBatch(
+	ctx context.Context,
+	batchNumber uint64,
+	txs []types.Transaction,
+	dbTx pgx.Tx,
+	caller CallerLabel,
+) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessSequencerBatch start")
 	batchL2Data, err := EncodeTransactions(txs)
 	if err != nil {
 		return nil, err
 	}
-	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, dbTx)
+	processBatchResponse, err := s.processBatch(ctx, batchNumber, batchL2Data, dbTx, caller)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +463,13 @@ func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	return s.executorClient.ProcessBatch(ctx, processBatchRequest)
 }
 
-func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
+func (s *State) processBatch(
+	ctx context.Context,
+	batchNumber uint64,
+	batchL2Data []byte,
+	dbTx pgx.Tx,
+	caller CallerLabel,
+) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -493,7 +525,9 @@ func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 	log.Debugf("processBatch[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-	log.Infof("It took %v for the executor to process the request", time.Since(now))
+	elapsed := time.Since(now)
+	metrics.ExecutorProcessingTime(string(caller), elapsed)
+	log.Infof("It took %v for the executor to process the request", elapsed)
 	return res, err
 }
 
@@ -674,7 +708,13 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 }
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base
-func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx) error {
+func (s *State) ProcessAndStoreClosedBatch(
+	ctx context.Context,
+	processingCtx ProcessingContext,
+	encodedTxs []byte,
+	dbTx pgx.Tx,
+	caller CallerLabel,
+) error {
 	// Decode transactions
 	decodedTransactions, _, err := DecodeTxs(encodedTxs)
 	if err != nil {
@@ -689,7 +729,7 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
 		return err
 	}
-	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, dbTx)
+	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, encodedTxs, dbTx, caller)
 	if err != nil {
 		return err
 	}

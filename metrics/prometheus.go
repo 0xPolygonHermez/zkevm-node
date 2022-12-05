@@ -10,20 +10,27 @@ import (
 )
 
 var (
-	storageMutex sync.RWMutex
-	registerer   prometheus.Registerer
-	gauges       map[string]prometheus.Gauge
-	counters     map[string]prometheus.Counter
-	counterVecs  map[string]*prometheus.CounterVec
-	histograms   map[string]prometheus.Histogram
-	summaries    map[string]prometheus.Summary
-	initialized  bool
-	initOnce     sync.Once
+	storageMutex  sync.RWMutex
+	registerer    prometheus.Registerer
+	gauges        map[string]prometheus.Gauge
+	counters      map[string]prometheus.Counter
+	counterVecs   map[string]*prometheus.CounterVec
+	histograms    map[string]prometheus.Histogram
+	histogramVecs map[string]*prometheus.HistogramVec
+	summaries     map[string]prometheus.Summary
+	initialized   bool
+	initOnce      sync.Once
 )
 
 // CounterVecOpts holds options for the CounterVec type.
 type CounterVecOpts struct {
 	prometheus.CounterOpts
+	Labels []string
+}
+
+// HistogramVecOpts holds options for the HistogramVec type.
+type HistogramVecOpts struct {
+	prometheus.HistogramOpts
 	Labels []string
 }
 
@@ -36,6 +43,7 @@ func Init() {
 		counters = make(map[string]prometheus.Counter)
 		counterVecs = make(map[string]*prometheus.CounterVec)
 		histograms = make(map[string]prometheus.Histogram)
+		histogramVecs = make(map[string]*prometheus.HistogramVec)
 		summaries = make(map[string]prometheus.Summary)
 		initialized = true
 	})
@@ -295,6 +303,61 @@ func UnregisterHistogram(names ...string) {
 	}
 }
 
+// RegisterHistogramVecs registers the provided histogram vec metrics to the
+// Prometheus registerer.
+func RegisterHistogramVecs(opts ...HistogramVecOpts) {
+	if !initialized {
+		return
+	}
+
+	storageMutex.Lock()
+	defer storageMutex.Unlock()
+
+	for _, options := range opts {
+		registerHistogramVecIfNotExists(options)
+	}
+}
+
+// HistogramVec retrieves histogram ver metric by name
+func HistogramVec(name string) (histgramVec *prometheus.HistogramVec, exist bool) {
+	if !initialized {
+		return
+	}
+
+	storageMutex.RLock()
+	defer storageMutex.RUnlock()
+
+	histgramVec, exist = histogramVecs[name]
+
+	return histgramVec, exist
+}
+
+// HistogramVecObserve observes the histogram vec with the given name, label and value.
+func HistogramVecObserve(name string, label string, value float64) {
+	if !initialized {
+		return
+	}
+
+	if cv, ok := HistogramVec(name); ok {
+		cv.WithLabelValues(label).Observe(value)
+	}
+}
+
+// UnregisterHistogramVecs unregisters the provided histogram vec metrics from the
+// Prometheus registerer.
+func UnregisterHistogramVecs(names ...string) {
+	if !initialized {
+		return
+	}
+
+	storageMutex.Lock()
+	defer storageMutex.Unlock()
+
+	for _, name := range names {
+		unregisterHistogramVecIfExists(name)
+	}
+}
+
 // RegisterSummaries registers the provided summary metrics to the Prometheus
 // registerer.
 func RegisterSummaries(opts ...prometheus.SummaryOpts) {
@@ -499,6 +562,46 @@ func unregisterHistogramIfExists(name string) {
 	}
 	delete(histograms, name)
 	log.Infof("Histogram Metric '%v' successfully unregistered!", name)
+}
+
+// registerHistogramVecIfNotExists unregisters single counter metric if exists
+func registerHistogramVecIfNotExists(opts HistogramVecOpts) {
+	if _, exist := histogramVecs[opts.Name]; exist {
+		log.Warnf("Histogram vec metric '%v' already exists.", opts.Name)
+		return
+	}
+
+	log.Infof("Creating Histogram Vec Metric '%v' ...", opts.Name)
+	histogramVec := prometheus.NewHistogramVec(opts.HistogramOpts, opts.Labels)
+	log.Infof("Histogram Vec Metric '%v' successfully created! Labels: %p", opts.Name, opts.ConstLabels)
+
+	log.Infof("Registering Histogram Vec Metric '%v' ...", opts.Name)
+	registerer.MustRegister(histogramVec)
+	log.Infof("Histogram Vec Metric '%v' successfully registered!", opts.Name)
+
+	histogramVecs[opts.Name] = histogramVec
+}
+
+// unregisterHistogramVecIfExists unregisters single histogram metric if exists
+func unregisterHistogramVecIfExists(name string) {
+	var (
+		histogramVec *prometheus.HistogramVec
+		ok           bool
+	)
+
+	if histogramVec, ok = histogramVecs[name]; !ok {
+		log.Warnf("Trying to delete non-existing Histogram Vec '%v'.", name)
+		return
+	}
+
+	log.Infof("Unregistering Histogram Vec Metric '%v' ...", name)
+	ok = registerer.Unregister(histogramVec)
+	if !ok {
+		log.Errorf("Failed to unregister Histogram Vec Metric '%v'.", name)
+		return
+	}
+	delete(histogramVecs, name)
+	log.Infof("Histogram Vec Metric '%v' successfully unregistered!", name)
 }
 
 // registerSummaryIfNotExists registers single summary metric if not exists

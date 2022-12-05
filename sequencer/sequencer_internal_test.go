@@ -215,7 +215,7 @@ func TestProcessBatch(t *testing.T) {
 		NewLocalExitRoot:  common.HexToHash("0x123"),
 	}
 	st.On("GetLastBatchNumber", ctx, dbTx).Return(lastBatchNumber, nil)
-	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, s.sequenceInProgress.Txs, dbTx).Return(processBatchResponse, nil)
+	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, s.sequenceInProgress.Txs, dbTx, state.SequencerCallerLabel).Return(processBatchResponse, nil)
 	procResponse, err := s.processTxs(ctx)
 	require.NoError(t, err)
 	require.True(t, procResponse.isBatchProcessed)
@@ -269,7 +269,7 @@ func TestReprocessBatch(t *testing.T) {
 	txsResponseToReturn.isBatchProcessed = true
 	lastBatchNumber := uint64(10)
 	st.On("GetLastBatchNumber", ctx, dbTx).Return(lastBatchNumber, nil)
-	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, txs, dbTx).Return(processBatchResponse, nil)
+	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, txs, dbTx, state.SequencerCallerLabel).Return(processBatchResponse, nil)
 
 	unprocessedTxsAfterReprocess, err := s.reprocessBatch(ctx, txsResponse, ethManTypes.Sequence{})
 	require.NoError(t, err)
@@ -422,7 +422,7 @@ func TestTryToProcessTxs(t *testing.T) {
 	}
 	var txs = s.sequenceInProgress.Txs
 	txs = append(txs, poolTxs[0].Transaction)
-	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, txs, dbTx).Return(processBatchResponse, nil)
+	st.On("ProcessSequencerBatch", ctx, lastBatchNumber, txs, dbTx, state.SequencerCallerLabel).Return(processBatchResponse, nil)
 
 	processedTxs, processedTxsHashes, _, _ := state.DetermineProcessedTransactions(processBatchResponse.Responses)
 
