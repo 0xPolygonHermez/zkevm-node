@@ -151,9 +151,6 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 		} else {
 			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
 			return tx, c.state.WaitVerifiedBatchToBeSynced(ctx, finalBatchNum, c.cfg.WaitTxToBeSynced.Duration)
-			if err != nil {
-				return nil, err
-			}
 		}
 	}
 	return tx, nil
