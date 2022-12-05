@@ -241,7 +241,6 @@ stop-approve-matic: ## Stops approve in node container
 
 .PHONY: run
 run: ## Runs a full node
-	$(RUNGRAFANA)
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNRPCDB)
