@@ -1,0 +1,5 @@
+# .goreleaser.yaml
+builds:
+- main: ./cmd/
+  env:
+    - CGO_ENABLED=0
