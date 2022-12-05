@@ -79,6 +79,20 @@ func (_m *stateMock) AddGlobalExitRoot(ctx context.Context, exitRoot *state.Glob
 	return r0
 }
 
+// AddSequence provides a mock function with given fields: ctx, sequence, dbTx
+func (_m *stateMock) AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, sequence, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.Sequence, pgx.Tx) error); ok {
+		r0 = rf(ctx, sequence, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // AddVerifiedBatch provides a mock function with given fields: ctx, verifiedBatch, dbTx
 func (_m *stateMock) AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, verifiedBatch, dbTx)
@@ -222,6 +236,50 @@ func (_m *stateMock) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Bloc
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.Block)
 		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastVerifiedBatch provides a mock function with given fields: ctx, dbTx
+func (_m *stateMock) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 *state.VerifiedBatch
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.VerifiedBatch); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.VerifiedBatch)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastVirtualBatchNum provides a mock function with given fields: ctx, dbTx
+func (_m *stateMock) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
 	}
 
 	var r1 error

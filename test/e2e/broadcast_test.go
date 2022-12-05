@@ -146,8 +146,8 @@ func populateDB(ctx context.Context, st *state.State) error {
 		return err
 	}
 
-	const addExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root, global_exit_root_num) VALUES ($1, $2, $3, $4, $5)"
-	_, err := st.PostgresStorage.Exec(ctx, addExitRoots, blockNumber, ger, mainnetExitRoot, rollupExitRoot, 1)
+	const addExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root, timestamp) VALUES ($1, $2, $3, $4, $5)"
+	_, err := st.PostgresStorage.Exec(ctx, addExitRoots, blockNumber, ger, mainnetExitRoot, rollupExitRoot, time.Now())
 	return err
 }
 

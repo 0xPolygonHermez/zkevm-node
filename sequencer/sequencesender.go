@@ -17,6 +17,8 @@ import (
 )
 
 func (s *Sequencer) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
+	// This sleep waits for the synchronizer and for txs in L1
+	time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")

@@ -236,24 +236,24 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		// Create a batch to be sent to the executor
 		processBatchRequest := &pb.ProcessBatchRequest{
-			BatchNum:         lastBatch.BatchNumber + 1,
+			OldBatchNum:      lastBatch.BatchNumber,
 			BatchL2Data:      batchL2Data,
 			From:             senderAddress.String(),
 			OldStateRoot:     l2BlockStateRoot.Bytes(),
 			GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
-			OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+			OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 			EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 			Coinbase:         lastBatch.Coinbase.String(),
 			UpdateMerkleTree: cFalse,
 			ChainId:          s.cfg.ChainID,
 		}
 
-		log.Debugf("EstimateGas[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
+		log.Debugf("EstimateGas[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
 		// log.Debugf("EstimateGas[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 		log.Debugf("EstimateGas[processBatchRequest.From]: %v", processBatchRequest.From)
 		log.Debugf("EstimateGas[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
 		log.Debugf("EstimateGas[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
-		log.Debugf("EstimateGas[processBatchRequest.OldLocalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.OldLocalExitRoot))
+		log.Debugf("EstimateGas[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
 		log.Debugf("EstimateGas[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 		log.Debugf("EstimateGas[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 		log.Debugf("EstimateGas[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
@@ -449,12 +449,12 @@ func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Dat
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		BatchNum:         lastBatch.BatchNumber,
+		OldBatchNum:      lastBatch.BatchNumber - 1,
 		Coinbase:         lastBatch.Coinbase.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     previousBatch.StateRoot.Bytes(),
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
-		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cFalse,
 		ChainId:          s.cfg.ChainID,
@@ -501,24 +501,24 @@ func (s *State) processBatch(
 	}
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		BatchNum:         lastBatch.BatchNumber,
+		OldBatchNum:      lastBatch.BatchNumber - 1,
 		Coinbase:         lastBatch.Coinbase.String(),
 		BatchL2Data:      batchL2Data,
 		OldStateRoot:     previousBatch.StateRoot.Bytes(),
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
-		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 	}
 
 	// Send Batch to the Executor
-	log.Debugf("processBatch[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
+	log.Debugf("processBatch[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
 	// log.Debugf("processBatch[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("processBatch[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("processBatch[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
 	log.Debugf("processBatch[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
-	log.Debugf("processBatch[processBatchRequest.OldLocalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.OldLocalExitRoot))
+	log.Debugf("processBatch[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
 	log.Debugf("processBatch[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("processBatch[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("processBatch[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
@@ -569,7 +569,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		// if the transaction has an intrinsic invalid tx error it means
 		// the transaction has not changed the state, so we don't store it
 		// and just move to the next
-		if errors.Is(processedTx.Error, runtime.ErrIntrinsicInvalidTransaction) {
+		if executor.IsIntrinsicError(executor.ErrorCode(processedTx.Error)) {
 			continue
 		}
 
@@ -743,7 +743,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
 	for i := 0; i < len(processed.Responses); i++ {
 		if !isProcessed(processed.Responses[i].Error) {
-			if isOOC(processed.Responses[i].Error) {
+			if executor.IsOutOfCountersError(processed.Responses[i].Error) {
 				processed.Responses = []*pb.ProcessTransactionResponse{}
 				break
 			}
@@ -778,6 +778,7 @@ func (s *State) ProcessAndStoreClosedBatch(
 		BatchNumber:   processingCtx.BatchNumber,
 		StateRoot:     processedBatch.NewStateRoot,
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
+		AccInputHash:  processedBatch.NewAccInputHash,
 	}, encodedTxs, dbTx)
 }
 
@@ -834,11 +835,11 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		BatchNum:                     batch.BatchNumber,
+		OldBatchNum:                  batch.BatchNumber - 1,
 		BatchL2Data:                  batchL2Data,
 		OldStateRoot:                 pBatch.StateRoot.Bytes(),
 		GlobalExitRoot:               batch.GlobalExitRoot.Bytes(),
-		OldLocalExitRoot:             pBatch.LocalExitRoot.Bytes(),
+		OldAccInputHash:              pBatch.AccInputHash.Bytes(),
 		EthTimestamp:                 uint64(batch.Timestamp.Unix()),
 		Coinbase:                     batch.Coinbase.String(),
 		UpdateMerkleTree:             cFalse,
@@ -1118,12 +1119,12 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 
 	// Create Batch
 	processBatchRequest := &pb.ProcessBatchRequest{
-		BatchNum:         lastBatch.BatchNumber + 1,
+		OldBatchNum:      lastBatch.BatchNumber,
 		BatchL2Data:      batchL2Data,
 		From:             senderAddress.String(),
 		OldStateRoot:     l2BlockStateRoot.Bytes(),
 		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
-		OldLocalExitRoot: previousBatch.LocalExitRoot.Bytes(),
+		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 		EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
 		Coinbase:         lastBatch.Coinbase.String(),
 		UpdateMerkleTree: cFalse,
@@ -1134,12 +1135,12 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		processBatchRequest.NoCounters = cTrue
 	}
 
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchNum]: %v", processBatchRequest.BatchNum)
+	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
 	// log.Debugf("ProcessUnsignedTransaction[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
-	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldLocalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.OldLocalExitRoot))
+	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("ProcessUnsignedTransaction[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)

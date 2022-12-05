@@ -1,11 +1,24 @@
 -- +migrate Up
-ALTER TABLE state.proof ADD COLUMN proof_id VARCHAR;
-ALTER TABLE state.proof ADD COLUMN input_prover jsonb;
-ALTER TABLE state.proof ADD COLUMN prover VARCHAR;
+DROP TABLE state.proof;
+CREATE TABLE state.proof
+(
+    batch_num  BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
+    batch_num_final BIGINT NOT NULL REFERENCES state.batch (batch_num) ON DELETE CASCADE,
+    proof VARCHAR,
+    proof_id VARCHAR,
+    input_prover VARCHAR,
+    prover VARCHAR,
+    generating BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY (batch_num, batch_num_final)    
+);
 
 -- +migrate Down
-ALTER TABLE state.proof DROP COLUMN prover;
-ALTER TABLE state.proof DROP COLUMN input_prover;
-ALTER TABLE state.proof DROP COLUMN proof_id;
-
-
+DROP TABLE state.proof;
+CREATE TABLE state.proof
+(
+    batch_num  BIGINT NOT NULL PRIMARY KEY REFERENCES state.batch (batch_num) ON DELETE CASCADE,
+    proof jsonb,
+    proof_id VARCHAR,
+    input_prover jsonb,
+    prover VARCHAR
+);

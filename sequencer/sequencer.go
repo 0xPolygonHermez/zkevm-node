@@ -153,8 +153,6 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 		return false
 	}
 
-	metrics.LastSyncedBatchNumber(float64(lastSyncedBatchNum))
-
 	return true
 }
 

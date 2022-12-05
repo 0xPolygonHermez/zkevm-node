@@ -9,7 +9,6 @@ import (
 
 const (
 	prefix                         = "sequencer_"
-	batchesLastNumberName          = prefix + "batches_last_number"
 	sequencesSentToL1CountName     = prefix + "sequences_sent_to_L1_count"
 	gasPriceEstimatedAverageName   = prefix + "gas_price_estimated_average"
 	txProcessed                    = prefix + "transaction_processed"
@@ -66,10 +65,6 @@ func Register() {
 
 	gauges = []prometheus.GaugeOpts{
 		{
-			Name: batchesLastNumberName,
-			Help: "[SEQUENCER] last batch number processed",
-		},
-		{
 			Name: gasPriceEstimatedAverageName,
 			Help: "[SEQUENCER] average gas price estimated",
 		},
@@ -94,11 +89,6 @@ func Register() {
 	metrics.RegisterCounterVecs(counterVecs...)
 	metrics.RegisterGauges(gauges...)
 	metrics.RegisterHistograms(histograms...)
-}
-
-// LastSyncedBatchNumber sets the gauge to the provided batch number.
-func LastSyncedBatchNumber(batchNum float64) {
-	metrics.GaugeSet(batchesLastNumberName, batchNum)
 }
 
 // AverageGasPrice sets the gauge to the given average gas price.

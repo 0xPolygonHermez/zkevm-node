@@ -299,9 +299,10 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 
 	## mocks for the aggregator tests
 	mockery --name=stateInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
-	mockery --name=proverClientInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProverClientMock --filename=mock_proverclient.go
+	mockery --name=proverInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProverMock --filename=mock_prover.go
 	mockery --name=etherman --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=Etherman --filename=mock_etherman.go
 	mockery --name=ethTxManager --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManager --filename=mock_ethtxmanager.go
+	mockery --name=aggregatorTxProfitabilityChecker --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProfitabilityCheckerMock --filename=mock_profitabilitychecker.go
 
 .PHONY: run-benchmarks
 run-benchmarks: run-db ## Runs benchmars

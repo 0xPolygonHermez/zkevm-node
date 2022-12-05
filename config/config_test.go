@@ -339,6 +339,7 @@ func Test_Defaults(t *testing.T) {
 			path:          "Metrics.Enabled",
 			expectedValue: false,
 		},
+		// TODO(pg): add Aggregator section
 	}
 	file, err := os.CreateTemp("", "genesisConfig")
 	require.NoError(t, err)
