@@ -76,6 +76,7 @@ Optionally it can wait for the transactions to be validated.`
 	txsender.Commands = []*cli.Command{
 		{
 			Name:    "send",
+			Before:  setLogLevel,
 			Aliases: []string{},
 			Usage:   "Sends the specified number of transactions",
 			Description: `This command sends the specified number of transactions.
@@ -92,15 +93,18 @@ If --wait flag is used, it waits for the corresponding validation transaction.`,
 	}
 }
 
-func sendTxs(cliCtx *cli.Context) error {
-	ctx := cliCtx.Context
-
+func setLogLevel(ctx *cli.Context) error {
 	logLevel := "info"
-	if cliCtx.Bool(flagVerboseName) {
+	if ctx.Bool(flagVerboseName) {
 		logLevel = "debug"
 	}
 
 	log.Init(log.Config{Level: logLevel, Outputs: []string{"stdout"}})
+	return nil
+}
+
+func sendTxs(cliCtx *cli.Context) error {
+	ctx := cliCtx.Context
 
 	nTxs := 1 // send 1 tx by default
 	if cliCtx.NArg() > 0 {
