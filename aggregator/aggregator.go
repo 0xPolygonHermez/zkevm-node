@@ -211,7 +211,7 @@ func (a *Aggregator) sendFinalProof() {
 				continue
 			}
 
-			log.Infof("Final proof for batches %d-%d verified in transaction %v", proof.BatchNumber, proof.BatchNumberFinal, tx.Hash())
+			log.Infof("Final proof for batches [%d-%d] verified in transaction [%v]", proof.BatchNumber, proof.BatchNumberFinal, tx.Hash().TerminalString())
 
 			// wait for the synchronizer to catch up the verified batches
 			log.Debug("A final proof has been sent, waiting for the network to be synced")
