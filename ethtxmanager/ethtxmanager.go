@@ -19,7 +19,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-const oneHundred = 100
+// ErrMaxRetriesExceeded max retries exceeded error.
+var ErrMaxRetriesExceeded = errors.New("Maximum number of retries exceeded")
 
 // Client for eth tx manager
 type Client struct {
@@ -87,12 +88,12 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 			}
 			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
 			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-		} else {
-			log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
-			return c.state.WaitSequencingTxToBeSynced(ctx, tx, c.cfg.WaitTxToBeSynced.Duration)
 		}
+
+		log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
+		return c.state.WaitSequencingTxToBeSynced(ctx, tx, c.cfg.WaitTxToBeSynced.Duration)
 	}
-	return nil
+	return ErrMaxRetriesExceeded
 }
 
 // VerifyBatches sends the VerifyBatches request to Ethereum. It is also
@@ -148,19 +149,19 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 			}
 			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
 			return nil, fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-		} else {
-			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
-			return nil, c.state.WaitVerifiedBatchToBeSynced(ctx, finalBatchNum, c.cfg.WaitTxToBeSynced.Duration)
 		}
+
+		log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
+		return tx, c.state.WaitVerifiedBatchToBeSynced(ctx, finalBatchNum, c.cfg.WaitTxToBeSynced.Duration)
 	}
-	return tx, nil
+	return nil, ErrMaxRetriesExceeded
 }
 
 func increaseGasPrice(currentGasPrice *big.Int, percentageIncrease uint64) *big.Int {
-	gasPrice := big.NewInt(0).Mul(currentGasPrice, new(big.Int).SetUint64(uint64(oneHundred)+percentageIncrease))
-	return gasPrice.Div(gasPrice, big.NewInt(oneHundred))
+	gasPrice := big.NewInt(0).Mul(currentGasPrice, new(big.Int).SetUint64(uint64(100)+percentageIncrease)) //nolint:gomnd
+	return gasPrice.Div(gasPrice, big.NewInt(100))                                                         //nolint:gomnd
 }
 
 func increaseGasLimit(currentGasLimit uint64, percentageIncrease uint64) uint64 {
-	return currentGasLimit * (oneHundred + percentageIncrease) / oneHundred
+	return currentGasLimit * (100 + percentageIncrease) / 100 //nolint:gomnd
 }
