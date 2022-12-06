@@ -84,9 +84,8 @@ func setLogLevel(ctx *cli.Context) error {
 	}
 
 	log.Init(log.Config{
-		Level:    logLevel,
-		Encoding: "console",
-		Outputs:  []string{"stdout"},
+		Level:   logLevel,
+		Outputs: []string{"stderr"},
 	})
 	return nil
 }

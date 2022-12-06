@@ -4,12 +4,21 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/hermeznetwork/tracerr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+)
+
+// LogEnvironment represents the possible log environments.
+type LogEnvironment string
+
+const (
+	// EnvironmentProduction production log environment.
+	EnvironmentProduction = LogEnvironment("production")
+	// EnvironmentDevelopment development log environment.
+	EnvironmentDevelopment = LogEnvironment("development")
 )
 
 // Logger is a wrapper providing logging facilities.
@@ -26,9 +35,9 @@ func getDefaultLog() *Logger {
 	}
 	// default level: debug
 	zapLogger, _, err := NewLogger(Config{
-		Level:    "debug",
-		Encoding: "console",
-		Outputs:  []string{"stdout"},
+		Environment: EnvironmentDevelopment,
+		Level:       "debug",
+		Outputs:     []string{"stderr"},
 	})
 	if err != nil {
 		panic(err)
@@ -62,38 +71,20 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 		return nil, nil, fmt.Errorf("error on setting log level: %s", err)
 	}
 
-	encodeLevel := zapcore.CapitalColorLevelEncoder
-	if cfg.Encoding == "json" {
-		encodeLevel = zapcore.CapitalLevelEncoder
+	var zapCfg zap.Config
+
+	switch cfg.Environment {
+	case EnvironmentProduction:
+		zapCfg = zap.NewProductionConfig()
+	default:
+		zapCfg = zap.NewDevelopmentConfig()
+		zapCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	}
-	zapCfg := zap.Config{
-		Level:            level,
-		Encoding:         cfg.Encoding,
-		OutputPaths:      cfg.Outputs,
-		ErrorOutputPaths: []string{"stderr"},
-		EncoderConfig: zapcore.EncoderConfig{
-			MessageKey: "message",
-
-			LevelKey:    "level",
-			EncodeLevel: encodeLevel,
-
-			TimeKey: "timestamp",
-			EncodeTime: func(ts time.Time, encoder zapcore.PrimitiveArrayEncoder) {
-				encoder.AppendString(ts.Local().Format(time.RFC3339))
-			},
-			EncodeDuration: zapcore.SecondsDurationEncoder,
-
-			CallerKey:    "caller",
-			EncodeCaller: zapcore.ShortCallerEncoder,
-
-			// StacktraceKey: "stacktrace",
-			StacktraceKey: "",
-			LineEnding:    zapcore.DefaultLineEnding,
-		},
-		InitialFields: map[string]interface{}{
-			"version": zkevm.Version,
-			"pid":     os.Getpid(),
-		},
+	zapCfg.Level = level
+	zapCfg.OutputPaths = cfg.Outputs
+	zapCfg.InitialFields = map[string]interface{}{
+		"version": zkevm.Version,
+		"pid":     os.Getpid(),
 	}
 
 	logger, err := zapCfg.Build()

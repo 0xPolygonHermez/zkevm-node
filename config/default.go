@@ -5,9 +5,9 @@ const DefaultValues = `
 IsTrustedSequencer = false
 
 [Log]
+Environment = "development" # "production" or "development"
 Level = "debug"
-Encoding = "console" # valid values are "console" or "json"
-Outputs = ["stdout"]
+Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"
