@@ -104,8 +104,6 @@ type Client struct {
 	GasProviders externalGasProviders
 
 	auth *bind.TransactOpts // nil in case of read-only client
-
-	cfg Config
 }
 
 // NewClient creates a new etherman.
@@ -154,7 +152,6 @@ func NewClient(cfg Config, auth *bind.TransactOpts) (*Client, error) {
 			Providers:        gProviders,
 		},
 		auth: auth,
-		cfg:  cfg,
 	}, nil
 }
 
