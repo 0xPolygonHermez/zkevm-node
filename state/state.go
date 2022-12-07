@@ -68,6 +68,9 @@ type State struct {
 	*PostgresStorage
 	executorClient pb.ExecutorServiceClient
 	tree           *merkletree.StateTree
+
+	newL2BlockEvents        chan newL2BlockEvent
+	newL2BlockEventHandlers []newL2BlockEventHandler
 }
 
 // NewState creates a new State
@@ -76,12 +79,17 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorSe
 		metrics.Register()
 	})
 
-	return &State{
-		cfg:             cfg,
-		PostgresStorage: storage,
-		executorClient:  executorClient,
-		tree:            stateTree,
+	s := &State{
+		cfg:              cfg,
+		PostgresStorage:  storage,
+		executorClient:   executorClient,
+		tree:             stateTree,
+		newL2BlockEvents: make(chan newL2BlockEvent, 1000), // nolint:gomnd
 	}
+
+	go s.handleEvents()
+
+	return s
 }
 
 // BeginStateTransaction starts a state transaction
@@ -1398,4 +1406,42 @@ func (s *State) WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumb
 
 	log.Debug("Verified batch successfully synced: ", batchNumber)
 	return nil
+}
+
+// AddL2Block adds a new L2 block to the State Store
+func (s *State) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, dbTx pgx.Tx) error {
+	err := s.PostgresStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, dbTx)
+	if err != nil {
+		return err
+	}
+
+	s.newL2BlockEvents <- newL2BlockEvent{
+		BlockHash: l2Block.Hash(),
+	}
+
+	return nil
+}
+
+func (s *State) handleEvents() {
+	for newL2BlockEvent := range s.newL2BlockEvents {
+		wg := sync.WaitGroup{}
+		for _, handler := range s.newL2BlockEventHandlers {
+			wg.Add(1)
+			go func(h newL2BlockEventHandler) {
+				defer func() {
+					wg.Done()
+					if r := recover(); r != nil {
+						log.Errorf("failed and recovered in newL2BlockEventHandler: %v", r)
+					}
+				}()
+				h(newL2BlockEvent)
+			}(handler)
+		}
+		wg.Wait()
+	}
+}
+
+type newL2BlockEventHandler func(e newL2BlockEvent)
+type newL2BlockEvent struct {
+	BlockHash common.Hash
 }

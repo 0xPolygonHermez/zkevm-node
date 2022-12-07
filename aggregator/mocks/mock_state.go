@@ -16,8 +16,8 @@ type StateMock struct {
 	mock.Mock
 }
 
-// AddGeneratedRecursiveProof provides a mock function with given fields: ctx, proof, dbTx
-func (_m *StateMock) AddGeneratedRecursiveProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
+// AddGeneratedProof provides a mock function with given fields: ctx, proof, dbTx
+func (_m *StateMock) AddGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, proof, dbTx)
 
 	var r0 error
@@ -74,8 +74,8 @@ func (_m *StateMock) CheckProofContainsCompleteSequences(ctx context.Context, pr
 	return r0, r1
 }
 
-// DeleteGeneratedRecursiveProof provides a mock function with given fields: ctx, batchNumber, batchNumberFinal, dbTx
-func (_m *StateMock) DeleteGeneratedRecursiveProof(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
+// DeleteGeneratedProofs provides a mock function with given fields: ctx, batchNumber, batchNumberFinal, dbTx
+func (_m *StateMock) DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNumber, batchNumberFinal, dbTx)
 
 	var r0 error
@@ -88,8 +88,8 @@ func (_m *StateMock) DeleteGeneratedRecursiveProof(ctx context.Context, batchNum
 	return r0
 }
 
-// DeleteUngeneratedRecursiveProofs provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) DeleteUngeneratedRecursiveProofs(ctx context.Context, dbTx pgx.Tx) error {
+// DeleteUngeneratedProofs provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, dbTx)
 
 	var r0 error
@@ -148,8 +148,31 @@ func (_m *StateMock) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*st
 	return r0, r1
 }
 
-// GetRecursiveProofsToAggregate provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) GetRecursiveProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*state.Proof, *state.Proof, error) {
+// GetProofReadyToVerify provides a mock function with given fields: ctx, lastVerfiedBatchNumber, dbTx
+func (_m *StateMock) GetProofReadyToVerify(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Proof, error) {
+	ret := _m.Called(ctx, lastVerfiedBatchNumber, dbTx)
+
+	var r0 *state.Proof
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.Proof); ok {
+		r0 = rf(ctx, lastVerfiedBatchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.Proof)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, lastVerfiedBatchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetProofsToAggregate provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) GetProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*state.Proof, *state.Proof, error) {
 	ret := _m.Called(ctx, dbTx)
 
 	var r0 *state.Proof
@@ -180,8 +203,8 @@ func (_m *StateMock) GetRecursiveProofsToAggregate(ctx context.Context, dbTx pgx
 	return r0, r1, r2
 }
 
-// GetVirtualBatchToRecursiveProve provides a mock function with given fields: ctx, lastVerfiedBatchNumber, dbTx
-func (_m *StateMock) GetVirtualBatchToRecursiveProve(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
+// GetVirtualBatchToProve provides a mock function with given fields: ctx, lastVerfiedBatchNumber, dbTx
+func (_m *StateMock) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	ret := _m.Called(ctx, lastVerfiedBatchNumber, dbTx)
 
 	var r0 *state.Batch
@@ -203,8 +226,8 @@ func (_m *StateMock) GetVirtualBatchToRecursiveProve(ctx context.Context, lastVe
 	return r0, r1
 }
 
-// UpdateGeneratedRecursiveProof provides a mock function with given fields: ctx, proof, dbTx
-func (_m *StateMock) UpdateGeneratedRecursiveProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
+// UpdateGeneratedProof provides a mock function with given fields: ctx, proof, dbTx
+func (_m *StateMock) UpdateGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, proof, dbTx)
 
 	var r0 error
