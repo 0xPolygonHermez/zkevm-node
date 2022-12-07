@@ -16,21 +16,24 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
 )
 
 const (
-	flagWaitName    = "wait"
-	flagVerboseName = "verbose"
+	flagSequencesName = "sequences"
+	flagWaitName      = "wait"
+	flagVerboseName   = "verbose"
 )
 
 var (
-	sequencedBatchesEventSignatureHash = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))
-	verifiedBatchSignatureHash         = crypto.Keccak256Hash([]byte("VerifyBatch(uint64,address)"))
-
+	flagSequences = cli.Uint64Flag{
+		Name:     flagSequencesName,
+		Aliases:  []string{"s"},
+		Usage:    "send batches for the provided number of sequences.",
+		Required: false,
+	}
 	flagWait = cli.BoolFlag{
 		Name:     flagWaitName,
 		Aliases:  []string{"w"},
@@ -52,14 +55,15 @@ func main() {
 	batchsender.Description = `This tool allows to send a specified number of batch transactions to L1. 
 Optionally it can wait for the batches to be validated.`
 	batchsender.DefaultCommand = "send"
-	batchsender.Flags = []cli.Flag{&flagWait, &flagVerbose}
+	batchsender.Flags = []cli.Flag{&flagSequences, &flagWait, &flagVerbose}
 	batchsender.Commands = []*cli.Command{
 		{
 			Before:  setLogLevel,
 			Name:    "send",
 			Aliases: []string{},
 			Usage:   "Sends the specified number of batch transactions to L1",
-			Description: `This command sends the specified number of transactions to L1.
+			Description: `This command sends the specified number of batches to L1.
+If --sequences flag is used, the number of batches is repeated for the number of sequences provided.
 If --wait flag is used, it waits for the corresponding validation transaction.`,
 			ArgsUsage: "number of batches to be sent (default: 1)",
 			Action:    sendBatches,
@@ -85,15 +89,6 @@ func setLogLevel(ctx *cli.Context) error {
 
 func sendBatches(cliCtx *cli.Context) error {
 	ctx := cliCtx.Context
-
-	nBatches := 1 // send 1 batch by default
-	if cliCtx.NArg() > 0 {
-		nBatchesArgStr := cliCtx.Args().Get(0)
-		nBatchesArg, err := strconv.Atoi(nBatchesArgStr)
-		if err == nil {
-			nBatches = nBatchesArg
-		}
-	}
 
 	// retrieve default configuration
 	var cfg config.Config
@@ -125,6 +120,17 @@ func sendBatches(cliCtx *cli.Context) error {
 
 	wait := cliCtx.Bool(flagWaitName)
 
+	nBatches := 1 // send 1 batch by default
+	if cliCtx.NArg() > 0 {
+		nBatchesArgStr := cliCtx.Args().Get(0)
+		nBatchesArg, err := strconv.Atoi(nBatchesArgStr)
+		if err == nil {
+			nBatches = nBatchesArg
+		}
+	}
+
+	nSequences := int(cliCtx.Uint64(flagSequencesName))
+
 	var sentTxs []*ethtypes.Transaction
 	sentTxsMap := make(map[common.Hash]struct{})
 
@@ -133,20 +139,36 @@ func sendBatches(cliCtx *cli.Context) error {
 		duration = 500
 	}
 
-	for i := 0; i < nBatches; i++ {
+	// here the behavior is different:
+	// - if the `--sequences` flag is used we send ns sequences filled with nb batches each
+	// - if the flag is not used we send one sequence for each batch
+	var ns, nb int
+	if nSequences == 0 {
+		ns = nBatches
+		nb = 1
+	} else {
+		ns = nSequences
+		nb = nBatches
+	}
+
+	for i := 0; i < ns; i++ {
 		currentBlock, err := ethMan.EtherClient.BlockByNumber(ctx, nil)
 		if err != nil {
 			return err
 		}
 		log.Debug("currentBlock.Time(): ", currentBlock.Time())
 
-		seqs := []ethmanTypes.Sequence{{
-			GlobalExitRoot: common.HexToHash("0x"),
-			Txs:            []ethtypes.Transaction{},
-			Timestamp:      int64(currentBlock.Time() - 1), // fit in latest-sequence < > current-block rage
-		}}
+		seqs := make([]ethmanTypes.Sequence, 0, nBatches)
+		for i := 0; i < nb; i++ {
+			// empty rollup
+			seqs = append(seqs, ethmanTypes.Sequence{
+				GlobalExitRoot: common.HexToHash("0x"),
+				Txs:            []ethtypes.Transaction{},
+				Timestamp:      int64(currentBlock.Time() - 1), // fit in latest-sequence < > current-block rage
+			})
+		}
 
-		// send empty rollup to L1
+		// send to L1
 		tx, err := ethMan.SequenceBatches(ctx, seqs, 0, nil, nil)
 		if err != nil {
 			return err
@@ -162,7 +184,7 @@ func sendBatches(cliCtx *cli.Context) error {
 	sentBatches := len(sentTxs)
 
 	if wait { // wait proofs
-		log.Info("Waiting for txs to be confirmed...")
+		log.Info("Waiting for transactions to be confirmed...")
 		time.Sleep(time.Second)
 
 		virtualBatches := make(map[uint64]common.Hash)
@@ -209,7 +231,7 @@ func sendBatches(cliCtx *cli.Context) error {
 					}
 					for _, vLog := range logs {
 						switch vLog.Topics[0] {
-						case sequencedBatchesEventSignatureHash:
+						case etherman.SequencedBatchesSigHash():
 							if vLog.TxHash == tx.Hash() { // ignore other txs happening on L1
 								sb, err := ethMan.PoE.ParseSequenceBatches(vLog)
 								if err != nil {
@@ -223,8 +245,8 @@ func sendBatches(cliCtx *cli.Context) error {
 									loggedBatches[sb.NumBatch] = struct{}{}
 								}
 							}
-						case verifiedBatchSignatureHash:
-							vb, err := ethMan.PoE.ParseVerifyBatch(vLog)
+						case etherman.VerifyBatchesSigHash():
+							vb, err := ethMan.PoE.ParseVerifyBatches(vLog)
 							if err != nil {
 								return err
 							}

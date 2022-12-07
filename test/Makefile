@@ -18,6 +18,7 @@ DOCKERCOMPOSEPERMISSIONLESSDB := zkevm-permissionless-db
 DOCKERCOMPOSEPERMISSIONLESSNODE := zkevm-permissionless-node
 DOCKERCOMPOSENODEAPPROVE := zkevm-approve
 DOCKERCOMPOSEMETRICS := zkevm-metrics
+DOCKERCOMPOSEGRAFANA := grafana
 
 RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
 RUNPOOLDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPOOLDB)
@@ -26,6 +27,7 @@ RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
 RUNJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
 RUNSYNC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSYNC)
 RUNBROADCAST := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPBROADCAST)
+RUNGRAFANA := DOCKERGID=`stat -c '%g' /var/run/docker.sock` $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEGRAFANA)
 
 RUNL1NETWORK := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSENETWORK)
 RUNEXPLORERL1 := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEXPLORERL1)
@@ -52,6 +54,7 @@ STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOS
 STOPJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
 STOPSYNC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSYNC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSYNC)
 STOPBROADCAST := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPBROADCAST) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPBROADCAST)
+STOPGRAFANA := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEGRAFANA) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEGRAFANA)
 
 STOPNETWORK := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSENETWORK) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSENETWORK)
 STOPEXPLORERL1 := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEEXPLORERL1) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEEXPLORERL1)
@@ -204,6 +207,14 @@ run-broadcast: ## Runs the broadcast service
 stop-broadcast: ## Stops the broadcast service
 	$(STOPBROADCAST)
 
+.PHONY: run-grafana
+run-grafana: ## Runs the grafana service
+	$(RUNGRAFANA)
+
+.PHONY: stop-grafana
+stop-grafana: ## Stops the grafana service
+	$(STOPGRAFANA)
+
 .PHONY: run-permissionless
 run-permissionless: ## Runs the permissionless node
 	$(RUNPERMISSIONLESSDB)
@@ -227,9 +238,9 @@ run: ## Runs a full node
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNL1NETWORK)
-	sleep 2
+	sleep 1
 	$(RUNZKPROVER)
-	sleep 5
+	sleep 3
 	$(RUNSEQUENCER)
 	$(RUNAGGREGATOR)
 	$(RUNJSONRPC)
@@ -292,9 +303,10 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 
 	## mocks for the aggregator tests
 	mockery --name=stateInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=StateMock --filename=mock_state.go
-	mockery --name=proverClientInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProverClientMock --filename=mock_proverclient.go
+	mockery --name=proverInterface --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProverMock --filename=mock_prover.go
 	mockery --name=etherman --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=Etherman --filename=mock_etherman.go
 	mockery --name=ethTxManager --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManager --filename=mock_ethtxmanager.go
+	mockery --name=aggregatorTxProfitabilityChecker --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProfitabilityCheckerMock --filename=mock_profitabilitychecker.go
 
 .PHONY: run-benchmarks
 run-benchmarks: run-db ## Runs benchmars

@@ -116,7 +116,7 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 		if err != nil {
 			return err
 		}
-		log.Infof("**********              BATCH %d              **********", tc.Requests[i].BatchNum)
+		log.Infof("**********              BATCH %d              **********", tc.Requests[i].OldBatchNum)
 		txs, _, err := state.DecodeTxs(tc.Requests[i].BatchL2Data)
 		if err != nil {
 			log.Warnf("Txs are not correctly encoded")
@@ -233,13 +233,13 @@ type executorRequest pb.ProcessBatchRequest
 
 func (er *executorRequest) UnmarshalJSON(data []byte) error {
 	type jExecutorRequeststruct struct {
-		BatchL2Data      string `json:"batchL2Data"`
-		GlobalExitRoot   string `json:"globalExitRoot"`
-		BatchNum         uint64 `json:"batchNum"`
-		OldLocalExitRoot string `json:"oldLocalExitRoot"`
-		OldStateRoot     string `json:"oldStateRoot"`
-		SequencerAddr    string `json:"sequencerAddr"`
-		Timestamp        uint64 `json:"timestamp"`
+		BatchL2Data     string `json:"batchL2Data"`
+		GlobalExitRoot  string `json:"globalExitRoot"`
+		OldBatchNum     uint64 `json:"oldBatchNum"`
+		OldAccInputHash string `json:"oldAccInputHash"`
+		OldStateRoot    string `json:"oldStateRoot"`
+		SequencerAddr   string `json:"sequencerAddr"`
+		Timestamp       uint64 `json:"timestamp"`
 	}
 	jer := jExecutorRequeststruct{}
 	if err := json.Unmarshal(data, &jer); err != nil {
@@ -253,7 +253,7 @@ func (er *executorRequest) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	oldLocalExitRoot, err := hex.DecodeString(strings.TrimPrefix(jer.OldLocalExitRoot, "0x"))
+	oldAccInputHash, err := hex.DecodeString(strings.TrimPrefix(jer.OldAccInputHash, "0x"))
 	if err != nil {
 		return err
 	}
@@ -263,13 +263,13 @@ func (er *executorRequest) UnmarshalJSON(data []byte) error {
 	}
 
 	req := pb.ProcessBatchRequest{
-		BatchL2Data:      batchL2Data,
-		GlobalExitRoot:   globalExitRoot,
-		BatchNum:         jer.BatchNum,
-		OldLocalExitRoot: oldLocalExitRoot,
-		OldStateRoot:     oldStateRoot,
-		Coinbase:         jer.SequencerAddr,
-		EthTimestamp:     jer.Timestamp,
+		BatchL2Data:     batchL2Data,
+		GlobalExitRoot:  globalExitRoot,
+		OldBatchNum:     jer.OldBatchNum,
+		OldAccInputHash: oldAccInputHash,
+		OldStateRoot:    oldStateRoot,
+		Coinbase:        jer.SequencerAddr,
+		EthTimestamp:    jer.Timestamp,
 	}
 	*er = executorRequest(req) //nolint
 	return nil
