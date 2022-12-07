@@ -11,6 +11,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/ethereum/go-ethereum/common"
@@ -23,6 +24,18 @@ func Test_Defaults(t *testing.T) {
 		path          string
 		expectedValue interface{}
 	}{
+		{
+			path:          "Log.Environment",
+			expectedValue: log.LogEnvironment("development"),
+		},
+		{
+			path:          "Log.Level",
+			expectedValue: "debug",
+		},
+		{
+			path:          "Log.Outputs",
+			expectedValue: []string{"stderr"},
+		},
 		{
 			path:          "Synchronizer.SyncChunkSize",
 			expectedValue: uint64(100),

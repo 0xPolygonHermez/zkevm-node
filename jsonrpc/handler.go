@@ -55,6 +55,7 @@ var connectionCounterMutex sync.Mutex
 // Handle is the function that knows which and how a function should
 // be executed when a JSON RPC request is received
 func (h *Handler) Handle(req handleRequest) Response {
+	log := log.WithFields("method", req.Method, "requestId", req.ID)
 	connectionCounterMutex.Lock()
 	connectionCounter++
 	connectionCounterMutex.Unlock()
@@ -65,7 +66,7 @@ func (h *Handler) Handle(req handleRequest) Response {
 		log.Debugf("Current open connections %d", connectionCounter)
 	}()
 	log.Debugf("Current open connections %d", connectionCounter)
-	log.Debugf("request method %s id %v params %v", req.Method, req.ID, string(req.Params))
+	log.Debugf("request params %v", string(req.Params))
 
 	service, fd, err := h.getFnHandler(req.Request)
 	if err != nil {
@@ -109,7 +110,7 @@ func (h *Handler) Handle(req handleRequest) Response {
 
 	output := fd.fv.Call(inArgs)
 	if err := getError(output[1]); err != nil {
-		log.Infof("failed to call method %s: [%v]%v. Params: %v", req.Method, err.ErrorCode(), err.Error(), string(req.Params))
+		log.Infof("failed call: [%v]%v. Params: %v", err.ErrorCode(), err.Error(), string(req.Params))
 		return NewResponse(req.Request, nil, err)
 	}
 
