@@ -55,7 +55,7 @@ func NewServer(
 	handler := newJSONRpcHandler()
 
 	if _, ok := apis[APIEth]; ok {
-		ethEndpoints := &Eth{cfg: cfg, pool: p, state: s, gpe: gpe, storage: storage}
+		ethEndpoints := newEth(cfg, p, s, gpe, storage)
 		handler.registerService(APIEth, ethEndpoints)
 	}
 

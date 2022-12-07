@@ -69,8 +69,8 @@ type State struct {
 	executorClient pb.ExecutorServiceClient
 	tree           *merkletree.StateTree
 
-	newL2BlockEvents        chan newL2BlockEvent
-	newL2BlockEventHandlers []newL2BlockEventHandler
+	newL2BlockEvents        chan NewL2BlockEvent
+	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
 
 // NewState creates a new State
@@ -84,7 +84,7 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorSe
 		PostgresStorage:  storage,
 		executorClient:   executorClient,
 		tree:             stateTree,
-		newL2BlockEvents: make(chan newL2BlockEvent, 1000), // nolint:gomnd
+		newL2BlockEvents: make(chan NewL2BlockEvent, 1000), // nolint:gomnd
 	}
 
 	go s.handleEvents()
@@ -1415,7 +1415,7 @@ func (s *State) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *typ
 		return err
 	}
 
-	s.newL2BlockEvents <- newL2BlockEvent{
+	s.newL2BlockEvents <- NewL2BlockEvent{
 		BlockHash: l2Block.Hash(),
 	}
 
@@ -1423,15 +1423,16 @@ func (s *State) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *typ
 }
 
 func (s *State) handleEvents() {
+
 	for newL2BlockEvent := range s.newL2BlockEvents {
 		wg := sync.WaitGroup{}
 		for _, handler := range s.newL2BlockEventHandlers {
 			wg.Add(1)
-			go func(h newL2BlockEventHandler) {
+			go func(h NewL2BlockEventHandler) {
 				defer func() {
 					wg.Done()
 					if r := recover(); r != nil {
-						log.Errorf("failed and recovered in newL2BlockEventHandler: %v", r)
+						log.Errorf("failed and recovered in NewL2BlockEventHandler: %v", r)
 					}
 				}()
 				h(newL2BlockEvent)
@@ -1441,7 +1442,13 @@ func (s *State) handleEvents() {
 	}
 }
 
-type newL2BlockEventHandler func(e newL2BlockEvent)
-type newL2BlockEvent struct {
+type NewL2BlockEventHandler func(e NewL2BlockEvent)
+type NewL2BlockEvent struct {
 	BlockHash common.Hash
+}
+
+// RegisterNewL2BlockEventHandler add the provided handler to the list of handlers
+// that will be triggered when a new l2 block event is triggered
+func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
+	s.newL2BlockEventHandlers = append(s.newL2BlockEventHandlers, h)
 }

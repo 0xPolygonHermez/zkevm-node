@@ -27,13 +27,13 @@ var ErrFilterInvalidPayload = errors.New("invalid argument 0: cannot specify bot
 // Storage uses memory to store the data
 // related to the json rpc server
 type Storage struct {
-	filters map[string]Filter
+	filters map[string]*Filter
 }
 
 // NewStorage creates and initializes an instance of Storage
 func NewStorage() (*Storage, error) {
 	return &Storage{
-		filters: make(map[string]Filter),
+		filters: make(map[string]*Filter),
 	}, nil
 }
 
@@ -63,7 +63,7 @@ func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *web
 	if err != nil {
 		return "", err
 	}
-	s.filters[id] = Filter{
+	s.filters[id] = &Filter{
 		ID:         id,
 		Type:       t,
 		Parameters: parameters,
@@ -89,6 +89,22 @@ func (s *Storage) generateFilterID() (string, error) {
 	return id, nil
 }
 
+// GetAllFiltersWithWSConn returns an array with all filter that have
+// a web socket connection
+func (s *Storage) GetAllFiltersWithWSConn() ([]*Filter, error) {
+	filtersWithWSConn := []*Filter{}
+	for _, filter := range s.filters {
+		if filter.WsConn == nil {
+			continue
+		}
+
+		f := filter
+		filtersWithWSConn = append(filtersWithWSConn, f)
+	}
+
+	return filtersWithWSConn, nil
+}
+
 // GetFilter gets a filter by its id
 func (s *Storage) GetFilter(filterID string) (*Filter, error) {
 	filter, found := s.filters[filterID]
@@ -96,7 +112,7 @@ func (s *Storage) GetFilter(filterID string) (*Filter, error) {
 		return nil, ErrNotFound
 	}
 
-	return &filter, nil
+	return filter, nil
 }
 
 // UpdateFilterLastPoll updates the last poll to now

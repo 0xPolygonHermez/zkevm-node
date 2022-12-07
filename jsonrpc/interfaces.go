@@ -59,9 +59,11 @@ type stateInterface interface {
 	IsL2BlockConsolidated(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error)
 	IsL2BlockVirtualized(ctx context.Context, blockNumber int, dbTx pgx.Tx) (bool, error)
 	ProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) *runtime.ExecutionResult
+	RegisterNewL2BlockEventHandler(h state.NewL2BlockEventHandler)
 }
 
 type storageInterface interface {
+	GetAllFiltersWithWSConn() ([]*Filter, error)
 	GetFilter(filterID string) (*Filter, error)
 	NewBlockFilter(wsConn *websocket.Conn) (string, error)
 	NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (string, error)

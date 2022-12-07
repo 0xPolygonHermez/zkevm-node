@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -24,6 +25,15 @@ type Eth struct {
 	gpe     gasPriceEstimator
 	storage storageInterface
 	txMan   dbTxManager
+}
+
+// newEth creates an new instance of Eth
+func newEth(cfg Config, p jsonRPCTxPool, s stateInterface, gpe gasPriceEstimator, storage storageInterface) *Eth {
+	e := &Eth{cfg: cfg, pool: p, state: s, gpe: gpe, storage: storage}
+
+	s.RegisterNewL2BlockEventHandler(e.onNewL2Block)
+
+	return e
 }
 
 // BlockNumber returns current block number
@@ -788,4 +798,34 @@ func (e *Eth) Subscribe(wsConn *websocket.Conn, name string, logFilter *LogFilte
 // Unsubscribe uninstalls the filter based on the provided filterID
 func (e *Eth) Unsubscribe(wsConn *websocket.Conn, filterID string) (interface{}, rpcError) {
 	return e.UninstallFilter(filterID)
+}
+
+// onNewL2Block is triggered when the state triggers the event for a new l2 block
+func (e *Eth) onNewL2Block(event state.NewL2BlockEvent) {
+	filters, err := e.storage.GetAllFiltersWithWSConn()
+	if err != nil {
+		log.Errorf("failed to get all filters with web sockets connections: %v", err)
+	}
+
+	for _, filter := range filters {
+		changes, err := e.GetFilterChanges(filter.ID)
+		if err != nil {
+			log.Errorf("failed to send messages with filter %v changes", filter.ID)
+			continue
+		}
+
+		e.sendFilterChangesViaWSConn(filter, changes)
+	}
+}
+
+func (e *Eth) sendFilterChangesViaWSConn(filter *Filter, changes interface{}) {
+	data, _ := json.Marshal(changes)
+	res := NewResponse(Request{JSONRPC: "2.0", ID: ""}, data, nil)
+	message, _ := json.Marshal(res)
+
+	err := filter.WsConn.WriteMessage(websocket.TextMessage, message)
+
+	if err != nil {
+		log.Errorf(fmt.Sprintf("Unable to write WS message to filter %v, %s", filter.ID, err.Error()))
+	}
 }

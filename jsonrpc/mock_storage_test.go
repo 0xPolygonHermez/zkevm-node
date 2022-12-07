@@ -12,6 +12,29 @@ type storageMock struct {
 	mock.Mock
 }
 
+// GetAllFiltersWithWSConn provides a mock function with given fields:
+func (_m *storageMock) GetAllFiltersWithWSConn() ([]*Filter, error) {
+	ret := _m.Called()
+
+	var r0 []*Filter
+	if rf, ok := ret.Get(0).(func() []*Filter); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*Filter)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetFilter provides a mock function with given fields: filterID
 func (_m *storageMock) GetFilter(filterID string) (*Filter, error) {
 	ret := _m.Called(filterID)

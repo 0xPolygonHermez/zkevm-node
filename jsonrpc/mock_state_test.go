@@ -620,6 +620,11 @@ func (_m *stateMock) ProcessUnsignedTransaction(ctx context.Context, tx *types.T
 	return r0
 }
 
+// RegisterNewL2BlockEventHandler provides a mock function with given fields: h
+func (_m *stateMock) RegisterNewL2BlockEventHandler(h state.NewL2BlockEventHandler) {
+	_m.Called(h)
+}
+
 type mockConstructorTestingTnewStateMock interface {
 	mock.TestingT
 	Cleanup(func())
