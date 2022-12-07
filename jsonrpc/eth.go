@@ -805,6 +805,7 @@ func (e *Eth) onNewL2Block(event state.NewL2BlockEvent) {
 	filters, err := e.storage.GetAllFiltersWithWSConn()
 	if err != nil {
 		log.Errorf("failed to get all filters with web sockets connections: %v", err)
+		return
 	}
 
 	for _, filter := range filters {
@@ -814,7 +815,9 @@ func (e *Eth) onNewL2Block(event state.NewL2BlockEvent) {
 			continue
 		}
 
-		e.sendFilterChangesViaWSConn(filter, changes)
+		if changes != nil {
+			e.sendFilterChangesViaWSConn(filter, changes)
+		}
 	}
 }
 
