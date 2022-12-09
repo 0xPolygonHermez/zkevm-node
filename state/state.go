@@ -1481,7 +1481,12 @@ func (s *State) handleEvents() {
 	}
 }
 
+// NewL2BlockEventHandler represent a func that will be called by the
+// state when a NewL2BlockEvent is triggered
 type NewL2BlockEventHandler func(e NewL2BlockEvent)
+
+// NewL2BlockEvent is a struct provided from the state to the NewL2BlockEventHandler
+// when a new l2 block is detected with data related to this new l2 block.
 type NewL2BlockEvent struct {
 	Block types.Block
 }
