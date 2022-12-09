@@ -74,7 +74,7 @@ func (zkc *ZkCounters) SumUpZkCounters(txZkCounters ZkCounters) {
 }
 
 // IsClaimTx checks, if tx is a claim tx
-func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address) bool {
+func (tx *Transaction) IsClaimTx(l2BridgeAddr common.Address, bridgeClaimMethodSignature string) bool {
 	if tx.To() == nil {
 		return false
 	}

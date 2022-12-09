@@ -9,6 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+const bridgeClaimMethodSignature = "0x7b6323c1"
+
 func Test_IsClaimTx(t *testing.T) {
 	l2BridgeAddr := common.HexToAddress("0x00000000000000000000000000000001")
 	differentAddr := common.HexToAddress("0x00000000000000000000000000000002")
@@ -58,7 +60,7 @@ func Test_IsClaimTx(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			result := testCase.Tx.IsClaimTx(l2BridgeAddr)
+			result := testCase.Tx.IsClaimTx(l2BridgeAddr, bridgeClaimMethodSignature)
 			if result != testCase.expectedResult {
 				t.Errorf("Invalid result, expected: %v, found: %v", testCase.expectedResult, result)
 			}

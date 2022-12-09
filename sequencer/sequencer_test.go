@@ -41,9 +41,10 @@ func TestSequenceTooBig(t *testing.T) {
 		CONFIG_CHAIN_ID                 = 1337
 		CONFIG_ETH_URL                  = "http://localhost:8545"
 
-		CONFIG_NAME_POE   = "poe"
-		CONFIG_NAME_MATIC = "matic"
-		CONFIG_NAME_GER   = "ger"
+		CONFIG_NAME_POE                     = "poe"
+		CONFIG_NAME_MATIC                   = "matic"
+		CONFIG_NAME_GER                     = "ger"
+		CONFIG_BRIDE_CLAIM_METHOD_SIGNATURE = "0x7b6323c1"
 	)
 
 	var (
@@ -172,7 +173,7 @@ func TestSequenceTooBig(t *testing.T) {
 
 	state := st.NewState(stateCfg, stateDb, executorClient, stateTree)
 
-	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER], big.NewInt(CONFIG_CHAIN_ID).Uint64())
+	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER], big.NewInt(CONFIG_CHAIN_ID).Uint64(), CONFIG_BRIDE_CLAIM_METHOD_SIGNATURE)
 	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, eth_man, state)
 	gpe := gasprice.NewDefaultEstimator(gasprice.Config{
 		Type:               gasprice.DefaultType,

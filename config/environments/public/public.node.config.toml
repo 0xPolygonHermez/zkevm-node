@@ -21,6 +21,9 @@ Port = "5432"
 EnableLog = false
 MaxConns = 200
 
+[Pool]
+BridgeClaimMethodSignature = "0x7b6323c1"
+
 [Etherman]
 URL = "http://your.L1node.url"
 L1ChainID = 5

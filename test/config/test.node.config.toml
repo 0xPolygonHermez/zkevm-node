@@ -23,6 +23,9 @@ Port = "5432"
 EnableLog = false
 MaxConns = 200
 
+[Pool]
+BridgeClaimMethodSignature = "0x7b6323c1"
+
 [Etherman]
 URL = "http://zkevm-mock-l1-network:8545"
 PrivateKeyPath = "/pk/keystore"

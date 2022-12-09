@@ -25,9 +25,6 @@ const (
 	// more expensive to propagate; larger transactions also take more resources
 	// to validate whether they fit into the pool or not.
 	txMaxSize = 4 * txSlotSize // 128KB
-
-	// bridgeClaimMethodSignature for tracking bridgeClaimMethodSignature method
-	bridgeClaimMethodSignature = "0x7b6323c1"
 )
 
 var (
@@ -44,18 +41,20 @@ var (
 // that uses a postgres database to store the data
 type Pool struct {
 	storage
-	state        stateInterface
-	l2BridgeAddr common.Address
-	chainID      uint64
+	state                      stateInterface
+	l2BridgeAddr               common.Address
+	chainID                    uint64
+	bridgeClaimMethodSignature string
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64) *Pool {
+func NewPool(s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64, bridgeClaimMethodSignature string) *Pool {
 	return &Pool{
-		storage:      s,
-		state:        st,
-		l2BridgeAddr: l2BridgeAddr,
-		chainID:      chainID,
+		storage:                    s,
+		state:                      st,
+		l2BridgeAddr:               l2BridgeAddr,
+		chainID:                    chainID,
+		bridgeClaimMethodSignature: bridgeClaimMethodSignature,
 	}
 }
 
@@ -72,7 +71,7 @@ func (p *Pool) AddTx(ctx context.Context, tx types.Transaction) error {
 		ReceivedAt:  time.Now(),
 	}
 
-	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr)
+	poolTx.IsClaims = poolTx.IsClaimTx(p.l2BridgeAddr, p.bridgeClaimMethodSignature)
 
 	return p.storage.AddTx(ctx, poolTx)
 }

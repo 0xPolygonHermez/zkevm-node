@@ -23,6 +23,9 @@ Port = "5433"
 EnableLog = false
 MaxConns = 10
 
+[Pool]
+BridgeClaimMethodSignature = "0x7b6323c1"
+
 [Etherman]
 URL = "http://localhost:8545"
 L1ChainID = 1337

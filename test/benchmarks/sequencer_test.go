@@ -35,10 +35,11 @@ const (
 var dbConfig = dbutils.NewStateConfigFromEnv()
 
 var (
-	ctx                 = context.Background()
-	sequencerPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
-	chainID             = uint64(1000)
-	opsCfg              = &operations.Config{
+	ctx                        = context.Background()
+	sequencerPrivateKey        = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
+	chainID                    = uint64(1000)
+	bridgeClaimMethodSignature = "0x7b6323c1"
+	opsCfg                     = &operations.Config{
 		State: &state.Config{
 			MaxCumulativeGasUsed: 800000,
 		},
@@ -96,7 +97,7 @@ func setUpEnv(b *testing.B) (*state.State, *pool.Pool, *big.Int, *ethclient.Clie
 	st := opsman.State()
 	s, err := pgpoolstorage.NewPostgresPoolStorage(dbConfig)
 	require.NoError(b, err)
-	pl := pool.NewPool(s, st, common.Address{}, chainID)
+	pl := pool.NewPool(s, st, common.Address{}, chainID, bridgeClaimMethodSignature)
 	// store current batch number to check later when the state is updated
 	require.NoError(b, opsman.SetGenesis(genesisAccounts))
 	require.NoError(b, opsman.Setup())

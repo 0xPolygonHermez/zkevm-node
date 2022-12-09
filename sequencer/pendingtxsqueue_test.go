@@ -48,7 +48,8 @@ var (
 		},
 	}
 
-	chainID = big.NewInt(1337)
+	chainID                    = big.NewInt(1337)
+	bridgeClaimMethodSignature = "0x7b6323c1"
 )
 
 func TestQueue_AddAndPopTx(t *testing.T) {
@@ -80,7 +81,7 @@ func TestQueue_AddAndPopTx(t *testing.T) {
 		panic(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64(), bridgeClaimMethodSignature)
 
 	const txsCount = 10
 
@@ -157,7 +158,7 @@ func TestQueue_AddOneTx(t *testing.T) {
 		panic(err)
 	}
 
-	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64())
+	p := pool.NewPool(s, st, common.Address{}, chainID.Uint64(), bridgeClaimMethodSignature)
 
 	const txsCount = 1
 

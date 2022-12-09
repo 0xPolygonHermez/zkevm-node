@@ -133,6 +133,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(50),
 		},
 		{
+			path:          "Pool.BridgeClaimMethodSignature",
+			expectedValue: "0x7b6323c1",
+		},
+		{
 			path:          "Etherman.URL",
 			expectedValue: "http://localhost:8545",
 		},

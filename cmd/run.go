@@ -88,14 +88,14 @@ func start(cliCtx *cli.Context) error {
 			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
-			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, c.BridgeClaimMethodSignature, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			seq := createSequencer(*c, poolInstance, st, etherman, ethTxManager, gpe)
 			go seq.Start(ctx)
 		case RPC:
 			log.Info("Running JSON-RPC server")
 			runRPCMigrations(c.RPC.DB)
-			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
+			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, c.BridgeClaimMethodSignature, st)
 			gpe := createGasPriceEstimator(c.GasPriceEstimator, st, poolInstance)
 			apis := map[string]bool{}
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
@@ -295,13 +295,13 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, sqlDB *pg
 	return st
 }
 
-func createPool(poolDBConfig db.Config, l2BridgeAddr common.Address, l2ChainID uint64, st *state.State) *pool.Pool {
+func createPool(poolDBConfig db.Config, l2BridgeAddr common.Address, l2ChainID uint64, bridgeClaimMethodSignature string, st *state.State) *pool.Pool {
 	runPoolMigrations(poolDBConfig)
 	poolStorage, err := pgpoolstorage.NewPostgresPoolStorage(poolDBConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-	poolInstance := pool.NewPool(poolStorage, st, l2BridgeAddr, l2ChainID)
+	poolInstance := pool.NewPool(poolStorage, st, l2BridgeAddr, l2ChainID, bridgeClaimMethodSignature)
 	return poolInstance
 }
 
