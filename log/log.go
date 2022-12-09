@@ -76,16 +76,16 @@ func NewLogger(cfg Config) (*zap.SugaredLogger, *zap.AtomicLevel, error) {
 	switch cfg.Environment {
 	case EnvironmentProduction:
 		zapCfg = zap.NewProductionConfig()
+		zapCfg.InitialFields = map[string]interface{}{
+			"version": zkevm.Version,
+			"pid":     os.Getpid(),
+		}
 	default:
 		zapCfg = zap.NewDevelopmentConfig()
 		zapCfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	}
 	zapCfg.Level = level
 	zapCfg.OutputPaths = cfg.Outputs
-	zapCfg.InitialFields = map[string]interface{}{
-		"version": zkevm.Version,
-		"pid":     os.Getpid(),
-	}
 
 	logger, err := zapCfg.Build()
 	if err != nil {
