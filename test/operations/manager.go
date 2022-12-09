@@ -285,7 +285,7 @@ func (m *Manager) Setup() error {
 	}
 
 	// Approve matic
-	err = approveMatic()
+	err = ApproveMatic()
 	if err != nil {
 		return err
 	}
@@ -483,7 +483,8 @@ func (m *Manager) StartNode() error {
 	return StartComponent("node", nodeUpCondition)
 }
 
-func approveMatic() error {
+// ApproveMatic runs the approving matic command
+func ApproveMatic() error {
 	return StartComponent("approve-matic")
 }
 

@@ -121,6 +121,22 @@ test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
 
+.PHONY: benchmark-sequencer
+benchmark-sequencer: stop
+	$(RUNL1NETWORK)
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNRPCDB); sleep 5
+	$(RUNZKPROVER)
+	$(RUNJSONRPC)
+	$(RUNSYNC)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	@ cd benchmarks/sequencer ; \
+ 	mkdir -p results ; \
+ 	touch ./results/out.dat ; \
+	go test -bench=. -timeout=600m | tee ./results/out.dat ;
+
 .PHONY: run-db
 run-db: ## Runs the node database
 	$(RUNSTATEDB)
@@ -203,7 +219,23 @@ run-seq: ## runs the sequencer
 
 .PHONY: stop-seq
 stop-seq: ## stops the sequencer
-	$(RUNSEQUENCER)
+	$(STOPSEQUENCER)
+
+.PHONY: run-sync
+run-sync: ## runs the synchronizer
+	$(RUNSYNC)
+
+.PHONY: stop-sync
+stop-sync: ## stops the synchronizer
+	$(STOPSYNC)
+
+.PHONY: run-json-rpc
+run-json-rpc: ## runs the JSON-RPC
+	$(RUNJSONRPC)
+
+.PHONY: stop-json-rpc
+stop-json-rpc: ## stops the JSON-RPC
+	$(STOPJSONRPC)
 
 .PHONY: run-broadcast
 run-broadcast: ## Runs the broadcast service
