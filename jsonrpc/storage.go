@@ -58,7 +58,7 @@ func (s *Storage) NewPendingTransactionFilter(wsConn *websocket.Conn) (string, e
 
 // create persists the filter to the memory and provides the filter id
 func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *websocket.Conn) (string, error) {
-	lastPoll := time.Now()
+	lastPoll := time.Now().UTC()
 	id, err := s.generateFilterID()
 	if err != nil {
 		return "", err
@@ -122,7 +122,7 @@ func (s *Storage) UpdateFilterLastPoll(filterID string) error {
 		return nil
 	}
 
-	filter.LastPoll = time.Now()
+	filter.LastPoll = time.Now().UTC()
 	s.filters[filterID] = filter
 	return nil
 }
