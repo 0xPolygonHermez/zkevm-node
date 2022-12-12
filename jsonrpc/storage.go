@@ -144,3 +144,20 @@ func (s *Storage) UninstallFilter(filterID string) (bool, error) {
 	delete(s.filters, filterID)
 	return true, nil
 }
+
+// UninstallFilterByWSConn deletes all filters connected to the provided web socket connection
+func (s *Storage) UninstallFilterByWSConn(wsConn *websocket.Conn) error {
+	filterIDsToDelete := []string{}
+
+	for id, filter := range s.filters {
+		if filter.WsConn == wsConn {
+			filterIDsToDelete = append(filterIDsToDelete, id)
+		}
+	}
+
+	for _, filterID := range filterIDsToDelete {
+		delete(s.filters, filterID)
+	}
+
+	return nil
+}

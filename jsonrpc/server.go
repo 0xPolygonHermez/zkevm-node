@@ -330,7 +330,7 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 	s.wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
 	// Upgrade the connection to a WS one
-	ws, err := s.wsUpgrader.Upgrade(w, req, nil)
+	wsConn, err := s.wsUpgrader.Upgrade(w, req, nil)
 	if err != nil {
 		log.Error(fmt.Sprintf("Unable to upgrade to a WS connection, %s", err.Error()))
 
@@ -343,11 +343,11 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			log.Error(fmt.Sprintf("Unable to gracefully close WS connection, %s", err.Error()))
 		}
-	}(ws)
+	}(wsConn)
 
 	log.Info("Websocket connection established")
 	for {
-		msgType, message, err := ws.ReadMessage()
+		msgType, message, err := wsConn.ReadMessage()
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
 				log.Info("Closing WS connection gracefully")
@@ -356,19 +356,19 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 				log.Info("Closing WS connection with error")
 			}
 
-			s.handler.RemoveFilterByWs(ws)
+			s.handler.RemoveFilterByWsConn(wsConn)
 
 			break
 		}
 
 		if msgType == websocket.TextMessage || msgType == websocket.BinaryMessage {
 			go func() {
-				resp, err := s.handler.HandleWs(message, ws)
+				resp, err := s.handler.HandleWs(message, wsConn)
 				if err != nil {
 					log.Error(fmt.Sprintf("Unable to handle WS request, %s", err.Error()))
-					_ = ws.WriteMessage(msgType, []byte(fmt.Sprintf("WS Handle error: %s", err.Error())))
+					_ = wsConn.WriteMessage(msgType, []byte(fmt.Sprintf("WS Handle error: %s", err.Error())))
 				} else {
-					_ = ws.WriteMessage(msgType, resp)
+					_ = wsConn.WriteMessage(msgType, resp)
 				}
 			}()
 		}

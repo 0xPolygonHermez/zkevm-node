@@ -139,9 +139,29 @@ func (h *Handler) HandleWs(reqBody []byte, wsConn *websocket.Conn) ([]byte, erro
 	return h.Handle(handleReq).Bytes()
 }
 
-// RemoveFilterByWs uninstalls the filter attached to this websocket connection
-func (h *Handler) RemoveFilterByWs(conn *websocket.Conn) {
-	panic("not implemented yet")
+// RemoveFilterByWsConn uninstalls the filter attached to this websocket connection
+func (h *Handler) RemoveFilterByWsConn(wsConn *websocket.Conn) {
+	service, ok := h.serviceMap[APIEth]
+	if !ok {
+		return
+	}
+
+	ethEndpointsInterface := service.sv.Interface()
+	if ethEndpointsInterface == nil {
+		log.Errorf("failed to get ETH endpoint interface")
+	}
+
+	ethEndpoints := ethEndpointsInterface.(*Eth)
+	if ethEndpoints == nil {
+		log.Errorf("failed to get ETH endpoint instance")
+		return
+	}
+
+	err := ethEndpoints.uninstallFilterByWSConn(wsConn)
+	if err != nil {
+		log.Errorf("failed to uninstall filter by web socket connection:, %v", err)
+		return
+	}
 }
 
 func (h *Handler) registerService(serviceName string, service interface{}) {

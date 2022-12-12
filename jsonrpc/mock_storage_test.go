@@ -165,6 +165,20 @@ func (_m *storageMock) UninstallFilter(filterID string) (bool, error) {
 	return r0, r1
 }
 
+// UninstallFilterByWSConn provides a mock function with given fields: wsConn
+func (_m *storageMock) UninstallFilterByWSConn(wsConn *websocket.Conn) error {
+	ret := _m.Called(wsConn)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*websocket.Conn) error); ok {
+		r0 = rf(wsConn)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // UpdateFilterLastPoll provides a mock function with given fields: filterID
 func (_m *storageMock) UpdateFilterLastPoll(filterID string) error {
 	ret := _m.Called(filterID)

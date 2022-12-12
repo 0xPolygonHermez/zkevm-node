@@ -481,6 +481,7 @@ func Test_Block(t *testing.T) {
 		require.Equal(t, hexutil.EncodeBig(tx.ChainId()), newTx.ChainID)
 	}
 }
+
 func Test_Transactions(t *testing.T) {
 	if testing.Short() {
 		t.Skip()

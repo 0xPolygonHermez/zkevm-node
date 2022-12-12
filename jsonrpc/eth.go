@@ -800,6 +800,11 @@ func (e *Eth) Unsubscribe(wsConn *websocket.Conn, filterID string) (interface{},
 	return e.UninstallFilter(filterID)
 }
 
+// Unsubscribe uninstalls the filter based on the provided filterID
+func (e *Eth) uninstallFilterByWSConn(wsConn *websocket.Conn) error {
+	return e.storage.UninstallFilterByWSConn(wsConn)
+}
+
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
 func (e *Eth) onNewL2Block(event state.NewL2BlockEvent) {
 	blockFilters, err := e.storage.GetAllBlockFiltersWithWSConn()
