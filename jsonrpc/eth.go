@@ -802,15 +802,31 @@ func (e *Eth) Unsubscribe(wsConn *websocket.Conn, filterID string) (interface{},
 
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
 func (e *Eth) onNewL2Block(event state.NewL2BlockEvent) {
-	filters, err := e.storage.GetAllBlockFiltersWithWSConn()
+	blockFilters, err := e.storage.GetAllBlockFiltersWithWSConn()
 	if err != nil {
-		log.Errorf("failed to get all filters with web sockets connections: %v", err)
-		return
+		log.Errorf("failed to get all block filters with web sockets connections: %v", err)
+	} else {
+		for _, filter := range blockFilters {
+			b := l2BlockToRPCBlock(&event.Block, false)
+			e.sendSubscriptionResponse(filter, b)
+		}
 	}
 
-	for _, filter := range filters {
-		b := l2BlockToRPCBlock(&event.Block, false)
-		e.sendSubscriptionResponse(filter, b)
+	logFilters, err := e.storage.GetAllLogFiltersWithWSConn()
+	if err != nil {
+		log.Errorf("failed to get all log filters with web sockets connections: %v", err)
+	} else {
+		for _, filter := range logFilters {
+			changes, err := e.GetFilterChanges(filter.ID)
+			if err != nil {
+				log.Errorf("failed to get filters changes for filter %v with web sockets connections: %v", filter.ID, err)
+				continue
+			}
+
+			if changes != nil {
+				e.sendSubscriptionResponse(filter, changes)
+			}
+		}
 	}
 }
 
