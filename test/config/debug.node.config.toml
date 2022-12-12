@@ -11,7 +11,7 @@ Password = "state_password"
 Name = "state_db"
 Host = "localhost"
 Port = "5432"
-EnableLog = false
+EnableLog = true
 MaxConns = 10
 
 [PoolDB]
