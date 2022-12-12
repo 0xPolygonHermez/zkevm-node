@@ -11,6 +11,15 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	// FilterTypeLog represents a filter of type log.
+	FilterTypeLog = "log"
+	// FilterTypeBlock represents a filter of type block.
+	FilterTypeBlock = "block"
+	// FilterTypePendingTx represent a filter of type pending Tx.
+	FilterTypePendingTx = "pendingTx"
+)
+
 // Filter represents a filter.
 type Filter struct {
 	ID         string

@@ -9,15 +9,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const (
-	// FilterTypeLog represents a filter of type log.
-	FilterTypeLog = "log"
-	// FilterTypeBlock represents a filter of type block.
-	FilterTypeBlock = "block"
-	// FilterTypePendingTx represent a filter of type pending Tx.
-	FilterTypePendingTx = "pendingTx"
-)
-
 // ErrNotFound represent a not found error.
 var ErrNotFound = errors.New("object not found")
 
@@ -89,12 +80,12 @@ func (s *Storage) generateFilterID() (string, error) {
 	return id, nil
 }
 
-// GetAllFiltersWithWSConn returns an array with all filter that have
-// a web socket connection
-func (s *Storage) GetAllFiltersWithWSConn() ([]*Filter, error) {
+// GetAllBlockFiltersWithWSConn returns an array with all filter that have
+// a web socket connection and are filtering by new blocks
+func (s *Storage) GetAllBlockFiltersWithWSConn() ([]*Filter, error) {
 	filtersWithWSConn := []*Filter{}
 	for _, filter := range s.filters {
-		if filter.WsConn == nil {
+		if filter.WsConn == nil || filter.Type != FilterTypeBlock {
 			continue
 		}
 

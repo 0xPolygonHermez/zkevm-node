@@ -1441,7 +1441,7 @@ func (s *State) monitorNewL2Blocks() {
 			continue
 		}
 
-		for bn := s.lastL2BlockSeen.NumberU64(); bn <= lastL2Block.NumberU64(); bn++ {
+		for bn := s.lastL2BlockSeen.NumberU64() + uint64(1); bn <= lastL2Block.NumberU64(); bn++ {
 			block, err := s.GetL2BlockByNumber(context.Background(), bn, nil)
 			if err != nil {
 				log.Errorf("failed to l2 block while monitoring new blocks: %v", err)

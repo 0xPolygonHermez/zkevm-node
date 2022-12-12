@@ -802,28 +802,28 @@ func (e *Eth) Unsubscribe(wsConn *websocket.Conn, filterID string) (interface{},
 
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
 func (e *Eth) onNewL2Block(event state.NewL2BlockEvent) {
-	filters, err := e.storage.GetAllFiltersWithWSConn()
+	filters, err := e.storage.GetAllBlockFiltersWithWSConn()
 	if err != nil {
 		log.Errorf("failed to get all filters with web sockets connections: %v", err)
 		return
 	}
 
 	for _, filter := range filters {
-		changes, err := e.GetFilterChanges(filter.ID)
-		if err != nil {
-			log.Errorf("failed to send messages with filter %v changes", filter.ID)
-			continue
-		}
-
-		if changes != nil {
-			e.sendFilterChangesViaWSConn(filter, changes)
-		}
+		b := l2BlockToRPCBlock(&event.Block, false)
+		e.sendSubscriptionResponse(filter, b)
 	}
 }
 
-func (e *Eth) sendFilterChangesViaWSConn(filter *Filter, changes interface{}) {
-	data, _ := json.Marshal(changes)
-	res := NewResponse(Request{JSONRPC: "2.0", ID: ""}, data, nil)
+func (e *Eth) sendSubscriptionResponse(filter *Filter, data interface{}) {
+	result, _ := json.Marshal(data)
+	res := SubscriptionResponse{
+		JSONRPC: "2.0",
+		Method:  "eth_subscription",
+		Params: SubscriptionResponseParams{
+			Subscription: filter.ID,
+			Result:       result,
+		},
+	}
 	message, _ := json.Marshal(res)
 
 	err := filter.WsConn.WriteMessage(websocket.TextMessage, message)
