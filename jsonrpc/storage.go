@@ -96,6 +96,22 @@ func (s *Storage) GetAllBlockFiltersWithWSConn() ([]*Filter, error) {
 	return filtersWithWSConn, nil
 }
 
+// GetAllLogFiltersWithWSConn returns an array with all filter that have
+// a web socket connection and are filtering by new logs
+func (s *Storage) GetAllLogFiltersWithWSConn() ([]*Filter, error) {
+	filtersWithWSConn := []*Filter{}
+	for _, filter := range s.filters {
+		if filter.WsConn == nil || filter.Type != FilterTypeLog {
+			continue
+		}
+
+		f := filter
+		filtersWithWSConn = append(filtersWithWSConn, f)
+	}
+
+	return filtersWithWSConn, nil
+}
+
 // GetFilter gets a filter by its id
 func (s *Storage) GetFilter(filterID string) (*Filter, error) {
 	filter, found := s.filters[filterID]
