@@ -1,0 +1,18 @@
+apiVersion: 1
+
+datasources:
+  - name: Grafana-DB
+    isDefault: true
+    type: postgres
+    url: grafana-db:5432
+    database: grafana
+    user: user
+    secureJsonData:
+      password: 'password'
+    jsonData:
+      sslmode: 'disable' # disable/require/verify-ca/verify-full
+      maxOpenConns: 0 # Grafana v5.4+
+      maxIdleConns: 2 # Grafana v5.4+
+      connMaxLifetime: 14400 # Grafana v5.4+
+      postgresVersion: 903 # 903=9.3, 904=9.4, 905=9.5, 906=9.6, 1000=10
+      timescaledb: false

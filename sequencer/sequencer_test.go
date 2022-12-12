@@ -35,7 +35,7 @@ func TestSequenceTooBig(t *testing.T) {
 	// make run-zkprover
 
 	const (
-		CONFIG_MAX_GAS_PER_SEQUENCE     = 200000
+		CONFIG_MAX_GAS_PER_SEQUENCE     = 135000
 		CONFIG_ENCRYPTION_KEY_FILE_PATH = "./../test/test.keystore"
 		CONFIG_ENCRYPTION_KEY_PASSWORD  = "testonly"
 		CONFIG_CHAIN_ID                 = 1337
@@ -50,7 +50,7 @@ func TestSequenceTooBig(t *testing.T) {
 		CONFIG_ADDRESSES = map[string]common.Address{
 			CONFIG_NAME_POE:   common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"), // <= PoE
 			CONFIG_NAME_MATIC: common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"), // <= Matic
-			CONFIG_NAME_GER:   common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"), // <= GER
+			CONFIG_NAME_GER:   common.HexToAddress("0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"), // <= GER
 		}
 		CONFIG_DB_STATE = db.Config{
 			User:      "state_user",
@@ -101,13 +101,13 @@ func TestSequenceTooBig(t *testing.T) {
 				100,
 				1,
 			},
-			Output: 2, // only two sequences fit inside
+			Output: 3, // only three sequences fit inside
 		},
 		{
 			Input: []int{
 				1, 1, 1, 1,
 			},
-			Output: 2, // all sequences fit inside
+			Output: 3, // only three sequences fit inside
 		},
 	}
 	ctx := context.Background()
@@ -173,7 +173,7 @@ func TestSequenceTooBig(t *testing.T) {
 	state := st.NewState(stateCfg, stateDb, executorClient, stateTree)
 
 	pool := pool.NewPool(poolDb, state, CONFIG_ADDRESSES[CONFIG_NAME_GER], big.NewInt(CONFIG_CHAIN_ID).Uint64())
-	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, eth_man)
+	ethtxmanager := ethtxmanager.New(ethtxmanager.Config{}, eth_man, state)
 	gpe := gasprice.NewDefaultEstimator(gasprice.Config{
 		Type:               gasprice.DefaultType,
 		DefaultGasPriceWei: 1000000000,
@@ -209,8 +209,8 @@ func TestSequenceTooBig(t *testing.T) {
 	_, err = stateDb.Exec(ctx, sqlAddBlock, 2, time.Now(), "") // for use in lastVirtualized time
 	require.NoError(t, err)
 
-	const sqlAddExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root, global_exit_root_num) VALUES ($1, $2, $3, $4, $5)"
-	_, err = stateDb.Exec(ctx, sqlAddExitRoots, 1, common.Address{}, mainnetExitRoot, rollupExitRoot, 3)
+	const sqlAddExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root, timestamp) VALUES ($1, $2, $3, $4, $5)"
+	_, err = stateDb.Exec(ctx, sqlAddExitRoots, 1, common.Address{}, mainnetExitRoot, rollupExitRoot, time.Now())
 	require.NoError(t, err)
 
 	for _, testCase := range testcases {
@@ -261,8 +261,6 @@ func TestSequenceTooBig(t *testing.T) {
 
 		sequences, err := seq.getSequencesToSend(ctx)
 		require.NoError(t, err)
-
-		fmt.Printf("%+v", sequences)
 
 		require.Equal(t, testCase.Output, len(sequences))
 	}

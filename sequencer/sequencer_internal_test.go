@@ -76,11 +76,11 @@ func TestShouldCloseDueToNewDeposits(t *testing.T) {
 	ctx := context.Background()
 	mainnetExitRoot := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1")
 	lastGer := state.GlobalExitRoot{
-		BlockNumber:       1,
-		GlobalExitRootNum: big.NewInt(2),
-		MainnetExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
-		RollupExitRoot:    common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
-		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+		BlockNumber:     1,
+		Timestamp:       time.Now(),
+		MainnetExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		RollupExitRoot:  common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+		GlobalExitRoot:  common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 	}
 	s.sequenceInProgress.GlobalExitRoot = lastGer.GlobalExitRoot
 	st.On("GetBlockNumAndMainnetExitRootByGER", ctx, s.sequenceInProgress.GlobalExitRoot, nil).Return(lastGer.BlockNumber, mainnetExitRoot, nil)
@@ -213,7 +213,7 @@ func TestProcessBatch(t *testing.T) {
 	}
 
 	st.On("GetLastBatchNumber", ctx, dbTx).Return(lastBatchNumber, nil)
-	st.On("ProcessSingleTransaction", ctx, lastBatchNumber, s.sequenceInProgress.Txs[0], true, nilProcessBatchResponse, dbTx).Return(processBatchResponse, nil)
+	st.On("ProcessSingleTransaction", ctx, lastBatchNumber, s.sequenceInProgress.Txs[0], true, nilProcessBatchResponse, dbTx, state.SequencerCallerLabel).Return(processBatchResponse, nil)
 	procResponse, err := s.processTxs(ctx)
 	require.NoError(t, err)
 	require.True(t, procResponse.isBatchProcessed)
@@ -308,11 +308,11 @@ func TestTryToProcessTxs(t *testing.T) {
 
 	mainnetExitRoot := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1")
 	lastGer := state.GlobalExitRoot{
-		BlockNumber:       1,
-		GlobalExitRootNum: big.NewInt(2),
-		MainnetExitRoot:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1"),
-		RollupExitRoot:    common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
-		GlobalExitRoot:    common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+		BlockNumber:     1,
+		Timestamp:       time.Now(),
+		MainnetExitRoot: common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a53cf2d7d9f1"),
+		RollupExitRoot:  common.HexToHash("0x30a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
+		GlobalExitRoot:  common.HexToHash("0x40a885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9a0"),
 	}
 	s.sequenceInProgress.GlobalExitRoot = lastGer.GlobalExitRoot
 	eth.On("GetLatestBlockNumber", ctx).Return(uint64(1), nil)
@@ -356,9 +356,7 @@ func TestTryToProcessTxs(t *testing.T) {
 		NewStateRoot:      common.HexToHash("0x123"),
 		NewLocalExitRoot:  common.HexToHash("0x123"),
 	}
-
-	st.On("ProcessSingleTransaction", ctx, lastBatchNumber, poolTxs[0].Transaction, true, nilProcessBatchResponse, dbTx).Return(processBatchResponse, nil)
-
+	st.On("ProcessSingleTransaction", ctx, lastBatchNumber, poolTxs[0].Transaction, true, nilProcessBatchResponse, dbTx, state.SequencerCallerLabel).Return(processBatchResponse, nil)
 	processedTxs, processedTxsHashes, _, _ := state.DetermineProcessedTransactions(processBatchResponse.Responses)
 
 	st.On("StoreTransactions", ctx, lastBatchNumber, processedTxs, dbTx).Return(nil)

@@ -1,34 +1,39 @@
 IsTrustedSequencer = true
 
 [Log]
+Environment = "development" # "production" or "development"
 Level = "debug"
-Outputs = ["stdout"]
+Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"
 Password = "state_password"
 Name = "state_db"
-Host = "0.0.0.0"
+Host = "localhost"
 Port = "5432"
 EnableLog = false
-MaxConns = 200
+MaxConns = 10
 
 [PoolDB]
 User = "pool_user"
 Password = "pool_password"
 Name = "pool_db"
-Host = "0.0.0.0"
+Host = "localhost"
 Port = "5433"
 EnableLog = false
-MaxConns = 200
+MaxConns = 10
 
 [Etherman]
-URL = "http://0.0.0.0:8545"
-PrivateKeyPath = "./test/test.keystore"
+URL = "http://localhost:8545"
+L1ChainID = 1337
+PrivateKeyPath = "../test/test.keystore"
 PrivateKeyPassword = "testonly"
 PoEAddr = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 MaticAddr = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 GlobalExitRootManagerAddr = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+MultiGasProvider = false
+	[Etherscan]
+		ApiKey = ""
 
 [EthTxManager]
 MaxSendBatchTxRetries = 10
@@ -36,6 +41,7 @@ MaxVerifyBatchTxRetries = 10
 FrequencyForResendingFailedSendBatches = "1s"
 FrequencyForResendingFailedVerifyBatch = "1s"
 WaitTxToBeMined = "2m"
+WaitTxToBeSynced = "10s"
 PercentageToIncreaseGasPrice = 10
 PercentageToIncreaseGasLimit = 10
 
@@ -44,7 +50,7 @@ Host = "0.0.0.0"
 Port = 8123
 ReadTimeoutInSec = 60
 WriteTimeoutInSec = 60
-MaxRequestsPerIPAndSecond = 5000
+MaxRequestsPerIPAndSecond = 10000
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
@@ -52,25 +58,26 @@ DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 		User = "rpc_user"
 		Password = "rpc_password"
 		Name = "rpc_db"
-		Host = "0.0.0.0"
+		Host = "localhost"
 		Port = "5434"
 		EnableLog = false
 		MaxConns = 10
 
 [Synchronizer]
-SyncInterval = "1s"
+SyncInterval = "5s"
 SyncChunkSize = 100
 TrustedSequencerURI = ""
+GenBlockNumber = 1
 
 [Sequencer]
 MaxSequenceSize = "2000000"
 WaitPeriodPoolIsEmpty = "1s"
 WaitPeriodSendSequence = "15s"
-LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "300s"
 WaitBlocksToUpdateGER = 10
 WaitBlocksToConsiderGerFinal = 10
 ElapsedTimeToCloseBatchWithoutTxsDueToNewGER = "60s"
-MaxTimeForBatchToBeOpen = "30s"
+MaxTimeForBatchToBeOpen = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
@@ -88,17 +95,17 @@ MaxAllowedFailedCounter = 50
 		SendBatchesEvenWhenNotProfitable = "true"
 
 [Aggregator]
-IntervalToConsolidateState = "1s"
-IntervalFrequencyToGetProofGenerationState = "100ms"
+Host = "0.0.0.0"
+Port = 50081
+IntervalToConsolidateState = "10s"
+IntervalToSendFinalProof = "90s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
+IntervalFrequencyToGetProofGenerationState = "5s"
 
 [GasPriceEstimator]
 Type = "default"
 DefaultGasPriceWei = 1000000000
-
-[Provers]
-ProverURIs = ["0.0.0.0:50052"]
 
 [MTServer]
 Host = "0.0.0.0"
@@ -106,10 +113,10 @@ Port = 50060
 StoreBackend = "PostgreSQL"
 
 [MTClient]
-URI  = "0.0.0.0:50061"
+URI = "127.0.0.1:50061"
 
 [Executor]
-URI = "0.0.0.0:50071"
+URI = "127.0.0.1:50071"
 
 [BroadcastServer]
 Host = "0.0.0.0"
@@ -118,5 +125,5 @@ Port = 61090
 [Metrics]
 Host = "0.0.0.0"
 Port = 9091
-Enabled = true
+Enabled = false
 

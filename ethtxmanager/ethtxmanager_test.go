@@ -22,18 +22,18 @@ func TestIncreaseGasPrice(t *testing.T) {
 
 func TestSequenceBatchesWithROEthman(t *testing.T) {
 	ethManRO, _, _, _, _ := ethman.NewSimulatedEtherman(ethman.Config{}, nil)
-	txMan := New(Config{MaxSendBatchTxRetries: 2}, ethManRO) // 3 executions in total
+	txMan := New(Config{MaxSendBatchTxRetries: 2}, ethManRO, nil) // 3 executions in total
 
 	err := txMan.SequenceBatches(context.Background(), []ethmanTypes.Sequence{})
 
 	assert.ErrorIs(t, err, ethman.ErrIsReadOnlyMode)
 }
 
-func TestVerifyBatchWithROEthman(t *testing.T) {
+func TestVerifyBatchesWithROEthman(t *testing.T) {
 	ethManRO, _, _, _, _ := ethman.NewSimulatedEtherman(ethman.Config{}, nil)
-	txMan := New(Config{MaxVerifyBatchTxRetries: 2}, ethManRO) // 3 executions in total
+	txMan := New(Config{MaxVerifyBatchTxRetries: 2}, ethManRO, nil) // 3 executions in total
 
-	err := txMan.VerifyBatch(context.Background(), 42, nil)
+	_, err := txMan.VerifyBatches(context.Background(), 41, 42, nil)
 
 	assert.ErrorIs(t, err, ethman.ErrIsReadOnlyMode)
 }

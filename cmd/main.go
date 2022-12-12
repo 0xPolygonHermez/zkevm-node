@@ -4,21 +4,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/urfave/cli/v2"
 )
 
-const (
-	// App name
-	appName = "zkevm-node"
-	// version represents the program based on the git tag
-	version = "v0.1.0"
-	// date represents the date of application was built
-	date = ""
-)
+const appName = "zkevm-node"
 
 const (
 	// AGGREGATOR is the aggregator component identifier.
@@ -33,14 +26,7 @@ const (
 	BROADCAST = "broadcast-trusted-state"
 )
 
-const (
-	//envCommitHash environment variable name for COMMIT_HASH
-	envCommitHash = "COMMIT_HASH"
-)
-
 var (
-	// commit represents the program based on the git commit
-	commit         = testutils.GetEnv(envCommitHash, "dev")
 	configFileFlag = cli.StringFlag{
 		Name:     config.FlagCfg,
 		Aliases:  []string{"c"},
@@ -78,14 +64,13 @@ var (
 func main() {
 	app := cli.NewApp()
 	app.Name = appName
-	app.Version = version
+	app.Version = zkevm.Version
 	flags := []cli.Flag{
 		&configFileFlag,
 		&yesFlag,
 		&componentsFlag,
 		&httpAPIFlag,
 	}
-	log.Infof("Starting application [Commit Hash: %s, Version: %s] ...", commit, version)
 	app.Commands = []*cli.Command{
 		{
 			Name:    "version",

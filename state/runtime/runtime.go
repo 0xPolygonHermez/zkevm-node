@@ -31,12 +31,35 @@ var (
 	ErrExecutionReverted = errors.New("execution reverted")
 	// ErrCodeStoreOutOfGas indicates there is not enough gas for the storage
 	ErrCodeStoreOutOfGas = errors.New("contract creation code storage out of gas")
-	// ErrOutOfCounters indicates the executor run out of counters while executing the transaction
-	ErrOutOfCounters = errors.New("executor run out of counters")
-	// ErrInvalidTransaction indicates the executor found the transaction to be invalid
+	// ErrOutOfCountersKeccak indicates there are not enough keccak counters to continue the execution
+	ErrOutOfCountersKeccak = errors.New("not enough keccak counters to continue the execution")
+	// ErrOutOfCountersBinary indicates there are not enough binary counters to continue the execution
+	ErrOutOfCountersBinary = errors.New("not enough binary counters to continue the execution")
+	// ErrOutOfCountersMemory indicates there are not enough memory align counters to continue the execution
+	ErrOutOfCountersMemory = errors.New("not enough memory align counters counters to continue the execution")
+	// ErrOutOfCountersArith indicates there are not enough arith counters to continue the execution
+	ErrOutOfCountersArith = errors.New("not enough arith counters counters to continue the execution")
+	// ErrOutOfCountersPadding indicates there are not enough padding counters to continue the execution
+	ErrOutOfCountersPadding = errors.New("not enough padding counters counters to continue the execution")
+	// ErrOutOfCountersPoseidon indicates there are not enough poseidon counters to continue the execution
+	ErrOutOfCountersPoseidon = errors.New("not enough poseidon counters counters to continue the execution")
+	// ErrInvalidTransaction indicates the transaction are invalid because of invalid jump dest, invalid opcode, invalid deploy
+	// or invalid static tx
 	ErrInvalidTransaction = errors.New("invalid transaction")
-	// ErrIntrinsicInvalidTransaction indicates the executor found the transaction to be invalid and this does not affected the state
-	ErrIntrinsicInvalidTransaction = errors.New("intrinsic invalid transaction")
+	// ErrIntrinsicInvalidSignature indicates the transaction is failing at the signature intrinsic check
+	ErrIntrinsicInvalidSignature = errors.New("signature intrinsic error")
+	// ErrIntrinsicInvalidChainID indicates the transaction is failing at the chain id intrinsic check
+	ErrIntrinsicInvalidChainID = errors.New("chain id intrinsic error")
+	// ErrIntrinsicInvalidNonce indicates the transaction is failing at the nonce intrinsic check
+	ErrIntrinsicInvalidNonce = errors.New("nonce intrinsic error")
+	// ErrIntrinsicInvalidGasLimit indicates the transaction is failing at the gas limit intrinsic check
+	ErrIntrinsicInvalidGasLimit = errors.New("gas limit intrinsic error")
+	// ErrIntrinsicInvalidBalance indicates the transaction is failing at balance intrinsic check
+	ErrIntrinsicInvalidBalance = errors.New("balance intrinsic error")
+	// ErrIntrinsicInvalidBatchGasLimit indicates the batch is exceeding the batch gas limit
+	ErrIntrinsicInvalidBatchGasLimit = errors.New("batch gas limit intrinsic error")
+	// ErrIntrinsicInvalidSenderCode indicates the sender code is invalid
+	ErrIntrinsicInvalidSenderCode = errors.New("invalid sender code intrinsic error")
 	// ErrBatchDataTooBig indicates the batch_l2_data is too big to be processed
 	ErrBatchDataTooBig = errors.New("batch data too big")
 )

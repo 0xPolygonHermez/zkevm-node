@@ -28,15 +28,15 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 	isBatchProcessed := true
 	if len(response.Responses) > 0 {
 		// Check out of counters
-		isBatchProcessed = !(response.Responses[len(response.Responses)-1].Error == pb.Error_ERROR_OUT_OF_COUNTERS)
+		errorToCheck := response.Responses[len(response.Responses)-1].Error
+		isBatchProcessed = !executor.IsOutOfCountersError(errorToCheck)
 	}
 
 	return &ProcessBatchResponse{
-		CumulativeGasUsed:   response.CumulativeGasUsed,
-		IsBatchProcessed:    isBatchProcessed,
-		Responses:           responses,
 		NewStateRoot:        common.BytesToHash(response.NewStateRoot),
+		NewAccInputHash:     common.BytesToHash(response.NewAccInputHash),
 		NewLocalExitRoot:    common.BytesToHash(response.NewLocalExitRoot),
+		NewBatchNumber:      response.NewBatchNum,
 		CntKeccakHashes:     response.CntKeccakHashes,
 		CntPoseidonHashes:   response.CntPoseidonHashes,
 		CntPoseidonPaddings: response.CntPoseidonPaddings,
@@ -44,11 +44,15 @@ func convertToProcessBatchResponse(txs []types.Transaction, response *pb.Process
 		CntArithmetics:      response.CntArithmetics,
 		CntBinaries:         response.CntBinaries,
 		CntSteps:            response.CntSteps,
+		CumulativeGasUsed:   response.CumulativeGasUsed,
+		Responses:           responses,
+		Error:               executor.Err(response.Error),
+		IsBatchProcessed:    isBatchProcessed,
 	}, nil
 }
 
 func isProcessed(err pb.Error) bool {
-	return err != pb.Error_ERROR_INTRINSIC_INVALID_TX && err != pb.Error_ERROR_OUT_OF_COUNTERS
+	return !executor.IsIntrinsicError(err) && !executor.IsOutOfCountersError(err)
 }
 
 func convertToProcessTransactionResponse(txs []types.Transaction, responses []*pb.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {

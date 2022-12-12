@@ -54,7 +54,7 @@ var (
 func TestMain(m *testing.M) {
 	log.Init(log.Config{
 		Level:   "debug",
-		Outputs: []string{"stdout"},
+		Outputs: []string{"stderr"},
 	})
 
 	code := m.Run()

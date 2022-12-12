@@ -11,6 +11,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pricegetter"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/ethereum/go-ethereum/common"
@@ -23,6 +24,18 @@ func Test_Defaults(t *testing.T) {
 		path          string
 		expectedValue interface{}
 	}{
+		{
+			path:          "Log.Environment",
+			expectedValue: log.LogEnvironment("development"),
+		},
+		{
+			path:          "Log.Level",
+			expectedValue: "debug",
+		},
+		{
+			path:          "Log.Outputs",
+			expectedValue: []string{"stderr"},
+		},
 		{
 			path:          "Synchronizer.SyncChunkSize",
 			expectedValue: uint64(100),
@@ -170,6 +183,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "EthTxManager.WaitTxToBeMined",
 			expectedValue: types.NewDuration(2 * time.Minute),
+		},
+		{
+			path:          "EthTxManager.WaitTxToBeSynced",
+			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
 			path:          "EthTxManager.PercentageToIncreaseGasPrice",
@@ -335,6 +352,7 @@ func Test_Defaults(t *testing.T) {
 			path:          "Metrics.Enabled",
 			expectedValue: false,
 		},
+		// TODO(pg): add Aggregator section
 	}
 	file, err := os.CreateTemp("", "genesisConfig")
 	require.NoError(t, err)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -66,6 +67,8 @@ func (s *Sequencer) Start(ctx context.Context) {
 		log.Infof("waiting for synchronizer to sync...")
 		time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	}
+
+	metrics.Register()
 	// initialize sequence
 	batchNum, err := s.state.GetLastBatchNumber(ctx, nil)
 	for err != nil {
@@ -150,6 +153,7 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 		log.Infof("waiting for the state to be synced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
 		return false
 	}
+
 	return true
 }
 

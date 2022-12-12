@@ -1,6 +1,7 @@
 [Log]
-Level = "debug"
-Outputs = ["stdout"]
+Environment = "development" # "production" or "development"
+Level = "info"
+Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"
@@ -23,8 +24,6 @@ MaxConns = 200
 [Etherman]
 URL = "http://your.L1node.url"
 L1ChainID = 5
-PrivateKeyPath = "/pk/keystore"
-PrivateKeyPassword = "testonly"
 PoEAddr = "0x14cB06e8dE2222912138F9a062E5a4d9F4821409"
 MaticAddr = "0x4701Aa9471d7bfAc765D87dcb1Ea6BB23AD32733"
 GlobalExitRootManagerAddr = "0x762d09Ed110ace4EaC94acbb67b1C35D16C3297b"

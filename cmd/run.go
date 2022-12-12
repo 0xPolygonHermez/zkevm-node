@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 
+	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
@@ -40,6 +41,8 @@ import (
 )
 
 func start(cliCtx *cli.Context) error {
+	zkevm.PrintVersion(os.Stdout)
+
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		return err
@@ -55,9 +58,8 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	var (
-		grpcClientConns []*grpc.ClientConn
-		cancelFuncs     []context.CancelFunc
-		etherman        *etherman.Client
+		cancelFuncs []context.CancelFunc
+		etherman    *etherman.Client
 	)
 
 	etherman, err = newEtherman(*c)
@@ -77,14 +79,13 @@ func start(cliCtx *cli.Context) error {
 	ctx := context.Background()
 	st := newState(ctx, c, l2ChainID, stateSqlDB)
 
-	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman)
+	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman, st)
 
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
 		switch item {
 		case AGGREGATOR:
 			log.Info("Running aggregator")
-			c.Aggregator.ProverURIs = c.Provers.ProverURIs
-			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, st, grpcClientConns)
+			go runAggregator(ctx, c.Aggregator, etherman, ethTxManager, st)
 		case SEQUENCER:
 			log.Info("Running sequencer")
 			poolInstance := createPool(c.PoolDB, c.NetworkConfig.L2BridgeAddr, l2ChainID, st)
@@ -114,7 +115,7 @@ func start(cliCtx *cli.Context) error {
 		go startMetricsHttpServer(c)
 	}
 
-	waitSignal(grpcClientConns, cancelFuncs)
+	waitSignal(cancelFuncs)
 
 	return nil
 }
@@ -191,12 +192,15 @@ func createSequencer(c config.Config, pool *pool.Pool, state *state.State, ether
 	return seq
 }
 
-func runAggregator(ctx context.Context, c aggregator.Config, ethman *etherman.Client, ethTxManager *ethtxmanager.Client, state *state.State, grpcClientConns []*grpc.ClientConn) {
-	agg, err := aggregator.NewAggregator(c, state, ethTxManager, ethman, grpcClientConns)
+func runAggregator(ctx context.Context, c aggregator.Config, ethman *etherman.Client, ethTxManager *ethtxmanager.Client, state *state.State) {
+	agg, err := aggregator.New(c, state, ethTxManager, ethman)
 	if err != nil {
 		log.Fatal(err)
 	}
-	agg.Start(ctx)
+	err = agg.Start(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func runBroadcastServer(c broadcast.ServerConfig, st *state.State) {
@@ -227,7 +231,7 @@ func createGasPriceEstimator(cfg gasprice.Config, state *state.State, pool *pool
 	return nil
 }
 
-func waitSignal(conns []*grpc.ClientConn, cancelFuncs []context.CancelFunc) {
+func waitSignal(cancelFuncs []context.CancelFunc) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 
@@ -237,12 +241,6 @@ func waitSignal(conns []*grpc.ClientConn, cancelFuncs []context.CancelFunc) {
 			log.Info("terminating application gracefully...")
 
 			exitStatus := 0
-			for _, conn := range conns {
-				if err := conn.Close(); err != nil {
-					log.Errorf("Could not properly close gRPC connection: %v", err)
-					exitStatus = -1
-				}
-			}
 			for _, cancel := range cancelFuncs {
 				cancel()
 			}

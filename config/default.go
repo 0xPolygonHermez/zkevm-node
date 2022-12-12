@@ -5,8 +5,9 @@ const DefaultValues = `
 IsTrustedSequencer = false
 
 [Log]
+Environment = "development" # "production" or "development"
 Level = "debug"
-Outputs = ["stdout"]
+Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"
@@ -42,6 +43,7 @@ MaxVerifyBatchTxRetries = 10
 FrequencyForResendingFailedSendBatches = "1s"
 FrequencyForResendingFailedVerifyBatch = "1s"
 WaitTxToBeMined = "2m"
+WaitTxToBeSynced = "10s"
 PercentageToIncreaseGasPrice = 10
 PercentageToIncreaseGasLimit = 10
 
@@ -99,10 +101,13 @@ Type = "default"
 DefaultPrice = "2000"
 
 [Aggregator]
-IntervalFrequencyToGetProofGenerationState = "5s"
-IntervalToConsolidateState = "3s"
+Host = "0.0.0.0"
+Port = 50081
+RetryTime = "5s"
+VerifyProofInterval = "90s"
 TxProfitabilityCheckerType = "acceptall"
 TxProfitabilityMinReward = "1.1"
+ProofStatePollingInterval = "5s"
 
 [GasPriceEstimator]
 Type = "default"

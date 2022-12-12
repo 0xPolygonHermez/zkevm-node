@@ -79,6 +79,20 @@ func (_m *stateMock) AddGlobalExitRoot(ctx context.Context, exitRoot *state.Glob
 	return r0
 }
 
+// AddSequence provides a mock function with given fields: ctx, sequence, dbTx
+func (_m *stateMock) AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, sequence, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.Sequence, pgx.Tx) error); ok {
+		r0 = rf(ctx, sequence, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // AddVerifiedBatch provides a mock function with given fields: ctx, verifiedBatch, dbTx
 func (_m *stateMock) AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, verifiedBatch, dbTx)
@@ -234,6 +248,50 @@ func (_m *stateMock) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Bloc
 	return r0, r1
 }
 
+// GetLastVerifiedBatch provides a mock function with given fields: ctx, dbTx
+func (_m *stateMock) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 *state.VerifiedBatch
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.VerifiedBatch); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.VerifiedBatch)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastVirtualBatchNum provides a mock function with given fields: ctx, dbTx
+func (_m *stateMock) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetNextForcedBatches provides a mock function with given fields: ctx, nextForcedBatches, dbTx
 func (_m *stateMock) GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]state.ForcedBatch, error) {
 	ret := _m.Called(ctx, nextForcedBatches, dbTx)
@@ -317,13 +375,13 @@ func (_m *stateMock) OpenBatch(ctx context.Context, processingContext state.Proc
 	return r0
 }
 
-// ProcessAndStoreClosedBatch provides a mock function with given fields: ctx, processingCtx, encodedTxs, dbTx
-func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, processingCtx, encodedTxs, dbTx)
+// ProcessAndStoreClosedBatch provides a mock function with given fields: ctx, processingCtx, encodedTxs, dbTx, caller
+func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller state.CallerLabel) error {
+	ret := _m.Called(ctx, processingCtx, encodedTxs, dbTx, caller)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx) error); ok {
-		r0 = rf(ctx, processingCtx, encodedTxs, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, state.CallerLabel) error); ok {
+		r0 = rf(ctx, processingCtx, encodedTxs, dbTx, caller)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -331,13 +389,13 @@ func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingC
 	return r0
 }
 
-// ProcessSequencerBatch provides a mock function with given fields: ctx, batchNumber, txs, dbTx
-func (_m *stateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
-	ret := _m.Called(ctx, batchNumber, txs, dbTx)
+// ProcessSequencerBatch provides a mock function with given fields: ctx, batchNumber, txs, dbTx, caller
+func (_m *stateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, txs []types.Transaction, dbTx pgx.Tx, caller state.CallerLabel) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, batchNumber, txs, dbTx, caller)
 
 	var r0 *state.ProcessBatchResponse
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []types.Transaction, pgx.Tx) *state.ProcessBatchResponse); ok {
-		r0 = rf(ctx, batchNumber, txs, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []types.Transaction, pgx.Tx, state.CallerLabel) *state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, batchNumber, txs, dbTx, caller)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.ProcessBatchResponse)
@@ -345,8 +403,8 @@ func (_m *stateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, []types.Transaction, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, txs, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, []types.Transaction, pgx.Tx, state.CallerLabel) error); ok {
+		r1 = rf(ctx, batchNumber, txs, dbTx, caller)
 	} else {
 		r1 = ret.Error(1)
 	}
