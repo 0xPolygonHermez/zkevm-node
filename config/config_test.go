@@ -70,7 +70,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.MaxBatchBytesSize",
-			expectedValue: 30000,
+			expectedValue: 150000,
 		},
 		{
 			path:          "Sequencer.MaxTimeForBatchToBeOpen",
