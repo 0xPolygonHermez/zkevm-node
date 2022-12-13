@@ -3127,27 +3127,33 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 	}
 
 	testCases := []testCase{
+		// {
+		// 	Name:           "New pending transaction filter created successfully",
+		// 	ExpectedResult: "1",
+		// 	ExpectedError:  nil,
+		// 	SetupMocks: func(m *mocks, tc testCase) {
+		// 		m.Storage.
+		// 			On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
+		// 			Return("1", nil).
+		// 			Once()
+		// 	},
+		// },
+		// {
+		// 	Name:           "failed to create new pending transaction filter",
+		// 	ExpectedResult: "",
+		// 	ExpectedError:  newRPCError(defaultErrorCode, "failed to create new pending transaction filter"),
+		// 	SetupMocks: func(m *mocks, tc testCase) {
+		// 		m.Storage.
+		// 			On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
+		// 			Return("", errors.New("failed to add new pending transaction filter")).
+		// 			Once()
+		// 	},
+		// },
 		{
-			Name:           "New pending transaction filter created successfully",
-			ExpectedResult: "1",
-			ExpectedError:  nil,
-			SetupMocks: func(m *mocks, tc testCase) {
-				m.Storage.
-					On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
-					Return("1", nil).
-					Once()
-			},
-		},
-		{
-			Name:           "failed to create new pending transaction filter",
+			Name:           "can't create pending tx filter",
 			ExpectedResult: "",
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to create new pending transaction filter"),
-			SetupMocks: func(m *mocks, tc testCase) {
-				m.Storage.
-					On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
-					Return("", errors.New("failed to add new pending transaction filter")).
-					Once()
-			},
+			ExpectedError:  newRPCError(defaultErrorCode, "not supported yet"),
+			SetupMocks:     func(m *mocks, tc testCase) {},
 		},
 	}
 
