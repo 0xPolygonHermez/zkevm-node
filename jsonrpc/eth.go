@@ -601,12 +601,13 @@ func (e *Eth) NewPendingTransactionFilter() (interface{}, rpcError) {
 
 // internal
 func (e *Eth) newPendingTransactionFilter(wsConn *websocket.Conn) (interface{}, rpcError) {
-	id, err := e.storage.NewPendingTransactionFilter(wsConn)
-	if err != nil {
-		return rpcErrorResponse(defaultErrorCode, "failed to create new pending transaction filter", err)
-	}
+	return nil, newRPCError(defaultErrorCode, "not supported yet")
+	// id, err := e.storage.NewPendingTransactionFilter(wsConn)
+	// if err != nil {
+	// 	return rpcErrorResponse(defaultErrorCode, "failed to create new pending transaction filter", err)
+	// }
 
-	return id, nil
+	// return id, nil
 }
 
 // SendRawTransaction has two different ways to handle new transactions:
@@ -790,6 +791,8 @@ func (e *Eth) Subscribe(wsConn *websocket.Conn, name string, logFilter *LogFilte
 		return e.newFilter(wsConn, lf)
 	case "pendingTransactions", "newPendingTransactions":
 		return e.newPendingTransactionFilter(wsConn)
+	case "syncing":
+		return nil, newRPCError(defaultErrorCode, "not supported yet")
 	default:
 		return nil, newRPCError(defaultErrorCode, "invalid filter name")
 	}
