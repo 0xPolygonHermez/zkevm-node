@@ -31,7 +31,6 @@ const (
 )
 
 var (
-	ctx             = context.Background()
 	stateDBCfg      = dbutils.NewStateConfigFromEnv()
 	ger             = common.HexToHash("deadbeef")
 	mainnetExitRoot = common.HexToHash("caffe")
@@ -39,11 +38,11 @@ var (
 )
 
 func TestBroadcast(t *testing.T) {
-	initOrResetDB()
-
 	if testing.Short() {
 		t.Skip()
 	}
+	initOrResetDB()
+	ctx := context.Background()
 
 	require.NoError(t, operations.StartComponent("network"))
 	require.NoError(t, operations.StartComponent("broadcast"))
@@ -80,6 +79,7 @@ func TestBroadcast(t *testing.T) {
 }
 
 func initState() (*state.State, error) {
+	ctx := context.Background()
 	initOrResetDB()
 	sqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {

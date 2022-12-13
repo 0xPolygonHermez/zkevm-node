@@ -78,6 +78,7 @@ func TestJSONRPC(t *testing.T) {
 }
 
 func deployContracts(url, privateKey string, chainId uint64) (*Double.Double, error) {
+	ctx := context.Background()
 	client := operations.MustGetClient(url)
 	auth := operations.MustGetAuth(privateKey, chainId)
 
@@ -137,6 +138,7 @@ func Test_Filters(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	ctx := context.Background()
 	Setup()
 	defer Teardown()
 	for _, network := range networks {
@@ -361,6 +363,7 @@ func Test_Block(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	ctx := context.Background()
 	Setup()
 	defer Teardown()
 	type rpcTx struct {
@@ -486,6 +489,7 @@ func Test_Transactions(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	ctx := context.Background()
 	Setup()
 	defer Teardown()
 	for _, network := range networks {
@@ -578,6 +582,7 @@ func Test_Misc(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	ctx := context.Background()
 	Setup()
 	defer Teardown()
 	for _, network := range networks {
