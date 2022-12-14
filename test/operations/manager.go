@@ -39,10 +39,13 @@ const (
 	DefaultSequencerBalance     = 400000
 	DefaultMaxCumulativeGasUsed = 800000
 
-	DefaultL1NetworkURL        = "http://localhost:8545"
-	DefaultL1ChainID    uint64 = 1337
-	DefaultL2NetworkURL        = "http://localhost:8123"
-	DefaultL2ChainID    uint64 = 1001
+	DefaultL1NetworkURL                 = "http://localhost:8545"
+	DefaultL1NetworkWebSocketURL        = "ws://localhost:8546"
+	DefaultL1ChainID             uint64 = 1337
+
+	DefaultL2NetworkURL                 = "http://localhost:8123"
+	DefaultL2NetworkWebSocketURL        = "ws://localhost:8133"
+	DefaultL2ChainID             uint64 = 1001
 
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
 )
