@@ -18,7 +18,7 @@ type proverInterface interface {
 	IsIdle() bool
 	BatchProof(input *pb.InputProver) (*string, error)
 	AggregatedProof(inputProof1, inputProof2 string) (*string, error)
-	FinalProof(inputProof string) (*string, error)
+	FinalProof(inputProof string, aggregatorAddr string) (*string, error)
 	WaitRecursiveProof(ctx context.Context, proofID string) (string, error)
 	WaitFinalProof(ctx context.Context, proofID string) (*pb.FinalProof, error)
 }

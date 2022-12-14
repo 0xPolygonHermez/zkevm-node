@@ -140,10 +140,13 @@ func (p *Prover) AggregatedProof(inputProof1, inputProof2 string) (*string, erro
 
 // FinalProof instructs the prover to generate a final proof for the given
 // input. It returns the ID of the proof being computed.
-func (p *Prover) FinalProof(inputProof string) (*string, error) {
+func (p *Prover) FinalProof(inputProof string, aggregatorAddr string) (*string, error) {
 	req := &pb.AggregatorMessage{
 		Request: &pb.AggregatorMessage_GenFinalProofRequest{
-			GenFinalProofRequest: &pb.GenFinalProofRequest{RecursiveProof: inputProof},
+			GenFinalProofRequest: &pb.GenFinalProofRequest{
+				RecursiveProof: inputProof,
+				AggregatorAddr: aggregatorAddr,
+			},
 		},
 	}
 	res, err := p.call(req)

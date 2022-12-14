@@ -211,7 +211,7 @@ func (a *Aggregator) sendFinalProof() {
 				continue
 			}
 
-			log.Infof("Final proof for batches [%d-%d] verified in transaction [%v]", proof.BatchNumber, proof.BatchNumberFinal, tx.Hash().TerminalString())
+			log.Infof("Final proof for batches [%d-%d] verified in transaction [%v]", proof.BatchNumber, proof.BatchNumberFinal, tx.Hash())
 
 			// wait for the synchronizer to catch up the verified batches
 			log.Debug("A final proof has been sent, waiting for the network to be synced")
@@ -235,14 +235,19 @@ func (a *Aggregator) sendFinalProof() {
 func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (*pb.FinalProof, error) {
 	log.Infof("Prover %s is going to be used to generate final proof for batches: %d-%d", prover.ID(), proof.BatchNumber, proof.BatchNumberFinal)
 
-	finalProofID, err := prover.FinalProof(proof.Proof)
+	pubAddr, err := a.Ethman.GetPublicAddress()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get public address, %w", err)
+	}
+
+	finalProofID, err := prover.FinalProof(proof.Proof, pubAddr.String())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get final proof id, %w", err)
 	}
 
 	proof.ProofID = finalProofID
 
-	log.Infof("Proof ID for final proof %d-%d: %s", proof.BatchNumber, proof.BatchNumberFinal, *proof.ProofID)
+	log.Infof("Final proof ID for batches [%d-%d]: %s", proof.BatchNumber, proof.BatchNumberFinal, *proof.ProofID)
 
 	finalProof, err := prover.WaitFinalProof(ctx, *proof.ProofID)
 	if err != nil {
@@ -250,7 +255,7 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 	}
 
 	//b, err := json.Marshal(resGetProof.FinalProof)
-	log.Infof("Final proof %s generated", *proof.ProofID)
+	log.Infof("Final proof [%s] generated", *proof.ProofID)
 
 	// mock prover sanity check
 	if string(finalProof.Public.NewStateRoot) == mockedStateRoot && string(finalProof.Public.NewLocalExitRoot) == mockedLocalExitRoot {
