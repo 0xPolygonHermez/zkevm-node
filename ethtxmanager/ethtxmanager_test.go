@@ -22,7 +22,7 @@ func TestIncreaseGasPrice(t *testing.T) {
 
 func TestSequenceBatchesWithROEthman(t *testing.T) {
 	ethManRO, _, _, _, _ := ethman.NewSimulatedEtherman(ethman.Config{}, nil)
-	txMan := New(Config{MaxSendBatchTxRetries: 2}, ethManRO, nil) // 3 executions in total
+	txMan := New(Config{}, ethManRO, nil)
 
 	err := txMan.SequenceBatches(context.Background(), []ethmanTypes.Sequence{})
 
@@ -31,7 +31,7 @@ func TestSequenceBatchesWithROEthman(t *testing.T) {
 
 func TestVerifyBatchesWithROEthman(t *testing.T) {
 	ethManRO, _, _, _, _ := ethman.NewSimulatedEtherman(ethman.Config{}, nil)
-	txMan := New(Config{MaxVerifyBatchTxRetries: 2}, ethManRO, nil) // 3 executions in total
+	txMan := New(Config{}, ethManRO, nil)
 
 	_, err := txMan.VerifyBatches(context.Background(), 41, 42, nil)
 

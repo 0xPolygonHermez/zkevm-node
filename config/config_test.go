@@ -165,14 +165,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
-			path:          "EthTxManager.MaxSendBatchTxRetries",
-			expectedValue: uint32(10),
-		},
-		{
-			path:          "EthTxManager.MaxVerifyBatchTxRetries",
-			expectedValue: uint32(10),
-		},
-		{
 			path:          "EthTxManager.FrequencyForResendingFailedSendBatches",
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
