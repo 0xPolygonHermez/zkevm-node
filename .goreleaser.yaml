@@ -1,0 +1,11 @@
+# .goreleaser.yaml
+builds:
+- main: ./cmd/
+  goos:
+    - linux
+    - darwin
+  goarch:
+    - amd64
+    - arm64
+  env:
+    - CGO_ENABLED=0
