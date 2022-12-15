@@ -355,13 +355,13 @@ func (etherMan *Client) sequenceBatches(opts *bind.TransactOpts, sequences []eth
 }
 
 // EstimateGasForVerifyBatches estimates gas for verify batches smart contract call.
-func (etherMan *Client) EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, finalProof *pb.FinalProof) (uint64, error) {
+func (etherMan *Client) EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, finalProof *pb.FinalProof, inputs ethmanTypes.FinalProofInputs) (uint64, error) {
 	if etherMan.IsReadOnly() {
 		return 0, ErrIsReadOnlyMode
 	}
 	verifyBatchOpts := *etherMan.auth
 	verifyBatchOpts.NoSend = true
-	tx, err := etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, finalProof)
+	tx, err := etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, finalProof, inputs)
 	if err != nil {
 		return 0, err
 	}
@@ -369,7 +369,7 @@ func (etherMan *Client) EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifi
 }
 
 // VerifyBatches function allows the aggregator send the final proof to L1.
-func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, finalProof *pb.FinalProof, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, finalProof *pb.FinalProof, inputs ethmanTypes.FinalProofInputs, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
 	if etherMan.IsReadOnly() {
 		return nil, ErrIsReadOnlyMode
 	}
@@ -383,17 +383,15 @@ func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, ne
 	if nonce != nil {
 		verifyBatchOpts.Nonce = nonce
 	}
-	return etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, finalProof)
+	return etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, finalProof, inputs)
 }
 
-func (etherMan *Client) verifyBatches(opts *bind.TransactOpts, lastVerifiedBatch, newVerifiedBatch uint64, finalProof *pb.FinalProof) (*types.Transaction, error) {
-	publicInputs := finalProof.Public
-
+func (etherMan *Client) verifyBatches(opts *bind.TransactOpts, lastVerifiedBatch, newVerifiedBatch uint64, finalProof *pb.FinalProof, inputs ethmanTypes.FinalProofInputs) (*types.Transaction, error) {
 	var newLocalExitRoot [32]byte
-	copy(newLocalExitRoot[:], publicInputs.NewLocalExitRoot)
+	copy(newLocalExitRoot[:], inputs.NewLocalExitRoot)
 
 	var newStateRoot [32]byte
-	copy(newStateRoot[:], publicInputs.NewStateRoot)
+	copy(newStateRoot[:], inputs.NewStateRoot)
 
 	proofA, err := strSliceToBigIntArray(finalProof.Proof.ProofA)
 	if err != nil {

@@ -99,7 +99,7 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 // VerifyBatches sends the VerifyBatches request to Ethereum. It is also
 // responsible for retrying up to MaxVerifyBatchTxRetries times, increasing the
 // Gas price or Gas limit, depending on the error returned by Ethereum.
-func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, finalBatchNum uint64, resGetProof *pb.FinalProof) (*types.Transaction, error) {
+func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, finalBatchNum uint64, resGetProof *pb.FinalProof, inputs ethmanTypes.FinalProofInputs) (*types.Transaction, error) {
 	var (
 		attempts uint32
 		gas      uint64
@@ -113,18 +113,18 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 
 	for attempts < c.cfg.MaxVerifyBatchTxRetries {
 		if nonce.Uint64() > 0 {
-			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nonce)
+			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, inputs, gas, gasPrice, nonce)
 		} else {
-			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nil)
+			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, inputs, gas, gasPrice, nil)
 		}
 		for err != nil && attempts < c.cfg.MaxVerifyBatchTxRetries {
 			log.Errorf("failed to send batch verification, trying once again, retry #%d, err: %w", attempts, err)
 			time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
 
 			if nonce.Uint64() > 0 {
-				tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nonce)
+				tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, inputs, gas, gasPrice, nonce)
 			} else {
-				tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nil)
+				tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, inputs, gas, gasPrice, nil)
 			}
 
 			attempts++

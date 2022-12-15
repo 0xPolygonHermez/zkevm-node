@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -26,7 +27,7 @@ type proverInterface interface {
 // ethTxManager contains the methods required to send txs to
 // ethereum.
 type ethTxManager interface {
-	VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, batchNum uint64, resGetProof *pb.FinalProof) (*types.Transaction, error)
+	VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, batchNum uint64, resGetProof *pb.FinalProof, inputs ethmanTypes.FinalProofInputs) (*types.Transaction, error)
 }
 
 // etherman contains the methods required to interact with ethereum

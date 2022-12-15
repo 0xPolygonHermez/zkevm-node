@@ -12,6 +12,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"google.golang.org/grpc"
@@ -154,7 +155,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 
 		default:
 			if !prover.IsIdle() {
-				log.Debug("Prover ID %s is not idle", prover.ID())
+				log.Debugf("Prover ID %s is not idle", prover.ID())
 				time.Sleep(a.cfg.RetryTime.Duration)
 				continue
 			}
@@ -198,7 +199,20 @@ func (a *Aggregator) sendFinalProof() {
 
 			log.Infof("Verifying final proof with ethereum smart contract, batches %d-%d", proof.BatchNumber, proof.BatchNumberFinal)
 
-			tx, err := a.EthTxManager.VerifyBatches(ctx, proof.BatchNumber-1, proof.BatchNumberFinal, msg.finalProof)
+			finalBatch, err := a.State.GetBatchByNumber(ctx, proof.BatchNumberFinal, nil)
+			if err != nil {
+				log.Errorf("Failed to retrieve batch with number [%d]", proof.BatchNumberFinal)
+				continue
+			}
+
+			inputs := ethmanTypes.FinalProofInputs{
+				NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
+				NewStateRoot:     finalBatch.StateRoot.Bytes(),
+			}
+
+			log.Infof("Final proof inputs. NewLocalExitRoot: %#x, NewStateRoot: %#x", inputs.NewLocalExitRoot, inputs.NewStateRoot)
+
+			tx, err := a.EthTxManager.VerifyBatches(ctx, proof.BatchNumber-1, proof.BatchNumberFinal, msg.finalProof, inputs)
 			if err != nil {
 				log.Errorf("Error verifiying final proof for batches %d-%d, err: %v", proof.BatchNumber, proof.BatchNumberFinal, err)
 
@@ -669,7 +683,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 
 	proof.InputProver = string(b)
 
-	log.Infof("Sending a batch to the prover, OLDSTATEROOT: %#x, OLDBATCHNUM: %d",
+	log.Infof("Sending a batch to the prover. OldStateRoot: %#x, OldBatchNum: %d",
 		inputProver.PublicInputs.OldStateRoot, inputProver.PublicInputs.OldBatchNum)
 
 	genProofID, err := prover.BatchProof(inputProver)
