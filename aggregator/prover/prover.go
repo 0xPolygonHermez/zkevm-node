@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
@@ -23,16 +24,18 @@ var (
 
 // Prover abstraction of the grpc prover client.
 type Prover struct {
-	id                                         string
-	intervalFrequencyToGetProofGenerationState types.Duration
-	stream                                     pb.AggregatorService_ChannelServer
+	id                        string
+	address                   net.Addr
+	proofStatePollingInterval types.Duration
+	stream                    pb.AggregatorService_ChannelServer
 }
 
 // New returns a new Prover instance.
-func New(stream pb.AggregatorService_ChannelServer, intervalFrequencyToGetProofGenerationState types.Duration) (*Prover, error) {
+func New(stream pb.AggregatorService_ChannelServer, addr net.Addr, proofStatePollingInterval types.Duration) (*Prover, error) {
 	p := &Prover{
-		stream: stream,
-		intervalFrequencyToGetProofGenerationState: intervalFrequencyToGetProofGenerationState,
+		stream:                    stream,
+		address:                   addr,
+		proofStatePollingInterval: proofStatePollingInterval,
 	}
 	status, err := p.Status()
 	if err != nil {
@@ -44,6 +47,18 @@ func New(stream pb.AggregatorService_ChannelServer, intervalFrequencyToGetProofG
 
 // ID returns the Prover ID.
 func (p *Prover) ID() string { return p.id }
+
+// ShortID returns a short version of the prover ID with the first 8
+// characters. This is useful to be printed in logs and error messages.
+func (p *Prover) ShortID() string { return p.id[:8] }
+
+// Addr returns the prover IP address.
+func (p *Prover) Addr() string {
+	if p.address == nil {
+		return ""
+	}
+	return p.address.String()
+}
 
 // Status gets the prover status.
 func (p *Prover) Status() (*pb.GetStatusResponse, error) {
@@ -254,7 +269,7 @@ func (p *Prover) waitProof(ctx context.Context, proofID string) (*pb.GetProofRes
 			if msg, ok := res.Response.(*pb.ProverMessage_GetProofResponse); ok {
 				switch msg.GetProofResponse.Result {
 				case pb.GetProofResponse_PENDING:
-					time.Sleep(p.intervalFrequencyToGetProofGenerationState.Duration)
+					time.Sleep(p.proofStatePollingInterval.Duration)
 					continue
 				case pb.GetProofResponse_UNSPECIFIED:
 					return nil, fmt.Errorf("Failed to get proof ID: %s, %w, prover response: %s",
