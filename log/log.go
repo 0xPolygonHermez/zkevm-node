@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node"
+	"github.com/0xPolygonHermez/zkevm-node/log/telegram"
 	"github.com/hermeznetwork/tracerr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -21,9 +22,23 @@ const (
 	EnvironmentDevelopment = LogEnvironment("development")
 )
 
+type bot interface {
+	Info(args ...interface{}) error
+	Warn(args ...interface{}) error
+	Debug(args ...interface{}) error
+	Error(args ...interface{}) error
+	Fatal(args ...interface{}) error
+	Infof(template string, args ...interface{}) error
+	Warnf(template string, args ...interface{}) error
+	Debugf(template string, args ...interface{}) error
+	Errorf(template string, args ...interface{}) error
+	Fatalf(template string, args ...interface{}) error
+}
+
 // Logger is a wrapper providing logging facilities.
 type Logger struct {
 	x *zap.SugaredLogger
+	b bot
 }
 
 // root logger
@@ -57,6 +72,13 @@ func Init(cfg Config) {
 		panic(err)
 	}
 	log = &Logger{x: zapLogger}
+
+	if cfg.Receiver == "telegram" {
+		log.b, err = telegram.NewBot(cfg.TelegramConfig)
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 // NewLogger creates the logger with defined level. outputs defines the outputs where the
@@ -170,6 +192,56 @@ func (l *Logger) Fatal(args ...interface{}) {
 	l.x.Fatal(args...)
 }
 
+// Debugb calls bot.Debug
+func (l *Logger) Debugb(args ...interface{}) {
+	if l.b != nil {
+		err := l.b.Debug(args...)
+		if err != nil {
+			l.x.Errorf("bot send message failed error: %v", err)
+		}
+	}
+}
+
+// Infob calls bot.Info
+func (l *Logger) Infob(args ...interface{}) {
+	if l.b != nil {
+		err := l.b.Info(args...)
+		if err != nil {
+			l.x.Errorf("bot send message failed error: %v", err)
+		}
+	}
+}
+
+// Warnb calls bot.Warn
+func (l *Logger) Warnb(args ...interface{}) {
+	if l.b != nil {
+		err := l.b.Warn(args...)
+		if err != nil {
+			l.x.Errorf("bot send message failed error: %v", err)
+		}
+	}
+}
+
+// Errorb calls bot.Error
+func (l *Logger) Errorb(args ...interface{}) {
+	if l.b != nil {
+		err := l.b.Error(args...)
+		if err != nil {
+			l.x.Errorf("bot send message failed error: %v", err)
+		}
+	}
+}
+
+// Fatalb calls bot.Fatal
+func (l *Logger) Fatalb(args ...interface{}) {
+	if l.b != nil {
+		err := l.b.Fatal(args...)
+		if err != nil {
+			l.x.Errorf("bot send message failed error: %v", err)
+		}
+	}
+}
+
 // Debugf calls log.Debugf
 func (l *Logger) Debugf(template string, args ...interface{}) {
 	l.x.Debugf(template, args...)
@@ -193,6 +265,56 @@ func (l *Logger) Fatalf(template string, args ...interface{}) {
 // Errorf calls log.Errorf and stores the error message into the ErrorFile
 func (l *Logger) Errorf(template string, args ...interface{}) {
 	l.x.Errorf(template, args...)
+}
+
+// Debugbf calls bot.Debugf
+func (l *Logger) Debugbf(template string, args ...interface{}) {
+	if l.b != nil {
+		err := l.b.Debugf(template, args...)
+		if err != nil {
+			l.x.Errorf("bot send message failed error: %v", err)
+		}
+	}
+}
+
+// Infobf calls bot.Infof
+func (l *Logger) Infobf(template string, args ...interface{}) {
+	if l.b != nil {
+		err := l.b.Infof(template, args...)
+		if err != nil {
+			l.x.Errorf("bot send message failed error: %v", err)
+		}
+	}
+}
+
+// Warnbf calls bot.Warnf
+func (l *Logger) Warnbf(template string, args ...interface{}) {
+	if l.b != nil {
+		err := l.b.Warnf(template, args...)
+		if err != nil {
+			l.x.Errorf("bot send message failed error: %v", err)
+		}
+	}
+}
+
+// Fatalbf calls bot.Fatalf
+func (l *Logger) Fatalbf(template string, args ...interface{}) {
+	if l.b != nil {
+		err := l.b.Fatalf(template, args...)
+		if err != nil {
+			l.x.Errorf("bot send message failed error: %v", err)
+		}
+	}
+}
+
+// Errorbf calls bot.Errorbf.
+func (l *Logger) Errorbf(template string, args ...interface{}) {
+	if l.b != nil {
+		err := l.b.Errorf(template, args...)
+		if err != nil {
+			l.x.Errorf("bot send message failed error: %v", err)
+		}
+	}
 }
 
 // Debug calls log.Debug on the root Logger.

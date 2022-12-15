@@ -1,5 +1,7 @@
 package log
 
+import "github.com/0xPolygonHermez/zkevm-node/log/telegram"
+
 // Config for log
 type Config struct {
 	// Environment defining the log format ("production" or "development").
@@ -8,4 +10,8 @@ type Config struct {
 	Level string `mapstructure:"Level"`
 	// Outputs
 	Outputs []string `mapstructure:"Outputs"`
+	// Receiver represents the kind of monitoring app ("telegram" or "slack").
+	Receiver string
+	// TelegramConfig is a config for the telegram bot.
+	TelegramConfig telegram.Config
 }
