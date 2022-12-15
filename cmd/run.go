@@ -161,11 +161,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, st *state.Sta
 }
 
 func runJSONRPCServer(c config.Config, pool *pool.Pool, st *state.State, gpe gasPriceEstimator, apis map[string]bool) {
-	storage, err := jsonrpc.NewStorage()
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	storage := jsonrpc.NewStorage()
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
 
 	if err := jsonrpc.NewServer(c.RPC, pool, st, gpe, storage, apis).Start(); err != nil {

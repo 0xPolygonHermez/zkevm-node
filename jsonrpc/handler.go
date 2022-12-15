@@ -37,7 +37,28 @@ type handleRequest struct {
 	wsConn *websocket.Conn
 }
 
-// Handler handles jsonrpc requests
+// Handler manage services to handle jsonrpc requests
+//
+// Services are public structures containing public methods
+// matching the name of the jsonrpc method.
+//
+// Services must be registered with a prefix to identify the
+// service and its methods, for example a service registered
+// with a prefix `eth` will have all the public methods exposed
+// as eth_<methodName> through the json rpc server.
+//
+// Go public methods requires the first char of its name to be
+// in uppercase, but the exposition of the method will consider
+// it to lower case, for example a method `func MyMethod()`
+// provided by the service registered with `eth` prefix will
+// be triggered when the method eth_myMethod is specified
+//
+// the public methods must follow the conventions:
+// - return interface{}, rpcError
+// - if the method depend on a Web Socket connection, it must be the first parameters as f(*websocket.Conn)
+// - parameter types must match the type of the data provided for the method
+//
+// check the `eth.go` file for more example on how the methods are implemented
 type Handler struct {
 	serviceMap map[string]*serviceData
 }

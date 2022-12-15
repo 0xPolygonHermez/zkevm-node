@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -22,10 +23,10 @@ type Storage struct {
 }
 
 // NewStorage creates and initializes an instance of Storage
-func NewStorage() (*Storage, error) {
+func NewStorage() *Storage {
 	return &Storage{
 		filters: make(map[string]*Filter),
-	}, nil
+	}
 }
 
 // NewLogFilter persists a new log filter
@@ -52,7 +53,7 @@ func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *web
 	lastPoll := time.Now().UTC()
 	id, err := s.generateFilterID()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to generate filter ID: %w", err)
 	}
 	s.filters[id] = &Filter{
 		ID:         id,
@@ -126,7 +127,7 @@ func (s *Storage) GetFilter(filterID string) (*Filter, error) {
 func (s *Storage) UpdateFilterLastPoll(filterID string) error {
 	filter, found := s.filters[filterID]
 	if !found {
-		return nil
+		return ErrNotFound
 	}
 
 	filter.LastPoll = time.Now().UTC()
@@ -135,14 +136,14 @@ func (s *Storage) UpdateFilterLastPoll(filterID string) error {
 }
 
 // UninstallFilter deletes a filter by its id
-func (s *Storage) UninstallFilter(filterID string) (bool, error) {
+func (s *Storage) UninstallFilter(filterID string) error {
 	_, found := s.filters[filterID]
 	if !found {
-		return false, nil
+		return ErrNotFound
 	}
 
 	delete(s.filters, filterID)
-	return true, nil
+	return nil
 }
 
 // UninstallFilterByWSConn deletes all filters connected to the provided web socket connection

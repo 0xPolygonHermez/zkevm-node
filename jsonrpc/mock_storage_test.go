@@ -145,24 +145,17 @@ func (_m *storageMock) NewPendingTransactionFilter(wsConn *websocket.Conn) (stri
 }
 
 // UninstallFilter provides a mock function with given fields: filterID
-func (_m *storageMock) UninstallFilter(filterID string) (bool, error) {
+func (_m *storageMock) UninstallFilter(filterID string) error {
 	ret := _m.Called(filterID)
 
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(string) bool); ok {
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
 		r0 = rf(filterID)
 	} else {
-		r0 = ret.Get(0).(bool)
+		r0 = ret.Error(0)
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(filterID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
 // UninstallFilterByWSConn provides a mock function with given fields: wsConn

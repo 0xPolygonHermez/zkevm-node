@@ -3204,7 +3204,7 @@ func TestUninstallFilter(t *testing.T) {
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
 					On("UninstallFilter", tc.FilterID).
-					Return(true, nil).
+					Return(nil).
 					Once()
 			},
 		},
@@ -3216,19 +3216,7 @@ func TestUninstallFilter(t *testing.T) {
 			SetupMocks: func(m *mocks, tc testCase) {
 				m.Storage.
 					On("UninstallFilter", tc.FilterID).
-					Return(false, nil).
-					Once()
-			},
-		},
-		{
-			Name:           "failed to uninstall filter",
-			FilterID:       "1",
-			ExpectedResult: false,
-			ExpectedError:  newRPCError(defaultErrorCode, "failed to uninstall filter"),
-			SetupMocks: func(m *mocks, tc testCase) {
-				m.Storage.
-					On("UninstallFilter", tc.FilterID).
-					Return(false, errors.New("failed to uninstall filter")).
+					Return(ErrNotFound).
 					Once()
 			},
 		},

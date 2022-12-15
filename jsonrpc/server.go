@@ -180,19 +180,27 @@ func (s *Server) startWS() {
 
 // Stop shutdown the rpc server
 func (s *Server) Stop() error {
-	if s.srv == nil {
-		return nil
+	if s.srv != nil {
+		if err := s.srv.Shutdown(context.Background()); err != nil {
+			return err
+		}
+
+		if err := s.srv.Close(); err != nil {
+			return err
+		}
+		s.srv = nil
 	}
 
-	if err := s.srv.Shutdown(context.Background()); err != nil {
-		return err
-	}
+	if s.wsSrv != nil {
+		if err := s.wsSrv.Shutdown(context.Background()); err != nil {
+			return err
+		}
 
-	if err := s.srv.Close(); err != nil {
-		return err
+		if err := s.wsSrv.Close(); err != nil {
+			return err
+		}
+		s.wsSrv = nil
 	}
-
-	s.srv = nil
 
 	return nil
 }

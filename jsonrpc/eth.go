@@ -653,12 +653,14 @@ func (e *Eth) tryToAddTxToPool(input string) (interface{}, rpcError) {
 
 // UninstallFilter uninstalls a filter with given id.
 func (e *Eth) UninstallFilter(filterID string) (interface{}, rpcError) {
-	uninstalled, err := e.storage.UninstallFilter(filterID)
-	if err != nil {
+	err := e.storage.UninstallFilter(filterID)
+	if errors.Is(err, ErrNotFound) {
+		return false, nil
+	} else if err != nil {
 		return rpcErrorResponse(defaultErrorCode, "failed to uninstall filter", err)
 	}
 
-	return uninstalled, nil
+	return true, nil
 }
 
 // Syncing returns an object with data about the sync status or false.
@@ -769,7 +771,7 @@ func (e *Eth) getBlockHeader(ctx context.Context, number BlockNumber, dbTx pgx.T
 
 func (e *Eth) updateFilterLastPoll(filterID string) rpcError {
 	err := e.storage.UpdateFilterLastPoll(filterID)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrNotFound) {
 		return newRPCError(defaultErrorCode, "failed to update last time the filter changes were requested")
 	}
 	return nil
@@ -803,7 +805,8 @@ func (e *Eth) Unsubscribe(wsConn *websocket.Conn, filterID string) (interface{},
 	return e.UninstallFilter(filterID)
 }
 
-// Unsubscribe uninstalls the filter based on the provided filterID
+// uninstallFilterByWSConn uninstalls the filters connected to the
+// provided web socket connection
 func (e *Eth) uninstallFilterByWSConn(wsConn *websocket.Conn) error {
 	return e.storage.UninstallFilterByWSConn(wsConn)
 }
@@ -839,7 +842,12 @@ func (e *Eth) onNewL2Block(event state.NewL2BlockEvent) {
 }
 
 func (e *Eth) sendSubscriptionResponse(filter *Filter, data interface{}) {
-	result, _ := json.Marshal(data)
+	const errMessage = "Unable to write WS message to filter %v, %s"
+	result, err := json.Marshal(data)
+	if err != nil {
+		log.Errorf(fmt.Sprintf(errMessage, filter.ID, err.Error()))
+	}
+
 	res := SubscriptionResponse{
 		JSONRPC: "2.0",
 		Method:  "eth_subscription",
@@ -848,11 +856,13 @@ func (e *Eth) sendSubscriptionResponse(filter *Filter, data interface{}) {
 			Result:       result,
 		},
 	}
-	message, _ := json.Marshal(res)
-
-	err := filter.WsConn.WriteMessage(websocket.TextMessage, message)
-
+	message, err := json.Marshal(res)
 	if err != nil {
-		log.Errorf(fmt.Sprintf("Unable to write WS message to filter %v, %s", filter.ID, err.Error()))
+		log.Errorf(fmt.Sprintf(errMessage, filter.ID, err.Error()))
+	}
+
+	err = filter.WsConn.WriteMessage(websocket.TextMessage, message)
+	if err != nil {
+		log.Errorf(fmt.Sprintf(errMessage, filter.ID, err.Error()))
 	}
 }

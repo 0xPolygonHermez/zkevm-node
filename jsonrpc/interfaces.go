@@ -69,7 +69,7 @@ type storageInterface interface {
 	NewBlockFilter(wsConn *websocket.Conn) (string, error)
 	NewLogFilter(wsConn *websocket.Conn, filter LogFilter) (string, error)
 	NewPendingTransactionFilter(wsConn *websocket.Conn) (string, error)
-	UninstallFilter(filterID string) (bool, error)
+	UninstallFilter(filterID string) error
 	UninstallFilterByWSConn(wsConn *websocket.Conn) error
 	UpdateFilterLastPoll(filterID string) error
 }
