@@ -48,10 +48,6 @@ func New(stream pb.AggregatorService_ChannelServer, addr net.Addr, proofStatePol
 // ID returns the Prover ID.
 func (p *Prover) ID() string { return p.id }
 
-// ShortID returns a short version of the prover ID with the first 8
-// characters. This is useful to be printed in logs and error messages.
-func (p *Prover) ShortID() string { return p.id[:8] }
-
 // Addr returns the prover IP address.
 func (p *Prover) Addr() string {
 	if p.address == nil {

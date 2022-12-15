@@ -147,7 +147,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 		return err
 	}
 
-	log.Debugf("Establishing stream connection with prover ID [%s], addr [%s]", prover.ShortID(), prover.Addr())
+	log.Debugf("Establishing stream connection with prover ID [%s], addr [%s]", prover.ID(), prover.Addr())
 
 	for {
 		select {
@@ -160,7 +160,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 
 		default:
 			if !prover.IsIdle() {
-				log.Debugf("Prover { ID [%s], addr [%s] } is not idle", prover.ShortID(), prover.Addr())
+				log.Debugf("Prover { ID [%s], addr [%s] } is not idle", prover.ID(), prover.Addr())
 				time.Sleep(a.cfg.RetryTime.Duration)
 				continue
 			}
@@ -253,7 +253,7 @@ func (a *Aggregator) sendFinalProof() {
 // buildFinalProof builds and return the final proof for an aggregated/batch proof.
 func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (*pb.FinalProof, error) {
 	log.Infof("Prover { ID[%s], addr[%s] }  is going to be used to generate final proof for batches [%d-%d]",
-		prover.ShortID(), prover.Addr(), proof.BatchNumber, proof.BatchNumberFinal)
+		prover.ID(), prover.Addr(), proof.BatchNumber, proof.BatchNumberFinal)
 
 	pubAddr, err := a.Ethman.GetPublicAddress()
 	if err != nil {
@@ -299,7 +299,7 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 // generated proof.  If the proof is eligible, then the final proof generation
 // is triggered.
 func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (bool, error) {
-	log.Debugf("tryBuildFinalProof start prover { ID [%s], addr [%s] }", prover.ShortID(), prover.Addr())
+	log.Debugf("tryBuildFinalProof start prover { ID [%s], addr [%s] }", prover.ID(), prover.Addr())
 
 	if !a.verifyProofTimeReached() {
 		log.Debug("Time to verify proof not reached")
@@ -491,7 +491,7 @@ func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover pro
 }
 
 func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterface) (bool, error) {
-	log.Debugf("tryAggregateProofs start prover { ID [%s], addr [%s] }", prover.ShortID(), prover.Addr())
+	log.Debugf("tryAggregateProofs start prover { ID [%s], addr [%s] }", prover.ID(), prover.Addr())
 
 	proof1, proof2, err0 := a.getAndLockProofsToAggregate(ctx, prover)
 	if errors.Is(err0, state.ErrNotFound) {
@@ -516,7 +516,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	}()
 
 	log.Infof("Prover { ID [%s], addr [%s] } is going to be used to aggregate proofs: %d-%d and %d-%d",
-		prover.ShortID(), prover.Addr(), proof1.BatchNumber, proof1.BatchNumberFinal, proof2.BatchNumber, proof2.BatchNumberFinal)
+		prover.ID(), prover.Addr(), proof1.BatchNumber, proof1.BatchNumberFinal, proof2.BatchNumber, proof2.BatchNumberFinal)
 
 	proverID := prover.ID()
 	inputProver := map[string]interface{}{
@@ -650,7 +650,7 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover *prover.
 }
 
 func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.Prover) (bool, error) {
-	log.Debugf("tryGenerateBatchProof start prover { ID [%s], addr [%s] }", prover.ShortID(), prover.Addr())
+	log.Debugf("tryGenerateBatchProof start prover { ID [%s], addr [%s] }", prover.ID(), prover.Addr())
 
 	batchToProve, proof, err0 := a.getAndLockBatchToProve(ctx, prover)
 	if errors.Is(err0, state.ErrNotFound) {
@@ -674,7 +674,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 		log.Debug("tryGenerateBatchProof end")
 	}()
 
-	log.Infof("Prover { ID [%s], addr [%s] } is going to be used to generate proof from batch [%d]", prover.ShortID(), prover.Addr(), batchToProve.BatchNumber)
+	log.Infof("Prover { ID [%s], addr [%s] } is going to be used to generate proof from batch [%d]", prover.ID(), prover.Addr(), batchToProve.BatchNumber)
 
 	log.Infof("Sending zki + batch to the prover, batchNumber: %d", batchToProve.BatchNumber)
 	inputProver, err := a.buildInputProver(ctx, batchToProve)

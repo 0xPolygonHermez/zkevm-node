@@ -16,7 +16,6 @@ import (
 
 type proverInterface interface {
 	ID() string
-	ShortID() string
 	Addr() string
 	IsIdle() bool
 	BatchProof(input *pb.InputProver) (*string, error)
