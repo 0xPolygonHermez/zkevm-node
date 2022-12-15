@@ -6,155 +6,152 @@ package ethtxmanager
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
-	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// ErrMaxRetriesExceeded max retries exceeded error.
-var ErrMaxRetriesExceeded = errors.New("Maximum number of retries exceeded")
-
 // Client for eth tx manager
 type Client struct {
-	cfg    Config
-	ethMan etherman
-	state  state
+	cfg     Config
+	ethMan  etherman
+	state   state
+	storage *storage
 }
 
 // New creates new eth tx manager
 func New(cfg Config, ethMan etherman, state state) *Client {
-	return &Client{
-		cfg:    cfg,
-		ethMan: ethMan,
-		state:  state,
+	c := &Client{
+		cfg:     cfg,
+		ethMan:  ethMan,
+		state:   state,
+		storage: newStorage(),
 	}
+
+	go c.manageTxs()
+
+	return c
 }
 
 // SequenceBatches send sequences to the channel
 func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) error {
-	var (
-		attempts uint32
-		gas      uint64
-		gasPrice *big.Int
-		nonce    = big.NewInt(0)
-	)
-	log.Info("sending sequence to L1")
-	for attempts < c.cfg.MaxSendBatchTxRetries {
-		var (
-			tx  *types.Transaction
-			err error
-		)
-		if nonce.Uint64() > 0 {
-			tx, err = c.ethMan.SequenceBatches(ctx, sequences, gas, gasPrice, nonce)
-		} else {
-			tx, err = c.ethMan.SequenceBatches(ctx, sequences, gas, gasPrice, nil)
-		}
-		for err != nil && attempts < c.cfg.MaxSendBatchTxRetries {
-			log.Errorf("failed to sequence batches, trying once again, retry #%d, err: %w", attempts, 0, err)
-			time.Sleep(c.cfg.FrequencyForResendingFailedSendBatches.Duration)
-			attempts++
-			if nonce.Uint64() > 0 {
-				tx, err = c.ethMan.SequenceBatches(ctx, sequences, gas, gasPrice, nonce)
-			} else {
-				tx, err = c.ethMan.SequenceBatches(ctx, sequences, gas, gasPrice, nil)
-			}
-		}
-		if err != nil {
-			log.Errorf("failed to sequence batches, maximum attempts exceeded, err: %w", err)
-			return fmt.Errorf("failed to sequence batches, maximum attempts exceeded, err: %w", err)
-		}
-		// Wait for tx to be mined
-		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
-		err = c.ethMan.WaitTxToBeMined(ctx, tx, c.cfg.WaitTxToBeMined.Duration)
-		if err != nil {
-			attempts++
-			if errors.Is(err, runtime.ErrOutOfGas) {
-				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
-				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
-				continue
-			} else if errors.Is(err, operations.ErrTimeoutReached) {
-				nonce = new(big.Int).SetUint64(tx.Nonce())
-				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
-				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
-				continue
-			}
-			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-		}
-
-		log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
-		return c.state.WaitSequencingTxToBeSynced(ctx, tx, c.cfg.WaitTxToBeSynced.Duration)
+	log.Info("creating L1 tx to sequence batches")
+	tx, err := c.storage.enqueueSequences(ctx, c.ethMan, c.cfg, sequences)
+	if err != nil {
+		log.Errorf("failed to create L1 tx to sequence batches, err: %w", err)
+		return nil
 	}
-	return ErrMaxRetriesExceeded
+	log.Infof("L1 tx to sequence batches added to channel, hash: %v", tx.Hash().String())
+	return nil
 }
 
 // VerifyBatches sends the VerifyBatches request to Ethereum. It is also
 // responsible for retrying up to MaxVerifyBatchTxRetries times, increasing the
 // Gas price or Gas limit, depending on the error returned by Ethereum.
 func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, finalBatchNum uint64, resGetProof *pb.FinalProof) (*types.Transaction, error) {
-	var (
-		attempts uint32
-		gas      uint64
-		gasPrice *big.Int
-		nonce    = big.NewInt(0)
-		tx       *types.Transaction
-		err      error
-	)
+	panic("not implemented yet")
+	// var (
+	// 	attempts uint32
+	// 	gas      uint64
+	// 	gasPrice *big.Int
+	// 	nonce    = big.NewInt(0)
+	// 	tx       *types.Transaction
+	// 	err      error
+	// )
 
-	log.Infof("sending verification to L1 for batches %d-%d", lastVerifiedBatch+1, finalBatchNum)
+	// log.Infof("sending verification to L1 for batches %d-%d", lastVerifiedBatch+1, finalBatchNum)
 
-	for attempts < c.cfg.MaxVerifyBatchTxRetries {
-		if nonce.Uint64() > 0 {
-			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nonce)
-		} else {
-			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nil)
-		}
-		for err != nil && attempts < c.cfg.MaxVerifyBatchTxRetries {
-			log.Errorf("failed to send batch verification, trying once again, retry #%d, err: %w", attempts, err)
-			time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
+	// for attempts < c.cfg.MaxVerifyBatchTxRetries {
+	// 	if nonce.Uint64() > 0 {
+	// 		tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nonce)
+	// 	} else {
+	// 		tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nil)
+	// 	}
+	// 	for err != nil && attempts < c.cfg.MaxVerifyBatchTxRetries {
+	// 		log.Errorf("failed to send batch verification, trying once again, retry #%d, err: %w", attempts, err)
+	// 		time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
 
-			if nonce.Uint64() > 0 {
-				tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nonce)
-			} else {
-				tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nil)
+	// 		if nonce.Uint64() > 0 {
+	// 			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nonce)
+	// 		} else {
+	// 			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nil)
+	// 		}
+
+	// 		attempts++
+	// 	}
+	// 	if err != nil {
+	// 		log.Errorf("failed to send batch verification, maximum attempts exceeded, err: %w", err)
+	// 		return nil, fmt.Errorf("failed to send batch verification, maximum attempts exceeded, err: %w", err)
+	// 	}
+	// 	// Wait for tx to be mined
+	// 	log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
+	// 	err = c.ethMan.WaitTxToBeMined(ctx, tx, c.cfg.WaitTxToBeMined.Duration)
+	// 	if err != nil {
+	// 		if errors.Is(err, runtime.ErrOutOfGas) {
+	// 			gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
+	// 			log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
+	// 			continue
+	// 		} else if errors.Is(err, operations.ErrTimeoutReached) {
+	// 			nonce = new(big.Int).SetUint64(tx.Nonce())
+	// 			gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
+	// 			log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
+	// 			continue
+	// 		}
+	// 		log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+	// 		return nil, fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+	// 	}
+
+	// 	log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
+	// 	return tx, c.state.WaitVerifiedBatchToBeSynced(ctx, finalBatchNum, c.cfg.WaitTxToBeSynced.Duration)
+	// }
+	// return nil, ErrMaxRetriesExceeded
+}
+
+// manageTxs will read txs from storage, send then to L1
+// and keep monitoring tham until they get mined, so the
+// next one can be sent
+func (c *Client) manageTxs() {
+	// infinite loop to manage txs as they arrive
+	for {
+		// gets the next tx to send to L1
+		etx := c.storage.Next()
+		var lastSentTxHash string
+		// monitor and retries tx until it gets mined
+		for {
+			ctx := context.Background()
+			err := etx.RenewTxIfNeeded(ctx, c.ethMan)
+			if err != nil {
+				log.Errorf("failed to renew tx if needed: %w", err)
+				etx.Wait()
+				continue
 			}
 
-			attempts++
-		}
-		if err != nil {
-			log.Errorf("failed to send batch verification, maximum attempts exceeded, err: %w", err)
-			return nil, fmt.Errorf("failed to send batch verification, maximum attempts exceeded, err: %w", err)
-		}
-		// Wait for tx to be mined
-		log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
-		err = c.ethMan.WaitTxToBeMined(ctx, tx, c.cfg.WaitTxToBeMined.Duration)
-		if err != nil {
-			if errors.Is(err, runtime.ErrOutOfGas) {
-				gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
-				log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
-				continue
-			} else if errors.Is(err, operations.ErrTimeoutReached) {
-				nonce = new(big.Int).SetUint64(tx.Nonce())
-				gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
-				log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
+			// sends the tx if it was renewed
+			if etx.Tx().Hash().String() != lastSentTxHash {
+				err := c.ethMan.SendTx(ctx, etx.Tx())
+				if err != nil {
+					log.Errorf("failed to send tx: %w", err)
+					etx.Wait()
+					continue
+				}
+				lastSentTxHash = etx.Tx().Hash().String()
+			}
+
+			// waits the txs to be mined
+			err = c.ethMan.WaitTxToBeMined(ctx, etx.Tx(), c.cfg.WaitTxToBeMined.Duration)
+			if err != nil {
+				log.Errorf("failed to wait tx to be mined: %w", err)
+				etx.Wait()
 				continue
 			}
-			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-			return nil, fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-		}
 
-		log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
-		return tx, c.state.WaitVerifiedBatchToBeSynced(ctx, finalBatchNum, c.cfg.WaitTxToBeSynced.Duration)
+			log.Infof("L1 tx mined successfully: %v", etx.Tx().Hash().String())
+			break
+		}
 	}
-	return nil, ErrMaxRetriesExceeded
 }
 
 func increaseGasPrice(currentGasPrice *big.Int, percentageIncrease uint64) *big.Int {

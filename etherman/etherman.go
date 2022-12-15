@@ -85,6 +85,8 @@ type ethClienter interface {
 	ethereum.TransactionReader
 	ethereum.ContractCaller
 	ethereum.GasPricer
+	ethereum.TransactionSender
+	ethereum.ChainStateReader
 	bind.DeployBackend
 }
 
@@ -310,7 +312,7 @@ func (etherMan *Client) EstimateGasSequenceBatches(sequences []ethmanTypes.Seque
 }
 
 // SequenceBatches send sequences of batches to the ethereum
-func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int, noSend bool) (*types.Transaction, error) {
 	if etherMan.IsReadOnly() {
 		return nil, ErrIsReadOnlyMode
 	}
@@ -324,6 +326,7 @@ func (etherMan *Client) SequenceBatches(ctx context.Context, sequences []ethmanT
 	if nonce != nil {
 		sendSequencesOpts.Nonce = nonce
 	}
+	sendSequencesOpts.NoSend = noSend
 	return etherMan.sequenceBatches(&sendSequencesOpts, sequences)
 }
 
@@ -855,4 +858,14 @@ func (etherMan *Client) getGasPrice(ctx context.Context) *big.Int {
 	}
 	log.Debug("gasPrice choosed: ", gasPrice)
 	return gasPrice
+}
+
+// SendTx sends a tx to L1
+func (etherMan *Client) SendTx(ctx context.Context, tx *types.Transaction) error {
+	return etherMan.EtherClient.SendTransaction(ctx, tx)
+}
+
+// CurrentNonce returns the current nonce for the account signing the L1 txs
+func (etherMan *Client) CurrentNonce(ctx context.Context) (uint64, error) {
+	return etherMan.EtherClient.NonceAt(ctx, etherMan.auth.From, nil)
 }
