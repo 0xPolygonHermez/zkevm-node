@@ -38,8 +38,6 @@ MultiGasProvider = true
 		ApiKey = ""
 
 [EthTxManager]
-MaxSendBatchTxRetries = 10
-MaxVerifyBatchTxRetries = 10
 FrequencyForResendingFailedSendBatches = "1s"
 FrequencyForResendingFailedVerifyBatch = "1s"
 WaitTxToBeMined = "2m"
