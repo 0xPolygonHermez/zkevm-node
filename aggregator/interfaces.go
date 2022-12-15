@@ -28,7 +28,7 @@ type proverInterface interface {
 // ethTxManager contains the methods required to send txs to
 // ethereum.
 type ethTxManager interface {
-	VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, batchNum uint64, resGetProof *pb.FinalProof, inputs ethmanTypes.FinalProofInputs) (*types.Transaction, error)
+	VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, batchNum uint64, inputs *ethmanTypes.FinalProofInputs) (*types.Transaction, error)
 }
 
 // etherman contains the methods required to interact with ethereum

@@ -211,13 +211,14 @@ func (a *Aggregator) sendFinalProof() {
 			}
 
 			inputs := ethmanTypes.FinalProofInputs{
+				FinalProof:       msg.finalProof,
 				NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 				NewStateRoot:     finalBatch.StateRoot.Bytes(),
 			}
 
-			log.Infof("Final proof inputs. NewLocalExitRoot: %#x, NewStateRoot: %#x", inputs.NewLocalExitRoot, inputs.NewStateRoot)
+			log.Infof("Final proof inputs: NewLocalExitRoot [%#x], NewStateRoot [%#x]", inputs.NewLocalExitRoot, inputs.NewStateRoot)
 
-			tx, err := a.EthTxManager.VerifyBatches(ctx, proof.BatchNumber-1, proof.BatchNumberFinal, msg.finalProof, inputs)
+			tx, err := a.EthTxManager.VerifyBatches(ctx, proof.BatchNumber-1, proof.BatchNumberFinal, &inputs)
 			if err != nil {
 				log.Errorf("Error verifiying final proof for batches [%d-%d], err: %v", proof.BatchNumber, proof.BatchNumberFinal, err)
 
@@ -676,7 +677,7 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 
 	log.Infof("Prover { ID [%s], addr [%s] } is going to be used to generate proof from batch [%d]", prover.ID(), prover.Addr(), batchToProve.BatchNumber)
 
-	log.Infof("Sending zki + batch to the prover, batchNumber: %d", batchToProve.BatchNumber)
+	log.Infof("Sending zki + batch to the prover, batchNumber [%d]", batchToProve.BatchNumber)
 	inputProver, err := a.buildInputProver(ctx, batchToProve)
 	if err != nil {
 		return false, fmt.Errorf("Failed to build input prover, %w", err)
@@ -684,12 +685,12 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 
 	b, err := json.Marshal(inputProver)
 	if err != nil {
-
+		return false, fmt.Errorf("Failed to serialize input prover, %w", err)
 	}
 
 	proof.InputProver = string(b)
 
-	log.Infof("Sending a batch to the prover. OldStateRoot: %#x, OldBatchNum: %d",
+	log.Infof("Sending a batch to the prover. OldStateRoot [%#x], OldBatchNum [%d]",
 		inputProver.PublicInputs.OldStateRoot, inputProver.PublicInputs.OldBatchNum)
 
 	genProofID, err := prover.BatchProof(inputProver)
