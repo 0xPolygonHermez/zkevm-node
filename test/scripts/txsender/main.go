@@ -99,7 +99,10 @@ func setLogLevel(ctx *cli.Context) error {
 		logLevel = "debug"
 	}
 
-	log.Init(log.Config{Level: logLevel, Outputs: []string{"stdout"}})
+	log.Init(log.Config{
+		Level:   logLevel,
+		Outputs: []string{"stderr"},
+	})
 	return nil
 }
 

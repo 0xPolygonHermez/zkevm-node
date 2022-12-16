@@ -352,7 +352,7 @@ func TestTryToProcessTxs(t *testing.T) {
 	gpe := new(sequencerMocks.GasPriceEstimatorMock)
 	s := Sequencer{cfg: Config{
 		MaxTimeForBatchToBeOpen: cfgTypes.NewDuration(5 * time.Second),
-		MaxBatchBytesSize:       30000,
+		MaxBatchBytesSize:       150000,
 		MaxTxsPerBatch:          150,
 	}, state: st, etherman: eth, gpe: gpe, pool: pl}
 	ctx := context.Background()

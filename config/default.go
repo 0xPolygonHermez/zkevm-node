@@ -5,8 +5,9 @@ const DefaultValues = `
 IsTrustedSequencer = false
 
 [Log]
+Environment = "development" # "production" or "development"
 Level = "debug"
-Outputs = ["stdout"]
+Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"
@@ -82,7 +83,7 @@ MaxTimeForBatchToBeOpen = "15s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 MaxTxsPerBatch = 150
-MaxBatchBytesSize = 30000
+MaxBatchBytesSize = 150000
 MaxCumulativeGasUsed = 30000000
 MaxKeccakHashes = 468
 MaxPoseidonHashes = 279620

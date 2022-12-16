@@ -1,6 +1,7 @@
 [Log]
-Level = "debug"
-Outputs = ["stdout"]
+Environment = "development" # "production" or "development"
+Level = "info"
+Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"

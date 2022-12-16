@@ -405,6 +405,7 @@ func (s *Sequencer) processTxs(ctx context.Context) (processTxResponse, error) {
 
 	s.sequenceInProgress.StateRoot = processBatchResp.NewStateRoot
 	s.sequenceInProgress.LocalExitRoot = processBatchResp.NewLocalExitRoot
+	s.sequenceInProgress.AccInputHash = processBatchResp.NewAccInputHash
 
 	processedTxs, processedTxsHashes, unprocessedTxs, unprocessedTxsHashes := state.DetermineProcessedTransactions(processBatchResp.Responses)
 
@@ -463,6 +464,7 @@ func (s *Sequencer) storeProcessedTransactions(ctx context.Context, processedTxs
 func (s *Sequencer) closeBatch(ctx context.Context, lastBatchNumber uint64, dbTx pgx.Tx) error {
 	receipt := state.ProcessingReceipt{
 		BatchNumber:   lastBatchNumber,
+		AccInputHash:  s.sequenceInProgress.AccInputHash,
 		StateRoot:     s.sequenceInProgress.StateRoot,
 		LocalExitRoot: s.sequenceInProgress.LocalExitRoot,
 		Txs:           s.sequenceInProgress.Txs,

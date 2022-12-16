@@ -11,6 +11,7 @@ import (
 // processed.
 type Sequence struct {
 	GlobalExitRoot, StateRoot, LocalExitRoot common.Hash
+	AccInputHash                             common.Hash
 	Timestamp                                int64
 	Txs                                      []types.Transaction
 	IsSequenceTooBig                         bool

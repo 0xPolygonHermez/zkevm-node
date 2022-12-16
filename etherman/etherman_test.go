@@ -25,7 +25,7 @@ import (
 func init() {
 	log.Init(log.Config{
 		Level:   "debug",
-		Outputs: []string{"stdout"},
+		Outputs: []string{"stderr"},
 	})
 }
 
