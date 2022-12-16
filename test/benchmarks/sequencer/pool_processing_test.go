@@ -37,10 +37,9 @@ const (
 	invalidNonceStartingPercent = 90
 )
 
-var poolDbConfig = dbutils.NewPoolConfigFromEnv()
-
 var (
 	ctx                 = context.Background()
+	poolDbConfig        = dbutils.NewPoolConfigFromEnv()
 	sequencerPrivateKey = operations.DefaultSequencerPrivateKey
 	chainID             = operations.DefaultL2ChainID
 	opsCfg              = operations.GetDefaultOperationsConfig()
@@ -54,6 +53,7 @@ var (
 
 func BenchmarkSequencerPoolProcess(b *testing.B) {
 	ctx := context.Background()
+	defer func() { require.NoError(b, operations.Teardown()) }()
 	opsman, client, pl, senderNonce, gasPrice := setup(ctx, b)
 	sendAndWaitTxs(b, senderNonce, client, gasPrice, pl, ctx)
 	startAndSetupSequencer(b, opsman)
