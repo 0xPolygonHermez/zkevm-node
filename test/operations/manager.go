@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -30,6 +31,7 @@ const (
 	maticTokenAddress  = "0x5FbDB2315678afecb367f032d93F642f64180aa3" //nolint:gosec
 	l1AccHexAddress    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 	l1AccHexPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	cmdFolder          = "test"
 )
 
 // Public constants
@@ -285,7 +287,7 @@ func (m *Manager) Setup() error {
 	}
 
 	// Approve matic
-	err = approveMatic()
+	err = ApproveMatic()
 	if err != nil {
 		return err
 	}
@@ -483,7 +485,8 @@ func (m *Manager) StartNode() error {
 	return StartComponent("node", nodeUpCondition)
 }
 
-func approveMatic() error {
+// ApproveMatic runs the approving matic command
+func ApproveMatic() error {
 	return StartComponent("approve-matic")
 }
 
@@ -492,7 +495,23 @@ func stopNode() error {
 }
 
 func runCmd(c *exec.Cmd) error {
-	c.Dir = "../../test"
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("failed to get current work directory: %w", err)
+	}
+
+	if strings.Contains(dir, cmdFolder) {
+		// Making the change dir to work in any nesting directory level inside cmd folder
+		base := filepath.Base(dir)
+		for base != cmdFolder {
+			dir = filepath.Dir(dir)
+			base = filepath.Base(dir)
+		}
+	} else {
+		dir = fmt.Sprintf("../../%s", cmdFolder)
+	}
+	c.Dir = dir
+
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c.Run()
