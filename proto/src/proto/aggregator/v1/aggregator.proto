@@ -76,9 +76,11 @@ message GenAggregatedProofRequest {
 /**
  * @dev GenFinalProofRequest
  * @param {recursive_proof} - proof json of the batch or aggregated proof to finalise
+ * @param {aggregator_addr} - address of the aggregator
  */
 message GenFinalProofRequest {
     string recursive_proof = 1;
+    string aggregator_addr = 2;
 }
 
 /**
