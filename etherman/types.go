@@ -64,5 +64,5 @@ type SequencedForceBatch struct {
 	TxHash      common.Hash
 	Timestamp   time.Time
 	Nonce       uint64
-	proofofefficiency.ProofOfEfficiencyForceBatchData
+	proofofefficiency.ProofOfEfficiencyForcedBatchData
 }

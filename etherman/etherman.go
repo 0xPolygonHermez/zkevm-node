@@ -405,8 +405,11 @@ func (etherMan *Client) verifyBatches(opts *bind.TransactOpts, lastVerifiedBatch
 		return nil, err
 	}
 
-	tx, err := etherMan.PoE.VerifyBatches(
+	const pendStateNum = 0 // hardcoded for now until we implement the pending state feature
+
+	tx, err := etherMan.PoE.TrustedVerifyBatches(
 		opts,
+		pendStateNum,
 		lastVerifiedBatch,
 		newVerifiedBatch,
 		newLocalExitRoot,
@@ -427,7 +430,7 @@ func (etherMan *Client) verifyBatches(opts *bind.TransactOpts, lastVerifiedBatch
 
 // GetSendSequenceFee get super/trusted sequencer fee
 func (etherMan *Client) GetSendSequenceFee() (*big.Int, error) {
-	return etherMan.PoE.TRUSTEDSEQUENCERFEE(&bind.CallOpts{Pending: false})
+	return etherMan.PoE.CalculateBatchFee(&bind.CallOpts{Pending: false})
 }
 
 // TrustedSequencer gets trusted sequencer address
@@ -699,7 +702,7 @@ func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequence
 		return nil, err
 	}
 
-	var forceBatches []proofofefficiency.ProofOfEfficiencyForceBatchData
+	var forceBatches []proofofefficiency.ProofOfEfficiencyForcedBatchData
 	bytedata, err := json.Marshal(data[0])
 	if err != nil {
 		return nil, err
@@ -713,12 +716,12 @@ func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequence
 	for i, force := range forceBatches {
 		bn := lastBatchNumber - uint64(len(forceBatches)-(i+1))
 		sequencedForcedBatches[i] = SequencedForceBatch{
-			BatchNumber:                     bn,
-			Coinbase:                        sequencer,
-			TxHash:                          txHash,
-			Timestamp:                       time.Unix(int64(block.Time()), 0),
-			Nonce:                           nonce,
-			ProofOfEfficiencyForceBatchData: force,
+			BatchNumber:                      bn,
+			Coinbase:                         sequencer,
+			TxHash:                           txHash,
+			Timestamp:                        time.Unix(int64(block.Time()), 0),
+			Nonce:                            nonce,
+			ProofOfEfficiencyForcedBatchData: force,
 		}
 	}
 	return sequencedForcedBatches, nil
