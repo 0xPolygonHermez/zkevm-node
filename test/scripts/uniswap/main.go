@@ -1,6 +1,5 @@
 package main
 
-/*
 import (
 	"context"
 	"fmt"
@@ -25,16 +24,16 @@ import (
 )
 
 const (
-	networkURL = "https://develop.zkevm-test.net:2083"
-	pk         = "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
-	txTimeout  = 60 * time.Second
+	// if you want to test using goerli network
+	// replace this by your goerli infura url
+	networkURL = "http://localhost:8123"
+	// replace this by your account private key
+	pk        = "0xdfd01798f92667dbf91df722434e8fbe96af0211d4d1b82bbbbc8f1def7a814f"
+	txTimeout = 60 * time.Second
 )
 
 func main() {
 	ctx := context.Background()
-	// if you want to test using goerli network
-	// pk := "" // replace this by your goerli account private key
-	// networkURL := "" // replace this by your goerli infura url
 	log.Infof("connecting to %v", networkURL)
 	client, err := ethclient.Dial(networkURL)
 	chkErr(err)
@@ -276,4 +275,3 @@ func chkErr(err error) {
 		log.Fatal(err)
 	}
 }
-*/
