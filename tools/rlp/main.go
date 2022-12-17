@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -75,7 +76,7 @@ func decode(ctx *cli.Context) error {
 		log.Error("error decoding rawTxs: ", err)
 		return err
 	}
-	txs, err := decodeRawTxs(bytesRawTxs)
+	txs, _, err := state.DecodeTxs(bytesRawTxs)
 	if err != nil {
 		log.Error("error decoding tx callData: ", err)
 		return err
@@ -221,7 +222,7 @@ func encode(ctx *cli.Context) error {
 	return nil
 }
 
-func printTxs(txs []*types.Transaction, rawTxs []byte) {
+func printTxs(txs []types.Transaction, rawTxs []byte) {
 	log.Info("RawTxs: ", hex.EncodeToHex(rawTxs))
 	for _, tx := range txs {
 		log.Info("#######################################################################")
@@ -244,7 +245,7 @@ func printTxs(txs []*types.Transaction, rawTxs []byte) {
 	}
 }
 
-func decodeFullCallDataToTxs(txsData []byte) ([]*types.Transaction, []byte, error) {
+func decodeFullCallDataToTxs(txsData []byte) ([]types.Transaction, []byte, error) {
 	// The first 4 bytes are the function hash bytes. These bytes has to be ripped.
 	// After that, the unpack method is used to read the call data.
 	// The txs data is a chunk of concatenated rawTx. This rawTx is the encoded tx information in rlp + the signature information (v, r, s).
@@ -275,10 +276,10 @@ func decodeFullCallDataToTxs(txsData []byte) ([]*types.Transaction, []byte, erro
 	return txs, txsData, err
 }
 
-func decodeRawTxs(txsData []byte) ([]*types.Transaction, error) {
+func decodeRawTxs(txsData []byte) ([]types.Transaction, error) {
 	// Process coded txs
 	var pos int64
-	var txs []*types.Transaction
+	var txs []types.Transaction
 	const (
 		headerByteLength = 2
 		sLength          = 32
@@ -296,7 +297,7 @@ func decodeRawTxs(txsData []byte) ([]*types.Transaction, error) {
 		num, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
 		if err != nil {
 			log.Error("error parsing header length: ", err)
-			return []*types.Transaction{}, err
+			return []types.Transaction{}, err
 		}
 		// First byte is the length and must be ignored
 		len := num - c0 - 1
@@ -306,13 +307,13 @@ func decodeRawTxs(txsData []byte) ([]*types.Transaction, error) {
 			numH, err := strconv.ParseInt(hex.EncodeToString(txsData[pos:pos+1]), hex.Base, encoding.BitSize64)
 			if err != nil {
 				log.Error("error parsing length of the bytes: ", err)
-				return []*types.Transaction{}, err
+				return []types.Transaction{}, err
 			}
 			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
 			n, err := strconv.ParseInt(hex.EncodeToString(txsData[pos+1:pos+1+numH-f7]), hex.Base, encoding.BitSize64) // +1 is the header. For example 0xf7
 			if err != nil {
 				log.Error("error parsing length: ", err)
-				return []*types.Transaction{}, err
+				return []types.Transaction{}, err
 			}
 			len = n + 1 // +1 is the header. For example 0xf7
 		}
@@ -330,7 +331,7 @@ func decodeRawTxs(txsData []byte) ([]*types.Transaction, error) {
 		err = rlp.DecodeBytes(txInfo, &tx)
 		if err != nil {
 			log.Error("error decoding tx bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo))
-			return []*types.Transaction{}, err
+			return []types.Transaction{}, err
 		}
 
 		//tx.V = v-27+chainId*2+35
@@ -338,7 +339,7 @@ func decodeRawTxs(txsData []byte) ([]*types.Transaction, error) {
 		tx.R = new(big.Int).SetBytes(r)
 		tx.S = new(big.Int).SetBytes(s)
 
-		txs = append(txs, types.NewTx(&tx))
+		txs = append(txs, *types.NewTx(&tx))
 	}
 	return txs, nil
 }
