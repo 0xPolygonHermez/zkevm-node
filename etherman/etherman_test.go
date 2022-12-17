@@ -72,7 +72,6 @@ func TestGEREvent(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, uint64(2), blocks[0].GlobalExitRoots[0].BlockNumber)
-	assert.Equal(t, int64(finalBlock.Time()), blocks[0].GlobalExitRoots[0].Timestamp.Unix())
 	assert.NotEqual(t, common.Hash{}, blocks[0].GlobalExitRoots[0].MainnetExitRoot)
 	assert.Equal(t, common.Hash{}, blocks[0].GlobalExitRoots[0].RollupExitRoot)
 }
@@ -229,7 +228,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 	assert.NotEqual(t, common.Address{}, blocks[1].VerifiedBatches[0].Aggregator)
 	assert.NotEqual(t, common.Hash{}, blocks[1].VerifiedBatches[0].TxHash)
 	assert.Equal(t, GlobalExitRootsOrder, order[blocks[1].BlockHash][0].Name)
-	assert.Equal(t, VerifyBatchOrder, order[blocks[1].BlockHash][1].Name)
+	assert.Equal(t, TrustedVerifyBatchOrder, order[blocks[1].BlockHash][1].Name)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][1].Pos)
 }
@@ -280,7 +279,7 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint64(4), blocks[1].BlockNumber)
 	assert.Equal(t, uint64(1), blocks[1].SequencedForceBatches[0][0].BatchNumber)
-	assert.Equal(t, uint64(20), blocks[1].SequencedForceBatches[0][0].Timestamp)
+	assert.Equal(t, uint64(20), blocks[1].SequencedForceBatches[0][0].MinForcedTimestamp)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
 

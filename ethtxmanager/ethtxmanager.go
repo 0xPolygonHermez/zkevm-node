@@ -112,18 +112,18 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 
 	for attempts < c.cfg.MaxVerifyBatchTxRetries {
 		if nonce.Uint64() > 0 {
-			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, inputs, gas, gasPrice, nonce)
+			tx, err = c.ethMan.TrustedVerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, inputs, gas, gasPrice, nonce)
 		} else {
-			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, inputs, gas, gasPrice, nil)
+			tx, err = c.ethMan.TrustedVerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, inputs, gas, gasPrice, nil)
 		}
 		for err != nil && attempts < c.cfg.MaxVerifyBatchTxRetries {
 			log.Errorf("failed to send batch verification, trying once again, retry #%d, err: %w", attempts, err)
 			time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
 
 			if nonce.Uint64() > 0 {
-				tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, inputs, gas, gasPrice, nonce)
+				tx, err = c.ethMan.TrustedVerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, inputs, gas, gasPrice, nonce)
 			} else {
-				tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, inputs, gas, gasPrice, nil)
+				tx, err = c.ethMan.TrustedVerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, inputs, gas, gasPrice, nil)
 			}
 
 			attempts++
