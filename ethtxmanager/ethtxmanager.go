@@ -6,7 +6,6 @@ package ethtxmanager
 
 import (
 	"context"
-	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -39,7 +38,7 @@ func New(cfg Config, ethMan etherman, state state) *Client {
 // SequenceBatches send sequences to the channel
 func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) error {
 	log.Info("creating L1 tx to sequence batches")
-	tx, err := c.storage.enqueueSequences(ctx, c.ethMan, c.cfg, sequences)
+	tx, err := c.storage.enqueueSequences(ctx, c.state, c.ethMan, c.cfg, sequences)
 	if err != nil {
 		log.Errorf("failed to create L1 tx to sequence batches, err: %w", err)
 		return nil
@@ -149,16 +148,18 @@ func (c *Client) manageTxs() {
 			}
 
 			log.Infof("L1 tx mined successfully: %v", etx.Tx().Hash().String())
+
+			// waits the synchronizer to sync the data from the tx that was mined
+			err = etx.WaitSync(ctx)
+			if err != nil {
+				log.Errorf("failed to wait sync: %w", err)
+				etx.Wait()
+				continue
+			}
+
+			log.Infof("L1 tx synced successfully: %v", etx.Tx().Hash().String())
+
 			break
 		}
 	}
-}
-
-func increaseGasPrice(currentGasPrice *big.Int, percentageIncrease uint64) *big.Int {
-	gasPrice := big.NewInt(0).Mul(currentGasPrice, new(big.Int).SetUint64(uint64(100)+percentageIncrease)) //nolint:gomnd
-	return gasPrice.Div(gasPrice, big.NewInt(100))                                                         //nolint:gomnd
-}
-
-func increaseGasLimit(currentGasLimit uint64, percentageIncrease uint64) uint64 {
-	return currentGasLimit * (100 + percentageIncrease) / 100 //nolint:gomnd
 }

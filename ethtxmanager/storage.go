@@ -16,6 +16,7 @@ type enqueuedTx interface {
 	Tx() *types.Transaction
 	RenewTxIfNeeded(context.Context, etherman) error
 	Wait()
+	WaitSync(ctx context.Context) error
 }
 
 type baseEnqueuedTx struct {
@@ -37,6 +38,8 @@ func (etx *baseEnqueuedTx) Wait() {
 // sequence batches that can be enqueued to be monitored
 type enqueuedSequencesTx struct {
 	baseEnqueuedTx
+	state     state
+	cfg       Config
 	sequences []ethmanTypes.Sequence
 }
 
@@ -92,6 +95,11 @@ func (etx *enqueuedSequencesTx) renewGasPrice(ctx context.Context, e etherman) e
 	return nil
 }
 
+// WaitSync checks if the sequences were already synced into the state
+func (etx *enqueuedSequencesTx) WaitSync(ctx context.Context) error {
+	return etx.state.WaitSequencingTxToBeSynced(ctx, etx.Tx(), etx.cfg.WaitTxToBeSynced.Duration)
+}
+
 // storage hold txs to be managed
 type storage struct {
 	// txs enqueued to be monitored
@@ -106,7 +114,7 @@ func newStorage() *storage {
 }
 
 // enqueueSequences adds a tx to the enqueued txs to sequence batches
-func (s *storage) enqueueSequences(ctx context.Context, e etherman, cfg Config, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
+func (s *storage) enqueueSequences(ctx context.Context, st state, e etherman, cfg Config, sequences []ethmanTypes.Sequence) (*types.Transaction, error) {
 	tx, err := e.SequenceBatches(ctx, sequences, 0, nil, nil, true)
 	if err != nil {
 		return nil, err
@@ -114,6 +122,8 @@ func (s *storage) enqueueSequences(ctx context.Context, e etherman, cfg Config, 
 
 	s.txs <- &enqueuedSequencesTx{
 		baseEnqueuedTx: baseEnqueuedTx{tx: tx, waitDuration: cfg.FrequencyForResendingFailedSendBatches.Duration},
+		state:          st,
+		cfg:            cfg,
 		sequences:      sequences,
 	}
 
