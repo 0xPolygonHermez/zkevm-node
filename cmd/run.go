@@ -304,7 +304,7 @@ func startMetricsHttpServer(c *config.Config) {
 		log.Errorf("failed to create tcp listener for metrics: %v", err)
 		return
 	}
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle(metrics.Endpoint, promhttp.Handler())
 	metricsServer := &http.Server{
 		Handler: mux,
 	}

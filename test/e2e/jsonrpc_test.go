@@ -153,16 +153,6 @@ func Test_Filters(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, filterId)
 
-		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newPendingTransactionFilter")
-		require.NoError(t, err)
-		require.Nil(t, response.Error)
-		require.NotNil(t, response.Result)
-
-		filterId = ""
-		err = json.Unmarshal(response.Result, &filterId)
-		require.NoError(t, err)
-		require.NotEmpty(t, filterId)
-
 		response, err = jsonrpc.JSONRPCCall(network.URL, "eth_newFilter", map[string]interface{}{
 			"BlockHash": common.HexToHash("0x1"),
 			"FromBlock": "0x1",

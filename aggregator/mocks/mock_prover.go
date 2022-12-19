@@ -14,6 +14,20 @@ type ProverMock struct {
 	mock.Mock
 }
 
+// Addr provides a mock function with given fields:
+func (_m *ProverMock) Addr() string {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
 // AggregatedProof provides a mock function with given fields: inputProof1, inputProof2
 func (_m *ProverMock) AggregatedProof(inputProof1 string, inputProof2 string) (*string, error) {
 	ret := _m.Called(inputProof1, inputProof2)
@@ -60,13 +74,13 @@ func (_m *ProverMock) BatchProof(input *pb.InputProver) (*string, error) {
 	return r0, r1
 }
 
-// FinalProof provides a mock function with given fields: inputProof
-func (_m *ProverMock) FinalProof(inputProof string) (*string, error) {
-	ret := _m.Called(inputProof)
+// FinalProof provides a mock function with given fields: inputProof, aggregatorAddr
+func (_m *ProverMock) FinalProof(inputProof string, aggregatorAddr string) (*string, error) {
+	ret := _m.Called(inputProof, aggregatorAddr)
 
 	var r0 *string
-	if rf, ok := ret.Get(0).(func(string) *string); ok {
-		r0 = rf(inputProof)
+	if rf, ok := ret.Get(0).(func(string, string) *string); ok {
+		r0 = rf(inputProof, aggregatorAddr)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*string)
@@ -74,8 +88,8 @@ func (_m *ProverMock) FinalProof(inputProof string) (*string, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(inputProof)
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(inputProof, aggregatorAddr)
 	} else {
 		r1 = ret.Error(1)
 	}
