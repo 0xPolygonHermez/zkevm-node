@@ -432,8 +432,13 @@ func (etherMan *Client) trustedVerifyBatches(opts *bind.TransactOpts, lastVerifi
 }
 
 // GetSendSequenceFee get super/trusted sequencer fee
-func (etherMan *Client) GetSendSequenceFee() (*big.Int, error) {
-	return etherMan.PoE.CalculateBatchFee(&bind.CallOpts{Pending: false})
+func (etherMan *Client) GetSendSequenceFee(numBatches uint64) (*big.Int, error) {
+	f, err := etherMan.PoE.GetCurrentBatchFee(&bind.CallOpts{Pending: false})
+	if err != nil {
+		return nil, err
+	}
+	fee := new(big.Int).Mul(f, new(big.Int).SetUint64(numBatches))
+	return fee, nil
 }
 
 // TrustedSequencer gets trusted sequencer address

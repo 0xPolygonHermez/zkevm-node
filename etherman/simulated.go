@@ -71,7 +71,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	_, err = br.Initialize(auth, 0, exitManagerAddr, poeAddr, big.NewInt(0))
+	_, err = br.Initialize(auth, 0, exitManagerAddr, poeAddr)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
