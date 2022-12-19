@@ -15,22 +15,12 @@ var (
 	ErrStackOverflow = errors.New("stack overflow")
 	// ErrStackUnderflow indicates a stack overflow has happened
 	ErrStackUnderflow = errors.New("stack underflow")
-	// ErrNotEnoughFunds indicates there is not enough funds to continue the execution
-	ErrNotEnoughFunds = errors.New("not enough funds")
-	// ErrInsufficientBalance indicates there is not enough balance to continue the execution
-	ErrInsufficientBalance = errors.New("insufficient balance for transfer")
-	// ErrCodeNotFound indicates the code was not found
-	ErrCodeNotFound = errors.New("code not found, data is empty")
 	// ErrMaxCodeSizeExceeded indicates the code size is beyond the maximum
 	ErrMaxCodeSizeExceeded = errors.New("evm: max code size exceeded")
 	// ErrContractAddressCollision there is a collision regarding contract addresses
 	ErrContractAddressCollision = errors.New("contract address collision")
-	// ErrDepth indicates the maximun call depth has been passed
-	ErrDepth = errors.New("max call depth exceeded")
 	// ErrExecutionReverted indicates the execution has been reverted
 	ErrExecutionReverted = errors.New("execution reverted")
-	// ErrCodeStoreOutOfGas indicates there is not enough gas for the storage
-	ErrCodeStoreOutOfGas = errors.New("contract creation code storage out of gas")
 	// ErrOutOfCountersKeccak indicates there are not enough keccak counters to continue the execution
 	ErrOutOfCountersKeccak = errors.New("not enough keccak counters to continue the execution")
 	// ErrOutOfCountersBinary indicates there are not enough binary counters to continue the execution
@@ -43,9 +33,6 @@ var (
 	ErrOutOfCountersPadding = errors.New("not enough padding counters counters to continue the execution")
 	// ErrOutOfCountersPoseidon indicates there are not enough poseidon counters to continue the execution
 	ErrOutOfCountersPoseidon = errors.New("not enough poseidon counters counters to continue the execution")
-	// ErrInvalidTransaction indicates the transaction are invalid because of invalid jump dest, invalid opcode, invalid deploy
-	// or invalid static tx
-	ErrInvalidTransaction = errors.New("invalid transaction")
 	// ErrIntrinsicInvalidSignature indicates the transaction is failing at the signature intrinsic check
 	ErrIntrinsicInvalidSignature = errors.New("signature intrinsic error")
 	// ErrIntrinsicInvalidChainID indicates the transaction is failing at the chain id intrinsic check
@@ -62,6 +49,16 @@ var (
 	ErrIntrinsicInvalidSenderCode = errors.New("invalid sender code intrinsic error")
 	// ErrBatchDataTooBig indicates the batch_l2_data is too big to be processed
 	ErrBatchDataTooBig = errors.New("batch data too big")
+	// ErrInvalidJump indicates there is an invalid jump opcode
+	ErrInvalidJump = errors.New("invalid jump opcode")
+	// ErrInvalidOpCode indicates there is an invalid opcode
+	ErrInvalidOpCode = errors.New("invalid opcode")
+	// ErrInvalidStatic indicates there is an invalid static call
+	ErrInvalidStatic = errors.New("invalid static call")
+	// ErrInvalidByteCodeStartsEF indicates there is a bytecode starting with 0xEF
+	ErrInvalidByteCodeStartsEF = errors.New("bytecode starting with 0xEF")
+	// ErrIntrinsicInvalidTxGasOverflow indicates the transaction gasLimit*gasPrice > MAX_UINT_256 - 1
+	ErrIntrinsicInvalidTxGasOverflow = errors.New("gas overflow")
 )
 
 // ExecutionResult includes all output after executing given evm
