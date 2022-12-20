@@ -2,12 +2,12 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/broadcast/pb"
@@ -27,12 +27,10 @@ const (
 	serverAddress     = "localhost:61090"
 	totalBatches      = 2
 	totalTxsLastBatch = 5
-	encodedFmt        = "encoded-%d"
 	forcedBatchNumber = 18
 )
 
 var (
-	ctx             = context.Background()
 	stateDBCfg      = dbutils.NewStateConfigFromEnv()
 	ger             = common.HexToHash("deadbeef")
 	mainnetExitRoot = common.HexToHash("caffe")
@@ -40,11 +38,11 @@ var (
 )
 
 func TestBroadcast(t *testing.T) {
-	initOrResetDB()
-
 	if testing.Short() {
 		t.Skip()
 	}
+	initOrResetDB()
+	ctx := context.Background()
 
 	require.NoError(t, operations.StartComponent("network"))
 	require.NoError(t, operations.StartComponent("broadcast"))
@@ -74,10 +72,6 @@ func TestBroadcast(t *testing.T) {
 	require.Equal(t, totalBatches, int(batch.BatchNumber))
 
 	require.Equal(t, totalTxsLastBatch, len(batch.Transactions))
-
-	for i, tx := range batch.Transactions {
-		require.Equal(t, fmt.Sprintf(encodedFmt, i+1), tx.Encoded)
-	}
 	require.EqualValues(t, forcedBatchNumber, batch.ForcedBatchNumber)
 
 	require.Equal(t, mainnetExitRoot.String(), batch.MainnetExitRoot)
@@ -85,6 +79,7 @@ func TestBroadcast(t *testing.T) {
 }
 
 func initState() (*state.State, error) {
+	ctx := context.Background()
 	initOrResetDB()
 	sqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
@@ -130,8 +125,11 @@ func populateDB(ctx context.Context, st *state.State) error {
 			return err
 		}
 
+		tx := types.NewTransaction(uint64(i), common.HexToAddress("0x1"), big.NewInt(0), uint64(0), nil, nil)
+		bData, _ := tx.MarshalBinary()
+		encoded := hex.EncodeToHex(bData)
 		const addTransaction = "INSERT INTO state.transaction (hash, encoded, l2_block_num) VALUES ($1, $2, $3)"
-		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, fmt.Sprintf("hash-%d", i), fmt.Sprintf(encodedFmt, i), l2Block.Number().Uint64()); err != nil {
+		if _, err := st.PostgresStorage.Exec(ctx, addTransaction, tx.Hash().String(), encoded, l2Block.Number().Uint64()); err != nil {
 			return err
 		}
 	}

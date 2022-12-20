@@ -41,10 +41,13 @@ const (
 	DefaultSequencerBalance     = 400000
 	DefaultMaxCumulativeGasUsed = 800000
 
-	DefaultL1NetworkURL        = "http://localhost:8545"
-	DefaultL1ChainID    uint64 = 1337
-	DefaultL2NetworkURL        = "http://localhost:8123"
-	DefaultL2ChainID    uint64 = 1001
+	DefaultL1NetworkURL                 = "http://localhost:8545"
+	DefaultL1NetworkWebSocketURL        = "ws://localhost:8546"
+	DefaultL1ChainID             uint64 = 1337
+
+	DefaultL2NetworkURL                 = "http://localhost:8123"
+	DefaultL2NetworkWebSocketURL        = "ws://localhost:8133"
+	DefaultL2ChainID             uint64 = 1001
 
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
 )
@@ -52,7 +55,6 @@ const (
 var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
-	rpcDBCfg   = dbutils.NewRPCConfigFromEnv()
 
 	executorURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1:50071")
 	merkleTreeURI    = testutils.GetEnv(constants.ENV_MERKLETREE_URI, "127.0.0.1:50061")
@@ -580,9 +582,6 @@ func initOrResetDB() {
 		panic(err)
 	}
 	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
-		panic(err)
-	}
-	if err := dbutils.InitOrResetRPC(rpcDBCfg); err != nil {
 		panic(err)
 	}
 }

@@ -2,8 +2,6 @@ package jsonrpc
 
 import (
 	"time"
-
-	"github.com/0xPolygonHermez/zkevm-node/db"
 )
 
 // Config represents the configuration of the json rpc
@@ -33,6 +31,12 @@ type Config struct {
 	// ChainID is the L2 ChainID provided by the Network Config
 	ChainID uint64
 
-	// RPC Database COnfig
-	DB db.Config `mapstructure:"DB"`
+	// Websockets
+	WebSockets WebSocketsConfig `mapstructure:"WebSockets"`
+}
+
+// WebSocketsConfig has parameters to config the rpc websocket support
+type WebSocketsConfig struct {
+	Enabled bool `mapstructure:"Enabled"`
+	Port    int  `mapstructure:"Port"`
 }

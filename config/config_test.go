@@ -301,32 +301,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: "0x1111111111111111111111111111111111111111",
 		},
 		{
-			path:          "RPC.DB.User",
-			expectedValue: "rpc_user",
-		},
-		{
-			path:          "RPC.DB.Password",
-			expectedValue: "rpc_password",
-		},
-		{
-			path:          "RPC.DB.Name",
-			expectedValue: "rpc_db",
-		},
-		{
-			path:          "RPC.DB.Host",
-			expectedValue: "localhost",
-		},
-		{
-			path:          "RPC.DB.Port",
-			expectedValue: "5432",
-		},
-		{
-			path:          "RPC.DB.EnableLog",
+			path:          "RPC.WebSockets.Enabled",
 			expectedValue: false,
 		},
 		{
-			path:          "RPC.DB.MaxConns",
-			expectedValue: 200,
+			path:          "RPC.WebSockets.Port",
+			expectedValue: 8133,
 		},
 		{
 			path:          "Executor.URI",

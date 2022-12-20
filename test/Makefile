@@ -6,7 +6,6 @@ DOCKERCOMPOSEAPPSYNC := zkevm-sync
 DOCKERCOMPOSEAPPBROADCAST := zkevm-broadcast
 DOCKERCOMPOSESTATEDB := zkevm-state-db
 DOCKERCOMPOSEPOOLDB := zkevm-pool-db
-DOCKERCOMPOSERPCDB := zkevm-rpc-db
 DOCKERCOMPOSENETWORK := zkevm-mock-l1-network
 DOCKERCOMPOSEEXPLORERL1 := zkevm-explorer-l1
 DOCKERCOMPOSEEXPLORERL1DB := zkevm-explorer-l1-db
@@ -23,7 +22,6 @@ DOCKERCOMPOSEGRAFANA := grafana
 
 RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
 RUNPOOLDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPOOLDB)
-RUNRPCDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSERPCDB)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
 RUNAGGREGATOR := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPAGG)
 RUNJSONRPC := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPRPC)
@@ -51,7 +49,6 @@ RUN := $(DOCKERCOMPOSE) up -d
 
 STOPSTATEDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSESTATEDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSESTATEDB)
 STOPPOOLDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEPOOLDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEPOOLDB)
-STOPRPCDB := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSERPCDB) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSERPCDB)
 STOPSEQUENCER := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPSEQ) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPSEQ)
 STOPAGGREGATOR := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPAGG) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPAGG)
 STOPJSONRPC := $(DOCKERCOMPOSE) stop $(DOCKERCOMPOSEAPPRPC) && $(DOCKERCOMPOSE) rm -f $(DOCKERCOMPOSEAPPRPC)
@@ -81,7 +78,6 @@ STOP := $(DOCKERCOMPOSE) down --remove-orphans
 test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB)
 	$(RUNZKPROVER)
 	sleep 5
 	$(RUNZKPROVERMOCK)
@@ -95,7 +91,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB); sleep 5
+	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
@@ -105,7 +101,7 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB); sleep 5
+	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
@@ -115,11 +111,21 @@ test-e2e-group-2: stop ## Runs group 2 e2e tests checking race conditions
 test-e2e-group-3: stop ## Runs group 3 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB); sleep 5
+	sleep 5
 	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group3/...
+
+.PHONY: test-e2e-group-4
+test-e2e-group-4: stop ## Runs group 4 e2e tests checking race conditions
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	sleep 5
+	$(RUNZKPROVER)
+	docker ps -a
+	docker logs $(DOCKERCOMPOSEZKPROVER)
+	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -race -v -p 1 -timeout 600s ../ci/e2e-group4/...
 
 .PHONY: benchmark-sequencer
 benchmark-sequencer: stop
@@ -141,11 +147,9 @@ benchmark-sequencer: stop
 run-db: ## Runs the node database
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB)
 
 .PHONY: stop-db
 stop-db: ## Stops the node database
-	$(STOPRPCDB)
 	$(STOPPOOLDB)
 	$(STOPSTATEDB)
 
@@ -275,7 +279,6 @@ stop-approve-matic: ## Stops approve in node container
 run: ## Runs a full node
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
-	$(RUNRPCDB)
 	$(RUNL1NETWORK)
 	sleep 1
 	$(RUNZKPROVER)

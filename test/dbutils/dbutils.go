@@ -19,12 +19,6 @@ func InitOrResetPool(cfg db.Config) error {
 	return initOrReset(cfg, "zkevm-pool-db")
 }
 
-// InitOrResetRPC will initializes the RPC db running the migrations or
-// will reset all the known data and rerun the migrations
-func InitOrResetRPC(cfg db.Config) error {
-	return initOrReset(cfg, "zkevm-rpc-db")
-}
-
 // initOrReset will initializes the db running the migrations or
 // will reset all the known data and rerun the migrations
 func initOrReset(cfg db.Config, name string) error {
@@ -50,11 +44,6 @@ func NewStateConfigFromEnv() db.Config {
 // NewPoolConfigFromEnv return a config for pool db
 func NewPoolConfigFromEnv() db.Config {
 	return newConfigFromEnv("pool", "5433")
-}
-
-// NewRPCConfigFromEnv return a config for RPC db
-func NewRPCConfigFromEnv() db.Config {
-	return newConfigFromEnv("rpc", "5434")
 }
 
 // newConfigFromEnv creates config from standard postgres environment variables,

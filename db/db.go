@@ -17,14 +17,11 @@ const (
 	StateMigrationName = "zkevm-state-db"
 	// PoolMigrationName is the name of the migration used by packr to pack the migration file
 	PoolMigrationName = "zkevm-pool-db"
-	// RPCMigrationName is the name of the migration used by packr to pack the migration file
-	RPCMigrationName = "zkevm-rpc-db"
 )
 
 var packrMigrations = map[string]*packr.Box{
 	StateMigrationName: packr.New(StateMigrationName, "./migrations/state"),
 	PoolMigrationName:  packr.New(PoolMigrationName, "./migrations/pool"),
-	RPCMigrationName:   packr.New(RPCMigrationName, "./migrations/rpc"),
 }
 
 // NewSQLDB creates a new SQL DB

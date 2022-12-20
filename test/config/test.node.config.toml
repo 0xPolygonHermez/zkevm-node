@@ -52,14 +52,9 @@ MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = ""
 BroadcastURI = "127.0.0.1:61090"
 DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
-	[RPC.DB]
-		User = "rpc_user"
-		Password = "rpc_password"
-		Name = "rpc_db"
-		Host = "zkevm-rpc-db"
-		Port = "5432"
-		EnableLog = false
-		MaxConns = 10
+	[RPC.WebSockets]
+		Enabled = true
+		Port = 8133
 
 [Synchronizer]
 SyncInterval = "1s"

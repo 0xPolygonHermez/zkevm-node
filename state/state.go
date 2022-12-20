@@ -68,6 +68,10 @@ type State struct {
 	*PostgresStorage
 	executorClient pb.ExecutorServiceClient
 	tree           *merkletree.StateTree
+
+	lastL2BlockSeen         types.Block
+	newL2BlockEvents        chan NewL2BlockEvent
+	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
 
 // NewState creates a new State
@@ -76,12 +80,27 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient pb.ExecutorSe
 		metrics.Register()
 	})
 
-	return &State{
-		cfg:             cfg,
-		PostgresStorage: storage,
-		executorClient:  executorClient,
-		tree:            stateTree,
+	lastL2Block, err := storage.GetLastL2Block(context.Background(), nil)
+	if errors.Is(err, ErrStateNotSynchronized) {
+		lastL2Block = types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0)})
+	} else if err != nil {
+		log.Fatalf("failed to load the last l2 block: %v", err)
 	}
+
+	s := &State{
+		cfg:                     cfg,
+		PostgresStorage:         storage,
+		executorClient:          executorClient,
+		tree:                    stateTree,
+		lastL2BlockSeen:         *lastL2Block,
+		newL2BlockEvents:        make(chan NewL2BlockEvent),
+		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
+	}
+
+	go s.monitorNewL2Blocks()
+	go s.handleEvents()
+
+	return s
 }
 
 // BeginStateTransaction starts a state transaction
@@ -1398,4 +1417,82 @@ func (s *State) WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumb
 
 	log.Debug("Verified batch successfully synced: ", batchNumber)
 	return nil
+}
+
+func (s *State) monitorNewL2Blocks() {
+	waitNextCycle := func() {
+		time.Sleep(1 * time.Second)
+	}
+
+	for {
+		lastL2Block, err := s.GetLastL2Block(context.Background(), nil)
+		if errors.Is(err, ErrStateNotSynchronized) {
+			waitNextCycle()
+			continue
+		} else if err != nil {
+			log.Errorf("failed to get last l2 block while monitoring new blocks: %v", err)
+			waitNextCycle()
+			continue
+		}
+
+		// not updates until now
+		if lastL2Block == nil || s.lastL2BlockSeen.NumberU64() >= lastL2Block.NumberU64() {
+			waitNextCycle()
+			continue
+		}
+
+		for bn := s.lastL2BlockSeen.NumberU64() + uint64(1); bn <= lastL2Block.NumberU64(); bn++ {
+			block, err := s.GetL2BlockByNumber(context.Background(), bn, nil)
+			if err != nil {
+				log.Errorf("failed to l2 block while monitoring new blocks: %v", err)
+				break
+			}
+
+			s.newL2BlockEvents <- NewL2BlockEvent{
+				Block: *block,
+			}
+			log.Infof("new l2 blocks detected, Number %v, Hash %v", block.NumberU64(), block.Hash().String())
+			s.lastL2BlockSeen = *block
+		}
+
+		// interval to check for new l2 blocks
+		waitNextCycle()
+	}
+}
+
+func (s *State) handleEvents() {
+	for newL2BlockEvent := range s.newL2BlockEvents {
+		log.Infof("reacting to new l2 block, Number %v, Hash %v", newL2BlockEvent.Block.NumberU64(), newL2BlockEvent.Block.Hash().String())
+		wg := sync.WaitGroup{}
+		for index, handler := range s.newL2BlockEventHandlers {
+			log.Infof("executing new l2 block event handler for block, Number %v, Hash %v, Handler Index: %v", newL2BlockEvent.Block.NumberU64(), newL2BlockEvent.Block.Hash().String(), index)
+			wg.Add(1)
+			go func(h NewL2BlockEventHandler) {
+				defer func() {
+					wg.Done()
+					if r := recover(); r != nil {
+						log.Errorf("failed and recovered in NewL2BlockEventHandler: %v", r)
+					}
+				}()
+				h(newL2BlockEvent)
+			}(handler)
+		}
+		wg.Wait()
+	}
+}
+
+// NewL2BlockEventHandler represent a func that will be called by the
+// state when a NewL2BlockEvent is triggered
+type NewL2BlockEventHandler func(e NewL2BlockEvent)
+
+// NewL2BlockEvent is a struct provided from the state to the NewL2BlockEventHandler
+// when a new l2 block is detected with data related to this new l2 block.
+type NewL2BlockEvent struct {
+	Block types.Block
+}
+
+// RegisterNewL2BlockEventHandler add the provided handler to the list of handlers
+// that will be triggered when a new l2 block event is triggered
+func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
+	s.newL2BlockEventHandlers = append(s.newL2BlockEventHandlers, h)
 }
