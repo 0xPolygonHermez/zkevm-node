@@ -12,6 +12,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"google.golang.org/grpc"
@@ -198,9 +199,23 @@ func (a *Aggregator) sendFinalProof() {
 
 			log.Infof("Verifying final proof with ethereum smart contract, batches %d-%d", proof.BatchNumber, proof.BatchNumberFinal)
 
-			tx, err := a.EthTxManager.VerifyBatches(ctx, proof.BatchNumber-1, proof.BatchNumberFinal, msg.finalProof)
+			finalBatch, err := a.State.GetBatchByNumber(ctx, proof.BatchNumberFinal, nil)
 			if err != nil {
-				log.Errorf("Error verifiying final proof for batches %d-%d, err: %v", proof.BatchNumber, proof.BatchNumberFinal, err)
+				log.Errorf("Failed to retrieve batch with number [%d]", proof.BatchNumberFinal)
+				continue
+			}
+
+			inputs := ethmanTypes.FinalProofInputs{
+				FinalProof:       msg.finalProof,
+				NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
+				NewStateRoot:     finalBatch.StateRoot.Bytes(),
+			}
+
+			log.Infof("Final proof inputs: NewLocalExitRoot [%#x], NewStateRoot [%#x]", inputs.NewLocalExitRoot, inputs.NewStateRoot)
+
+			err = a.EthTxManager.VerifyBatches(ctx, proof.BatchNumber-1, proof.BatchNumberFinal, &inputs)
+			if err != nil {
+				log.Errorf("Error verifiying final proof for batches [%d-%d], err: %v", proof.BatchNumber, proof.BatchNumberFinal, err)
 
 				// unlock the underlying proof (generating=false)
 				proof.Generating = false
@@ -210,8 +225,6 @@ func (a *Aggregator) sendFinalProof() {
 				}
 				continue
 			}
-
-			log.Infof("Final proof for batches [%d-%d] verified in transaction [%v]", proof.BatchNumber, proof.BatchNumberFinal, tx.Hash().TerminalString())
 
 			// wait for the synchronizer to catch up the verified batches
 			log.Debug("A final proof has been sent, waiting for the network to be synced")

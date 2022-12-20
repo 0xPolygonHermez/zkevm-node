@@ -22,7 +22,7 @@ func TestVerifyBatchesWithROEthman(t *testing.T) {
 	ethManRO, _, _, _, _ := ethman.NewSimulatedEtherman(ethman.Config{}, nil)
 	txMan := New(Config{}, ethManRO, nil)
 
-	_, err := txMan.VerifyBatches(context.Background(), 41, 42, nil)
+	err := txMan.VerifyBatches(context.Background(), 41, 42, nil)
 
 	assert.ErrorIs(t, err, ethman.ErrIsReadOnlyMode)
 }

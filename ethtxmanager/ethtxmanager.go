@@ -7,10 +7,8 @@ package ethtxmanager
 import (
 	"context"
 
-	"github.com/0xPolygonHermez/zkevm-node/aggregator/pb"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // Client for eth tx manager
@@ -50,63 +48,17 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 // VerifyBatches sends the VerifyBatches request to Ethereum. It is also
 // responsible for retrying up to MaxVerifyBatchTxRetries times, increasing the
 // Gas price or Gas limit, depending on the error returned by Ethereum.
-func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, finalBatchNum uint64, resGetProof *pb.FinalProof) (*types.Transaction, error) {
-	panic("not implemented yet")
-	// var (
-	// 	attempts uint32
-	// 	gas      uint64
-	// 	gasPrice *big.Int
-	// 	nonce    = big.NewInt(0)
-	// 	tx       *types.Transaction
-	// 	err      error
-	// )
+func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, finalBatchNum uint64, inputs *ethmanTypes.FinalProofInputs) error {
+	log.Info("creating L1 tx to verify batches")
+	tx, err := c.storage.enqueueVerifyBatches(ctx, c.state, c.ethMan, c.cfg, lastVerifiedBatch, finalBatchNum, inputs)
+	if err != nil {
+		log.Errorf("failed to create L1 tx to verify batches, err: %w", err)
+		return nil
+	}
+	log.Infof("L1 tx to verify batches added to channel, hash: %v", tx.Hash().String())
+	return nil
 
-	// log.Infof("sending verification to L1 for batches %d-%d", lastVerifiedBatch+1, finalBatchNum)
-
-	// for attempts < c.cfg.MaxVerifyBatchTxRetries {
-	// 	if nonce.Uint64() > 0 {
-	// 		tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nonce)
-	// 	} else {
-	// 		tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nil)
-	// 	}
-	// 	for err != nil && attempts < c.cfg.MaxVerifyBatchTxRetries {
-	// 		log.Errorf("failed to send batch verification, trying once again, retry #%d, err: %w", attempts, err)
-	// 		time.Sleep(c.cfg.FrequencyForResendingFailedVerifyBatch.Duration)
-
-	// 		if nonce.Uint64() > 0 {
-	// 			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nonce)
-	// 		} else {
-	// 			tx, err = c.ethMan.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, resGetProof, gas, gasPrice, nil)
-	// 		}
-
-	// 		attempts++
-	// 	}
-	// 	if err != nil {
-	// 		log.Errorf("failed to send batch verification, maximum attempts exceeded, err: %w", err)
-	// 		return nil, fmt.Errorf("failed to send batch verification, maximum attempts exceeded, err: %w", err)
-	// 	}
-	// 	// Wait for tx to be mined
-	// 	log.Infof("waiting for tx to be mined. Tx hash: %s, nonce: %d, gasPrice: %d", tx.Hash(), tx.Nonce(), tx.GasPrice().Int64())
-	// 	err = c.ethMan.WaitTxToBeMined(ctx, tx, c.cfg.WaitTxToBeMined.Duration)
-	// 	if err != nil {
-	// 		if errors.Is(err, runtime.ErrOutOfGas) {
-	// 			gas = increaseGasLimit(tx.Gas(), c.cfg.PercentageToIncreaseGasLimit)
-	// 			log.Infof("out of gas with %d, retrying with %d", tx.Gas(), gas)
-	// 			continue
-	// 		} else if errors.Is(err, operations.ErrTimeoutReached) {
-	// 			nonce = new(big.Int).SetUint64(tx.Nonce())
-	// 			gasPrice = increaseGasPrice(tx.GasPrice(), c.cfg.PercentageToIncreaseGasPrice)
-	// 			log.Infof("tx %s reached timeout, retrying with gas price = %d", tx.Hash(), gasPrice)
-	// 			continue
-	// 		}
-	// 		log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-	// 		return nil, fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
-	// 	}
-
-	// 	log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
-	// 	return tx, c.state.WaitVerifiedBatchToBeSynced(ctx, finalBatchNum, c.cfg.WaitTxToBeSynced.Duration)
-	// }
-	// return nil, ErrMaxRetriesExceeded
+	// log.Infof("Final proof for batches [%d-%d] verified in transaction [%v]", proof.BatchNumber, proof.BatchNumberFinal, tx.Hash())
 }
 
 // manageTxs will read txs from storage, send then to L1
