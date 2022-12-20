@@ -248,8 +248,8 @@ func sendBatches(cliCtx *cli.Context) error {
 									loggedBatches[sb.NumBatch] = struct{}{}
 								}
 							}
-						case etherman.VerifyBatchesSigHash():
-							vb, err := ethMan.PoE.ParseVerifyBatches(vLog)
+						case etherman.TrustedVerifyBatchesSigHash():
+							vb, err := ethMan.PoE.ParseTrustedVerifyBatches(vLog)
 							if err != nil {
 								return err
 							}

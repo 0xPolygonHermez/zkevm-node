@@ -127,7 +127,7 @@ func (etx *enqueuedVerifyBatchesTx) RenewTxIfNeeded(ctx context.Context, e ether
 		}
 	}
 
-	estimatedGas, err := e.EstimateGasForVerifyBatches(etx.lastVerifiedBatch, etx.finalBatchNum, etx.inputs)
+	estimatedGas, err := e.EstimateGasForTrustedVerifyBatches(etx.lastVerifiedBatch, etx.finalBatchNum, etx.inputs)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (etx *enqueuedVerifyBatchesTx) RenewTxIfNeeded(ctx context.Context, e ether
 // RenewNonce renews the inner TX nonce
 func (etx *enqueuedVerifyBatchesTx) renewNonce(ctx context.Context, e etherman) error {
 	oldTx := etx.Tx()
-	tx, err := e.VerifyBatches(ctx, etx.lastVerifiedBatch, etx.finalBatchNum, etx.inputs, oldTx.Gas(), oldTx.GasPrice(), nil, true)
+	tx, err := e.TrustedVerifyBatches(ctx, etx.lastVerifiedBatch, etx.finalBatchNum, etx.inputs, oldTx.Gas(), oldTx.GasPrice(), nil, true)
 	if err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func (etx *enqueuedVerifyBatchesTx) renewNonce(ctx context.Context, e etherman) 
 func (etx *enqueuedVerifyBatchesTx) renewGas(ctx context.Context, e etherman) error {
 	oldTx := etx.Tx()
 	oldNonce := big.NewInt(0).SetUint64(oldTx.Nonce())
-	tx, err := e.VerifyBatches(ctx, etx.lastVerifiedBatch, etx.finalBatchNum, etx.inputs, oldTx.Gas(), nil, oldNonce, true)
+	tx, err := e.TrustedVerifyBatches(ctx, etx.lastVerifiedBatch, etx.finalBatchNum, etx.inputs, oldTx.Gas(), nil, oldNonce, true)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (s *storage) enqueueSequences(ctx context.Context, st state, e etherman, cf
 
 // enqueueVerifyBatches adds a tx to the enqueued txs to verify batches
 func (s *storage) enqueueVerifyBatches(ctx context.Context, st state, e etherman, cfg Config, lastVerifiedBatch uint64, finalBatchNum uint64, inputs *ethmanTypes.FinalProofInputs) (*types.Transaction, error) {
-	tx, err := e.VerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, inputs, 0, nil, nil, true)
+	tx, err := e.TrustedVerifyBatches(ctx, lastVerifiedBatch, finalBatchNum, inputs, 0, nil, nil, true)
 	if err != nil {
 		return nil, err
 	}

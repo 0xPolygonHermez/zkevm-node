@@ -11,8 +11,8 @@ import (
 )
 
 type etherman interface {
-	VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, gasLimit uint64, gasPrice, nonce *big.Int, noSend bool) (*types.Transaction, error)
-	EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (uint64, error)
+	TrustedVerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, gasLimit uint64, gasPrice, nonce *big.Int, noSend bool) (*types.Transaction, error)
+	EstimateGasForTrustedVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (uint64, error)
 	SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int, noSend bool) (*types.Transaction, error)
 	EstimateGasSequenceBatches(sequences []ethmanTypes.Sequence) (*types.Transaction, error)
 	GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error)

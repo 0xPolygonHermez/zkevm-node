@@ -358,8 +358,7 @@ func isGasApplyError(err error) bool {
 
 // Checks if EVM level valid gas errors occurred
 func isGasEVMError(err error) bool {
-	return errors.Is(err, runtime.ErrOutOfGas) ||
-		errors.Is(err, runtime.ErrCodeStoreOutOfGas)
+	return errors.Is(err, runtime.ErrOutOfGas)
 }
 
 // Checks if the EVM reverted during execution

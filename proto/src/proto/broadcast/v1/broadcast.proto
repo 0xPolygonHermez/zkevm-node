@@ -28,11 +28,10 @@ message GetBatchResponse {
   string state_root = 4;
   string mainnet_exit_root = 5;
   string rollup_exit_root = 6;
-  uint64 global_exit_root_timestamp = 7;
-  uint64 timestamp = 8;
-  string sequencer = 9;
-  uint64 forced_batch_number = 10;
-  repeated Transaction transactions = 11;
+  uint64 timestamp = 7;
+  string sequencer = 8;
+  uint64 forced_batch_number = 9;
+  repeated Transaction transactions = 10;
 }
 
 // Common
