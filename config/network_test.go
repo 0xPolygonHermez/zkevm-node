@@ -40,7 +40,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
       "storage": {
         "0x0000000000000000000000000000000000000000000000000000000000000002": "0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"
       },
-      "contractName": "GlobalExitRootManagerL2"
+      "contractName": "PolygonZkEVMGlobalExitRootL2"
     },
     {
       "balance": "100000000000000000000000",
@@ -50,7 +50,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
       "storage": {
         "0x0000000000000000000000000000000000000000000000000000000000000000": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
       },
-      "contractName": "Bridge"
+      "contractName": "PolygonZkEVMBridge"
     },
     {
       "balance": "0",
