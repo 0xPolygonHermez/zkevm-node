@@ -371,7 +371,7 @@ func (etherMan *Client) EstimateGasForVerifyBatches(lastVerifiedBatch, newVerifi
 }
 
 // VerifyBatches function allows the aggregator send the final proof to L1.
-func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, gasLimit uint64, gasPrice, nonce *big.Int) (*types.Transaction, error) {
+func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, gasLimit uint64, gasPrice, nonce *big.Int, noSend bool) (*types.Transaction, error) {
 	if etherMan.IsReadOnly() {
 		return nil, ErrIsReadOnlyMode
 	}
@@ -385,6 +385,7 @@ func (etherMan *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch, ne
 	if nonce != nil {
 		verifyBatchOpts.Nonce = nonce
 	}
+	verifyBatchOpts.NoSend = noSend
 	return etherMan.verifyBatches(&verifyBatchOpts, lastVerifiedBatch, newVerifiedBatch, inputs)
 }
 
