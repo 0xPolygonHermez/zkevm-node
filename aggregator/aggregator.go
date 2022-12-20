@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"google.golang.org/grpc"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/peer"
 )
 
 const (
@@ -135,14 +136,18 @@ func (a *Aggregator) Stop() {
 // Channel implements the bi-directional communication channel between the
 // Prover client and the Aggregator server.
 func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
-	prover, err := prover.New(stream, a.cfg.ProofStatePollingInterval)
+	ctx := stream.Context()
+	var proverAddr net.Addr
+	p, ok := peer.FromContext(ctx)
+	if ok {
+		proverAddr = p.Addr
+	}
+	prover, err := prover.New(stream, proverAddr, a.cfg.ProofStatePollingInterval)
 	if err != nil {
 		return err
 	}
 
-	log.Debugf("Establishing stream connection with prover %s", prover.ID())
-
-	ctx := stream.Context()
+	log.Debugf("Establishing stream connection with prover ID [%s], addr [%s]", prover.ID(), prover.Addr())
 
 	for {
 		select {
@@ -155,7 +160,7 @@ func (a *Aggregator) Channel(stream pb.AggregatorService_ChannelServer) error {
 
 		default:
 			if !prover.IsIdle() {
-				log.Debug("Prover ID %s is not idle", prover.ID())
+				log.Debugf("Prover { ID [%s], addr [%s] } is not idle", prover.ID(), prover.Addr())
 				time.Sleep(a.cfg.RetryTime.Duration)
 				continue
 			}
@@ -246,16 +251,22 @@ func (a *Aggregator) sendFinalProof() {
 
 // buildFinalProof builds and return the final proof for an aggregated/batch proof.
 func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (*pb.FinalProof, error) {
-	log.Infof("Prover %s is going to be used to generate final proof for batches: %d-%d", prover.ID(), proof.BatchNumber, proof.BatchNumberFinal)
+	log.Infof("Prover { ID[%s], addr[%s] }  is going to be used to generate final proof for batches [%d-%d]",
+		prover.ID(), prover.Addr(), proof.BatchNumber, proof.BatchNumberFinal)
 
-	finalProofID, err := prover.FinalProof(proof.Proof)
+	pubAddr, err := a.Ethman.GetPublicAddress()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get public address, %w", err)
+	}
+
+	finalProofID, err := prover.FinalProof(proof.Proof, pubAddr.String())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get final proof id, %w", err)
 	}
 
 	proof.ProofID = finalProofID
 
-	log.Infof("Proof ID for final proof %d-%d: %s", proof.BatchNumber, proof.BatchNumberFinal, *proof.ProofID)
+	log.Infof("Final proof ID for batches [%d-%d]: %s", proof.BatchNumber, proof.BatchNumberFinal, *proof.ProofID)
 
 	finalProof, err := prover.WaitFinalProof(ctx, *proof.ProofID)
 	if err != nil {
@@ -263,7 +274,7 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 	}
 
 	//b, err := json.Marshal(resGetProof.FinalProof)
-	log.Infof("Final proof %s generated", *proof.ProofID)
+	log.Infof("Final proof [%s] generated", *proof.ProofID)
 
 	// mock prover sanity check
 	if string(finalProof.Public.NewStateRoot) == mockedStateRoot && string(finalProof.Public.NewLocalExitRoot) == mockedLocalExitRoot {
@@ -287,7 +298,7 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 // generated proof.  If the proof is eligible, then the final proof generation
 // is triggered.
 func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (bool, error) {
-	log.Debugf("tryBuildFinalProof start %s", prover.ID())
+	log.Debugf("tryBuildFinalProof start prover { ID [%s], addr [%s] }", prover.ID(), prover.Addr())
 
 	if !a.verifyProofTimeReached() {
 		log.Debug("Time to verify proof not reached")
@@ -479,7 +490,7 @@ func (a *Aggregator) getAndLockProofsToAggregate(ctx context.Context, prover pro
 }
 
 func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterface) (bool, error) {
-	log.Debugf("tryAggregateProofs start %s", prover.ID())
+	log.Debugf("tryAggregateProofs start prover { ID [%s], addr [%s] }", prover.ID(), prover.Addr())
 
 	proof1, proof2, err0 := a.getAndLockProofsToAggregate(ctx, prover)
 	if errors.Is(err0, state.ErrNotFound) {
@@ -503,8 +514,8 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 		log.Debug("tryAggregateProofs end")
 	}()
 
-	log.Infof("Prover %s is going to be used to aggregate proofs: %d-%d and %d-%d",
-		prover.ID(), proof1.BatchNumber, proof1.BatchNumberFinal, proof2.BatchNumber, proof2.BatchNumberFinal)
+	log.Infof("Prover { ID [%s], addr [%s] } is going to be used to aggregate proofs: %d-%d and %d-%d",
+		prover.ID(), prover.Addr(), proof1.BatchNumber, proof1.BatchNumberFinal, proof2.BatchNumber, proof2.BatchNumberFinal)
 
 	proverID := prover.ID()
 	inputProver := map[string]interface{}{
@@ -513,7 +524,7 @@ func (a *Aggregator) tryAggregateProofs(ctx context.Context, prover proverInterf
 	}
 	b, err := json.Marshal(inputProver)
 	if err != nil {
-		return false, fmt.Errorf("Failed to serialize input prover, err: %w", err)
+		return false, fmt.Errorf("Failed to serialize input prover, %w", err)
 	}
 
 	proof := &state.Proof{
@@ -638,7 +649,7 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover *prover.
 }
 
 func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.Prover) (bool, error) {
-	log.Debugf("tryGenerateBatchProof start %s", prover.ID())
+	log.Debugf("tryGenerateBatchProof start prover { ID [%s], addr [%s] }", prover.ID(), prover.Addr())
 
 	batchToProve, proof, err0 := a.getAndLockBatchToProve(ctx, prover)
 	if errors.Is(err0, state.ErrNotFound) {
@@ -662,22 +673,22 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 		log.Debug("tryGenerateBatchProof end")
 	}()
 
-	log.Infof("Prover %s is going to be used to generate batch proof: %d", prover.ID(), batchToProve.BatchNumber)
+	log.Infof("Prover { ID [%s], addr [%s] } is going to be used to generate proof from batch [%d]", prover.ID(), prover.Addr(), batchToProve.BatchNumber)
 
-	log.Infof("Sending zki + batch to the prover, batchNumber: %d", batchToProve.BatchNumber)
+	log.Infof("Sending zki + batch to the prover, batchNumber [%d]", batchToProve.BatchNumber)
 	inputProver, err := a.buildInputProver(ctx, batchToProve)
 	if err != nil {
-		return false, fmt.Errorf("Failed to build input prover, err: %w", err)
+		return false, fmt.Errorf("Failed to build input prover, %w", err)
 	}
 
 	b, err := json.Marshal(inputProver)
 	if err != nil {
-		return false, fmt.Errorf("Failed to serialize input prover, err: %w", err)
+		return false, fmt.Errorf("Failed to serialize input prover, %w", err)
 	}
 
 	proof.InputProver = string(b)
 
-	log.Infof("Sending a batch to the prover, OLDSTATEROOT: %#x, OLDBATCHNUM: %d",
+	log.Infof("Sending a batch to the prover. OldStateRoot [%#x], OldBatchNum [%d]",
 		inputProver.PublicInputs.OldStateRoot, inputProver.PublicInputs.OldBatchNum)
 
 	genProofID, err := prover.BatchProof(inputProver)
