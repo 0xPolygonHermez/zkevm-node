@@ -73,33 +73,41 @@ func (c *Client) manageTxs() {
 		// monitor and retries tx until it gets mined
 		for {
 			ctx := context.Background()
-			err := etx.RenewTxIfNeeded(ctx, c.ethMan)
+			mined, _, err := c.ethMan.CheckTxWasMined(ctx, etx.Tx().Hash())
 			if err != nil {
-				log.Errorf("failed to renew tx if needed: %w", err)
+				log.Errorf("failed to check if tx was mined: %w", err)
 				etx.Wait()
 				continue
 			}
 
-			// sends the tx if it was renewed
-			if etx.Tx().Hash().String() != lastSentTxHash {
-				err := c.ethMan.SendTx(ctx, etx.Tx())
+			if !mined {
+				err := etx.RenewTxIfNeeded(ctx, c.ethMan)
 				if err != nil {
-					log.Errorf("failed to send tx: %w", err)
+					log.Errorf("failed to renew tx if needed: %w", err)
 					etx.Wait()
 					continue
 				}
-				lastSentTxHash = etx.Tx().Hash().String()
-			}
 
-			// waits the txs to be mined
-			err = c.ethMan.WaitTxToBeMined(ctx, etx.Tx(), c.cfg.WaitTxToBeMined.Duration)
-			if err != nil {
-				log.Errorf("failed to wait tx to be mined: %w", err)
-				etx.Wait()
-				continue
-			}
+				// sends the tx if it was renewed
+				if etx.Tx().Hash().String() != lastSentTxHash {
+					err := c.ethMan.SendTx(ctx, etx.Tx())
+					if err != nil {
+						log.Errorf("failed to send tx: %w", err)
+						etx.Wait()
+						continue
+					}
+					lastSentTxHash = etx.Tx().Hash().String()
+				}
 
-			log.Infof("L1 tx mined successfully: %v", etx.Tx().Hash().String())
+				// waits the txs to be mined
+				err = c.ethMan.WaitTxToBeMined(ctx, etx.Tx(), c.cfg.WaitTxToBeMined.Duration)
+				if err != nil {
+					log.Errorf("failed to wait tx to be mined: %w", err)
+					etx.Wait()
+					continue
+				}
+				log.Infof("L1 tx mined successfully: %v", etx.Tx().Hash().String())
+			}
 
 			// waits the synchronizer to sync the data from the tx that was mined
 			err = etx.WaitSync(ctx)
@@ -110,7 +118,6 @@ func (c *Client) manageTxs() {
 			}
 
 			log.Infof("L1 tx synced successfully: %v", etx.Tx().Hash().String())
-
 			break
 		}
 	}
