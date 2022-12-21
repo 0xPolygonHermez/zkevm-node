@@ -224,6 +224,14 @@ run-seq: ## runs the sequencer
 .PHONY: stop-seq
 stop-seq: ## stops the sequencer
 	$(STOPSEQUENCER)
+	
+.PHONY: run-agg
+run-agg: ## runs the aggregator
+	$(RUNAGGREGATOR)
+
+.PHONY: stop-agg
+stop-agg: ## stops the aggregator
+	$(STOPAGGREGATOR)
 
 .PHONY: run-sync
 run-sync: ## runs the synchronizer
@@ -317,6 +325,10 @@ init-network: ## Initializes the network
 .PHONY: deploy-sc
 deploy-sc: ## deploys some examples of transactions and smart contracts
 	go run ./scripts/deploy_sc/main.go .
+
+.PHONY: send-transfers
+send-transfers: ## sends some ETH transfers txs to test the network
+	go run ./scripts/send_transfers/main.go .
 
 .PHONY: deploy-uniswap
 deploy-uniswap: ## deploy the uniswap environment to the network

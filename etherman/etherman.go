@@ -867,3 +867,15 @@ func (etherMan *Client) SendTx(ctx context.Context, tx *types.Transaction) error
 func (etherMan *Client) CurrentNonce(ctx context.Context) (uint64, error) {
 	return etherMan.EtherClient.NonceAt(ctx, etherMan.auth.From, nil)
 }
+
+// CheckTxWasMined check if a tx was already mined
+func (etherMan *Client) CheckTxWasMined(ctx context.Context, txHash common.Hash) (bool, *types.Receipt, error) {
+	receipt, err := etherMan.EtherClient.TransactionReceipt(ctx, txHash)
+	if errors.Is(err, ethereum.NotFound) {
+		return false, nil, nil
+	} else if err != nil {
+		return false, nil, err
+	}
+
+	return true, receipt, nil
+}

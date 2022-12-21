@@ -20,6 +20,7 @@ type etherman interface {
 	WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) error
 	SendTx(ctx context.Context, tx *types.Transaction) error
 	CurrentNonce(ctx context.Context) (uint64, error)
+	CheckTxWasMined(ctx context.Context, txHash common.Hash) (bool, *types.Receipt, error)
 }
 
 type state interface {
