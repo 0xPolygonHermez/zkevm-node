@@ -39,7 +39,7 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 	tx, err := c.storage.enqueueSequences(ctx, c.state, c.ethMan, c.cfg, sequences)
 	if err != nil {
 		log.Errorf("failed to create L1 tx to sequence batches, err: %w", err)
-		return nil
+		return err
 	}
 	log.Infof("L1 tx to sequence batches added to channel, hash: %v", tx.Hash().String())
 	return nil
@@ -53,7 +53,7 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 	tx, err := c.storage.enqueueVerifyBatches(ctx, c.state, c.ethMan, c.cfg, lastVerifiedBatch, finalBatchNum, inputs)
 	if err != nil {
 		log.Errorf("failed to create L1 tx to verify batches, err: %w", err)
-		return nil
+		return err
 	}
 	log.Infof("L1 tx to verify batches added to channel, hash: %v", tx.Hash().String())
 	return nil
