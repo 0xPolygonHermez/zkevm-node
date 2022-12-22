@@ -234,6 +234,11 @@ func (a *Aggregator) sendFinalProof() {
 				continue
 			}
 
+<<<<<<< HEAD
+=======
+			log.Infof("Final proof for batches %d-%d verified in transaction %v", proof.BatchNumber, proof.BatchNumberFinal, tx.Hash())
+
+>>>>>>> parent of c2b3abd... Fix erroneous return in VerifyBatches function (#1441)
 			// wait for the synchronizer to catch up the verified batches
 			log.Debug("A final proof has been sent, waiting for the network to be synced")
 			for !a.isSynced(a.ctx) {

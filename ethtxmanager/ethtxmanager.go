@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+<<<<<<< HEAD
 const failureIntervalInSeconds = 5
 
 var (
@@ -26,6 +27,9 @@ var (
 	// ErrAlreadyExists when the object already exists
 	ErrAlreadyExists = errors.New("Already Exists")
 )
+=======
+const oneHundred = 100
+>>>>>>> parent of c2b3abd... Fix erroneous return in VerifyBatches function (#1441)
 
 // Client for eth tx manager
 type Client struct {
@@ -146,6 +150,7 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 				mTxLog.Errorf("failed to check if tx %v was mined: %v", txHash.String(), err)
 				continue
 			}
+<<<<<<< HEAD
 		}
 
 		if !mined {
@@ -157,6 +162,17 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 					continue
 				}
 			}
+=======
+			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+			return fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+		} else {
+			log.Infof("sequence sent to L1 successfully. Tx hash: %s", tx.Hash())
+			return c.state.WaitSequencingTxToBeSynced(ctx, tx, c.cfg.WaitTxToBeSynced.Duration)
+		}
+	}
+	return nil
+}
+>>>>>>> parent of c2b3abd... Fix erroneous return in VerifyBatches function (#1441)
 
 			// rebuild transaction
 			tx := mTx.Tx()
@@ -221,6 +237,7 @@ func (c *Client) processMonitoredTxs(ctx context.Context) error {
 				mTxLog.Errorf("failed to get tx receipt for tx %v: %v", signedTx.Hash().String(), err)
 				continue
 			}
+<<<<<<< HEAD
 		}
 
 		// if mined, check receipt and mark as Failed or Confirmed
@@ -253,4 +270,23 @@ func (c *Client) ReviewMonitoredTx(mTx monitoredTx) error {
 func (c *Client) logErrorAndWait(msg string, err error) {
 	log.Errorf(msg, err)
 	time.Sleep(failureIntervalInSeconds * time.Second)
+=======
+			log.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+			return nil, fmt.Errorf("tx %s failed, err: %w", tx.Hash(), err)
+		} else {
+			log.Infof("batch verification sent to L1 successfully. Tx hash: %s", tx.Hash())
+			return nil, c.state.WaitVerifiedBatchToBeSynced(ctx, finalBatchNum, c.cfg.WaitTxToBeSynced.Duration)
+		}
+	}
+	return tx, nil
+}
+
+func increaseGasPrice(currentGasPrice *big.Int, percentageIncrease uint64) *big.Int {
+	gasPrice := big.NewInt(0).Mul(currentGasPrice, new(big.Int).SetUint64(uint64(oneHundred)+percentageIncrease))
+	return gasPrice.Div(gasPrice, big.NewInt(oneHundred))
+}
+
+func increaseGasLimit(currentGasLimit uint64, percentageIncrease uint64) uint64 {
+	return currentGasLimit * (oneHundred + percentageIncrease) / oneHundred
+>>>>>>> parent of c2b3abd... Fix erroneous return in VerifyBatches function (#1441)
 }
