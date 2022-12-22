@@ -18,9 +18,8 @@ func TestLogNotInitialized(t *testing.T) {
 
 func TestLog(t *testing.T) {
 	cfg := Config{
-		Environment: EnvironmentDevelopment,
-		Level:       "debug",
-		Outputs:     []string{"stderr"}, //[]string{"stdout", "test.log"}
+		Level:   "debug",
+		Outputs: []string{"stdout"}, //[]string{"stdout", "test.log"}
 	}
 
 	Init(cfg)

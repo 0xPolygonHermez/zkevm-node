@@ -1,13 +1,14 @@
 package main
 
 import (
-	"os"
+	"fmt"
 
-	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/urfave/cli/v2"
 )
 
 func versionCmd(*cli.Context) error {
-	zkevm.PrintVersion(os.Stdout)
+	fmt.Printf("Version = \"%v\"\n", version)
+	fmt.Printf("Build = \"%v\"\n", commit)
+	fmt.Printf("Date = \"%v\"\n", date)
 	return nil
 }

@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"path/filepath"
 
-	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
@@ -41,8 +40,6 @@ import (
 )
 
 func start(cliCtx *cli.Context) error {
-	zkevm.PrintVersion(os.Stdout)
-
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		return err
