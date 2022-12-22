@@ -767,9 +767,9 @@ func (a *Aggregator) enableProofVerification() {
 
 // resetVerifyProofTime updates the timeout to verify a proof.
 func (a *Aggregator) resetVerifyProofTime() {
-	a.enableProofVerification()
 	a.TimeSendFinalProofMutex.Lock()
 	defer a.TimeSendFinalProofMutex.Unlock()
+	a.verifyingProof = false
 	a.TimeSendFinalProof = time.Now().Add(a.cfg.VerifyProofInterval.Duration)
 }
 
