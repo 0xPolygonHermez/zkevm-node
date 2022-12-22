@@ -22,7 +22,7 @@ package main
 // 				L1ETHAmountToSequencer:   "200000000000000000000",
 // 				L1MaticAmountToSequencer: "200000000000000000000000",
 // 			},
-// 			SequencerAddress:    "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
+// 			sequencerAddress:    "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 // 			SequencerPrivateKey: "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e",
 // 			TxTimeout:           time.Minute,
 // 		}); err != nil {

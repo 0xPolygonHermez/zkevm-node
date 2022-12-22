@@ -45,6 +45,13 @@ message ProcessBatchResponse {
     uint64 cumulative_gas_used = 12;
     repeated ProcessTransactionResponse responses = 13;
     Error error = 14;
+    repeated TouchedAddresses touched_addresses = 15;
+}
+
+message TouchedAddresses {
+    string address = 1;
+    optional uint64 nonce = 2;
+    optional string balance = 3;
 }
 
 message CallTrace {

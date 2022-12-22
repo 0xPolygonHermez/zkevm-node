@@ -448,6 +448,11 @@ func (s *State) ProcessSequencerBatch(
 	return result, nil
 }
 
+func (s *State) ExecuteTransaction(processBatchRequest ProcessBatchRequest) ProcessBatchResponse {
+	// TODO: Implement
+	return ProcessBatchResponse{}
+}
+
 // ExecuteBatch is used by the synchronizer to reprocess batches to compare generated state root vs stored one
 func (s *State) ExecuteBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) (*pb.ProcessBatchResponse, error) {
 	if dbTx == nil {

@@ -1,28 +1,45 @@
 package state
 
 import (
+	"math/big"
+
+	"github.com/0xPolygonHermez/zkevm-node/pool"
+
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+type TouchedAddress struct {
+	Address common.Address
+	Nonce   *uint64
+	Balance *big.Int
+}
+
+// ProcessBatchRequest represents the request of a batch process.
+type ProcessBatchRequest struct {
+	BatchNumber      uint64
+	StateRoot        common.Hash
+	GlobalExitRoot   common.Hash
+	OldAccInputHash  common.Hash
+	TxData           []byte
+	SequencerAddress common.Address
+	Timestamp        uint64
+	IsFirstTx        bool
+	Caller           CallerLabel
+}
+
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	NewStateRoot        common.Hash
-	NewAccInputHash     common.Hash
-	NewLocalExitRoot    common.Hash
-	NewBatchNumber      uint64
-	CntKeccakHashes     uint32
-	CntPoseidonHashes   uint32
-	CntPoseidonPaddings uint32
-	CntMemAligns        uint32
-	CntArithmetics      uint32
-	CntBinaries         uint32
-	CntSteps            uint32
-	CumulativeGasUsed   uint64
-	Responses           []*ProcessTransactionResponse
-	Error               error
-	IsBatchProcessed    bool
+	NewStateRoot     common.Hash
+	NewAccInputHash  common.Hash
+	NewLocalExitRoot common.Hash
+	NewBatchNumber   uint64
+	UsedZkCounters   pool.ZkCounters
+	Responses        []*ProcessTransactionResponse
+	Error            error
+	IsBatchProcessed bool
+	TouchedAddresses map[common.Address]*TouchedAddress
 }
 
 // ProcessTransactionResponse represents the response of a tx process.

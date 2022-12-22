@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/pool"
+
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -35,6 +37,8 @@ type stateInterface interface {
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, err error)
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
+	Begin(ctx context.Context) (pgx.Tx, error)
+	ExecuteTransaction(processBatchRequest state.ProcessBatchRequest) state.ProcessBatchResponse
 }
 
 type txManager interface {
@@ -43,11 +47,17 @@ type txManager interface {
 
 type workerInterface interface {
 	GetBestFittingTx(resources RemainingResources) *TxTracker
+	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.TouchedAddress)
+	UpdateTx(txHash common.Hash, from common.Address, ZKCounters pool.ZkCounters)
 }
 
+// The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.
+// Also if dbTx is missing this needs also to be handled ion the dbManager
 type dbManagerInterface interface {
-}
-
-type executorInterface interface {
-	ExecuteTransaction(processBatchRequest state.ProcessBatchRequest) state.ProcessBatchResponse
+	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
+	StoreProcessedTransaction(ctx context.Context, dbTx pgx.Tx, batchNumber uint64, processedTx *state.ProcessTransactionResponse) error
+	DeleteTxFromPool(ctx context.Context, dbTx pgx.Tx, txHash common.Hash) error
+	StoreProcessedTxAndDeleteFromPool(ctx context.Context, batchNumber uint64, response *state.ProcessTransactionResponse)
+	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt)
+	GetLastBatch(ctx context.Context) (*state.Batch, error)
 }

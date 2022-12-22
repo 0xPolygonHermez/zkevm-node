@@ -39,14 +39,14 @@ type Transaction struct {
 
 // ZkCounters counters for the tx
 type ZkCounters struct {
-	CumulativeGasUsed    int64
-	UsedKeccakHashes     int32
-	UsedPoseidonHashes   int32
-	UsedPoseidonPaddings int32
-	UsedMemAligns        int32
-	UsedArithmetics      int32
-	UsedBinaries         int32
-	UsedSteps            int32
+	CumulativeGasUsed    uint64
+	UsedKeccakHashes     uint32
+	UsedPoseidonHashes   uint32
+	UsedPoseidonPaddings uint32
+	UsedMemAligns        uint32
+	UsedArithmetics      uint32
+	UsedBinaries         uint32
+	UsedSteps            uint32
 }
 
 // IsZkCountersBelowZero checks if any of the counters are below zero
@@ -71,6 +71,18 @@ func (zkc *ZkCounters) SumUpZkCounters(txZkCounters ZkCounters) {
 	zkc.UsedArithmetics += txZkCounters.UsedArithmetics
 	zkc.UsedBinaries += txZkCounters.UsedBinaries
 	zkc.UsedSteps += txZkCounters.UsedSteps
+}
+
+// SubZkCounters subtract zk counters with passed zk counters (not safe)
+func (zkc *ZkCounters) SubZkCounters(txZkCounters ZkCounters) {
+	zkc.CumulativeGasUsed -= txZkCounters.CumulativeGasUsed
+	zkc.UsedKeccakHashes -= txZkCounters.UsedKeccakHashes
+	zkc.UsedPoseidonHashes -= txZkCounters.UsedPoseidonHashes
+	zkc.UsedPoseidonPaddings -= txZkCounters.UsedPoseidonPaddings
+	zkc.UsedMemAligns -= txZkCounters.UsedMemAligns
+	zkc.UsedArithmetics -= txZkCounters.UsedArithmetics
+	zkc.UsedBinaries -= txZkCounters.UsedBinaries
+	zkc.UsedSteps -= txZkCounters.UsedSteps
 }
 
 // IsClaimTx checks, if tx is a claim tx

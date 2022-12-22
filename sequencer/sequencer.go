@@ -56,8 +56,8 @@ func (s *Sequencer) Start(ctx context.Context) {
 	dbManager := newDBManager(s.pool, s.state, worker)
 	go dbManager.Start()
 
-	finalizer := newFinalizer(worker, dbManager, s.state)
-	go finalizer.Start()
+	finalizer := newFinalizer(worker, dbManager, s.state, s.address, s.cfg.MaxTxsPerBatch)
+	go finalizer.Start(ctx)
 
 	closingSignalsManager := newClosingSignalsManager(finalizer)
 	go closingSignalsManager.Start()
