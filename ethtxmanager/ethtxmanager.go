@@ -6,10 +6,13 @@ package ethtxmanager
 
 import (
 	"context"
+	"time"
 
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
+
+const intervalWhenFailingToGetNextTxInSeconds = 5
 
 // Client for eth tx manager
 type Client struct {
@@ -36,7 +39,7 @@ func New(cfg Config, ethMan etherman, state state) *Client {
 // SequenceBatches send sequences to the channel
 func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) error {
 	log.Info("creating L1 tx to sequence batches")
-	tx, err := c.storage.enqueueSequences(ctx, c.state, c.ethMan, c.cfg, sequences)
+	tx, err := c.storage.enqueueSequences(ctx, c.ethMan, c.cfg, sequences)
 	if err != nil {
 		log.Errorf("failed to create L1 tx to sequence batches, err: %w", err)
 		return err
@@ -50,7 +53,7 @@ func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Se
 // Gas price or Gas limit, depending on the error returned by Ethereum.
 func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, finalBatchNum uint64, inputs *ethmanTypes.FinalProofInputs) error {
 	log.Info("creating L1 tx to verify batches")
-	tx, err := c.storage.enqueueVerifyBatches(ctx, c.state, c.ethMan, c.cfg, lastVerifiedBatch, finalBatchNum, inputs)
+	tx, err := c.storage.enqueueVerifyBatches(ctx, c.ethMan, c.cfg, lastVerifiedBatch, finalBatchNum, inputs)
 	if err != nil {
 		log.Errorf("failed to create L1 tx to verify batches, err: %w", err)
 		return err
@@ -68,7 +71,12 @@ func (c *Client) manageTxs() {
 	// infinite loop to manage txs as they arrive
 	for {
 		// gets the next tx to send to L1
-		etx := c.storage.Next()
+		etx, err := c.storage.Next()
+		if err != nil {
+			log.Errorf("failed to load next enqueued tx from storage: %w", err)
+			time.Sleep(intervalWhenFailingToGetNextTxInSeconds * time.Second)
+			continue
+		}
 		var lastSentTxHash string
 		// monitor and retries tx until it gets mined
 		for {
@@ -88,7 +96,7 @@ func (c *Client) manageTxs() {
 					continue
 				}
 
-				// sends the tx if it was renewed
+				// sends the tx if it is new
 				if etx.Tx().Hash().String() != lastSentTxHash {
 					err := c.ethMan.SendTx(ctx, etx.Tx())
 					if err != nil {
@@ -110,14 +118,25 @@ func (c *Client) manageTxs() {
 			}
 
 			// waits the synchronizer to sync the data from the tx that was mined
-			err = etx.WaitSync(ctx)
+			err = etx.WaitSync(ctx, c.state, c.cfg)
 			if err != nil {
 				log.Errorf("failed to wait sync: %w", err)
 				etx.Wait()
 				continue
 			}
 
-			log.Infof("L1 tx synced successfully: %v", etx.Tx().Hash().String())
+			// confirms the tx in the storage
+			err = c.storage.Confirm(ctx, etx)
+			if err != nil {
+				log.Errorf("failed to confirm enqueued tx: %w", err)
+				etx.Wait()
+				continue
+			}
+
+			// Callback confirmation
+			etx.OnConfirmation()
+
+			log.Infof("L1 tx confirmed successfully: %v", etx.Tx().Hash().String())
 			break
 		}
 	}
