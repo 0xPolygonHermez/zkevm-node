@@ -6,10 +6,6 @@ NOTE: The Prover is not considered part of the ZKEVM Node and all issues and sug
 
 The ZKEVM Prover image hosts different components, *Merkle Tree*, *Executor* and finally the actual *Prover*.
 
-## Hard dependencies:
-
-- [Aggregator](./aggregator.md)
-
 ## Running:
 
 The preferred way to run the ZKEVM Prover component is via Docker and Docker Compose.
