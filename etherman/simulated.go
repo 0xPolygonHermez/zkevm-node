@@ -102,7 +102,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 
 	client.Commit()
 	return &Client{
-		EtherClient:           client,
+		EthClient:             client,
 		PoE:                   poe,
 		Matic:                 maticContract,
 		GlobalExitRootManager: globalExitRoot,

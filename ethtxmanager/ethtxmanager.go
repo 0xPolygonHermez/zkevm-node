@@ -6,29 +6,40 @@ package ethtxmanager
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"math/big"
 	"time"
 
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
-const intervalWhenFailingToGetNextTxInSeconds = 5
+const failureIntervalInSeconds = 5
+
+var (
+	// ErrNotFound when the object is not found
+	ErrNotFound = errors.New("Not Found")
+	// ErrAlreadyExists when the object already exists
+	ErrAlreadyExists = errors.New("Already Exists")
+)
 
 // Client for eth tx manager
 type Client struct {
-	cfg     Config
-	ethMan  etherman
-	state   state
-	storage *storage
+	cfg      Config
+	etherman ethermanInterface
+	storage  storageInterface
 }
 
 // New creates new eth tx manager
-func New(cfg Config, ethMan etherman, state state) *Client {
+func New(cfg Config, ethMan ethermanInterface, storage storageInterface) *Client {
 	c := &Client{
-		cfg:     cfg,
-		ethMan:  ethMan,
-		state:   state,
-		storage: newStorage(),
+		cfg:      cfg,
+		etherman: ethMan,
+		storage:  storage,
 	}
 
 	go c.manageTxs()
@@ -36,32 +47,67 @@ func New(cfg Config, ethMan etherman, state state) *Client {
 	return c
 }
 
-// SequenceBatches send sequences to the channel
+// SequenceBatches deprecated
 func (c *Client) SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence) error {
-	log.Info("creating L1 tx to sequence batches")
-	tx, err := c.storage.enqueueSequences(ctx, c.ethMan, c.cfg, sequences)
+	panic("deprecated")
+}
+
+// VerifyBatches deprecated
+func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, batchNum uint64, inputs *ethmanTypes.FinalProofInputs) error {
+	panic("deprecated")
+}
+
+// Add a transaction to be sent and monitored
+func (c *Client) Add(ctx context.Context, id string, from common.Address, to *common.Address, value *big.Int, data []byte) error {
+	// get next nonce
+	nonce, err := c.etherman.CurrentNonce(ctx)
 	if err != nil {
-		log.Errorf("failed to create L1 tx to sequence batches, err: %w", err)
-		return nil
+		err := fmt.Errorf("failed to get current nonce: %w", err)
+		log.Errorf(err.Error())
+		return err
 	}
-	log.Infof("L1 tx to sequence batches added to channel, hash: %v", tx.Hash().String())
+	// get gas
+	gas, err := c.etherman.EstimateGas(ctx, from, to, nil, data)
+	if err != nil {
+		err := fmt.Errorf("failed to estimate gas: %w", err)
+		log.Errorf(err.Error())
+		return err
+	}
+	// get gas price
+	gasPrice, err := c.etherman.SuggestedGasPrice(ctx)
+	if err != nil {
+		err := fmt.Errorf("failed to get suggested gas price: %w", err)
+		log.Errorf(err.Error())
+		return err
+	}
+
+	// create monitored tx
+	mTx := monitoredTx{
+		id: id, from: from, to: to,
+		nonce: nonce, value: value, data: data,
+		gas: gas, gasPrice: gasPrice,
+		status: MonitoredTxStatusCreated,
+	}
+
+	// add to storage
+	err = c.storage.Add(ctx, mTx)
+	if err != nil {
+		err := fmt.Errorf("failed to add tx to get monitored: %w", err)
+		log.Errorf(err.Error())
+		return err
+	}
+
 	return nil
 }
 
-// VerifyBatches sends the VerifyBatches request to Ethereum. It is also
-// responsible for retrying up to MaxVerifyBatchTxRetries times, increasing the
-// Gas price or Gas limit, depending on the error returned by Ethereum.
-func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, finalBatchNum uint64, inputs *ethmanTypes.FinalProofInputs) error {
-	log.Info("creating L1 tx to verify batches")
-	tx, err := c.storage.enqueueVerifyBatches(ctx, c.ethMan, c.cfg, lastVerifiedBatch, finalBatchNum, inputs)
+// Status returns the current status of the transaction
+func (c *Client) Status(ctx context.Context, id string) (MonitoredTxStatus, error) {
+	mTx, err := c.storage.Get(ctx, id)
 	if err != nil {
-		log.Errorf("failed to create L1 tx to verify batches, err: %w", err)
-		return nil
+		return MonitoredTxStatus(""), err
 	}
-	log.Infof("L1 tx to verify batches added to channel, hash: %v", tx.Hash().String())
-	return nil
 
-	// log.Infof("Final proof for batches [%d-%d] verified in transaction [%v]", proof.BatchNumber, proof.BatchNumberFinal, tx.Hash())
+	return mTx.status, nil
 }
 
 // manageTxs will read txs from storage, send then to L1
@@ -70,74 +116,141 @@ func (c *Client) VerifyBatches(ctx context.Context, lastVerifiedBatch uint64, fi
 func (c *Client) manageTxs() {
 	// infinite loop to manage txs as they arrive
 	for {
-		// gets the next tx to send to L1
-		etx, err := c.storage.Next()
+		ctx := context.Background()
+		err := c.processMonitoredTxs(ctx)
 		if err != nil {
-			log.Errorf("failed to load next enqueued tx from storage: %w", err)
-			time.Sleep(intervalWhenFailingToGetNextTxInSeconds * time.Second)
-			continue
-		}
-		var lastSentTxHash string
-		// monitor and retries tx until it gets mined
-		for {
-			ctx := context.Background()
-			mined, _, err := c.ethMan.CheckTxWasMined(ctx, etx.Tx().Hash())
-			if err != nil {
-				log.Errorf("failed to check if tx was mined: %w", err)
-				etx.Wait()
-				continue
-			}
-
-			if !mined {
-				err := etx.RenewTxIfNeeded(ctx, c.ethMan)
-				if err != nil {
-					log.Errorf("failed to renew tx if needed: %w", err)
-					etx.Wait()
-					continue
-				}
-
-				// sends the tx if it is new
-				if etx.Tx().Hash().String() != lastSentTxHash {
-					err := c.ethMan.SendTx(ctx, etx.Tx())
-					if err != nil {
-						log.Errorf("failed to send tx: %w", err)
-						etx.Wait()
-						continue
-					}
-					lastSentTxHash = etx.Tx().Hash().String()
-				}
-
-				// waits the txs to be mined
-				err = c.ethMan.WaitTxToBeMined(ctx, etx.Tx(), c.cfg.WaitTxToBeMined.Duration)
-				if err != nil {
-					log.Errorf("failed to wait tx to be mined: %w", err)
-					etx.Wait()
-					continue
-				}
-				log.Infof("L1 tx mined successfully: %v", etx.Tx().Hash().String())
-			}
-
-			// waits the synchronizer to sync the data from the tx that was mined
-			err = etx.WaitSync(ctx, c.state, c.cfg)
-			if err != nil {
-				log.Errorf("failed to wait sync: %w", err)
-				etx.Wait()
-				continue
-			}
-
-			// confirms the tx in the storage
-			err = c.storage.Confirm(ctx, etx)
-			if err != nil {
-				log.Errorf("failed to confirm enqueued tx: %w", err)
-				etx.Wait()
-				continue
-			}
-
-			// Callback confirmation
-			etx.OnConfirmation()
-
-			log.Infof("L1 tx confirmed successfully: %v", etx.Tx().Hash().String())
-			break
+			c.logErrorAndWait("failed to process created monitored txs: %v", err)
 		}
 	}
+}
+
+// processMonitoredTxs process all monitored tx with Created and Sent status
+func (c *Client) processMonitoredTxs(ctx context.Context) error {
+	mTxs, err := c.storage.GetByStatus(ctx, MonitoredTxStatusCreated, MonitoredTxStatusSent)
+	if err != nil {
+		return fmt.Errorf("failed to get created monitored txs: %v", err)
+	}
+
+	log.Debugf("found %v monitored tx to process", len(mTxs))
+
+	for _, mTx := range mTxs {
+		mTxLog := log.WithFields("monitored tx", mTx.id)
+		mTxLog.Debug("processing")
+
+		// check if any of the txs in the history was mined
+		mined := false
+		var receipt *types.Receipt
+		for txHash := range mTx.history {
+			mined, receipt, err = c.etherman.CheckTxWasMined(ctx, txHash)
+			if err != nil {
+				mTxLog.Errorf("failed to check if tx %v was mined: %v", txHash.String(), err)
+				continue
+			}
+		}
+
+		if !mined {
+			// review tx and increase gas and gas price if needed
+			if mTx.status == MonitoredTxStatusSent {
+				err := c.ReviewMonitoredTx(mTx)
+				if err != nil {
+					mTxLog.Errorf("failed to review monitored tx: %v", err)
+					continue
+				}
+			}
+
+			// rebuild transaction
+			tx := mTx.Tx()
+			mTxLog.Debugf("unsigned tx %v created", tx.Hash().String(), mTx.id)
+
+			// sign tx
+			signedTx, err := c.etherman.SignTx(ctx, tx)
+			if err != nil {
+				mTxLog.Errorf("failed to sign tx %v created from monitored tx %v: %v", tx.Hash().String(), mTx.id, err)
+				continue
+			}
+			mTxLog.Debugf("signed tx %v created", signedTx.Hash().String())
+
+			// add tx to monitored tx history
+			err = mTx.AddHistory(signedTx)
+			if errors.Is(err, ErrAlreadyExists) {
+				mTxLog.Debugf("signed tx already existed in the history")
+			} else if err != nil {
+				mTxLog.Errorf("failed to add signed tx to monitored tx %v history: %v", mTx.id, err)
+				continue
+			} else {
+				mTxLog.Debugf("signed tx added to the history")
+			}
+
+			// check if the tx is already in the network, if not, send it
+			_, _, err = c.etherman.GetTx(ctx, signedTx.Hash())
+			// if not found, send it tx to the network
+			if errors.Is(err, ethereum.NotFound) {
+				mTxLog.Debugf("signed tx not found in the network")
+				err := c.etherman.SendTx(ctx, signedTx)
+				if err != nil {
+					mTxLog.Errorf("failed to send tx %v to network: %v", signedTx.Hash().String(), err)
+					continue
+				}
+				mTxLog.Debugf("signed tx sent to the network")
+				if mTx.status == MonitoredTxStatusCreated {
+					// update tx status to sent
+					mTx.status = MonitoredTxStatusSent
+					mTxLog.Debugf("status changed to %v", string(mTx.status))
+					// update monitored tx changes into storage
+					err = c.storage.Update(ctx, mTx)
+					if err != nil {
+						mTxLog.Errorf("failed to update monitored tx changes: %v", err)
+						continue
+					}
+					mTxLog.Debugf("storage updated")
+				}
+			} else {
+				mTxLog.Debugf("signed tx already found in the network")
+			}
+
+			// wait tx to get mined
+			err = c.etherman.WaitTxToBeMined(ctx, signedTx, c.cfg.WaitTxToBeMined.Duration)
+			if err != nil {
+				mTxLog.Errorf("failed to wait tx to be mined: %v", err)
+				continue
+			}
+
+			// get tx receipt
+			receipt, err = c.etherman.GetTxReceipt(ctx, signedTx.Hash())
+			if err != nil {
+				mTxLog.Errorf("failed to get tx receipt for tx %v: %v", signedTx.Hash().String(), err)
+				continue
+			}
+		}
+
+		// if mined, check receipt and mark as Failed or Confirmed
+		if receipt.Status == types.ReceiptStatusSuccessful {
+			mTx.status = MonitoredTxStatusConfirmed
+		} else {
+			mTx.status = MonitoredTxStatusFailed
+		}
+
+		// update monitored tx changes into storage
+		err = c.storage.Update(ctx, mTx)
+		if err != nil {
+			mTxLog.Errorf("failed to update monitored tx changes: %v", err)
+			continue
+		}
+		mTxLog.Debugf("storage updated")
+	}
+
+	return nil
+}
+
+// ReviewMonitoredTx checks if some field needs to be updated
+// accordingly to the current information stored and the current
+// state of the network
+func (c *Client) ReviewMonitoredTx(mTx monitoredTx) error {
+	panic("not implemented yet")
+}
+
+// logErrorAndWait used when an error is detected before trying again
+func (c *Client) logErrorAndWait(msg string, err error) {
+	log.Errorf(msg, err)
+	time.Sleep(failureIntervalInSeconds * time.Second)
 }
