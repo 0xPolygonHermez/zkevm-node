@@ -743,8 +743,8 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 	return true, nil
 }
 
-// canVerifyProof returns if we have reached the timeout to verify a
-// proof.
+// canVerifyProof returns true if we have reached the timeout to verify a proof
+// and no other prover is verifying a proof.
 func (a *Aggregator) canVerifyProof() bool {
 	a.TimeSendFinalProofMutex.Lock()
 	defer a.TimeSendFinalProofMutex.Unlock()
@@ -762,7 +762,6 @@ func (a *Aggregator) enableProofVerification() {
 	a.TimeSendFinalProofMutex.Lock()
 	defer a.TimeSendFinalProofMutex.Unlock()
 	a.verifyingProof = false
-
 }
 
 // resetVerifyProofTime updates the timeout to verify a proof.
