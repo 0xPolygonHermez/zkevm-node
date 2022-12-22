@@ -3,48 +3,6 @@ networks:
   default:
     name: zkevm
 services:
-  grafana:
-    container_name: grafana
-    image: grafana/grafana-oss
-    volumes:
-      - ./config/grafana/datasources.yml:/etc/grafana/provisioning/datasources/default.yml:ro
-      - ./config/grafana/dashboards.yml:/etc/grafana/provisioning/dashboards/default.yml:ro
-      - ./config/grafana/dashboard-dockers.json:/etc/grafana/provisioning/dashboards/dashboard-dockers.json:ro
-      - ./config/grafana/dashboard-node.json:/etc/grafana/provisioning/dashboards/dashboard-node.json:ro
-    environment:
-      - GF_SECURITY_ADMIN_USER=zkevm
-      - GF_SECURITY_ADMIN_PASSWORD=zkevm
-    ports:
-      - 3000:3000
-    depends_on:
-      - telegraf
-
-  telegraf:
-    container_name: telegraf
-    image: telegraf
-    volumes:
-      - ./config/telegraf.conf:/etc/telegraf/telegraf.conf:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    user: telegraf:${DOCKERGID}
-    environment:
-      - POSTGRES_HOST=grafana-db
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=grafana
-    depends_on:
-      - grafana-db
-      - zkevm-json-rpc
-
-  grafana-db:
-    container_name: grafana-db
-    image: postgres
-    expose:
-      - 5432
-    environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=grafana
-
   zkevm-sequencer:
     container_name: zkevm-sequencer
     image: zkevm-node
