@@ -45,7 +45,8 @@ type Aggregator struct {
 	StateDBMutex            *sync.Mutex
 	TimeSendFinalProofMutex *sync.RWMutex
 
-	finalProof chan finalProofMsg
+	finalProof     chan finalProofMsg
+	verifyingProof bool
 
 	srv  *grpc.Server
 	ctx  context.Context
@@ -207,6 +208,7 @@ func (a *Aggregator) sendFinalProof() {
 			finalBatch, err := a.State.GetBatchByNumber(ctx, proof.BatchNumberFinal, nil)
 			if err != nil {
 				log.Errorf("Failed to retrieve batch with number [%d]", proof.BatchNumberFinal)
+				a.enableProofVerification()
 				continue
 			}
 
@@ -228,6 +230,7 @@ func (a *Aggregator) sendFinalProof() {
 				if err != nil {
 					log.Errorf("Rollback failed updating proof state (false) for proof ID [%v], err: %v", proof.ProofID, err)
 				}
+				a.enableProofVerification()
 				continue
 			}
 
@@ -300,11 +303,18 @@ func (a *Aggregator) buildFinalProof(ctx context.Context, prover proverInterface
 func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterface, proof *state.Proof) (bool, error) {
 	log.Debugf("tryBuildFinalProof start prover { ID [%s], addr [%s] }", prover.ID(), prover.Addr())
 
-	if !a.verifyProofTimeReached() {
+	var err error
+	if !a.canVerifyProof() {
 		log.Debug("Time to verify proof not reached")
 		return false, nil
 	}
 	log.Debug("Send final proof time reached")
+
+	defer func() {
+		if err != nil {
+			a.enableProofVerification()
+		}
+	}()
 
 	for !a.isSynced(ctx) {
 		log.Info("Waiting for synchronizer to sync...")
@@ -349,7 +359,8 @@ func (a *Aggregator) tryBuildFinalProof(ctx context.Context, prover proverInterf
 		// we do have a proof generating at the moment, check if it is
 		// eligible to be verified
 
-		eligible, err := a.validateEligibleFinalProof(ctx, proof, lastVerifiedBatchNum)
+		var eligible bool // we need this to keep using err from the outer scope and trigger the defer func
+		eligible, err = a.validateEligibleFinalProof(ctx, proof, lastVerifiedBatchNum)
 		if err != nil {
 			return false, fmt.Errorf("Failed to validate eligible final proof, %w", err)
 		}
@@ -730,18 +741,32 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover *prover.P
 	return true, nil
 }
 
-// verifyProofTimeReached returns if we have reached the timeout to verify a
-// proof.
-func (a *Aggregator) verifyProofTimeReached() bool {
-	a.TimeSendFinalProofMutex.RLock()
-	defer a.TimeSendFinalProofMutex.RUnlock()
-	return a.TimeSendFinalProof.Before(time.Now())
+// canVerifyProof returns true if we have reached the timeout to verify a proof
+// and no other prover is verifying a proof.
+func (a *Aggregator) canVerifyProof() bool {
+	a.TimeSendFinalProofMutex.Lock()
+	defer a.TimeSendFinalProofMutex.Unlock()
+	if a.TimeSendFinalProof.Before(time.Now()) {
+		if a.verifyingProof {
+			return false
+		}
+		a.verifyingProof = true
+		return true
+	}
+	return false
+}
+
+func (a *Aggregator) enableProofVerification() {
+	a.TimeSendFinalProofMutex.Lock()
+	defer a.TimeSendFinalProofMutex.Unlock()
+	a.verifyingProof = false
 }
 
 // resetVerifyProofTime updates the timeout to verify a proof.
 func (a *Aggregator) resetVerifyProofTime() {
 	a.TimeSendFinalProofMutex.Lock()
 	defer a.TimeSendFinalProofMutex.Unlock()
+	a.verifyingProof = false
 	a.TimeSendFinalProof = time.Now().Add(a.cfg.VerifyProofInterval.Duration)
 }
 
