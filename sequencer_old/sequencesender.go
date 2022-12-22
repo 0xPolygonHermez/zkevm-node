@@ -69,7 +69,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 
 	currentBatchNumToSequence := lastVirtualBatchNum + 1
 	sequences := []types.Sequence{}
-	// var estimatedGas uint64
+	var estimatedGas uint64
 
 	var tx *ethtypes.Transaction
 
@@ -118,7 +118,7 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 			}
 			return sequences, err
 		}
-		// estimatedGas = tx.Gas()
+		estimatedGas = tx.Gas()
 
 		// Increase batch num for next iteration
 		currentBatchNumToSequence++
@@ -136,11 +136,11 @@ func (s *Sequencer) getSequencesToSend(ctx context.Context) ([]types.Sequence, e
 		return sequences, nil
 	}
 	if lastBatchVirtualizationTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
-		// TODO: implement check profitability
-		// if s.checker.IsSendSequencesProfitable(new(big.Int).SetUint64(estimatedGas), sequences) {
-		log.Info("sequence should be sent to L1, because too long since didn't send anything to L1")
-		return sequences, nil
-		//}
+		// check profitability
+		if s.checker.IsSendSequencesProfitable(new(big.Int).SetUint64(estimatedGas), sequences) {
+			log.Info("sequence should be sent to L1, because too long since didn't send anything to L1")
+			return sequences, nil
+		}
 	}
 
 	log.Info("not enough time has passed since last batch was virtualized, and the sequence could be bigger")

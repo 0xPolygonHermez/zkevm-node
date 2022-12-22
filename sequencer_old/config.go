@@ -6,7 +6,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	base "github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer_old/profitabilitychecker"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 )
 
 // Config represents the configuration of a sequencer

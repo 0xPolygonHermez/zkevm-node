@@ -2,13 +2,17 @@ package sequencer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/profitabilitychecker"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 // Sequencer represents a sequencer
@@ -19,23 +23,39 @@ type Sequencer struct {
 	state     stateInterface
 	txManager txManager
 	etherman  etherman
+	checker   *profitabilitychecker.Checker
+	gpe       gasPriceEstimator
 
 	address common.Address
+
+	sequenceInProgress types.Sequence
 }
 
 // New init sequencer
-func New(cfg Config, txPool txPool, state stateInterface, etherman etherman, manager txManager) (*Sequencer, error) {
+func New(
+	cfg Config,
+	txPool txPool,
+	state stateInterface,
+	etherman etherman,
+	priceGetter priceGetter,
+	manager txManager,
+	gpe gasPriceEstimator) (*Sequencer, error) {
+	checker := profitabilitychecker.New(cfg.ProfitabilityChecker, etherman, priceGetter)
+
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
+	// TODO: check that private key used in etherman matches addr
 
 	return &Sequencer{
 		cfg:       cfg,
 		pool:      txPool,
 		state:     state,
 		etherman:  etherman,
+		checker:   checker,
 		txManager: manager,
+		gpe:       gpe,
 		address:   addr,
 	}, nil
 }
@@ -48,26 +68,37 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	metrics.Register()
-
-	// TODO: Initialize structs and components keeping in consideration if it is genesis
-	// or we already have some batches, maybe one of them in progress
-
-	worker := newWorker()
-	dbManager := newDBManager(s.pool, s.state, worker)
-	go dbManager.Start()
-
-	finalizer := newFinalizer(worker, dbManager, s.state)
-	go finalizer.Start()
-
-	closingSignalsManager := newClosingSignalsManager(finalizer)
-	go closingSignalsManager.Start()
+	// initialize sequence
+	batchNum, err := s.state.GetLastBatchNumber(ctx, nil)
+	for err != nil {
+		if errors.Is(err, state.ErrStateNotSynchronized) {
+			log.Warnf("state is not synchronized, trying to get last batch num once again...")
+			time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
+			batchNum, err = s.state.GetLastBatchNumber(ctx, nil)
+		} else {
+			log.Fatalf("failed to get last batch number, err: %v", err)
+		}
+	}
+	// case A: genesis
+	if batchNum == 0 {
+		s.createFirstBatch(ctx)
+	} else {
+		err = s.loadSequenceFromState(ctx)
+		if err != nil {
+			log.Fatalf("failed to load sequence from the state, err: %v", err)
+		}
+	}
 
 	go s.trackOldTxs(ctx)
 	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
 	tickerSendSequence := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
 	defer tickerProcessTxs.Stop()
 	defer tickerSendSequence.Stop()
-
+	go func() {
+		for {
+			s.tryToProcessTx(ctx, tickerProcessTxs)
+		}
+	}()
 	go func() {
 		for {
 			s.tryToSendSequence(ctx, tickerSendSequence)
@@ -125,7 +156,6 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	return true
 }
 
-/*
 func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 	// Check if synchronizer is up to date
 	for !s.isSynced(ctx) {
@@ -195,9 +225,10 @@ func (s *Sequencer) loadSequenceFromState(ctx context.Context) error {
 	}
 
 	return nil
-
+	/*
+		TODO: deal with ongoing L1 txs
+	*/
 }
-
 
 func (s *Sequencer) createFirstBatch(ctx context.Context) {
 	log.Infof("starting sequencer with genesis batch")
@@ -230,4 +261,3 @@ func (s *Sequencer) createFirstBatch(ctx context.Context) {
 		Txs:            []ethTypes.Transaction{},
 	}
 }
-*/
