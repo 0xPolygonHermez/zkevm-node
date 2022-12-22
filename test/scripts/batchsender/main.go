@@ -155,7 +155,7 @@ func sendBatches(cliCtx *cli.Context) error {
 	}
 
 	for i := 0; i < ns; i++ {
-		currentBlock, err := ethMan.EtherClient.BlockByNumber(ctx, nil)
+		currentBlock, err := ethMan.EthClient.BlockByNumber(ctx, nil)
 		if err != nil {
 			return err
 		}
@@ -199,7 +199,7 @@ func sendBatches(cliCtx *cli.Context) error {
 		done := make(chan struct{})
 
 		for _, tx := range sentTxs {
-			err := operations.WaitTxToBeMined(ctx, ethMan.EtherClient, tx, miningTimeout)
+			err := operations.WaitTxToBeMined(ctx, ethMan.EthClient, tx, miningTimeout)
 			if err != nil {
 				return err
 			}
@@ -216,7 +216,7 @@ func sendBatches(cliCtx *cli.Context) error {
 			txLoop:
 				for _, tx := range sentTxs {
 					// get rollup tx block number
-					receipt, err := ethMan.EtherClient.TransactionReceipt(ctx, tx.Hash())
+					receipt, err := ethMan.EthClient.TransactionReceipt(ctx, tx.Hash())
 					if err != nil {
 						return err
 					}
@@ -228,7 +228,7 @@ func sendBatches(cliCtx *cli.Context) error {
 						ToBlock:   toBlock,
 						Addresses: ethMan.SCAddresses,
 					}
-					logs, err := ethMan.EtherClient.FilterLogs(ctx, query)
+					logs, err := ethMan.EthClient.FilterLogs(ctx, query)
 					if err != nil {
 						return err
 					}

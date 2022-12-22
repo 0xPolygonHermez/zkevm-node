@@ -2,27 +2,36 @@ package ethtxmanager
 
 import (
 	"context"
+	"math/big"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/db"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
-	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
-	"github.com/stretchr/testify/assert"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
 )
 
-func TestSequenceBatchesWithROEthman(t *testing.T) {
-	ethManRO, _, _, _, _ := ethman.NewSimulatedEtherman(ethman.Config{}, nil)
-	txMan := New(Config{}, ethManRO, nil)
+func TestSend(t *testing.T) {
+	etherman, _, _, _, _ := ethman.NewSimulatedEtherman(ethman.Config{}, nil)
 
-	err := txMan.SequenceBatches(context.Background(), []ethmanTypes.Sequence{})
+	cfg := Config{}
+	dbCfg := db.Config{}
+	storage, err := NewPostgresStorage(cfg, dbCfg)
+	require.NoError(t, err)
 
-	assert.ErrorIs(t, err, ethman.ErrIsReadOnlyMode)
-}
+	ethTxManagerClient := New(cfg, etherman, storage)
 
-func TestVerifyBatchesWithROEthman(t *testing.T) {
-	ethManRO, _, _, _, _ := ethman.NewSimulatedEtherman(ethman.Config{}, nil)
-	txMan := New(Config{}, ethManRO, nil)
+	id := "unique_id"
+	from := common.HexToAddress("")
+	to := common.HexToAddress("")
+	value := big.NewInt(0)
+	data := []byte{}
 
-	err := txMan.VerifyBatches(context.Background(), 41, 42, nil)
+	ctx := context.Background()
 
-	assert.ErrorIs(t, err, ethman.ErrIsReadOnlyMode)
+	require.NoError(t, ethTxManagerClient.Add(ctx, id, from, &to, value, data))
+
+	status, err := ethTxManagerClient.Status(ctx, id)
+	require.NoError(t, err)
+	require.NotNil(t, status)
 }

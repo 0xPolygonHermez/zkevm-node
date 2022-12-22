@@ -79,7 +79,12 @@ func start(cliCtx *cli.Context) error {
 	ctx := context.Background()
 	st := newState(ctx, c, l2ChainID, stateSqlDB)
 
-	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman, st)
+	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.EthTxManager, c.StateDB)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ethTxManager := ethtxmanager.New(c.EthTxManager, etherman, ethTxManagerStorage)
 
 	for _, item := range cliCtx.StringSlice(config.FlagComponents) {
 		switch item {

@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-type etherman interface {
+type ethermanInterface interface {
 	TrustedVerifyBatches(ctx context.Context, lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, gasLimit uint64, gasPrice, nonce *big.Int, noSend bool) (*types.Transaction, error)
 	EstimateGasForTrustedVerifyBatches(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (uint64, error)
 	SequenceBatches(ctx context.Context, sequences []ethmanTypes.Sequence, gasLimit uint64, gasPrice, nonce *big.Int, noSend bool) (*types.Transaction, error)
@@ -20,10 +20,15 @@ type etherman interface {
 	WaitTxToBeMined(ctx context.Context, tx *types.Transaction, timeout time.Duration) error
 	SendTx(ctx context.Context, tx *types.Transaction) error
 	CurrentNonce(ctx context.Context) (uint64, error)
+	SuggestedGasPrice(ctx context.Context) (*big.Int, error)
+	EstimateGas(ctx context.Context, from common.Address, to *common.Address, value *big.Int, data []byte) (uint64, error)
 	CheckTxWasMined(ctx context.Context, txHash common.Hash) (bool, *types.Receipt, error)
+	SignTx(ctx context.Context, tx *types.Transaction) (*types.Transaction, error)
 }
 
-type state interface {
-	WaitSequencingTxToBeSynced(parentCtx context.Context, tx *types.Transaction, timeout time.Duration) error
-	WaitVerifiedBatchToBeSynced(parentCtx context.Context, batchNumber uint64, timeout time.Duration) error
+type storageInterface interface {
+	Add(ctx context.Context, mTx monitoredTx) error
+	Get(ctx context.Context, id string) (monitoredTx, error)
+	GetByStatus(ctx context.Context, statuses ...MonitoredTxStatus) ([]monitoredTx, error)
+	Update(ctx context.Context, mTx monitoredTx) error
 }
