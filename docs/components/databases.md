@@ -54,21 +54,4 @@ zkevm-state-db:
       - POSTGRES_PASSWORD=pool_password
       - POSTGRES_DB=pool_db
     command: ["postgres", "-N", "500"]
-
-  zkevm-rpc-db:
-    container_name: zkevm-rpc-db
-    image: postgres
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
-    ports:
-      - 5434:5432
-    environment:
-      - POSTGRES_USER=rpc_user
-      - POSTGRES_PASSWORD=rpc_password
-      - POSTGRES_DB=rpc_db
-    command: ["postgres", "-N", "500"]
 ```
