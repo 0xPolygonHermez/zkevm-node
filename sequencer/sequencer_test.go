@@ -209,8 +209,8 @@ package sequencer
 // 	_, err = stateDb.Exec(ctx, sqlAddBlock, 2, time.Now(), "") // for use in lastVirtualized time
 // 	require.NoError(t, err)
 
-// 	const sqlAddExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root, timestamp) VALUES ($1, $2, $3, $4, $5)"
-// 	_, err = stateDb.Exec(ctx, sqlAddExitRoots, 1, common.Address{}, mainnetExitRoot, rollupExitRoot, time.Now())
+// 	const sqlAddExitRoots = "INSERT INTO state.exit_root (block_num, global_exit_root, mainnet_exit_root, rollup_exit_root) VALUES ($1, $2, $3, $4)"
+// 	_, err = stateDb.Exec(ctx, sqlAddExitRoots, 1, common.Address{}, mainnetExitRoot, rollupExitRoot)
 // 	require.NoError(t, err)
 
 // 	for _, testCase := range testcases {
